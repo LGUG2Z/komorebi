@@ -1,0 +1,8 @@
+[workspace]
+
+members = [
+    "bindings",
+    "komorebi",
+    "komorebi-core",
+    "komorebic"
+]
