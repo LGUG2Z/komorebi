@@ -30,9 +30,11 @@ enum SubCommand {
     FocusMonitor(Target),
     FocusWorkspace(Target),
     Promote,
+    EnsureWorkspaces(WorkspaceCountForMonitor),
     Retile,
     ContainerPadding(SizeForMonitorWorkspace),
     WorkspacePadding(SizeForMonitorWorkspace),
+    WorkspaceLayout(LayoutForMonitorWorkspace),
     WorkspaceName(NameForMonitorWorkspace),
     ToggleFloat,
     TogglePause,
@@ -45,7 +47,12 @@ enum SubCommand {
     AdjustContainerPadding(SizingAdjustment),
     AdjustWorkspacePadding(SizingAdjustment),
     FlipLayout(LayoutFlip),
-    Layout(LayoutForMonitorWorkspace),
+}
+
+#[derive(Clap)]
+struct WorkspaceCountForMonitor {
+    monitor: usize,
+    workspace_count: usize,
 }
 
 #[derive(Clap)]
@@ -174,10 +181,11 @@ fn main() -> Result<()> {
             let bytes = SocketMessage::ToggleMonocle.as_bytes()?;
             send_message(&*bytes);
         }
-        SubCommand::Layout(layout) => {
-            let bytes = SocketMessage::SetLayout(layout.monitor, layout.workspace, layout.layout)
-                .as_bytes()
-                .unwrap();
+        SubCommand::WorkspaceLayout(layout) => {
+            let bytes =
+                SocketMessage::WorkspaceLayout(layout.monitor, layout.workspace, layout.layout)
+                    .as_bytes()
+                    .unwrap();
             send_message(&*bytes);
         }
         SubCommand::Start => {
@@ -239,6 +247,13 @@ fn main() -> Result<()> {
             let bytes = SocketMessage::WorkspaceName(name.monitor, name.workspace, name.value)
                 .as_bytes()
                 .unwrap();
+            send_message(&*bytes);
+        }
+        SubCommand::EnsureWorkspaces(workspaces) => {
+            let bytes =
+                SocketMessage::EnsureWorkspaces(workspaces.monitor, workspaces.workspace_count)
+                    .as_bytes()
+                    .unwrap();
             send_message(&*bytes);
         }
     }

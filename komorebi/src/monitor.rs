@@ -53,6 +53,13 @@ impl Monitor {
         Ok(())
     }
 
+    pub fn ensure_workspace_count(&mut self, ensure_count: usize) {
+        if self.workspaces().len() < ensure_count {
+            self.workspaces_mut()
+                .resize(ensure_count, Workspace::default());
+        }
+    }
+
     pub fn move_container_to_workspace(
         &mut self,
         target_workspace_idx: usize,

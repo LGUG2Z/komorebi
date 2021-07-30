@@ -125,7 +125,7 @@ impl WindowManager {
                 }
                 SocketMessage::FlipLayout(layout_flip) => self.flip_layout(layout_flip)?,
                 SocketMessage::ChangeLayout(layout) => self.change_workspace_layout(layout)?,
-                SocketMessage::SetLayout(monitor_idx, workspace_idx, layout) => {
+                SocketMessage::WorkspaceLayout(monitor_idx, workspace_idx, layout) => {
                     self.set_workspace_layout(monitor_idx, workspace_idx, layout)?;
                 }
                 SocketMessage::FocusWorkspaceNumber(workspace_idx) => {
@@ -135,6 +135,9 @@ impl WindowManager {
                     tracing::error!("received stop command, restoring all hidden windows and terminating process");
                     self.restore_all_windows();
                     std::process::exit(0)
+                }
+                SocketMessage::EnsureWorkspaces(monitor_idx, workspace_count) => {
+                    self.ensure_workspaces_for_monitor(monitor_idx, workspace_count)?;
                 }
                 SocketMessage::WorkspaceName(monitor_idx, workspace_idx, name) => {
                     self.set_workspace_name(monitor_idx, workspace_idx, name)?;

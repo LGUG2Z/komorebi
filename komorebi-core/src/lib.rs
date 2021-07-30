@@ -37,6 +37,7 @@ pub enum SocketMessage {
     ChangeLayout(Layout),
     FlipLayout(LayoutFlip),
     // Monitor and Workspace Commands
+    EnsureWorkspaces(usize, usize),
     Stop,
     TogglePause,
     Retile,
@@ -45,7 +46,7 @@ pub enum SocketMessage {
     ContainerPadding(usize, usize, i32),
     WorkspacePadding(usize, usize, i32),
     WorkspaceName(usize, usize, String),
-    SetLayout(usize, usize, Layout),
+    WorkspaceLayout(usize, usize, Layout),
     // Configuration
     FloatClass(String),
     FloatExe(String),

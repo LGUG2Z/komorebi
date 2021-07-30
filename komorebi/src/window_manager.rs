@@ -387,6 +387,21 @@ impl WindowManager {
         }
     }
 
+    pub fn ensure_workspaces_for_monitor(
+        &mut self,
+        monitor_idx: usize,
+        workspace_count: usize,
+    ) -> Result<()> {
+        let monitor = self
+            .monitors_mut()
+            .get_mut(monitor_idx)
+            .context("there is no monitor")?;
+
+        monitor.ensure_workspace_count(workspace_count);
+
+        Ok(())
+    }
+
     pub fn set_workspace_padding(
         &mut self,
         monitor_idx: usize,
