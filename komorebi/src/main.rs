@@ -45,7 +45,8 @@ lazy_static! {
         "explorer.exe".to_string(),
         "firefox.exe".to_string(),
         "chrome.exe".to_string(),
-        "idea64.exe".to_string()
+        "idea64.exe".to_string(),
+        "ApplicationFrameHost.exe".to_string()
     ]));
 }
 
