@@ -31,6 +31,7 @@ pub fn listen_for_events(wm: Arc<Mutex<WindowManager>>) {
 }
 
 impl WindowManager {
+    #[allow(clippy::too_many_lines)]
     pub fn process_event(&mut self, event: &mut WindowManagerEvent) -> Result<()> {
         if self.is_paused {
             tracing::info!("ignoring events while paused");
@@ -105,6 +106,21 @@ impl WindowManager {
                     .focus_container_by_window(window.hwnd)?;
             }
             WindowManagerEvent::Show(_, window) => {
+                let mut switch_to = None;
+                for (i, monitors) in self.monitors().iter().enumerate() {
+                    for (j, workspace) in monitors.workspaces().iter().enumerate() {
+                        if workspace.contains_window(window.hwnd) {
+                            switch_to = Some((i, j));
+                        }
+                    }
+                }
+
+                if let Some(indices) = switch_to {
+                    self.focus_monitor(indices.0)?;
+                    self.focus_workspace(indices.1)?;
+                    return Ok(());
+                }
+
                 let workspace = self.focused_workspace_mut()?;
 
                 if workspace.containers().is_empty() || !workspace.contains_window(window.hwnd) {
