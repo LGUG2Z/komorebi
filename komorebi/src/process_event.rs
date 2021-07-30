@@ -52,7 +52,7 @@ impl WindowManager {
         }
 
         for (i, monitor) in self.monitors_mut().iter_mut().enumerate() {
-            let work_area = monitor.work_area_size().clone();
+            let work_area = *monitor.work_area_size();
             for (j, workspace) in monitor.workspaces_mut().iter_mut().enumerate() {
                 let reaped_orphans = workspace.reap_orphans()?;
                 if reaped_orphans.0 > 0 || reaped_orphans.1 > 0 {
@@ -89,9 +89,19 @@ impl WindowManager {
                     self.update_focused_workspace(false)?;
                 }
             }
-            WindowManagerEvent::FocusChange(_, window) => self
-                .focused_workspace_mut()?
-                .focus_container_by_window(window.hwnd)?,
+            WindowManagerEvent::FocusChange(_, window) => {
+                let workspace = self.focused_workspace_mut()?;
+                if workspace
+                    .floating_windows()
+                    .iter()
+                    .any(|w| w.hwnd == window.hwnd)
+                {
+                    return Ok(());
+                }
+
+                self.focused_workspace_mut()?
+                    .focus_container_by_window(window.hwnd)?;
+            }
             WindowManagerEvent::Show(_, window) => {
                 let workspace = self.focused_workspace_mut()?;
 
@@ -103,8 +113,16 @@ impl WindowManager {
             WindowManagerEvent::MoveResizeStart(_, _window) => {
                 // TODO: Implement dragging resize (one day)
             }
-            WindowManagerEvent::MoveResizeEnd(_, _window) => {
+            WindowManagerEvent::MoveResizeEnd(_, window) => {
                 let workspace = self.focused_workspace_mut()?;
+                if workspace
+                    .floating_windows()
+                    .iter()
+                    .any(|w| w.hwnd == window.hwnd)
+                {
+                    return Ok(());
+                }
+
                 let focused_idx = workspace.focused_container_idx();
 
                 match workspace.container_idx_from_current_point() {

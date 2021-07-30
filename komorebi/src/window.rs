@@ -50,8 +50,42 @@ impl Window {
         HWND(self.hwnd)
     }
 
-    pub fn set_position(&mut self, layout: &Rect) -> Result<()> {
-        WindowsApi::set_window_pos(self.hwnd(), layout)
+    pub fn set_position(&mut self, layout: &Rect, top: bool) -> Result<()> {
+        // NOTE: This is how the border variable below was calculated; every time this code was
+        // run on any window in any position, the generated border was always the same, so I am
+        // hard coding the border Rect to avoid two calls to set_window_pos and making the screen
+        // flicker on container/window movement. Still not 100% sure if this is DPI-aware.
+
+        // Set the new position first to be able to get the extended frame bounds
+        // WindowsApi::set_window_pos(self.hwnd(), layout, false, false)?;
+        // let mut rect = WindowsApi::window_rect(self.hwnd())?;
+
+        // Get the extended frame bounds of the new position
+        // let frame = WindowsApi::window_rect_with_extended_frame_bounds(self.hwnd())?;
+
+        // Calculate the invisible border diff
+        // let border = Rect {
+        //     left: frame.left - rect.left,
+        //     top: frame.top - rect.top,
+        //     right: rect.right - frame.right,
+        //     bottom: rect.bottom - frame.bottom,
+        // };
+
+        let mut rect = *layout;
+        let border = Rect {
+            left: 12,
+            top: 0,
+            right: 24,
+            bottom: 12,
+        };
+
+        // Remove the invisible border
+        rect.left -= border.left;
+        rect.top -= border.top;
+        rect.right += border.right;
+        rect.bottom += border.bottom;
+
+        WindowsApi::position_window(self.hwnd(), &rect, top)
     }
 
     pub fn hide(&self) {

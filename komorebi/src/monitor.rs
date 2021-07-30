@@ -30,15 +30,17 @@ pub fn new(id: isize, monitor_size: Rect, work_area_size: Rect) -> Monitor {
 }
 
 impl Monitor {
-    pub fn load_focused_workspace(&mut self) {
+    pub fn load_focused_workspace(&mut self) -> Result<()> {
         let focused_idx = self.focused_workspace_idx();
         for (i, workspace) in self.workspaces_mut().iter_mut().enumerate() {
             if i == focused_idx {
-                workspace.restore();
+                workspace.restore()?;
             } else {
                 workspace.hide();
             }
         }
+
+        Ok(())
     }
 
     pub fn add_container(&mut self, container: Container) -> Result<()> {
@@ -121,7 +123,7 @@ impl Monitor {
 
     pub fn update_focused_workspace(&mut self) -> Result<()> {
         tracing::info!("updating workspace: {}", self.focused_workspace_idx());
-        let work_area = self.work_area_size().clone();
+        let work_area = *self.work_area_size();
 
         self.focused_workspace_mut()
             .context("there is no workspace")?

@@ -106,7 +106,7 @@ impl WindowManager {
             .context("there is no monitor")?;
 
         target_monitor.add_container(container)?;
-        target_monitor.load_focused_workspace();
+        target_monitor.load_focused_workspace()?;
 
         if follow {
             self.focus_monitor(idx)?;
@@ -118,7 +118,7 @@ impl WindowManager {
     pub fn move_container_to_workspace(&mut self, idx: usize, follow: bool) -> Result<()> {
         let monitor = self.focused_monitor_mut().context("there is no monitor")?;
         monitor.move_container_to_workspace(idx, follow)?;
-        monitor.load_focused_workspace();
+        monitor.load_focused_workspace()?;
         self.update_focused_workspace(true)
     }
 
@@ -210,7 +210,7 @@ impl WindowManager {
     }
 
     pub fn toggle_float(&mut self) -> Result<()> {
-        let hwnd = WindowsApi::foreground_window()?;
+        let hwnd = WindowsApi::top_visible_window()?;
         let workspace = self.focused_workspace_mut()?;
 
         let mut is_floating_window = false;
@@ -222,12 +222,14 @@ impl WindowManager {
         }
 
         if is_floating_window {
+            tracing::info!("unfloating window");
             self.unfloat_window()?;
+            self.update_focused_workspace(true)
         } else {
+            tracing::info!("floating window");
             self.float_window()?;
+            self.update_focused_workspace(false)
         }
-
-        self.update_focused_workspace(true)
     }
 
     pub fn float_window(&mut self) -> Result<()> {
@@ -251,7 +253,7 @@ impl WindowManager {
             bottom: half_weight,
         };
 
-        window.set_position(&center)?;
+        window.set_position(&center, true)?;
         window.focus()?;
 
         Ok(())
@@ -270,7 +272,7 @@ impl WindowManager {
             Some(_) => self.monocle_off()?,
         }
 
-        self.update_focused_workspace(true)
+        self.update_focused_workspace(false)
     }
 
     pub fn monocle_on(&mut self) -> Result<()> {
@@ -366,7 +368,7 @@ impl WindowManager {
             .get_mut(monitor_idx)
             .context("there is no monitor")?;
 
-        let work_area = monitor.work_area_size().clone();
+        let work_area = *monitor.work_area_size();
         let focused_workspace_idx = monitor.focused_workspace_idx();
 
         let workspace = monitor
@@ -472,11 +474,10 @@ impl WindowManager {
     }
 
     pub fn focused_monitor_work_area(&self) -> Result<Rect> {
-        Ok(self
+        Ok(*self
             .focused_monitor()
             .context("there is no monitor")?
-            .work_area_size()
-            .clone())
+            .work_area_size())
     }
 
     pub fn focus_monitor(&mut self, idx: usize) -> Result<()> {
@@ -521,7 +522,7 @@ impl WindowManager {
             .context("there is no workspace")?;
 
         monitor.focus_workspace(idx)?;
-        monitor.load_focused_workspace();
+        monitor.load_focused_workspace()?;
 
         self.update_focused_workspace(true)
     }

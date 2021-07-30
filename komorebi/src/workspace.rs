@@ -37,8 +37,8 @@ impl Default for Workspace {
             floating_windows: Vec::default(),
             layout: Layout::BSP,
             layout_flip: None,
-            workspace_padding: Option::from(20),
-            container_padding: Option::from(5),
+            workspace_padding: Option::from(10),
+            container_padding: Option::from(10),
             latest_layout: vec![],
         }
     }
@@ -53,22 +53,28 @@ impl Workspace {
         }
     }
 
-    pub fn restore(&mut self) {
-        for container in self.containers_mut() {
+    pub fn restore(&mut self) -> Result<()> {
+        let idx = self.focused_container_idx();
+        for (i, container) in self.containers_mut().iter_mut().enumerate() {
             if let Some(window) = container.visible_window_mut() {
                 window.restore();
+
+                if idx == i {
+                    window.focus()?;
+                }
             }
         }
+
+        Ok(())
     }
 
     pub fn update(&mut self, work_area: &Rect) -> Result<()> {
-        let mut adjusted_work_area = work_area.clone();
+        let mut adjusted_work_area = *work_area;
         adjusted_work_area.add_padding(self.workspace_padding());
 
         if let Some(container) = self.monocle_container_mut() {
             if let Some(window) = container.focused_window_mut() {
-                window.set_position(&adjusted_work_area)?;
-                window.focus()?;
+                window.set_position(&adjusted_work_area, true)?;
             }
         } else {
             let layouts = self.layout().calculate(
@@ -81,7 +87,7 @@ impl Workspace {
             let windows = self.visible_windows_mut();
             for (i, window) in windows.into_iter().enumerate() {
                 if let (Some(window), Some(layout)) = (window, layouts.get(i)) {
-                    window.set_position(layout)?;
+                    window.set_position(layout, false)?;
                 }
             }
 
@@ -453,7 +459,7 @@ impl Workspace {
     }
 
     pub fn remove_focused_floating_window(&mut self) -> Option<Window> {
-        let hwnd = WindowsApi::foreground_window().ok()?;
+        let hwnd = WindowsApi::top_visible_window().ok()?;
 
         let mut idx = None;
         for (i, window) in self.floating_windows.iter().enumerate() {

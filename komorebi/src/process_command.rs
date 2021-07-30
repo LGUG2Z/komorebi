@@ -116,7 +116,7 @@ impl WindowManager {
                 }
                 SocketMessage::Retile => {
                     for monitor in self.monitors_mut() {
-                        let work_area = monitor.work_area_size().clone();
+                        let work_area = *monitor.work_area_size();
                         monitor
                             .focused_workspace_mut()
                             .context("there is no workspace")?

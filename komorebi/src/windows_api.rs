@@ -12,17 +12,22 @@ use bindings::Windows::Win32::Foundation::HWND;
 use bindings::Windows::Win32::Foundation::LPARAM;
 use bindings::Windows::Win32::Foundation::POINT;
 use bindings::Windows::Win32::Foundation::PWSTR;
+use bindings::Windows::Win32::Foundation::RECT;
 use bindings::Windows::Win32::Graphics::Dwm::DwmGetWindowAttribute;
 use bindings::Windows::Win32::Graphics::Dwm::DWMWA_CLOAKED;
+use bindings::Windows::Win32::Graphics::Dwm::DWMWA_EXTENDED_FRAME_BOUNDS;
+use bindings::Windows::Win32::Graphics::Dwm::DWMWINDOWATTRIBUTE;
 use bindings::Windows::Win32::Graphics::Dwm::DWM_CLOAKED_APP;
 use bindings::Windows::Win32::Graphics::Dwm::DWM_CLOAKED_INHERITED;
 use bindings::Windows::Win32::Graphics::Dwm::DWM_CLOAKED_SHELL;
 use bindings::Windows::Win32::Graphics::Gdi::EnumDisplayMonitors;
+use bindings::Windows::Win32::Graphics::Gdi::GetMonitorInfoW;
 use bindings::Windows::Win32::Graphics::Gdi::MonitorFromWindow;
 use bindings::Windows::Win32::Graphics::Gdi::HDC;
+use bindings::Windows::Win32::Graphics::Gdi::HMONITOR;
 use bindings::Windows::Win32::Graphics::Gdi::MONITORENUMPROC;
+use bindings::Windows::Win32::Graphics::Gdi::MONITORINFO;
 use bindings::Windows::Win32::Graphics::Gdi::MONITOR_DEFAULTTONEAREST;
-use bindings::Windows::Win32::Graphics::Gdi::{GetMonitorInfoW, HMONITOR, MONITORINFO};
 use bindings::Windows::Win32::System::Threading::AttachThreadInput;
 use bindings::Windows::Win32::System::Threading::GetCurrentProcessId;
 use bindings::Windows::Win32::System::Threading::GetCurrentThreadId;
@@ -35,7 +40,8 @@ use bindings::Windows::Win32::UI::KeyboardAndMouseInput::SetFocus;
 use bindings::Windows::Win32::UI::WindowsAndMessaging::AllowSetForegroundWindow;
 use bindings::Windows::Win32::UI::WindowsAndMessaging::EnumWindows;
 use bindings::Windows::Win32::UI::WindowsAndMessaging::GetCursorPos;
-use bindings::Windows::Win32::UI::WindowsAndMessaging::GetForegroundWindow;
+use bindings::Windows::Win32::UI::WindowsAndMessaging::GetTopWindow;
+use bindings::Windows::Win32::UI::WindowsAndMessaging::GetWindow;
 use bindings::Windows::Win32::UI::WindowsAndMessaging::GetWindowLongPtrW;
 use bindings::Windows::Win32::UI::WindowsAndMessaging::GetWindowRect;
 use bindings::Windows::Win32::UI::WindowsAndMessaging::GetWindowTextW;
@@ -51,9 +57,11 @@ use bindings::Windows::Win32::UI::WindowsAndMessaging::SetWindowPos;
 use bindings::Windows::Win32::UI::WindowsAndMessaging::ShowWindow;
 use bindings::Windows::Win32::UI::WindowsAndMessaging::GWL_EXSTYLE;
 use bindings::Windows::Win32::UI::WindowsAndMessaging::GWL_STYLE;
+use bindings::Windows::Win32::UI::WindowsAndMessaging::GW_HWNDNEXT;
 use bindings::Windows::Win32::UI::WindowsAndMessaging::HWND_NOTOPMOST;
+use bindings::Windows::Win32::UI::WindowsAndMessaging::HWND_TOPMOST;
+use bindings::Windows::Win32::UI::WindowsAndMessaging::SET_WINDOW_POS_FLAGS;
 use bindings::Windows::Win32::UI::WindowsAndMessaging::SHOW_WINDOW_CMD;
-use bindings::Windows::Win32::UI::WindowsAndMessaging::SWP_NOACTIVATE;
 use bindings::Windows::Win32::UI::WindowsAndMessaging::SW_HIDE;
 use bindings::Windows::Win32::UI::WindowsAndMessaging::SW_RESTORE;
 use bindings::Windows::Win32::UI::WindowsAndMessaging::WINDOW_LONG_PTR_INDEX;
@@ -61,10 +69,12 @@ use bindings::Windows::Win32::UI::WindowsAndMessaging::WNDENUMPROC;
 use komorebi_core::Rect;
 
 use crate::container::Container;
+use crate::monitor;
 use crate::monitor::Monitor;
 use crate::ring::Ring;
+use crate::set_window_position::SetWindowPosition;
+use crate::windows_callbacks;
 use crate::workspace::Workspace;
-use crate::{monitor, windows_callbacks};
 
 pub enum WindowsResult<T, E> {
     Err(E),
@@ -211,16 +221,23 @@ impl WindowsApi {
         unsafe { MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST) }.0
     }
 
-    pub fn set_window_pos(hwnd: HWND, layout: &Rect) -> Result<()> {
+    pub fn position_window(hwnd: HWND, layout: &Rect, top: bool) -> Result<()> {
+        let flags = SetWindowPosition::NO_ACTIVATE;
+
+        let position = if top { HWND_TOPMOST } else { HWND_NOTOPMOST };
+        Self::set_window_pos(hwnd, layout, position, flags.bits())
+    }
+
+    pub fn set_window_pos(hwnd: HWND, layout: &Rect, position: HWND, flags: u32) -> Result<()> {
         Result::from(WindowsResult::from(unsafe {
             SetWindowPos(
                 hwnd,
-                HWND_NOTOPMOST,
+                position,
                 layout.left,
                 layout.top,
                 layout.right,
                 layout.bottom,
-                SWP_NOACTIVATE,
+                SET_WINDOW_POS_FLAGS(flags),
             )
         }))
     }
@@ -255,8 +272,29 @@ impl WindowsApi {
         }
     }
 
-    pub fn foreground_window() -> Result<isize> {
-        Result::from(WindowsResult::from(unsafe { GetForegroundWindow().0 }))
+    pub fn top_window() -> Result<isize> {
+        Result::from(WindowsResult::from(unsafe { GetTopWindow(HWND::NULL).0 }))
+    }
+
+    pub fn next_window(hwnd: HWND) -> Result<isize> {
+        Result::from(WindowsResult::from(unsafe {
+            GetWindow(hwnd, GW_HWNDNEXT).0
+        }))
+    }
+
+    pub fn top_visible_window() -> Result<isize> {
+        let hwnd = Self::top_window()?;
+        let mut next_hwnd = hwnd;
+
+        while next_hwnd != 0 {
+            if Self::is_window_visible(HWND(next_hwnd)) {
+                return Ok(next_hwnd);
+            }
+
+            next_hwnd = Self::next_window(HWND(next_hwnd))?;
+        }
+
+        Err(eyre::anyhow!("could not find next window"))
     }
 
     pub fn window_rect(hwnd: HWND) -> Result<Rect> {
@@ -417,17 +455,34 @@ impl WindowsApi {
         Ok(String::from_utf16(&class[0..len as usize])?)
     }
 
-    pub fn is_window_cloaked(hwnd: HWND) -> Result<bool> {
-        let mut cloaked: u32 = 0;
-
+    pub fn dwm_get_window_attribute<T>(
+        hwnd: HWND,
+        attribute: DWMWINDOWATTRIBUTE,
+        value: &mut T,
+    ) -> Result<()> {
         unsafe {
             DwmGetWindowAttribute(
                 hwnd,
-                std::mem::transmute::<_, u32>(DWMWA_CLOAKED),
-                (&mut cloaked as *mut u32).cast(),
-                u32::try_from(std::mem::size_of::<u32>())?,
+                std::mem::transmute::<_, u32>(attribute),
+                (value as *mut T).cast(),
+                u32::try_from(std::mem::size_of::<T>())?,
             )?;
         }
+
+        Ok(())
+    }
+
+    #[allow(dead_code)]
+    pub fn window_rect_with_extended_frame_bounds(hwnd: HWND) -> Result<Rect> {
+        let mut rect = RECT::default();
+        Self::dwm_get_window_attribute(hwnd, DWMWA_EXTENDED_FRAME_BOUNDS, &mut rect)?;
+
+        Ok(Rect::from(rect))
+    }
+
+    pub fn is_window_cloaked(hwnd: HWND) -> Result<bool> {
+        let mut cloaked: u32 = 0;
+        Self::dwm_get_window_attribute(hwnd, DWMWA_CLOAKED, &mut cloaked)?;
 
         Ok(matches!(
             cloaked,

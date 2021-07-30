@@ -24,6 +24,7 @@ mod monitor;
 mod process_command;
 mod process_event;
 mod ring;
+mod set_window_position;
 mod styles;
 mod window;
 mod window_manager;
@@ -117,6 +118,7 @@ fn main() -> Result<()> {
             tracing::error!(
                 "received ctrl-c, restoring all hidden windows and terminating process"
             );
+
             wm.lock().unwrap().restore_all_windows();
             std::process::exit(130);
         }

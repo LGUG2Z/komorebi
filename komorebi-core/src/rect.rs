@@ -1,6 +1,6 @@
 use bindings::Windows::Win32::Foundation::RECT;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub struct Rect {
     pub left: i32,
     pub top: i32,
