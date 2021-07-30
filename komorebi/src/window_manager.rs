@@ -6,6 +6,7 @@ use std::sync::Mutex;
 use color_eyre::eyre::ContextCompat;
 use color_eyre::Result;
 use crossbeam_channel::Receiver;
+use serde::Serialize;
 use uds_windows::UnixListener;
 
 use komorebi_core::CycleDirection;
@@ -23,10 +24,12 @@ use crate::window_manager_event::WindowManagerEvent;
 use crate::windows_api::WindowsApi;
 use crate::workspace::Workspace;
 
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 pub struct WindowManager {
     pub monitors: Ring<Monitor>,
+    #[serde(skip_serializing)]
     pub incoming_events: Arc<Mutex<Receiver<WindowManagerEvent>>>,
+    #[serde(skip_serializing)]
     pub command_listener: UnixListener,
     pub is_paused: bool,
 }

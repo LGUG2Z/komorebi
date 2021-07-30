@@ -4,6 +4,9 @@ use std::fmt::Formatter;
 
 use color_eyre::eyre::ContextCompat;
 use color_eyre::Result;
+use serde::ser::SerializeStruct;
+use serde::Serialize;
+use serde::Serializer;
 
 use bindings::Windows::Win32::Foundation::HWND;
 use komorebi_core::Rect;
@@ -42,6 +45,24 @@ impl Display for Window {
         display.push(')');
 
         write!(f, "{}", display)
+    }
+}
+
+impl Serialize for Window {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut state = serializer.serialize_struct("Window", 5)?;
+        state.serialize_field("hwnd", &self.hwnd)?;
+        state.serialize_field("title", &self.title().expect("could not get window title"))?;
+        state.serialize_field("exe", &self.exe().expect("could not get window exe"))?;
+        state.serialize_field("class", &self.class().expect("could not get window class"))?;
+        state.serialize_field(
+            "rect",
+            &WindowsApi::window_rect(self.hwnd()).expect("could not get window rect"),
+        )?;
+        state.end()
     }
 }
 

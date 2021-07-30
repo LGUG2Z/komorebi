@@ -51,7 +51,7 @@ pub enum SocketMessage {
     FloatClass(String),
     FloatExe(String),
     FloatTitle(String),
-    // TODO: Add some state query commands
+    State,
 }
 
 impl SocketMessage {

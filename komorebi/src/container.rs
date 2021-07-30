@@ -1,12 +1,14 @@
 use std::collections::VecDeque;
 
 use nanoid::nanoid;
+use serde::Serialize;
 
 use crate::ring::Ring;
 use crate::window::Window;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct Container {
+    #[serde(skip_serializing)]
     id: String,
     windows: Ring<Window>,
 }

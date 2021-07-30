@@ -1,7 +1,12 @@
+use std::io::BufRead;
+use std::io::BufReader;
+use std::io::ErrorKind;
 use std::io::Write;
 
 use clap::Clap;
+use color_eyre::eyre::ContextCompat;
 use color_eyre::Result;
+use uds_windows::UnixListener;
 use uds_windows::UnixStream;
 
 use komorebi_core::CycleDirection;
@@ -39,6 +44,7 @@ enum SubCommand {
     ToggleFloat,
     TogglePause,
     ToggleMonocle,
+    State,
     Start,
     Stop,
     FloatClass(FloatTarget),
@@ -92,19 +98,13 @@ struct FloatTarget {
     id: String,
 }
 
-pub fn send_message(bytes: &[u8]) {
-    let mut socket = dirs::home_dir().unwrap();
+pub fn send_message(bytes: &[u8]) -> Result<()> {
+    let mut socket = dirs::home_dir().context("there is no home directory")?;
     socket.push("komorebi.sock");
     let socket = socket.as_path();
 
-    let mut stream = match UnixStream::connect(&socket) {
-        Err(_) => panic!("server is not running"),
-        Ok(stream) => stream,
-    };
-
-    if stream.write_all(&*bytes).is_err() {
-        panic!("couldn't send message")
-    }
+    let mut stream = UnixStream::connect(&socket)?;
+    Ok(stream.write_all(&*bytes)?)
 }
 
 fn main() -> Result<()> {
@@ -113,47 +113,47 @@ fn main() -> Result<()> {
     match opts.subcmd {
         SubCommand::Focus(direction) => {
             let bytes = SocketMessage::FocusWindow(direction).as_bytes()?;
-            send_message(&*bytes);
+            send_message(&*bytes)?;
         }
         SubCommand::Promote => {
             let bytes = SocketMessage::Promote.as_bytes()?;
-            send_message(&*bytes);
+            send_message(&*bytes)?;
         }
         SubCommand::TogglePause => {
             let bytes = SocketMessage::TogglePause.as_bytes()?;
-            send_message(&*bytes);
+            send_message(&*bytes)?;
         }
         SubCommand::Retile => {
             let bytes = SocketMessage::Retile.as_bytes()?;
-            send_message(&*bytes);
+            send_message(&*bytes)?;
         }
         SubCommand::Move(direction) => {
             let bytes = SocketMessage::MoveWindow(direction).as_bytes()?;
-            send_message(&*bytes);
+            send_message(&*bytes)?;
         }
         SubCommand::MoveToMonitor(display) => {
             let bytes = SocketMessage::MoveContainerToMonitorNumber(display.number)
                 .as_bytes()
                 .unwrap();
-            send_message(&*bytes);
+            send_message(&*bytes)?;
         }
         SubCommand::MoveToWorkspace(workspace) => {
             let bytes = SocketMessage::MoveContainerToWorkspaceNumber(workspace.number)
                 .as_bytes()
                 .unwrap();
-            send_message(&*bytes);
+            send_message(&*bytes)?;
         }
         SubCommand::ContainerPadding(gap) => {
             let bytes = SocketMessage::ContainerPadding(gap.monitor, gap.workspace, gap.size)
                 .as_bytes()
                 .unwrap();
-            send_message(&*bytes);
+            send_message(&*bytes)?;
         }
         SubCommand::WorkspacePadding(gap) => {
             let bytes = SocketMessage::WorkspacePadding(gap.monitor, gap.workspace, gap.size)
                 .as_bytes()
                 .unwrap();
-            send_message(&*bytes);
+            send_message(&*bytes)?;
         }
         SubCommand::AdjustWorkspacePadding(sizing_adjustment) => {
             let bytes = SocketMessage::AdjustWorkspacePadding(
@@ -162,7 +162,7 @@ fn main() -> Result<()> {
             )
             .as_bytes()
             .unwrap();
-            send_message(&*bytes);
+            send_message(&*bytes)?;
         }
         SubCommand::AdjustContainerPadding(sizing_adjustment) => {
             let bytes = SocketMessage::AdjustContainerPadding(
@@ -171,22 +171,22 @@ fn main() -> Result<()> {
             )
             .as_bytes()
             .unwrap();
-            send_message(&*bytes);
+            send_message(&*bytes)?;
         }
         SubCommand::ToggleFloat => {
             let bytes = SocketMessage::ToggleFloat.as_bytes()?;
-            send_message(&*bytes);
+            send_message(&*bytes)?;
         }
         SubCommand::ToggleMonocle => {
             let bytes = SocketMessage::ToggleMonocle.as_bytes()?;
-            send_message(&*bytes);
+            send_message(&*bytes)?;
         }
         SubCommand::WorkspaceLayout(layout) => {
             let bytes =
                 SocketMessage::WorkspaceLayout(layout.monitor, layout.workspace, layout.layout)
                     .as_bytes()
                     .unwrap();
-            send_message(&*bytes);
+            send_message(&*bytes)?;
         }
         SubCommand::Start => {
             let script = r#"Start-Process komorebi -WindowStyle hidden"#;
@@ -201,60 +201,95 @@ fn main() -> Result<()> {
         }
         SubCommand::Stop => {
             let bytes = SocketMessage::Stop.as_bytes()?;
-            send_message(&*bytes);
+            send_message(&*bytes)?;
         }
         SubCommand::FloatClass(target) => {
             let bytes = SocketMessage::FloatClass(target.id).as_bytes()?;
-            send_message(&*bytes);
+            send_message(&*bytes)?;
         }
         SubCommand::FloatExe(target) => {
             let bytes = SocketMessage::FloatExe(target.id).as_bytes()?;
-            send_message(&*bytes);
+            send_message(&*bytes)?;
         }
         SubCommand::FloatTitle(target) => {
             let bytes = SocketMessage::FloatTitle(target.id).as_bytes()?;
-            send_message(&*bytes);
+            send_message(&*bytes)?;
         }
         SubCommand::Stack(direction) => {
             let bytes = SocketMessage::StackWindow(direction).as_bytes()?;
-            send_message(&*bytes);
+            send_message(&*bytes)?;
         }
         SubCommand::Unstack => {
             let bytes = SocketMessage::UnstackWindow.as_bytes()?;
-            send_message(&*bytes);
+            send_message(&*bytes)?;
         }
         SubCommand::CycleStack(direction) => {
             let bytes = SocketMessage::CycleStack(direction).as_bytes()?;
-            send_message(&*bytes);
+            send_message(&*bytes)?;
         }
         SubCommand::FlipLayout(flip) => {
             let bytes = SocketMessage::FlipLayout(flip).as_bytes()?;
-            send_message(&*bytes);
+            send_message(&*bytes)?;
         }
         SubCommand::FocusMonitor(target) => {
             let bytes = SocketMessage::FocusMonitorNumber(target.number)
                 .as_bytes()
                 .unwrap();
-            send_message(&*bytes);
+            send_message(&*bytes)?;
         }
         SubCommand::FocusWorkspace(target) => {
             let bytes = SocketMessage::FocusWorkspaceNumber(target.number)
                 .as_bytes()
                 .unwrap();
-            send_message(&*bytes);
+            send_message(&*bytes)?;
         }
         SubCommand::WorkspaceName(name) => {
             let bytes = SocketMessage::WorkspaceName(name.monitor, name.workspace, name.value)
                 .as_bytes()
                 .unwrap();
-            send_message(&*bytes);
+            send_message(&*bytes)?;
         }
         SubCommand::EnsureWorkspaces(workspaces) => {
             let bytes =
                 SocketMessage::EnsureWorkspaces(workspaces.monitor, workspaces.workspace_count)
                     .as_bytes()
                     .unwrap();
-            send_message(&*bytes);
+            send_message(&*bytes)?;
+        }
+        SubCommand::State => {
+            let home = dirs::home_dir().context("there is no home directory")?;
+            let mut socket = home;
+            socket.push("komorebic.sock");
+            let socket = socket.as_path();
+
+            match std::fs::remove_file(&socket) {
+                Ok(_) => {}
+                Err(error) => match error.kind() {
+                    // Doing this because ::exists() doesn't work reliably on Windows via IntelliJ
+                    ErrorKind::NotFound => {}
+                    _ => {
+                        return Err(error.into());
+                    }
+                },
+            };
+
+            let bytes = SocketMessage::State.as_bytes().unwrap();
+            send_message(&*bytes)?;
+
+            let listener = UnixListener::bind(&socket)?;
+            match listener.accept() {
+                Ok(incoming) => {
+                    let stream = BufReader::new(incoming.0);
+                    for line in stream.lines() {
+                        println!("{}", line?)
+                    }
+
+                    return Ok(());
+                }
+                Err(error) => {
+                    panic!("{}", error)
+                }
+            }
         }
     }
 

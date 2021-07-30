@@ -347,6 +347,8 @@ dependencies = [
  "komorebi-core",
  "lazy_static",
  "nanoid",
+ "serde",
+ "serde_json",
  "strum",
  "sysinfo",
  "tracing",

@@ -3,6 +3,7 @@ use std::collections::VecDeque;
 
 use color_eyre::eyre::ContextCompat;
 use color_eyre::Result;
+use serde::Serialize;
 
 use komorebi_core::Rect;
 
@@ -10,12 +11,13 @@ use crate::container::Container;
 use crate::ring::Ring;
 use crate::workspace::Workspace;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct Monitor {
     id: isize,
     monitor_size: Rect,
     work_area_size: Rect,
     workspaces: Ring<Workspace>,
+    #[serde(skip_serializing)]
     workspace_names: HashMap<usize, String>,
 }
 

@@ -2,6 +2,7 @@ use std::collections::VecDeque;
 
 use color_eyre::eyre::ContextCompat;
 use color_eyre::Result;
+use serde::Serialize;
 
 use komorebi_core::Layout;
 use komorebi_core::LayoutFlip;
@@ -13,17 +14,19 @@ use crate::ring::Ring;
 use crate::window::Window;
 use crate::windows_api::WindowsApi;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct Workspace {
     name: Option<String>,
     containers: Ring<Container>,
     monocle_container: Option<Container>,
+    #[serde(skip_serializing)]
     monocle_restore_idx: Option<usize>,
     floating_windows: Vec<Window>,
     layout: Layout,
     layout_flip: Option<LayoutFlip>,
     workspace_padding: Option<i32>,
     container_padding: Option<i32>,
+    #[serde(skip_serializing)]
     latest_layout: Vec<Rect>,
 }
 

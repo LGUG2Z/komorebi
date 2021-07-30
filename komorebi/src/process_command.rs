@@ -1,7 +1,9 @@
 use std::io::BufRead;
 use std::io::BufReader;
+use std::io::Write;
 use std::str::FromStr;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
+use std::sync::Mutex;
 use std::thread;
 
 use color_eyre::eyre::ContextCompat;
@@ -41,6 +43,7 @@ pub fn listen_for_commands(wm: Arc<Mutex<WindowManager>>) {
 }
 
 impl WindowManager {
+    #[allow(clippy::too_many_lines)]
     pub fn process_command(&mut self, stream: UnixStream) -> Result<()> {
         let stream = BufReader::new(stream);
         for line in stream.lines() {
@@ -141,6 +144,15 @@ impl WindowManager {
                 }
                 SocketMessage::WorkspaceName(monitor_idx, workspace_idx, name) => {
                     self.set_workspace_name(monitor_idx, workspace_idx, name)?;
+                }
+                SocketMessage::State => {
+                    let state = serde_json::to_string_pretty(self)?;
+                    let mut socket = dirs::home_dir().context("there is no home directory")?;
+                    socket.push("komorebic.sock");
+                    let socket = socket.as_path();
+
+                    let mut stream = UnixStream::connect(&socket)?;
+                    stream.write_all(state.as_bytes())?;
                 }
             }
         }

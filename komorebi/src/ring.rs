@@ -1,6 +1,8 @@
 use std::collections::VecDeque;
 
-#[derive(Debug, Clone)]
+use serde::Serialize;
+
+#[derive(Debug, Clone, Serialize)]
 pub struct Ring<T> {
     elements: VecDeque<T>,
     focused: usize,
