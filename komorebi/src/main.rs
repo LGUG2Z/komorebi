@@ -41,6 +41,12 @@ lazy_static! {
     static ref FLOAT_TITLES: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(vec![]));
     static ref LAYERED_EXE_WHITELIST: Arc<Mutex<Vec<String>>> =
         Arc::new(Mutex::new(vec!["steam.exe".to_string()]));
+    static ref MULTI_WINDOW_EXES: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(vec![
+        "explorer.exe".to_string(),
+        "firefox.exe".to_string(),
+        "chrome.exe".to_string(),
+        "idea64.exe".to_string()
+    ]));
 }
 
 fn setup() -> Result<WorkerGuard> {

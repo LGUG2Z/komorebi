@@ -8,6 +8,7 @@ use crossbeam_channel::select;
 
 use crate::window_manager::WindowManager;
 use crate::window_manager_event::WindowManagerEvent;
+use crate::MULTI_WINDOW_EXES;
 
 pub fn listen_for_events(wm: Arc<Mutex<WindowManager>>) {
     let receiver = wm.lock().unwrap().incoming_events.lock().unwrap().clone();
@@ -82,9 +83,10 @@ impl WindowManager {
             }
 
             WindowManagerEvent::Hide(_, window) => {
-                // explorer.exe is always returns true even if it's running in the background,
-                // but we want to be able to handle the event when File Explorer windows close properly
-                if !window.is_window() || window.exe()? == "explorer.exe" {
+                // Some major applications unfortunately send the HIDE signal when they are being
+                // minimized or destroyed. Will have to keep updating this list.
+                let common_multi_window_exes = MULTI_WINDOW_EXES.lock().unwrap();
+                if !window.is_window() || common_multi_window_exes.contains(&window.exe()?) {
                     self.focused_workspace_mut()?.remove_window(window.hwnd)?;
                     self.update_focused_workspace(false)?;
                 }
