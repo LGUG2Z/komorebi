@@ -124,7 +124,15 @@ impl Window {
         WindowsApi::attach_thread_input(current_thread_id, window_thread_id, true)?;
 
         // Raise Window to foreground
-        WindowsApi::set_foreground_window(self.hwnd())?;
+        match WindowsApi::set_foreground_window(self.hwnd()) {
+            Ok(_) => {}
+            Err(error) => {
+                tracing::error!(
+                    "could not set as foreground window, but continuing execution of focus(): {}",
+                    error
+                );
+            }
+        };
 
         // Center cursor in Window
         WindowsApi::center_cursor_in_rect(&WindowsApi::window_rect(self.hwnd())?)?;

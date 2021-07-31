@@ -58,14 +58,20 @@ impl Workspace {
 
     pub fn restore(&mut self) -> Result<()> {
         let idx = self.focused_container_idx();
+        let mut to_focus = None;
         for (i, container) in self.containers_mut().iter_mut().enumerate() {
             if let Some(window) = container.visible_window_mut() {
                 window.restore();
 
                 if idx == i {
-                    window.focus()?;
+                    to_focus = Option::from(window);
                 }
             }
+        }
+
+        // Do this here to make sure that an error doesn't stop the restoration of other windows
+        if let Some(window) = to_focus {
+            window.focus()?;
         }
 
         Ok(())
