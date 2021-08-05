@@ -1,3 +1,4 @@
+use std::fs::File;
 use std::io::BufRead;
 use std::io::BufReader;
 use std::io::ErrorKind;
@@ -9,6 +10,10 @@ use color_eyre::Result;
 use uds_windows::UnixListener;
 use uds_windows::UnixStream;
 
+use bindings::Windows::Win32::Foundation::HWND;
+use bindings::Windows::Win32::UI::WindowsAndMessaging::ShowWindow;
+use bindings::Windows::Win32::UI::WindowsAndMessaging::SHOW_WINDOW_CMD;
+use bindings::Windows::Win32::UI::WindowsAndMessaging::SW_RESTORE;
 use komorebi_core::CycleDirection;
 use komorebi_core::Layout;
 use komorebi_core::LayoutFlip;
@@ -44,6 +49,7 @@ enum SubCommand {
     ToggleFloat,
     TogglePause,
     ToggleMonocle,
+    RestoreWindows,
     State,
     Start,
     Stop,
@@ -291,7 +297,29 @@ fn main() -> Result<()> {
                 }
             }
         }
+        SubCommand::RestoreWindows => {
+            let mut hwnd_json = dirs::home_dir().context("there is no home directory")?;
+            hwnd_json.push("komorebi.hwnd.json");
+
+            let file = File::open(hwnd_json)?;
+            let reader = BufReader::new(file);
+            let hwnds: Vec<isize> = serde_json::from_reader(reader)?;
+
+            for hwnd in hwnds {
+                restore_window(HWND(hwnd));
+            }
+        }
     }
 
     Ok(())
+}
+
+fn show_window(hwnd: HWND, command: SHOW_WINDOW_CMD) {
+    // BOOL is returned but does not signify whether or not the operation was succesful
+    // https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-showwindow
+    unsafe { ShowWindow(hwnd, command) };
+}
+
+fn restore_window(hwnd: HWND) {
+    show_window(hwnd, SW_RESTORE);
 }

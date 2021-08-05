@@ -1,3 +1,4 @@
+use std::fs::OpenOptions;
 use std::sync::Arc;
 use std::sync::Mutex;
 use std::thread;
@@ -31,7 +32,7 @@ pub fn listen_for_events(wm: Arc<Mutex<WindowManager>>) {
 }
 
 impl WindowManager {
-    #[allow(clippy::too_many_lines)]
+    #[allow(clippy::too_many_lines, clippy::cognitive_complexity)]
     pub fn process_event(&mut self, event: &mut WindowManagerEvent) -> Result<()> {
         if self.is_paused {
             tracing::info!("ignoring events while paused");
@@ -70,7 +71,7 @@ impl WindowManager {
             }
         }
 
-        if matches!(event, WindowManagerEvent::MouseCapture(_, _)) {
+        if matches!(event, WindowManagerEvent::MouseCapture(..)) {
             tracing::trace!("only reaping orphans for mouse capture event");
             return Ok(());
         }
@@ -161,6 +162,28 @@ impl WindowManager {
             }
             WindowManagerEvent::MouseCapture(..) => {}
         };
+
+        tracing::debug!("updating list of known hwnds");
+        let mut known_hwnds = vec![];
+        for monitor in self.monitors() {
+            for workspace in monitor.workspaces() {
+                for container in workspace.containers() {
+                    for window in container.windows() {
+                        known_hwnds.push(window.hwnd);
+                    }
+                }
+            }
+        }
+
+        let mut hwnd_json = dirs::home_dir().context("there is no home directory")?;
+        hwnd_json.push("komorebi.hwnd.json");
+        let file = OpenOptions::new()
+            .write(true)
+            .truncate(true)
+            .create(true)
+            .open(hwnd_json)?;
+
+        serde_json::to_writer_pretty(&file, &known_hwnds)?;
 
         tracing::info!("finished processing event: {}", event);
         Ok(())
