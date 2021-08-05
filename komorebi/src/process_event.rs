@@ -116,9 +116,17 @@ impl WindowManager {
                 }
 
                 if let Some(indices) = switch_to {
-                    self.focus_monitor(indices.0)?;
-                    self.focus_workspace(indices.1)?;
-                    return Ok(());
+                    if self.focused_monitor_idx() != indices.0
+                        && self
+                            .focused_monitor()
+                            .context("there is no monitor")?
+                            .focused_workspace_idx()
+                            != indices.1
+                    {
+                        self.focus_monitor(indices.0)?;
+                        self.focus_workspace(indices.1)?;
+                        return Ok(());
+                    }
                 }
 
                 let workspace = self.focused_workspace_mut()?;
