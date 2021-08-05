@@ -64,6 +64,19 @@ impl Display for WindowManagerEvent {
 }
 
 impl WindowManagerEvent {
+    pub const fn window(self) -> Window {
+        match self {
+            WindowManagerEvent::Destroy(_, window)
+            | WindowManagerEvent::FocusChange(_, window)
+            | WindowManagerEvent::Hide(_, window)
+            | WindowManagerEvent::Minimize(_, window)
+            | WindowManagerEvent::Show(_, window)
+            | WindowManagerEvent::MoveResizeStart(_, window)
+            | WindowManagerEvent::MoveResizeEnd(_, window)
+            | WindowManagerEvent::MouseCapture(_, window) => window,
+        }
+    }
+
     pub const fn from_win_event(winevent: WinEvent, window: Window) -> Option<Self> {
         match winevent {
             WinEvent::ObjectDestroy => Some(Self::Destroy(winevent, window)),

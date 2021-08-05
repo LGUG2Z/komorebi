@@ -11,7 +11,6 @@ use bindings::Windows::Win32::UI::Accessibility::HWINEVENTHOOK;
 use crate::container::Container;
 use crate::monitor::Monitor;
 use crate::ring::Ring;
-use crate::styles::GwlStyle;
 use crate::window::Window;
 use crate::window_manager_event::WindowManagerEvent;
 use crate::windows_api::WindowsApi;
@@ -40,14 +39,7 @@ pub extern "system" fn enum_window(hwnd: HWND, lparam: LPARAM) -> BOOL {
     let is_minimized = WindowsApi::is_iconic(hwnd);
 
     if is_visible && is_window && !is_minimized {
-        let mut window = Window {
-            hwnd: hwnd.0,
-            original_style: GwlStyle::empty(),
-        };
-
-        if let Ok(style) = window.style() {
-            window.original_style = style;
-        }
+        let window = Window { hwnd: hwnd.0 };
 
         if let Ok(should_manage) = window.should_manage(None) {
             if should_manage {
@@ -75,14 +67,7 @@ pub extern "system" fn win_event_hook(
         return;
     }
 
-    let mut window = Window {
-        hwnd: hwnd.0,
-        original_style: GwlStyle::empty(),
-    };
-
-    if let Ok(style) = window.style() {
-        window.original_style = style;
-    }
+    let window = Window { hwnd: hwnd.0 };
 
     let winevent = unsafe { ::std::mem::transmute(event) };
     let event_type = if let Some(event) = WindowManagerEvent::from_win_event(winevent, window) {

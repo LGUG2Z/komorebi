@@ -11,11 +11,12 @@ use crate::window_manager::WindowManager;
 use crate::window_manager_event::WindowManagerEvent;
 use crate::MULTI_WINDOW_EXES;
 
+#[tracing::instrument]
 pub fn listen_for_events(wm: Arc<Mutex<WindowManager>>) {
     let receiver = wm.lock().unwrap().incoming_events.lock().unwrap().clone();
 
     thread::spawn(move || {
-        tracing::info!("listening for events");
+        tracing::info!("listening");
         loop {
             select! {
                 recv(receiver) -> mut maybe_event => {
@@ -33,9 +34,10 @@ pub fn listen_for_events(wm: Arc<Mutex<WindowManager>>) {
 
 impl WindowManager {
     #[allow(clippy::too_many_lines, clippy::cognitive_complexity)]
+    #[tracing::instrument(skip(self))]
     pub fn process_event(&mut self, event: &mut WindowManagerEvent) -> Result<()> {
         if self.is_paused {
-            tracing::info!("ignoring events while paused");
+            tracing::trace!("ignoring while paused");
             return Ok(());
         }
 
@@ -46,7 +48,7 @@ impl WindowManager {
             | WindowManagerEvent::MoveResizeStart(_, window)
             | WindowManagerEvent::MoveResizeEnd(_, window) => {
                 let monitor_idx = self
-                    .monitor_idx_from_window(window)
+                    .monitor_idx_from_window(*window)
                     .context("there is no monitor associated with this window, it may have already been destroyed")?;
 
                 self.focus_monitor(monitor_idx)?;
@@ -75,8 +77,6 @@ impl WindowManager {
             tracing::trace!("only reaping orphans for mouse capture event");
             return Ok(());
         }
-
-        tracing::info!("processing event: {}", event);
 
         match event {
             WindowManagerEvent::Minimize(_, window) | WindowManagerEvent::Destroy(_, window) => {
@@ -163,7 +163,7 @@ impl WindowManager {
             WindowManagerEvent::MouseCapture(..) => {}
         };
 
-        tracing::debug!("updating list of known hwnds");
+        tracing::trace!("updating list of known hwnds");
         let mut known_hwnds = vec![];
         for monitor in self.monitors() {
             for workspace in monitor.workspaces() {
@@ -184,8 +184,7 @@ impl WindowManager {
             .open(hwnd_json)?;
 
         serde_json::to_writer_pretty(&file, &known_hwnds)?;
-
-        tracing::info!("finished processing event: {}", event);
+        tracing::info!("processed: {}", event.window().to_string());
         Ok(())
     }
 }

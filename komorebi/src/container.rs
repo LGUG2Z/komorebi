@@ -99,8 +99,9 @@ impl Container {
         self.windows.focused_mut()
     }
 
+    #[tracing::instrument(skip(self))]
     pub fn focus_window(&mut self, idx: usize) {
-        tracing::info!("focusing window at index: {}", idx);
+        tracing::info!("focusing window");
         self.windows.focus(idx);
     }
 

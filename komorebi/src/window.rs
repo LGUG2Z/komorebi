@@ -23,7 +23,6 @@ use crate::LAYERED_EXE_WHITELIST;
 #[derive(Debug, Clone, Copy)]
 pub struct Window {
     pub(crate) hwnd: isize,
-    pub(crate) original_style: GwlStyle,
 }
 
 impl Display for Window {
@@ -67,7 +66,7 @@ impl Serialize for Window {
 }
 
 impl Window {
-    pub const fn hwnd(&self) -> HWND {
+    pub const fn hwnd(self) -> HWND {
         HWND(self.hwnd)
     }
 
@@ -109,15 +108,15 @@ impl Window {
         WindowsApi::position_window(self.hwnd(), &rect, top)
     }
 
-    pub fn hide(&self) {
+    pub fn hide(self) {
         WindowsApi::hide_window(self.hwnd());
     }
 
-    pub fn restore(&self) {
+    pub fn restore(self) {
         WindowsApi::restore_window(self.hwnd());
     }
 
-    pub fn focus(&self) -> Result<()> {
+    pub fn focus(self) -> Result<()> {
         // Attach komorebi thread to Window thread
         let (_, window_thread_id) = WindowsApi::window_thread_process_id(self.hwnd());
         let current_thread_id = WindowsApi::current_thread_id();
@@ -141,64 +140,34 @@ impl Window {
         WindowsApi::set_focus(self.hwnd())
     }
 
-    pub fn update_style(&self, style: GwlStyle) -> Result<()> {
+    pub fn update_style(self, style: GwlStyle) -> Result<()> {
         WindowsApi::update_style(self.hwnd(), isize::try_from(style.bits())?)
     }
 
-    pub fn restore_style(&self) -> Result<()> {
-        self.update_style(self.original_style)
-    }
-
-    pub fn remove_border(&self) -> Result<()> {
-        let mut style = self.style()?;
-        style.remove(GwlStyle::BORDER);
-        self.update_style(style)
-    }
-
-    pub fn add_border(&self) -> Result<()> {
-        let mut style = self.style()?;
-        style.insert(GwlStyle::BORDER);
-        self.update_style(style)
-    }
-
-    pub fn remove_padding_and_title_bar(&self) -> Result<()> {
-        let mut style = self.style()?;
-        style.remove(GwlStyle::THICKFRAME);
-        style.remove(GwlStyle::CAPTION);
-        self.update_style(style)
-    }
-
-    pub fn add_padding_padding_and_title_bar(&self) -> Result<()> {
-        let mut style = self.style()?;
-        style.insert(GwlStyle::THICKFRAME);
-        style.insert(GwlStyle::CAPTION);
-        self.update_style(style)
-    }
-
-    pub fn style(&self) -> Result<GwlStyle> {
+    pub fn style(self) -> Result<GwlStyle> {
         let bits = u32::try_from(WindowsApi::gwl_style(self.hwnd())?)?;
         GwlStyle::from_bits(bits).context("there is no gwl style")
     }
 
-    pub fn ex_style(&self) -> Result<GwlExStyle> {
+    pub fn ex_style(self) -> Result<GwlExStyle> {
         let bits = u32::try_from(WindowsApi::gwl_ex_style(self.hwnd())?)?;
         GwlExStyle::from_bits(bits).context("there is no gwl style")
     }
 
-    pub fn title(&self) -> Result<String> {
+    pub fn title(self) -> Result<String> {
         WindowsApi::window_text_w(self.hwnd())
     }
 
-    pub fn exe(&self) -> Result<String> {
+    pub fn exe(self) -> Result<String> {
         let (process_id, _) = WindowsApi::window_thread_process_id(self.hwnd());
         WindowsApi::exe(WindowsApi::process_handle(process_id)?)
     }
 
-    pub fn class(&self) -> Result<String> {
+    pub fn class(self) -> Result<String> {
         WindowsApi::real_window_class_w(self.hwnd())
     }
 
-    pub fn is_cloaked(&self) -> Result<bool> {
+    pub fn is_cloaked(self) -> Result<bool> {
         WindowsApi::is_window_cloaked(self.hwnd())
     }
 
@@ -206,7 +175,8 @@ impl Window {
         WindowsApi::is_window(self.hwnd())
     }
 
-    pub fn should_manage(&self, event: Option<WindowManagerEvent>) -> Result<bool> {
+    #[tracing::instrument(fields(exe, title))]
+    pub fn should_manage(self, event: Option<WindowManagerEvent>) -> Result<bool> {
         let classes = FLOAT_CLASSES.lock().unwrap();
         let exes = FLOAT_EXES.lock().unwrap();
         let titles = FLOAT_TITLES.lock().unwrap();
@@ -258,8 +228,8 @@ impl Window {
                     {
                         Ok(true)
                     } else {
-                        if let Some(event) = event {
-                            tracing::debug!("ignoring window: {} (event: {})", self, event);
+                        if event.is_some() {
+                            tracing::debug!("ignoring (exe: {}, title: {})", exe_name, title);
                         }
 
                         Ok(false)

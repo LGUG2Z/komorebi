@@ -104,11 +104,13 @@ impl Monitor {
         self.workspaces.focused_mut()
     }
 
+    #[tracing::instrument(skip(self))]
     pub fn focus_workspace(&mut self, idx: usize) -> Result<()> {
+        tracing::info!("focusing workspace");
+
         {
             let workspaces = self.workspaces_mut();
 
-            tracing::info!("focusing workspace at index: {}", idx);
             if workspaces.get(idx).is_none() {
                 workspaces.resize(idx + 1, Workspace::default());
             }
@@ -131,7 +133,6 @@ impl Monitor {
     }
 
     pub fn update_focused_workspace(&mut self) -> Result<()> {
-        tracing::info!("updating workspace: {}", self.focused_workspace_idx());
         let work_area = *self.work_area_size();
 
         self.focused_workspace_mut()

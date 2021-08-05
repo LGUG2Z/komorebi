@@ -68,7 +68,6 @@ fn setup() -> Result<WorkerGuard> {
     tracing::subscriber::set_global_default(
         tracing_subscriber::fmt::Subscriber::builder()
             .with_env_filter(EnvFilter::from_default_env())
-            .with_max_level(tracing::Level::DEBUG)
             .finish()
             .with(
                 tracing_subscriber::fmt::Layer::default()
@@ -80,6 +79,7 @@ fn setup() -> Result<WorkerGuard> {
     Ok(guard)
 }
 
+#[tracing::instrument]
 fn main() -> Result<()> {
     match std::env::args().count() {
         1 => {

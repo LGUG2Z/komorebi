@@ -40,6 +40,7 @@ use bindings::Windows::Win32::UI::KeyboardAndMouseInput::SetFocus;
 use bindings::Windows::Win32::UI::WindowsAndMessaging::AllowSetForegroundWindow;
 use bindings::Windows::Win32::UI::WindowsAndMessaging::EnumWindows;
 use bindings::Windows::Win32::UI::WindowsAndMessaging::GetCursorPos;
+use bindings::Windows::Win32::UI::WindowsAndMessaging::GetDesktopWindow;
 use bindings::Windows::Win32::UI::WindowsAndMessaging::GetTopWindow;
 use bindings::Windows::Win32::UI::WindowsAndMessaging::GetWindow;
 use bindings::Windows::Win32::UI::WindowsAndMessaging::GetWindowLongPtrW;
@@ -274,6 +275,10 @@ impl WindowsApi {
 
     pub fn top_window() -> Result<isize> {
         Result::from(WindowsResult::from(unsafe { GetTopWindow(HWND::NULL).0 }))
+    }
+
+    pub fn desktop_window() -> Result<isize> {
+        Result::from(WindowsResult::from(unsafe { GetDesktopWindow() }))
     }
 
     pub fn next_window(hwnd: HWND) -> Result<isize> {

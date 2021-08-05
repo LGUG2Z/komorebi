@@ -448,8 +448,10 @@ impl Workspace {
         self.containers.focused_mut()
     }
 
+    #[tracing::instrument(skip(self))]
     pub fn focus_container(&mut self, idx: usize) {
-        tracing::info!("focusing container at index: {}", idx);
+        tracing::info!("focusing container");
+
         self.containers.focus(idx);
     }
 
@@ -462,7 +464,6 @@ impl Workspace {
     }
 
     pub fn swap_containers(&mut self, i: usize, j: usize) {
-        tracing::info!("swapping containers: {}, {}", i, j);
         self.containers.swap(i, j);
         self.focus_container(j);
     }

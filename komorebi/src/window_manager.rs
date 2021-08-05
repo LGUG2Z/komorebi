@@ -34,6 +34,7 @@ pub struct WindowManager {
     pub is_paused: bool,
 }
 
+#[tracing::instrument]
 pub fn new(incoming: Arc<Mutex<Receiver<WindowManagerEvent>>>) -> Result<WindowManager> {
     let home = dirs::home_dir().context("there is no home directory")?;
     let mut socket = home;
@@ -62,6 +63,7 @@ pub fn new(incoming: Arc<Mutex<Receiver<WindowManagerEvent>>>) -> Result<WindowM
 }
 
 impl WindowManager {
+    #[tracing::instrument(skip(self))]
     pub fn init(&mut self) -> Result<()> {
         tracing::info!("initialising");
         WindowsApi::load_monitor_information(&mut self.monitors)?;
@@ -69,21 +71,33 @@ impl WindowManager {
         self.update_focused_workspace(false)
     }
 
+    #[tracing::instrument(skip(self))]
     pub fn update_focused_workspace(&mut self, mouse_follows_focus: bool) -> Result<()> {
-        tracing::info!("updating monitor: {}", self.focused_monitor_idx());
+        tracing::info!("updating");
 
         self.focused_monitor_mut()
             .context("there is no monitor")?
             .update_focused_workspace()?;
 
         if mouse_follows_focus {
-            self.focused_window_mut()?.focus()?;
+            if let Ok(window) = self.focused_window_mut() {
+                window.focus()?;
+            } else {
+                let desktop_window = Window {
+                    hwnd: WindowsApi::desktop_window()?,
+                };
+
+                desktop_window.focus()?;
+            }
         }
 
         Ok(())
     }
 
+    #[tracing::instrument(skip(self))]
     pub fn restore_all_windows(&mut self) {
+        tracing::info!("restoring all hidden windows");
+
         for monitor in self.monitors_mut() {
             for workspace in monitor.workspaces_mut() {
                 for containers in workspace.containers_mut() {
@@ -95,7 +109,10 @@ impl WindowManager {
         }
     }
 
+    #[tracing::instrument(skip(self))]
     pub fn move_container_to_monitor(&mut self, idx: usize, follow: bool) -> Result<()> {
+        tracing::info!("moving container");
+
         let monitor = self.focused_monitor_mut().context("there is no monitor")?;
         let container = monitor
             .focused_workspace_mut()
@@ -118,14 +135,19 @@ impl WindowManager {
         self.update_focused_workspace(true)
     }
 
+    #[tracing::instrument(skip(self))]
     pub fn move_container_to_workspace(&mut self, idx: usize, follow: bool) -> Result<()> {
+        tracing::info!("moving container");
+
         let monitor = self.focused_monitor_mut().context("there is no monitor")?;
         monitor.move_container_to_workspace(idx, follow)?;
         monitor.load_focused_workspace()?;
         self.update_focused_workspace(true)
     }
 
+    #[tracing::instrument(skip(self))]
     pub fn focus_container_in_direction(&mut self, direction: OperationDirection) -> Result<()> {
+        tracing::info!("focusing container");
         let workspace = self.focused_workspace_mut()?;
 
         let new_idx = workspace
@@ -138,7 +160,10 @@ impl WindowManager {
         Ok(())
     }
 
+    #[tracing::instrument(skip(self))]
     pub fn move_container_in_direction(&mut self, direction: OperationDirection) -> Result<()> {
+        tracing::info!("moving container");
+
         let workspace = self.focused_workspace_mut()?;
 
         let current_idx = workspace.focused_container_idx();
@@ -151,7 +176,10 @@ impl WindowManager {
         self.update_focused_workspace(true)
     }
 
+    #[tracing::instrument(skip(self))]
     pub fn cycle_container_window_in_direction(&mut self, direction: CycleDirection) -> Result<()> {
+        tracing::info!("cycling container windows");
+
         let container = self.focused_container_mut()?;
 
         if container.windows().len() == 1 {
@@ -167,7 +195,10 @@ impl WindowManager {
         self.update_focused_workspace(true)
     }
 
+    #[tracing::instrument(skip(self))]
     pub fn add_window_to_container(&mut self, direction: OperationDirection) -> Result<()> {
+        tracing::info!("adding window to container");
+
         let workspace = self.focused_workspace_mut()?;
         let current_container_idx = workspace.focused_container_idx();
 
@@ -195,13 +226,19 @@ impl WindowManager {
         Ok(())
     }
 
+    #[tracing::instrument(skip(self))]
     pub fn promote_container_to_front(&mut self) -> Result<()> {
+        tracing::info!("promoting container");
+
         let workspace = self.focused_workspace_mut()?;
         workspace.promote_container()?;
         self.update_focused_workspace(true)
     }
 
+    #[tracing::instrument(skip(self))]
     pub fn remove_window_from_container(&mut self) -> Result<()> {
+        tracing::info!("removing window");
+
         if self.focused_container()?.windows().len() == 1 {
             return Err(eyre::anyhow!("a container must have at least one window"));
         }
@@ -212,6 +249,7 @@ impl WindowManager {
         self.update_focused_workspace(true)
     }
 
+    #[tracing::instrument(skip(self))]
     pub fn toggle_float(&mut self) -> Result<()> {
         let hwnd = WindowsApi::top_visible_window()?;
         let workspace = self.focused_workspace_mut()?;
@@ -225,17 +263,18 @@ impl WindowManager {
         }
 
         if is_floating_window {
-            tracing::info!("unfloating window");
             self.unfloat_window()?;
             self.update_focused_workspace(true)
         } else {
-            tracing::info!("floating window");
             self.float_window()?;
             self.update_focused_workspace(false)
         }
     }
 
+    #[tracing::instrument(skip(self))]
     pub fn float_window(&mut self) -> Result<()> {
+        tracing::info!("floating window");
+
         let work_area = self.focused_monitor_work_area()?;
 
         let workspace = self.focused_workspace_mut()?;
@@ -262,11 +301,15 @@ impl WindowManager {
         Ok(())
     }
 
+    #[tracing::instrument(skip(self))]
     pub fn unfloat_window(&mut self) -> Result<()> {
+        tracing::info!("unfloating window");
+
         let workspace = self.focused_workspace_mut()?;
         workspace.new_container_for_floating_window()
     }
 
+    #[tracing::instrument(skip(self))]
     pub fn toggle_monocle(&mut self) -> Result<()> {
         let workspace = self.focused_workspace_mut()?;
 
@@ -278,17 +321,26 @@ impl WindowManager {
         self.update_focused_workspace(false)
     }
 
+    #[tracing::instrument(skip(self))]
     pub fn monocle_on(&mut self) -> Result<()> {
+        tracing::info!("enabling monocle");
+
         let workspace = self.focused_workspace_mut()?;
         workspace.new_monocle_container()
     }
 
+    #[tracing::instrument(skip(self))]
     pub fn monocle_off(&mut self) -> Result<()> {
+        tracing::info!("disabling monocle");
+
         let workspace = self.focused_workspace_mut()?;
         workspace.reintegrate_monocle_container()
     }
 
+    #[tracing::instrument(skip(self))]
     pub fn flip_layout(&mut self, layout_flip: LayoutFlip) -> Result<()> {
+        tracing::info!("flipping layout monocle");
+
         let workspace = self.focused_workspace_mut()?;
 
         #[allow(clippy::match_same_arms)]
@@ -328,13 +380,19 @@ impl WindowManager {
         self.update_focused_workspace(false)
     }
 
+    #[tracing::instrument(skip(self))]
     pub fn change_workspace_layout(&mut self, layout: Layout) -> Result<()> {
+        tracing::info!("changing layout");
+
         let workspace = self.focused_workspace_mut()?;
         workspace.set_layout(layout);
         self.update_focused_workspace(false)
     }
 
+    #[tracing::instrument(skip(self))]
     pub fn adjust_workspace_padding(&mut self, sizing: Sizing, adjustment: i32) -> Result<()> {
+        tracing::info!("adjusting workspace padding");
+
         let workspace = self.focused_workspace_mut()?;
 
         let padding = workspace
@@ -346,7 +404,10 @@ impl WindowManager {
         self.update_focused_workspace(false)
     }
 
+    #[tracing::instrument(skip(self))]
     pub fn adjust_container_padding(&mut self, sizing: Sizing, adjustment: i32) -> Result<()> {
+        tracing::info!("adjusting container padding");
+
         let workspace = self.focused_workspace_mut()?;
 
         let padding = workspace
@@ -358,12 +419,15 @@ impl WindowManager {
         self.update_focused_workspace(false)
     }
 
+    #[tracing::instrument(skip(self))]
     pub fn set_workspace_layout(
         &mut self,
         monitor_idx: usize,
         workspace_idx: usize,
         layout: Layout,
     ) -> Result<()> {
+        tracing::info!("setting workspace layout");
+
         let focused_monitor_idx = self.focused_monitor_idx();
 
         let monitor = self
@@ -390,11 +454,14 @@ impl WindowManager {
         }
     }
 
+    #[tracing::instrument(skip(self))]
     pub fn ensure_workspaces_for_monitor(
         &mut self,
         monitor_idx: usize,
         workspace_count: usize,
     ) -> Result<()> {
+        tracing::info!("ensuring workspace count");
+
         let monitor = self
             .monitors_mut()
             .get_mut(monitor_idx)
@@ -405,12 +472,15 @@ impl WindowManager {
         Ok(())
     }
 
+    #[tracing::instrument(skip(self))]
     pub fn set_workspace_padding(
         &mut self,
         monitor_idx: usize,
         workspace_idx: usize,
         size: i32,
     ) -> Result<()> {
+        tracing::info!("setting workspace padding");
+
         let monitor = self
             .monitors_mut()
             .get_mut(monitor_idx)
@@ -426,12 +496,15 @@ impl WindowManager {
         self.update_focused_workspace(false)
     }
 
+    #[tracing::instrument(skip(self))]
     pub fn set_workspace_name(
         &mut self,
         monitor_idx: usize,
         workspace_idx: usize,
         name: String,
     ) -> Result<()> {
+        tracing::info!("setting workspace name");
+
         let monitor = self
             .monitors_mut()
             .get_mut(monitor_idx)
@@ -448,12 +521,15 @@ impl WindowManager {
         Ok(())
     }
 
+    #[tracing::instrument(skip(self))]
     pub fn set_container_padding(
         &mut self,
         monitor_idx: usize,
         workspace_idx: usize,
         size: i32,
     ) -> Result<()> {
+        tracing::info!("setting container padding");
+
         let monitor = self
             .monitors_mut()
             .get_mut(monitor_idx)
@@ -498,7 +574,10 @@ impl WindowManager {
             .work_area_size())
     }
 
+    #[tracing::instrument(skip(self))]
     pub fn focus_monitor(&mut self, idx: usize) -> Result<()> {
+        tracing::info!("focusing monitor");
+
         if self.monitors().get(idx).is_some() {
             self.monitors.focus(idx);
         } else {
@@ -508,7 +587,7 @@ impl WindowManager {
         Ok(())
     }
 
-    pub fn monitor_idx_from_window(&mut self, window: &Window) -> Option<usize> {
+    pub fn monitor_idx_from_window(&mut self, window: Window) -> Option<usize> {
         let hmonitor = WindowsApi::monitor_from_window(window.hwnd());
 
         for (i, monitor) in self.monitors().iter().enumerate() {
@@ -534,7 +613,10 @@ impl WindowManager {
             .context("there is no workspace")
     }
 
+    #[tracing::instrument(skip(self))]
     pub fn focus_workspace(&mut self, idx: usize) -> Result<()> {
+        tracing::info!("focusing workspace");
+
         let monitor = self
             .focused_monitor_mut()
             .context("there is no workspace")?;
