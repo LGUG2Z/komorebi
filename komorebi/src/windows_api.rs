@@ -112,32 +112,22 @@ impl From<HANDLE> for WindowsResult<HANDLE, Error> {
     }
 }
 
-impl From<isize> for WindowsResult<isize, Error> {
-    fn from(return_value: isize) -> Self {
-        match return_value {
-            0 => Self::Err(std::io::Error::last_os_error().into()),
-            _ => Self::Ok(return_value),
-        }
-    }
+macro_rules! impl_from_integer_for_windows_result {
+    ( $( $integer_type:ty ),+ ) => {
+        $(
+            impl From<$integer_type> for WindowsResult<$integer_type, Error> {
+                fn from(return_value: $integer_type) -> Self {
+                    match return_value {
+                        0 => Self::Err(std::io::Error::last_os_error().into()),
+                        _ => Self::Ok(return_value),
+                    }
+                }
+            }
+        )+
+    };
 }
 
-impl From<u32> for WindowsResult<u32, Error> {
-    fn from(return_value: u32) -> Self {
-        match return_value {
-            0 => Self::Err(std::io::Error::last_os_error().into()),
-            _ => Self::Ok(return_value),
-        }
-    }
-}
-
-impl From<i32> for WindowsResult<i32, Error> {
-    fn from(return_value: i32) -> Self {
-        match return_value {
-            0 => Self::Err(std::io::Error::last_os_error().into()),
-            _ => Self::Ok(return_value),
-        }
-    }
-}
+impl_from_integer_for_windows_result!(isize, u32, i32);
 
 impl<T, E> From<WindowsResult<T, E>> for Result<T, E> {
     fn from(result: WindowsResult<T, E>) -> Self {
