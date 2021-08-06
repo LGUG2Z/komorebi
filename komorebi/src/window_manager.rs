@@ -204,6 +204,7 @@ impl WindowManager {
 
         let is_valid = direction.is_valid(
             workspace.layout(),
+            workspace.layout_flip(),
             workspace.focused_container_idx(),
             workspace.containers_mut().len(),
         );

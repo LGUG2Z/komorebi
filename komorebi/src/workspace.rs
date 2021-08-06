@@ -273,11 +273,16 @@ impl Workspace {
 
     pub fn new_idx_for_direction(&self, direction: OperationDirection) -> Option<usize> {
         if direction.is_valid(
-            self.layout,
+            self.layout(),
+            self.layout_flip(),
             self.focused_container_idx(),
             self.containers().len(),
         ) {
-            Option::from(direction.new_idx(self.layout, self.containers.focused_idx()))
+            Option::from(direction.new_idx(
+                self.layout(),
+                self.layout_flip(),
+                self.containers.focused_idx(),
+            ))
         } else {
             None
         }

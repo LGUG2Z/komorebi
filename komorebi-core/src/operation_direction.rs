@@ -5,6 +5,7 @@ use strum::Display;
 use strum::EnumString;
 
 use crate::Layout;
+use crate::LayoutFlip;
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, Display, EnumString)]
 #[strum(serialize_all = "snake_case")]
@@ -29,8 +30,50 @@ impl OperationDirection {
         }
     }
 
-    pub fn is_valid(&self, layout: Layout, idx: usize, len: usize) -> bool {
-        match self {
+    fn flip_direction(
+        direction: &OperationDirection,
+        layout_flip: Option<LayoutFlip>,
+    ) -> OperationDirection {
+        if let Some(flip) = layout_flip {
+            match direction {
+                OperationDirection::Left => match flip {
+                    LayoutFlip::Horizontal | LayoutFlip::HorizontalAndVertical => {
+                        OperationDirection::Right
+                    }
+                    _ => *direction,
+                },
+                OperationDirection::Right => match flip {
+                    LayoutFlip::Horizontal | LayoutFlip::HorizontalAndVertical => {
+                        OperationDirection::Left
+                    }
+                    _ => *direction,
+                },
+                OperationDirection::Up => match flip {
+                    LayoutFlip::Vertical | LayoutFlip::HorizontalAndVertical => {
+                        OperationDirection::Down
+                    }
+                    _ => *direction,
+                },
+                OperationDirection::Down => match flip {
+                    LayoutFlip::Vertical | LayoutFlip::HorizontalAndVertical => {
+                        OperationDirection::Up
+                    }
+                    _ => *direction,
+                },
+            }
+        } else {
+            *direction
+        }
+    }
+
+    pub fn is_valid(
+        &self,
+        layout: Layout,
+        layout_flip: Option<LayoutFlip>,
+        idx: usize,
+        len: usize,
+    ) -> bool {
+        match OperationDirection::flip_direction(self, layout_flip) {
             OperationDirection::Up => match layout {
                 Layout::BSP => len > 2 && idx != 0 && idx != 1,
                 Layout::Columns => false,
@@ -54,8 +97,8 @@ impl OperationDirection {
         }
     }
 
-    pub fn new_idx(&self, layout: Layout, idx: usize) -> usize {
-        match self {
+    pub fn new_idx(&self, layout: Layout, layout_flip: Option<LayoutFlip>, idx: usize) -> usize {
+        match OperationDirection::flip_direction(self, layout_flip) {
             OperationDirection::Up => match layout {
                 Layout::BSP => {
                     if idx % 2 == 0 {
