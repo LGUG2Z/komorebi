@@ -123,7 +123,7 @@ impl WindowManager {
                 self.focus_workspace(workspace_idx)?;
             }
             SocketMessage::Stop => {
-                tracing::error!(
+                tracing::info!(
                     "received stop command, restoring all hidden windows and terminating process"
                 );
                 self.restore_all_windows();

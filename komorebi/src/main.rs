@@ -47,7 +47,8 @@ lazy_static! {
         "firefox.exe".to_string(),
         "chrome.exe".to_string(),
         "idea64.exe".to_string(),
-        "ApplicationFrameHost.exe".to_string()
+        "ApplicationFrameHost.exe".to_string(),
+        "steam.exe".to_string()
     ]));
 }
 

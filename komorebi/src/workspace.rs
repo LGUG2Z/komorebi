@@ -108,15 +108,29 @@ impl Workspace {
 
     pub fn reap_orphans(&mut self) -> Result<(usize, usize)> {
         let mut hwnds = vec![];
+        let mut floating_hwnds = vec![];
+
         for window in self.visible_windows_mut().into_iter().flatten() {
             if !window.is_window() {
                 hwnds.push(window.hwnd);
             }
         }
 
+        for window in self.floating_windows() {
+            if !window.is_window() {
+                floating_hwnds.push(window.hwnd);
+            }
+        }
+
         for hwnd in &hwnds {
             tracing::debug!("reaping hwnd: {}", hwnd);
             self.remove_window(*hwnd)?;
+        }
+
+        for hwnd in &floating_hwnds {
+            tracing::debug!("reaping floating hwnd: {}", hwnd);
+            self.floating_windows_mut()
+                .retain(|w| !floating_hwnds.contains(&w.hwnd));
         }
 
         let mut container_ids = vec![];
@@ -129,7 +143,7 @@ impl Workspace {
         self.containers_mut()
             .retain(|c| !container_ids.contains(c.id()));
 
-        Ok((hwnds.len(), container_ids.len()))
+        Ok((hwnds.len() + floating_hwnds.len(), container_ids.len()))
     }
 
     pub fn focus_container_by_window(&mut self, hwnd: isize) -> Result<()> {
@@ -209,6 +223,11 @@ impl Workspace {
     }
 
     pub fn remove_window(&mut self, hwnd: isize) -> Result<()> {
+        if self.floating_windows().iter().any(|w| w.hwnd == hwnd) {
+            self.floating_windows_mut().retain(|w| w.hwnd != hwnd);
+            return Ok(());
+        }
+
         let container_idx = self
             .container_idx_for_window(hwnd)
             .context("there is no window")?;
