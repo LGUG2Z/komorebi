@@ -18,6 +18,7 @@ use crate::windows_api::WindowsApi;
 use crate::FLOAT_CLASSES;
 use crate::FLOAT_EXES;
 use crate::FLOAT_TITLES;
+use crate::HIDDEN_HWNDS;
 use crate::LAYERED_EXE_WHITELIST;
 
 #[derive(Debug, Clone, Copy)]
@@ -109,10 +110,23 @@ impl Window {
     }
 
     pub fn hide(self) {
+        let mut programmatically_hidden_hwnds = HIDDEN_HWNDS.lock().unwrap();
+        if !programmatically_hidden_hwnds.contains(&self.hwnd) {
+            programmatically_hidden_hwnds.push(self.hwnd);
+        }
+
         WindowsApi::hide_window(self.hwnd());
     }
 
     pub fn restore(self) {
+        let mut programmatically_hidden_hwnds = HIDDEN_HWNDS.lock().unwrap();
+        if let Some(idx) = programmatically_hidden_hwnds
+            .iter()
+            .position(|&hwnd| hwnd == self.hwnd)
+        {
+            programmatically_hidden_hwnds.remove(idx);
+        }
+
         WindowsApi::restore_window(self.hwnd());
     }
 
