@@ -84,6 +84,8 @@ impl Workspace {
         let mut adjusted_work_area = *work_area;
         adjusted_work_area.add_padding(self.workspace_padding());
 
+        self.enforce_resize_constraints();
+
         if let Some(container) = self.monocle_container_mut() {
             if let Some(window) = container.focused_window_mut() {
                 window.set_position(&adjusted_work_area, true)?;
@@ -264,12 +266,6 @@ impl Workspace {
 
             // Whenever a container is empty, we need to remove any resize dimensions for it too
             self.resize_dimensions_mut().remove(container_idx);
-
-            // The last container can never be resized to the bottom or the right
-            if let Some(Some(last)) = self.resize_dimensions_mut().last_mut() {
-                last.bottom = 0;
-                last.right = 0;
-            }
         }
 
         if container_idx != 0 {
@@ -416,14 +412,35 @@ impl Workspace {
             container.load_focused_window();
         }
 
+        self.floating_windows_mut().push(window);
+
+        Ok(())
+    }
+
+    fn enforce_resize_constraints(&mut self) {
+        for (i, rect) in self.resize_dimensions_mut().iter_mut().enumerate() {
+            if let Some(rect) = rect {
+                // Even containers can't be resized to the bottom
+                if i % 2 == 0 {
+                    rect.bottom = 0;
+                    // Odd containers can't be resized to the right
+                } else {
+                    rect.right = 0;
+                }
+            }
+        }
+
+        // The first container can never be resized to the left or the top
+        if let Some(Some(first)) = self.resize_dimensions_mut().first_mut() {
+            first.top = 0;
+            first.left = 0;
+        }
+
+        // The last container can never be resized to the bottom or the right
         if let Some(Some(last)) = self.resize_dimensions_mut().last_mut() {
             last.bottom = 0;
             last.right = 0;
         }
-
-        self.floating_windows_mut().push(window);
-
-        Ok(())
     }
 
     pub fn new_monocle_container(&mut self) -> Result<()> {
