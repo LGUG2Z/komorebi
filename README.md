@@ -6,26 +6,26 @@ Tiling Window Management for Windows.
 
 ## About
 
-*komorebi* is a tiling window manager that works as an extension to
+_komorebi_ is a tiling window manager that works as an extension to
 Microsoft's [Desktop Window Manager](https://docs.microsoft.com/en-us/windows/win32/dwm/dwm-overview) in Windows 10 and
 above.
 
-*komorebi* allows you to control application windows, virtual workspaces and display monitors with a CLI which can be used
+_komorebi_ allows you to control application windows, virtual workspaces and display monitors with a CLI which can be used
 with third-party software such as [AutoHotKey](https://github.com/Lexikos/AutoHotkey_L) to set user-defined keyboard
 shortcuts.
 
 ## Description
 
-*komorebi* only responds to [WinEvents](https://docs.microsoft.com/en-us/windows/win32/winauto/event-constants) and the
+_komorebi_ only responds to [WinEvents](https://docs.microsoft.com/en-us/windows/win32/winauto/event-constants) and the
 messages it receives on a dedicated socket.
 
-*komorebic* is a CLI that writes messages on *komorebi*'s socket.
+_komorebic_ is a CLI that writes messages on _komorebi_'s socket.
 
-*komorebi* doesn't handle any keyboard or mouse inputs; a third party program (e.g. AutoHotKey) is needed in order to
-translate keyboard and mouse events to *komorebic* commands.
+_komorebi_ doesn't handle any keyboard or mouse inputs; a third party program (e.g. AutoHotKey) is needed in order to
+translate keyboard and mouse events to _komorebic_ commands.
 
-This architecture, popularised by [*bspwm*](https://github.com/baskerville/bspwm) on Linux and
-[*yabai*](https://github.com/koekeishiya/yabai) on macOS, is outlined as follows:
+This architecture, popularised by [_bspwm_](https://github.com/baskerville/bspwm) on Linux and
+[_yabai_](https://github.com/koekeishiya/yabai) on macOS, is outlined as follows:
 
 ```
      PROCESS                SOCKET
@@ -34,15 +34,15 @@ ahk  -------->  komorebic  <------>  komorebi
 
 ## Design
 
-*komorebi* is the successor to [*yatta*](https://github.com/LGUG2Z/yatta) and as such aims to build on the learnings
+_komorebi_ is the successor to [_yatta_](https://github.com/LGUG2Z/yatta) and as such aims to build on the learnings
 from that project.
 
-While *yatta* was primary an attempt to learn how to work with and call Windows APIs from Rust, while secondarily
+While _yatta_ was primary an attempt to learn how to work with and call Windows APIs from Rust, while secondarily
 implementing a minimal viable tiling window manager for my own needs (largely single monitor, single workspace),
-*komorebi* has been redesigned from the ground-up to support more complex features that have become standard in tiling
+_komorebi_ has been redesigned from the ground-up to support more complex features that have become standard in tiling
 window managers on other platforms.
 
-*komorebi* holds a list of physical monitors.
+_komorebi_ holds a list of physical monitors.
 
 A monitor is just a rectangle of the available work area which contains one or more virtual workspaces.
 
@@ -52,16 +52,16 @@ A container is just a rectangle where one or more application windows can be dis
 
 This means that:
 
-* Every monitor has its own collection of virtual workspaces
-* Workspaces only know about containers and their dimensions, not about individual application windows
-* Every application window must belong to a container, even if that container only contains one application window
-* Many application windows can be stacked and cycled through in the same container within a workspace
+- Every monitor has its own collection of virtual workspaces
+- Workspaces only know about containers and their dimensions, not about individual application windows
+- Every application window must belong to a container, even if that container only contains one application window
+- Many application windows can be stacked and cycled through in the same container within a workspace
 
 ## Getting Started
 
 This project is still heavily under development and there are no prebuilt binaries available yet.
 
-If you would like to use *komorebi*, you will need
+If you would like to use _komorebi_, you will need
 a [working Rust development environment on Windows 10](https://rustup.rs/). If you are using
 the `x86_64-pc-windows-msvc` toolchain, make sure you have also installed
 the [Build Tools for Visual Studio 2019](https://stackoverflow.com/a/55603112).
@@ -100,6 +100,7 @@ sample [komorebi.ahk](komorebi.sample.ahk) AHK script that you can use as a star
 - [x] Move focused window container in direction
 - [x] Move focused window container to monitor
 - [x] Move focused window container to workspace
+- [x] Mouse follows focused container
 - [x] Resize window container in direction
 - [ ] Resize child window containers by split ratio
 - [x] Mouse drag to swap window container position
@@ -113,6 +114,7 @@ sample [komorebi.ahk](komorebi.sample.ahk) AHK script that you can use as a star
 - [x] Floating rules based on window class
 - [x] Toggle floating windows
 - [x] Toggle monocle window
+- [x] Toggle focus follows mouse
 - [x] Pause all window management
 - [x] View window manager state
 
@@ -121,15 +123,15 @@ sample [komorebi.ahk](komorebi.sample.ahk) AHK script that you can use as a star
 If you would like to contribute code to this repository, there are a few requests that I have to ensure a foundation of
 code quality, consistency and commit hygiene:
 
-* Flatten all `use` statements except in `bindings/build.rs`
-* Run `cargo +nightly clippy` and ensure that all lints and suggestions have been addressed before committing
-* Run `cargo +nightly fmt --all` to ensure consistent formatting before committing
-* Use `git cz` with
+- Flatten all `use` statements except in `bindings/build.rs`
+- Run `cargo +nightly clippy` and ensure that all lints and suggestions have been addressed before committing
+- Run `cargo +nightly fmt --all` to ensure consistent formatting before committing
+- Use `git cz` with
   the [Commitizen CLI](https://github.com/commitizen/cz-cli#conventional-commit-messages-as-a-global-utility) to prepare
   commit messages
-* Provide at least one short sentence or paragraph in your commit message body to describe your thought process for the
+- Provide at least one short sentence or paragraph in your commit message body to describe your thought process for the
   changes being committed
-  
+
 ## Logs and Debugging
 
 Logs from `komorebi` will be appended to `~/komorebi.log`; this file is never rotated or overwritten, so it will keep
@@ -261,7 +263,7 @@ like [Stackline](https://github.com/AdamWagner/stackline) for Windows, you could
               "layout_flip": null,
               "workspace_padding": 10,
               "container_padding": 10
-            },
+            }
           ],
           "focused": 0
         }

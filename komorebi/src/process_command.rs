@@ -13,6 +13,7 @@ use uds_windows::UnixStream;
 use komorebi_core::SocketMessage;
 
 use crate::window_manager::WindowManager;
+use crate::windows_api::WindowsApi;
 use crate::FLOAT_CLASSES;
 use crate::FLOAT_EXES;
 use crate::FLOAT_TITLES;
@@ -152,6 +153,13 @@ impl WindowManager {
             }
             SocketMessage::ResizeWindow(direction, sizing) => {
                 self.resize_window(direction, sizing, Option::from(50))?;
+            }
+            SocketMessage::FocusFollowsMouse(enable) => {
+                if enable {
+                    WindowsApi::enable_focus_follows_mouse()?;
+                } else {
+                    WindowsApi::disable_focus_follows_mouse()?;
+                }
             }
         }
 

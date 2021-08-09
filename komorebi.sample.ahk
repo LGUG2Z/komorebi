@@ -1,3 +1,6 @@
+; Enable focus follows mouse
+Run, komorebic.exe focus-follows-mouse enable
+
 ; Ensure there are 3 workspaces created on monitor 0
 Run, komorebic.exe ensure-workspaces 0 4
 

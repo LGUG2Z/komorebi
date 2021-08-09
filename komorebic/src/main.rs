@@ -60,6 +60,7 @@ enum SubCommand {
     AdjustContainerPadding(SizingAdjustment),
     AdjustWorkspacePadding(SizingAdjustment),
     FlipLayout(LayoutFlip),
+    FocusFollowsMouse(BooleanState),
 }
 
 #[derive(Clap)]
@@ -109,6 +110,12 @@ struct FloatTarget {
 struct Resize {
     edge: OperationDirection,
     sizing: Sizing,
+}
+
+#[derive(Clap)]
+enum BooleanState {
+    Enable,
+    Disable,
 }
 
 pub fn send_message(bytes: &[u8]) -> Result<()> {
@@ -320,6 +327,15 @@ fn main() -> Result<()> {
             let bytes = SocketMessage::ResizeWindow(resize.edge, resize.sizing)
                 .as_bytes()
                 .unwrap();
+            send_message(&*bytes)?;
+        }
+        SubCommand::FocusFollowsMouse(enable) => {
+            let enable = match enable {
+                BooleanState::Enable => true,
+                BooleanState::Disable => false,
+            };
+
+            let bytes = SocketMessage::FocusFollowsMouse(enable).as_bytes().unwrap();
             send_message(&*bytes)?;
         }
     }

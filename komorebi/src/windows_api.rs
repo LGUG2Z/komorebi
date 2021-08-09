@@ -1,6 +1,7 @@
 use std::collections::VecDeque;
 use std::convert::TryFrom;
 use std::convert::TryInto;
+use std::ffi::c_void;
 
 use color_eyre::eyre::ContextCompat;
 use color_eyre::Result;
@@ -56,6 +57,7 @@ use bindings::Windows::Win32::UI::WindowsAndMessaging::SetForegroundWindow;
 use bindings::Windows::Win32::UI::WindowsAndMessaging::SetWindowLongPtrW;
 use bindings::Windows::Win32::UI::WindowsAndMessaging::SetWindowPos;
 use bindings::Windows::Win32::UI::WindowsAndMessaging::ShowWindow;
+use bindings::Windows::Win32::UI::WindowsAndMessaging::SystemParametersInfoW;
 use bindings::Windows::Win32::UI::WindowsAndMessaging::GWL_EXSTYLE;
 use bindings::Windows::Win32::UI::WindowsAndMessaging::GWL_STYLE;
 use bindings::Windows::Win32::UI::WindowsAndMessaging::GW_HWNDNEXT;
@@ -63,8 +65,12 @@ use bindings::Windows::Win32::UI::WindowsAndMessaging::HWND_NOTOPMOST;
 use bindings::Windows::Win32::UI::WindowsAndMessaging::HWND_TOPMOST;
 use bindings::Windows::Win32::UI::WindowsAndMessaging::SET_WINDOW_POS_FLAGS;
 use bindings::Windows::Win32::UI::WindowsAndMessaging::SHOW_WINDOW_CMD;
+use bindings::Windows::Win32::UI::WindowsAndMessaging::SPIF_SENDCHANGE;
+use bindings::Windows::Win32::UI::WindowsAndMessaging::SPI_SETACTIVEWINDOWTRACKING;
 use bindings::Windows::Win32::UI::WindowsAndMessaging::SW_HIDE;
 use bindings::Windows::Win32::UI::WindowsAndMessaging::SW_RESTORE;
+use bindings::Windows::Win32::UI::WindowsAndMessaging::SYSTEM_PARAMETERS_INFO_ACTION;
+use bindings::Windows::Win32::UI::WindowsAndMessaging::SYSTEM_PARAMETERS_INFO_UPDATE_FLAGS;
 use bindings::Windows::Win32::UI::WindowsAndMessaging::WINDOW_LONG_PTR_INDEX;
 use bindings::Windows::Win32::UI::WindowsAndMessaging::WNDENUMPROC;
 use komorebi_core::Rect;
@@ -518,5 +524,34 @@ impl WindowsApi {
             monitor_info.rcMonitor.into(),
             monitor_info.rcWork.into(),
         ))
+    }
+
+    pub fn system_parameters_info_w(
+        action: SYSTEM_PARAMETERS_INFO_ACTION,
+        ui_param: u32,
+        pv_param: *mut c_void,
+        update_flags: SYSTEM_PARAMETERS_INFO_UPDATE_FLAGS,
+    ) -> Result<()> {
+        Result::from(WindowsResult::from(unsafe {
+            SystemParametersInfoW(action, ui_param, pv_param, update_flags)
+        }))
+    }
+
+    pub fn enable_focus_follows_mouse() -> Result<()> {
+        Self::system_parameters_info_w(
+            SPI_SETACTIVEWINDOWTRACKING,
+            0,
+            1 as *mut c_void,
+            SPIF_SENDCHANGE,
+        )
+    }
+
+    pub fn disable_focus_follows_mouse() -> Result<()> {
+        Self::system_parameters_info_w(
+            SPI_SETACTIVEWINDOWTRACKING,
+            0,
+            std::ptr::null_mut::<c_void>(),
+            SPIF_SENDCHANGE,
+        )
     }
 }

@@ -53,6 +53,7 @@ pub enum SocketMessage {
     FloatExe(String),
     FloatTitle(String),
     State,
+    FocusFollowsMouse(bool),
 }
 
 impl SocketMessage {
