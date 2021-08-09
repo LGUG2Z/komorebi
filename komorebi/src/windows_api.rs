@@ -167,6 +167,7 @@ impl WindowsApi {
             EnumWindows(Option::from(callback), LPARAM(callback_data_address))
         }))
     }
+
     pub fn load_workspace_information(monitors: &mut Ring<Monitor>) -> Result<()> {
         for monitor in monitors.elements_mut() {
             if monitor.workspaces().is_empty() {
@@ -373,6 +374,7 @@ impl WindowsApi {
     pub fn gwl_style(hwnd: HWND) -> Result<isize> {
         Self::window_long_ptr_w(hwnd, GWL_STYLE)
     }
+
     pub fn gwl_ex_style(hwnd: HWND) -> Result<isize> {
         Self::window_long_ptr_w(hwnd, GWL_EXSTYLE)
     }

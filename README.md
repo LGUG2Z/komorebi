@@ -100,7 +100,10 @@ sample [komorebi.ahk](komorebi.sample.ahk) AHK script that you can use as a star
 - [x] Move focused window container in direction
 - [x] Move focused window container to monitor
 - [x] Move focused window container to workspace
+- [x] Resize window container in direction
+- [ ] Resize child window containers by split ratio
 - [x] Mouse drag to swap window container position
+- [x] Mouse drag to resize window container
 - [x] Configurable workspace and container gaps
 - [x] BSP tree layout
 - [x] Flip BSP tree layout horizontally or vertically
@@ -112,7 +115,6 @@ sample [komorebi.ahk](komorebi.sample.ahk) AHK script that you can use as a star
 - [x] Toggle monocle window
 - [x] Pause all window management
 - [x] View window manager state
-- [ ] Configure split ratio like *bspwm*
 
 ## Development
 

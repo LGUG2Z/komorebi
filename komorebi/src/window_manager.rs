@@ -95,6 +95,80 @@ impl WindowManager {
     }
 
     #[tracing::instrument(skip(self))]
+    pub fn resize_window(
+        &mut self,
+        direction: OperationDirection,
+        sizing: Sizing,
+        step: Option<i32>,
+    ) -> Result<()> {
+        tracing::info!("resizing window");
+
+        let work_area = self.focused_monitor_work_area()?;
+        let workspace = self.focused_workspace_mut()?;
+        let len = workspace.containers().len();
+        let focused_idx = workspace.focused_container_idx();
+        let focused_idx_resize = workspace
+            .resize_dimensions()
+            .get(focused_idx)
+            .context("there is no resize adjustment for this container")?;
+
+        if direction.is_valid(
+            workspace.layout(),
+            workspace.layout_flip(),
+            focused_idx,
+            len,
+        ) {
+            let unaltered = workspace.layout().calculate(
+                &work_area,
+                len,
+                workspace.container_padding(),
+                workspace.layout_flip(),
+                &[],
+            );
+
+            let mut direction = direction;
+
+            // We only ever want to operate on the unflipped Rect positions when resizing, then we
+            // can flip them however they need to be flipped once the resizing has been done
+            if let Some(flip) = workspace.layout_flip() {
+                match flip {
+                    LayoutFlip::Horizontal => {
+                        if matches!(direction, OperationDirection::Left)
+                            || matches!(direction, OperationDirection::Right)
+                        {
+                            direction = direction.opposite();
+                        }
+                    }
+                    LayoutFlip::Vertical => {
+                        if matches!(direction, OperationDirection::Up)
+                            || matches!(direction, OperationDirection::Down)
+                        {
+                            direction = direction.opposite();
+                        }
+                    }
+                    LayoutFlip::HorizontalAndVertical => direction = direction.opposite(),
+                }
+            }
+
+            let resize = workspace.layout().resize(
+                unaltered
+                    .get(focused_idx)
+                    .context("there is no last layout")?,
+                focused_idx_resize,
+                direction,
+                sizing,
+                step,
+            );
+
+            workspace.resize_dimensions_mut()[focused_idx] = resize;
+            self.update_focused_workspace(false)
+        } else {
+            tracing::warn!("cannot resize container in this direction");
+            Ok(())
+        }
+    }
+
+    #[tracing::instrument(skip(self))]
     pub fn restore_all_windows(&mut self) {
         tracing::info!("restoring all hidden windows");
 
@@ -340,7 +414,7 @@ impl WindowManager {
 
     #[tracing::instrument(skip(self))]
     pub fn flip_layout(&mut self, layout_flip: LayoutFlip) -> Result<()> {
-        tracing::info!("flipping layout monocle");
+        tracing::info!("flipping layout");
 
         let workspace = self.focused_workspace_mut()?;
 

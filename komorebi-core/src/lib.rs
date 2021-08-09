@@ -24,6 +24,7 @@ pub enum SocketMessage {
     FocusWindow(OperationDirection),
     MoveWindow(OperationDirection),
     StackWindow(OperationDirection),
+    ResizeWindow(OperationDirection, Sizing),
     UnstackWindow,
     CycleStack(CycleDirection),
     MoveContainerToMonitorNumber(usize),
@@ -93,14 +94,4 @@ impl Sizing {
             }
         }
     }
-}
-
-#[derive(Clone, Copy, Debug, Serialize, Deserialize, Display, EnumString)]
-#[strum(serialize_all = "snake_case")]
-#[derive(Clap)]
-pub enum ResizeEdge {
-    Left,
-    Top,
-    Right,
-    Bottom,
 }

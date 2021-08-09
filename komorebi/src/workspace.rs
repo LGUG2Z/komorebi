@@ -28,6 +28,8 @@ pub struct Workspace {
     container_padding: Option<i32>,
     #[serde(skip_serializing)]
     latest_layout: Vec<Rect>,
+    #[serde(skip_serializing)]
+    resize_dimensions: Vec<Option<Rect>>,
 }
 
 impl Default for Workspace {
@@ -43,6 +45,7 @@ impl Default for Workspace {
             workspace_padding: Option::from(10),
             container_padding: Option::from(10),
             latest_layout: vec![],
+            resize_dimensions: vec![],
         }
     }
 }
@@ -91,6 +94,7 @@ impl Workspace {
                 self.containers().len(),
                 self.container_padding(),
                 self.layout_flip(),
+                self.resize_dimensions(),
             );
 
             let windows = self.visible_windows_mut();
@@ -100,6 +104,10 @@ impl Workspace {
                 }
             }
 
+            // Always make sure that the length of the resize dimensions vec is the same as the
+            // number of layouts / containers. This should never actually truncate as the remove_window
+            // function takes care of cleaning up resize dimensions when destroying empty containers
+            self.resize_dimensions_mut().resize(layouts.len(), None);
             self.set_latest_layout(layouts);
         }
 
@@ -197,6 +205,7 @@ impl Workspace {
             .remove_focused_container()
             .context("there is no container")?;
         self.containers_mut().push_front(container);
+        self.resize_dimensions_mut().insert(0, None);
         self.focus_container(0);
 
         Ok(())
@@ -208,6 +217,7 @@ impl Workspace {
     }
 
     fn remove_container_by_idx(&mut self, idx: usize) -> Option<Container> {
+        self.resize_dimensions_mut().remove(idx);
         self.containers_mut().remove(idx)
     }
 
@@ -251,6 +261,15 @@ impl Workspace {
             self.containers_mut()
                 .remove(container_idx)
                 .context("there is no container")?;
+
+            // Whenever a container is empty, we need to remove any resize dimensions for it too
+            self.resize_dimensions_mut().remove(container_idx);
+
+            // The last container can never be resized to the bottom or the right
+            if let Some(Some(last)) = self.resize_dimensions_mut().last_mut() {
+                last.bottom = 0;
+                last.right = 0;
+            }
         }
 
         if container_idx != 0 {
@@ -302,6 +321,8 @@ impl Workspace {
         // This is a little messy
         let adjusted_target_container_index = if container.windows().is_empty() {
             self.containers_mut().remove(focused_idx);
+            self.resize_dimensions_mut().remove(focused_idx);
+
             if focused_idx < target_container_idx {
                 target_container_idx - 1
             } else {
@@ -340,6 +361,7 @@ impl Workspace {
 
         if container.windows().is_empty() {
             self.containers_mut().remove(focused_container_idx);
+            self.resize_dimensions_mut().remove(focused_container_idx);
         } else {
             container.load_focused_window();
         }
@@ -360,22 +382,19 @@ impl Workspace {
         let mut container = Container::default();
         container.add_window(window);
         self.containers_mut().insert(focused_idx, container);
+        self.resize_dimensions_mut().insert(focused_idx, None);
 
         Ok(())
     }
 
     pub fn new_container_for_window(&mut self, window: Window) {
         let focused_idx = self.focused_container_idx();
-        let len = self.containers().len();
 
         let mut container = Container::default();
         container.add_window(window);
 
-        if focused_idx == len - 1 {
-            self.containers_mut().resize(len, Container::default());
-        }
-
         self.containers_mut().insert(focused_idx + 1, container);
+        self.resize_dimensions_mut().insert(focused_idx + 1, None);
         self.focus_container(focused_idx + 1);
     }
 
@@ -392,8 +411,14 @@ impl Workspace {
 
         if container.windows().is_empty() {
             self.containers_mut().remove(focused_idx);
+            self.resize_dimensions_mut().remove(focused_idx);
         } else {
             container.load_focused_window();
+        }
+
+        if let Some(Some(last)) = self.resize_dimensions_mut().last_mut() {
+            last.bottom = 0;
+            last.right = 0;
         }
 
         self.floating_windows_mut().push(window);
@@ -407,6 +432,10 @@ impl Workspace {
             .containers_mut()
             .remove(focused_idx)
             .context("there is not container")?;
+
+        // We don't remove any resize adjustments for a monocle, because when this container is
+        // inevitably reintegrated, it would be weird if it doesn't go back to the dimensions
+        // it had before
 
         self.monocle_container = Option::from(container);
         self.monocle_restore_idx = Option::from(focused_idx);
@@ -573,5 +602,13 @@ impl Workspace {
 
     pub fn set_latest_layout(&mut self, layout: Vec<Rect>) {
         self.latest_layout = layout;
+    }
+
+    pub const fn resize_dimensions(&self) -> &Vec<Option<Rect>> {
+        &self.resize_dimensions
+    }
+
+    pub fn resize_dimensions_mut(&mut self) -> &mut Vec<Option<Rect>> {
+        &mut self.resize_dimensions
     }
 }

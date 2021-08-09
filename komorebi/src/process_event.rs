@@ -7,8 +7,13 @@ use color_eyre::eyre::ContextCompat;
 use color_eyre::Result;
 use crossbeam_channel::select;
 
+use komorebi_core::OperationDirection;
+use komorebi_core::Rect;
+use komorebi_core::Sizing;
+
 use crate::window_manager::WindowManager;
 use crate::window_manager_event::WindowManagerEvent;
+use crate::windows_api::WindowsApi;
 use crate::HIDDEN_HWNDS;
 use crate::MULTI_WINDOW_EXES;
 
@@ -46,7 +51,6 @@ impl WindowManager {
         match event {
             WindowManagerEvent::FocusChange(_, window)
             | WindowManagerEvent::Show(_, window)
-            | WindowManagerEvent::MoveResizeStart(_, window)
             | WindowManagerEvent::MoveResizeEnd(_, window) => {
                 let monitor_idx = self
                     .monitor_idx_from_window(*window)
@@ -141,9 +145,6 @@ impl WindowManager {
                     self.update_focused_workspace(false)?;
                 }
             }
-            WindowManagerEvent::MoveResizeStart(_, _window) => {
-                // TODO: Implement dragging resize (one day)
-            }
             WindowManagerEvent::MoveResizeEnd(_, window) => {
                 let workspace = self.focused_workspace_mut()?;
                 if workspace
@@ -155,13 +156,82 @@ impl WindowManager {
                 }
 
                 let focused_idx = workspace.focused_container_idx();
+                let old_position = *workspace
+                    .latest_layout()
+                    .get(focused_idx)
+                    .context("there is no latest layout")?;
+                let mut new_position = WindowsApi::window_rect(window.hwnd())?;
 
-                match workspace.container_idx_from_current_point() {
-                    Some(target_idx) => {
-                        workspace.swap_containers(focused_idx, target_idx);
-                        self.update_focused_workspace(false)?;
+                // See Window.set_position() in window.rs for comments
+                let border = Rect {
+                    left: 12,
+                    top: 0,
+                    right: 24,
+                    bottom: 12,
+                };
+
+                // Adjust for the invisible border
+                new_position.left += border.left;
+                new_position.top += border.top;
+                new_position.right -= border.right;
+                new_position.bottom -= border.bottom;
+
+                let resize = Rect {
+                    left: new_position.left - old_position.left,
+                    top: new_position.top - old_position.top,
+                    right: new_position.right - old_position.right,
+                    bottom: new_position.bottom - old_position.bottom,
+                };
+
+                let is_move = resize.right == 0 && resize.bottom == 0;
+
+                if is_move {
+                    tracing::info!("moving with mouse");
+                    match workspace.container_idx_from_current_point() {
+                        Some(target_idx) => {
+                            workspace.swap_containers(focused_idx, target_idx);
+                            self.update_focused_workspace(false)?;
+                        }
+                        None => self.update_focused_workspace(true)?,
                     }
-                    None => self.update_focused_workspace(true)?,
+                } else {
+                    tracing::info!("resizing with mouse");
+                    let mut ops = vec![];
+
+                    macro_rules! resize_op {
+                        ($coordinate:expr, $comparator:tt, $direction:expr) => {{
+                            let adjusted = $coordinate * 2;
+                            let sizing = if adjusted $comparator 0 {
+                                Sizing::Decrease
+                            } else {
+                                Sizing::Increase
+                            };
+
+                            ($direction, sizing, adjusted.abs())
+                        }};
+                    }
+
+                    if resize.left != 0 {
+                        ops.push(resize_op!(resize.left, >, OperationDirection::Left));
+                    }
+
+                    if resize.top != 0 {
+                        ops.push(resize_op!(resize.top, >, OperationDirection::Up));
+                    }
+
+                    if resize.right != 0 && resize.left == 0 {
+                        ops.push(resize_op!(resize.right, <, OperationDirection::Right));
+                    }
+
+                    if resize.bottom != 0 && resize.top == 0 {
+                        ops.push(resize_op!(resize.bottom, <, OperationDirection::Down));
+                    }
+
+                    for (edge, sizing, step) in ops {
+                        self.resize_window(edge, sizing, Option::from(step))?;
+                    }
+
+                    self.update_focused_workspace(false)?;
                 }
             }
             WindowManagerEvent::MouseCapture(..) => {}

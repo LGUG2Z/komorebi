@@ -108,10 +108,16 @@ impl WindowManager {
             SocketMessage::Retile => {
                 for monitor in self.monitors_mut() {
                     let work_area = *monitor.work_area_size();
-                    monitor
+                    let workspace = monitor
                         .focused_workspace_mut()
-                        .context("there is no workspace")?
-                        .update(&work_area)?;
+                        .context("there is no workspace")?;
+
+                    // Reset any resize adjustments if we want to force a retile
+                    for resize in workspace.resize_dimensions_mut() {
+                        *resize = None;
+                    }
+
+                    workspace.update(&work_area)?;
                 }
             }
             SocketMessage::FlipLayout(layout_flip) => self.flip_layout(layout_flip)?,
@@ -143,6 +149,9 @@ impl WindowManager {
 
                 let mut stream = UnixStream::connect(&socket)?;
                 stream.write_all(state.as_bytes())?;
+            }
+            SocketMessage::ResizeWindow(direction, sizing) => {
+                self.resize_window(direction, sizing, Option::from(50))?;
             }
         }
 

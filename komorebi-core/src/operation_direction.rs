@@ -18,15 +18,12 @@ pub enum OperationDirection {
 }
 
 impl OperationDirection {
-    pub fn can_resize(&self, layout: Layout, idx: usize, len: usize) -> bool {
-        match layout {
-            Layout::BSP => match self {
-                Self::Left => len != 0 && idx != 0,
-                Self::Up => len > 2 && idx != 0 && idx != 1,
-                Self::Right => len > 1 && idx % 2 == 0 && idx != len - 1,
-                Self::Down => len > 2 && idx != len - 1 && idx % 2 != 0,
-            },
-            _ => false,
+    pub fn opposite(self) -> Self {
+        match self {
+            OperationDirection::Left => OperationDirection::Right,
+            OperationDirection::Right => OperationDirection::Left,
+            OperationDirection::Up => OperationDirection::Down,
+            OperationDirection::Down => OperationDirection::Up,
         }
     }
 
@@ -90,7 +87,7 @@ impl OperationDirection {
                 Layout::Rows => false,
             },
             OperationDirection::Right => match layout {
-                Layout::BSP => len > 1 && idx % 2 == 0,
+                Layout::BSP => len > 1 && idx % 2 == 0 && idx != len - 1,
                 Layout::Columns => idx != len - 1,
                 Layout::Rows => false,
             },

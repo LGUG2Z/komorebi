@@ -33,6 +33,7 @@ enum SubCommand {
     Focus(OperationDirection),
     Move(OperationDirection),
     Stack(OperationDirection),
+    Resize(Resize),
     Unstack,
     CycleStack(CycleDirection),
     MoveToMonitor(Target),
@@ -102,6 +103,12 @@ struct SizingAdjustment {
 #[derive(Clap)]
 struct FloatTarget {
     id: String,
+}
+
+#[derive(Clap)]
+struct Resize {
+    edge: OperationDirection,
+    sizing: Sizing,
 }
 
 pub fn send_message(bytes: &[u8]) -> Result<()> {
@@ -308,6 +315,12 @@ fn main() -> Result<()> {
             for hwnd in hwnds {
                 restore_window(HWND(hwnd));
             }
+        }
+        SubCommand::Resize(resize) => {
+            let bytes = SocketMessage::ResizeWindow(resize.edge, resize.sizing)
+                .as_bytes()
+                .unwrap();
+            send_message(&*bytes)?;
         }
     }
 
