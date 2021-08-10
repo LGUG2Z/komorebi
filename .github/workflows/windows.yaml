@@ -1,0 +1,97 @@
+# Adapted from the rustup workflows
+
+name: Windows
+
+on:
+  pull_request:
+    branches:
+      - "*"
+  push:
+    branches:
+      - master
+      - feature/*
+      - hotfix/*
+  schedule:
+    - cron: "30 0 * * 1" # Every Monday at half past midnight UTC skip-pr skip-stable
+
+jobs:
+  build:
+    name: Build
+    runs-on: windows-latest
+    env:
+      RUSTFLAGS: -Ctarget-feature=+crt-static
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - x86_64-pc-windows-msvc
+    steps:
+      - uses: actions/checkout@v2
+        # v2 defaults to a shallow checkout, but we need at least to the previous tag
+        with:
+          fetch-depth: 0
+      - name: Prep cargo dirs
+        run: |
+          New-Item "${env:USERPROFILE}\.cargo\registry" -ItemType Directory -Force
+          New-Item "${env:USERPROFILE}\.cargo\git" -ItemType Directory -Force
+        shell: powershell
+      - name: Install mingw
+        run: |
+          # We retrieve mingw from the Rust CI buckets
+          # Disable the download progress bar which can cause perf issues
+          $ProgressPreference = "SilentlyContinue"
+          Invoke-WebRequest ${{ matrix.mingw }} -OutFile mingw.7z
+          7z x -y mingw.7z -oC:\msys64 | Out-Null
+          del mingw.7z
+          echo "C:\msys64\usr\bin" | Out-File -Append -FilePath $env:GITHUB_PATH -Encoding utf8
+          echo "C:\msys64\${{ matrix.mingwdir }}\bin" | Out-File -Append -FilePath $env:GITHUB_PATH -Encoding utf8
+        shell: powershell
+        if: matrix.mingw != ''
+      - name: Set environment variables appropriately for the build
+        run: |
+          echo "%USERPROFILE%\.cargo\bin" | Out-File -Append -FilePath $env:GITHUB_PATH -Encoding utf8
+          echo "TARGET=${{ matrix.target }}" | Out-File -Append -FilePath $env:GITHUB_ENV -Encoding utf8
+          echo "SKIP_TESTS=" | Out-File -Append -FilePath $env:GITHUB_ENV -Encoding utf8
+      - name: Cache cargo registry and git trees
+        uses: actions/cache@v2
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+      - name: Get rustc commit hash
+        id: cargo-target-cache
+        run: |
+          echo "::set-output name=rust_hash::$(rustc -Vv | grep commit-hash | awk '{print $2}')"
+        shell: bash
+      - name: Cache cargo build
+        uses: actions/cache@v2
+        with:
+          path: target
+          key: ${{ github.base_ref }}-${{ github.head_ref }}-${{ matrix.target }}-cargo-target-dir-${{ steps.cargo-target-cache.outputs.rust_hash }}-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ github.base_ref }}-${{ matrix.target }}-cargo-target-dir-${{ steps.cargo-target-cache.outputs.rust_hash }}-${{ hashFiles('**/Cargo.lock') }}
+      - name: Install Rustup using win.rustup.rs
+        run: |
+          # Disable the download progress bar which can cause perf issues
+          $ProgressPreference = "SilentlyContinue"
+          Invoke-WebRequest https://win.rustup.rs/ -OutFile rustup-init.exe
+          .\rustup-init.exe -y --default-host=x86_64-pc-windows-msvc --profile=minimal
+          del rustup-init.exe
+        shell: powershell
+      - name: Ensure stable toolchain is up to date
+        run: rustup update stable
+        shell: bash
+      - name: Install the target
+        run: |
+          rustup target install ${{ matrix.target }}
+      - name: Run a full build
+        run: |
+          cargo build --locked --release --target ${{ matrix.target }}
+      - name: Upload the built artifacts
+        uses: actions/upload-artifact@v2
+        with:
+          name: komorebi-${{ matrix.target }}
+          path: |
+            target/${{ matrix.target }}/release/komorebi.exe
+            target/${{ matrix.target }}/release/komorebic.exe
+          retention-days: 7
