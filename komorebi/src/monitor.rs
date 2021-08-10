@@ -21,6 +21,8 @@ pub struct Monitor {
     workspace_names: HashMap<usize, String>,
 }
 
+impl_ring_elements!(Monitor, Workspace);
+
 pub fn new(id: isize, monitor_size: Rect, work_area_size: Rect) -> Monitor {
     Monitor {
         id,
@@ -92,18 +94,6 @@ impl Monitor {
         Ok(())
     }
 
-    pub fn focused_workspace(&self) -> Option<&Workspace> {
-        self.workspaces.focused()
-    }
-
-    pub const fn focused_workspace_idx(&self) -> usize {
-        self.workspaces.focused_idx()
-    }
-
-    pub fn focused_workspace_mut(&mut self) -> Option<&mut Workspace> {
-        self.workspaces.focused_mut()
-    }
-
     #[tracing::instrument(skip(self))]
     pub fn focus_workspace(&mut self, idx: usize) -> Result<()> {
         tracing::info!("focusing workspace");
@@ -140,14 +130,6 @@ impl Monitor {
             .update(&work_area)?;
 
         Ok(())
-    }
-
-    pub const fn workspaces(&self) -> &VecDeque<Workspace> {
-        self.workspaces.elements()
-    }
-
-    pub fn workspaces_mut(&mut self) -> &mut VecDeque<Workspace> {
-        self.workspaces.elements_mut()
     }
 
     pub fn workspace_names_mut(&mut self) -> &mut HashMap<usize, String> {

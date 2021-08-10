@@ -13,6 +13,8 @@ pub struct Container {
     windows: Ring<Window>,
 }
 
+impl_ring_elements!(Container, Window);
+
 impl Default for Container {
     fn default() -> Self {
         Self {
@@ -87,34 +89,10 @@ impl Container {
         self.focus_window(self.windows().len() - 1);
     }
 
-    pub fn focused_window(&self) -> Option<&Window> {
-        self.windows.focused()
-    }
-
-    pub const fn focused_window_idx(&self) -> usize {
-        self.windows.focused_idx()
-    }
-
-    pub fn focused_window_mut(&mut self) -> Option<&mut Window> {
-        self.windows.focused_mut()
-    }
-
     #[tracing::instrument(skip(self))]
     pub fn focus_window(&mut self, idx: usize) {
         tracing::info!("focusing window");
         self.windows.focus(idx);
-    }
-
-    pub const fn windows(&self) -> &VecDeque<Window> {
-        self.windows.elements()
-    }
-
-    pub fn windows_mut(&mut self) -> &mut VecDeque<Window> {
-        self.windows.elements_mut()
-    }
-
-    pub fn visible_window_mut(&mut self) -> Option<&mut Window> {
-        self.focused_window_mut()
     }
 
     pub const fn id(&self) -> &String {

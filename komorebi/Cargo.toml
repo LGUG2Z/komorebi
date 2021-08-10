@@ -18,6 +18,7 @@ dirs = "3"
 eyre = "0.6.5"
 lazy_static = "1.4.0"
 nanoid = "0.4.0"
+paste = "1.0"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 strum = { version = "0.21", features = ["derive"] }

@@ -46,3 +46,31 @@ impl<T> Ring<T> {
         self.elements.swap(i, j);
     }
 }
+
+macro_rules! impl_ring_elements {
+    ($name:ty, $element:ident) => {
+        paste::paste! {
+            impl $name {
+                pub const fn [<$element:lower s>](&self) -> &VecDeque<$element> {
+                    self.[<$element:lower s>].elements()
+                }
+
+                pub fn [<$element:lower s_mut>](&mut self) -> &mut VecDeque<$element> {
+                    self.[<$element:lower s>].elements_mut()
+                }
+
+                pub fn [<focused_ $element:lower>](&self) -> Option<&$element> {
+                    self.[<$element:lower s>].focused()
+                }
+
+                pub const fn [<focused_ $element:lower _idx>](&self) -> usize {
+                    self.[<$element:lower s>].focused_idx()
+                }
+
+                pub fn [<focused_ $element:lower _mut>](&mut self) -> Option<&mut $element> {
+                    self.[<$element:lower s>].focused_mut()
+                }
+            }
+        }
+    };
+}

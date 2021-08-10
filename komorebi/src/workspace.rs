@@ -32,6 +32,8 @@ pub struct Workspace {
     resize_dimensions: Vec<Option<Rect>>,
 }
 
+impl_ring_elements!(Workspace, Container);
+
 impl Default for Workspace {
     fn default() -> Self {
         Self {
@@ -63,7 +65,7 @@ impl Workspace {
         let idx = self.focused_container_idx();
         let mut to_focus = None;
         for (i, container) in self.containers_mut().iter_mut().enumerate() {
-            if let Some(window) = container.visible_window_mut() {
+            if let Some(window) = container.focused_window_mut() {
                 window.restore();
 
                 if idx == i {
@@ -506,31 +508,11 @@ impl Workspace {
         self.monocle_restore_idx
     }
 
-    pub fn focused_container(&self) -> Option<&Container> {
-        self.containers.focused()
-    }
-
-    pub const fn focused_container_idx(&self) -> usize {
-        self.containers.focused_idx()
-    }
-
-    pub fn focused_container_mut(&mut self) -> Option<&mut Container> {
-        self.containers.focused_mut()
-    }
-
     #[tracing::instrument(skip(self))]
     pub fn focus_container(&mut self, idx: usize) {
         tracing::info!("focusing container");
 
         self.containers.focus(idx);
-    }
-
-    pub const fn containers(&self) -> &VecDeque<Container> {
-        self.containers.elements()
-    }
-
-    pub fn containers_mut(&mut self) -> &mut VecDeque<Container> {
-        self.containers.elements_mut()
     }
 
     pub fn swap_containers(&mut self, i: usize, j: usize) {
@@ -571,7 +553,7 @@ impl Workspace {
     pub fn visible_windows_mut(&mut self) -> Vec<Option<&mut Window>> {
         let mut vec = vec![];
         for container in self.containers_mut() {
-            vec.push(container.visible_window_mut());
+            vec.push(container.focused_window_mut());
         }
 
         vec

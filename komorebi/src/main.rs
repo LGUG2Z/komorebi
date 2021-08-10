@@ -19,11 +19,13 @@ use crate::process_event::listen_for_events;
 use crate::window_manager_event::WindowManagerEvent;
 use crate::windows_api::WindowsApi;
 
+#[macro_use]
+mod ring;
+
 mod container;
 mod monitor;
 mod process_command;
 mod process_event;
-mod ring;
 mod set_window_position;
 mod styles;
 mod window;

@@ -34,6 +34,8 @@ pub struct WindowManager {
     pub is_paused: bool,
 }
 
+impl_ring_elements!(WindowManager, Monitor);
+
 #[tracing::instrument]
 pub fn new(incoming: Arc<Mutex<Receiver<WindowManagerEvent>>>) -> Result<WindowManager> {
     let home = dirs::home_dir().context("there is no home directory")?;
@@ -622,26 +624,6 @@ impl WindowManager {
 }
 
 impl WindowManager {
-    pub const fn monitors(&self) -> &VecDeque<Monitor> {
-        self.monitors.elements()
-    }
-
-    pub fn monitors_mut(&mut self) -> &mut VecDeque<Monitor> {
-        self.monitors.elements_mut()
-    }
-
-    pub fn focused_monitor(&self) -> Option<&Monitor> {
-        self.monitors.focused()
-    }
-
-    pub const fn focused_monitor_idx(&self) -> usize {
-        self.monitors.focused_idx()
-    }
-
-    pub fn focused_monitor_mut(&mut self) -> Option<&mut Monitor> {
-        self.monitors.focused_mut()
-    }
-
     pub fn focused_monitor_work_area(&self) -> Result<Rect> {
         Ok(*self
             .focused_monitor()
