@@ -185,7 +185,12 @@ impl WindowsApi {
                     workspace.containers_mut() as *mut VecDeque<Container> as isize,
                 )?;
 
-                // So we have to prune each monitor's primary workspace of undesired windows here
+                // Ensure that the resize_dimensions Vec length matches the number of containers for
+                // the potential later calls to workspace.remove_window later in this fn
+                let len = workspace.containers().len();
+                workspace.resize_dimensions_mut().resize(len, None);
+
+                // We have to prune each monitor's primary workspace of undesired windows here
                 let mut windows_on_other_monitors = vec![];
 
                 for container in workspace.containers_mut() {

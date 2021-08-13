@@ -281,7 +281,9 @@ impl Workspace {
                 .context("there is no container")?;
 
             // Whenever a container is empty, we need to remove any resize dimensions for it too
-            self.resize_dimensions_mut().remove(container_idx);
+            if self.resize_dimensions().get(container_idx).is_some() {
+                self.resize_dimensions_mut().remove(container_idx);
+            }
         }
 
         if container_idx != 0 {
