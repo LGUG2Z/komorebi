@@ -3,6 +3,8 @@ use std::io::BufRead;
 use std::io::BufReader;
 use std::io::ErrorKind;
 use std::io::Write;
+use std::path::PathBuf;
+use std::process::Command;
 
 use clap::AppSettings;
 use clap::ArgEnum;
@@ -85,7 +87,7 @@ gen_target_subcommand_args! {
     FocusWorkspace
 }
 
-// Thanks to @danielhenrymantilla for showing me how to use cfr_attr with an optional argument like
+// Thanks to @danielhenrymantilla for showing me how to use cfg_attr with an optional argument like
 // this on the Rust Programming Language Community Discord Server
 macro_rules! gen_workspace_subcommand_args {
     // Workspace Property: #[enum] Value Enum (if the value is an Enum)
@@ -341,12 +343,40 @@ fn main() -> Result<()> {
             )?;
         }
         SubCommand::Start => {
-            match powershell_script::run("Start-Process komorebi -WindowStyle hidden", true) {
+            let mut buf: PathBuf;
+
+            // The komorebi.ps1 shim will only exist in the Path if installed by Scoop
+            let exec = if let Ok(output) = Command::new("where.exe").arg("komorebi.ps1").output() {
+                let stdout = String::from_utf8(output.stdout)?;
+                match stdout.trim() {
+                    stdout if stdout.is_empty() => None,
+                    stdout => {
+                        buf = PathBuf::from(stdout);
+                        buf.pop(); // %USERPROFILE%\scoop\shims
+                        buf.pop(); // %USERPROFILE%\scoop
+                        buf.push("apps\\komorebi\\current\\komorebi.exe"); //%USERPROFILE%\scoop\komorebi\current\komorebi.exe
+                        Option::from(
+                            buf.to_str()
+                                .context("cannot create a string from the scoop komorebi path")?,
+                        )
+                    }
+                }
+            } else {
+                None
+            };
+
+            let script = if let Some(exec) = exec {
+                format!("Start-Process '{}' -WindowStyle hidden", exec)
+            } else {
+                String::from("Start-Process komorebi -WindowStyle hidden")
+            };
+
+            match powershell_script::run(&script, true) {
                 Ok(output) => {
                     println!("{}", output);
                 }
-                Err(e) => {
-                    println!("Error: {}", e);
+                Err(error) => {
+                    println!("Error: {}", error);
                 }
             }
         }

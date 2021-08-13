@@ -59,11 +59,29 @@ This means that:
 
 ## Getting Started
 
-This project is still heavily under development and there are no prebuilt binaries available yet.
+Prebuilt binaries are available on the [releases page](https://github.com/LGUG2Z/komorebi/releases) in a `zip` archive.
+Once downloaded, you will need to move the `komorebi.exe` and `komorebic.exe` binaries to a directory in your `Path` (
+you can see these directories by running `$Env:Path.split(";")` at a PowerShell prompt).
 
-If you would like to use _komorebi_, you will need
-a [working Rust development environment on Windows 10](https://rustup.rs/). If you are using
-the `x86_64-pc-windows-msvc` toolchain, make sure you have also installed
+Alternatively, you may add a new directory to your `Path`
+using [`setx`](https://docs.microsoft.com/en-us/windows-server/administration/windows-commands/setx) or the Environment
+Variables pop up in System Properties Advanced (which can be launched with `SystemPropertiesAdvanced.exe` at a
+PowerShell prompt), and then move the binaries to that directory.
+
+If you use the [Scoop](https://scoop.sh/) command line installer, you can run the following commands to install the
+binaries from the latest GitHub Release:
+
+```
+scoop bucket add komorebi https://github.com/LGUG2Z/komorebi-bucket
+scoop install komorebi
+```
+
+If you install _komorebi_ using Scoop, the binaries will automatically be added to your `Path` and a command will be
+shown for you to run in order to get started using the sample configuration file.
+
+If you prefer to compile _komorebi_ from source, you will need
+a [working Rust development environment on Windows 10](https://rustup.rs/). The `x86_64-pc-windows-msvc` toolchain is
+required, so make sure you have also installed
 the [Build Tools for Visual Studio 2019](https://stackoverflow.com/a/55603112).
 
 You can then clone this repo and compile the source code to install the binaries for `komorebi` and `komorebic`:
@@ -73,16 +91,19 @@ cargo install --path komorebi --locked
 cargo install --path komorebic --locked
 ```
 
-By running `komorebic start` at a Powershell prompt, you should see the following output:
+Once you have either the prebuilt binaries in your `Path`, or have compiled the binaries from source (these will already
+be in your `Path` if you installed Rust with [rustup](https://rustup.rs), which you absolutely should), you can
+run `komorebic start` at a Powershell prompt, and you will see the following output:
 
 ```
 Start-Process komorebi -WindowStyle hidden
 ```
 
 This means that `komorebi` is now running in the background, tiling all your windows, and listening for commands sent to
-it by `komorebic`.
+it by `komorebic`. You can similarly stop the process by running `komorebic stop`.
 
-You can similarly stop the process by running `komorebic stop`.
+Once `komorebi` is running, you can execute the `komorebi.sample.ahk` script to set up the default keybindings via AHK
+(the file includes comments to help you start building your own configuration).
 
 If you have AutoHotKey installed and a `komorebi.ahk` file in your home directory (run `$Env:UserProfile` at a
 PowerShell prompt to find your home directory), `komorebi` will automatically try to load it when starting.

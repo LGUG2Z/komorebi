@@ -1,4 +1,4 @@
-# Adapted from the rustup workflows
+# Adapted from https://github.com/rust-lang/rustup/blob/master/.github/workflows/windows-builds-on-master.yaml
 
 name: Windows
 
@@ -11,15 +11,15 @@ on:
       - master
       - feature/*
       - hotfix/*
+    tags:
+      - v*
   schedule:
-    - cron: "30 0 * * 1" # Every Monday at half past midnight UTC skip-pr skip-stable
+    - cron: "30 0 * * 1" # Every Monday at half past midnight UTC
 
 jobs:
   build:
     name: Build
     runs-on: windows-latest
-    env:
-      RUSTFLAGS: -Ctarget-feature=+crt-static
     strategy:
       fail-fast: false
       matrix:
@@ -27,7 +27,6 @@ jobs:
           - x86_64-pc-windows-msvc
     steps:
       - uses: actions/checkout@v2
-        # v2 defaults to a shallow checkout, but we need at least to the previous tag
         with:
           fetch-depth: 0
       - name: Prep cargo dirs
@@ -35,29 +34,18 @@ jobs:
           New-Item "${env:USERPROFILE}\.cargo\registry" -ItemType Directory -Force
           New-Item "${env:USERPROFILE}\.cargo\git" -ItemType Directory -Force
         shell: powershell
-      - name: Install mingw
-        run: |
-          # We retrieve mingw from the Rust CI buckets
-          # Disable the download progress bar which can cause perf issues
-          $ProgressPreference = "SilentlyContinue"
-          Invoke-WebRequest ${{ matrix.mingw }} -OutFile mingw.7z
-          7z x -y mingw.7z -oC:\msys64 | Out-Null
-          del mingw.7z
-          echo "C:\msys64\usr\bin" | Out-File -Append -FilePath $env:GITHUB_PATH -Encoding utf8
-          echo "C:\msys64\${{ matrix.mingwdir }}\bin" | Out-File -Append -FilePath $env:GITHUB_PATH -Encoding utf8
-        shell: powershell
-        if: matrix.mingw != ''
       - name: Set environment variables appropriately for the build
         run: |
           echo "%USERPROFILE%\.cargo\bin" | Out-File -Append -FilePath $env:GITHUB_PATH -Encoding utf8
           echo "TARGET=${{ matrix.target }}" | Out-File -Append -FilePath $env:GITHUB_ENV -Encoding utf8
           echo "SKIP_TESTS=" | Out-File -Append -FilePath $env:GITHUB_ENV -Encoding utf8
-      - name: Cache cargo registry and git trees
+      - name: Cache cargo registry, git trees and binaries
         uses: actions/cache@v2
         with:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
+            ~/.cargo/bin
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
       - name: Get rustc commit hash
         id: cargo-target-cache
@@ -95,3 +83,18 @@ jobs:
             target/${{ matrix.target }}/release/komorebi.exe
             target/${{ matrix.target }}/release/komorebic.exe
           retention-days: 7
+      - name: Generate changelog
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: bash
+        run: |
+          if ! type kokai >/dev/null; then cargo install --locked kokai --force; fi
+          kokai release --no-emoji --add-links github:commits,issues --ref "$(git tag --points-at HEAD)" >"CHANGELOG.md"
+      - name: Run GoReleaser
+        uses: goreleaser/goreleaser-action@v2
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          version: latest
+          args: release --skip-validate --rm-dist --release-notes=CHANGELOG.md
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SCOOP_TOKEN: ${{ secrets.SCOOP_TOKEN }}

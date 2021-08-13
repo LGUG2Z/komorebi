@@ -1,0 +1,57 @@
+# Adapted from https://jondot.medium.com/shipping-rust-binaries-with-goreleaser-d5aa42a46be0
+project_name: komorebi
+
+before:
+  hooks:
+    - powershell.exe -Command "New-Item -Path . -Name dummy.go -ItemType file -Force"
+    - powershell.exe -Command "Add-Content -Path .\dummy.go -Value 'package main'"
+    - powershell.exe -Command "Add-Content -Path .\dummy.go -Value 'func main() {}'"
+
+builds:
+  - id: komorebi
+    main: dummy.go
+    goos: ["windows"]
+    goarch: ["amd64"]
+    binary: komorebi
+    hooks:
+      post:
+        - mkdir -p dist/windows_amd64
+        - cp ".\target\x86_64-pc-windows-msvc\release\komorebi.exe" ".\dist\komorebi_windows_amd64\komorebi.exe"
+  - id: komorebic
+    main: dummy.go
+    goos: ["windows"]
+    goarch: ["amd64"]
+    binary: komorebic
+    hooks:
+      post:
+        - mkdir -p dist/windows_amd64
+        - cp ".\target\x86_64-pc-windows-msvc\release\komorebic.exe" ".\dist\komorebic_windows_amd64\komorebic.exe"
+
+archives:
+  - replacements:
+      windows: pc-windows-msvc
+      amd64: x86_64
+    format: zip
+    name_template: "{{ .ProjectName }}-{{ .Version }}-{{ .Arch }}-{{ .Os }}"
+    files:
+      - LICENSE
+      - komorebi.sample.ahk
+      - CHANGELOG.md
+
+checksum:
+  name_template: checksums.txt
+
+changelog:
+  sort: asc
+
+scoop:
+  bucket:
+    owner: LGUG2Z
+    name: komorebi-bucket
+    token: "{{ .Env.SCOOP_TOKEN }}"
+  homepage: https://github.com/LGUG2Z/komorebi
+  description: A tiling window manager for Windows
+  license: MIT
+  post_install:
+    - Write-Host "Run 'cp $original_dir\komorebi.sample.ahk $Env:UserProfile\komorebi.ahk' to get started with the sample configuration"
+    - Write-Host "Once you have a configuration file in place, you can run 'komorebic start' to start the window manager"
