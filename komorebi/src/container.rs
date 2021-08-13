@@ -1,14 +1,16 @@
 use std::collections::VecDeque;
 
+use getset::Getters;
 use nanoid::nanoid;
 use serde::Serialize;
 
 use crate::ring::Ring;
 use crate::window::Window;
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Getters)]
 pub struct Container {
     #[serde(skip_serializing)]
+    #[getset(get = "pub")]
     id: String,
     windows: Ring<Window>,
 }
@@ -93,9 +95,5 @@ impl Container {
     pub fn focus_window(&mut self, idx: usize) {
         tracing::info!("focusing window");
         self.windows.focus(idx);
-    }
-
-    pub const fn id(&self) -> &String {
-        &self.id
     }
 }

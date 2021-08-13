@@ -2,6 +2,10 @@ use std::collections::VecDeque;
 
 use color_eyre::eyre::ContextCompat;
 use color_eyre::Result;
+use getset::CopyGetters;
+use getset::Getters;
+use getset::MutGetters;
+use getset::Setters;
 use serde::Serialize;
 
 use komorebi_core::Layout;
@@ -14,21 +18,31 @@ use crate::ring::Ring;
 use crate::window::Window;
 use crate::windows_api::WindowsApi;
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Getters, CopyGetters, MutGetters, Setters)]
 pub struct Workspace {
+    #[getset(set = "pub")]
     name: Option<String>,
     containers: Ring<Container>,
+    #[getset(get = "pub", get_mut = "pub", set = "pub")]
     monocle_container: Option<Container>,
     #[serde(skip_serializing)]
+    #[getset(get_copy = "pub", set = "pub")]
     monocle_restore_idx: Option<usize>,
+    #[getset(get = "pub", get_mut = "pub")]
     floating_windows: Vec<Window>,
+    #[getset(get_copy = "pub", set = "pub")]
     layout: Layout,
+    #[getset(get_copy = "pub", set = "pub")]
     layout_flip: Option<LayoutFlip>,
+    #[getset(get_copy = "pub", set = "pub")]
     workspace_padding: Option<i32>,
+    #[getset(get_copy = "pub", set = "pub")]
     container_padding: Option<i32>,
     #[serde(skip_serializing)]
+    #[getset(get = "pub", set = "pub")]
     latest_layout: Vec<Rect>,
     #[serde(skip_serializing)]
+    #[getset(get = "pub", get_mut = "pub")]
     resize_dimensions: Vec<Option<Rect>>,
 }
 
@@ -456,14 +470,15 @@ impl Workspace {
         // inevitably reintegrated, it would be weird if it doesn't go back to the dimensions
         // it had before
 
-        self.monocle_container = Option::from(container);
-        self.monocle_restore_idx = Option::from(focused_idx);
+        self.set_monocle_container(Option::from(container));
+        self.set_monocle_restore_idx(Option::from(focused_idx));
 
         if focused_idx != 0 {
             self.focus_container(focused_idx - 1);
         }
 
         self.monocle_container_mut()
+            .as_mut()
             .context("there is no monocle container")?
             .load_focused_window();
 
@@ -477,6 +492,7 @@ impl Workspace {
 
         let container = self
             .monocle_container_mut()
+            .as_ref()
             .context("there is no monocle container")?;
 
         let container = container.clone();
@@ -491,21 +507,9 @@ impl Workspace {
             .context("there is no container")?
             .load_focused_window();
 
-        self.monocle_container = None;
+        self.set_monocle_container(None);
 
         Ok(())
-    }
-
-    pub const fn monocle_container(&self) -> Option<&Container> {
-        self.monocle_container.as_ref()
-    }
-
-    pub fn monocle_container_mut(&mut self) -> Option<&mut Container> {
-        self.monocle_container.as_mut()
-    }
-
-    pub const fn monocle_restore_idx(&self) -> Option<usize> {
-        self.monocle_restore_idx
     }
 
     #[tracing::instrument(skip(self))]
@@ -542,14 +546,6 @@ impl Workspace {
         }
     }
 
-    pub const fn floating_windows(&self) -> &Vec<Window> {
-        &self.floating_windows
-    }
-
-    pub fn floating_windows_mut(&mut self) -> &mut Vec<Window> {
-        self.floating_windows.as_mut()
-    }
-
     pub fn visible_windows_mut(&mut self) -> Vec<Option<&mut Window>> {
         let mut vec = vec![];
         for container in self.containers_mut() {
@@ -557,57 +553,5 @@ impl Workspace {
         }
 
         vec
-    }
-
-    pub const fn layout(&self) -> Layout {
-        self.layout
-    }
-
-    pub const fn layout_flip(&self) -> Option<LayoutFlip> {
-        self.layout_flip
-    }
-
-    pub const fn workspace_padding(&self) -> Option<i32> {
-        self.workspace_padding
-    }
-
-    pub const fn container_padding(&self) -> Option<i32> {
-        self.container_padding
-    }
-
-    pub const fn latest_layout(&self) -> &Vec<Rect> {
-        &self.latest_layout
-    }
-
-    pub fn set_name(&mut self, name: Option<String>) {
-        self.name = name;
-    }
-
-    pub fn set_layout(&mut self, layout: Layout) {
-        self.layout = layout;
-    }
-
-    pub fn set_layout_flip(&mut self, layout_flip: Option<LayoutFlip>) {
-        self.layout_flip = layout_flip;
-    }
-
-    pub fn set_workspace_padding(&mut self, padding: Option<i32>) {
-        self.workspace_padding = padding;
-    }
-
-    pub fn set_container_padding(&mut self, padding: Option<i32>) {
-        self.container_padding = padding;
-    }
-
-    pub fn set_latest_layout(&mut self, layout: Vec<Rect>) {
-        self.latest_layout = layout;
-    }
-
-    pub const fn resize_dimensions(&self) -> &Vec<Option<Rect>> {
-        &self.resize_dimensions
-    }
-
-    pub fn resize_dimensions_mut(&mut self) -> &mut Vec<Option<Rect>> {
-        &mut self.resize_dimensions
     }
 }

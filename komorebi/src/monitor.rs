@@ -3,6 +3,9 @@ use std::collections::VecDeque;
 
 use color_eyre::eyre::ContextCompat;
 use color_eyre::Result;
+use getset::CopyGetters;
+use getset::Getters;
+use getset::MutGetters;
 use serde::Serialize;
 
 use komorebi_core::Rect;
@@ -11,13 +14,16 @@ use crate::container::Container;
 use crate::ring::Ring;
 use crate::workspace::Workspace;
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Getters, CopyGetters, MutGetters)]
 pub struct Monitor {
+    #[getset(get_copy = "pub")]
     id: isize,
     monitor_size: Rect,
+    #[getset(get = "pub")]
     work_area_size: Rect,
     workspaces: Ring<Workspace>,
     #[serde(skip_serializing)]
+    #[getset(get_mut = "pub")]
     workspace_names: HashMap<usize, String>,
 }
 
@@ -130,17 +136,5 @@ impl Monitor {
             .update(&work_area)?;
 
         Ok(())
-    }
-
-    pub fn workspace_names_mut(&mut self) -> &mut HashMap<usize, String> {
-        &mut self.workspace_names
-    }
-
-    pub const fn id(&self) -> isize {
-        self.id
-    }
-
-    pub const fn work_area_size(&self) -> &Rect {
-        &self.work_area_size
     }
 }

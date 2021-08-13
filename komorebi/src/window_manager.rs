@@ -422,7 +422,9 @@ impl WindowManager {
 
         #[allow(clippy::match_same_arms)]
         match workspace.layout_flip() {
-            None => workspace.set_layout_flip(Option::from(layout_flip)),
+            None => {
+                workspace.set_layout_flip(Option::from(layout_flip));
+            }
             Some(current_layout_flip) => {
                 match current_layout_flip {
                     LayoutFlip::Horizontal => match layout_flip {
@@ -439,18 +441,16 @@ impl WindowManager {
                         LayoutFlip::HorizontalAndVertical => workspace
                             .set_layout_flip(Option::from(LayoutFlip::HorizontalAndVertical)),
                     },
-                    LayoutFlip::HorizontalAndVertical => {
-                        match layout_flip {
-                            LayoutFlip::Horizontal => {
-                                workspace.set_layout_flip(Option::from(LayoutFlip::Vertical));
-                            }
-                            LayoutFlip::Vertical => {
-                                workspace.set_layout_flip(Option::from(LayoutFlip::Horizontal));
-                            }
-                            LayoutFlip::HorizontalAndVertical => workspace.set_layout_flip(None),
-                        };
-                    }
-                }
+                    LayoutFlip::HorizontalAndVertical => match layout_flip {
+                        LayoutFlip::Horizontal => {
+                            workspace.set_layout_flip(Option::from(LayoutFlip::Vertical))
+                        }
+                        LayoutFlip::Vertical => {
+                            workspace.set_layout_flip(Option::from(LayoutFlip::Horizontal))
+                        }
+                        LayoutFlip::HorizontalAndVertical => workspace.set_layout_flip(None),
+                    },
+                };
             }
         }
 
@@ -621,9 +621,7 @@ impl WindowManager {
 
         self.update_focused_workspace(false)
     }
-}
 
-impl WindowManager {
     pub fn focused_monitor_work_area(&self) -> Result<Rect> {
         Ok(*self
             .focused_monitor()

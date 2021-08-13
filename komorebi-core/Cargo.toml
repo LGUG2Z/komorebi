@@ -8,8 +8,8 @@ edition = "2018"
 [dependencies]
 bindings = { package = "bindings", path = "../bindings" }
 
-color-eyre = "0.5.11"
 clap = "3.0.0-beta.2"
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
+color-eyre = "0.5"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
 strum = { version = "0.21", features = ["derive"] }
