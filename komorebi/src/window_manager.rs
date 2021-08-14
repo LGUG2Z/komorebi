@@ -327,6 +327,13 @@ impl WindowManager {
     }
 
     #[tracing::instrument(skip(self))]
+    pub fn toggle_tiling(&mut self) -> Result<()> {
+        let workspace = self.focused_workspace_mut()?;
+        workspace.set_tile(!workspace.tile());
+        self.update_focused_workspace(false)
+    }
+
+    #[tracing::instrument(skip(self))]
     pub fn toggle_float(&mut self) -> Result<()> {
         let hwnd = WindowsApi::top_visible_window()?;
         let workspace = self.focused_workspace_mut()?;
@@ -492,6 +499,28 @@ impl WindowManager {
             .context("there is no container padding")?;
 
         workspace.set_container_padding(Option::from(sizing.adjust_by(padding, adjustment)));
+
+        self.update_focused_workspace(false)
+    }
+
+    #[tracing::instrument(skip(self))]
+    pub fn set_workspace_tiling(
+        &mut self,
+        monitor_idx: usize,
+        workspace_idx: usize,
+        tile: bool,
+    ) -> Result<()> {
+        let monitor = self
+            .monitors_mut()
+            .get_mut(monitor_idx)
+            .context("there is no monitor")?;
+
+        let workspace = monitor
+            .workspaces_mut()
+            .get_mut(workspace_idx)
+            .context("there is no monitor")?;
+
+        workspace.set_tile(tile);
 
         self.update_focused_workspace(false)
     }

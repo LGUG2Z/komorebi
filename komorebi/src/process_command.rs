@@ -102,6 +102,9 @@ impl WindowManager {
                 tracing::info!("pausing");
                 self.is_paused = !self.is_paused;
             }
+            SocketMessage::ToggleTiling => {
+                self.toggle_tiling()?;
+            }
             SocketMessage::FocusMonitorNumber(monitor_idx) => {
                 self.focus_monitor(monitor_idx)?;
                 self.update_focused_workspace(true)?;
@@ -123,6 +126,9 @@ impl WindowManager {
             }
             SocketMessage::FlipLayout(layout_flip) => self.flip_layout(layout_flip)?,
             SocketMessage::ChangeLayout(layout) => self.change_workspace_layout(layout)?,
+            SocketMessage::WorkspaceTiling(monitor_idx, workspace_idx, tile) => {
+                self.set_workspace_tiling(monitor_idx, workspace_idx, tile)?;
+            }
             SocketMessage::WorkspaceLayout(monitor_idx, workspace_idx, layout) => {
                 self.set_workspace_layout(monitor_idx, workspace_idx, layout)?;
             }

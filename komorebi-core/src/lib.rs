@@ -40,6 +40,7 @@ pub enum SocketMessage {
     // Monitor and Workspace Commands
     EnsureWorkspaces(usize, usize),
     NewWorkspace,
+    ToggleTiling,
     Stop,
     TogglePause,
     Retile,
@@ -47,6 +48,7 @@ pub enum SocketMessage {
     FocusWorkspaceNumber(usize),
     ContainerPadding(usize, usize, i32),
     WorkspacePadding(usize, usize, i32),
+    WorkspaceTiling(usize, usize, bool),
     WorkspaceName(usize, usize, String),
     WorkspaceLayout(usize, usize, Layout),
     // Configuration

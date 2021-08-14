@@ -47,7 +47,9 @@ enum SubCommand {
     ContainerPadding(SizeForMonitorWorkspace),
     WorkspacePadding(SizeForMonitorWorkspace),
     WorkspaceLayout(LayoutForMonitorWorkspace),
+    WorkspaceTiling(TilingForMonitorWorkspace),
     WorkspaceName(NameForMonitorWorkspace),
+    ToggleTiling,
     ToggleFloat,
     TogglePause,
     ToggleMonocle,
@@ -89,6 +91,22 @@ struct LayoutForMonitorWorkspace {
     monitor: usize,
     workspace: usize,
     layout: Layout,
+}
+
+fn on_or_off(s: &str) -> Result<bool, &'static str> {
+    match s {
+        "on" => Ok(true),
+        "off" => Ok(false),
+        _ => Err("expected `on` or `off`"),
+    }
+}
+
+#[derive(Clap)]
+struct TilingForMonitorWorkspace {
+    monitor: usize,
+    workspace: usize,
+    #[clap(parse(try_from_str = on_or_off))]
+    tile: bool,
 }
 
 #[derive(Clap)]
@@ -187,6 +205,9 @@ fn main() -> Result<()> {
                 .as_bytes()?,
             )?;
         }
+        SubCommand::ToggleTiling => {
+            send_message(&*SocketMessage::ToggleTiling.as_bytes()?)?;
+        }
         SubCommand::ToggleFloat => {
             send_message(&*SocketMessage::ToggleFloat.as_bytes()?)?;
         }
@@ -196,6 +217,12 @@ fn main() -> Result<()> {
         SubCommand::WorkspaceLayout(layout) => {
             send_message(
                 &*SocketMessage::WorkspaceLayout(layout.monitor, layout.workspace, layout.layout)
+                    .as_bytes()?,
+            )?;
+        }
+        SubCommand::WorkspaceTiling(layout) => {
+            send_message(
+                &*SocketMessage::WorkspaceTiling(layout.monitor, layout.workspace, layout.tile)
                     .as_bytes()?,
             )?;
         }

@@ -44,6 +44,8 @@ pub struct Workspace {
     #[serde(skip_serializing)]
     #[getset(get = "pub", get_mut = "pub")]
     resize_dimensions: Vec<Option<Rect>>,
+    #[getset(get = "pub", set = "pub")]
+    tile: bool,
 }
 
 impl_ring_elements!(Workspace, Container);
@@ -62,6 +64,7 @@ impl Default for Workspace {
             container_padding: Option::from(10),
             latest_layout: vec![],
             resize_dimensions: vec![],
+            tile: true,
         }
     }
 }
@@ -102,32 +105,36 @@ impl Workspace {
 
         self.enforce_resize_constraints();
 
-        if let Some(container) = self.monocle_container_mut() {
-            if let Some(window) = container.focused_window_mut() {
-                window.set_position(&adjusted_work_area, true)?;
-            }
-        } else {
-            let layouts = self.layout().calculate(
-                &adjusted_work_area,
-                self.containers().len(),
-                self.container_padding(),
-                self.layout_flip(),
-                self.resize_dimensions(),
-            );
-
-            let windows = self.visible_windows_mut();
-            for (i, window) in windows.into_iter().enumerate() {
-                if let (Some(window), Some(layout)) = (window, layouts.get(i)) {
-                    window.set_position(layout, false)?;
+        if *self.tile() {
+            if let Some(container) = self.monocle_container_mut() {
+                if let Some(window) = container.focused_window_mut() {
+                    window.set_position(&adjusted_work_area, true)?;
                 }
-            }
+            } else {
+                let layouts = self.layout().calculate(
+                    &adjusted_work_area,
+                    self.containers().len(),
+                    self.container_padding(),
+                    self.layout_flip(),
+                    self.resize_dimensions(),
+                );
 
-            // Always make sure that the length of the resize dimensions vec is the same as the
-            // number of layouts / containers. This should never actually truncate as the remove_window
-            // function takes care of cleaning up resize dimensions when destroying empty containers
-            self.resize_dimensions_mut().resize(layouts.len(), None);
-            self.set_latest_layout(layouts);
+                let windows = self.visible_windows_mut();
+                for (i, window) in windows.into_iter().enumerate() {
+                    if let (Some(window), Some(layout)) = (window, layouts.get(i)) {
+                        window.set_position(layout, false)?;
+                    }
+                }
+
+                self.set_latest_layout(layouts);
+            }
         }
+
+        // Always make sure that the length of the resize dimensions vec is the same as the
+        // number of layouts / containers. This should never actually truncate as the remove_window
+        // function takes care of cleaning up resize dimensions when destroying empty containers
+        let container_count = self.containers().len();
+        self.resize_dimensions_mut().resize(container_count, None);
 
         Ok(())
     }
