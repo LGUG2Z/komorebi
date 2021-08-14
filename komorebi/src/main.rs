@@ -1,6 +1,7 @@
 #![warn(clippy::all, clippy::nursery, clippy::pedantic)]
 #![allow(clippy::missing_errors_doc)]
 
+use std::process::Command;
 use std::sync::Arc;
 use std::sync::Mutex;
 
@@ -13,6 +14,7 @@ use sysinfo::SystemExt;
 use tracing_appender::non_blocking::WorkerGuard;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::EnvFilter;
+use which::which;
 
 use crate::process_command::listen_for_commands;
 use crate::process_event::listen_for_events;
@@ -114,6 +116,16 @@ fn main() -> Result<()> {
             wm.lock().unwrap().init()?;
             listen_for_commands(wm.clone());
             listen_for_events(wm.clone());
+
+            let home = dirs::home_dir().context("there is no home directory")?;
+            let mut config = home;
+            config.push("komorebi.ahk");
+
+            if config.exists() && which("autohotkey.exe").is_ok() {
+                Command::new("autohotkey.exe")
+                    .arg(config.as_os_str())
+                    .output()?;
+            }
 
             let (ctrlc_sender, ctrlc_receiver) = crossbeam_channel::bounded(1);
             ctrlc::set_handler(move || {

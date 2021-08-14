@@ -84,6 +84,9 @@ by `komorebic`.
 
 You can similarly stop the process by running `komorebic stop`.
 
+If you have AutoHotKey installed and a `komorebi.ahk` file in your home directory (run `$Env:UserProfile` at a
+PowerShell prompt to find your home directory), `komorebi` will automatically try to load it when starting.
+
 ## Configuration
 
 As previously mentioned, this project does not handle anything related to keybindings and shortcuts directly. I

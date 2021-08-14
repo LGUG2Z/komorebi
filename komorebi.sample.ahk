@@ -1,3 +1,5 @@
+#SingleInstance Force
+
 ; Enable focus follows mouse
 Run, komorebic.exe focus-follows-mouse enable
 
