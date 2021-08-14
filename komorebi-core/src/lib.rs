@@ -39,6 +39,7 @@ pub enum SocketMessage {
     FlipLayout(LayoutFlip),
     // Monitor and Workspace Commands
     EnsureWorkspaces(usize, usize),
+    NewWorkspace,
     Stop,
     TogglePause,
     Retile,

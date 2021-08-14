@@ -139,6 +139,9 @@ impl WindowManager {
             SocketMessage::EnsureWorkspaces(monitor_idx, workspace_count) => {
                 self.ensure_workspaces_for_monitor(monitor_idx, workspace_count)?;
             }
+            SocketMessage::NewWorkspace => {
+                self.new_workspace()?;
+            }
             SocketMessage::WorkspaceName(monitor_idx, workspace_idx, name) => {
                 self.set_workspace_name(monitor_idx, workspace_idx, name)?;
             }

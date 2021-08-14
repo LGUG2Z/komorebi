@@ -128,6 +128,10 @@ impl Monitor {
         Ok(())
     }
 
+    pub fn new_workspace_idx(&self) -> usize {
+        self.workspaces().len()
+    }
+
     pub fn update_focused_workspace(&mut self) -> Result<()> {
         let work_area = *self.work_area_size();
 

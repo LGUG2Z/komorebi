@@ -682,6 +682,20 @@ impl WindowManager {
         self.update_focused_workspace(true)
     }
 
+    #[tracing::instrument(skip(self))]
+    pub fn new_workspace(&mut self) -> Result<()> {
+        tracing::info!("adding new workspace");
+
+        let monitor = self
+            .focused_monitor_mut()
+            .context("there is no workspace")?;
+
+        monitor.focus_workspace(monitor.new_workspace_idx())?;
+        monitor.load_focused_workspace()?;
+
+        self.update_focused_workspace(true)
+    }
+
     pub fn focused_container(&self) -> Result<&Container> {
         self.focused_workspace()?
             .focused_container()

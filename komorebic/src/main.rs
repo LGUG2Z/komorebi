@@ -40,6 +40,7 @@ enum SubCommand {
     MoveToWorkspace(Target),
     FocusMonitor(Target),
     FocusWorkspace(Target),
+    NewWorkspace,
     Promote,
     EnsureWorkspaces(WorkspaceCountForMonitor),
     Retile,
@@ -132,81 +133,71 @@ fn main() -> Result<()> {
 
     match opts.subcmd {
         SubCommand::Focus(direction) => {
-            let bytes = SocketMessage::FocusWindow(direction).as_bytes()?;
-            send_message(&*bytes)?;
+            send_message(&*SocketMessage::FocusWindow(direction).as_bytes()?)?;
         }
         SubCommand::Promote => {
-            let bytes = SocketMessage::Promote.as_bytes()?;
-            send_message(&*bytes)?;
+            send_message(&*SocketMessage::Promote.as_bytes()?)?;
         }
         SubCommand::TogglePause => {
-            let bytes = SocketMessage::TogglePause.as_bytes()?;
-            send_message(&*bytes)?;
+            send_message(&*SocketMessage::TogglePause.as_bytes()?)?;
         }
         SubCommand::Retile => {
-            let bytes = SocketMessage::Retile.as_bytes()?;
-            send_message(&*bytes)?;
+            send_message(&*SocketMessage::Retile.as_bytes()?)?;
         }
         SubCommand::Move(direction) => {
-            let bytes = SocketMessage::MoveWindow(direction).as_bytes()?;
-            send_message(&*bytes)?;
+            send_message(&*SocketMessage::MoveWindow(direction).as_bytes()?)?;
         }
         SubCommand::MoveToMonitor(display) => {
-            let bytes = SocketMessage::MoveContainerToMonitorNumber(display.number)
-                .as_bytes()
-                .unwrap();
-            send_message(&*bytes)?;
+            send_message(
+                &*SocketMessage::MoveContainerToMonitorNumber(display.number).as_bytes()?,
+            )?;
         }
         SubCommand::MoveToWorkspace(workspace) => {
-            let bytes = SocketMessage::MoveContainerToWorkspaceNumber(workspace.number)
-                .as_bytes()
-                .unwrap();
-            send_message(&*bytes)?;
+            send_message(
+                &*SocketMessage::MoveContainerToWorkspaceNumber(workspace.number).as_bytes()?,
+            )?;
         }
         SubCommand::ContainerPadding(gap) => {
-            let bytes = SocketMessage::ContainerPadding(gap.monitor, gap.workspace, gap.size)
-                .as_bytes()
-                .unwrap();
-            send_message(&*bytes)?;
+            send_message(
+                &*SocketMessage::ContainerPadding(gap.monitor, gap.workspace, gap.size)
+                    .as_bytes()?,
+            )?;
         }
         SubCommand::WorkspacePadding(gap) => {
-            let bytes = SocketMessage::WorkspacePadding(gap.monitor, gap.workspace, gap.size)
-                .as_bytes()
-                .unwrap();
-            send_message(&*bytes)?;
+            send_message(
+                &*SocketMessage::WorkspacePadding(gap.monitor, gap.workspace, gap.size)
+                    .as_bytes()?,
+            )?;
         }
         SubCommand::AdjustWorkspacePadding(sizing_adjustment) => {
-            let bytes = SocketMessage::AdjustWorkspacePadding(
-                sizing_adjustment.sizing,
-                sizing_adjustment.adjustment,
-            )
-            .as_bytes()
-            .unwrap();
-            send_message(&*bytes)?;
+            send_message(
+                &*SocketMessage::AdjustWorkspacePadding(
+                    sizing_adjustment.sizing,
+                    sizing_adjustment.adjustment,
+                )
+                .as_bytes()?,
+            )?;
         }
         SubCommand::AdjustContainerPadding(sizing_adjustment) => {
-            let bytes = SocketMessage::AdjustContainerPadding(
-                sizing_adjustment.sizing,
-                sizing_adjustment.adjustment,
-            )
-            .as_bytes()
-            .unwrap();
-            send_message(&*bytes)?;
+            send_message(
+                &*SocketMessage::AdjustContainerPadding(
+                    sizing_adjustment.sizing,
+                    sizing_adjustment.adjustment,
+                )
+                .as_bytes()?,
+            )?;
         }
         SubCommand::ToggleFloat => {
-            let bytes = SocketMessage::ToggleFloat.as_bytes()?;
-            send_message(&*bytes)?;
+            send_message(&*SocketMessage::ToggleFloat.as_bytes()?)?;
         }
         SubCommand::ToggleMonocle => {
-            let bytes = SocketMessage::ToggleMonocle.as_bytes()?;
-            send_message(&*bytes)?;
+            send_message(&*SocketMessage::ToggleMonocle.as_bytes()?)?;
         }
         SubCommand::WorkspaceLayout(layout) => {
-            let bytes =
-                SocketMessage::WorkspaceLayout(layout.monitor, layout.workspace, layout.layout)
-                    .as_bytes()
-                    .unwrap();
-            send_message(&*bytes)?;
+            send_message(
+                &*SocketMessage::WorkspaceLayout(layout.monitor, layout.workspace, layout.layout)
+                    .as_bytes()?,
+            )?;
         }
         SubCommand::Start => {
             let script = r#"Start-Process komorebi -WindowStyle hidden"#;
@@ -220,61 +211,49 @@ fn main() -> Result<()> {
             }
         }
         SubCommand::Stop => {
-            let bytes = SocketMessage::Stop.as_bytes()?;
-            send_message(&*bytes)?;
+            send_message(&*SocketMessage::Stop.as_bytes()?)?;
         }
         SubCommand::FloatClass(target) => {
-            let bytes = SocketMessage::FloatClass(target.id).as_bytes()?;
-            send_message(&*bytes)?;
+            send_message(&*SocketMessage::FloatClass(target.id).as_bytes()?)?;
         }
         SubCommand::FloatExe(target) => {
-            let bytes = SocketMessage::FloatExe(target.id).as_bytes()?;
-            send_message(&*bytes)?;
+            send_message(&*SocketMessage::FloatExe(target.id).as_bytes()?)?;
         }
         SubCommand::FloatTitle(target) => {
-            let bytes = SocketMessage::FloatTitle(target.id).as_bytes()?;
-            send_message(&*bytes)?;
+            send_message(&*SocketMessage::FloatTitle(target.id).as_bytes()?)?;
         }
         SubCommand::Stack(direction) => {
-            let bytes = SocketMessage::StackWindow(direction).as_bytes()?;
-            send_message(&*bytes)?;
+            send_message(&*SocketMessage::StackWindow(direction).as_bytes()?)?;
         }
         SubCommand::Unstack => {
-            let bytes = SocketMessage::UnstackWindow.as_bytes()?;
-            send_message(&*bytes)?;
+            send_message(&*SocketMessage::UnstackWindow.as_bytes()?)?;
         }
         SubCommand::CycleStack(direction) => {
-            let bytes = SocketMessage::CycleStack(direction).as_bytes()?;
-            send_message(&*bytes)?;
+            send_message(&*SocketMessage::CycleStack(direction).as_bytes()?)?;
         }
         SubCommand::FlipLayout(flip) => {
-            let bytes = SocketMessage::FlipLayout(flip).as_bytes()?;
-            send_message(&*bytes)?;
+            send_message(&*SocketMessage::FlipLayout(flip).as_bytes()?)?;
         }
         SubCommand::FocusMonitor(target) => {
-            let bytes = SocketMessage::FocusMonitorNumber(target.number)
-                .as_bytes()
-                .unwrap();
-            send_message(&*bytes)?;
+            send_message(&*SocketMessage::FocusMonitorNumber(target.number).as_bytes()?)?;
         }
         SubCommand::FocusWorkspace(target) => {
-            let bytes = SocketMessage::FocusWorkspaceNumber(target.number)
-                .as_bytes()
-                .unwrap();
-            send_message(&*bytes)?;
+            send_message(&*SocketMessage::FocusWorkspaceNumber(target.number).as_bytes()?)?;
+        }
+        SubCommand::NewWorkspace => {
+            send_message(&*SocketMessage::NewWorkspace.as_bytes()?)?;
         }
         SubCommand::WorkspaceName(name) => {
-            let bytes = SocketMessage::WorkspaceName(name.monitor, name.workspace, name.value)
-                .as_bytes()
-                .unwrap();
-            send_message(&*bytes)?;
+            send_message(
+                &*SocketMessage::WorkspaceName(name.monitor, name.workspace, name.value)
+                    .as_bytes()?,
+            )?;
         }
         SubCommand::EnsureWorkspaces(workspaces) => {
-            let bytes =
-                SocketMessage::EnsureWorkspaces(workspaces.monitor, workspaces.workspace_count)
-                    .as_bytes()
-                    .unwrap();
-            send_message(&*bytes)?;
+            send_message(
+                &*SocketMessage::EnsureWorkspaces(workspaces.monitor, workspaces.workspace_count)
+                    .as_bytes()?,
+            )?;
         }
         SubCommand::State => {
             let home = dirs::home_dir().context("there is no home directory")?;
@@ -293,8 +272,7 @@ fn main() -> Result<()> {
                 },
             };
 
-            let bytes = SocketMessage::State.as_bytes().unwrap();
-            send_message(&*bytes)?;
+            send_message(&*SocketMessage::State.as_bytes()?)?;
 
             let listener = UnixListener::bind(&socket)?;
             match listener.accept() {
@@ -324,10 +302,7 @@ fn main() -> Result<()> {
             }
         }
         SubCommand::Resize(resize) => {
-            let bytes = SocketMessage::ResizeWindow(resize.edge, resize.sizing)
-                .as_bytes()
-                .unwrap();
-            send_message(&*bytes)?;
+            send_message(&*SocketMessage::ResizeWindow(resize.edge, resize.sizing).as_bytes()?)?;
         }
         SubCommand::FocusFollowsMouse(enable) => {
             let enable = match enable {
@@ -335,8 +310,7 @@ fn main() -> Result<()> {
                 BooleanState::Disable => false,
             };
 
-            let bytes = SocketMessage::FocusFollowsMouse(enable).as_bytes().unwrap();
-            send_message(&*bytes)?;
+            send_message(&*SocketMessage::FocusFollowsMouse(enable).as_bytes()?)?;
         }
     }
 
