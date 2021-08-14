@@ -89,7 +89,11 @@ impl WindowManager {
                     hwnd: WindowsApi::desktop_window()?,
                 };
 
-                desktop_window.focus()?;
+                // Calling this directly instead of the window.focus() wrapper because trying to
+                // attach to the thread of the desktop window always seems to result in "Access is
+                // denied (os error 5)"
+                WindowsApi::set_foreground_window(desktop_window.hwnd())
+                    .map_err(|error| eyre::anyhow!("{} {}:{}", error, file!(), line!()))?;
             }
         }
 
