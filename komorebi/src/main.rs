@@ -54,6 +54,10 @@ lazy_static! {
         "ApplicationFrameHost.exe".to_string(),
         "steam.exe".to_string()
     ]));
+    static ref OBJECT_NAME_CHANGE_ON_LAUNCH: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(vec![
+        "firefox.exe".to_string(),
+        "idea64.exe".to_string(),
+    ]));
 }
 
 fn setup() -> Result<WorkerGuard> {
@@ -110,6 +114,20 @@ fn setup() -> Result<WorkerGuard> {
     Ok(guard)
 }
 
+pub fn load_configuration() -> Result<()> {
+    let home = dirs::home_dir().context("there is no home directory")?;
+    let mut config = home;
+    config.push("komorebi.ahk");
+
+    if config.exists() && which("autohotkey.exe").is_ok() {
+        Command::new("autohotkey.exe")
+            .arg(config.as_os_str())
+            .output()?;
+    }
+
+    Ok(())
+}
+
 #[tracing::instrument]
 fn main() -> Result<()> {
     match std::env::args().count() {
@@ -142,15 +160,7 @@ fn main() -> Result<()> {
             listen_for_commands(wm.clone());
             listen_for_events(wm.clone());
 
-            let home = dirs::home_dir().context("there is no home directory")?;
-            let mut config = home;
-            config.push("komorebi.ahk");
-
-            if config.exists() && which("autohotkey.exe").is_ok() {
-                Command::new("autohotkey.exe")
-                    .arg(config.as_os_str())
-                    .output()?;
-            }
+            load_configuration()?;
 
             let (ctrlc_sender, ctrlc_receiver) = crossbeam_channel::bounded(1);
             ctrlc::set_handler(move || {

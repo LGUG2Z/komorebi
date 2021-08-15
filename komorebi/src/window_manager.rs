@@ -3,10 +3,13 @@ use std::io::ErrorKind;
 use std::num::NonZeroUsize;
 use std::sync::Arc;
 use std::sync::Mutex;
+use std::thread;
 
 use color_eyre::eyre::ContextCompat;
 use color_eyre::Result;
 use crossbeam_channel::Receiver;
+use hotwatch::notify::DebouncedEvent;
+use hotwatch::Hotwatch;
 use serde::Serialize;
 use uds_windows::UnixListener;
 
@@ -18,6 +21,7 @@ use komorebi_core::Rect;
 use komorebi_core::Sizing;
 
 use crate::container::Container;
+use crate::load_configuration;
 use crate::monitor::Monitor;
 use crate::ring::Ring;
 use crate::window::Window;
@@ -33,6 +37,8 @@ pub struct WindowManager {
     #[serde(skip_serializing)]
     pub command_listener: UnixListener,
     pub is_paused: bool,
+    #[serde(skip_serializing)]
+    pub hotwatch: Hotwatch,
 }
 
 impl_ring_elements!(WindowManager, Monitor);
@@ -62,6 +68,7 @@ pub fn new(incoming: Arc<Mutex<Receiver<WindowManagerEvent>>>) -> Result<WindowM
         incoming_events: incoming,
         command_listener: listener,
         is_paused: false,
+        hotwatch: Hotwatch::new()?,
     })
 }
 
@@ -72,6 +79,54 @@ impl WindowManager {
         WindowsApi::load_monitor_information(&mut self.monitors)?;
         WindowsApi::load_workspace_information(&mut self.monitors)?;
         self.update_focused_workspace(false)
+    }
+
+    #[tracing::instrument]
+    pub fn reload_configuration() {
+        tracing::info!("reloading configuration");
+        thread::spawn(|| load_configuration().expect("could not load configuration"));
+    }
+
+    #[tracing::instrument(skip(self))]
+    pub fn watch_configuration(&mut self, enable: bool) -> Result<()> {
+        let home = dirs::home_dir().context("there is no home directory")?;
+        let mut config = home;
+        config.push("komorebi.ahk");
+
+        if config.exists() {
+            if enable {
+                tracing::info!("watching configuration for changes");
+                // Always make absolutely sure that there isn't an already existing watch, because
+                // hotwatch allows multiple watches to be registered for the same path
+                match self.hotwatch.unwatch(config.clone()) {
+                    Ok(_) => {}
+                    Err(error) => match error {
+                        hotwatch::Error::Notify(error) => match error {
+                            hotwatch::notify::Error::WatchNotFound => {}
+                            error => return Err(error.into()),
+                        },
+                        error @ hotwatch::Error::Io(_) => return Err(error.into()),
+                    },
+                }
+
+                self.hotwatch.watch(config, |event| match event {
+                    // Editing in Notepad sends a NoticeWrite while editing in (Neo)Vim sends
+                    // a NoticeRemove, presumably because of the use of swap files?
+                    DebouncedEvent::NoticeWrite(_) | DebouncedEvent::NoticeRemove(_) => {
+                        tracing::info!("reloading changed configuration file");
+                        thread::spawn(|| {
+                            load_configuration().expect("could not load configuration");
+                        });
+                    }
+                    _ => {}
+                })?;
+            } else {
+                tracing::info!("no longer watching configuration for changes");
+                self.hotwatch.unwatch(config)?;
+            };
+        }
+
+        Ok(())
     }
 
     #[tracing::instrument(skip(self))]

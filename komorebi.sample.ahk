@@ -1,26 +1,33 @@
 #SingleInstance Force
 
+; Enable hot reloading of changes to this file
+Run, komorebic.exe watch-configuration enable
+
 ; Enable focus follows mouse
 Run, komorebic.exe focus-follows-mouse enable
 
 ; Ensure there are 3 workspaces created on monitor 0
-Run, komorebic.exe ensure-workspaces 0 4
+Run, komorebic.exe ensure-workspaces 0 5
 
 ; Give the workspaces some optional names
 Run, komorebic.exe workspace-name 0 0 bsp
 Run, komorebic.exe workspace-name 0 1 columns
 Run, komorebic.exe workspace-name 0 2 thicc
 Run, komorebic.exe workspace-name 0 3 matrix
+Run, komorebic.exe workspace-name 0 4 floaty
 
 ; Set the padding of the different workspaces
-Run, komorebic.exe workspace-padding 0 1 50
-Run, komorebic.exe container-padding 0 1 50
+Run, komorebic.exe workspace-padding 0 1 30
+Run, komorebic.exe container-padding 0 1 30
 Run, komorebic.exe workspace-padding 0 2 200
 Run, komorebic.exe workspace-padding 0 3 0
 Run, komorebic.exe container-padding 0 3 0
 
 ; Set the layouts of different workspaces
 Run, komorebic.exe workspace-layout 0 1 columns
+
+; Set the floaty layout to not tile any windows
+Run, komorebic.exe workspace-tiling 0 4 off
 
 ; Always float IntelliJ popups, matching on class
 Run, komorebic.exe float-class SunAwtDialog, , Hide
@@ -30,6 +37,7 @@ Run, komorebic.exe float-title "Control Panel", , Hide
 Run, komorebic.exe float-class TaskManagerWindow, , Hide
 ; Always float Wally, matching on executable name
 Run, komorebic.exe float-exe Wally.exe, , Hide
+Run, komorebic.exe float-exe wincompose.exe, , Hide
 ; Always float Calculator app, matching on window title
 Run, komorebic.exe float-title Calculator, , Hide
 Run, komorebic.exe float-exe 1Password.exe, , Hide
@@ -68,20 +76,20 @@ return
 Run, komorebic.exe move right, Hide
 return
 
-; Stack the focused window in a given direction, Alt + direction keys
-!Left::
+; Stack the focused window in a given direction, Alt + Shift + direction keys
+!+Left::
 Run, komorebic.exe stack left, Hide
 return
 
-!Down::
+!+Down::
 Run, komorebic.exe stack down, Hide
 return
 
-!Up::
+!+Up::
 Run, komorebic.exe stack up, Hide
 return
 
-!Right::
+!+Right::
 Run, komorebic.exe stack right, Hide
 return
 
@@ -93,8 +101,8 @@ return
 Run, komorebic.exe cycle-stack previous, , Hide
 return
 
-; Unstack the focused window
-!d::
+; Unstack the focused window, Alt + Shift + D
+!+d::
 Run, komorebic.exe unstack, Hide
 return
 
@@ -138,6 +146,11 @@ return
 Run, komorebic.exe toggle-float, Hide
 return
 
+; Reload ~/komorebi.ahk, Alt + O
+!o::
+Run, komorebic.exe reload-configuration, Hide
+return
+
 ; Pause responding to any window events or komorebic commands, Alt + P
 !p::
 Run, komorebic.exe toggle-pause, Hide
@@ -164,6 +177,11 @@ Send !
 Run, komorebic.exe focus-workspace 3, Hide
 return
 
+!5::
+Send !
+Run, komorebic.exe focus-workspace 4, Hide
+return
+
 ; Move window to workspace
 !+1::
 Run, komorebic.exe move-to-workspace 0, Hide
@@ -179,4 +197,8 @@ return
 
 !+4::
 Run, komorebic.exe move-to-workspace 3, Hide
+return
+
+!+5::
+Run, komorebic.exe move-to-workspace 4, Hide
 return

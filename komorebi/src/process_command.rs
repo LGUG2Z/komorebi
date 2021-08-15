@@ -170,6 +170,12 @@ impl WindowManager {
                     WindowsApi::disable_focus_follows_mouse()?;
                 }
             }
+            SocketMessage::ReloadConfiguration => {
+                Self::reload_configuration();
+            }
+            SocketMessage::WatchConfiguration(enable) => {
+                self.watch_configuration(enable)?;
+            }
         }
 
         tracing::info!("processed");

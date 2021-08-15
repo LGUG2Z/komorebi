@@ -52,6 +52,8 @@ pub enum SocketMessage {
     WorkspaceName(usize, usize, String),
     WorkspaceLayout(usize, usize, Layout),
     // Configuration
+    ReloadConfiguration,
+    WatchConfiguration(bool),
     FloatClass(String),
     FloatExe(String),
     FloatTitle(String),

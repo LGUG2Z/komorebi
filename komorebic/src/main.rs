@@ -54,6 +54,8 @@ enum SubCommand {
     TogglePause,
     ToggleMonocle,
     RestoreWindows,
+    ReloadConfiguration,
+    WatchConfiguration(BooleanState),
     State,
     Start,
     Stop,
@@ -95,9 +97,12 @@ struct LayoutForMonitorWorkspace {
 
 fn on_or_off(s: &str) -> Result<bool, &'static str> {
     match s {
+        "enable" => Ok(true),
+        "disable" => Ok(false),
+        // in order to not break backwards compat for mouse follows focus
         "on" => Ok(true),
         "off" => Ok(false),
-        _ => Err("expected `on` or `off`"),
+        _ => Err("expected `enable` or `disable`"),
     }
 }
 
@@ -338,6 +343,16 @@ fn main() -> Result<()> {
             };
 
             send_message(&*SocketMessage::FocusFollowsMouse(enable).as_bytes()?)?;
+        }
+        SubCommand::ReloadConfiguration => {
+            send_message(&*SocketMessage::ReloadConfiguration.as_bytes()?)?;
+        }
+        SubCommand::WatchConfiguration(enable) => {
+            let enable = match enable {
+                BooleanState::Enable => true,
+                BooleanState::Disable => false,
+            };
+            send_message(&*SocketMessage::WatchConfiguration(enable).as_bytes()?)?;
         }
     }
 

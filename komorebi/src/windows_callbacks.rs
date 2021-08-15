@@ -16,6 +16,7 @@ use crate::window_manager_event::WindowManagerEvent;
 use crate::windows_api::WindowsApi;
 use crate::winevent::WinEvent;
 use crate::winevent_listener::WINEVENT_CALLBACK_CHANNEL;
+use crate::OBJECT_NAME_CHANGE_ON_LAUNCH;
 
 pub extern "system" fn enum_display_monitor(
     hmonitor: HMONITOR,
@@ -79,8 +80,7 @@ pub extern "system" fn win_event_hook(
         //
         // [yatta\src\windows_event.rs:110] event = 32780 ObjectNameChange
         // [yatta\src\windows_event.rs:110] event = 32779 ObjectLocationChange
-        let object_name_change_on_launch =
-            vec!["firefox.exe".to_string(), "idea64.exe".to_string()];
+        let object_name_change_on_launch = OBJECT_NAME_CHANGE_ON_LAUNCH.lock().unwrap();
 
         if let Ok(exe) = window.exe() {
             if winevent == WinEvent::ObjectNameChange {
