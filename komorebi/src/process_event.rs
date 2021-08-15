@@ -138,6 +138,27 @@ impl WindowManager {
                     }
                 }
 
+                // There are some applications such as Firefox where, if they are focused when a
+                // workspace switch takes place, it will fire an additional Show event, which will
+                // result in them being associated with both the original workspace and the workspace
+                // being switched to. This loop is to try to ensure that we don't end up with
+                // duplicates across multiple workspaces, as it results in ghost layout tiles.
+                for (i, monitor) in self.monitors().iter().enumerate() {
+                    for (j, workspace) in monitor.workspaces().iter().enumerate() {
+                        if workspace.container_for_window(window.hwnd).is_some()
+                            && i != self.focused_monitor_idx()
+                            && j != monitor.focused_workspace_idx()
+                        {
+                            tracing::debug!(
+                                "ignoring show event for window already associated with another workspace"
+                            );
+
+                            window.hide();
+                            return Ok(());
+                        }
+                    }
+                }
+
                 let workspace = self.focused_workspace_mut()?;
 
                 if workspace.containers().is_empty() || !workspace.contains_window(window.hwnd) {

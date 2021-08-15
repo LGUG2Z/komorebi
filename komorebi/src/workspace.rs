@@ -182,6 +182,10 @@ impl Workspace {
         Ok((hwnds.len() + floating_hwnds.len(), container_ids.len()))
     }
 
+    pub fn container_for_window(&self, hwnd: isize) -> Option<&Container> {
+        self.containers().get(self.container_idx_for_window(hwnd)?)
+    }
+
     pub fn focus_container_by_window(&mut self, hwnd: isize) -> Result<()> {
         let container_idx = self
             .container_idx_for_window(hwnd)
@@ -249,7 +253,7 @@ impl Workspace {
         self.containers_mut().remove(idx)
     }
 
-    fn container_idx_for_window(&mut self, hwnd: isize) -> Option<usize> {
+    fn container_idx_for_window(&self, hwnd: isize) -> Option<usize> {
         let mut idx = None;
         for (i, x) in self.containers().iter().enumerate() {
             if x.contains_window(hwnd) {

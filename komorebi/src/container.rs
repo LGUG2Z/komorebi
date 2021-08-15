@@ -26,7 +26,7 @@ impl Default for Container {
     }
 }
 
-impl PartialEq for &Container {
+impl PartialEq for Container {
     fn eq(&self, other: &Self) -> bool {
         self.id == other.id
     }
