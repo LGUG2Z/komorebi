@@ -1,4 +1,5 @@
 use std::collections::VecDeque;
+use std::num::NonZeroUsize;
 
 use color_eyre::eyre::ContextCompat;
 use color_eyre::Result;
@@ -110,10 +111,12 @@ impl Workspace {
                 if let Some(window) = container.focused_window_mut() {
                     window.set_position(&adjusted_work_area, true)?;
                 }
-            } else {
+            } else if !self.containers().is_empty() {
                 let layouts = self.layout().calculate(
                     &adjusted_work_area,
-                    self.containers().len(),
+                    NonZeroUsize::new(self.containers().len()).context(
+                        "there must be at least one container to calculate a workspace layout",
+                    )?,
                     self.container_padding(),
                     self.layout_flip(),
                     self.resize_dimensions(),
@@ -409,14 +412,24 @@ impl Workspace {
     }
 
     pub fn new_container_for_window(&mut self, window: Window) {
-        let focused_idx = self.focused_container_idx();
+        let next_idx = self.focused_container_idx() + 1;
 
         let mut container = Container::default();
         container.add_window(window);
 
-        self.containers_mut().insert(focused_idx + 1, container);
-        self.resize_dimensions_mut().insert(focused_idx + 1, None);
-        self.focus_container(focused_idx + 1);
+        if next_idx > self.containers().len() {
+            self.containers_mut().push_back(container);
+        } else {
+            self.containers_mut().insert(next_idx, container);
+        }
+
+        if next_idx > self.resize_dimensions().len() {
+            self.resize_dimensions_mut().push(None);
+        } else {
+            self.resize_dimensions_mut().insert(next_idx, None);
+        }
+
+        self.focus_container(next_idx);
     }
 
     pub fn new_floating_window(&mut self) -> Result<()> {

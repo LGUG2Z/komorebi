@@ -1,3 +1,5 @@
+use strum::Display;
+
 use bindings::Windows::Win32::UI::WindowsAndMessaging::EVENT_AIA_END;
 use bindings::Windows::Win32::UI::WindowsAndMessaging::EVENT_AIA_START;
 use bindings::Windows::Win32::UI::WindowsAndMessaging::EVENT_CONSOLE_CARET;
@@ -83,8 +85,9 @@ use bindings::Windows::Win32::UI::WindowsAndMessaging::EVENT_UIA_EVENTID_START;
 use bindings::Windows::Win32::UI::WindowsAndMessaging::EVENT_UIA_PROPID_END;
 use bindings::Windows::Win32::UI::WindowsAndMessaging::EVENT_UIA_PROPID_START;
 
-#[derive(Clone, Copy, PartialEq, Debug, strum::Display)]
+#[derive(Clone, Copy, PartialEq, Debug, Display)]
 #[repr(u32)]
+#[allow(dead_code)]
 pub enum WinEvent {
     AiaEnd = EVENT_AIA_END,
     AiaStart = EVENT_AIA_START,

@@ -1,5 +1,6 @@
 use std::collections::VecDeque;
 use std::io::ErrorKind;
+use std::num::NonZeroUsize;
 use std::sync::Arc;
 use std::sync::Mutex;
 
@@ -126,7 +127,9 @@ impl WindowManager {
         ) {
             let unaltered = workspace.layout().calculate(
                 &work_area,
-                len,
+                NonZeroUsize::new(len).context(
+                    "there must be at least one container to calculate a workspace layout",
+                )?,
                 workspace.container_padding(),
                 workspace.layout_flip(),
                 &[],

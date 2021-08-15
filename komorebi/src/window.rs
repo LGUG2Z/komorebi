@@ -154,6 +154,7 @@ impl Window {
         WindowsApi::set_focus(self.hwnd())
     }
 
+    #[allow(dead_code)]
     pub fn update_style(self, style: GwlStyle) -> Result<()> {
         WindowsApi::update_style(self.hwnd(), isize::try_from(style.bits())?)
     }

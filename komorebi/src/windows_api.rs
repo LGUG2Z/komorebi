@@ -371,6 +371,7 @@ impl WindowsApi {
         }
     }
 
+    #[allow(dead_code)]
     fn set_window_long_ptr_w(
         hwnd: HWND,
         index: WINDOW_LONG_PTR_INDEX,
@@ -396,6 +397,7 @@ impl WindowsApi {
         }))
     }
 
+    #[allow(dead_code)]
     pub fn update_style(hwnd: HWND, new_value: isize) -> Result<()> {
         Self::set_window_long_ptr_w(hwnd, GWL_STYLE, new_value)
     }

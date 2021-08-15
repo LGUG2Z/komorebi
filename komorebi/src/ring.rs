@@ -59,6 +59,7 @@ macro_rules! impl_ring_elements {
                     self.[<$element:lower s>].elements_mut()
                 }
 
+                #[allow(dead_code)]
                 pub fn [<focused_ $element:lower>](&self) -> Option<&$element> {
                     self.[<$element:lower s>].focused()
                 }

@@ -33,12 +33,6 @@ impl PartialEq for &Container {
 }
 
 impl Container {
-    pub fn hide(&mut self) {
-        for window in self.windows_mut() {
-            window.hide();
-        }
-    }
-
     pub fn load_focused_window(&mut self) {
         let focused_idx = self.focused_window_idx();
         for (i, window) in self.windows_mut().iter_mut().enumerate() {

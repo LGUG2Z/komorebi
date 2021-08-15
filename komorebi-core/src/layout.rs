@@ -1,3 +1,5 @@
+use std::num::NonZeroUsize;
+
 use clap::Clap;
 use serde::Deserialize;
 use serde::Serialize;
@@ -127,11 +129,12 @@ impl Layout {
     pub fn calculate(
         &self,
         area: &Rect,
-        len: usize,
+        len: NonZeroUsize,
         container_padding: Option<i32>,
         layout_flip: Option<LayoutFlip>,
         resize_dimensions: &[Option<Rect>],
     ) -> Vec<Rect> {
+        let len = usize::from(len);
         let mut dimensions = match self {
             Layout::BSP => recursive_fibonacci(
                 0,
