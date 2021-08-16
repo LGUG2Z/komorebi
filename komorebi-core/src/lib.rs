@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use clap::Clap;
+use clap::ArgEnum;
 use color_eyre::Result;
 use serde::Deserialize;
 use serde::Serialize;
@@ -80,16 +80,16 @@ impl FromStr for SocketMessage {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, Display, EnumString)]
+#[derive(Clone, Debug, Serialize, Deserialize, Display, EnumString, ArgEnum)]
 #[strum(serialize_all = "snake_case")]
 pub enum ApplicationIdentifier {
     Exe,
     Class,
+    Title,
 }
 
-#[derive(Clone, Copy, Debug, Serialize, Deserialize, Display, EnumString)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, Display, EnumString, ArgEnum)]
 #[strum(serialize_all = "snake_case")]
-#[derive(Clap)]
 pub enum Sizing {
     Increase,
     Decrease,

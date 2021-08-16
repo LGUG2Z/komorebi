@@ -1,6 +1,6 @@
 use std::num::NonZeroUsize;
 
-use clap::Clap;
+use clap::ArgEnum;
 use serde::Deserialize;
 use serde::Serialize;
 use strum::Display;
@@ -10,18 +10,16 @@ use crate::OperationDirection;
 use crate::Rect;
 use crate::Sizing;
 
-#[derive(Clone, Copy, Debug, Serialize, Deserialize, Display, EnumString)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, Display, EnumString, ArgEnum)]
 #[strum(serialize_all = "snake_case")]
-#[derive(Clap)]
 pub enum Layout {
     BSP,
     Columns,
     Rows,
 }
 
-#[derive(Clone, Copy, Debug, Serialize, Deserialize, Display, EnumString)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, Display, EnumString, ArgEnum)]
 #[strum(serialize_all = "snake_case")]
-#[derive(Clap)]
 pub enum LayoutFlip {
     Horizontal,
     Vertical,

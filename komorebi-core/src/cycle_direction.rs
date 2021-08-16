@@ -1,12 +1,11 @@
-use clap::Clap;
+use clap::ArgEnum;
 use serde::Deserialize;
 use serde::Serialize;
 use strum::Display;
 use strum::EnumString;
 
-#[derive(Clone, Copy, Debug, Serialize, Deserialize, Display, EnumString)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, Display, EnumString, ArgEnum)]
 #[strum(serialize_all = "snake_case")]
-#[derive(Clap)]
 pub enum CycleDirection {
     Previous,
     Next,

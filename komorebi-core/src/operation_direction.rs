@@ -1,4 +1,4 @@
-use clap::Clap;
+use clap::ArgEnum;
 use serde::Deserialize;
 use serde::Serialize;
 use strum::Display;
@@ -7,9 +7,8 @@ use strum::EnumString;
 use crate::Layout;
 use crate::LayoutFlip;
 
-#[derive(Clone, Copy, Debug, Serialize, Deserialize, Display, EnumString)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, Display, EnumString, ArgEnum)]
 #[strum(serialize_all = "snake_case")]
-#[derive(Clap)]
 pub enum OperationDirection {
     Left,
     Right,

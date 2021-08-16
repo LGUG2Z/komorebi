@@ -18,7 +18,8 @@ fn main() {
         Windows::Win32::System::Threading::AttachThreadInput,
         Windows::Win32::System::Threading::GetCurrentProcessId,
         Windows::Win32::UI::KeyboardAndMouseInput::SetFocus,
-        Windows::Win32::UI::Accessibility::{SetWinEventHook, HWINEVENTHOOK},
+        Windows::Win32::UI::Accessibility::SetWinEventHook,
+        Windows::Win32::UI::Accessibility::HWINEVENTHOOK,
         // error: `Windows.Win32.UI.WindowsAndMessaging.GWL_EXSTYLE` not found in metadata
         Windows::Win32::UI::WindowsAndMessaging::*,
     );

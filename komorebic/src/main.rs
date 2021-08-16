@@ -4,6 +4,8 @@ use std::io::BufReader;
 use std::io::ErrorKind;
 use std::io::Write;
 
+use clap::AppSettings;
+use clap::ArgEnum;
 use clap::Clap;
 use color_eyre::eyre::ContextCompat;
 use color_eyre::Result;
@@ -22,8 +24,129 @@ use komorebi_core::OperationDirection;
 use komorebi_core::Sizing;
 use komorebi_core::SocketMessage;
 
+#[derive(ArgEnum)]
+enum BooleanState {
+    Enable,
+    Disable,
+}
+
+impl From<BooleanState> for bool {
+    fn from(b: BooleanState) -> Self {
+        match b {
+            BooleanState::Enable => true,
+            BooleanState::Disable => false,
+        }
+    }
+}
+
+macro_rules! gen_enum_subcommand {
+    ($name:ident, $element:ty) => {
+        paste::paste! {
+            #[derive(clap::Clap)]
+            pub struct $name {
+                #[clap(arg_enum)]
+                [<$element:snake>]: $element
+            }
+        }
+    };
+}
+
+gen_enum_subcommand!(Focus, OperationDirection);
+gen_enum_subcommand!(Move, OperationDirection);
+gen_enum_subcommand!(Stack, OperationDirection);
+gen_enum_subcommand!(CycleStack, CycleDirection);
+gen_enum_subcommand!(WatchConfiguration, BooleanState);
+gen_enum_subcommand!(FlipLayout, LayoutFlip);
+gen_enum_subcommand!(FocusFollowsMouse, BooleanState);
+
+macro_rules! gen_target_subcommands {
+    ( $( $name:ident ),+ ) => {
+        $(
+            #[derive(clap::Clap)]
+            pub struct $name {
+                target: usize,
+            }
+        )+
+    };
+}
+
+gen_target_subcommands!(MoveToMonitor, MoveToWorkspace, FocusMonitor, FocusWorkspace);
+
 #[derive(Clap)]
-#[clap(version = "1.0", author = "Jade Iqbal <jadeiqbal@fastmail.com>")]
+struct Resize {
+    #[clap(arg_enum)]
+    edge: OperationDirection,
+    #[clap(arg_enum)]
+    sizing: Sizing,
+}
+
+#[derive(Clap)]
+struct EnsureWorkspaces {
+    /// Monitor index (zero-indexed, ie. the primary/first monitor is 0)
+    monitor: usize,
+    /// Number of desired workspaces
+    workspace_count: usize,
+}
+
+#[derive(Clap)]
+struct SizeForMonitorWorkspace {
+    /// Monitor index (zero-indexed, ie. the primary/first monitor is 0)
+    monitor: usize,
+    /// Workspace index on the specified monitor (zero-indexed, ie. the first workspace is 0)
+    workspace: usize,
+    /// Pixels to pad with as an integer
+    size: i32,
+}
+
+#[derive(Clap)]
+struct WorkspaceName {
+    /// Monitor index (zero-indexed, ie. the primary/first monitor is 0)
+    monitor: usize,
+    /// Workspace index on the specified monitor (zero-indexed, ie. the first workspace is 0)
+    workspace: usize,
+    /// Name of the workspace as a string
+    value: String,
+}
+
+#[derive(Clap)]
+struct WorkspaceLayout {
+    /// Monitor index (zero-indexed, ie. the primary/first monitor is 0)
+    monitor: usize,
+    /// Workspace index on the specified monitor (zero-indexed, ie. the first workspace is 0)
+    workspace: usize,
+    #[clap(arg_enum)]
+    layout: Layout,
+}
+
+#[derive(Clap)]
+struct WorkspaceTiling {
+    /// Monitor index (zero-indexed, ie. the primary/first monitor is 0)
+    monitor: usize,
+    /// Workspace index on the specified monitor (zero-indexed, ie. the first workspace is 0)
+    workspace: usize,
+    #[clap(arg_enum)]
+    tile: BooleanState,
+}
+
+#[derive(Clap)]
+struct ApplicationTarget {
+    #[clap(arg_enum)]
+    identifier: ApplicationIdentifier,
+    /// Identifier as a string
+    id: String,
+}
+
+#[derive(Clap)]
+struct PaddingAdjustment {
+    #[clap(arg_enum)]
+    sizing: Sizing,
+    /// Pixels to adjust by as an integer
+    adjustment: i32,
+}
+
+#[derive(Clap)]
+#[clap(version = "0.1.0", author = "Jade Iqbal <jadeiqbal@fastmail.com>")]
+#[clap(setting = AppSettings::DeriveDisplayOrder)]
 struct Opts {
     #[clap(subcommand)]
     subcmd: SubCommand,
@@ -31,123 +154,96 @@ struct Opts {
 
 #[derive(Clap)]
 enum SubCommand {
-    Focus(OperationDirection),
-    Move(OperationDirection),
-    Stack(OperationDirection),
-    Resize(Resize),
-    Unstack,
-    CycleStack(CycleDirection),
-    MoveToMonitor(Target),
-    MoveToWorkspace(Target),
-    FocusMonitor(Target),
-    FocusWorkspace(Target),
-    NewWorkspace,
-    Promote,
-    EnsureWorkspaces(WorkspaceCountForMonitor),
-    Retile,
-    ContainerPadding(SizeForMonitorWorkspace),
-    WorkspacePadding(SizeForMonitorWorkspace),
-    WorkspaceLayout(LayoutForMonitorWorkspace),
-    WorkspaceTiling(TilingForMonitorWorkspace),
-    WorkspaceName(NameForMonitorWorkspace),
-    ToggleTiling,
-    ToggleFloat,
-    TogglePause,
-    ToggleMonocle,
-    RestoreWindows,
-    ReloadConfiguration,
-    WatchConfiguration(BooleanState),
-    State,
+    /// Start komorebi.exe as a background process
     Start,
+    /// Stop the komorebi.exe process and restore all hidden windows
     Stop,
-    FloatClass(FloatTarget),
-    FloatExe(FloatTarget),
-    FloatTitle(FloatTarget),
+    /// Show a JSON representation of the current window manager state
+    State,
+    /// Change focus to the window in the specified direction
+    #[clap(setting = AppSettings::ArgRequiredElseHelp)]
+    Focus(Focus),
+    /// Move the focused window in the specified direction
+    #[clap(setting = AppSettings::ArgRequiredElseHelp)]
+    Move(Move),
+    /// Stack the focused window in the specified direction
+    #[clap(setting = AppSettings::ArgRequiredElseHelp)]
+    Stack(Stack),
+    /// Resize the focused window in the specified direction
+    #[clap(setting = AppSettings::ArgRequiredElseHelp)]
+    Resize(Resize),
+    /// Unstack the focused window
+    Unstack,
+    /// Cycle the focused stack in the specified cycle direction
+    #[clap(setting = AppSettings::ArgRequiredElseHelp)]
+    CycleStack(CycleStack),
+    /// Move the focused window to the specified monitor
+    #[clap(setting = AppSettings::ArgRequiredElseHelp)]
+    MoveToMonitor(MoveToMonitor),
+    /// Move the focused window to the specified workspace
+    #[clap(setting = AppSettings::ArgRequiredElseHelp)]
+    MoveToWorkspace(MoveToWorkspace),
+    /// Focus the specified monitor
+    #[clap(setting = AppSettings::ArgRequiredElseHelp)]
+    FocusMonitor(FocusMonitor),
+    /// Focus the specified workspace on the focused monitor
+    #[clap(setting = AppSettings::ArgRequiredElseHelp)]
+    FocusWorkspace(FocusWorkspace),
+    /// Create and append a new workspace on the focused monitor
+    NewWorkspace,
+    /// Adjust container padding on the focused workspace
+    #[clap(setting = AppSettings::ArgRequiredElseHelp)]
+    AdjustContainerPadding(PaddingAdjustment),
+    /// Adjust workspace padding on the focused workspace
+    #[clap(setting = AppSettings::ArgRequiredElseHelp)]
+    AdjustWorkspacePadding(PaddingAdjustment),
+    /// Flip the layout on the focused workspace (BSP only)
+    FlipLayout(FlipLayout),
+    /// Promote the focused window to the top of the tree
+    Promote,
+    /// Force the retiling of all managed windows
+    Retile,
+    /// Create at least this many workspaces for the specified monitor
+    #[clap(setting = AppSettings::ArgRequiredElseHelp)]
+    EnsureWorkspaces(EnsureWorkspaces),
+    /// Set the container padding for the specified workspace
+    #[clap(setting = AppSettings::ArgRequiredElseHelp)]
+    ContainerPadding(SizeForMonitorWorkspace),
+    /// Set the workspace padding for the specified workspace
+    #[clap(setting = AppSettings::ArgRequiredElseHelp)]
+    WorkspacePadding(SizeForMonitorWorkspace),
+    /// Set the layout for the specified workspace
+    #[clap(setting = AppSettings::ArgRequiredElseHelp)]
+    WorkspaceLayout(WorkspaceLayout),
+    /// Enable or disable window tiling for the specified workspace
+    #[clap(setting = AppSettings::ArgRequiredElseHelp)]
+    WorkspaceTiling(WorkspaceTiling),
+    /// Set the workspace name for the specified workspace
+    #[clap(setting = AppSettings::ArgRequiredElseHelp)]
+    WorkspaceName(WorkspaceName),
+    /// Toggle the window manager on and off across all monitors
+    TogglePause,
+    /// Toggle window tiling on the focused workspace
+    ToggleTiling,
+    /// Toggle floating mode for the focused window
+    ToggleFloat,
+    /// Toggle monocle mode for the focused container
+    ToggleMonocle,
+    /// Restore all hidden windows (debugging command)
+    RestoreWindows,
+    /// Reload ~/komorebi.ahk (if it exists)
+    ReloadConfiguration,
+    /// Toggle the automatic reloading of ~/komorebi.ahk (if it exists)
+    #[clap(setting = AppSettings::ArgRequiredElseHelp)]
+    WatchConfiguration(WatchConfiguration),
+    /// Add a rule to always float the specified application
+    #[clap(setting = AppSettings::ArgRequiredElseHelp)]
+    FloatRule(ApplicationTarget),
+    /// Identify an application that closes to the system tray
+    #[clap(setting = AppSettings::ArgRequiredElseHelp)]
     IdentifyTrayApplication(ApplicationTarget),
-    AdjustContainerPadding(SizingAdjustment),
-    AdjustWorkspacePadding(SizingAdjustment),
-    FlipLayout(LayoutFlip),
-    FocusFollowsMouse(BooleanState),
-}
-
-#[derive(Clap)]
-struct WorkspaceCountForMonitor {
-    monitor: usize,
-    workspace_count: usize,
-}
-
-#[derive(Clap)]
-struct SizeForMonitorWorkspace {
-    monitor: usize,
-    workspace: usize,
-    size: i32,
-}
-
-#[derive(Clap)]
-struct NameForMonitorWorkspace {
-    monitor: usize,
-    workspace: usize,
-    value: String,
-}
-
-#[derive(Clap)]
-struct LayoutForMonitorWorkspace {
-    monitor: usize,
-    workspace: usize,
-    layout: Layout,
-}
-
-fn on_or_off(s: &str) -> Result<bool, &'static str> {
-    match s {
-        "enable" => Ok(true),
-        "disable" => Ok(false),
-        // in order to not break backwards compat for mouse follows focus
-        "on" => Ok(true),
-        "off" => Ok(false),
-        _ => Err("expected `enable` or `disable`"),
-    }
-}
-
-#[derive(Clap)]
-struct TilingForMonitorWorkspace {
-    monitor: usize,
-    workspace: usize,
-    #[clap(parse(try_from_str = on_or_off))]
-    tile: bool,
-}
-
-#[derive(Clap)]
-struct Target {
-    number: usize,
-}
-
-#[derive(Clap)]
-struct SizingAdjustment {
-    sizing: Sizing,
-    adjustment: i32,
-}
-
-#[derive(Clap)]
-struct FloatTarget {
-    id: String,
-}
-
-#[derive(Clap)]
-struct ApplicationTarget {
-    identifier: ApplicationIdentifier,
-    id: String,
-}
-
-#[derive(Clap)]
-struct Resize {
-    edge: OperationDirection,
-    sizing: Sizing,
-}
-
-#[derive(Clap)]
-enum BooleanState {
-    Enable,
-    Disable,
+    /// Enable or disable focus follows mouse for the operating system
+    FocusFollowsMouse(FocusFollowsMouse),
 }
 
 pub fn send_message(bytes: &[u8]) -> Result<()> {
@@ -163,8 +259,8 @@ fn main() -> Result<()> {
     let opts: Opts = Opts::parse();
 
     match opts.subcmd {
-        SubCommand::Focus(direction) => {
-            send_message(&*SocketMessage::FocusWindow(direction).as_bytes()?)?;
+        SubCommand::Focus(arg) => {
+            send_message(&*SocketMessage::FocusWindow(arg.operation_direction).as_bytes()?)?;
         }
         SubCommand::Promote => {
             send_message(&*SocketMessage::Promote.as_bytes()?)?;
@@ -175,47 +271,35 @@ fn main() -> Result<()> {
         SubCommand::Retile => {
             send_message(&*SocketMessage::Retile.as_bytes()?)?;
         }
-        SubCommand::Move(direction) => {
-            send_message(&*SocketMessage::MoveWindow(direction).as_bytes()?)?;
+        SubCommand::Move(arg) => {
+            send_message(&*SocketMessage::MoveWindow(arg.operation_direction).as_bytes()?)?;
         }
-        SubCommand::MoveToMonitor(display) => {
-            send_message(
-                &*SocketMessage::MoveContainerToMonitorNumber(display.number).as_bytes()?,
-            )?;
+        SubCommand::MoveToMonitor(arg) => {
+            send_message(&*SocketMessage::MoveContainerToMonitorNumber(arg.target).as_bytes()?)?;
         }
-        SubCommand::MoveToWorkspace(workspace) => {
-            send_message(
-                &*SocketMessage::MoveContainerToWorkspaceNumber(workspace.number).as_bytes()?,
-            )?;
+        SubCommand::MoveToWorkspace(arg) => {
+            send_message(&*SocketMessage::MoveContainerToWorkspaceNumber(arg.target).as_bytes()?)?;
         }
-        SubCommand::ContainerPadding(gap) => {
+        SubCommand::ContainerPadding(arg) => {
             send_message(
-                &*SocketMessage::ContainerPadding(gap.monitor, gap.workspace, gap.size)
+                &*SocketMessage::ContainerPadding(arg.monitor, arg.workspace, arg.size)
                     .as_bytes()?,
             )?;
         }
-        SubCommand::WorkspacePadding(gap) => {
+        SubCommand::WorkspacePadding(arg) => {
             send_message(
-                &*SocketMessage::WorkspacePadding(gap.monitor, gap.workspace, gap.size)
+                &*SocketMessage::WorkspacePadding(arg.monitor, arg.workspace, arg.size)
                     .as_bytes()?,
             )?;
         }
-        SubCommand::AdjustWorkspacePadding(sizing_adjustment) => {
+        SubCommand::AdjustWorkspacePadding(arg) => {
             send_message(
-                &*SocketMessage::AdjustWorkspacePadding(
-                    sizing_adjustment.sizing,
-                    sizing_adjustment.adjustment,
-                )
-                .as_bytes()?,
+                &*SocketMessage::AdjustWorkspacePadding(arg.sizing, arg.adjustment).as_bytes()?,
             )?;
         }
-        SubCommand::AdjustContainerPadding(sizing_adjustment) => {
+        SubCommand::AdjustContainerPadding(arg) => {
             send_message(
-                &*SocketMessage::AdjustContainerPadding(
-                    sizing_adjustment.sizing,
-                    sizing_adjustment.adjustment,
-                )
-                .as_bytes()?,
+                &*SocketMessage::AdjustContainerPadding(arg.sizing, arg.adjustment).as_bytes()?,
             )?;
         }
         SubCommand::ToggleTiling => {
@@ -227,15 +311,15 @@ fn main() -> Result<()> {
         SubCommand::ToggleMonocle => {
             send_message(&*SocketMessage::ToggleMonocle.as_bytes()?)?;
         }
-        SubCommand::WorkspaceLayout(layout) => {
+        SubCommand::WorkspaceLayout(arg) => {
             send_message(
-                &*SocketMessage::WorkspaceLayout(layout.monitor, layout.workspace, layout.layout)
+                &*SocketMessage::WorkspaceLayout(arg.monitor, arg.workspace, arg.layout)
                     .as_bytes()?,
             )?;
         }
-        SubCommand::WorkspaceTiling(layout) => {
+        SubCommand::WorkspaceTiling(arg) => {
             send_message(
-                &*SocketMessage::WorkspaceTiling(layout.monitor, layout.workspace, layout.tile)
+                &*SocketMessage::WorkspaceTiling(arg.monitor, arg.workspace, arg.tile.into())
                     .as_bytes()?,
             )?;
         }
@@ -253,32 +337,34 @@ fn main() -> Result<()> {
         SubCommand::Stop => {
             send_message(&*SocketMessage::Stop.as_bytes()?)?;
         }
-        SubCommand::FloatClass(target) => {
-            send_message(&*SocketMessage::FloatClass(target.id).as_bytes()?)?;
-        }
-        SubCommand::FloatExe(target) => {
-            send_message(&*SocketMessage::FloatExe(target.id).as_bytes()?)?;
-        }
-        SubCommand::FloatTitle(target) => {
-            send_message(&*SocketMessage::FloatTitle(target.id).as_bytes()?)?;
-        }
-        SubCommand::Stack(direction) => {
-            send_message(&*SocketMessage::StackWindow(direction).as_bytes()?)?;
+        SubCommand::FloatRule(arg) => match arg.identifier {
+            ApplicationIdentifier::Exe => {
+                send_message(&*SocketMessage::FloatExe(arg.id).as_bytes()?)?;
+            }
+            ApplicationIdentifier::Class => {
+                send_message(&*SocketMessage::FloatClass(arg.id).as_bytes()?)?;
+            }
+            ApplicationIdentifier::Title => {
+                send_message(&*SocketMessage::FloatTitle(arg.id).as_bytes()?)?;
+            }
+        },
+        SubCommand::Stack(arg) => {
+            send_message(&*SocketMessage::StackWindow(arg.operation_direction).as_bytes()?)?;
         }
         SubCommand::Unstack => {
             send_message(&*SocketMessage::UnstackWindow.as_bytes()?)?;
         }
-        SubCommand::CycleStack(direction) => {
-            send_message(&*SocketMessage::CycleStack(direction).as_bytes()?)?;
+        SubCommand::CycleStack(arg) => {
+            send_message(&*SocketMessage::CycleStack(arg.cycle_direction).as_bytes()?)?;
         }
-        SubCommand::FlipLayout(flip) => {
-            send_message(&*SocketMessage::FlipLayout(flip).as_bytes()?)?;
+        SubCommand::FlipLayout(arg) => {
+            send_message(&*SocketMessage::FlipLayout(arg.layout_flip).as_bytes()?)?;
         }
-        SubCommand::FocusMonitor(target) => {
-            send_message(&*SocketMessage::FocusMonitorNumber(target.number).as_bytes()?)?;
+        SubCommand::FocusMonitor(arg) => {
+            send_message(&*SocketMessage::FocusMonitorNumber(arg.target).as_bytes()?)?;
         }
-        SubCommand::FocusWorkspace(target) => {
-            send_message(&*SocketMessage::FocusWorkspaceNumber(target.number).as_bytes()?)?;
+        SubCommand::FocusWorkspace(arg) => {
+            send_message(&*SocketMessage::FocusWorkspaceNumber(arg.target).as_bytes()?)?;
         }
         SubCommand::NewWorkspace => {
             send_message(&*SocketMessage::NewWorkspace.as_bytes()?)?;
@@ -344,8 +430,8 @@ fn main() -> Result<()> {
         SubCommand::Resize(resize) => {
             send_message(&*SocketMessage::ResizeWindow(resize.edge, resize.sizing).as_bytes()?)?;
         }
-        SubCommand::FocusFollowsMouse(enable) => {
-            let enable = match enable {
+        SubCommand::FocusFollowsMouse(arg) => {
+            let enable = match arg.boolean_state {
                 BooleanState::Enable => true,
                 BooleanState::Disable => false,
             };
@@ -355,8 +441,8 @@ fn main() -> Result<()> {
         SubCommand::ReloadConfiguration => {
             send_message(&*SocketMessage::ReloadConfiguration.as_bytes()?)?;
         }
-        SubCommand::WatchConfiguration(enable) => {
-            let enable = match enable {
+        SubCommand::WatchConfiguration(arg) => {
+            let enable = match arg.boolean_state {
                 BooleanState::Enable => true,
                 BooleanState::Disable => false,
             };

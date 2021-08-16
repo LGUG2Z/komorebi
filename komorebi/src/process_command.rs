@@ -193,6 +193,7 @@ impl WindowManager {
                         classes.push(id);
                     }
                 }
+                ApplicationIdentifier::Title => {}
             },
         }
 

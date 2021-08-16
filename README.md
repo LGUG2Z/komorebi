@@ -88,9 +88,9 @@ If you have AutoHotKey installed and a `komorebi.ahk` file in your home director
 PowerShell prompt to find your home directory), `komorebi` will automatically try to load it when starting.
 
 If you are experiencing behaviour where
-[closing a window leaves a blank tile, but minimizing the same window does not](https://github.com/LGUG2Z/komorebi/issues/6),
-you have probably enabled a 'close/minimize to tray' option for that application. You can tell _komorebi_ to handle this
-application appropriately by identifying it via the executable name or the window class:
+[closing a window leaves a blank tile, but minimizing the same window does not](https://github.com/LGUG2Z/komorebi/issues/6)
+, you have probably enabled a 'close/minimize to tray' option for that application. You can tell _komorebi_ to handle
+this application appropriately by identifying it via the executable name or the window class:
 
 ```powershell
 komorebic.exe identify-tray-application exe Discord.exe
@@ -102,6 +102,10 @@ komorebic.exe identify-tray-application exe Telegram.exe
 As previously mentioned, this project does not handle anything related to keybindings and shortcuts directly. I
 personally use AutoHotKey to manage my window management shortcuts, and have provided a
 sample [komorebi.ahk](komorebi.sample.ahk) AHK script that you can use as a starting point for your own.
+
+You can run `komorebic.exe` to get a full list of the commands that you can use to customise `komorebi` and create
+keybindings with. You can run `komorebic.exe <COMMAND> --help` to get a full explanation of the arguments required for
+each command.
 
 ## Features
 
