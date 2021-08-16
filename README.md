@@ -69,8 +69,8 @@ the [Build Tools for Visual Studio 2019](https://stackoverflow.com/a/55603112).
 You can then clone this repo and compile the source code to install the binaries for `komorebi` and `komorebic`:
 
 ```powershell
-cargo install --path komorebi
-cargo install --path komorebic
+cargo install --path komorebi --locked
+cargo install --path komorebic --locked
 ```
 
 By running `komorebic start` at a Powershell prompt, you should see the following output:
