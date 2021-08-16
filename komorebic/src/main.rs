@@ -9,6 +9,7 @@ use clap::ArgEnum;
 use clap::Clap;
 use color_eyre::eyre::ContextCompat;
 use color_eyre::Result;
+use paste::paste;
 use uds_windows::UnixListener;
 use uds_windows::UnixStream;
 
@@ -39,38 +40,84 @@ impl From<BooleanState> for bool {
     }
 }
 
-macro_rules! gen_enum_subcommand {
-    ($name:ident, $element:ty) => {
-        paste::paste! {
-            #[derive(clap::Clap)]
-            pub struct $name {
-                #[clap(arg_enum)]
-                [<$element:snake>]: $element
+macro_rules! gen_enum_subcommand_args {
+    // SubCommand Pattern: Enum Type
+    ( $( $name:ident: $element:ty ),+ ) => {
+        $(
+            paste! {
+                #[derive(clap::Clap)]
+                pub struct $name {
+                    #[clap(arg_enum)]
+                    [<$element:snake>]: $element
+                }
             }
-        }
+        )+
     };
 }
 
-gen_enum_subcommand!(Focus, OperationDirection);
-gen_enum_subcommand!(Move, OperationDirection);
-gen_enum_subcommand!(Stack, OperationDirection);
-gen_enum_subcommand!(CycleStack, CycleDirection);
-gen_enum_subcommand!(WatchConfiguration, BooleanState);
-gen_enum_subcommand!(FlipLayout, LayoutFlip);
-gen_enum_subcommand!(FocusFollowsMouse, BooleanState);
+gen_enum_subcommand_args! {
+    Focus: OperationDirection,
+    Move: OperationDirection,
+    Stack: OperationDirection,
+    CycleStack: CycleDirection,
+    FlipLayout: LayoutFlip,
+    WatchConfiguration: BooleanState,
+    FocusFollowsMouse: BooleanState
+}
 
-macro_rules! gen_target_subcommands {
+macro_rules! gen_target_subcommand_args {
+    // SubCommand Pattern
     ( $( $name:ident ),+ ) => {
         $(
             #[derive(clap::Clap)]
             pub struct $name {
+                /// Target index (zero-indexed)
                 target: usize,
             }
         )+
     };
 }
 
-gen_target_subcommands!(MoveToMonitor, MoveToWorkspace, FocusMonitor, FocusWorkspace);
+gen_target_subcommand_args! {
+    MoveToMonitor,
+    MoveToWorkspace,
+    FocusMonitor,
+    FocusWorkspace
+}
+
+// Thanks to @danielhenrymantilla for showing me how to use cfr_attr with an optional argument like
+// this on the Rust Programming Language Community Discord Server
+macro_rules! gen_workspace_subcommand_args {
+    // Workspace Property: #[enum] Value Enum (if the value is an Enum)
+    // Workspace Property: Value Type (if the value is anything else)
+    ( $( $name:ident: $(#[enum] $(@$arg_enum:tt)?)? $value:ty ),+ ) => (
+        paste! {
+            $(
+                #[derive(clap::Clap)]
+                pub struct [<Workspace $name>] {
+                    /// Monitor index (zero-indexed)
+                    monitor: usize,
+
+                    /// Workspace index on the specified monitor (zero-indexed)
+                    workspace: usize,
+
+                    $(#[clap(arg_enum)] $($arg_enum)?)?
+                    #[cfg_attr(
+                        all($(FALSE $($arg_enum)?)?),
+                        doc = ""$name" of the workspace as a "$value""
+                    )]
+                    value: $value,
+                }
+            )+
+        }
+    )
+}
+
+gen_workspace_subcommand_args! {
+    Name: String,
+    Layout: #[enum] Layout,
+    Tiling: #[enum] BooleanState
+}
 
 #[derive(Clap)]
 struct Resize {
@@ -82,58 +129,20 @@ struct Resize {
 
 #[derive(Clap)]
 struct EnsureWorkspaces {
-    /// Monitor index (zero-indexed, ie. the primary/first monitor is 0)
+    /// Monitor index (zero-indexed)
     monitor: usize,
     /// Number of desired workspaces
     workspace_count: usize,
 }
 
 #[derive(Clap)]
-struct SizeForMonitorWorkspace {
-    /// Monitor index (zero-indexed, ie. the primary/first monitor is 0)
+struct Padding {
+    /// Monitor index (zero-indexed)
     monitor: usize,
-    /// Workspace index on the specified monitor (zero-indexed, ie. the first workspace is 0)
+    /// Workspace index on the specified monitor (zero-indexed)
     workspace: usize,
     /// Pixels to pad with as an integer
     size: i32,
-}
-
-#[derive(Clap)]
-struct WorkspaceName {
-    /// Monitor index (zero-indexed, ie. the primary/first monitor is 0)
-    monitor: usize,
-    /// Workspace index on the specified monitor (zero-indexed, ie. the first workspace is 0)
-    workspace: usize,
-    /// Name of the workspace as a string
-    value: String,
-}
-
-#[derive(Clap)]
-struct WorkspaceLayout {
-    /// Monitor index (zero-indexed, ie. the primary/first monitor is 0)
-    monitor: usize,
-    /// Workspace index on the specified monitor (zero-indexed, ie. the first workspace is 0)
-    workspace: usize,
-    #[clap(arg_enum)]
-    layout: Layout,
-}
-
-#[derive(Clap)]
-struct WorkspaceTiling {
-    /// Monitor index (zero-indexed, ie. the primary/first monitor is 0)
-    monitor: usize,
-    /// Workspace index on the specified monitor (zero-indexed, ie. the first workspace is 0)
-    workspace: usize,
-    #[clap(arg_enum)]
-    tile: BooleanState,
-}
-
-#[derive(Clap)]
-struct ApplicationTarget {
-    #[clap(arg_enum)]
-    identifier: ApplicationIdentifier,
-    /// Identifier as a string
-    id: String,
 }
 
 #[derive(Clap)]
@@ -142,6 +151,14 @@ struct PaddingAdjustment {
     sizing: Sizing,
     /// Pixels to adjust by as an integer
     adjustment: i32,
+}
+
+#[derive(Clap)]
+struct ApplicationTarget {
+    #[clap(arg_enum)]
+    identifier: ApplicationIdentifier,
+    /// Identifier as a string
+    id: String,
 }
 
 #[derive(Clap)]
@@ -208,10 +225,10 @@ enum SubCommand {
     EnsureWorkspaces(EnsureWorkspaces),
     /// Set the container padding for the specified workspace
     #[clap(setting = AppSettings::ArgRequiredElseHelp)]
-    ContainerPadding(SizeForMonitorWorkspace),
+    ContainerPadding(Padding),
     /// Set the workspace padding for the specified workspace
     #[clap(setting = AppSettings::ArgRequiredElseHelp)]
-    WorkspacePadding(SizeForMonitorWorkspace),
+    WorkspacePadding(Padding),
     /// Set the layout for the specified workspace
     #[clap(setting = AppSettings::ArgRequiredElseHelp)]
     WorkspaceLayout(WorkspaceLayout),
@@ -313,19 +330,18 @@ fn main() -> Result<()> {
         }
         SubCommand::WorkspaceLayout(arg) => {
             send_message(
-                &*SocketMessage::WorkspaceLayout(arg.monitor, arg.workspace, arg.layout)
+                &*SocketMessage::WorkspaceLayout(arg.monitor, arg.workspace, arg.value)
                     .as_bytes()?,
             )?;
         }
         SubCommand::WorkspaceTiling(arg) => {
             send_message(
-                &*SocketMessage::WorkspaceTiling(arg.monitor, arg.workspace, arg.tile.into())
+                &*SocketMessage::WorkspaceTiling(arg.monitor, arg.workspace, arg.value.into())
                     .as_bytes()?,
             )?;
         }
         SubCommand::Start => {
-            let script = r#"Start-Process komorebi -WindowStyle hidden"#;
-            match powershell_script::run(script, true) {
+            match powershell_script::run("Start-Process komorebi -WindowStyle hidden", true) {
                 Ok(output) => {
                     println!("{}", output);
                 }
