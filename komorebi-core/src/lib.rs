@@ -57,6 +57,7 @@ pub enum SocketMessage {
     FloatClass(String),
     FloatExe(String),
     FloatTitle(String),
+    IdentifyTrayApplication(ApplicationIdentifier, String),
     State,
     FocusFollowsMouse(bool),
 }
@@ -77,6 +78,13 @@ impl FromStr for SocketMessage {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         serde_json::from_str(s)
     }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, Display, EnumString)]
+#[strum(serialize_all = "snake_case")]
+pub enum ApplicationIdentifier {
+    Exe,
+    Class,
 }
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, Display, EnumString)]

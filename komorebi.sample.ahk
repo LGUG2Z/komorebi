@@ -42,6 +42,10 @@ Run, komorebic.exe float-exe wincompose.exe, , Hide
 Run, komorebic.exe float-title Calculator, , Hide
 Run, komorebic.exe float-exe 1Password.exe, , Hide
 
+; Identify applications that close to the tray
+Run, komorebic.exe identify-tray-application exe Discord.exe, , Hide
+Run, komorebic.exe identify-tray-application exe Telegram.exe, , Hide
+
 ; Change the focused window, Alt + Vim direction keys
 !h::
 Run, komorebic.exe focus left, , Hide

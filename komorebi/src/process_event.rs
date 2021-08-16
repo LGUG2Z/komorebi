@@ -15,7 +15,8 @@ use crate::window_manager::WindowManager;
 use crate::window_manager_event::WindowManagerEvent;
 use crate::windows_api::WindowsApi;
 use crate::HIDDEN_HWNDS;
-use crate::MULTI_WINDOW_EXES;
+use crate::TRAY_AND_MULTI_WINDOW_CLASSES;
+use crate::TRAY_AND_MULTI_WINDOW_EXES;
 
 #[tracing::instrument]
 pub fn listen_for_events(wm: Arc<Mutex<WindowManager>>) {
@@ -91,11 +92,19 @@ impl WindowManager {
 
             WindowManagerEvent::Hide(_, window) => {
                 // Some major applications unfortunately send the HIDE signal when they are being
-                // minimized or destroyed. Will have to keep updating this list.
-                let common_multi_window_exes = MULTI_WINDOW_EXES.lock().unwrap();
+                // minimized or destroyed. Applications that close to the tray also do the same,
+                // and will have is_window() return true, as the process is still running even if
+                // the window is not visible.
+                let tray_and_multi_window_exes = TRAY_AND_MULTI_WINDOW_EXES.lock().unwrap();
+                let tray_and_multi_window_classes = TRAY_AND_MULTI_WINDOW_CLASSES.lock().unwrap();
+
+                // We don't want to purge windows that have been deliberately hidden by us, eg. when
+                // they are not on the top of a container stack.
                 let programmatically_hidden_hwnds = HIDDEN_HWNDS.lock().unwrap();
-                if (!window.is_window() || common_multi_window_exes.contains(&window.exe()?))
-                    && !programmatically_hidden_hwnds.contains(&window.hwnd)
+
+                if (!window.is_window() || tray_and_multi_window_exes.contains(&window.exe()?))
+                    || tray_and_multi_window_classes.contains(&window.class()?)
+                        && !programmatically_hidden_hwnds.contains(&window.hwnd)
                 {
                     self.focused_workspace_mut()?.remove_window(window.hwnd)?;
                     self.update_focused_workspace(false)?;

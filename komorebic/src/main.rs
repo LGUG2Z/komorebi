@@ -14,6 +14,7 @@ use bindings::Windows::Win32::Foundation::HWND;
 use bindings::Windows::Win32::UI::WindowsAndMessaging::ShowWindow;
 use bindings::Windows::Win32::UI::WindowsAndMessaging::SHOW_WINDOW_CMD;
 use bindings::Windows::Win32::UI::WindowsAndMessaging::SW_RESTORE;
+use komorebi_core::ApplicationIdentifier;
 use komorebi_core::CycleDirection;
 use komorebi_core::Layout;
 use komorebi_core::LayoutFlip;
@@ -62,6 +63,7 @@ enum SubCommand {
     FloatClass(FloatTarget),
     FloatExe(FloatTarget),
     FloatTitle(FloatTarget),
+    IdentifyTrayApplication(ApplicationTarget),
     AdjustContainerPadding(SizingAdjustment),
     AdjustWorkspacePadding(SizingAdjustment),
     FlipLayout(LayoutFlip),
@@ -127,6 +129,12 @@ struct SizingAdjustment {
 
 #[derive(Clap)]
 struct FloatTarget {
+    id: String,
+}
+
+#[derive(Clap)]
+struct ApplicationTarget {
+    identifier: ApplicationIdentifier,
     id: String,
 }
 
@@ -353,6 +361,12 @@ fn main() -> Result<()> {
                 BooleanState::Disable => false,
             };
             send_message(&*SocketMessage::WatchConfiguration(enable).as_bytes()?)?;
+        }
+        SubCommand::IdentifyTrayApplication(target) => {
+            send_message(
+                &*SocketMessage::IdentifyTrayApplication(target.identifier, target.id)
+                    .as_bytes()?,
+            )?;
         }
     }
 

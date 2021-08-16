@@ -28,17 +28,48 @@ use crate::window::Window;
 use crate::window_manager_event::WindowManagerEvent;
 use crate::windows_api::WindowsApi;
 use crate::workspace::Workspace;
+use crate::FLOAT_CLASSES;
+use crate::FLOAT_EXES;
+use crate::FLOAT_TITLES;
+use crate::LAYERED_EXE_WHITELIST;
+use crate::TRAY_AND_MULTI_WINDOW_CLASSES;
+use crate::TRAY_AND_MULTI_WINDOW_EXES;
 
-#[derive(Debug, Serialize)]
+#[derive(Debug)]
 pub struct WindowManager {
     pub monitors: Ring<Monitor>,
-    #[serde(skip_serializing)]
     pub incoming_events: Arc<Mutex<Receiver<WindowManagerEvent>>>,
-    #[serde(skip_serializing)]
     pub command_listener: UnixListener,
     pub is_paused: bool,
-    #[serde(skip_serializing)]
     pub hotwatch: Hotwatch,
+}
+
+#[derive(Debug, Serialize)]
+pub struct State {
+    pub monitors: Ring<Monitor>,
+    pub is_paused: bool,
+    pub float_classes: Vec<String>,
+    pub float_exes: Vec<String>,
+    pub float_titles: Vec<String>,
+    pub layered_exe_whitelist: Vec<String>,
+    pub tray_and_multi_window_exes: Vec<String>,
+    pub tray_and_multi_window_classes: Vec<String>,
+}
+
+#[allow(clippy::fallible_impl_from)]
+impl From<&mut WindowManager> for State {
+    fn from(wm: &mut WindowManager) -> Self {
+        Self {
+            monitors: wm.monitors.clone(),
+            is_paused: wm.is_paused,
+            float_classes: FLOAT_CLASSES.lock().unwrap().clone(),
+            float_exes: FLOAT_EXES.lock().unwrap().clone(),
+            float_titles: FLOAT_TITLES.lock().unwrap().clone(),
+            layered_exe_whitelist: LAYERED_EXE_WHITELIST.lock().unwrap().clone(),
+            tray_and_multi_window_exes: TRAY_AND_MULTI_WINDOW_EXES.lock().unwrap().clone(),
+            tray_and_multi_window_classes: TRAY_AND_MULTI_WINDOW_CLASSES.lock().unwrap().clone(),
+        }
+    }
 }
 
 impl_ring_elements!(WindowManager, Monitor);

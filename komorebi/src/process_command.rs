@@ -10,13 +10,17 @@ use color_eyre::eyre::ContextCompat;
 use color_eyre::Result;
 use uds_windows::UnixStream;
 
+use komorebi_core::ApplicationIdentifier;
 use komorebi_core::SocketMessage;
 
+use crate::window_manager;
 use crate::window_manager::WindowManager;
 use crate::windows_api::WindowsApi;
 use crate::FLOAT_CLASSES;
 use crate::FLOAT_EXES;
 use crate::FLOAT_TITLES;
+use crate::TRAY_AND_MULTI_WINDOW_CLASSES;
+use crate::TRAY_AND_MULTI_WINDOW_EXES;
 
 #[tracing::instrument]
 pub fn listen_for_commands(wm: Arc<Mutex<WindowManager>>) {
@@ -152,7 +156,7 @@ impl WindowManager {
                 self.set_workspace_name(monitor_idx, workspace_idx, name)?;
             }
             SocketMessage::State => {
-                let state = serde_json::to_string_pretty(self)?;
+                let state = serde_json::to_string_pretty(&window_manager::State::from(self))?;
                 let mut socket = dirs::home_dir().context("there is no home directory")?;
                 socket.push("komorebic.sock");
                 let socket = socket.as_path();
@@ -176,6 +180,20 @@ impl WindowManager {
             SocketMessage::WatchConfiguration(enable) => {
                 self.watch_configuration(enable)?;
             }
+            SocketMessage::IdentifyTrayApplication(identifier, id) => match identifier {
+                ApplicationIdentifier::Exe => {
+                    let mut exes = TRAY_AND_MULTI_WINDOW_EXES.lock().unwrap();
+                    if !exes.contains(&id) {
+                        exes.push(id);
+                    }
+                }
+                ApplicationIdentifier::Class => {
+                    let mut classes = TRAY_AND_MULTI_WINDOW_CLASSES.lock().unwrap();
+                    if !classes.contains(&id) {
+                        classes.push(id);
+                    }
+                }
+            },
         }
 
         tracing::info!("processed");

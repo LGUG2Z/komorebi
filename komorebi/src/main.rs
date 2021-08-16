@@ -46,7 +46,9 @@ lazy_static! {
     static ref HIDDEN_HWNDS: Arc<Mutex<Vec<isize>>> = Arc::new(Mutex::new(vec![]));
     static ref LAYERED_EXE_WHITELIST: Arc<Mutex<Vec<String>>> =
         Arc::new(Mutex::new(vec!["steam.exe".to_string()]));
-    static ref MULTI_WINDOW_EXES: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(vec![
+    static ref TRAY_AND_MULTI_WINDOW_CLASSES: Arc<Mutex<Vec<String>>> =
+        Arc::new(Mutex::new(vec![]));
+    static ref TRAY_AND_MULTI_WINDOW_EXES: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(vec![
         "explorer.exe".to_string(),
         "firefox.exe".to_string(),
         "chrome.exe".to_string(),
