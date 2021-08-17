@@ -1,6 +1,7 @@
 use std::collections::VecDeque;
 use std::io::ErrorKind;
 use std::num::NonZeroUsize;
+use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::Mutex;
 use std::thread;
@@ -121,12 +122,32 @@ impl WindowManager {
     #[tracing::instrument(skip(self))]
     pub fn watch_configuration(&mut self, enable: bool) -> Result<()> {
         let home = dirs::home_dir().context("there is no home directory")?;
-        let mut config = home;
-        config.push("komorebi.ahk");
 
+        let mut config_v1 = home.clone();
+        config_v1.push("komorebi.ahk");
+
+        let mut config_v2 = home;
+        config_v2.push("komorebi.ahk2");
+
+        if config_v1.exists() {
+            self.configure_watcher(enable, config_v1)?;
+        } else if config_v2.exists() {
+            self.configure_watcher(enable, config_v2)?;
+        }
+
+        Ok(())
+    }
+
+    fn configure_watcher(&mut self, enable: bool, config: PathBuf) -> Result<()> {
         if config.exists() {
             if enable {
-                tracing::info!("watching configuration for changes");
+                tracing::info!(
+                    "watching configuration for changes: {}",
+                    config
+                        .as_os_str()
+                        .to_str()
+                        .context("cannot convert path to string")?
+                );
                 // Always make absolutely sure that there isn't an already existing watch, because
                 // hotwatch allows multiple watches to be registered for the same path
                 match self.hotwatch.unwatch(config.clone()) {
@@ -144,7 +165,6 @@ impl WindowManager {
                     // Editing in Notepad sends a NoticeWrite while editing in (Neo)Vim sends
                     // a NoticeRemove, presumably because of the use of swap files?
                     DebouncedEvent::NoticeWrite(_) | DebouncedEvent::NoticeRemove(_) => {
-                        tracing::info!("reloading changed configuration file");
                         thread::spawn(|| {
                             load_configuration().expect("could not load configuration");
                         });
@@ -152,7 +172,14 @@ impl WindowManager {
                     _ => {}
                 })?;
             } else {
-                tracing::info!("no longer watching configuration for changes");
+                tracing::info!(
+                    "no longer watching configuration for changes: {}",
+                    config
+                        .as_os_str()
+                        .to_str()
+                        .context("cannot convert path to string")?
+                );
+
                 self.hotwatch.unwatch(config)?;
             };
         }

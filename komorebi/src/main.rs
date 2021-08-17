@@ -118,14 +118,38 @@ fn setup() -> Result<WorkerGuard> {
 
 pub fn load_configuration() -> Result<()> {
     let home = dirs::home_dir().context("there is no home directory")?;
-    let mut config = home;
-    config.push("komorebi.ahk");
 
-    if config.exists() && which("autohotkey.exe").is_ok() {
+    let mut config_v1 = home.clone();
+    config_v1.push("komorebi.ahk");
+
+    let mut config_v2 = home;
+    config_v2.push("komorebi.ahk2");
+
+    if config_v1.exists() && which("autohotkey.exe").is_ok() {
+        tracing::info!(
+            "loading configuration file: {}",
+            config_v1
+                .as_os_str()
+                .to_str()
+                .context("cannot convert path to string")?
+        );
+
         Command::new("autohotkey.exe")
-            .arg(config.as_os_str())
+            .arg(config_v1.as_os_str())
             .output()?;
-    }
+    } else if config_v2.exists() && which("AutoHotkey64.exe").is_ok() {
+        tracing::info!(
+            "loading configuration file: {}",
+            config_v2
+                .as_os_str()
+                .to_str()
+                .context("cannot convert path to string")?
+        );
+
+        Command::new("AutoHotkey64.exe")
+            .arg(config_v2.as_os_str())
+            .output()?;
+    };
 
     Ok(())
 }

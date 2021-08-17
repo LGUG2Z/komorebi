@@ -108,6 +108,11 @@ Once `komorebi` is running, you can execute the `komorebi.sample.ahk` script to 
 If you have AutoHotKey installed and a `komorebi.ahk` file in your home directory (run `$Env:UserProfile` at a
 PowerShell prompt to find your home directory), `komorebi` will automatically try to load it when starting.
 
+There is also tentative support for loading a AutoHotKey v2, if the file is named `komorebi.ahk2` and
+the `AutoHotKey64.exe` executable for AutoHotKey v2 is in your `Path`. If both `komorebi.ahk` and `komorebi.ahk2` files
+exist in your home directory, only `komorebi.ahk` will be loaded. An example of an AutoHotKey v2 configuration file
+for _komorebi_ can be found [here](https://gist.github.com/crosstyan/dafacc0778dabf693ce9236c57b201cd).
+
 If you are experiencing behaviour where
 [closing a window leaves a blank tile, but minimizing the same window does not](https://github.com/LGUG2Z/komorebi/issues/6)
 , you have probably enabled a 'close/minimize to tray' option for that application. You can tell _komorebi_ to handle
