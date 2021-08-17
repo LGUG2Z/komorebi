@@ -164,8 +164,7 @@ struct ApplicationTarget {
 }
 
 #[derive(Clap)]
-#[clap(version = "0.1.0", author = "Jade Iqbal <jadeiqbal@fastmail.com>")]
-#[clap(setting = AppSettings::DeriveDisplayOrder)]
+#[clap(author, about, version, setting = AppSettings::DeriveDisplayOrder)]
 struct Opts {
     #[clap(subcommand)]
     subcmd: SubCommand,
