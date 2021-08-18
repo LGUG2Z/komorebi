@@ -62,7 +62,7 @@ lazy_static! {
     ]));
 }
 
-fn setup() -> Result<WorkerGuard> {
+fn setup() -> Result<(WorkerGuard, WorkerGuard)> {
     if std::env::var("RUST_LIB_BACKTRACE").is_err() {
         std::env::set_var("RUST_LIB_BACKTRACE", "1");
     }
@@ -75,7 +75,9 @@ fn setup() -> Result<WorkerGuard> {
 
     let home = dirs::home_dir().context("there is no home directory")?;
     let appender = tracing_appender::rolling::never(home, "komorebi.log");
+    let color_appender = tracing_appender::rolling::never(std::env::temp_dir(), "komorebi.log");
     let (non_blocking, guard) = tracing_appender::non_blocking(appender);
+    let (color_non_blocking, color_guard) = tracing_appender::non_blocking(color_appender);
 
     tracing::subscriber::set_global_default(
         tracing_subscriber::fmt::Subscriber::builder()
@@ -85,6 +87,11 @@ fn setup() -> Result<WorkerGuard> {
                 tracing_subscriber::fmt::Layer::default()
                     .with_writer(non_blocking)
                     .with_ansi(false),
+            )
+            .with(
+                tracing_subscriber::fmt::Layer::default()
+                    .with_writer(color_non_blocking)
+                    .with_ansi(true),
             ),
     )?;
 
@@ -113,7 +120,7 @@ fn setup() -> Result<WorkerGuard> {
         }
     }));
 
-    Ok(guard)
+    Ok((guard, color_guard))
 }
 
 pub fn load_configuration() -> Result<()> {
@@ -167,7 +174,7 @@ fn main() -> Result<()> {
             }
 
             // File logging worker guard has to have an assignment in the main fn to work
-            let _guard = setup()?;
+            let (_guard, _color_guard) = setup()?;
 
             let process_id = WindowsApi::current_process_id();
             WindowsApi::allow_set_foreground_window(process_id)?;

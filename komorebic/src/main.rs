@@ -11,6 +11,7 @@ use clap::ArgEnum;
 use clap::Clap;
 use color_eyre::eyre::ContextCompat;
 use color_eyre::Result;
+use fs_tail::TailedFile;
 use paste::paste;
 use uds_windows::UnixListener;
 use uds_windows::UnixStream;
@@ -178,6 +179,8 @@ enum SubCommand {
     Stop,
     /// Show a JSON representation of the current window manager state
     State,
+    /// Tail komorebi.exe's process logs (cancel with Ctrl-C)
+    Log,
     /// Change focus to the window in the specified direction
     #[clap(setting = AppSettings::ArgRequiredElseHelp)]
     Focus(Focus),
@@ -277,6 +280,15 @@ fn main() -> Result<()> {
     let opts: Opts = Opts::parse();
 
     match opts.subcmd {
+        SubCommand::Log => {
+            let mut color_log = std::env::temp_dir();
+            color_log.push("komorebi.log");
+            let file = TailedFile::new(File::open(color_log)?);
+            let locked = file.lock();
+            for line in locked.lines() {
+                println!("{}", line?)
+            }
+        }
         SubCommand::Focus(arg) => {
             send_message(&*SocketMessage::FocusWindow(arg.operation_direction).as_bytes()?)?;
         }
