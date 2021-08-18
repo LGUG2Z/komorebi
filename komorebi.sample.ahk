@@ -129,6 +129,11 @@ return
 Run, komorebic.exe toggle-monocle, , Hide
 return
 
+; Toggle native maximize for the focused window, Alt + Shift + =
+!+=::
+Run, komorebic.exe toggle-maximize, , Hide
+return
+
 ; Flip horizontally, Alt + X
 !x::
 Run, komorebic.exe flip-layout horizontal, , Hide

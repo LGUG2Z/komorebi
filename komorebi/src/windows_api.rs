@@ -68,6 +68,7 @@ use bindings::Windows::Win32::UI::WindowsAndMessaging::SHOW_WINDOW_CMD;
 use bindings::Windows::Win32::UI::WindowsAndMessaging::SPIF_SENDCHANGE;
 use bindings::Windows::Win32::UI::WindowsAndMessaging::SPI_SETACTIVEWINDOWTRACKING;
 use bindings::Windows::Win32::UI::WindowsAndMessaging::SW_HIDE;
+use bindings::Windows::Win32::UI::WindowsAndMessaging::SW_MAXIMIZE;
 use bindings::Windows::Win32::UI::WindowsAndMessaging::SW_RESTORE;
 use bindings::Windows::Win32::UI::WindowsAndMessaging::SYSTEM_PARAMETERS_INFO_ACTION;
 use bindings::Windows::Win32::UI::WindowsAndMessaging::SYSTEM_PARAMETERS_INFO_UPDATE_FLAGS;
@@ -257,6 +258,10 @@ impl WindowsApi {
 
     pub fn restore_window(hwnd: HWND) {
         Self::show_window(hwnd, SW_RESTORE);
+    }
+
+    pub fn maximize_window(hwnd: HWND) {
+        Self::show_window(hwnd, SW_MAXIMIZE);
     }
 
     pub fn set_foreground_window(hwnd: HWND) -> Result<()> {

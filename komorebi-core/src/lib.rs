@@ -32,6 +32,7 @@ pub enum SocketMessage {
     Promote,
     ToggleFloat,
     ToggleMonocle,
+    ToggleMaximize,
     // Current Workspace Commands
     AdjustContainerPadding(Sizing, i32),
     AdjustWorkspacePadding(Sizing, i32),

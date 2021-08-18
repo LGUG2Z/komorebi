@@ -70,14 +70,23 @@ impl Monitor {
         }
     }
 
+    #[tracing::instrument(skip(self))]
     pub fn move_container_to_workspace(
         &mut self,
         target_workspace_idx: usize,
         follow: bool,
     ) -> Result<()> {
-        let container = self
+        let workspace = self
             .focused_workspace_mut()
-            .context("there is no workspace")?
+            .context("there is no workspace")?;
+
+        if workspace.maximized_window().is_some() {
+            return Err(eyre::anyhow!(
+                "cannot move native maximized window to another monitor or workspace"
+            ));
+        }
+
+        let container = workspace
             .remove_focused_container()
             .context("there is no container")?;
 

@@ -196,7 +196,9 @@ impl WindowManager {
             .update_focused_workspace()?;
 
         if mouse_follows_focus {
-            if let Ok(window) = self.focused_window_mut() {
+            if let Some(window) = self.focused_workspace()?.maximized_window() {
+                window.focus()?;
+            } else if let Ok(window) = self.focused_window_mut() {
                 window.focus()?;
             } else {
                 let desktop_window = Window {
@@ -310,9 +312,17 @@ impl WindowManager {
         tracing::info!("moving container");
 
         let monitor = self.focused_monitor_mut().context("there is no monitor")?;
-        let container = monitor
+        let workspace = monitor
             .focused_workspace_mut()
-            .context("there is no workspace")?
+            .context("there is no workspace")?;
+
+        if workspace.maximized_window().is_some() {
+            return Err(eyre::anyhow!(
+                "cannot move native maximized window to another monitor or workspace"
+            ));
+        }
+
+        let container = workspace
             .remove_focused_container()
             .context("there is no container")?;
 
@@ -539,6 +549,34 @@ impl WindowManager {
 
         let workspace = self.focused_workspace_mut()?;
         workspace.reintegrate_monocle_container()
+    }
+
+    #[tracing::instrument(skip(self))]
+    pub fn toggle_maximize(&mut self) -> Result<()> {
+        let workspace = self.focused_workspace_mut()?;
+
+        match workspace.maximized_window() {
+            None => self.maximize_window()?,
+            Some(_) => self.unmaximize_window()?,
+        }
+
+        self.update_focused_workspace(false)
+    }
+
+    #[tracing::instrument(skip(self))]
+    pub fn maximize_window(&mut self) -> Result<()> {
+        tracing::info!("maximizing windowj");
+
+        let workspace = self.focused_workspace_mut()?;
+        workspace.new_maximized_window()
+    }
+
+    #[tracing::instrument(skip(self))]
+    pub fn unmaximize_window(&mut self) -> Result<()> {
+        tracing::info!("unmaximizing window");
+
+        let workspace = self.focused_workspace_mut()?;
+        workspace.reintegrate_maximized_window()
     }
 
     #[tracing::instrument(skip(self))]

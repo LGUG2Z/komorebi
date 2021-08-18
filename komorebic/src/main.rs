@@ -250,6 +250,8 @@ enum SubCommand {
     ToggleFloat,
     /// Toggle monocle mode for the focused container
     ToggleMonocle,
+    /// Toggle native maximization for the focused window
+    ToggleMaximize,
     /// Restore all hidden windows (debugging command)
     RestoreWindows,
     /// Reload ~/komorebi.ahk (if it exists)
@@ -340,6 +342,9 @@ fn main() -> Result<()> {
         }
         SubCommand::ToggleMonocle => {
             send_message(&*SocketMessage::ToggleMonocle.as_bytes()?)?;
+        }
+        SubCommand::ToggleMaximize => {
+            send_message(&*SocketMessage::ToggleMaximize.as_bytes()?)?;
         }
         SubCommand::WorkspaceLayout(arg) => {
             send_message(

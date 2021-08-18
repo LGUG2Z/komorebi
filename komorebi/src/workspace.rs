@@ -28,7 +28,12 @@ pub struct Workspace {
     monocle_container: Option<Container>,
     #[serde(skip_serializing)]
     #[getset(get_copy = "pub", set = "pub")]
-    monocle_restore_idx: Option<usize>,
+    monocle_container_restore_idx: Option<usize>,
+    #[getset(get = "pub", get_mut = "pub", set = "pub")]
+    maximized_window: Option<Window>,
+    #[serde(skip_serializing)]
+    #[getset(get_copy = "pub", set = "pub")]
+    maximized_window_restore_idx: Option<usize>,
     #[getset(get = "pub", get_mut = "pub")]
     floating_windows: Vec<Window>,
     #[getset(get_copy = "pub", set = "pub")]
@@ -57,7 +62,9 @@ impl Default for Workspace {
             name: None,
             containers: Ring::default(),
             monocle_container: None,
-            monocle_restore_idx: None,
+            maximized_window: None,
+            maximized_window_restore_idx: None,
+            monocle_container_restore_idx: None,
             floating_windows: Vec::default(),
             layout: Layout::BSP,
             layout_flip: None,
@@ -77,6 +84,20 @@ impl Workspace {
                 window.hide();
             }
         }
+
+        if let Some(window) = self.maximized_window() {
+            window.hide();
+        }
+
+        if let Some(container) = self.monocle_container_mut() {
+            for window in container.windows_mut() {
+                window.hide();
+            }
+        }
+
+        for window in self.floating_windows() {
+            window.hide();
+        }
     }
 
     pub fn restore(&mut self) -> Result<()> {
@@ -87,14 +108,31 @@ impl Workspace {
                 window.restore();
 
                 if idx == i {
-                    to_focus = Option::from(window);
+                    to_focus = Option::from(*window);
                 }
             }
         }
 
+        if let Some(window) = self.maximized_window() {
+            window.maximize();
+        }
+
+        if let Some(container) = self.monocle_container_mut() {
+            for window in container.windows_mut() {
+                window.restore();
+            }
+        }
+
+        for window in self.floating_windows() {
+            window.restore();
+        }
+
         // Do this here to make sure that an error doesn't stop the restoration of other windows
+        // Maximised windows should always be drawn at the top of the Z order
         if let Some(window) = to_focus {
-            window.focus()?;
+            if self.maximized_window().is_none() {
+                window.focus()?;
+            }
         }
 
         Ok(())
@@ -110,7 +148,9 @@ impl Workspace {
             if let Some(container) = self.monocle_container_mut() {
                 if let Some(window) = container.focused_window_mut() {
                     window.set_position(&adjusted_work_area, true)?;
-                }
+                };
+            } else if let Some(window) = self.maximized_window_mut() {
+                window.maximize();
             } else if !self.containers().is_empty() {
                 let layouts = self.layout().calculate(
                     &adjusted_work_area,
@@ -223,8 +263,26 @@ impl Workspace {
     }
 
     pub fn contains_window(&self, hwnd: isize) -> bool {
-        for x in self.containers() {
-            if x.contains_window(hwnd) {
+        for container in self.containers() {
+            if container.contains_window(hwnd) {
+                return true;
+            }
+        }
+
+        if let Some(window) = self.maximized_window() {
+            if hwnd == window.hwnd {
+                return true;
+            }
+        }
+
+        if let Some(container) = self.monocle_container() {
+            if container.contains_window(hwnd) {
+                return true;
+            }
+        }
+
+        for window in self.floating_windows() {
+            if hwnd == window.hwnd {
                 return true;
             }
         }
@@ -497,7 +555,7 @@ impl Workspace {
         // it had before
 
         self.set_monocle_container(Option::from(container));
-        self.set_monocle_restore_idx(Option::from(focused_idx));
+        self.set_monocle_container_restore_idx(Option::from(focused_idx));
 
         if focused_idx != 0 {
             self.focus_container(focused_idx - 1);
@@ -513,7 +571,7 @@ impl Workspace {
 
     pub fn reintegrate_monocle_container(&mut self) -> Result<()> {
         let restore_idx = self
-            .monocle_restore_idx()
+            .monocle_container_restore_idx()
             .context("there is no monocle restore index")?;
 
         let container = self
@@ -534,6 +592,71 @@ impl Workspace {
             .load_focused_window();
 
         self.set_monocle_container(None);
+        self.set_monocle_container_restore_idx(None);
+
+        Ok(())
+    }
+
+    pub fn new_maximized_window(&mut self) -> Result<()> {
+        let focused_idx = self.focused_container_idx();
+
+        let container = self
+            .focused_container_mut()
+            .context("there is no container")?;
+
+        let window = container
+            .remove_focused_window()
+            .context("there is no window")?;
+
+        if container.windows().is_empty() {
+            self.containers_mut().remove(focused_idx);
+            self.resize_dimensions_mut().remove(focused_idx);
+        } else {
+            container.load_focused_window();
+        }
+
+        self.set_maximized_window(Option::from(window));
+        self.set_maximized_window_restore_idx(Option::from(focused_idx));
+
+        if let Some(window) = self.maximized_window() {
+            window.maximize();
+        }
+
+        if focused_idx != 0 {
+            self.focus_container(focused_idx - 1);
+        }
+
+        Ok(())
+    }
+
+    pub fn reintegrate_maximized_window(&mut self) -> Result<()> {
+        let restore_idx = self
+            .maximized_window_restore_idx()
+            .context("there is no monocle restore index")?;
+
+        let window = self
+            .maximized_window()
+            .as_ref()
+            .context("there is no monocle container")?;
+
+        let window = *window;
+        if !self.containers().is_empty() && restore_idx > self.containers().len() - 1 {
+            self.containers_mut()
+                .resize(restore_idx, Container::default());
+        }
+
+        let mut container = Container::default();
+        container.windows_mut().push_back(window);
+        self.containers_mut().insert(restore_idx, container);
+
+        self.focus_container(restore_idx);
+
+        self.focused_container_mut()
+            .context("there is no container")?
+            .load_focused_window();
+
+        self.set_maximized_window(None);
+        self.set_maximized_window_restore_idx(None);
 
         Ok(())
     }

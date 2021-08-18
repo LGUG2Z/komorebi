@@ -170,7 +170,7 @@ impl WindowManager {
 
                 let workspace = self.focused_workspace_mut()?;
 
-                if workspace.containers().is_empty() || !workspace.contains_window(window.hwnd) {
+                if !workspace.contains_window(window.hwnd) {
                     workspace.new_container_for_window(*window);
                     self.update_focused_workspace(false)?;
                 }
