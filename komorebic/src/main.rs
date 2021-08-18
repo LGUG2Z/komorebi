@@ -64,6 +64,7 @@ gen_enum_subcommand_args! {
     Stack: OperationDirection,
     CycleStack: CycleDirection,
     FlipLayout: LayoutFlip,
+    SetLayout: Layout,
     WatchConfiguration: BooleanState,
     FocusFollowsMouse: BooleanState
 }
@@ -218,6 +219,8 @@ enum SubCommand {
     /// Adjust workspace padding on the focused workspace
     #[clap(setting = AppSettings::ArgRequiredElseHelp)]
     AdjustWorkspacePadding(PaddingAdjustment),
+    /// Set the layout on the focused workspace
+    ChangeLayout(SetLayout),
     /// Flip the layout on the focused workspace (BSP only)
     FlipLayout(FlipLayout),
     /// Promote the focused window to the top of the tree
@@ -418,6 +421,9 @@ fn main() -> Result<()> {
         }
         SubCommand::CycleStack(arg) => {
             send_message(&*SocketMessage::CycleStack(arg.cycle_direction).as_bytes()?)?;
+        }
+        SubCommand::ChangeLayout(arg) => {
+            send_message(&*SocketMessage::ChangeLayout(arg.layout).as_bytes()?)?;
         }
         SubCommand::FlipLayout(arg) => {
             send_message(&*SocketMessage::FlipLayout(arg.layout_flip).as_bytes()?)?;
