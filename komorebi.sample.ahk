@@ -29,6 +29,10 @@ Run, komorebic.exe workspace-layout 0 1 columns, , Hide
 ; Set the floaty layout to not tile any windows
 Run, komorebic.exe workspace-tiling 0 4 disable, , Hide
 
+; Always show chat apps on the second workspace
+Run, komorebic.exe workspace-rule exe slack.exe 0 1, , Hide
+Run, komorebic.exe workspace-rule exe Discord.exe 0 1, , Hide
+
 ; Always float IntelliJ popups, matching on class
 Run, komorebic.exe float-rule class SunAwtDialog, , Hide
 ; Always float Control Panel, matching on title

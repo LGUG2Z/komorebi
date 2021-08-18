@@ -35,6 +35,7 @@ use crate::FLOAT_TITLES;
 use crate::LAYERED_EXE_WHITELIST;
 use crate::TRAY_AND_MULTI_WINDOW_CLASSES;
 use crate::TRAY_AND_MULTI_WINDOW_EXES;
+use crate::WORKSPACE_RULES;
 
 #[derive(Debug)]
 pub struct WindowManager {
@@ -76,40 +77,64 @@ impl From<&mut WindowManager> for State {
 
 impl_ring_elements!(WindowManager, Monitor);
 
-#[tracing::instrument]
-pub fn new(incoming: Arc<Mutex<Receiver<WindowManagerEvent>>>) -> Result<WindowManager> {
-    let home = dirs::home_dir().context("there is no home directory")?;
-    let mut socket = home;
-    socket.push("komorebi.sock");
-    let socket = socket.as_path();
+#[derive(Debug, Clone, Copy)]
+struct EnforceWorkspaceRuleOp {
+    hwnd: isize,
+    origin_monitor_idx: usize,
+    origin_workspace_idx: usize,
+    target_monitor_idx: usize,
+    target_workspace_idx: usize,
+}
 
-    match std::fs::remove_file(&socket) {
-        Ok(_) => {}
-        Err(error) => match error.kind() {
-            // Doing this because ::exists() doesn't work reliably on Windows via IntelliJ
-            ErrorKind::NotFound => {}
-            _ => {
-                return Err(error.into());
-            }
-        },
-    };
+impl EnforceWorkspaceRuleOp {
+    const fn is_origin(&self, monitor_idx: usize, workspace_idx: usize) -> bool {
+        self.origin_monitor_idx == monitor_idx && self.origin_workspace_idx == workspace_idx
+    }
 
-    let listener = UnixListener::bind(&socket)?;
+    const fn is_target(&self, monitor_idx: usize, workspace_idx: usize) -> bool {
+        self.target_monitor_idx == monitor_idx && self.target_workspace_idx == workspace_idx
+    }
 
-    let virtual_desktop_id = winvd::helpers::get_current_desktop_number()
-        .expect("could not determine the current virtual desktop number");
-
-    Ok(WindowManager {
-        monitors: Ring::default(),
-        incoming_events: incoming,
-        command_listener: listener,
-        is_paused: false,
-        hotwatch: Hotwatch::new()?,
-        virtual_desktop_id,
-    })
+    const fn is_enforced(&self) -> bool {
+        (self.origin_monitor_idx == self.target_monitor_idx)
+            && (self.origin_workspace_idx == self.target_workspace_idx)
+    }
 }
 
 impl WindowManager {
+    #[tracing::instrument]
+    pub fn new(incoming: Arc<Mutex<Receiver<WindowManagerEvent>>>) -> Result<Self> {
+        let home = dirs::home_dir().context("there is no home directory")?;
+        let mut socket = home;
+        socket.push("komorebi.sock");
+        let socket = socket.as_path();
+
+        match std::fs::remove_file(&socket) {
+            Ok(_) => {}
+            Err(error) => match error.kind() {
+                // Doing this because ::exists() doesn't work reliably on Windows via IntelliJ
+                ErrorKind::NotFound => {}
+                _ => {
+                    return Err(error.into());
+                }
+            },
+        };
+
+        let listener = UnixListener::bind(&socket)?;
+
+        let virtual_desktop_id = winvd::helpers::get_current_desktop_number()
+            .expect("could not determine the current virtual desktop number");
+
+        Ok(Self {
+            monitors: Ring::default(),
+            incoming_events: incoming,
+            command_listener: listener,
+            is_paused: false,
+            hotwatch: Hotwatch::new()?,
+            virtual_desktop_id,
+        })
+    }
+
     #[tracing::instrument(skip(self))]
     pub fn init(&mut self) -> Result<()> {
         tracing::info!("initialising");
@@ -187,6 +212,123 @@ impl WindowManager {
 
                 self.hotwatch.unwatch(config)?;
             };
+        }
+
+        Ok(())
+    }
+
+    #[tracing::instrument(skip(self))]
+    pub fn enforce_workspace_rules(&mut self) -> Result<()> {
+        let mut to_move = vec![];
+
+        let focused_monitor_idx = self.focused_monitor_idx();
+        let focused_workspace_idx = self
+            .monitors()
+            .get(focused_monitor_idx)
+            .context("there is no monitor with that index")?
+            .focused_workspace_idx();
+
+        let workspace_rules = WORKSPACE_RULES.lock();
+        // Go through all the monitors and workspaces
+        for (i, monitor) in self.monitors().iter().enumerate() {
+            for (j, workspace) in monitor.workspaces().iter().enumerate() {
+                // And all the visible windows (at the top of a container)
+                for window in workspace.visible_windows().into_iter().flatten() {
+                    // If the executable names or titles of any of those windows are in our rules map
+                    if let Some((monitor_idx, workspace_idx)) = workspace_rules.get(&window.exe()?)
+                    {
+                        tracing::info!(
+                            "{} should be on monitor {}, workspace {}",
+                            window.title()?,
+                            *monitor_idx,
+                            *workspace_idx
+                        );
+
+                        // Create an operation outline and save it for later in the fn
+                        to_move.push(EnforceWorkspaceRuleOp {
+                            hwnd: window.hwnd,
+                            origin_monitor_idx: i,
+                            origin_workspace_idx: j,
+                            target_monitor_idx: *monitor_idx,
+                            target_workspace_idx: *workspace_idx,
+                        });
+                    } else if let Some((monitor_idx, workspace_idx)) =
+                        workspace_rules.get(&window.title()?)
+                    {
+                        tracing::info!(
+                            "{} should be on monitor {}, workspace {}",
+                            window.title()?,
+                            *monitor_idx,
+                            *workspace_idx
+                        );
+
+                        to_move.push(EnforceWorkspaceRuleOp {
+                            hwnd: window.hwnd,
+                            origin_monitor_idx: i,
+                            origin_workspace_idx: j,
+                            target_monitor_idx: *monitor_idx,
+                            target_workspace_idx: *workspace_idx,
+                        });
+                    }
+                }
+            }
+        }
+
+        // Only retain operations where the target is not the current workspace
+        to_move.retain(|op| !op.is_target(focused_monitor_idx, focused_workspace_idx));
+        // Only retain operations where the rule has not already been enforced
+        to_move.retain(|op| !op.is_enforced());
+
+        let mut should_update_focused_workspace = false;
+
+        // Parse the operation and remove any windows that are not placed according to their rules
+        for op in &to_move {
+            let origin_workspace = self
+                .monitors_mut()
+                .get_mut(op.origin_monitor_idx)
+                .context("there is no monitor with that index")?
+                .workspaces_mut()
+                .get_mut(op.origin_workspace_idx)
+                .context("there is no workspace with that index")?;
+
+            // Hide the window we are about to remove if it is on the currently focused workspace
+            if op.is_origin(focused_monitor_idx, focused_workspace_idx) {
+                Window { hwnd: op.hwnd }.hide();
+                should_update_focused_workspace = true;
+            }
+
+            origin_workspace.remove_window(op.hwnd)?;
+        }
+
+        // Parse the operation again and associate those removed windows with the workspace that
+        // their rules have defined for them
+        for op in &to_move {
+            let target_monitor = self
+                .monitors_mut()
+                .get_mut(op.target_monitor_idx)
+                .context("there is no monitor with that index")?;
+
+            // The very first time this fn is called, the workspace might not even exist yet
+            if target_monitor
+                .workspaces()
+                .get(op.target_workspace_idx)
+                .is_none()
+            {
+                // If it doesn't, let's make sure it does for the next step
+                target_monitor.ensure_workspace_count(op.target_workspace_idx + 1);
+            }
+
+            let target_workspace = target_monitor
+                .workspaces_mut()
+                .get_mut(op.target_workspace_idx)
+                .context("there is no workspace with that index")?;
+
+            target_workspace.new_container_for_window(Window { hwnd: op.hwnd });
+        }
+
+        // Only re-tile the focused workspace if we need to
+        if should_update_focused_workspace {
+            self.update_focused_workspace(false)?;
         }
 
         Ok(())

@@ -91,8 +91,12 @@ impl WindowManager {
             }
         }
 
+        self.enforce_workspace_rules()?;
+
         if matches!(event, WindowManagerEvent::MouseCapture(..)) {
-            tracing::trace!("only reaping orphans for mouse capture event");
+            tracing::trace!(
+                "only reaping orphans and enforcing workspace rules for mouse capture event"
+            );
             return Ok(());
         }
 

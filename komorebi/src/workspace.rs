@@ -474,7 +474,11 @@ impl Workspace {
     }
 
     pub fn new_container_for_window(&mut self, window: Window) {
-        let next_idx = self.focused_container_idx() + 1;
+        let next_idx = if self.containers().is_empty() {
+            0
+        } else {
+            self.focused_container_idx() + 1
+        };
 
         let mut container = Container::default();
         container.add_window(window);
@@ -693,6 +697,15 @@ impl Workspace {
                 }
             }
         }
+    }
+
+    pub fn visible_windows(&self) -> Vec<Option<&Window>> {
+        let mut vec = vec![];
+        for container in self.containers() {
+            vec.push(container.focused_window());
+        }
+
+        vec
     }
 
     pub fn visible_windows_mut(&mut self) -> Vec<Option<&mut Window>> {

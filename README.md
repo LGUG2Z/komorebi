@@ -118,7 +118,7 @@ Once `komorebi` is running, you can execute the `komorebi.sample.ahk` script to 
 If you have AutoHotKey installed and a `komorebi.ahk` file in your home directory (run `$Env:UserProfile` at a
 PowerShell prompt to find your home directory), `komorebi` will automatically try to load it when starting.
 
-There is also tentative support for loading a AutoHotKey v2, if the file is named `komorebi.ahk2` and
+There is also tentative support for loading a AutoHotKey v2 files, if the file is named `komorebi.ahk2` and
 the `AutoHotKey64.exe` executable for AutoHotKey v2 is in your `Path`. If both `komorebi.ahk` and `komorebi.ahk2` files
 exist in your home directory, only `komorebi.ahk` will be loaded. An example of an AutoHotKey v2 configuration file
 for _komorebi_ can be found [here](https://gist.github.com/crosstyan/dafacc0778dabf693ce9236c57b201cd).
@@ -182,6 +182,7 @@ restore-windows              Restore all hidden windows (debugging command)
 reload-configuration         Reload ~/komorebi.ahk (if it exists)
 watch-configuration          Toggle the automatic reloading of ~/komorebi.ahk (if it exists)
 float-rule                   Add a rule to always float the specified application
+workspace-rule               Add a rule to associate an application with a workspace
 identify-tray-application    Identify an application that closes to the system tray
 focus-follows-mouse          Enable or disable focus follows mouse for the operating system
 help                         Print this message or the help of the given subcommand(s)
@@ -206,10 +207,9 @@ help                         Print this message or the help of the given subcomm
 - [x] BSP tree layout
 - [x] Flip BSP tree layout horizontally or vertically
 - [x] Equal-width, max-height column layout
-- [x] Floating rules based on exe name
-- [x] Floating rules based on window title
-- [x] Floating rules based on window class
-- [x] Identify 'close/minimize to tray' applications
+- [x] Floating rules based on exe name, window title and class
+- [x] Workspace rules based on exe name and window class
+- [x] Identify 'close/minimize to tray' applications by exe name and class
 - [x] Toggle floating windows
 - [x] Toggle monocle window
 - [x] Toggle native maximization

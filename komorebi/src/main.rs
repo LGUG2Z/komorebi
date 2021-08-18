@@ -1,6 +1,7 @@
 #![warn(clippy::all, clippy::nursery, clippy::pedantic)]
 #![allow(clippy::missing_errors_doc)]
 
+use std::collections::HashMap;
 use std::process::Command;
 use std::sync::Arc;
 #[cfg(feature = "deadlock_detection")]
@@ -24,6 +25,7 @@ use which::which;
 
 use crate::process_command::listen_for_commands;
 use crate::process_event::listen_for_events;
+use crate::window_manager::WindowManager;
 use crate::window_manager_event::WindowManagerEvent;
 use crate::windows_api::WindowsApi;
 
@@ -66,6 +68,8 @@ lazy_static! {
         "firefox.exe".to_string(),
         "idea64.exe".to_string(),
     ]));
+    static ref WORKSPACE_RULES: Arc<Mutex<HashMap<String, (usize, usize)>>> =
+        Arc::new(Mutex::new(HashMap::new()));
 }
 
 fn setup() -> Result<(WorkerGuard, WorkerGuard)> {
@@ -217,7 +221,7 @@ fn main() -> Result<()> {
             let winevent_listener = winevent_listener::new(Arc::new(Mutex::new(outgoing)));
             winevent_listener.start();
 
-            let wm = Arc::new(Mutex::new(window_manager::new(Arc::new(Mutex::new(
+            let wm = Arc::new(Mutex::new(WindowManager::new(Arc::new(Mutex::new(
                 incoming,
             )))?));
 

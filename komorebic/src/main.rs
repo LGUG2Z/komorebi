@@ -166,6 +166,18 @@ struct ApplicationTarget {
 }
 
 #[derive(Clap)]
+struct WorkspaceRule {
+    #[clap(arg_enum)]
+    identifier: ApplicationIdentifier,
+    /// Identifier as a string
+    id: String,
+    /// Monitor index (zero-indexed)
+    monitor: usize,
+    /// Workspace index on the specified monitor (zero-indexed)
+    workspace: usize,
+}
+
+#[derive(Clap)]
 #[clap(author, about, version, setting = AppSettings::DeriveDisplayOrder)]
 struct Opts {
     #[clap(subcommand)]
@@ -265,6 +277,9 @@ enum SubCommand {
     /// Add a rule to always float the specified application
     #[clap(setting = AppSettings::ArgRequiredElseHelp)]
     FloatRule(ApplicationTarget),
+    /// Add a rule to associate an application with a workspace
+    #[clap(setting = AppSettings::ArgRequiredElseHelp)]
+    WorkspaceRule(WorkspaceRule),
     /// Identify an application that closes to the system tray
     #[clap(setting = AppSettings::ArgRequiredElseHelp)]
     IdentifyTrayApplication(ApplicationTarget),
@@ -413,6 +428,12 @@ fn main() -> Result<()> {
                 send_message(&*SocketMessage::FloatTitle(arg.id).as_bytes()?)?;
             }
         },
+        SubCommand::WorkspaceRule(arg) => {
+            send_message(
+                &*SocketMessage::WorkspaceRule(arg.identifier, arg.id, arg.monitor, arg.workspace)
+                    .as_bytes()?,
+            )?;
+        }
         SubCommand::Stack(arg) => {
             send_message(&*SocketMessage::StackWindow(arg.operation_direction).as_bytes()?)?;
         }

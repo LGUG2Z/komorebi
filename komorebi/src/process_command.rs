@@ -21,6 +21,7 @@ use crate::FLOAT_EXES;
 use crate::FLOAT_TITLES;
 use crate::TRAY_AND_MULTI_WINDOW_CLASSES;
 use crate::TRAY_AND_MULTI_WINDOW_EXES;
+use crate::WORKSPACE_RULES;
 
 #[tracing::instrument]
 pub fn listen_for_commands(wm: Arc<Mutex<WindowManager>>) {
@@ -100,6 +101,19 @@ impl WindowManager {
                 let mut float_titles = FLOAT_TITLES.lock();
                 if !float_titles.contains(&target) {
                     float_titles.push(target);
+                }
+            }
+            SocketMessage::WorkspaceRule(identifier, id, monitor_idx, workspace_idx) => {
+                match identifier {
+                    ApplicationIdentifier::Exe | ApplicationIdentifier::Class => {
+                        {
+                            let mut workspace_rules = WORKSPACE_RULES.lock();
+                            workspace_rules.insert(id, (monitor_idx, workspace_idx));
+                        }
+
+                        self.enforce_workspace_rules()?;
+                    }
+                    ApplicationIdentifier::Title => {}
                 }
             }
             SocketMessage::AdjustContainerPadding(sizing, adjustment) => {
