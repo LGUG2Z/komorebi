@@ -198,6 +198,10 @@ impl WindowManager {
         if mouse_follows_focus {
             if let Some(window) = self.focused_workspace()?.maximized_window() {
                 window.focus()?;
+            } else if let Some(container) = self.focused_workspace()?.monocle_container() {
+                if let Some(window) = container.focused_window() {
+                    window.focus()?;
+                }
             } else if let Ok(window) = self.focused_window_mut() {
                 window.focus()?;
             } else {
