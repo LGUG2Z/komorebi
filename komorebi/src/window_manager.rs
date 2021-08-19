@@ -45,7 +45,7 @@ pub struct WindowManager {
     pub command_listener: UnixListener,
     pub is_paused: bool,
     pub hotwatch: Hotwatch,
-    pub virtual_desktop_id: usize,
+    pub virtual_desktop_id: Option<usize>,
 }
 
 #[derive(Debug, Serialize)]
@@ -123,8 +123,7 @@ impl WindowManager {
 
         let listener = UnixListener::bind(&socket)?;
 
-        let virtual_desktop_id = winvd::helpers::get_current_desktop_number()
-            .expect("could not determine the current virtual desktop number");
+        let virtual_desktop_id = winvd::helpers::get_current_desktop_number().ok();
 
         Ok(Self {
             monitors: Ring::default(),

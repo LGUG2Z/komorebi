@@ -48,16 +48,17 @@ impl WindowManager {
             return Ok(());
         }
 
-        let virtual_desktop_id = winvd::helpers::get_current_desktop_number()
-            .expect("could not determine the current virtual desktop number");
+        let virtual_desktop_id = winvd::helpers::get_current_desktop_number().ok();
+        if let (Some(id), Some(virtual_desktop_id)) = (virtual_desktop_id, self.virtual_desktop_id)
+        {
+            if id != virtual_desktop_id {
+                tracing::warn!(
+                    "ignoring events while not on virtual desktop {:?}",
+                    virtual_desktop_id
+                );
 
-        if virtual_desktop_id != self.virtual_desktop_id {
-            tracing::warn!(
-                "ignoring events while not on virtual desktop {}",
-                self.virtual_desktop_id
-            );
-
-            return Ok(());
+                return Ok(());
+            }
         }
 
         // Make sure we have the most recently focused monitor from any event

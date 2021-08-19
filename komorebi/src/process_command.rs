@@ -52,16 +52,17 @@ pub fn listen_for_commands(wm: Arc<Mutex<WindowManager>>) {
 impl WindowManager {
     #[tracing::instrument(skip(self))]
     pub fn process_command(&mut self, message: SocketMessage) -> Result<()> {
-        let virtual_desktop_id = winvd::helpers::get_current_desktop_number()
-            .expect("could not determine the current virtual desktop number");
+        let virtual_desktop_id = winvd::helpers::get_current_desktop_number().ok();
+        if let (Some(id), Some(virtual_desktop_id)) = (virtual_desktop_id, self.virtual_desktop_id)
+        {
+            if id != virtual_desktop_id {
+                tracing::warn!(
+                    "ignoring events while not on virtual desktop {:?}",
+                    virtual_desktop_id
+                );
 
-        if virtual_desktop_id != self.virtual_desktop_id {
-            tracing::warn!(
-                "ignoring commands while not on virtual desktop {}",
-                self.virtual_desktop_id
-            );
-
-            return Ok(());
+                return Ok(());
+            }
         }
 
         match message {
