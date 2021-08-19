@@ -3,6 +3,7 @@ use std::fmt::Formatter;
 
 use crate::window::Window;
 use crate::winevent::WinEvent;
+use crate::OBJECT_NAME_CHANGE_ON_LAUNCH;
 
 #[derive(Debug, Copy, Clone)]
 pub enum WindowManagerEvent {
@@ -68,24 +69,42 @@ impl WindowManagerEvent {
         }
     }
 
-    pub const fn from_win_event(winevent: WinEvent, window: Window) -> Option<Self> {
+    pub fn from_win_event(winevent: WinEvent, window: Window) -> Option<Self> {
         match winevent {
-            WinEvent::ObjectDestroy => Some(Self::Destroy(winevent, window)),
+            WinEvent::ObjectDestroy => Option::from(Self::Destroy(winevent, window)),
 
-            WinEvent::ObjectCloaked | WinEvent::ObjectHide => Some(Self::Hide(winevent, window)),
+            WinEvent::ObjectCloaked | WinEvent::ObjectHide => {
+                Option::from(Self::Hide(winevent, window))
+            }
 
-            WinEvent::SystemMinimizeStart => Some(Self::Minimize(winevent, window)),
+            WinEvent::SystemMinimizeStart => Option::from(Self::Minimize(winevent, window)),
 
             WinEvent::ObjectShow | WinEvent::ObjectUncloaked | WinEvent::SystemMinimizeEnd => {
-                Some(Self::Show(winevent, window))
+                Option::from(Self::Show(winevent, window))
             }
 
             WinEvent::ObjectFocus | WinEvent::SystemForeground => {
-                Some(Self::FocusChange(winevent, window))
+                Option::from(Self::FocusChange(winevent, window))
             }
-            WinEvent::SystemMoveSizeEnd => Some(Self::MoveResizeEnd(winevent, window)),
+            WinEvent::SystemMoveSizeEnd => Option::from(Self::MoveResizeEnd(winevent, window)),
             WinEvent::SystemCaptureStart | WinEvent::SystemCaptureEnd => {
-                Some(Self::MouseCapture(winevent, window))
+                Option::from(Self::MouseCapture(winevent, window))
+            }
+            WinEvent::ObjectNameChange => {
+                // Some apps like Firefox don't send ObjectCreate or ObjectShow on launch
+                // This spams the message queue, but I don't know what else to do. On launch
+                // it only sends the following WinEvents :/
+                //
+                // [yatta\src\windows_event.rs:110] event = 32780 ObjectNameChange
+                // [yatta\src\windows_event.rs:110] event = 32779 ObjectLocationChange
+
+                let object_name_change_on_launch = OBJECT_NAME_CHANGE_ON_LAUNCH.lock();
+
+                if object_name_change_on_launch.contains(&window.exe().ok()?) {
+                    Option::from(Self::Show(winevent, window))
+                } else {
+                    None
+                }
             }
             _ => None,
         }

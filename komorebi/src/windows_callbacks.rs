@@ -14,9 +14,7 @@ use crate::ring::Ring;
 use crate::window::Window;
 use crate::window_manager_event::WindowManagerEvent;
 use crate::windows_api::WindowsApi;
-use crate::winevent::WinEvent;
 use crate::winevent_listener::WINEVENT_CALLBACK_CHANNEL;
-use crate::OBJECT_NAME_CHANGE_ON_LAUNCH;
 
 pub extern "system" fn enum_display_monitor(
     hmonitor: HMONITOR,
@@ -71,30 +69,9 @@ pub extern "system" fn win_event_hook(
     let window = Window { hwnd: hwnd.0 };
 
     let winevent = unsafe { ::std::mem::transmute(event) };
-    let event_type = if let Some(event) = WindowManagerEvent::from_win_event(winevent, window) {
-        event
-    } else {
-        // Some apps like Firefox don't send ObjectCreate or ObjectShow on launch
-        // This spams the message queue, but I don't know what else to do. On launch
-        // it only sends the following WinEvents :/
-        //
-        // [yatta\src\windows_event.rs:110] event = 32780 ObjectNameChange
-        // [yatta\src\windows_event.rs:110] event = 32779 ObjectLocationChange
-        let object_name_change_on_launch = OBJECT_NAME_CHANGE_ON_LAUNCH.lock();
-
-        if let Ok(exe) = window.exe() {
-            if winevent == WinEvent::ObjectNameChange {
-                if object_name_change_on_launch.contains(&exe) {
-                    WindowManagerEvent::Show(winevent, window)
-                } else {
-                    return;
-                }
-            } else {
-                return;
-            }
-        } else {
-            return;
-        }
+    let event_type = match WindowManagerEvent::from_win_event(winevent, window) {
+        None => return,
+        Some(event) => event,
     };
 
     if let Ok(should_manage) = window.should_manage(Option::from(event_type)) {
