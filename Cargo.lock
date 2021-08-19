@@ -161,6 +161,37 @@ dependencies = [
 ]
 
 [[package]]
+name = "com"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5a30a2b2a013da986dc5cc3eda3d19c0d59d53f835be1b2356eb8d00f000c793"
+dependencies = [
+ "com_macros",
+]
+
+[[package]]
+name = "com_macros"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7606b05842fea68ddcc89e8053b8860ebcb2a0ba8d6abfe3a148e5d5a8d3f0c1"
+dependencies = [
+ "com_macros_support",
+ "proc-macro2",
+ "syn",
+]
+
+[[package]]
+name = "com_macros_support"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "97e9a6d20f4ac8830e309a455d7e9416e65c6af5a97c88c55fbb4c2012e107da"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
 name = "const-sha1"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -491,6 +522,7 @@ dependencies = [
  "tracing-subscriber",
  "uds_windows",
  "which",
+ "winvd",
 ]
 
 [[package]]
@@ -1437,6 +1469,17 @@ checksum = "58acfb8832e9f707f8997bd161e537a1c1f603e60a5bd9c3cf53484fdcc998f3"
 dependencies = [
  "syn",
  "windows_gen",
+]
+
+[[package]]
+name = "winvd"
+version = "0.0.20"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2bab2d5c745381b9c72797230150ec62244e693064fa0d654b5c4e6c75132a56"
+dependencies = [
+ "com",
+ "crossbeam-channel",
+ "once_cell",
 ]
 
 [[package]]

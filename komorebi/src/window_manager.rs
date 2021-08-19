@@ -43,6 +43,7 @@ pub struct WindowManager {
     pub command_listener: UnixListener,
     pub is_paused: bool,
     pub hotwatch: Hotwatch,
+    pub virtual_desktop_id: usize,
 }
 
 #[derive(Debug, Serialize)]
@@ -95,12 +96,16 @@ pub fn new(incoming: Arc<Mutex<Receiver<WindowManagerEvent>>>) -> Result<WindowM
 
     let listener = UnixListener::bind(&socket)?;
 
+    let virtual_desktop_id = winvd::helpers::get_current_desktop_number()
+        .expect("could not determine the current virtual desktop number");
+
     Ok(WindowManager {
         monitors: Ring::default(),
         incoming_events: incoming,
         command_listener: listener,
         is_paused: false,
         hotwatch: Hotwatch::new()?,
+        virtual_desktop_id,
     })
 }
 

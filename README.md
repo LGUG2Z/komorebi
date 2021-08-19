@@ -266,7 +266,7 @@ If `komorebi` ever stops responding, it is most likely either due to either a pa
 panic, this will be reported in the log. In the case of a deadlock, there will not be any errors in the log, but the
 process and the log will appear frozen.
 
-If you believe you have encountered a deadlock, you can compile `komorebi` with `--feature deadlock_detection` and try
+If you believe you have encountered a deadlock, you can compile `komorebi` with `--features deadlock_detection` and try
 reproducing the deadlock again. This will check for deadlocks every 5 seconds in the background, and if a deadlock is
 found, information about it will appear in the log which can be shared when opening an issu which can be shared when
 opening an issue.
