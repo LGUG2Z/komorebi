@@ -1,13 +1,13 @@
 use std::sync::atomic::AtomicIsize;
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
-use std::sync::Mutex;
 use std::thread;
 use std::time::Duration;
 
 use crossbeam_channel::Receiver;
 use crossbeam_channel::Sender;
 use lazy_static::lazy_static;
+use parking_lot::Mutex;
 
 use bindings::Windows::Win32::Foundation::HWND;
 use bindings::Windows::Win32::UI::Accessibility::SetWinEventHook;
@@ -43,7 +43,7 @@ pub fn new(outgoing: Arc<Mutex<Sender<WindowManagerEvent>>>) -> WinEventListener
 impl WinEventListener {
     pub fn start(self) {
         let hook = self.hook.clone();
-        let outgoing = self.outgoing_events.lock().unwrap().clone();
+        let outgoing = self.outgoing_events.lock().clone();
 
         thread::spawn(move || unsafe {
             let hook_ref = SetWinEventHook(
@@ -61,7 +61,7 @@ impl WinEventListener {
             // The code in the callback doesn't work in its own loop, needs to be within
             // the MessageLoop callback for the winevent callback to even fire
             MessageLoop::start(10, |_msg| {
-                if let Ok(event) = WINEVENT_CALLBACK_CHANNEL.lock().unwrap().1.try_recv() {
+                if let Ok(event) = WINEVENT_CALLBACK_CHANNEL.lock().1.try_recv() {
                     match outgoing.send(event) {
                         Ok(_) => {}
                         Err(error) => {

@@ -110,7 +110,7 @@ impl Window {
     }
 
     pub fn hide(self) {
-        let mut programmatically_hidden_hwnds = HIDDEN_HWNDS.lock().unwrap();
+        let mut programmatically_hidden_hwnds = HIDDEN_HWNDS.lock();
         if !programmatically_hidden_hwnds.contains(&self.hwnd) {
             programmatically_hidden_hwnds.push(self.hwnd);
         }
@@ -119,7 +119,7 @@ impl Window {
     }
 
     pub fn restore(self) {
-        let mut programmatically_hidden_hwnds = HIDDEN_HWNDS.lock().unwrap();
+        let mut programmatically_hidden_hwnds = HIDDEN_HWNDS.lock();
         if let Some(idx) = programmatically_hidden_hwnds
             .iter()
             .position(|&hwnd| hwnd == self.hwnd)
@@ -131,7 +131,7 @@ impl Window {
     }
 
     pub fn maximize(self) {
-        let mut programmatically_hidden_hwnds = HIDDEN_HWNDS.lock().unwrap();
+        let mut programmatically_hidden_hwnds = HIDDEN_HWNDS.lock();
         if let Some(idx) = programmatically_hidden_hwnds
             .iter()
             .position(|&hwnd| hwnd == self.hwnd)
@@ -204,9 +204,9 @@ impl Window {
 
     #[tracing::instrument(fields(exe, title))]
     pub fn should_manage(self, event: Option<WindowManagerEvent>) -> Result<bool> {
-        let classes = FLOAT_CLASSES.lock().unwrap();
-        let exes = FLOAT_EXES.lock().unwrap();
-        let titles = FLOAT_TITLES.lock().unwrap();
+        let classes = FLOAT_CLASSES.lock();
+        let exes = FLOAT_EXES.lock();
+        let titles = FLOAT_TITLES.lock();
 
         if self.title().is_err() {
             return Ok(false);
@@ -239,7 +239,7 @@ impl Window {
                         }
                     }
 
-                    let allow_layered = LAYERED_EXE_WHITELIST.lock().unwrap().contains(&exe_name);
+                    let allow_layered = LAYERED_EXE_WHITELIST.lock().contains(&exe_name);
 
                     let style = self.style()?;
                     let ex_style = self.ex_style()?;

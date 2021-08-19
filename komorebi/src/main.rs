@@ -3,13 +3,19 @@
 
 use std::process::Command;
 use std::sync::Arc;
-use std::sync::Mutex;
+#[cfg(feature = "deadlock_detection")]
+use std::thread;
+#[cfg(feature = "deadlock_detection")]
+use std::time::Duration;
 
 use color_eyre::eyre::ContextCompat;
 use color_eyre::Result;
 use crossbeam_channel::Receiver;
 use crossbeam_channel::Sender;
 use lazy_static::lazy_static;
+#[cfg(feature = "deadlock_detection")]
+use parking_lot::deadlock;
+use parking_lot::Mutex;
 use sysinfo::SystemExt;
 use tracing_appender::non_blocking::WorkerGuard;
 use tracing_subscriber::layer::SubscriberExt;
@@ -54,7 +60,7 @@ lazy_static! {
         "chrome.exe".to_string(),
         "idea64.exe".to_string(),
         "ApplicationFrameHost.exe".to_string(),
-        "steam.exe".to_string()
+        "steam.exe".to_string(),
     ]));
     static ref OBJECT_NAME_CHANGE_ON_LAUNCH: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(vec![
         "firefox.exe".to_string(),
@@ -161,6 +167,29 @@ pub fn load_configuration() -> Result<()> {
     Ok(())
 }
 
+#[cfg(feature = "deadlock_detection")]
+#[tracing::instrument]
+fn detect_deadlocks() {
+    // Create a background thread which checks for deadlocks every 10s
+    thread::spawn(move || loop {
+        tracing::info!("running deadlock detector");
+        thread::sleep(Duration::from_secs(5));
+        let deadlocks = deadlock::check_deadlock();
+        if deadlocks.is_empty() {
+            continue;
+        }
+
+        tracing::error!("{} deadlocks detected", deadlocks.len());
+        for (i, threads) in deadlocks.iter().enumerate() {
+            tracing::error!("deadlock #{}", i);
+            for t in threads {
+                tracing::error!("thread id: {:#?}", t.thread_id());
+                tracing::error!("{:#?}", t.backtrace());
+            }
+        }
+    });
+}
+
 #[tracing::instrument]
 fn main() -> Result<()> {
     match std::env::args().count() {
@@ -176,6 +205,9 @@ fn main() -> Result<()> {
             // File logging worker guard has to have an assignment in the main fn to work
             let (_guard, _color_guard) = setup()?;
 
+            #[cfg(feature = "deadlock_detection")]
+            detect_deadlocks();
+
             let process_id = WindowsApi::current_process_id();
             WindowsApi::allow_set_foreground_window(process_id)?;
 
@@ -189,7 +221,7 @@ fn main() -> Result<()> {
                 incoming,
             )))?));
 
-            wm.lock().unwrap().init()?;
+            wm.lock().init()?;
             listen_for_commands(wm.clone());
             listen_for_events(wm.clone());
 
@@ -210,7 +242,7 @@ fn main() -> Result<()> {
                 "received ctrl-c, restoring all hidden windows and terminating process"
             );
 
-            wm.lock().unwrap().restore_all_windows();
+            wm.lock().restore_all_windows();
             std::process::exit(130);
         }
         _ => Ok(()),

@@ -59,6 +59,8 @@ This means that:
 
 ## Getting Started
 
+### GitHub Releases
+
 Prebuilt binaries are available on the [releases page](https://github.com/LGUG2Z/komorebi/releases) in a `zip` archive.
 Once downloaded, you will need to move the `komorebi.exe` and `komorebic.exe` binaries to a directory in your `Path` (
 you can see these directories by running `$Env:Path.split(";")` at a PowerShell prompt).
@@ -67,6 +69,8 @@ Alternatively, you may add a new directory to your `Path`
 using [`setx`](https://docs.microsoft.com/en-us/windows-server/administration/windows-commands/setx) or the Environment
 Variables pop up in System Properties Advanced (which can be launched with `SystemPropertiesAdvanced.exe` at a
 PowerShell prompt), and then move the binaries to that directory.
+
+### Scoop
 
 If you use the [Scoop](https://scoop.sh/) command line installer, you can run the following commands to install the
 binaries from the latest GitHub Release:
@@ -78,6 +82,8 @@ scoop install komorebi
 
 If you install _komorebi_ using Scoop, the binaries will automatically be added to your `Path` and a command will be
 shown for you to run in order to get started using the sample configuration file.
+
+### Building from Source
 
 If you prefer to compile _komorebi_ from source, you will need
 a [working Rust development environment on Windows 10](https://rustup.rs/). The `x86_64-pc-windows-msvc` toolchain is
@@ -91,6 +97,8 @@ cargo install --path komorebi --locked
 cargo install --path komorebic --locked
 ```
 
+### Running
+
 Once you have either the prebuilt binaries in your `Path`, or have compiled the binaries from source (these will already
 be in your `Path` if you installed Rust with [rustup](https://rustup.rs), which you absolutely should), you can
 run `komorebic start` at a Powershell prompt, and you will see the following output:
@@ -101,6 +109,8 @@ Start-Process komorebi -WindowStyle hidden
 
 This means that `komorebi` is now running in the background, tiling all your windows, and listening for commands sent to
 it by `komorebic`. You can similarly stop the process by running `komorebic stop`.
+
+### Configuring
 
 Once `komorebi` is running, you can execute the `komorebi.sample.ahk` script to set up the default keybindings via AHK
 (the file includes comments to help you start building your own configuration).
@@ -113,6 +123,8 @@ the `AutoHotKey64.exe` executable for AutoHotKey v2 is in your `Path`. If both `
 exist in your home directory, only `komorebi.ahk` will be loaded. An example of an AutoHotKey v2 configuration file
 for _komorebi_ can be found [here](https://gist.github.com/crosstyan/dafacc0778dabf693ce9236c57b201cd).
 
+### Common First-Time Troubleshooting
+
 If you are experiencing behaviour where
 [closing a window leaves a blank tile, but minimizing the same window does not](https://github.com/LGUG2Z/komorebi/issues/6)
 , you have probably enabled a 'close/minimize to tray' option for that application. You can tell _komorebi_ to handle
@@ -123,7 +135,7 @@ komorebic.exe identify-tray-application exe Discord.exe
 komorebic.exe identify-tray-application exe Telegram.exe
 ```
 
-## Configuration
+## Configuration with `komorebic`
 
 As previously mentioned, this project does not handle anything related to keybindings and shortcuts directly. I
 personally use AutoHotKey to manage my window management shortcuts, and have provided a
@@ -151,6 +163,7 @@ focus-workspace              Focus the specified workspace on the focused monito
 new-workspace                Create and append a new workspace on the focused monitor
 adjust-container-padding     Adjust container padding on the focused workspace
 adjust-workspace-padding     Adjust workspace padding on the focused workspace
+change-layout                Set the layout on the focused workspace
 flip-layout                  Flip the layout on the focused workspace (BSP only)
 promote                      Promote the focused window to the top of the tree
 retile                       Force the retiling of all managed windows
@@ -164,7 +177,7 @@ toggle-pause                 Toggle the window manager on and off across all mon
 toggle-tiling                Toggle window tiling on the focused workspace
 toggle-float                 Toggle floating mode for the focused window
 toggle-monocle               Toggle monocle mode for the focused container
-toggle-maximize              Toggle native window fullscreen for the focused window
+toggle-maximize              Toggle native maximization for the focused window
 restore-windows              Restore all hidden windows (debugging command)
 reload-configuration         Reload ~/komorebi.ahk (if it exists)
 watch-configuration          Toggle the automatic reloading of ~/komorebi.ahk (if it exists)
@@ -242,8 +255,21 @@ ensures that all hidden windows are restored before termination.
 If however, you ever end up with windows that are hidden and cannot be restored, a list of window handles known
 to `komorebi` are stored and continuously updated in `~/komorebi.hwnd.json`.
 
+### Restoring Windows
+
 Running `komorebic restore-windows` will read the list of window handles and forcibly restore them, regardless of
 whether the main `komorebi` process is running.
+
+### Panics and Deadlocks
+
+If `komorebi` ever stops responding, it is most likely either due to either a panic or a deadlock. In the case of a
+panic, this will be reported in the log. In the case of a deadlock, there will not be any errors in the log, but the
+process and the log will appear frozen.
+
+If you believe you have encountered a deadlock, you can compile `komorebi` with `--feature deadlock_detection` and try
+reproducing the deadlock again. This will check for deadlocks every 5 seconds in the background, and if a deadlock is
+found, information about it will appear in the log which can be shared when opening an issu which can be shared when
+opening an issue.
 
 ## Window Manager State and Integrations
 

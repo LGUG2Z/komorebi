@@ -3,7 +3,6 @@ use std::io::ErrorKind;
 use std::num::NonZeroUsize;
 use std::path::PathBuf;
 use std::sync::Arc;
-use std::sync::Mutex;
 use std::thread;
 
 use color_eyre::eyre::ContextCompat;
@@ -11,6 +10,7 @@ use color_eyre::Result;
 use crossbeam_channel::Receiver;
 use hotwatch::notify::DebouncedEvent;
 use hotwatch::Hotwatch;
+use parking_lot::Mutex;
 use serde::Serialize;
 use uds_windows::UnixListener;
 
@@ -63,12 +63,12 @@ impl From<&mut WindowManager> for State {
         Self {
             monitors: wm.monitors.clone(),
             is_paused: wm.is_paused,
-            float_classes: FLOAT_CLASSES.lock().unwrap().clone(),
-            float_exes: FLOAT_EXES.lock().unwrap().clone(),
-            float_titles: FLOAT_TITLES.lock().unwrap().clone(),
-            layered_exe_whitelist: LAYERED_EXE_WHITELIST.lock().unwrap().clone(),
-            tray_and_multi_window_exes: TRAY_AND_MULTI_WINDOW_EXES.lock().unwrap().clone(),
-            tray_and_multi_window_classes: TRAY_AND_MULTI_WINDOW_CLASSES.lock().unwrap().clone(),
+            float_classes: FLOAT_CLASSES.lock().clone(),
+            float_exes: FLOAT_EXES.lock().clone(),
+            float_titles: FLOAT_TITLES.lock().clone(),
+            layered_exe_whitelist: LAYERED_EXE_WHITELIST.lock().clone(),
+            tray_and_multi_window_exes: TRAY_AND_MULTI_WINDOW_EXES.lock().clone(),
+            tray_and_multi_window_classes: TRAY_AND_MULTI_WINDOW_CLASSES.lock().clone(),
         }
     }
 }

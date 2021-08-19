@@ -80,7 +80,7 @@ pub extern "system" fn win_event_hook(
         //
         // [yatta\src\windows_event.rs:110] event = 32780 ObjectNameChange
         // [yatta\src\windows_event.rs:110] event = 32779 ObjectLocationChange
-        let object_name_change_on_launch = OBJECT_NAME_CHANGE_ON_LAUNCH.lock().unwrap();
+        let object_name_change_on_launch = OBJECT_NAME_CHANGE_ON_LAUNCH.lock();
 
         if let Ok(exe) = window.exe() {
             if winevent == WinEvent::ObjectNameChange {
@@ -101,7 +101,6 @@ pub extern "system" fn win_event_hook(
         if should_manage {
             WINEVENT_CALLBACK_CHANNEL
                 .lock()
-                .unwrap()
                 .0
                 .send(event_type)
                 .expect("could not send message on WINEVENT_CALLBACK_CHANNEL");

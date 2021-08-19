@@ -1,11 +1,11 @@
 use std::fs::OpenOptions;
 use std::sync::Arc;
-use std::sync::Mutex;
 use std::thread;
 
 use color_eyre::eyre::ContextCompat;
 use color_eyre::Result;
 use crossbeam_channel::select;
+use parking_lot::Mutex;
 
 use komorebi_core::OperationDirection;
 use komorebi_core::Rect;
@@ -20,7 +20,7 @@ use crate::TRAY_AND_MULTI_WINDOW_EXES;
 
 #[tracing::instrument]
 pub fn listen_for_events(wm: Arc<Mutex<WindowManager>>) {
-    let receiver = wm.lock().unwrap().incoming_events.lock().unwrap().clone();
+    let receiver = wm.lock().incoming_events.lock().clone();
 
     thread::spawn(move || {
         tracing::info!("listening");
@@ -28,7 +28,7 @@ pub fn listen_for_events(wm: Arc<Mutex<WindowManager>>) {
             select! {
                 recv(receiver) -> mut maybe_event => {
                     if let Ok(event) = maybe_event.as_mut() {
-                        match wm.lock().unwrap().process_event(event) {
+                        match wm.lock().process_event(event) {
                             Ok(()) => {},
                             Err(error) => tracing::error!("{}", error)
                         }
@@ -91,21 +91,28 @@ impl WindowManager {
             }
 
             WindowManagerEvent::Hide(_, window) => {
+                let mut hide = false;
                 // Some major applications unfortunately send the HIDE signal when they are being
                 // minimized or destroyed. Applications that close to the tray also do the same,
                 // and will have is_window() return true, as the process is still running even if
                 // the window is not visible.
-                let tray_and_multi_window_exes = TRAY_AND_MULTI_WINDOW_EXES.lock().unwrap();
-                let tray_and_multi_window_classes = TRAY_AND_MULTI_WINDOW_CLASSES.lock().unwrap();
-
-                // We don't want to purge windows that have been deliberately hidden by us, eg. when
-                // they are not on the top of a container stack.
-                let programmatically_hidden_hwnds = HIDDEN_HWNDS.lock().unwrap();
-
-                if (!window.is_window() || tray_and_multi_window_exes.contains(&window.exe()?))
-                    || tray_and_multi_window_classes.contains(&window.class()?)
-                        && !programmatically_hidden_hwnds.contains(&window.hwnd)
                 {
+                    let tray_and_multi_window_exes = TRAY_AND_MULTI_WINDOW_EXES.lock();
+                    let tray_and_multi_window_classes = TRAY_AND_MULTI_WINDOW_CLASSES.lock();
+
+                    // We don't want to purge windows that have been deliberately hidden by us, eg. when
+                    // they are not on the top of a container stack.
+                    let programmatically_hidden_hwnds = HIDDEN_HWNDS.lock();
+
+                    if (!window.is_window() || tray_and_multi_window_exes.contains(&window.exe()?))
+                        || tray_and_multi_window_classes.contains(&window.class()?)
+                            && !programmatically_hidden_hwnds.contains(&window.hwnd)
+                    {
+                        hide = true;
+                    }
+                }
+
+                if hide {
                     self.focused_workspace_mut()?.remove_window(window.hwnd)?;
                     self.update_focused_workspace(false)?;
                 }
@@ -118,6 +125,12 @@ impl WindowManager {
                     .any(|w| w.hwnd == window.hwnd)
                 {
                     return Ok(());
+                }
+
+                if let Some(w) = workspace.maximized_window() {
+                    if w.hwnd == window.hwnd {
+                        return Ok(());
+                    }
                 }
 
                 self.focused_workspace_mut()?

@@ -3,11 +3,11 @@ use std::io::BufReader;
 use std::io::Write;
 use std::str::FromStr;
 use std::sync::Arc;
-use std::sync::Mutex;
 use std::thread;
 
 use color_eyre::eyre::ContextCompat;
 use color_eyre::Result;
+use parking_lot::Mutex;
 use uds_windows::UnixStream;
 
 use komorebi_core::ApplicationIdentifier;
@@ -26,7 +26,6 @@ use crate::TRAY_AND_MULTI_WINDOW_EXES;
 pub fn listen_for_commands(wm: Arc<Mutex<WindowManager>>) {
     let listener = wm
         .lock()
-        .unwrap()
         .command_listener
         .try_clone()
         .expect("could not clone unix listener");
@@ -35,7 +34,7 @@ pub fn listen_for_commands(wm: Arc<Mutex<WindowManager>>) {
         tracing::info!("listening");
         for client in listener.incoming() {
             match client {
-                Ok(stream) => match wm.lock().unwrap().read_commands(stream) {
+                Ok(stream) => match wm.lock().read_commands(stream) {
                     Ok(()) => {}
                     Err(error) => tracing::error!("{}", error),
                 },
@@ -74,19 +73,19 @@ impl WindowManager {
                 self.set_workspace_padding(monitor_idx, workspace_idx, size)?;
             }
             SocketMessage::FloatClass(target) => {
-                let mut float_classes = FLOAT_CLASSES.lock().unwrap();
+                let mut float_classes = FLOAT_CLASSES.lock();
                 if !float_classes.contains(&target) {
                     float_classes.push(target);
                 }
             }
             SocketMessage::FloatExe(target) => {
-                let mut float_exes = FLOAT_EXES.lock().unwrap();
+                let mut float_exes = FLOAT_EXES.lock();
                 if !float_exes.contains(&target) {
                     float_exes.push(target);
                 }
             }
             SocketMessage::FloatTitle(target) => {
-                let mut float_titles = FLOAT_TITLES.lock().unwrap();
+                let mut float_titles = FLOAT_TITLES.lock();
                 if !float_titles.contains(&target) {
                     float_titles.push(target);
                 }
@@ -183,13 +182,13 @@ impl WindowManager {
             }
             SocketMessage::IdentifyTrayApplication(identifier, id) => match identifier {
                 ApplicationIdentifier::Exe => {
-                    let mut exes = TRAY_AND_MULTI_WINDOW_EXES.lock().unwrap();
+                    let mut exes = TRAY_AND_MULTI_WINDOW_EXES.lock();
                     if !exes.contains(&id) {
                         exes.push(id);
                     }
                 }
                 ApplicationIdentifier::Class => {
-                    let mut classes = TRAY_AND_MULTI_WINDOW_CLASSES.lock().unwrap();
+                    let mut classes = TRAY_AND_MULTI_WINDOW_CLASSES.lock();
                     if !classes.contains(&id) {
                         classes.push(id);
                     }
