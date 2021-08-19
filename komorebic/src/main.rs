@@ -281,6 +281,9 @@ enum SubCommand {
     /// Add a rule to always float the specified application
     #[clap(setting = AppSettings::ArgRequiredElseHelp)]
     FloatRule(ApplicationTarget),
+    /// Add a rule to always manage the specified application
+    #[clap(setting = AppSettings::ArgRequiredElseHelp)]
+    ManageRule(ApplicationTarget),
     /// Add a rule to associate an application with a workspace
     #[clap(setting = AppSettings::ArgRequiredElseHelp)]
     WorkspaceRule(WorkspaceRule),
@@ -432,6 +435,9 @@ fn main() -> Result<()> {
                 send_message(&*SocketMessage::FloatTitle(arg.id).as_bytes()?)?;
             }
         },
+        SubCommand::ManageRule(arg) => {
+            send_message(&*SocketMessage::ManageRule(arg.identifier, arg.id).as_bytes()?)?;
+        }
         SubCommand::WorkspaceRule(arg) => {
             send_message(
                 &*SocketMessage::WorkspaceRule(arg.identifier, arg.id, arg.monitor, arg.workspace)

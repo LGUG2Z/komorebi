@@ -70,6 +70,7 @@ lazy_static! {
     ]));
     static ref WORKSPACE_RULES: Arc<Mutex<HashMap<String, (usize, usize)>>> =
         Arc::new(Mutex::new(HashMap::new()));
+    static ref MANAGE_IDENTIFIERS: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(vec![]));
 }
 
 fn setup() -> Result<(WorkerGuard, WorkerGuard)> {

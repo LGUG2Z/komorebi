@@ -179,9 +179,12 @@ toggle-float                 Toggle floating mode for the focused window
 toggle-monocle               Toggle monocle mode for the focused container
 toggle-maximize              Toggle native maximization for the focused window
 restore-windows              Restore all hidden windows (debugging command)
+manage                       Force komorebi to manage the focused window
+unmanage                     Unmanage a window that was forcibly managed
 reload-configuration         Reload ~/komorebi.ahk (if it exists)
 watch-configuration          Toggle the automatic reloading of ~/komorebi.ahk (if it exists)
 float-rule                   Add a rule to always float the specified application
+manage-rule                  Add a rule to always manage the specified application
 workspace-rule               Add a rule to associate an application with a workspace
 identify-tray-application    Identify an application that closes to the system tray
 focus-follows-mouse          Enable or disable focus follows mouse for the operating system
@@ -209,6 +212,7 @@ help                         Print this message or the help of the given subcomm
 - [x] Equal-width, max-height column layout
 - [x] Floating rules based on exe name, window title and class
 - [x] Workspace rules based on exe name and window class
+- [x] Additional manage rules based on exe name and window class
 - [x] Identify 'close/minimize to tray' applications by exe name and class
 - [x] Toggle floating windows
 - [x] Toggle monocle window

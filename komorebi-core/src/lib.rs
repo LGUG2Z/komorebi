@@ -61,6 +61,7 @@ pub enum SocketMessage {
     FloatExe(String),
     FloatTitle(String),
     WorkspaceRule(ApplicationIdentifier, String, usize, usize),
+    ManageRule(ApplicationIdentifier, String),
     IdentifyTrayApplication(ApplicationIdentifier, String),
     State,
     FocusFollowsMouse(bool),

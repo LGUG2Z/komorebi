@@ -20,6 +20,7 @@ use crate::FLOAT_EXES;
 use crate::FLOAT_TITLES;
 use crate::HIDDEN_HWNDS;
 use crate::LAYERED_EXE_WHITELIST;
+use crate::MANAGE_IDENTIFIERS;
 
 #[derive(Debug, Clone, Copy)]
 pub struct Window {
@@ -219,9 +220,9 @@ impl Window {
 
     #[tracing::instrument(fields(exe, title))]
     pub fn should_manage(self, event: Option<WindowManagerEvent>) -> Result<bool> {
-        let classes = FLOAT_CLASSES.lock();
-        let exes = FLOAT_EXES.lock();
-        let titles = FLOAT_TITLES.lock();
+        let float_classes = FLOAT_CLASSES.lock();
+        let float_exes = FLOAT_EXES.lock();
+        let float_titles = FLOAT_TITLES.lock();
 
         if self.title().is_err() {
             return Ok(false);
@@ -239,17 +240,17 @@ impl Window {
             (true, _) |
             // If not allowing cloaked windows, we need to ensure the window is not cloaked
             (false, false) => {
-                if let (Ok(title), Ok(exe_name)) = (self.title(), self.exe()) {
-                    if titles.contains(&title) {
+                if let (Ok(title), Ok(exe_name), Ok(class)) = (self.title(), self.exe(), self.class()) {
+                    if float_titles.contains(&title) {
                         return Ok(false);
                     }
 
-                    if exes.contains(&exe_name) {
+                    if float_exes.contains(&exe_name) {
                         return Ok(false);
                     }
 
                     if let Ok(class) = self.class() {
-                        if classes.contains(&class) {
+                        if float_classes.contains(&class) {
                             return Ok(false);
                         }
                     }
@@ -267,6 +268,7 @@ impl Window {
                         // allowing a specific layered window on the whitelist (like Steam), it should
                         // pass this check
                         && (allow_layered || !ex_style.contains(GwlExStyle::LAYERED))
+                        || MANAGE_IDENTIFIERS.lock().contains(&exe_name) || MANAGE_IDENTIFIERS.lock().contains(&class)
                     {
                         Ok(true)
                     } else {

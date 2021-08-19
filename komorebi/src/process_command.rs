@@ -19,6 +19,7 @@ use crate::windows_api::WindowsApi;
 use crate::FLOAT_CLASSES;
 use crate::FLOAT_EXES;
 use crate::FLOAT_TITLES;
+use crate::MANAGE_IDENTIFIERS;
 use crate::TRAY_AND_MULTI_WINDOW_CLASSES;
 use crate::TRAY_AND_MULTI_WINDOW_EXES;
 use crate::WORKSPACE_RULES;
@@ -116,6 +117,19 @@ impl WindowManager {
                     ApplicationIdentifier::Title => {}
                 }
             }
+            SocketMessage::ManageRule(identifier, id) => match identifier {
+                ApplicationIdentifier::Exe | ApplicationIdentifier::Class => {
+                    {
+                        let mut manage_identifiers = MANAGE_IDENTIFIERS.lock();
+                        if !manage_identifiers.contains(&id) {
+                            manage_identifiers.push(id);
+                        }
+                    }
+
+                    self.update_focused_workspace(false)?;
+                }
+                ApplicationIdentifier::Title => {}
+            },
             SocketMessage::AdjustContainerPadding(sizing, adjustment) => {
                 self.adjust_container_padding(sizing, adjustment)?;
             }
