@@ -42,6 +42,7 @@ use bindings::Windows::Win32::UI::WindowsAndMessaging::AllowSetForegroundWindow;
 use bindings::Windows::Win32::UI::WindowsAndMessaging::EnumWindows;
 use bindings::Windows::Win32::UI::WindowsAndMessaging::GetCursorPos;
 use bindings::Windows::Win32::UI::WindowsAndMessaging::GetDesktopWindow;
+use bindings::Windows::Win32::UI::WindowsAndMessaging::GetForegroundWindow;
 use bindings::Windows::Win32::UI::WindowsAndMessaging::GetTopWindow;
 use bindings::Windows::Win32::UI::WindowsAndMessaging::GetWindow;
 use bindings::Windows::Win32::UI::WindowsAndMessaging::GetWindowLongPtrW;
@@ -264,6 +265,10 @@ impl WindowsApi {
         Self::show_window(hwnd, SW_MAXIMIZE);
     }
 
+    pub fn foreground_window() -> Result<isize> {
+        Result::from(WindowsResult::from(unsafe { GetForegroundWindow() }))
+    }
+
     pub fn set_foreground_window(hwnd: HWND) -> Result<()> {
         match WindowsResult::from(unsafe { SetForegroundWindow(hwnd) }) {
             WindowsResult::Ok(_) => Ok(()),
@@ -280,6 +285,7 @@ impl WindowsApi {
         }
     }
 
+    #[allow(dead_code)]
     pub fn top_window() -> Result<isize> {
         Result::from(WindowsResult::from(unsafe { GetTopWindow(HWND::NULL).0 }))
     }
@@ -288,12 +294,14 @@ impl WindowsApi {
         Result::from(WindowsResult::from(unsafe { GetDesktopWindow() }))
     }
 
+    #[allow(dead_code)]
     pub fn next_window(hwnd: HWND) -> Result<isize> {
         Result::from(WindowsResult::from(unsafe {
             GetWindow(hwnd, GW_HWNDNEXT).0
         }))
     }
 
+    #[allow(dead_code)]
     pub fn top_visible_window() -> Result<isize> {
         let hwnd = Self::top_window()?;
         let mut next_hwnd = hwnd;

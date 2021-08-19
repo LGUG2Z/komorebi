@@ -678,7 +678,7 @@ impl Workspace {
     }
 
     pub fn remove_focused_floating_window(&mut self) -> Option<Window> {
-        let hwnd = WindowsApi::top_visible_window().ok()?;
+        let hwnd = WindowsApi::foreground_window().ok()?;
 
         let mut idx = None;
         for (i, window) in self.floating_windows.iter().enumerate() {

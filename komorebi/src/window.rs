@@ -71,6 +71,21 @@ impl Window {
         HWND(self.hwnd)
     }
 
+    pub fn center(&mut self, work_area: &Rect) -> Result<()> {
+        let half_width = work_area.right / 2;
+        let half_weight = work_area.bottom / 2;
+
+        self.set_position(
+            &Rect {
+                left: work_area.left + ((work_area.right - half_width) / 2),
+                top: work_area.top + ((work_area.bottom - half_weight) / 2),
+                right: half_width,
+                bottom: half_weight,
+            },
+            true,
+        )
+    }
+
     pub fn set_position(&mut self, layout: &Rect, top: bool) -> Result<()> {
         // NOTE: This is how the border variable below was calculated; every time this code was
         // run on any window in any position, the generated border was always the same, so I am

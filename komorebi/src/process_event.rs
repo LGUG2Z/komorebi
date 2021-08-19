@@ -101,7 +101,9 @@ impl WindowManager {
         }
 
         match event {
-            WindowManagerEvent::Minimize(_, window) | WindowManagerEvent::Destroy(_, window) => {
+            WindowManagerEvent::Minimize(_, window)
+            | WindowManagerEvent::Destroy(_, window)
+            | WindowManagerEvent::Unmanage(window) => {
                 self.focused_workspace_mut()?.remove_window(window.hwnd)?;
                 self.update_focused_workspace(false)?;
             }
@@ -152,7 +154,7 @@ impl WindowManager {
                 self.focused_workspace_mut()?
                     .focus_container_by_window(window.hwnd)?;
             }
-            WindowManagerEvent::Show(_, window) => {
+            WindowManagerEvent::Show(_, window) | WindowManagerEvent::Manage(window) => {
                 let mut switch_to = None;
                 for (i, monitors) in self.monitors().iter().enumerate() {
                     for (j, workspace) in monitors.workspaces().iter().enumerate() {
@@ -295,6 +297,11 @@ impl WindowManager {
             }
             WindowManagerEvent::MouseCapture(..) => {}
         };
+
+        // If we unmanaged a window, it shouldn't be immediately hidden behind managed windows
+        if let WindowManagerEvent::Unmanage(window) = event {
+            window.center(&self.focused_monitor_work_area()?)?;
+        }
 
         tracing::trace!("updating list of known hwnds");
         let mut known_hwnds = vec![];

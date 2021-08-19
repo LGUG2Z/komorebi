@@ -28,6 +28,7 @@ use crate::ring::Ring;
 use crate::window::Window;
 use crate::window_manager_event::WindowManagerEvent;
 use crate::windows_api::WindowsApi;
+use crate::winevent_listener::WINEVENT_CALLBACK_CHANNEL;
 use crate::workspace::Workspace;
 use crate::FLOAT_CLASSES;
 use crate::FLOAT_EXES;
@@ -335,6 +336,20 @@ impl WindowManager {
     }
 
     #[tracing::instrument(skip(self))]
+    pub fn manage_focused_window(&mut self) -> Result<()> {
+        let hwnd = WindowsApi::foreground_window()?;
+        let event = WindowManagerEvent::Manage(Window { hwnd });
+        Ok(WINEVENT_CALLBACK_CHANNEL.lock().0.send(event)?)
+    }
+
+    #[tracing::instrument(skip(self))]
+    pub fn unmanage_focused_window(&mut self) -> Result<()> {
+        let hwnd = WindowsApi::foreground_window()?;
+        let event = WindowManagerEvent::Unmanage(Window { hwnd });
+        Ok(WINEVENT_CALLBACK_CHANNEL.lock().0.send(event)?)
+    }
+
+    #[tracing::instrument(skip(self))]
     pub fn update_focused_workspace(&mut self, mouse_follows_focus: bool) -> Result<()> {
         tracing::info!("updating");
 
@@ -616,7 +631,7 @@ impl WindowManager {
 
     #[tracing::instrument(skip(self))]
     pub fn toggle_float(&mut self) -> Result<()> {
-        let hwnd = WindowsApi::top_visible_window()?;
+        let hwnd = WindowsApi::foreground_window()?;
         let workspace = self.focused_workspace_mut()?;
 
         let mut is_floating_window = false;
@@ -629,11 +644,11 @@ impl WindowManager {
 
         if is_floating_window {
             self.unfloat_window()?;
-            self.update_focused_workspace(true)
         } else {
             self.float_window()?;
-            self.update_focused_workspace(false)
         }
+
+        self.update_focused_workspace(is_floating_window)
     }
 
     #[tracing::instrument(skip(self))]
@@ -650,17 +665,7 @@ impl WindowManager {
             .last_mut()
             .context("there is no floating window")?;
 
-        let half_width = work_area.right / 2;
-        let half_weight = work_area.bottom / 2;
-
-        let center = Rect {
-            left: work_area.left + ((work_area.right - half_width) / 2),
-            top: work_area.top + ((work_area.bottom - half_weight) / 2),
-            right: half_width,
-            bottom: half_weight,
-        };
-
-        window.set_position(&center, true)?;
+        window.center(&work_area)?;
         window.focus()?;
 
         Ok(())

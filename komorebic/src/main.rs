@@ -269,6 +269,10 @@ enum SubCommand {
     ToggleMaximize,
     /// Restore all hidden windows (debugging command)
     RestoreWindows,
+    /// Force komorebi to manage the focused window
+    Manage,
+    /// Unmanage a window that was forcibly managed
+    Unmanage,
     /// Reload ~/komorebi.ahk (if it exists)
     ReloadConfiguration,
     /// Toggle the automatic reloading of ~/komorebi.ahk (if it exists)
@@ -542,6 +546,12 @@ fn main() -> Result<()> {
                 &*SocketMessage::IdentifyTrayApplication(target.identifier, target.id)
                     .as_bytes()?,
             )?;
+        }
+        SubCommand::Manage => {
+            send_message(&*SocketMessage::ManageFocusedWindow.as_bytes()?)?;
+        }
+        SubCommand::Unmanage => {
+            send_message(&*SocketMessage::UnmanageFocusedWindow.as_bytes()?)?;
         }
     }
 

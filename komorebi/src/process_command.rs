@@ -221,6 +221,12 @@ impl WindowManager {
                 }
                 ApplicationIdentifier::Title => {}
             },
+            SocketMessage::ManageFocusedWindow => {
+                self.manage_focused_window()?;
+            }
+            SocketMessage::UnmanageFocusedWindow => {
+                self.unmanage_focused_window()?;
+            }
         }
 
         tracing::info!("processed");

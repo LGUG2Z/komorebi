@@ -14,11 +14,19 @@ pub enum WindowManagerEvent {
     Show(WinEvent, Window),
     MoveResizeEnd(WinEvent, Window),
     MouseCapture(WinEvent, Window),
+    Manage(Window),
+    Unmanage(Window),
 }
 
 impl Display for WindowManagerEvent {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
+            WindowManagerEvent::Manage(window) => {
+                write!(f, "Manage (Window: {})", window)
+            }
+            WindowManagerEvent::Unmanage(window) => {
+                write!(f, "Unmanage (Window: {})", window)
+            }
             WindowManagerEvent::Destroy(winevent, window) => {
                 write!(f, "Destroy (WinEvent: {}, Window: {})", winevent, window)
             }
@@ -65,7 +73,9 @@ impl WindowManagerEvent {
             | WindowManagerEvent::Minimize(_, window)
             | WindowManagerEvent::Show(_, window)
             | WindowManagerEvent::MoveResizeEnd(_, window)
-            | WindowManagerEvent::MouseCapture(_, window) => window,
+            | WindowManagerEvent::MouseCapture(_, window)
+            | WindowManagerEvent::Manage(window)
+            | WindowManagerEvent::Unmanage(window) => window,
         }
     }
 

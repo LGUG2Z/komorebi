@@ -34,6 +34,8 @@ pub enum SocketMessage {
     ToggleMonocle,
     ToggleMaximize,
     // Current Workspace Commands
+    ManageFocusedWindow,
+    UnmanageFocusedWindow,
     AdjustContainerPadding(Sizing, i32),
     AdjustWorkspacePadding(Sizing, i32),
     ChangeLayout(Layout),
