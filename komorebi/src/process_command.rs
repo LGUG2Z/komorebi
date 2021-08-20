@@ -74,28 +74,20 @@ impl WindowManager {
             SocketMessage::WorkspacePadding(monitor_idx, workspace_idx, size) => {
                 self.set_workspace_padding(monitor_idx, workspace_idx, size)?;
             }
-            SocketMessage::WorkspaceRule(identifier, id, monitor_idx, workspace_idx) => {
-                match identifier {
-                    ApplicationIdentifier::Exe | ApplicationIdentifier::Class => {
-                        {
-                            let mut workspace_rules = WORKSPACE_RULES.lock();
-                            workspace_rules.insert(id, (monitor_idx, workspace_idx));
-                        }
+            SocketMessage::WorkspaceRule(_, id, monitor_idx, workspace_idx) => {
+                {
+                    let mut workspace_rules = WORKSPACE_RULES.lock();
+                    workspace_rules.insert(id, (monitor_idx, workspace_idx));
+                }
 
-                        self.enforce_workspace_rules()?;
-                    }
-                    ApplicationIdentifier::Title => {}
+                self.enforce_workspace_rules()?;
+            }
+            SocketMessage::ManageRule(_, id) => {
+                let mut manage_identifiers = MANAGE_IDENTIFIERS.lock();
+                if !manage_identifiers.contains(&id) {
+                    manage_identifiers.push(id);
                 }
             }
-            SocketMessage::ManageRule(identifier, id) => match identifier {
-                ApplicationIdentifier::Exe | ApplicationIdentifier::Class => {
-                    let mut manage_identifiers = MANAGE_IDENTIFIERS.lock();
-                    if !manage_identifiers.contains(&id) {
-                        manage_identifiers.push(id);
-                    }
-                }
-                ApplicationIdentifier::Title => {}
-            },
             SocketMessage::FloatRule(_, id) => {
                 let mut float_identifiers = FLOAT_IDENTIFIERS.lock();
                 if !float_identifiers.contains(&id) {

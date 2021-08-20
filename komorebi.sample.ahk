@@ -46,6 +46,9 @@ Run, komorebic.exe float-rule exe wincompose.exe, , Hide
 Run, komorebic.exe float-rule title Calculator, , Hide
 Run, komorebic.exe float-rule exe 1Password.exe, , Hide
 
+; Always manage forcibly these applications that don't automatically get picked up by komorebi
+Run, komorebic.exe manage-rule exe TIM.exe, , Hide
+
 ; Identify applications that close to the tray
 Run, komorebic.exe identify-tray-application exe Discord.exe, , Hide
 

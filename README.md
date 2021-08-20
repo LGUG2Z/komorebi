@@ -123,7 +123,31 @@ the `AutoHotKey64.exe` executable for AutoHotKey v2 is in your `Path`. If both `
 exist in your home directory, only `komorebi.ahk` will be loaded. An example of an AutoHotKey v2 configuration file
 for _komorebi_ can be found [here](https://gist.github.com/crosstyan/dafacc0778dabf693ce9236c57b201cd).
 
-### Common First-Time Troubleshooting
+### Common First-Time Tips
+
+#### Floating Windows
+
+Sometimes you will want a specific application to never be tiled, and instead float all the time. You add add rules to
+enforce this behaviour:
+
+```powershell
+komorebic.exe float-rule title "Control Panel"
+# komorebic.exe float-rule exe [EXE NAME]
+# komorebic.exe float-rule class [CLASS NAME]
+```
+
+#### Windows Not Getting Managed
+
+In some rare cases, a window may not automatically be registered to be managed by `komorebi`. When this happens, you can
+manually add a rule to force `komorebi` to manage it:
+
+```powershell
+komorebic.exe manage-rule exe TIM.exe
+# komorebic.exe manage-rule class [CLASS NAME]
+# komorebic.exe manage-rule title [TITLE]
+```
+
+#### Tray Applications
 
 If you are experiencing behaviour where
 [closing a window leaves a blank tile, but minimizing the same window does not](https://github.com/LGUG2Z/komorebi/issues/6)
@@ -132,7 +156,8 @@ this application appropriately by identifying it via the executable name or the 
 
 ```powershell
 komorebic.exe identify-tray-application exe Discord.exe
-komorebic.exe identify-tray-application exe Telegram.exe
+# komorebic.exe identify-tray-application class [CLASS NAME]
+# komorebic.exe identify-tray-application title [TITLE]
 ```
 
 ## Configuration with `komorebic`
@@ -243,7 +268,7 @@ If you use IntelliJ, you should enable the following settings to ensure that cod
 the IDE for completions and navigation:
 
 - Set `Expand declarative macros`
-  to `Use new engine` [here](jetbrains://idea/settings?name=Languages+%26+Frameworks--Rust)
+  to `Use new engine` under "Settings > Langauges & Frameworks > Rust"
 - Enable the following experimental features:
   - `org.rust.cargo.evaluate.build.scripts`
   - `org.rust.macros.proc`
@@ -278,128 +303,7 @@ opening an issue.
 ## Window Manager State and Integrations
 
 The current state of the window manager can be queried using the `komorebic state` command, which returns a JSON
-representation of the `WindowManager` struct.
+representation of the `State` struct, which includes the current state of `WindowManager`.
 
 This may also be polled to build further integrations and widgets on top of (if you ever wanted to build something
 like [Stackline](https://github.com/AdamWagner/stackline) for Windows, you could do it by polling this command).
-
-```json
-{
-  "monitors": {
-    "elements": [
-      {
-        "id": 65537,
-        "monitor_size": {
-          "left": 0,
-          "top": 0,
-          "right": 3840,
-          "bottom": 2160
-        },
-        "work_area_size": {
-          "left": 0,
-          "top": 40,
-          "right": 3840,
-          "bottom": 2120
-        },
-        "workspaces": {
-          "elements": [
-            {
-              "name": "bsp",
-              "containers": {
-                "elements": [
-                  {
-                    "windows": {
-                      "elements": [
-                        {
-                          "hwnd": 2623596,
-                          "title": "komorebi – README.md",
-                          "exe": "idea64.exe",
-                          "class": "SunAwtFrame",
-                          "rect": {
-                            "left": 8,
-                            "top": 60,
-                            "right": 1914,
-                            "bottom": 2092
-                          }
-                        }
-                      ],
-                      "focused": 0
-                    }
-                  },
-                  {
-                    "windows": {
-                      "elements": [
-                        {
-                          "hwnd": 198266,
-                          "title": "LGUG2Z/komorebi: A(nother) tiling window manager for Windows 10 based on binary space partitioning - Mozilla Firefox",
-                          "exe": "firefox.exe",
-                          "class": "MozillaWindowClass",
-                          "rect": {
-                            "left": 1918,
-                            "top": 60,
-                            "right": 1914,
-                            "bottom": 1042
-                          }
-                        }
-                      ],
-                      "focused": 0
-                    }
-                  },
-                  {
-                    "windows": {
-                      "elements": [
-                        {
-                          "hwnd": 1247352,
-                          "title": "Windows PowerShell",
-                          "exe": "WindowsTerminal.exe",
-                          "class": "CASCADIA_HOSTING_WINDOW_CLASS",
-                          "rect": {
-                            "left": 1918,
-                            "top": 1110,
-                            "right": 959,
-                            "bottom": 1042
-                          }
-                        }
-                      ],
-                      "focused": 0
-                    }
-                  },
-                  {
-                    "windows": {
-                      "elements": [
-                        {
-                          "hwnd": 395464,
-                          "title": "Signal",
-                          "exe": "Signal.exe",
-                          "class": "Chrome_WidgetWin_1",
-                          "rect": {
-                            "left": 2873,
-                            "top": 1110,
-                            "right": 959,
-                            "bottom": 1042
-                          }
-                        }
-                      ],
-                      "focused": 0
-                    }
-                  }
-                ],
-                "focused": 2
-              },
-              "monocle_container": null,
-              "floating_windows": [],
-              "layout": "BSP",
-              "layout_flip": null,
-              "workspace_padding": 10,
-              "container_padding": 10
-            }
-          ],
-          "focused": 0
-        }
-      }
-    ],
-    "focused": 0
-  },
-  "is_paused": false
-}
-```
