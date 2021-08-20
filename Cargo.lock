@@ -496,7 +496,7 @@ dependencies = [
 
 [[package]]
 name = "komorebi"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "bindings",
  "bitflags",
@@ -527,7 +527,7 @@ dependencies = [
 
 [[package]]
 name = "komorebi-core"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "bindings",
  "clap",
@@ -539,7 +539,7 @@ dependencies = [
 
 [[package]]
 name = "komorebic"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "bindings",
  "clap",
