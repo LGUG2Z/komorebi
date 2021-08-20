@@ -12,7 +12,8 @@ pub enum CycleDirection {
 }
 
 impl CycleDirection {
-    pub fn next_idx(&self, idx: usize, len: usize) -> usize {
+    #[must_use]
+    pub const fn next_idx(&self, idx: usize, len: usize) -> usize {
         match self {
             CycleDirection::Previous => {
                 if idx == 0 {

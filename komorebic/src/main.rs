@@ -1,3 +1,6 @@
+#![warn(clippy::all, clippy::nursery, clippy::pedantic)]
+#![allow(clippy::missing_errors_doc)]
+
 use std::fs::File;
 use std::io::BufRead;
 use std::io::BufReader;
@@ -22,8 +25,8 @@ use bindings::Windows::Win32::UI::WindowsAndMessaging::SHOW_WINDOW_CMD;
 use bindings::Windows::Win32::UI::WindowsAndMessaging::SW_RESTORE;
 use komorebi_core::ApplicationIdentifier;
 use komorebi_core::CycleDirection;
+use komorebi_core::Flip;
 use komorebi_core::Layout;
-use komorebi_core::LayoutFlip;
 use komorebi_core::OperationDirection;
 use komorebi_core::Sizing;
 use komorebi_core::SocketMessage;
@@ -63,7 +66,7 @@ gen_enum_subcommand_args! {
     Move: OperationDirection,
     Stack: OperationDirection,
     CycleStack: CycleDirection,
-    FlipLayout: LayoutFlip,
+    FlipLayout: Flip,
     SetLayout: Layout,
     WatchConfiguration: BooleanState,
     FocusFollowsMouse: BooleanState
@@ -303,6 +306,7 @@ pub fn send_message(bytes: &[u8]) -> Result<()> {
     Ok(stream.write_all(&*bytes)?)
 }
 
+#[allow(clippy::too_many_lines)]
 fn main() -> Result<()> {
     let opts: Opts = Opts::parse();
 
@@ -313,7 +317,7 @@ fn main() -> Result<()> {
             let file = TailedFile::new(File::open(color_log)?);
             let locked = file.lock();
             for line in locked.lines() {
-                println!("{}", line?)
+                println!("{}", line?);
             }
         }
         SubCommand::Focus(arg) => {
@@ -449,7 +453,7 @@ fn main() -> Result<()> {
             send_message(&*SocketMessage::ChangeLayout(arg.layout).as_bytes()?)?;
         }
         SubCommand::FlipLayout(arg) => {
-            send_message(&*SocketMessage::FlipLayout(arg.layout_flip).as_bytes()?)?;
+            send_message(&*SocketMessage::FlipLayout(arg.flip).as_bytes()?)?;
         }
         SubCommand::FocusMonitor(arg) => {
             send_message(&*SocketMessage::FocusMonitorNumber(arg.target).as_bytes()?)?;
@@ -496,13 +500,13 @@ fn main() -> Result<()> {
                 Ok(incoming) => {
                     let stream = BufReader::new(incoming.0);
                     for line in stream.lines() {
-                        println!("{}", line?)
+                        println!("{}", line?);
                     }
 
                     return Ok(());
                 }
                 Err(error) => {
-                    panic!("{}", error)
+                    panic!("{}", error);
                 }
             }
         }

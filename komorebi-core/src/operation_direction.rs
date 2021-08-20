@@ -4,8 +4,8 @@ use serde::Serialize;
 use strum::Display;
 use strum::EnumString;
 
+use crate::Flip;
 use crate::Layout;
-use crate::LayoutFlip;
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, Display, EnumString, ArgEnum)]
 #[strum(serialize_all = "snake_case")]
@@ -17,59 +17,46 @@ pub enum OperationDirection {
 }
 
 impl OperationDirection {
-    pub fn opposite(self) -> Self {
+    #[must_use]
+    pub const fn opposite(self) -> Self {
         match self {
-            OperationDirection::Left => OperationDirection::Right,
-            OperationDirection::Right => OperationDirection::Left,
-            OperationDirection::Up => OperationDirection::Down,
-            OperationDirection::Down => OperationDirection::Up,
+            Self::Left => Self::Right,
+            Self::Right => Self::Left,
+            Self::Up => Self::Down,
+            Self::Down => Self::Up,
         }
     }
 
-    fn flip_direction(
-        direction: &OperationDirection,
-        layout_flip: Option<LayoutFlip>,
-    ) -> OperationDirection {
-        if let Some(flip) = layout_flip {
-            match direction {
-                OperationDirection::Left => match flip {
-                    LayoutFlip::Horizontal | LayoutFlip::HorizontalAndVertical => {
-                        OperationDirection::Right
-                    }
-                    _ => *direction,
-                },
-                OperationDirection::Right => match flip {
-                    LayoutFlip::Horizontal | LayoutFlip::HorizontalAndVertical => {
-                        OperationDirection::Left
-                    }
-                    _ => *direction,
-                },
-                OperationDirection::Up => match flip {
-                    LayoutFlip::Vertical | LayoutFlip::HorizontalAndVertical => {
-                        OperationDirection::Down
-                    }
-                    _ => *direction,
-                },
-                OperationDirection::Down => match flip {
-                    LayoutFlip::Vertical | LayoutFlip::HorizontalAndVertical => {
-                        OperationDirection::Up
-                    }
-                    _ => *direction,
-                },
-            }
-        } else {
-            *direction
-        }
+    fn flip_direction(direction: Self, layout_flip: Option<Flip>) -> Self {
+        layout_flip.map_or(direction, |flip| match direction {
+            Self::Left => match flip {
+                Flip::Horizontal | Flip::HorizontalAndVertical => Self::Right,
+                Flip::Vertical => direction,
+            },
+            Self::Right => match flip {
+                Flip::Horizontal | Flip::HorizontalAndVertical => Self::Left,
+                Flip::Vertical => direction,
+            },
+            Self::Up => match flip {
+                Flip::Vertical | Flip::HorizontalAndVertical => Self::Down,
+                Flip::Horizontal => direction,
+            },
+            Self::Down => match flip {
+                Flip::Vertical | Flip::HorizontalAndVertical => Self::Up,
+                Flip::Horizontal => direction,
+            },
+        })
     }
 
+    #[must_use]
     pub fn is_valid(
-        &self,
+        self,
         layout: Layout,
-        layout_flip: Option<LayoutFlip>,
+        layout_flip: Option<Flip>,
         idx: usize,
         len: usize,
     ) -> bool {
-        match OperationDirection::flip_direction(self, layout_flip) {
+        match Self::flip_direction(self, layout_flip) {
             OperationDirection::Up => match layout {
                 Layout::BSP => len > 2 && idx != 0 && idx != 1,
                 Layout::Columns => false,
@@ -93,9 +80,10 @@ impl OperationDirection {
         }
     }
 
-    pub fn new_idx(&self, layout: Layout, layout_flip: Option<LayoutFlip>, idx: usize) -> usize {
-        match OperationDirection::flip_direction(self, layout_flip) {
-            OperationDirection::Up => match layout {
+    #[must_use]
+    pub fn new_idx(self, layout: Layout, layout_flip: Option<Flip>, idx: usize) -> usize {
+        match Self::flip_direction(self, layout_flip) {
+            Self::Up => match layout {
                 Layout::BSP => {
                     if idx % 2 == 0 {
                         idx - 1
@@ -106,11 +94,11 @@ impl OperationDirection {
                 Layout::Columns => unreachable!(),
                 Layout::Rows => idx - 1,
             },
-            OperationDirection::Down => match layout {
+            Self::Down => match layout {
                 Layout::BSP | Layout::Rows => idx + 1,
                 Layout::Columns => unreachable!(),
             },
-            OperationDirection::Left => match layout {
+            Self::Left => match layout {
                 Layout::BSP => {
                     if idx % 2 == 0 {
                         idx - 2
@@ -121,7 +109,7 @@ impl OperationDirection {
                 Layout::Columns => idx - 1,
                 Layout::Rows => unreachable!(),
             },
-            OperationDirection::Right => match layout {
+            Self::Right => match layout {
                 Layout::BSP | Layout::Columns => idx + 1,
                 Layout::Rows => unreachable!(),
             },

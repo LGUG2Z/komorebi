@@ -267,7 +267,7 @@ impl Window {
                         && (allow_layered || !ex_style.contains(GwlExStyle::LAYERED))
                         || managed_override
                     {
-                        return Ok(true)
+                        return Ok(true);
                     } else if event.is_some() {
                         tracing::debug!("ignoring (exe: {}, title: {})", exe_name, title);
                     }

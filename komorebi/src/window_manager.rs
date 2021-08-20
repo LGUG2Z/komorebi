@@ -15,8 +15,8 @@ use serde::Serialize;
 use uds_windows::UnixListener;
 
 use komorebi_core::CycleDirection;
+use komorebi_core::Flip;
 use komorebi_core::Layout;
-use komorebi_core::LayoutFlip;
 use komorebi_core::OperationDirection;
 use komorebi_core::Rect;
 use komorebi_core::Sizing;
@@ -432,21 +432,21 @@ impl WindowManager {
             // can flip them however they need to be flipped once the resizing has been done
             if let Some(flip) = workspace.layout_flip() {
                 match flip {
-                    LayoutFlip::Horizontal => {
+                    Flip::Horizontal => {
                         if matches!(direction, OperationDirection::Left)
                             || matches!(direction, OperationDirection::Right)
                         {
                             direction = direction.opposite();
                         }
                     }
-                    LayoutFlip::Vertical => {
+                    Flip::Vertical => {
                         if matches!(direction, OperationDirection::Up)
                             || matches!(direction, OperationDirection::Down)
                         {
                             direction = direction.opposite();
                         }
                     }
-                    LayoutFlip::HorizontalAndVertical => direction = direction.opposite(),
+                    Flip::HorizontalAndVertical => direction = direction.opposite(),
                 }
             }
 
@@ -746,7 +746,7 @@ impl WindowManager {
     }
 
     #[tracing::instrument(skip(self))]
-    pub fn flip_layout(&mut self, layout_flip: LayoutFlip) -> Result<()> {
+    pub fn flip_layout(&mut self, layout_flip: Flip) -> Result<()> {
         tracing::info!("flipping layout");
 
         let workspace = self.focused_workspace_mut()?;
@@ -758,28 +758,28 @@ impl WindowManager {
             }
             Some(current_layout_flip) => {
                 match current_layout_flip {
-                    LayoutFlip::Horizontal => match layout_flip {
-                        LayoutFlip::Horizontal => workspace.set_layout_flip(None),
-                        LayoutFlip::Vertical => workspace
-                            .set_layout_flip(Option::from(LayoutFlip::HorizontalAndVertical)),
-                        LayoutFlip::HorizontalAndVertical => workspace
-                            .set_layout_flip(Option::from(LayoutFlip::HorizontalAndVertical)),
-                    },
-                    LayoutFlip::Vertical => match layout_flip {
-                        LayoutFlip::Horizontal => workspace
-                            .set_layout_flip(Option::from(LayoutFlip::HorizontalAndVertical)),
-                        LayoutFlip::Vertical => workspace.set_layout_flip(None),
-                        LayoutFlip::HorizontalAndVertical => workspace
-                            .set_layout_flip(Option::from(LayoutFlip::HorizontalAndVertical)),
-                    },
-                    LayoutFlip::HorizontalAndVertical => match layout_flip {
-                        LayoutFlip::Horizontal => {
-                            workspace.set_layout_flip(Option::from(LayoutFlip::Vertical))
+                    Flip::Horizontal => match layout_flip {
+                        Flip::Horizontal => workspace.set_layout_flip(None),
+                        Flip::Vertical => {
+                            workspace.set_layout_flip(Option::from(Flip::HorizontalAndVertical))
                         }
-                        LayoutFlip::Vertical => {
-                            workspace.set_layout_flip(Option::from(LayoutFlip::Horizontal))
+                        Flip::HorizontalAndVertical => {
+                            workspace.set_layout_flip(Option::from(Flip::HorizontalAndVertical))
                         }
-                        LayoutFlip::HorizontalAndVertical => workspace.set_layout_flip(None),
+                    },
+                    Flip::Vertical => match layout_flip {
+                        Flip::Horizontal => {
+                            workspace.set_layout_flip(Option::from(Flip::HorizontalAndVertical))
+                        }
+                        Flip::Vertical => workspace.set_layout_flip(None),
+                        Flip::HorizontalAndVertical => {
+                            workspace.set_layout_flip(Option::from(Flip::HorizontalAndVertical))
+                        }
+                    },
+                    Flip::HorizontalAndVertical => match layout_flip {
+                        Flip::Horizontal => workspace.set_layout_flip(Option::from(Flip::Vertical)),
+                        Flip::Vertical => workspace.set_layout_flip(Option::from(Flip::Horizontal)),
+                        Flip::HorizontalAndVertical => workspace.set_layout_flip(None),
                     },
                 };
             }

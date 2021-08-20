@@ -20,13 +20,15 @@ pub enum Layout {
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, Display, EnumString, ArgEnum)]
 #[strum(serialize_all = "snake_case")]
-pub enum LayoutFlip {
+pub enum Flip {
     Horizontal,
     Vertical,
     HorizontalAndVertical,
 }
 
 impl Layout {
+    #[must_use]
+    #[allow(clippy::cast_precision_loss)]
     pub fn resize(
         &self,
         unaltered: &Rect,
@@ -35,10 +37,14 @@ impl Layout {
         sizing: Sizing,
         step: Option<i32>,
     ) -> Option<Rect> {
+        if !matches!(self, Self::BSP) {
+            return None;
+        };
+
         let max_divisor = 1.005;
         let mut r = resize.unwrap_or_default();
 
-        let resize_step = if let Some(step) = step { step } else { 50 };
+        let resize_step = step.unwrap_or(50);
 
         match edge {
             OperationDirection::Left => match sizing {
@@ -117,19 +123,21 @@ impl Layout {
             },
         };
 
-        if !r.eq(&Rect::default()) {
-            Option::from(r)
-        } else {
+        if r.eq(&Rect::default()) {
             None
+        } else {
+            Option::from(r)
         }
     }
 
+    #[must_use]
+    #[allow(clippy::cast_possible_truncation, clippy::cast_possible_wrap)]
     pub fn calculate(
         &self,
         area: &Rect,
         len: NonZeroUsize,
         container_padding: Option<i32>,
-        layout_flip: Option<LayoutFlip>,
+        layout_flip: Option<Flip>,
         resize_dimensions: &[Option<Rect>],
     ) -> Vec<Rect> {
         let len = usize::from(len);
@@ -187,24 +195,6 @@ impl Layout {
     }
 }
 
-impl Layout {
-    pub fn next(&mut self) {
-        match self {
-            Layout::BSP => *self = Layout::Columns,
-            Layout::Columns => *self = Layout::Rows,
-            Layout::Rows => *self = Layout::BSP,
-        }
-    }
-
-    pub fn previous(&mut self) {
-        match self {
-            Layout::BSP => *self = Layout::Rows,
-            Layout::Columns => *self = Layout::BSP,
-            Layout::Rows => *self = Layout::Columns,
-        }
-    }
-}
-
 fn calculate_resize_adjustments(resize_dimensions: &[Option<Rect>]) -> Vec<Option<Rect>> {
     let mut resize_adjustments = resize_dimensions.to_vec();
 
@@ -213,6 +203,7 @@ fn calculate_resize_adjustments(resize_dimensions: &[Option<Rect>]) -> Vec<Optio
         if let Some(resize_ref) = opt {
             if i > 0 {
                 if resize_ref.left != 0 {
+                    #[allow(clippy::if_not_else)]
                     let range = if i == 1 {
                         0..1
                     } else if i & 1 != 0 {
@@ -291,7 +282,7 @@ fn recursive_fibonacci(
     idx: usize,
     count: usize,
     area: &Rect,
-    layout_flip: Option<LayoutFlip>,
+    layout_flip: Option<Flip>,
     resize_adjustments: Vec<Option<Rect>>,
 ) -> Vec<Rect> {
     let mut a = *area;
@@ -313,37 +304,37 @@ fn recursive_fibonacci(
 
     let (main_x, alt_x, alt_y, main_y);
 
-    match layout_flip {
-        Some(flip) => match flip {
-            LayoutFlip::Horizontal => {
+    if let Some(flip) = layout_flip {
+        match flip {
+            Flip::Horizontal => {
                 main_x = resized.left + half_width + (half_width - half_resized_width);
                 alt_x = resized.left;
 
                 alt_y = resized.top + half_resized_height;
                 main_y = resized.top;
             }
-            LayoutFlip::Vertical => {
+            Flip::Vertical => {
                 main_y = resized.top + half_height + (half_height - half_resized_height);
                 alt_y = resized.top;
 
                 main_x = resized.left;
                 alt_x = resized.left + half_resized_width;
             }
-            LayoutFlip::HorizontalAndVertical => {
+            Flip::HorizontalAndVertical => {
                 main_x = resized.left + half_width + (half_width - half_resized_width);
                 alt_x = resized.left;
                 main_y = resized.top + half_height + (half_height - half_resized_height);
                 alt_y = resized.top;
             }
-        },
-        None => {
-            main_x = resized.left;
-            alt_x = resized.left + half_resized_width;
-            main_y = resized.top;
-            alt_y = resized.top + half_resized_height;
         }
+    } else {
+        main_x = resized.left;
+        alt_x = resized.left + half_resized_width;
+        main_y = resized.top;
+        alt_y = resized.top + half_resized_height;
     }
 
+    #[allow(clippy::if_not_else)]
     if count == 0 {
         vec![]
     } else if count == 1 {

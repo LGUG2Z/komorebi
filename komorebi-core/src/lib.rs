@@ -1,3 +1,6 @@
+#![warn(clippy::all, clippy::nursery, clippy::pedantic)]
+#![allow(clippy::missing_errors_doc)]
+
 use std::str::FromStr;
 
 use clap::ArgEnum;
@@ -8,8 +11,8 @@ use strum::Display;
 use strum::EnumString;
 
 pub use cycle_direction::CycleDirection;
+pub use layout::Flip;
 pub use layout::Layout;
-pub use layout::LayoutFlip;
 pub use operation_direction::OperationDirection;
 pub use rect::Rect;
 
@@ -39,7 +42,7 @@ pub enum SocketMessage {
     AdjustContainerPadding(Sizing, i32),
     AdjustWorkspacePadding(Sizing, i32),
     ChangeLayout(Layout),
-    FlipLayout(LayoutFlip),
+    FlipLayout(Flip),
     // Monitor and Workspace Commands
     EnsureWorkspaces(usize, usize),
     NewWorkspace,
@@ -99,7 +102,8 @@ pub enum Sizing {
 }
 
 impl Sizing {
-    pub fn adjust_by(&self, value: i32, adjustment: i32) -> i32 {
+    #[must_use]
+    pub const fn adjust_by(&self, value: i32, adjustment: i32) -> i32 {
         match self {
             Sizing::Increase => value + adjustment,
             Sizing::Decrease => {

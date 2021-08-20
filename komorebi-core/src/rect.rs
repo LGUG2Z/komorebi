@@ -12,7 +12,7 @@ pub struct Rect {
 
 impl Default for Rect {
     fn default() -> Self {
-        Rect {
+        Self {
             left: 0,
             top: 0,
             right: 0,
@@ -23,7 +23,7 @@ impl Default for Rect {
 
 impl From<RECT> for Rect {
     fn from(rect: RECT) -> Self {
-        Rect {
+        Self {
             left: rect.left,
             top: rect.top,
             right: rect.right - rect.left,
@@ -42,7 +42,8 @@ impl Rect {
         }
     }
 
-    pub fn contains_point(&self, point: (i32, i32)) -> bool {
+    #[must_use]
+    pub const fn contains_point(&self, point: (i32, i32)) -> bool {
         point.0 >= self.left
             && point.0 <= self.left + self.right
             && point.1 >= self.top
