@@ -20,6 +20,8 @@ jobs:
   build:
     name: Build
     runs-on: windows-latest
+    env:
+      RUSTFLAGS: -Ctarget-feature=+crt-static
     strategy:
       fail-fast: false
       matrix:
