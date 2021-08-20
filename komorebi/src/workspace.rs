@@ -303,7 +303,7 @@ impl Workspace {
 
     pub fn add_container(&mut self, container: Container) {
         self.containers_mut().push_back(container);
-        self.focus_container(self.containers().len() - 1);
+        self.focus_last_container();
     }
 
     fn remove_container_by_idx(&mut self, idx: usize) -> Option<Container> {
@@ -358,9 +358,7 @@ impl Workspace {
             }
         }
 
-        if container_idx != 0 {
-            self.focus_container(container_idx - 1);
-        }
+        self.focus_previous_container();
 
         Ok(())
     }
@@ -368,10 +366,7 @@ impl Workspace {
     pub fn remove_focused_container(&mut self) -> Option<Container> {
         let focused_idx = self.focused_container_idx();
         let container = self.remove_container_by_idx(focused_idx);
-
-        if focused_idx != 0 {
-            self.focus_container(focused_idx - 1);
-        }
+        self.focus_previous_container();
 
         container
     }
@@ -560,10 +555,7 @@ impl Workspace {
 
         self.set_monocle_container(Option::from(container));
         self.set_monocle_container_restore_idx(Option::from(focused_idx));
-
-        if focused_idx != 0 {
-            self.focus_container(focused_idx - 1);
-        }
+        self.focus_previous_container();
 
         self.monocle_container_mut()
             .as_mut()
@@ -626,9 +618,7 @@ impl Workspace {
             window.maximize();
         }
 
-        if focused_idx != 0 {
-            self.focus_container(focused_idx - 1);
-        }
+        self.focus_previous_container();
 
         Ok(())
     }
@@ -715,5 +705,17 @@ impl Workspace {
         }
 
         vec
+    }
+
+    fn focus_previous_container(&mut self) {
+        let focused_idx = self.focused_container_idx();
+
+        if focused_idx != 0 {
+            self.focus_container(focused_idx - 1);
+        }
+    }
+
+    fn focus_last_container(&mut self) {
+        self.focus_container(self.containers().len() - 1);
     }
 }
