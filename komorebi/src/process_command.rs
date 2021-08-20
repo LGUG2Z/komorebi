@@ -16,9 +16,7 @@ use komorebi_core::SocketMessage;
 use crate::window_manager;
 use crate::window_manager::WindowManager;
 use crate::windows_api::WindowsApi;
-use crate::FLOAT_CLASSES;
-use crate::FLOAT_EXES;
-use crate::FLOAT_TITLES;
+use crate::FLOAT_IDENTIFIERS;
 use crate::MANAGE_IDENTIFIERS;
 use crate::TRAY_AND_MULTI_WINDOW_CLASSES;
 use crate::TRAY_AND_MULTI_WINDOW_EXES;
@@ -52,18 +50,7 @@ pub fn listen_for_commands(wm: Arc<Mutex<WindowManager>>) {
 impl WindowManager {
     #[tracing::instrument(skip(self))]
     pub fn process_command(&mut self, message: SocketMessage) -> Result<()> {
-        let virtual_desktop_id = winvd::helpers::get_current_desktop_number().ok();
-        if let (Some(id), Some(virtual_desktop_id)) = (virtual_desktop_id, self.virtual_desktop_id)
-        {
-            if id != virtual_desktop_id {
-                tracing::warn!(
-                    "ignoring events while not on virtual desktop {:?}",
-                    virtual_desktop_id
-                );
-
-                return Ok(());
-            }
-        }
+        self.validate_virtual_desktop_id();
 
         match message {
             SocketMessage::Promote => self.promote_container_to_front()?,
@@ -87,24 +74,6 @@ impl WindowManager {
             SocketMessage::WorkspacePadding(monitor_idx, workspace_idx, size) => {
                 self.set_workspace_padding(monitor_idx, workspace_idx, size)?;
             }
-            SocketMessage::FloatClass(target) => {
-                let mut float_classes = FLOAT_CLASSES.lock();
-                if !float_classes.contains(&target) {
-                    float_classes.push(target);
-                }
-            }
-            SocketMessage::FloatExe(target) => {
-                let mut float_exes = FLOAT_EXES.lock();
-                if !float_exes.contains(&target) {
-                    float_exes.push(target);
-                }
-            }
-            SocketMessage::FloatTitle(target) => {
-                let mut float_titles = FLOAT_TITLES.lock();
-                if !float_titles.contains(&target) {
-                    float_titles.push(target);
-                }
-            }
             SocketMessage::WorkspaceRule(identifier, id, monitor_idx, workspace_idx) => {
                 match identifier {
                     ApplicationIdentifier::Exe | ApplicationIdentifier::Class => {
@@ -120,17 +89,19 @@ impl WindowManager {
             }
             SocketMessage::ManageRule(identifier, id) => match identifier {
                 ApplicationIdentifier::Exe | ApplicationIdentifier::Class => {
-                    {
-                        let mut manage_identifiers = MANAGE_IDENTIFIERS.lock();
-                        if !manage_identifiers.contains(&id) {
-                            manage_identifiers.push(id);
-                        }
+                    let mut manage_identifiers = MANAGE_IDENTIFIERS.lock();
+                    if !manage_identifiers.contains(&id) {
+                        manage_identifiers.push(id);
                     }
-
-                    self.update_focused_workspace(false)?;
                 }
                 ApplicationIdentifier::Title => {}
             },
+            SocketMessage::FloatRule(_, id) => {
+                let mut float_identifiers = FLOAT_IDENTIFIERS.lock();
+                if !float_identifiers.contains(&id) {
+                    float_identifiers.push(id);
+                }
+            }
             SocketMessage::AdjustContainerPadding(sizing, adjustment) => {
                 self.adjust_container_padding(sizing, adjustment)?;
             }

@@ -57,10 +57,8 @@ pub enum SocketMessage {
     // Configuration
     ReloadConfiguration,
     WatchConfiguration(bool),
-    FloatClass(String),
-    FloatExe(String),
-    FloatTitle(String),
     WorkspaceRule(ApplicationIdentifier, String, usize, usize),
+    FloatRule(ApplicationIdentifier, String),
     ManageRule(ApplicationIdentifier, String),
     IdentifyTrayApplication(ApplicationIdentifier, String),
     State,

@@ -424,17 +424,9 @@ fn main() -> Result<()> {
         SubCommand::Stop => {
             send_message(&*SocketMessage::Stop.as_bytes()?)?;
         }
-        SubCommand::FloatRule(arg) => match arg.identifier {
-            ApplicationIdentifier::Exe => {
-                send_message(&*SocketMessage::FloatExe(arg.id).as_bytes()?)?;
-            }
-            ApplicationIdentifier::Class => {
-                send_message(&*SocketMessage::FloatClass(arg.id).as_bytes()?)?;
-            }
-            ApplicationIdentifier::Title => {
-                send_message(&*SocketMessage::FloatTitle(arg.id).as_bytes()?)?;
-            }
-        },
+        SubCommand::FloatRule(arg) => {
+            send_message(&*SocketMessage::FloatRule(arg.identifier, arg.id).as_bytes()?)?;
+        }
         SubCommand::ManageRule(arg) => {
             send_message(&*SocketMessage::ManageRule(arg.identifier, arg.id).as_bytes()?)?;
         }

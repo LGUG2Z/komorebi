@@ -15,9 +15,7 @@ use crate::styles::GwlExStyle;
 use crate::styles::GwlStyle;
 use crate::window_manager_event::WindowManagerEvent;
 use crate::windows_api::WindowsApi;
-use crate::FLOAT_CLASSES;
-use crate::FLOAT_EXES;
-use crate::FLOAT_TITLES;
+use crate::FLOAT_IDENTIFIERS;
 use crate::HIDDEN_HWNDS;
 use crate::LAYERED_EXE_WHITELIST;
 use crate::MANAGE_IDENTIFIERS;
@@ -220,10 +218,6 @@ impl Window {
 
     #[tracing::instrument(fields(exe, title))]
     pub fn should_manage(self, event: Option<WindowManagerEvent>) -> Result<bool> {
-        let float_classes = FLOAT_CLASSES.lock();
-        let float_exes = FLOAT_EXES.lock();
-        let float_titles = FLOAT_TITLES.lock();
-
         if self.title().is_err() {
             return Ok(false);
         }
@@ -241,21 +235,24 @@ impl Window {
             // If not allowing cloaked windows, we need to ensure the window is not cloaked
             (false, false) => {
                 if let (Ok(title), Ok(exe_name), Ok(class)) = (self.title(), self.exe(), self.class()) {
-                    if float_titles.contains(&title) {
-                        return Ok(false);
-                    }
-
-                    if float_exes.contains(&exe_name) {
-                        return Ok(false);
-                    }
-
-                    if let Ok(class) = self.class() {
-                        if float_classes.contains(&class) {
+                    {
+                        let float_identifiers = FLOAT_IDENTIFIERS.lock();
+                        if float_identifiers.contains(&title)
+                            || float_identifiers.contains(&exe_name)
+                            || float_identifiers.contains(&class) {
                             return Ok(false);
                         }
                     }
 
-                    let allow_layered = LAYERED_EXE_WHITELIST.lock().contains(&exe_name);
+                    let managed_override = {
+                        let manage_identifiers = MANAGE_IDENTIFIERS.lock();
+                        manage_identifiers.contains(&exe_name) || manage_identifiers.contains(&class)
+                    };
+
+                    let allow_layered = {
+                        let layered_exe_whitelist = LAYERED_EXE_WHITELIST.lock();
+                        layered_exe_whitelist.contains(&exe_name)
+                    };
 
                     let style = self.style()?;
                     let ex_style = self.ex_style()?;
@@ -268,21 +265,17 @@ impl Window {
                         // allowing a specific layered window on the whitelist (like Steam), it should
                         // pass this check
                         && (allow_layered || !ex_style.contains(GwlExStyle::LAYERED))
-                        || MANAGE_IDENTIFIERS.lock().contains(&exe_name) || MANAGE_IDENTIFIERS.lock().contains(&class)
+                        || managed_override
                     {
-                        Ok(true)
-                    } else {
-                        if event.is_some() {
-                            tracing::debug!("ignoring (exe: {}, title: {})", exe_name, title);
-                        }
-
-                        Ok(false)
+                        return Ok(true)
+                    } else if event.is_some() {
+                        tracing::debug!("ignoring (exe: {}, title: {})", exe_name, title);
                     }
-                } else {
-                    Ok(false)
                 }
             }
-            _ => Ok(false),
+            _ => {}
         }
+
+        Ok(false)
     }
 }

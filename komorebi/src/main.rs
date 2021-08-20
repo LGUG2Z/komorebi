@@ -48,9 +48,6 @@ mod winevent_listener;
 mod workspace;
 
 lazy_static! {
-    static ref FLOAT_CLASSES: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(vec![]));
-    static ref FLOAT_EXES: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(vec![]));
-    static ref FLOAT_TITLES: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(vec![]));
     static ref HIDDEN_HWNDS: Arc<Mutex<Vec<isize>>> = Arc::new(Mutex::new(vec![]));
     static ref LAYERED_EXE_WHITELIST: Arc<Mutex<Vec<String>>> =
         Arc::new(Mutex::new(vec!["steam.exe".to_string()]));
@@ -71,6 +68,7 @@ lazy_static! {
     static ref WORKSPACE_RULES: Arc<Mutex<HashMap<String, (usize, usize)>>> =
         Arc::new(Mutex::new(HashMap::new()));
     static ref MANAGE_IDENTIFIERS: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(vec![]));
+    static ref FLOAT_IDENTIFIERS: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(vec![]));
 }
 
 fn setup() -> Result<(WorkerGuard, WorkerGuard)> {
