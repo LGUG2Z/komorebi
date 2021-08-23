@@ -2,6 +2,7 @@
 
 members = [
     "bindings",
+    "derive-ahk",
     "komorebi",
     "komorebi-core",
     "komorebic"

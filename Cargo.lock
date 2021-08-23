@@ -258,6 +258,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "derive-ahk"
+version = "0.1.0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
 name = "dirs"
 version = "3.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -544,8 +553,10 @@ dependencies = [
  "bindings",
  "clap",
  "color-eyre",
+ "derive-ahk",
  "dirs",
  "fs-tail",
+ "heck",
  "komorebi-core",
  "paste",
  "powershell_script",

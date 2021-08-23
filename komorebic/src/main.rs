@@ -2,12 +2,14 @@
 #![allow(clippy::missing_errors_doc)]
 
 use std::fs::File;
+use std::fs::OpenOptions;
 use std::io::BufRead;
 use std::io::BufReader;
 use std::io::ErrorKind;
 use std::io::Write;
 use std::path::PathBuf;
 use std::process::Command;
+use std::stringify;
 
 use clap::AppSettings;
 use clap::ArgEnum;
@@ -15,6 +17,7 @@ use clap::Clap;
 use color_eyre::eyre::ContextCompat;
 use color_eyre::Result;
 use fs_tail::TailedFile;
+use heck::KebabCase;
 use paste::paste;
 use uds_windows::UnixListener;
 use uds_windows::UnixStream;
@@ -23,6 +26,7 @@ use bindings::Windows::Win32::Foundation::HWND;
 use bindings::Windows::Win32::UI::WindowsAndMessaging::ShowWindow;
 use bindings::Windows::Win32::UI::WindowsAndMessaging::SHOW_WINDOW_CMD;
 use bindings::Windows::Win32::UI::WindowsAndMessaging::SW_RESTORE;
+use derive_ahk::Ahk;
 use komorebi_core::ApplicationIdentifier;
 use komorebi_core::CycleDirection;
 use komorebi_core::Flip;
@@ -51,7 +55,7 @@ macro_rules! gen_enum_subcommand_args {
     ( $( $name:ident: $element:ty ),+ ) => {
         $(
             paste! {
-                #[derive(clap::Clap)]
+                #[derive(clap::Clap, derive_ahk::Ahk)]
                 pub struct $name {
                     #[clap(arg_enum)]
                     [<$element:snake>]: $element
@@ -67,7 +71,7 @@ gen_enum_subcommand_args! {
     Stack: OperationDirection,
     CycleStack: CycleDirection,
     FlipLayout: Flip,
-    SetLayout: Layout,
+    ChangeLayout: Layout,
     WatchConfiguration: BooleanState,
     FocusFollowsMouse: BooleanState
 }
@@ -76,7 +80,7 @@ macro_rules! gen_target_subcommand_args {
     // SubCommand Pattern
     ( $( $name:ident ),+ ) => {
         $(
-            #[derive(clap::Clap)]
+            #[derive(clap::Clap, derive_ahk::Ahk)]
             pub struct $name {
                 /// Target index (zero-indexed)
                 target: usize,
@@ -100,7 +104,7 @@ macro_rules! gen_workspace_subcommand_args {
     ( $( $name:ident: $(#[enum] $(@$arg_enum:tt)?)? $value:ty ),+ ) => (
         paste! {
             $(
-                #[derive(clap::Clap)]
+                #[derive(clap::Clap, derive_ahk::Ahk)]
                 pub struct [<Workspace $name>] {
                     /// Monitor index (zero-indexed)
                     monitor: usize,
@@ -126,7 +130,7 @@ gen_workspace_subcommand_args! {
     Tiling: #[enum] BooleanState
 }
 
-#[derive(Clap)]
+#[derive(Clap, Ahk)]
 struct Resize {
     #[clap(arg_enum)]
     edge: OperationDirection,
@@ -134,7 +138,7 @@ struct Resize {
     sizing: Sizing,
 }
 
-#[derive(Clap)]
+#[derive(Clap, Ahk)]
 struct EnsureWorkspaces {
     /// Monitor index (zero-indexed)
     monitor: usize,
@@ -142,33 +146,70 @@ struct EnsureWorkspaces {
     workspace_count: usize,
 }
 
-#[derive(Clap)]
-struct Padding {
-    /// Monitor index (zero-indexed)
-    monitor: usize,
-    /// Workspace index on the specified monitor (zero-indexed)
-    workspace: usize,
-    /// Pixels to pad with as an integer
-    size: i32,
+macro_rules! gen_padding_subcommand_args {
+    // SubCommand Pattern
+    ( $( $name:ident ),+ ) => {
+        $(
+            #[derive(clap::Clap, derive_ahk::Ahk)]
+            pub struct $name {
+                /// Monitor index (zero-indexed)
+                monitor: usize,
+                /// Workspace index on the specified monitor (zero-indexed)
+                workspace: usize,
+                /// Pixels to pad with as an integer
+                size: i32,
+            }
+        )+
+    };
 }
 
-#[derive(Clap)]
-struct PaddingAdjustment {
-    #[clap(arg_enum)]
-    sizing: Sizing,
-    /// Pixels to adjust by as an integer
-    adjustment: i32,
+gen_padding_subcommand_args! {
+    ContainerPadding,
+    WorkspacePadding
 }
 
-#[derive(Clap)]
-struct ApplicationTarget {
-    #[clap(arg_enum)]
-    identifier: ApplicationIdentifier,
-    /// Identifier as a string
-    id: String,
+macro_rules! gen_padding_adjustment_subcommand_args {
+    // SubCommand Pattern
+    ( $( $name:ident ),+ ) => {
+        $(
+            #[derive(clap::Clap, derive_ahk::Ahk)]
+            pub struct $name {
+                #[clap(arg_enum)]
+                sizing: Sizing,
+                /// Pixels to adjust by as an integer
+                adjustment: i32,
+            }
+        )+
+    };
 }
 
-#[derive(Clap)]
+gen_padding_adjustment_subcommand_args! {
+    AdjustContainerPadding,
+    AdjustWorkspacePadding
+}
+
+macro_rules! gen_application_target_subcommand_args {
+    // SubCommand Pattern
+    ( $( $name:ident ),+ ) => {
+        $(
+            #[derive(clap::Clap, derive_ahk::Ahk)]
+            pub struct $name {
+                #[clap(arg_enum)]
+                identifier: ApplicationIdentifier,
+                /// Identifier as a string
+                id: String,
+            }
+        )+
+    };
+}
+
+gen_application_target_subcommand_args! {
+    FloatRule,
+    ManageRule,
+    IdentifyTrayApplication
+}
+
+#[derive(Clap, Ahk)]
 struct WorkspaceRule {
     #[clap(arg_enum)]
     identifier: ApplicationIdentifier,
@@ -187,7 +228,7 @@ struct Opts {
     subcmd: SubCommand,
 }
 
-#[derive(Clap)]
+#[derive(Clap, Ahk)]
 enum SubCommand {
     /// Start komorebi.exe as a background process
     Start,
@@ -230,12 +271,12 @@ enum SubCommand {
     NewWorkspace,
     /// Adjust container padding on the focused workspace
     #[clap(setting = AppSettings::ArgRequiredElseHelp)]
-    AdjustContainerPadding(PaddingAdjustment),
+    AdjustContainerPadding(AdjustContainerPadding),
     /// Adjust workspace padding on the focused workspace
     #[clap(setting = AppSettings::ArgRequiredElseHelp)]
-    AdjustWorkspacePadding(PaddingAdjustment),
+    AdjustWorkspacePadding(AdjustWorkspacePadding),
     /// Set the layout on the focused workspace
-    ChangeLayout(SetLayout),
+    ChangeLayout(ChangeLayout),
     /// Flip the layout on the focused workspace (BSP only)
     FlipLayout(FlipLayout),
     /// Promote the focused window to the top of the tree
@@ -247,10 +288,10 @@ enum SubCommand {
     EnsureWorkspaces(EnsureWorkspaces),
     /// Set the container padding for the specified workspace
     #[clap(setting = AppSettings::ArgRequiredElseHelp)]
-    ContainerPadding(Padding),
+    ContainerPadding(ContainerPadding),
     /// Set the workspace padding for the specified workspace
     #[clap(setting = AppSettings::ArgRequiredElseHelp)]
-    WorkspacePadding(Padding),
+    WorkspacePadding(WorkspacePadding),
     /// Set the layout for the specified workspace
     #[clap(setting = AppSettings::ArgRequiredElseHelp)]
     WorkspaceLayout(WorkspaceLayout),
@@ -283,18 +324,20 @@ enum SubCommand {
     WatchConfiguration(WatchConfiguration),
     /// Add a rule to always float the specified application
     #[clap(setting = AppSettings::ArgRequiredElseHelp)]
-    FloatRule(ApplicationTarget),
+    FloatRule(FloatRule),
     /// Add a rule to always manage the specified application
     #[clap(setting = AppSettings::ArgRequiredElseHelp)]
-    ManageRule(ApplicationTarget),
+    ManageRule(ManageRule),
     /// Add a rule to associate an application with a workspace
     #[clap(setting = AppSettings::ArgRequiredElseHelp)]
     WorkspaceRule(WorkspaceRule),
     /// Identify an application that closes to the system tray
     #[clap(setting = AppSettings::ArgRequiredElseHelp)]
-    IdentifyTrayApplication(ApplicationTarget),
+    IdentifyTrayApplication(IdentifyTrayApplication),
     /// Enable or disable focus follows mouse for the operating system
     FocusFollowsMouse(FocusFollowsMouse),
+    /// Generate a library of AutoHotKey helper functions
+    AhkLib,
 }
 
 pub fn send_message(bytes: &[u8]) -> Result<()> {
@@ -311,6 +354,31 @@ fn main() -> Result<()> {
     let opts: Opts = Opts::parse();
 
     match opts.subcmd {
+        SubCommand::AhkLib => {
+            let mut library = dirs::home_dir().context("there is no home directory")?;
+            library.push("komorebic.lib.ahk");
+            let mut file = OpenOptions::new()
+                .write(true)
+                .create(true)
+                .truncate(true)
+                .open(library.clone())?;
+
+            let library_text: String = SubCommand::ahk_functions().join("\n");
+            file.write_all(library_text.as_bytes())?;
+
+            println!(
+                "\nAHK helper library for komorebic written to {}",
+                library
+                    .to_str()
+                    .context("could not find the path to the generated ahk lib file")?
+            );
+
+            println!(
+                "\nYou can include the library at the top of your ~/komorebi.ahk config with this line:"
+            );
+
+            println!("\n#Include %A_ScriptDir%\\komorebic.lib.ahk");
+        }
         SubCommand::Log => {
             let mut color_log = std::env::temp_dir();
             color_log.push("komorebi.log");

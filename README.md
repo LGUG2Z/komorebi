@@ -213,8 +213,15 @@ manage-rule                  Add a rule to always manage the specified applicati
 workspace-rule               Add a rule to associate an application with a workspace
 identify-tray-application    Identify an application that closes to the system tray
 focus-follows-mouse          Enable or disable focus follows mouse for the operating system
+ahk-lib                      Generate a library of AutoHotKey helper functions
 help                         Print this message or the help of the given subcommand(s)
 ```
+
+Additionally, you may run `komorebic.exe ahk-lib` to generate [a helper library for AutoHotKey](komorebic.lib.sample.ahk)
+which wraps every `komorebic` command in a native AHK function.
+
+If you include the generated library at the top of your `~/komorebi.ahk` configuration file, you will be able to call
+any of the functions that it contains.
 
 ## Features
 
@@ -248,6 +255,7 @@ help                         Print this message or the help of the given subcomm
 - [x] Load configuration on startup
 - [x] Manually reload configuration
 - [x] Watch configuration for changes
+- [x] Helper library for AutoHotKey
 - [x] View window manager state
 
 ## Development
