@@ -66,6 +66,7 @@ pub enum SocketMessage {
     IdentifyTrayApplication(ApplicationIdentifier, String),
     State,
     FocusFollowsMouse(bool),
+    ToggleFocusFollowsMouse,
 }
 
 impl SocketMessage {

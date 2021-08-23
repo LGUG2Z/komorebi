@@ -67,6 +67,7 @@ use bindings::Windows::Win32::UI::WindowsAndMessaging::HWND_TOPMOST;
 use bindings::Windows::Win32::UI::WindowsAndMessaging::SET_WINDOW_POS_FLAGS;
 use bindings::Windows::Win32::UI::WindowsAndMessaging::SHOW_WINDOW_CMD;
 use bindings::Windows::Win32::UI::WindowsAndMessaging::SPIF_SENDCHANGE;
+use bindings::Windows::Win32::UI::WindowsAndMessaging::SPI_GETACTIVEWINDOWTRACKING;
 use bindings::Windows::Win32::UI::WindowsAndMessaging::SPI_SETACTIVEWINDOWTRACKING;
 use bindings::Windows::Win32::UI::WindowsAndMessaging::SW_HIDE;
 use bindings::Windows::Win32::UI::WindowsAndMessaging::SW_MAXIMIZE;
@@ -555,6 +556,19 @@ impl WindowsApi {
         Result::from(WindowsResult::from(unsafe {
             SystemParametersInfoW(action, ui_param, pv_param, update_flags)
         }))
+    }
+
+    pub fn focus_follows_mouse() -> Result<bool> {
+        let mut is_enabled: BOOL = unsafe { std::mem::zeroed() };
+
+        Self::system_parameters_info_w(
+            SPI_GETACTIVEWINDOWTRACKING,
+            0,
+            (&mut is_enabled as *mut BOOL).cast(),
+            SPIF_SENDCHANGE,
+        )?;
+
+        Ok(is_enabled.into())
     }
 
     pub fn enable_focus_follows_mouse() -> Result<()> {

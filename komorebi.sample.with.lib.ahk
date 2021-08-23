@@ -4,9 +4,6 @@
 ; Enable hot reloading of changes to this file
 WatchConfiguration("enable")
 
-; Enable focus follows mouse
-FocusFollowsMouse("enable")
-
 ; Ensure there are 5 workspaces created on monitor 0
 EnsureWorkspaces(0, 5)
 
@@ -40,6 +37,9 @@ FloatRule("exe", "Wally.exe")
 FloatRule("exe", "wincompose.exe")
 FloatRule("exe", "1Password.exe")
 FloatRule("exe", "Wox.exe")
+
+; Identify Minimize-to-Tray Applications
+IdentifyTrayApplication("exe", "Discord.exe")
 
 ; Change the focused window, Alt + Vim direction keys
 !h::
@@ -168,6 +168,11 @@ return
 ; Pause responding to any window events or komorebic commands, Alt + P
 !p::
 TogglePause()
+return
+
+; Toggle focus follows mouse
+!0::
+ToggleFocusFollowsMouse()
 return
 
 ; Switch to workspace

@@ -328,7 +328,7 @@ enum SubCommand {
     Unmanage,
     /// Reload ~/komorebi.ahk (if it exists)
     ReloadConfiguration,
-    /// Toggle the automatic reloading of ~/komorebi.ahk (if it exists)
+    /// Enable or disable watching of ~/komorebi.ahk (if it exists)
     #[clap(setting = AppSettings::ArgRequiredElseHelp)]
     WatchConfiguration(WatchConfiguration),
     /// Add a rule to always float the specified application
@@ -345,6 +345,8 @@ enum SubCommand {
     IdentifyTrayApplication(IdentifyTrayApplication),
     /// Enable or disable focus follows mouse for the operating system
     FocusFollowsMouse(FocusFollowsMouse),
+    /// Toggle focus follows mouse for the operating system
+    ToggleFocusFollowsMouse,
     /// Generate a library of AutoHotKey helper functions
     AhkLibrary,
 }
@@ -438,6 +440,9 @@ fn main() -> Result<()> {
             send_message(
                 &*SocketMessage::AdjustContainerPadding(arg.sizing, arg.adjustment).as_bytes()?,
             )?;
+        }
+        SubCommand::ToggleFocusFollowsMouse => {
+            send_message(&*SocketMessage::ToggleFocusFollowsMouse.as_bytes()?)?;
         }
         SubCommand::ToggleTiling => {
             send_message(&*SocketMessage::ToggleTiling.as_bytes()?)?;

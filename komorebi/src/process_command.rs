@@ -179,6 +179,13 @@ impl WindowManager {
                     WindowsApi::disable_focus_follows_mouse()?;
                 }
             }
+            SocketMessage::ToggleFocusFollowsMouse => {
+                if WindowsApi::focus_follows_mouse()? {
+                    WindowsApi::disable_focus_follows_mouse()?;
+                } else {
+                    WindowsApi::enable_focus_follows_mouse()?;
+                }
+            }
             SocketMessage::ReloadConfiguration => {
                 Self::reload_configuration();
             }

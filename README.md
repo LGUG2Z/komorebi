@@ -171,50 +171,51 @@ keybindings with. You can run `komorebic.exe <COMMAND> --help` to get a full exp
 each command.
 
 ```
-start                        Start komorebi.exe as a background process
-stop                         Stop the komorebi.exe process and restore all hidden windows
-state                        Show a JSON representation of the current window manager state
-log                          Tail komorebi.exe's process logs (cancel with Ctrl-C)
-focus                        Change focus to the window in the specified direction
-move                         Move the focused window in the specified direction
-stack                        Stack the focused window in the specified direction
-resize                       Resize the focused window in the specified direction
-unstack                      Unstack the focused window
-cycle-stack                  Cycle the focused stack in the specified cycle direction
-move-to-monitor              Move the focused window to the specified monitor
-move-to-workspace            Move the focused window to the specified workspace
-focus-monitor                Focus the specified monitor
-focus-workspace              Focus the specified workspace on the focused monitor
-new-workspace                Create and append a new workspace on the focused monitor
-adjust-container-padding     Adjust container padding on the focused workspace
-adjust-workspace-padding     Adjust workspace padding on the focused workspace
-change-layout                Set the layout on the focused workspace
-flip-layout                  Flip the layout on the focused workspace (BSP only)
-promote                      Promote the focused window to the top of the tree
-retile                       Force the retiling of all managed windows
-ensure-workspaces            Create at least this many workspaces for the specified monitor
-container-padding            Set the container padding for the specified workspace
-workspace-padding            Set the workspace padding for the specified workspace
-workspace-layout             Set the layout for the specified workspace
-workspace-tiling             Enable or disable window tiling for the specified workspace
-workspace-name               Set the workspace name for the specified workspace
-toggle-pause                 Toggle the window manager on and off across all monitors
-toggle-tiling                Toggle window tiling on the focused workspace
-toggle-float                 Toggle floating mode for the focused window
-toggle-monocle               Toggle monocle mode for the focused container
-toggle-maximize              Toggle native maximization for the focused window
-restore-windows              Restore all hidden windows (debugging command)
-manage                       Force komorebi to manage the focused window
-unmanage                     Unmanage a window that was forcibly managed
-reload-configuration         Reload ~/komorebi.ahk (if it exists)
-watch-configuration          Toggle the automatic reloading of ~/komorebi.ahk (if it exists)
-float-rule                   Add a rule to always float the specified application
-manage-rule                  Add a rule to always manage the specified application
-workspace-rule               Add a rule to associate an application with a workspace
-identify-tray-application    Identify an application that closes to the system tray
-focus-follows-mouse          Enable or disable focus follows mouse for the operating system
-ahk-library                  Generate a library of AutoHotKey helper functions
-help                         Print this message or the help of the given subcommand(s)
+start                         Start komorebi.exe as a background process
+stop                          Stop the komorebi.exe process and restore all hidden windows
+state                         Show a JSON representation of the current window manager state
+log                           Tail komorebi.exe's process logs (cancel with Ctrl-C)
+focus                         Change focus to the window in the specified direction
+move                          Move the focused window in the specified direction
+stack                         Stack the focused window in the specified direction
+resize                        Resize the focused window in the specified direction
+unstack                       Unstack the focused window
+cycle-stack                   Cycle the focused stack in the specified cycle direction
+move-to-monitor               Move the focused window to the specified monitor
+move-to-workspace             Move the focused window to the specified workspace
+focus-monitor                 Focus the specified monitor
+focus-workspace               Focus the specified workspace on the focused monitor
+new-workspace                 Create and append a new workspace on the focused monitor
+adjust-container-padding      Adjust container padding on the focused workspace
+adjust-workspace-padding      Adjust workspace padding on the focused workspace
+change-layout                 Set the layout on the focused workspace
+flip-layout                   Flip the layout on the focused workspace (BSP only)
+promote                       Promote the focused window to the top of the tree
+retile                        Force the retiling of all managed windows
+ensure-workspaces             Create at least this many workspaces for the specified monitor
+container-padding             Set the container padding for the specified workspace
+workspace-padding             Set the workspace padding for the specified workspace
+workspace-layout              Set the layout for the specified workspace
+workspace-tiling              Enable or disable window tiling for the specified workspace
+workspace-name                Set the workspace name for the specified workspace
+toggle-pause                  Toggle the window manager on and off across all monitors
+toggle-tiling                 Toggle window tiling on the focused workspace
+toggle-float                  Toggle floating mode for the focused window
+toggle-monocle                Toggle monocle mode for the focused container
+toggle-maximize               Toggle native maximization for the focused window
+restore-windows               Restore all hidden windows (debugging command)
+manage                        Force komorebi to manage the focused window
+unmanage                      Unmanage a window that was forcibly managed
+reload-configuration          Reload ~/komorebi.ahk (if it exists)
+watch-configuration           Enable or disable watching of ~/komorebi.ahk (if it exists)
+float-rule                    Add a rule to always float the specified application
+manage-rule                   Add a rule to always manage the specified application
+workspace-rule                Add a rule to associate an application with a workspace
+identify-tray-application     Identify an application that closes to the system tray
+focus-follows-mouse           Enable or disable focus follows mouse for the operating system
+toggle-focus-follows-mouse    Toggle focus follows mouse for the operating system
+ahk-library                   Generate a library of AutoHotKey helper functions
+help                          Print this message or the help of the given subcommand(s)
 ```
 
 ### AutoHotKey Helper Library for `komorebic`
