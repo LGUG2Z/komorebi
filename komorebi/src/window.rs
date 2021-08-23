@@ -2,7 +2,7 @@ use std::convert::TryFrom;
 use std::fmt::Display;
 use std::fmt::Formatter;
 
-use color_eyre::eyre::ContextCompat;
+use color_eyre::eyre::anyhow;
 use color_eyre::Result;
 use serde::ser::SerializeStruct;
 use serde::Serialize;
@@ -187,12 +187,12 @@ impl Window {
 
     pub fn style(self) -> Result<GwlStyle> {
         let bits = u32::try_from(WindowsApi::gwl_style(self.hwnd())?)?;
-        GwlStyle::from_bits(bits).context("there is no gwl style")
+        GwlStyle::from_bits(bits).ok_or_else(|| anyhow!("there is no gwl style"))
     }
 
     pub fn ex_style(self) -> Result<GwlExStyle> {
         let bits = u32::try_from(WindowsApi::gwl_ex_style(self.hwnd())?)?;
-        GwlExStyle::from_bits(bits).context("there is no gwl style")
+        GwlExStyle::from_bits(bits).ok_or_else(|| anyhow!("there is no gwl style"))
     }
 
     pub fn title(self) -> Result<String> {

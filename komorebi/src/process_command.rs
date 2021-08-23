@@ -5,7 +5,7 @@ use std::str::FromStr;
 use std::sync::Arc;
 use std::thread;
 
-use color_eyre::eyre::ContextCompat;
+use color_eyre::eyre::anyhow;
 use color_eyre::Result;
 use parking_lot::Mutex;
 use uds_windows::UnixStream;
@@ -122,7 +122,7 @@ impl WindowManager {
                     let work_area = *monitor.work_area_size();
                     let workspace = monitor
                         .focused_workspace_mut()
-                        .context("there is no workspace")?;
+                        .ok_or_else(|| anyhow!("there is no workspace"))?;
 
                     // Reset any resize adjustments if we want to force a retile
                     for resize in workspace.resize_dimensions_mut() {
@@ -161,7 +161,8 @@ impl WindowManager {
             }
             SocketMessage::State => {
                 let state = serde_json::to_string_pretty(&window_manager::State::from(self))?;
-                let mut socket = dirs::home_dir().context("there is no home directory")?;
+                let mut socket =
+                    dirs::home_dir().ok_or_else(|| anyhow!("there is no home directory"))?;
                 socket.push("komorebic.sock");
                 let socket = socket.as_path();
 

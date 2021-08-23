@@ -514,7 +514,6 @@ dependencies = [
  "crossbeam-utils",
  "ctrlc",
  "dirs",
- "eyre",
  "getset",
  "hotwatch",
  "komorebi-core",
@@ -1177,9 +1176,9 @@ dependencies = [
 
 [[package]]
 name = "sysinfo"
-version = "0.20.0"
+version = "0.20.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0af066e6272f2175c1783cfc2ebf3e2d8dfe2c182b00677fdeccbf8291af83fb"
+checksum = "4786f320388e6031aa78c68455553f4e3425deeeb40565fecba3d101c1faf21f"
 dependencies = [
  "cfg-if 1.0.0",
  "core-foundation-sys",

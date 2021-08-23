@@ -3,9 +3,9 @@ use std::convert::TryFrom;
 use std::convert::TryInto;
 use std::ffi::c_void;
 
-use color_eyre::eyre::ContextCompat;
+use color_eyre::eyre::anyhow;
+use color_eyre::eyre::Error;
 use color_eyre::Result;
-use eyre::Error;
 
 use bindings::Windows::Win32::Foundation::BOOL;
 use bindings::Windows::Win32::Foundation::HANDLE;
@@ -314,7 +314,7 @@ impl WindowsApi {
             next_hwnd = Self::next_window(HWND(next_hwnd))?;
         }
 
-        Err(eyre::anyhow!("could not find next window"))
+        Err(anyhow!("could not find next window"))
     }
 
     pub fn window_rect(hwnd: HWND) -> Result<Rect> {
@@ -463,7 +463,7 @@ impl WindowsApi {
         Ok(Self::exe_path(handle)?
             .split('\\')
             .last()
-            .context("there is no last element")?
+            .ok_or_else(|| anyhow!("there is no last element"))?
             .to_string())
     }
 

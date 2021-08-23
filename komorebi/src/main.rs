@@ -9,7 +9,7 @@ use std::thread;
 #[cfg(feature = "deadlock_detection")]
 use std::time::Duration;
 
-use color_eyre::eyre::ContextCompat;
+use color_eyre::eyre::anyhow;
 use color_eyre::Result;
 use crossbeam_channel::Receiver;
 use crossbeam_channel::Sender;
@@ -82,7 +82,7 @@ fn setup() -> Result<(WorkerGuard, WorkerGuard)> {
         std::env::set_var("RUST_LOG", "info");
     }
 
-    let home = dirs::home_dir().context("there is no home directory")?;
+    let home = dirs::home_dir().ok_or_else(|| anyhow!("there is no home directory"))?;
     let appender = tracing_appender::rolling::never(home, "komorebi.log");
     let color_appender = tracing_appender::rolling::never(std::env::temp_dir(), "komorebi.log");
     let (non_blocking, guard) = tracing_appender::non_blocking(appender);
@@ -133,7 +133,7 @@ fn setup() -> Result<(WorkerGuard, WorkerGuard)> {
 }
 
 pub fn load_configuration() -> Result<()> {
-    let home = dirs::home_dir().context("there is no home directory")?;
+    let home = dirs::home_dir().ok_or_else(|| anyhow!("there is no home directory"))?;
 
     let mut config_v1 = home.clone();
     config_v1.push("komorebi.ahk");
@@ -147,7 +147,7 @@ pub fn load_configuration() -> Result<()> {
             config_v1
                 .as_os_str()
                 .to_str()
-                .context("cannot convert path to string")?
+                .ok_or_else(|| anyhow!("cannot convert path to string"))?
         );
 
         Command::new("autohotkey.exe")
@@ -159,7 +159,7 @@ pub fn load_configuration() -> Result<()> {
             config_v2
                 .as_os_str()
                 .to_str()
-                .context("cannot convert path to string")?
+                .ok_or_else(|| anyhow!("cannot convert path to string"))?
         );
 
         Command::new("AutoHotkey64.exe")

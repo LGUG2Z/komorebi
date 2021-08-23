@@ -1,6 +1,7 @@
 use std::collections::VecDeque;
 use std::num::NonZeroUsize;
 
+use color_eyre::eyre::anyhow;
 use color_eyre::eyre::ContextCompat;
 use color_eyre::Result;
 use getset::CopyGetters;
@@ -229,16 +230,16 @@ impl Workspace {
     pub fn focus_container_by_window(&mut self, hwnd: isize) -> Result<()> {
         let container_idx = self
             .container_idx_for_window(hwnd)
-            .context("there is no container/window")?;
+            .ok_or_else(|| anyhow!("there is no container/window"))?;
 
         let container = self
             .containers_mut()
             .get_mut(container_idx)
-            .context("there is no container")?;
+            .ok_or_else(|| anyhow!("there is no container"))?;
 
         let window_idx = container
             .idx_for_window(hwnd)
-            .context("there is no window")?;
+            .ok_or_else(|| anyhow!("there is no window"))?;
 
         container.focus_window(window_idx);
         self.focus_container(container_idx);
@@ -293,7 +294,7 @@ impl Workspace {
     pub fn promote_container(&mut self) -> Result<()> {
         let container = self
             .remove_focused_container()
-            .context("there is no container")?;
+            .ok_or_else(|| anyhow!("there is no container"))?;
         self.containers_mut().push_front(container);
         self.resize_dimensions_mut().insert(0, None);
         self.focus_container(0);
@@ -330,27 +331,27 @@ impl Workspace {
 
         let container_idx = self
             .container_idx_for_window(hwnd)
-            .context("there is no window")?;
+            .ok_or_else(|| anyhow!("there is no window"))?;
 
         let container = self
             .containers_mut()
             .get_mut(container_idx)
-            .context("there is no container")?;
+            .ok_or_else(|| anyhow!("there is no container"))?;
 
         let window_idx = container
             .windows()
             .iter()
             .position(|window| window.hwnd == hwnd)
-            .context("there is no window")?;
+            .ok_or_else(|| anyhow!("there is no window"))?;
 
         container
             .remove_window_by_idx(window_idx)
-            .context("there is no window")?;
+            .ok_or_else(|| anyhow!("there is no window"))?;
 
         if container.windows().is_empty() {
             self.containers_mut()
                 .remove(container_idx)
-                .context("there is no container")?;
+                .ok_or_else(|| anyhow!("there is no container"))?;
 
             // Whenever a container is empty, we need to remove any resize dimensions for it too
             if self.resize_dimensions().get(container_idx).is_some() {
@@ -393,11 +394,11 @@ impl Workspace {
 
         let container = self
             .focused_container_mut()
-            .context("there is no container")?;
+            .ok_or_else(|| anyhow!("there is no container"))?;
 
         let window = container
             .remove_focused_window()
-            .context("there is no window")?;
+            .ok_or_else(|| anyhow!("there is no window"))?;
 
         // This is a little messy
         let adjusted_target_container_index = if container.windows().is_empty() {
@@ -417,13 +418,13 @@ impl Workspace {
         let target_container = self
             .containers_mut()
             .get_mut(adjusted_target_container_index)
-            .context("there is no container")?;
+            .ok_or_else(|| anyhow!("there is no container"))?;
 
         target_container.add_window(window);
 
         self.focus_container(adjusted_target_container_index);
         self.focused_container_mut()
-            .context("there is no container")?
+            .ok_or_else(|| anyhow!("there is no container"))?
             .load_focused_window();
 
         Ok(())
@@ -434,11 +435,11 @@ impl Workspace {
 
         let container = self
             .focused_container_mut()
-            .context("there is no container")?;
+            .ok_or_else(|| anyhow!("there is no container"))?;
 
         let window = container
             .remove_focused_window()
-            .context("there is no window")?;
+            .ok_or_else(|| anyhow!("there is no window"))?;
 
         if container.windows().is_empty() {
             self.containers_mut().remove(focused_container_idx);
@@ -458,7 +459,7 @@ impl Workspace {
         let focused_idx = self.focused_container_idx();
         let window = self
             .remove_focused_floating_window()
-            .context("there is no floating window")?;
+            .ok_or_else(|| anyhow!("there is no floating window"))?;
 
         let mut container = Container::default();
         container.add_window(window);
@@ -498,11 +499,11 @@ impl Workspace {
 
         let container = self
             .focused_container_mut()
-            .context("there is no container")?;
+            .ok_or_else(|| anyhow!("there is no container"))?;
 
         let window = container
             .remove_focused_window()
-            .context("there is no window")?;
+            .ok_or_else(|| anyhow!("there is no window"))?;
 
         if container.windows().is_empty() {
             self.containers_mut().remove(focused_idx);
@@ -547,7 +548,7 @@ impl Workspace {
         let container = self
             .containers_mut()
             .remove(focused_idx)
-            .context("there is not container")?;
+            .ok_or_else(|| anyhow!("there is no container"))?;
 
         // We don't remove any resize adjustments for a monocle, because when this container is
         // inevitably reintegrated, it would be weird if it doesn't go back to the dimensions
@@ -559,7 +560,7 @@ impl Workspace {
 
         self.monocle_container_mut()
             .as_mut()
-            .context("there is no monocle container")?
+            .ok_or_else(|| anyhow!("there is no monocle container"))?
             .load_focused_window();
 
         Ok(())
@@ -568,12 +569,12 @@ impl Workspace {
     pub fn reintegrate_monocle_container(&mut self) -> Result<()> {
         let restore_idx = self
             .monocle_container_restore_idx()
-            .context("there is no monocle restore index")?;
+            .ok_or_else(|| anyhow!("there is no monocle restore index"))?;
 
         let container = self
             .monocle_container_mut()
             .as_ref()
-            .context("there is no monocle container")?;
+            .ok_or_else(|| anyhow!("there is no monocle container"))?;
 
         let container = container.clone();
         if restore_idx > self.containers().len() - 1 {
@@ -584,7 +585,7 @@ impl Workspace {
         self.containers_mut().insert(restore_idx, container);
         self.focus_container(restore_idx);
         self.focused_container_mut()
-            .context("there is no container")?
+            .ok_or_else(|| anyhow!("there is no container"))?
             .load_focused_window();
 
         self.set_monocle_container(None);
@@ -598,11 +599,11 @@ impl Workspace {
 
         let container = self
             .focused_container_mut()
-            .context("there is no container")?;
+            .ok_or_else(|| anyhow!("there is no container"))?;
 
         let window = container
             .remove_focused_window()
-            .context("there is no window")?;
+            .ok_or_else(|| anyhow!("there is no window"))?;
 
         if container.windows().is_empty() {
             self.containers_mut().remove(focused_idx);
@@ -626,12 +627,12 @@ impl Workspace {
     pub fn reintegrate_maximized_window(&mut self) -> Result<()> {
         let restore_idx = self
             .maximized_window_restore_idx()
-            .context("there is no monocle restore index")?;
+            .ok_or_else(|| anyhow!("there is no monocle restore index"))?;
 
         let window = self
             .maximized_window()
             .as_ref()
-            .context("there is no monocle container")?;
+            .ok_or_else(|| anyhow!("there is no monocle container"))?;
 
         let window = *window;
         if !self.containers().is_empty() && restore_idx > self.containers().len() - 1 {
@@ -646,7 +647,7 @@ impl Workspace {
         self.focus_container(restore_idx);
 
         self.focused_container_mut()
-            .context("there is no container")?
+            .ok_or_else(|| anyhow!("there is no container"))?
             .load_focused_window();
 
         self.set_maximized_window(None);

@@ -2,7 +2,7 @@ use std::fs::OpenOptions;
 use std::sync::Arc;
 use std::thread;
 
-use color_eyre::eyre::ContextCompat;
+use color_eyre::eyre::anyhow;
 use color_eyre::Result;
 use crossbeam_channel::select;
 use parking_lot::Mutex;
@@ -57,7 +57,7 @@ impl WindowManager {
             | WindowManagerEvent::MoveResizeEnd(_, window) => {
                 let monitor_idx = self
                     .monitor_idx_from_window(*window)
-                    .context("there is no monitor associated with this window, it may have already been destroyed")?;
+                    .ok_or_else(|| anyhow!("there is no monitor associated with this window, it may have already been destroyed"))?;
 
                 self.focus_monitor(monitor_idx)?;
             }
@@ -158,7 +158,7 @@ impl WindowManager {
                     if self.focused_monitor_idx() != known_monitor_idx
                         || self
                             .focused_monitor()
-                            .context("there is no monitor")?
+                            .ok_or_else(|| anyhow!("there is no monitor"))?
                             .focused_workspace_idx()
                             != known_workspace_idx
                     {
@@ -210,7 +210,7 @@ impl WindowManager {
                 let old_position = *workspace
                     .latest_layout()
                     .get(focused_idx)
-                    .context("there is no latest layout")?;
+                    .ok_or_else(|| anyhow!("there is no latest layout"))?;
                 let mut new_position = WindowsApi::window_rect(window.hwnd())?;
 
                 // See Window.set_position() in window.rs for comments
@@ -305,7 +305,8 @@ impl WindowManager {
             }
         }
 
-        let mut hwnd_json = dirs::home_dir().context("there is no home directory")?;
+        let mut hwnd_json =
+            dirs::home_dir().ok_or_else(|| anyhow!("there is no home directory"))?;
         hwnd_json.push("komorebi.hwnd.json");
         let file = OpenOptions::new()
             .write(true)

@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::collections::VecDeque;
 
-use color_eyre::eyre::ContextCompat;
+use color_eyre::eyre::anyhow;
 use color_eyre::Result;
 use getset::CopyGetters;
 use getset::Getters;
@@ -56,7 +56,7 @@ impl Monitor {
     pub fn add_container(&mut self, container: Container) -> Result<()> {
         let workspace = self
             .focused_workspace_mut()
-            .context("there is no workspace")?;
+            .ok_or_else(|| anyhow!("there is no workspace"))?;
 
         workspace.add_container(container);
 
@@ -78,17 +78,17 @@ impl Monitor {
     ) -> Result<()> {
         let workspace = self
             .focused_workspace_mut()
-            .context("there is no workspace")?;
+            .ok_or_else(|| anyhow!("there is no workspace"))?;
 
         if workspace.maximized_window().is_some() {
-            return Err(eyre::anyhow!(
+            return Err(anyhow!(
                 "cannot move native maximized window to another monitor or workspace"
             ));
         }
 
         let container = workspace
             .remove_focused_container()
-            .context("there is no container")?;
+            .ok_or_else(|| anyhow!("there is no container"))?;
 
         let workspaces = self.workspaces_mut();
 
@@ -129,7 +129,7 @@ impl Monitor {
             if name.is_some() {
                 self.workspaces_mut()
                     .get_mut(idx)
-                    .context("there is no workspace")?
+                    .ok_or_else(|| anyhow!("there is no workspace"))?
                     .set_name(name);
             }
         }
@@ -145,7 +145,7 @@ impl Monitor {
         let work_area = *self.work_area_size();
 
         self.focused_workspace_mut()
-            .context("there is no workspace")?
+            .ok_or_else(|| anyhow!("there is no workspace"))?
             .update(&work_area)?;
 
         Ok(())
