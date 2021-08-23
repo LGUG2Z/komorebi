@@ -285,8 +285,10 @@ enum SubCommand {
     #[clap(setting = AppSettings::ArgRequiredElseHelp)]
     AdjustWorkspacePadding(AdjustWorkspacePadding),
     /// Set the layout on the focused workspace
+    #[clap(setting = AppSettings::ArgRequiredElseHelp)]
     ChangeLayout(ChangeLayout),
     /// Flip the layout on the focused workspace (BSP only)
+    #[clap(setting = AppSettings::ArgRequiredElseHelp)]
     FlipLayout(FlipLayout),
     /// Promote the focused window to the top of the tree
     Promote,
@@ -344,6 +346,7 @@ enum SubCommand {
     #[clap(setting = AppSettings::ArgRequiredElseHelp)]
     IdentifyTrayApplication(IdentifyTrayApplication),
     /// Enable or disable focus follows mouse for the operating system
+    #[clap(setting = AppSettings::ArgRequiredElseHelp)]
     FocusFollowsMouse(FocusFollowsMouse),
     /// Toggle focus follows mouse for the operating system
     ToggleFocusFollowsMouse,
