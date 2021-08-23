@@ -26,7 +26,8 @@ use bindings::Windows::Win32::Foundation::HWND;
 use bindings::Windows::Win32::UI::WindowsAndMessaging::ShowWindow;
 use bindings::Windows::Win32::UI::WindowsAndMessaging::SHOW_WINDOW_CMD;
 use bindings::Windows::Win32::UI::WindowsAndMessaging::SW_RESTORE;
-use derive_ahk::Ahk;
+use derive_ahk::AhkFunction;
+use derive_ahk::AhkLibrary;
 use komorebi_core::ApplicationIdentifier;
 use komorebi_core::CycleDirection;
 use komorebi_core::Flip;
@@ -34,6 +35,14 @@ use komorebi_core::Layout;
 use komorebi_core::OperationDirection;
 use komorebi_core::Sizing;
 use komorebi_core::SocketMessage;
+
+trait AhkLibrary {
+    fn generate_ahk_library() -> String;
+}
+
+trait AhkFunction {
+    fn generate_ahk_function() -> String;
+}
 
 #[derive(ArgEnum)]
 enum BooleanState {
@@ -55,7 +64,7 @@ macro_rules! gen_enum_subcommand_args {
     ( $( $name:ident: $element:ty ),+ ) => {
         $(
             paste! {
-                #[derive(clap::Clap, derive_ahk::Ahk)]
+                #[derive(clap::Clap, derive_ahk::AhkFunction)]
                 pub struct $name {
                     #[clap(arg_enum)]
                     [<$element:snake>]: $element
@@ -80,7 +89,7 @@ macro_rules! gen_target_subcommand_args {
     // SubCommand Pattern
     ( $( $name:ident ),+ ) => {
         $(
-            #[derive(clap::Clap, derive_ahk::Ahk)]
+            #[derive(clap::Clap, derive_ahk::AhkFunction)]
             pub struct $name {
                 /// Target index (zero-indexed)
                 target: usize,
@@ -104,7 +113,7 @@ macro_rules! gen_workspace_subcommand_args {
     ( $( $name:ident: $(#[enum] $(@$arg_enum:tt)?)? $value:ty ),+ ) => (
         paste! {
             $(
-                #[derive(clap::Clap, derive_ahk::Ahk)]
+                #[derive(clap::Clap, derive_ahk::AhkFunction)]
                 pub struct [<Workspace $name>] {
                     /// Monitor index (zero-indexed)
                     monitor: usize,
@@ -130,7 +139,7 @@ gen_workspace_subcommand_args! {
     Tiling: #[enum] BooleanState
 }
 
-#[derive(Clap, Ahk)]
+#[derive(Clap, AhkFunction)]
 struct Resize {
     #[clap(arg_enum)]
     edge: OperationDirection,
@@ -138,7 +147,7 @@ struct Resize {
     sizing: Sizing,
 }
 
-#[derive(Clap, Ahk)]
+#[derive(Clap, AhkFunction)]
 struct EnsureWorkspaces {
     /// Monitor index (zero-indexed)
     monitor: usize,
@@ -150,7 +159,7 @@ macro_rules! gen_padding_subcommand_args {
     // SubCommand Pattern
     ( $( $name:ident ),+ ) => {
         $(
-            #[derive(clap::Clap, derive_ahk::Ahk)]
+            #[derive(clap::Clap, derive_ahk::AhkFunction)]
             pub struct $name {
                 /// Monitor index (zero-indexed)
                 monitor: usize,
@@ -172,7 +181,7 @@ macro_rules! gen_padding_adjustment_subcommand_args {
     // SubCommand Pattern
     ( $( $name:ident ),+ ) => {
         $(
-            #[derive(clap::Clap, derive_ahk::Ahk)]
+            #[derive(clap::Clap, derive_ahk::AhkFunction)]
             pub struct $name {
                 #[clap(arg_enum)]
                 sizing: Sizing,
@@ -192,7 +201,7 @@ macro_rules! gen_application_target_subcommand_args {
     // SubCommand Pattern
     ( $( $name:ident ),+ ) => {
         $(
-            #[derive(clap::Clap, derive_ahk::Ahk)]
+            #[derive(clap::Clap, derive_ahk::AhkFunction)]
             pub struct $name {
                 #[clap(arg_enum)]
                 identifier: ApplicationIdentifier,
@@ -209,7 +218,7 @@ gen_application_target_subcommand_args! {
     IdentifyTrayApplication
 }
 
-#[derive(Clap, Ahk)]
+#[derive(Clap, AhkFunction)]
 struct WorkspaceRule {
     #[clap(arg_enum)]
     identifier: ApplicationIdentifier,
@@ -228,7 +237,7 @@ struct Opts {
     subcmd: SubCommand,
 }
 
-#[derive(Clap, Ahk)]
+#[derive(Clap, AhkLibrary)]
 enum SubCommand {
     /// Start komorebi.exe as a background process
     Start,

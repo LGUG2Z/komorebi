@@ -1,19 +1,28 @@
 #![warn(clippy::all, clippy::nursery, clippy::pedantic)]
 #![allow(clippy::missing_errors_doc)]
+#![no_implicit_prelude]
 
-use std::stringify;
+use ::std::clone::Clone;
+use ::std::convert::From;
+use ::std::convert::Into;
+use ::std::iter::Extend;
+use ::std::iter::Iterator;
+use ::std::matches;
+use ::std::string::ToString;
+use ::std::unreachable;
 
-use quote::quote;
-use syn::parse_macro_input;
-use syn::Data;
-use syn::DataEnum;
-use syn::DeriveInput;
-use syn::Fields;
-use syn::FieldsNamed;
-use syn::FieldsUnnamed;
+use ::quote::quote;
+use ::std::option::Option::Some;
+use ::syn::parse_macro_input;
+use ::syn::Data;
+use ::syn::DataEnum;
+use ::syn::DeriveInput;
+use ::syn::Fields;
+use ::syn::FieldsNamed;
+use ::syn::FieldsUnnamed;
 
-#[proc_macro_derive(Ahk)]
-pub fn ahk(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+#[proc_macro_derive(AhkFunction)]
+pub fn ahk_function(input: ::proc_macro::TokenStream) -> ::proc_macro::TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
     let name = input.ident;
 
@@ -21,22 +30,23 @@ pub fn ahk(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         Data::Struct(s) => match s.fields {
             Fields::Named(FieldsNamed { named, .. }) => {
                 let idents = named.iter().map(|f| &f.ident);
-                let arguments = format!("{}", quote! {#(#idents), *});
+                let arguments = quote! {#(#idents), *}.to_string();
 
                 let idents = named.iter().map(|f| &f.ident);
-                let called_arguments = format!("{}", quote! {#(%#idents%) *})
+                let called_arguments = quote! {#(%#idents%) *}
+                    .to_string()
                     .replace(" %", "%")
                     .replace("% ", "%")
                     .replace("%%", "% %");
 
                 quote! {
-                    impl #name {
-                        fn ahk_function() -> String {
-                            format!(r#"
+                    impl AhkFunction for #name {
+                        fn generate_ahk_function() -> String {
+                            ::std::format!(r#"
 {}({}) {{ 
     Run, komorebic.exe {} {}, , Hide 
 }}"#, 
-                                stringify!(#name),
+                                ::std::stringify!(#name),
                                 #arguments,
                                 stringify!(#name).to_kebab_case(),
                                 #called_arguments
@@ -47,31 +57,42 @@ pub fn ahk(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             }
             _ => unreachable!("only to be used on structs with named fields"),
         },
+        _ => unreachable!("only to be used on structs"),
+    }
+    .into()
+}
+
+#[proc_macro_derive(AhkLibrary)]
+pub fn ahk_library(input: ::proc_macro::TokenStream) -> ::proc_macro::TokenStream {
+    let input = parse_macro_input!(input as DeriveInput);
+    let name = input.ident;
+
+    match input.data {
         Data::Enum(DataEnum { variants, .. }) => {
             let enums = variants.iter().filter(|&v| {
                 matches!(v.fields, Fields::Unit) || matches!(v.fields, Fields::Unnamed(..))
             });
 
-            let mut stream = proc_macro2::TokenStream::new();
+            let mut stream = ::proc_macro2::TokenStream::new();
 
             for variant in enums.clone() {
                 match &variant.fields {
                     Fields::Unnamed(FieldsUnnamed { unnamed, .. }) => {
                         for field in unnamed {
                             stream.extend(quote! {
-                                v.push(#field::ahk_function());
+                                v.push(#field::generate_ahk_function());
                             });
                         }
                     }
                     Fields::Unit => {
                         let name = &variant.ident;
                         stream.extend(quote! {
-                            v.push(format!(r#"
+                            v.push(::std::format!(r#"
 {}() {{ 
     Run, komorebic.exe {}, , Hide 
 }}"#, 
-                                stringify!(#name),
-                                stringify!(#name).to_kebab_case()
+                                ::std::stringify!(#name),
+                                ::std::stringify!(#name).to_kebab_case()
                             ));
                         });
                     }
@@ -93,7 +114,7 @@ pub fn ahk(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                }
             }
         }
-        Data::Union(_) => unreachable!("only to be used on enums and structs"),
+        _ => unreachable!("only to be used on enums"),
     }
     .into()
 }
