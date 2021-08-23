@@ -55,5 +55,6 @@ scoop:
   pre_install:
     - if (Get-Process -Name komorebi -ErrorAction SilentlyContinue) { komorebic stop }
   post_install:
-    - Write-Host "Run 'cp $original_dir\komorebi.sample.ahk $Env:UserProfile\komorebi.ahk' to get started with the sample configuration"
-    - Write-Host "Once you have a configuration file in place, you can run 'komorebic start' to start the window manager"
+    - Write-Host "`nRun 'cp $original_dir\komorebi.sample.ahk $Env:UserProfile\komorebi.ahk' to get started with the sample configuration"
+    - Write-Host "`nRun 'komorebic ahk-library' if you would like to generate an AHK helper library to use in your configuration"
+    - Write-Host "`nOnce you have a configuration file in place, you can run 'komorebic start' to start the window manager"

@@ -337,7 +337,7 @@ enum SubCommand {
     /// Enable or disable focus follows mouse for the operating system
     FocusFollowsMouse(FocusFollowsMouse),
     /// Generate a library of AutoHotKey helper functions
-    AhkLib,
+    AhkLibrary,
 }
 
 pub fn send_message(bytes: &[u8]) -> Result<()> {
@@ -354,7 +354,7 @@ fn main() -> Result<()> {
     let opts: Opts = Opts::parse();
 
     match opts.subcmd {
-        SubCommand::AhkLib => {
+        SubCommand::AhkLibrary => {
             let mut library = dirs::home_dir().context("there is no home directory")?;
             library.push("komorebic.lib.ahk");
             let mut file = OpenOptions::new()
@@ -363,8 +363,7 @@ fn main() -> Result<()> {
                 .truncate(true)
                 .open(library.clone())?;
 
-            let library_text: String = SubCommand::ahk_functions().join("\n");
-            file.write_all(library_text.as_bytes())?;
+            file.write_all(SubCommand::generate_ahk_library().as_bytes())?;
 
             println!(
                 "\nAHK helper library for komorebic written to {}",
