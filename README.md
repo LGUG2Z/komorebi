@@ -314,8 +314,7 @@ process and the log will appear frozen.
 
 If you believe you have encountered a deadlock, you can compile `komorebi` with `--features deadlock_detection` and try
 reproducing the deadlock again. This will check for deadlocks every 5 seconds in the background, and if a deadlock is
-found, information about it will appear in the log which can be shared when opening an issu which can be shared when
-opening an issue.
+found, information about it will appear in the log which can be shared when opening an issue.
 
 ## Window Manager State and Integrations
 
