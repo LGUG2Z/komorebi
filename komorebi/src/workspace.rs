@@ -329,6 +329,33 @@ impl Workspace {
             return Ok(());
         }
 
+        if let Some(container) = self.monocle_container_mut() {
+            if let Some(window_idx) = container
+                .windows()
+                .iter()
+                .position(|window| window.hwnd == hwnd)
+            {
+                container
+                    .remove_window_by_idx(window_idx)
+                    .ok_or_else(|| anyhow!("there is no window"))?;
+
+                if container.windows().is_empty() {
+                    self.set_monocle_container(None);
+                    self.set_monocle_container_restore_idx(None);
+                }
+
+                return Ok(());
+            }
+        }
+
+        if let Some(window) = self.maximized_window() {
+            if window.hwnd == hwnd {
+                self.set_maximized_window(None);
+                self.set_maximized_window_restore_idx(None);
+                return Ok(());
+            }
+        }
+
         let container_idx = self
             .container_idx_for_window(hwnd)
             .ok_or_else(|| anyhow!("there is no window"))?;
