@@ -43,8 +43,8 @@ pub fn ahk_function(input: ::proc_macro::TokenStream) -> ::proc_macro::TokenStre
                     impl AhkFunction for #name {
                         fn generate_ahk_function() -> String {
                             ::std::format!(r#"
-{}({}) {{ 
-    Run, komorebic.exe {} {}, , Hide 
+{}({}) {{
+    Run, komorebic.exe {} {}, , Hide
 }}"#, 
                                 ::std::stringify!(#name),
                                 #arguments,
@@ -88,8 +88,8 @@ pub fn ahk_library(input: ::proc_macro::TokenStream) -> ::proc_macro::TokenStrea
                         let name = &variant.ident;
                         stream.extend(quote! {
                             v.push(::std::format!(r#"
-{}() {{ 
-    Run, komorebic.exe {}, , Hide 
+{}() {{
+    Run, komorebic.exe {}, , Hide
 }}"#, 
                                 ::std::stringify!(#name),
                                 ::std::stringify!(#name).to_kebab_case()

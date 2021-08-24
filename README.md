@@ -183,6 +183,8 @@ unstack                       Unstack the focused window
 cycle-stack                   Cycle the focused stack in the specified cycle direction
 move-to-monitor               Move the focused window to the specified monitor
 move-to-workspace             Move the focused window to the specified workspace
+send-to-monitor               Send the focused window to the specified monitor
+send-to-workspace             Send the focused window to the specified workspace
 focus-monitor                 Focus the specified monitor
 focus-workspace               Focus the specified workspace on the focused monitor
 new-workspace                 Create and append a new workspace on the focused monitor
@@ -236,8 +238,10 @@ used [is available here](komorebi.sample.with.lib.ahk).
 - [x] Cycle through stacked windows
 - [x] Change focused window by direction
 - [x] Move focused window container in direction
-- [x] Move focused window container to monitor
-- [x] Move focused window container to workspace
+- [x] Move focused window container to monitor and follow
+- [x] Move focused window container to workspace follow
+- [x] Send focused window container to monitor
+- [x] Send focused window container to workspace
 - [x] Mouse follows focused container
 - [x] Resize window container in direction
 - [ ] Resize child window containers by split ratio

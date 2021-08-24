@@ -101,6 +101,8 @@ macro_rules! gen_target_subcommand_args {
 gen_target_subcommand_args! {
     MoveToMonitor,
     MoveToWorkspace,
+    SendToMonitor,
+    SendToWorkspace,
     FocusMonitor,
     FocusWorkspace
 }
@@ -270,6 +272,12 @@ enum SubCommand {
     /// Move the focused window to the specified workspace
     #[clap(setting = AppSettings::ArgRequiredElseHelp)]
     MoveToWorkspace(MoveToWorkspace),
+    /// Send the focused window to the specified monitor
+    #[clap(setting = AppSettings::ArgRequiredElseHelp)]
+    SendToMonitor(SendToMonitor),
+    /// Send the focused window to the specified workspace
+    #[clap(setting = AppSettings::ArgRequiredElseHelp)]
+    SendToWorkspace(SendToWorkspace),
     /// Focus the specified monitor
     #[clap(setting = AppSettings::ArgRequiredElseHelp)]
     FocusMonitor(FocusMonitor),
@@ -421,6 +429,12 @@ fn main() -> Result<()> {
         }
         SubCommand::MoveToWorkspace(arg) => {
             send_message(&*SocketMessage::MoveContainerToWorkspaceNumber(arg.target).as_bytes()?)?;
+        }
+        SubCommand::SendToMonitor(arg) => {
+            send_message(&*SocketMessage::SendContainerToMonitorNumber(arg.target).as_bytes()?)?;
+        }
+        SubCommand::SendToWorkspace(arg) => {
+            send_message(&*SocketMessage::SendContainerToWorkspaceNumber(arg.target).as_bytes()?)?;
         }
         SubCommand::ContainerPadding(arg) => {
             send_message(

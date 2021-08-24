@@ -527,8 +527,10 @@ impl WindowManager {
         let monitor = self
             .focused_monitor_mut()
             .ok_or_else(|| anyhow!("there is no monitor"))?;
+
         monitor.move_container_to_workspace(idx, follow)?;
         monitor.load_focused_workspace()?;
+
         self.update_focused_workspace(true)
     }
 

@@ -32,6 +32,8 @@ pub enum SocketMessage {
     CycleStack(CycleDirection),
     MoveContainerToMonitorNumber(usize),
     MoveContainerToWorkspaceNumber(usize),
+    SendContainerToMonitorNumber(usize),
+    SendContainerToWorkspaceNumber(usize),
     Promote,
     ToggleFloat,
     ToggleMonocle,

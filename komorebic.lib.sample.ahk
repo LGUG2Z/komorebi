@@ -48,6 +48,14 @@ MoveToWorkspace(target) {
     Run, komorebic.exe move-to-workspace %target%, , Hide
 }
 
+SendToMonitor(target) {
+    Run, komorebic.exe send-to-monitor %target%, , Hide
+}
+
+SendToWorkspace(target) {
+    Run, komorebic.exe send-to-workspace %target%, , Hide
+}
+
 FocusMonitor(target) {
     Run, komorebic.exe focus-monitor %target%, , Hide
 }
