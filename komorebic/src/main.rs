@@ -9,7 +9,6 @@ use std::io::ErrorKind;
 use std::io::Write;
 use std::path::PathBuf;
 use std::process::Command;
-use std::stringify;
 
 use clap::AppSettings;
 use clap::ArgEnum;
@@ -61,7 +60,7 @@ impl From<BooleanState> for bool {
 
 macro_rules! gen_enum_subcommand_args {
     // SubCommand Pattern: Enum Type
-    ( $( $name:ident: $element:ty ),+ ) => {
+    ( $( $name:ident: $element:ty ),+ $(,)? ) => {
         $(
             paste! {
                 #[derive(clap::Clap, derive_ahk::AhkFunction)]
@@ -82,12 +81,12 @@ gen_enum_subcommand_args! {
     FlipLayout: Flip,
     ChangeLayout: Layout,
     WatchConfiguration: BooleanState,
-    FocusFollowsMouse: BooleanState
+    FocusFollowsMouse: BooleanState,
 }
 
 macro_rules! gen_target_subcommand_args {
     // SubCommand Pattern
-    ( $( $name:ident ),+ ) => {
+    ( $( $name:ident ),+ $(,)? ) => {
         $(
             #[derive(clap::Clap, derive_ahk::AhkFunction)]
             pub struct $name {
@@ -104,7 +103,7 @@ gen_target_subcommand_args! {
     SendToMonitor,
     SendToWorkspace,
     FocusMonitor,
-    FocusWorkspace
+    FocusWorkspace,
 }
 
 // Thanks to @danielhenrymantilla for showing me how to use cfg_attr with an optional argument like
@@ -112,7 +111,7 @@ gen_target_subcommand_args! {
 macro_rules! gen_workspace_subcommand_args {
     // Workspace Property: #[enum] Value Enum (if the value is an Enum)
     // Workspace Property: Value Type (if the value is anything else)
-    ( $( $name:ident: $(#[enum] $(@$arg_enum:tt)?)? $value:ty ),+ ) => (
+    ( $( $name:ident: $(#[enum] $(@$arg_enum:tt)?)? $value:ty ),+ $(,)? ) => (
         paste! {
             $(
                 #[derive(clap::Clap, derive_ahk::AhkFunction)]
@@ -138,7 +137,7 @@ macro_rules! gen_workspace_subcommand_args {
 gen_workspace_subcommand_args! {
     Name: String,
     Layout: #[enum] Layout,
-    Tiling: #[enum] BooleanState
+    Tiling: #[enum] BooleanState,
 }
 
 #[derive(Clap, AhkFunction)]
@@ -159,7 +158,7 @@ struct EnsureWorkspaces {
 
 macro_rules! gen_padding_subcommand_args {
     // SubCommand Pattern
-    ( $( $name:ident ),+ ) => {
+    ( $( $name:ident ),+ $(,)? ) => {
         $(
             #[derive(clap::Clap, derive_ahk::AhkFunction)]
             pub struct $name {
@@ -176,12 +175,12 @@ macro_rules! gen_padding_subcommand_args {
 
 gen_padding_subcommand_args! {
     ContainerPadding,
-    WorkspacePadding
+    WorkspacePadding,
 }
 
 macro_rules! gen_padding_adjustment_subcommand_args {
     // SubCommand Pattern
-    ( $( $name:ident ),+ ) => {
+    ( $( $name:ident ),+ $(,)? ) => {
         $(
             #[derive(clap::Clap, derive_ahk::AhkFunction)]
             pub struct $name {
@@ -196,12 +195,12 @@ macro_rules! gen_padding_adjustment_subcommand_args {
 
 gen_padding_adjustment_subcommand_args! {
     AdjustContainerPadding,
-    AdjustWorkspacePadding
+    AdjustWorkspacePadding,
 }
 
 macro_rules! gen_application_target_subcommand_args {
     // SubCommand Pattern
-    ( $( $name:ident ),+ ) => {
+    ( $( $name:ident ),+ $(,)? ) => {
         $(
             #[derive(clap::Clap, derive_ahk::AhkFunction)]
             pub struct $name {
@@ -217,7 +216,7 @@ macro_rules! gen_application_target_subcommand_args {
 gen_application_target_subcommand_args! {
     FloatRule,
     ManageRule,
-    IdentifyTrayApplication
+    IdentifyTrayApplication,
 }
 
 #[derive(Clap, AhkFunction)]

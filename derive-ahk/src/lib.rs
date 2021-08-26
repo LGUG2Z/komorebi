@@ -8,11 +8,11 @@ use ::std::convert::Into;
 use ::std::iter::Extend;
 use ::std::iter::Iterator;
 use ::std::matches;
+use ::std::option::Option::Some;
 use ::std::string::ToString;
 use ::std::unreachable;
 
 use ::quote::quote;
-use ::std::option::Option::Some;
 use ::syn::parse_macro_input;
 use ::syn::Data;
 use ::syn::DataEnum;
@@ -48,7 +48,7 @@ pub fn ahk_function(input: ::proc_macro::TokenStream) -> ::proc_macro::TokenStre
 }}"#, 
                                 ::std::stringify!(#name),
                                 #arguments,
-                                stringify!(#name).to_kebab_case(),
+                                ::std::stringify!(#name).to_kebab_case(),
                                 #called_arguments
                             )
                        }
