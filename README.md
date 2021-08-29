@@ -14,6 +14,10 @@ _komorebi_ allows you to control application windows, virtual workspaces and dis
 used with third-party software such as [AutoHotKey](https://github.com/Lexikos/AutoHotkey_L) to set user-defined
 keyboard shortcuts.
 
+Translations of this document can be found in the project wiki:
+
+- [komorebi 中文用户指南](https://github.com/LGUG2Z/komorebi/wiki/README-zh) (by [@crosstyan](https://github.com/crosstyan))
+
 ## Description
 
 _komorebi_ only responds to [WinEvents](https://docs.microsoft.com/en-us/windows/win32/winauto/event-constants) and the
