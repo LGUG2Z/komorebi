@@ -12,6 +12,10 @@ State() {
     Run, komorebic.exe state, , Hide
 }
 
+Query(state_query) {
+    Run, komorebic.exe query %state_query%, , Hide
+}
+
 Log() {
     Run, komorebic.exe log, , Hide
 }

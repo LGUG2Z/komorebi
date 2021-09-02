@@ -12,6 +12,7 @@ use uds_windows::UnixStream;
 
 use komorebi_core::ApplicationIdentifier;
 use komorebi_core::SocketMessage;
+use komorebi_core::StateQuery;
 
 use crate::window_manager;
 use crate::window_manager::WindowManager;
@@ -174,6 +175,30 @@ impl WindowManager {
 
                 let mut stream = UnixStream::connect(&socket)?;
                 stream.write_all(state.as_bytes())?;
+            }
+            SocketMessage::Query(query) => {
+                let response = match query {
+                    StateQuery::FocusedMonitorIndex => self.focused_monitor_idx(),
+                    StateQuery::FocusedWorkspaceIndex => self
+                        .focused_monitor()
+                        .ok_or_else(|| anyhow!("there is no monitor"))?
+                        .focused_workspace_idx(),
+                    StateQuery::FocusedContainerIndex => {
+                        self.focused_workspace()?.focused_container_idx()
+                    }
+                    StateQuery::FocusedWindowIndex => {
+                        self.focused_container()?.focused_window_idx()
+                    }
+                }
+                .to_string();
+
+                let mut socket =
+                    dirs::home_dir().ok_or_else(|| anyhow!("there is no home directory"))?;
+                socket.push("komorebic.sock");
+                let socket = socket.as_path();
+
+                let mut stream = UnixStream::connect(&socket)?;
+                stream.write_all(response.as_bytes())?;
             }
             SocketMessage::ResizeWindow(direction, sizing) => {
                 self.resize_window(direction, sizing, Option::from(50))?;

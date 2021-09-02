@@ -67,6 +67,7 @@ pub enum SocketMessage {
     ManageRule(ApplicationIdentifier, String),
     IdentifyTrayApplication(ApplicationIdentifier, String),
     State,
+    Query(StateQuery),
     FocusFollowsMouse(bool),
     ToggleFocusFollowsMouse,
 }
@@ -87,6 +88,15 @@ impl FromStr for SocketMessage {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         serde_json::from_str(s)
     }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, Display, EnumString, ArgEnum)]
+#[strum(serialize_all = "snake_case")]
+pub enum StateQuery {
+    FocusedMonitorIndex,
+    FocusedWorkspaceIndex,
+    FocusedContainerIndex,
+    FocusedWindowIndex,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, Display, EnumString, ArgEnum)]

@@ -34,6 +34,7 @@ use komorebi_core::Layout;
 use komorebi_core::OperationDirection;
 use komorebi_core::Sizing;
 use komorebi_core::SocketMessage;
+use komorebi_core::StateQuery;
 
 trait AhkLibrary {
     fn generate_ahk_library() -> String;
@@ -82,6 +83,7 @@ gen_enum_subcommand_args! {
     ChangeLayout: Layout,
     WatchConfiguration: BooleanState,
     FocusFollowsMouse: BooleanState,
+    Query: StateQuery,
 }
 
 macro_rules! gen_target_subcommand_args {
@@ -246,6 +248,9 @@ enum SubCommand {
     Stop,
     /// Show a JSON representation of the current window manager state
     State,
+    /// Query the current window manager state
+    #[clap(setting = AppSettings::ArgRequiredElseHelp)]
+    Query(Query),
     /// Tail komorebi.exe's process logs (cancel with Ctrl-C)
     Log,
     /// Change focus to the window in the specified direction
@@ -591,6 +596,40 @@ fn main() -> Result<()> {
             };
 
             send_message(&*SocketMessage::State.as_bytes()?)?;
+
+            let listener = UnixListener::bind(&socket)?;
+            match listener.accept() {
+                Ok(incoming) => {
+                    let stream = BufReader::new(incoming.0);
+                    for line in stream.lines() {
+                        println!("{}", line?);
+                    }
+
+                    return Ok(());
+                }
+                Err(error) => {
+                    panic!("{}", error);
+                }
+            }
+        }
+        SubCommand::Query(arg) => {
+            let home = dirs::home_dir().context("there is no home directory")?;
+            let mut socket = home;
+            socket.push("komorebic.sock");
+            let socket = socket.as_path();
+
+            match std::fs::remove_file(&socket) {
+                Ok(_) => {}
+                Err(error) => match error.kind() {
+                    // Doing this because ::exists() doesn't work reliably on Windows via IntelliJ
+                    ErrorKind::NotFound => {}
+                    _ => {
+                        return Err(error.into());
+                    }
+                },
+            };
+
+            send_message(&*SocketMessage::Query(arg.state_query).as_bytes()?)?;
 
             let listener = UnixListener::bind(&socket)?;
             match listener.accept() {
