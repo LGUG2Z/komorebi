@@ -44,6 +44,18 @@ impl Container {
         }
     }
 
+    pub fn hwnd_from_exe(&self, exe: &str) -> Option<isize> {
+        for window in self.windows() {
+            if let Ok(window_exe) = window.exe() {
+                if exe == window_exe {
+                    return Option::from(window.hwnd);
+                }
+            }
+        }
+
+        None
+    }
+
     pub fn contains_window(&self, hwnd: isize) -> bool {
         for window in self.windows() {
             if window.hwnd == hwnd {

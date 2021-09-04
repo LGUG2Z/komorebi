@@ -16,6 +16,7 @@ pub enum WindowManagerEvent {
     MouseCapture(WinEvent, Window),
     Manage(Window),
     Unmanage(Window),
+    Raise(Window),
 }
 
 impl Display for WindowManagerEvent {
@@ -60,6 +61,9 @@ impl Display for WindowManagerEvent {
                     winevent, window
                 )
             }
+            WindowManagerEvent::Raise(window) => {
+                write!(f, "Raise (Window: {})", window)
+            }
         }
     }
 }
@@ -74,6 +78,7 @@ impl WindowManagerEvent {
             | WindowManagerEvent::Show(_, window)
             | WindowManagerEvent::MoveResizeEnd(_, window)
             | WindowManagerEvent::MouseCapture(_, window)
+            | WindowManagerEvent::Raise(window)
             | WindowManagerEvent::Manage(window)
             | WindowManagerEvent::Unmanage(window) => window,
         }

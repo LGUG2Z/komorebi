@@ -91,6 +91,10 @@ impl WindowManager {
         }
 
         match event {
+            WindowManagerEvent::Raise(window) => {
+                window.raise()?;
+                self.has_pending_raise_op = false;
+            }
             WindowManagerEvent::Minimize(_, window)
             | WindowManagerEvent::Destroy(_, window)
             | WindowManagerEvent::Unmanage(window) => {
@@ -315,6 +319,7 @@ impl WindowManager {
             .open(hwnd_json)?;
 
         serde_json::to_writer_pretty(&file, &known_hwnds)?;
+
         tracing::info!("processed: {}", event.window().to_string());
         Ok(())
     }

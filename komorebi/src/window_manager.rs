@@ -44,14 +44,17 @@ pub struct WindowManager {
     pub incoming_events: Arc<Mutex<Receiver<WindowManagerEvent>>>,
     pub command_listener: UnixListener,
     pub is_paused: bool,
+    pub autoraise: bool,
     pub hotwatch: Hotwatch,
     pub virtual_desktop_id: Option<usize>,
+    pub has_pending_raise_op: bool,
 }
 
 #[derive(Debug, Serialize)]
 pub struct State {
     pub monitors: Ring<Monitor>,
     pub is_paused: bool,
+    pub autoraise: bool,
     pub float_identifiers: Vec<String>,
     pub manage_identifiers: Vec<String>,
     pub layered_exe_whitelist: Vec<String>,
@@ -65,6 +68,7 @@ impl From<&mut WindowManager> for State {
         Self {
             monitors: wm.monitors.clone(),
             is_paused: wm.is_paused,
+            autoraise: wm.autoraise,
             float_identifiers: FLOAT_IDENTIFIERS.lock().clone(),
             manage_identifiers: MANAGE_IDENTIFIERS.lock().clone(),
             layered_exe_whitelist: LAYERED_EXE_WHITELIST.lock().clone(),
@@ -128,8 +132,10 @@ impl WindowManager {
             incoming_events: incoming,
             command_listener: listener,
             is_paused: false,
+            autoraise: false,
             hotwatch: Hotwatch::new()?,
             virtual_desktop_id,
+            has_pending_raise_op: false,
         })
     }
 
@@ -358,6 +364,51 @@ impl WindowManager {
         let hwnd = WindowsApi::foreground_window()?;
         let event = WindowManagerEvent::Unmanage(Window { hwnd });
         Ok(WINEVENT_CALLBACK_CHANNEL.lock().0.send(event)?)
+    }
+
+    #[tracing::instrument(skip(self))]
+    pub fn raise_window_at_cursor_pos(&mut self) -> Result<()> {
+        if !self.autoraise {
+            return Ok(());
+        }
+
+        if self.has_pending_raise_op {
+            Ok(())
+        } else {
+            let mut hwnd = WindowsApi::window_at_cursor_pos()?;
+            let mut known_hwnd = false;
+            for monitor in self.monitors() {
+                for workspace in monitor.workspaces() {
+                    if workspace.contains_window(hwnd) {
+                        known_hwnd = true;
+                    }
+                }
+            }
+
+            if !known_hwnd {
+                let class = Window { hwnd }.class()?;
+                // Just Chromium and Electron fucking up everything, again
+                if class == *"Chrome_RenderWidgetHostHWND" {
+                    for monitor in self.monitors() {
+                        for workspace in monitor.workspaces() {
+                            if let Some(exe_hwnd) = workspace.hwnd_from_exe(&Window { hwnd }.exe()?)
+                            {
+                                hwnd = exe_hwnd;
+                                known_hwnd = true;
+                            }
+                        }
+                    }
+                }
+            }
+
+            if known_hwnd && self.focused_window()?.hwnd != hwnd {
+                let event = WindowManagerEvent::Raise(Window { hwnd });
+                self.has_pending_raise_op = true;
+                Ok(WINEVENT_CALLBACK_CHANNEL.lock().0.send(event)?)
+            } else {
+                Ok(())
+            }
+        }
     }
 
     #[tracing::instrument(skip(self))]
@@ -1078,6 +1129,12 @@ impl WindowManager {
         self.focused_workspace_mut()?
             .focused_container_mut()
             .ok_or_else(|| anyhow!("there is no container"))
+    }
+
+    pub fn focused_window(&self) -> Result<&Window> {
+        self.focused_container()?
+            .focused_window()
+            .ok_or_else(|| anyhow!("there is no window"))
     }
 
     fn focused_window_mut(&mut self) -> Result<&mut Window> {

@@ -16,7 +16,6 @@ use komorebi_core::StateQuery;
 
 use crate::window_manager;
 use crate::window_manager::WindowManager;
-use crate::windows_api::WindowsApi;
 use crate::FLOAT_IDENTIFIERS;
 use crate::MANAGE_IDENTIFIERS;
 use crate::TRAY_AND_MULTI_WINDOW_CLASSES;
@@ -214,18 +213,12 @@ impl WindowManager {
             }
             SocketMessage::FocusFollowsMouse(enable) => {
                 if enable {
-                    WindowsApi::enable_focus_follows_mouse()?;
+                    self.autoraise = true;
                 } else {
-                    WindowsApi::disable_focus_follows_mouse()?;
+                    self.autoraise = false;
                 }
             }
-            SocketMessage::ToggleFocusFollowsMouse => {
-                if WindowsApi::focus_follows_mouse()? {
-                    WindowsApi::disable_focus_follows_mouse()?;
-                } else {
-                    WindowsApi::enable_focus_follows_mouse()?;
-                }
-            }
+            SocketMessage::ToggleFocusFollowsMouse => self.autoraise = !self.autoraise,
             SocketMessage::ReloadConfiguration => {
                 Self::reload_configuration();
             }

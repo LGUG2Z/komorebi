@@ -60,6 +60,7 @@ use bindings::Windows::Win32::UI::WindowsAndMessaging::SetWindowLongPtrW;
 use bindings::Windows::Win32::UI::WindowsAndMessaging::SetWindowPos;
 use bindings::Windows::Win32::UI::WindowsAndMessaging::ShowWindow;
 use bindings::Windows::Win32::UI::WindowsAndMessaging::SystemParametersInfoW;
+use bindings::Windows::Win32::UI::WindowsAndMessaging::WindowFromPoint;
 use bindings::Windows::Win32::UI::WindowsAndMessaging::GWL_EXSTYLE;
 use bindings::Windows::Win32::UI::WindowsAndMessaging::GWL_STYLE;
 use bindings::Windows::Win32::UI::WindowsAndMessaging::GW_HWNDNEXT;
@@ -349,6 +350,14 @@ impl WindowsApi {
         Ok(cursor_pos)
     }
 
+    pub fn window_from_point(point: POINT) -> Result<isize> {
+        Result::from(WindowsResult::from(unsafe { WindowFromPoint(point) }))
+    }
+
+    pub fn window_at_cursor_pos() -> Result<isize> {
+        Self::window_from_point(Self::cursor_pos()?)
+    }
+
     pub fn center_cursor_in_rect(rect: &Rect) -> Result<()> {
         Self::set_cursor_pos(rect.left + (rect.right / 2), rect.top + (rect.bottom / 2))
     }
@@ -554,6 +563,7 @@ impl WindowsApi {
         ))
     }
 
+    #[allow(dead_code)]
     pub fn system_parameters_info_w(
         action: SYSTEM_PARAMETERS_INFO_ACTION,
         ui_param: u32,
@@ -565,6 +575,7 @@ impl WindowsApi {
         }))
     }
 
+    #[allow(dead_code)]
     pub fn focus_follows_mouse() -> Result<bool> {
         let mut is_enabled: BOOL = unsafe { std::mem::zeroed() };
 
@@ -578,6 +589,7 @@ impl WindowsApi {
         Ok(is_enabled.into())
     }
 
+    #[allow(dead_code)]
     pub fn enable_focus_follows_mouse() -> Result<()> {
         Self::system_parameters_info_w(
             SPI_SETACTIVEWINDOWTRACKING,
@@ -587,6 +599,7 @@ impl WindowsApi {
         )
     }
 
+    #[allow(dead_code)]
     pub fn disable_focus_follows_mouse() -> Result<()> {
         Self::system_parameters_info_w(
             SPI_SETACTIVEWINDOWTRACKING,

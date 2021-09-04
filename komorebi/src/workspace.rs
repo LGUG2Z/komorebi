@@ -263,6 +263,38 @@ impl Workspace {
         idx
     }
 
+    pub fn hwnd_from_exe(&self, exe: &str) -> Option<isize> {
+        for container in self.containers() {
+            if let Some(hwnd) = container.hwnd_from_exe(exe) {
+                return Option::from(hwnd);
+            }
+        }
+
+        if let Some(window) = self.maximized_window() {
+            if let Ok(window_exe) = window.exe() {
+                if exe == window_exe {
+                    return Option::from(window.hwnd);
+                }
+            }
+        }
+
+        if let Some(container) = self.monocle_container() {
+            if let Some(hwnd) = container.hwnd_from_exe(exe) {
+                return Option::from(hwnd);
+            }
+        }
+
+        for window in self.floating_windows() {
+            if let Ok(window_exe) = window.exe() {
+                if exe == window_exe {
+                    return Option::from(window.hwnd);
+                }
+            }
+        }
+
+        None
+    }
+
     pub fn contains_window(&self, hwnd: isize) -> bool {
         for container in self.containers() {
             if container.contains_window(hwnd) {

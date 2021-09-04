@@ -25,6 +25,7 @@ use which::which;
 
 use crate::process_command::listen_for_commands;
 use crate::process_event::listen_for_events;
+use crate::process_movement::listen_for_movements;
 use crate::window_manager::WindowManager;
 use crate::window_manager_event::WindowManagerEvent;
 use crate::windows_api::WindowsApi;
@@ -36,6 +37,7 @@ mod container;
 mod monitor;
 mod process_command;
 mod process_event;
+mod process_movement;
 mod set_window_position;
 mod styles;
 mod window;
@@ -227,6 +229,7 @@ fn main() -> Result<()> {
             wm.lock().init()?;
             listen_for_commands(wm.clone());
             listen_for_events(wm.clone());
+            listen_for_movements(wm.clone());
 
             load_configuration()?;
 
