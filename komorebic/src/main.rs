@@ -30,6 +30,7 @@ use derive_ahk::AhkLibrary;
 use komorebi_core::ApplicationIdentifier;
 use komorebi_core::CycleDirection;
 use komorebi_core::Flip;
+use komorebi_core::FocusFollowsMouseImplementation;
 use komorebi_core::Layout;
 use komorebi_core::OperationDirection;
 use komorebi_core::Sizing;
@@ -82,7 +83,6 @@ gen_enum_subcommand_args! {
     FlipLayout: Flip,
     ChangeLayout: Layout,
     WatchConfiguration: BooleanState,
-    FocusFollowsMouse: BooleanState,
     Query: StateQuery,
 }
 
@@ -233,6 +233,20 @@ struct WorkspaceRule {
     workspace: usize,
 }
 
+#[derive(Clap, AhkFunction)]
+struct ToggleFocusFollowsMouse {
+    #[clap(arg_enum, short, long, default_value = "komorebi")]
+    implementation: FocusFollowsMouseImplementation,
+}
+
+#[derive(Clap, AhkFunction)]
+struct FocusFollowsMouse {
+    #[clap(arg_enum, short, long, default_value = "komorebi")]
+    implementation: FocusFollowsMouseImplementation,
+    #[clap(arg_enum)]
+    boolean_state: BooleanState,
+}
+
 #[derive(Clap)]
 #[clap(author, about, version, setting = AppSettings::DeriveDisplayOrder)]
 struct Opts {
@@ -361,7 +375,8 @@ enum SubCommand {
     #[clap(setting = AppSettings::ArgRequiredElseHelp)]
     FocusFollowsMouse(FocusFollowsMouse),
     /// Toggle focus follows mouse for the operating system
-    ToggleFocusFollowsMouse,
+    #[clap(setting = AppSettings::ArgRequiredElseHelp)]
+    ToggleFocusFollowsMouse(ToggleFocusFollowsMouse),
     /// Generate a library of AutoHotKey helper functions
     AhkLibrary,
 }
@@ -462,8 +477,8 @@ fn main() -> Result<()> {
                 &*SocketMessage::AdjustContainerPadding(arg.sizing, arg.adjustment).as_bytes()?,
             )?;
         }
-        SubCommand::ToggleFocusFollowsMouse => {
-            send_message(&*SocketMessage::ToggleFocusFollowsMouse.as_bytes()?)?;
+        SubCommand::ToggleFocusFollowsMouse(arg) => {
+            send_message(&*SocketMessage::ToggleFocusFollowsMouse(arg.implementation).as_bytes()?)?;
         }
         SubCommand::ToggleTiling => {
             send_message(&*SocketMessage::ToggleTiling.as_bytes()?)?;
@@ -667,7 +682,9 @@ fn main() -> Result<()> {
                 BooleanState::Disable => false,
             };
 
-            send_message(&*SocketMessage::FocusFollowsMouse(enable).as_bytes()?)?;
+            send_message(
+                &*SocketMessage::FocusFollowsMouse(arg.implementation, enable).as_bytes()?,
+            )?;
         }
         SubCommand::ReloadConfiguration => {
             send_message(&*SocketMessage::ReloadConfiguration.as_bytes()?)?;

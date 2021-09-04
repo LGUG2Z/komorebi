@@ -176,12 +176,12 @@ IdentifyTrayApplication(identifier, id) {
     Run, komorebic.exe identify-tray-application %identifier% %id%, , Hide
 }
 
-FocusFollowsMouse(boolean_state) {
-    Run, komorebic.exe focus-follows-mouse %boolean_state%, , Hide
+FocusFollowsMouse(boolean_state, implementation) {
+    Run, komorebic.exe focus-follows-mouse %boolean_state% --implementation %implementation%, , Hide
 }
 
-ToggleFocusFollowsMouse() {
-    Run, komorebic.exe toggle-focus-follows-mouse, , Hide
+ToggleFocusFollowsMouse(implementation) {
+    Run, komorebic.exe toggle-focus-follows-mouse  --implementation %implementation%, , Hide
 }
 
 AhkLibrary() {

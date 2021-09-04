@@ -40,6 +40,7 @@ FloatRule("exe", "Wox.exe")
 
 ; Identify Minimize-to-Tray Applications
 IdentifyTrayApplication("exe", "Discord.exe")
+IdentifyTrayApplication("exe", "Spotify.exe")
 
 ; Change the focused window, Alt + Vim direction keys
 !h::
@@ -170,9 +171,9 @@ return
 TogglePause()
 return
 
-; Toggle focus follows mouse
+; Enable focus follows mouse
 !0::
-ToggleFocusFollowsMouse()
+ToggleFocusFollowsMouse("komorebi")
 return
 
 ; Switch to workspace

@@ -20,7 +20,10 @@ use ::syn::DeriveInput;
 use ::syn::Fields;
 use ::syn::FieldsNamed;
 use ::syn::FieldsUnnamed;
+use ::syn::Meta;
+use ::syn::NestedMeta;
 
+#[allow(clippy::too_many_lines)]
 #[proc_macro_derive(AhkFunction)]
 pub fn ahk_function(input: ::proc_macro::TokenStream) -> ::proc_macro::TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
@@ -29,29 +32,118 @@ pub fn ahk_function(input: ::proc_macro::TokenStream) -> ::proc_macro::TokenStre
     match input.data {
         Data::Struct(s) => match s.fields {
             Fields::Named(FieldsNamed { named, .. }) => {
-                let idents = named.iter().map(|f| &f.ident);
-                let arguments = quote! {#(#idents), *}.to_string();
+                let argument_idents = named
+                    .iter()
+                    // Filter out the flags
+                    .filter(|&f| {
+                        let mut include = true;
+                        for attribute in &f.attrs {
+                            if let ::std::result::Result::Ok(Meta::List(list)) =
+                                attribute.parse_meta()
+                            {
+                                for nested in list.nested {
+                                    if let NestedMeta::Meta(Meta::Path(path)) = nested {
+                                        if path.is_ident("long") {
+                                            include = false;
+                                        }
+                                    }
+                                }
+                            }
+                        }
 
-                let idents = named.iter().map(|f| &f.ident);
-                let called_arguments = quote! {#(%#idents%) *}
+                        include
+                    })
+                    .map(|f| &f.ident);
+
+                let argument_idents_clone = argument_idents.clone();
+
+                let called_arguments = quote! {#(%#argument_idents_clone%) *}
                     .to_string()
                     .replace(" %", "%")
                     .replace("% ", "%")
                     .replace("%%", "% %");
 
-                quote! {
-                    impl AhkFunction for #name {
-                        fn generate_ahk_function() -> String {
-                            ::std::format!(r#"
+                let flag_idents = named
+                    .iter()
+                    // Filter only the flags
+                    .filter(|f| {
+                        let mut include = false;
+
+                        for attribute in &f.attrs {
+                            if let ::std::result::Result::Ok(Meta::List(list)) =
+                                attribute.parse_meta()
+                            {
+                                for nested in list.nested {
+                                    if let NestedMeta::Meta(Meta::Path(path)) = nested {
+                                        // Identify them using the --long flag name
+                                        if path.is_ident("long") {
+                                            include = true;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        include
+                    })
+                    .map(|f| &f.ident);
+
+                let has_flags = flag_idents.clone().count() != 0;
+
+                if has_flags {
+                    let flag_idents_concat = flag_idents.clone();
+                    let argument_idents_concat = argument_idents.clone();
+
+                    // Concat the args and flag args if there are flags
+                    let all_arguments =
+                        quote! {#(#argument_idents_concat,) * #(#flag_idents_concat), *}
+                            .to_string();
+
+                    let flag_idents_clone = flag_idents.clone();
+                    let flags = quote! {#(--#flag_idents_clone) *}
+                        .to_string()
+                        .replace("- - ", "--");
+
+                    let called_flag_arguments = quote! {#(%#flag_idents%) *}
+                        .to_string()
+                        .replace(" %", "%")
+                        .replace("% ", "%")
+                        .replace("%%", "% %");
+
+                    quote! {
+                        impl AhkFunction for #name {
+                            fn generate_ahk_function() -> String {
+                                ::std::format!(r#"
+{}({}) {{
+    Run, komorebic.exe {} {} {} {}, , Hide
+}}"#,
+                                    ::std::stringify!(#name),
+                                    #all_arguments,
+                                    ::std::stringify!(#name).to_kebab_case(),
+                                    #called_arguments,
+                                    #flags,
+                                    #called_flag_arguments
+                                )
+                           }
+                        }
+                    }
+                } else {
+                    let arguments = quote! {#(#argument_idents), *}.to_string();
+
+                    quote! {
+                        impl AhkFunction for #name {
+                            fn generate_ahk_function() -> String {
+                                ::std::format!(r#"
 {}({}) {{
     Run, komorebic.exe {} {}, , Hide
 }}"#, 
-                                ::std::stringify!(#name),
-                                #arguments,
-                                ::std::stringify!(#name).to_kebab_case(),
-                                #called_arguments
-                            )
-                       }
+                                    ::std::stringify!(#name),
+                                    #arguments,
+                                    ::std::stringify!(#name).to_kebab_case(),
+                                    #called_arguments
+                                )
+                           }
+                        }
                     }
                 }
             }

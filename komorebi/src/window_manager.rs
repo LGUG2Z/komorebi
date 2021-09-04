@@ -17,6 +17,7 @@ use uds_windows::UnixListener;
 
 use komorebi_core::CycleDirection;
 use komorebi_core::Flip;
+use komorebi_core::FocusFollowsMouseImplementation;
 use komorebi_core::Layout;
 use komorebi_core::OperationDirection;
 use komorebi_core::Rect;
@@ -44,7 +45,7 @@ pub struct WindowManager {
     pub incoming_events: Arc<Mutex<Receiver<WindowManagerEvent>>>,
     pub command_listener: UnixListener,
     pub is_paused: bool,
-    pub autoraise: bool,
+    pub focus_follows_mouse: Option<FocusFollowsMouseImplementation>,
     pub hotwatch: Hotwatch,
     pub virtual_desktop_id: Option<usize>,
     pub has_pending_raise_op: bool,
@@ -54,7 +55,7 @@ pub struct WindowManager {
 pub struct State {
     pub monitors: Ring<Monitor>,
     pub is_paused: bool,
-    pub autoraise: bool,
+    pub focus_follows_mouse: Option<FocusFollowsMouseImplementation>,
     pub float_identifiers: Vec<String>,
     pub manage_identifiers: Vec<String>,
     pub layered_exe_whitelist: Vec<String>,
@@ -68,7 +69,7 @@ impl From<&mut WindowManager> for State {
         Self {
             monitors: wm.monitors.clone(),
             is_paused: wm.is_paused,
-            autoraise: wm.autoraise,
+            focus_follows_mouse: None,
             float_identifiers: FLOAT_IDENTIFIERS.lock().clone(),
             manage_identifiers: MANAGE_IDENTIFIERS.lock().clone(),
             layered_exe_whitelist: LAYERED_EXE_WHITELIST.lock().clone(),
@@ -132,7 +133,7 @@ impl WindowManager {
             incoming_events: incoming,
             command_listener: listener,
             is_paused: false,
-            autoraise: false,
+            focus_follows_mouse: None,
             hotwatch: Hotwatch::new()?,
             virtual_desktop_id,
             has_pending_raise_op: false,
@@ -368,10 +369,6 @@ impl WindowManager {
 
     #[tracing::instrument(skip(self))]
     pub fn raise_window_at_cursor_pos(&mut self) -> Result<()> {
-        if !self.autoraise {
-            return Ok(());
-        }
-
         if self.has_pending_raise_op {
             Ok(())
         } else {

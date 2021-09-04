@@ -164,6 +164,21 @@ komorebic.exe identify-tray-application exe Discord.exe
 # komorebic.exe identify-tray-application title [TITLE]
 ```
 
+#### Focus Follows Mouse
+
+Komorebi supports two focus-follows-mouse implementations; the native Windows X-Mouse implementation, which treats the
+desktop, the task bar and the system tray as windows and switches focus to them eagerly, and a custom `komorebi`
+implementation which only considers windows managed by `komorebi` as valid targets to switch focus to when moving the
+mouse.
+
+When calling any of the `komorebic` commands related to focus-follows-mouse functionality, the `komorebi`
+implementation will be chosen as the default implementation. You can optionally specify the `windows` implementation by
+passing it as an argument to the `--implementation` flag:
+
+```powershell
+komorebic.exe toggle-focus-follows-mouse --implementation windows
+```
+
 ## Configuration with `komorebic`
 
 As previously mentioned, this project does not handle anything related to keybindings and shortcuts directly. I
@@ -263,7 +278,8 @@ used [is available here](komorebi.sample.with.lib.ahk).
 - [x] Toggle floating windows
 - [x] Toggle monocle window
 - [x] Toggle native maximization
-- [x] Toggle focus follows mouse
+- [x] Toggle X-Mouse (Native Windows) focus follows mouse
+- [x] Toggle custom Komorebi focus follows mouse (desktop and system tray-aware)
 - [x] Toggle automatic tiling
 - [x] Pause all window management
 - [x] Load configuration on startup

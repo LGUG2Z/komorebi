@@ -68,8 +68,8 @@ pub enum SocketMessage {
     IdentifyTrayApplication(ApplicationIdentifier, String),
     State,
     Query(StateQuery),
-    FocusFollowsMouse(bool),
-    ToggleFocusFollowsMouse,
+    FocusFollowsMouse(FocusFollowsMouseImplementation, bool),
+    ToggleFocusFollowsMouse(FocusFollowsMouseImplementation),
 }
 
 impl SocketMessage {
@@ -105,6 +105,13 @@ pub enum ApplicationIdentifier {
     Exe,
     Class,
     Title,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, Display, EnumString, ArgEnum)]
+#[strum(serialize_all = "snake_case")]
+pub enum FocusFollowsMouseImplementation {
+    Komorebi,
+    Windows,
 }
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, Display, EnumString, ArgEnum)]

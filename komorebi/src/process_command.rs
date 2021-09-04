@@ -11,11 +11,13 @@ use parking_lot::Mutex;
 use uds_windows::UnixStream;
 
 use komorebi_core::ApplicationIdentifier;
+use komorebi_core::FocusFollowsMouseImplementation;
 use komorebi_core::SocketMessage;
 use komorebi_core::StateQuery;
 
 use crate::window_manager;
 use crate::window_manager::WindowManager;
+use crate::windows_api::WindowsApi;
 use crate::FLOAT_IDENTIFIERS;
 use crate::MANAGE_IDENTIFIERS;
 use crate::TRAY_AND_MULTI_WINDOW_CLASSES;
@@ -211,14 +213,80 @@ impl WindowManager {
             SocketMessage::ResizeWindow(direction, sizing) => {
                 self.resize_window(direction, sizing, Option::from(50))?;
             }
-            SocketMessage::FocusFollowsMouse(enable) => {
-                if enable {
-                    self.autoraise = true;
-                } else {
-                    self.autoraise = false;
+            SocketMessage::FocusFollowsMouse(implementation, enable) => match implementation {
+                FocusFollowsMouseImplementation::Komorebi => {
+                    if WindowsApi::focus_follows_mouse()? {
+                        tracing::warn!(
+                            "the komorebi implementation of focus follows mouse cannot be enabled while the windows implementation is enabled"
+                        );
+                    } else if enable {
+                        self.focus_follows_mouse = Option::from(implementation);
+                    } else {
+                        self.focus_follows_mouse = None;
+                    }
                 }
-            }
-            SocketMessage::ToggleFocusFollowsMouse => self.autoraise = !self.autoraise,
+                FocusFollowsMouseImplementation::Windows => {
+                    if let Some(FocusFollowsMouseImplementation::Komorebi) =
+                        self.focus_follows_mouse
+                    {
+                        tracing::warn!(
+                            "the windows implementation of focus follows mouse cannot be enabled while the komorebi implementation is enabled"
+                        );
+                    } else if enable {
+                        WindowsApi::enable_focus_follows_mouse()?;
+                        self.focus_follows_mouse =
+                            Option::from(FocusFollowsMouseImplementation::Windows);
+                    } else {
+                        WindowsApi::disable_focus_follows_mouse()?;
+                        self.focus_follows_mouse = None;
+                    }
+                }
+            },
+            SocketMessage::ToggleFocusFollowsMouse(implementation) => match implementation {
+                FocusFollowsMouseImplementation::Komorebi => {
+                    if WindowsApi::focus_follows_mouse()? {
+                        tracing::warn!(
+                            "the komorebi implementation of focus follows mouse cannot be toggled while the windows implementation is enabled"
+                        );
+                    } else {
+                        match self.focus_follows_mouse {
+                            None => self.focus_follows_mouse = Option::from(implementation),
+                            Some(FocusFollowsMouseImplementation::Komorebi) => {
+                                self.focus_follows_mouse = None;
+                            }
+                            Some(FocusFollowsMouseImplementation::Windows) => {
+                                tracing::warn!("ignoring command that could mix different focus follow mouse implementations");
+                            }
+                        }
+                    }
+                }
+                FocusFollowsMouseImplementation::Windows => {
+                    if let Some(FocusFollowsMouseImplementation::Komorebi) =
+                        self.focus_follows_mouse
+                    {
+                        tracing::warn!(
+                            "the windows implementation of focus follows mouse cannot be toggled while the komorebi implementation is enabled"
+                        );
+                    } else {
+                        match self.focus_follows_mouse {
+                            None => {
+                                self.focus_follows_mouse = {
+                                    WindowsApi::enable_focus_follows_mouse()?;
+                                    Option::from(implementation)
+                                }
+                            }
+                            Some(FocusFollowsMouseImplementation::Windows) => {
+                                WindowsApi::disable_focus_follows_mouse()?;
+                                self.focus_follows_mouse = None;
+                            }
+                            Some(FocusFollowsMouseImplementation::Komorebi) => {
+                                tracing::warn!("ignoring command that could mix different focus follow mouse implementations");
+                            }
+                        }
+                    }
+                }
+            },
+
             SocketMessage::ReloadConfiguration => {
                 Self::reload_configuration();
             }
