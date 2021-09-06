@@ -371,10 +371,17 @@ impl WindowManager {
 
     #[tracing::instrument(skip(self))]
     pub fn raise_window_at_cursor_pos(&mut self) -> Result<()> {
-        if self.has_pending_raise_op {
+        let mut hwnd = WindowsApi::window_at_cursor_pos()?;
+
+        if self.has_pending_raise_op
+            || self.focused_window()?.hwnd == hwnd
+            // Sometimes we need this check, because the focus may have been given by a click
+            // to a non-window such as the taskbar or system tray, and komorebi doesn't know that
+            // the focused window of the workspace is not actually focused by the OS at that point
+            || WindowsApi::foreground_window()? == hwnd
+        {
             Ok(())
         } else {
-            let mut hwnd = WindowsApi::window_at_cursor_pos()?;
             let mut known_hwnd = false;
             for monitor in self.monitors() {
                 for workspace in monitor.workspaces() {
@@ -384,10 +391,22 @@ impl WindowManager {
                 }
             }
 
+            // TODO: Not sure if this needs to be made configurable just yet...
+            let overlay_classes = [
+                // Chromium/Electron
+                "Chrome_RenderWidgetHostHWND".to_string(),
+                // Explorer
+                "DirectUIHWND".to_string(),
+                "SysTreeView32".to_string(),
+                "ToolbarWindow32".to_string(),
+                "NetUIHWND".to_string(),
+            ];
+
             if !known_hwnd {
                 let class = Window { hwnd }.class()?;
-                // Just Chromium and Electron fucking up everything, again
-                if class == *"Chrome_RenderWidgetHostHWND" {
+                // Some applications (Electron/Chromium-based, explorer) have (invisible?) overlays
+                // windows that we need to look beyond to find the actual window to raise
+                if overlay_classes.contains(&class) {
                     for monitor in self.monitors() {
                         for workspace in monitor.workspaces() {
                             if let Some(exe_hwnd) = workspace.hwnd_from_exe(&Window { hwnd }.exe()?)
@@ -400,17 +419,12 @@ impl WindowManager {
                 }
             }
 
-            if known_hwnd
-                && self.focused_window()?.hwnd != hwnd
-                // Sometimes we need this check, because the focus may have been given by a click
-                // to a non-window such as the taskbar or system tray, and komorebi doesn't know that
-                // the focused window of the workspace is not actually focused by the OS at that point
-                && WindowsApi::foreground_window()? != hwnd
-            {
+            if known_hwnd {
                 let event = WindowManagerEvent::Raise(Window { hwnd });
                 self.has_pending_raise_op = true;
                 Ok(WINEVENT_CALLBACK_CHANNEL.lock().0.send(event)?)
             } else {
+                tracing::debug!("not raising unknown window: {}", Window { hwnd });
                 Ok(())
             }
         }
