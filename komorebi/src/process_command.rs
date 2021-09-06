@@ -223,6 +223,7 @@ impl WindowManager {
                         self.focus_follows_mouse = Option::from(implementation);
                     } else {
                         self.focus_follows_mouse = None;
+                        self.has_pending_raise_op = false;
                     }
                 }
                 FocusFollowsMouseImplementation::Windows => {
@@ -250,12 +251,15 @@ impl WindowManager {
                         );
                     } else {
                         match self.focus_follows_mouse {
-                            None => self.focus_follows_mouse = Option::from(implementation),
+                            None => {
+                                self.focus_follows_mouse = Option::from(implementation);
+                                self.has_pending_raise_op = false;
+                            }
                             Some(FocusFollowsMouseImplementation::Komorebi) => {
                                 self.focus_follows_mouse = None;
                             }
                             Some(FocusFollowsMouseImplementation::Windows) => {
-                                tracing::warn!("ignoring command that could mix different focus follow mouse implementations");
+                                tracing::warn!("ignoring command that could mix different focus follows mouse implementations");
                             }
                         }
                     }
@@ -270,17 +274,15 @@ impl WindowManager {
                     } else {
                         match self.focus_follows_mouse {
                             None => {
-                                self.focus_follows_mouse = {
-                                    WindowsApi::enable_focus_follows_mouse()?;
-                                    Option::from(implementation)
-                                }
+                                WindowsApi::enable_focus_follows_mouse()?;
+                                self.focus_follows_mouse = Option::from(implementation);
                             }
                             Some(FocusFollowsMouseImplementation::Windows) => {
                                 WindowsApi::disable_focus_follows_mouse()?;
                                 self.focus_follows_mouse = None;
                             }
                             Some(FocusFollowsMouseImplementation::Komorebi) => {
-                                tracing::warn!("ignoring command that could mix different focus follow mouse implementations");
+                                tracing::warn!("ignoring command that could mix different focus follows mouse implementations");
                             }
                         }
                     }

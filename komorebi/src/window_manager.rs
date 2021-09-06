@@ -56,6 +56,7 @@ pub struct State {
     pub monitors: Ring<Monitor>,
     pub is_paused: bool,
     pub focus_follows_mouse: Option<FocusFollowsMouseImplementation>,
+    pub has_pending_raise_op: bool,
     pub float_identifiers: Vec<String>,
     pub manage_identifiers: Vec<String>,
     pub layered_exe_whitelist: Vec<String>,
@@ -69,7 +70,8 @@ impl From<&mut WindowManager> for State {
         Self {
             monitors: wm.monitors.clone(),
             is_paused: wm.is_paused,
-            focus_follows_mouse: None,
+            focus_follows_mouse: wm.focus_follows_mouse.clone(),
+            has_pending_raise_op: wm.has_pending_raise_op,
             float_identifiers: FLOAT_IDENTIFIERS.lock().clone(),
             manage_identifiers: MANAGE_IDENTIFIERS.lock().clone(),
             layered_exe_whitelist: LAYERED_EXE_WHITELIST.lock().clone(),
@@ -398,7 +400,13 @@ impl WindowManager {
                 }
             }
 
-            if known_hwnd && self.focused_window()?.hwnd != hwnd {
+            if known_hwnd
+                && self.focused_window()?.hwnd != hwnd
+                // Sometimes we need this check, because the focus may have been given by a click
+                // to a non-window such as the taskbar or system tray, and komorebi doesn't know that
+                // the focused window of the workspace is not actually focused by the OS at that point
+                && WindowsApi::foreground_window()? != hwnd
+            {
                 let event = WindowManagerEvent::Raise(Window { hwnd });
                 self.has_pending_raise_op = true;
                 Ok(WINEVENT_CALLBACK_CHANNEL.lock().0.send(event)?)
