@@ -23,6 +23,7 @@ use bindings::Windows::Win32::Graphics::Dwm::DWM_CLOAKED_INHERITED;
 use bindings::Windows::Win32::Graphics::Dwm::DWM_CLOAKED_SHELL;
 use bindings::Windows::Win32::Graphics::Gdi::EnumDisplayMonitors;
 use bindings::Windows::Win32::Graphics::Gdi::GetMonitorInfoW;
+use bindings::Windows::Win32::Graphics::Gdi::MonitorFromPoint;
 use bindings::Windows::Win32::Graphics::Gdi::MonitorFromWindow;
 use bindings::Windows::Win32::Graphics::Gdi::HDC;
 use bindings::Windows::Win32::Graphics::Gdi::HMONITOR;
@@ -225,6 +226,12 @@ impl WindowsApi {
         // MONITOR_DEFAULTTONEAREST ensures that the return value will never be NULL
         // https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-monitorfromwindow
         unsafe { MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST) }.0
+    }
+
+    pub fn monitor_from_point(point: POINT) -> isize {
+        // MONITOR_DEFAULTTONEAREST ensures that the return value will never be NULL
+        // https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-monitorfromwindow
+        unsafe { MonitorFromPoint(point, MONITOR_DEFAULTTONEAREST) }.0
     }
 
     pub fn position_window(hwnd: HWND, layout: &Rect, top: bool) -> Result<()> {

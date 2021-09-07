@@ -1014,6 +1014,18 @@ impl WindowManager {
         None
     }
 
+    pub fn monitor_idx_from_current_pos(&mut self) -> Option<usize> {
+        let hmonitor = WindowsApi::monitor_from_point(WindowsApi::cursor_pos().ok()?);
+
+        for (i, monitor) in self.monitors().iter().enumerate() {
+            if monitor.id() == hmonitor {
+                return Option::from(i);
+            }
+        }
+
+        None
+    }
+
     pub fn focused_workspace(&self) -> Result<&Workspace> {
         self.focused_monitor()
             .ok_or_else(|| anyhow!("there is no monitor"))?
