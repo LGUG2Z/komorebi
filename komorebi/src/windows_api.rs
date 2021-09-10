@@ -86,7 +86,6 @@ use crate::monitor::Monitor;
 use crate::ring::Ring;
 use crate::set_window_position::SetWindowPosition;
 use crate::windows_callbacks;
-use crate::workspace::Workspace;
 
 pub enum WindowsResult<T, E> {
     Err(E),
@@ -166,6 +165,17 @@ impl WindowsApi {
         }))
     }
 
+    pub fn valid_hmonitors() -> Result<Vec<isize>> {
+        let mut monitors: Vec<isize> = vec![];
+        let monitors_ref: &mut Vec<isize> = monitors.as_mut();
+        Self::enum_display_monitors(
+            windows_callbacks::valid_display_monitors,
+            monitors_ref as *mut Vec<isize> as isize,
+        )?;
+
+        Ok(monitors)
+    }
+
     pub fn load_monitor_information(monitors: &mut Ring<Monitor>) -> Result<()> {
         Self::enum_display_monitors(
             windows_callbacks::enum_display_monitor,
@@ -181,9 +191,8 @@ impl WindowsApi {
 
     pub fn load_workspace_information(monitors: &mut Ring<Monitor>) -> Result<()> {
         for monitor in monitors.elements_mut() {
-            if monitor.workspaces().is_empty() {
-                let mut workspace = Workspace::default();
-
+            let monitor_id = monitor.id();
+            if let Some(workspace) = monitor.workspaces_mut().front_mut() {
                 // EnumWindows will enumerate through windows on all monitors
                 Self::enum_windows(
                     windows_callbacks::enum_window,
@@ -200,7 +209,7 @@ impl WindowsApi {
 
                 for container in workspace.containers_mut() {
                     for window in container.windows() {
-                        if Self::monitor_from_window(window.hwnd()) != monitor.id() {
+                        if Self::monitor_from_window(window.hwnd()) != monitor_id {
                             windows_on_other_monitors.push(window.hwnd().0);
                         }
                     }
@@ -209,8 +218,6 @@ impl WindowsApi {
                 for hwnd in windows_on_other_monitors {
                     workspace.remove_window(hwnd)?;
                 }
-
-                monitor.workspaces_mut().push_back(workspace);
             }
         }
 

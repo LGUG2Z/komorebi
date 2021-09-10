@@ -55,8 +55,9 @@ impl WindowManager {
             WindowManagerEvent::FocusChange(_, window)
             | WindowManagerEvent::Show(_, window)
             | WindowManagerEvent::MoveResizeEnd(_, window) => {
-                let monitor_idx = self
-                    .monitor_idx_from_window(*window)
+                self.reconcile_monitors()?;
+
+                let monitor_idx = self.monitor_idx_from_window(*window)
                     .ok_or_else(|| anyhow!("there is no monitor associated with this window, it may have already been destroyed"))?;
 
                 self.focus_monitor(monitor_idx)?;

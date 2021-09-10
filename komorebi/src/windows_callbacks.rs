@@ -16,6 +16,17 @@ use crate::window_manager_event::WindowManagerEvent;
 use crate::windows_api::WindowsApi;
 use crate::winevent_listener::WINEVENT_CALLBACK_CHANNEL;
 
+pub extern "system" fn valid_display_monitors(
+    hmonitor: HMONITOR,
+    _: HDC,
+    _: *mut RECT,
+    lparam: LPARAM,
+) -> BOOL {
+    let monitors = unsafe { &mut *(lparam.0 as *mut Vec<isize>) };
+    monitors.push(hmonitor.0);
+    true.into()
+}
+
 pub extern "system" fn enum_display_monitor(
     hmonitor: HMONITOR,
     _: HDC,
@@ -23,6 +34,14 @@ pub extern "system" fn enum_display_monitor(
     lparam: LPARAM,
 ) -> BOOL {
     let monitors = unsafe { &mut *(lparam.0 as *mut Ring<Monitor>) };
+
+    // Don't duplicate a monitor that is already being managed
+    for monitor in monitors.elements() {
+        if monitor.id() == hmonitor.0 {
+            return true.into();
+        }
+    }
+
     if let Ok(m) = WindowsApi::monitor(hmonitor) {
         monitors.elements_mut().push_back(m);
     }

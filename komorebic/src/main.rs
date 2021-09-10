@@ -527,11 +527,10 @@ fn main() -> Result<()> {
                 None
             };
 
-            let script = if let Some(exec) = exec {
-                format!("Start-Process '{}' -WindowStyle hidden", exec)
-            } else {
-                String::from("Start-Process komorebi -WindowStyle hidden")
-            };
+            let script = exec.map_or_else(
+                || String::from("Start-Process komorebi -WindowStyle hidden"),
+                |exec| format!("Start-Process '{}' -WindowStyle hidden", exec),
+            );
 
             match powershell_script::run(&script, true) {
                 Ok(output) => {

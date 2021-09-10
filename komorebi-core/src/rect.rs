@@ -2,23 +2,12 @@ use serde::Serialize;
 
 use bindings::Windows::Win32::Foundation::RECT;
 
-#[derive(Debug, Clone, Copy, Serialize, Eq, PartialEq)]
+#[derive(Debug, Default, Clone, Copy, Serialize, Eq, PartialEq)]
 pub struct Rect {
     pub left: i32,
     pub top: i32,
     pub right: i32,
     pub bottom: i32,
-}
-
-impl Default for Rect {
-    fn default() -> Self {
-        Self {
-            left: 0,
-            top: 0,
-            right: 0,
-            bottom: 0,
-        }
-    }
 }
 
 impl From<RECT> for Rect {

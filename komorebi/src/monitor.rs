@@ -6,6 +6,7 @@ use color_eyre::Result;
 use getset::CopyGetters;
 use getset::Getters;
 use getset::MutGetters;
+use getset::Setters;
 use serde::Serialize;
 
 use komorebi_core::Rect;
@@ -14,9 +15,9 @@ use crate::container::Container;
 use crate::ring::Ring;
 use crate::workspace::Workspace;
 
-#[derive(Debug, Clone, Serialize, Getters, CopyGetters, MutGetters)]
+#[derive(Debug, Clone, Serialize, Getters, CopyGetters, MutGetters, Setters)]
 pub struct Monitor {
-    #[getset(get_copy = "pub")]
+    #[getset(get_copy = "pub", set = "pub")]
     id: isize,
     monitor_size: Rect,
     #[getset(get = "pub")]
@@ -30,11 +31,14 @@ pub struct Monitor {
 impl_ring_elements!(Monitor, Workspace);
 
 pub fn new(id: isize, monitor_size: Rect, work_area_size: Rect) -> Monitor {
+    let mut workspaces = Ring::default();
+    workspaces.elements_mut().push_back(Workspace::default());
+
     Monitor {
         id,
         monitor_size,
         work_area_size,
-        workspaces: Ring::default(),
+        workspaces,
         workspace_names: HashMap::default(),
     }
 }

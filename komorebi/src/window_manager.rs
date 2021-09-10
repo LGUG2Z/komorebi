@@ -225,6 +225,44 @@ impl WindowManager {
     }
 
     #[tracing::instrument(skip(self))]
+    pub fn reconcile_monitors(&mut self) -> Result<()> {
+        let valid_hmonitors = WindowsApi::valid_hmonitors()?;
+        let mut invalid = vec![];
+
+        for monitor in self.monitors_mut() {
+            if !valid_hmonitors.contains(&monitor.id()) {
+                let mut mark_as_invalid = true;
+
+                // If an invalid hmonitor has at least one window in the window manager state,
+                // we can attempt to update its hmonitor id in-place so that it doesn't get reaped
+                if let Some(workspace) = monitor.focused_workspace() {
+                    if let Some(container) = workspace.focused_container() {
+                        if let Some(window) = container.focused_window() {
+                            let actual_hmonitor = WindowsApi::monitor_from_window(window.hwnd());
+                            if actual_hmonitor != monitor.id() {
+                                monitor.set_id(actual_hmonitor);
+                                mark_as_invalid = false;
+                            }
+                        }
+                    }
+                }
+
+                if mark_as_invalid {
+                    invalid.push(monitor.id());
+                }
+            }
+        }
+
+        // Remove any invalid monitors from our state
+        self.monitors_mut().retain(|m| !invalid.contains(&m.id()));
+
+        // Check for and add any new monitors that may have been plugged in
+        WindowsApi::load_monitor_information(&mut self.monitors)?;
+
+        Ok(())
+    }
+
+    #[tracing::instrument(skip(self))]
     pub fn enforce_workspace_rules(&mut self) -> Result<()> {
         let mut to_move = vec![];
 
