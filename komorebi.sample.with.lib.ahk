@@ -42,6 +42,11 @@ FloatRule("exe", "Wox.exe")
 IdentifyTrayApplication("exe", "Discord.exe")
 IdentifyTrayApplication("exe", "Spotify.exe")
 
+; Identify Electron applications with overflowing borders
+IdentifyBorderOverflow("exe", "Discord.exe")
+IdentifyBorderOverflow("exe", "Spotify.exe")
+IdentifyBorderOverflow("class", "ZPFTEWndClass")
+
 ; Change the focused window, Alt + Vim direction keys
 !h::
 Focus("left")

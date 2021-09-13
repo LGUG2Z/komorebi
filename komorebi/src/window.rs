@@ -15,6 +15,7 @@ use crate::styles::GwlExStyle;
 use crate::styles::GwlStyle;
 use crate::window_manager_event::WindowManagerEvent;
 use crate::windows_api::WindowsApi;
+use crate::BORDER_OVERFLOW_IDENTIFIERS;
 use crate::FLOAT_IDENTIFIERS;
 use crate::HIDDEN_HWNDS;
 use crate::LAYERED_EXE_WHITELIST;
@@ -107,18 +108,31 @@ impl Window {
         // };
 
         let mut rect = *layout;
-        let border = Rect {
-            left: 12,
-            top: 0,
-            right: 24,
-            bottom: 12,
-        };
 
-        // Remove the invisible border
-        rect.left -= border.left;
-        rect.top -= border.top;
-        rect.right += border.right;
-        rect.bottom += border.bottom;
+        let mut should_remove_border = true;
+
+        let border_overflows = BORDER_OVERFLOW_IDENTIFIERS.lock();
+        if border_overflows.contains(&self.title()?)
+            || border_overflows.contains(&self.exe()?)
+            || border_overflows.contains(&self.class()?)
+        {
+            should_remove_border = false;
+        }
+
+        if should_remove_border {
+            let border = Rect {
+                left: 12,
+                top: 0,
+                right: 24,
+                bottom: 12,
+            };
+
+            // Remove the invisible border
+            rect.left -= border.left;
+            rect.top -= border.top;
+            rect.right += border.right;
+            rect.bottom += border.bottom;
+        }
 
         WindowsApi::position_window(self.hwnd(), &rect, top)
     }

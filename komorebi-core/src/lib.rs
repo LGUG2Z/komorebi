@@ -66,6 +66,7 @@ pub enum SocketMessage {
     FloatRule(ApplicationIdentifier, String),
     ManageRule(ApplicationIdentifier, String),
     IdentifyTrayApplication(ApplicationIdentifier, String),
+    IdentifyBorderOverflow(ApplicationIdentifier, String),
     State,
     Query(StateQuery),
     FocusFollowsMouse(FocusFollowsMouseImplementation, bool),

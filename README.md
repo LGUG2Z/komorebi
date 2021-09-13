@@ -234,6 +234,7 @@ float-rule                    Add a rule to always float the specified applicati
 manage-rule                   Add a rule to always manage the specified application
 workspace-rule                Add a rule to associate an application with a workspace
 identify-tray-application     Identify an application that closes to the system tray
+identify-border-overflow      Identify an application that has overflowing borders
 focus-follows-mouse           Enable or disable focus follows mouse for the operating system
 toggle-focus-follows-mouse    Toggle focus follows mouse for the operating system
 ahk-library                   Generate a library of AutoHotKey helper functions
@@ -274,6 +275,7 @@ used [is available here](komorebi.sample.with.lib.ahk).
 - [x] Floating rules based on exe name, window title and class
 - [x] Workspace rules based on exe name and window class
 - [x] Additional manage rules based on exe name and window class
+- [x] Identify applications which overflow their borders by exe name and class
 - [x] Identify 'close/minimize to tray' applications by exe name and class
 - [x] Toggle floating windows
 - [x] Toggle monocle window

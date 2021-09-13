@@ -53,16 +53,15 @@ lazy_static! {
     static ref HIDDEN_HWNDS: Arc<Mutex<Vec<isize>>> = Arc::new(Mutex::new(vec![]));
     static ref LAYERED_EXE_WHITELIST: Arc<Mutex<Vec<String>>> =
         Arc::new(Mutex::new(vec!["steam.exe".to_string()]));
-    static ref TRAY_AND_MULTI_WINDOW_CLASSES: Arc<Mutex<Vec<String>>> =
-        Arc::new(Mutex::new(vec![]));
-    static ref TRAY_AND_MULTI_WINDOW_EXES: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(vec![
-        "explorer.exe".to_string(),
-        "firefox.exe".to_string(),
-        "chrome.exe".to_string(),
-        "idea64.exe".to_string(),
-        "ApplicationFrameHost.exe".to_string(),
-        "steam.exe".to_string(),
-    ]));
+    static ref TRAY_AND_MULTI_WINDOW_IDENTIFIERS: Arc<Mutex<Vec<String>>> =
+        Arc::new(Mutex::new(vec![
+            "explorer.exe".to_string(),
+            "firefox.exe".to_string(),
+            "chrome.exe".to_string(),
+            "idea64.exe".to_string(),
+            "ApplicationFrameHost.exe".to_string(),
+            "steam.exe".to_string(),
+        ]));
     static ref OBJECT_NAME_CHANGE_ON_LAUNCH: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(vec![
         "firefox.exe".to_string(),
         "idea64.exe".to_string(),
@@ -71,6 +70,7 @@ lazy_static! {
         Arc::new(Mutex::new(HashMap::new()));
     static ref MANAGE_IDENTIFIERS: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(vec![]));
     static ref FLOAT_IDENTIFIERS: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(vec![]));
+    static ref BORDER_OVERFLOW_IDENTIFIERS: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(vec![]));
 }
 
 fn setup() -> Result<(WorkerGuard, WorkerGuard)> {

@@ -219,6 +219,7 @@ gen_application_target_subcommand_args! {
     FloatRule,
     ManageRule,
     IdentifyTrayApplication,
+    IdentifyBorderOverflow,
 }
 
 #[derive(Clap, AhkFunction)]
@@ -371,6 +372,9 @@ enum SubCommand {
     /// Identify an application that closes to the system tray
     #[clap(setting = AppSettings::ArgRequiredElseHelp)]
     IdentifyTrayApplication(IdentifyTrayApplication),
+    /// Identify an application that has overflowing borders
+    #[clap(setting = AppSettings::ArgRequiredElseHelp)]
+    IdentifyBorderOverflow(IdentifyBorderOverflow),
     /// Enable or disable focus follows mouse for the operating system
     #[clap(setting = AppSettings::ArgRequiredElseHelp)]
     FocusFollowsMouse(FocusFollowsMouse),
@@ -699,6 +703,11 @@ fn main() -> Result<()> {
             send_message(
                 &*SocketMessage::IdentifyTrayApplication(target.identifier, target.id)
                     .as_bytes()?,
+            )?;
+        }
+        SubCommand::IdentifyBorderOverflow(target) => {
+            send_message(
+                &*SocketMessage::IdentifyBorderOverflow(target.identifier, target.id).as_bytes()?,
             )?;
         }
         SubCommand::Manage => {

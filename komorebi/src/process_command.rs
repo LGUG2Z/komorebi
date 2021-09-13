@@ -10,7 +10,6 @@ use color_eyre::Result;
 use parking_lot::Mutex;
 use uds_windows::UnixStream;
 
-use komorebi_core::ApplicationIdentifier;
 use komorebi_core::FocusFollowsMouseImplementation;
 use komorebi_core::SocketMessage;
 use komorebi_core::StateQuery;
@@ -18,10 +17,10 @@ use komorebi_core::StateQuery;
 use crate::window_manager;
 use crate::window_manager::WindowManager;
 use crate::windows_api::WindowsApi;
+use crate::BORDER_OVERFLOW_IDENTIFIERS;
 use crate::FLOAT_IDENTIFIERS;
 use crate::MANAGE_IDENTIFIERS;
-use crate::TRAY_AND_MULTI_WINDOW_CLASSES;
-use crate::TRAY_AND_MULTI_WINDOW_EXES;
+use crate::TRAY_AND_MULTI_WINDOW_IDENTIFIERS;
 use crate::WORKSPACE_RULES;
 
 #[tracing::instrument]
@@ -295,21 +294,18 @@ impl WindowManager {
             SocketMessage::WatchConfiguration(enable) => {
                 self.watch_configuration(enable)?;
             }
-            SocketMessage::IdentifyTrayApplication(identifier, id) => match identifier {
-                ApplicationIdentifier::Exe => {
-                    let mut exes = TRAY_AND_MULTI_WINDOW_EXES.lock();
-                    if !exes.contains(&id) {
-                        exes.push(id);
-                    }
+            SocketMessage::IdentifyBorderOverflow(_, id) => {
+                let mut identifiers = BORDER_OVERFLOW_IDENTIFIERS.lock();
+                if !identifiers.contains(&id) {
+                    identifiers.push(id);
                 }
-                ApplicationIdentifier::Class => {
-                    let mut classes = TRAY_AND_MULTI_WINDOW_CLASSES.lock();
-                    if !classes.contains(&id) {
-                        classes.push(id);
-                    }
+            }
+            SocketMessage::IdentifyTrayApplication(_, id) => {
+                let mut identifiers = TRAY_AND_MULTI_WINDOW_IDENTIFIERS.lock();
+                if !identifiers.contains(&id) {
+                    identifiers.push(id);
                 }
-                ApplicationIdentifier::Title => {}
-            },
+            }
             SocketMessage::ManageFocusedWindow => {
                 self.manage_focused_window()?;
             }

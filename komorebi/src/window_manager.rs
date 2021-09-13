@@ -32,11 +32,11 @@ use crate::window_manager_event::WindowManagerEvent;
 use crate::windows_api::WindowsApi;
 use crate::winevent_listener::WINEVENT_CALLBACK_CHANNEL;
 use crate::workspace::Workspace;
+use crate::BORDER_OVERFLOW_IDENTIFIERS;
 use crate::FLOAT_IDENTIFIERS;
 use crate::LAYERED_EXE_WHITELIST;
 use crate::MANAGE_IDENTIFIERS;
-use crate::TRAY_AND_MULTI_WINDOW_CLASSES;
-use crate::TRAY_AND_MULTI_WINDOW_EXES;
+use crate::TRAY_AND_MULTI_WINDOW_IDENTIFIERS;
 use crate::WORKSPACE_RULES;
 
 #[derive(Debug)]
@@ -60,8 +60,8 @@ pub struct State {
     pub float_identifiers: Vec<String>,
     pub manage_identifiers: Vec<String>,
     pub layered_exe_whitelist: Vec<String>,
-    pub tray_and_multi_window_exes: Vec<String>,
-    pub tray_and_multi_window_classes: Vec<String>,
+    pub tray_and_multi_window_identifiers: Vec<String>,
+    pub border_overflow_identifiers: Vec<String>,
 }
 
 #[allow(clippy::fallible_impl_from)]
@@ -75,8 +75,8 @@ impl From<&mut WindowManager> for State {
             float_identifiers: FLOAT_IDENTIFIERS.lock().clone(),
             manage_identifiers: MANAGE_IDENTIFIERS.lock().clone(),
             layered_exe_whitelist: LAYERED_EXE_WHITELIST.lock().clone(),
-            tray_and_multi_window_exes: TRAY_AND_MULTI_WINDOW_EXES.lock().clone(),
-            tray_and_multi_window_classes: TRAY_AND_MULTI_WINDOW_CLASSES.lock().clone(),
+            tray_and_multi_window_identifiers: TRAY_AND_MULTI_WINDOW_IDENTIFIERS.lock().clone(),
+            border_overflow_identifiers: BORDER_OVERFLOW_IDENTIFIERS.lock().clone(),
         }
     }
 }

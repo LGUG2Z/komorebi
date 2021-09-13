@@ -15,8 +15,7 @@ use crate::window_manager::WindowManager;
 use crate::window_manager_event::WindowManagerEvent;
 use crate::windows_api::WindowsApi;
 use crate::HIDDEN_HWNDS;
-use crate::TRAY_AND_MULTI_WINDOW_CLASSES;
-use crate::TRAY_AND_MULTI_WINDOW_EXES;
+use crate::TRAY_AND_MULTI_WINDOW_IDENTIFIERS;
 
 #[tracing::instrument]
 pub fn listen_for_events(wm: Arc<Mutex<WindowManager>>) {
@@ -110,15 +109,16 @@ impl WindowManager {
                 // and will have is_window() return true, as the process is still running even if
                 // the window is not visible.
                 {
-                    let tray_and_multi_window_exes = TRAY_AND_MULTI_WINDOW_EXES.lock();
-                    let tray_and_multi_window_classes = TRAY_AND_MULTI_WINDOW_CLASSES.lock();
+                    let tray_and_multi_window_identifiers =
+                        TRAY_AND_MULTI_WINDOW_IDENTIFIERS.lock();
 
                     // We don't want to purge windows that have been deliberately hidden by us, eg. when
                     // they are not on the top of a container stack.
                     let programmatically_hidden_hwnds = HIDDEN_HWNDS.lock();
 
-                    if (!window.is_window() || tray_and_multi_window_exes.contains(&window.exe()?))
-                        || tray_and_multi_window_classes.contains(&window.class()?)
+                    if (!window.is_window()
+                        || tray_and_multi_window_identifiers.contains(&window.exe()?))
+                        || tray_and_multi_window_identifiers.contains(&window.class()?)
                             && !programmatically_hidden_hwnds.contains(&window.hwnd)
                     {
                         hide = true;
