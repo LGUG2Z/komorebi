@@ -627,6 +627,8 @@ impl WindowManager {
     pub fn move_container_to_monitor(&mut self, idx: usize, follow: bool) -> Result<()> {
         tracing::info!("moving container");
 
+        let invisible_borders = self.invisible_borders;
+
         let monitor = self
             .focused_monitor_mut()
             .ok_or_else(|| anyhow!("there is no monitor"))?;
@@ -651,6 +653,7 @@ impl WindowManager {
 
         target_monitor.add_container(container)?;
         target_monitor.load_focused_workspace()?;
+        target_monitor.update_focused_workspace(&invisible_borders)?;
 
         if follow {
             self.focus_monitor(idx)?;
