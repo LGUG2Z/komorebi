@@ -64,12 +64,14 @@ impl WindowManager {
             _ => {}
         }
 
+        let invisible_borders = self.invisible_borders;
+
         for (i, monitor) in self.monitors_mut().iter_mut().enumerate() {
             let work_area = *monitor.work_area_size();
             for (j, workspace) in monitor.workspaces_mut().iter_mut().enumerate() {
                 let reaped_orphans = workspace.reap_orphans()?;
                 if reaped_orphans.0 > 0 || reaped_orphans.1 > 0 {
-                    workspace.update(&work_area)?;
+                    workspace.update(&work_area, &invisible_borders)?;
                     tracing::info!(
                         "reaped {} orphan window(s) and {} orphaned container(s) on monitor: {}, workspace: {}",
                         reaped_orphans.0,
@@ -218,19 +220,11 @@ impl WindowManager {
                     .ok_or_else(|| anyhow!("there is no latest layout"))?;
                 let mut new_position = WindowsApi::window_rect(window.hwnd())?;
 
-                // See Window.set_position() in window.rs for comments
-                let border = Rect {
-                    left: 12,
-                    top: 0,
-                    right: 24,
-                    bottom: 12,
-                };
-
-                // Adjust for the invisible border
-                new_position.left += border.left;
-                new_position.top += border.top;
-                new_position.right -= border.right;
-                new_position.bottom -= border.bottom;
+                // Adjust for the invisible borders
+                new_position.left += invisible_borders.left;
+                new_position.top += invisible_borders.top;
+                new_position.right -= invisible_borders.right;
+                new_position.bottom -= invisible_borders.bottom;
 
                 let resize = Rect {
                     left: new_position.left - old_position.left,
@@ -295,7 +289,7 @@ impl WindowManager {
 
         // If we unmanaged a window, it shouldn't be immediately hidden behind managed windows
         if let WindowManagerEvent::Unmanage(window) = event {
-            window.center(&self.focused_monitor_work_area()?)?;
+            window.center(&self.focused_monitor_work_area()?, &invisible_borders)?;
         }
 
         tracing::trace!("updating list of known hwnds");

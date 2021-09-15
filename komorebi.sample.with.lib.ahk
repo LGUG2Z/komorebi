@@ -7,6 +7,9 @@ WatchConfiguration("enable")
 ; Ensure there are 5 workspaces created on monitor 0
 EnsureWorkspaces(0, 5)
 
+; Configure the invisible border dimensions
+InvisibleBorders(7, 0, 14, 7)
+
 ; Configure the 1st workspace
 WorkspaceName(0, 0, "bsp")
 

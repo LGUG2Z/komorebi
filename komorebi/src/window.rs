@@ -71,7 +71,7 @@ impl Window {
         HWND(self.hwnd)
     }
 
-    pub fn center(&mut self, work_area: &Rect) -> Result<()> {
+    pub fn center(&mut self, work_area: &Rect, invisible_borders: &Rect) -> Result<()> {
         let half_width = work_area.right / 2;
         let half_weight = work_area.bottom / 2;
 
@@ -82,33 +82,18 @@ impl Window {
                 right: half_width,
                 bottom: half_weight,
             },
+            invisible_borders,
             true,
         )
     }
 
-    pub fn set_position(&mut self, layout: &Rect, top: bool) -> Result<()> {
-        // NOTE: This is how the border variable below was calculated; every time this code was
-        // run on any window in any position, the generated border was always the same, so I am
-        // hard coding the border Rect to avoid two calls to set_window_pos and making the screen
-        // flicker on container/window movement. Still not 100% sure if this is DPI-aware.
-
-        // Set the new position first to be able to get the extended frame bounds
-        // WindowsApi::set_window_pos(self.hwnd(), layout, false, false)?;
-        // let mut rect = WindowsApi::window_rect(self.hwnd())?;
-
-        // Get the extended frame bounds of the new position
-        // let frame = WindowsApi::window_rect_with_extended_frame_bounds(self.hwnd())?;
-
-        // Calculate the invisible border diff
-        // let border = Rect {
-        //     left: frame.left - rect.left,
-        //     top: frame.top - rect.top,
-        //     right: rect.right - frame.right,
-        //     bottom: rect.bottom - frame.bottom,
-        // };
-
+    pub fn set_position(
+        &mut self,
+        layout: &Rect,
+        invisible_borders: &Rect,
+        top: bool,
+    ) -> Result<()> {
         let mut rect = *layout;
-
         let mut should_remove_border = true;
 
         let border_overflows = BORDER_OVERFLOW_IDENTIFIERS.lock();
@@ -120,18 +105,11 @@ impl Window {
         }
 
         if should_remove_border {
-            let border = Rect {
-                left: 12,
-                top: 0,
-                right: 24,
-                bottom: 12,
-            };
-
-            // Remove the invisible border
-            rect.left -= border.left;
-            rect.top -= border.top;
-            rect.right += border.right;
-            rect.bottom += border.bottom;
+            // Remove the invisible borders
+            rect.left -= invisible_borders.left;
+            rect.top -= invisible_borders.top;
+            rect.right += invisible_borders.right;
+            rect.bottom += invisible_borders.bottom;
         }
 
         WindowsApi::position_window(self.hwnd(), &rect, top)

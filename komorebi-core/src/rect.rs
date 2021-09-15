@@ -1,8 +1,9 @@
+use serde::Deserialize;
 use serde::Serialize;
 
 use bindings::Windows::Win32::Foundation::RECT;
 
-#[derive(Debug, Default, Clone, Copy, Serialize, Eq, PartialEq)]
+#[derive(Debug, Default, Clone, Copy, Serialize, Deserialize, Eq, PartialEq)]
 pub struct Rect {
     pub left: i32,
     pub top: i32,

@@ -62,6 +62,7 @@ pub enum SocketMessage {
     // Configuration
     ReloadConfiguration,
     WatchConfiguration(bool),
+    InvisibleBorders(Rect),
     WorkspaceRule(ApplicationIdentifier, String, usize, usize),
     FloatRule(ApplicationIdentifier, String),
     ManageRule(ApplicationIdentifier, String),

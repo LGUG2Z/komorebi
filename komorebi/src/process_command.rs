@@ -124,21 +124,7 @@ impl WindowManager {
                 self.focus_monitor(monitor_idx)?;
                 self.update_focused_workspace(true)?;
             }
-            SocketMessage::Retile => {
-                for monitor in self.monitors_mut() {
-                    let work_area = *monitor.work_area_size();
-                    let workspace = monitor
-                        .focused_workspace_mut()
-                        .ok_or_else(|| anyhow!("there is no workspace"))?;
-
-                    // Reset any resize adjustments if we want to force a retile
-                    for resize in workspace.resize_dimensions_mut() {
-                        *resize = None;
-                    }
-
-                    workspace.update(&work_area)?;
-                }
-            }
+            SocketMessage::Retile => self.retile_all()?,
             SocketMessage::FlipLayout(layout_flip) => self.flip_layout(layout_flip)?,
             SocketMessage::ChangeLayout(layout) => self.change_workspace_layout(layout)?,
             SocketMessage::WorkspaceTiling(monitor_idx, workspace_idx, tile) => {
@@ -312,7 +298,11 @@ impl WindowManager {
             SocketMessage::UnmanageFocusedWindow => {
                 self.unmanage_focused_window()?;
             }
-        }
+            SocketMessage::InvisibleBorders(rect) => {
+                self.invisible_borders = rect;
+                self.retile_all()?;
+            }
+        };
 
         tracing::info!("processed");
         Ok(())

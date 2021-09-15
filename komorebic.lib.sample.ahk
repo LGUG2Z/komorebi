@@ -72,6 +72,10 @@ NewWorkspace() {
     Run, komorebic.exe new-workspace, , Hide
 }
 
+InvisibleBorders(left, top, right, bottom) {
+    Run, komorebic.exe invisible-borders %left% %top% %right% %bottom%, , Hide
+}
+
 AdjustContainerPadding(sizing, adjustment) {
     Run, komorebic.exe adjust-container-padding %sizing% %adjustment%, , Hide
 }

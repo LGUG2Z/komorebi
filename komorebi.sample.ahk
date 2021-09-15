@@ -3,6 +3,9 @@
 ; Enable hot reloading of changes to this file
 Run, komorebic.exe watch-configuration enable, , Hide
 
+; Configure the invisible border dimensions
+Run, komorebic.exe invisible-borders 7 0 14 7, , Hide
+
 ; Enable focus follows mouse
 Run, komorebic.exe focus-follows-mouse enable, , Hide
 

@@ -33,6 +33,7 @@ use komorebi_core::Flip;
 use komorebi_core::FocusFollowsMouseImplementation;
 use komorebi_core::Layout;
 use komorebi_core::OperationDirection;
+use komorebi_core::Rect;
 use komorebi_core::Sizing;
 use komorebi_core::SocketMessage;
 use komorebi_core::StateQuery;
@@ -148,6 +149,18 @@ struct Resize {
     edge: OperationDirection,
     #[clap(arg_enum)]
     sizing: Sizing,
+}
+
+#[derive(Clap, AhkFunction)]
+struct InvisibleBorders {
+    /// Size of the left invisible border
+    left: i32,
+    /// Size of the top invisible border (usually 0)
+    top: i32,
+    /// Size of the right invisible border (usually left * 2)
+    right: i32,
+    /// Size of the bottom invisible border (usually the same as left)
+    bottom: i32,
 }
 
 #[derive(Clap, AhkFunction)]
@@ -305,6 +318,9 @@ enum SubCommand {
     FocusWorkspace(FocusWorkspace),
     /// Create and append a new workspace on the focused monitor
     NewWorkspace,
+    /// Set the invisible border dimensions around each window
+    #[clap(setting = AppSettings::ArgRequiredElseHelp)]
+    InvisibleBorders(InvisibleBorders),
     /// Adjust container padding on the focused workspace
     #[clap(setting = AppSettings::ArgRequiredElseHelp)]
     AdjustContainerPadding(AdjustContainerPadding),
@@ -458,6 +474,17 @@ fn main() -> Result<()> {
         }
         SubCommand::SendToWorkspace(arg) => {
             send_message(&*SocketMessage::SendContainerToWorkspaceNumber(arg.target).as_bytes()?)?;
+        }
+        SubCommand::InvisibleBorders(arg) => {
+            send_message(
+                &*SocketMessage::InvisibleBorders(Rect {
+                    left: arg.left,
+                    top: arg.top,
+                    right: arg.right,
+                    bottom: arg.bottom,
+                })
+                .as_bytes()?,
+            )?;
         }
         SubCommand::ContainerPadding(arg) => {
             send_message(

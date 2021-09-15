@@ -66,7 +66,6 @@ jobs:
           $ProgressPreference = "SilentlyContinue"
           Invoke-WebRequest https://win.rustup.rs/ -OutFile rustup-init.exe
           .\rustup-init.exe -y --default-host=x86_64-pc-windows-msvc --profile=minimal
-          del rustup-init.exe
         shell: powershell
       - name: Ensure stable toolchain is up to date
         run: rustup update stable

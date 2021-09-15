@@ -139,7 +139,7 @@ impl Workspace {
         Ok(())
     }
 
-    pub fn update(&mut self, work_area: &Rect) -> Result<()> {
+    pub fn update(&mut self, work_area: &Rect, invisible_borders: &Rect) -> Result<()> {
         let mut adjusted_work_area = *work_area;
         adjusted_work_area.add_padding(self.workspace_padding());
 
@@ -148,7 +148,7 @@ impl Workspace {
         if *self.tile() {
             if let Some(container) = self.monocle_container_mut() {
                 if let Some(window) = container.focused_window_mut() {
-                    window.set_position(&adjusted_work_area, true)?;
+                    window.set_position(&adjusted_work_area, invisible_borders, true)?;
                 };
             } else if let Some(window) = self.maximized_window_mut() {
                 window.maximize();
@@ -166,7 +166,7 @@ impl Workspace {
                 let windows = self.visible_windows_mut();
                 for (i, window) in windows.into_iter().enumerate() {
                     if let (Some(window), Some(layout)) = (window, layouts.get(i)) {
-                        window.set_position(layout, false)?;
+                        window.set_position(layout, invisible_borders, false)?;
                     }
                 }
 

@@ -145,12 +145,12 @@ impl Monitor {
         self.workspaces().len()
     }
 
-    pub fn update_focused_workspace(&mut self) -> Result<()> {
+    pub fn update_focused_workspace(&mut self, invisible_borders: &Rect) -> Result<()> {
         let work_area = *self.work_area_size();
 
         self.focused_workspace_mut()
             .ok_or_else(|| anyhow!("there is no workspace"))?
-            .update(&work_area)?;
+            .update(&work_area, invisible_borders)?;
 
         Ok(())
     }
