@@ -560,11 +560,11 @@ impl WindowsApi {
         Ok(monitor_info)
     }
 
-    pub fn monitor(hmonitor: HMONITOR) -> Result<Monitor> {
-        let monitor_info = Self::monitor_info_w(hmonitor)?;
+    pub fn monitor(hmonitor: isize) -> Result<Monitor> {
+        let monitor_info = Self::monitor_info_w(HMONITOR(hmonitor))?;
 
         Ok(monitor::new(
-            hmonitor.0,
+            hmonitor,
             monitor_info.rcMonitor.into(),
             monitor_info.rcWork.into(),
         ))

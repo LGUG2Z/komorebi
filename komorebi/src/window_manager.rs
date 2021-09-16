@@ -265,6 +265,39 @@ impl WindowManager {
         // Remove any invalid monitors from our state
         self.monitors_mut().retain(|m| !invalid.contains(&m.id()));
 
+        let invisible_borders = self.invisible_borders;
+
+        for monitor in self.monitors_mut() {
+            let mut should_update = false;
+            let reference = WindowsApi::monitor(monitor.id())?;
+            // TODO: If this is different, force a redraw
+
+            if reference.work_area_size() != monitor.work_area_size() {
+                monitor.set_work_area_size(Rect {
+                    left: reference.work_area_size().left,
+                    top: reference.work_area_size().top,
+                    right: reference.work_area_size().right,
+                    bottom: reference.work_area_size().bottom,
+                });
+
+                should_update = true;
+            }
+            if reference.size() != monitor.size() {
+                monitor.set_size(Rect {
+                    left: reference.size().left,
+                    top: reference.size().top,
+                    right: reference.size().right,
+                    bottom: reference.size().bottom,
+                });
+
+                should_update = true;
+            }
+
+            if should_update {
+                monitor.update_focused_workspace(&invisible_borders)?;
+            }
+        }
+
         // Check for and add any new monitors that may have been plugged in
         WindowsApi::load_monitor_information(&mut self.monitors)?;
 

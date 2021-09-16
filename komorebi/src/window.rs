@@ -231,6 +231,10 @@ impl Window {
 
     #[tracing::instrument(fields(exe, title))]
     pub fn should_manage(self, event: Option<WindowManagerEvent>) -> Result<bool> {
+        if let Some(WindowManagerEvent::MonitorPoll(_, _)) = event {
+            return Ok(true);
+        }
+
         if self.title().is_err() {
             return Ok(false);
         }

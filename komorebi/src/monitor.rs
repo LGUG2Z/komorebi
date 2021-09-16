@@ -19,8 +19,9 @@ use crate::workspace::Workspace;
 pub struct Monitor {
     #[getset(get_copy = "pub", set = "pub")]
     id: isize,
-    monitor_size: Rect,
-    #[getset(get = "pub")]
+    #[getset(get = "pub", set = "pub")]
+    size: Rect,
+    #[getset(get = "pub", set = "pub")]
     work_area_size: Rect,
     workspaces: Ring<Workspace>,
     #[serde(skip_serializing)]
@@ -30,13 +31,13 @@ pub struct Monitor {
 
 impl_ring_elements!(Monitor, Workspace);
 
-pub fn new(id: isize, monitor_size: Rect, work_area_size: Rect) -> Monitor {
+pub fn new(id: isize, size: Rect, work_area_size: Rect) -> Monitor {
     let mut workspaces = Ring::default();
     workspaces.elements_mut().push_back(Workspace::default());
 
     Monitor {
         id,
-        monitor_size,
+        size,
         work_area_size,
         workspaces,
         workspace_names: HashMap::default(),

@@ -51,7 +51,8 @@ impl WindowManager {
 
         // Make sure we have the most recently focused monitor from any event
         match event {
-            WindowManagerEvent::FocusChange(_, window)
+            WindowManagerEvent::MonitorPoll(_, window)
+            | WindowManagerEvent::FocusChange(_, window)
             | WindowManagerEvent::Show(_, window)
             | WindowManagerEvent::MoveResizeEnd(_, window) => {
                 self.reconcile_monitors()?;
@@ -284,7 +285,7 @@ impl WindowManager {
                     self.update_focused_workspace(false)?;
                 }
             }
-            WindowManagerEvent::MouseCapture(..) => {}
+            WindowManagerEvent::MonitorPoll(..) | WindowManagerEvent::MouseCapture(..) => {}
         };
 
         // If we unmanaged a window, it shouldn't be immediately hidden behind managed windows

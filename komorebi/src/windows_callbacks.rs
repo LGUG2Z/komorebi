@@ -42,7 +42,7 @@ pub extern "system" fn enum_display_monitor(
         }
     }
 
-    if let Ok(m) = WindowsApi::monitor(hmonitor) {
+    if let Ok(m) = WindowsApi::monitor(hmonitor.0) {
         monitors.elements_mut().push_back(m);
     }
 
