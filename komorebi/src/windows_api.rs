@@ -7,8 +7,11 @@ use color_eyre::eyre::anyhow;
 use color_eyre::eyre::Error;
 use color_eyre::Result;
 
+use bindings::Windows::Win32::Devices::HumanInterfaceDevice::HID_USAGE_GENERIC_MOUSE;
+use bindings::Windows::Win32::Devices::HumanInterfaceDevice::HID_USAGE_PAGE_GENERIC;
 use bindings::Windows::Win32::Foundation::BOOL;
 use bindings::Windows::Win32::Foundation::HANDLE;
+use bindings::Windows::Win32::Foundation::HINSTANCE;
 use bindings::Windows::Win32::Foundation::HWND;
 use bindings::Windows::Win32::Foundation::LPARAM;
 use bindings::Windows::Win32::Foundation::POINT;
@@ -25,11 +28,13 @@ use bindings::Windows::Win32::Graphics::Gdi::EnumDisplayMonitors;
 use bindings::Windows::Win32::Graphics::Gdi::GetMonitorInfoW;
 use bindings::Windows::Win32::Graphics::Gdi::MonitorFromPoint;
 use bindings::Windows::Win32::Graphics::Gdi::MonitorFromWindow;
+use bindings::Windows::Win32::Graphics::Gdi::HBRUSH;
 use bindings::Windows::Win32::Graphics::Gdi::HDC;
 use bindings::Windows::Win32::Graphics::Gdi::HMONITOR;
 use bindings::Windows::Win32::Graphics::Gdi::MONITORENUMPROC;
 use bindings::Windows::Win32::Graphics::Gdi::MONITORINFO;
 use bindings::Windows::Win32::Graphics::Gdi::MONITOR_DEFAULTTONEAREST;
+use bindings::Windows::Win32::System::LibraryLoader::GetModuleHandleW;
 use bindings::Windows::Win32::System::Threading::AttachThreadInput;
 use bindings::Windows::Win32::System::Threading::GetCurrentProcessId;
 use bindings::Windows::Win32::System::Threading::GetCurrentThreadId;
@@ -38,9 +43,22 @@ use bindings::Windows::Win32::System::Threading::QueryFullProcessImageNameW;
 use bindings::Windows::Win32::System::Threading::PROCESS_ACCESS_RIGHTS;
 use bindings::Windows::Win32::System::Threading::PROCESS_NAME_FORMAT;
 use bindings::Windows::Win32::System::Threading::PROCESS_QUERY_INFORMATION;
+use bindings::Windows::Win32::UI::KeyboardAndMouseInput::GetRawInputBuffer;
+use bindings::Windows::Win32::UI::KeyboardAndMouseInput::GetRawInputData;
+use bindings::Windows::Win32::UI::KeyboardAndMouseInput::RegisterRawInputDevices;
 use bindings::Windows::Win32::UI::KeyboardAndMouseInput::SetFocus;
+use bindings::Windows::Win32::UI::KeyboardAndMouseInput::HRAWINPUT;
+use bindings::Windows::Win32::UI::KeyboardAndMouseInput::RAWINPUT;
+use bindings::Windows::Win32::UI::KeyboardAndMouseInput::RAWINPUTDEVICE;
+use bindings::Windows::Win32::UI::KeyboardAndMouseInput::RAWINPUTHEADER;
+use bindings::Windows::Win32::UI::KeyboardAndMouseInput::RIDEV_INPUTSINK;
+use bindings::Windows::Win32::UI::KeyboardAndMouseInput::RIDEV_NOLEGACY;
+use bindings::Windows::Win32::UI::KeyboardAndMouseInput::RID_INPUT;
 use bindings::Windows::Win32::UI::WindowsAndMessaging::AllowSetForegroundWindow;
+use bindings::Windows::Win32::UI::WindowsAndMessaging::CreateWindowExW;
+use bindings::Windows::Win32::UI::WindowsAndMessaging::DestroyWindow;
 use bindings::Windows::Win32::UI::WindowsAndMessaging::EnumWindows;
+use bindings::Windows::Win32::UI::WindowsAndMessaging::FindWindowExW;
 use bindings::Windows::Win32::UI::WindowsAndMessaging::GetCursorPos;
 use bindings::Windows::Win32::UI::WindowsAndMessaging::GetDesktopWindow;
 use bindings::Windows::Win32::UI::WindowsAndMessaging::GetForegroundWindow;
@@ -54,16 +72,23 @@ use bindings::Windows::Win32::UI::WindowsAndMessaging::IsIconic;
 use bindings::Windows::Win32::UI::WindowsAndMessaging::IsWindow;
 use bindings::Windows::Win32::UI::WindowsAndMessaging::IsWindowVisible;
 use bindings::Windows::Win32::UI::WindowsAndMessaging::RealGetWindowClassW;
+use bindings::Windows::Win32::UI::WindowsAndMessaging::RegisterClassExW;
 use bindings::Windows::Win32::UI::WindowsAndMessaging::SetCursorPos;
 use bindings::Windows::Win32::UI::WindowsAndMessaging::SetForegroundWindow;
 use bindings::Windows::Win32::UI::WindowsAndMessaging::SetWindowLongPtrW;
 use bindings::Windows::Win32::UI::WindowsAndMessaging::SetWindowPos;
 use bindings::Windows::Win32::UI::WindowsAndMessaging::ShowWindow;
 use bindings::Windows::Win32::UI::WindowsAndMessaging::SystemParametersInfoW;
+use bindings::Windows::Win32::UI::WindowsAndMessaging::UnregisterClassW;
 use bindings::Windows::Win32::UI::WindowsAndMessaging::WindowFromPoint;
+use bindings::Windows::Win32::UI::WindowsAndMessaging::CW_USEDEFAULT;
 use bindings::Windows::Win32::UI::WindowsAndMessaging::GWL_EXSTYLE;
 use bindings::Windows::Win32::UI::WindowsAndMessaging::GWL_STYLE;
 use bindings::Windows::Win32::UI::WindowsAndMessaging::GW_HWNDNEXT;
+use bindings::Windows::Win32::UI::WindowsAndMessaging::HCURSOR;
+use bindings::Windows::Win32::UI::WindowsAndMessaging::HICON;
+use bindings::Windows::Win32::UI::WindowsAndMessaging::HMENU;
+use bindings::Windows::Win32::UI::WindowsAndMessaging::HWND_MESSAGE;
 use bindings::Windows::Win32::UI::WindowsAndMessaging::HWND_NOTOPMOST;
 use bindings::Windows::Win32::UI::WindowsAndMessaging::HWND_TOPMOST;
 use bindings::Windows::Win32::UI::WindowsAndMessaging::SET_WINDOW_POS_FLAGS;
@@ -76,8 +101,13 @@ use bindings::Windows::Win32::UI::WindowsAndMessaging::SW_MAXIMIZE;
 use bindings::Windows::Win32::UI::WindowsAndMessaging::SW_RESTORE;
 use bindings::Windows::Win32::UI::WindowsAndMessaging::SYSTEM_PARAMETERS_INFO_ACTION;
 use bindings::Windows::Win32::UI::WindowsAndMessaging::SYSTEM_PARAMETERS_INFO_UPDATE_FLAGS;
+use bindings::Windows::Win32::UI::WindowsAndMessaging::WINDOW_EX_STYLE;
 use bindings::Windows::Win32::UI::WindowsAndMessaging::WINDOW_LONG_PTR_INDEX;
+use bindings::Windows::Win32::UI::WindowsAndMessaging::WINDOW_STYLE;
+use bindings::Windows::Win32::UI::WindowsAndMessaging::WNDCLASSEXW;
+use bindings::Windows::Win32::UI::WindowsAndMessaging::WNDCLASS_STYLES;
 use bindings::Windows::Win32::UI::WindowsAndMessaging::WNDENUMPROC;
+use bindings::Windows::Win32::UI::WindowsAndMessaging::WNDPROC;
 use komorebi_core::Rect;
 
 use crate::container::Container;
@@ -86,6 +116,21 @@ use crate::monitor::Monitor;
 use crate::ring::Ring;
 use crate::set_window_position::SetWindowPosition;
 use crate::windows_callbacks;
+
+pub trait IntoPWSTR {
+    fn into_pwstr(self) -> PWSTR;
+}
+
+impl IntoPWSTR for &str {
+    fn into_pwstr(self) -> PWSTR {
+        PWSTR(
+            self.encode_utf16()
+                .chain([0_u16])
+                .collect::<Vec<u16>>()
+                .as_mut_ptr(),
+        )
+    }
+}
 
 pub enum WindowsResult<T, E> {
     Err(E),
@@ -98,6 +143,16 @@ impl From<BOOL> for WindowsResult<(), Error> {
             Self::Ok(())
         } else {
             Self::Err(std::io::Error::last_os_error().into())
+        }
+    }
+}
+
+impl From<HINSTANCE> for WindowsResult<HINSTANCE, Error> {
+    fn from(return_value: HINSTANCE) -> Self {
+        if return_value.is_null() {
+            Self::Err(std::io::Error::last_os_error().into())
+        } else {
+            Self::Ok(return_value)
         }
     }
 }
@@ -137,7 +192,7 @@ macro_rules! impl_from_integer_for_windows_result {
     };
 }
 
-impl_from_integer_for_windows_result!(isize, u32, i32);
+impl_from_integer_for_windows_result!(isize, u16, u32, i32);
 
 impl<T, E> From<WindowsResult<T, E>> for Result<T, E> {
     fn from(result: WindowsResult<T, E>) -> Self {
@@ -163,6 +218,46 @@ impl WindowsApi {
                 LPARAM(callback_data_address),
             )
         }))
+    }
+
+    #[allow(dead_code)]
+    pub fn valid_hwnds() -> Result<Vec<isize>> {
+        let mut hwnds: Vec<isize> = vec![];
+        let hwnds_ref: &mut Vec<isize> = hwnds.as_mut();
+        Self::enum_windows(
+            windows_callbacks::valid_hwnds,
+            hwnds_ref as *mut Vec<isize> as isize,
+        )?;
+
+        Ok(hwnds)
+    }
+
+    #[allow(dead_code)]
+    pub fn hwnd_by_class(class: &str) -> Option<isize> {
+        let hwnds = Self::valid_hwnds().ok()?;
+        for hwnd in hwnds {
+            if let Ok(hwnd_class) = Self::real_window_class_w(HWND(hwnd)) {
+                if hwnd_class == class {
+                    return Option::from(hwnd);
+                }
+            }
+        }
+
+        None
+    }
+
+    #[allow(dead_code)]
+    pub fn hwnd_by_title(class: &str) -> Option<isize> {
+        let hwnds = Self::valid_hwnds().ok()?;
+        for hwnd in hwnds {
+            if let Ok(hwnd_title) = Self::window_text_w(HWND(hwnd)) {
+                if hwnd_title == class {
+                    return Option::from(hwnd);
+                }
+            }
+        }
+
+        None
     }
 
     pub fn valid_hmonitors() -> Result<Vec<isize>> {
@@ -614,5 +709,193 @@ impl WindowsApi {
             std::ptr::null_mut::<c_void>(),
             SPIF_SENDCHANGE,
         )
+    }
+
+    #[allow(dead_code)]
+    pub fn module_handle_w() -> Result<HINSTANCE> {
+        Result::from(WindowsResult::from(unsafe { GetModuleHandleW(None) }))
+    }
+
+    #[allow(dead_code)]
+    pub fn register_class_ex_w(class: &WNDCLASSEXW) -> Result<u16> {
+        Result::from(WindowsResult::from(unsafe { RegisterClassExW(class) }))
+    }
+
+    #[allow(clippy::too_many_arguments, dead_code)]
+    fn create_window_ex_w(
+        window_ex_style: WINDOW_EX_STYLE,
+        class_name: PWSTR,
+        window_name: PWSTR,
+        window_style: WINDOW_STYLE,
+        x: i32,
+        y: i32,
+        width: i32,
+        height: i32,
+        hwnd_parent: HWND,
+        hmenu: HMENU,
+        hinstance: HINSTANCE,
+        lp_param: *mut c_void,
+    ) -> Result<isize> {
+        Result::from(WindowsResult::from(unsafe {
+            CreateWindowExW(
+                window_ex_style,
+                class_name,
+                window_name,
+                window_style,
+                x,
+                y,
+                width,
+                height,
+                hwnd_parent,
+                hmenu,
+                hinstance,
+                lp_param,
+            )
+        }))
+    }
+
+    #[allow(dead_code)]
+    pub fn hidden_message_window(name: &str, wnd_proc: Option<WNDPROC>) -> Result<isize> {
+        let hinstance = Self::module_handle_w()?;
+
+        let window_class = WNDCLASSEXW {
+            cbSize: u32::try_from(std::mem::size_of::<WNDCLASSEXW>())?,
+            cbClsExtra: 0,
+            cbWndExtra: 0,
+            hbrBackground: HBRUSH::NULL,
+            hCursor: HCURSOR::NULL,
+            hIcon: HICON::NULL,
+            hIconSm: HICON::NULL,
+            hInstance: hinstance,
+            lpfnWndProc: wnd_proc,
+            lpszClassName: name.into_pwstr(),
+            lpszMenuName: PWSTR::NULL,
+            style: WNDCLASS_STYLES::from(0),
+        };
+
+        Self::register_class_ex_w(&window_class)?;
+
+        Self::create_window_ex_w(
+            WINDOW_EX_STYLE::from(0),
+            name.into_pwstr(),
+            name.into_pwstr(),
+            WINDOW_STYLE::from(0),
+            CW_USEDEFAULT,
+            CW_USEDEFAULT,
+            CW_USEDEFAULT,
+            CW_USEDEFAULT,
+            HWND_MESSAGE,
+            HMENU::NULL,
+            hinstance,
+            std::ptr::null_mut(),
+        )
+    }
+
+    #[allow(dead_code)]
+    pub fn destroy_window(hwnd: isize) -> Result<()> {
+        Result::from(WindowsResult::from(unsafe { DestroyWindow(HWND(hwnd)) }))
+    }
+
+    #[allow(dead_code)]
+    pub fn unregister_class_w(name: &str) -> Result<()> {
+        Result::from(WindowsResult::from(unsafe {
+            UnregisterClassW(name.into_pwstr(), Self::module_handle_w()?)
+        }))
+    }
+
+    #[allow(dead_code)]
+    pub fn register_raw_input_devices(devices: &mut [RAWINPUTDEVICE]) -> Result<()> {
+        Result::from(WindowsResult::from(unsafe {
+            RegisterRawInputDevices(
+                devices.as_mut_ptr(),
+                u32::try_from(devices.len())?,
+                u32::try_from(std::mem::size_of::<RAWINPUTDEVICE>())?,
+            )
+        }))
+    }
+
+    #[allow(dead_code)]
+    pub fn register_mice_for_hwnd(hwnd: isize) -> Result<()> {
+        Self::register_raw_input_devices(&mut [RAWINPUTDEVICE {
+            dwFlags: RIDEV_NOLEGACY | RIDEV_INPUTSINK,
+            usUsagePage: HID_USAGE_PAGE_GENERIC,
+            usUsage: HID_USAGE_GENERIC_MOUSE,
+            hwndTarget: HWND(hwnd),
+        }])
+    }
+
+    #[allow(dead_code)]
+    pub fn raw_input_buffer_null(buffer_size: *mut u32, header_size: u32) -> Result<()> {
+        Result::from(unsafe {
+            match GetRawInputBuffer(std::ptr::null_mut(), buffer_size, header_size) {
+                0 => WindowsResult::Ok(()),
+                _ => WindowsResult::Err(std::io::Error::last_os_error().into()),
+            }
+        })
+    }
+
+    #[allow(dead_code)]
+    pub fn raw_input_buffer(
+        raw_input_pointer: *mut RAWINPUT,
+        buffer_size: *mut u32,
+        header_size: u32,
+    ) -> Result<u32> {
+        Result::from(unsafe {
+            WindowsResult::Ok(GetRawInputBuffer(
+                raw_input_pointer,
+                buffer_size,
+                header_size,
+            ))
+        })
+    }
+
+    #[allow(dead_code)]
+    pub fn raw_input_data_null(raw_input_handle: HRAWINPUT, buffer_size: &mut u32) -> Result<()> {
+        Result::from(unsafe {
+            match GetRawInputData(
+                raw_input_handle,
+                RID_INPUT,
+                std::ptr::null_mut(),
+                buffer_size,
+                u32::try_from(std::mem::size_of::<RAWINPUTHEADER>())?,
+            ) {
+                0 => WindowsResult::Ok(()),
+                _ => WindowsResult::Err(std::io::Error::last_os_error().into()),
+            }
+        })
+    }
+
+    #[allow(dead_code)]
+    pub fn raw_input_data(
+        raw_input_handle: HRAWINPUT,
+        buffer: *mut c_void,
+        buffer_size: *mut u32,
+    ) -> Result<u32> {
+        Result::from(unsafe {
+            match GetRawInputData(
+                raw_input_handle,
+                RID_INPUT,
+                buffer,
+                buffer_size,
+                u32::try_from(std::mem::size_of::<RAWINPUTHEADER>())?,
+            ) {
+                0 => WindowsResult::Err(std::io::Error::last_os_error().into()),
+                n => WindowsResult::Ok(n),
+            }
+        })
+    }
+
+    #[allow(dead_code)]
+    pub fn find_window_ex_w(parent: HWND, class: &str, title: &str) -> Result<isize> {
+        Result::from(WindowsResult::from(unsafe {
+            let hwnd = FindWindowExW(parent, HWND::NULL, class.into_pwstr(), title.into_pwstr());
+            dbg!(hwnd);
+            hwnd
+        }))
+    }
+
+    #[allow(dead_code)]
+    pub fn find_message_window(class: &str, title: &str) -> Result<isize> {
+        Self::find_window_ex_w(HWND_MESSAGE, class, title)
     }
 }

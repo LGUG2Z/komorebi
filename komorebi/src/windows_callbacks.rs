@@ -49,6 +49,13 @@ pub extern "system" fn enum_display_monitor(
     true.into()
 }
 
+#[allow(dead_code)]
+pub extern "system" fn valid_hwnds(hwnd: HWND, lparam: LPARAM) -> BOOL {
+    let hwnds = unsafe { &mut *(lparam.0 as *mut Vec<isize>) };
+    hwnds.push(hwnd.0);
+    true.into()
+}
+
 pub extern "system" fn enum_window(hwnd: HWND, lparam: LPARAM) -> BOOL {
     let containers = unsafe { &mut *(lparam.0 as *mut VecDeque<Container>) };
 

@@ -1,5 +1,7 @@
 fn main() {
     windows::build!(
+        Windows::Win32::Devices::HumanInterfaceDevice::HID_USAGE_PAGE_GENERIC,
+        Windows::Win32::Devices::HumanInterfaceDevice::HID_USAGE_GENERIC_MOUSE,
         Windows::Win32::Foundation::RECT,
         Windows::Win32::Foundation::POINT,
         Windows::Win32::Foundation::BOOL,
@@ -10,6 +12,7 @@ fn main() {
         Windows::Win32::Graphics::Dwm::*,
         // error: `Windows.Win32.Graphics.Gdi.MONITOR_DEFAULTTONEAREST` not found in metadata
         Windows::Win32::Graphics::Gdi::*,
+        Windows::Win32::System::LibraryLoader::GetModuleHandleW,
         Windows::Win32::System::Threading::PROCESS_ACCESS_RIGHTS,
         Windows::Win32::System::Threading::PROCESS_NAME_FORMAT,
         Windows::Win32::System::Threading::OpenProcess,
@@ -17,7 +20,8 @@ fn main() {
         Windows::Win32::System::Threading::GetCurrentThreadId,
         Windows::Win32::System::Threading::AttachThreadInput,
         Windows::Win32::System::Threading::GetCurrentProcessId,
-        Windows::Win32::UI::KeyboardAndMouseInput::SetFocus,
+        // error: `Windows.Win32.UI.KeyboardAndMouseInput.RIM_TYPEMOUSE` not found in metadata
+        Windows::Win32::UI::KeyboardAndMouseInput::*,
         Windows::Win32::UI::Accessibility::SetWinEventHook,
         Windows::Win32::UI::Accessibility::HWINEVENTHOOK,
         // error: `Windows.Win32.UI.WindowsAndMessaging.GWL_EXSTYLE` not found in metadata

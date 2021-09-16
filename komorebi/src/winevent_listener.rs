@@ -89,7 +89,7 @@ impl MessageLoop {
         loop {
             let mut value: Option<MSG> = None;
             unsafe {
-                if !bool::from(!PeekMessageW(&mut msg, HWND(0), 0, 0, PM_REMOVE)) {
+                if bool::from(PeekMessageW(&mut msg, HWND(0), 0, 0, PM_REMOVE)) {
                     TranslateMessage(&msg);
                     DispatchMessageW(&msg);
 
