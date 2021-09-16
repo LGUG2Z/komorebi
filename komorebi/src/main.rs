@@ -3,12 +3,15 @@
 
 use std::collections::HashMap;
 use std::process::Command;
+use std::sync::atomic::AtomicBool;
+use std::sync::atomic::Ordering;
 use std::sync::Arc;
 #[cfg(feature = "deadlock_detection")]
 use std::thread;
 #[cfg(feature = "deadlock_detection")]
 use std::time::Duration;
 
+use clap::Clap;
 use color_eyre::eyre::anyhow;
 use color_eyre::Result;
 use crossbeam_channel::Receiver;
@@ -72,6 +75,8 @@ lazy_static! {
     static ref FLOAT_IDENTIFIERS: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(vec![]));
     static ref BORDER_OVERFLOW_IDENTIFIERS: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(vec![]));
 }
+
+pub static CUSTOM_FFM: AtomicBool = AtomicBool::new(false);
 
 fn setup() -> Result<(WorkerGuard, WorkerGuard)> {
     if std::env::var("RUST_LIB_BACKTRACE").is_err() {
@@ -195,62 +200,76 @@ fn detect_deadlocks() {
     });
 }
 
+#[derive(Clap)]
+#[clap(author, about, version)]
+struct Opts {
+    /// Allow the use of komorebi's custom focus-follows-mouse implementation
+    #[clap(long = "ffm")]
+    focus_follows_mouse: bool,
+}
+
 #[tracing::instrument]
 fn main() -> Result<()> {
-    match std::env::args().count() {
-        1 => {
-            let mut system = sysinfo::System::new_all();
-            system.refresh_processes();
+    let opts: Opts = Opts::parse();
+    CUSTOM_FFM.store(opts.focus_follows_mouse, Ordering::SeqCst);
 
-            if system.process_by_name("komorebi.exe").len() > 1 {
-                tracing::error!("komorebi.exe is already running, please exit the existing process before starting a new one");
-                std::process::exit(1);
-            }
+    let arg_count = std::env::args().count();
+    let has_valid_args = arg_count == 1 || (arg_count == 2 && CUSTOM_FFM.load(Ordering::SeqCst));
 
-            // File logging worker guard has to have an assignment in the main fn to work
-            let (_guard, _color_guard) = setup()?;
+    if has_valid_args {
+        let mut system = sysinfo::System::new_all();
+        system.refresh_processes();
 
-            #[cfg(feature = "deadlock_detection")]
-            detect_deadlocks();
-
-            let process_id = WindowsApi::current_process_id();
-            WindowsApi::allow_set_foreground_window(process_id)?;
-
-            let (outgoing, incoming): (Sender<WindowManagerEvent>, Receiver<WindowManagerEvent>) =
-                crossbeam_channel::unbounded();
-
-            let winevent_listener = winevent_listener::new(Arc::new(Mutex::new(outgoing)));
-            winevent_listener.start();
-
-            let wm = Arc::new(Mutex::new(WindowManager::new(Arc::new(Mutex::new(
-                incoming,
-            )))?));
-
-            wm.lock().init()?;
-            listen_for_commands(wm.clone());
-            listen_for_events(wm.clone());
-            listen_for_movements(wm.clone());
-
-            load_configuration()?;
-
-            let (ctrlc_sender, ctrlc_receiver) = crossbeam_channel::bounded(1);
-            ctrlc::set_handler(move || {
-                ctrlc_sender
-                    .send(())
-                    .expect("could not send signal on ctrl-c channel");
-            })?;
-
-            ctrlc_receiver
-                .recv()
-                .expect("could not receive signal on ctrl-c channel");
-
-            tracing::error!(
-                "received ctrl-c, restoring all hidden windows and terminating process"
-            );
-
-            wm.lock().restore_all_windows();
-            std::process::exit(130);
+        if system.process_by_name("komorebi.exe").len() > 1 {
+            tracing::error!("komorebi.exe is already running, please exit the existing process before starting a new one");
+            std::process::exit(1);
         }
-        _ => Ok(()),
+
+        // File logging worker guard has to have an assignment in the main fn to work
+        let (_guard, _color_guard) = setup()?;
+
+        #[cfg(feature = "deadlock_detection")]
+        detect_deadlocks();
+
+        let process_id = WindowsApi::current_process_id();
+        WindowsApi::allow_set_foreground_window(process_id)?;
+
+        let (outgoing, incoming): (Sender<WindowManagerEvent>, Receiver<WindowManagerEvent>) =
+            crossbeam_channel::unbounded();
+
+        let winevent_listener = winevent_listener::new(Arc::new(Mutex::new(outgoing)));
+        winevent_listener.start();
+
+        let wm = Arc::new(Mutex::new(WindowManager::new(Arc::new(Mutex::new(
+            incoming,
+        )))?));
+
+        wm.lock().init()?;
+        listen_for_commands(wm.clone());
+        listen_for_events(wm.clone());
+
+        if CUSTOM_FFM.load(Ordering::SeqCst) {
+            listen_for_movements(wm.clone());
+        }
+
+        load_configuration()?;
+
+        let (ctrlc_sender, ctrlc_receiver) = crossbeam_channel::bounded(1);
+        ctrlc::set_handler(move || {
+            ctrlc_sender
+                .send(())
+                .expect("could not send signal on ctrl-c channel");
+        })?;
+
+        ctrlc_receiver
+            .recv()
+            .expect("could not receive signal on ctrl-c channel");
+
+        tracing::error!("received ctrl-c, restoring all hidden windows and terminating process");
+
+        wm.lock().restore_all_windows();
+        std::process::exit(130);
     }
+
+    Ok(())
 }

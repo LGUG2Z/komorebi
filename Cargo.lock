@@ -509,6 +509,7 @@ version = "0.1.3"
 dependencies = [
  "bindings",
  "bitflags",
+ "clap",
  "color-eyre",
  "crossbeam-channel",
  "crossbeam-utils",

@@ -249,16 +249,23 @@ struct WorkspaceRule {
 
 #[derive(Clap, AhkFunction)]
 struct ToggleFocusFollowsMouse {
-    #[clap(arg_enum, short, long, default_value = "komorebi")]
+    #[clap(arg_enum, short, long, default_value = "windows")]
     implementation: FocusFollowsMouseImplementation,
 }
 
 #[derive(Clap, AhkFunction)]
 struct FocusFollowsMouse {
-    #[clap(arg_enum, short, long, default_value = "komorebi")]
+    #[clap(arg_enum, short, long, default_value = "windows")]
     implementation: FocusFollowsMouseImplementation,
     #[clap(arg_enum)]
     boolean_state: BooleanState,
+}
+
+#[derive(Clap, AhkFunction)]
+struct Start {
+    /// Allow the use of komorebi's custom focus-follows-mouse implementation
+    #[clap(long)]
+    ffm: bool,
 }
 
 #[derive(Clap)]
@@ -271,7 +278,7 @@ struct Opts {
 #[derive(Clap, AhkLibrary)]
 enum SubCommand {
     /// Start komorebi.exe as a background process
-    Start,
+    Start(Start),
     /// Stop the komorebi.exe process and restore all hidden windows
     Stop,
     /// Show a JSON representation of the current window manager state
@@ -535,7 +542,7 @@ fn main() -> Result<()> {
                     .as_bytes()?,
             )?;
         }
-        SubCommand::Start => {
+        SubCommand::Start(arg) => {
             let mut buf: PathBuf;
 
             // The komorebi.ps1 shim will only exist in the Path if installed by Scoop
@@ -559,8 +566,25 @@ fn main() -> Result<()> {
             };
 
             let script = exec.map_or_else(
-                || String::from("Start-Process komorebi -WindowStyle hidden"),
-                |exec| format!("Start-Process '{}' -WindowStyle hidden", exec),
+                || {
+                    if arg.ffm {
+                        String::from(
+                            "Start-Process komorebi.exe -ArgumentList '--ffm' -WindowStyle hidden",
+                        )
+                    } else {
+                        String::from("Start-Process komorebi.exe -WindowStyle hidden")
+                    }
+                },
+                |exec| {
+                    if arg.ffm {
+                        format!(
+                            "Start-Process '{}' -ArgumentList '--ffm' -WindowStyle hidden",
+                            exec
+                        )
+                    } else {
+                        format!("Start-Process '{}' -WindowStyle hidden", exec)
+                    }
+                },
             );
 
             match powershell_script::run(&script, true) {

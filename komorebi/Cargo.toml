@@ -1,6 +1,11 @@
 [package]
 name = "komorebi"
 version = "0.1.3"
+authors = ["Jade Iqbal <jadeiqbal@fastmail.com>"]
+description = "A tiling window manager for Windows"
+categories = ["tiling-window-manager", "windows"]
+repository = "https://github.com/LGUG2Z/komorebi"
+license = "MIT"
 edition = "2018"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -10,6 +15,7 @@ bindings = { package = "bindings", path = "../bindings" }
 komorebi-core = { path = "../komorebi-core" }
 
 bitflags = "1"
+clap = "3.0.0-beta.4"
 color-eyre = "0.5"
 crossbeam-channel = "0.5"
 crossbeam-utils = "0.8"
