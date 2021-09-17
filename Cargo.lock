@@ -505,7 +505,7 @@ dependencies = [
 
 [[package]]
 name = "komorebi"
-version = "0.1.3"
+version = "0.1.4"
 dependencies = [
  "bindings",
  "bitflags",
@@ -537,7 +537,7 @@ dependencies = [
 
 [[package]]
 name = "komorebi-core"
-version = "0.1.3"
+version = "0.1.4"
 dependencies = [
  "bindings",
  "clap",
@@ -549,7 +549,7 @@ dependencies = [
 
 [[package]]
 name = "komorebic"
-version = "0.1.3"
+version = "0.1.4"
 dependencies = [
  "bindings",
  "clap",
@@ -1319,9 +1319,9 @@ dependencies = [
 
 [[package]]
 name = "tracing-subscriber"
-version = "0.2.22"
+version = "0.2.23"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "62af966210b88ad5776ee3ba12d5f35b8d6a2b2a12168f3080cf02b814d7376b"
+checksum = "56c42e73a9d277d4d2b6a88389a137ccf3c58599660b17e8f5fc39305e490669"
 dependencies = [
  "ansi_term",
  "chrono",
@@ -1357,9 +1357,9 @@ checksum = "8895849a949e7845e06bd6dc1aa51731a103c42707010a5b591c0038fb73385b"
 
 [[package]]
 name = "unicode-width"
-version = "0.1.8"
+version = "0.1.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9337591893a19b88d8d87f2cec1e73fad5cdfd10e5a6f349f498ad6ea2ffb1e3"
+checksum = "3ed742d4ea2bd1176e236172c8429aaf54486e7ac098db29ffe6529e0ce50973"
 
 [[package]]
 name = "unicode-xid"
