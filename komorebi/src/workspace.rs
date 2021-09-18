@@ -340,8 +340,15 @@ impl Workspace {
     }
 
     fn remove_container_by_idx(&mut self, idx: usize) -> Option<Container> {
-        self.resize_dimensions_mut().remove(idx);
-        self.containers_mut().remove(idx)
+        if idx < self.resize_dimensions().len() {
+            self.resize_dimensions_mut().remove(idx);
+        }
+
+        if idx < self.containers().len() {
+            return self.containers_mut().remove(idx);
+        }
+
+        None
     }
 
     fn container_idx_for_window(&self, hwnd: isize) -> Option<usize> {
