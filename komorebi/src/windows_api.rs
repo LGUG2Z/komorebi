@@ -7,6 +7,8 @@ use color_eyre::eyre::anyhow;
 use color_eyre::eyre::Error;
 use color_eyre::Result;
 
+use bindings::Handle;
+use bindings::Result as WindowsCrateResult;
 use bindings::Windows::Win32::Foundation::BOOL;
 use bindings::Windows::Win32::Foundation::HANDLE;
 use bindings::Windows::Win32::Foundation::HWND;
@@ -92,36 +94,6 @@ pub enum WindowsResult<T, E> {
     Ok(T),
 }
 
-impl From<BOOL> for WindowsResult<(), Error> {
-    fn from(return_value: BOOL) -> Self {
-        if return_value.as_bool() {
-            Self::Ok(())
-        } else {
-            Self::Err(std::io::Error::last_os_error().into())
-        }
-    }
-}
-
-impl From<HWND> for WindowsResult<isize, Error> {
-    fn from(return_value: HWND) -> Self {
-        if return_value.is_null() {
-            Self::Err(std::io::Error::last_os_error().into())
-        } else {
-            Self::Ok(return_value.0)
-        }
-    }
-}
-
-impl From<HANDLE> for WindowsResult<HANDLE, Error> {
-    fn from(return_value: HANDLE) -> Self {
-        if return_value.is_null() {
-            Self::Err(std::io::Error::last_os_error().into())
-        } else {
-            Self::Ok(return_value)
-        }
-    }
-}
-
 macro_rules! impl_from_integer_for_windows_result {
     ( $( $integer_type:ty ),+ ) => {
         $(
@@ -148,6 +120,40 @@ impl<T, E> From<WindowsResult<T, E>> for Result<T, E> {
     }
 }
 
+pub trait ProcessWindowsCrateResult<T> {
+    fn process(self) -> Result<T>;
+}
+
+macro_rules! impl_process_windows_crate_result {
+    ( $($input:ty => $deref:ty),+ $(,)? ) => (
+        paste::paste! {
+            $(
+                impl ProcessWindowsCrateResult<$deref> for WindowsCrateResult<$input> {
+                    fn process(self) -> Result<$deref> {
+                        match self {
+                            Ok(value) => Ok(value.0),
+                            Err(error) => Err(error.into()),
+                        }
+                    }
+                }
+            )+
+        }
+    );
+}
+
+impl_process_windows_crate_result!(
+    HWND => isize,
+);
+
+impl<T> ProcessWindowsCrateResult<T> for WindowsCrateResult<T> {
+    fn process(self) -> Result<T> {
+        match self {
+            Ok(value) => Ok(value),
+            Err(error) => Err(error.into()),
+        }
+    }
+}
+
 pub struct WindowsApi;
 
 impl WindowsApi {
@@ -155,14 +161,16 @@ impl WindowsApi {
         callback: MONITORENUMPROC,
         callback_data_address: isize,
     ) -> Result<()> {
-        Result::from(WindowsResult::from(unsafe {
+        unsafe {
             EnumDisplayMonitors(
                 HDC(0),
                 std::ptr::null_mut(),
                 Option::from(callback),
                 LPARAM(callback_data_address),
             )
-        }))
+        }
+        .ok()
+        .process()
     }
 
     pub fn valid_hmonitors() -> Result<Vec<isize>> {
@@ -184,9 +192,9 @@ impl WindowsApi {
     }
 
     pub fn enum_windows(callback: WNDENUMPROC, callback_data_address: isize) -> Result<()> {
-        Result::from(WindowsResult::from(unsafe {
-            EnumWindows(Option::from(callback), LPARAM(callback_data_address))
-        }))
+        unsafe { EnumWindows(Option::from(callback), LPARAM(callback_data_address)) }
+            .ok()
+            .process()
     }
 
     pub fn load_workspace_information(monitors: &mut Ring<Monitor>) -> Result<()> {
@@ -225,9 +233,9 @@ impl WindowsApi {
     }
 
     pub fn allow_set_foreground_window(process_id: u32) -> Result<()> {
-        Result::from(WindowsResult::from(unsafe {
-            AllowSetForegroundWindow(process_id)
-        }))
+        unsafe { AllowSetForegroundWindow(process_id) }
+            .ok()
+            .process()
     }
 
     pub fn monitor_from_window(hwnd: HWND) -> isize {
@@ -250,7 +258,7 @@ impl WindowsApi {
     }
 
     pub fn set_window_pos(hwnd: HWND, layout: &Rect, position: HWND, flags: u32) -> Result<()> {
-        Result::from(WindowsResult::from(unsafe {
+        unsafe {
             SetWindowPos(
                 hwnd,
                 position,
@@ -260,7 +268,9 @@ impl WindowsApi {
                 layout.bottom,
                 SET_WINDOW_POS_FLAGS(flags),
             )
-        }))
+        }
+        .ok()
+        .process()
     }
 
     fn show_window(hwnd: HWND, command: SHOW_WINDOW_CMD) {
@@ -282,39 +292,25 @@ impl WindowsApi {
     }
 
     pub fn foreground_window() -> Result<isize> {
-        Result::from(WindowsResult::from(unsafe { GetForegroundWindow() }))
+        unsafe { GetForegroundWindow() }.ok().process()
     }
 
     pub fn set_foreground_window(hwnd: HWND) -> Result<()> {
-        match WindowsResult::from(unsafe { SetForegroundWindow(hwnd) }) {
-            WindowsResult::Ok(_) => Ok(()),
-            WindowsResult::Err(error) => {
-                // TODO: Figure out the odd behaviour here, docs state that a zero value means
-                // TODO: that the window was not brought to the foreground, but this contradicts
-                // TODO: the behaviour that I have observed which resulted in this check
-                if error.to_string() == "The operation completed successfully. (os error 0)" {
-                    Ok(())
-                } else {
-                    Err(error)
-                }
-            }
-        }
+        unsafe { SetForegroundWindow(hwnd) }.ok().process()
     }
 
     #[allow(dead_code)]
     pub fn top_window() -> Result<isize> {
-        Result::from(WindowsResult::from(unsafe { GetTopWindow(HWND::NULL).0 }))
+        unsafe { GetTopWindow(HWND::default()) }.ok().process()
     }
 
     pub fn desktop_window() -> Result<isize> {
-        Result::from(WindowsResult::from(unsafe { GetDesktopWindow() }))
+        unsafe { GetDesktopWindow() }.ok().process()
     }
 
     #[allow(dead_code)]
     pub fn next_window(hwnd: HWND) -> Result<isize> {
-        Result::from(WindowsResult::from(unsafe {
-            GetWindow(hwnd, GW_HWNDNEXT).0
-        }))
+        unsafe { GetWindow(hwnd, GW_HWNDNEXT) }.ok().process()
     }
 
     #[allow(dead_code)]
@@ -335,30 +331,24 @@ impl WindowsApi {
 
     pub fn window_rect(hwnd: HWND) -> Result<Rect> {
         let mut rect = unsafe { std::mem::zeroed() };
-
-        Result::from(WindowsResult::from(unsafe {
-            GetWindowRect(hwnd, &mut rect)
-        }))?;
+        unsafe { GetWindowRect(hwnd, &mut rect) }.ok().process()?;
 
         Ok(Rect::from(rect))
     }
 
     fn set_cursor_pos(x: i32, y: i32) -> Result<()> {
-        Result::from(WindowsResult::from(unsafe { SetCursorPos(x, y) }))
+        unsafe { SetCursorPos(x, y) }.ok().process()
     }
 
     pub fn cursor_pos() -> Result<POINT> {
-        let mut cursor_pos: POINT = unsafe { std::mem::zeroed() };
-
-        Result::from(WindowsResult::from(unsafe {
-            GetCursorPos(&mut cursor_pos)
-        }))?;
+        let mut cursor_pos = POINT::default();
+        unsafe { GetCursorPos(&mut cursor_pos) }.ok().process()?;
 
         Ok(cursor_pos)
     }
 
     pub fn window_from_point(point: POINT) -> Result<isize> {
-        Result::from(WindowsResult::from(unsafe { WindowFromPoint(point) }))
+        unsafe { WindowFromPoint(point) }.ok().process()
     }
 
     pub fn window_at_cursor_pos() -> Result<isize> {
@@ -388,24 +378,13 @@ impl WindowsApi {
     }
 
     pub fn attach_thread_input(thread_id: u32, target_thread_id: u32, attach: bool) -> Result<()> {
-        Result::from(WindowsResult::from(unsafe {
-            AttachThreadInput(thread_id, target_thread_id, attach)
-        }))
+        unsafe { AttachThreadInput(thread_id, target_thread_id, attach) }
+            .ok()
+            .process()
     }
 
     pub fn set_focus(hwnd: HWND) -> Result<()> {
-        match WindowsResult::from(unsafe { SetFocus(hwnd) }) {
-            WindowsResult::Ok(_) => Ok(()),
-            WindowsResult::Err(error) => {
-                // If the window is not attached to the calling thread's message queue, the return value is NULL
-                // https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-setfocus
-                if error.to_string() == "The operation completed successfully. (os error 0)" {
-                    Ok(())
-                } else {
-                    Err(error)
-                }
-            }
-        }
+        unsafe { SetFocus(hwnd) }.ok().map(|_| ()).process()
     }
 
     #[allow(dead_code)]
@@ -457,9 +436,9 @@ impl WindowsApi {
         inherit_handle: bool,
         process_id: u32,
     ) -> Result<HANDLE> {
-        Result::from(WindowsResult::from(unsafe {
-            OpenProcess(access_rights, inherit_handle, process_id)
-        }))
+        unsafe { OpenProcess(access_rights, inherit_handle, process_id) }
+            .ok()
+            .process()
     }
 
     pub fn process_handle(process_id: u32) -> Result<HANDLE> {
@@ -471,14 +450,16 @@ impl WindowsApi {
         let mut path: Vec<u16> = vec![0; len as usize];
         let text_ptr = path.as_mut_ptr();
 
-        Result::from(WindowsResult::from(unsafe {
+        unsafe {
             QueryFullProcessImageNameW(
                 handle,
                 PROCESS_NAME_FORMAT(0),
                 PWSTR(text_ptr),
                 &mut len as *mut u32,
             )
-        }))?;
+        }
+        .ok()
+        .process()?;
 
         Ok(String::from_utf16(&path[..len as usize])?)
     }
@@ -553,9 +534,9 @@ impl WindowsApi {
         let mut monitor_info: MONITORINFO = unsafe { std::mem::zeroed() };
         monitor_info.cbSize = u32::try_from(std::mem::size_of::<MONITORINFO>())?;
 
-        Result::from(WindowsResult::from(unsafe {
-            GetMonitorInfoW(hmonitor, (&mut monitor_info as *mut MONITORINFO).cast())
-        }))?;
+        unsafe { GetMonitorInfoW(hmonitor, (&mut monitor_info as *mut MONITORINFO).cast()) }
+            .ok()
+            .process()?;
 
         Ok(monitor_info)
     }
@@ -577,9 +558,9 @@ impl WindowsApi {
         pv_param: *mut c_void,
         update_flags: SYSTEM_PARAMETERS_INFO_UPDATE_FLAGS,
     ) -> Result<()> {
-        Result::from(WindowsResult::from(unsafe {
-            SystemParametersInfoW(action, ui_param, pv_param, update_flags)
-        }))
+        unsafe { SystemParametersInfoW(action, ui_param, pv_param, update_flags) }
+            .ok()
+            .process()
     }
 
     #[allow(dead_code)]
