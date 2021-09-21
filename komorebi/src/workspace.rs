@@ -48,7 +48,6 @@ pub struct Workspace {
     #[serde(skip_serializing)]
     #[getset(get = "pub", set = "pub")]
     latest_layout: Vec<Rect>,
-    #[serde(skip_serializing)]
     #[getset(get = "pub", get_mut = "pub")]
     resize_dimensions: Vec<Option<Rect>>,
     #[getset(get = "pub", set = "pub")]
@@ -324,11 +323,14 @@ impl Workspace {
     }
 
     pub fn promote_container(&mut self) -> Result<()> {
+        let resize = self.resize_dimensions_mut().remove(0);
         let container = self
             .remove_focused_container()
             .ok_or_else(|| anyhow!("there is no container"))?;
+
         self.containers_mut().push_front(container);
-        self.resize_dimensions_mut().insert(0, None);
+        self.resize_dimensions_mut().insert(0, resize);
+
         self.focus_container(0);
 
         Ok(())
