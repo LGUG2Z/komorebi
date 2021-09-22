@@ -40,15 +40,23 @@ FloatRule("exe", "Wally.exe")
 FloatRule("exe", "wincompose.exe")
 FloatRule("exe", "1Password.exe")
 FloatRule("exe", "Wox.exe")
+FloatRule("exe", "ddm.exe")
+FloatRule("class", "Chrome_RenderWidgetHostHWND") ; GOG Electron invisible overlay
+FloatRule("class", "CEFCLIENT")
 
 ; Identify Minimize-to-Tray Applications
 IdentifyTrayApplication("exe", "Discord.exe")
 IdentifyTrayApplication("exe", "Spotify.exe")
+IdentifyTrayApplication("exe", "GalaxyClient.exe")
 
 ; Identify Electron applications with overflowing borders
 IdentifyBorderOverflow("exe", "Discord.exe")
 IdentifyBorderOverflow("exe", "Spotify.exe")
+IdentifyBorderOverflow("exe", "GalaxyClient.exe")
 IdentifyBorderOverflow("class", "ZPFTEWndClass")
+
+; Identify applications to be forcibly managed
+ManageRule("exe", "GalaxyClient.exe")
 
 ; Change the focused window, Alt + Vim direction keys
 !h::

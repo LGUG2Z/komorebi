@@ -48,7 +48,7 @@ pub struct Workspace {
     #[serde(skip_serializing)]
     #[getset(get = "pub", set = "pub")]
     latest_layout: Vec<Rect>,
-    #[getset(get = "pub", get_mut = "pub")]
+    #[getset(get = "pub", get_mut = "pub", set = "pub")]
     resize_dimensions: Vec<Option<Rect>>,
     #[getset(get = "pub", set = "pub")]
     tile: bool,

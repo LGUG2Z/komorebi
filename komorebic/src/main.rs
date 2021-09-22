@@ -283,6 +283,10 @@ enum SubCommand {
     Stop,
     /// Show a JSON representation of the current window manager state
     State,
+    /// Quicksave the current resize layout dimensions
+    QuickSave,
+    /// Load the last quicksaved resize layout dimensions
+    QuickLoad,
     /// Query the current window manager state
     #[clap(setting = AppSettings::ArgRequiredElseHelp)]
     Query(Query),
@@ -766,6 +770,12 @@ fn main() -> Result<()> {
         }
         SubCommand::Unmanage => {
             send_message(&*SocketMessage::UnmanageFocusedWindow.as_bytes()?)?;
+        }
+        SubCommand::QuickSave => {
+            send_message(&*SocketMessage::QuickSave.as_bytes()?)?;
+        }
+        SubCommand::QuickLoad => {
+            send_message(&*SocketMessage::QuickLoad.as_bytes()?)?;
         }
     }
 

@@ -52,6 +52,8 @@ pub enum SocketMessage {
     Stop,
     TogglePause,
     Retile,
+    QuickSave,
+    QuickLoad,
     FocusMonitorNumber(usize),
     FocusWorkspaceNumber(usize),
     ContainerPadding(usize, usize, i32),

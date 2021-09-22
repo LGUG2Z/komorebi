@@ -198,6 +198,8 @@ each command.
 start                         Start komorebi.exe as a background process
 stop                          Stop the komorebi.exe process and restore all hidden windows
 state                         Show a JSON representation of the current window manager state
+quick-save                    Quicksave the current resize layout dimensions
+quick-load                    Load the last quicksaved resize layout dimensions
 query                         Query the current window manager state
 log                           Tail komorebi.exe's process logs (cancel with Ctrl-C)
 focus                         Change focus to the window in the specified direction
@@ -272,6 +274,7 @@ used [is available here](komorebi.sample.with.lib.ahk).
 - [x] Mouse follows focused container
 - [x] Resize window container in direction
 - [ ] Resize child window containers by split ratio
+- [x] Quicksave and quickload layouts with resize dimensions
 - [x] Mouse drag to swap window container position
 - [x] Mouse drag to resize window container
 - [x] Configurable workspace and container gaps

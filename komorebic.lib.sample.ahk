@@ -12,6 +12,14 @@ State() {
     Run, komorebic.exe state, , Hide
 }
 
+QuickSave() {
+    Run, komorebic.exe quick-save, , Hide
+}
+
+QuickLoad() {
+    Run, komorebic.exe quick-load, , Hide
+}
+
 Query(state_query) {
     Run, komorebic.exe query %state_query%, , Hide
 }

@@ -1,3 +1,5 @@
+use std::fs::File;
+use std::fs::OpenOptions;
 use std::io::BufRead;
 use std::io::BufReader;
 use std::io::Write;
@@ -12,6 +14,7 @@ use parking_lot::Mutex;
 use uds_windows::UnixStream;
 
 use komorebi_core::FocusFollowsMouseImplementation;
+use komorebi_core::Rect;
 use komorebi_core::SocketMessage;
 use komorebi_core::StateQuery;
 
@@ -325,6 +328,39 @@ impl WindowManager {
             SocketMessage::InvisibleBorders(rect) => {
                 self.invisible_borders = rect;
                 self.retile_all()?;
+            }
+            SocketMessage::QuickSave => {
+                let workspace = self.focused_workspace()?;
+                let resize = workspace.resize_dimensions();
+
+                let mut quicksave_json = std::env::temp_dir();
+                quicksave_json.push("komorebi.quicksave.json");
+
+                let file = OpenOptions::new()
+                    .write(true)
+                    .truncate(true)
+                    .create(true)
+                    .open(quicksave_json)?;
+
+                serde_json::to_writer_pretty(&file, &resize)?;
+            }
+            SocketMessage::QuickLoad => {
+                let workspace = self.focused_workspace_mut()?;
+
+                let mut quicksave_json = std::env::temp_dir();
+                quicksave_json.push("komorebi.quicksave.json");
+
+                let file = File::open(&quicksave_json).map_err(|_| {
+                    anyhow!(
+                        "no quicksave found at {}",
+                        quicksave_json.display().to_string()
+                    )
+                })?;
+
+                let resize: Vec<Option<Rect>> = serde_json::from_reader(file)?;
+
+                workspace.set_resize_dimensions(resize);
+                self.update_focused_workspace(false)?;
             }
         };
 
