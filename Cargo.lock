@@ -1452,9 +1452,9 @@ checksum = "712e227841d057c1ee1cd2fb22fa7e5a5461ae8e48fa2ca79ec42cfc1931183f"
 
 [[package]]
 name = "windows"
-version = "0.20.0"
+version = "0.20.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0a0b63f34b1cf0fcb7a2e387189936a7c9822123ef124a95da2b8a0b493bc69d"
+checksum = "d7524f6f9074f6326a1c167cd3dc2ed4e6916648a1a55116d029620af9b65fb1"
 dependencies = [
  "const-sha1",
  "windows_gen",
@@ -1463,9 +1463,9 @@ dependencies = [
 
 [[package]]
 name = "windows_gen"
-version = "0.20.0"
+version = "0.20.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7213e17fead412ec608804cbe190988db6f40b2a946ef58dd67fd9cdf39da144"
+checksum = "4be44a189bde96fc0e0cdd5b152b2d21c635c0c94c7d256aab4425477b2a2f37"
 dependencies = [
  "windows_quote",
  "windows_reader",
@@ -1473,9 +1473,9 @@ dependencies = [
 
 [[package]]
 name = "windows_macros"
-version = "0.20.0"
+version = "0.20.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "661a56e1edb9f9d466a9cb59c392edfad0d273b66bb20b1f5f4aea6db5ad35d6"
+checksum = "cc1d78ce8a43d45b8da282383a2cb2ffcd5587cc3a9c341125d3181d2b701ede"
 dependencies = [
  "syn",
  "windows_gen",
@@ -1485,15 +1485,15 @@ dependencies = [
 
 [[package]]
 name = "windows_quote"
-version = "0.20.0"
+version = "0.20.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6d16ae0ecb5b0a365ff465ca9b9780e70986f951b4e06a95f87ac54a421d3767"
+checksum = "51fa2185b18a6164a3fa3ea2b6c92ebc1b60f532ae5a85c57408ba6a5a064913"
 
 [[package]]
 name = "windows_reader"
-version = "0.20.0"
+version = "0.20.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c75040b326c26dda15a9c18970a7a15bf503dc22597d55dd559df16435f4a550"
+checksum = "3daa5bd758f2f8f20cd93a79aedca20759779f43785fc77b08a4e8e1e5876bbb"
 
 [[package]]
 name = "winput"

@@ -184,6 +184,26 @@ passing it as an argument to the `--implementation` flag:
 komorebic.exe toggle-focus-follows-mouse --implementation komorebi
 ```
 
+#### Saving and Loading Resized Layouts
+
+If you create a BSP layout through various resize adjustments that you want to be able to restore easily in the future,
+it is possible to "quicksave" that layout to the system's temporary folder and load it later in the same session, or
+alternatively, you may save it to a specific file to be loaded again at any point in the future.
+
+```powershell
+komorebic.exe quick-save # saves the focused workspace to $Env:TEMP\komorebi.quicksave.json
+komorebic.exe quick-load # loads $Env:TEMP\komorebi.quicksave.json on the focused workspace
+
+komorebic.exe save ~/layouts/primary.json # saves the focused workspace to $Env:USERPROFILE\layouts\primary.json
+komorebic.exe load ~/layouts/secondary.json # loads $Env:USERPROFILE\layouts\secondary.json on the focused workspace
+```
+
+These layouts can be applied to arbitrary collections of windows on any workspace, as they only track the layout
+dimensions and are not coupled to the applications that were running at the time of saving.
+
+When layouts that expect more or less windows than the number currently on the focused workspace are loaded, `komorebi`
+will automatically reconcile the difference.
+
 ## Configuration with `komorebic`
 
 As previously mentioned, this project does not handle anything related to keybindings and shortcuts directly. I
@@ -198,10 +218,12 @@ each command.
 start                         Start komorebi.exe as a background process
 stop                          Stop the komorebi.exe process and restore all hidden windows
 state                         Show a JSON representation of the current window manager state
-quick-save                    Quicksave the current resize layout dimensions
-quick-load                    Load the last quicksaved resize layout dimensions
 query                         Query the current window manager state
 log                           Tail komorebi.exe's process logs (cancel with Ctrl-C)
+quick-save                    Quicksave the current resize layout dimensions
+quick-load                    Load the last quicksaved resize layout dimensions
+save                          Save the current resize layout dimensions to a file
+load                          Load the resize layout dimensions from a file
 focus                         Change focus to the window in the specified direction
 move                          Move the focused window in the specified direction
 stack                         Stack the focused window in the specified direction
@@ -275,6 +297,7 @@ used [is available here](komorebi.sample.with.lib.ahk).
 - [x] Resize window container in direction
 - [ ] Resize child window containers by split ratio
 - [x] Quicksave and quickload layouts with resize dimensions
+- [x] Save and load layouts with resize dimensions to/from specific files
 - [x] Mouse drag to swap window container position
 - [x] Mouse drag to resize window container
 - [x] Configurable workspace and container gaps

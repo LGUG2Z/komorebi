@@ -6,7 +6,6 @@ use std::sync::Arc;
 use std::thread;
 
 use color_eyre::eyre::anyhow;
-use color_eyre::eyre::ContextCompat;
 use color_eyre::Result;
 use crossbeam_channel::Receiver;
 use hotwatch::notify::DebouncedEvent;
@@ -591,9 +590,9 @@ impl WindowManager {
         ) {
             let unaltered = workspace.layout().calculate(
                 &work_area,
-                NonZeroUsize::new(len).context(
-                    "there must be at least one container to calculate a workspace layout",
-                )?,
+                NonZeroUsize::new(len).ok_or_else(|| {
+                    anyhow!("there must be at least one container to calculate a workspace layout")
+                })?,
                 workspace.container_padding(),
                 workspace.layout_flip(),
                 &[],

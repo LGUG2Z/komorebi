@@ -2,7 +2,6 @@ use std::collections::VecDeque;
 use std::num::NonZeroUsize;
 
 use color_eyre::eyre::anyhow;
-use color_eyre::eyre::ContextCompat;
 use color_eyre::Result;
 use getset::CopyGetters;
 use getset::Getters;
@@ -154,9 +153,11 @@ impl Workspace {
             } else if !self.containers().is_empty() {
                 let layouts = self.layout().calculate(
                     &adjusted_work_area,
-                    NonZeroUsize::new(self.containers().len()).context(
-                        "there must be at least one container to calculate a workspace layout",
-                    )?,
+                    NonZeroUsize::new(self.containers().len()).ok_or_else(|| {
+                        anyhow!(
+                            "there must be at least one container to calculate a workspace layout"
+                        )
+                    })?,
                     self.container_padding(),
                     self.layout_flip(),
                     self.resize_dimensions(),

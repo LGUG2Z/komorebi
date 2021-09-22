@@ -362,6 +362,29 @@ impl WindowManager {
                 workspace.set_resize_dimensions(resize);
                 self.update_focused_workspace(false)?;
             }
+            SocketMessage::Save(path) => {
+                let workspace = self.focused_workspace_mut()?;
+                let resize = workspace.resize_dimensions();
+
+                let file = OpenOptions::new()
+                    .write(true)
+                    .truncate(true)
+                    .create(true)
+                    .open(path)?;
+
+                serde_json::to_writer_pretty(&file, &resize)?;
+            }
+            SocketMessage::Load(path) => {
+                let workspace = self.focused_workspace_mut()?;
+
+                let file = File::open(&path)
+                    .map_err(|_| anyhow!("no file found at {}", path.display().to_string()))?;
+
+                let resize: Vec<Option<Rect>> = serde_json::from_reader(file)?;
+
+                workspace.set_resize_dimensions(resize);
+                self.update_focused_workspace(false)?;
+            }
         };
 
         tracing::info!("processed");

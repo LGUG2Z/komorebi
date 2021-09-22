@@ -12,6 +12,14 @@ State() {
     Run, komorebic.exe state, , Hide
 }
 
+Query(state_query) {
+    Run, komorebic.exe query %state_query%, , Hide
+}
+
+Log() {
+    Run, komorebic.exe log, , Hide
+}
+
 QuickSave() {
     Run, komorebic.exe quick-save, , Hide
 }
@@ -20,12 +28,12 @@ QuickLoad() {
     Run, komorebic.exe quick-load, , Hide
 }
 
-Query(state_query) {
-    Run, komorebic.exe query %state_query%, , Hide
+Save(path) {
+    Run, komorebic.exe save %path%, , Hide
 }
 
-Log() {
-    Run, komorebic.exe log, , Hide
+Load(path) {
+    Run, komorebic.exe load %path%, , Hide
 }
 
 Focus(operation_direction) {

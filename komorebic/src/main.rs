@@ -13,7 +13,7 @@ use std::process::Command;
 use clap::AppSettings;
 use clap::ArgEnum;
 use clap::Clap;
-use color_eyre::eyre::ContextCompat;
+use color_eyre::eyre::anyhow;
 use color_eyre::Result;
 use fs_tail::TailedFile;
 use heck::KebabCase;
@@ -268,6 +268,18 @@ struct Start {
     ffm: bool,
 }
 
+#[derive(Clap, AhkFunction)]
+struct Save {
+    /// File to which the resize layout dimensions should be saved
+    path: String,
+}
+
+#[derive(Clap, AhkFunction)]
+struct Load {
+    /// File from which the resize layout dimensions should be loaded
+    path: String,
+}
+
 #[derive(Clap)]
 #[clap(author, about, version, setting = AppSettings::DeriveDisplayOrder)]
 struct Opts {
@@ -283,15 +295,21 @@ enum SubCommand {
     Stop,
     /// Show a JSON representation of the current window manager state
     State,
-    /// Quicksave the current resize layout dimensions
-    QuickSave,
-    /// Load the last quicksaved resize layout dimensions
-    QuickLoad,
     /// Query the current window manager state
     #[clap(setting = AppSettings::ArgRequiredElseHelp)]
     Query(Query),
     /// Tail komorebi.exe's process logs (cancel with Ctrl-C)
     Log,
+    /// Quicksave the current resize layout dimensions
+    QuickSave,
+    /// Load the last quicksaved resize layout dimensions
+    QuickLoad,
+    /// Save the current resize layout dimensions to a file
+    #[clap(setting = AppSettings::ArgRequiredElseHelp)]
+    Save(Save),
+    /// Load the resize layout dimensions from a file
+    #[clap(setting = AppSettings::ArgRequiredElseHelp)]
+    Load(Load),
     /// Change focus to the window in the specified direction
     #[clap(setting = AppSettings::ArgRequiredElseHelp)]
     Focus(Focus),
@@ -413,7 +431,7 @@ enum SubCommand {
 }
 
 pub fn send_message(bytes: &[u8]) -> Result<()> {
-    let mut socket = dirs::home_dir().context("there is no home directory")?;
+    let mut socket = dirs::home_dir().ok_or_else(|| anyhow!("there is no home directory"))?;
     socket.push("komorebi.sock");
     let socket = socket.as_path();
 
@@ -427,7 +445,8 @@ fn main() -> Result<()> {
 
     match opts.subcmd {
         SubCommand::AhkLibrary => {
-            let mut library = dirs::home_dir().context("there is no home directory")?;
+            let mut library =
+                dirs::home_dir().ok_or_else(|| anyhow!("there is no home directory"))?;
             library.push("komorebic.lib.ahk");
             let mut file = OpenOptions::new()
                 .write(true)
@@ -439,9 +458,9 @@ fn main() -> Result<()> {
 
             println!(
                 "\nAHK helper library for komorebic written to {}",
-                library
-                    .to_str()
-                    .context("could not find the path to the generated ahk lib file")?
+                library.to_str().ok_or_else(|| anyhow!(
+                    "could not find the path to the generated ahk lib file"
+                ))?
             );
 
             println!(
@@ -559,10 +578,9 @@ fn main() -> Result<()> {
                         buf.pop(); // %USERPROFILE%\scoop\shims
                         buf.pop(); // %USERPROFILE%\scoop
                         buf.push("apps\\komorebi\\current\\komorebi.exe"); //%USERPROFILE%\scoop\komorebi\current\komorebi.exe
-                        Option::from(
-                            buf.to_str()
-                                .context("cannot create a string from the scoop komorebi path")?,
-                        )
+                        Option::from(buf.to_str().ok_or_else(|| {
+                            anyhow!("cannot create a string from the scoop komorebi path")
+                        })?)
                     }
                 }
             } else {
@@ -652,7 +670,7 @@ fn main() -> Result<()> {
             )?;
         }
         SubCommand::State => {
-            let home = dirs::home_dir().context("there is no home directory")?;
+            let home = dirs::home_dir().ok_or_else(|| anyhow!("there is no home directory"))?;
             let mut socket = home;
             socket.push("komorebic.sock");
             let socket = socket.as_path();
@@ -686,7 +704,7 @@ fn main() -> Result<()> {
             }
         }
         SubCommand::Query(arg) => {
-            let home = dirs::home_dir().context("there is no home directory")?;
+            let home = dirs::home_dir().ok_or_else(|| anyhow!("there is no home directory"))?;
             let mut socket = home;
             socket.push("komorebic.sock");
             let socket = socket.as_path();
@@ -720,7 +738,8 @@ fn main() -> Result<()> {
             }
         }
         SubCommand::RestoreWindows => {
-            let mut hwnd_json = dirs::home_dir().context("there is no home directory")?;
+            let mut hwnd_json =
+                dirs::home_dir().ok_or_else(|| anyhow!("there is no home directory"))?;
             hwnd_json.push("komorebi.hwnd.json");
 
             let file = File::open(hwnd_json)?;
@@ -777,9 +796,46 @@ fn main() -> Result<()> {
         SubCommand::QuickLoad => {
             send_message(&*SocketMessage::QuickLoad.as_bytes()?)?;
         }
+        SubCommand::Save(arg) => {
+            send_message(&*SocketMessage::Save(resolve_windows_path(&arg.path)?).as_bytes()?)?;
+        }
+        SubCommand::Load(arg) => {
+            send_message(&*SocketMessage::Load(resolve_windows_path(&arg.path)?).as_bytes()?)?;
+        }
     }
 
     Ok(())
+}
+
+fn resolve_windows_path(raw_path: &str) -> Result<PathBuf> {
+    let path = if raw_path.starts_with('~') {
+        raw_path.replacen(
+            "~",
+            &dirs::home_dir()
+                .ok_or_else(|| anyhow!("there is no home directory"))?
+                .display()
+                .to_string(),
+            1,
+        )
+    } else {
+        raw_path.to_string()
+    };
+
+    let full_path = PathBuf::from(path);
+
+    let parent = full_path
+        .parent()
+        .ok_or_else(|| anyhow!("cannot parse directory"))?;
+
+    let file = full_path
+        .components()
+        .last()
+        .ok_or_else(|| anyhow!("cannot parse filename"))?;
+
+    let mut canonicalized = std::fs::canonicalize(parent)?;
+    canonicalized.push(file);
+
+    Ok(canonicalized)
 }
 
 fn show_window(hwnd: HWND, command: SHOW_WINDOW_CMD) {

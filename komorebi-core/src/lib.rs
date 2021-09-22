@@ -1,6 +1,7 @@
 #![warn(clippy::all, clippy::nursery, clippy::pedantic)]
 #![allow(clippy::missing_errors_doc)]
 
+use std::path::PathBuf;
 use std::str::FromStr;
 
 use clap::ArgEnum;
@@ -54,6 +55,8 @@ pub enum SocketMessage {
     Retile,
     QuickSave,
     QuickLoad,
+    Save(PathBuf),
+    Load(PathBuf),
     FocusMonitorNumber(usize),
     FocusWorkspaceNumber(usize),
     ContainerPadding(usize, usize, i32),
