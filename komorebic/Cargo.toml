@@ -17,7 +17,7 @@ komorebi-core = { path = "../komorebi-core" }
 
 clap = "3.0.0-beta.4"
 color-eyre = "0.5"
-dirs = "3"
+dirs = "4"
 fs-tail = "0.1"
 heck = "0.3"
 paste = "1"
