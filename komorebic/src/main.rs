@@ -79,6 +79,8 @@ macro_rules! gen_enum_subcommand_args {
 gen_enum_subcommand_args! {
     Focus: OperationDirection,
     Move: OperationDirection,
+    CycleFocus: CycleDirection,
+    CycleMove: CycleDirection,
     Stack: OperationDirection,
     CycleStack: CycleDirection,
     FlipLayout: Flip,
@@ -316,6 +318,12 @@ enum SubCommand {
     /// Move the focused window in the specified direction
     #[clap(setting = AppSettings::ArgRequiredElseHelp)]
     Move(Move),
+    /// Change focus to the window in the specified cycle direction
+    #[clap(setting = AppSettings::ArgRequiredElseHelp)]
+    CycleFocus(CycleFocus),
+    /// Move the focused window in the specified cycle direction
+    #[clap(setting = AppSettings::ArgRequiredElseHelp)]
+    CycleMove(CycleMove),
     /// Stack the focused window in the specified direction
     #[clap(setting = AppSettings::ArgRequiredElseHelp)]
     Stack(Stack),
@@ -492,6 +500,12 @@ fn main() -> Result<()> {
         }
         SubCommand::Move(arg) => {
             send_message(&*SocketMessage::MoveWindow(arg.operation_direction).as_bytes()?)?;
+        }
+        SubCommand::CycleFocus(arg) => {
+            send_message(&*SocketMessage::CycleFocusWindow(arg.cycle_direction).as_bytes()?)?;
+        }
+        SubCommand::CycleMove(arg) => {
+            send_message(&*SocketMessage::CycleMoveWindow(arg.cycle_direction).as_bytes()?)?;
         }
         SubCommand::MoveToMonitor(arg) => {
             send_message(&*SocketMessage::MoveContainerToMonitorNumber(arg.target).as_bytes()?)?;

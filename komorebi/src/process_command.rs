@@ -66,6 +66,12 @@ impl WindowManager {
             SocketMessage::MoveWindow(direction) => {
                 self.move_container_in_direction(direction)?;
             }
+            SocketMessage::CycleFocusWindow(direction) => {
+                self.focus_container_in_cycle_direction(direction)?;
+            }
+            SocketMessage::CycleMoveWindow(direction) => {
+                self.move_container_in_cycle_direction(direction)?;
+            }
             SocketMessage::StackWindow(direction) => self.add_window_to_container(direction)?,
             SocketMessage::UnstackWindow => self.remove_window_from_container()?,
             SocketMessage::CycleStack(direction) => {

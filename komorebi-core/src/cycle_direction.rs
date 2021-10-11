@@ -1,6 +1,7 @@
 use clap::ArgEnum;
 use serde::Deserialize;
 use serde::Serialize;
+use std::num::NonZeroUsize;
 use strum::Display;
 use strum::EnumString;
 
@@ -13,17 +14,17 @@ pub enum CycleDirection {
 
 impl CycleDirection {
     #[must_use]
-    pub const fn next_idx(&self, idx: usize, len: usize) -> usize {
+    pub const fn next_idx(&self, idx: usize, len: NonZeroUsize) -> usize {
         match self {
-            CycleDirection::Previous => {
+            Self::Previous => {
                 if idx == 0 {
-                    len - 1
+                    len.get() - 1
                 } else {
                     idx - 1
                 }
             }
-            CycleDirection::Next => {
-                if idx == len - 1 {
+            Self::Next => {
+                if idx == len.get() - 1 {
                     0
                 } else {
                     idx + 1

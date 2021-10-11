@@ -57,22 +57,22 @@ impl OperationDirection {
         len: usize,
     ) -> bool {
         match Self::flip_direction(self, layout_flip) {
-            OperationDirection::Up => match layout {
+            Self::Up => match layout {
                 Layout::BSP => len > 2 && idx != 0 && idx != 1,
                 Layout::Columns => false,
                 Layout::Rows => idx != 0,
             },
-            OperationDirection::Down => match layout {
+            Self::Down => match layout {
                 Layout::BSP => len > 2 && idx != len - 1 && idx % 2 != 0,
                 Layout::Columns => false,
                 Layout::Rows => idx != len - 1,
             },
-            OperationDirection::Left => match layout {
+            Self::Left => match layout {
                 Layout::BSP => len > 1 && idx != 0,
                 Layout::Columns => idx != 0,
                 Layout::Rows => false,
             },
-            OperationDirection::Right => match layout {
+            Self::Right => match layout {
                 Layout::BSP => len > 1 && idx % 2 == 0 && idx != len - 1,
                 Layout::Columns => idx != len - 1,
                 Layout::Rows => false,

@@ -9,6 +9,7 @@ use getset::MutGetters;
 use getset::Setters;
 use serde::Serialize;
 
+use komorebi_core::CycleDirection;
 use komorebi_core::Flip;
 use komorebi_core::Layout;
 use komorebi_core::OperationDirection;
@@ -456,6 +457,12 @@ impl Workspace {
         } else {
             None
         }
+    }
+    pub fn new_idx_for_cycle_direction(&self, direction: CycleDirection) -> Option<usize> {
+        Option::from(direction.next_idx(
+            self.focused_container_idx(),
+            NonZeroUsize::new(self.containers().len())?,
+        ))
     }
 
     pub fn move_window_to_container(&mut self, target_container_idx: usize) -> Result<()> {

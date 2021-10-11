@@ -740,17 +740,51 @@ impl WindowManager {
     }
 
     #[tracing::instrument(skip(self))]
+    pub fn focus_container_in_cycle_direction(&mut self, direction: CycleDirection) -> Result<()> {
+        tracing::info!("focusing container");
+        let workspace = self.focused_workspace_mut()?;
+
+        let new_idx = workspace
+            .new_idx_for_cycle_direction(direction)
+            .ok_or_else(|| anyhow!("this is not a valid direction from the current position"))?;
+
+        workspace.focus_container(new_idx);
+        self.focused_window_mut()?.focus()?;
+
+        Ok(())
+    }
+
+    #[tracing::instrument(skip(self))]
+    pub fn move_container_in_cycle_direction(&mut self, direction: CycleDirection) -> Result<()> {
+        tracing::info!("moving container");
+
+        let workspace = self.focused_workspace_mut()?;
+
+        let current_idx = workspace.focused_container_idx();
+        let new_idx = workspace
+            .new_idx_for_cycle_direction(direction)
+            .ok_or_else(|| anyhow!("this is not a valid direction from the current position"))?;
+
+        workspace.swap_containers(current_idx, new_idx);
+        workspace.focus_container(new_idx);
+        self.update_focused_workspace(true)
+    }
+
+    #[tracing::instrument(skip(self))]
     pub fn cycle_container_window_in_direction(&mut self, direction: CycleDirection) -> Result<()> {
         tracing::info!("cycling container windows");
 
         let container = self.focused_container_mut()?;
 
-        if container.windows().len() == 1 {
+        let len = NonZeroUsize::new(container.windows().len())
+            .ok_or_else(|| anyhow!("there must be at least one window in a container"))?;
+
+        if len.get() == 1 {
             return Err(anyhow!("there is only one window in this container"));
         }
 
         let current_idx = container.focused_window_idx();
-        let next_idx = direction.next_idx(current_idx, container.windows().len());
+        let next_idx = direction.next_idx(current_idx, len);
 
         container.focus_window(next_idx);
         container.load_focused_window();
