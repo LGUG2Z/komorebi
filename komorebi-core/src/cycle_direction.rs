@@ -1,7 +1,8 @@
+use std::num::NonZeroUsize;
+
 use clap::ArgEnum;
 use serde::Deserialize;
 use serde::Serialize;
-use std::num::NonZeroUsize;
 use strum::Display;
 use strum::EnumString;
 

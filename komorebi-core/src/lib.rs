@@ -59,6 +59,8 @@ pub enum SocketMessage {
     QuickLoad,
     Save(PathBuf),
     Load(PathBuf),
+    CycleFocusMonitor(CycleDirection),
+    CycleFocusWorkspace(CycleDirection),
     FocusMonitorNumber(usize),
     FocusWorkspaceNumber(usize),
     ContainerPadding(usize, usize, i32),

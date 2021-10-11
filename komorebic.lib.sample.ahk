@@ -44,6 +44,14 @@ Move(operation_direction) {
     Run, komorebic.exe move %operation_direction%, , Hide
 }
 
+CycleFocus(cycle_direction) {
+    Run, komorebic.exe cycle-focus %cycle_direction%, , Hide
+}
+
+CycleMove(cycle_direction) {
+    Run, komorebic.exe cycle-move %cycle_direction%, , Hide
+}
+
 Stack(operation_direction) {
     Run, komorebic.exe stack %operation_direction%, , Hide
 }
@@ -82,6 +90,14 @@ FocusMonitor(target) {
 
 FocusWorkspace(target) {
     Run, komorebic.exe focus-workspace %target%, , Hide
+}
+
+CycleMonitor(cycle_direction) {
+    Run, komorebic.exe cycle-monitor %cycle_direction%, , Hide
+}
+
+CycleWorkspace(cycle_direction) {
+    Run, komorebic.exe cycle-workspace %cycle_direction%, , Hide
 }
 
 NewWorkspace() {

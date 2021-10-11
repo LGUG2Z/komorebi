@@ -81,6 +81,8 @@ gen_enum_subcommand_args! {
     Move: OperationDirection,
     CycleFocus: CycleDirection,
     CycleMove: CycleDirection,
+    CycleMonitor: CycleDirection,
+    CycleWorkspace: CycleDirection,
     Stack: OperationDirection,
     CycleStack: CycleDirection,
     FlipLayout: Flip,
@@ -353,6 +355,12 @@ enum SubCommand {
     /// Focus the specified workspace on the focused monitor
     #[clap(setting = AppSettings::ArgRequiredElseHelp)]
     FocusWorkspace(FocusWorkspace),
+    /// Focus the monitor in the given cycle direction
+    #[clap(setting = AppSettings::ArgRequiredElseHelp)]
+    CycleMonitor(CycleMonitor),
+    /// Focus the workspace in the given cycle direction
+    #[clap(setting = AppSettings::ArgRequiredElseHelp)]
+    CycleWorkspace(CycleWorkspace),
     /// Create and append a new workspace on the focused monitor
     NewWorkspace,
     /// Set the invisible border dimensions around each window
@@ -667,6 +675,12 @@ fn main() -> Result<()> {
         }
         SubCommand::FocusWorkspace(arg) => {
             send_message(&*SocketMessage::FocusWorkspaceNumber(arg.target).as_bytes()?)?;
+        }
+        SubCommand::CycleMonitor(arg) => {
+            send_message(&*SocketMessage::CycleFocusMonitor(arg.cycle_direction).as_bytes()?)?;
+        }
+        SubCommand::CycleWorkspace(arg) => {
+            send_message(&*SocketMessage::CycleFocusWorkspace(arg.cycle_direction).as_bytes()?)?;
         }
         SubCommand::NewWorkspace => {
             send_message(&*SocketMessage::NewWorkspace.as_bytes()?)?;

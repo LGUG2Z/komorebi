@@ -3,6 +3,7 @@ use std::fs::OpenOptions;
 use std::io::BufRead;
 use std::io::BufReader;
 use std::io::Write;
+use std::num::NonZeroUsize;
 use std::str::FromStr;
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
@@ -136,6 +137,16 @@ impl WindowManager {
             SocketMessage::ToggleTiling => {
                 self.toggle_tiling()?;
             }
+            SocketMessage::CycleFocusMonitor(direction) => {
+                let monitor_idx = direction.next_idx(
+                    self.focused_monitor_idx(),
+                    NonZeroUsize::new(self.monitors().len())
+                        .ok_or_else(|| anyhow!("there must be at least one monitor"))?,
+                );
+
+                self.focus_monitor(monitor_idx)?;
+                self.update_focused_workspace(true)?;
+            }
             SocketMessage::FocusMonitorNumber(monitor_idx) => {
                 self.focus_monitor(monitor_idx)?;
                 self.update_focused_workspace(true)?;
@@ -148,6 +159,31 @@ impl WindowManager {
             }
             SocketMessage::WorkspaceLayout(monitor_idx, workspace_idx, layout) => {
                 self.set_workspace_layout(monitor_idx, workspace_idx, layout)?;
+            }
+            SocketMessage::CycleFocusWorkspace(direction) => {
+                // This is to ensure that even on an empty workspace on a secondary monitor, the
+                // secondary monitor where the cursor is focused will be used as the target for
+                // the workspace switch op
+                let monitor_idx = self.monitor_idx_from_current_pos().ok_or_else(|| {
+                    anyhow!("there is no monitor associated with the current cursor position")
+                })?;
+
+                self.focus_monitor(monitor_idx)?;
+
+                let focused_monitor = self
+                    .focused_monitor()
+                    .ok_or_else(|| anyhow!("there is no monitor"))?;
+
+                let focused_workspace_idx = focused_monitor.focused_workspace_idx();
+                let workspaces = focused_monitor.workspaces().len();
+
+                let workspace_idx = direction.next_idx(
+                    focused_workspace_idx,
+                    NonZeroUsize::new(workspaces)
+                        .ok_or_else(|| anyhow!("there must be at least one workspace"))?,
+                );
+
+                self.focus_workspace(workspace_idx)?;
             }
             SocketMessage::FocusWorkspaceNumber(workspace_idx) => {
                 // This is to ensure that even on an empty workspace on a secondary monitor, the

@@ -226,6 +226,8 @@ save                          Save the current resize layout dimensions to a fil
 load                          Load the resize layout dimensions from a file
 focus                         Change focus to the window in the specified direction
 move                          Move the focused window in the specified direction
+cycle-focus                   Change focus to the window in the specified cycle direction
+cycle-move                    Move the focused window in the specified cycle direction
 stack                         Stack the focused window in the specified direction
 resize                        Resize the focused window in the specified direction
 unstack                       Unstack the focused window
@@ -236,6 +238,8 @@ send-to-monitor               Send the focused window to the specified monitor
 send-to-workspace             Send the focused window to the specified workspace
 focus-monitor                 Focus the specified monitor
 focus-workspace               Focus the specified workspace on the focused monitor
+cycle-monitor                 Focus the monitor in the given cycle direction
+cycle-workspace               Focus the workspace in the given cycle direction
 new-workspace                 Create and append a new workspace on the focused monitor
 invisible-borders             Set the invisible border dimensions around each window
 adjust-container-padding      Adjust container padding on the focused workspace
