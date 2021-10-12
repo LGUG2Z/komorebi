@@ -138,8 +138,25 @@ impl Workspace {
         Ok(())
     }
 
-    pub fn update(&mut self, work_area: &Rect, invisible_borders: &Rect) -> Result<()> {
-        let mut adjusted_work_area = *work_area;
+    pub fn update(
+        &mut self,
+        work_area: &Rect,
+        offset: Option<Rect>,
+        invisible_borders: &Rect,
+    ) -> Result<()> {
+        let mut adjusted_work_area = offset.map_or_else(
+            || *work_area,
+            |offset| {
+                let mut with_offset = *work_area;
+                with_offset.left += offset.left;
+                with_offset.top += offset.top;
+                with_offset.right -= offset.right;
+                with_offset.bottom -= offset.bottom;
+
+                with_offset
+            },
+        );
+
         adjusted_work_area.add_padding(self.workspace_padding());
 
         self.enforce_resize_constraints();

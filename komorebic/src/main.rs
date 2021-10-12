@@ -168,6 +168,18 @@ struct InvisibleBorders {
 }
 
 #[derive(Clap, AhkFunction)]
+struct WorkAreaOffset {
+    /// Size of the left work area offset (set right to left * 2 to maintain right padding)
+    left: i32,
+    /// Size of the top work area offset (set bottom to the same value to maintain bottom padding)
+    top: i32,
+    /// Size of the right work area offset
+    right: i32,
+    /// Size of the bottom work area offset
+    bottom: i32,
+}
+
+#[derive(Clap, AhkFunction)]
 struct EnsureWorkspaces {
     /// Monitor index (zero-indexed)
     monitor: usize,
@@ -366,6 +378,9 @@ enum SubCommand {
     /// Set the invisible border dimensions around each window
     #[clap(setting = AppSettings::ArgRequiredElseHelp)]
     InvisibleBorders(InvisibleBorders),
+    /// Set offsets to exclude parts of the work area from tiling
+    #[clap(setting = AppSettings::ArgRequiredElseHelp)]
+    WorkAreaOffset(WorkAreaOffset),
     /// Adjust container padding on the focused workspace
     #[clap(setting = AppSettings::ArgRequiredElseHelp)]
     AdjustContainerPadding(AdjustContainerPadding),
@@ -530,6 +545,17 @@ fn main() -> Result<()> {
         SubCommand::InvisibleBorders(arg) => {
             send_message(
                 &*SocketMessage::InvisibleBorders(Rect {
+                    left: arg.left,
+                    top: arg.top,
+                    right: arg.right,
+                    bottom: arg.bottom,
+                })
+                .as_bytes()?,
+            )?;
+        }
+        SubCommand::WorkAreaOffset(arg) => {
+            send_message(
+                &*SocketMessage::WorkAreaOffset(Rect {
                     left: arg.left,
                     top: arg.top,
                     right: arg.right,

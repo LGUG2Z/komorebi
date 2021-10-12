@@ -66,13 +66,14 @@ impl WindowManager {
         }
 
         let invisible_borders = self.invisible_borders;
+        let offset = self.work_area_offset;
 
         for (i, monitor) in self.monitors_mut().iter_mut().enumerate() {
             let work_area = *monitor.work_area_size();
             for (j, workspace) in monitor.workspaces_mut().iter_mut().enumerate() {
                 let reaped_orphans = workspace.reap_orphans()?;
                 if reaped_orphans.0 > 0 || reaped_orphans.1 > 0 {
-                    workspace.update(&work_area, &invisible_borders)?;
+                    workspace.update(&work_area, offset, &invisible_borders)?;
                     tracing::info!(
                         "reaped {} orphan window(s) and {} orphaned container(s) on monitor: {}, workspace: {}",
                         reaped_orphans.0,

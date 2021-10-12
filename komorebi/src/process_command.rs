@@ -371,6 +371,10 @@ impl WindowManager {
                 self.invisible_borders = rect;
                 self.retile_all()?;
             }
+            SocketMessage::WorkAreaOffset(rect) => {
+                self.work_area_offset = Option::from(rect);
+                self.retile_all()?;
+            }
             SocketMessage::QuickSave => {
                 let workspace = self.focused_workspace()?;
                 let resize = workspace.resize_dimensions();

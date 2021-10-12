@@ -242,6 +242,7 @@ cycle-monitor                 Focus the monitor in the given cycle direction
 cycle-workspace               Focus the workspace in the given cycle direction
 new-workspace                 Create and append a new workspace on the focused monitor
 invisible-borders             Set the invisible border dimensions around each window
+work-area-offset              Set offsets to exclude parts of the work area from tiling
 adjust-container-padding      Adjust container padding on the focused workspace
 adjust-workspace-padding      Adjust workspace padding on the focused workspace
 change-layout                 Set the layout on the focused workspace
@@ -313,6 +314,7 @@ used [is available here](komorebi.sample.with.lib.ahk).
 - [x] Additional manage rules based on exe name and window class
 - [x] Identify applications which overflow their borders by exe name and class
 - [x] Identify 'close/minimize to tray' applications by exe name and class
+- [x] Configure work area offsets to preserve space for custom taskbars
 - [x] Configure and compensate for the size of Windows 10's invisible borders
 - [x] Toggle floating windows
 - [x] Toggle monocle window

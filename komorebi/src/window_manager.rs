@@ -45,6 +45,7 @@ pub struct WindowManager {
     pub command_listener: UnixListener,
     pub is_paused: bool,
     pub invisible_borders: Rect,
+    pub work_area_offset: Option<Rect>,
     pub focus_follows_mouse: Option<FocusFollowsMouseImplementation>,
     pub hotwatch: Hotwatch,
     pub virtual_desktop_id: Option<usize>,
@@ -56,6 +57,7 @@ pub struct State {
     pub monitors: Ring<Monitor>,
     pub is_paused: bool,
     pub invisible_borders: Rect,
+    pub work_area_offset: Option<Rect>,
     pub focus_follows_mouse: Option<FocusFollowsMouseImplementation>,
     pub has_pending_raise_op: bool,
     pub float_identifiers: Vec<String>,
@@ -72,6 +74,7 @@ impl From<&mut WindowManager> for State {
             monitors: wm.monitors.clone(),
             is_paused: wm.is_paused,
             invisible_borders: wm.invisible_borders,
+            work_area_offset: wm.work_area_offset,
             focus_follows_mouse: wm.focus_follows_mouse.clone(),
             has_pending_raise_op: wm.has_pending_raise_op,
             float_identifiers: FLOAT_IDENTIFIERS.lock().clone(),
@@ -143,6 +146,7 @@ impl WindowManager {
                 right: 14,
                 bottom: 7,
             },
+            work_area_offset: None,
             focus_follows_mouse: None,
             hotwatch: Hotwatch::new()?,
             virtual_desktop_id,
@@ -265,6 +269,7 @@ impl WindowManager {
         self.monitors_mut().retain(|m| !invalid.contains(&m.id()));
 
         let invisible_borders = self.invisible_borders;
+        let offset = self.work_area_offset;
 
         for monitor in self.monitors_mut() {
             let mut should_update = false;
@@ -293,7 +298,7 @@ impl WindowManager {
             }
 
             if should_update {
-                monitor.update_focused_workspace(&invisible_borders)?;
+                monitor.update_focused_workspace(offset, &invisible_borders)?;
             }
         }
 
@@ -423,6 +428,8 @@ impl WindowManager {
     #[tracing::instrument(skip(self))]
     pub fn retile_all(&mut self) -> Result<()> {
         let invisible_borders = self.invisible_borders;
+        let offset = self.work_area_offset;
+
         for monitor in self.monitors_mut() {
             let work_area = *monitor.work_area_size();
             let workspace = monitor
@@ -434,7 +441,7 @@ impl WindowManager {
                 *resize = None;
             }
 
-            workspace.update(&work_area, &invisible_borders)?;
+            workspace.update(&work_area, offset, &invisible_borders)?;
         }
 
         Ok(())
@@ -534,10 +541,11 @@ impl WindowManager {
         tracing::info!("updating");
 
         let invisible_borders = self.invisible_borders;
+        let offset = self.work_area_offset;
 
         self.focused_monitor_mut()
             .ok_or_else(|| anyhow!("there is no monitor"))?
-            .update_focused_workspace(&invisible_borders)?;
+            .update_focused_workspace(offset, &invisible_borders)?;
 
         if mouse_follows_focus {
             if let Some(window) = self.focused_workspace()?.maximized_window() {
@@ -660,6 +668,7 @@ impl WindowManager {
         tracing::info!("moving container");
 
         let invisible_borders = self.invisible_borders;
+        let offset = self.work_area_offset;
 
         let monitor = self
             .focused_monitor_mut()
@@ -685,7 +694,7 @@ impl WindowManager {
 
         target_monitor.add_container(container)?;
         target_monitor.load_focused_workspace()?;
-        target_monitor.update_focused_workspace(&invisible_borders)?;
+        target_monitor.update_focused_workspace(offset, &invisible_borders)?;
 
         if follow {
             self.focus_monitor(idx)?;
@@ -1075,6 +1084,7 @@ impl WindowManager {
         tracing::info!("setting workspace layout");
 
         let invisible_borders = self.invisible_borders;
+        let offset = self.work_area_offset;
         let focused_monitor_idx = self.focused_monitor_idx();
 
         let monitor = self
@@ -1094,7 +1104,7 @@ impl WindowManager {
 
         // If this is the focused workspace on a non-focused screen, let's update it
         if focused_monitor_idx != monitor_idx && focused_workspace_idx == workspace_idx {
-            workspace.update(&work_area, &invisible_borders)?;
+            workspace.update(&work_area, offset, &invisible_borders)?;
             Ok(())
         } else {
             Ok(self.update_focused_workspace(false)?)
