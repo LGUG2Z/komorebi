@@ -60,22 +60,36 @@ impl OperationDirection {
             Self::Up => match layout {
                 Layout::BSP => len > 2 && idx != 0 && idx != 1,
                 Layout::Columns => false,
-                Layout::Rows => idx != 0,
+                Layout::Rows | Layout::HorizontalStack => idx != 0,
+                Layout::VerticalStack => idx != 0 && idx != 1,
+                Layout::UltrawideVerticalStack => idx > 2,
             },
             Self::Down => match layout {
                 Layout::BSP => len > 2 && idx != len - 1 && idx % 2 != 0,
                 Layout::Columns => false,
                 Layout::Rows => idx != len - 1,
+                Layout::VerticalStack => idx != 0 && idx != len - 1,
+                Layout::HorizontalStack => idx == 0,
+                Layout::UltrawideVerticalStack => idx > 1 && idx != len - 1,
             },
             Self::Left => match layout {
                 Layout::BSP => len > 1 && idx != 0,
-                Layout::Columns => idx != 0,
+                Layout::Columns | Layout::VerticalStack => idx != 0,
                 Layout::Rows => false,
+                Layout::HorizontalStack => idx != 0 && idx != 1,
+                Layout::UltrawideVerticalStack => len > 1 && idx != 1,
             },
             Self::Right => match layout {
                 Layout::BSP => len > 1 && idx % 2 == 0 && idx != len - 1,
                 Layout::Columns => idx != len - 1,
                 Layout::Rows => false,
+                Layout::VerticalStack => idx == 0,
+                Layout::HorizontalStack => idx != 0 && idx != len - 1,
+                Layout::UltrawideVerticalStack => match len {
+                    0 | 1 => false,
+                    2 => idx != 0,
+                    _ => idx < 2,
+                },
             },
         }
     }
@@ -92,11 +106,16 @@ impl OperationDirection {
                     }
                 }
                 Layout::Columns => unreachable!(),
-                Layout::Rows => idx - 1,
+                Layout::Rows | Layout::VerticalStack | Layout::UltrawideVerticalStack => idx - 1,
+                Layout::HorizontalStack => 0,
             },
             Self::Down => match layout {
-                Layout::BSP | Layout::Rows => idx + 1,
+                Layout::BSP
+                | Layout::Rows
+                | Layout::VerticalStack
+                | Layout::UltrawideVerticalStack => idx + 1,
                 Layout::Columns => unreachable!(),
+                Layout::HorizontalStack => 1,
             },
             Self::Left => match layout {
                 Layout::BSP => {
@@ -106,12 +125,24 @@ impl OperationDirection {
                         idx - 1
                     }
                 }
-                Layout::Columns => idx - 1,
+                Layout::Columns | Layout::HorizontalStack => idx - 1,
                 Layout::Rows => unreachable!(),
+                Layout::VerticalStack => 0,
+                Layout::UltrawideVerticalStack => match idx {
+                    0 => 1,
+                    1 => unreachable!(),
+                    _ => 0,
+                },
             },
             Self::Right => match layout {
-                Layout::BSP | Layout::Columns => idx + 1,
+                Layout::BSP | Layout::Columns | Layout::HorizontalStack => idx + 1,
                 Layout::Rows => unreachable!(),
+                Layout::VerticalStack => 1,
+                Layout::UltrawideVerticalStack => match idx {
+                    1 => 0,
+                    0 => 2,
+                    _ => unreachable!(),
+                },
             },
         }
     }

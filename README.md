@@ -306,9 +306,13 @@ used [is available here](komorebi.sample.with.lib.ahk).
 - [x] Mouse drag to swap window container position
 - [x] Mouse drag to resize window container
 - [x] Configurable workspace and container gaps
-- [x] BSP tree layout
+- [x] BSP tree layout (`bsp`)
 - [x] Flip BSP tree layout horizontally or vertically
-- [x] Equal-width, max-height column layout
+- [x] Equal-width, max-height column layout (`columns`)
+- [x] Equal-height, max-width row layout (`rows`)
+- [x] Main half-height window with vertical stack layout (`horizontal-stack`)
+- [x] Main half-width window with horizontal stack layout (`vertical-stack`)
+- [x] 2x Main window (half and quarter-width) with horizontal stack layout (`ultrawide-vertical-stack`)
 - [x] Floating rules based on exe name, window title and class
 - [x] Workspace rules based on exe name and window class
 - [x] Additional manage rules based on exe name and window class

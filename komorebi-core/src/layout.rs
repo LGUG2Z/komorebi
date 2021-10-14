@@ -16,6 +16,9 @@ pub enum Layout {
     BSP,
     Columns,
     Rows,
+    VerticalStack,
+    HorizontalStack,
+    UltrawideVerticalStack,
 }
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, Display, EnumString, ArgEnum)]
@@ -131,7 +134,11 @@ impl Layout {
     }
 
     #[must_use]
-    #[allow(clippy::cast_possible_truncation, clippy::cast_possible_wrap)]
+    #[allow(
+        clippy::cast_possible_truncation,
+        clippy::cast_possible_wrap,
+        clippy::too_many_lines
+    )]
     pub fn calculate(
         &self,
         area: &Rect,
@@ -183,6 +190,176 @@ impl Layout {
                     top += bottom;
                 }
 
+                layouts
+            }
+            Layout::VerticalStack => {
+                let mut layouts: Vec<Rect> = vec![];
+                layouts.resize(len, Rect::default());
+
+                let primary_right = match len {
+                    1 => area.right,
+                    _ => area.right / 2,
+                };
+
+                let mut main_left = area.left;
+                let mut stack_left = area.left + primary_right;
+
+                match layout_flip {
+                    Some(Flip::Horizontal | Flip::HorizontalAndVertical) if len > 1 => {
+                        main_left = main_left + area.right - primary_right;
+                        stack_left = area.left;
+                    }
+                    _ => {}
+                }
+
+                let mut iter = layouts.iter_mut();
+                {
+                    if let Some(first) = iter.next() {
+                        first.left = main_left;
+                        first.top = area.top;
+                        first.right = primary_right;
+                        first.bottom = area.bottom;
+                    }
+                }
+
+                let bottom = area.bottom / (len - 1) as i32;
+                let mut top = 0;
+
+                for next in iter {
+                    next.left = stack_left;
+                    next.top = area.top + top;
+                    next.right = area.right - primary_right;
+                    next.bottom = bottom;
+
+                    top += bottom;
+                }
+
+                layouts
+            }
+            Layout::HorizontalStack => {
+                let mut layouts: Vec<Rect> = vec![];
+                layouts.resize(len, Rect::default());
+
+                let bottom = match len {
+                    1 => area.bottom,
+                    _ => area.bottom / 2,
+                };
+
+                let mut main_top = area.top;
+                let mut stack_top = area.top + bottom;
+
+                match layout_flip {
+                    Some(Flip::Vertical | Flip::HorizontalAndVertical) if len > 1 => {
+                        main_top = main_top + area.bottom - bottom;
+                        stack_top = area.top;
+                    }
+                    _ => {}
+                }
+
+                let mut iter = layouts.iter_mut();
+                {
+                    if let Some(first) = iter.next() {
+                        first.left = area.left;
+                        first.top = main_top;
+                        first.right = area.right;
+                        first.bottom = bottom;
+                    }
+                }
+
+                let right = area.right / (len - 1) as i32;
+                let mut left = 0;
+
+                for next in iter {
+                    next.left = area.left + left;
+                    next.top = stack_top;
+                    next.right = right;
+                    next.bottom = area.bottom - bottom;
+
+                    left += right;
+                }
+
+                layouts
+            }
+            Layout::UltrawideVerticalStack => {
+                let mut layouts: Vec<Rect> = vec![];
+                layouts.resize(len, Rect::default());
+
+                let primary_right = match len {
+                    1 => area.right,
+                    _ => area.right / 2,
+                };
+
+                let secondary_right = match len {
+                    1 => 0,
+                    2 => area.right - primary_right,
+                    _ => (area.right - primary_right) / 2,
+                };
+
+                let (primary_left, secondary_left, stack_left) = match len {
+                    1 => (area.left, 0, 0),
+                    2 => {
+                        let mut primary = area.left + secondary_right;
+                        let mut secondary = area.left;
+
+                        match layout_flip {
+                            Some(Flip::Horizontal | Flip::HorizontalAndVertical) if len > 1 => {
+                                primary = area.left;
+                                secondary = area.left + primary_right;
+                            }
+                            _ => {}
+                        }
+
+                        (primary, secondary, 0)
+                    }
+                    _ => {
+                        let primary = area.left + secondary_right;
+                        let mut secondary = area.left;
+                        let mut stack = area.left + primary_right + secondary_right;
+
+                        match layout_flip {
+                            Some(Flip::Horizontal | Flip::HorizontalAndVertical) if len > 1 => {
+                                secondary = area.left + primary_right + secondary_right;
+                                stack = area.left;
+                            }
+                            _ => {}
+                        }
+
+                        (primary, secondary, stack)
+                    }
+                };
+
+                let mut iter = layouts.iter_mut();
+
+                {
+                    if let Some(first) = iter.next() {
+                        first.left = primary_left;
+                        first.top = area.top;
+                        first.right = primary_right;
+                        first.bottom = area.bottom;
+                    }
+                }
+
+                {
+                    if let Some(second) = iter.next() {
+                        second.left = secondary_left;
+                        second.top = area.top;
+                        second.right = secondary_right;
+                        second.bottom = area.bottom;
+                    }
+                }
+
+                if len > 2 {
+                    let height = area.bottom / (len - 2) as i32;
+                    let mut y = 0;
+
+                    for next in iter {
+                        next.left = stack_left;
+                        next.top = area.top + y;
+                        next.right = secondary_right;
+                        next.bottom = height;
+                        y += height;
+                    }
+                }
                 layouts
             }
         };
