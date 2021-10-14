@@ -144,6 +144,7 @@ impl Workspace {
         offset: Option<Rect>,
         invisible_borders: &Rect,
     ) -> Result<()> {
+        let container_padding = self.container_padding();
         let mut adjusted_work_area = offset.map_or_else(
             || *work_area,
             |offset| {
@@ -164,6 +165,7 @@ impl Workspace {
         if *self.tile() {
             if let Some(container) = self.monocle_container_mut() {
                 if let Some(window) = container.focused_window_mut() {
+                    adjusted_work_area.add_padding(container_padding);
                     window.set_position(&adjusted_work_area, invisible_borders, true)?;
                 };
             } else if let Some(window) = self.maximized_window_mut() {
