@@ -18,6 +18,10 @@ Translations of this document can be found in the project wiki:
 
 - [komorebi 中文用户指南](https://github.com/LGUG2Z/komorebi/wiki/README-zh) (by [@crosstyan](https://github.com/crosstyan))
 
+There is a [Discord server](https://discord.gg/vzBmPm6RkQ) available for _komorebi_-related discussion, help,
+troubleshooting etc. If you have any specific feature requests or bugs to report, please create an issue in this
+repository.
+
 ## Description
 
 _komorebi_ only responds to [WinEvents](https://docs.microsoft.com/en-us/windows/win32/winauto/event-constants) and the
