@@ -134,11 +134,7 @@ impl Layout {
     }
 
     #[must_use]
-    #[allow(
-        clippy::cast_possible_truncation,
-        clippy::cast_possible_wrap,
-        clippy::too_many_lines
-    )]
+    #[allow(clippy::too_many_lines)]
     pub fn calculate(
         &self,
         area: &Rect,
@@ -156,45 +152,10 @@ impl Layout {
                 layout_flip,
                 calculate_resize_adjustments(resize_dimensions),
             ),
-            Layout::Columns => {
-                let right = area.right / len as i32;
-                let mut left = 0;
-
-                let mut layouts: Vec<Rect> = vec![];
-                for _ in 0..len {
-                    layouts.push(Rect {
-                        left: area.left + left,
-                        top: area.top,
-                        right,
-                        bottom: area.bottom,
-                    });
-
-                    left += right;
-                }
-
-                layouts
-            }
-            Layout::Rows => {
-                let bottom = area.bottom / len as i32;
-                let mut top = 0;
-
-                let mut layouts: Vec<Rect> = vec![];
-                for _ in 0..len {
-                    layouts.push(Rect {
-                        left: area.left,
-                        top: area.top + top,
-                        right: area.right,
-                        bottom,
-                    });
-
-                    top += bottom;
-                }
-
-                layouts
-            }
+            Layout::Columns => columns(area, len),
+            Layout::Rows => rows(area, len),
             Layout::VerticalStack => {
                 let mut layouts: Vec<Rect> = vec![];
-                layouts.resize(len, Rect::default());
 
                 let primary_right = match len {
                     1 => area.right,
@@ -212,33 +173,31 @@ impl Layout {
                     _ => {}
                 }
 
-                let mut iter = layouts.iter_mut();
-                {
-                    if let Some(first) = iter.next() {
-                        first.left = main_left;
-                        first.top = area.top;
-                        first.right = primary_right;
-                        first.bottom = area.bottom;
+                if len >= 1 {
+                    layouts.push(Rect {
+                        left: main_left,
+                        top: area.top,
+                        right: primary_right,
+                        bottom: area.bottom,
+                    });
+
+                    if len > 1 {
+                        layouts.append(&mut rows(
+                            &Rect {
+                                left: stack_left,
+                                top: area.top,
+                                right: area.right - primary_right,
+                                bottom: area.bottom,
+                            },
+                            len - 1,
+                        ));
                     }
-                }
-
-                let bottom = area.bottom / (len - 1) as i32;
-                let mut top = 0;
-
-                for next in iter {
-                    next.left = stack_left;
-                    next.top = area.top + top;
-                    next.right = area.right - primary_right;
-                    next.bottom = bottom;
-
-                    top += bottom;
                 }
 
                 layouts
             }
             Layout::HorizontalStack => {
                 let mut layouts: Vec<Rect> = vec![];
-                layouts.resize(len, Rect::default());
 
                 let bottom = match len {
                     1 => area.bottom,
@@ -256,33 +215,31 @@ impl Layout {
                     _ => {}
                 }
 
-                let mut iter = layouts.iter_mut();
-                {
-                    if let Some(first) = iter.next() {
-                        first.left = area.left;
-                        first.top = main_top;
-                        first.right = area.right;
-                        first.bottom = bottom;
+                if len >= 1 {
+                    layouts.push(Rect {
+                        left: area.left,
+                        top: main_top,
+                        right: area.right,
+                        bottom,
+                    });
+
+                    if len > 1 {
+                        layouts.append(&mut columns(
+                            &Rect {
+                                left: area.left,
+                                top: stack_top,
+                                right: area.right,
+                                bottom: area.bottom - bottom,
+                            },
+                            len - 1,
+                        ));
                     }
-                }
-
-                let right = area.right / (len - 1) as i32;
-                let mut left = 0;
-
-                for next in iter {
-                    next.left = area.left + left;
-                    next.top = stack_top;
-                    next.right = right;
-                    next.bottom = area.bottom - bottom;
-
-                    left += right;
                 }
 
                 layouts
             }
             Layout::UltrawideVerticalStack => {
                 let mut layouts: Vec<Rect> = vec![];
-                layouts.resize(len, Rect::default());
 
                 let primary_right = match len {
                     1 => area.right,
@@ -328,38 +285,36 @@ impl Layout {
                     }
                 };
 
-                let mut iter = layouts.iter_mut();
+                if len >= 1 {
+                    layouts.push(Rect {
+                        left: primary_left,
+                        top: area.top,
+                        right: primary_right,
+                        bottom: area.bottom,
+                    });
 
-                {
-                    if let Some(first) = iter.next() {
-                        first.left = primary_left;
-                        first.top = area.top;
-                        first.right = primary_right;
-                        first.bottom = area.bottom;
+                    if len >= 2 {
+                        layouts.push(Rect {
+                            left: secondary_left,
+                            top: area.top,
+                            right: secondary_right,
+                            bottom: area.bottom,
+                        });
+
+                        if len > 2 {
+                            layouts.append(&mut rows(
+                                &Rect {
+                                    left: stack_left,
+                                    top: area.top,
+                                    right: secondary_right,
+                                    bottom: area.bottom,
+                                },
+                                len - 2,
+                            ));
+                        }
                     }
                 }
 
-                {
-                    if let Some(second) = iter.next() {
-                        second.left = secondary_left;
-                        second.top = area.top;
-                        second.right = secondary_right;
-                        second.bottom = area.bottom;
-                    }
-                }
-
-                if len > 2 {
-                    let height = area.bottom / (len - 2) as i32;
-                    let mut y = 0;
-
-                    for next in iter {
-                        next.left = stack_left;
-                        next.top = area.top + y;
-                        next.right = secondary_right;
-                        next.bottom = height;
-                        y += height;
-                    }
-                }
                 layouts
             }
         };
@@ -370,6 +325,46 @@ impl Layout {
 
         dimensions
     }
+}
+
+fn columns(area: &Rect, len: usize) -> Vec<Rect> {
+    #[allow(clippy::cast_possible_wrap, clippy::cast_possible_truncation)]
+    let right = area.right / len as i32;
+    let mut left = 0;
+
+    let mut layouts: Vec<Rect> = vec![];
+    for _ in 0..len {
+        layouts.push(Rect {
+            left: area.left + left,
+            top: area.top,
+            right,
+            bottom: area.bottom,
+        });
+
+        left += right;
+    }
+
+    layouts
+}
+
+fn rows(area: &Rect, len: usize) -> Vec<Rect> {
+    #[allow(clippy::cast_possible_wrap, clippy::cast_possible_truncation)]
+    let bottom = area.bottom / len as i32;
+    let mut top = 0;
+
+    let mut layouts: Vec<Rect> = vec![];
+    for _ in 0..len {
+        layouts.push(Rect {
+            left: area.left,
+            top: area.top + top,
+            right: area.right,
+            bottom,
+        });
+
+        top += bottom;
+    }
+
+    layouts
 }
 
 fn calculate_resize_adjustments(resize_dimensions: &[Option<Rect>]) -> Vec<Option<Rect>> {
