@@ -10,6 +10,7 @@ use getset::Setters;
 use serde::Serialize;
 
 use komorebi_core::CycleDirection;
+use komorebi_core::Dimensions;
 use komorebi_core::Flip;
 use komorebi_core::Layout;
 use komorebi_core::OperationDirection;

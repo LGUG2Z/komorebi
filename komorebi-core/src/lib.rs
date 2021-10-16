@@ -12,11 +12,13 @@ use strum::Display;
 use strum::EnumString;
 
 pub use cycle_direction::CycleDirection;
+pub use layout::Dimensions;
 pub use layout::Flip;
 pub use layout::Layout;
 pub use operation_direction::OperationDirection;
 pub use rect::Rect;
 
+pub mod custom_layout;
 pub mod cycle_direction;
 pub mod layout;
 pub mod operation_direction;
