@@ -10,7 +10,7 @@ use getset::Setters;
 use serde::Serialize;
 
 use komorebi_core::CycleDirection;
-use komorebi_core::Dimensions;
+use komorebi_core::DefaultLayout;
 use komorebi_core::Flip;
 use komorebi_core::Layout;
 use komorebi_core::OperationDirection;
@@ -38,7 +38,7 @@ pub struct Workspace {
     maximized_window_restore_idx: Option<usize>,
     #[getset(get = "pub", get_mut = "pub")]
     floating_windows: Vec<Window>,
-    #[getset(get_copy = "pub", set = "pub")]
+    #[getset(get = "pub", set = "pub")]
     layout: Layout,
     #[getset(get_copy = "pub", set = "pub")]
     layout_flip: Option<Flip>,
@@ -67,7 +67,7 @@ impl Default for Workspace {
             maximized_window_restore_idx: None,
             monocle_container_restore_idx: None,
             floating_windows: Vec::default(),
-            layout: Layout::BSP,
+            layout: Layout::Default(DefaultLayout::BSP),
             layout_flip: None,
             workspace_padding: Option::from(10),
             container_padding: Option::from(10),
@@ -172,7 +172,7 @@ impl Workspace {
             } else if let Some(window) = self.maximized_window_mut() {
                 window.maximize();
             } else if !self.containers().is_empty() {
-                let layouts = self.layout().calculate(
+                let layouts = self.layout().as_boxed_arrangement().calculate(
                     &adjusted_work_area,
                     NonZeroUsize::new(self.containers().len()).ok_or_else(|| {
                         anyhow!(
@@ -350,8 +350,15 @@ impl Workspace {
             .remove_focused_container()
             .ok_or_else(|| anyhow!("there is no container"))?;
 
-        self.containers_mut().push_front(container);
-        self.resize_dimensions_mut().insert(0, resize);
+        let primary_idx = match self.layout() {
+            Layout::Default(_) => 0,
+            Layout::Custom(layout) => layout
+                .primary_idx()
+                .ok_or_else(|| anyhow!("this custom layout does not have a primary column"))?,
+        };
+
+        self.containers_mut().insert(primary_idx, container);
+        self.resize_dimensions_mut().insert(primary_idx, resize);
 
         self.focus_container(0);
 
@@ -463,20 +470,14 @@ impl Workspace {
     }
 
     pub fn new_idx_for_direction(&self, direction: OperationDirection) -> Option<usize> {
-        if direction.is_valid(
-            self.layout(),
+        let len = NonZeroUsize::new(self.containers().len())?;
+
+        direction.destination(
+            self.layout().as_boxed_direction().as_ref(),
             self.layout_flip(),
             self.focused_container_idx(),
-            self.containers().len(),
-        ) {
-            Option::from(direction.new_idx(
-                self.layout(),
-                self.layout_flip(),
-                self.containers.focused_idx(),
-            ))
-        } else {
-            None
-        }
+            len,
+        )
     }
     pub fn new_idx_for_cycle_direction(&self, direction: CycleDirection) -> Option<usize> {
         Option::from(direction.next_idx(

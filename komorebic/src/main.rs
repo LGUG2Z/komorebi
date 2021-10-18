@@ -29,9 +29,9 @@ use derive_ahk::AhkFunction;
 use derive_ahk::AhkLibrary;
 use komorebi_core::ApplicationIdentifier;
 use komorebi_core::CycleDirection;
+use komorebi_core::DefaultLayout;
 use komorebi_core::Flip;
 use komorebi_core::FocusFollowsMouseImplementation;
-use komorebi_core::Layout;
 use komorebi_core::OperationDirection;
 use komorebi_core::Rect;
 use komorebi_core::Sizing;
@@ -86,7 +86,7 @@ gen_enum_subcommand_args! {
     Stack: OperationDirection,
     CycleStack: CycleDirection,
     FlipLayout: Flip,
-    ChangeLayout: Layout,
+    ChangeLayout: DefaultLayout,
     WatchConfiguration: BooleanState,
     Query: StateQuery,
 }
@@ -143,7 +143,8 @@ macro_rules! gen_workspace_subcommand_args {
 
 gen_workspace_subcommand_args! {
     Name: String,
-    Layout: #[enum] Layout,
+    Layout: #[enum] DefaultLayout,
+    CustomLayout: String,
     Tiling: #[enum] BooleanState,
 }
 
@@ -296,6 +297,12 @@ struct Load {
     path: String,
 }
 
+#[derive(Clap, AhkFunction)]
+struct LoadLayout {
+    /// File from which the custom layout definition should be loaded
+    path: String,
+}
+
 #[derive(Clap)]
 #[clap(author, about, version, setting = AppSettings::DeriveDisplayOrder)]
 struct Opts {
@@ -390,6 +397,9 @@ enum SubCommand {
     /// Set the layout on the focused workspace
     #[clap(setting = AppSettings::ArgRequiredElseHelp)]
     ChangeLayout(ChangeLayout),
+    /// Load a custom layout from file for the focused workspace
+    #[clap(setting = AppSettings::ArgRequiredElseHelp)]
+    LoadLayout(LoadLayout),
     /// Flip the layout on the focused workspace (BSP only)
     #[clap(setting = AppSettings::ArgRequiredElseHelp)]
     FlipLayout(FlipLayout),
@@ -409,6 +419,9 @@ enum SubCommand {
     /// Set the layout for the specified workspace
     #[clap(setting = AppSettings::ArgRequiredElseHelp)]
     WorkspaceLayout(WorkspaceLayout),
+    /// Set a custom layout for the specified workspace
+    #[clap(setting = AppSettings::ArgRequiredElseHelp)]
+    WorkspaceCustomLayout(WorkspaceCustomLayout),
     /// Enable or disable window tiling for the specified workspace
     #[clap(setting = AppSettings::ArgRequiredElseHelp)]
     WorkspaceTiling(WorkspaceTiling),
@@ -607,6 +620,16 @@ fn main() -> Result<()> {
                     .as_bytes()?,
             )?;
         }
+        SubCommand::WorkspaceCustomLayout(arg) => {
+            send_message(
+                &*SocketMessage::WorkspaceLayoutCustom(
+                    arg.monitor,
+                    arg.workspace,
+                    resolve_windows_path(&arg.value)?,
+                )
+                .as_bytes()?,
+            )?;
+        }
         SubCommand::WorkspaceTiling(arg) => {
             send_message(
                 &*SocketMessage::WorkspaceTiling(arg.monitor, arg.workspace, arg.value.into())
@@ -691,7 +714,12 @@ fn main() -> Result<()> {
             send_message(&*SocketMessage::CycleStack(arg.cycle_direction).as_bytes()?)?;
         }
         SubCommand::ChangeLayout(arg) => {
-            send_message(&*SocketMessage::ChangeLayout(arg.layout).as_bytes()?)?;
+            send_message(&*SocketMessage::ChangeLayout(arg.default_layout).as_bytes()?)?;
+        }
+        SubCommand::LoadLayout(arg) => {
+            send_message(
+                &*SocketMessage::ChangeLayoutCustom(resolve_windows_path(&arg.path)?).as_bytes()?,
+            )?;
         }
         SubCommand::FlipLayout(arg) => {
             send_message(&*SocketMessage::FlipLayout(arg.flip).as_bytes()?)?;

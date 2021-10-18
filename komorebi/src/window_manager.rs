@@ -1,4 +1,6 @@
 use std::collections::VecDeque;
+use std::fs::File;
+use std::io::BufReader;
 use std::io::ErrorKind;
 use std::num::NonZeroUsize;
 use std::path::PathBuf;
@@ -14,8 +16,10 @@ use parking_lot::Mutex;
 use serde::Serialize;
 use uds_windows::UnixListener;
 
+use komorebi_core::custom_layout::CustomLayout;
+use komorebi_core::Arrangement;
 use komorebi_core::CycleDirection;
-use komorebi_core::Dimensions;
+use komorebi_core::DefaultLayout;
 use komorebi_core::Flip;
 use komorebi_core::FocusFollowsMouseImplementation;
 use komorebi_core::Layout;
@@ -580,73 +584,82 @@ impl WindowManager {
         sizing: Sizing,
         step: Option<i32>,
     ) -> Result<()> {
-        tracing::info!("resizing window");
-
         let work_area = self.focused_monitor_work_area()?;
         let workspace = self.focused_workspace_mut()?;
-        let len = workspace.containers().len();
-        let focused_idx = workspace.focused_container_idx();
-        let focused_idx_resize = workspace
-            .resize_dimensions()
-            .get(focused_idx)
-            .ok_or_else(|| anyhow!("there is no resize adjustment for this container"))?;
 
-        if direction.is_valid(
-            workspace.layout(),
-            workspace.layout_flip(),
-            focused_idx,
-            len,
-        ) {
-            let unaltered = workspace.layout().calculate(
-                &work_area,
-                NonZeroUsize::new(len).ok_or_else(|| {
-                    anyhow!("there must be at least one container to calculate a workspace layout")
-                })?,
-                workspace.container_padding(),
-                workspace.layout_flip(),
-                &[],
-            );
-
-            let mut direction = direction;
-
-            // We only ever want to operate on the unflipped Rect positions when resizing, then we
-            // can flip them however they need to be flipped once the resizing has been done
-            if let Some(flip) = workspace.layout_flip() {
-                match flip {
-                    Flip::Horizontal => {
-                        if matches!(direction, OperationDirection::Left)
-                            || matches!(direction, OperationDirection::Right)
-                        {
-                            direction = direction.opposite();
-                        }
-                    }
-                    Flip::Vertical => {
-                        if matches!(direction, OperationDirection::Up)
-                            || matches!(direction, OperationDirection::Down)
-                        {
-                            direction = direction.opposite();
-                        }
-                    }
-                    Flip::HorizontalAndVertical => direction = direction.opposite(),
-                }
-            }
-
-            let resize = workspace.layout().resize(
-                unaltered
+        match workspace.layout() {
+            Layout::Default(layout) => {
+                tracing::info!("resizing window");
+                let len = NonZeroUsize::new(workspace.containers().len())
+                    .ok_or_else(|| anyhow!("there must be at least one container"))?;
+                let focused_idx = workspace.focused_container_idx();
+                let focused_idx_resize = workspace
+                    .resize_dimensions()
                     .get(focused_idx)
-                    .ok_or_else(|| anyhow!("there is no last layout"))?,
-                focused_idx_resize,
-                direction,
-                sizing,
-                step,
-            );
+                    .ok_or_else(|| anyhow!("there is no resize adjustment for this container"))?;
 
-            workspace.resize_dimensions_mut()[focused_idx] = resize;
-            self.update_focused_workspace(false)
-        } else {
-            tracing::warn!("cannot resize container in this direction");
-            Ok(())
+                if direction
+                    .destination(
+                        workspace.layout().as_boxed_direction().as_ref(),
+                        workspace.layout_flip(),
+                        focused_idx,
+                        len,
+                    )
+                    .is_some()
+                {
+                    let unaltered = layout.calculate(
+                        &work_area,
+                        len,
+                        workspace.container_padding(),
+                        workspace.layout_flip(),
+                        &[],
+                    );
+
+                    let mut direction = direction;
+
+                    // We only ever want to operate on the unflipped Rect positions when resizing, then we
+                    // can flip them however they need to be flipped once the resizing has been done
+                    if let Some(flip) = workspace.layout_flip() {
+                        match flip {
+                            Flip::Horizontal => {
+                                if matches!(direction, OperationDirection::Left)
+                                    || matches!(direction, OperationDirection::Right)
+                                {
+                                    direction = direction.opposite();
+                                }
+                            }
+                            Flip::Vertical => {
+                                if matches!(direction, OperationDirection::Up)
+                                    || matches!(direction, OperationDirection::Down)
+                                {
+                                    direction = direction.opposite();
+                                }
+                            }
+                            Flip::HorizontalAndVertical => direction = direction.opposite(),
+                        }
+                    }
+
+                    let resize = layout.resize(
+                        unaltered
+                            .get(focused_idx)
+                            .ok_or_else(|| anyhow!("there is no last layout"))?,
+                        focused_idx_resize,
+                        direction,
+                        sizing,
+                        step,
+                    );
+
+                    workspace.resize_dimensions_mut()[focused_idx] = resize;
+                    return self.update_focused_workspace(false);
+                }
+
+                tracing::warn!("cannot resize container in this direction");
+            }
+            Layout::Custom(_) => {
+                tracing::warn!("containers cannot be resized when using custom layouts");
+            }
         }
+        Ok(())
     }
 
     #[tracing::instrument(skip(self))]
@@ -807,14 +820,18 @@ impl WindowManager {
         tracing::info!("adding window to container");
 
         let workspace = self.focused_workspace_mut()?;
+        let len = NonZeroUsize::new(workspace.containers_mut().len())
+            .ok_or_else(|| anyhow!("there must be at least one container"))?;
         let current_container_idx = workspace.focused_container_idx();
 
-        let is_valid = direction.is_valid(
-            workspace.layout(),
-            workspace.layout_flip(),
-            workspace.focused_container_idx(),
-            workspace.containers_mut().len(),
-        );
+        let is_valid = direction
+            .destination(
+                workspace.layout().as_boxed_direction().as_ref(),
+                workspace.layout_flip(),
+                workspace.focused_container_idx(),
+                len,
+            )
+            .is_some();
 
         if is_valid {
             let new_idx = workspace.new_idx_for_direction(direction).ok_or_else(|| {
@@ -860,7 +877,7 @@ impl WindowManager {
     #[tracing::instrument(skip(self))]
     pub fn toggle_tiling(&mut self) -> Result<()> {
         let workspace = self.focused_workspace_mut()?;
-        workspace.set_tile(!workspace.tile());
+        workspace.set_tile(!*workspace.tile());
         self.update_focused_workspace(false)
     }
 
@@ -1015,12 +1032,55 @@ impl WindowManager {
     }
 
     #[tracing::instrument(skip(self))]
-    pub fn change_workspace_layout(&mut self, layout: Layout) -> Result<()> {
+    pub fn change_workspace_layout_default(&mut self, layout: DefaultLayout) -> Result<()> {
         tracing::info!("changing layout");
 
         let workspace = self.focused_workspace_mut()?;
-        workspace.set_layout(layout);
-        self.update_focused_workspace(false)
+
+        match workspace.layout() {
+            Layout::Default(_) => {}
+            Layout::Custom(layout) => {
+                let primary_idx = layout
+                    .primary_idx()
+                    .ok_or_else(|| anyhow!("this custom layout does not have a primary column"))?;
+
+                if !workspace.containers().is_empty() && primary_idx < workspace.containers().len()
+                {
+                    workspace.swap_containers(0, primary_idx);
+                }
+            }
+        }
+
+        workspace.set_layout(Layout::Default(layout));
+        self.update_focused_workspace(true)
+    }
+
+    #[tracing::instrument(skip(self))]
+    pub fn change_workspace_custom_layout(&mut self, path: PathBuf) -> Result<()> {
+        tracing::info!("changing layout");
+        let layout: CustomLayout = serde_json::from_reader(BufReader::new(File::open(path)?))?;
+        if !layout.is_valid() {
+            return Err(anyhow!("the layout file provided was invalid"));
+        }
+
+        let workspace = self.focused_workspace_mut()?;
+
+        match workspace.layout() {
+            Layout::Default(_) => {
+                let primary_idx = layout
+                    .primary_idx()
+                    .ok_or_else(|| anyhow!("this custom layout does not have a primary column"))?;
+
+                if !workspace.containers().is_empty() && primary_idx < workspace.containers().len()
+                {
+                    workspace.swap_containers(0, primary_idx);
+                }
+            }
+            Layout::Custom(_) => {}
+        }
+
+        workspace.set_layout(Layout::Custom(layout));
+        self.update_focused_workspace(true)
     }
 
     #[tracing::instrument(skip(self))]
@@ -1076,11 +1136,11 @@ impl WindowManager {
     }
 
     #[tracing::instrument(skip(self))]
-    pub fn set_workspace_layout(
+    pub fn set_workspace_layout_default(
         &mut self,
         monitor_idx: usize,
         workspace_idx: usize,
-        layout: Layout,
+        layout: DefaultLayout,
     ) -> Result<()> {
         tracing::info!("setting workspace layout");
 
@@ -1101,7 +1161,50 @@ impl WindowManager {
             .get_mut(workspace_idx)
             .ok_or_else(|| anyhow!("there is no monitor"))?;
 
-        workspace.set_layout(layout);
+        workspace.set_layout(Layout::Default(layout));
+
+        // If this is the focused workspace on a non-focused screen, let's update it
+        if focused_monitor_idx != monitor_idx && focused_workspace_idx == workspace_idx {
+            workspace.update(&work_area, offset, &invisible_borders)?;
+            Ok(())
+        } else {
+            Ok(self.update_focused_workspace(false)?)
+        }
+    }
+
+    #[tracing::instrument(skip(self))]
+    pub fn set_workspace_layout_custom(
+        &mut self,
+        monitor_idx: usize,
+        workspace_idx: usize,
+        path: PathBuf,
+    ) -> Result<()> {
+        tracing::info!("setting workspace layout");
+        let file = File::open(path)?;
+        let reader = BufReader::new(file);
+        let layout: CustomLayout = serde_json::from_reader(reader)?;
+        if !layout.is_valid() {
+            return Err(anyhow!("the layout file provided was invalid"));
+        }
+
+        let invisible_borders = self.invisible_borders;
+        let offset = self.work_area_offset;
+        let focused_monitor_idx = self.focused_monitor_idx();
+
+        let monitor = self
+            .monitors_mut()
+            .get_mut(monitor_idx)
+            .ok_or_else(|| anyhow!("there is no monitor"))?;
+
+        let work_area = *monitor.work_area_size();
+        let focused_workspace_idx = monitor.focused_workspace_idx();
+
+        let workspace = monitor
+            .workspaces_mut()
+            .get_mut(workspace_idx)
+            .ok_or_else(|| anyhow!("there is no monitor"))?;
+
+        workspace.set_layout(Layout::Custom(layout));
 
         // If this is the focused workspace on a non-focused screen, let's update it
         if focused_monitor_idx != monitor_idx && focused_workspace_idx == workspace_idx {

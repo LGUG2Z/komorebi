@@ -153,12 +153,16 @@ impl WindowManager {
             }
             SocketMessage::Retile => self.retile_all()?,
             SocketMessage::FlipLayout(layout_flip) => self.flip_layout(layout_flip)?,
-            SocketMessage::ChangeLayout(layout) => self.change_workspace_layout(layout)?,
+            SocketMessage::ChangeLayout(layout) => self.change_workspace_layout_default(layout)?,
+            SocketMessage::ChangeLayoutCustom(path) => self.change_workspace_custom_layout(path)?,
+            SocketMessage::WorkspaceLayoutCustom(monitor_idx, workspace_idx, path) => {
+                self.set_workspace_layout_custom(monitor_idx, workspace_idx, path)?;
+            }
             SocketMessage::WorkspaceTiling(monitor_idx, workspace_idx, tile) => {
                 self.set_workspace_tiling(monitor_idx, workspace_idx, tile)?;
             }
             SocketMessage::WorkspaceLayout(monitor_idx, workspace_idx, layout) => {
-                self.set_workspace_layout(monitor_idx, workspace_idx, layout)?;
+                self.set_workspace_layout_default(monitor_idx, workspace_idx, layout)?;
             }
             SocketMessage::CycleFocusWorkspace(direction) => {
                 // This is to ensure that even on an empty workspace on a secondary monitor, the

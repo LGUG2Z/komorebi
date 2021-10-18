@@ -11,15 +11,21 @@ use serde::Serialize;
 use strum::Display;
 use strum::EnumString;
 
+pub use arrangement::Arrangement;
+pub use arrangement::Flip;
+pub use custom_layout::CustomLayout;
 pub use cycle_direction::CycleDirection;
-pub use layout::Dimensions;
-pub use layout::Flip;
+pub use default_layout::DefaultLayout;
+pub use direction::Direction;
 pub use layout::Layout;
 pub use operation_direction::OperationDirection;
 pub use rect::Rect;
 
+pub mod arrangement;
 pub mod custom_layout;
 pub mod cycle_direction;
+pub mod default_layout;
+pub mod direction;
 pub mod layout;
 pub mod operation_direction;
 pub mod rect;
@@ -48,7 +54,8 @@ pub enum SocketMessage {
     UnmanageFocusedWindow,
     AdjustContainerPadding(Sizing, i32),
     AdjustWorkspacePadding(Sizing, i32),
-    ChangeLayout(Layout),
+    ChangeLayout(DefaultLayout),
+    ChangeLayoutCustom(PathBuf),
     FlipLayout(Flip),
     // Monitor and Workspace Commands
     EnsureWorkspaces(usize, usize),
@@ -69,7 +76,8 @@ pub enum SocketMessage {
     WorkspacePadding(usize, usize, i32),
     WorkspaceTiling(usize, usize, bool),
     WorkspaceName(usize, usize, String),
-    WorkspaceLayout(usize, usize, Layout),
+    WorkspaceLayout(usize, usize, DefaultLayout),
+    WorkspaceLayoutCustom(usize, usize, PathBuf),
     // Configuration
     ReloadConfiguration,
     WatchConfiguration(bool),
