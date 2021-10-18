@@ -120,10 +120,10 @@ impl WindowManager {
                     // they are not on the top of a container stack.
                     let programmatically_hidden_hwnds = HIDDEN_HWNDS.lock();
 
-                    if (!window.is_window()
+                    if ((!window.is_window()
                         || tray_and_multi_window_identifiers.contains(&window.exe()?))
-                        || tray_and_multi_window_identifiers.contains(&window.class()?)
-                            && !programmatically_hidden_hwnds.contains(&window.hwnd)
+                        || tray_and_multi_window_identifiers.contains(&window.class()?))
+                        && !programmatically_hidden_hwnds.contains(&window.hwnd)
                     {
                         hide = true;
                     }
