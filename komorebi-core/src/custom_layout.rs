@@ -1,6 +1,11 @@
 use std::collections::HashMap;
+use std::fs::File;
+use std::io::BufReader;
 use std::ops::Deref;
+use std::path::PathBuf;
 
+use color_eyre::eyre::anyhow;
+use color_eyre::Result;
 use serde::Deserialize;
 use serde::Serialize;
 
@@ -18,6 +23,28 @@ impl Deref for CustomLayout {
 }
 
 impl CustomLayout {
+    pub fn from_path_buf(path: PathBuf) -> Result<Self> {
+        let invalid_filetype = anyhow!("custom layouts must be json or yaml files");
+        let layout: Self = match path.extension() {
+            Some(extension) => {
+                if extension == "yaml" || extension == "yml" {
+                    serde_yaml::from_reader(BufReader::new(File::open(path)?))?
+                } else if extension == "json" {
+                    serde_json::from_reader(BufReader::new(File::open(path)?))?
+                } else {
+                    return Err(invalid_filetype);
+                }
+            }
+            None => return Err(invalid_filetype),
+        };
+
+        if !layout.is_valid() {
+            return Err(anyhow!("the layout file provided was invalid"));
+        }
+
+        Ok(layout)
+    }
+
     #[must_use]
     pub fn column_with_idx(&self, idx: usize) -> (usize, Option<&Column>) {
         let column_idx = self.column_for_container_idx(idx);

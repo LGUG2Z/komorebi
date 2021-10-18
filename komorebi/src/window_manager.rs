@@ -1,6 +1,4 @@
 use std::collections::VecDeque;
-use std::fs::File;
-use std::io::BufReader;
 use std::io::ErrorKind;
 use std::num::NonZeroUsize;
 use std::path::PathBuf;
@@ -1059,11 +1057,8 @@ impl WindowManager {
     #[tracing::instrument(skip(self))]
     pub fn change_workspace_custom_layout(&mut self, path: PathBuf) -> Result<()> {
         tracing::info!("changing layout");
-        let layout: CustomLayout = serde_json::from_reader(BufReader::new(File::open(path)?))?;
-        if !layout.is_valid() {
-            return Err(anyhow!("the layout file provided was invalid"));
-        }
 
+        let layout = CustomLayout::from_path_buf(path)?;
         let workspace = self.focused_workspace_mut()?;
 
         match workspace.layout() {
@@ -1182,13 +1177,7 @@ impl WindowManager {
         path: PathBuf,
     ) -> Result<()> {
         tracing::info!("setting workspace layout");
-        let file = File::open(path)?;
-        let reader = BufReader::new(file);
-        let layout: CustomLayout = serde_json::from_reader(reader)?;
-        if !layout.is_valid() {
-            return Err(anyhow!("the layout file provided was invalid"));
-        }
-
+        let layout = CustomLayout::from_path_buf(path)?;
         let invisible_borders = self.invisible_borders;
         let offset = self.work_area_offset;
         let focused_monitor_idx = self.focused_monitor_idx();

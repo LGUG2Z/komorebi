@@ -299,7 +299,7 @@ struct Load {
 
 #[derive(Clap, AhkFunction)]
 struct LoadLayout {
-    /// File from which the custom layout definition should be loaded
+    /// JSON or YAML file from which the custom layout definition should be loaded
     path: String,
 }
 
