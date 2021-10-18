@@ -1040,9 +1040,10 @@ impl WindowManager {
         match workspace.layout() {
             Layout::Default(_) => {}
             Layout::Custom(layout) => {
-                let primary_idx = layout
-                    .primary_idx()
-                    .ok_or_else(|| anyhow!("this custom layout does not have a primary column"))?;
+                let primary_idx =
+                    layout.first_container_idx(layout.primary_idx().ok_or_else(|| {
+                        anyhow!("this custom layout does not have a primary column")
+                    })?);
 
                 if !workspace.containers().is_empty() && primary_idx < workspace.containers().len()
                 {
@@ -1067,9 +1068,10 @@ impl WindowManager {
 
         match workspace.layout() {
             Layout::Default(_) => {
-                let primary_idx = layout
-                    .primary_idx()
-                    .ok_or_else(|| anyhow!("this custom layout does not have a primary column"))?;
+                let primary_idx =
+                    layout.first_container_idx(layout.primary_idx().ok_or_else(|| {
+                        anyhow!("this custom layout does not have a primary column")
+                    })?);
 
                 if !workspace.containers().is_empty() && primary_idx < workspace.containers().len()
                 {

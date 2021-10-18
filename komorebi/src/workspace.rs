@@ -352,15 +352,17 @@ impl Workspace {
 
         let primary_idx = match self.layout() {
             Layout::Default(_) => 0,
-            Layout::Custom(layout) => layout
-                .primary_idx()
-                .ok_or_else(|| anyhow!("this custom layout does not have a primary column"))?,
+            Layout::Custom(layout) => layout.first_container_idx(
+                layout
+                    .primary_idx()
+                    .ok_or_else(|| anyhow!("this custom layout does not have a primary column"))?,
+            ),
         };
 
         self.containers_mut().insert(primary_idx, container);
         self.resize_dimensions_mut().insert(primary_idx, resize);
 
-        self.focus_container(0);
+        self.focus_container(primary_idx);
 
         Ok(())
     }

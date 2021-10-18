@@ -256,15 +256,44 @@ impl Arrangement for CustomLayout {
                 Option::from(1)
             };
 
+            #[allow(clippy::cast_possible_truncation, clippy::cast_possible_wrap)]
+            let primary_right = self.primary_width_percentage().map_or_else(
+                || area.right / self.len() as i32,
+                |percentage| (area.right / 100) * percentage as i32,
+            );
+
             for (idx, column) in self.iter().enumerate() {
                 // If we are offsetting a tertiary column for which the threshold
                 // has not yet been met, this loop should not run for that final
                 // tertiary column
                 if idx < self.len() - offset.unwrap_or(0) {
-                    let column_area = self.column_area(area, idx, offset);
+                    let column_area = if idx == 0 {
+                        Self::column_area_with_last(self.len(), area, primary_right, None, offset)
+                    } else {
+                        Self::column_area_with_last(
+                            self.len(),
+                            area,
+                            primary_right,
+                            Option::from(dimensions[self.first_container_idx(idx - 1)]),
+                            offset,
+                        )
+                    };
 
                     match column {
-                        Column::Primary | Column::Secondary(None) => {
+                        Column::Primary(Option::Some(_)) => {
+                            let main_column_area = if idx == 0 {
+                                Self::main_column_area(area, primary_right, None)
+                            } else {
+                                Self::main_column_area(
+                                    area,
+                                    primary_right,
+                                    Option::from(dimensions[self.first_container_idx(idx - 1)]),
+                                )
+                            };
+
+                            dimensions.push(main_column_area);
+                        }
+                        Column::Primary(None) | Column::Secondary(None) => {
                             dimensions.push(column_area);
                         }
                         Column::Secondary(Some(split)) => match split {
@@ -278,6 +307,14 @@ impl Arrangement for CustomLayout {
                             }
                         },
                         Column::Tertiary(split) => {
+                            let column_area = Self::column_area_with_last(
+                                self.len(),
+                                area,
+                                primary_right,
+                                Option::from(dimensions[self.first_container_idx(idx - 1)]),
+                                offset,
+                            );
+
                             let remaining = container_count - tertiary_trigger_threshold;
 
                             match split {

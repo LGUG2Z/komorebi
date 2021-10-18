@@ -28,8 +28,20 @@ impl CustomLayout {
     #[must_use]
     pub fn primary_idx(&self) -> Option<usize> {
         for (i, column) in self.iter().enumerate() {
-            if let Column::Primary = column {
+            if let Column::Primary(_) = column {
                 return Option::from(i);
+            }
+        }
+
+        None
+    }
+
+    #[must_use]
+    pub fn primary_width_percentage(&self) -> Option<usize> {
+        for column in self.iter() {
+            if let Column::Primary(Option::Some(ColumnWidth::WidthPercentage(percentage))) = column
+            {
+                return Option::from(*percentage);
             }
         }
 
@@ -63,7 +75,7 @@ impl CustomLayout {
 
         for column in self.iter() {
             match column {
-                Column::Primary => primaries += 1,
+                Column::Primary(_) => primaries += 1,
                 Column::Tertiary(_) => tertiaries += 1,
                 Column::Secondary(_) => {}
             }
@@ -78,7 +90,7 @@ impl CustomLayout {
 
         for (idx, column) in self.iter().enumerate() {
             match column {
-                Column::Primary | Column::Secondary(None) => {
+                Column::Primary(_) | Column::Secondary(None) => {
                     count_map.insert(idx, 1);
                 }
                 Column::Secondary(Some(split)) => {
@@ -156,14 +168,58 @@ impl CustomLayout {
             bottom: work_area.bottom,
         }
     }
+
+    #[must_use]
+    pub fn column_area_with_last(
+        len: usize,
+        work_area: &Rect,
+        primary_right: i32,
+        last_column: Option<Rect>,
+        offset: Option<usize>,
+    ) -> Rect {
+        let divisor = offset.map_or_else(|| len - 1, |offset| len - offset - 1);
+
+        #[allow(clippy::cast_possible_wrap, clippy::cast_possible_truncation)]
+        let equal_width = (work_area.right - primary_right) / divisor as i32;
+        let left = last_column.map_or(work_area.left, |last| last.left + last.right);
+        let right = equal_width;
+
+        Rect {
+            left,
+            top: work_area.top,
+            right,
+            bottom: work_area.bottom,
+        }
+    }
+
+    #[must_use]
+    pub fn main_column_area(
+        work_area: &Rect,
+        primary_right: i32,
+        last_column: Option<Rect>,
+    ) -> Rect {
+        let left = last_column.map_or(work_area.left, |last| last.left + last.right);
+
+        Rect {
+            left,
+            top: work_area.top,
+            right: primary_right,
+            bottom: work_area.bottom,
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 #[serde(tag = "column", content = "configuration")]
 pub enum Column {
-    Primary,
+    Primary(Option<ColumnWidth>),
     Secondary(Option<ColumnSplitWithCapacity>),
     Tertiary(ColumnSplit),
+}
+
+#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
+pub enum ColumnWidth {
+    WidthPercentage(usize),
 }
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
