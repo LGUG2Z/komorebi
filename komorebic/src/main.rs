@@ -132,7 +132,7 @@ macro_rules! gen_workspace_subcommand_args {
                     $(#[clap(arg_enum)] $($arg_enum)?)?
                     #[cfg_attr(
                         all($(FALSE $($arg_enum)?)?),
-                        doc = ""$name" of the workspace as a "$value""
+                        doc = ""$name " of the workspace as a "$value ""
                     )]
                     value: $value,
                 }
