@@ -144,8 +144,19 @@ macro_rules! gen_workspace_subcommand_args {
 gen_workspace_subcommand_args! {
     Name: String,
     Layout: #[enum] DefaultLayout,
-    CustomLayout: String,
     Tiling: #[enum] BooleanState,
+}
+
+#[derive(Clap, AhkFunction)]
+pub struct WorkspaceCustomLayout {
+    /// Monitor index (zero-indexed)
+    monitor: usize,
+
+    /// Workspace index on the specified monitor (zero-indexed)
+    workspace: usize,
+
+    /// JSON or YAML file from which the custom layout definition should be loaded
+    path: String,
 }
 
 #[derive(Clap, AhkFunction)]
@@ -298,7 +309,7 @@ struct Load {
 }
 
 #[derive(Clap, AhkFunction)]
-struct LoadLayout {
+struct LoadCustomLayout {
     /// JSON or YAML file from which the custom layout definition should be loaded
     path: String,
 }
@@ -399,7 +410,7 @@ enum SubCommand {
     ChangeLayout(ChangeLayout),
     /// Load a custom layout from file for the focused workspace
     #[clap(setting = AppSettings::ArgRequiredElseHelp)]
-    LoadLayout(LoadLayout),
+    LoadCustomLayout(LoadCustomLayout),
     /// Flip the layout on the focused workspace (BSP only)
     #[clap(setting = AppSettings::ArgRequiredElseHelp)]
     FlipLayout(FlipLayout),
@@ -625,7 +636,7 @@ fn main() -> Result<()> {
                 &*SocketMessage::WorkspaceLayoutCustom(
                     arg.monitor,
                     arg.workspace,
-                    resolve_windows_path(&arg.value)?,
+                    resolve_windows_path(&arg.path)?,
                 )
                 .as_bytes()?,
             )?;
@@ -716,7 +727,7 @@ fn main() -> Result<()> {
         SubCommand::ChangeLayout(arg) => {
             send_message(&*SocketMessage::ChangeLayout(arg.default_layout).as_bytes()?)?;
         }
-        SubCommand::LoadLayout(arg) => {
+        SubCommand::LoadCustomLayout(arg) => {
             send_message(
                 &*SocketMessage::ChangeLayoutCustom(resolve_windows_path(&arg.path)?).as_bytes()?,
             )?;

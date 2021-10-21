@@ -120,8 +120,12 @@ AdjustWorkspacePadding(sizing, adjustment) {
     Run, komorebic.exe adjust-workspace-padding %sizing% %adjustment%, , Hide
 }
 
-ChangeLayout(layout) {
-    Run, komorebic.exe change-layout %layout%, , Hide
+ChangeLayout(default_layout) {
+    Run, komorebic.exe change-layout %default_layout%, , Hide
+}
+
+LoadCustomLayout(path) {
+    Run, komorebic.exe load-custom-layout %path%, , Hide
 }
 
 FlipLayout(flip) {
@@ -150,6 +154,10 @@ WorkspacePadding(monitor, workspace, size) {
 
 WorkspaceLayout(monitor, workspace, value) {
     Run, komorebic.exe workspace-layout %monitor% %workspace% %value%, , Hide
+}
+
+WorkspaceCustomLayout(monitor, workspace, path) {
+    Run, komorebic.exe workspace-custom-layout %monitor% %workspace% %path%, , Hide
 }
 
 WorkspaceTiling(monitor, workspace, value) {

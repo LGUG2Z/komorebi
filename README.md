@@ -208,6 +208,55 @@ dimensions and are not coupled to the applications that were running at the time
 When layouts that expect more or less windows than the number currently on the focused workspace are loaded, `komorebi`
 will automatically reconcile the difference.
 
+#### Creating and Loading Custom Layouts
+
+Particularly for users of ultrawide monitors, traditional tiling layouts may not seem like the most efficient use of
+screen space. If you feel this is the case with any of the default layouts, you are also welcome to create your own
+custom layouts and save them as JSON or YAML.
+
+Custom layouts can be loaded on the current workspace or configured for a specific workspace with the following
+commands:
+
+```powershell
+komorebic.exe load-custom-layout ~/custom.yaml
+komorebic.exe workspace-custom-layout 0 0 ~/custom.yaml
+```
+
+The fundamental building block of a custom _komorebi_ layout is the Column.
+
+Columns come in three variants:
+
+- **Primary**: This is where your primary focus will be on the screen most of the time. There must be exactly one Primary
+  Column in any custom layout. Optionally, you can specify the percentage of the screen width that you want the Primary
+  Column to occupy.
+- **Secondary**: This is an optional column that can either be full height of split horizontally into a fixed number of
+  maximum rows. There can be any number of Secondary Columns in a custom layout.
+- **Tertiary**: This is the final column where any remaining windows will be split horizontally into rows as they get added.
+
+If there is only one window on the screen when a custom layout is selected, that window will take up the full work area
+of the screen.
+
+If the number of windows is equal to or less than the total number of columns defined in a custom layout, the windows
+will be arranged in an equal-width columns.
+
+When the number of windows is greater than the number of columns defined in the custom layout, the windows will begin to
+be arranged according to the constraints set on the Primary and Secondary columns of the layout.
+
+Here is an example custom layout that can be used as a starting point for your own:
+
+YAML
+
+```yaml
+- column: Secondary
+  configuration:
+    Horizontal: 2 # max number of rows,
+- column: Primary
+  configuration:
+    WidthPercentage: 45 # percentage of screen
+- column: Tertiary
+  configuration: Horizontal
+```
+
 ## Configuration with `komorebic`
 
 As previously mentioned, this project does not handle anything related to keybindings and shortcuts directly. I
@@ -250,6 +299,7 @@ work-area-offset              Set offsets to exclude parts of the work area from
 adjust-container-padding      Adjust container padding on the focused workspace
 adjust-workspace-padding      Adjust workspace padding on the focused workspace
 change-layout                 Set the layout on the focused workspace
+load-custom-layout            Load a custom layout from file for the focused workspace
 flip-layout                   Flip the layout on the focused workspace (BSP only)
 promote                       Promote the focused window to the top of the tree
 retile                        Force the retiling of all managed windows
@@ -257,6 +307,7 @@ ensure-workspaces             Create at least this many workspaces for the speci
 container-padding             Set the container padding for the specified workspace
 workspace-padding             Set the workspace padding for the specified workspace
 workspace-layout              Set the layout for the specified workspace
+workspace-custom-layout       Set a custom layout for the specified workspace
 workspace-tiling              Enable or disable window tiling for the specified workspace
 workspace-name                Set the workspace name for the specified workspace
 toggle-pause                  Toggle the window manager on and off across all monitors
@@ -317,6 +368,7 @@ used [is available here](komorebi.sample.with.lib.ahk).
 - [x] Main half-height window with vertical stack layout (`horizontal-stack`)
 - [x] Main half-width window with horizontal stack layout (`vertical-stack`)
 - [x] 2x Main window (half and quarter-width) with horizontal stack layout (`ultrawide-vertical-stack`)
+- [x] Load custom layouts from JSON and YAML representations
 - [x] Floating rules based on exe name, window title and class
 - [x] Workspace rules based on exe name and window class
 - [x] Additional manage rules based on exe name and window class
