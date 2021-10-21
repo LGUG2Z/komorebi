@@ -74,6 +74,11 @@ lazy_static! {
     static ref MANAGE_IDENTIFIERS: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(vec![]));
     static ref FLOAT_IDENTIFIERS: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(vec![]));
     static ref BORDER_OVERFLOW_IDENTIFIERS: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(vec![]));
+    static ref WSL2_UI_PROCESSES: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(vec![
+        "X410.exe".to_string(),
+        "mstsc.exe".to_string(),
+        "vcxsrv.exe".to_string(),
+    ]));
 }
 
 pub static CUSTOM_FFM: AtomicBool = AtomicBool::new(false);

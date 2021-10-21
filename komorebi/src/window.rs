@@ -20,6 +20,7 @@ use crate::FLOAT_IDENTIFIERS;
 use crate::HIDDEN_HWNDS;
 use crate::LAYERED_EXE_WHITELIST;
 use crate::MANAGE_IDENTIFIERS;
+use crate::WSL2_UI_PROCESSES;
 
 #[derive(Debug, Clone, Copy)]
 pub struct Window {
@@ -271,11 +272,15 @@ impl Window {
                         layered_exe_whitelist.contains(&exe_name)
                     };
 
+                    let allow_wsl2_gui = {
+                        let wsl2_ui_processes = WSL2_UI_PROCESSES.lock();
+                        wsl2_ui_processes.contains(&exe_name)
+                    };
+
                     let style = self.style()?;
                     let ex_style = self.ex_style()?;
 
-                    if style.contains(GwlStyle::CAPTION)
-                        && ex_style.contains(GwlExStyle::WINDOWEDGE)
+                    if (allow_wsl2_gui || style.contains(GwlStyle::CAPTION) && ex_style.contains(GwlExStyle::WINDOWEDGE))
                         && !ex_style.contains(GwlExStyle::DLGMODALFRAME)
                         // Get a lot of dupe events coming through that make the redrawing go crazy
                         // on FocusChange events if I don't filter out this one. But, if we are
