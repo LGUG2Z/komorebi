@@ -214,6 +214,10 @@ Particularly for users of ultrawide monitors, traditional tiling layouts may not
 screen space. If you feel this is the case with any of the default layouts, you are also welcome to create your own
 custom layouts and save them as JSON or YAML.
 
+If you're not comfortable writing the layouts directly in JSON or YAML, you can use
+the [komorebi Custom Layout Generator](https://lgug2z.github.io/komorebi-custom-layout-generator/) to interactively
+define a custom layout, and then copy the generated JSON content.
+
 Custom layouts can be loaded on the current workspace or configured for a specific workspace with the following
 commands:
 
