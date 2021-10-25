@@ -276,8 +276,8 @@ start                         Start komorebi.exe as a background process
 stop                          Stop the komorebi.exe process and restore all hidden windows
 state                         Show a JSON representation of the current window manager state
 query                         Query the current window manager state
-add-subscriber                Subscribe to all komorebi events on a named pipe
-remove-subscriber             Subscribe to all komorebi events on a named pipe
+subscribe                     Subscribe to komorebi events
+unsubscribe                   Unsubscribe from komorebi events
 log                           Tail komorebi.exe's process logs (cancel with Ctrl-C)
 quick-save                    Quicksave the current resize layout dimensions
 quick-load                    Load the last quicksaved resize layout dimensions
@@ -462,11 +462,12 @@ by `komorebi` using [Named Pipes](https://docs.microsoft.com/en-us/windows/win32
 First, your application must create a named pipe. Once the named pipe has been created, run the following command:
 
 ```powershell
-komorebic.exe add-subscriber <your pipe name>
+komorebic.exe subscribe <your pipe name>
 ```
 
-Note that you do not have to incldue the full path of the named pipe, just the name. If the named pipe
-exists, `komorebi` will start pushing JSON data of successfully handled events and messages:
+Note that you do not have to incldue the full path of the named pipe, just the name.
+
+If the named pipe exists, `komorebi` will start pushing JSON data of successfully handled events and messages:
 
 ```json lines
 {"type":"AddSubscriber","content":"test-pipe"}
@@ -484,3 +485,7 @@ exists, `komorebi` will start pushing JSON data of successfully handled events a
 You may then filter on the `type` key to listen to the events that you are interested in. For a full list of possible
 notification types, refer to the enum variants of `WindowManagerEvent` in `komorebi` and `SocketMessage`
 in `komorebi-core`.
+
+An example of how to create a named pipe and a subscription to `komorebi`'s handled events in Python
+by [@denBot](https://github.com/denBot) can be
+found [here](https://gist.github.com/denBot/4136279812f87819f86d99eba77c1ee0).
