@@ -276,6 +276,8 @@ start                         Start komorebi.exe as a background process
 stop                          Stop the komorebi.exe process and restore all hidden windows
 state                         Show a JSON representation of the current window manager state
 query                         Query the current window manager state
+add-subscriber                Subscribe to all komorebi events on a named pipe
+remove-subscriber             Subscribe to all komorebi events on a named pipe
 log                           Tail komorebi.exe's process logs (cancel with Ctrl-C)
 quick-save                    Quicksave the current resize layout dimensions
 quick-load                    Load the last quicksaved resize layout dimensions
@@ -393,6 +395,7 @@ used [is available here](komorebi.sample.with.lib.ahk).
 - [x] Helper library for AutoHotKey
 - [x] View window manager state
 - [x] Query window manager state
+- [x] Subscribe to event and message notifications
 
 ## Development
 
@@ -450,3 +453,34 @@ representation of the `State` struct, which includes the current state of `Windo
 
 This may also be polled to build further integrations and widgets on top of (if you ever wanted to build something
 like [Stackline](https://github.com/AdamWagner/stackline) for Windows, you could do it by polling this command).
+
+## Window Manager Event Subscriptions
+
+It is also possible to subscribe to notifications of every `WindowManagerEvent` and `SocketMessage` handled
+by `komorebi` using [Named Pipes](https://docs.microsoft.com/en-us/windows/win32/ipc/named-pipes).
+
+First, your application must create a named pipe. Once the named pipe has been created, run the following command:
+
+```powershell
+komorebic.exe add-subscriber <your pipe name>
+```
+
+Note that you do not have to incldue the full path of the named pipe, just the name. If the named pipe
+exists, `komorebi` will start pushing JSON data of successfully handled events and messages:
+
+```json lines
+{"type":"AddSubscriber","content":"test-pipe"}
+{"type":"FocusWindow","content":"Up"}
+{"type":"FocusChange","content":["SystemForeground",{"hwnd":1443930,"title":"komorebi – README.md","exe":"idea64.exe","class":"SunAwtFrame","rect":{"left":1539,"top":60,"right":1520,"bottom":821}}]}
+{"type":"MonitorPoll","content":["ObjectCreate",{"hwnd":2624200,"title":"OLEChannelWnd","exe":"explorer.exe","class":"OleMainThreadWndClass","rect":{"left":0,"top":0,"right":0,"bottom":0}}]}
+{"type":"FocusWindow","content":"Left"}
+{"type":"FocusChange","content":["SystemForeground",{"hwnd":2558668,"title":"Windows PowerShell","exe":"WindowsTerminal.exe","class":"CASCADIA_HOSTING_WINDOW_CLASS","rect":{"left":13,"top":60,"right":1520,"bottom":1655}}]}
+{"type":"FocusWindow","content":"Right"}
+{"type":"FocusChange","content":["SystemForeground",{"hwnd":1443930,"title":"komorebi – README.md","exe":"idea64.exe","class":"SunAwtFrame","rect":{"left":1539,"top":60,"right":1520,"bottom":821}}]}
+{"type":"FocusWindow","content":"Down"}
+{"type":"FocusChange","content":["SystemForeground",{"hwnd":67344,"title":"Windows PowerShell","exe":"WindowsTerminal.exe","class":"CASCADIA_HOSTING_WINDOW_CLASS","rect":{"left":1539,"top":894,"right":757,"bottom":821}}]}
+```
+
+You may then filter on the `type` key to listen to the events that you are interested in. For a full list of possible
+notification types, refer to the enum variants of `WindowManagerEvent` in `komorebi` and `SocketMessage`
+in `komorebi-core`.

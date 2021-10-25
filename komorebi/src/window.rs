@@ -236,6 +236,7 @@ impl Window {
             return Ok(true);
         }
 
+        #[allow(clippy::question_mark)]
         if self.title().is_err() {
             return Ok(false);
         }

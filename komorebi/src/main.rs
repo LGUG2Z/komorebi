@@ -2,6 +2,8 @@
 #![allow(clippy::missing_errors_doc)]
 
 use std::collections::HashMap;
+use std::fs::File;
+use std::io::Write;
 use std::process::Command;
 use std::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering;
@@ -79,6 +81,8 @@ lazy_static! {
         "mstsc.exe".to_string(),
         "vcxsrv.exe".to_string(),
     ]));
+    static ref SUBSCRIPTION_PIPES: Arc<Mutex<HashMap<String, File>>> =
+        Arc::new(Mutex::new(HashMap::new()));
 }
 
 pub static CUSTOM_FFM: AtomicBool = AtomicBool::new(false);
@@ -178,6 +182,40 @@ pub fn load_configuration() -> Result<()> {
             .arg(config_v2.as_os_str())
             .output()?;
     };
+
+    Ok(())
+}
+
+pub fn notify_subscribers(notification: &str) -> Result<()> {
+    let mut stale_subscriptions = vec![];
+    let mut subscriptions = SUBSCRIPTION_PIPES.lock();
+    for (subscriber, pipe) in subscriptions.iter_mut() {
+        match writeln!(pipe, "{}", notification) {
+            Ok(_) => {
+                tracing::debug!("pushed notification to subscriber: {}", subscriber);
+            }
+            Err(error) => {
+                // ERROR_FILE_NOT_FOUND
+                // 2 (0x2)
+                // The system cannot find the file specified.
+
+                // ERROR_NO_DATA
+                // 232 (0xE8)
+                // The pipe is being closed.
+
+                // Remove the subscription; the process will have to subscribe again
+                if let Some(2 | 232) = error.raw_os_error() {
+                    let subscriber_cl = subscriber.clone();
+                    stale_subscriptions.push(subscriber_cl);
+                }
+            }
+        }
+    }
+
+    for subscriber in stale_subscriptions {
+        tracing::warn!("removing stale subscription: {}", subscriber);
+        subscriptions.remove(&subscriber);
+    }
 
     Ok(())
 }

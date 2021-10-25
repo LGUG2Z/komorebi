@@ -11,6 +11,7 @@ use std::thread;
 
 use color_eyre::eyre::anyhow;
 use color_eyre::Result;
+use miow::pipe::connect;
 use parking_lot::Mutex;
 use uds_windows::UnixStream;
 
@@ -19,6 +20,7 @@ use komorebi_core::Rect;
 use komorebi_core::SocketMessage;
 use komorebi_core::StateQuery;
 
+use crate::notify_subscribers;
 use crate::window_manager;
 use crate::window_manager::WindowManager;
 use crate::windows_api::WindowsApi;
@@ -26,6 +28,7 @@ use crate::BORDER_OVERFLOW_IDENTIFIERS;
 use crate::CUSTOM_FFM;
 use crate::FLOAT_IDENTIFIERS;
 use crate::MANAGE_IDENTIFIERS;
+use crate::SUBSCRIPTION_PIPES;
 use crate::TRAY_AND_MULTI_WINDOW_IDENTIFIERS;
 use crate::WORKSPACE_RULES;
 
@@ -435,6 +438,19 @@ impl WindowManager {
                 workspace.set_resize_dimensions(resize);
                 self.update_focused_workspace(false)?;
             }
+            SocketMessage::AddSubscriber(subscriber) => {
+                let mut pipes = SUBSCRIPTION_PIPES.lock();
+                let pipe_path = format!(r"\\.\pipe\{}", subscriber);
+                let pipe = connect(&pipe_path).map_err(|_| {
+                    anyhow!("the named pipe '{}' has not yet been created; please create it before running this command", pipe_path)
+                })?;
+
+                pipes.insert(subscriber, pipe);
+            }
+            SocketMessage::RemoveSubscriber(subscriber) => {
+                let mut pipes = SUBSCRIPTION_PIPES.lock();
+                pipes.remove(&subscriber);
+            }
         };
 
         tracing::info!("processed");
@@ -459,7 +475,8 @@ impl WindowManager {
                 };
             }
 
-            self.process_command(message)?;
+            self.process_command(message.clone())?;
+            notify_subscribers(&serde_json::to_string(&message)?)?;
         }
 
         Ok(())

@@ -31,6 +31,7 @@ pub mod operation_direction;
 pub mod rect;
 
 #[derive(Clone, Debug, Serialize, Deserialize, Display)]
+#[serde(tag = "type", content = "content")]
 pub enum SocketMessage {
     // Window / Container Commands
     FocusWindow(OperationDirection),
@@ -92,15 +93,13 @@ pub enum SocketMessage {
     Query(StateQuery),
     FocusFollowsMouse(FocusFollowsMouseImplementation, bool),
     ToggleFocusFollowsMouse(FocusFollowsMouseImplementation),
+    AddSubscriber(String),
+    RemoveSubscriber(String),
 }
 
 impl SocketMessage {
     pub fn as_bytes(&self) -> Result<Vec<u8>> {
         Ok(serde_json::to_string(self)?.as_bytes().to_vec())
-    }
-
-    pub fn from_bytes(bytes: &[u8]) -> Result<Self> {
-        Ok(serde_json::from_slice(bytes)?)
     }
 }
 

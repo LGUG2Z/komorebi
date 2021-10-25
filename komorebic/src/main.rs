@@ -314,6 +314,18 @@ struct LoadCustomLayout {
     path: String,
 }
 
+#[derive(Clap, AhkFunction)]
+struct AddSubscriber {
+    /// Name of the pipe to send notifications to (without "\\.\pipe\" prepended)
+    named_pipe: String,
+}
+
+#[derive(Clap, AhkFunction)]
+struct RemoveSubscriber {
+    /// Name of the pipe to stop sending notifications to (without "\\.\pipe\" prepended)
+    named_pipe: String,
+}
+
 #[derive(Clap)]
 #[clap(author, about, version, setting = AppSettings::DeriveDisplayOrder)]
 struct Opts {
@@ -332,6 +344,12 @@ enum SubCommand {
     /// Query the current window manager state
     #[clap(setting = AppSettings::ArgRequiredElseHelp)]
     Query(Query),
+    /// Subscribe to all komorebi events on a named pipe
+    #[clap(setting = AppSettings::ArgRequiredElseHelp)]
+    AddSubscriber(AddSubscriber),
+    /// Subscribe to all komorebi events on a named pipe
+    #[clap(setting = AppSettings::ArgRequiredElseHelp)]
+    RemoveSubscriber(RemoveSubscriber),
     /// Tail komorebi.exe's process logs (cancel with Ctrl-C)
     Log,
     /// Quicksave the current resize layout dimensions
@@ -894,6 +912,12 @@ fn main() -> Result<()> {
         }
         SubCommand::Load(arg) => {
             send_message(&*SocketMessage::Load(resolve_windows_path(&arg.path)?).as_bytes()?)?;
+        }
+        SubCommand::AddSubscriber(arg) => {
+            send_message(&*SocketMessage::AddSubscriber(arg.named_pipe).as_bytes()?)?;
+        }
+        SubCommand::RemoveSubscriber(arg) => {
+            send_message(&*SocketMessage::RemoveSubscriber(arg.named_pipe).as_bytes()?)?;
         }
     }
 

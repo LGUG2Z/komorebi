@@ -1,11 +1,14 @@
 use std::fmt::Display;
 use std::fmt::Formatter;
 
+use serde::Serialize;
+
 use crate::window::Window;
 use crate::winevent::WinEvent;
 use crate::OBJECT_NAME_CHANGE_ON_LAUNCH;
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Serialize)]
+#[serde(tag = "type", content = "content")]
 pub enum WindowManagerEvent {
     Destroy(WinEvent, Window),
     FocusChange(WinEvent, Window),

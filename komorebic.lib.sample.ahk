@@ -16,6 +16,14 @@ Query(state_query) {
     Run, komorebic.exe query %state_query%, , Hide
 }
 
+AddSubscriber(named_pipe) {
+    Run, komorebic.exe add-subscriber %named_pipe%, , Hide
+}
+
+RemoveSubscriber(named_pipe) {
+    Run, komorebic.exe remove-subscriber %named_pipe%, , Hide
+}
+
 Log() {
     Run, komorebic.exe log, , Hide
 }
