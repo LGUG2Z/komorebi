@@ -4,6 +4,7 @@ use std::fmt::Formatter;
 
 use color_eyre::eyre::anyhow;
 use color_eyre::Result;
+use serde::ser::Error;
 use serde::ser::SerializeStruct;
 use serde::Serialize;
 use serde::Serializer;
@@ -56,12 +57,28 @@ impl Serialize for Window {
     {
         let mut state = serializer.serialize_struct("Window", 5)?;
         state.serialize_field("hwnd", &self.hwnd)?;
-        state.serialize_field("title", &self.title().expect("could not get window title"))?;
-        state.serialize_field("exe", &self.exe().expect("could not get window exe"))?;
-        state.serialize_field("class", &self.class().expect("could not get window class"))?;
+        state.serialize_field(
+            "title",
+            &self
+                .title()
+                .map_err(|_| S::Error::custom("could not get window title"))?,
+        )?;
+        state.serialize_field(
+            "exe",
+            &self
+                .exe()
+                .map_err(|_| S::Error::custom("could not get window exe"))?,
+        )?;
+        state.serialize_field(
+            "class",
+            &self
+                .class()
+                .map_err(|_| S::Error::custom("could not get window class"))?,
+        )?;
         state.serialize_field(
             "rect",
-            &WindowsApi::window_rect(self.hwnd()).expect("could not get window rect"),
+            &WindowsApi::window_rect(self.hwnd())
+                .map_err(|_| S::Error::custom("could not get window rect"))?,
         )?;
         state.end()
     }
