@@ -15,6 +15,8 @@ use crate::notify_subscribers;
 use crate::window_manager::WindowManager;
 use crate::window_manager_event::WindowManagerEvent;
 use crate::windows_api::WindowsApi;
+use crate::Notification;
+use crate::NotificationEvent;
 use crate::HIDDEN_HWNDS;
 use crate::TRAY_AND_MULTI_WINDOW_IDENTIFIERS;
 
@@ -317,7 +319,10 @@ impl WindowManager {
             .open(hwnd_json)?;
 
         serde_json::to_writer_pretty(&file, &known_hwnds)?;
-        notify_subscribers(&serde_json::to_string(&event)?)?;
+        notify_subscribers(&serde_json::to_string(&Notification {
+            event: NotificationEvent::WindowManager(*event),
+            state: (&*self).into(),
+        })?)?;
 
         tracing::info!("processed: {}", event.window().to_string());
         Ok(())

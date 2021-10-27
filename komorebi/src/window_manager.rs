@@ -70,9 +70,8 @@ pub struct State {
     pub border_overflow_identifiers: Vec<String>,
 }
 
-#[allow(clippy::fallible_impl_from)]
-impl From<&mut WindowManager> for State {
-    fn from(wm: &mut WindowManager) -> Self {
+impl From<&WindowManager> for State {
+    fn from(wm: &WindowManager) -> Self {
         Self {
             monitors: wm.monitors.clone(),
             is_paused: wm.is_paused,
@@ -567,8 +566,12 @@ impl WindowManager {
                 // Calling this directly instead of the window.focus() wrapper because trying to
                 // attach to the thread of the desktop window always seems to result in "Access is
                 // denied (os error 5)"
-                WindowsApi::set_foreground_window(desktop_window.hwnd())
-                    .map_err(|error| anyhow!("{} {}:{}", error, file!(), line!()))?;
+                match WindowsApi::set_foreground_window(desktop_window.hwnd()) {
+                    Ok(_) => {}
+                    Err(error) => {
+                        tracing::warn!("{} {}:{}", error, file!(), line!());
+                    }
+                }
             }
         }
 

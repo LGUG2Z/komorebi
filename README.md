@@ -465,21 +465,21 @@ First, your application must create a named pipe. Once the named pipe has been c
 komorebic.exe subscribe <your pipe name>
 ```
 
-Note that you do not have to incldue the full path of the named pipe, just the name.
+Note that you do not have to include the full path of the named pipe, just the name.
 
 If the named pipe exists, `komorebi` will start pushing JSON data of successfully handled events and messages:
 
 ```json lines
-{"type":"AddSubscriber","content":"test-pipe"}
-{"type":"FocusWindow","content":"Up"}
-{"type":"FocusChange","content":["SystemForeground",{"hwnd":1443930,"title":"komorebi – README.md","exe":"idea64.exe","class":"SunAwtFrame","rect":{"left":1539,"top":60,"right":1520,"bottom":821}}]}
-{"type":"MonitorPoll","content":["ObjectCreate",{"hwnd":2624200,"title":"OLEChannelWnd","exe":"explorer.exe","class":"OleMainThreadWndClass","rect":{"left":0,"top":0,"right":0,"bottom":0}}]}
-{"type":"FocusWindow","content":"Left"}
-{"type":"FocusChange","content":["SystemForeground",{"hwnd":2558668,"title":"Windows PowerShell","exe":"WindowsTerminal.exe","class":"CASCADIA_HOSTING_WINDOW_CLASS","rect":{"left":13,"top":60,"right":1520,"bottom":1655}}]}
-{"type":"FocusWindow","content":"Right"}
-{"type":"FocusChange","content":["SystemForeground",{"hwnd":1443930,"title":"komorebi – README.md","exe":"idea64.exe","class":"SunAwtFrame","rect":{"left":1539,"top":60,"right":1520,"bottom":821}}]}
-{"type":"FocusWindow","content":"Down"}
-{"type":"FocusChange","content":["SystemForeground",{"hwnd":67344,"title":"Windows PowerShell","exe":"WindowsTerminal.exe","class":"CASCADIA_HOSTING_WINDOW_CLASS","rect":{"left":1539,"top":894,"right":757,"bottom":821}}]}
+{"event":{"type":"AddSubscriber","content":"yasb"},"state":{...}}
+{"event":{"type":"FocusWindow","content":"Left"},"state":{...}}
+{"event":{"type":"FocusChange","content":["SystemForeground",{"hwnd":131444,"title":"komorebi – README.md","exe":"idea64.exe","class":"SunAwtFrame","rect":{"left":13,"top":60,"right":1520,"bottom":1655}}]},"state":{...}}
+{"event":{"type":"MonitorPoll","content":["ObjectCreate",{"hwnd":5572450,"title":"OLEChannelWnd","exe":"explorer.exe","class":"OleMainThreadWndClass","rect":{"left":0,"top":0,"right":0,"bottom":0}}]},"state":{...}}
+{"event":{"type":"FocusWindow","content":"Right"},"state":{...}}
+{"event":{"type":"FocusChange","content":["SystemForeground",{"hwnd":132968,"title":"Windows PowerShell","exe":"WindowsTerminal.exe","class":"CASCADIA_HOSTING_WINDOW_CLASS","rect":{"left":1539,"top":60,"right":1520,"bottom":821}}]},"state":{}...}
+{"event":{"type":"FocusWindow","content":"Down"},"state":{...}}
+{"event":{"type":"FocusChange","content":["SystemForeground",{"hwnd":329264,"title":"den — Mozilla Firefox","exe":"firefox.exe","class":"MozillaWindowClass","rect":{"left":1539,"top":894,"right":1520,"bottom":821}}]},"state":{...}}
+{"event":{"type":"FocusWindow","content":"Up"},"state":{...}}
+{"event":{"type":"FocusChange","content":["SystemForeground",{"hwnd":132968,"title":"Windows PowerShell","exe":"WindowsTerminal.exe","class":"CASCADIA_HOSTING_WINDOW_CLASS","rect":{"left":1539,"top":60,"right":1520,"bottom":821}}]},"state":{...}}
 ```
 
 You may then filter on the `type` key to listen to the events that you are interested in. For a full list of possible

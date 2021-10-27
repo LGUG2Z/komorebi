@@ -24,6 +24,8 @@ use crate::notify_subscribers;
 use crate::window_manager;
 use crate::window_manager::WindowManager;
 use crate::windows_api::WindowsApi;
+use crate::Notification;
+use crate::NotificationEvent;
 use crate::BORDER_OVERFLOW_IDENTIFIERS;
 use crate::CUSTOM_FFM;
 use crate::FLOAT_IDENTIFIERS;
@@ -221,7 +223,7 @@ impl WindowManager {
                 self.set_workspace_name(monitor_idx, workspace_idx, name)?;
             }
             SocketMessage::State => {
-                let state = serde_json::to_string_pretty(&window_manager::State::from(self))?;
+                let state = serde_json::to_string_pretty(&window_manager::State::from(&*self))?;
                 let mut socket =
                     dirs::home_dir().ok_or_else(|| anyhow!("there is no home directory"))?;
                 socket.push("komorebic.sock");
@@ -476,7 +478,10 @@ impl WindowManager {
             }
 
             self.process_command(message.clone())?;
-            notify_subscribers(&serde_json::to_string(&message)?)?;
+            notify_subscribers(&serde_json::to_string(&Notification {
+                event: NotificationEvent::Socket(message.clone()),
+                state: (&*self).into(),
+            })?)?;
         }
 
         Ok(())

@@ -22,15 +22,19 @@ use lazy_static::lazy_static;
 #[cfg(feature = "deadlock_detection")]
 use parking_lot::deadlock;
 use parking_lot::Mutex;
+use serde::Serialize;
 use sysinfo::SystemExt;
 use tracing_appender::non_blocking::WorkerGuard;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::EnvFilter;
 use which::which;
 
+use komorebi_core::SocketMessage;
+
 use crate::process_command::listen_for_commands;
 use crate::process_event::listen_for_events;
 use crate::process_movement::listen_for_movements;
+use crate::window_manager::State;
 use crate::window_manager::WindowManager;
 use crate::window_manager_event::WindowManagerEvent;
 use crate::windows_api::WindowsApi;
@@ -184,6 +188,19 @@ pub fn load_configuration() -> Result<()> {
     };
 
     Ok(())
+}
+
+#[derive(Debug, Serialize)]
+#[serde(untagged)]
+pub enum NotificationEvent {
+    WindowManager(WindowManagerEvent),
+    Socket(SocketMessage),
+}
+
+#[derive(Debug, Serialize)]
+pub struct Notification {
+    pub event: NotificationEvent,
+    pub state: State,
 }
 
 pub fn notify_subscribers(notification: &str) -> Result<()> {
