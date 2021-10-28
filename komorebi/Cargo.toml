@@ -11,7 +11,6 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-bindings = { package = "bindings", path = "../bindings" }
 komorebi-core = { path = "../komorebi-core" }
 
 bitflags = "1"
@@ -39,6 +38,18 @@ which = "4"
 winput = "0.2"
 winvd = "0.0.20"
 miow = "0.3"
+
+[dependencies.windows]
+version = "0.22"
+features = [
+    "Win32_Foundation",
+    "Win32_Graphics_Dwm",
+    "Win32_Graphics_Gdi",
+    "Win32_System_Threading",
+    "Win32_UI_KeyboardAndMouseInput",
+    "Win32_UI_Accessibility",
+    "Win32_UI_WindowsAndMessaging"
+]
 
 [features]
 deadlock_detection = []

@@ -11,7 +11,6 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-bindings = { package = "bindings", path = "../bindings" }
 derive-ahk = { path = "../derive-ahk" }
 komorebi-core = { path = "../komorebi-core" }
 
@@ -25,3 +24,10 @@ powershell_script = "0.2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 uds_windows = "1"
+
+[dependencies.windows]
+version = "0.22"
+features = [
+    "Win32_Foundation",
+    "Win32_UI_WindowsAndMessaging"
+]

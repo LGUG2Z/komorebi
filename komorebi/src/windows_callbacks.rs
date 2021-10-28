@@ -1,12 +1,12 @@
 use std::collections::VecDeque;
 
-use bindings::Windows::Win32::Foundation::BOOL;
-use bindings::Windows::Win32::Foundation::HWND;
-use bindings::Windows::Win32::Foundation::LPARAM;
-use bindings::Windows::Win32::Foundation::RECT;
-use bindings::Windows::Win32::Graphics::Gdi::HDC;
-use bindings::Windows::Win32::Graphics::Gdi::HMONITOR;
-use bindings::Windows::Win32::UI::Accessibility::HWINEVENTHOOK;
+use windows::Win32::Foundation::BOOL;
+use windows::Win32::Foundation::HWND;
+use windows::Win32::Foundation::LPARAM;
+use windows::Win32::Foundation::RECT;
+use windows::Win32::Graphics::Gdi::HDC;
+use windows::Win32::Graphics::Gdi::HMONITOR;
+use windows::Win32::UI::Accessibility::HWINEVENTHOOK;
 
 use crate::container::Container;
 use crate::monitor::Monitor;

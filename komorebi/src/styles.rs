@@ -1,63 +1,63 @@
 use bitflags::bitflags;
+use windows::Win32::UI::WindowsAndMessaging::WS_BORDER;
+use windows::Win32::UI::WindowsAndMessaging::WS_CAPTION;
+use windows::Win32::UI::WindowsAndMessaging::WS_CHILD;
+use windows::Win32::UI::WindowsAndMessaging::WS_CHILDWINDOW;
+use windows::Win32::UI::WindowsAndMessaging::WS_CLIPCHILDREN;
+use windows::Win32::UI::WindowsAndMessaging::WS_CLIPSIBLINGS;
+use windows::Win32::UI::WindowsAndMessaging::WS_DISABLED;
+use windows::Win32::UI::WindowsAndMessaging::WS_DLGFRAME;
+use windows::Win32::UI::WindowsAndMessaging::WS_EX_ACCEPTFILES;
+use windows::Win32::UI::WindowsAndMessaging::WS_EX_APPWINDOW;
+use windows::Win32::UI::WindowsAndMessaging::WS_EX_CLIENTEDGE;
+use windows::Win32::UI::WindowsAndMessaging::WS_EX_COMPOSITED;
+use windows::Win32::UI::WindowsAndMessaging::WS_EX_CONTEXTHELP;
+use windows::Win32::UI::WindowsAndMessaging::WS_EX_CONTROLPARENT;
+use windows::Win32::UI::WindowsAndMessaging::WS_EX_DLGMODALFRAME;
+use windows::Win32::UI::WindowsAndMessaging::WS_EX_LAYERED;
+use windows::Win32::UI::WindowsAndMessaging::WS_EX_LAYOUTRTL;
+use windows::Win32::UI::WindowsAndMessaging::WS_EX_LEFT;
+use windows::Win32::UI::WindowsAndMessaging::WS_EX_LEFTSCROLLBAR;
+use windows::Win32::UI::WindowsAndMessaging::WS_EX_LTRREADING;
+use windows::Win32::UI::WindowsAndMessaging::WS_EX_MDICHILD;
+use windows::Win32::UI::WindowsAndMessaging::WS_EX_NOACTIVATE;
+use windows::Win32::UI::WindowsAndMessaging::WS_EX_NOINHERITLAYOUT;
+use windows::Win32::UI::WindowsAndMessaging::WS_EX_NOPARENTNOTIFY;
+use windows::Win32::UI::WindowsAndMessaging::WS_EX_NOREDIRECTIONBITMAP;
+use windows::Win32::UI::WindowsAndMessaging::WS_EX_OVERLAPPEDWINDOW;
+use windows::Win32::UI::WindowsAndMessaging::WS_EX_PALETTEWINDOW;
+use windows::Win32::UI::WindowsAndMessaging::WS_EX_RIGHT;
+use windows::Win32::UI::WindowsAndMessaging::WS_EX_RIGHTSCROLLBAR;
+use windows::Win32::UI::WindowsAndMessaging::WS_EX_RTLREADING;
+use windows::Win32::UI::WindowsAndMessaging::WS_EX_STATICEDGE;
+use windows::Win32::UI::WindowsAndMessaging::WS_EX_TOOLWINDOW;
+use windows::Win32::UI::WindowsAndMessaging::WS_EX_TOPMOST;
+use windows::Win32::UI::WindowsAndMessaging::WS_EX_TRANSPARENT;
+use windows::Win32::UI::WindowsAndMessaging::WS_EX_WINDOWEDGE;
+use windows::Win32::UI::WindowsAndMessaging::WS_GROUP;
+use windows::Win32::UI::WindowsAndMessaging::WS_HSCROLL;
+use windows::Win32::UI::WindowsAndMessaging::WS_ICONIC;
+use windows::Win32::UI::WindowsAndMessaging::WS_MAXIMIZE;
+use windows::Win32::UI::WindowsAndMessaging::WS_MAXIMIZEBOX;
+use windows::Win32::UI::WindowsAndMessaging::WS_MINIMIZE;
+use windows::Win32::UI::WindowsAndMessaging::WS_MINIMIZEBOX;
+use windows::Win32::UI::WindowsAndMessaging::WS_OVERLAPPED;
+use windows::Win32::UI::WindowsAndMessaging::WS_OVERLAPPEDWINDOW;
+use windows::Win32::UI::WindowsAndMessaging::WS_POPUP;
+use windows::Win32::UI::WindowsAndMessaging::WS_POPUPWINDOW;
+use windows::Win32::UI::WindowsAndMessaging::WS_SIZEBOX;
+use windows::Win32::UI::WindowsAndMessaging::WS_SYSMENU;
+use windows::Win32::UI::WindowsAndMessaging::WS_TABSTOP;
+use windows::Win32::UI::WindowsAndMessaging::WS_THICKFRAME;
+use windows::Win32::UI::WindowsAndMessaging::WS_TILED;
+use windows::Win32::UI::WindowsAndMessaging::WS_TILEDWINDOW;
+use windows::Win32::UI::WindowsAndMessaging::WS_VISIBLE;
+use windows::Win32::UI::WindowsAndMessaging::WS_VSCROLL;
 
-use bindings::Windows::Win32::UI::WindowsAndMessaging::WS_BORDER;
-use bindings::Windows::Win32::UI::WindowsAndMessaging::WS_CAPTION;
-use bindings::Windows::Win32::UI::WindowsAndMessaging::WS_CHILD;
-use bindings::Windows::Win32::UI::WindowsAndMessaging::WS_CHILDWINDOW;
-use bindings::Windows::Win32::UI::WindowsAndMessaging::WS_CLIPCHILDREN;
-use bindings::Windows::Win32::UI::WindowsAndMessaging::WS_CLIPSIBLINGS;
-use bindings::Windows::Win32::UI::WindowsAndMessaging::WS_DISABLED;
-use bindings::Windows::Win32::UI::WindowsAndMessaging::WS_DLGFRAME;
-use bindings::Windows::Win32::UI::WindowsAndMessaging::WS_EX_ACCEPTFILES;
-use bindings::Windows::Win32::UI::WindowsAndMessaging::WS_EX_APPWINDOW;
-use bindings::Windows::Win32::UI::WindowsAndMessaging::WS_EX_CLIENTEDGE;
-use bindings::Windows::Win32::UI::WindowsAndMessaging::WS_EX_COMPOSITED;
-use bindings::Windows::Win32::UI::WindowsAndMessaging::WS_EX_CONTEXTHELP;
-use bindings::Windows::Win32::UI::WindowsAndMessaging::WS_EX_CONTROLPARENT;
-use bindings::Windows::Win32::UI::WindowsAndMessaging::WS_EX_DLGMODALFRAME;
-use bindings::Windows::Win32::UI::WindowsAndMessaging::WS_EX_LAYERED;
-use bindings::Windows::Win32::UI::WindowsAndMessaging::WS_EX_LAYOUTRTL;
-use bindings::Windows::Win32::UI::WindowsAndMessaging::WS_EX_LEFT;
-use bindings::Windows::Win32::UI::WindowsAndMessaging::WS_EX_LEFTSCROLLBAR;
-use bindings::Windows::Win32::UI::WindowsAndMessaging::WS_EX_LTRREADING;
-use bindings::Windows::Win32::UI::WindowsAndMessaging::WS_EX_MDICHILD;
-use bindings::Windows::Win32::UI::WindowsAndMessaging::WS_EX_NOACTIVATE;
-use bindings::Windows::Win32::UI::WindowsAndMessaging::WS_EX_NOINHERITLAYOUT;
-use bindings::Windows::Win32::UI::WindowsAndMessaging::WS_EX_NOPARENTNOTIFY;
-use bindings::Windows::Win32::UI::WindowsAndMessaging::WS_EX_NOREDIRECTIONBITMAP;
-use bindings::Windows::Win32::UI::WindowsAndMessaging::WS_EX_OVERLAPPEDWINDOW;
-use bindings::Windows::Win32::UI::WindowsAndMessaging::WS_EX_PALETTEWINDOW;
-use bindings::Windows::Win32::UI::WindowsAndMessaging::WS_EX_RIGHT;
-use bindings::Windows::Win32::UI::WindowsAndMessaging::WS_EX_RIGHTSCROLLBAR;
-use bindings::Windows::Win32::UI::WindowsAndMessaging::WS_EX_RTLREADING;
-use bindings::Windows::Win32::UI::WindowsAndMessaging::WS_EX_STATICEDGE;
-use bindings::Windows::Win32::UI::WindowsAndMessaging::WS_EX_TOOLWINDOW;
-use bindings::Windows::Win32::UI::WindowsAndMessaging::WS_EX_TOPMOST;
-use bindings::Windows::Win32::UI::WindowsAndMessaging::WS_EX_TRANSPARENT;
-use bindings::Windows::Win32::UI::WindowsAndMessaging::WS_EX_WINDOWEDGE;
-use bindings::Windows::Win32::UI::WindowsAndMessaging::WS_GROUP;
-use bindings::Windows::Win32::UI::WindowsAndMessaging::WS_HSCROLL;
-use bindings::Windows::Win32::UI::WindowsAndMessaging::WS_ICONIC;
-use bindings::Windows::Win32::UI::WindowsAndMessaging::WS_MAXIMIZE;
-use bindings::Windows::Win32::UI::WindowsAndMessaging::WS_MAXIMIZEBOX;
-use bindings::Windows::Win32::UI::WindowsAndMessaging::WS_MINIMIZE;
-use bindings::Windows::Win32::UI::WindowsAndMessaging::WS_MINIMIZEBOX;
-use bindings::Windows::Win32::UI::WindowsAndMessaging::WS_OVERLAPPED;
-use bindings::Windows::Win32::UI::WindowsAndMessaging::WS_OVERLAPPEDWINDOW;
-use bindings::Windows::Win32::UI::WindowsAndMessaging::WS_POPUP;
-use bindings::Windows::Win32::UI::WindowsAndMessaging::WS_POPUPWINDOW;
-use bindings::Windows::Win32::UI::WindowsAndMessaging::WS_SIZEBOX;
-use bindings::Windows::Win32::UI::WindowsAndMessaging::WS_SYSMENU;
-use bindings::Windows::Win32::UI::WindowsAndMessaging::WS_TABSTOP;
-use bindings::Windows::Win32::UI::WindowsAndMessaging::WS_THICKFRAME;
-use bindings::Windows::Win32::UI::WindowsAndMessaging::WS_TILED;
-use bindings::Windows::Win32::UI::WindowsAndMessaging::WS_TILEDWINDOW;
-use bindings::Windows::Win32::UI::WindowsAndMessaging::WS_VISIBLE;
-use bindings::Windows::Win32::UI::WindowsAndMessaging::WS_VSCROLL;
-
+// https://docs.microsoft.com/en-us/windows/win32/winmsg/window-styles
 bitflags! {
     #[derive(Default)]
-    pub struct GwlStyle: u32 {
+    pub struct WindowStyle: u32 {
         const BORDER = WS_BORDER.0;
         const CAPTION = WS_CAPTION.0;
         const CHILD = WS_CHILD.0;
@@ -88,9 +88,10 @@ bitflags! {
     }
 }
 
+// https://docs.microsoft.com/en-us/windows/win32/winmsg/extended-window-styles
 bitflags! {
     #[derive(Default)]
-    pub struct GwlExStyle: u32 {
+    pub struct ExtendedWindowStyle: u32 {
         const ACCEPTFILES = WS_EX_ACCEPTFILES.0;
         const APPWINDOW = WS_EX_APPWINDOW.0;
         const CLIENTEDGE = WS_EX_CLIENTEDGE.0;

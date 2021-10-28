@@ -20,11 +20,11 @@ use heck::KebabCase;
 use paste::paste;
 use uds_windows::UnixListener;
 use uds_windows::UnixStream;
+use windows::Win32::Foundation::HWND;
+use windows::Win32::UI::WindowsAndMessaging::ShowWindow;
+use windows::Win32::UI::WindowsAndMessaging::SHOW_WINDOW_CMD;
+use windows::Win32::UI::WindowsAndMessaging::SW_RESTORE;
 
-use bindings::Windows::Win32::Foundation::HWND;
-use bindings::Windows::Win32::UI::WindowsAndMessaging::ShowWindow;
-use bindings::Windows::Win32::UI::WindowsAndMessaging::SHOW_WINDOW_CMD;
-use bindings::Windows::Win32::UI::WindowsAndMessaging::SW_RESTORE;
 use derive_ahk::AhkFunction;
 use derive_ahk::AhkLibrary;
 use komorebi_core::ApplicationIdentifier;

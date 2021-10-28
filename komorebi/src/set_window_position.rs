@@ -1,20 +1,19 @@
 use bitflags::bitflags;
-
-use bindings::Windows::Win32::UI::WindowsAndMessaging::SWP_ASYNCWINDOWPOS;
-use bindings::Windows::Win32::UI::WindowsAndMessaging::SWP_DEFERERASE;
-use bindings::Windows::Win32::UI::WindowsAndMessaging::SWP_DRAWFRAME;
-use bindings::Windows::Win32::UI::WindowsAndMessaging::SWP_FRAMECHANGED;
-use bindings::Windows::Win32::UI::WindowsAndMessaging::SWP_HIDEWINDOW;
-use bindings::Windows::Win32::UI::WindowsAndMessaging::SWP_NOACTIVATE;
-use bindings::Windows::Win32::UI::WindowsAndMessaging::SWP_NOCOPYBITS;
-use bindings::Windows::Win32::UI::WindowsAndMessaging::SWP_NOMOVE;
-use bindings::Windows::Win32::UI::WindowsAndMessaging::SWP_NOOWNERZORDER;
-use bindings::Windows::Win32::UI::WindowsAndMessaging::SWP_NOREDRAW;
-use bindings::Windows::Win32::UI::WindowsAndMessaging::SWP_NOREPOSITION;
-use bindings::Windows::Win32::UI::WindowsAndMessaging::SWP_NOSENDCHANGING;
-use bindings::Windows::Win32::UI::WindowsAndMessaging::SWP_NOSIZE;
-use bindings::Windows::Win32::UI::WindowsAndMessaging::SWP_NOZORDER;
-use bindings::Windows::Win32::UI::WindowsAndMessaging::SWP_SHOWWINDOW;
+use windows::Win32::UI::WindowsAndMessaging::SWP_ASYNCWINDOWPOS;
+use windows::Win32::UI::WindowsAndMessaging::SWP_DEFERERASE;
+use windows::Win32::UI::WindowsAndMessaging::SWP_DRAWFRAME;
+use windows::Win32::UI::WindowsAndMessaging::SWP_FRAMECHANGED;
+use windows::Win32::UI::WindowsAndMessaging::SWP_HIDEWINDOW;
+use windows::Win32::UI::WindowsAndMessaging::SWP_NOACTIVATE;
+use windows::Win32::UI::WindowsAndMessaging::SWP_NOCOPYBITS;
+use windows::Win32::UI::WindowsAndMessaging::SWP_NOMOVE;
+use windows::Win32::UI::WindowsAndMessaging::SWP_NOOWNERZORDER;
+use windows::Win32::UI::WindowsAndMessaging::SWP_NOREDRAW;
+use windows::Win32::UI::WindowsAndMessaging::SWP_NOREPOSITION;
+use windows::Win32::UI::WindowsAndMessaging::SWP_NOSENDCHANGING;
+use windows::Win32::UI::WindowsAndMessaging::SWP_NOSIZE;
+use windows::Win32::UI::WindowsAndMessaging::SWP_NOZORDER;
+use windows::Win32::UI::WindowsAndMessaging::SWP_SHOWWINDOW;
 
 bitflags! {
     #[derive(Default)]

@@ -8,16 +8,15 @@ use crossbeam_channel::Receiver;
 use crossbeam_channel::Sender;
 use lazy_static::lazy_static;
 use parking_lot::Mutex;
-
-use bindings::Windows::Win32::Foundation::HWND;
-use bindings::Windows::Win32::UI::Accessibility::SetWinEventHook;
-use bindings::Windows::Win32::UI::WindowsAndMessaging::DispatchMessageW;
-use bindings::Windows::Win32::UI::WindowsAndMessaging::PeekMessageW;
-use bindings::Windows::Win32::UI::WindowsAndMessaging::TranslateMessage;
-use bindings::Windows::Win32::UI::WindowsAndMessaging::EVENT_MAX;
-use bindings::Windows::Win32::UI::WindowsAndMessaging::EVENT_MIN;
-use bindings::Windows::Win32::UI::WindowsAndMessaging::MSG;
-use bindings::Windows::Win32::UI::WindowsAndMessaging::PM_REMOVE;
+use windows::Win32::Foundation::HWND;
+use windows::Win32::UI::Accessibility::SetWinEventHook;
+use windows::Win32::UI::WindowsAndMessaging::DispatchMessageW;
+use windows::Win32::UI::WindowsAndMessaging::PeekMessageW;
+use windows::Win32::UI::WindowsAndMessaging::TranslateMessage;
+use windows::Win32::UI::WindowsAndMessaging::EVENT_MAX;
+use windows::Win32::UI::WindowsAndMessaging::EVENT_MIN;
+use windows::Win32::UI::WindowsAndMessaging::MSG;
+use windows::Win32::UI::WindowsAndMessaging::PM_REMOVE;
 
 use crate::window_manager_event::WindowManagerEvent;
 use crate::windows_callbacks;

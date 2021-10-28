@@ -8,12 +8,12 @@ use serde::ser::Error;
 use serde::ser::SerializeStruct;
 use serde::Serialize;
 use serde::Serializer;
+use windows::Win32::Foundation::HWND;
 
-use bindings::Windows::Win32::Foundation::HWND;
 use komorebi_core::Rect;
 
-use crate::styles::GwlExStyle;
-use crate::styles::GwlStyle;
+use crate::styles::ExtendedWindowStyle;
+use crate::styles::WindowStyle;
 use crate::window_manager_event::WindowManagerEvent;
 use crate::windows_api::WindowsApi;
 use crate::BORDER_OVERFLOW_IDENTIFIERS;
@@ -212,18 +212,18 @@ impl Window {
     }
 
     #[allow(dead_code)]
-    pub fn update_style(self, style: GwlStyle) -> Result<()> {
+    pub fn update_style(self, style: WindowStyle) -> Result<()> {
         WindowsApi::update_style(self.hwnd(), isize::try_from(style.bits())?)
     }
 
-    pub fn style(self) -> Result<GwlStyle> {
+    pub fn style(self) -> Result<WindowStyle> {
         let bits = u32::try_from(WindowsApi::gwl_style(self.hwnd())?)?;
-        GwlStyle::from_bits(bits).ok_or_else(|| anyhow!("there is no gwl style"))
+        WindowStyle::from_bits(bits).ok_or_else(|| anyhow!("there is no gwl style"))
     }
 
-    pub fn ex_style(self) -> Result<GwlExStyle> {
+    pub fn ex_style(self) -> Result<ExtendedWindowStyle> {
         let bits = u32::try_from(WindowsApi::gwl_ex_style(self.hwnd())?)?;
-        GwlExStyle::from_bits(bits).ok_or_else(|| anyhow!("there is no gwl style"))
+        ExtendedWindowStyle::from_bits(bits).ok_or_else(|| anyhow!("there is no gwl style"))
     }
 
     pub fn title(self) -> Result<String> {
@@ -298,13 +298,13 @@ impl Window {
                     let style = self.style()?;
                     let ex_style = self.ex_style()?;
 
-                    if (allow_wsl2_gui || style.contains(GwlStyle::CAPTION) && ex_style.contains(GwlExStyle::WINDOWEDGE))
-                        && !ex_style.contains(GwlExStyle::DLGMODALFRAME)
+                    if (allow_wsl2_gui || style.contains(WindowStyle::CAPTION) && ex_style.contains(ExtendedWindowStyle::WINDOWEDGE))
+                        && !ex_style.contains(ExtendedWindowStyle::DLGMODALFRAME)
                         // Get a lot of dupe events coming through that make the redrawing go crazy
                         // on FocusChange events if I don't filter out this one. But, if we are
                         // allowing a specific layered window on the whitelist (like Steam), it should
                         // pass this check
-                        && (allow_layered || !ex_style.contains(GwlExStyle::LAYERED))
+                        && (allow_layered || !ex_style.contains(ExtendedWindowStyle::LAYERED))
                         || managed_override
                     {
                         return Ok(true);
