@@ -89,6 +89,8 @@ pub enum SocketMessage {
     ManageRule(ApplicationIdentifier, String),
     IdentifyTrayApplication(ApplicationIdentifier, String),
     IdentifyBorderOverflow(ApplicationIdentifier, String),
+    RemoveTitleBar(ApplicationIdentifier, String),
+    ToggleTitleBars,
     State,
     Query(StateQuery),
     FocusFollowsMouse(FocusFollowsMouseImplementation, bool),

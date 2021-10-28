@@ -21,6 +21,7 @@ use crate::FLOAT_IDENTIFIERS;
 use crate::HIDDEN_HWNDS;
 use crate::LAYERED_EXE_WHITELIST;
 use crate::MANAGE_IDENTIFIERS;
+use crate::NO_TITLEBAR;
 use crate::WSL2_UI_PROCESSES;
 
 #[derive(Debug, Clone, Copy)]
@@ -211,6 +212,20 @@ impl Window {
         WindowsApi::set_focus(self.hwnd())
     }
 
+    pub fn remove_title_bar(self) -> Result<()> {
+        let mut style = self.style()?;
+        style.remove(GwlStyle::CAPTION);
+        style.remove(GwlStyle::THICKFRAME);
+        self.update_style(style)
+    }
+
+    pub fn add_title_bar(self) -> Result<()> {
+        let mut style = self.style()?;
+        style.insert(GwlStyle::CAPTION);
+        style.insert(GwlStyle::THICKFRAME);
+        self.update_style(style)
+    }
+
     #[allow(dead_code)]
     pub fn update_style(self, style: GwlStyle) -> Result<()> {
         WindowsApi::update_style(self.hwnd(), isize::try_from(style.bits())?)
@@ -295,10 +310,19 @@ impl Window {
                         wsl2_ui_processes.contains(&exe_name)
                     };
 
+                    let allow_titlebar_removed = {
+                        let titlebars_removed = NO_TITLEBAR.lock();
+                        titlebars_removed.contains(&exe_name)
+                    };
+
                     let style = self.style()?;
                     let ex_style = self.ex_style()?;
 
-                    if (allow_wsl2_gui || style.contains(GwlStyle::CAPTION) && ex_style.contains(GwlExStyle::WINDOWEDGE))
+                    if (
+                        allow_wsl2_gui
+                        || allow_titlebar_removed
+                        || style.contains(GwlStyle::CAPTION) && ex_style.contains(GwlExStyle::WINDOWEDGE)
+                    )
                         && !ex_style.contains(GwlExStyle::DLGMODALFRAME)
                         // Get a lot of dupe events coming through that make the redrawing go crazy
                         // on FocusChange events if I don't filter out this one. But, if we are

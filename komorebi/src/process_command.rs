@@ -30,6 +30,8 @@ use crate::BORDER_OVERFLOW_IDENTIFIERS;
 use crate::CUSTOM_FFM;
 use crate::FLOAT_IDENTIFIERS;
 use crate::MANAGE_IDENTIFIERS;
+use crate::NO_TITLEBAR;
+use crate::REMOVE_TITLEBARS;
 use crate::SUBSCRIPTION_PIPES;
 use crate::TRAY_AND_MULTI_WINDOW_IDENTIFIERS;
 use crate::WORKSPACE_RULES;
@@ -210,7 +212,7 @@ impl WindowManager {
                 tracing::info!(
                     "received stop command, restoring all hidden windows and terminating process"
                 );
-                self.restore_all_windows();
+                self.restore_all_windows()?;
                 std::process::exit(0)
             }
             SocketMessage::EnsureWorkspaces(monitor_idx, workspace_count) => {
@@ -452,6 +454,17 @@ impl WindowManager {
             SocketMessage::RemoveSubscriber(subscriber) => {
                 let mut pipes = SUBSCRIPTION_PIPES.lock();
                 pipes.remove(&subscriber);
+            }
+            SocketMessage::RemoveTitleBar(_, id) => {
+                let mut identifiers = NO_TITLEBAR.lock();
+                if !identifiers.contains(&id) {
+                    identifiers.push(id);
+                }
+            }
+            SocketMessage::ToggleTitleBars => {
+                let current = REMOVE_TITLEBARS.load(Ordering::SeqCst);
+                REMOVE_TITLEBARS.store(!current, Ordering::SeqCst);
+                self.update_focused_workspace(false)?;
             }
         };
 

@@ -87,9 +87,13 @@ lazy_static! {
     ]));
     static ref SUBSCRIPTION_PIPES: Arc<Mutex<HashMap<String, File>>> =
         Arc::new(Mutex::new(HashMap::new()));
+    // Use app-specific titlebar removal options where possible
+    // eg. Windows Terminal, IntelliJ IDEA, Firefox
+    static ref NO_TITLEBAR: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(vec![]));
 }
 
 pub static CUSTOM_FFM: AtomicBool = AtomicBool::new(false);
+pub static REMOVE_TITLEBARS: AtomicBool = AtomicBool::new(false);
 
 fn setup() -> Result<(WorkerGuard, WorkerGuard)> {
     if std::env::var("RUST_LIB_BACKTRACE").is_err() {
@@ -327,7 +331,7 @@ fn main() -> Result<()> {
 
         tracing::error!("received ctrl-c, restoring all hidden windows and terminating process");
 
-        wm.lock().restore_all_windows();
+        wm.lock().restore_all_windows()?;
         std::process::exit(130);
     }
 

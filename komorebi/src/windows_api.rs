@@ -408,9 +408,9 @@ impl WindowsApi {
     }
 
     fn window_long_ptr_w(hwnd: HWND, index: WINDOW_LONG_PTR_INDEX) -> Result<isize> {
-        Result::from(WindowsResult::from(unsafe {
-            GetWindowLongPtrW(hwnd, index)
-        }))
+        // Can return 0, which does not always mean that an error has occurred
+        // https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getwindowlongptrw
+        Result::from(unsafe { WindowsResult::Ok(GetWindowLongPtrW(hwnd, index)) })
     }
 
     #[allow(dead_code)]

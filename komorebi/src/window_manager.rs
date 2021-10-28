@@ -2,6 +2,7 @@ use std::collections::VecDeque;
 use std::io::ErrorKind;
 use std::num::NonZeroUsize;
 use std::path::PathBuf;
+use std::sync::atomic::Ordering;
 use std::sync::Arc;
 use std::thread;
 
@@ -38,6 +39,8 @@ use crate::BORDER_OVERFLOW_IDENTIFIERS;
 use crate::FLOAT_IDENTIFIERS;
 use crate::LAYERED_EXE_WHITELIST;
 use crate::MANAGE_IDENTIFIERS;
+use crate::NO_TITLEBAR;
+use crate::REMOVE_TITLEBARS;
 use crate::TRAY_AND_MULTI_WINDOW_IDENTIFIERS;
 use crate::WORKSPACE_RULES;
 
@@ -63,6 +66,7 @@ pub struct State {
     pub work_area_offset: Option<Rect>,
     pub focus_follows_mouse: Option<FocusFollowsMouseImplementation>,
     pub has_pending_raise_op: bool,
+    pub remove_titlebars: bool,
     pub float_identifiers: Vec<String>,
     pub manage_identifiers: Vec<String>,
     pub layered_exe_whitelist: Vec<String>,
@@ -79,6 +83,7 @@ impl From<&WindowManager> for State {
             work_area_offset: wm.work_area_offset,
             focus_follows_mouse: wm.focus_follows_mouse.clone(),
             has_pending_raise_op: wm.has_pending_raise_op,
+            remove_titlebars: REMOVE_TITLEBARS.load(Ordering::SeqCst),
             float_identifiers: FLOAT_IDENTIFIERS.lock().clone(),
             manage_identifiers: MANAGE_IDENTIFIERS.lock().clone(),
             layered_exe_whitelist: LAYERED_EXE_WHITELIST.lock().clone(),
@@ -664,18 +669,26 @@ impl WindowManager {
     }
 
     #[tracing::instrument(skip(self))]
-    pub fn restore_all_windows(&mut self) {
+    pub fn restore_all_windows(&mut self) -> Result<()> {
         tracing::info!("restoring all hidden windows");
+
+        let no_titlebar = NO_TITLEBAR.lock();
 
         for monitor in self.monitors_mut() {
             for workspace in monitor.workspaces_mut() {
                 for containers in workspace.containers_mut() {
                     for window in containers.windows_mut() {
+                        if no_titlebar.contains(&window.exe()?) {
+                            window.add_title_bar()?;
+                        }
+
                         window.restore();
                     }
                 }
             }
         }
+
+        Ok(())
     }
 
     #[tracing::instrument(skip(self))]

@@ -1,5 +1,6 @@
 use std::collections::VecDeque;
 use std::num::NonZeroUsize;
+use std::sync::atomic::Ordering;
 
 use color_eyre::eyre::anyhow;
 use color_eyre::Result;
@@ -20,6 +21,8 @@ use crate::container::Container;
 use crate::ring::Ring;
 use crate::window::Window;
 use crate::windows_api::WindowsApi;
+use crate::NO_TITLEBAR;
+use crate::REMOVE_TITLEBARS;
 
 #[derive(Debug, Clone, Serialize, Getters, CopyGetters, MutGetters, Setters)]
 pub struct Workspace {
@@ -184,9 +187,18 @@ impl Workspace {
                     self.resize_dimensions(),
                 );
 
+                let should_remove_titlebars = REMOVE_TITLEBARS.load(Ordering::SeqCst);
+                let no_titlebar = { NO_TITLEBAR.lock().clone() };
+
                 let windows = self.visible_windows_mut();
                 for (i, window) in windows.into_iter().enumerate() {
                     if let (Some(window), Some(layout)) = (window, layouts.get(i)) {
+                        if should_remove_titlebars && no_titlebar.contains(&window.exe()?) {
+                            window.remove_title_bar()?;
+                        } else if no_titlebar.contains(&window.exe()?) {
+                            window.add_title_bar()?;
+                        }
+
                         window.set_position(layout, invisible_borders, false)?;
                     }
                 }

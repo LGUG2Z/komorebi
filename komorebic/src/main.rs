@@ -261,6 +261,7 @@ gen_application_target_subcommand_args! {
     ManageRule,
     IdentifyTrayApplication,
     IdentifyBorderOverflow,
+    RemoveTitleBar,
 }
 
 #[derive(Clap, AhkFunction)]
@@ -493,6 +494,11 @@ enum SubCommand {
     /// Identify an application that has overflowing borders
     #[clap(setting = AppSettings::ArgRequiredElseHelp)]
     IdentifyBorderOverflow(IdentifyBorderOverflow),
+    /// Whitelist an application for title bar removal
+    #[clap(setting = AppSettings::ArgRequiredElseHelp)]
+    RemoveTitleBar(RemoveTitleBar),
+    /// Toggle title bars for whitelisted applications
+    ToggleTitleBars,
     /// Enable or disable focus follows mouse for the operating system
     #[clap(setting = AppSettings::ArgRequiredElseHelp)]
     FocusFollowsMouse(FocusFollowsMouse),
@@ -894,6 +900,23 @@ fn main() -> Result<()> {
             send_message(
                 &*SocketMessage::IdentifyBorderOverflow(target.identifier, target.id).as_bytes()?,
             )?;
+        }
+        SubCommand::RemoveTitleBar(target) => {
+            match target.identifier {
+                ApplicationIdentifier::Exe => {}
+                _ => {
+                    return Err(anyhow!(
+                        "this command requires applications to be identified by their exe"
+                    ))
+                }
+            }
+
+            send_message(
+                &*SocketMessage::RemoveTitleBar(target.identifier, target.id).as_bytes()?,
+            )?;
+        }
+        SubCommand::ToggleTitleBars => {
+            send_message(&*SocketMessage::ToggleTitleBars.as_bytes()?)?;
         }
         SubCommand::Manage => {
             send_message(&*SocketMessage::ManageFocusedWindow.as_bytes()?)?;
