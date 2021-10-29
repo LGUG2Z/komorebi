@@ -34,7 +34,7 @@ WorkspaceTiling(0, 4, "disable") ; Everything floats here
 
 ; Configure floating rules
 FloatRule("class", "SunAwtDialog") ; All the IntelliJ popups
-FloatRule("title", "Control Panek")
+FloatRule("title", "Control Panel")
 FloatRule("class", "TaskManagerWindow")
 FloatRule("exe", "Wally.exe")
 FloatRule("exe", "wincompose.exe")

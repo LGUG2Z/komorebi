@@ -13,7 +13,7 @@ install-komorebic:
     cargo +stable install --path komorebic --locked
 
 install-komorebi:
-    cargo +stable install --path komorebic --locked
+    cargo +stable install --path komorebi --locked
 
 install:
     just install-komorebic

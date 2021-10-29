@@ -15,6 +15,7 @@ pub enum WindowManagerEvent {
     Hide(WinEvent, Window),
     Minimize(WinEvent, Window),
     Show(WinEvent, Window),
+    MoveResizeStart(WinEvent, Window),
     MoveResizeEnd(WinEvent, Window),
     MouseCapture(WinEvent, Window),
     Manage(Window),
@@ -50,6 +51,13 @@ impl Display for WindowManagerEvent {
             }
             WindowManagerEvent::Show(winevent, window) => {
                 write!(f, "Show (WinEvent: {}, Window: {})", winevent, window)
+            }
+            WindowManagerEvent::MoveResizeStart(winevent, window) => {
+                write!(
+                    f,
+                    "MoveResizeStart (WinEvent: {}, Window: {})",
+                    winevent, window
+                )
             }
             WindowManagerEvent::MoveResizeEnd(winevent, window) => {
                 write!(
@@ -87,6 +95,7 @@ impl WindowManagerEvent {
             | WindowManagerEvent::Hide(_, window)
             | WindowManagerEvent::Minimize(_, window)
             | WindowManagerEvent::Show(_, window)
+            | WindowManagerEvent::MoveResizeStart(_, window)
             | WindowManagerEvent::MoveResizeEnd(_, window)
             | WindowManagerEvent::MouseCapture(_, window)
             | WindowManagerEvent::MonitorPoll(_, window)
@@ -113,6 +122,7 @@ impl WindowManagerEvent {
             WinEvent::ObjectFocus | WinEvent::SystemForeground => {
                 Option::from(Self::FocusChange(winevent, window))
             }
+            WinEvent::SystemMoveSizeStart => Option::from(Self::MoveResizeStart(winevent, window)),
             WinEvent::SystemMoveSizeEnd => Option::from(Self::MoveResizeEnd(winevent, window)),
             WinEvent::SystemCaptureStart | WinEvent::SystemCaptureEnd => {
                 Option::from(Self::MouseCapture(winevent, window))

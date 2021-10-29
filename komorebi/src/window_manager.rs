@@ -53,6 +53,7 @@ pub struct WindowManager {
     pub hotwatch: Hotwatch,
     pub virtual_desktop_id: Option<usize>,
     pub has_pending_raise_op: bool,
+    pub pending_move_op: Option<(usize, usize, usize)>,
 }
 
 #[derive(Debug, Serialize)]
@@ -153,6 +154,7 @@ impl WindowManager {
             hotwatch: Hotwatch::new()?,
             virtual_desktop_id,
             has_pending_raise_op: false,
+            pending_move_op: None,
         })
     }
 
@@ -536,6 +538,93 @@ impl WindowManager {
                 Ok(())
             }
         }
+    }
+
+    #[tracing::instrument(skip(self))]
+    pub fn transfer_container(
+        &mut self,
+        origin: (usize, usize, usize),
+        target: (usize, usize, usize),
+    ) -> Result<()> {
+        let (origin_monitor_idx, origin_workspace_idx, origin_container_idx) = origin;
+        let (target_monitor_idx, target_workspace_idx, target_container_idx) = target;
+
+        let origin_container = self
+            .monitors_mut()
+            .get_mut(origin_monitor_idx)
+            .ok_or_else(|| anyhow!("there is no monitor at this index"))?
+            .workspaces_mut()
+            .get_mut(origin_workspace_idx)
+            .ok_or_else(|| anyhow!("there is no workspace at this index"))?
+            .remove_container(origin_container_idx)
+            .ok_or_else(|| anyhow!("there is no container at this index"))?;
+
+        let target_workspace = self
+            .monitors_mut()
+            .get_mut(target_monitor_idx)
+            .ok_or_else(|| anyhow!("there is no monitor at this index"))?
+            .workspaces_mut()
+            .get_mut(target_workspace_idx)
+            .ok_or_else(|| anyhow!("there is no workspace at this index"))?;
+
+        target_workspace
+            .containers_mut()
+            .insert(target_container_idx, origin_container);
+
+        target_workspace.focus_container(target_container_idx);
+
+        Ok(())
+    }
+
+    #[tracing::instrument(skip(self))]
+    pub fn swap_containers(
+        &mut self,
+        origin: (usize, usize, usize),
+        target: (usize, usize, usize),
+    ) -> Result<()> {
+        let (origin_monitor_idx, origin_workspace_idx, origin_container_idx) = origin;
+        let (target_monitor_idx, target_workspace_idx, target_container_idx) = target;
+
+        let origin_container = self
+            .monitors_mut()
+            .get_mut(origin_monitor_idx)
+            .ok_or_else(|| anyhow!("there is no monitor at this index"))?
+            .workspaces_mut()
+            .get_mut(origin_workspace_idx)
+            .ok_or_else(|| anyhow!("there is no workspace at this index"))?
+            .remove_container(origin_container_idx)
+            .ok_or_else(|| anyhow!("there is no container at this index"))?;
+
+        let target_container = self
+            .monitors_mut()
+            .get_mut(target_monitor_idx)
+            .ok_or_else(|| anyhow!("there is no monitor at this index"))?
+            .workspaces_mut()
+            .get_mut(target_workspace_idx)
+            .ok_or_else(|| anyhow!("there is no workspace at this index"))?
+            .remove_container(target_container_idx);
+
+        self.monitors_mut()
+            .get_mut(target_monitor_idx)
+            .ok_or_else(|| anyhow!("there is no monitor at this index"))?
+            .workspaces_mut()
+            .get_mut(target_workspace_idx)
+            .ok_or_else(|| anyhow!("there is no workspace at this index"))?
+            .containers_mut()
+            .insert(target_container_idx, origin_container);
+
+        if let Some(target_container) = target_container {
+            self.monitors_mut()
+                .get_mut(origin_monitor_idx)
+                .ok_or_else(|| anyhow!("there is no monitor at this index"))?
+                .workspaces_mut()
+                .get_mut(origin_workspace_idx)
+                .ok_or_else(|| anyhow!("there is no workspace at this index"))?
+                .containers_mut()
+                .insert(origin_container_idx, target_container);
+        }
+
+        Ok(())
     }
 
     #[tracing::instrument(skip(self))]
