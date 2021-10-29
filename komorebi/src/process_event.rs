@@ -347,7 +347,7 @@ impl WindowManager {
                                 workspace.swap_containers(focused_container_idx, target_idx);
                                 self.update_focused_workspace(false)?;
                             }
-                            None => self.update_focused_workspace(true)?,
+                            None => self.update_focused_workspace(self.mouse_follows_focus)?,
                         }
                     }
                 } else {

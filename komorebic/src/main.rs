@@ -499,6 +499,8 @@ enum SubCommand {
     /// Toggle focus follows mouse for the operating system
     #[clap(setting = AppSettings::ArgRequiredElseHelp)]
     ToggleFocusFollowsMouse(ToggleFocusFollowsMouse),
+    /// Toggle mouse follows focus on all workspaces
+    ToggleMouseFollowsFocus,
     /// Generate a library of AutoHotKey helper functions
     AhkLibrary,
 }
@@ -918,6 +920,9 @@ fn main() -> Result<()> {
         }
         SubCommand::Unsubscribe(arg) => {
             send_message(&*SocketMessage::RemoveSubscriber(arg.named_pipe).as_bytes()?)?;
+        }
+        SubCommand::ToggleMouseFollowsFocus => {
+            send_message(&*SocketMessage::ToggleMouseFollowsFocus.as_bytes()?)?;
         }
     }
 

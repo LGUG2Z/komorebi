@@ -50,6 +50,7 @@ pub struct WindowManager {
     pub invisible_borders: Rect,
     pub work_area_offset: Option<Rect>,
     pub focus_follows_mouse: Option<FocusFollowsMouseImplementation>,
+    pub mouse_follows_focus: bool,
     pub hotwatch: Hotwatch,
     pub virtual_desktop_id: Option<usize>,
     pub has_pending_raise_op: bool,
@@ -63,6 +64,7 @@ pub struct State {
     pub invisible_borders: Rect,
     pub work_area_offset: Option<Rect>,
     pub focus_follows_mouse: Option<FocusFollowsMouseImplementation>,
+    pub mouse_follows_focus: bool,
     pub has_pending_raise_op: bool,
     pub float_identifiers: Vec<String>,
     pub manage_identifiers: Vec<String>,
@@ -79,6 +81,7 @@ impl From<&WindowManager> for State {
             invisible_borders: wm.invisible_borders,
             work_area_offset: wm.work_area_offset,
             focus_follows_mouse: wm.focus_follows_mouse.clone(),
+            mouse_follows_focus: wm.mouse_follows_focus,
             has_pending_raise_op: wm.has_pending_raise_op,
             float_identifiers: FLOAT_IDENTIFIERS.lock().clone(),
             manage_identifiers: MANAGE_IDENTIFIERS.lock().clone(),
@@ -151,6 +154,7 @@ impl WindowManager {
             },
             work_area_offset: None,
             focus_follows_mouse: None,
+            mouse_follows_focus: true,
             hotwatch: Hotwatch::new()?,
             virtual_desktop_id,
             has_pending_raise_op: false,
@@ -628,7 +632,7 @@ impl WindowManager {
     }
 
     #[tracing::instrument(skip(self))]
-    pub fn update_focused_workspace(&mut self, mouse_follows_focus: bool) -> Result<()> {
+    pub fn update_focused_workspace(&mut self, follow_focus: bool) -> Result<()> {
         tracing::info!("updating");
 
         let invisible_borders = self.invisible_borders;
@@ -638,15 +642,15 @@ impl WindowManager {
             .ok_or_else(|| anyhow!("there is no monitor"))?
             .update_focused_workspace(offset, &invisible_borders)?;
 
-        if mouse_follows_focus {
+        if follow_focus {
             if let Some(window) = self.focused_workspace()?.maximized_window() {
-                window.focus()?;
+                window.focus(self.mouse_follows_focus)?;
             } else if let Some(container) = self.focused_workspace()?.monocle_container() {
                 if let Some(window) = container.focused_window() {
-                    window.focus()?;
+                    window.focus(self.mouse_follows_focus)?;
                 }
             } else if let Ok(window) = self.focused_window_mut() {
-                window.focus()?;
+                window.focus(self.mouse_follows_focus)?;
             } else {
                 let desktop_window = Window {
                     hwnd: WindowsApi::desktop_window()?,
@@ -773,6 +777,7 @@ impl WindowManager {
 
         let invisible_borders = self.invisible_borders;
         let offset = self.work_area_offset;
+        let mouse_follows_focus = self.mouse_follows_focus;
 
         let monitor = self
             .focused_monitor_mut()
@@ -797,28 +802,29 @@ impl WindowManager {
             .ok_or_else(|| anyhow!("there is no monitor"))?;
 
         target_monitor.add_container(container)?;
-        target_monitor.load_focused_workspace()?;
+        target_monitor.load_focused_workspace(mouse_follows_focus)?;
         target_monitor.update_focused_workspace(offset, &invisible_borders)?;
 
         if follow {
             self.focus_monitor(idx)?;
         }
 
-        self.update_focused_workspace(true)
+        self.update_focused_workspace(self.mouse_follows_focus)
     }
 
     #[tracing::instrument(skip(self))]
     pub fn move_container_to_workspace(&mut self, idx: usize, follow: bool) -> Result<()> {
         tracing::info!("moving container");
 
+        let mouse_follows_focus = self.mouse_follows_focus;
         let monitor = self
             .focused_monitor_mut()
             .ok_or_else(|| anyhow!("there is no monitor"))?;
 
         monitor.move_container_to_workspace(idx, follow)?;
-        monitor.load_focused_workspace()?;
+        monitor.load_focused_workspace(mouse_follows_focus)?;
 
-        self.update_focused_workspace(true)
+        self.update_focused_workspace(mouse_follows_focus)
     }
 
     #[tracing::instrument(skip(self))]
@@ -831,7 +837,7 @@ impl WindowManager {
             .ok_or_else(|| anyhow!("this is not a valid direction from the current position"))?;
 
         workspace.focus_container(new_idx);
-        self.focused_window_mut()?.focus()?;
+        self.focused_window_mut()?.focus(self.mouse_follows_focus)?;
 
         Ok(())
     }
@@ -849,7 +855,7 @@ impl WindowManager {
 
         workspace.swap_containers(current_idx, new_idx);
         workspace.focus_container(new_idx);
-        self.update_focused_workspace(true)
+        self.update_focused_workspace(self.mouse_follows_focus)
     }
 
     #[tracing::instrument(skip(self))]
@@ -862,7 +868,7 @@ impl WindowManager {
             .ok_or_else(|| anyhow!("this is not a valid direction from the current position"))?;
 
         workspace.focus_container(new_idx);
-        self.focused_window_mut()?.focus()?;
+        self.focused_window_mut()?.focus(self.mouse_follows_focus)?;
 
         Ok(())
     }
@@ -880,7 +886,7 @@ impl WindowManager {
 
         workspace.swap_containers(current_idx, new_idx);
         workspace.focus_container(new_idx);
-        self.update_focused_workspace(true)
+        self.update_focused_workspace(self.mouse_follows_focus)
     }
 
     #[tracing::instrument(skip(self))]
@@ -902,7 +908,7 @@ impl WindowManager {
         container.focus_window(next_idx);
         container.load_focused_window();
 
-        self.update_focused_workspace(true)
+        self.update_focused_workspace(self.mouse_follows_focus)
     }
 
     #[tracing::instrument(skip(self))]
@@ -935,7 +941,7 @@ impl WindowManager {
             };
 
             workspace.move_window_to_container(adjusted_new_index)?;
-            self.update_focused_workspace(true)?;
+            self.update_focused_workspace(self.mouse_follows_focus)?;
         }
 
         Ok(())
@@ -947,7 +953,7 @@ impl WindowManager {
 
         let workspace = self.focused_workspace_mut()?;
         workspace.promote_container()?;
-        self.update_focused_workspace(true)
+        self.update_focused_workspace(self.mouse_follows_focus)
     }
 
     #[tracing::instrument(skip(self))]
@@ -961,7 +967,7 @@ impl WindowManager {
         let workspace = self.focused_workspace_mut()?;
 
         workspace.new_container_for_focused_window()?;
-        self.update_focused_workspace(true)
+        self.update_focused_workspace(self.mouse_follows_focus)
     }
 
     #[tracing::instrument(skip(self))]
@@ -1009,7 +1015,7 @@ impl WindowManager {
             .ok_or_else(|| anyhow!("there is no floating window"))?;
 
         window.center(&work_area, &invisible_borders)?;
-        window.focus()?;
+        window.focus(self.mouse_follows_focus)?;
 
         Ok(())
     }
@@ -1143,7 +1149,7 @@ impl WindowManager {
         }
 
         workspace.set_layout(Layout::Default(layout));
-        self.update_focused_workspace(true)
+        self.update_focused_workspace(self.mouse_follows_focus)
     }
 
     #[tracing::instrument(skip(self))]
@@ -1169,7 +1175,7 @@ impl WindowManager {
         }
 
         workspace.set_layout(Layout::Custom(layout));
-        self.update_focused_workspace(true)
+        self.update_focused_workspace(self.mouse_follows_focus)
     }
 
     #[tracing::instrument(skip(self))]
@@ -1451,28 +1457,30 @@ impl WindowManager {
     pub fn focus_workspace(&mut self, idx: usize) -> Result<()> {
         tracing::info!("focusing workspace");
 
+        let mouse_follows_focus = self.mouse_follows_focus;
         let monitor = self
             .focused_monitor_mut()
             .ok_or_else(|| anyhow!("there is no workspace"))?;
 
         monitor.focus_workspace(idx)?;
-        monitor.load_focused_workspace()?;
+        monitor.load_focused_workspace(mouse_follows_focus)?;
 
-        self.update_focused_workspace(true)
+        self.update_focused_workspace(mouse_follows_focus)
     }
 
     #[tracing::instrument(skip(self))]
     pub fn new_workspace(&mut self) -> Result<()> {
         tracing::info!("adding new workspace");
 
+        let mouse_follows_focus = self.mouse_follows_focus;
         let monitor = self
             .focused_monitor_mut()
             .ok_or_else(|| anyhow!("there is no workspace"))?;
 
         monitor.focus_workspace(monitor.new_workspace_idx())?;
-        monitor.load_focused_workspace()?;
+        monitor.load_focused_workspace(mouse_follows_focus)?;
 
-        self.update_focused_workspace(true)
+        self.update_focused_workspace(self.mouse_follows_focus)
     }
 
     pub fn focused_container(&self) -> Result<&Container> {

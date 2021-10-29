@@ -93,6 +93,7 @@ pub enum SocketMessage {
     Query(StateQuery),
     FocusFollowsMouse(FocusFollowsMouseImplementation, bool),
     ToggleFocusFollowsMouse(FocusFollowsMouseImplementation),
+    ToggleMouseFollowsFocus,
     AddSubscriber(String),
     RemoveSubscriber(String),
 }

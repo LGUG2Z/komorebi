@@ -150,11 +150,11 @@ impl WindowManager {
                 );
 
                 self.focus_monitor(monitor_idx)?;
-                self.update_focused_workspace(true)?;
+                self.update_focused_workspace(self.mouse_follows_focus)?;
             }
             SocketMessage::FocusMonitorNumber(monitor_idx) => {
                 self.focus_monitor(monitor_idx)?;
-                self.update_focused_workspace(true)?;
+                self.update_focused_workspace(self.mouse_follows_focus)?;
             }
             SocketMessage::Retile => self.retile_all()?,
             SocketMessage::FlipLayout(layout_flip) => self.flip_layout(layout_flip)?,
@@ -452,6 +452,9 @@ impl WindowManager {
             SocketMessage::RemoveSubscriber(subscriber) => {
                 let mut pipes = SUBSCRIPTION_PIPES.lock();
                 pipes.remove(&subscriber);
+            }
+            SocketMessage::ToggleMouseFollowsFocus => {
+                self.mouse_follows_focus = !self.mouse_follows_focus;
             }
         };
 

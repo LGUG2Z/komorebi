@@ -244,6 +244,10 @@ ToggleFocusFollowsMouse(implementation) {
     Run, komorebic.exe toggle-focus-follows-mouse  --implementation %implementation%, , Hide
 }
 
+ToggleMouseFollowsFocus() {
+    Run, komorebic.exe toggle-mouse-follows-focus, , Hide
+}
+
 AhkLibrary() {
     Run, komorebic.exe ahk-library, , Hide
 }

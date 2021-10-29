@@ -101,7 +101,7 @@ impl Workspace {
         }
     }
 
-    pub fn restore(&mut self) -> Result<()> {
+    pub fn restore(&mut self, mouse_follows_focus: bool) -> Result<()> {
         let idx = self.focused_container_idx();
         let mut to_focus = None;
         for (i, container) in self.containers_mut().iter_mut().enumerate() {
@@ -132,7 +132,7 @@ impl Workspace {
         // Maximised windows should always be drawn at the top of the Z order
         if let Some(window) = to_focus {
             if self.maximized_window().is_none() {
-                window.focus()?;
+                window.focus(mouse_follows_focus)?;
             }
         }
 

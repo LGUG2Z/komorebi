@@ -187,7 +187,7 @@ impl Window {
         WindowsApi::set_focus(self.hwnd())
     }
 
-    pub fn focus(self) -> Result<()> {
+    pub fn focus(self, mouse_follows_focus: bool) -> Result<()> {
         // Attach komorebi thread to Window thread
         let (_, window_thread_id) = WindowsApi::window_thread_process_id(self.hwnd());
         let current_thread_id = WindowsApi::current_thread_id();
@@ -205,7 +205,9 @@ impl Window {
         };
 
         // Center cursor in Window
-        WindowsApi::center_cursor_in_rect(&WindowsApi::window_rect(self.hwnd())?)?;
+        if mouse_follows_focus {
+            WindowsApi::center_cursor_in_rect(&WindowsApi::window_rect(self.hwnd())?)?;
+        }
 
         // This isn't really needed when the above command works as expected via AHK
         WindowsApi::set_focus(self.hwnd())

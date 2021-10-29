@@ -188,6 +188,16 @@ passing it as an argument to the `--implementation` flag:
 komorebic.exe toggle-focus-follows-mouse --implementation komorebi
 ```
 
+#### Mouse Follows Focus
+
+By default, the mouse will move to the center of the window when the focus is changed in a given direction. This
+behaviour is know is 'mouse follows focus'. To disable this behaviour across all workspaces, add the following command
+to your configuration file:
+
+```ahk
+Run, komorebic.exe toggle-mouse-follows-focus, , Hide
+```
+
 #### Saving and Loading Resized Layouts
 
 If you create a BSP layout through various resize adjustments that you want to be able to restore easily in the future,
@@ -385,6 +395,7 @@ used [is available here](komorebi.sample.with.lib.ahk).
 - [x] Toggle floating windows
 - [x] Toggle monocle window
 - [x] Toggle native maximization
+- [x] Toggle mouse follows focus
 - [x] Toggle Xmouse/Windows focus follows mouse implementation
 - [x] Toggle Komorebi focus follows mouse implementation (desktop and system tray-aware)
 - [x] Toggle automatic tiling
@@ -470,16 +481,16 @@ Note that you do not have to include the full path of the named pipe, just the n
 If the named pipe exists, `komorebi` will start pushing JSON data of successfully handled events and messages:
 
 ```json lines
-{"event":{"type":"AddSubscriber","content":"yasb"},"state":{...}}
-{"event":{"type":"FocusWindow","content":"Left"},"state":{...}}
-{"event":{"type":"FocusChange","content":["SystemForeground",{"hwnd":131444,"title":"komorebi – README.md","exe":"idea64.exe","class":"SunAwtFrame","rect":{"left":13,"top":60,"right":1520,"bottom":1655}}]},"state":{...}}
-{"event":{"type":"MonitorPoll","content":["ObjectCreate",{"hwnd":5572450,"title":"OLEChannelWnd","exe":"explorer.exe","class":"OleMainThreadWndClass","rect":{"left":0,"top":0,"right":0,"bottom":0}}]},"state":{...}}
-{"event":{"type":"FocusWindow","content":"Right"},"state":{...}}
-{"event":{"type":"FocusChange","content":["SystemForeground",{"hwnd":132968,"title":"Windows PowerShell","exe":"WindowsTerminal.exe","class":"CASCADIA_HOSTING_WINDOW_CLASS","rect":{"left":1539,"top":60,"right":1520,"bottom":821}}]},"state":{}...}
-{"event":{"type":"FocusWindow","content":"Down"},"state":{...}}
-{"event":{"type":"FocusChange","content":["SystemForeground",{"hwnd":329264,"title":"den — Mozilla Firefox","exe":"firefox.exe","class":"MozillaWindowClass","rect":{"left":1539,"top":894,"right":1520,"bottom":821}}]},"state":{...}}
-{"event":{"type":"FocusWindow","content":"Up"},"state":{...}}
-{"event":{"type":"FocusChange","content":["SystemForeground",{"hwnd":132968,"title":"Windows PowerShell","exe":"WindowsTerminal.exe","class":"CASCADIA_HOSTING_WINDOW_CLASS","rect":{"left":1539,"top":60,"right":1520,"bottom":821}}]},"state":{...}}
+{"event":{"type":"AddSubscriber","content":"yasb"},"state":{}}
+{"event":{"type":"FocusWindow","content":"Left"},"state":{}}
+{"event":{"type":"FocusChange","content":["SystemForeground",{"hwnd":131444,"title":"komorebi – README.md","exe":"idea64.exe","class":"SunAwtFrame","rect":{"left":13,"top":60,"right":1520,"bottom":1655}}]},"state":{}}
+{"event":{"type":"MonitorPoll","content":["ObjectCreate",{"hwnd":5572450,"title":"OLEChannelWnd","exe":"explorer.exe","class":"OleMainThreadWndClass","rect":{"left":0,"top":0,"right":0,"bottom":0}}]},"state":{}}
+{"event":{"type":"FocusWindow","content":"Right"},"state":{}}
+{"event":{"type":"FocusChange","content":["SystemForeground",{"hwnd":132968,"title":"Windows PowerShell","exe":"WindowsTerminal.exe","class":"CASCADIA_HOSTING_WINDOW_CLASS","rect":{"left":1539,"top":60,"right":1520,"bottom":821}}]},"state":{}}
+{"event":{"type":"FocusWindow","content":"Down"},"state":{}}
+{"event":{"type":"FocusChange","content":["SystemForeground",{"hwnd":329264,"title":"den — Mozilla Firefox","exe":"firefox.exe","class":"MozillaWindowClass","rect":{"left":1539,"top":894,"right":1520,"bottom":821}}]},"state":{}}
+{"event":{"type":"FocusWindow","content":"Up"},"state":{}}
+{"event":{"type":"FocusChange","content":["SystemForeground",{"hwnd":132968,"title":"Windows PowerShell","exe":"WindowsTerminal.exe","class":"CASCADIA_HOSTING_WINDOW_CLASS","rect":{"left":1539,"top":60,"right":1520,"bottom":821}}]},"state":{}}
 ```
 
 You may then filter on the `type` key to listen to the events that you are interested in. For a full list of possible
