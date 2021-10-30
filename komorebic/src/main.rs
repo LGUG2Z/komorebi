@@ -88,6 +88,7 @@ gen_enum_subcommand_args! {
     FlipLayout: Flip,
     ChangeLayout: DefaultLayout,
     WatchConfiguration: BooleanState,
+    MouseFollowsFocus: BooleanState,
     Query: StateQuery,
 }
 
@@ -499,6 +500,9 @@ enum SubCommand {
     /// Toggle focus follows mouse for the operating system
     #[clap(setting = AppSettings::ArgRequiredElseHelp)]
     ToggleFocusFollowsMouse(ToggleFocusFollowsMouse),
+    /// Enable or disable mouse follows focus on all workspaces
+    #[clap(setting = AppSettings::ArgRequiredElseHelp)]
+    MouseFollowsFocus(MouseFollowsFocus),
     /// Toggle mouse follows focus on all workspaces
     ToggleMouseFollowsFocus,
     /// Generate a library of AutoHotKey helper functions
@@ -923,6 +927,14 @@ fn main() -> Result<()> {
         }
         SubCommand::ToggleMouseFollowsFocus => {
             send_message(&*SocketMessage::ToggleMouseFollowsFocus.as_bytes()?)?;
+        }
+        SubCommand::MouseFollowsFocus(arg) => {
+            let enable = match arg.boolean_state {
+                BooleanState::Enable => true,
+                BooleanState::Disable => false,
+            };
+
+            send_message(&*SocketMessage::MouseFollowsFocus(enable).as_bytes()?)?;
         }
     }
 

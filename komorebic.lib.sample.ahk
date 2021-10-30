@@ -244,6 +244,10 @@ ToggleFocusFollowsMouse(implementation) {
     Run, komorebic.exe toggle-focus-follows-mouse  --implementation %implementation%, , Hide
 }
 
+MouseFollowsFocus(boolean_state) {
+    Run, komorebic.exe mouse-follows-focus %boolean_state%, , Hide
+}
+
 ToggleMouseFollowsFocus() {
     Run, komorebic.exe toggle-mouse-follows-focus, , Hide
 }

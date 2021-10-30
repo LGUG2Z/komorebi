@@ -453,6 +453,9 @@ impl WindowManager {
                 let mut pipes = SUBSCRIPTION_PIPES.lock();
                 pipes.remove(&subscriber);
             }
+            SocketMessage::MouseFollowsFocus(enable) => {
+                self.mouse_follows_focus = enable;
+            }
             SocketMessage::ToggleMouseFollowsFocus => {
                 self.mouse_follows_focus = !self.mouse_follows_focus;
             }
