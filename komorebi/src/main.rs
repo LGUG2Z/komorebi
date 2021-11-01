@@ -328,6 +328,11 @@ fn main() -> Result<()> {
         tracing::error!("received ctrl-c, restoring all hidden windows and terminating process");
 
         wm.lock().restore_all_windows();
+
+        if WindowsApi::focus_follows_mouse()? {
+            WindowsApi::disable_focus_follows_mouse()?;
+        }
+
         std::process::exit(130);
     }
 

@@ -203,7 +203,6 @@ impl WindowManager {
                 })?;
 
                 self.focus_monitor(monitor_idx)?;
-
                 self.focus_workspace(workspace_idx)?;
             }
             SocketMessage::Stop => {
@@ -211,6 +210,11 @@ impl WindowManager {
                     "received stop command, restoring all hidden windows and terminating process"
                 );
                 self.restore_all_windows();
+
+                if WindowsApi::focus_follows_mouse()? {
+                    WindowsApi::disable_focus_follows_mouse()?;
+                }
+
                 std::process::exit(0)
             }
             SocketMessage::EnsureWorkspaces(monitor_idx, workspace_count) => {
