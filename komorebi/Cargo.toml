@@ -32,7 +32,7 @@ strum = { version = "0.21", features = ["derive"] }
 sysinfo = "0.20"
 tracing = "0.1"
 tracing-appender = "0.1"
-tracing-subscriber = "0.2"
+tracing-subscriber = "0.3"
 uds_windows = "1"
 which = "4"
 winput = "0.2"
