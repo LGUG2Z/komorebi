@@ -31,7 +31,7 @@ serde_json = "1"
 strum = { version = "0.21", features = ["derive"] }
 sysinfo = "0.20"
 tracing = "0.1"
-tracing-appender = "0.1"
+tracing-appender = "0.2"
 tracing-subscriber = "0.2"
 uds_windows = "1"
 which = "4"
