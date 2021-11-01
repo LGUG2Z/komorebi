@@ -13,7 +13,7 @@ use std::thread;
 #[cfg(feature = "deadlock_detection")]
 use std::time::Duration;
 
-use clap::Clap;
+use clap::Parser;
 use color_eyre::eyre::anyhow;
 use color_eyre::Result;
 use crossbeam_channel::Receiver;
@@ -260,7 +260,7 @@ fn detect_deadlocks() {
     });
 }
 
-#[derive(Clap)]
+#[derive(Parser)]
 #[clap(author, about, version)]
 struct Opts {
     /// Allow the use of komorebi's custom focus-follows-mouse implementation

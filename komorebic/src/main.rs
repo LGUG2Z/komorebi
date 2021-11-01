@@ -12,7 +12,7 @@ use std::process::Command;
 
 use clap::AppSettings;
 use clap::ArgEnum;
-use clap::Clap;
+use clap::Parser;
 use color_eyre::eyre::anyhow;
 use color_eyre::Result;
 use fs_tail::TailedFile;
@@ -46,7 +46,7 @@ trait AhkFunction {
     fn generate_ahk_function() -> String;
 }
 
-#[derive(ArgEnum)]
+#[derive(Copy, Clone, ArgEnum)]
 enum BooleanState {
     Enable,
     Disable,
@@ -66,7 +66,7 @@ macro_rules! gen_enum_subcommand_args {
     ( $( $name:ident: $element:ty ),+ $(,)? ) => {
         $(
             paste! {
-                #[derive(clap::Clap, derive_ahk::AhkFunction)]
+                #[derive(clap::Parser, derive_ahk::AhkFunction)]
                 pub struct $name {
                     #[clap(arg_enum)]
                     [<$element:snake>]: $element
@@ -96,7 +96,7 @@ macro_rules! gen_target_subcommand_args {
     // SubCommand Pattern
     ( $( $name:ident ),+ $(,)? ) => {
         $(
-            #[derive(clap::Clap, derive_ahk::AhkFunction)]
+            #[derive(clap::Parser, derive_ahk::AhkFunction)]
             pub struct $name {
                 /// Target index (zero-indexed)
                 target: usize,
@@ -122,7 +122,7 @@ macro_rules! gen_workspace_subcommand_args {
     ( $( $name:ident: $(#[enum] $(@$arg_enum:tt)?)? $value:ty ),+ $(,)? ) => (
         paste! {
             $(
-                #[derive(clap::Clap, derive_ahk::AhkFunction)]
+                #[derive(clap::Parser, derive_ahk::AhkFunction)]
                 pub struct [<Workspace $name>] {
                     /// Monitor index (zero-indexed)
                     monitor: usize,
@@ -148,7 +148,7 @@ gen_workspace_subcommand_args! {
     Tiling: #[enum] BooleanState,
 }
 
-#[derive(Clap, AhkFunction)]
+#[derive(Parser, AhkFunction)]
 pub struct WorkspaceCustomLayout {
     /// Monitor index (zero-indexed)
     monitor: usize,
@@ -160,7 +160,7 @@ pub struct WorkspaceCustomLayout {
     path: String,
 }
 
-#[derive(Clap, AhkFunction)]
+#[derive(Parser, AhkFunction)]
 struct Resize {
     #[clap(arg_enum)]
     edge: OperationDirection,
@@ -168,7 +168,7 @@ struct Resize {
     sizing: Sizing,
 }
 
-#[derive(Clap, AhkFunction)]
+#[derive(Parser, AhkFunction)]
 struct InvisibleBorders {
     /// Size of the left invisible border
     left: i32,
@@ -180,7 +180,7 @@ struct InvisibleBorders {
     bottom: i32,
 }
 
-#[derive(Clap, AhkFunction)]
+#[derive(Parser, AhkFunction)]
 struct WorkAreaOffset {
     /// Size of the left work area offset (set right to left * 2 to maintain right padding)
     left: i32,
@@ -192,7 +192,7 @@ struct WorkAreaOffset {
     bottom: i32,
 }
 
-#[derive(Clap, AhkFunction)]
+#[derive(Parser, AhkFunction)]
 struct EnsureWorkspaces {
     /// Monitor index (zero-indexed)
     monitor: usize,
@@ -204,7 +204,7 @@ macro_rules! gen_padding_subcommand_args {
     // SubCommand Pattern
     ( $( $name:ident ),+ $(,)? ) => {
         $(
-            #[derive(clap::Clap, derive_ahk::AhkFunction)]
+            #[derive(clap::Parser, derive_ahk::AhkFunction)]
             pub struct $name {
                 /// Monitor index (zero-indexed)
                 monitor: usize,
@@ -226,7 +226,7 @@ macro_rules! gen_padding_adjustment_subcommand_args {
     // SubCommand Pattern
     ( $( $name:ident ),+ $(,)? ) => {
         $(
-            #[derive(clap::Clap, derive_ahk::AhkFunction)]
+            #[derive(clap::Parser, derive_ahk::AhkFunction)]
             pub struct $name {
                 #[clap(arg_enum)]
                 sizing: Sizing,
@@ -246,7 +246,7 @@ macro_rules! gen_application_target_subcommand_args {
     // SubCommand Pattern
     ( $( $name:ident ),+ $(,)? ) => {
         $(
-            #[derive(clap::Clap, derive_ahk::AhkFunction)]
+            #[derive(clap::Parser, derive_ahk::AhkFunction)]
             pub struct $name {
                 #[clap(arg_enum)]
                 identifier: ApplicationIdentifier,
@@ -264,7 +264,7 @@ gen_application_target_subcommand_args! {
     IdentifyBorderOverflow,
 }
 
-#[derive(Clap, AhkFunction)]
+#[derive(Parser, AhkFunction)]
 struct WorkspaceRule {
     #[clap(arg_enum)]
     identifier: ApplicationIdentifier,
@@ -276,13 +276,13 @@ struct WorkspaceRule {
     workspace: usize,
 }
 
-#[derive(Clap, AhkFunction)]
+#[derive(Parser, AhkFunction)]
 struct ToggleFocusFollowsMouse {
     #[clap(arg_enum, short, long, default_value = "windows")]
     implementation: FocusFollowsMouseImplementation,
 }
 
-#[derive(Clap, AhkFunction)]
+#[derive(Parser, AhkFunction)]
 struct FocusFollowsMouse {
     #[clap(arg_enum, short, long, default_value = "windows")]
     implementation: FocusFollowsMouseImplementation,
@@ -290,51 +290,51 @@ struct FocusFollowsMouse {
     boolean_state: BooleanState,
 }
 
-#[derive(Clap, AhkFunction)]
+#[derive(Parser, AhkFunction)]
 struct Start {
     /// Allow the use of komorebi's custom focus-follows-mouse implementation
     #[clap(long)]
     ffm: bool,
 }
 
-#[derive(Clap, AhkFunction)]
+#[derive(Parser, AhkFunction)]
 struct Save {
     /// File to which the resize layout dimensions should be saved
     path: String,
 }
 
-#[derive(Clap, AhkFunction)]
+#[derive(Parser, AhkFunction)]
 struct Load {
     /// File from which the resize layout dimensions should be loaded
     path: String,
 }
 
-#[derive(Clap, AhkFunction)]
+#[derive(Parser, AhkFunction)]
 struct LoadCustomLayout {
     /// JSON or YAML file from which the custom layout definition should be loaded
     path: String,
 }
 
-#[derive(Clap, AhkFunction)]
+#[derive(Parser, AhkFunction)]
 struct Subscribe {
     /// Name of the pipe to send event notifications to (without "\\.\pipe\" prepended)
     named_pipe: String,
 }
 
-#[derive(Clap, AhkFunction)]
+#[derive(Parser, AhkFunction)]
 struct Unsubscribe {
     /// Name of the pipe to stop sending event notifications to (without "\\.\pipe\" prepended)
     named_pipe: String,
 }
 
-#[derive(Clap)]
+#[derive(Parser)]
 #[clap(author, about, version, setting = AppSettings::DeriveDisplayOrder)]
 struct Opts {
     #[clap(subcommand)]
     subcmd: SubCommand,
 }
 
-#[derive(Clap, AhkLibrary)]
+#[derive(Parser, AhkLibrary)]
 enum SubCommand {
     /// Start komorebi.exe as a background process
     Start(Start),
@@ -871,24 +871,18 @@ fn main() -> Result<()> {
             send_message(&*SocketMessage::ResizeWindow(resize.edge, resize.sizing).as_bytes()?)?;
         }
         SubCommand::FocusFollowsMouse(arg) => {
-            let enable = match arg.boolean_state {
-                BooleanState::Enable => true,
-                BooleanState::Disable => false,
-            };
-
             send_message(
-                &*SocketMessage::FocusFollowsMouse(arg.implementation, enable).as_bytes()?,
+                &*SocketMessage::FocusFollowsMouse(arg.implementation, arg.boolean_state.into())
+                    .as_bytes()?,
             )?;
         }
         SubCommand::ReloadConfiguration => {
             send_message(&*SocketMessage::ReloadConfiguration.as_bytes()?)?;
         }
         SubCommand::WatchConfiguration(arg) => {
-            let enable = match arg.boolean_state {
-                BooleanState::Enable => true,
-                BooleanState::Disable => false,
-            };
-            send_message(&*SocketMessage::WatchConfiguration(enable).as_bytes()?)?;
+            send_message(
+                &*SocketMessage::WatchConfiguration(arg.boolean_state.into()).as_bytes()?,
+            )?;
         }
         SubCommand::IdentifyTrayApplication(target) => {
             send_message(
@@ -929,12 +923,7 @@ fn main() -> Result<()> {
             send_message(&*SocketMessage::ToggleMouseFollowsFocus.as_bytes()?)?;
         }
         SubCommand::MouseFollowsFocus(arg) => {
-            let enable = match arg.boolean_state {
-                BooleanState::Enable => true,
-                BooleanState::Disable => false,
-            };
-
-            send_message(&*SocketMessage::MouseFollowsFocus(enable).as_bytes()?)?;
+            send_message(&*SocketMessage::MouseFollowsFocus(arg.boolean_state.into()).as_bytes()?)?;
         }
     }
 
