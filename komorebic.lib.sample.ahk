@@ -68,6 +68,10 @@ Resize(edge, sizing) {
     Run, komorebic.exe resize %edge% %sizing%, , Hide
 }
 
+ResizeAxis(axis, sizing) {
+    Run, komorebic.exe resize-axis %axis% %sizing%, , Hide
+}
+
 Unstack() {
     Run, komorebic.exe unstack, , Hide
 }
@@ -136,8 +140,8 @@ LoadCustomLayout(path) {
     Run, komorebic.exe load-custom-layout %path%, , Hide
 }
 
-FlipLayout(flip) {
-    Run, komorebic.exe flip-layout %flip%, , Hide
+FlipLayout(axis) {
+    Run, komorebic.exe flip-layout %axis%, , Hide
 }
 
 Promote() {

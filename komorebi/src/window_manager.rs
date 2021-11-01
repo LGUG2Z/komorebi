@@ -16,9 +16,9 @@ use uds_windows::UnixListener;
 
 use komorebi_core::custom_layout::CustomLayout;
 use komorebi_core::Arrangement;
+use komorebi_core::Axis;
 use komorebi_core::CycleDirection;
 use komorebi_core::DefaultLayout;
-use komorebi_core::Flip;
 use komorebi_core::FocusFollowsMouseImplementation;
 use komorebi_core::Layout;
 use komorebi_core::OperationDirection;
@@ -677,6 +677,7 @@ impl WindowManager {
         direction: OperationDirection,
         sizing: Sizing,
         step: Option<i32>,
+        update: bool,
     ) -> Result<()> {
         let work_area = self.focused_monitor_work_area()?;
         let workspace = self.focused_workspace_mut()?;
@@ -715,21 +716,21 @@ impl WindowManager {
                     // can flip them however they need to be flipped once the resizing has been done
                     if let Some(flip) = workspace.layout_flip() {
                         match flip {
-                            Flip::Horizontal => {
+                            Axis::Horizontal => {
                                 if matches!(direction, OperationDirection::Left)
                                     || matches!(direction, OperationDirection::Right)
                                 {
                                     direction = direction.opposite();
                                 }
                             }
-                            Flip::Vertical => {
+                            Axis::Vertical => {
                                 if matches!(direction, OperationDirection::Up)
                                     || matches!(direction, OperationDirection::Down)
                                 {
                                     direction = direction.opposite();
                                 }
                             }
-                            Flip::HorizontalAndVertical => direction = direction.opposite(),
+                            Axis::HorizontalAndVertical => direction = direction.opposite(),
                         }
                     }
 
@@ -744,7 +745,12 @@ impl WindowManager {
                     );
 
                     workspace.resize_dimensions_mut()[focused_idx] = resize;
-                    return self.update_focused_workspace(false);
+
+                    return if update {
+                        self.update_focused_workspace(false)
+                    } else {
+                        Ok(())
+                    };
                 }
 
                 tracing::warn!("cannot resize container in this direction");
@@ -1085,7 +1091,7 @@ impl WindowManager {
     }
 
     #[tracing::instrument(skip(self))]
-    pub fn flip_layout(&mut self, layout_flip: Flip) -> Result<()> {
+    pub fn flip_layout(&mut self, layout_flip: Axis) -> Result<()> {
         tracing::info!("flipping layout");
 
         let workspace = self.focused_workspace_mut()?;
@@ -1097,28 +1103,28 @@ impl WindowManager {
             }
             Some(current_layout_flip) => {
                 match current_layout_flip {
-                    Flip::Horizontal => match layout_flip {
-                        Flip::Horizontal => workspace.set_layout_flip(None),
-                        Flip::Vertical => {
-                            workspace.set_layout_flip(Option::from(Flip::HorizontalAndVertical))
+                    Axis::Horizontal => match layout_flip {
+                        Axis::Horizontal => workspace.set_layout_flip(None),
+                        Axis::Vertical => {
+                            workspace.set_layout_flip(Option::from(Axis::HorizontalAndVertical))
                         }
-                        Flip::HorizontalAndVertical => {
-                            workspace.set_layout_flip(Option::from(Flip::HorizontalAndVertical))
-                        }
-                    },
-                    Flip::Vertical => match layout_flip {
-                        Flip::Horizontal => {
-                            workspace.set_layout_flip(Option::from(Flip::HorizontalAndVertical))
-                        }
-                        Flip::Vertical => workspace.set_layout_flip(None),
-                        Flip::HorizontalAndVertical => {
-                            workspace.set_layout_flip(Option::from(Flip::HorizontalAndVertical))
+                        Axis::HorizontalAndVertical => {
+                            workspace.set_layout_flip(Option::from(Axis::HorizontalAndVertical))
                         }
                     },
-                    Flip::HorizontalAndVertical => match layout_flip {
-                        Flip::Horizontal => workspace.set_layout_flip(Option::from(Flip::Vertical)),
-                        Flip::Vertical => workspace.set_layout_flip(Option::from(Flip::Horizontal)),
-                        Flip::HorizontalAndVertical => workspace.set_layout_flip(None),
+                    Axis::Vertical => match layout_flip {
+                        Axis::Horizontal => {
+                            workspace.set_layout_flip(Option::from(Axis::HorizontalAndVertical))
+                        }
+                        Axis::Vertical => workspace.set_layout_flip(None),
+                        Axis::HorizontalAndVertical => {
+                            workspace.set_layout_flip(Option::from(Axis::HorizontalAndVertical))
+                        }
+                    },
+                    Axis::HorizontalAndVertical => match layout_flip {
+                        Axis::Horizontal => workspace.set_layout_flip(Option::from(Axis::Vertical)),
+                        Axis::Vertical => workspace.set_layout_flip(Option::from(Axis::Horizontal)),
+                        Axis::HorizontalAndVertical => workspace.set_layout_flip(None),
                     },
                 };
             }

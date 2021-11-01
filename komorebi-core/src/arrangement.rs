@@ -19,7 +19,7 @@ pub trait Arrangement {
         area: &Rect,
         len: NonZeroUsize,
         container_padding: Option<i32>,
-        layout_flip: Option<Flip>,
+        layout_flip: Option<Axis>,
         resize_dimensions: &[Option<Rect>],
     ) -> Vec<Rect>;
 }
@@ -31,7 +31,7 @@ impl Arrangement for DefaultLayout {
         area: &Rect,
         len: NonZeroUsize,
         container_padding: Option<i32>,
-        layout_flip: Option<Flip>,
+        layout_flip: Option<Axis>,
         resize_dimensions: &[Option<Rect>],
     ) -> Vec<Rect> {
         let len = usize::from(len);
@@ -57,7 +57,7 @@ impl Arrangement for DefaultLayout {
                 let mut stack_left = area.left + primary_right;
 
                 match layout_flip {
-                    Some(Flip::Horizontal | Flip::HorizontalAndVertical) if len > 1 => {
+                    Some(Axis::Horizontal | Axis::HorizontalAndVertical) if len > 1 => {
                         main_left = main_left + area.right - primary_right;
                         stack_left = area.left;
                     }
@@ -99,7 +99,7 @@ impl Arrangement for DefaultLayout {
                 let mut stack_top = area.top + bottom;
 
                 match layout_flip {
-                    Some(Flip::Vertical | Flip::HorizontalAndVertical) if len > 1 => {
+                    Some(Axis::Vertical | Axis::HorizontalAndVertical) if len > 1 => {
                         main_top = main_top + area.bottom - bottom;
                         stack_top = area.top;
                     }
@@ -150,7 +150,7 @@ impl Arrangement for DefaultLayout {
                         let mut secondary = area.left;
 
                         match layout_flip {
-                            Some(Flip::Horizontal | Flip::HorizontalAndVertical) if len > 1 => {
+                            Some(Axis::Horizontal | Axis::HorizontalAndVertical) if len > 1 => {
                                 primary = area.left;
                                 secondary = area.left + primary_right;
                             }
@@ -165,7 +165,7 @@ impl Arrangement for DefaultLayout {
                         let mut stack = area.left + primary_right + secondary_right;
 
                         match layout_flip {
-                            Some(Flip::Horizontal | Flip::HorizontalAndVertical) if len > 1 => {
+                            Some(Axis::Horizontal | Axis::HorizontalAndVertical) if len > 1 => {
                                 secondary = area.left + primary_right + secondary_right;
                                 stack = area.left;
                             }
@@ -224,7 +224,7 @@ impl Arrangement for CustomLayout {
         area: &Rect,
         len: NonZeroUsize,
         container_padding: Option<i32>,
-        _layout_flip: Option<Flip>,
+        _layout_flip: Option<Axis>,
         _resize_dimensions: &[Option<Rect>],
     ) -> Vec<Rect> {
         let mut dimensions = vec![];
@@ -343,7 +343,7 @@ impl Arrangement for CustomLayout {
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, Display, EnumString, ArgEnum)]
 #[strum(serialize_all = "snake_case")]
-pub enum Flip {
+pub enum Axis {
     Horizontal,
     Vertical,
     HorizontalAndVertical,
@@ -478,7 +478,7 @@ fn recursive_fibonacci(
     idx: usize,
     count: usize,
     area: &Rect,
-    layout_flip: Option<Flip>,
+    layout_flip: Option<Axis>,
     resize_adjustments: Vec<Option<Rect>>,
 ) -> Vec<Rect> {
     let mut a = *area;
@@ -502,21 +502,21 @@ fn recursive_fibonacci(
 
     if let Some(flip) = layout_flip {
         match flip {
-            Flip::Horizontal => {
+            Axis::Horizontal => {
                 main_x = resized.left + half_width + (half_width - half_resized_width);
                 alt_x = resized.left;
 
                 alt_y = resized.top + half_resized_height;
                 main_y = resized.top;
             }
-            Flip::Vertical => {
+            Axis::Vertical => {
                 main_y = resized.top + half_height + (half_height - half_resized_height);
                 alt_y = resized.top;
 
                 main_x = resized.left;
                 alt_x = resized.left + half_resized_width;
             }
-            Flip::HorizontalAndVertical => {
+            Axis::HorizontalAndVertical => {
                 main_x = resized.left + half_width + (half_width - half_resized_width);
                 alt_x = resized.left;
                 main_y = resized.top + half_height + (half_height - half_resized_height);

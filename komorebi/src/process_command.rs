@@ -15,7 +15,9 @@ use miow::pipe::connect;
 use parking_lot::Mutex;
 use uds_windows::UnixStream;
 
+use komorebi_core::Axis;
 use komorebi_core::FocusFollowsMouseImplementation;
+use komorebi_core::OperationDirection;
 use komorebi_core::Rect;
 use komorebi_core::SocketMessage;
 use komorebi_core::StateQuery;
@@ -260,8 +262,67 @@ impl WindowManager {
                 let mut stream = UnixStream::connect(&socket)?;
                 stream.write_all(response.as_bytes())?;
             }
-            SocketMessage::ResizeWindow(direction, sizing) => {
-                self.resize_window(direction, sizing, Option::from(50))?;
+            SocketMessage::ResizeWindowEdge(direction, sizing) => {
+                self.resize_window(direction, sizing, Option::from(50), true)?;
+            }
+            SocketMessage::ResizeWindowAxis(axis, sizing) => {
+                match axis {
+                    Axis::Horizontal => {
+                        self.resize_window(
+                            OperationDirection::Left,
+                            sizing,
+                            Option::from(50),
+                            false,
+                        )?;
+                        self.resize_window(
+                            OperationDirection::Right,
+                            sizing,
+                            Option::from(50),
+                            false,
+                        )?;
+                    }
+                    Axis::Vertical => {
+                        self.resize_window(
+                            OperationDirection::Up,
+                            sizing,
+                            Option::from(50),
+                            false,
+                        )?;
+                        self.resize_window(
+                            OperationDirection::Down,
+                            sizing,
+                            Option::from(50),
+                            false,
+                        )?;
+                    }
+                    Axis::HorizontalAndVertical => {
+                        self.resize_window(
+                            OperationDirection::Left,
+                            sizing,
+                            Option::from(50),
+                            false,
+                        )?;
+                        self.resize_window(
+                            OperationDirection::Right,
+                            sizing,
+                            Option::from(50),
+                            false,
+                        )?;
+                        self.resize_window(
+                            OperationDirection::Up,
+                            sizing,
+                            Option::from(50),
+                            false,
+                        )?;
+                        self.resize_window(
+                            OperationDirection::Down,
+                            sizing,
+                            Option::from(50),
+                            false,
+                        )?;
+                    }
+                }
+                self.update_focused_workspace(false)?;
             }
             SocketMessage::FocusFollowsMouse(mut implementation, enable) => {
                 if !CUSTOM_FFM.load(Ordering::SeqCst) {

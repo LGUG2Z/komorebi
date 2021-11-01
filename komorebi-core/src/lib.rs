@@ -12,7 +12,7 @@ use strum::Display;
 use strum::EnumString;
 
 pub use arrangement::Arrangement;
-pub use arrangement::Flip;
+pub use arrangement::Axis;
 pub use custom_layout::CustomLayout;
 pub use cycle_direction::CycleDirection;
 pub use default_layout::DefaultLayout;
@@ -39,7 +39,8 @@ pub enum SocketMessage {
     CycleFocusWindow(CycleDirection),
     CycleMoveWindow(CycleDirection),
     StackWindow(OperationDirection),
-    ResizeWindow(OperationDirection, Sizing),
+    ResizeWindowEdge(OperationDirection, Sizing),
+    ResizeWindowAxis(Axis, Sizing),
     UnstackWindow,
     CycleStack(CycleDirection),
     MoveContainerToMonitorNumber(usize),
@@ -57,7 +58,7 @@ pub enum SocketMessage {
     AdjustWorkspacePadding(Sizing, i32),
     ChangeLayout(DefaultLayout),
     ChangeLayoutCustom(PathBuf),
-    FlipLayout(Flip),
+    FlipLayout(Axis),
     // Monitor and Workspace Commands
     EnsureWorkspaces(usize, usize),
     NewWorkspace,

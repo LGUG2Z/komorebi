@@ -7,7 +7,7 @@ use strum::Display;
 use strum::EnumString;
 
 use crate::direction::Direction;
-use crate::Flip;
+use crate::Axis;
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, Display, EnumString, ArgEnum)]
 #[strum(serialize_all = "snake_case")]
@@ -29,23 +29,23 @@ impl OperationDirection {
         }
     }
 
-    fn flip(self, layout_flip: Option<Flip>) -> Self {
+    fn flip(self, layout_flip: Option<Axis>) -> Self {
         layout_flip.map_or(self, |flip| match self {
             Self::Left => match flip {
-                Flip::Horizontal | Flip::HorizontalAndVertical => Self::Right,
-                Flip::Vertical => self,
+                Axis::Horizontal | Axis::HorizontalAndVertical => Self::Right,
+                Axis::Vertical => self,
             },
             Self::Right => match flip {
-                Flip::Horizontal | Flip::HorizontalAndVertical => Self::Left,
-                Flip::Vertical => self,
+                Axis::Horizontal | Axis::HorizontalAndVertical => Self::Left,
+                Axis::Vertical => self,
             },
             Self::Up => match flip {
-                Flip::Vertical | Flip::HorizontalAndVertical => Self::Down,
-                Flip::Horizontal => self,
+                Axis::Vertical | Axis::HorizontalAndVertical => Self::Down,
+                Axis::Horizontal => self,
             },
             Self::Down => match flip {
-                Flip::Vertical | Flip::HorizontalAndVertical => Self::Up,
-                Flip::Horizontal => self,
+                Axis::Vertical | Axis::HorizontalAndVertical => Self::Up,
+                Axis::Horizontal => self,
             },
         })
     }
@@ -54,7 +54,7 @@ impl OperationDirection {
     pub fn destination(
         self,
         layout: &dyn Direction,
-        layout_flip: Option<Flip>,
+        layout_flip: Option<Axis>,
         idx: usize,
         len: NonZeroUsize,
     ) -> Option<usize> {

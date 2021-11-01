@@ -384,7 +384,7 @@ impl WindowManager {
                     }
 
                     for (edge, sizing, step) in ops {
-                        self.resize_window(edge, sizing, Option::from(step))?;
+                        self.resize_window(edge, sizing, Option::from(step), true)?;
                     }
 
                     self.update_focused_workspace(false)?;

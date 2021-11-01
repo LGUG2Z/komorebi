@@ -28,9 +28,9 @@ use windows::Win32::UI::WindowsAndMessaging::SW_RESTORE;
 use derive_ahk::AhkFunction;
 use derive_ahk::AhkLibrary;
 use komorebi_core::ApplicationIdentifier;
+use komorebi_core::Axis;
 use komorebi_core::CycleDirection;
 use komorebi_core::DefaultLayout;
-use komorebi_core::Flip;
 use komorebi_core::FocusFollowsMouseImplementation;
 use komorebi_core::OperationDirection;
 use komorebi_core::Rect;
@@ -85,7 +85,7 @@ gen_enum_subcommand_args! {
     CycleWorkspace: CycleDirection,
     Stack: OperationDirection,
     CycleStack: CycleDirection,
-    FlipLayout: Flip,
+    FlipLayout: Axis,
     ChangeLayout: DefaultLayout,
     WatchConfiguration: BooleanState,
     MouseFollowsFocus: BooleanState,
@@ -164,6 +164,14 @@ pub struct WorkspaceCustomLayout {
 struct Resize {
     #[clap(arg_enum)]
     edge: OperationDirection,
+    #[clap(arg_enum)]
+    sizing: Sizing,
+}
+
+#[derive(Parser, AhkFunction)]
+struct ResizeAxis {
+    #[clap(arg_enum)]
+    axis: Axis,
     #[clap(arg_enum)]
     sizing: Sizing,
 }
@@ -381,6 +389,9 @@ enum SubCommand {
     /// Resize the focused window in the specified direction
     #[clap(setting = AppSettings::ArgRequiredElseHelp)]
     Resize(Resize),
+    /// Resize the focused window along the specified axis
+    #[clap(setting = AppSettings::ArgRequiredElseHelp)]
+    ResizeAxis(ResizeAxis),
     /// Unstack the focused window
     Unstack,
     /// Cycle the focused stack in the specified cycle direction
@@ -757,7 +768,7 @@ fn main() -> Result<()> {
             )?;
         }
         SubCommand::FlipLayout(arg) => {
-            send_message(&*SocketMessage::FlipLayout(arg.flip).as_bytes()?)?;
+            send_message(&*SocketMessage::FlipLayout(arg.axis).as_bytes()?)?;
         }
         SubCommand::FocusMonitor(arg) => {
             send_message(&*SocketMessage::FocusMonitorNumber(arg.target).as_bytes()?)?;
@@ -868,7 +879,12 @@ fn main() -> Result<()> {
             }
         }
         SubCommand::Resize(resize) => {
-            send_message(&*SocketMessage::ResizeWindow(resize.edge, resize.sizing).as_bytes()?)?;
+            send_message(
+                &*SocketMessage::ResizeWindowEdge(resize.edge, resize.sizing).as_bytes()?,
+            )?;
+        }
+        SubCommand::ResizeAxis(arg) => {
+            send_message(&*SocketMessage::ResizeWindowAxis(arg.axis, arg.sizing).as_bytes()?)?;
         }
         SubCommand::FocusFollowsMouse(arg) => {
             send_message(

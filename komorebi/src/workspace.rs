@@ -9,9 +9,9 @@ use getset::MutGetters;
 use getset::Setters;
 use serde::Serialize;
 
+use komorebi_core::Axis;
 use komorebi_core::CycleDirection;
 use komorebi_core::DefaultLayout;
-use komorebi_core::Flip;
 use komorebi_core::Layout;
 use komorebi_core::OperationDirection;
 use komorebi_core::Rect;
@@ -41,7 +41,7 @@ pub struct Workspace {
     #[getset(get = "pub", set = "pub")]
     layout: Layout,
     #[getset(get_copy = "pub", set = "pub")]
-    layout_flip: Option<Flip>,
+    layout_flip: Option<Axis>,
     #[getset(get_copy = "pub", set = "pub")]
     workspace_padding: Option<i32>,
     #[getset(get_copy = "pub", set = "pub")]
