@@ -28,20 +28,20 @@ Log() {
     Run, komorebic.exe log, , Hide
 }
 
-QuickSave() {
-    Run, komorebic.exe quick-save, , Hide
+QuickSaveResize() {
+    Run, komorebic.exe quick-save-resize, , Hide
 }
 
-QuickLoad() {
-    Run, komorebic.exe quick-load, , Hide
+QuickLoadResize() {
+    Run, komorebic.exe quick-load-resize, , Hide
 }
 
-Save(path) {
-    Run, komorebic.exe save %path%, , Hide
+SaveResize(path) {
+    Run, komorebic.exe save-resize %path%, , Hide
 }
 
-Load(path) {
-    Run, komorebic.exe load %path%, , Hide
+LoadResize(path) {
+    Run, komorebic.exe load-resize %path%, , Hide
 }
 
 Focus(operation_direction) {

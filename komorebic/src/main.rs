@@ -306,13 +306,13 @@ struct Start {
 }
 
 #[derive(Parser, AhkFunction)]
-struct Save {
+struct SaveResize {
     /// File to which the resize layout dimensions should be saved
     path: String,
 }
 
 #[derive(Parser, AhkFunction)]
-struct Load {
+struct LoadResize {
     /// File from which the resize layout dimensions should be loaded
     path: String,
 }
@@ -362,15 +362,19 @@ enum SubCommand {
     /// Tail komorebi.exe's process logs (cancel with Ctrl-C)
     Log,
     /// Quicksave the current resize layout dimensions
-    QuickSave,
+    #[clap(alias = "quick-save")]
+    QuickSaveResize,
     /// Load the last quicksaved resize layout dimensions
-    QuickLoad,
+    #[clap(alias = "quick-load")]
+    QuickLoadResize,
     /// Save the current resize layout dimensions to a file
     #[clap(setting = AppSettings::ArgRequiredElseHelp)]
-    Save(Save),
+    #[clap(alias = "save")]
+    SaveResize(SaveResize),
     /// Load the resize layout dimensions from a file
     #[clap(setting = AppSettings::ArgRequiredElseHelp)]
-    Load(Load),
+    #[clap(alias = "load")]
+    LoadResize(LoadResize),
     /// Change focus to the window in the specified direction
     #[clap(setting = AppSettings::ArgRequiredElseHelp)]
     Focus(Focus),
@@ -388,7 +392,8 @@ enum SubCommand {
     Stack(Stack),
     /// Resize the focused window in the specified direction
     #[clap(setting = AppSettings::ArgRequiredElseHelp)]
-    Resize(Resize),
+    #[clap(alias = "resize")]
+    ResizeEdge(Resize),
     /// Resize the focused window along the specified axis
     #[clap(setting = AppSettings::ArgRequiredElseHelp)]
     ResizeAxis(ResizeAxis),
@@ -878,7 +883,7 @@ fn main() -> Result<()> {
                 restore_window(HWND(hwnd));
             }
         }
-        SubCommand::Resize(resize) => {
+        SubCommand::ResizeEdge(resize) => {
             send_message(
                 &*SocketMessage::ResizeWindowEdge(resize.edge, resize.sizing).as_bytes()?,
             )?;
@@ -917,16 +922,16 @@ fn main() -> Result<()> {
         SubCommand::Unmanage => {
             send_message(&*SocketMessage::UnmanageFocusedWindow.as_bytes()?)?;
         }
-        SubCommand::QuickSave => {
+        SubCommand::QuickSaveResize => {
             send_message(&*SocketMessage::QuickSave.as_bytes()?)?;
         }
-        SubCommand::QuickLoad => {
+        SubCommand::QuickLoadResize => {
             send_message(&*SocketMessage::QuickLoad.as_bytes()?)?;
         }
-        SubCommand::Save(arg) => {
+        SubCommand::SaveResize(arg) => {
             send_message(&*SocketMessage::Save(resolve_windows_path(&arg.path)?).as_bytes()?)?;
         }
-        SubCommand::Load(arg) => {
+        SubCommand::LoadResize(arg) => {
             send_message(&*SocketMessage::Load(resolve_windows_path(&arg.path)?).as_bytes()?)?;
         }
         SubCommand::Subscribe(arg) => {
