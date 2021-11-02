@@ -289,16 +289,17 @@ query                         Query the current window manager state
 subscribe                     Subscribe to komorebi events
 unsubscribe                   Unsubscribe from komorebi events
 log                           Tail komorebi.exe's process logs (cancel with Ctrl-C)
-quick-save                    Quicksave the current resize layout dimensions
-quick-load                    Load the last quicksaved resize layout dimensions
-save                          Save the current resize layout dimensions to a file
-load                          Load the resize layout dimensions from a file
+quick-save-resize             Quicksave the current resize layout dimensions
+quick-load-resize             Load the last quicksaved resize layout dimensions
+save-resize                   Save the current resize layout dimensions to a file
+load-resize                   Load the resize layout dimensions from a file
 focus                         Change focus to the window in the specified direction
 move                          Move the focused window in the specified direction
 cycle-focus                   Change focus to the window in the specified cycle direction
 cycle-move                    Move the focused window in the specified cycle direction
 stack                         Stack the focused window in the specified direction
-resize                        Resize the focused window in the specified direction
+resize-edge                   Resize the focused window in the specified direction
+resize-axis                   Resize the focused window along the specified axis
 unstack                       Unstack the focused window
 cycle-stack                   Cycle the focused stack in the specified cycle direction
 move-to-monitor               Move the focused window to the specified monitor
@@ -310,6 +311,7 @@ focus-workspace               Focus the specified workspace on the focused monit
 cycle-monitor                 Focus the monitor in the given cycle direction
 cycle-workspace               Focus the workspace in the given cycle direction
 new-workspace                 Create and append a new workspace on the focused monitor
+resize-delta                  Set the resize delta (used by resize-edge and resize-axis)
 invisible-borders             Set the invisible border dimensions around each window
 work-area-offset              Set offsets to exclude parts of the work area from tiling
 adjust-container-padding      Adjust container padding on the focused workspace
@@ -343,6 +345,8 @@ identify-tray-application     Identify an application that closes to the system 
 identify-border-overflow      Identify an application that has overflowing borders
 focus-follows-mouse           Enable or disable focus follows mouse for the operating system
 toggle-focus-follows-mouse    Toggle focus follows mouse for the operating system
+mouse-follows-focus           Enable or disable mouse follows focus on all workspaces
+toggle-mouse-follows-focus    Toggle mouse follows focus on all workspaces
 ahk-library                   Generate a library of AutoHotKey helper functions
 help                          Print this message or the help of the given subcommand(s)
 ```
@@ -371,6 +375,8 @@ used [is available here](komorebi.sample.with.lib.ahk).
 - [x] Send focused window container to workspace
 - [x] Mouse follows focused container
 - [x] Resize window container in direction
+- [x] Resize window container on axis
+- [x] Set custom resize delta
 - [ ] Resize child window containers by split ratio
 - [x] Quicksave and quickload layouts with resize dimensions
 - [x] Save and load layouts with resize dimensions to/from specific files

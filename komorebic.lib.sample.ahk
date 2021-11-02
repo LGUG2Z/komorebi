@@ -116,6 +116,10 @@ NewWorkspace() {
     Run, komorebic.exe new-workspace, , Hide
 }
 
+ResizeDelta(pixels) {
+    Run, komorebic.exe resize-delta %pixels%, , Hide
+}
+
 InvisibleBorders(left, top, right, bottom) {
     Run, komorebic.exe invisible-borders %left% %top% %right% %bottom%, , Hide
 }

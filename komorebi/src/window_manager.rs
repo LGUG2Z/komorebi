@@ -49,6 +49,7 @@ pub struct WindowManager {
     pub is_paused: bool,
     pub invisible_borders: Rect,
     pub work_area_offset: Option<Rect>,
+    pub resize_delta: i32,
     pub focus_follows_mouse: Option<FocusFollowsMouseImplementation>,
     pub mouse_follows_focus: bool,
     pub hotwatch: Hotwatch,
@@ -62,6 +63,7 @@ pub struct State {
     pub monitors: Ring<Monitor>,
     pub is_paused: bool,
     pub invisible_borders: Rect,
+    pub resize_delta: i32,
     pub work_area_offset: Option<Rect>,
     pub focus_follows_mouse: Option<FocusFollowsMouseImplementation>,
     pub mouse_follows_focus: bool,
@@ -80,6 +82,7 @@ impl From<&WindowManager> for State {
             is_paused: wm.is_paused,
             invisible_borders: wm.invisible_borders,
             work_area_offset: wm.work_area_offset,
+            resize_delta: wm.resize_delta,
             focus_follows_mouse: wm.focus_follows_mouse.clone(),
             mouse_follows_focus: wm.mouse_follows_focus,
             has_pending_raise_op: wm.has_pending_raise_op,
@@ -153,6 +156,7 @@ impl WindowManager {
                 bottom: 7,
             },
             work_area_offset: None,
+            resize_delta: 50,
             focus_follows_mouse: None,
             mouse_follows_focus: true,
             hotwatch: Hotwatch::new()?,
@@ -676,7 +680,7 @@ impl WindowManager {
         &mut self,
         direction: OperationDirection,
         sizing: Sizing,
-        step: Option<i32>,
+        delta: i32,
         update: bool,
     ) -> Result<()> {
         let work_area = self.focused_monitor_work_area()?;
@@ -741,7 +745,7 @@ impl WindowManager {
                         focused_idx_resize,
                         direction,
                         sizing,
-                        step,
+                        delta,
                     );
 
                     workspace.resize_dimensions_mut()[focused_idx] = resize;

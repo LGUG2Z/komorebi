@@ -263,7 +263,7 @@ impl WindowManager {
                 stream.write_all(response.as_bytes())?;
             }
             SocketMessage::ResizeWindowEdge(direction, sizing) => {
-                self.resize_window(direction, sizing, Option::from(50), true)?;
+                self.resize_window(direction, sizing, self.resize_delta, true)?;
             }
             SocketMessage::ResizeWindowAxis(axis, sizing) => {
                 match axis {
@@ -271,13 +271,13 @@ impl WindowManager {
                         self.resize_window(
                             OperationDirection::Left,
                             sizing,
-                            Option::from(50),
+                            self.resize_delta,
                             false,
                         )?;
                         self.resize_window(
                             OperationDirection::Right,
                             sizing,
-                            Option::from(50),
+                            self.resize_delta,
                             false,
                         )?;
                     }
@@ -285,13 +285,13 @@ impl WindowManager {
                         self.resize_window(
                             OperationDirection::Up,
                             sizing,
-                            Option::from(50),
+                            self.resize_delta,
                             false,
                         )?;
                         self.resize_window(
                             OperationDirection::Down,
                             sizing,
-                            Option::from(50),
+                            self.resize_delta,
                             false,
                         )?;
                     }
@@ -299,25 +299,25 @@ impl WindowManager {
                         self.resize_window(
                             OperationDirection::Left,
                             sizing,
-                            Option::from(50),
+                            self.resize_delta,
                             false,
                         )?;
                         self.resize_window(
                             OperationDirection::Right,
                             sizing,
-                            Option::from(50),
+                            self.resize_delta,
                             false,
                         )?;
                         self.resize_window(
                             OperationDirection::Up,
                             sizing,
-                            Option::from(50),
+                            self.resize_delta,
                             false,
                         )?;
                         self.resize_window(
                             OperationDirection::Down,
                             sizing,
-                            Option::from(50),
+                            self.resize_delta,
                             false,
                         )?;
                     }
@@ -523,6 +523,9 @@ impl WindowManager {
             }
             SocketMessage::ToggleMouseFollowsFocus => {
                 self.mouse_follows_focus = !self.mouse_follows_focus;
+            }
+            SocketMessage::ResizeDelta(delta) => {
+                self.resize_delta = delta;
             }
         };
 

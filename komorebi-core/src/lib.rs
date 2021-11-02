@@ -85,6 +85,7 @@ pub enum SocketMessage {
     WatchConfiguration(bool),
     InvisibleBorders(Rect),
     WorkAreaOffset(Rect),
+    ResizeDelta(i32),
     WorkspaceRule(ApplicationIdentifier, String, usize, usize),
     FloatRule(ApplicationIdentifier, String),
     ManageRule(ApplicationIdentifier, String),

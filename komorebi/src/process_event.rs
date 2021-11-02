@@ -383,8 +383,8 @@ impl WindowManager {
                         ops.push(resize_op!(resize.bottom, <, OperationDirection::Down));
                     }
 
-                    for (edge, sizing, step) in ops {
-                        self.resize_window(edge, sizing, Option::from(step), true)?;
+                    for (edge, sizing, delta) in ops {
+                        self.resize_window(edge, sizing, delta, true)?;
                     }
 
                     self.update_focused_workspace(false)?;

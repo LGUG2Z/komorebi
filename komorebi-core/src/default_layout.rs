@@ -28,7 +28,7 @@ impl DefaultLayout {
         resize: &Option<Rect>,
         edge: OperationDirection,
         sizing: Sizing,
-        step: Option<i32>,
+        delta: i32,
     ) -> Option<Rect> {
         if !matches!(self, Self::BSP) {
             return None;
@@ -37,7 +37,7 @@ impl DefaultLayout {
         let max_divisor = 1.005;
         let mut r = resize.unwrap_or_default();
 
-        let resize_step = step.unwrap_or(50);
+        let resize_delta = delta;
 
         match edge {
             OperationDirection::Left => match sizing {
@@ -52,65 +52,65 @@ impl DefaultLayout {
                     // with index 0. I don't think it's worth trying to defensively program
                     // against this; if people end up in this situation they are better off
                     // just hitting the retile command
-                    let diff = ((r.left + -resize_step) as f32).abs();
+                    let diff = ((r.left + -resize_delta) as f32).abs();
                     let max = unaltered.right as f32 / max_divisor;
                     if diff < max {
-                        r.left += -resize_step;
+                        r.left += -resize_delta;
                     }
                 }
                 Sizing::Decrease => {
-                    let diff = ((r.left - -resize_step) as f32).abs();
+                    let diff = ((r.left - -resize_delta) as f32).abs();
                     let max = unaltered.right as f32 / max_divisor;
                     if diff < max {
-                        r.left -= -resize_step;
+                        r.left -= -resize_delta;
                     }
                 }
             },
             OperationDirection::Up => match sizing {
                 Sizing::Increase => {
-                    let diff = ((r.top + resize_step) as f32).abs();
+                    let diff = ((r.top + resize_delta) as f32).abs();
                     let max = unaltered.bottom as f32 / max_divisor;
                     if diff < max {
-                        r.top += -resize_step;
+                        r.top += -resize_delta;
                     }
                 }
                 Sizing::Decrease => {
-                    let diff = ((r.top - resize_step) as f32).abs();
+                    let diff = ((r.top - resize_delta) as f32).abs();
                     let max = unaltered.bottom as f32 / max_divisor;
                     if diff < max {
-                        r.top -= -resize_step;
+                        r.top -= -resize_delta;
                     }
                 }
             },
             OperationDirection::Right => match sizing {
                 Sizing::Increase => {
-                    let diff = ((r.right + resize_step) as f32).abs();
+                    let diff = ((r.right + resize_delta) as f32).abs();
                     let max = unaltered.right as f32 / max_divisor;
                     if diff < max {
-                        r.right += resize_step;
+                        r.right += resize_delta;
                     }
                 }
                 Sizing::Decrease => {
-                    let diff = ((r.right - resize_step) as f32).abs();
+                    let diff = ((r.right - resize_delta) as f32).abs();
                     let max = unaltered.right as f32 / max_divisor;
                     if diff < max {
-                        r.right -= resize_step;
+                        r.right -= resize_delta;
                     }
                 }
             },
             OperationDirection::Down => match sizing {
                 Sizing::Increase => {
-                    let diff = ((r.bottom + resize_step) as f32).abs();
+                    let diff = ((r.bottom + resize_delta) as f32).abs();
                     let max = unaltered.bottom as f32 / max_divisor;
                     if diff < max {
-                        r.bottom += resize_step;
+                        r.bottom += resize_delta;
                     }
                 }
                 Sizing::Decrease => {
-                    let diff = ((r.bottom - resize_step) as f32).abs();
+                    let diff = ((r.bottom - resize_delta) as f32).abs();
                     let max = unaltered.bottom as f32 / max_divisor;
                     if diff < max {
-                        r.bottom -= resize_step;
+                        r.bottom -= resize_delta;
                     }
                 }
             },

@@ -177,6 +177,12 @@ struct ResizeAxis {
 }
 
 #[derive(Parser, AhkFunction)]
+struct ResizeDelta {
+    /// The delta of pixels by which to increase or decrease window dimensions when resizing
+    pixels: i32,
+}
+
+#[derive(Parser, AhkFunction)]
 struct InvisibleBorders {
     /// Size of the left invisible border
     left: i32,
@@ -428,6 +434,9 @@ enum SubCommand {
     CycleWorkspace(CycleWorkspace),
     /// Create and append a new workspace on the focused monitor
     NewWorkspace,
+    /// Set the resize delta (used by resize-edge and resize-axis)
+    #[clap(setting = AppSettings::ArgRequiredElseHelp)]
+    ResizeDelta(ResizeDelta),
     /// Set the invisible border dimensions around each window
     #[clap(setting = AppSettings::ArgRequiredElseHelp)]
     InvisibleBorders(InvisibleBorders),
@@ -945,6 +954,9 @@ fn main() -> Result<()> {
         }
         SubCommand::MouseFollowsFocus(arg) => {
             send_message(&*SocketMessage::MouseFollowsFocus(arg.boolean_state.into()).as_bytes()?)?;
+        }
+        SubCommand::ResizeDelta(arg) => {
+            send_message(&*SocketMessage::ResizeDelta(arg.pixels).as_bytes()?)?;
         }
     }
 
