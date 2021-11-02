@@ -39,7 +39,7 @@ use windows::Win32::System::Threading::QueryFullProcessImageNameW;
 use windows::Win32::System::Threading::PROCESS_ACCESS_RIGHTS;
 use windows::Win32::System::Threading::PROCESS_NAME_FORMAT;
 use windows::Win32::System::Threading::PROCESS_QUERY_INFORMATION;
-use windows::Win32::UI::KeyboardAndMouseInput::SetFocus;
+use windows::Win32::UI::Input::KeyboardAndMouse::SetFocus;
 use windows::Win32::UI::WindowsAndMessaging::AllowSetForegroundWindow;
 use windows::Win32::UI::WindowsAndMessaging::EnumWindows;
 use windows::Win32::UI::WindowsAndMessaging::GetCursorPos;

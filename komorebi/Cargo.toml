@@ -40,13 +40,13 @@ winvd = "0.0.20"
 miow = "0.3"
 
 [dependencies.windows]
-version = "0.23"
+version = "0.24"
 features = [
     "Win32_Foundation",
     "Win32_Graphics_Dwm",
     "Win32_Graphics_Gdi",
     "Win32_System_Threading",
-    "Win32_UI_KeyboardAndMouseInput",
+    "Win32_UI_Input_KeyboardAndMouse",
     "Win32_UI_Accessibility",
     "Win32_UI_WindowsAndMessaging"
 ]
