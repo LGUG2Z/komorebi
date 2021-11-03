@@ -83,6 +83,8 @@ jobs:
           path: |
             target/${{ matrix.target }}/release/komorebi.exe
             target/${{ matrix.target }}/release/komorebic.exe
+            target/${{ matrix.target }}/release/komorebi.pdb
+            target/${{ matrix.target }}/release/komorebic.pdb
           retention-days: 7
       - name: Generate changelog
         if: startsWith(github.ref, 'refs/tags/')
