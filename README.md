@@ -299,7 +299,7 @@ cycle-focus                   Change focus to the window in the specified cycle 
 cycle-move                    Move the focused window in the specified cycle direction
 stack                         Stack the focused window in the specified direction
 resize-edge                   Resize the focused window in the specified direction
-resize-axis                   Resize the focused window along the specified axis
+resize-axis                   Resize the focused window or primary column along the specified axis
 unstack                       Unstack the focused window
 cycle-stack                   Cycle the focused stack in the specified cycle direction
 move-to-monitor               Move the focused window to the specified monitor

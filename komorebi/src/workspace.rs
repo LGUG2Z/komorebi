@@ -38,7 +38,7 @@ pub struct Workspace {
     maximized_window_restore_idx: Option<usize>,
     #[getset(get = "pub", get_mut = "pub")]
     floating_windows: Vec<Window>,
-    #[getset(get = "pub", set = "pub")]
+    #[getset(get = "pub", get_mut = "pub", set = "pub")]
     layout: Layout,
     #[getset(get_copy = "pub", set = "pub")]
     layout_flip: Option<Axis>,

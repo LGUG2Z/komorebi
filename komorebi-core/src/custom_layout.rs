@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::fs::File;
 use std::io::BufReader;
 use std::ops::Deref;
+use std::ops::DerefMut;
 use std::path::PathBuf;
 
 use color_eyre::eyre::anyhow;
@@ -19,6 +20,12 @@ impl Deref for CustomLayout {
 
     fn deref(&self) -> &Self::Target {
         &self.0
+    }
+}
+
+impl DerefMut for CustomLayout {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
     }
 }
 
@@ -73,6 +80,14 @@ impl CustomLayout {
         }
 
         None
+    }
+
+    pub fn set_primary_width_percentage(&mut self, percentage: usize) {
+        for column in self.iter_mut() {
+            if let Column::Primary(Option::Some(ColumnWidth::WidthPercentage(current))) = column {
+                *current = percentage;
+            }
+        }
     }
 
     #[must_use]

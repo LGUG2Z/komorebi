@@ -17,8 +17,10 @@ use uds_windows::UnixStream;
 
 use komorebi_core::Axis;
 use komorebi_core::FocusFollowsMouseImplementation;
+use komorebi_core::Layout;
 use komorebi_core::OperationDirection;
 use komorebi_core::Rect;
+use komorebi_core::Sizing;
 use komorebi_core::SocketMessage;
 use komorebi_core::StateQuery;
 
@@ -266,62 +268,80 @@ impl WindowManager {
                 self.resize_window(direction, sizing, self.resize_delta, true)?;
             }
             SocketMessage::ResizeWindowAxis(axis, sizing) => {
-                match axis {
-                    Axis::Horizontal => {
-                        self.resize_window(
-                            OperationDirection::Left,
-                            sizing,
-                            self.resize_delta,
-                            false,
-                        )?;
-                        self.resize_window(
-                            OperationDirection::Right,
-                            sizing,
-                            self.resize_delta,
-                            false,
-                        )?;
+                // If the user has a custom layout, allow for the resizing of the primary column
+                // with this signal
+                if let Layout::Custom(ref mut custom) = self.focused_workspace_mut()?.layout_mut() {
+                    if matches!(axis, Axis::Horizontal) {
+                        let percentage = custom
+                            .primary_width_percentage()
+                            .unwrap_or_else(|| 100 / custom.len());
+
+                        match sizing {
+                            Sizing::Increase => custom.set_primary_width_percentage(percentage + 5),
+                            Sizing::Decrease => custom.set_primary_width_percentage(percentage - 5),
+                        }
                     }
-                    Axis::Vertical => {
-                        self.resize_window(
-                            OperationDirection::Up,
-                            sizing,
-                            self.resize_delta,
-                            false,
-                        )?;
-                        self.resize_window(
-                            OperationDirection::Down,
-                            sizing,
-                            self.resize_delta,
-                            false,
-                        )?;
-                    }
-                    Axis::HorizontalAndVertical => {
-                        self.resize_window(
-                            OperationDirection::Left,
-                            sizing,
-                            self.resize_delta,
-                            false,
-                        )?;
-                        self.resize_window(
-                            OperationDirection::Right,
-                            sizing,
-                            self.resize_delta,
-                            false,
-                        )?;
-                        self.resize_window(
-                            OperationDirection::Up,
-                            sizing,
-                            self.resize_delta,
-                            false,
-                        )?;
-                        self.resize_window(
-                            OperationDirection::Down,
-                            sizing,
-                            self.resize_delta,
-                            false,
-                        )?;
+                // Otherwise proceed with the resizing logic for individual window containers in the
+                // assumed BSP layout
+                } else {
+                    match axis {
+                        Axis::Horizontal => {
+                            self.resize_window(
+                                OperationDirection::Left,
+                                sizing,
+                                self.resize_delta,
+                                false,
+                            )?;
+                            self.resize_window(
+                                OperationDirection::Right,
+                                sizing,
+                                self.resize_delta,
+                                false,
+                            )?;
+                        }
+                        Axis::Vertical => {
+                            self.resize_window(
+                                OperationDirection::Up,
+                                sizing,
+                                self.resize_delta,
+                                false,
+                            )?;
+                            self.resize_window(
+                                OperationDirection::Down,
+                                sizing,
+                                self.resize_delta,
+                                false,
+                            )?;
+                        }
+                        Axis::HorizontalAndVertical => {
+                            self.resize_window(
+                                OperationDirection::Left,
+                                sizing,
+                                self.resize_delta,
+                                false,
+                            )?;
+                            self.resize_window(
+                                OperationDirection::Right,
+                                sizing,
+                                self.resize_delta,
+                                false,
+                            )?;
+                            self.resize_window(
+                                OperationDirection::Up,
+                                sizing,
+                                self.resize_delta,
+                                false,
+                            )?;
+                            self.resize_window(
+                                OperationDirection::Down,
+                                sizing,
+                                self.resize_delta,
+                                false,
+                            )?;
+                        }
                     }
                 }
+
                 self.update_focused_workspace(false)?;
             }
             SocketMessage::FocusFollowsMouse(mut implementation, enable) => {

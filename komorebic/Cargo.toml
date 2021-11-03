@@ -14,7 +14,7 @@ edition = "2021"
 derive-ahk = { path = "../derive-ahk" }
 komorebi-core = { path = "../komorebi-core" }
 
-clap = "3.0.0-beta.5"
+clap = { version = "3.0.0-beta.5", features = ["wrap_help"] }
 color-eyre = "0.5"
 dirs = "4"
 fs-tail = "0.1"

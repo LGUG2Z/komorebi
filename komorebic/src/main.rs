@@ -400,7 +400,7 @@ enum SubCommand {
     #[clap(setting = AppSettings::ArgRequiredElseHelp)]
     #[clap(alias = "resize")]
     ResizeEdge(Resize),
-    /// Resize the focused window along the specified axis
+    /// Resize the focused window or primary column along the specified axis
     #[clap(setting = AppSettings::ArgRequiredElseHelp)]
     ResizeAxis(ResizeAxis),
     /// Unstack the focused window
