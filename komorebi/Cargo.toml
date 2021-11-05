@@ -40,7 +40,7 @@ winvd = "0.0.20"
 miow = "0.3"
 
 [dependencies.windows]
-version = "0.24"
+version = "0.25"
 features = [
     "Win32_Foundation",
     "Win32_Graphics_Dwm",
