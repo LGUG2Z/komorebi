@@ -51,6 +51,7 @@ pub enum SocketMessage {
     ToggleFloat,
     ToggleMonocle,
     ToggleMaximize,
+    ToggleNewWindowBehaviour,
     // Current Workspace Commands
     ManageFocusedWindow,
     UnmanageFocusedWindow,
@@ -137,6 +138,13 @@ pub enum ApplicationIdentifier {
 pub enum FocusFollowsMouseImplementation {
     Komorebi,
     Windows,
+}
+
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, Display, EnumString, ArgEnum)]
+#[strum(serialize_all = "snake_case")]
+pub enum NewWindowBehaviour {
+    CreateNewContainer,
+    AppendToFocusedContainer,
 }
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, Display, EnumString, ArgEnum)]

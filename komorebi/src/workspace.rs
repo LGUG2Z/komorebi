@@ -456,9 +456,11 @@ impl Workspace {
             if self.resize_dimensions().get(container_idx).is_some() {
                 self.resize_dimensions_mut().remove(container_idx);
             }
-        }
 
-        self.focus_previous_container();
+            self.focus_previous_container();
+        } else {
+            container.load_focused_window();
+        }
 
         Ok(())
     }

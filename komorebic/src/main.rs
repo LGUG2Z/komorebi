@@ -483,7 +483,9 @@ enum SubCommand {
     /// Set the workspace name for the specified workspace
     #[clap(setting = AppSettings::ArgRequiredElseHelp)]
     WorkspaceName(WorkspaceName),
-    /// Toggle the window manager on and off across all monitors
+    /// Toggle the behaviour for new windows (stacking or dynamic tiling)
+    ToggleNewWindowBehaviour,
+    /// Toggle window tiling on the focused workspace
     TogglePause,
     /// Toggle window tiling on the focused workspace
     ToggleTiling,
@@ -957,6 +959,9 @@ fn main() -> Result<()> {
         }
         SubCommand::ResizeDelta(arg) => {
             send_message(&*SocketMessage::ResizeDelta(arg.pixels).as_bytes()?)?;
+        }
+        SubCommand::ToggleNewWindowBehaviour => {
+            send_message(&*SocketMessage::ToggleNewWindowBehaviour.as_bytes()?)?;
         }
     }
 

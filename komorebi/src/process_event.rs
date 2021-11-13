@@ -7,6 +7,7 @@ use color_eyre::Result;
 use crossbeam_channel::select;
 use parking_lot::Mutex;
 
+use komorebi_core::NewWindowBehaviour;
 use komorebi_core::OperationDirection;
 use komorebi_core::Rect;
 use komorebi_core::Sizing;
@@ -201,11 +202,23 @@ impl WindowManager {
                     }
                 }
 
+                let behaviour = self.new_window_behaviour;
                 let workspace = self.focused_workspace_mut()?;
 
                 if !workspace.contains_window(window.hwnd) {
-                    workspace.new_container_for_window(*window);
-                    self.update_focused_workspace(false)?;
+                    match behaviour {
+                        NewWindowBehaviour::CreateNewContainer => {
+                            workspace.new_container_for_window(*window);
+                            self.update_focused_workspace(false)?;
+                        }
+                        NewWindowBehaviour::AppendToFocusedContainer => {
+                            workspace
+                                .focused_container_mut()
+                                .ok_or_else(|| anyhow!("there is no focused container"))?
+                                .add_window(*window);
+                            self.update_focused_workspace(true)?;
+                        }
+                    }
                 }
             }
             WindowManagerEvent::MoveResizeStart(_, _) => {

@@ -78,18 +78,18 @@ impl Container {
     }
 
     pub fn remove_window_by_idx(&mut self, idx: usize) -> Option<Window> {
-        self.windows_mut().remove(idx)
+        let window = self.windows_mut().remove(idx);
+
+        if idx != 0 {
+            self.focus_window(idx - 1);
+        };
+
+        window
     }
 
     pub fn remove_focused_window(&mut self) -> Option<Window> {
         let focused_idx = self.focused_window_idx();
-        let window = self.remove_window_by_idx(focused_idx);
-
-        if focused_idx != 0 {
-            self.focus_window(focused_idx - 1);
-        }
-
-        window
+        self.remove_window_by_idx(focused_idx)
     }
 
     pub fn add_window(&mut self, window: Window) {
