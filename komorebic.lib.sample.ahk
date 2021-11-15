@@ -184,8 +184,8 @@ WorkspaceName(monitor, workspace, value) {
     Run, komorebic.exe workspace-name %monitor% %workspace% %value%, , Hide
 }
 
-ToggleNewWindowBehaviour() {
-    Run, komorebic.exe toggle-new-window-behaviour, , Hide
+ToggleWindowContainerBehaviour() {
+    Run, komorebic.exe toggle-window-container-behaviour, , Hide
 }
 
 TogglePause() {

@@ -7,10 +7,10 @@ use color_eyre::Result;
 use crossbeam_channel::select;
 use parking_lot::Mutex;
 
-use komorebi_core::NewWindowBehaviour;
 use komorebi_core::OperationDirection;
 use komorebi_core::Rect;
 use komorebi_core::Sizing;
+use komorebi_core::WindowContainerBehaviour;
 
 use crate::notify_subscribers;
 use crate::window_manager::WindowManager;
@@ -202,16 +202,16 @@ impl WindowManager {
                     }
                 }
 
-                let behaviour = self.new_window_behaviour;
+                let behaviour = self.window_container_behaviour;
                 let workspace = self.focused_workspace_mut()?;
 
                 if !workspace.contains_window(window.hwnd) {
                     match behaviour {
-                        NewWindowBehaviour::CreateNewContainer => {
+                        WindowContainerBehaviour::Create => {
                             workspace.new_container_for_window(*window);
                             self.update_focused_workspace(false)?;
                         }
-                        NewWindowBehaviour::AppendToFocusedContainer => {
+                        WindowContainerBehaviour::Append => {
                             workspace
                                 .focused_container_mut()
                                 .ok_or_else(|| anyhow!("there is no focused container"))?
@@ -246,6 +246,8 @@ impl WindowManager {
                 let target_monitor_idx = self
                     .monitor_idx_from_current_pos()
                     .ok_or_else(|| anyhow!("cannot get monitor idx from current position"))?;
+
+                let new_window_behaviour = self.window_container_behaviour;
 
                 let workspace = self.focused_workspace_mut()?;
                 if workspace
@@ -352,15 +354,33 @@ impl WindowManager {
                             self.focus_workspace(target_workspace_idx)?;
                             self.update_focused_workspace(false)?;
                         }
+                    // Here we handle a simple move on the same monitor which is treated as
+                    // a container swap
                     } else {
-                        // Here we handle a simple move on the same monitor which is treated as
-                        // a container swap
-                        match workspace.container_idx_from_current_point() {
-                            Some(target_idx) => {
-                                workspace.swap_containers(focused_container_idx, target_idx);
-                                self.update_focused_workspace(false)?;
+                        match new_window_behaviour {
+                            WindowContainerBehaviour::Create => {
+                                match workspace.container_idx_from_current_point() {
+                                    Some(target_idx) => {
+                                        workspace
+                                            .swap_containers(focused_container_idx, target_idx);
+                                        self.update_focused_workspace(false)?;
+                                    }
+                                    None => {
+                                        self.update_focused_workspace(self.mouse_follows_focus)?;
+                                    }
+                                }
                             }
-                            None => self.update_focused_workspace(self.mouse_follows_focus)?,
+                            WindowContainerBehaviour::Append => {
+                                match workspace.container_idx_from_current_point() {
+                                    Some(target_idx) => {
+                                        workspace.move_window_to_container(target_idx)?;
+                                        self.update_focused_workspace(false)?;
+                                    }
+                                    None => {
+                                        self.update_focused_workspace(self.mouse_follows_focus)?;
+                                    }
+                                }
+                            }
                         }
                     }
                 } else {

@@ -484,7 +484,7 @@ enum SubCommand {
     #[clap(setting = AppSettings::ArgRequiredElseHelp)]
     WorkspaceName(WorkspaceName),
     /// Toggle the behaviour for new windows (stacking or dynamic tiling)
-    ToggleNewWindowBehaviour,
+    ToggleWindowContainerBehaviour,
     /// Toggle window tiling on the focused workspace
     TogglePause,
     /// Toggle window tiling on the focused workspace
@@ -960,8 +960,8 @@ fn main() -> Result<()> {
         SubCommand::ResizeDelta(arg) => {
             send_message(&*SocketMessage::ResizeDelta(arg.pixels).as_bytes()?)?;
         }
-        SubCommand::ToggleNewWindowBehaviour => {
-            send_message(&*SocketMessage::ToggleNewWindowBehaviour.as_bytes()?)?;
+        SubCommand::ToggleWindowContainerBehaviour => {
+            send_message(&*SocketMessage::ToggleWindowContainerBehaviour.as_bytes()?)?;
         }
     }
 

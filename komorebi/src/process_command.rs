@@ -18,12 +18,12 @@ use uds_windows::UnixStream;
 use komorebi_core::Axis;
 use komorebi_core::FocusFollowsMouseImplementation;
 use komorebi_core::Layout;
-use komorebi_core::NewWindowBehaviour;
 use komorebi_core::OperationDirection;
 use komorebi_core::Rect;
 use komorebi_core::Sizing;
 use komorebi_core::SocketMessage;
 use komorebi_core::StateQuery;
+use komorebi_core::WindowContainerBehaviour;
 
 use crate::notify_subscribers;
 use crate::window_manager;
@@ -548,14 +548,16 @@ impl WindowManager {
             SocketMessage::ResizeDelta(delta) => {
                 self.resize_delta = delta;
             }
-            SocketMessage::ToggleNewWindowBehaviour => match self.new_window_behaviour {
-                NewWindowBehaviour::CreateNewContainer => {
-                    self.new_window_behaviour = NewWindowBehaviour::AppendToFocusedContainer;
+            SocketMessage::ToggleWindowContainerBehaviour => {
+                match self.window_container_behaviour {
+                    WindowContainerBehaviour::Create => {
+                        self.window_container_behaviour = WindowContainerBehaviour::Append;
+                    }
+                    WindowContainerBehaviour::Append => {
+                        self.window_container_behaviour = WindowContainerBehaviour::Create;
+                    }
                 }
-                NewWindowBehaviour::AppendToFocusedContainer => {
-                    self.new_window_behaviour = NewWindowBehaviour::CreateNewContainer;
-                }
-            },
+            }
         };
 
         tracing::info!("processed");

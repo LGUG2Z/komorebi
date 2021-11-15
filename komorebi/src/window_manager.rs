@@ -21,10 +21,10 @@ use komorebi_core::CycleDirection;
 use komorebi_core::DefaultLayout;
 use komorebi_core::FocusFollowsMouseImplementation;
 use komorebi_core::Layout;
-use komorebi_core::NewWindowBehaviour;
 use komorebi_core::OperationDirection;
 use komorebi_core::Rect;
 use komorebi_core::Sizing;
+use komorebi_core::WindowContainerBehaviour;
 
 use crate::container::Container;
 use crate::load_configuration;
@@ -51,7 +51,7 @@ pub struct WindowManager {
     pub invisible_borders: Rect,
     pub work_area_offset: Option<Rect>,
     pub resize_delta: i32,
-    pub new_window_behaviour: NewWindowBehaviour,
+    pub window_container_behaviour: WindowContainerBehaviour,
     pub focus_follows_mouse: Option<FocusFollowsMouseImplementation>,
     pub mouse_follows_focus: bool,
     pub hotwatch: Hotwatch,
@@ -66,7 +66,7 @@ pub struct State {
     pub is_paused: bool,
     pub invisible_borders: Rect,
     pub resize_delta: i32,
-    pub new_window_behaviour: NewWindowBehaviour,
+    pub new_window_behaviour: WindowContainerBehaviour,
     pub work_area_offset: Option<Rect>,
     pub focus_follows_mouse: Option<FocusFollowsMouseImplementation>,
     pub mouse_follows_focus: bool,
@@ -86,7 +86,7 @@ impl From<&WindowManager> for State {
             invisible_borders: wm.invisible_borders,
             work_area_offset: wm.work_area_offset,
             resize_delta: wm.resize_delta,
-            new_window_behaviour: wm.new_window_behaviour,
+            new_window_behaviour: wm.window_container_behaviour,
             focus_follows_mouse: wm.focus_follows_mouse.clone(),
             mouse_follows_focus: wm.mouse_follows_focus,
             has_pending_raise_op: wm.has_pending_raise_op,
@@ -160,7 +160,7 @@ impl WindowManager {
                 bottom: 7,
             },
             work_area_offset: None,
-            new_window_behaviour: NewWindowBehaviour::CreateNewContainer,
+            window_container_behaviour: WindowContainerBehaviour::Create,
             resize_delta: 50,
             focus_follows_mouse: None,
             mouse_follows_focus: true,
