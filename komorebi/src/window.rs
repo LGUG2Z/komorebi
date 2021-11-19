@@ -10,6 +10,7 @@ use serde::Serialize;
 use serde::Serializer;
 use windows::Win32::Foundation::HWND;
 
+use komorebi_core::HidingBehaviour;
 use komorebi_core::Rect;
 
 use crate::styles::ExtendedWindowStyle;
@@ -19,6 +20,7 @@ use crate::windows_api::WindowsApi;
 use crate::BORDER_OVERFLOW_IDENTIFIERS;
 use crate::FLOAT_IDENTIFIERS;
 use crate::HIDDEN_HWNDS;
+use crate::HIDING_BEHAVIOUR;
 use crate::LAYERED_EXE_WHITELIST;
 use crate::MANAGE_IDENTIFIERS;
 use crate::WSL2_UI_PROCESSES;
@@ -139,7 +141,11 @@ impl Window {
             programmatically_hidden_hwnds.push(self.hwnd);
         }
 
-        WindowsApi::hide_window(self.hwnd());
+        let hiding_behaviour = HIDING_BEHAVIOUR.lock();
+        match *hiding_behaviour {
+            HidingBehaviour::Hide => WindowsApi::hide_window(self.hwnd()),
+            HidingBehaviour::Minimize => WindowsApi::minimize_window(self.hwnd()),
+        }
     }
 
     pub fn restore(self) {

@@ -228,6 +228,10 @@ WatchConfiguration(boolean_state) {
     Run, komorebic.exe watch-configuration %boolean_state%, , Hide
 }
 
+WindowHidingBehaviour(hiding_behaviour) {
+    Run, komorebic.exe window-hiding-behaviour %hiding_behaviour%, , Hide
+}
+
 FloatRule(identifier, id) {
     Run, komorebic.exe float-rule %identifier% %id%, , Hide
 }

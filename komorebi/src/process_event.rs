@@ -103,13 +103,25 @@ impl WindowManager {
                 window.raise()?;
                 self.has_pending_raise_op = false;
             }
-            WindowManagerEvent::Minimize(_, window)
-            | WindowManagerEvent::Destroy(_, window)
-            | WindowManagerEvent::Unmanage(window) => {
+            WindowManagerEvent::Destroy(_, window) | WindowManagerEvent::Unmanage(window) => {
                 self.focused_workspace_mut()?.remove_window(window.hwnd)?;
                 self.update_focused_workspace(false)?;
             }
+            WindowManagerEvent::Minimize(_, window) => {
+                let mut hide = false;
 
+                {
+                    let programmatically_hidden_hwnds = HIDDEN_HWNDS.lock();
+                    if !programmatically_hidden_hwnds.contains(&window.hwnd) {
+                        hide = true;
+                    }
+                }
+
+                if hide {
+                    self.focused_workspace_mut()?.remove_window(window.hwnd)?;
+                    self.update_focused_workspace(false)?;
+                }
+            }
             WindowManagerEvent::Hide(_, window) => {
                 let mut hide = false;
                 // Some major applications unfortunately send the HIDE signal when they are being

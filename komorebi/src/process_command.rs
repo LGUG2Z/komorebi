@@ -34,6 +34,7 @@ use crate::NotificationEvent;
 use crate::BORDER_OVERFLOW_IDENTIFIERS;
 use crate::CUSTOM_FFM;
 use crate::FLOAT_IDENTIFIERS;
+use crate::HIDING_BEHAVIOUR;
 use crate::MANAGE_IDENTIFIERS;
 use crate::SUBSCRIPTION_PIPES;
 use crate::TRAY_AND_MULTI_WINDOW_IDENTIFIERS;
@@ -558,6 +559,10 @@ impl WindowManager {
                         self.window_container_behaviour = WindowContainerBehaviour::Create;
                     }
                 }
+            }
+            SocketMessage::WindowHidingBehaviour(behaviour) => {
+                let mut hiding_behaviour = HIDING_BEHAVIOUR.lock();
+                *hiding_behaviour = behaviour;
             }
         };
 

@@ -52,6 +52,7 @@ pub enum SocketMessage {
     ToggleMonocle,
     ToggleMaximize,
     ToggleWindowContainerBehaviour,
+    WindowHidingBehaviour(HidingBehaviour),
     // Current Workspace Commands
     ManageFocusedWindow,
     UnmanageFocusedWindow,
@@ -145,6 +146,13 @@ pub enum FocusFollowsMouseImplementation {
 pub enum WindowContainerBehaviour {
     Create,
     Append,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, Display, EnumString, ArgEnum)]
+#[strum(serialize_all = "snake_case")]
+pub enum HidingBehaviour {
+    Hide,
+    Minimize,
 }
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, Display, EnumString, ArgEnum)]

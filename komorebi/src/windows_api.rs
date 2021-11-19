@@ -74,6 +74,7 @@ use windows::Win32::UI::WindowsAndMessaging::SPI_GETACTIVEWINDOWTRACKING;
 use windows::Win32::UI::WindowsAndMessaging::SPI_SETACTIVEWINDOWTRACKING;
 use windows::Win32::UI::WindowsAndMessaging::SW_HIDE;
 use windows::Win32::UI::WindowsAndMessaging::SW_MAXIMIZE;
+use windows::Win32::UI::WindowsAndMessaging::SW_MINIMIZE;
 use windows::Win32::UI::WindowsAndMessaging::SW_RESTORE;
 use windows::Win32::UI::WindowsAndMessaging::SYSTEM_PARAMETERS_INFO_ACTION;
 use windows::Win32::UI::WindowsAndMessaging::SYSTEM_PARAMETERS_INFO_UPDATE_FLAGS;
@@ -277,6 +278,10 @@ impl WindowsApi {
         // BOOL is returned but does not signify whether or not the operation was succesful
         // https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-showwindow
         unsafe { ShowWindow(hwnd, command) };
+    }
+
+    pub fn minimize_window(hwnd: HWND) {
+        Self::show_window(hwnd, SW_MINIMIZE);
     }
 
     pub fn hide_window(hwnd: HWND) {

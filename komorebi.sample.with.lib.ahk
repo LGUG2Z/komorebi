@@ -1,6 +1,9 @@
 #SingleInstance Force
 #Include %A_ScriptDir%\komorebic.lib.ahk
 
+; Default to minimizing windows when switching workspaces
+WindowHidingBehaviour("minimize")
+
 ; Enable hot reloading of changes to this file
 WatchConfiguration("enable")
 

@@ -32,6 +32,7 @@ use komorebi_core::Axis;
 use komorebi_core::CycleDirection;
 use komorebi_core::DefaultLayout;
 use komorebi_core::FocusFollowsMouseImplementation;
+use komorebi_core::HidingBehaviour;
 use komorebi_core::OperationDirection;
 use komorebi_core::Rect;
 use komorebi_core::Sizing;
@@ -90,6 +91,7 @@ gen_enum_subcommand_args! {
     WatchConfiguration: BooleanState,
     MouseFollowsFocus: BooleanState,
     Query: StateQuery,
+    WindowHidingBehaviour: HidingBehaviour,
 }
 
 macro_rules! gen_target_subcommand_args {
@@ -506,6 +508,9 @@ enum SubCommand {
     /// Enable or disable watching of ~/komorebi.ahk (if it exists)
     #[clap(setting = AppSettings::ArgRequiredElseHelp)]
     WatchConfiguration(WatchConfiguration),
+    /// Set the window behaviour when switching workspaces / cycling stacks
+    #[clap(setting = AppSettings::ArgRequiredElseHelp)]
+    WindowHidingBehaviour(WindowHidingBehaviour),
     /// Add a rule to always float the specified application
     #[clap(setting = AppSettings::ArgRequiredElseHelp)]
     FloatRule(FloatRule),
@@ -962,6 +967,9 @@ fn main() -> Result<()> {
         }
         SubCommand::ToggleWindowContainerBehaviour => {
             send_message(&*SocketMessage::ToggleWindowContainerBehaviour.as_bytes()?)?;
+        }
+        SubCommand::WindowHidingBehaviour(arg) => {
+            send_message(&*SocketMessage::WindowHidingBehaviour(arg.hiding_behaviour).as_bytes()?)?;
         }
     }
 

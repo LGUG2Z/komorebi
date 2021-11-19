@@ -29,6 +29,7 @@ use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::EnvFilter;
 use which::which;
 
+use komorebi_core::HidingBehaviour;
 use komorebi_core::SocketMessage;
 
 use crate::process_command::listen_for_commands;
@@ -92,6 +93,8 @@ lazy_static! {
     ]));
     static ref SUBSCRIPTION_PIPES: Arc<Mutex<HashMap<String, File>>> =
         Arc::new(Mutex::new(HashMap::new()));
+    static ref HIDING_BEHAVIOUR: Arc<Mutex<HidingBehaviour>> =
+        Arc::new(Mutex::new(HidingBehaviour::Minimize));
 }
 
 pub static CUSTOM_FFM: AtomicBool = AtomicBool::new(false);
