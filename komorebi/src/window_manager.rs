@@ -443,7 +443,7 @@ impl WindowManager {
     }
 
     #[tracing::instrument(skip(self))]
-    pub fn retile_all(&mut self) -> Result<()> {
+    pub fn retile_all(&mut self, preserve_resize_dimensions: bool) -> Result<()> {
         let invisible_borders = self.invisible_borders;
         let offset = self.work_area_offset;
 
@@ -454,8 +454,10 @@ impl WindowManager {
                 .ok_or_else(|| anyhow!("there is no workspace"))?;
 
             // Reset any resize adjustments if we want to force a retile
-            for resize in workspace.resize_dimensions_mut() {
-                *resize = None;
+            if !preserve_resize_dimensions {
+                for resize in workspace.resize_dimensions_mut() {
+                    *resize = None;
+                }
             }
 
             workspace.update(&work_area, offset, &invisible_borders)?;

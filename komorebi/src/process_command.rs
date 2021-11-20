@@ -143,6 +143,7 @@ impl WindowManager {
                 }
 
                 self.is_paused = !self.is_paused;
+                self.retile_all(true)?;
             }
             SocketMessage::ToggleTiling => {
                 self.toggle_tiling()?;
@@ -161,7 +162,7 @@ impl WindowManager {
                 self.focus_monitor(monitor_idx)?;
                 self.update_focused_workspace(self.mouse_follows_focus)?;
             }
-            SocketMessage::Retile => self.retile_all()?,
+            SocketMessage::Retile => self.retile_all(false)?,
             SocketMessage::FlipLayout(layout_flip) => self.flip_layout(layout_flip)?,
             SocketMessage::ChangeLayout(layout) => self.change_workspace_layout_default(layout)?,
             SocketMessage::ChangeLayoutCustom(path) => self.change_workspace_custom_layout(path)?,
@@ -464,11 +465,11 @@ impl WindowManager {
             }
             SocketMessage::InvisibleBorders(rect) => {
                 self.invisible_borders = rect;
-                self.retile_all()?;
+                self.retile_all(false)?;
             }
             SocketMessage::WorkAreaOffset(rect) => {
                 self.work_area_offset = Option::from(rect);
-                self.retile_all()?;
+                self.retile_all(false)?;
             }
             SocketMessage::QuickSave => {
                 let workspace = self.focused_workspace()?;
