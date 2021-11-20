@@ -78,7 +78,12 @@ lazy_static! {
     static ref WORKSPACE_RULES: Arc<Mutex<HashMap<String, (usize, usize)>>> =
         Arc::new(Mutex::new(HashMap::new()));
     static ref MANAGE_IDENTIFIERS: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(vec![]));
-    static ref FLOAT_IDENTIFIERS: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(vec![]));
+    static ref FLOAT_IDENTIFIERS: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(vec![
+        // mstsc.exe creates these on Windows 11 when a WSL process is launched
+        // https://github.com/LGUG2Z/komorebi/issues/74
+        "OPContainerClass".to_string(),
+        "IHWindowClass".to_string()
+    ]));
     static ref BORDER_OVERFLOW_IDENTIFIERS: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(vec![]));
     static ref WSL2_UI_PROCESSES: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(vec![
         "X410.exe".to_string(),
