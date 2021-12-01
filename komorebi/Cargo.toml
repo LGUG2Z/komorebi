@@ -37,7 +37,7 @@ uds_windows = "1"
 which = "4"
 winput = "0.2"
 winvd = "0.0.20"
-miow = "0.3"
+miow = "0.4"
 
 [dependencies.windows]
 version = "0.28"
