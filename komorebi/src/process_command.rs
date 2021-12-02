@@ -68,7 +68,10 @@ pub fn listen_for_commands(wm: Arc<Mutex<WindowManager>>) {
 impl WindowManager {
     #[tracing::instrument(skip(self))]
     pub fn process_command(&mut self, message: SocketMessage) -> Result<()> {
-        self.validate_virtual_desktop_id();
+        if let Err(error) = self.validate_virtual_desktop_id() {
+            tracing::info!("{}", error);
+            return Ok(());
+        }
 
         match message {
             SocketMessage::Promote => self.promote_container_to_front()?,

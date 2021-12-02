@@ -36,7 +36,7 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 uds_windows = "1"
 which = "4"
 winput = "0.2"
-winvd = "0.0.20"
+winvd = { git = "https://github.com/Ciantic/VirtualDesktopAccessor", branch = "rust" }
 miow = "0.4"
 
 [dependencies.windows]

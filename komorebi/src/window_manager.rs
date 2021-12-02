@@ -66,6 +66,7 @@ pub struct State {
     pub is_paused: bool,
     pub invisible_borders: Rect,
     pub resize_delta: i32,
+    pub virtual_desktop_id: Option<usize>,
     pub new_window_behaviour: WindowContainerBehaviour,
     pub work_area_offset: Option<Rect>,
     pub focus_follows_mouse: Option<FocusFollowsMouseImplementation>,
@@ -86,6 +87,7 @@ impl From<&WindowManager> for State {
             invisible_borders: wm.invisible_borders,
             work_area_offset: wm.work_area_offset,
             resize_delta: wm.resize_delta,
+            virtual_desktop_id: wm.virtual_desktop_id,
             new_window_behaviour: wm.window_container_behaviour,
             focus_follows_mouse: wm.focus_follows_mouse.clone(),
             mouse_follows_focus: wm.mouse_follows_focus,
@@ -467,17 +469,21 @@ impl WindowManager {
     }
 
     #[tracing::instrument(skip(self))]
-    pub fn validate_virtual_desktop_id(&self) {
+    pub fn validate_virtual_desktop_id(&self) -> Result<()> {
         let virtual_desktop_id = winvd::helpers::get_current_desktop_number().ok();
         if let (Some(id), Some(virtual_desktop_id)) = (virtual_desktop_id, self.virtual_desktop_id)
         {
             if id != virtual_desktop_id {
-                tracing::warn!(
-                    "ignoring events while not on virtual desktop {}",
+                return Err(anyhow!(
+                    "ignoring events and commands while not on virtual desktop {}",
                     virtual_desktop_id
-                );
+                ));
             }
+        } else {
+            tracing::warn!("unable to look up virtual desktop id, skipping validation");
         }
+
+        Ok(())
     }
 
     #[tracing::instrument(skip(self))]

@@ -51,7 +51,10 @@ impl WindowManager {
             return Ok(());
         }
 
-        self.validate_virtual_desktop_id();
+        if let Err(error) = self.validate_virtual_desktop_id() {
+            tracing::info!("{}", error);
+            return Ok(());
+        }
 
         // Make sure we have the most recently focused monitor from any event
         match event {
