@@ -308,6 +308,7 @@ send-to-monitor                      Send the focused window to the specified mo
 send-to-workspace                    Send the focused window to the specified workspace
 focus-monitor                        Focus the specified monitor
 focus-workspace                      Focus the specified workspace on the focused monitor
+focus-monitor-workspace              Focus the specified workspace on the target monitor
 cycle-monitor                        Focus the monitor in the given cycle direction
 cycle-workspace                      Focus the workspace in the given cycle direction
 new-workspace                        Create and append a new workspace on the focused monitor

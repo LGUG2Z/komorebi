@@ -104,6 +104,10 @@ FocusWorkspace(target) {
     Run, komorebic.exe focus-workspace %target%, , Hide
 }
 
+FocusMonitorWorkspace(target_monitor, target_workspace) {
+    Run, komorebic.exe focus-monitor-workspace %target_monitor% %target_workspace%, , Hide
+}
+
 CycleMonitor(cycle_direction) {
     Run, komorebic.exe cycle-monitor %cycle_direction%, , Hide
 }

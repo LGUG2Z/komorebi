@@ -216,6 +216,14 @@ struct EnsureWorkspaces {
     workspace_count: usize,
 }
 
+#[derive(Parser, AhkFunction)]
+struct FocusMonitorWorkspace {
+    /// Target monitor index (zero-indexed)
+    target_monitor: usize,
+    /// Workspace index on the target monitor (zero-indexed)
+    target_workspace: usize,
+}
+
 macro_rules! gen_padding_subcommand_args {
     // SubCommand Pattern
     ( $( $name:ident ),+ $(,)? ) => {
@@ -428,6 +436,9 @@ enum SubCommand {
     /// Focus the specified workspace on the focused monitor
     #[clap(setting = AppSettings::ArgRequiredElseHelp)]
     FocusWorkspace(FocusWorkspace),
+    /// Focus the specified workspace on the target monitor
+    #[clap(setting = AppSettings::ArgRequiredElseHelp)]
+    FocusMonitorWorkspace(FocusMonitorWorkspace),
     /// Focus the monitor in the given cycle direction
     #[clap(setting = AppSettings::ArgRequiredElseHelp)]
     CycleMonitor(CycleMonitor),
@@ -796,6 +807,15 @@ fn main() -> Result<()> {
         }
         SubCommand::FocusWorkspace(arg) => {
             send_message(&*SocketMessage::FocusWorkspaceNumber(arg.target).as_bytes()?)?;
+        }
+        SubCommand::FocusMonitorWorkspace(arg) => {
+            send_message(
+                &*SocketMessage::FocusMonitorWorkspaceNumber(
+                    arg.target_monitor,
+                    arg.target_workspace,
+                )
+                .as_bytes()?,
+            )?;
         }
         SubCommand::CycleMonitor(arg) => {
             send_message(&*SocketMessage::CycleFocusMonitor(arg.cycle_direction).as_bytes()?)?;

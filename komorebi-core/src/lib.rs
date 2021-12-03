@@ -76,6 +76,7 @@ pub enum SocketMessage {
     CycleFocusWorkspace(CycleDirection),
     FocusMonitorNumber(usize),
     FocusWorkspaceNumber(usize),
+    FocusMonitorWorkspaceNumber(usize, usize),
     ContainerPadding(usize, usize, i32),
     WorkspacePadding(usize, usize, i32),
     WorkspaceTiling(usize, usize, bool),

@@ -220,6 +220,10 @@ impl WindowManager {
                 self.focus_monitor(monitor_idx)?;
                 self.focus_workspace(workspace_idx)?;
             }
+            SocketMessage::FocusMonitorWorkspaceNumber(monitor_idx, workspace_idx) => {
+                self.focus_monitor(monitor_idx)?;
+                self.focus_workspace(workspace_idx)?;
+            }
             SocketMessage::Stop => {
                 tracing::info!(
                     "received stop command, restoring all hidden windows and terminating process"
