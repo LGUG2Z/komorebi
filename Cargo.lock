@@ -142,37 +142,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "com"
-version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5a30a2b2a013da986dc5cc3eda3d19c0d59d53f835be1b2356eb8d00f000c793"
-dependencies = [
- "com_macros",
-]
-
-[[package]]
-name = "com_macros"
-version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7606b05842fea68ddcc89e8053b8860ebcb2a0ba8d6abfe3a148e5d5a8d3f0c1"
-dependencies = [
- "com_macros_support",
- "proc-macro2",
- "syn",
-]
-
-[[package]]
-name = "com_macros_support"
-version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "97e9a6d20f4ac8830e309a455d7e9416e65c6af5a97c88c55fbb4c2012e107da"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn",
-]
-
-[[package]]
 name = "core-foundation-sys"
 version = "0.8.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -514,7 +483,7 @@ dependencies = [
  "which",
  "windows",
  "winput",
- "winvd",
+ "winreg",
 ]
 
 [[package]]
@@ -1524,13 +1493,12 @@ dependencies = [
 ]
 
 [[package]]
-name = "winvd"
-version = "0.0.20"
-source = "git+https://github.com/Ciantic/VirtualDesktopAccessor?branch=rust#11502c442f0cc0e6b5304e6a45022406ac502842"
+name = "winreg"
+version = "0.10.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "80d0f4e272c85def139476380b12f9ac60926689dd2e01d4923222f40580869d"
 dependencies = [
- "com",
- "crossbeam-channel",
- "once_cell",
+ "winapi 0.3.9",
 ]
 
 [[package]]

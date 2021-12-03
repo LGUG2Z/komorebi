@@ -36,8 +36,8 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 uds_windows = "1"
 which = "4"
 winput = "0.2"
-winvd = { git = "https://github.com/Ciantic/VirtualDesktopAccessor", branch = "rust" }
 miow = "0.4"
+winreg = "0.10"
 
 [dependencies.windows]
 version = "0.28"
@@ -47,6 +47,7 @@ features = [
     "Win32_Graphics_Dwm",
     "Win32_Graphics_Gdi",
     "Win32_System_Threading",
+    "Win32_System_RemoteDesktop",
     "Win32_UI_Input_KeyboardAndMouse",
     "Win32_UI_Accessibility",
     "Win32_UI_WindowsAndMessaging"

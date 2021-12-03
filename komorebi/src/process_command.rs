@@ -68,9 +68,14 @@ pub fn listen_for_commands(wm: Arc<Mutex<WindowManager>>) {
 impl WindowManager {
     #[tracing::instrument(skip(self))]
     pub fn process_command(&mut self, message: SocketMessage) -> Result<()> {
-        if let Err(error) = self.validate_virtual_desktop_id() {
-            tracing::info!("{}", error);
-            return Ok(());
+        if let Ok(id) = crate::current_virtual_desktop() {
+            if id != self.virtual_desktop_id {
+                tracing::info!(
+                    "ignoring events and commands while not on virtual desktop {:?}",
+                    self.virtual_desktop_id
+                );
+                return Ok(());
+            }
         }
 
         match message {

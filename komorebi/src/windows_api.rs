@@ -31,6 +31,7 @@ use windows::Win32::Graphics::Gdi::HMONITOR;
 use windows::Win32::Graphics::Gdi::MONITORENUMPROC;
 use windows::Win32::Graphics::Gdi::MONITORINFO;
 use windows::Win32::Graphics::Gdi::MONITOR_DEFAULTTONEAREST;
+use windows::Win32::System::RemoteDesktop::ProcessIdToSessionId;
 use windows::Win32::System::Threading::AttachThreadInput;
 use windows::Win32::System::Threading::GetCurrentProcessId;
 use windows::Win32::System::Threading::GetCurrentThreadId;
@@ -380,6 +381,19 @@ impl WindowsApi {
 
     pub fn current_process_id() -> u32 {
         unsafe { GetCurrentProcessId() }
+    }
+
+    pub fn process_id_to_session_id() -> Result<u32> {
+        let process_id = Self::current_process_id();
+        let mut session_id = 0;
+
+        unsafe {
+            if ProcessIdToSessionId(process_id, &mut session_id).as_bool() {
+                Ok(session_id)
+            } else {
+                Err(anyhow!("could not determine current session id"))
+            }
+        }
     }
 
     pub fn attach_thread_input(thread_id: u32, target_thread_id: u32, attach: bool) -> Result<()> {

@@ -6,6 +6,7 @@ use std::fs::File;
 use std::io::Write;
 use std::process::Command;
 use std::sync::atomic::AtomicBool;
+use std::sync::atomic::AtomicU32;
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
 #[cfg(feature = "deadlock_detection")]
@@ -28,6 +29,8 @@ use tracing_appender::non_blocking::WorkerGuard;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::EnvFilter;
 use which::which;
+use winreg::enums::HKEY_CURRENT_USER;
+use winreg::RegKey;
 
 use komorebi_core::HidingBehaviour;
 use komorebi_core::SocketMessage;
@@ -98,6 +101,7 @@ lazy_static! {
 }
 
 pub static CUSTOM_FFM: AtomicBool = AtomicBool::new(false);
+pub static SESSION_ID: AtomicU32 = AtomicU32::new(0);
 
 fn setup() -> Result<(WorkerGuard, WorkerGuard)> {
     if std::env::var("RUST_LIB_BACKTRACE").is_err() {
@@ -198,6 +202,31 @@ pub fn load_configuration() -> Result<()> {
     Ok(())
 }
 
+pub fn current_virtual_desktop() -> Result<Vec<u8>> {
+    let hkcu = RegKey::predef(HKEY_CURRENT_USER);
+
+    // This is the path on Windows 10
+    let current = match hkcu.open_subkey(format!(
+        r#"SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\SessionInfo\{}\VirtualDesktops"#,
+        SESSION_ID.load(Ordering::SeqCst)
+    )) {
+        Ok(desktops) => {
+            if let Ok(current) = desktops.get_raw_value("CurrentVirtualDesktop") {
+                current.bytes
+            } else {
+                // This is the path on Windows 11
+                let desktops = hkcu.open_subkey(
+                    r#"SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\VirtualDesktops"#,
+                )?;
+                desktops.get_raw_value("CurrentVirtualDesktop")?.bytes
+            }
+        }
+        Err(_) => unreachable!(),
+    };
+
+    Ok(current)
+}
+
 #[derive(Debug, Serialize)]
 #[serde(untagged)]
 pub enum NotificationEvent {
@@ -285,6 +314,9 @@ fn main() -> Result<()> {
     let has_valid_args = arg_count == 1 || (arg_count == 2 && CUSTOM_FFM.load(Ordering::SeqCst));
 
     if has_valid_args {
+        let session_id = WindowsApi::process_id_to_session_id()?;
+        SESSION_ID.store(session_id, Ordering::SeqCst);
+
         let mut system = sysinfo::System::new_all();
         system.refresh_processes();
 
