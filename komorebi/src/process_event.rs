@@ -12,6 +12,7 @@ use komorebi_core::Rect;
 use komorebi_core::Sizing;
 use komorebi_core::WindowContainerBehaviour;
 
+use crate::current_virtual_desktop;
 use crate::notify_subscribers;
 use crate::window_manager::WindowManager;
 use crate::window_manager_event::WindowManagerEvent;
@@ -51,13 +52,15 @@ impl WindowManager {
             return Ok(());
         }
 
-        if let Ok(id) = crate::current_virtual_desktop() {
-            if id != self.virtual_desktop_id {
-                tracing::info!(
-                    "ignoring events and commands while not on virtual desktop {:?}",
-                    self.virtual_desktop_id
-                );
-                return Ok(());
+        if let Some(virtual_desktop_id) = &self.virtual_desktop_id {
+            if let Some(id) = current_virtual_desktop() {
+                if id != *virtual_desktop_id {
+                    tracing::info!(
+                        "ignoring events and commands while not on virtual desktop {:?}",
+                        virtual_desktop_id
+                    );
+                    return Ok(());
+                }
             }
         }
 

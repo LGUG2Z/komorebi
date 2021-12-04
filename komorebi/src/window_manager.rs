@@ -56,7 +56,7 @@ pub struct WindowManager {
     pub focus_follows_mouse: Option<FocusFollowsMouseImplementation>,
     pub mouse_follows_focus: bool,
     pub hotwatch: Hotwatch,
-    pub virtual_desktop_id: Vec<u8>,
+    pub virtual_desktop_id: Option<Vec<u8>>,
     pub has_pending_raise_op: bool,
     pub pending_move_op: Option<(usize, usize, usize)>,
 }
@@ -158,7 +158,7 @@ impl WindowManager {
                 right: 14,
                 bottom: 7,
             },
-            virtual_desktop_id: current_virtual_desktop()?,
+            virtual_desktop_id: current_virtual_desktop(),
             work_area_offset: None,
             window_container_behaviour: WindowContainerBehaviour::Create,
             resize_delta: 50,

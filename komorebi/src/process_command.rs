@@ -25,6 +25,7 @@ use komorebi_core::SocketMessage;
 use komorebi_core::StateQuery;
 use komorebi_core::WindowContainerBehaviour;
 
+use crate::current_virtual_desktop;
 use crate::notify_subscribers;
 use crate::window_manager;
 use crate::window_manager::WindowManager;
@@ -68,13 +69,15 @@ pub fn listen_for_commands(wm: Arc<Mutex<WindowManager>>) {
 impl WindowManager {
     #[tracing::instrument(skip(self))]
     pub fn process_command(&mut self, message: SocketMessage) -> Result<()> {
-        if let Ok(id) = crate::current_virtual_desktop() {
-            if id != self.virtual_desktop_id {
-                tracing::info!(
-                    "ignoring events and commands while not on virtual desktop {:?}",
-                    self.virtual_desktop_id
-                );
-                return Ok(());
+        if let Some(virtual_desktop_id) = &self.virtual_desktop_id {
+            if let Some(id) = current_virtual_desktop() {
+                if id != *virtual_desktop_id {
+                    tracing::info!(
+                        "ignoring events and commands while not on virtual desktop {:?}",
+                        virtual_desktop_id
+                    );
+                    return Ok(());
+                }
             }
         }
 

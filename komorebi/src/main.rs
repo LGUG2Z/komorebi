@@ -202,29 +202,47 @@ pub fn load_configuration() -> Result<()> {
     Ok(())
 }
 
-pub fn current_virtual_desktop() -> Result<Vec<u8>> {
+pub fn current_virtual_desktop() -> Option<Vec<u8>> {
     let hkcu = RegKey::predef(HKEY_CURRENT_USER);
 
     // This is the path on Windows 10
-    let current = match hkcu.open_subkey(format!(
-        r#"SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\SessionInfo\{}\VirtualDesktops"#,
-        SESSION_ID.load(Ordering::SeqCst)
-    )) {
-        Ok(desktops) => {
-            if let Ok(current) = desktops.get_raw_value("CurrentVirtualDesktop") {
-                current.bytes
-            } else {
-                // This is the path on Windows 11
-                let desktops = hkcu.open_subkey(
-                    r#"SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\VirtualDesktops"#,
-                )?;
-                desktops.get_raw_value("CurrentVirtualDesktop")?.bytes
-            }
-        }
-        Err(_) => unreachable!(),
-    };
+    let mut current = hkcu
+        .open_subkey(format!(
+            r#"SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\SessionInfo\{}\VirtualDesktops"#,
+            SESSION_ID.load(Ordering::SeqCst)
+        ))
+        .ok()
+        .and_then(
+            |desktops| match desktops.get_raw_value("CurrentVirtualDesktop") {
+                Ok(current) => Option::from(current.bytes),
+                Err(_) => None,
+            },
+        );
 
-    Ok(current)
+    // This is the path on Windows 11
+    if current.is_none() {
+        current = hkcu
+            .open_subkey(r#"SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\VirtualDesktops"#)
+            .ok()
+            .and_then(
+                |desktops| match desktops.get_raw_value("CurrentVirtualDesktop") {
+                    Ok(current) => Option::from(current.bytes),
+                    Err(_) => None,
+                },
+            );
+    }
+
+    // For Win10 users that do not use virtual desktops, the CurrentVirtualDesktop value will not
+    // exist until one has been created in the task view
+
+    // The registry value will also not exist on user login if virtual desktops have been created
+    // but the task view has not been initiated
+
+    // In both of these cases, we return None, and the virtual desktop validation will never run. In
+    // the latter case, if the user desires this validation after initiating the task view, komorebi
+    // should be restarted, and then when this // fn runs again for the first time, it will pick up
+    // the value of CurrentVirtualDesktop and validate against it accordingly
+    current
 }
 
 #[derive(Debug, Serialize)]
