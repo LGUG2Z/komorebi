@@ -249,7 +249,12 @@ impl WindowManager {
                 self.set_workspace_name(monitor_idx, workspace_idx, name)?;
             }
             SocketMessage::State => {
-                let state = serde_json::to_string_pretty(&window_manager::State::from(&*self))?;
+                let state = match serde_json::to_string_pretty(&window_manager::State::from(&*self))
+                {
+                    Ok(state) => state,
+                    Err(error) => error.to_string(),
+                };
+
                 let mut socket =
                     dirs::home_dir().ok_or_else(|| anyhow!("there is no home directory"))?;
                 socket.push("komorebic.sock");
