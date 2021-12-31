@@ -147,6 +147,9 @@ impl WindowManager {
             SocketMessage::SendContainerToMonitorNumber(monitor_idx) => {
                 self.move_container_to_monitor(monitor_idx, false)?;
             }
+            SocketMessage::MoveWorkspaceToMonitorNumber(monitor_idx) => {
+                self.move_workspace_to_monitor(monitor_idx)?;
+            }
             SocketMessage::TogglePause => {
                 if self.is_paused {
                     tracing::info!("resuming");

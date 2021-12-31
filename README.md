@@ -311,6 +311,7 @@ focus-workspace                      Focus the specified workspace on the focuse
 focus-monitor-workspace              Focus the specified workspace on the target monitor
 cycle-monitor                        Focus the monitor in the given cycle direction
 cycle-workspace                      Focus the workspace in the given cycle direction
+move-workspace-to-monitor            Move the focused workspace to the specified monitor
 new-workspace                        Create and append a new workspace on the focused monitor
 resize-delta                         Set the resize delta (used by resize-edge and resize-axis)
 invisible-borders                    Set the invisible border dimensions around each window
@@ -376,6 +377,7 @@ used [is available here](komorebi.sample.with.lib.ahk).
 - [x] Move focused window container to workspace follow
 - [x] Send focused window container to monitor
 - [x] Send focused window container to workspace
+- [x] Move focused workspace to monitor
 - [x] Mouse follows focused container
 - [x] Resize window container in direction
 - [x] Resize window container on axis

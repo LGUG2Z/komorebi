@@ -116,6 +116,10 @@ CycleWorkspace(cycle_direction) {
     Run, komorebic.exe cycle-workspace %cycle_direction%, , Hide
 }
 
+MoveWorkspaceToMonitor(target) {
+    Run, komorebic.exe move-workspace-to-monitor %target%, , Hide
+}
+
 NewWorkspace() {
     Run, komorebic.exe new-workspace, , Hide
 }

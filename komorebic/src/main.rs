@@ -114,6 +114,7 @@ gen_target_subcommand_args! {
     SendToWorkspace,
     FocusMonitor,
     FocusWorkspace,
+    MoveWorkspaceToMonitor,
 }
 
 // Thanks to @danielhenrymantilla for showing me how to use cfg_attr with an optional argument like
@@ -445,6 +446,9 @@ enum SubCommand {
     /// Focus the workspace in the given cycle direction
     #[clap(setting = AppSettings::ArgRequiredElseHelp)]
     CycleWorkspace(CycleWorkspace),
+    /// Move the focused workspace to the specified monitor
+    #[clap(setting = AppSettings::ArgRequiredElseHelp)]
+    MoveWorkspaceToMonitor(MoveWorkspaceToMonitor),
     /// Create and append a new workspace on the focused monitor
     NewWorkspace,
     /// Set the resize delta (used by resize-edge and resize-axis)
@@ -632,6 +636,9 @@ fn main() -> Result<()> {
         }
         SubCommand::SendToWorkspace(arg) => {
             send_message(&*SocketMessage::SendContainerToWorkspaceNumber(arg.target).as_bytes()?)?;
+        }
+        SubCommand::MoveWorkspaceToMonitor(arg) => {
+            send_message(&*SocketMessage::MoveWorkspaceToMonitorNumber(arg.target).as_bytes()?)?;
         }
         SubCommand::InvisibleBorders(arg) => {
             send_message(

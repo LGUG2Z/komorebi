@@ -828,6 +828,34 @@ impl WindowManager {
 
         self.update_focused_workspace(mouse_follows_focus)
     }
+    pub fn remove_focused_workspace(&mut self) -> Option<Workspace> {
+        let focused_monitor: &mut Monitor = self.focused_monitor_mut()?;
+        let focused_workspace_idx = focused_monitor.focused_workspace_idx();
+        focused_monitor.remove_workspace_by_idx(focused_workspace_idx)
+    }
+
+    #[tracing::instrument(skip(self))]
+    pub fn move_workspace_to_monitor(&mut self, idx: usize) -> Result<()> {
+        tracing::info!("moving workspace");
+        let mouse_follows_focus = self.mouse_follows_focus;
+        let workspace = self
+            .remove_focused_workspace()
+            .ok_or_else(|| anyhow!("there is no workspace"))?;
+
+        {
+            let target_monitor: &mut Monitor = self
+                .monitors_mut()
+                .get_mut(idx)
+                .ok_or_else(|| anyhow!("there is no monitor"))?;
+
+            target_monitor.workspaces_mut().push_back(workspace);
+            target_monitor.focus_workspace(target_monitor.workspaces().len() - 1)?;
+            target_monitor.load_focused_workspace(mouse_follows_focus)?;
+        }
+
+        self.focus_monitor(idx)?;
+        self.update_focused_workspace(mouse_follows_focus)
+    }
 
     #[tracing::instrument(skip(self))]
     pub fn focus_container_in_direction(&mut self, direction: OperationDirection) -> Result<()> {

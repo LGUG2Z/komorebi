@@ -68,6 +68,20 @@ impl Monitor {
         Ok(())
     }
 
+    pub fn remove_workspace_by_idx(&mut self, idx: usize) -> Option<Workspace> {
+        if idx < self.workspaces().len() {
+            return self.workspaces_mut().remove(idx);
+        }
+
+        if idx == 0 {
+            self.workspaces_mut().push_back(Workspace::default());
+        } else {
+            self.focus_workspace(idx - 1).ok()?;
+        };
+
+        None
+    }
+
     pub fn ensure_workspace_count(&mut self, ensure_count: usize) {
         if self.workspaces().len() < ensure_count {
             self.workspaces_mut()

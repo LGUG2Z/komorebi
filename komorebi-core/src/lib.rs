@@ -47,6 +47,7 @@ pub enum SocketMessage {
     MoveContainerToWorkspaceNumber(usize),
     SendContainerToMonitorNumber(usize),
     SendContainerToWorkspaceNumber(usize),
+    MoveWorkspaceToMonitorNumber(usize),
     Promote,
     ToggleFloat,
     ToggleMonocle,
