@@ -297,7 +297,7 @@ impl WindowManager {
                     if matches!(axis, Axis::Horizontal) {
                         let percentage = custom
                             .primary_width_percentage()
-                            .unwrap_or_else(|| 100 / custom.len());
+                            .unwrap_or(100 / custom.len());
 
                         match sizing {
                             Sizing::Increase => custom.set_primary_width_percentage(percentage + 5),

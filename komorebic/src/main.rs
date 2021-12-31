@@ -999,7 +999,7 @@ fn main() -> Result<()> {
 fn resolve_windows_path(raw_path: &str) -> Result<PathBuf> {
     let path = if raw_path.starts_with('~') {
         raw_path.replacen(
-            "~",
+            '~',
             &dirs::home_dir()
                 .ok_or_else(|| anyhow!("there is no home directory"))?
                 .display()
