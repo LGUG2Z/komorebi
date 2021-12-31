@@ -14,7 +14,7 @@ edition = "2021"
 komorebi-core = { path = "../komorebi-core" }
 
 bitflags = "1"
-clap = { version = "3.0.0-rc.11", features = ["derive"] }
+clap = { version = "3", features = ["derive"] }
 color-eyre = "0.5"
 crossbeam-channel = "0.5"
 crossbeam-utils = "0.8"
