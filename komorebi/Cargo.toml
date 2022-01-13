@@ -40,9 +40,8 @@ miow = "0.4"
 winreg = "0.10"
 
 [dependencies.windows]
-version = "0.28"
+version = "0.30"
 features = [
-    "std",
     "Win32_Foundation",
     "Win32_Graphics_Dwm",
     "Win32_Graphics_Gdi",

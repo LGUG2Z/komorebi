@@ -6,7 +6,6 @@ use std::ffi::c_void;
 use color_eyre::eyre::anyhow;
 use color_eyre::eyre::Error;
 use color_eyre::Result;
-use windows::core::Handle;
 use windows::core::Result as WindowsCrateResult;
 use windows::Win32::Foundation::BOOL;
 use windows::Win32::Foundation::HANDLE;
@@ -38,7 +37,6 @@ use windows::Win32::System::Threading::GetCurrentThreadId;
 use windows::Win32::System::Threading::OpenProcess;
 use windows::Win32::System::Threading::QueryFullProcessImageNameW;
 use windows::Win32::System::Threading::PROCESS_ACCESS_RIGHTS;
-use windows::Win32::System::Threading::PROCESS_NAME_FORMAT;
 use windows::Win32::System::Threading::PROCESS_QUERY_INFORMATION;
 use windows::Win32::UI::Input::KeyboardAndMouse::SetFocus;
 use windows::Win32::UI::WindowsAndMessaging::AllowSetForegroundWindow;
@@ -68,7 +66,6 @@ use windows::Win32::UI::WindowsAndMessaging::GWL_STYLE;
 use windows::Win32::UI::WindowsAndMessaging::GW_HWNDNEXT;
 use windows::Win32::UI::WindowsAndMessaging::HWND_NOTOPMOST;
 use windows::Win32::UI::WindowsAndMessaging::HWND_TOPMOST;
-use windows::Win32::UI::WindowsAndMessaging::SET_WINDOW_POS_FLAGS;
 use windows::Win32::UI::WindowsAndMessaging::SHOW_WINDOW_CMD;
 use windows::Win32::UI::WindowsAndMessaging::SPIF_SENDCHANGE;
 use windows::Win32::UI::WindowsAndMessaging::SPI_GETACTIVEWINDOWTRACKING;
@@ -167,7 +164,7 @@ impl WindowsApi {
             EnumDisplayMonitors(
                 HDC(0),
                 std::ptr::null_mut(),
-                Option::from(callback),
+                callback,
                 LPARAM(callback_data_address),
             )
         }
@@ -179,7 +176,7 @@ impl WindowsApi {
         let mut monitors: Vec<isize> = vec![];
         let monitors_ref: &mut Vec<isize> = monitors.as_mut();
         Self::enum_display_monitors(
-            windows_callbacks::valid_display_monitors,
+            Option::Some(windows_callbacks::valid_display_monitors),
             monitors_ref as *mut Vec<isize> as isize,
         )?;
 
@@ -188,13 +185,13 @@ impl WindowsApi {
 
     pub fn load_monitor_information(monitors: &mut Ring<Monitor>) -> Result<()> {
         Self::enum_display_monitors(
-            windows_callbacks::enum_display_monitor,
+            Option::Some(windows_callbacks::enum_display_monitor),
             monitors as *mut Ring<Monitor> as isize,
         )
     }
 
     pub fn enum_windows(callback: WNDENUMPROC, callback_data_address: isize) -> Result<()> {
-        unsafe { EnumWindows(Option::from(callback), LPARAM(callback_data_address)) }
+        unsafe { EnumWindows(callback, LPARAM(callback_data_address)) }
             .ok()
             .process()
     }
@@ -205,7 +202,7 @@ impl WindowsApi {
             if let Some(workspace) = monitor.workspaces_mut().front_mut() {
                 // EnumWindows will enumerate through windows on all monitors
                 Self::enum_windows(
-                    windows_callbacks::enum_window,
+                    Option::Some(windows_callbacks::enum_window),
                     workspace.containers_mut() as *mut VecDeque<Container> as isize,
                 )?;
 
@@ -268,7 +265,7 @@ impl WindowsApi {
                 layout.top,
                 layout.right,
                 layout.bottom,
-                SET_WINDOW_POS_FLAGS(flags),
+                flags,
             )
         }
         .ok()
@@ -469,16 +466,9 @@ impl WindowsApi {
         let mut path: Vec<u16> = vec![0; len as usize];
         let text_ptr = path.as_mut_ptr();
 
-        unsafe {
-            QueryFullProcessImageNameW(
-                handle,
-                PROCESS_NAME_FORMAT(0),
-                PWSTR(text_ptr),
-                &mut len as *mut u32,
-            )
-        }
-        .ok()
-        .process()?;
+        unsafe { QueryFullProcessImageNameW(handle, 0, PWSTR(text_ptr), &mut len as *mut u32) }
+            .ok()
+            .process()?;
 
         Ok(String::from_utf16(&path[..len as usize])?)
     }
