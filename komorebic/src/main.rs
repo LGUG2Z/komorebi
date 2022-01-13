@@ -16,7 +16,7 @@ use clap::Parser;
 use color_eyre::eyre::anyhow;
 use color_eyre::Result;
 use fs_tail::TailedFile;
-use heck::KebabCase;
+use heck::ToKebabCase;
 use paste::paste;
 use uds_windows::UnixListener;
 use uds_windows::UnixStream;
