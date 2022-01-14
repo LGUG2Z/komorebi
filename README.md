@@ -25,7 +25,7 @@ repository.
 Articles, blog posts, demos, and videos about _komorebi_ can be added to this list by PR:
 
 - [Moving to Windows from Linux Pt 1](https://kvwu.io/posts/moving-to-windows/)
-- [windows 下有没有实现 awesome 这样平铺窗口的软件？](https://www.zhihu.com/question/26511760/answer/2303817401)
+- [Windows下的现代化平铺窗口管理器 komorebi](https://zhuanlan.zhihu.com/p/455064481)
 
 ## Description
 
