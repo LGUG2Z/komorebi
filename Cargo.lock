@@ -84,9 +84,9 @@ checksum = "baf1de4339761588bc0619e3cbc0120ee582ebb74b53b4efbf79117bd2da40fd"
 
 [[package]]
 name = "clap"
-version = "3.0.7"
+version = "3.0.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "12e8611f9ae4e068fa3e56931fded356ff745e70987ff76924a6e0ab1c8ef2e3"
+checksum = "31b34190c12bd1d613deba77e1cc13e68eaf4a0d51e389dbd485b7bfe15a47c0"
 dependencies = [
  "atty",
  "bitflags",
@@ -483,7 +483,7 @@ dependencies = [
  "sysinfo",
  "tracing",
  "tracing-appender",
- "tracing-subscriber 0.3.5",
+ "tracing-subscriber 0.3.6",
  "uds_windows",
  "which",
  "windows",
@@ -1064,9 +1064,9 @@ dependencies = [
 
 [[package]]
 name = "serde_json"
-version = "1.0.74"
+version = "1.0.75"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ee2bb9cd061c5865d345bb02ca49fcef1391741b672b54a0bf7b679badec3142"
+checksum = "c059c05b48c5c0067d4b4b2b4f0732dd65feb52daf7e0ea09cd87e7dadc1af79"
 dependencies = [
  "itoa 1.0.1",
  "ryu",
@@ -1102,9 +1102,9 @@ checksum = "9def91fd1e018fe007022791f865d0ccc9b3a0d5001e01aabb8b40e46000afb5"
 
 [[package]]
 name = "smallvec"
-version = "1.7.0"
+version = "1.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1ecab6c735a6bb4139c0caafd0cc3635748bbb3acf4550e8138122099251f309"
+checksum = "f2dd574626839106c320a323308629dcb1acfc96e32a8cba364ddc61ac23ee83"
 
 [[package]]
 name = "strsim"
@@ -1147,9 +1147,9 @@ dependencies = [
 
 [[package]]
 name = "sysinfo"
-version = "0.22.4"
+version = "0.22.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ccb37aa4af23791c584202d286ed9420e023e9d27e49d5a76215623f4bcc2502"
+checksum = "7f1bfab07306a27332451a662ca9c8156e3a9986f82660ba9c8e744fe8455d43"
 dependencies = [
  "cfg-if 1.0.0",
  "core-foundation-sys",
@@ -1248,7 +1248,7 @@ checksum = "94571df2eae3ed4353815ea5a90974a594a1792d8782ff2cbcc9392d1101f366"
 dependencies = [
  "crossbeam-channel",
  "time",
- "tracing-subscriber 0.3.5",
+ "tracing-subscriber 0.3.6",
 ]
 
 [[package]]
@@ -1305,9 +1305,9 @@ dependencies = [
 
 [[package]]
 name = "tracing-subscriber"
-version = "0.3.5"
+version = "0.3.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5d81bfa81424cc98cb034b837c985b7a290f592e5b4322f353f94a0ab0f9f594"
+checksum = "77be66445c4eeebb934a7340f227bfe7b338173d3f8c00a60a5a58005c9faecf"
 dependencies = [
  "ansi_term",
  "lazy_static",

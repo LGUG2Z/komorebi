@@ -466,9 +466,11 @@ impl WindowsApi {
         let mut path: Vec<u16> = vec![0; len as usize];
         let text_ptr = path.as_mut_ptr();
 
-        unsafe { QueryFullProcessImageNameW(handle, 0, PWSTR(text_ptr), &mut len as *mut u32) }
-            .ok()
-            .process()?;
+        unsafe {
+            QueryFullProcessImageNameW(handle, 0, PWSTR(text_ptr), std::ptr::addr_of_mut!(len))
+        }
+        .ok()
+        .process()?;
 
         Ok(String::from_utf16(&path[..len as usize])?)
     }
@@ -543,7 +545,7 @@ impl WindowsApi {
         let mut monitor_info: MONITORINFO = unsafe { std::mem::zeroed() };
         monitor_info.cbSize = u32::try_from(std::mem::size_of::<MONITORINFO>())?;
 
-        unsafe { GetMonitorInfoW(hmonitor, (&mut monitor_info as *mut MONITORINFO).cast()) }
+        unsafe { GetMonitorInfoW(hmonitor, std::ptr::addr_of_mut!(monitor_info).cast()) }
             .ok()
             .process()?;
 
@@ -579,7 +581,7 @@ impl WindowsApi {
         Self::system_parameters_info_w(
             SPI_GETACTIVEWINDOWTRACKING,
             0,
-            (&mut is_enabled as *mut BOOL).cast(),
+            std::ptr::addr_of_mut!(is_enabled).cast(),
             SPIF_SENDCHANGE,
         )?;
 

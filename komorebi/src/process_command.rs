@@ -15,6 +15,7 @@ use miow::pipe::connect;
 use parking_lot::Mutex;
 use uds_windows::UnixStream;
 
+use komorebi_core::ApplicationIdentifier;
 use komorebi_core::Axis;
 use komorebi_core::FocusFollowsMouseImplementation;
 use komorebi_core::Layout;
@@ -123,10 +124,57 @@ impl WindowManager {
                     manage_identifiers.push(id);
                 }
             }
-            SocketMessage::FloatRule(_, id) => {
+            SocketMessage::FloatRule(identifier, id) => {
                 let mut float_identifiers = FLOAT_IDENTIFIERS.lock();
                 if !float_identifiers.contains(&id) {
-                    float_identifiers.push(id);
+                    float_identifiers.push(id.clone());
+                }
+
+                let invisible_borders = self.invisible_borders;
+                let offset = self.work_area_offset;
+
+                let mut hwnds_to_purge = vec![];
+                for (i, monitor) in self.monitors().iter().enumerate() {
+                    for container in monitor
+                        .focused_workspace()
+                        .ok_or_else(|| anyhow!("there is no workspace"))?
+                        .containers()
+                        .iter()
+                    {
+                        for window in container.windows().iter() {
+                            match identifier {
+                                ApplicationIdentifier::Exe => {
+                                    if window.exe()? == id {
+                                        hwnds_to_purge.push((i, window.hwnd));
+                                    }
+                                }
+                                ApplicationIdentifier::Class => {
+                                    if window.class()? == id {
+                                        hwnds_to_purge.push((i, window.hwnd));
+                                    }
+                                }
+                                ApplicationIdentifier::Title => {
+                                    if window.title()? == id {
+                                        hwnds_to_purge.push((i, window.hwnd));
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                for (monitor_idx, hwnd) in hwnds_to_purge {
+                    let monitor = self
+                        .monitors_mut()
+                        .get_mut(monitor_idx)
+                        .ok_or_else(|| anyhow!("there is no monitor"))?;
+
+                    monitor
+                        .focused_workspace_mut()
+                        .ok_or_else(|| anyhow!("there is no focused workspace"))?
+                        .remove_window(hwnd)?;
+
+                    monitor.update_focused_workspace(offset, &invisible_borders)?;
                 }
             }
             SocketMessage::AdjustContainerPadding(sizing, adjustment) => {
