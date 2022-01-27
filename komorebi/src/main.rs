@@ -24,6 +24,7 @@ use lazy_static::lazy_static;
 use parking_lot::deadlock;
 use parking_lot::Mutex;
 use serde::Serialize;
+use sysinfo::ProcessExt;
 use sysinfo::SystemExt;
 use tracing_appender::non_blocking::WorkerGuard;
 use tracing_subscriber::layer::SubscriberExt;
@@ -341,9 +342,20 @@ fn main() -> Result<()> {
         let mut system = sysinfo::System::new_all();
         system.refresh_processes();
 
-        if system.process_by_name("komorebi.exe").len() > 1 {
-            tracing::error!("komorebi.exe is already running, please exit the existing process before starting a new one");
-            std::process::exit(1);
+        let matched_procs = system.process_by_name("komorebi.exe");
+
+        if matched_procs.len() > 1 {
+            let mut shim_is_active = false;
+            for proc in matched_procs {
+                if proc.root().ends_with("shims") {
+                    shim_is_active = true;
+                }
+            }
+
+            if !shim_is_active {
+                tracing::error!("komorebi.exe is already running, please exit the existing process before starting a new one");
+                std::process::exit(1);
+            }
         }
 
         // File logging worker guard has to have an assignment in the main fn to work
