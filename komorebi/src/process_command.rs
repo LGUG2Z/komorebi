@@ -37,6 +37,7 @@ use crate::BORDER_OVERFLOW_IDENTIFIERS;
 use crate::CUSTOM_FFM;
 use crate::FLOAT_IDENTIFIERS;
 use crate::HIDING_BEHAVIOUR;
+use crate::HOME_DIR;
 use crate::MANAGE_IDENTIFIERS;
 use crate::SUBSCRIPTION_PIPES;
 use crate::TRAY_AND_MULTI_WINDOW_IDENTIFIERS;
@@ -306,8 +307,7 @@ impl WindowManager {
                     Err(error) => error.to_string(),
                 };
 
-                let mut socket =
-                    dirs::home_dir().ok_or_else(|| anyhow!("there is no home directory"))?;
+                let mut socket = HOME_DIR.clone();
                 socket.push("komorebic.sock");
                 let socket = socket.as_path();
 
@@ -330,8 +330,7 @@ impl WindowManager {
                 }
                 .to_string();
 
-                let mut socket =
-                    dirs::home_dir().ok_or_else(|| anyhow!("there is no home directory"))?;
+                let mut socket = HOME_DIR.clone();
                 socket.push("komorebic.sock");
                 let socket = socket.as_path();
 

@@ -4,6 +4,7 @@
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::Write;
+use std::path::PathBuf;
 use std::process::Command;
 use std::sync::atomic::AtomicBool;
 use std::sync::atomic::AtomicU32;
@@ -99,6 +100,22 @@ lazy_static! {
         Arc::new(Mutex::new(HashMap::new()));
     static ref HIDING_BEHAVIOUR: Arc<Mutex<HidingBehaviour>> =
         Arc::new(Mutex::new(HidingBehaviour::Minimize));
+    static ref HOME_DIR: PathBuf = {
+        if let Ok(home_path) = std::env::var("KOMOREBI_CONFIG_HOME") {
+            let home = PathBuf::from(&home_path);
+
+            if home.as_path().is_dir() {
+                home
+            } else {
+                panic!(
+                    "$Env:KOMOREBI_CONFIG_HOME is set to '{}', which is not a valid directory",
+                    home_path
+                );
+            }
+        } else {
+            dirs::home_dir().expect("there is no home directory")
+        }
+    };
 }
 
 pub static CUSTOM_FFM: AtomicBool = AtomicBool::new(false);
@@ -115,7 +132,7 @@ fn setup() -> Result<(WorkerGuard, WorkerGuard)> {
         std::env::set_var("RUST_LOG", "info");
     }
 
-    let home = dirs::home_dir().ok_or_else(|| anyhow!("there is no home directory"))?;
+    let home = HOME_DIR.clone();
     let appender = tracing_appender::rolling::never(home, "komorebi.log");
     let color_appender = tracing_appender::rolling::never(std::env::temp_dir(), "komorebi.log");
     let (non_blocking, guard) = tracing_appender::non_blocking(appender);
@@ -169,7 +186,7 @@ fn setup() -> Result<(WorkerGuard, WorkerGuard)> {
 }
 
 pub fn load_configuration() -> Result<()> {
-    let home = dirs::home_dir().ok_or_else(|| anyhow!("there is no home directory"))?;
+    let home = HOME_DIR.clone();
 
     let mut config_v1 = home.clone();
     config_v1.push("komorebi.ahk");

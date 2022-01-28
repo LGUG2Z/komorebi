@@ -17,6 +17,7 @@ use color_eyre::eyre::anyhow;
 use color_eyre::Result;
 use fs_tail::TailedFile;
 use heck::ToKebabCase;
+use lazy_static::lazy_static;
 use paste::paste;
 use uds_windows::UnixListener;
 use uds_windows::UnixStream;
@@ -38,6 +39,25 @@ use komorebi_core::Rect;
 use komorebi_core::Sizing;
 use komorebi_core::SocketMessage;
 use komorebi_core::StateQuery;
+
+lazy_static! {
+    static ref HOME_DIR: PathBuf = {
+        if let Ok(home_path) = std::env::var("KOMOREBI_CONFIG_HOME") {
+            let home = PathBuf::from(&home_path);
+
+            if home.as_path().is_dir() {
+                home
+            } else {
+                panic!(
+                    "$Env:KOMOREBI_CONFIG_HOME is set to '{}', which is not a valid directory",
+                    home_path
+                );
+            }
+        } else {
+            dirs::home_dir().expect("there is no home directory")
+        }
+    };
+}
 
 trait AhkLibrary {
     fn generate_ahk_library() -> String;
@@ -557,7 +577,7 @@ enum SubCommand {
 }
 
 pub fn send_message(bytes: &[u8]) -> Result<()> {
-    let mut socket = dirs::home_dir().ok_or_else(|| anyhow!("there is no home directory"))?;
+    let mut socket = HOME_DIR.clone();
     socket.push("komorebi.sock");
     let socket = socket.as_path();
 
@@ -571,8 +591,7 @@ fn main() -> Result<()> {
 
     match opts.subcmd {
         SubCommand::AhkLibrary => {
-            let mut library =
-                dirs::home_dir().ok_or_else(|| anyhow!("there is no home directory"))?;
+            let mut library = HOME_DIR.clone();
             library.push("komorebic.lib.ahk");
             let mut file = OpenOptions::new()
                 .write(true)
@@ -846,7 +865,7 @@ fn main() -> Result<()> {
             )?;
         }
         SubCommand::State => {
-            let home = dirs::home_dir().ok_or_else(|| anyhow!("there is no home directory"))?;
+            let home = HOME_DIR.clone();
             let mut socket = home;
             socket.push("komorebic.sock");
             let socket = socket.as_path();
@@ -880,7 +899,7 @@ fn main() -> Result<()> {
             }
         }
         SubCommand::Query(arg) => {
-            let home = dirs::home_dir().ok_or_else(|| anyhow!("there is no home directory"))?;
+            let home = HOME_DIR.clone();
             let mut socket = home;
             socket.push("komorebic.sock");
             let socket = socket.as_path();
@@ -914,8 +933,7 @@ fn main() -> Result<()> {
             }
         }
         SubCommand::RestoreWindows => {
-            let mut hwnd_json =
-                dirs::home_dir().ok_or_else(|| anyhow!("there is no home directory"))?;
+            let mut hwnd_json = HOME_DIR.clone();
             hwnd_json.push("komorebi.hwnd.json");
 
             let file = File::open(hwnd_json)?;

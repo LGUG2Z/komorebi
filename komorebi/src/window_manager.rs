@@ -38,6 +38,7 @@ use crate::winevent_listener::WINEVENT_CALLBACK_CHANNEL;
 use crate::workspace::Workspace;
 use crate::BORDER_OVERFLOW_IDENTIFIERS;
 use crate::FLOAT_IDENTIFIERS;
+use crate::HOME_DIR;
 use crate::LAYERED_EXE_WHITELIST;
 use crate::MANAGE_IDENTIFIERS;
 use crate::TRAY_AND_MULTI_WINDOW_IDENTIFIERS;
@@ -129,7 +130,7 @@ impl EnforceWorkspaceRuleOp {
 impl WindowManager {
     #[tracing::instrument]
     pub fn new(incoming: Arc<Mutex<Receiver<WindowManagerEvent>>>) -> Result<Self> {
-        let home = dirs::home_dir().ok_or_else(|| anyhow!("there is no home directory"))?;
+        let home = HOME_DIR.clone();
         let mut socket = home;
         socket.push("komorebi.sock");
         let socket = socket.as_path();
@@ -186,7 +187,7 @@ impl WindowManager {
 
     #[tracing::instrument(skip(self))]
     pub fn watch_configuration(&mut self, enable: bool) -> Result<()> {
-        let home = dirs::home_dir().ok_or_else(|| anyhow!("there is no home directory"))?;
+        let home = HOME_DIR.clone();
 
         let mut config_v1 = home.clone();
         config_v1.push("komorebi.ahk");

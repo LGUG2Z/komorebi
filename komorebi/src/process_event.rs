@@ -20,6 +20,7 @@ use crate::windows_api::WindowsApi;
 use crate::Notification;
 use crate::NotificationEvent;
 use crate::HIDDEN_HWNDS;
+use crate::HOME_DIR;
 use crate::TRAY_AND_MULTI_WINDOW_IDENTIFIERS;
 
 #[tracing::instrument]
@@ -466,8 +467,7 @@ impl WindowManager {
             }
         }
 
-        let mut hwnd_json =
-            dirs::home_dir().ok_or_else(|| anyhow!("there is no home directory"))?;
+        let mut hwnd_json = HOME_DIR.clone();
         hwnd_json.push("komorebi.hwnd.json");
         let file = OpenOptions::new()
             .write(true)

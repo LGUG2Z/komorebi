@@ -515,6 +515,7 @@ dependencies = [
  "fs-tail",
  "heck 0.4.0",
  "komorebi-core",
+ "lazy_static",
  "paste",
  "powershell_script",
  "serde",
