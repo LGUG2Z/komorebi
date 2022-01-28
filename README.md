@@ -88,13 +88,15 @@ PowerShell prompt), and then move the binaries to that directory.
 If you use the [Scoop](https://scoop.sh/) command line installer, you can run the following commands to install the
 binaries from the latest GitHub Release:
 
-```
-scoop bucket add komorebi https://github.com/LGUG2Z/komorebi-bucket
+```powershell
+scoop bucket add extras
 scoop install komorebi
 ```
 
 If you install _komorebi_ using Scoop, the binaries will automatically be added to your `Path` and a command will be
 shown for you to run in order to get started using the sample configuration file.
+
+Thanks to [@sitiom](https://github.com/sitiom) for getting _komorebi_ added to the popular Scoop Extras bucket.
 
 ### Building from Source
 
