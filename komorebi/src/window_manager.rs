@@ -776,7 +776,12 @@ impl WindowManager {
     }
 
     #[tracing::instrument(skip(self))]
-    pub fn move_container_to_monitor(&mut self, idx: usize, follow: bool) -> Result<()> {
+    pub fn move_container_to_monitor(
+        &mut self,
+        monitor_idx: usize,
+        workspace_idx: Option<usize>,
+        follow: bool,
+    ) -> Result<()> {
         tracing::info!("moving container");
 
         let invisible_borders = self.invisible_borders;
@@ -802,15 +807,15 @@ impl WindowManager {
 
         let target_monitor = self
             .monitors_mut()
-            .get_mut(idx)
+            .get_mut(monitor_idx)
             .ok_or_else(|| anyhow!("there is no monitor"))?;
 
-        target_monitor.add_container(container)?;
+        target_monitor.add_container(container, workspace_idx)?;
         target_monitor.load_focused_workspace(mouse_follows_focus)?;
         target_monitor.update_focused_workspace(offset, &invisible_borders)?;
 
         if follow {
-            self.focus_monitor(idx)?;
+            self.focus_monitor(monitor_idx)?;
         }
 
         self.update_focused_workspace(self.mouse_follows_focus)

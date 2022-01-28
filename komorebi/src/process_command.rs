@@ -189,13 +189,16 @@ impl WindowManager {
                 self.move_container_to_workspace(workspace_idx, true)?;
             }
             SocketMessage::MoveContainerToMonitorNumber(monitor_idx) => {
-                self.move_container_to_monitor(monitor_idx, true)?;
+                self.move_container_to_monitor(monitor_idx, None, true)?;
             }
             SocketMessage::SendContainerToWorkspaceNumber(workspace_idx) => {
                 self.move_container_to_workspace(workspace_idx, false)?;
             }
             SocketMessage::SendContainerToMonitorNumber(monitor_idx) => {
-                self.move_container_to_monitor(monitor_idx, false)?;
+                self.move_container_to_monitor(monitor_idx, None, false)?;
+            }
+            SocketMessage::SendContainerToMonitorWorkspaceNumber(monitor_idx, workspace_idx) => {
+                self.move_container_to_monitor(monitor_idx, Option::from(workspace_idx), false)?;
             }
             SocketMessage::MoveWorkspaceToMonitorNumber(monitor_idx) => {
                 self.move_workspace_to_monitor(monitor_idx)?;

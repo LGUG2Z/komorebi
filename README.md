@@ -339,6 +339,7 @@ move-to-monitor                      Move the focused window to the specified mo
 move-to-workspace                    Move the focused window to the specified workspace
 send-to-monitor                      Send the focused window to the specified monitor
 send-to-workspace                    Send the focused window to the specified workspace
+send-to-monitor-workspace            Send the focused window to the specified monitor workspace
 focus-monitor                        Focus the specified monitor
 focus-workspace                      Focus the specified workspace on the focused monitor
 focus-monitor-workspace              Focus the specified workspace on the target monitor

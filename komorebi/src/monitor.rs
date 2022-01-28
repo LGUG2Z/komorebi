@@ -59,10 +59,19 @@ impl Monitor {
         Ok(())
     }
 
-    pub fn add_container(&mut self, container: Container) -> Result<()> {
-        let workspace = self
-            .focused_workspace_mut()
-            .ok_or_else(|| anyhow!("there is no workspace"))?;
+    pub fn add_container(
+        &mut self,
+        container: Container,
+        workspace_idx: Option<usize>,
+    ) -> Result<()> {
+        let workspace = if let Some(idx) = workspace_idx {
+            self.workspaces_mut()
+                .get_mut(idx)
+                .ok_or_else(|| anyhow!("there is no workspace at index {}", idx))?
+        } else {
+            self.focused_workspace_mut()
+                .ok_or_else(|| anyhow!("there is no workspace"))?
+        };
 
         workspace.add_container(container);
 

@@ -96,6 +96,10 @@ SendToWorkspace(target) {
     Run, komorebic.exe send-to-workspace %target%, , Hide
 }
 
+SendToMonitorWorkspace(target_monitor, target_workspace) {
+    Run, komorebic.exe send-to-monitor-workspace %target_monitor% %target_workspace%, , Hide
+}
+
 FocusMonitor(target) {
     Run, komorebic.exe focus-monitor %target%, , Hide
 }

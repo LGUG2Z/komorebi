@@ -245,6 +245,14 @@ struct FocusMonitorWorkspace {
     target_workspace: usize,
 }
 
+#[derive(Parser, AhkFunction)]
+pub struct SendToMonitorWorkspace {
+    /// Target monitor index (zero-indexed)
+    target_monitor: usize,
+    /// Workspace index on the target monitor (zero-indexed)
+    target_workspace: usize,
+}
+
 macro_rules! gen_padding_subcommand_args {
     // SubCommand Pattern
     ( $( $name:ident ),+ $(,)? ) => {
@@ -451,6 +459,9 @@ enum SubCommand {
     /// Send the focused window to the specified workspace
     #[clap(setting = AppSettings::ArgRequiredElseHelp)]
     SendToWorkspace(SendToWorkspace),
+    /// Send the focused window to the specified monitor workspace
+    #[clap(setting = AppSettings::ArgRequiredElseHelp)]
+    SendToMonitorWorkspace(SendToMonitorWorkspace),
     /// Focus the specified monitor
     #[clap(setting = AppSettings::ArgRequiredElseHelp)]
     FocusMonitor(FocusMonitor),
@@ -657,6 +668,15 @@ fn main() -> Result<()> {
         }
         SubCommand::SendToWorkspace(arg) => {
             send_message(&*SocketMessage::SendContainerToWorkspaceNumber(arg.target).as_bytes()?)?;
+        }
+        SubCommand::SendToMonitorWorkspace(arg) => {
+            send_message(
+                &*SocketMessage::SendContainerToMonitorWorkspaceNumber(
+                    arg.target_monitor,
+                    arg.target_workspace,
+                )
+                .as_bytes()?,
+            )?;
         }
         SubCommand::MoveWorkspaceToMonitor(arg) => {
             send_message(&*SocketMessage::MoveWorkspaceToMonitorNumber(arg.target).as_bytes()?)?;
