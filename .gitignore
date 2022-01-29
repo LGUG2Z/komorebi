@@ -4,3 +4,7 @@
 CHANGELOG.md
 dummy.go
 komorebi.ahk
+
+# Chocolatey package
+*.nupkg
+*.zip
