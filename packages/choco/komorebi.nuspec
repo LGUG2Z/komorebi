@@ -5,7 +5,7 @@
     <id>komorebi</id>
     <version>0.1.8</version>
     <packageSourceUrl>https://github.com/LGUG2Z/komorebi/tree/master/chocolatey</packageSourceUrl>
-    <owners>LGUG2Z</owners>
+    <owners>LGUG2Z, sitiom</owners>
     <!-- ============================== -->
     <title>komorebi</title>
     <authors>Jade Iqbal</authors>
