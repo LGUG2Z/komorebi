@@ -30,10 +30,6 @@ used with third-party software such as [AutoHotKey](https://github.com/Lexikos/A
 keyboard shortcuts.
 ]]></description>
     <releaseNotes>https://github.com/LGUG2Z/komorebi/releases/tag/v0.1.8</releaseNotes>
-    <!-- =============================== -->
-    <dependencies>
-      <dependency id="autohotkey.install" />
-    </dependencies>
   </metadata>
   <files>
     <file src="legal\**" target="legal" />
