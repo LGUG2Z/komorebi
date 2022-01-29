@@ -58,3 +58,14 @@ scoop:
     - Write-Host "`nRun 'cp $original_dir\komorebi.sample.ahk $Env:UserProfile\komorebi.ahk' to get started with the sample configuration"
     - Write-Host "`nRun 'komorebic ahk-library' if you would like to generate an AHK helper library to use in your configuration"
     - Write-Host "`nOnce you have a configuration file in place, you can run 'komorebic start' to start the window manager"
+
+publishers:
+  - name: chocolatey
+    cmd: |
+      cp {{ .ArtifactPath }} .\tools\{{ .ArtifactName }}
+      choco pack
+      choco apikey --key {{ .Env.CHOCO_API_KEY }} --source https://push.chocolatey.org/
+      choco push --source https://push.chocolatey.org/
+    dir: .\packages\choco
+    env:
+      - CHOCO_API_KEY={{ .Env.CHOCO_API_KEY }}

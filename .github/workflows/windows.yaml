@@ -99,5 +99,6 @@ jobs:
           version: latest
           args: release --skip-validate --rm-dist --release-notes=CHANGELOG.md
         env:
+          CHOCO_API_KEY: ${{ secrets.CHOCO_API_KEY }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SCOOP_TOKEN: ${{ secrets.SCOOP_TOKEN }}
