@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Do not remove this test for UTF-8: if “Ω” doesn’t appear as greek uppercase omega letter enclosed in quotation marks, you should use an editor that supports UTF-8, not this one. -->
+<package xmlns="http://schemas.microsoft.com/packaging/2015/06/nuspec.xsd">
+  <metadata>
+    <id>komorebi</id>
+    <version>0.1.8</version>
+    <packageSourceUrl>https://github.com/LGUG2Z/komorebi/tree/master/chocolatey</packageSourceUrl>
+    <owners>LGUG2Z</owners>
+    <!-- ============================== -->
+    <title>komorebi</title>
+    <authors>Jade Iqbal</authors>
+    <projectUrl>https://github.com/LGUG2Z/komorebi</projectUrl>
+    <copyright>Copyright (c) 2021 Jade Iqbal</copyright>
+    <licenseUrl>https://github.com/LGUG2Z/komorebi/blob/master/LICENSE</licenseUrl>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <projectSourceUrl>https://github.com/LGUG2Z/komorebi</projectSourceUrl>
+    <bugTrackerUrl>https://github.com/LGUG2Z/komorebi/issues</bugTrackerUrl>
+    <tags>komorebi windows rust autohotkey workspaces tiling window manager binary space partition</tags>
+    <summary>A tiling window manager for Windows</summary>
+    <description><![CDATA[Tiling Window Management for Windows.
+
+![screenshot](https://i.ibb.co/BTqNS45/komorebi.png)
+
+_komorebi_ is a tiling window manager that works as an extension to
+Microsoft's [Desktop Window Manager](https://docs.microsoft.com/en-us/windows/win32/dwm/dwm-overview) in Windows 10 and
+above.
+
+_komorebi_ allows you to control application windows, virtual workspaces and display monitors with a CLI which can be
+used with third-party software such as [AutoHotKey](https://github.com/Lexikos/AutoHotkey_L) to set user-defined
+keyboard shortcuts.
+]]></description>
+    <releaseNotes>https://github.com/LGUG2Z/komorebi/releases/tag/v0.1.8</releaseNotes>
+    <!-- =============================== -->
+    <dependencies>
+      <dependency id="autohotkey.install" />
+    </dependencies>
+  </metadata>
+  <files>
+    <file src="legal\**" target="legal" />
+    <file src="tools\**" target="tools" />
+  </files>
+</package>
