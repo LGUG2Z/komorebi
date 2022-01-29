@@ -8,5 +8,5 @@ Place `komorebi-$version-x86_64-pc-windows-msvc.zip` to `tools`, then run:
 
 ```shell
 choco pack
-choco install komorebi -s .
+choco install komorebi -s "'.;https://community.chocolatey.org/api/v2/'"
 ```
