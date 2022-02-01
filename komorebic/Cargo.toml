@@ -15,7 +15,7 @@ derive-ahk = { path = "../derive-ahk" }
 komorebi-core = { path = "../komorebi-core" }
 
 clap = { version = "3", features = ["derive", "wrap_help"] }
-color-eyre = "0.5"
+color-eyre = "0.6"
 dirs = "4"
 fs-tail = "0.1"
 heck = "0.4"

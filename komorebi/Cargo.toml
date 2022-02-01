@@ -15,7 +15,7 @@ komorebi-core = { path = "../komorebi-core" }
 
 bitflags = "1"
 clap = { version = "3", features = ["derive"] }
-color-eyre = "0.5"
+color-eyre = "0.6"
 crossbeam-channel = "0.5"
 crossbeam-utils = "0.8"
 ctrlc = "3"
