@@ -25,6 +25,7 @@ use lazy_static::lazy_static;
 use parking_lot::deadlock;
 use parking_lot::Mutex;
 use serde::Serialize;
+use sysinfo::Process;
 use sysinfo::ProcessExt;
 use sysinfo::SystemExt;
 use tracing_appender::non_blocking::WorkerGuard;
@@ -359,7 +360,7 @@ fn main() -> Result<()> {
         let mut system = sysinfo::System::new_all();
         system.refresh_processes();
 
-        let matched_procs = system.process_by_name("komorebi.exe");
+        let matched_procs: Vec<&Process> = system.processes_by_name("komorebi.exe").collect();
 
         if matched_procs.len() > 1 {
             let mut shim_is_active = false;
