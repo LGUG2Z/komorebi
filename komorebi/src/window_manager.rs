@@ -908,6 +908,19 @@ impl WindowManager {
     #[tracing::instrument(skip(self))]
     pub fn focus_container_in_cycle_direction(&mut self, direction: CycleDirection) -> Result<()> {
         tracing::info!("focusing container");
+        let mut maximize_next = false;
+        let mut monocle_next = false;
+
+        if self.focused_workspace_mut()?.maximized_window().is_some() {
+            maximize_next = true;
+            self.unmaximize_window()?;
+        }
+
+        if self.focused_workspace_mut()?.monocle_container().is_some() {
+            monocle_next = true;
+            self.monocle_off()?;
+        }
+
         let workspace = self.focused_workspace_mut()?;
 
         let new_idx = workspace
@@ -915,7 +928,14 @@ impl WindowManager {
             .ok_or_else(|| anyhow!("this is not a valid direction from the current position"))?;
 
         workspace.focus_container(new_idx);
-        self.focused_window_mut()?.focus(self.mouse_follows_focus)?;
+
+        if maximize_next {
+            self.toggle_maximize()?;
+        } else if monocle_next {
+            self.toggle_monocle()?;
+        } else {
+            self.focused_window_mut()?.focus(self.mouse_follows_focus)?;
+        }
 
         Ok(())
     }
@@ -1084,7 +1104,7 @@ impl WindowManager {
             Some(_) => self.monocle_off()?,
         }
 
-        self.update_focused_workspace(false)
+        self.update_focused_workspace(true)
     }
 
     #[tracing::instrument(skip(self))]
@@ -1112,7 +1132,7 @@ impl WindowManager {
             Some(_) => self.unmaximize_window()?,
         }
 
-        self.update_focused_workspace(false)
+        self.update_focused_workspace(true)
     }
 
     #[tracing::instrument(skip(self))]
