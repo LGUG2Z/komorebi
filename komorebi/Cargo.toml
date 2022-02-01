@@ -24,7 +24,7 @@ getset = "0.1"
 hotwatch = "0.4"
 lazy_static = "1"
 nanoid = "0.4"
-parking_lot = { version = "0.11", features = ["deadlock_detection"] }
+parking_lot = { version = "0.12", features = ["deadlock_detection"] }
 paste = "1"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
