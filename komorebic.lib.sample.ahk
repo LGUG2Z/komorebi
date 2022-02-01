@@ -279,3 +279,7 @@ ToggleMouseFollowsFocus() {
 AhkLibrary() {
     Run, komorebic.exe ahk-library, , Hide
 }
+
+NotificationSchema() {
+    Run, komorebic.exe notification-schema, , Hide
+}

@@ -7,6 +7,7 @@ use getset::CopyGetters;
 use getset::Getters;
 use getset::MutGetters;
 use getset::Setters;
+use schemars::JsonSchema;
 use serde::Serialize;
 
 use komorebi_core::Rect;
@@ -15,7 +16,7 @@ use crate::container::Container;
 use crate::ring::Ring;
 use crate::workspace::Workspace;
 
-#[derive(Debug, Clone, Serialize, Getters, CopyGetters, MutGetters, Setters)]
+#[derive(Debug, Clone, Serialize, Getters, CopyGetters, MutGetters, Setters, JsonSchema)]
 pub struct Monitor {
     #[getset(get_copy = "pub", set = "pub")]
     id: isize,

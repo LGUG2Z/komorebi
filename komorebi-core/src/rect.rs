@@ -1,8 +1,9 @@
+use schemars::JsonSchema;
 use serde::Deserialize;
 use serde::Serialize;
 use windows::Win32::Foundation::RECT;
 
-#[derive(Debug, Default, Clone, Copy, Serialize, Deserialize, Eq, PartialEq)]
+#[derive(Debug, Default, Clone, Copy, Serialize, Deserialize, Eq, PartialEq, JsonSchema)]
 pub struct Rect {
     pub left: i32,
     pub top: i32,

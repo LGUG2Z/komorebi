@@ -4,6 +4,7 @@ use std::fmt::Formatter;
 
 use color_eyre::eyre::anyhow;
 use color_eyre::Result;
+use schemars::JsonSchema;
 use serde::ser::Error;
 use serde::ser::SerializeStruct;
 use serde::Serialize;
@@ -25,7 +26,7 @@ use crate::LAYERED_EXE_WHITELIST;
 use crate::MANAGE_IDENTIFIERS;
 use crate::WSL2_UI_PROCESSES;
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, JsonSchema)]
 pub struct Window {
     pub(crate) hwnd: isize,
 }

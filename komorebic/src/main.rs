@@ -574,6 +574,8 @@ enum SubCommand {
     ToggleMouseFollowsFocus,
     /// Generate a library of AutoHotKey helper functions
     AhkLibrary,
+    /// Generate a JSON Schema of subscription notifications
+    NotificationSchema,
 }
 
 pub fn send_message(bytes: &[u8]) -> Result<()> {
@@ -1015,6 +1017,40 @@ fn main() -> Result<()> {
         }
         SubCommand::WindowHidingBehaviour(arg) => {
             send_message(&*SocketMessage::WindowHidingBehaviour(arg.hiding_behaviour).as_bytes()?)?;
+        }
+        SubCommand::NotificationSchema => {
+            let home = HOME_DIR.clone();
+            let mut socket = home;
+            socket.push("komorebic.sock");
+            let socket = socket.as_path();
+
+            match std::fs::remove_file(&socket) {
+                Ok(_) => {}
+                Err(error) => match error.kind() {
+                    // Doing this because ::exists() doesn't work reliably on Windows via IntelliJ
+                    ErrorKind::NotFound => {}
+                    _ => {
+                        return Err(error.into());
+                    }
+                },
+            };
+
+            send_message(&*SocketMessage::NotificationSchema.as_bytes()?)?;
+
+            let listener = UnixListener::bind(&socket)?;
+            match listener.accept() {
+                Ok(incoming) => {
+                    let stream = BufReader::new(incoming.0);
+                    for line in stream.lines() {
+                        println!("{}", line?);
+                    }
+
+                    return Ok(());
+                }
+                Err(error) => {
+                    panic!("{}", error);
+                }
+            }
         }
     }
 

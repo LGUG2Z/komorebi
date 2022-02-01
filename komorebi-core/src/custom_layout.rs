@@ -7,12 +7,13 @@ use std::path::PathBuf;
 
 use color_eyre::eyre::anyhow;
 use color_eyre::Result;
+use schemars::JsonSchema;
 use serde::Deserialize;
 use serde::Serialize;
 
 use crate::Rect;
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 pub struct CustomLayout(Vec<Column>);
 
 impl Deref for CustomLayout {
@@ -251,7 +252,7 @@ impl CustomLayout {
     }
 }
 
-#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, JsonSchema)]
 #[serde(tag = "column", content = "configuration")]
 pub enum Column {
     Primary(Option<ColumnWidth>),
@@ -259,18 +260,18 @@ pub enum Column {
     Tertiary(ColumnSplit),
 }
 
-#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, JsonSchema)]
 pub enum ColumnWidth {
     WidthPercentage(usize),
 }
 
-#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, JsonSchema)]
 pub enum ColumnSplit {
     Horizontal,
     Vertical,
 }
 
-#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, JsonSchema)]
 pub enum ColumnSplitWithCapacity {
     Horizontal(usize),
     Vertical(usize),

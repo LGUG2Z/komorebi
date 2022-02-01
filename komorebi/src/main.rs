@@ -24,6 +24,7 @@ use lazy_static::lazy_static;
 #[cfg(feature = "deadlock_detection")]
 use parking_lot::deadlock;
 use parking_lot::Mutex;
+use schemars::JsonSchema;
 use serde::Serialize;
 use sysinfo::Process;
 use sysinfo::ProcessExt;
@@ -267,14 +268,14 @@ pub fn current_virtual_desktop() -> Option<Vec<u8>> {
     current
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, JsonSchema)]
 #[serde(untagged)]
 pub enum NotificationEvent {
     WindowManager(WindowManagerEvent),
     Socket(SocketMessage),
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, JsonSchema)]
 pub struct Notification {
     pub event: NotificationEvent,
     pub state: State,

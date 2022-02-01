@@ -1,12 +1,13 @@
 use std::num::NonZeroUsize;
 
 use clap::ArgEnum;
+use schemars::JsonSchema;
 use serde::Deserialize;
 use serde::Serialize;
 use strum::Display;
 use strum::EnumString;
 
-#[derive(Clone, Copy, Debug, Serialize, Deserialize, Display, EnumString, ArgEnum)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, Display, EnumString, ArgEnum, JsonSchema)]
 #[strum(serialize_all = "snake_case")]
 pub enum CycleDirection {
     Previous,

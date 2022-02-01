@@ -38,6 +38,7 @@ which = "4"
 winput = "0.2"
 miow = "0.4"
 winreg = "0.10"
+schemars = "0.8"
 
 [dependencies.windows]
 version = "0.30"

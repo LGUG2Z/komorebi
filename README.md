@@ -544,3 +544,10 @@ in `komorebi-core`.
 An example of how to create a named pipe and a subscription to `komorebi`'s handled events in Python
 by [@denBot](https://github.com/denBot) can be
 found [here](https://gist.github.com/denBot/4136279812f87819f86d99eba77c1ee0).
+
+### Subscription Event Notification Schema
+
+A [JSON Schema](https://json-schema.org/) of the event notifications emitted to subscribers can be generated with
+the `komorebic notification-schema` command. The output of this command can be redirected to the clipboard or a file,
+which can be used with services such as [Quicktype](https://app.quicktype.io/) to generate type definitions in different
+programming languages.

@@ -7,6 +7,7 @@ use getset::CopyGetters;
 use getset::Getters;
 use getset::MutGetters;
 use getset::Setters;
+use schemars::JsonSchema;
 use serde::Serialize;
 
 use komorebi_core::Axis;
@@ -21,7 +22,7 @@ use crate::ring::Ring;
 use crate::window::Window;
 use crate::windows_api::WindowsApi;
 
-#[derive(Debug, Clone, Serialize, Getters, CopyGetters, MutGetters, Setters)]
+#[derive(Debug, Clone, Serialize, Getters, CopyGetters, MutGetters, Setters, JsonSchema)]
 pub struct Workspace {
     #[getset(set = "pub")]
     name: Option<String>,

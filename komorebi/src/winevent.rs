@@ -1,3 +1,4 @@
+use schemars::JsonSchema;
 use serde::Serialize;
 use strum::Display;
 use windows::Win32::UI::WindowsAndMessaging::EVENT_AIA_END;
@@ -85,7 +86,7 @@ use windows::Win32::UI::WindowsAndMessaging::EVENT_UIA_EVENTID_START;
 use windows::Win32::UI::WindowsAndMessaging::EVENT_UIA_PROPID_END;
 use windows::Win32::UI::WindowsAndMessaging::EVENT_UIA_PROPID_START;
 
-#[derive(Clone, Copy, PartialEq, Debug, Serialize, Display)]
+#[derive(Clone, Copy, PartialEq, Debug, Serialize, Display, JsonSchema)]
 #[repr(u32)]
 #[allow(dead_code)]
 pub enum WinEvent {

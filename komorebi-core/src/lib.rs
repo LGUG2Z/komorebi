@@ -6,6 +6,7 @@ use std::str::FromStr;
 
 use clap::ArgEnum;
 use color_eyre::Result;
+use schemars::JsonSchema;
 use serde::Deserialize;
 use serde::Serialize;
 use strum::Display;
@@ -30,7 +31,7 @@ pub mod layout;
 pub mod operation_direction;
 pub mod rect;
 
-#[derive(Clone, Debug, Serialize, Deserialize, Display)]
+#[derive(Clone, Debug, Serialize, Deserialize, Display, JsonSchema)]
 #[serde(tag = "type", content = "content")]
 pub enum SocketMessage {
     // Window / Container Commands
@@ -103,6 +104,7 @@ pub enum SocketMessage {
     ToggleMouseFollowsFocus,
     AddSubscriber(String),
     RemoveSubscriber(String),
+    NotificationSchema,
 }
 
 impl SocketMessage {
@@ -119,7 +121,7 @@ impl FromStr for SocketMessage {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, Display, EnumString, ArgEnum)]
+#[derive(Clone, Debug, Serialize, Deserialize, Display, EnumString, ArgEnum, JsonSchema)]
 #[strum(serialize_all = "snake_case")]
 pub enum StateQuery {
     FocusedMonitorIndex,
@@ -128,7 +130,7 @@ pub enum StateQuery {
     FocusedWindowIndex,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, Display, EnumString, ArgEnum)]
+#[derive(Clone, Debug, Serialize, Deserialize, Display, EnumString, ArgEnum, JsonSchema)]
 #[strum(serialize_all = "snake_case")]
 pub enum ApplicationIdentifier {
     Exe,
@@ -136,28 +138,28 @@ pub enum ApplicationIdentifier {
     Title,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, Display, EnumString, ArgEnum)]
+#[derive(Clone, Debug, Serialize, Deserialize, Display, EnumString, ArgEnum, JsonSchema)]
 #[strum(serialize_all = "snake_case")]
 pub enum FocusFollowsMouseImplementation {
     Komorebi,
     Windows,
 }
 
-#[derive(Clone, Copy, Debug, Serialize, Deserialize, Display, EnumString, ArgEnum)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, Display, EnumString, ArgEnum, JsonSchema)]
 #[strum(serialize_all = "snake_case")]
 pub enum WindowContainerBehaviour {
     Create,
     Append,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, Display, EnumString, ArgEnum)]
+#[derive(Clone, Debug, Serialize, Deserialize, Display, EnumString, ArgEnum, JsonSchema)]
 #[strum(serialize_all = "snake_case")]
 pub enum HidingBehaviour {
     Hide,
     Minimize,
 }
 
-#[derive(Clone, Copy, Debug, Serialize, Deserialize, Display, EnumString, ArgEnum)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, Display, EnumString, ArgEnum, JsonSchema)]
 #[strum(serialize_all = "snake_case")]
 pub enum Sizing {
     Increase,

@@ -13,6 +13,7 @@ use color_eyre::eyre::anyhow;
 use color_eyre::Result;
 use miow::pipe::connect;
 use parking_lot::Mutex;
+use schemars::schema_for;
 use uds_windows::UnixStream;
 
 use komorebi_core::ApplicationIdentifier;
@@ -633,6 +634,16 @@ impl WindowManager {
             SocketMessage::WindowHidingBehaviour(behaviour) => {
                 let mut hiding_behaviour = HIDING_BEHAVIOUR.lock();
                 *hiding_behaviour = behaviour;
+            }
+            SocketMessage::NotificationSchema => {
+                let notification = schema_for!(Notification);
+                let schema = serde_json::to_string_pretty(&notification)?;
+                let mut socket = HOME_DIR.clone();
+                socket.push("komorebic.sock");
+                let socket = socket.as_path();
+
+                let mut stream = UnixStream::connect(&socket)?;
+                stream.write_all(schema.as_bytes())?;
             }
         };
 

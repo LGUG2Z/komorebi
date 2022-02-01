@@ -2,12 +2,13 @@ use std::collections::VecDeque;
 
 use getset::Getters;
 use nanoid::nanoid;
+use schemars::JsonSchema;
 use serde::Serialize;
 
 use crate::ring::Ring;
 use crate::window::Window;
 
-#[derive(Debug, Clone, Serialize, Getters)]
+#[derive(Debug, Clone, Serialize, Getters, JsonSchema)]
 pub struct Container {
     #[serde(skip_serializing)]
     #[getset(get = "pub")]
