@@ -37,6 +37,7 @@ use windows::Win32::System::Threading::GetCurrentThreadId;
 use windows::Win32::System::Threading::OpenProcess;
 use windows::Win32::System::Threading::QueryFullProcessImageNameW;
 use windows::Win32::System::Threading::PROCESS_ACCESS_RIGHTS;
+use windows::Win32::System::Threading::PROCESS_NAME_WIN32;
 use windows::Win32::System::Threading::PROCESS_QUERY_INFORMATION;
 use windows::Win32::UI::Input::KeyboardAndMouse::SetFocus;
 use windows::Win32::UI::WindowsAndMessaging::AllowSetForegroundWindow;
@@ -66,6 +67,7 @@ use windows::Win32::UI::WindowsAndMessaging::GWL_STYLE;
 use windows::Win32::UI::WindowsAndMessaging::GW_HWNDNEXT;
 use windows::Win32::UI::WindowsAndMessaging::HWND_NOTOPMOST;
 use windows::Win32::UI::WindowsAndMessaging::HWND_TOPMOST;
+use windows::Win32::UI::WindowsAndMessaging::SET_WINDOW_POS_FLAGS;
 use windows::Win32::UI::WindowsAndMessaging::SHOW_WINDOW_CMD;
 use windows::Win32::UI::WindowsAndMessaging::SPIF_SENDCHANGE;
 use windows::Win32::UI::WindowsAndMessaging::SPI_GETACTIVEWINDOWTRACKING;
@@ -265,7 +267,7 @@ impl WindowsApi {
                 layout.top,
                 layout.right,
                 layout.bottom,
-                flags,
+                SET_WINDOW_POS_FLAGS(flags),
             )
         }
         .ok()
@@ -467,7 +469,12 @@ impl WindowsApi {
         let text_ptr = path.as_mut_ptr();
 
         unsafe {
-            QueryFullProcessImageNameW(handle, 0, PWSTR(text_ptr), std::ptr::addr_of_mut!(len))
+            QueryFullProcessImageNameW(
+                handle,
+                PROCESS_NAME_WIN32,
+                PWSTR(text_ptr),
+                std::ptr::addr_of_mut!(len),
+            )
         }
         .ok()
         .process()?;
