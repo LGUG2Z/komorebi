@@ -675,7 +675,7 @@ impl WindowManager {
             self.process_command(message.clone())?;
             notify_subscribers(&serde_json::to_string(&Notification {
                 event: NotificationEvent::Socket(message.clone()),
-                state: (&*self).into(),
+                state: self.as_ref().into(),
             })?)?;
         }
 

@@ -81,6 +81,12 @@ pub struct State {
     pub border_overflow_identifiers: Vec<String>,
 }
 
+impl AsRef<Self> for WindowManager {
+    fn as_ref(&self) -> &Self {
+        self
+    }
+}
+
 impl From<&WindowManager> for State {
     fn from(wm: &WindowManager) -> Self {
         Self {

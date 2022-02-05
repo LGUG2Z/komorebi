@@ -478,7 +478,7 @@ impl WindowManager {
         serde_json::to_writer_pretty(&file, &known_hwnds)?;
         notify_subscribers(&serde_json::to_string(&Notification {
             event: NotificationEvent::WindowManager(*event),
-            state: (&*self).into(),
+            state: self.as_ref().into(),
         })?)?;
 
         tracing::info!("processed: {}", event.window().to_string());
