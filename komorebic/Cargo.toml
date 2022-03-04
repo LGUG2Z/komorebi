@@ -27,7 +27,7 @@ serde_json = "1"
 uds_windows = "1"
 
 [dependencies.windows]
-version = "0.32"
+version = "0.33"
 features = [
     "Win32_Foundation",
     "Win32_UI_WindowsAndMessaging"

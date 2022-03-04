@@ -396,13 +396,13 @@ enum SubCommand {
     /// Show a JSON representation of the current window manager state
     State,
     /// Query the current window manager state
-    #[clap(setting = AppSettings::ArgRequiredElseHelp)]
+    #[clap(arg_required_else_help = true)]
     Query(Query),
     /// Subscribe to komorebi events
-    #[clap(setting = AppSettings::ArgRequiredElseHelp)]
+    #[clap(arg_required_else_help = true)]
     Subscribe(Subscribe),
     /// Unsubscribe from komorebi events
-    #[clap(setting = AppSettings::ArgRequiredElseHelp)]
+    #[clap(arg_required_else_help = true)]
     Unsubscribe(Unsubscribe),
     /// Tail komorebi.exe's process logs (cancel with Ctrl-C)
     Log,
@@ -413,123 +413,123 @@ enum SubCommand {
     #[clap(alias = "quick-load")]
     QuickLoadResize,
     /// Save the current resize layout dimensions to a file
-    #[clap(setting = AppSettings::ArgRequiredElseHelp)]
+    #[clap(arg_required_else_help = true)]
     #[clap(alias = "save")]
     SaveResize(SaveResize),
     /// Load the resize layout dimensions from a file
-    #[clap(setting = AppSettings::ArgRequiredElseHelp)]
+    #[clap(arg_required_else_help = true)]
     #[clap(alias = "load")]
     LoadResize(LoadResize),
     /// Change focus to the window in the specified direction
-    #[clap(setting = AppSettings::ArgRequiredElseHelp)]
+    #[clap(arg_required_else_help = true)]
     Focus(Focus),
     /// Move the focused window in the specified direction
-    #[clap(setting = AppSettings::ArgRequiredElseHelp)]
+    #[clap(arg_required_else_help = true)]
     Move(Move),
     /// Change focus to the window in the specified cycle direction
-    #[clap(setting = AppSettings::ArgRequiredElseHelp)]
+    #[clap(arg_required_else_help = true)]
     CycleFocus(CycleFocus),
     /// Move the focused window in the specified cycle direction
-    #[clap(setting = AppSettings::ArgRequiredElseHelp)]
+    #[clap(arg_required_else_help = true)]
     CycleMove(CycleMove),
     /// Stack the focused window in the specified direction
-    #[clap(setting = AppSettings::ArgRequiredElseHelp)]
+    #[clap(arg_required_else_help = true)]
     Stack(Stack),
     /// Resize the focused window in the specified direction
-    #[clap(setting = AppSettings::ArgRequiredElseHelp)]
+    #[clap(arg_required_else_help = true)]
     #[clap(alias = "resize")]
     ResizeEdge(Resize),
     /// Resize the focused window or primary column along the specified axis
-    #[clap(setting = AppSettings::ArgRequiredElseHelp)]
+    #[clap(arg_required_else_help = true)]
     ResizeAxis(ResizeAxis),
     /// Unstack the focused window
     Unstack,
     /// Cycle the focused stack in the specified cycle direction
-    #[clap(setting = AppSettings::ArgRequiredElseHelp)]
+    #[clap(arg_required_else_help = true)]
     CycleStack(CycleStack),
     /// Move the focused window to the specified monitor
-    #[clap(setting = AppSettings::ArgRequiredElseHelp)]
+    #[clap(arg_required_else_help = true)]
     MoveToMonitor(MoveToMonitor),
     /// Move the focused window to the specified workspace
-    #[clap(setting = AppSettings::ArgRequiredElseHelp)]
+    #[clap(arg_required_else_help = true)]
     MoveToWorkspace(MoveToWorkspace),
     /// Send the focused window to the specified monitor
-    #[clap(setting = AppSettings::ArgRequiredElseHelp)]
+    #[clap(arg_required_else_help = true)]
     SendToMonitor(SendToMonitor),
     /// Send the focused window to the specified workspace
-    #[clap(setting = AppSettings::ArgRequiredElseHelp)]
+    #[clap(arg_required_else_help = true)]
     SendToWorkspace(SendToWorkspace),
     /// Send the focused window to the specified monitor workspace
-    #[clap(setting = AppSettings::ArgRequiredElseHelp)]
+    #[clap(arg_required_else_help = true)]
     SendToMonitorWorkspace(SendToMonitorWorkspace),
     /// Focus the specified monitor
-    #[clap(setting = AppSettings::ArgRequiredElseHelp)]
+    #[clap(arg_required_else_help = true)]
     FocusMonitor(FocusMonitor),
     /// Focus the specified workspace on the focused monitor
-    #[clap(setting = AppSettings::ArgRequiredElseHelp)]
+    #[clap(arg_required_else_help = true)]
     FocusWorkspace(FocusWorkspace),
     /// Focus the specified workspace on the target monitor
-    #[clap(setting = AppSettings::ArgRequiredElseHelp)]
+    #[clap(arg_required_else_help = true)]
     FocusMonitorWorkspace(FocusMonitorWorkspace),
     /// Focus the monitor in the given cycle direction
-    #[clap(setting = AppSettings::ArgRequiredElseHelp)]
+    #[clap(arg_required_else_help = true)]
     CycleMonitor(CycleMonitor),
     /// Focus the workspace in the given cycle direction
-    #[clap(setting = AppSettings::ArgRequiredElseHelp)]
+    #[clap(arg_required_else_help = true)]
     CycleWorkspace(CycleWorkspace),
     /// Move the focused workspace to the specified monitor
-    #[clap(setting = AppSettings::ArgRequiredElseHelp)]
+    #[clap(arg_required_else_help = true)]
     MoveWorkspaceToMonitor(MoveWorkspaceToMonitor),
     /// Create and append a new workspace on the focused monitor
     NewWorkspace,
     /// Set the resize delta (used by resize-edge and resize-axis)
-    #[clap(setting = AppSettings::ArgRequiredElseHelp)]
+    #[clap(arg_required_else_help = true)]
     ResizeDelta(ResizeDelta),
     /// Set the invisible border dimensions around each window
-    #[clap(setting = AppSettings::ArgRequiredElseHelp)]
+    #[clap(arg_required_else_help = true)]
     InvisibleBorders(InvisibleBorders),
     /// Set offsets to exclude parts of the work area from tiling
-    #[clap(setting = AppSettings::ArgRequiredElseHelp)]
+    #[clap(arg_required_else_help = true)]
     WorkAreaOffset(WorkAreaOffset),
     /// Adjust container padding on the focused workspace
-    #[clap(setting = AppSettings::ArgRequiredElseHelp)]
+    #[clap(arg_required_else_help = true)]
     AdjustContainerPadding(AdjustContainerPadding),
     /// Adjust workspace padding on the focused workspace
-    #[clap(setting = AppSettings::ArgRequiredElseHelp)]
+    #[clap(arg_required_else_help = true)]
     AdjustWorkspacePadding(AdjustWorkspacePadding),
     /// Set the layout on the focused workspace
-    #[clap(setting = AppSettings::ArgRequiredElseHelp)]
+    #[clap(arg_required_else_help = true)]
     ChangeLayout(ChangeLayout),
     /// Load a custom layout from file for the focused workspace
-    #[clap(setting = AppSettings::ArgRequiredElseHelp)]
+    #[clap(arg_required_else_help = true)]
     LoadCustomLayout(LoadCustomLayout),
     /// Flip the layout on the focused workspace (BSP only)
-    #[clap(setting = AppSettings::ArgRequiredElseHelp)]
+    #[clap(arg_required_else_help = true)]
     FlipLayout(FlipLayout),
     /// Promote the focused window to the top of the tree
     Promote,
     /// Force the retiling of all managed windows
     Retile,
     /// Create at least this many workspaces for the specified monitor
-    #[clap(setting = AppSettings::ArgRequiredElseHelp)]
+    #[clap(arg_required_else_help = true)]
     EnsureWorkspaces(EnsureWorkspaces),
     /// Set the container padding for the specified workspace
-    #[clap(setting = AppSettings::ArgRequiredElseHelp)]
+    #[clap(arg_required_else_help = true)]
     ContainerPadding(ContainerPadding),
     /// Set the workspace padding for the specified workspace
-    #[clap(setting = AppSettings::ArgRequiredElseHelp)]
+    #[clap(arg_required_else_help = true)]
     WorkspacePadding(WorkspacePadding),
     /// Set the layout for the specified workspace
-    #[clap(setting = AppSettings::ArgRequiredElseHelp)]
+    #[clap(arg_required_else_help = true)]
     WorkspaceLayout(WorkspaceLayout),
     /// Set a custom layout for the specified workspace
-    #[clap(setting = AppSettings::ArgRequiredElseHelp)]
+    #[clap(arg_required_else_help = true)]
     WorkspaceCustomLayout(WorkspaceCustomLayout),
     /// Enable or disable window tiling for the specified workspace
-    #[clap(setting = AppSettings::ArgRequiredElseHelp)]
+    #[clap(arg_required_else_help = true)]
     WorkspaceTiling(WorkspaceTiling),
     /// Set the workspace name for the specified workspace
-    #[clap(setting = AppSettings::ArgRequiredElseHelp)]
+    #[clap(arg_required_else_help = true)]
     WorkspaceName(WorkspaceName),
     /// Toggle the behaviour for new windows (stacking or dynamic tiling)
     ToggleWindowContainerBehaviour,
@@ -552,34 +552,34 @@ enum SubCommand {
     /// Reload ~/komorebi.ahk (if it exists)
     ReloadConfiguration,
     /// Enable or disable watching of ~/komorebi.ahk (if it exists)
-    #[clap(setting = AppSettings::ArgRequiredElseHelp)]
+    #[clap(arg_required_else_help = true)]
     WatchConfiguration(WatchConfiguration),
     /// Set the window behaviour when switching workspaces / cycling stacks
-    #[clap(setting = AppSettings::ArgRequiredElseHelp)]
+    #[clap(arg_required_else_help = true)]
     WindowHidingBehaviour(WindowHidingBehaviour),
     /// Add a rule to always float the specified application
-    #[clap(setting = AppSettings::ArgRequiredElseHelp)]
+    #[clap(arg_required_else_help = true)]
     FloatRule(FloatRule),
     /// Add a rule to always manage the specified application
-    #[clap(setting = AppSettings::ArgRequiredElseHelp)]
+    #[clap(arg_required_else_help = true)]
     ManageRule(ManageRule),
     /// Add a rule to associate an application with a workspace
-    #[clap(setting = AppSettings::ArgRequiredElseHelp)]
+    #[clap(arg_required_else_help = true)]
     WorkspaceRule(WorkspaceRule),
     /// Identify an application that closes to the system tray
-    #[clap(setting = AppSettings::ArgRequiredElseHelp)]
+    #[clap(arg_required_else_help = true)]
     IdentifyTrayApplication(IdentifyTrayApplication),
     /// Identify an application that has overflowing borders
-    #[clap(setting = AppSettings::ArgRequiredElseHelp)]
+    #[clap(arg_required_else_help = true)]
     IdentifyBorderOverflow(IdentifyBorderOverflow),
     /// Enable or disable focus follows mouse for the operating system
-    #[clap(setting = AppSettings::ArgRequiredElseHelp)]
+    #[clap(arg_required_else_help = true)]
     FocusFollowsMouse(FocusFollowsMouse),
     /// Toggle focus follows mouse for the operating system
-    #[clap(setting = AppSettings::ArgRequiredElseHelp)]
+    #[clap(arg_required_else_help = true)]
     ToggleFocusFollowsMouse(ToggleFocusFollowsMouse),
     /// Enable or disable mouse follows focus on all workspaces
-    #[clap(setting = AppSettings::ArgRequiredElseHelp)]
+    #[clap(arg_required_else_help = true)]
     MouseFollowsFocus(MouseFollowsFocus),
     /// Toggle mouse follows focus on all workspaces
     ToggleMouseFollowsFocus,

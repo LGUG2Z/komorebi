@@ -11,11 +11,11 @@ color-eyre = "0.6"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 serde_yaml = "0.8"
-strum = { version = "0.23", features = ["derive"] }
+strum = { version = "0.24", features = ["derive"] }
 schemars = "0.8"
 
 [dependencies.windows]
-version = "0.32"
+version = "0.33"
 features = [
     "Win32_Foundation",
 ]
