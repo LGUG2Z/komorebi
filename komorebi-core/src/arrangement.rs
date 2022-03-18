@@ -37,16 +37,16 @@ impl Arrangement for DefaultLayout {
     ) -> Vec<Rect> {
         let len = usize::from(len);
         let mut dimensions = match self {
-            DefaultLayout::BSP => recursive_fibonacci(
+            Self::BSP => recursive_fibonacci(
                 0,
                 len,
                 area,
                 layout_flip,
                 calculate_resize_adjustments(resize_dimensions),
             ),
-            DefaultLayout::Columns => columns(area, len),
-            DefaultLayout::Rows => rows(area, len),
-            DefaultLayout::VerticalStack => {
+            Self::Columns => columns(area, len),
+            Self::Rows => rows(area, len),
+            Self::VerticalStack => {
                 let mut layouts: Vec<Rect> = vec![];
 
                 let primary_right = match len {
@@ -88,7 +88,7 @@ impl Arrangement for DefaultLayout {
 
                 layouts
             }
-            DefaultLayout::HorizontalStack => {
+            Self::HorizontalStack => {
                 let mut layouts: Vec<Rect> = vec![];
 
                 let bottom = match len {
@@ -130,7 +130,7 @@ impl Arrangement for DefaultLayout {
 
                 layouts
             }
-            DefaultLayout::UltrawideVerticalStack => {
+            Self::UltrawideVerticalStack => {
                 let mut layouts: Vec<Rect> = vec![];
 
                 let primary_right = match len {
@@ -475,6 +475,7 @@ fn calculate_resize_adjustments(resize_dimensions: &[Option<Rect>]) -> Vec<Optio
     cleaned_resize_adjustments
 }
 
+#[allow(clippy::only_used_in_recursion)]
 fn recursive_fibonacci(
     idx: usize,
     count: usize,

@@ -1,6 +1,5 @@
 use std::collections::VecDeque;
 use std::convert::TryFrom;
-use std::convert::TryInto;
 use std::ffi::c_void;
 
 use color_eyre::eyre::anyhow;
@@ -438,9 +437,7 @@ impl WindowsApi {
 
     pub fn window_text_w(hwnd: HWND) -> Result<String> {
         let mut text: [u16; 512] = [0; 512];
-        match WindowsResult::from(unsafe {
-            GetWindowTextW(hwnd, PWSTR(text.as_mut_ptr()), text.len().try_into()?)
-        }) {
+        match WindowsResult::from(unsafe { GetWindowTextW(hwnd, &mut text) }) {
             WindowsResult::Ok(len) => {
                 let length = usize::try_from(len)?;
                 Ok(String::from_utf16(&text[..length])?)
@@ -495,7 +492,7 @@ impl WindowsApi {
         let mut class: [u16; BUF_SIZE] = [0; BUF_SIZE];
 
         let len = Result::from(WindowsResult::from(unsafe {
-            RealGetWindowClassW(hwnd, PWSTR(class.as_mut_ptr()), u32::try_from(BUF_SIZE)?)
+            RealGetWindowClassW(hwnd, &mut class)
         }))?;
 
         Ok(String::from_utf16(&class[0..len as usize])?)

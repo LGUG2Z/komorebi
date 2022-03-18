@@ -1,5 +1,5 @@
 #![warn(clippy::all, clippy::nursery, clippy::pedantic)]
-#![allow(clippy::missing_errors_doc)]
+#![allow(clippy::missing_errors_doc, clippy::use_self)]
 
 use std::path::PathBuf;
 use std::str::FromStr;
@@ -171,8 +171,8 @@ impl Sizing {
     #[must_use]
     pub const fn adjust_by(&self, value: i32, adjustment: i32) -> i32 {
         match self {
-            Sizing::Increase => value + adjustment,
-            Sizing::Decrease => {
+            Self::Increase => value + adjustment,
+            Self::Decrease => {
                 if value > 0 && value - adjustment >= 0 {
                     value - adjustment
                 } else {

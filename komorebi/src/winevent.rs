@@ -1,3 +1,5 @@
+#![allow(clippy::use_self)]
+
 use schemars::JsonSchema;
 use serde::Serialize;
 use strum::Display;

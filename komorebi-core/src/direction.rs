@@ -72,34 +72,34 @@ impl Direction for DefaultLayout {
     ) -> bool {
         match op_direction {
             OperationDirection::Up => match self {
-                DefaultLayout::BSP => count > 2 && idx != 0 && idx != 1,
-                DefaultLayout::Columns => false,
-                DefaultLayout::Rows | DefaultLayout::HorizontalStack => idx != 0,
-                DefaultLayout::VerticalStack => idx != 0 && idx != 1,
-                DefaultLayout::UltrawideVerticalStack => idx > 2,
+                Self::BSP => count > 2 && idx != 0 && idx != 1,
+                Self::Columns => false,
+                Self::Rows | Self::HorizontalStack => idx != 0,
+                Self::VerticalStack => idx != 0 && idx != 1,
+                Self::UltrawideVerticalStack => idx > 2,
             },
             OperationDirection::Down => match self {
-                DefaultLayout::BSP => count > 2 && idx != count - 1 && idx % 2 != 0,
-                DefaultLayout::Columns => false,
-                DefaultLayout::Rows => idx != count - 1,
-                DefaultLayout::VerticalStack => idx != 0 && idx != count - 1,
-                DefaultLayout::HorizontalStack => idx == 0,
-                DefaultLayout::UltrawideVerticalStack => idx > 1 && idx != count - 1,
+                Self::BSP => count > 2 && idx != count - 1 && idx % 2 != 0,
+                Self::Columns => false,
+                Self::Rows => idx != count - 1,
+                Self::VerticalStack => idx != 0 && idx != count - 1,
+                Self::HorizontalStack => idx == 0,
+                Self::UltrawideVerticalStack => idx > 1 && idx != count - 1,
             },
             OperationDirection::Left => match self {
-                DefaultLayout::BSP => count > 1 && idx != 0,
-                DefaultLayout::Columns | DefaultLayout::VerticalStack => idx != 0,
-                DefaultLayout::Rows => false,
-                DefaultLayout::HorizontalStack => idx != 0 && idx != 1,
-                DefaultLayout::UltrawideVerticalStack => count > 1 && idx != 1,
+                Self::BSP => count > 1 && idx != 0,
+                Self::Columns | Self::VerticalStack => idx != 0,
+                Self::Rows => false,
+                Self::HorizontalStack => idx != 0 && idx != 1,
+                Self::UltrawideVerticalStack => count > 1 && idx != 1,
             },
             OperationDirection::Right => match self {
-                DefaultLayout::BSP => count > 1 && idx % 2 == 0 && idx != count - 1,
-                DefaultLayout::Columns => idx != count - 1,
-                DefaultLayout::Rows => false,
-                DefaultLayout::VerticalStack => idx == 0,
-                DefaultLayout::HorizontalStack => idx != 0 && idx != count - 1,
-                DefaultLayout::UltrawideVerticalStack => match count {
+                Self::BSP => count > 1 && idx % 2 == 0 && idx != count - 1,
+                Self::Columns => idx != count - 1,
+                Self::Rows => false,
+                Self::VerticalStack => idx == 0,
+                Self::HorizontalStack => idx != 0 && idx != count - 1,
+                Self::UltrawideVerticalStack => match count {
                     0 | 1 => false,
                     2 => idx != 0,
                     _ => idx < 2,
@@ -110,45 +110,40 @@ impl Direction for DefaultLayout {
 
     fn up_index(&self, idx: usize) -> usize {
         match self {
-            DefaultLayout::BSP => {
+            Self::BSP => {
                 if idx % 2 == 0 {
                     idx - 1
                 } else {
                     idx - 2
                 }
             }
-            DefaultLayout::Columns => unreachable!(),
-            DefaultLayout::Rows
-            | DefaultLayout::VerticalStack
-            | DefaultLayout::UltrawideVerticalStack => idx - 1,
-            DefaultLayout::HorizontalStack => 0,
+            Self::Columns => unreachable!(),
+            Self::Rows | Self::VerticalStack | Self::UltrawideVerticalStack => idx - 1,
+            Self::HorizontalStack => 0,
         }
     }
 
     fn down_index(&self, idx: usize) -> usize {
         match self {
-            DefaultLayout::BSP
-            | DefaultLayout::Rows
-            | DefaultLayout::VerticalStack
-            | DefaultLayout::UltrawideVerticalStack => idx + 1,
-            DefaultLayout::Columns => unreachable!(),
-            DefaultLayout::HorizontalStack => 1,
+            Self::BSP | Self::Rows | Self::VerticalStack | Self::UltrawideVerticalStack => idx + 1,
+            Self::Columns => unreachable!(),
+            Self::HorizontalStack => 1,
         }
     }
 
     fn left_index(&self, idx: usize) -> usize {
         match self {
-            DefaultLayout::BSP => {
+            Self::BSP => {
                 if idx % 2 == 0 {
                     idx - 2
                 } else {
                     idx - 1
                 }
             }
-            DefaultLayout::Columns | DefaultLayout::HorizontalStack => idx - 1,
-            DefaultLayout::Rows => unreachable!(),
-            DefaultLayout::VerticalStack => 0,
-            DefaultLayout::UltrawideVerticalStack => match idx {
+            Self::Columns | Self::HorizontalStack => idx - 1,
+            Self::Rows => unreachable!(),
+            Self::VerticalStack => 0,
+            Self::UltrawideVerticalStack => match idx {
                 0 => 1,
                 1 => unreachable!(),
                 _ => 0,
@@ -158,10 +153,10 @@ impl Direction for DefaultLayout {
 
     fn right_index(&self, idx: usize) -> usize {
         match self {
-            DefaultLayout::BSP | DefaultLayout::Columns | DefaultLayout::HorizontalStack => idx + 1,
-            DefaultLayout::Rows => unreachable!(),
-            DefaultLayout::VerticalStack => 1,
-            DefaultLayout::UltrawideVerticalStack => match idx {
+            Self::BSP | Self::Columns | Self::HorizontalStack => idx + 1,
+            Self::Rows => unreachable!(),
+            Self::VerticalStack => 1,
+            Self::UltrawideVerticalStack => match idx {
                 1 => 0,
                 0 => 2,
                 _ => unreachable!(),

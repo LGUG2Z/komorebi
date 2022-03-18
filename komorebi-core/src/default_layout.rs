@@ -22,7 +22,7 @@ pub enum DefaultLayout {
 
 impl DefaultLayout {
     #[must_use]
-    #[allow(clippy::cast_precision_loss)]
+    #[allow(clippy::cast_precision_loss, clippy::only_used_in_recursion)]
     pub fn resize(
         &self,
         unaltered: &Rect,
