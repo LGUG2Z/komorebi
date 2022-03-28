@@ -256,6 +256,10 @@ WorkspaceRule(identifier, id, monitor, workspace) {
     Run, komorebic.exe workspace-rule %identifier% %id% %monitor% %workspace%, , Hide
 }
 
+IdentifyObjectNameChangeApplication(identifier, id) {
+    Run, komorebic.exe identify-object-name-change-application %identifier% %id%, , Hide
+}
+
 IdentifyTrayApplication(identifier, id) {
     Run, komorebic.exe identify-tray-application %identifier% %id%, , Hide
 }

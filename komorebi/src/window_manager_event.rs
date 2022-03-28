@@ -138,7 +138,10 @@ impl WindowManagerEvent {
 
                 let object_name_change_on_launch = OBJECT_NAME_CHANGE_ON_LAUNCH.lock();
 
-                if object_name_change_on_launch.contains(&window.exe().ok()?) {
+                if object_name_change_on_launch.contains(&window.exe().ok()?)
+                    || object_name_change_on_launch.contains(&window.class().ok()?)
+                    || object_name_change_on_launch.contains(&window.title().ok()?)
+                {
                     Option::from(Self::Show(winevent, window))
                 } else {
                     None

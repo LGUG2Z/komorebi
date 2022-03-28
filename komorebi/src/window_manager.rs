@@ -42,6 +42,7 @@ use crate::FLOAT_IDENTIFIERS;
 use crate::HOME_DIR;
 use crate::LAYERED_EXE_WHITELIST;
 use crate::MANAGE_IDENTIFIERS;
+use crate::OBJECT_NAME_CHANGE_ON_LAUNCH;
 use crate::TRAY_AND_MULTI_WINDOW_IDENTIFIERS;
 use crate::WORKSPACE_RULES;
 
@@ -79,6 +80,7 @@ pub struct State {
     pub layered_exe_whitelist: Vec<String>,
     pub tray_and_multi_window_identifiers: Vec<String>,
     pub border_overflow_identifiers: Vec<String>,
+    pub name_change_on_launch_identifiers: Vec<String>,
 }
 
 impl AsRef<Self> for WindowManager {
@@ -104,6 +106,7 @@ impl From<&WindowManager> for State {
             layered_exe_whitelist: LAYERED_EXE_WHITELIST.lock().clone(),
             tray_and_multi_window_identifiers: TRAY_AND_MULTI_WINDOW_IDENTIFIERS.lock().clone(),
             border_overflow_identifiers: BORDER_OVERFLOW_IDENTIFIERS.lock().clone(),
+            name_change_on_launch_identifiers: OBJECT_NAME_CHANGE_ON_LAUNCH.lock().clone(),
         }
     }
 }
@@ -310,6 +313,7 @@ impl WindowManager {
 
                 should_update = true;
             }
+
             if reference.size() != monitor.size() {
                 monitor.set_size(Rect {
                     left: reference.size().left,

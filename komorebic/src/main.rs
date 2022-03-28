@@ -314,6 +314,7 @@ gen_application_target_subcommand_args! {
     FloatRule,
     ManageRule,
     IdentifyTrayApplication,
+    IdentifyObjectNameChangeApplication,
     IdentifyBorderOverflow,
 }
 
@@ -566,6 +567,9 @@ enum SubCommand {
     /// Add a rule to associate an application with a workspace
     #[clap(arg_required_else_help = true)]
     WorkspaceRule(WorkspaceRule),
+    /// Identify an application that sends EVENT_OBJECT_NAMECHANGE on launch
+    #[clap(arg_required_else_help = true)]
+    IdentifyObjectNameChangeApplication(IdentifyObjectNameChangeApplication),
     /// Identify an application that closes to the system tray
     #[clap(arg_required_else_help = true)]
     IdentifyTrayApplication(IdentifyTrayApplication),
@@ -986,6 +990,12 @@ fn main() -> Result<()> {
         SubCommand::WatchConfiguration(arg) => {
             send_message(
                 &*SocketMessage::WatchConfiguration(arg.boolean_state.into()).as_bytes()?,
+            )?;
+        }
+        SubCommand::IdentifyObjectNameChangeApplication(target) => {
+            send_message(
+                &*SocketMessage::IdentifyObjectNameChangeApplication(target.identifier, target.id)
+                    .as_bytes()?,
             )?;
         }
         SubCommand::IdentifyTrayApplication(target) => {

@@ -40,6 +40,7 @@ use crate::FLOAT_IDENTIFIERS;
 use crate::HIDING_BEHAVIOUR;
 use crate::HOME_DIR;
 use crate::MANAGE_IDENTIFIERS;
+use crate::OBJECT_NAME_CHANGE_ON_LAUNCH;
 use crate::SUBSCRIPTION_PIPES;
 use crate::TRAY_AND_MULTI_WINDOW_IDENTIFIERS;
 use crate::WORKSPACE_RULES;
@@ -522,6 +523,12 @@ impl WindowManager {
             }
             SocketMessage::IdentifyBorderOverflow(_, id) => {
                 let mut identifiers = BORDER_OVERFLOW_IDENTIFIERS.lock();
+                if !identifiers.contains(&id) {
+                    identifiers.push(id);
+                }
+            }
+            SocketMessage::IdentifyObjectNameChangeApplication(_, id) => {
+                let mut identifiers = OBJECT_NAME_CHANGE_ON_LAUNCH.lock();
                 if !identifiers.contains(&id) {
                     identifiers.push(id);
                 }
