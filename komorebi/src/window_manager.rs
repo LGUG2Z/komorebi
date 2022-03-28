@@ -1278,6 +1278,127 @@ impl WindowManager {
     }
 
     #[tracing::instrument(skip(self))]
+    pub fn add_workspace_layout_default_rule(
+        &mut self,
+        monitor_idx: usize,
+        workspace_idx: usize,
+        at_container_count: usize,
+        layout: DefaultLayout,
+    ) -> Result<()> {
+        tracing::info!("setting workspace layout");
+
+        let invisible_borders = self.invisible_borders;
+        let offset = self.work_area_offset;
+        let focused_monitor_idx = self.focused_monitor_idx();
+
+        let monitor = self
+            .monitors_mut()
+            .get_mut(monitor_idx)
+            .ok_or_else(|| anyhow!("there is no monitor"))?;
+
+        let work_area = *monitor.work_area_size();
+        let focused_workspace_idx = monitor.focused_workspace_idx();
+
+        let workspace = monitor
+            .workspaces_mut()
+            .get_mut(workspace_idx)
+            .ok_or_else(|| anyhow!("there is no monitor"))?;
+
+        let rules: &mut Vec<(usize, Layout)> = workspace.layout_rules_mut();
+        rules.retain(|pair| pair.0 != at_container_count);
+        rules.push((at_container_count, Layout::Default(layout)));
+        rules.sort_by(|a, b| a.0.cmp(&b.0));
+
+        // If this is the focused workspace on a non-focused screen, let's update it
+        if focused_monitor_idx != monitor_idx && focused_workspace_idx == workspace_idx {
+            workspace.update(&work_area, offset, &invisible_borders)?;
+            Ok(())
+        } else {
+            Ok(self.update_focused_workspace(false)?)
+        }
+    }
+
+    #[tracing::instrument(skip(self))]
+    pub fn add_workspace_layout_custom_rule(
+        &mut self,
+        monitor_idx: usize,
+        workspace_idx: usize,
+        at_container_count: usize,
+        path: PathBuf,
+    ) -> Result<()> {
+        tracing::info!("setting workspace layout");
+
+        let invisible_borders = self.invisible_borders;
+        let offset = self.work_area_offset;
+        let focused_monitor_idx = self.focused_monitor_idx();
+
+        let monitor = self
+            .monitors_mut()
+            .get_mut(monitor_idx)
+            .ok_or_else(|| anyhow!("there is no monitor"))?;
+
+        let work_area = *monitor.work_area_size();
+        let focused_workspace_idx = monitor.focused_workspace_idx();
+
+        let workspace = monitor
+            .workspaces_mut()
+            .get_mut(workspace_idx)
+            .ok_or_else(|| anyhow!("there is no monitor"))?;
+
+        let layout = CustomLayout::from_path_buf(path)?;
+
+        let rules: &mut Vec<(usize, Layout)> = workspace.layout_rules_mut();
+        rules.retain(|pair| pair.0 != at_container_count);
+        rules.push((at_container_count, Layout::Custom(layout)));
+        rules.sort_by(|a, b| a.0.cmp(&b.0));
+
+        // If this is the focused workspace on a non-focused screen, let's update it
+        if focused_monitor_idx != monitor_idx && focused_workspace_idx == workspace_idx {
+            workspace.update(&work_area, offset, &invisible_borders)?;
+            Ok(())
+        } else {
+            Ok(self.update_focused_workspace(false)?)
+        }
+    }
+
+    #[tracing::instrument(skip(self))]
+    pub fn clear_workspace_layout_rules(
+        &mut self,
+        monitor_idx: usize,
+        workspace_idx: usize,
+    ) -> Result<()> {
+        tracing::info!("setting workspace layout");
+
+        let invisible_borders = self.invisible_borders;
+        let offset = self.work_area_offset;
+        let focused_monitor_idx = self.focused_monitor_idx();
+
+        let monitor = self
+            .monitors_mut()
+            .get_mut(monitor_idx)
+            .ok_or_else(|| anyhow!("there is no monitor"))?;
+
+        let work_area = *monitor.work_area_size();
+        let focused_workspace_idx = monitor.focused_workspace_idx();
+
+        let workspace = monitor
+            .workspaces_mut()
+            .get_mut(workspace_idx)
+            .ok_or_else(|| anyhow!("there is no monitor"))?;
+
+        let rules: &mut Vec<(usize, Layout)> = workspace.layout_rules_mut();
+        rules.clear();
+
+        // If this is the focused workspace on a non-focused screen, let's update it
+        if focused_monitor_idx != monitor_idx && focused_workspace_idx == workspace_idx {
+            workspace.update(&work_area, offset, &invisible_borders)?;
+            Ok(())
+        } else {
+            Ok(self.update_focused_workspace(false)?)
+        }
+    }
+
+    #[tracing::instrument(skip(self))]
     pub fn set_workspace_layout_default(
         &mut self,
         monitor_idx: usize,

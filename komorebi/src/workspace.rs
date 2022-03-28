@@ -41,6 +41,8 @@ pub struct Workspace {
     floating_windows: Vec<Window>,
     #[getset(get = "pub", get_mut = "pub", set = "pub")]
     layout: Layout,
+    #[getset(get = "pub", get_mut = "pub", set = "pub")]
+    layout_rules: Vec<(usize, Layout)>,
     #[getset(get_copy = "pub", set = "pub")]
     layout_flip: Option<Axis>,
     #[getset(get_copy = "pub", set = "pub")]
@@ -69,6 +71,7 @@ impl Default for Workspace {
             monocle_container_restore_idx: None,
             floating_windows: Vec::default(),
             layout: Layout::Default(DefaultLayout::BSP),
+            layout_rules: vec![],
             layout_flip: None,
             workspace_padding: Option::from(10),
             container_padding: Option::from(10),
@@ -163,6 +166,20 @@ impl Workspace {
         adjusted_work_area.add_padding(self.workspace_padding());
 
         self.enforce_resize_constraints();
+
+        if !self.layout_rules().is_empty() {
+            let mut updated_layout = None;
+
+            for rule in self.layout_rules() {
+                if self.containers().len() >= rule.0 {
+                    updated_layout = Option::from(rule.1.clone());
+                }
+            }
+
+            if let Some(updated_layout) = updated_layout {
+                self.set_layout(updated_layout);
+            }
+        }
 
         if *self.tile() {
             if let Some(container) = self.monocle_container_mut() {

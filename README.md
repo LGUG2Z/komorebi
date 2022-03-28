@@ -304,6 +304,31 @@ YAML
   configuration: Horizontal
 ```
 
+## Dynamically Changing Layouts Based on Number of Visible Window Containers
+
+With `komorebi` it is possible to define rules to automatically change the layout on a specified workspace when a
+threshold of window containers is met.
+
+```powershell
+# On the first workspace of the first monitor (0 0)
+# When there are one or more window containers visible on the screen (1)
+# Use the bsp layout (bsp)
+komorebic workspace-layout-rule 0 0 1 bsp
+
+# On the first workspace of the first monitor (0 0)
+# When there are five or more window containers visible on the screen (five)
+# Use the custom layout stored in the home directory (~/custom.yaml)
+komorebic workspace-custom-layout-rule 0 0 5 ~/custom.yaml
+```
+
+However, if you add workspace layout rules, you will not be able to manually change the layout of a workspace until all
+layout rules for that workspace have been cleared.
+
+```powershell
+# If you decide that workspace layout rules are not for you, you can remove them from that same workspace like this
+komorebic clear-workspace-layout-rules 0 0
+```
+
 ## Configuration with `komorebic`
 
 As previously mentioned, this project does not handle anything related to keybindings and shortcuts directly. I
@@ -362,6 +387,9 @@ container-padding                          Set the container padding for the spe
 workspace-padding                          Set the workspace padding for the specified workspace
 workspace-layout                           Set the layout for the specified workspace
 workspace-custom-layout                    Set a custom layout for the specified workspace
+workspace-layout-rule                      Add a dynamic layout rule for the specified workspace
+workspace-custom-layout-rule               Add a dynamic custom layout for the specified workspace
+clear-workspace-layout-rules               Clear all dynamic layout rules for the specified workspace
 workspace-tiling                           Enable or disable window tiling for the specified workspace
 workspace-name                             Set the workspace name for the specified workspace
 toggle-window-container-behaviour          Toggle the behaviour for new windows (stacking or dynamic tiling)
@@ -432,6 +460,7 @@ used [is available here](komorebi.sample.with.lib.ahk).
 - [x] Main half-width window with horizontal stack layout (`vertical-stack`)
 - [x] 2x Main window (half and quarter-width) with horizontal stack layout (`ultrawide-vertical-stack`)
 - [x] Load custom layouts from JSON and YAML representations
+- [x] Dynamically select layout based on the number of open windows
 - [x] Floating rules based on exe name, window title and class
 - [x] Workspace rules based on exe name and window class
 - [x] Additional manage rules based on exe name and window class

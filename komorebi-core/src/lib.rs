@@ -86,6 +86,9 @@ pub enum SocketMessage {
     WorkspaceName(usize, usize, String),
     WorkspaceLayout(usize, usize, DefaultLayout),
     WorkspaceLayoutCustom(usize, usize, PathBuf),
+    WorkspaceLayoutRule(usize, usize, usize, DefaultLayout),
+    WorkspaceLayoutCustomRule(usize, usize, usize, PathBuf),
+    ClearWorkspaceLayoutRules(usize, usize),
     // Configuration
     ReloadConfiguration,
     WatchConfiguration(bool),

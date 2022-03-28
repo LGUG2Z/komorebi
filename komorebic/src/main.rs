@@ -172,12 +172,50 @@ gen_workspace_subcommand_args! {
 }
 
 #[derive(Parser, AhkFunction)]
+pub struct ClearWorkspaceLayoutRules {
+    /// Monitor index (zero-indexed)
+    monitor: usize,
+
+    /// Workspace index on the specified monitor (zero-indexed)
+    workspace: usize,
+}
+
+#[derive(Parser, AhkFunction)]
 pub struct WorkspaceCustomLayout {
     /// Monitor index (zero-indexed)
     monitor: usize,
 
     /// Workspace index on the specified monitor (zero-indexed)
     workspace: usize,
+
+    /// JSON or YAML file from which the custom layout definition should be loaded
+    path: String,
+}
+
+#[derive(Parser, AhkFunction)]
+pub struct WorkspaceLayoutRule {
+    /// Monitor index (zero-indexed)
+    monitor: usize,
+
+    /// Workspace index on the specified monitor (zero-indexed)
+    workspace: usize,
+
+    /// The number of window containers on-screen required to trigger this layout rule
+    at_container_count: usize,
+
+    layout: DefaultLayout,
+}
+
+#[derive(Parser, AhkFunction)]
+pub struct WorkspaceCustomLayoutRule {
+    /// Monitor index (zero-indexed)
+    monitor: usize,
+
+    /// Workspace index on the specified monitor (zero-indexed)
+    workspace: usize,
+
+    /// The number of window containers on-screen required to trigger this layout rule
+    at_container_count: usize,
 
     /// JSON or YAML file from which the custom layout definition should be loaded
     path: String,
@@ -526,6 +564,15 @@ enum SubCommand {
     /// Set a custom layout for the specified workspace
     #[clap(arg_required_else_help = true)]
     WorkspaceCustomLayout(WorkspaceCustomLayout),
+    /// Add a dynamic layout rule for the specified workspace
+    #[clap(arg_required_else_help = true)]
+    WorkspaceLayoutRule(WorkspaceLayoutRule),
+    /// Add a dynamic custom layout for the specified workspace
+    #[clap(arg_required_else_help = true)]
+    WorkspaceCustomLayoutRule(WorkspaceCustomLayoutRule),
+    /// Clear all dynamic layout rules for the specified workspace
+    #[clap(arg_required_else_help = true)]
+    ClearWorkspaceLayoutRules(ClearWorkspaceLayoutRules),
     /// Enable or disable window tiling for the specified workspace
     #[clap(arg_required_else_help = true)]
     WorkspaceTiling(WorkspaceTiling),
@@ -758,6 +805,34 @@ fn main() -> Result<()> {
                     resolve_windows_path(&arg.path)?,
                 )
                 .as_bytes()?,
+            )?;
+        }
+        SubCommand::WorkspaceLayoutRule(arg) => {
+            send_message(
+                &*SocketMessage::WorkspaceLayoutRule(
+                    arg.monitor,
+                    arg.workspace,
+                    arg.at_container_count,
+                    arg.layout,
+                )
+                .as_bytes()?,
+            )?;
+        }
+        SubCommand::WorkspaceCustomLayoutRule(arg) => {
+            send_message(
+                &*SocketMessage::WorkspaceLayoutCustomRule(
+                    arg.monitor,
+                    arg.workspace,
+                    arg.at_container_count,
+                    resolve_windows_path(&arg.path)?,
+                )
+                .as_bytes()?,
+            )?;
+        }
+        SubCommand::ClearWorkspaceLayoutRules(arg) => {
+            send_message(
+                &*SocketMessage::ClearWorkspaceLayoutRules(arg.monitor, arg.workspace)
+                    .as_bytes()?,
             )?;
         }
         SubCommand::WorkspaceTiling(arg) => {

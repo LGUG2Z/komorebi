@@ -244,6 +244,35 @@ impl WindowManager {
             SocketMessage::WorkspaceLayout(monitor_idx, workspace_idx, layout) => {
                 self.set_workspace_layout_default(monitor_idx, workspace_idx, layout)?;
             }
+            SocketMessage::WorkspaceLayoutRule(
+                monitor_idx,
+                workspace_idx,
+                at_container_count,
+                layout,
+            ) => {
+                self.add_workspace_layout_default_rule(
+                    monitor_idx,
+                    workspace_idx,
+                    at_container_count,
+                    layout,
+                )?;
+            }
+            SocketMessage::WorkspaceLayoutCustomRule(
+                monitor_idx,
+                workspace_idx,
+                at_container_count,
+                path,
+            ) => {
+                self.add_workspace_layout_custom_rule(
+                    monitor_idx,
+                    workspace_idx,
+                    at_container_count,
+                    path,
+                )?;
+            }
+            SocketMessage::ClearWorkspaceLayoutRules(monitor_idx, workspace_idx) => {
+                self.clear_workspace_layout_rules(monitor_idx, workspace_idx)?;
+            }
             SocketMessage::CycleFocusWorkspace(direction) => {
                 // This is to ensure that even on an empty workspace on a secondary monitor, the
                 // secondary monitor where the cursor is focused will be used as the target for
