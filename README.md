@@ -304,7 +304,7 @@ YAML
   configuration: Horizontal
 ```
 
-## Dynamically Changing Layouts Based on Number of Visible Window Containers
+#### Dynamically Changing Layouts Based on Number of Visible Window Containers
 
 With `komorebi` it is possible to define rules to automatically change the layout on a specified workspace when a
 threshold of window containers is met.
