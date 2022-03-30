@@ -352,8 +352,9 @@ gen_application_target_subcommand_args! {
     FloatRule,
     ManageRule,
     IdentifyTrayApplication,
+    IdentifyLayeredApplication,
     IdentifyObjectNameChangeApplication,
-    IdentifyBorderOverflow,
+    IdentifyBorderOverflowApplication,
 }
 
 #[derive(Parser, AhkFunction)]
@@ -620,9 +621,13 @@ enum SubCommand {
     /// Identify an application that closes to the system tray
     #[clap(arg_required_else_help = true)]
     IdentifyTrayApplication(IdentifyTrayApplication),
+    /// Identify an application that has WS_EX_LAYERED, but should still be managed
+    #[clap(arg_required_else_help = true)]
+    IdentifyLayeredApplication(IdentifyLayeredApplication),
     /// Identify an application that has overflowing borders
     #[clap(arg_required_else_help = true)]
-    IdentifyBorderOverflow(IdentifyBorderOverflow),
+    #[clap(alias = "identify-border-overflow")]
+    IdentifyBorderOverflowApplication(IdentifyBorderOverflowApplication),
     /// Enable or disable focus follows mouse for the operating system
     #[clap(arg_required_else_help = true)]
     FocusFollowsMouse(FocusFollowsMouse),
@@ -1079,9 +1084,16 @@ fn main() -> Result<()> {
                     .as_bytes()?,
             )?;
         }
-        SubCommand::IdentifyBorderOverflow(target) => {
+        SubCommand::IdentifyLayeredApplication(target) => {
             send_message(
-                &*SocketMessage::IdentifyBorderOverflow(target.identifier, target.id).as_bytes()?,
+                &*SocketMessage::IdentifyLayeredApplication(target.identifier, target.id)
+                    .as_bytes()?,
+            )?;
+        }
+        SubCommand::IdentifyBorderOverflowApplication(target) => {
+            send_message(
+                &*SocketMessage::IdentifyBorderOverflowApplication(target.identifier, target.id)
+                    .as_bytes()?,
             )?;
         }
         SubCommand::Manage => {

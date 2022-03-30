@@ -201,6 +201,24 @@ komorebic.exe identify-tray-application exe Discord.exe
 # komorebic.exe identify-tray-application title [TITLE]
 ```
 
+#### Microsoft Office Applications
+
+Microsoft Office applications such as Word and Excel require certain configuration options to be set in order to be
+managed correctly. Below is an example of configuring Microsoft Word to be managed correctly by _komorebi_.
+
+```powershell
+# This only needs to be added once
+komorebic.exe float-rule class _WwB
+
+# Repeat these for other office applications such as EXCEL.EXE etc
+# Note that the capitalised EXE is important here- double check the
+# exact case for the name and the file extension in Task Manager or
+# the AHK Window Spy
+
+komorebic.exe identify-layered-application exe WINWORD.EXE
+komorebic.exe identify-border-overflow-application exe WINWORD.EXE
+```
+
 #### Focus Follows Mouse
 
 `komorebi` supports two focus-follows-mouse implementations; the native Windows Xmouse implementation, which treats the
@@ -409,7 +427,8 @@ manage-rule                                Add a rule to always manage the speci
 workspace-rule                             Add a rule to associate an application with a workspace
 identify-object-name-change-application    Identify an application that sends EVENT_OBJECT_NAMECHANGE on launch
 identify-tray-application                  Identify an application that closes to the system tray
-identify-border-overflow                   Identify an application that has overflowing borders
+identify-layered-application               Identify an application that has WS_EX_LAYERED, but should still be managed
+identify-border-overflow-application       Identify an application that has overflowing borders
 focus-follows-mouse                        Enable or disable focus follows mouse for the operating system
 toggle-focus-follows-mouse                 Toggle focus follows mouse for the operating system
 mouse-follows-focus                        Enable or disable mouse follows focus on all workspaces

@@ -40,7 +40,7 @@ use crate::workspace::Workspace;
 use crate::BORDER_OVERFLOW_IDENTIFIERS;
 use crate::FLOAT_IDENTIFIERS;
 use crate::HOME_DIR;
-use crate::LAYERED_EXE_WHITELIST;
+use crate::LAYERED_WHITELIST;
 use crate::MANAGE_IDENTIFIERS;
 use crate::OBJECT_NAME_CHANGE_ON_LAUNCH;
 use crate::TRAY_AND_MULTI_WINDOW_IDENTIFIERS;
@@ -77,7 +77,7 @@ pub struct State {
     pub has_pending_raise_op: bool,
     pub float_identifiers: Vec<String>,
     pub manage_identifiers: Vec<String>,
-    pub layered_exe_whitelist: Vec<String>,
+    pub layered_whitelist: Vec<String>,
     pub tray_and_multi_window_identifiers: Vec<String>,
     pub border_overflow_identifiers: Vec<String>,
     pub name_change_on_launch_identifiers: Vec<String>,
@@ -103,7 +103,7 @@ impl From<&WindowManager> for State {
             has_pending_raise_op: wm.has_pending_raise_op,
             float_identifiers: FLOAT_IDENTIFIERS.lock().clone(),
             manage_identifiers: MANAGE_IDENTIFIERS.lock().clone(),
-            layered_exe_whitelist: LAYERED_EXE_WHITELIST.lock().clone(),
+            layered_whitelist: LAYERED_WHITELIST.lock().clone(),
             tray_and_multi_window_identifiers: TRAY_AND_MULTI_WINDOW_IDENTIFIERS.lock().clone(),
             border_overflow_identifiers: BORDER_OVERFLOW_IDENTIFIERS.lock().clone(),
             name_change_on_launch_identifiers: OBJECT_NAME_CHANGE_ON_LAUNCH.lock().clone(),

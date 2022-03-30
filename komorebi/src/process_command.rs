@@ -39,6 +39,7 @@ use crate::CUSTOM_FFM;
 use crate::FLOAT_IDENTIFIERS;
 use crate::HIDING_BEHAVIOUR;
 use crate::HOME_DIR;
+use crate::LAYERED_WHITELIST;
 use crate::MANAGE_IDENTIFIERS;
 use crate::OBJECT_NAME_CHANGE_ON_LAUNCH;
 use crate::SUBSCRIPTION_PIPES;
@@ -550,7 +551,7 @@ impl WindowManager {
             SocketMessage::WatchConfiguration(enable) => {
                 self.watch_configuration(enable)?;
             }
-            SocketMessage::IdentifyBorderOverflow(_, id) => {
+            SocketMessage::IdentifyBorderOverflowApplication(_, id) => {
                 let mut identifiers = BORDER_OVERFLOW_IDENTIFIERS.lock();
                 if !identifiers.contains(&id) {
                     identifiers.push(id);
@@ -564,6 +565,12 @@ impl WindowManager {
             }
             SocketMessage::IdentifyTrayApplication(_, id) => {
                 let mut identifiers = TRAY_AND_MULTI_WINDOW_IDENTIFIERS.lock();
+                if !identifiers.contains(&id) {
+                    identifiers.push(id);
+                }
+            }
+            SocketMessage::IdentifyLayeredApplication(_, id) => {
+                let mut identifiers = LAYERED_WHITELIST.lock();
                 if !identifiers.contains(&id) {
                     identifiers.push(id);
                 }

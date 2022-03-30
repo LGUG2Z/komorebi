@@ -68,7 +68,7 @@ mod workspace;
 
 lazy_static! {
     static ref HIDDEN_HWNDS: Arc<Mutex<Vec<isize>>> = Arc::new(Mutex::new(vec![]));
-    static ref LAYERED_EXE_WHITELIST: Arc<Mutex<Vec<String>>> =
+    static ref LAYERED_WHITELIST: Arc<Mutex<Vec<String>>> =
         Arc::new(Mutex::new(vec!["steam.exe".to_string()]));
     static ref TRAY_AND_MULTI_WINDOW_IDENTIFIERS: Arc<Mutex<Vec<String>>> =
         Arc::new(Mutex::new(vec![

@@ -22,7 +22,7 @@ use crate::BORDER_OVERFLOW_IDENTIFIERS;
 use crate::FLOAT_IDENTIFIERS;
 use crate::HIDDEN_HWNDS;
 use crate::HIDING_BEHAVIOUR;
-use crate::LAYERED_EXE_WHITELIST;
+use crate::LAYERED_WHITELIST;
 use crate::MANAGE_IDENTIFIERS;
 use crate::WSL2_UI_PROCESSES;
 
@@ -295,8 +295,8 @@ impl Window {
                     };
 
                     let allow_layered = {
-                        let layered_exe_whitelist = LAYERED_EXE_WHITELIST.lock();
-                        layered_exe_whitelist.contains(&exe_name)
+                        let layered_whitelist = LAYERED_WHITELIST.lock();
+                        layered_whitelist.contains(&exe_name) || layered_whitelist.contains(&class)
                     };
 
                     let allow_wsl2_gui = {

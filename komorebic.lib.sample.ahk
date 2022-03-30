@@ -276,8 +276,12 @@ IdentifyTrayApplication(identifier, id) {
     Run, komorebic.exe identify-tray-application %identifier% %id%, , Hide
 }
 
-IdentifyBorderOverflow(identifier, id) {
-    Run, komorebic.exe identify-border-overflow %identifier% %id%, , Hide
+IdentifyLayeredApplication(identifier, id) {
+    Run, komorebic.exe identify-layered-application %identifier% %id%, , Hide
+}
+
+IdentifyBorderOverflowApplication(identifier, id) {
+    Run, komorebic.exe identify-border-overflow-application %identifier% %id%, , Hide
 }
 
 FocusFollowsMouse(boolean_state, implementation) {
