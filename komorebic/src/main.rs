@@ -1,6 +1,7 @@
 #![warn(clippy::all, clippy::nursery, clippy::pedantic)]
 #![allow(clippy::missing_errors_doc)]
 
+use std::fs;
 use std::fs::File;
 use std::fs::OpenOptions;
 use std::io::BufRead;
@@ -28,6 +29,7 @@ use windows::Win32::UI::WindowsAndMessaging::SW_RESTORE;
 
 use derive_ahk::AhkFunction;
 use derive_ahk::AhkLibrary;
+use komorebi_core::config_generation::ApplicationConfigurationGenerator;
 use komorebi_core::ApplicationIdentifier;
 use komorebi_core::Axis;
 use komorebi_core::CycleDirection;
@@ -420,6 +422,12 @@ struct Unsubscribe {
     named_pipe: String,
 }
 
+#[derive(Parser, AhkFunction)]
+pub struct ApplicationSpecificConfiguration {
+    /// YAML file from which the application-specific configurations should be loaded
+    path: String,
+}
+
 #[derive(Parser)]
 #[clap(author, about, version, setting = AppSettings::DeriveDisplayOrder)]
 struct Opts {
@@ -641,6 +649,10 @@ enum SubCommand {
     ToggleMouseFollowsFocus,
     /// Generate a library of AutoHotKey helper functions
     AhkLibrary,
+    /// Generate a collection of common application configurations to use in komorebi.ahk
+    #[clap(arg_required_else_help = true)]
+    #[clap(alias = "app-specific-configuration")]
+    ApplicationSpecificConfiguration(ApplicationSpecificConfiguration),
     /// Generate a JSON Schema of subscription notifications
     NotificationSchema,
 }
@@ -1134,6 +1146,33 @@ fn main() -> Result<()> {
         }
         SubCommand::WindowHidingBehaviour(arg) => {
             send_message(&*SocketMessage::WindowHidingBehaviour(arg.hiding_behaviour).as_bytes()?)?;
+        }
+        SubCommand::ApplicationSpecificConfiguration(arg) => {
+            let content = fs::read_to_string(resolve_windows_path(&arg.path)?)?;
+            let lines = ApplicationConfigurationGenerator::generate(&content)?;
+
+            let mut generated_config = HOME_DIR.clone();
+            generated_config.push("komorebi.generated.ahk");
+            let mut file = OpenOptions::new()
+                .write(true)
+                .create(true)
+                .truncate(true)
+                .open(generated_config.clone())?;
+
+            file.write_all(lines.join("\n").as_bytes())?;
+
+            println!(
+                "\nApplication-specific generated configuration written to {}",
+                generated_config.to_str().ok_or_else(|| anyhow!(
+                    "could not find the path to the generated configuration file"
+                ))?
+            );
+
+            println!(
+                "\nYou can include the generated configuration at the top of your komorebi.ahk config with this line:"
+            );
+
+            println!("\n#Include %A_ScriptDir%\\komorebi.generated.ahk");
         }
         SubCommand::NotificationSchema => {
             let home = HOME_DIR.clone();

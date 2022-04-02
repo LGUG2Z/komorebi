@@ -23,6 +23,7 @@ pub use operation_direction::OperationDirection;
 pub use rect::Rect;
 
 pub mod arrangement;
+pub mod config_generation;
 pub mod custom_layout;
 pub mod cycle_direction;
 pub mod default_layout;
@@ -138,6 +139,7 @@ pub enum StateQuery {
 
 #[derive(Clone, Debug, Serialize, Deserialize, Display, EnumString, ArgEnum, JsonSchema)]
 #[strum(serialize_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
 pub enum ApplicationIdentifier {
     Exe,
     Class,
