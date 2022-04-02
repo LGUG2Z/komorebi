@@ -100,7 +100,7 @@ impl ApplicationConfigurationGenerator {
             if let Some(float_identifiers) = app.float_identifiers {
                 for float in float_identifiers {
                     let float_rule = format!(
-                        "Run, komorebic.exe float-rule {}, {}, , Hide",
+                        "Run, komorebic.exe float-rule {} {}, , Hide",
                         float.kind, float.id
                     );
 
