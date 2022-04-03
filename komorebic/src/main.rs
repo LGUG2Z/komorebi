@@ -422,10 +422,22 @@ struct Unsubscribe {
     named_pipe: String,
 }
 
-#[derive(Parser, AhkFunction)]
-pub struct ApplicationSpecificConfiguration {
-    /// YAML file from which the application-specific configurations should be loaded
-    path: String,
+macro_rules! gen_application_specific_configuration_subcommand_args {
+    // SubCommand Pattern
+    ( $( $name:ident ),+ $(,)? ) => {
+        $(
+            #[derive(clap::Parser, derive_ahk::AhkFunction)]
+            pub struct $name {
+                /// YAML file from which the application-specific configurations should be loaded
+                path: String,
+            }
+        )+
+    };
+}
+
+gen_application_specific_configuration_subcommand_args! {
+    AhkAppSpecificConfiguration,
+    FormatAppSpecificConfiguration,
 }
 
 #[derive(Parser)]
@@ -649,10 +661,14 @@ enum SubCommand {
     ToggleMouseFollowsFocus,
     /// Generate a library of AutoHotKey helper functions
     AhkLibrary,
-    /// Generate a collection of common application configurations to use in komorebi.ahk
+    /// Generate common app-specific configurations and fixes to use in komorebi.ahk
     #[clap(arg_required_else_help = true)]
-    #[clap(alias = "app-specific-configuration")]
-    ApplicationSpecificConfiguration(ApplicationSpecificConfiguration),
+    #[clap(alias = "ahk-asc")]
+    AhkAppSpecificConfiguration(AhkAppSpecificConfiguration),
+    /// Format a YAML file for use with the 'ahk-app-specific-configuration' command
+    #[clap(arg_required_else_help = true)]
+    #[clap(alias = "fmt-asc")]
+    FormatAppSpecificConfiguration(FormatAppSpecificConfiguration),
     /// Generate a JSON Schema of subscription notifications
     NotificationSchema,
 }
@@ -1147,9 +1163,9 @@ fn main() -> Result<()> {
         SubCommand::WindowHidingBehaviour(arg) => {
             send_message(&*SocketMessage::WindowHidingBehaviour(arg.hiding_behaviour).as_bytes()?)?;
         }
-        SubCommand::ApplicationSpecificConfiguration(arg) => {
+        SubCommand::AhkAppSpecificConfiguration(arg) => {
             let content = fs::read_to_string(resolve_windows_path(&arg.path)?)?;
-            let lines = ApplicationConfigurationGenerator::generate(&content)?;
+            let lines = ApplicationConfigurationGenerator::generate_ahk(&content)?;
 
             let mut generated_config = HOME_DIR.clone();
             generated_config.push("komorebi.generated.ahk");
@@ -1173,6 +1189,21 @@ fn main() -> Result<()> {
             );
 
             println!("\n#Include %A_ScriptDir%\\komorebi.generated.ahk");
+        }
+        SubCommand::FormatAppSpecificConfiguration(arg) => {
+            let file_path = resolve_windows_path(&arg.path)?;
+            let content = fs::read_to_string(&file_path)?;
+            let formatted_content = ApplicationConfigurationGenerator::format(&content)?;
+
+            let mut file = OpenOptions::new()
+                .write(true)
+                .create(true)
+                .truncate(true)
+                .open(file_path)?;
+
+            file.write_all(formatted_content.as_bytes())?;
+
+            println!("File successfully formatted for PRs to https://github.com/LGUG2Z/komorebi-application-specific-configuration");
         }
         SubCommand::NotificationSchema => {
             let home = HOME_DIR.clone();

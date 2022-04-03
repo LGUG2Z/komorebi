@@ -304,8 +304,12 @@ AhkLibrary() {
     Run, komorebic.exe ahk-library, , Hide
 }
 
-ApplicationSpecificConfiguration(path) {
-    Run, komorebic.exe application-specific-configuration %path%, , Hide
+AhkAppSpecificConfiguration(path) {
+    Run, komorebic.exe ahk-app-specific-configuration %path%, , Hide
+}
+
+FormatAppSpecificConfiguration(path) {
+    Run, komorebic.exe format-app-specific-configuration %path%, , Hide
 }
 
 NotificationSchema() {

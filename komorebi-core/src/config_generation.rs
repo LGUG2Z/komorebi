@@ -58,11 +58,21 @@ pub struct IdWithIdentifier {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
+pub struct IdWithIdentifierAndComment {
+    kind: ApplicationIdentifier,
+    id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    comment: Option<String>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 pub struct ApplicationConfiguration {
     name: String,
     identifier: IdWithIdentifier,
+    #[serde(skip_serializing_if = "Option::is_none")]
     options: Option<Vec<ApplicationOptions>>,
-    float_identifiers: Option<Vec<IdWithIdentifier>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    float_identifiers: Option<Vec<IdWithIdentifierAndComment>>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
@@ -73,7 +83,13 @@ impl ApplicationConfigurationGenerator {
         Ok(serde_yaml::from_str(content)?)
     }
 
-    pub fn generate(content: &str) -> Result<Vec<String>> {
+    pub fn format(content: &str) -> Result<String> {
+        let mut cfgen = Self::load(content)?;
+        cfgen.sort_by(|a, b| a.name.cmp(&b.name));
+        Ok(serde_yaml::to_string(&cfgen)?)
+    }
+
+    pub fn generate_ahk(content: &str) -> Result<Vec<String>> {
         let mut cfgen = Self::load(content)?;
         cfgen.sort_by(|a, b| a.name.cmp(&b.name));
 
@@ -93,6 +109,7 @@ impl ApplicationConfigurationGenerator {
                     if let ApplicationOptions::TrayAndMultiWindow = opt {
                         lines.push(String::from("; If you have disabled minimize/close to tray for this application, you can delete/comment out the next line"));
                     }
+
                     lines.push(opt.cfgen(&app.identifier.kind, &app.identifier.id));
                 }
             }
@@ -107,10 +124,16 @@ impl ApplicationConfigurationGenerator {
                     // Don't want to send duped signals especially as configs get larger
                     if !float_rules.contains(&float_rule) {
                         float_rules.push(float_rule.clone());
+
+                        if let Some(comment) = float.comment {
+                            lines.push(format!("; {}", comment));
+                        };
+
                         lines.push(float_rule);
                     }
                 }
             }
+
             lines.push(String::from(""));
         }
 
