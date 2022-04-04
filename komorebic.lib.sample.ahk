@@ -304,8 +304,8 @@ AhkLibrary() {
     Run, komorebic.exe ahk-library, , Hide
 }
 
-AhkAppSpecificConfiguration(path) {
-    Run, komorebic.exe ahk-app-specific-configuration %path%, , Hide
+AhkAppSpecificConfiguration(path, override_path) {
+    Run, komorebic.exe ahk-app-specific-configuration %path% %override_path%, , Hide
 }
 
 FormatAppSpecificConfiguration(path) {

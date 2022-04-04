@@ -422,22 +422,18 @@ struct Unsubscribe {
     named_pipe: String,
 }
 
-macro_rules! gen_application_specific_configuration_subcommand_args {
-    // SubCommand Pattern
-    ( $( $name:ident ),+ $(,)? ) => {
-        $(
-            #[derive(clap::Parser, derive_ahk::AhkFunction)]
-            pub struct $name {
-                /// YAML file from which the application-specific configurations should be loaded
-                path: String,
-            }
-        )+
-    };
+#[derive(Parser, AhkFunction)]
+struct AhkAppSpecificConfiguration {
+    /// YAML file from which the application-specific configurations should be loaded
+    path: String,
+    /// Optional YAML file of overrides to apply over the first file
+    override_path: Option<String>,
 }
 
-gen_application_specific_configuration_subcommand_args! {
-    AhkAppSpecificConfiguration,
-    FormatAppSpecificConfiguration,
+#[derive(Parser, AhkFunction)]
+struct FormatAppSpecificConfiguration {
+    /// YAML file from which the application-specific configurations should be loaded
+    path: String,
 }
 
 #[derive(Parser)]
@@ -1165,7 +1161,16 @@ fn main() -> Result<()> {
         }
         SubCommand::AhkAppSpecificConfiguration(arg) => {
             let content = fs::read_to_string(resolve_windows_path(&arg.path)?)?;
-            let lines = ApplicationConfigurationGenerator::generate_ahk(&content)?;
+            let lines = if let Some(override_path) = arg.override_path {
+                let override_content = fs::read_to_string(resolve_windows_path(&override_path)?)?;
+
+                ApplicationConfigurationGenerator::generate_ahk(
+                    &content,
+                    Option::from(override_content.as_str()),
+                )?
+            } else {
+                ApplicationConfigurationGenerator::generate_ahk(&content, None)?
+            };
 
             let mut generated_config = HOME_DIR.clone();
             generated_config.push("komorebi.generated.ahk");

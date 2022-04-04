@@ -89,8 +89,36 @@ impl ApplicationConfigurationGenerator {
         Ok(serde_yaml::to_string(&cfgen)?)
     }
 
-    pub fn generate_ahk(content: &str) -> Result<Vec<String>> {
-        let mut cfgen = Self::load(content)?;
+    fn merge(base_content: &str, override_content: &str) -> Result<Vec<ApplicationConfiguration>> {
+        let base_cfgen = Self::load(base_content)?;
+        let override_cfgen = Self::load(override_content)?;
+
+        let mut final_cfgen = base_cfgen.clone();
+
+        for entry in override_cfgen {
+            let mut replace_idx = None;
+            for (idx, base_entry) in base_cfgen.iter().enumerate() {
+                if base_entry.name == entry.name {
+                    replace_idx = Option::from(idx);
+                }
+            }
+
+            match replace_idx {
+                None => final_cfgen.push(entry),
+                Some(idx) => final_cfgen[idx] = entry,
+            }
+        }
+
+        Ok(final_cfgen)
+    }
+
+    pub fn generate_ahk(base_content: &str, override_content: Option<&str>) -> Result<Vec<String>> {
+        let mut cfgen = if let Some(override_content) = override_content {
+            Self::merge(base_content, override_content)?
+        } else {
+            Self::load(base_content)?
+        };
+
         cfgen.sort_by(|a, b| a.name.cmp(&b.name));
 
         let mut lines = vec![
