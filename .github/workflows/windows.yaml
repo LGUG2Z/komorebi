@@ -77,7 +77,7 @@ jobs:
         run: |
           cargo build --locked --release --target ${{ matrix.target }}
       - name: Upload the built artifacts
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: komorebi-${{ matrix.target }}
           path: |
