@@ -124,15 +124,16 @@ pub trait ProcessWindowsCrateResult<T> {
     fn process(self) -> Result<T>;
 }
 
-macro_rules! impl_process_windows_crate_result {
+macro_rules! impl_process_windows_crate_integer_wrapper_result {
     ( $($input:ty => $deref:ty),+ $(,)? ) => (
         paste::paste! {
             $(
-                impl ProcessWindowsCrateResult<$deref> for WindowsCrateResult<$input> {
+                impl ProcessWindowsCrateResult<$deref> for $input {
                     fn process(self) -> Result<$deref> {
-                        match self {
-                            Ok(value) => Ok(value.0),
-                            Err(error) => Err(error.into()),
+                        if self.0 == 0 {
+                            Ok(self.0)
+                        } else {
+                            Err(std::io::Error::last_os_error().into())
                         }
                     }
                 }
@@ -141,7 +142,7 @@ macro_rules! impl_process_windows_crate_result {
     );
 }
 
-impl_process_windows_crate_result!(
+impl_process_windows_crate_integer_wrapper_result!(
     HWND => isize,
 );
 
@@ -296,7 +297,7 @@ impl WindowsApi {
     }
 
     pub fn foreground_window() -> Result<isize> {
-        unsafe { GetForegroundWindow() }.ok().process()
+        unsafe { GetForegroundWindow() }.process()
     }
 
     pub fn set_foreground_window(hwnd: HWND) -> Result<()> {
@@ -305,16 +306,16 @@ impl WindowsApi {
 
     #[allow(dead_code)]
     pub fn top_window() -> Result<isize> {
-        unsafe { GetTopWindow(HWND::default()) }.ok().process()
+        unsafe { GetTopWindow(HWND::default()) }.process()
     }
 
     pub fn desktop_window() -> Result<isize> {
-        unsafe { GetDesktopWindow() }.ok().process()
+        unsafe { GetDesktopWindow() }.process()
     }
 
     #[allow(dead_code)]
     pub fn next_window(hwnd: HWND) -> Result<isize> {
-        unsafe { GetWindow(hwnd, GW_HWNDNEXT) }.ok().process()
+        unsafe { GetWindow(hwnd, GW_HWNDNEXT) }.process()
     }
 
     #[allow(dead_code)]
@@ -352,7 +353,7 @@ impl WindowsApi {
     }
 
     pub fn window_from_point(point: POINT) -> Result<isize> {
-        unsafe { WindowFromPoint(point) }.ok().process()
+        unsafe { WindowFromPoint(point) }.process()
     }
 
     pub fn window_at_cursor_pos() -> Result<isize> {
@@ -401,7 +402,7 @@ impl WindowsApi {
     }
 
     pub fn set_focus(hwnd: HWND) -> Result<()> {
-        unsafe { SetFocus(hwnd) }.ok().map(|_| ()).process()
+        unsafe { SetFocus(hwnd) }.process().map(|_| ())
     }
 
     #[allow(dead_code)]
@@ -451,9 +452,7 @@ impl WindowsApi {
         inherit_handle: bool,
         process_id: u32,
     ) -> Result<HANDLE> {
-        unsafe { OpenProcess(access_rights, inherit_handle, process_id) }
-            .ok()
-            .process()
+        unsafe { OpenProcess(access_rights, inherit_handle, process_id) }.process()
     }
 
     pub fn process_handle(process_id: u32) -> Result<HANDLE> {
