@@ -27,6 +27,23 @@ Articles, blog posts, demos, and videos about _komorebi_ can be added to this li
 - [Moving to Windows from Linux Pt 1](https://kvwu.io/posts/moving-to-windows/)
 - [Windows 下的现代化平铺窗口管理器 komorebi](https://zhuanlan.zhihu.com/p/455064481)
 
+## Demonstrations
+
+[@haxibami](https://github.com/haxibami) showing _komorebi_ running on Windows
+11 with a terminal emulator, a web browser and a code editor. The original
+video can be viewed
+[here](https://twitter.com/haxibami/status/1501560766578659332).
+
+https://user-images.githubusercontent.com/13164844/163496447-20c3ff0a-c5d8-40d1-9cc8-156c4cebf12e.mp4
+
+[@aik2mlj](https://github.com/aik2mlj) showing _komorebi_ running on Windows 11
+with multiple workspaces, terminal emulators, a web browser, and the
+[yasb](https://github.com/DenBot/yasb) status bar with the _komorebi_ workspace
+widget enabled. The original video can be viewed
+[here](https://zhuanlan.zhihu.com/p/455064481).
+
+https://user-images.githubusercontent.com/13164844/163496414-a9cde3d1-b8a7-4a7a-96fb-a8985380bc70.mp4
+
 ## Description
 
 _komorebi_ only responds to [WinEvents](https://docs.microsoft.com/en-us/windows/win32/winauto/event-constants) and the
@@ -139,6 +156,42 @@ exist in your home directory, only `komorebi.ahk` will be loaded. An example of 
 for _komorebi_ can be found [here](https://gist.github.com/crosstyan/dafacc0778dabf693ce9236c57b201cd).
 
 ### Common First-Time Tips
+
+#### Generating Common Application-Specific Configurations
+
+A curated selection of application-specific configurations can be generated to
+help ease the setup for first-time users.
+[`komorebi-application-specific-configuration`](https://github.com/LGUG2Z/komorebi-application-specific-configuration)
+contains YAML definitions of settings that are known to make tricky
+applications behave as expected. These YAML definitions can be used to generate
+an AHK file which you can import at the start of your own `komorebi.ahk` file,
+leaving you to focus primarily on your desired keybindings and workspace
+configurations.
+
+If you have settings for an application that you think should be part of this
+curated selection, please open a PR on the configuration repository.
+
+In the event that your PR is not accepted, or if you find there are any
+settings that you wish to override, this can easily be done using an override
+file.
+
+```powershell
+# Clone and enter the repository
+git clone https://github.com/LGUG2Z/komorebi-application-specific-configuration.git
+cd komorebi-application-specific-configuration
+
+# Use komorebic to generate an AHK file
+komorebic.exe ahk-app-specific-configuration applications.yaml
+
+# Application-specific generated configuration written to C:\Users\LGUG2Z\.config\komorebi\komorebi.generated.ahk
+#
+# You can include the generated configuration at the top of your komorebi.ahk config with this line:
+#
+# #Include %A_ScriptDir%\komorebi.generated.ahk
+
+# Optionally, provide an override file that follows the same schema as the second argument
+komorebic.exe ahk-app-specific-configuration applications.yaml overrides.yaml
+```
 
 #### Setting a Custom KOMOREBI_CONFIG_HOME Directory
 
