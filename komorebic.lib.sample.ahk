@@ -257,31 +257,31 @@ WindowHidingBehaviour(hiding_behaviour) {
 }
 
 FloatRule(identifier, id) {
-    Run, komorebic.exe float-rule %identifier% %id%, , Hide
+    Run, komorebic.exe float-rule %identifier% "%id%", , Hide
 }
 
 ManageRule(identifier, id) {
-    Run, komorebic.exe manage-rule %identifier% %id%, , Hide
+    Run, komorebic.exe manage-rule %identifier% "%id%", , Hide
 }
 
 WorkspaceRule(identifier, id, monitor, workspace) {
-    Run, komorebic.exe workspace-rule %identifier% %id% %monitor% %workspace%, , Hide
+    Run, komorebic.exe workspace-rule %identifier% "%id%" %monitor% %workspace%, , Hide
 }
 
 IdentifyObjectNameChangeApplication(identifier, id) {
-    Run, komorebic.exe identify-object-name-change-application %identifier% %id%, , Hide
+    Run, komorebic.exe identify-object-name-change-application %identifier% "%id%", , Hide
 }
 
 IdentifyTrayApplication(identifier, id) {
-    Run, komorebic.exe identify-tray-application %identifier% %id%, , Hide
+    Run, komorebic.exe identify-tray-application %identifier% "%id%", , Hide
 }
 
 IdentifyLayeredApplication(identifier, id) {
-    Run, komorebic.exe identify-layered-application %identifier% %id%, , Hide
+    Run, komorebic.exe identify-layered-application %identifier% "%id%", , Hide
 }
 
 IdentifyBorderOverflowApplication(identifier, id) {
-    Run, komorebic.exe identify-border-overflow-application %identifier% %id%, , Hide
+    Run, komorebic.exe identify-border-overflow-application %identifier% "%id%", , Hide
 }
 
 FocusFollowsMouse(boolean_state, implementation) {

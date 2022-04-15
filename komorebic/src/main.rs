@@ -692,7 +692,10 @@ fn main() -> Result<()> {
                 .truncate(true)
                 .open(library.clone())?;
 
-            file.write_all(SubCommand::generate_ahk_library().as_bytes())?;
+            let output: String = SubCommand::generate_ahk_library();
+            let fixed_output = output.replace("%id%", "\"%id%\"");
+
+            file.write_all(fixed_output.as_bytes())?;
 
             println!(
                 "\nAHK helper library for komorebic written to {}",
