@@ -130,7 +130,11 @@ macro_rules! impl_process_windows_crate_integer_wrapper_result {
             $(
                 impl ProcessWindowsCrateResult<$deref> for $input {
                     fn process(self) -> Result<$deref> {
-                        Ok(self.0)
+                        if self == HWND(0) {
+                            Err(std::io::Error::last_os_error().into())
+                        } else {
+                            Ok(self.0)
+                        }
                     }
                 }
             )+
