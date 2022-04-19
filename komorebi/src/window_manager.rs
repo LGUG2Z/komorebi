@@ -815,6 +815,8 @@ impl WindowManager {
             .remove_focused_container()
             .ok_or_else(|| anyhow!("there is no container"))?;
 
+        monitor.update_focused_workspace(offset, &invisible_borders)?;
+
         let target_monitor = self
             .monitors_mut()
             .get_mut(monitor_idx)
@@ -845,6 +847,7 @@ impl WindowManager {
 
         self.update_focused_workspace(mouse_follows_focus)
     }
+
     pub fn remove_focused_workspace(&mut self) -> Option<Workspace> {
         let focused_monitor: &mut Monitor = self.focused_monitor_mut()?;
         let focused_workspace_idx = focused_monitor.focused_workspace_idx();
