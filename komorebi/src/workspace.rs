@@ -334,6 +334,28 @@ impl Workspace {
         None
     }
 
+    pub fn contains_managed_window(&self, hwnd: isize) -> bool {
+        for container in self.containers() {
+            if container.contains_window(hwnd) {
+                return true;
+            }
+        }
+
+        if let Some(window) = self.maximized_window() {
+            if hwnd == window.hwnd {
+                return true;
+            }
+        }
+
+        if let Some(container) = self.monocle_container() {
+            if container.contains_window(hwnd) {
+                return true;
+            }
+        }
+
+        false
+    }
+
     pub fn contains_window(&self, hwnd: isize) -> bool {
         for container in self.containers() {
             if container.contains_window(hwnd) {

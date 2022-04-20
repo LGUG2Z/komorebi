@@ -475,6 +475,7 @@ unmanage                                   Unmanage a window that was forcibly m
 reload-configuration                       Reload ~/komorebi.ahk (if it exists)
 watch-configuration                        Enable or disable watching of ~/komorebi.ahk (if it exists)
 window-hiding-behaviour                    Set the window behaviour when switching workspaces / cycling stacks
+unmanaged-window-operation-behaviour       Set the operation behaviour when the focused window is not managed
 float-rule                                 Add a rule to always float the specified application
 manage-rule                                Add a rule to always manage the specified application
 workspace-rule                             Add a rule to associate an application with a workspace
@@ -487,6 +488,8 @@ toggle-focus-follows-mouse                 Toggle focus follows mouse for the op
 mouse-follows-focus                        Enable or disable mouse follows focus on all workspaces
 toggle-mouse-follows-focus                 Toggle mouse follows focus on all workspaces
 ahk-library                                Generate a library of AutoHotKey helper functions
+ahk-app-specific-configuration             Generate common app-specific configurations and fixes to use in komorebi.ahk
+format-app-specific-configuration          Format a YAML file for use with the 'ahk-app-specific-configuration' command
 notification-schema                        Generate a JSON Schema of subscription notifications
 help                                       Print this message or the help of the given subcommand(s)
 ```

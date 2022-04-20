@@ -57,6 +57,7 @@ pub enum SocketMessage {
     ToggleMaximize,
     ToggleWindowContainerBehaviour,
     WindowHidingBehaviour(HidingBehaviour),
+    UnmanagedWindowOperationBehaviour(OperationBehaviour),
     // Current Workspace Commands
     ManageFocusedWindow,
     UnmanageFocusedWindow,
@@ -165,6 +166,13 @@ pub enum WindowContainerBehaviour {
 pub enum HidingBehaviour {
     Hide,
     Minimize,
+}
+
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, Display, EnumString, ArgEnum, JsonSchema)]
+#[strum(serialize_all = "snake_case")]
+pub enum OperationBehaviour {
+    Op,
+    NoOp,
 }
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, Display, EnumString, ArgEnum, JsonSchema)]

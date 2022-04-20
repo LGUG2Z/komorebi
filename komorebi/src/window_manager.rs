@@ -22,6 +22,7 @@ use komorebi_core::CycleDirection;
 use komorebi_core::DefaultLayout;
 use komorebi_core::FocusFollowsMouseImplementation;
 use komorebi_core::Layout;
+use komorebi_core::OperationBehaviour;
 use komorebi_core::OperationDirection;
 use komorebi_core::Rect;
 use komorebi_core::Sizing;
@@ -56,6 +57,7 @@ pub struct WindowManager {
     pub work_area_offset: Option<Rect>,
     pub resize_delta: i32,
     pub window_container_behaviour: WindowContainerBehaviour,
+    pub unmanaged_window_operation_behaviour: OperationBehaviour,
     pub focus_follows_mouse: Option<FocusFollowsMouseImplementation>,
     pub mouse_follows_focus: bool,
     pub hotwatch: Hotwatch,
@@ -172,6 +174,7 @@ impl WindowManager {
             virtual_desktop_id: current_virtual_desktop(),
             work_area_offset: None,
             window_container_behaviour: WindowContainerBehaviour::Create,
+            unmanaged_window_operation_behaviour: OperationBehaviour::Op,
             resize_delta: 50,
             focus_follows_mouse: None,
             mouse_follows_focus: true,
@@ -786,12 +789,29 @@ impl WindowManager {
     }
 
     #[tracing::instrument(skip(self))]
+    fn handle_unmanaged_window_behaviour(&self) -> Result<()> {
+        if let OperationBehaviour::NoOp = self.unmanaged_window_operation_behaviour {
+            let workspace = self.focused_workspace()?;
+            let focused_hwnd = WindowsApi::foreground_window()?;
+            if !workspace.contains_managed_window(focused_hwnd) {
+                return Err(anyhow!(
+                    "ignoring commands while active window is not managed by komorebi"
+                ));
+            }
+        }
+
+        Ok(())
+    }
+
+    #[tracing::instrument(skip(self))]
     pub fn move_container_to_monitor(
         &mut self,
         monitor_idx: usize,
         workspace_idx: Option<usize>,
         follow: bool,
     ) -> Result<()> {
+        self.handle_unmanaged_window_behaviour()?;
+
         tracing::info!("moving container");
 
         let invisible_borders = self.invisible_borders;
@@ -835,6 +855,8 @@ impl WindowManager {
 
     #[tracing::instrument(skip(self))]
     pub fn move_container_to_workspace(&mut self, idx: usize, follow: bool) -> Result<()> {
+        self.handle_unmanaged_window_behaviour()?;
+
         tracing::info!("moving container");
 
         let mouse_follows_focus = self.mouse_follows_focus;
@@ -879,7 +901,10 @@ impl WindowManager {
 
     #[tracing::instrument(skip(self))]
     pub fn focus_container_in_direction(&mut self, direction: OperationDirection) -> Result<()> {
+        self.handle_unmanaged_window_behaviour()?;
+
         tracing::info!("focusing container");
+
         let workspace = self.focused_workspace_mut()?;
 
         let new_idx = workspace
@@ -894,6 +919,8 @@ impl WindowManager {
 
     #[tracing::instrument(skip(self))]
     pub fn move_container_in_direction(&mut self, direction: OperationDirection) -> Result<()> {
+        self.handle_unmanaged_window_behaviour()?;
+
         tracing::info!("moving container");
 
         let workspace = self.focused_workspace_mut()?;
@@ -910,6 +937,8 @@ impl WindowManager {
 
     #[tracing::instrument(skip(self))]
     pub fn focus_container_in_cycle_direction(&mut self, direction: CycleDirection) -> Result<()> {
+        self.handle_unmanaged_window_behaviour()?;
+
         tracing::info!("focusing container");
         let mut maximize_next = false;
         let mut monocle_next = false;
@@ -945,6 +974,8 @@ impl WindowManager {
 
     #[tracing::instrument(skip(self))]
     pub fn move_container_in_cycle_direction(&mut self, direction: CycleDirection) -> Result<()> {
+        self.handle_unmanaged_window_behaviour()?;
+
         tracing::info!("moving container");
 
         let workspace = self.focused_workspace_mut()?;
@@ -961,6 +992,8 @@ impl WindowManager {
 
     #[tracing::instrument(skip(self))]
     pub fn cycle_container_window_in_direction(&mut self, direction: CycleDirection) -> Result<()> {
+        self.handle_unmanaged_window_behaviour()?;
+
         tracing::info!("cycling container windows");
 
         let container = self.focused_container_mut()?;
@@ -983,6 +1016,8 @@ impl WindowManager {
 
     #[tracing::instrument(skip(self))]
     pub fn add_window_to_container(&mut self, direction: OperationDirection) -> Result<()> {
+        self.handle_unmanaged_window_behaviour()?;
+
         tracing::info!("adding window to container");
 
         let workspace = self.focused_workspace_mut()?;
@@ -1019,6 +1054,8 @@ impl WindowManager {
 
     #[tracing::instrument(skip(self))]
     pub fn promote_container_to_front(&mut self) -> Result<()> {
+        self.handle_unmanaged_window_behaviour()?;
+
         tracing::info!("promoting container");
 
         let workspace = self.focused_workspace_mut()?;
@@ -1028,6 +1065,8 @@ impl WindowManager {
 
     #[tracing::instrument(skip(self))]
     pub fn remove_window_from_container(&mut self) -> Result<()> {
+        self.handle_unmanaged_window_behaviour()?;
+
         tracing::info!("removing window");
 
         if self.focused_container()?.windows().len() == 1 {
@@ -1100,6 +1139,8 @@ impl WindowManager {
 
     #[tracing::instrument(skip(self))]
     pub fn toggle_monocle(&mut self) -> Result<()> {
+        self.handle_unmanaged_window_behaviour()?;
+
         let workspace = self.focused_workspace_mut()?;
 
         match workspace.monocle_container() {
@@ -1128,6 +1169,8 @@ impl WindowManager {
 
     #[tracing::instrument(skip(self))]
     pub fn toggle_maximize(&mut self) -> Result<()> {
+        self.handle_unmanaged_window_behaviour()?;
+
         let workspace = self.focused_workspace_mut()?;
 
         match workspace.maximized_window() {

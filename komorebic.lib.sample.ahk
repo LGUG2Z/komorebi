@@ -256,6 +256,10 @@ WindowHidingBehaviour(hiding_behaviour) {
     Run, komorebic.exe window-hiding-behaviour %hiding_behaviour%, , Hide
 }
 
+UnmanagedWindowOperationBehaviour(operation_behaviour) {
+    Run, komorebic.exe unmanaged-window-operation-behaviour %operation_behaviour%, , Hide
+}
+
 FloatRule(identifier, id) {
     Run, komorebic.exe float-rule %identifier% "%id%", , Hide
 }

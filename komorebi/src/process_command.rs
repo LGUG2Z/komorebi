@@ -681,6 +681,9 @@ impl WindowManager {
                 let mut hiding_behaviour = HIDING_BEHAVIOUR.lock();
                 *hiding_behaviour = behaviour;
             }
+            SocketMessage::UnmanagedWindowOperationBehaviour(behaviour) => {
+                self.unmanaged_window_operation_behaviour = behaviour;
+            }
             SocketMessage::NotificationSchema => {
                 let notification = schema_for!(Notification);
                 let schema = serde_json::to_string_pretty(&notification)?;

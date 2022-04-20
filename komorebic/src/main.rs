@@ -36,6 +36,7 @@ use komorebi_core::CycleDirection;
 use komorebi_core::DefaultLayout;
 use komorebi_core::FocusFollowsMouseImplementation;
 use komorebi_core::HidingBehaviour;
+use komorebi_core::OperationBehaviour;
 use komorebi_core::OperationDirection;
 use komorebi_core::Rect;
 use komorebi_core::Sizing;
@@ -114,6 +115,7 @@ gen_enum_subcommand_args! {
     MouseFollowsFocus: BooleanState,
     Query: StateQuery,
     WindowHidingBehaviour: HidingBehaviour,
+    UnmanagedWindowOperationBehaviour: OperationBehaviour,
 }
 
 macro_rules! gen_target_subcommand_args {
@@ -622,6 +624,9 @@ enum SubCommand {
     /// Set the window behaviour when switching workspaces / cycling stacks
     #[clap(arg_required_else_help = true)]
     WindowHidingBehaviour(WindowHidingBehaviour),
+    /// Set the operation behaviour when the focused window is not managed
+    #[clap(arg_required_else_help = true)]
+    UnmanagedWindowOperationBehaviour(UnmanagedWindowOperationBehaviour),
     /// Add a rule to always float the specified application
     #[clap(arg_required_else_help = true)]
     FloatRule(FloatRule),
@@ -1161,6 +1166,12 @@ fn main() -> Result<()> {
         }
         SubCommand::WindowHidingBehaviour(arg) => {
             send_message(&*SocketMessage::WindowHidingBehaviour(arg.hiding_behaviour).as_bytes()?)?;
+        }
+        SubCommand::UnmanagedWindowOperationBehaviour(arg) => {
+            send_message(
+                &*SocketMessage::UnmanagedWindowOperationBehaviour(arg.operation_behaviour)
+                    .as_bytes()?,
+            )?;
         }
         SubCommand::AhkAppSpecificConfiguration(arg) => {
             let content = fs::read_to_string(resolve_windows_path(&arg.path)?)?;
