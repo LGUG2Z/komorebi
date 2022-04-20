@@ -5,7 +5,7 @@ use std::fmt::Formatter;
 use color_eyre::eyre::anyhow;
 use color_eyre::Result;
 use schemars::JsonSchema;
-use serde::ser::Error;
+
 use serde::ser::SerializeStruct;
 use serde::Serialize;
 use serde::Serializer;
@@ -64,24 +64,23 @@ impl Serialize for Window {
             "title",
             &self
                 .title()
-                .map_err(|_| S::Error::custom("could not get window title"))?,
+                .unwrap_or_else(|_| "could not get window title".to_string()),
         )?;
         state.serialize_field(
             "exe",
             &self
                 .exe()
-                .map_err(|_| S::Error::custom("could not get window exe"))?,
+                .unwrap_or_else(|_| "could not get window exe".to_string()),
         )?;
         state.serialize_field(
             "class",
             &self
                 .class()
-                .map_err(|_| S::Error::custom("could not get window class"))?,
+                .unwrap_or_else(|_| "could not get window class".to_string()),
         )?;
         state.serialize_field(
             "rect",
-            &WindowsApi::window_rect(self.hwnd())
-                .map_err(|_| S::Error::custom("could not get window rect"))?,
+            &WindowsApi::window_rect(self.hwnd()).unwrap_or_default(),
         )?;
         state.end()
     }
