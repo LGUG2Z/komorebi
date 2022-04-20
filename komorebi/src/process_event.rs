@@ -76,7 +76,23 @@ impl WindowManager {
                 let monitor_idx = self.monitor_idx_from_window(*window)
                     .ok_or_else(|| anyhow!("there is no monitor associated with this window, it may have already been destroyed"))?;
 
-                self.focus_monitor(monitor_idx)?;
+                // This is a hidden window apparently associated with COM support mechanisms (based
+                // on a post from http://www.databaseteam.org/1-ms-sql-server/a5bb344836fb889c.htm)
+                //
+                // The hidden window, OLEChannelWnd, associated with this class (spawned by
+                // explorer.exe), after some debugging, is observed to always be tied to the primary
+                // display monitor, or (usually) monitor 0 in the WindowManager state.
+                //
+                // Due to this, at least one user in the Discord has witnessed behaviour where, when
+                // a MonitorPoll event is triggered by OLEChannelWnd, the focused monitor index gets
+                // set repeatedly to 0, regardless of where the current foreground window is actually
+                // located.
+                //
+                // This check ensures that we only update the focused monitor when the window
+                // triggering monitor reconciliation is known to not be tied to a specific monitor.
+                if window.class()? != "OleMainThreadWndClass" {
+                    self.focus_monitor(monitor_idx)?;
+                }
             }
             _ => {}
         }
