@@ -76,7 +76,9 @@ impl WindowManager {
                 let monitor_idx = self.monitor_idx_from_window(*window)
                     .ok_or_else(|| anyhow!("there is no monitor associated with this window, it may have already been destroyed"))?;
 
-                self.focus_monitor(monitor_idx)?;
+                if window.class()? != "OleMainThreadWndClass" {
+                    self.focus_monitor(monitor_idx)?;
+                }
             }
             _ => {}
         }
