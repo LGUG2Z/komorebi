@@ -8,6 +8,7 @@ use getset::Getters;
 use getset::MutGetters;
 use getset::Setters;
 use schemars::JsonSchema;
+use serde::Deserialize;
 use serde::Serialize;
 
 use komorebi_core::Rect;
@@ -16,7 +17,9 @@ use crate::container::Container;
 use crate::ring::Ring;
 use crate::workspace::Workspace;
 
-#[derive(Debug, Clone, Serialize, Getters, CopyGetters, MutGetters, Setters, JsonSchema)]
+#[derive(
+    Debug, Clone, Serialize, Deserialize, Getters, CopyGetters, MutGetters, Setters, JsonSchema,
+)]
 pub struct Monitor {
     #[getset(get_copy = "pub", set = "pub")]
     id: isize,
@@ -25,7 +28,7 @@ pub struct Monitor {
     #[getset(get = "pub", set = "pub")]
     work_area_size: Rect,
     workspaces: Ring<Workspace>,
-    #[serde(skip_serializing)]
+    #[serde(skip)]
     #[getset(get_mut = "pub")]
     workspace_names: HashMap<usize, String>,
 }

@@ -4,5 +4,6 @@ members = [
     "derive-ahk",
     "komorebi",
     "komorebi-core",
+    "komorebi-bar",
     "komorebic"
 ]

@@ -495,7 +495,7 @@ impl WindowManager {
         notify_subscribers(&serde_json::to_string(&Notification {
             event: NotificationEvent::WindowManager(*event),
             state: self.as_ref().into(),
-        })?)?;
+        })?);
 
         tracing::info!("processed: {}", event.window().to_string());
         Ok(())

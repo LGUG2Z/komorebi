@@ -1,0 +1,31 @@
+[package]
+name = "komorebi-bar"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+komorebi = { path = "../komorebi" }
+komorebi-core = { path = "../komorebi-core" }
+
+as-any = "0.3"
+chrono = "0.4"
+color-eyre = "0.6"
+eframe = "0.17"
+egui = "0.17"
+lazy_static = "1.4"
+miow = "0.4"
+schemafy = "0.6"
+serde = "1"
+serde_json = "1"
+parking_lot = "0.12"
+local-ip-address = "0.4"
+clipboard-win = "4.4"
+sysinfo = "0.23"
+
+[dependencies.windows]
+version = "0.35"
+features = [
+    "Win32_Graphics_Gdi",
+]

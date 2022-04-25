@@ -239,12 +239,14 @@ impl WindowsApi {
             .process()
     }
 
+    #[must_use]
     pub fn monitor_from_window(hwnd: HWND) -> isize {
         // MONITOR_DEFAULTTONEAREST ensures that the return value will never be NULL
         // https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-monitorfromwindow
         unsafe { MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST) }.0
     }
 
+    #[must_use]
     pub fn monitor_from_point(point: POINT) -> isize {
         // MONITOR_DEFAULTTONEAREST ensures that the return value will never be NULL
         // https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-monitorfromwindow
@@ -364,6 +366,7 @@ impl WindowsApi {
         Self::set_cursor_pos(rect.left + (rect.right / 2), rect.top + (rect.bottom / 2))
     }
 
+    #[must_use]
     pub fn window_thread_process_id(hwnd: HWND) -> (u32, u32) {
         let mut process_id: u32 = 0;
 
@@ -374,10 +377,12 @@ impl WindowsApi {
         (process_id, thread_id)
     }
 
+    #[must_use]
     pub fn current_thread_id() -> u32 {
         unsafe { GetCurrentThreadId() }
     }
 
+    #[must_use]
     pub fn current_process_id() -> u32 {
         unsafe { GetCurrentProcessId() }
     }
@@ -532,16 +537,23 @@ impl WindowsApi {
         ))
     }
 
+    #[must_use]
     pub fn is_window(hwnd: HWND) -> bool {
         unsafe { IsWindow(hwnd) }.into()
     }
 
+    #[must_use]
     pub fn is_window_visible(hwnd: HWND) -> bool {
         unsafe { IsWindowVisible(hwnd) }.into()
     }
 
+    #[must_use]
     pub fn is_iconic(hwnd: HWND) -> bool {
         unsafe { IsIconic(hwnd) }.into()
+    }
+
+    pub fn monitor_info(hmonitor: isize) -> Result<MONITORINFO> {
+        Self::monitor_info_w(HMONITOR(hmonitor))
     }
 
     pub fn monitor_info_w(hmonitor: HMONITOR) -> Result<MONITORINFO> {
@@ -566,7 +578,7 @@ impl WindowsApi {
     }
 
     #[allow(dead_code)]
-    pub fn system_parameters_info_w(
+    fn system_parameters_info_w(
         action: SYSTEM_PARAMETERS_INFO_ACTION,
         ui_param: u32,
         pv_param: *mut c_void,

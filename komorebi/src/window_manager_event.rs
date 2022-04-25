@@ -2,13 +2,14 @@ use std::fmt::Display;
 use std::fmt::Formatter;
 
 use schemars::JsonSchema;
+use serde::Deserialize;
 use serde::Serialize;
 
 use crate::window::Window;
 use crate::winevent::WinEvent;
 use crate::OBJECT_NAME_CHANGE_ON_LAUNCH;
 
-#[derive(Debug, Copy, Clone, Serialize, JsonSchema)]
+#[derive(Debug, Copy, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(tag = "type", content = "content")]
 pub enum WindowManagerEvent {
     Destroy(WinEvent, Window),
@@ -89,6 +90,7 @@ impl Display for WindowManagerEvent {
 }
 
 impl WindowManagerEvent {
+    #[must_use]
     pub const fn window(self) -> Window {
         match self {
             WindowManagerEvent::Destroy(_, window)
@@ -106,6 +108,7 @@ impl WindowManagerEvent {
         }
     }
 
+    #[must_use]
     pub fn from_win_event(winevent: WinEvent, window: Window) -> Option<Self> {
         match winevent {
             WinEvent::ObjectDestroy => Option::from(Self::Destroy(winevent, window)),

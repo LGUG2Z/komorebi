@@ -7,6 +7,7 @@ use color_eyre::Result;
 use schemars::JsonSchema;
 use serde::ser::Error;
 use serde::ser::SerializeStruct;
+use serde::Deserialize;
 use serde::Serialize;
 use serde::Serializer;
 use windows::Win32::Foundation::HWND;
@@ -26,7 +27,7 @@ use crate::LAYERED_WHITELIST;
 use crate::MANAGE_IDENTIFIERS;
 use crate::WSL2_UI_PROCESSES;
 
-#[derive(Debug, Clone, Copy, JsonSchema)]
+#[derive(Debug, Clone, Copy, Deserialize, JsonSchema)]
 pub struct Window {
     pub(crate) hwnd: isize,
 }

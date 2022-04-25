@@ -32,14 +32,15 @@ pub struct WinEventListener {
     outgoing_events: Arc<Mutex<Sender<WindowManagerEvent>>>,
 }
 
-pub fn new(outgoing: Arc<Mutex<Sender<WindowManagerEvent>>>) -> WinEventListener {
-    WinEventListener {
-        hook: Arc::new(AtomicIsize::new(0)),
-        outgoing_events: outgoing,
-    }
-}
-
 impl WinEventListener {
+    #[must_use]
+    pub fn new(outgoing: Arc<Mutex<Sender<WindowManagerEvent>>>) -> Self {
+        Self {
+            hook: Arc::new(AtomicIsize::new(0)),
+            outgoing_events: outgoing,
+        }
+    }
+
     pub fn start(self) {
         let hook = self.hook.clone();
         let outgoing = self.outgoing_events.lock().clone();

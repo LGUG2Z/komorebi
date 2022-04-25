@@ -12,6 +12,7 @@ use hotwatch::notify::DebouncedEvent;
 use hotwatch::Hotwatch;
 use parking_lot::Mutex;
 use schemars::JsonSchema;
+use serde::Deserialize;
 use serde::Serialize;
 use uds_windows::UnixListener;
 
@@ -66,7 +67,7 @@ pub struct WindowManager {
     pub pending_move_op: Option<(usize, usize, usize)>,
 }
 
-#[derive(Debug, Serialize, JsonSchema)]
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
 pub struct State {
     pub monitors: Ring<Monitor>,
     pub is_paused: bool,
