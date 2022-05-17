@@ -16,7 +16,7 @@ builds:
     hooks:
       post:
         - mkdir -p dist/windows_amd64
-        - cp ".\target\x86_64-pc-windows-msvc\release\komorebi.exe" ".\dist\komorebi_windows_amd64\komorebi.exe"
+        - cp ".\target\x86_64-pc-windows-msvc\release\komorebi.exe" ".\dist\komorebi_windows_amd64_v1\komorebi.exe"
   - id: komorebic
     main: dummy.go
     goos: ["windows"]
@@ -25,7 +25,7 @@ builds:
     hooks:
       post:
         - mkdir -p dist/windows_amd64
-        - cp ".\target\x86_64-pc-windows-msvc\release\komorebic.exe" ".\dist\komorebic_windows_amd64\komorebic.exe"
+        - cp ".\target\x86_64-pc-windows-msvc\release\komorebic.exe" ".\dist\komorebic_windows_amd64_v1\komorebic.exe"
 
 archives:
   - replacements:
@@ -43,18 +43,3 @@ checksum:
 
 changelog:
   sort: asc
-
-scoop:
-  bucket:
-    owner: LGUG2Z
-    name: komorebi-bucket
-    token: "{{ .Env.SCOOP_TOKEN }}"
-  homepage: https://github.com/LGUG2Z/komorebi
-  description: A tiling window manager for Windows
-  license: MIT
-  pre_install:
-    - if (Get-Process -Name komorebi -ErrorAction SilentlyContinue) { komorebic stop }
-  post_install:
-    - Write-Host "`nRun 'cp $original_dir\komorebi.sample.ahk $Env:UserProfile\komorebi.ahk' to get started with the sample configuration"
-    - Write-Host "`nRun 'komorebic ahk-library' if you would like to generate an AHK helper library to use in your configuration"
-    - Write-Host "`nOnce you have a configuration file in place, you can run 'komorebic start' to start the window manager"
