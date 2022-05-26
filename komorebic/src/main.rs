@@ -922,7 +922,7 @@ fn main() -> Result<()> {
                 },
             );
 
-            match powershell_script::run(&script, true) {
+            match powershell_script::run(&script) {
                 Ok(output) => {
                     println!("{}", output);
                 }
