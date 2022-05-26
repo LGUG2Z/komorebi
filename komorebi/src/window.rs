@@ -1,6 +1,7 @@
 use std::convert::TryFrom;
 use std::fmt::Display;
 use std::fmt::Formatter;
+use std::fmt::Write as _;
 
 use color_eyre::eyre::anyhow;
 use color_eyre::Result;
@@ -36,18 +37,18 @@ impl Display for Window {
         let mut display = format!("(hwnd: {}", self.hwnd);
 
         if let Ok(title) = self.title() {
-            display.push_str(&format!(", title: {}", title));
+            write!(display, ", title: {}", title)?;
         }
 
         if let Ok(exe) = self.exe() {
-            display.push_str(&format!(", exe: {}", exe));
+            write!(display, ", exe: {}", exe)?;
         }
 
         if let Ok(class) = self.class() {
-            display.push_str(&format!(", class: {}", class));
+            write!(display, ", class: {}", class)?;
         }
 
-        display.push(')');
+        write!(display, ")")?;
 
         write!(f, "{}", display)
     }
