@@ -283,10 +283,12 @@ impl Window {
                 if let (Ok(title), Ok(exe_name), Ok(class)) = (self.title(), self.exe(), self.class()) {
                     {
                         let float_identifiers = FLOAT_IDENTIFIERS.lock();
-                        if float_identifiers.contains(&title)
-                            || float_identifiers.contains(&exe_name)
-                            || float_identifiers.contains(&class) {
-                            return Ok(false);
+                        for identifier in float_identifiers.iter() {
+                            if title.starts_with(identifier) || title.ends_with(identifier) ||
+                                class.starts_with(identifier) || class.ends_with(identifier) ||
+                                identifier == &exe_name {
+                                return Ok(false);
+                            }
                         }
                     }
 
