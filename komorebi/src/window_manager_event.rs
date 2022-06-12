@@ -28,56 +28,56 @@ pub enum WindowManagerEvent {
 impl Display for WindowManagerEvent {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            WindowManagerEvent::Manage(window) => {
+            Self::Manage(window) => {
                 write!(f, "Manage (Window: {})", window)
             }
-            WindowManagerEvent::Unmanage(window) => {
+            Self::Unmanage(window) => {
                 write!(f, "Unmanage (Window: {})", window)
             }
-            WindowManagerEvent::Destroy(winevent, window) => {
+            Self::Destroy(winevent, window) => {
                 write!(f, "Destroy (WinEvent: {}, Window: {})", winevent, window)
             }
-            WindowManagerEvent::FocusChange(winevent, window) => {
+            Self::FocusChange(winevent, window) => {
                 write!(
                     f,
                     "FocusChange (WinEvent: {}, Window: {})",
                     winevent, window
                 )
             }
-            WindowManagerEvent::Hide(winevent, window) => {
+            Self::Hide(winevent, window) => {
                 write!(f, "Hide (WinEvent: {}, Window: {})", winevent, window)
             }
-            WindowManagerEvent::Minimize(winevent, window) => {
+            Self::Minimize(winevent, window) => {
                 write!(f, "Minimize (WinEvent: {}, Window: {})", winevent, window)
             }
-            WindowManagerEvent::Show(winevent, window) => {
+            Self::Show(winevent, window) => {
                 write!(f, "Show (WinEvent: {}, Window: {})", winevent, window)
             }
-            WindowManagerEvent::MoveResizeStart(winevent, window) => {
+            Self::MoveResizeStart(winevent, window) => {
                 write!(
                     f,
                     "MoveResizeStart (WinEvent: {}, Window: {})",
                     winevent, window
                 )
             }
-            WindowManagerEvent::MoveResizeEnd(winevent, window) => {
+            Self::MoveResizeEnd(winevent, window) => {
                 write!(
                     f,
                     "MoveResizeEnd (WinEvent: {}, Window: {})",
                     winevent, window
                 )
             }
-            WindowManagerEvent::MouseCapture(winevent, window) => {
+            Self::MouseCapture(winevent, window) => {
                 write!(
                     f,
                     "MouseCapture (WinEvent: {}, Window: {})",
                     winevent, window
                 )
             }
-            WindowManagerEvent::Raise(window) => {
+            Self::Raise(window) => {
                 write!(f, "Raise (Window: {})", window)
             }
-            WindowManagerEvent::MonitorPoll(winevent, window) => {
+            Self::MonitorPoll(winevent, window) => {
                 write!(
                     f,
                     "MonitorPoll (WinEvent: {}, Window: {})",
@@ -91,18 +91,18 @@ impl Display for WindowManagerEvent {
 impl WindowManagerEvent {
     pub const fn window(self) -> Window {
         match self {
-            WindowManagerEvent::Destroy(_, window)
-            | WindowManagerEvent::FocusChange(_, window)
-            | WindowManagerEvent::Hide(_, window)
-            | WindowManagerEvent::Minimize(_, window)
-            | WindowManagerEvent::Show(_, window)
-            | WindowManagerEvent::MoveResizeStart(_, window)
-            | WindowManagerEvent::MoveResizeEnd(_, window)
-            | WindowManagerEvent::MouseCapture(_, window)
-            | WindowManagerEvent::MonitorPoll(_, window)
-            | WindowManagerEvent::Raise(window)
-            | WindowManagerEvent::Manage(window)
-            | WindowManagerEvent::Unmanage(window) => window,
+            Self::Destroy(_, window)
+            | Self::FocusChange(_, window)
+            | Self::Hide(_, window)
+            | Self::Minimize(_, window)
+            | Self::Show(_, window)
+            | Self::MoveResizeStart(_, window)
+            | Self::MoveResizeEnd(_, window)
+            | Self::MouseCapture(_, window)
+            | Self::MonitorPoll(_, window)
+            | Self::Raise(window)
+            | Self::Manage(window)
+            | Self::Unmanage(window) => window,
         }
     }
 

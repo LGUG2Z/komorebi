@@ -680,7 +680,7 @@ pub fn send_message(bytes: &[u8]) -> Result<()> {
     let socket = socket.as_path();
 
     let mut stream = UnixStream::connect(&socket)?;
-    Ok(stream.write_all(&*bytes)?)
+    Ok(stream.write_all(bytes)?)
 }
 
 #[allow(clippy::too_many_lines)]
@@ -720,8 +720,9 @@ fn main() -> Result<()> {
             color_log.push("komorebi.log");
             let file = TailedFile::new(File::open(color_log)?);
             let locked = file.lock();
-            for line in locked.lines() {
-                println!("{}", line?);
+            #[allow(clippy::significant_drop_in_scrutinee)]
+            for line in locked.lines().flatten() {
+                println!("{}", line);
             }
         }
         SubCommand::Focus(arg) => {
