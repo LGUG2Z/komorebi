@@ -380,7 +380,7 @@ impl WindowManager {
                 // with this signal
                 let workspace = self.focused_workspace_mut()?;
                 let container_len = workspace.containers().len();
-                let has_layout_rules = workspace.layout_rules().is_empty();
+                let no_layout_rules = workspace.layout_rules().is_empty();
 
                 if let Layout::Custom(ref mut custom) = workspace.layout_mut() {
                     if matches!(axis, Axis::Horizontal) {
@@ -388,7 +388,7 @@ impl WindowManager {
                             .primary_width_percentage()
                             .unwrap_or(100 / custom.len());
 
-                        if has_layout_rules {
+                        if no_layout_rules {
                             match sizing {
                                 Sizing::Increase => {
                                     custom.set_primary_width_percentage(percentage + 5);
