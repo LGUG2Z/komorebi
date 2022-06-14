@@ -378,15 +378,40 @@ impl WindowManager {
             SocketMessage::ResizeWindowAxis(axis, sizing) => {
                 // If the user has a custom layout, allow for the resizing of the primary column
                 // with this signal
-                if let Layout::Custom(ref mut custom) = self.focused_workspace_mut()?.layout_mut() {
+                let workspace = self.focused_workspace_mut()?;
+                let container_len = workspace.containers().len();
+                let has_layout_rules = workspace.layout_rules().is_empty();
+
+                if let Layout::Custom(ref mut custom) = workspace.layout_mut() {
                     if matches!(axis, Axis::Horizontal) {
                         let percentage = custom
                             .primary_width_percentage()
                             .unwrap_or(100 / custom.len());
 
-                        match sizing {
-                            Sizing::Increase => custom.set_primary_width_percentage(percentage + 5),
-                            Sizing::Decrease => custom.set_primary_width_percentage(percentage - 5),
+                        if has_layout_rules {
+                            match sizing {
+                                Sizing::Increase => {
+                                    custom.set_primary_width_percentage(percentage + 5);
+                                }
+                                Sizing::Decrease => {
+                                    custom.set_primary_width_percentage(percentage - 5);
+                                }
+                            }
+                        } else {
+                            for rule in workspace.layout_rules_mut() {
+                                if container_len >= rule.0 {
+                                    if let Layout::Custom(ref mut custom) = rule.1 {
+                                        match sizing {
+                                            Sizing::Increase => {
+                                                custom.set_primary_width_percentage(percentage + 5);
+                                            }
+                                            Sizing::Decrease => {
+                                                custom.set_primary_width_percentage(percentage - 5);
+                                            }
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
                 // Otherwise proceed with the resizing logic for individual window containers in the
