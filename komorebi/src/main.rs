@@ -118,6 +118,28 @@ lazy_static! {
             dirs::home_dir().expect("there is no home directory")
         }
     };
+    static ref AHK_V1_EXE: String = {
+        let mut ahk_v1: String = String::from("autohotkey.exe");
+
+        if let Ok(komorebi_ahk_v1_exe) = std::env::var("KOMOREBI_AHK_V1_EXE") {
+            if which(&komorebi_ahk_v1_exe).is_ok() {
+                ahk_v1 = komorebi_ahk_v1_exe;
+            }
+        }
+
+        ahk_v1
+    };
+    static ref AHK_V2_EXE: String = {
+        let mut ahk_v2: String = String::from("AutoHotkey64.exe");
+
+        if let Ok(komorebi_ahk_v2_exe) = std::env::var("KOMOREBI_AHK_V2_EXE") {
+            if which(&komorebi_ahk_v2_exe).is_ok() {
+                ahk_v2 = komorebi_ahk_v2_exe;
+            }
+        }
+
+        ahk_v2
+    };
 }
 
 pub static CUSTOM_FFM: AtomicBool = AtomicBool::new(false);
@@ -196,7 +218,7 @@ pub fn load_configuration() -> Result<()> {
     let mut config_v2 = home;
     config_v2.push("komorebi.ahk2");
 
-    if config_v1.exists() && which("autohotkey.exe").is_ok() {
+    if config_v1.exists() && which(&*AHK_V1_EXE).is_ok() {
         tracing::info!(
             "loading configuration file: {}",
             config_v1
@@ -208,7 +230,7 @@ pub fn load_configuration() -> Result<()> {
         Command::new("autohotkey.exe")
             .arg(config_v1.as_os_str())
             .output()?;
-    } else if config_v2.exists() && which("AutoHotkey64.exe").is_ok() {
+    } else if config_v2.exists() && which(&*AHK_V2_EXE).is_ok() {
         tracing::info!(
             "loading configuration file: {}",
             config_v2

@@ -155,6 +155,26 @@ the `AutoHotKey64.exe` executable for AutoHotKey v2 is in your `Path`. If both `
 exist in your home directory, only `komorebi.ahk` will be loaded. An example of an AutoHotKey v2 configuration file
 for _komorebi_ can be found [here](https://gist.github.com/crosstyan/dafacc0778dabf693ce9236c57b201cd).
 
+#### Using Different AHK Executables
+
+The preferred way to install AutoHotKey for use with `komorebi` is to install it via `scoop`:
+
+```powershell
+scoop install autohotkey
+```
+
+If you install AutoHotKey using a different method, the name of the executable file may differ from the name given by
+`scoop`, and thus what is expected by default in `komorebi`.
+
+You may override the executables that `komorebi` looks for to launch and reload `komorebi.ahk` configuration files using
+by setting one of the following two environment variables depending on which version of AutoHotKey you wish to use:
+
+- `$Env:KOMOREBI_AHK_V1_EXE`
+- `$Env:KOMOREBI_AHK_V2_EXE`
+
+Please keep in mind that even when setting a custom executable name using these environment variables, the executables
+are still required to be in your `Path`.
+
 ### Common First-Time Tips
 
 #### Generating Common Application-Specific Configurations
