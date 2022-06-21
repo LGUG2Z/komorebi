@@ -256,6 +256,14 @@ WindowHidingBehaviour(hiding_behaviour) {
     Run, komorebic.exe window-hiding-behaviour %hiding_behaviour%, , Hide
 }
 
+CrossMonitorMoveBehaviour(move_behaviour) {
+    Run, komorebic.exe cross-monitor-move-behaviour %move_behaviour%, , Hide
+}
+
+ToggleCrossMonitorMoveBehaviour() {
+    Run, komorebic.exe toggle-cross-monitor-move-behaviour, , Hide
+}
+
 UnmanagedWindowOperationBehaviour(operation_behaviour) {
     Run, komorebic.exe unmanaged-window-operation-behaviour %operation_behaviour%, , Hide
 }

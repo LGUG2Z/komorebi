@@ -20,6 +20,7 @@ use komorebi_core::ApplicationIdentifier;
 use komorebi_core::Axis;
 use komorebi_core::FocusFollowsMouseImplementation;
 use komorebi_core::Layout;
+use komorebi_core::MoveBehaviour;
 use komorebi_core::OperationDirection;
 use komorebi_core::Rect;
 use komorebi_core::Sizing;
@@ -705,6 +706,19 @@ impl WindowManager {
             SocketMessage::WindowHidingBehaviour(behaviour) => {
                 let mut hiding_behaviour = HIDING_BEHAVIOUR.lock();
                 *hiding_behaviour = behaviour;
+            }
+            SocketMessage::ToggleCrossMonitorMoveBehaviour => {
+                match self.cross_monitor_move_behaviour {
+                    MoveBehaviour::Swap => {
+                        self.cross_monitor_move_behaviour = MoveBehaviour::Insert;
+                    }
+                    MoveBehaviour::Insert => {
+                        self.cross_monitor_move_behaviour = MoveBehaviour::Swap;
+                    }
+                }
+            }
+            SocketMessage::CrossMonitorMoveBehaviour(behaviour) => {
+                self.cross_monitor_move_behaviour = behaviour;
             }
             SocketMessage::UnmanagedWindowOperationBehaviour(behaviour) => {
                 self.unmanaged_window_operation_behaviour = behaviour;

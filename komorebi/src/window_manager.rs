@@ -22,6 +22,7 @@ use komorebi_core::CycleDirection;
 use komorebi_core::DefaultLayout;
 use komorebi_core::FocusFollowsMouseImplementation;
 use komorebi_core::Layout;
+use komorebi_core::MoveBehaviour;
 use komorebi_core::OperationBehaviour;
 use komorebi_core::OperationDirection;
 use komorebi_core::Rect;
@@ -58,6 +59,7 @@ pub struct WindowManager {
     pub work_area_offset: Option<Rect>,
     pub resize_delta: i32,
     pub window_container_behaviour: WindowContainerBehaviour,
+    pub cross_monitor_move_behaviour: MoveBehaviour,
     pub unmanaged_window_operation_behaviour: OperationBehaviour,
     pub focus_follows_mouse: Option<FocusFollowsMouseImplementation>,
     pub mouse_follows_focus: bool,
@@ -74,6 +76,7 @@ pub struct State {
     pub invisible_borders: Rect,
     pub resize_delta: i32,
     pub new_window_behaviour: WindowContainerBehaviour,
+    pub cross_monitor_move_behaviour: MoveBehaviour,
     pub work_area_offset: Option<Rect>,
     pub focus_follows_mouse: Option<FocusFollowsMouseImplementation>,
     pub mouse_follows_focus: bool,
@@ -101,6 +104,7 @@ impl From<&WindowManager> for State {
             work_area_offset: wm.work_area_offset,
             resize_delta: wm.resize_delta,
             new_window_behaviour: wm.window_container_behaviour,
+            cross_monitor_move_behaviour: wm.cross_monitor_move_behaviour,
             focus_follows_mouse: wm.focus_follows_mouse.clone(),
             mouse_follows_focus: wm.mouse_follows_focus,
             has_pending_raise_op: wm.has_pending_raise_op,
@@ -172,6 +176,7 @@ impl WindowManager {
             virtual_desktop_id: current_virtual_desktop(),
             work_area_offset: None,
             window_container_behaviour: WindowContainerBehaviour::Create,
+            cross_monitor_move_behaviour: MoveBehaviour::Swap,
             unmanaged_window_operation_behaviour: OperationBehaviour::Op,
             resize_delta: 50,
             focus_follows_mouse: None,
@@ -1013,41 +1018,47 @@ impl WindowManager {
                     }
                 }
 
-                {
-                    let target_workspace = self.focused_workspace_mut()?;
+                // if our MoveBehaviour is Swap, let's try to send back the window container
+                // whose position which just took over
+                if matches!(self.cross_monitor_move_behaviour, MoveBehaviour::Swap) {
+                    {
+                        let target_workspace = self.focused_workspace_mut()?;
 
-                    // if the target workspace doesn't have more than one container, this means it
-                    // was previously empty, by only doing the second part of the swap when there is
-                    // more than one container, we can fall back to a "move" if there is nothing to
-                    // swap with on the target monitor
-                    if target_workspace.containers().len() > 1 {
-                        // remove the container from the target monitor workspace
-                        let target_container = target_workspace
-                            // this is now focused_container_idx + 1 because we have inserted our origin container
-                            .remove_container_by_idx(target_workspace.focused_container_idx() + 1)
-                            .ok_or_else(|| {
-                                anyhow!("could not remove container at given target index")
-                            })?;
+                        // if the target workspace doesn't have more than one container, this means it
+                        // was previously empty, by only doing the second part of the swap when there is
+                        // more than one container, we can fall back to a "move" if there is nothing to
+                        // swap with on the target monitor
+                        if target_workspace.containers().len() > 1 {
+                            // remove the container from the target monitor workspace
+                            let target_container = target_workspace
+                                // this is now focused_container_idx + 1 because we have inserted our origin container
+                                .remove_container_by_idx(
+                                    target_workspace.focused_container_idx() + 1,
+                                )
+                                .ok_or_else(|| {
+                                    anyhow!("could not remove container at given target index")
+                                })?;
 
-                        let origin_workspace =
-                            self.focused_workspace_for_monitor_idx_mut(origin_monitor_idx)?;
+                            let origin_workspace =
+                                self.focused_workspace_for_monitor_idx_mut(origin_monitor_idx)?;
 
-                        // insert the container from the target monitor workspace into the origin monitor workspace
-                        // at the same position from which our origin container was removed
-                        origin_workspace
-                            .insert_container_at_idx(origin_container_idx, target_container);
+                            // insert the container from the target monitor workspace into the origin monitor workspace
+                            // at the same position from which our origin container was removed
+                            origin_workspace
+                                .insert_container_at_idx(origin_container_idx, target_container);
+                        }
                     }
-
-                    // make sure to update the origin monitor workspace layout because it is no
-                    // longer focused so it won't get updated at the end of this fn
-                    let offset = self.work_area_offset;
-                    let invisible_borders = self.invisible_borders;
-
-                    self.monitors_mut()
-                        .get_mut(origin_monitor_idx)
-                        .ok_or_else(|| anyhow!("there is no monitor at this index"))?
-                        .update_focused_workspace(offset, &invisible_borders)?;
                 }
+
+                // make sure to update the origin monitor workspace layout because it is no
+                // longer focused so it won't get updated at the end of this fn
+                let offset = self.work_area_offset;
+                let invisible_borders = self.invisible_borders;
+
+                self.monitors_mut()
+                    .get_mut(origin_monitor_idx)
+                    .ok_or_else(|| anyhow!("there is no monitor at this index"))?
+                    .update_focused_workspace(offset, &invisible_borders)?;
             }
             Some(new_idx) => {
                 let workspace = self.focused_workspace_mut()?;
