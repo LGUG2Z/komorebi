@@ -36,6 +36,7 @@ use komorebi_core::CycleDirection;
 use komorebi_core::DefaultLayout;
 use komorebi_core::FocusFollowsMouseImplementation;
 use komorebi_core::HidingBehaviour;
+use komorebi_core::MoveBehaviour;
 use komorebi_core::OperationBehaviour;
 use komorebi_core::OperationDirection;
 use komorebi_core::Rect;
@@ -115,6 +116,7 @@ gen_enum_subcommand_args! {
     MouseFollowsFocus: BooleanState,
     Query: StateQuery,
     WindowHidingBehaviour: HidingBehaviour,
+    CrossMonitorMoveBehaviour: MoveBehaviour,
     UnmanagedWindowOperationBehaviour: OperationBehaviour,
 }
 
@@ -624,6 +626,11 @@ enum SubCommand {
     /// Set the window behaviour when switching workspaces / cycling stacks
     #[clap(arg_required_else_help = true)]
     WindowHidingBehaviour(WindowHidingBehaviour),
+    /// Set the behaviour when moving windows across monitor boundaries
+    #[clap(arg_required_else_help = true)]
+    CrossMonitorMoveBehaviour(CrossMonitorMoveBehaviour),
+    /// Toggle the behaviour when moving windows across monitor boundaries
+    ToggleCrossMonitorMoveBehaviour,
     /// Set the operation behaviour when the focused window is not managed
     #[clap(arg_required_else_help = true)]
     UnmanagedWindowOperationBehaviour(UnmanagedWindowOperationBehaviour),
@@ -1167,6 +1174,14 @@ fn main() -> Result<()> {
         }
         SubCommand::WindowHidingBehaviour(arg) => {
             send_message(&*SocketMessage::WindowHidingBehaviour(arg.hiding_behaviour).as_bytes()?)?;
+        }
+        SubCommand::CrossMonitorMoveBehaviour(arg) => {
+            send_message(
+                &*SocketMessage::CrossMonitorMoveBehaviour(arg.move_behaviour).as_bytes()?,
+            )?;
+        }
+        SubCommand::ToggleCrossMonitorMoveBehaviour => {
+            send_message(&*SocketMessage::ToggleCrossMonitorMoveBehaviour.as_bytes()?)?;
         }
         SubCommand::UnmanagedWindowOperationBehaviour(arg) => {
             send_message(

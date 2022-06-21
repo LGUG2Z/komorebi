@@ -57,6 +57,8 @@ pub enum SocketMessage {
     ToggleMaximize,
     ToggleWindowContainerBehaviour,
     WindowHidingBehaviour(HidingBehaviour),
+    ToggleCrossMonitorMoveBehaviour,
+    CrossMonitorMoveBehaviour(MoveBehaviour),
     UnmanagedWindowOperationBehaviour(OperationBehaviour),
     // Current Workspace Commands
     ManageFocusedWindow,
@@ -159,6 +161,13 @@ pub enum FocusFollowsMouseImplementation {
 pub enum WindowContainerBehaviour {
     Create,
     Append,
+}
+
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, Display, EnumString, ArgEnum, JsonSchema)]
+#[strum(serialize_all = "snake_case")]
+pub enum MoveBehaviour {
+    Swap,
+    Insert,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, Display, EnumString, ArgEnum, JsonSchema)]

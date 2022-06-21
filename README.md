@@ -495,6 +495,8 @@ unmanage                                   Unmanage a window that was forcibly m
 reload-configuration                       Reload ~/komorebi.ahk (if it exists)
 watch-configuration                        Enable or disable watching of ~/komorebi.ahk (if it exists)
 window-hiding-behaviour                    Set the window behaviour when switching workspaces / cycling stacks
+cross-monitor-move-behaviour               Set the behaviour when moving windows across monitor boundaries
+toggle-cross-monitor-move-behaviour        Toggle the behaviour when moving windows across monitor boundaries
 unmanaged-window-operation-behaviour       Set the operation behaviour when the focused window is not managed
 float-rule                                 Add a rule to always float the specified application
 manage-rule                                Add a rule to always manage the specified application
@@ -531,7 +533,9 @@ used [is available here](komorebi.sample.with.lib.ahk).
 - [x] Window stacks
 - [x] Cycle through stacked windows
 - [x] Change focused window by direction
+- [x] Change focused window by direction across monitor boundary
 - [x] Move focused window container in direction
+- [x] Move focused window container in direction across monitor boundary
 - [x] Move focused window container to monitor and follow
 - [x] Move focused window container to workspace follow
 - [x] Send focused window container to monitor
