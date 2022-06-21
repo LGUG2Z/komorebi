@@ -412,12 +412,11 @@ impl Workspace {
         self.focus_last_container();
     }
 
-    pub fn insert_container(&mut self, container: Container, idx: usize) {
+    pub fn insert_container_at_idx(&mut self, idx: usize, container: Container) {
         self.containers_mut().insert(idx, container);
-        self.focus_container(idx);
     }
 
-    fn remove_container_by_idx(&mut self, idx: usize) -> Option<Container> {
+    pub fn remove_container_by_idx(&mut self, idx: usize) -> Option<Container> {
         if idx < self.resize_dimensions().len() {
             self.resize_dimensions_mut().remove(idx);
         }

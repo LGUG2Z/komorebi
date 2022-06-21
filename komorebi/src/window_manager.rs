@@ -967,42 +967,91 @@ impl WindowManager {
 
         let workspace = self.focused_workspace()?;
 
-        let current_idx = workspace.focused_container_idx();
-        let new_idx = workspace.new_idx_for_direction(direction);
+        let origin_container_idx = workspace.focused_container_idx();
+        let origin_monitor_idx = self.focused_monitor_idx();
+        let target_container_idx = workspace.new_idx_for_direction(direction);
 
-        match new_idx {
+        match target_container_idx {
             // If there is nowhere to move on the current workspace, try to move it onto the monitor
             // in that direction if there is one
             None => {
-                let monitor_idx = self
+                let target_monitor_idx = self
                     .monitor_index_in_direction(direction)
                     .ok_or_else(|| anyhow!("there is no container or monitor in this direction"))?;
 
-                // move to the target monitor
-                self.move_container_to_monitor(monitor_idx, None, true)?;
-                let workspace = self.focused_workspace_mut()?;
+                {
+                    // remove the container from the origin monitor workspace
+                    let origin_container = self
+                        .focused_workspace_mut()?
+                        .remove_container_by_idx(origin_container_idx)
+                        .ok_or_else(|| {
+                            anyhow!("could not remove container at given origin index")
+                        })?;
 
-                // by default move_container_to_monitor appends to the end, so remove it
-                let container = workspace
-                    .remove_container(workspace.containers().len() - 1)
-                    .ok_or_else(|| {
-                        anyhow!("the container was not found to have been moved to monitor in the desired direction")
-                    })?;
+                    // focus the target monitor
+                    self.focus_monitor(target_monitor_idx)?;
 
-                // decide where to reinsert it before redrawing
-                let final_idx = match direction {
-                    OperationDirection::Right | OperationDirection::Down => 0,
-                    OperationDirection::Left | OperationDirection::Up => {
-                        workspace.containers().len()
+                    // get the focused workspace on the target monitor
+                    let target_workspace = self.focused_workspace_mut()?;
+
+                    // insert the origin container into the focused workspace on the target monitor
+                    // at the position where the currently focused container on that workspace is
+                    target_workspace.insert_container_at_idx(
+                        target_workspace.focused_container_idx(),
+                        origin_container,
+                    );
+
+                    // if there is only one container on the target workspace after the insertion
+                    // it means that there won't be one swapped back, so we have to decrement the
+                    // focused position
+                    if target_workspace.containers().len() == 1 {
+                        let origin_workspace =
+                            self.focused_workspace_for_monitor_idx_mut(origin_monitor_idx)?;
+
+                        origin_workspace
+                            .focus_container(origin_workspace.focused_container_idx() - 1);
                     }
-                };
+                }
 
-                // insert it in the right place on the target monitor's workspace
-                workspace.insert_container(container, final_idx);
+                {
+                    let target_workspace = self.focused_workspace_mut()?;
+
+                    // if the target workspace doesn't have more than one container, this means it
+                    // was previously empty, by only doing the second part of the swap when there is
+                    // more than one container, we can fall back to a "move" if there is nothing to
+                    // swap with on the target monitor
+                    if target_workspace.containers().len() > 1 {
+                        // remove the container from the target monitor workspace
+                        let target_container = target_workspace
+                            // this is now focused_container_idx + 1 because we have inserted our origin container
+                            .remove_container_by_idx(target_workspace.focused_container_idx() + 1)
+                            .ok_or_else(|| {
+                                anyhow!("could not remove container at given target index")
+                            })?;
+
+                        let origin_workspace =
+                            self.focused_workspace_for_monitor_idx_mut(origin_monitor_idx)?;
+
+                        // insert the container from the target monitor workspace into the origin monitor workspace
+                        // at the same position from which our origin container was removed
+                        origin_workspace
+                            .insert_container_at_idx(origin_container_idx, target_container);
+                    }
+
+                    // make sure to update the origin monitor workspace layout because it is no
+                    // longer focused so it won't get updated at the end of this fn
+                    let offset = self.work_area_offset;
+                    let invisible_borders = self.invisible_borders;
+
+                    self.monitors_mut()
+                        .get_mut(origin_monitor_idx)
+                        .ok_or_else(|| anyhow!("there is no monitor at this index"))?
+                        .update_focused_workspace(offset, &invisible_borders)?;
+                }
             }
             Some(new_idx) => {
                 let workspace = self.focused_workspace_mut()?;
-                workspace.swap_containers(current_idx, new_idx);
+                workspace.swap_containers(origin_container_idx, new_idx);
                 workspace.focus_container(new_idx);
             }
         }
@@ -1765,6 +1814,22 @@ impl WindowManager {
     pub fn focused_workspace_mut(&mut self) -> Result<&mut Workspace> {
         self.focused_monitor_mut()
             .ok_or_else(|| anyhow!("there is no monitor"))?
+            .focused_workspace_mut()
+            .ok_or_else(|| anyhow!("there is no workspace"))
+    }
+
+    pub fn focused_workspace_for_monitor_idx(&self, idx: usize) -> Result<&Workspace> {
+        self.monitors()
+            .get(idx)
+            .ok_or_else(|| anyhow!("there is no monitor at this index"))?
+            .focused_workspace()
+            .ok_or_else(|| anyhow!("there is no workspace"))
+    }
+
+    pub fn focused_workspace_for_monitor_idx_mut(&mut self, idx: usize) -> Result<&mut Workspace> {
+        self.monitors_mut()
+            .get_mut(idx)
+            .ok_or_else(|| anyhow!("there is no monitor at this index"))?
             .focused_workspace_mut()
             .ok_or_else(|| anyhow!("there is no workspace"))
     }
