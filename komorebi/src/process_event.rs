@@ -288,6 +288,7 @@ impl WindowManager {
                     .ok_or_else(|| anyhow!("cannot get monitor idx from current position"))?;
 
                 let new_window_behaviour = self.window_container_behaviour;
+                let invisible_borders = self.invisible_borders;
 
                 let workspace = self.focused_workspace_mut()?;
                 if workspace
@@ -340,7 +341,10 @@ impl WindowManager {
 
                 // If we have moved across the monitors, use that override, otherwise determine
                 // if a move has taken place by ruling out a resize
-                let is_move = moved_across_monitors || resize.right == 0 && resize.bottom == 0;
+                let is_move = moved_across_monitors
+                    || resize.right == 0 && resize.bottom == 0
+                    || resize.right.abs() == invisible_borders.right
+                        && resize.bottom.abs() == invisible_borders.bottom;
 
                 if is_move {
                     tracing::info!("moving with mouse");
