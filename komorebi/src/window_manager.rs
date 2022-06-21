@@ -940,19 +940,19 @@ impl WindowManager {
         let new_idx = workspace.new_idx_for_direction(direction);
 
         // if there is no container in that direction for this workspace
-        if new_idx.is_none() {
-            // check if there is a monitor in that direction
-            let monitor_idx = self
-                .monitor_index_in_direction(direction)
-                .ok_or_else(|| anyhow!("there is no container or monitor in this direction"))?;
-            self.focus_monitor(monitor_idx)?;
-        }
+        match new_idx {
+            None => {
+                let monitor_idx = self
+                    .monitor_index_in_direction(direction)
+                    .ok_or_else(|| anyhow!("there is no container or monitor in this direction"))?;
 
-        let workspace = self.focused_workspace_mut()?;
-        workspace.focus_container(new_idx.unwrap_or_else(|| match direction {
-            OperationDirection::Right | OperationDirection::Down => 0,
-            OperationDirection::Left | OperationDirection::Up => workspace.containers().len() - 1,
-        }));
+                self.focus_monitor(monitor_idx)?;
+            }
+            Some(idx) => {
+                let workspace = self.focused_workspace_mut()?;
+                workspace.focus_container(idx);
+            }
+        }
 
         self.focused_window_mut()?.focus(self.mouse_follows_focus)?;
 
