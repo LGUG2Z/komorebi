@@ -264,6 +264,39 @@ impl WindowManager {
         Ok(())
     }
 
+    pub fn monitor_index_in_direction(&self, direction: OperationDirection) -> Option<usize> {
+        let current_monitor_size = self.focused_monitor_size().ok()?;
+
+        for (idx, monitor) in self.monitors.elements().iter().enumerate() {
+            match direction {
+                OperationDirection::Left => {
+                    if monitor.size().left + monitor.size().right == current_monitor_size.left {
+                        return Option::from(idx);
+                    }
+                }
+                OperationDirection::Right => {
+                    if current_monitor_size.right + current_monitor_size.left == monitor.size().left
+                    {
+                        return Option::from(idx);
+                    }
+                }
+                OperationDirection::Up => {
+                    if monitor.size().top + monitor.size().bottom == current_monitor_size.top {
+                        return Option::from(idx);
+                    }
+                }
+                OperationDirection::Down => {
+                    if current_monitor_size.top + current_monitor_size.bottom == monitor.size().top
+                    {
+                        return Option::from(idx);
+                    }
+                }
+            }
+        }
+
+        None
+    }
+
     #[tracing::instrument(skip(self))]
     pub fn reconcile_monitors(&mut self) -> Result<()> {
         let valid_hmonitors = WindowsApi::valid_hmonitors()?;
@@ -903,13 +936,24 @@ impl WindowManager {
 
         tracing::info!("focusing container");
 
+        let workspace = self.focused_workspace()?;
+        let new_idx = workspace.new_idx_for_direction(direction);
+
+        // if there is no container in that direction for this workspace
+        if new_idx.is_none() {
+            // check if there is a monitor in that direction
+            let monitor_idx = self
+                .monitor_index_in_direction(direction)
+                .ok_or_else(|| anyhow!("there is no container or monitor in this direction"))?;
+            self.focus_monitor(monitor_idx)?;
+        }
+
         let workspace = self.focused_workspace_mut()?;
+        workspace.focus_container(new_idx.unwrap_or_else(|| match direction {
+            OperationDirection::Right | OperationDirection::Down => 0,
+            OperationDirection::Left | OperationDirection::Up => workspace.containers().len() - 1,
+        }));
 
-        let new_idx = workspace
-            .new_idx_for_direction(direction)
-            .ok_or_else(|| anyhow!("this is not a valid direction from the current position"))?;
-
-        workspace.focus_container(new_idx);
         self.focused_window_mut()?.focus(self.mouse_follows_focus)?;
 
         Ok(())
@@ -921,15 +965,48 @@ impl WindowManager {
 
         tracing::info!("moving container");
 
-        let workspace = self.focused_workspace_mut()?;
+        let workspace = self.focused_workspace()?;
 
         let current_idx = workspace.focused_container_idx();
-        let new_idx = workspace
-            .new_idx_for_direction(direction)
-            .ok_or_else(|| anyhow!("this is not a valid direction from the current position"))?;
+        let new_idx = workspace.new_idx_for_direction(direction);
 
-        workspace.swap_containers(current_idx, new_idx);
-        workspace.focus_container(new_idx);
+        match new_idx {
+            // If there is nowhere to move on the current workspace, try to move it onto the monitor
+            // in that direction if there is one
+            None => {
+                let monitor_idx = self
+                    .monitor_index_in_direction(direction)
+                    .ok_or_else(|| anyhow!("there is no container or monitor in this direction"))?;
+
+                // move to the target monitor
+                self.move_container_to_monitor(monitor_idx, None, true)?;
+                let workspace = self.focused_workspace_mut()?;
+
+                // by default move_container_to_monitor appends to the end, so remove it
+                let container = workspace
+                    .remove_container(workspace.containers().len() - 1)
+                    .ok_or_else(|| {
+                        anyhow!("the container was not found to have been moved to monitor in the desired direction")
+                    })?;
+
+                // decide where to reinsert it before redrawing
+                let final_idx = match direction {
+                    OperationDirection::Right | OperationDirection::Down => 0,
+                    OperationDirection::Left | OperationDirection::Up => {
+                        workspace.containers().len()
+                    }
+                };
+
+                // insert it in the right place on the target monitor's workspace
+                workspace.insert_container(container, final_idx);
+            }
+            Some(new_idx) => {
+                let workspace = self.focused_workspace_mut()?;
+                workspace.swap_containers(current_idx, new_idx);
+                workspace.focus_container(new_idx);
+            }
+        }
+
         self.update_focused_workspace(self.mouse_follows_focus)
     }
 
@@ -1627,6 +1704,13 @@ impl WindowManager {
         self.update_focused_workspace(false)
     }
 
+    pub fn focused_monitor_size(&self) -> Result<Rect> {
+        Ok(*self
+            .focused_monitor()
+            .ok_or_else(|| anyhow!("there is no monitor"))?
+            .size())
+    }
+
     pub fn focused_monitor_work_area(&self) -> Result<Rect> {
         Ok(*self
             .focused_monitor()
@@ -1659,7 +1743,7 @@ impl WindowManager {
         None
     }
 
-    pub fn monitor_idx_from_current_pos(&mut self) -> Option<usize> {
+    pub fn monitor_idx_from_current_pos(&self) -> Option<usize> {
         let hmonitor = WindowsApi::monitor_from_point(WindowsApi::cursor_pos().ok()?);
 
         for (i, monitor) in self.monitors().iter().enumerate() {
