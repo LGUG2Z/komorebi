@@ -41,7 +41,7 @@ winreg = "0.10"
 schemars = "0.8"
 
 [dependencies.windows]
-version = "0.37"
+version = "0.38"
 features = [
     "Win32_Foundation",
     "Win32_Graphics_Dwm",
