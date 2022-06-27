@@ -118,6 +118,7 @@ lazy_static! {
             dirs::home_dir().expect("there is no home directory")
         }
     };
+    static ref DATA_DIR: PathBuf = dirs::data_local_dir().expect("there is no local data directory").join("komorebi");
     static ref AHK_V1_EXE: String = {
         let mut ahk_v1: String = String::from("autohotkey.exe");
 
@@ -156,8 +157,7 @@ fn setup() -> Result<(WorkerGuard, WorkerGuard)> {
         std::env::set_var("RUST_LOG", "info");
     }
 
-    let home = HOME_DIR.clone();
-    let appender = tracing_appender::rolling::never(home, "komorebi.log");
+    let appender = tracing_appender::rolling::never(DATA_DIR.clone(), "komorebi.log");
     let color_appender = tracing_appender::rolling::never(std::env::temp_dir(), "komorebi.log");
     let (non_blocking, guard) = tracing_appender::non_blocking(appender);
     let (color_non_blocking, color_guard) = tracing_appender::non_blocking(color_appender);

@@ -39,6 +39,7 @@ use crate::windows_api::WindowsApi;
 use crate::winevent_listener::WINEVENT_CALLBACK_CHANNEL;
 use crate::workspace::Workspace;
 use crate::BORDER_OVERFLOW_IDENTIFIERS;
+use crate::DATA_DIR;
 use crate::FLOAT_IDENTIFIERS;
 use crate::HOME_DIR;
 use crate::LAYERED_WHITELIST;
@@ -142,10 +143,7 @@ impl EnforceWorkspaceRuleOp {
 impl WindowManager {
     #[tracing::instrument]
     pub fn new(incoming: Arc<Mutex<Receiver<WindowManagerEvent>>>) -> Result<Self> {
-        let home = HOME_DIR.clone();
-        let mut socket = home;
-        socket.push("komorebi.sock");
-        let socket = socket.as_path();
+        let socket = DATA_DIR.join("komorebi.sock");
 
         match std::fs::remove_file(&socket) {
             Ok(_) => {}

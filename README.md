@@ -604,14 +604,14 @@ the IDE for completions and navigation:
 
 ## Logs and Debugging
 
-Logs from `komorebi` will be appended to `~/komorebi.log`; this file is never rotated or overwritten, so it will keep
+Logs from `komorebi` will be appended to `%LOCALAPPDATA%/komorebi/komorebi.log`; this file is never rotated or overwritten, so it will keep
 growing until it is deleted by the user.
 
 Whenever running the `komorebic stop` command or sending a Ctrl-C signal to `komorebi` directly, the `komorebi` process
 ensures that all hidden windows are restored before termination.
 
 If however, you ever end up with windows that are hidden and cannot be restored, a list of window handles known
-to `komorebi` are stored and continuously updated in `~/komorebi.hwnd.json`.
+to `komorebi` are stored and continuously updated in `%LOCALAPPDATA%/komorebi//komorebi.hwnd.json`.
 
 ### Restoring Windows
 

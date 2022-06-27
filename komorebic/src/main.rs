@@ -60,6 +60,9 @@ lazy_static! {
             dirs::home_dir().expect("there is no home directory")
         }
     };
+    static ref DATA_DIR: PathBuf = dirs::data_local_dir()
+        .expect("there is no local data directory")
+        .join("komorebi");
 }
 
 trait AhkLibrary {
@@ -675,10 +678,7 @@ enum SubCommand {
 }
 
 pub fn send_message(bytes: &[u8]) -> Result<()> {
-    let mut socket = HOME_DIR.clone();
-    socket.push("komorebi.sock");
-    let socket = socket.as_path();
-
+    let socket = DATA_DIR.join("komorebi.sock");
     let mut stream = UnixStream::connect(&socket)?;
     Ok(stream.write_all(bytes)?)
 }
@@ -1072,8 +1072,7 @@ fn main() -> Result<()> {
             }
         }
         SubCommand::RestoreWindows => {
-            let mut hwnd_json = HOME_DIR.clone();
-            hwnd_json.push("komorebi.hwnd.json");
+            let hwnd_json = DATA_DIR.join("komorebi.hwnd.json");
 
             let file = File::open(hwnd_json)?;
             let reader = BufReader::new(file);

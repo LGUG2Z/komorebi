@@ -19,8 +19,8 @@ use crate::window_manager_event::WindowManagerEvent;
 use crate::windows_api::WindowsApi;
 use crate::Notification;
 use crate::NotificationEvent;
+use crate::DATA_DIR;
 use crate::HIDDEN_HWNDS;
-use crate::HOME_DIR;
 use crate::TRAY_AND_MULTI_WINDOW_IDENTIFIERS;
 
 #[tracing::instrument]
@@ -487,8 +487,7 @@ impl WindowManager {
             }
         }
 
-        let mut hwnd_json = HOME_DIR.clone();
-        hwnd_json.push("komorebi.hwnd.json");
+        let hwnd_json = DATA_DIR.join("komorebi.hwnd.json");
         let file = OpenOptions::new()
             .write(true)
             .truncate(true)
