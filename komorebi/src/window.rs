@@ -293,25 +293,35 @@ impl Window {
             // If not allowing cloaked windows, we need to ensure the window is not cloaked
             (false, false) => {
                 if let (Ok(title), Ok(exe_name), Ok(class)) = (self.title(), self.exe(), self.class()) {
+                    let mut should_float = false;
+
                     {
                         let float_identifiers = FLOAT_IDENTIFIERS.lock();
                         for identifier in float_identifiers.iter() {
                             if title.starts_with(identifier) || title.ends_with(identifier) ||
                                 class.starts_with(identifier) || class.ends_with(identifier) ||
                                 identifier == &exe_name {
-                                return Ok(false);
+                                    should_float = true;
                             }
                         }
                     }
 
                     let managed_override = {
                         let manage_identifiers = MANAGE_IDENTIFIERS.lock();
-                        manage_identifiers.contains(&exe_name) || manage_identifiers.contains(&class)
+                        manage_identifiers.contains(&exe_name)
+                            || manage_identifiers.contains(&class)
+                            || manage_identifiers.contains(&title)
                     };
+
+                    if should_float && !managed_override {
+                        return Ok(false);
+                    }
 
                     let allow_layered = {
                         let layered_whitelist = LAYERED_WHITELIST.lock();
-                        layered_whitelist.contains(&exe_name) || layered_whitelist.contains(&class)
+                        layered_whitelist.contains(&exe_name)
+                            || layered_whitelist.contains(&class)
+                            || layered_whitelist.contains(&title)
                     };
 
                     let allow_wsl2_gui = {
