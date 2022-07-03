@@ -212,6 +212,7 @@ pub struct WorkspaceLayoutRule {
     /// The number of window containers on-screen required to trigger this layout rule
     at_container_count: usize,
 
+    #[clap(arg_enum)]
     layout: DefaultLayout,
 }
 

@@ -188,8 +188,8 @@ WorkspaceCustomLayout(monitor, workspace, path) {
     Run, komorebic.exe workspace-custom-layout %monitor% %workspace% %path%, , Hide
 }
 
-WorkspaceLayoutRule(monitor, workspace, at_container_count, layout) {
-    Run, komorebic.exe workspace-layout-rule %monitor% %workspace% %at_container_count% %layout%, , Hide
+WorkspaceLayoutRule(monitor, workspace, at_container_count, default_layout) {
+    Run, komorebic.exe workspace-layout-rule %monitor% %workspace% %at_container_count% %default_layout%, , Hide
 }
 
 WorkspaceCustomLayoutRule(monitor, workspace, at_container_count, path) {
