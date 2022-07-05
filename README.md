@@ -239,6 +239,15 @@ If you already have configuration files that you wish to keep, move them to the 
 The next time you run `komorebic start`, any files created by or loaded by _komorebi_ will be placed or expected to
 exist in this folder.
 
+#### Removing Gaps
+
+If you would like to remove all gaps from a given workspace, both between windows themselves, and between the monitor edges and the windows, you can set the following two configuration options to `0` for the desired monitors and workspaces:
+
+```powershell
+komorebic.exe container-padding <MONITOR_INDEX> <WORKSPACE_INDEX> 0
+komorebic.exe workspace padding <MONITOR_INDEX> <WORKSPACE_INDEX> 0
+```
+
 #### Floating Windows
 
 Sometimes you will want a specific application to never be tiled, and instead float all the time. You add add rules to
