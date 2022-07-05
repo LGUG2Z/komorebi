@@ -734,41 +734,41 @@ fn main() -> Result<()> {
             }
         }
         SubCommand::Focus(arg) => {
-            send_message(&*SocketMessage::FocusWindow(arg.operation_direction).as_bytes()?)?;
+            send_message(&SocketMessage::FocusWindow(arg.operation_direction).as_bytes()?)?;
         }
         SubCommand::Promote => {
-            send_message(&*SocketMessage::Promote.as_bytes()?)?;
+            send_message(&SocketMessage::Promote.as_bytes()?)?;
         }
         SubCommand::TogglePause => {
-            send_message(&*SocketMessage::TogglePause.as_bytes()?)?;
+            send_message(&SocketMessage::TogglePause.as_bytes()?)?;
         }
         SubCommand::Retile => {
-            send_message(&*SocketMessage::Retile.as_bytes()?)?;
+            send_message(&SocketMessage::Retile.as_bytes()?)?;
         }
         SubCommand::Move(arg) => {
-            send_message(&*SocketMessage::MoveWindow(arg.operation_direction).as_bytes()?)?;
+            send_message(&SocketMessage::MoveWindow(arg.operation_direction).as_bytes()?)?;
         }
         SubCommand::CycleFocus(arg) => {
-            send_message(&*SocketMessage::CycleFocusWindow(arg.cycle_direction).as_bytes()?)?;
+            send_message(&SocketMessage::CycleFocusWindow(arg.cycle_direction).as_bytes()?)?;
         }
         SubCommand::CycleMove(arg) => {
-            send_message(&*SocketMessage::CycleMoveWindow(arg.cycle_direction).as_bytes()?)?;
+            send_message(&SocketMessage::CycleMoveWindow(arg.cycle_direction).as_bytes()?)?;
         }
         SubCommand::MoveToMonitor(arg) => {
-            send_message(&*SocketMessage::MoveContainerToMonitorNumber(arg.target).as_bytes()?)?;
+            send_message(&SocketMessage::MoveContainerToMonitorNumber(arg.target).as_bytes()?)?;
         }
         SubCommand::MoveToWorkspace(arg) => {
-            send_message(&*SocketMessage::MoveContainerToWorkspaceNumber(arg.target).as_bytes()?)?;
+            send_message(&SocketMessage::MoveContainerToWorkspaceNumber(arg.target).as_bytes()?)?;
         }
         SubCommand::SendToMonitor(arg) => {
-            send_message(&*SocketMessage::SendContainerToMonitorNumber(arg.target).as_bytes()?)?;
+            send_message(&SocketMessage::SendContainerToMonitorNumber(arg.target).as_bytes()?)?;
         }
         SubCommand::SendToWorkspace(arg) => {
-            send_message(&*SocketMessage::SendContainerToWorkspaceNumber(arg.target).as_bytes()?)?;
+            send_message(&SocketMessage::SendContainerToWorkspaceNumber(arg.target).as_bytes()?)?;
         }
         SubCommand::SendToMonitorWorkspace(arg) => {
             send_message(
-                &*SocketMessage::SendContainerToMonitorWorkspaceNumber(
+                &SocketMessage::SendContainerToMonitorWorkspaceNumber(
                     arg.target_monitor,
                     arg.target_workspace,
                 )
@@ -776,11 +776,11 @@ fn main() -> Result<()> {
             )?;
         }
         SubCommand::MoveWorkspaceToMonitor(arg) => {
-            send_message(&*SocketMessage::MoveWorkspaceToMonitorNumber(arg.target).as_bytes()?)?;
+            send_message(&SocketMessage::MoveWorkspaceToMonitorNumber(arg.target).as_bytes()?)?;
         }
         SubCommand::InvisibleBorders(arg) => {
             send_message(
-                &*SocketMessage::InvisibleBorders(Rect {
+                &SocketMessage::InvisibleBorders(Rect {
                     left: arg.left,
                     top: arg.top,
                     right: arg.right,
@@ -791,7 +791,7 @@ fn main() -> Result<()> {
         }
         SubCommand::WorkAreaOffset(arg) => {
             send_message(
-                &*SocketMessage::WorkAreaOffset(Rect {
+                &SocketMessage::WorkAreaOffset(Rect {
                     left: arg.left,
                     top: arg.top,
                     right: arg.right,
@@ -802,50 +802,50 @@ fn main() -> Result<()> {
         }
         SubCommand::ContainerPadding(arg) => {
             send_message(
-                &*SocketMessage::ContainerPadding(arg.monitor, arg.workspace, arg.size)
+                &SocketMessage::ContainerPadding(arg.monitor, arg.workspace, arg.size)
                     .as_bytes()?,
             )?;
         }
         SubCommand::WorkspacePadding(arg) => {
             send_message(
-                &*SocketMessage::WorkspacePadding(arg.monitor, arg.workspace, arg.size)
+                &SocketMessage::WorkspacePadding(arg.monitor, arg.workspace, arg.size)
                     .as_bytes()?,
             )?;
         }
         SubCommand::AdjustWorkspacePadding(arg) => {
             send_message(
-                &*SocketMessage::AdjustWorkspacePadding(arg.sizing, arg.adjustment).as_bytes()?,
+                &SocketMessage::AdjustWorkspacePadding(arg.sizing, arg.adjustment).as_bytes()?,
             )?;
         }
         SubCommand::AdjustContainerPadding(arg) => {
             send_message(
-                &*SocketMessage::AdjustContainerPadding(arg.sizing, arg.adjustment).as_bytes()?,
+                &SocketMessage::AdjustContainerPadding(arg.sizing, arg.adjustment).as_bytes()?,
             )?;
         }
         SubCommand::ToggleFocusFollowsMouse(arg) => {
-            send_message(&*SocketMessage::ToggleFocusFollowsMouse(arg.implementation).as_bytes()?)?;
+            send_message(&SocketMessage::ToggleFocusFollowsMouse(arg.implementation).as_bytes()?)?;
         }
         SubCommand::ToggleTiling => {
-            send_message(&*SocketMessage::ToggleTiling.as_bytes()?)?;
+            send_message(&SocketMessage::ToggleTiling.as_bytes()?)?;
         }
         SubCommand::ToggleFloat => {
-            send_message(&*SocketMessage::ToggleFloat.as_bytes()?)?;
+            send_message(&SocketMessage::ToggleFloat.as_bytes()?)?;
         }
         SubCommand::ToggleMonocle => {
-            send_message(&*SocketMessage::ToggleMonocle.as_bytes()?)?;
+            send_message(&SocketMessage::ToggleMonocle.as_bytes()?)?;
         }
         SubCommand::ToggleMaximize => {
-            send_message(&*SocketMessage::ToggleMaximize.as_bytes()?)?;
+            send_message(&SocketMessage::ToggleMaximize.as_bytes()?)?;
         }
         SubCommand::WorkspaceLayout(arg) => {
             send_message(
-                &*SocketMessage::WorkspaceLayout(arg.monitor, arg.workspace, arg.value)
+                &SocketMessage::WorkspaceLayout(arg.monitor, arg.workspace, arg.value)
                     .as_bytes()?,
             )?;
         }
         SubCommand::WorkspaceCustomLayout(arg) => {
             send_message(
-                &*SocketMessage::WorkspaceLayoutCustom(
+                &SocketMessage::WorkspaceLayoutCustom(
                     arg.monitor,
                     arg.workspace,
                     resolve_windows_path(&arg.path)?,
@@ -855,7 +855,7 @@ fn main() -> Result<()> {
         }
         SubCommand::WorkspaceLayoutRule(arg) => {
             send_message(
-                &*SocketMessage::WorkspaceLayoutRule(
+                &SocketMessage::WorkspaceLayoutRule(
                     arg.monitor,
                     arg.workspace,
                     arg.at_container_count,
@@ -866,7 +866,7 @@ fn main() -> Result<()> {
         }
         SubCommand::WorkspaceCustomLayoutRule(arg) => {
             send_message(
-                &*SocketMessage::WorkspaceLayoutCustomRule(
+                &SocketMessage::WorkspaceLayoutCustomRule(
                     arg.monitor,
                     arg.workspace,
                     arg.at_container_count,
@@ -877,13 +877,12 @@ fn main() -> Result<()> {
         }
         SubCommand::ClearWorkspaceLayoutRules(arg) => {
             send_message(
-                &*SocketMessage::ClearWorkspaceLayoutRules(arg.monitor, arg.workspace)
-                    .as_bytes()?,
+                &SocketMessage::ClearWorkspaceLayoutRules(arg.monitor, arg.workspace).as_bytes()?,
             )?;
         }
         SubCommand::WorkspaceTiling(arg) => {
             send_message(
-                &*SocketMessage::WorkspaceTiling(arg.monitor, arg.workspace, arg.value.into())
+                &SocketMessage::WorkspaceTiling(arg.monitor, arg.workspace, arg.value.into())
                     .as_bytes()?,
             )?;
         }
@@ -941,49 +940,49 @@ fn main() -> Result<()> {
             }
         }
         SubCommand::Stop => {
-            send_message(&*SocketMessage::Stop.as_bytes()?)?;
+            send_message(&SocketMessage::Stop.as_bytes()?)?;
         }
         SubCommand::FloatRule(arg) => {
-            send_message(&*SocketMessage::FloatRule(arg.identifier, arg.id).as_bytes()?)?;
+            send_message(&SocketMessage::FloatRule(arg.identifier, arg.id).as_bytes()?)?;
         }
         SubCommand::ManageRule(arg) => {
-            send_message(&*SocketMessage::ManageRule(arg.identifier, arg.id).as_bytes()?)?;
+            send_message(&SocketMessage::ManageRule(arg.identifier, arg.id).as_bytes()?)?;
         }
         SubCommand::WorkspaceRule(arg) => {
             send_message(
-                &*SocketMessage::WorkspaceRule(arg.identifier, arg.id, arg.monitor, arg.workspace)
+                &SocketMessage::WorkspaceRule(arg.identifier, arg.id, arg.monitor, arg.workspace)
                     .as_bytes()?,
             )?;
         }
         SubCommand::Stack(arg) => {
-            send_message(&*SocketMessage::StackWindow(arg.operation_direction).as_bytes()?)?;
+            send_message(&SocketMessage::StackWindow(arg.operation_direction).as_bytes()?)?;
         }
         SubCommand::Unstack => {
-            send_message(&*SocketMessage::UnstackWindow.as_bytes()?)?;
+            send_message(&SocketMessage::UnstackWindow.as_bytes()?)?;
         }
         SubCommand::CycleStack(arg) => {
-            send_message(&*SocketMessage::CycleStack(arg.cycle_direction).as_bytes()?)?;
+            send_message(&SocketMessage::CycleStack(arg.cycle_direction).as_bytes()?)?;
         }
         SubCommand::ChangeLayout(arg) => {
-            send_message(&*SocketMessage::ChangeLayout(arg.default_layout).as_bytes()?)?;
+            send_message(&SocketMessage::ChangeLayout(arg.default_layout).as_bytes()?)?;
         }
         SubCommand::LoadCustomLayout(arg) => {
             send_message(
-                &*SocketMessage::ChangeLayoutCustom(resolve_windows_path(&arg.path)?).as_bytes()?,
+                &SocketMessage::ChangeLayoutCustom(resolve_windows_path(&arg.path)?).as_bytes()?,
             )?;
         }
         SubCommand::FlipLayout(arg) => {
-            send_message(&*SocketMessage::FlipLayout(arg.axis).as_bytes()?)?;
+            send_message(&SocketMessage::FlipLayout(arg.axis).as_bytes()?)?;
         }
         SubCommand::FocusMonitor(arg) => {
-            send_message(&*SocketMessage::FocusMonitorNumber(arg.target).as_bytes()?)?;
+            send_message(&SocketMessage::FocusMonitorNumber(arg.target).as_bytes()?)?;
         }
         SubCommand::FocusWorkspace(arg) => {
-            send_message(&*SocketMessage::FocusWorkspaceNumber(arg.target).as_bytes()?)?;
+            send_message(&SocketMessage::FocusWorkspaceNumber(arg.target).as_bytes()?)?;
         }
         SubCommand::FocusMonitorWorkspace(arg) => {
             send_message(
-                &*SocketMessage::FocusMonitorWorkspaceNumber(
+                &SocketMessage::FocusMonitorWorkspaceNumber(
                     arg.target_monitor,
                     arg.target_workspace,
                 )
@@ -991,23 +990,23 @@ fn main() -> Result<()> {
             )?;
         }
         SubCommand::CycleMonitor(arg) => {
-            send_message(&*SocketMessage::CycleFocusMonitor(arg.cycle_direction).as_bytes()?)?;
+            send_message(&SocketMessage::CycleFocusMonitor(arg.cycle_direction).as_bytes()?)?;
         }
         SubCommand::CycleWorkspace(arg) => {
-            send_message(&*SocketMessage::CycleFocusWorkspace(arg.cycle_direction).as_bytes()?)?;
+            send_message(&SocketMessage::CycleFocusWorkspace(arg.cycle_direction).as_bytes()?)?;
         }
         SubCommand::NewWorkspace => {
-            send_message(&*SocketMessage::NewWorkspace.as_bytes()?)?;
+            send_message(&SocketMessage::NewWorkspace.as_bytes()?)?;
         }
         SubCommand::WorkspaceName(name) => {
             send_message(
-                &*SocketMessage::WorkspaceName(name.monitor, name.workspace, name.value)
+                &SocketMessage::WorkspaceName(name.monitor, name.workspace, name.value)
                     .as_bytes()?,
             )?;
         }
         SubCommand::EnsureWorkspaces(workspaces) => {
             send_message(
-                &*SocketMessage::EnsureWorkspaces(workspaces.monitor, workspaces.workspace_count)
+                &SocketMessage::EnsureWorkspaces(workspaces.monitor, workspaces.workspace_count)
                     .as_bytes()?,
             )?;
         }
@@ -1028,7 +1027,7 @@ fn main() -> Result<()> {
                 },
             };
 
-            send_message(&*SocketMessage::State.as_bytes()?)?;
+            send_message(&SocketMessage::State.as_bytes()?)?;
 
             let listener = UnixListener::bind(&socket)?;
             match listener.accept() {
@@ -1062,7 +1061,7 @@ fn main() -> Result<()> {
                 },
             };
 
-            send_message(&*SocketMessage::Query(arg.state_query).as_bytes()?)?;
+            send_message(&SocketMessage::Query(arg.state_query).as_bytes()?)?;
 
             let listener = UnixListener::bind(&socket)?;
             match listener.accept() {
@@ -1091,101 +1090,96 @@ fn main() -> Result<()> {
             }
         }
         SubCommand::ResizeEdge(resize) => {
-            send_message(
-                &*SocketMessage::ResizeWindowEdge(resize.edge, resize.sizing).as_bytes()?,
-            )?;
+            send_message(&SocketMessage::ResizeWindowEdge(resize.edge, resize.sizing).as_bytes()?)?;
         }
         SubCommand::ResizeAxis(arg) => {
-            send_message(&*SocketMessage::ResizeWindowAxis(arg.axis, arg.sizing).as_bytes()?)?;
+            send_message(&SocketMessage::ResizeWindowAxis(arg.axis, arg.sizing).as_bytes()?)?;
         }
         SubCommand::FocusFollowsMouse(arg) => {
             send_message(
-                &*SocketMessage::FocusFollowsMouse(arg.implementation, arg.boolean_state.into())
+                &SocketMessage::FocusFollowsMouse(arg.implementation, arg.boolean_state.into())
                     .as_bytes()?,
             )?;
         }
         SubCommand::ReloadConfiguration => {
-            send_message(&*SocketMessage::ReloadConfiguration.as_bytes()?)?;
+            send_message(&SocketMessage::ReloadConfiguration.as_bytes()?)?;
         }
         SubCommand::WatchConfiguration(arg) => {
-            send_message(
-                &*SocketMessage::WatchConfiguration(arg.boolean_state.into()).as_bytes()?,
-            )?;
+            send_message(&SocketMessage::WatchConfiguration(arg.boolean_state.into()).as_bytes()?)?;
         }
         SubCommand::IdentifyObjectNameChangeApplication(target) => {
             send_message(
-                &*SocketMessage::IdentifyObjectNameChangeApplication(target.identifier, target.id)
+                &SocketMessage::IdentifyObjectNameChangeApplication(target.identifier, target.id)
                     .as_bytes()?,
             )?;
         }
         SubCommand::IdentifyTrayApplication(target) => {
             send_message(
-                &*SocketMessage::IdentifyTrayApplication(target.identifier, target.id)
-                    .as_bytes()?,
+                &SocketMessage::IdentifyTrayApplication(target.identifier, target.id).as_bytes()?,
             )?;
         }
         SubCommand::IdentifyLayeredApplication(target) => {
             send_message(
-                &*SocketMessage::IdentifyLayeredApplication(target.identifier, target.id)
+                &SocketMessage::IdentifyLayeredApplication(target.identifier, target.id)
                     .as_bytes()?,
             )?;
         }
         SubCommand::IdentifyBorderOverflowApplication(target) => {
             send_message(
-                &*SocketMessage::IdentifyBorderOverflowApplication(target.identifier, target.id)
+                &SocketMessage::IdentifyBorderOverflowApplication(target.identifier, target.id)
                     .as_bytes()?,
             )?;
         }
         SubCommand::Manage => {
-            send_message(&*SocketMessage::ManageFocusedWindow.as_bytes()?)?;
+            send_message(&SocketMessage::ManageFocusedWindow.as_bytes()?)?;
         }
         SubCommand::Unmanage => {
-            send_message(&*SocketMessage::UnmanageFocusedWindow.as_bytes()?)?;
+            send_message(&SocketMessage::UnmanageFocusedWindow.as_bytes()?)?;
         }
         SubCommand::QuickSaveResize => {
-            send_message(&*SocketMessage::QuickSave.as_bytes()?)?;
+            send_message(&SocketMessage::QuickSave.as_bytes()?)?;
         }
         SubCommand::QuickLoadResize => {
-            send_message(&*SocketMessage::QuickLoad.as_bytes()?)?;
+            send_message(&SocketMessage::QuickLoad.as_bytes()?)?;
         }
         SubCommand::SaveResize(arg) => {
-            send_message(&*SocketMessage::Save(resolve_windows_path(&arg.path)?).as_bytes()?)?;
+            send_message(&SocketMessage::Save(resolve_windows_path(&arg.path)?).as_bytes()?)?;
         }
         SubCommand::LoadResize(arg) => {
-            send_message(&*SocketMessage::Load(resolve_windows_path(&arg.path)?).as_bytes()?)?;
+            send_message(&SocketMessage::Load(resolve_windows_path(&arg.path)?).as_bytes()?)?;
         }
         SubCommand::Subscribe(arg) => {
-            send_message(&*SocketMessage::AddSubscriber(arg.named_pipe).as_bytes()?)?;
+            send_message(&SocketMessage::AddSubscriber(arg.named_pipe).as_bytes()?)?;
         }
         SubCommand::Unsubscribe(arg) => {
-            send_message(&*SocketMessage::RemoveSubscriber(arg.named_pipe).as_bytes()?)?;
+            send_message(&SocketMessage::RemoveSubscriber(arg.named_pipe).as_bytes()?)?;
         }
         SubCommand::ToggleMouseFollowsFocus => {
-            send_message(&*SocketMessage::ToggleMouseFollowsFocus.as_bytes()?)?;
+            send_message(&SocketMessage::ToggleMouseFollowsFocus.as_bytes()?)?;
         }
         SubCommand::MouseFollowsFocus(arg) => {
-            send_message(&*SocketMessage::MouseFollowsFocus(arg.boolean_state.into()).as_bytes()?)?;
+            send_message(&SocketMessage::MouseFollowsFocus(arg.boolean_state.into()).as_bytes()?)?;
         }
         SubCommand::ResizeDelta(arg) => {
-            send_message(&*SocketMessage::ResizeDelta(arg.pixels).as_bytes()?)?;
+            send_message(&SocketMessage::ResizeDelta(arg.pixels).as_bytes()?)?;
         }
         SubCommand::ToggleWindowContainerBehaviour => {
-            send_message(&*SocketMessage::ToggleWindowContainerBehaviour.as_bytes()?)?;
+            send_message(&SocketMessage::ToggleWindowContainerBehaviour.as_bytes()?)?;
         }
         SubCommand::WindowHidingBehaviour(arg) => {
-            send_message(&*SocketMessage::WindowHidingBehaviour(arg.hiding_behaviour).as_bytes()?)?;
+            send_message(&SocketMessage::WindowHidingBehaviour(arg.hiding_behaviour).as_bytes()?)?;
         }
         SubCommand::CrossMonitorMoveBehaviour(arg) => {
             send_message(
-                &*SocketMessage::CrossMonitorMoveBehaviour(arg.move_behaviour).as_bytes()?,
+                &SocketMessage::CrossMonitorMoveBehaviour(arg.move_behaviour).as_bytes()?,
             )?;
         }
         SubCommand::ToggleCrossMonitorMoveBehaviour => {
-            send_message(&*SocketMessage::ToggleCrossMonitorMoveBehaviour.as_bytes()?)?;
+            send_message(&SocketMessage::ToggleCrossMonitorMoveBehaviour.as_bytes()?)?;
         }
         SubCommand::UnmanagedWindowOperationBehaviour(arg) => {
             send_message(
-                &*SocketMessage::UnmanagedWindowOperationBehaviour(arg.operation_behaviour)
+                &SocketMessage::UnmanagedWindowOperationBehaviour(arg.operation_behaviour)
                     .as_bytes()?,
             )?;
         }
@@ -1257,7 +1251,7 @@ fn main() -> Result<()> {
                 },
             };
 
-            send_message(&*SocketMessage::NotificationSchema.as_bytes()?)?;
+            send_message(&SocketMessage::NotificationSchema.as_bytes()?)?;
 
             let listener = UnixListener::bind(&socket)?;
             match listener.accept() {
