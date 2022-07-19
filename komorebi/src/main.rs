@@ -386,14 +386,14 @@ fn main() -> Result<()> {
         let matched_procs: Vec<&Process> = system.processes_by_name("komorebi.exe").collect();
 
         if matched_procs.len() > 1 {
-            let mut shim_is_active = false;
+            let mut len = matched_procs.len();
             for proc in matched_procs {
                 if proc.root().ends_with("shims") {
-                    shim_is_active = true;
+                    len -= 1;
                 }
             }
 
-            if !shim_is_active {
+            if len > 1 {
                 tracing::error!("komorebi.exe is already running, please exit the existing process before starting a new one");
                 std::process::exit(1);
             }
