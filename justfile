@@ -15,9 +15,13 @@ install-komorebic:
 install-komorebi:
     cargo +stable install --path komorebi --locked
 
+install-komokana:
+    cargo +stable install --path komokana --locked
+
 install:
     just install-komorebic
     just install-komorebi
+    just install-komokana
     komorebic ahk-library
     cat '%USERPROFILE%\.config\komorebi\komorebic.lib.ahk' > komorebic.lib.sample.ahk
 
