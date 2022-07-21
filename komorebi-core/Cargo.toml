@@ -15,7 +15,7 @@ strum = { version = "0.24", features = ["derive"] }
 schemars = "0.8"
 
 [dependencies.windows]
-version = "0.38"
+version = "0.39"
 features = [
     "Win32_Foundation",
 ]
