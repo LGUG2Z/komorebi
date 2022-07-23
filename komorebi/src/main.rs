@@ -407,6 +407,7 @@ fn main() -> Result<()> {
 
         let process_id = WindowsApi::current_process_id();
         WindowsApi::allow_set_foreground_window(process_id)?;
+        WindowsApi::set_process_dpi_awareness_context()?;
 
         let (outgoing, incoming): (Sender<WindowManagerEvent>, Receiver<WindowManagerEvent>) =
             crossbeam_channel::unbounded();
