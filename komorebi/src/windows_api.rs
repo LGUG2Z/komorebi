@@ -38,6 +38,8 @@ use windows::Win32::System::Threading::QueryFullProcessImageNameW;
 use windows::Win32::System::Threading::PROCESS_ACCESS_RIGHTS;
 use windows::Win32::System::Threading::PROCESS_NAME_WIN32;
 use windows::Win32::System::Threading::PROCESS_QUERY_INFORMATION;
+use windows::Win32::UI::HiDpi::SetProcessDpiAwarenessContext;
+use windows::Win32::UI::HiDpi::DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2;
 use windows::Win32::UI::Input::KeyboardAndMouse::SetFocus;
 use windows::Win32::UI::WindowsAndMessaging::AllowSetForegroundWindow;
 use windows::Win32::UI::WindowsAndMessaging::EnumWindows;
@@ -563,6 +565,12 @@ impl WindowsApi {
             monitor_info.rcMonitor.into(),
             monitor_info.rcWork.into(),
         ))
+    }
+
+    pub fn set_process_dpi_awareness_context() -> Result<()> {
+        unsafe { SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2) }
+            .ok()
+            .process()
     }
 
     #[allow(dead_code)]
