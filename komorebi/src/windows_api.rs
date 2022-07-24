@@ -6,29 +6,37 @@ use color_eyre::eyre::anyhow;
 use color_eyre::eyre::Error;
 use color_eyre::Result;
 use windows::core::Result as WindowsCrateResult;
+use windows::core::PCSTR;
 use windows::core::PWSTR;
 use windows::Win32::Foundation::BOOL;
 use windows::Win32::Foundation::HANDLE;
+use windows::Win32::Foundation::HINSTANCE;
 use windows::Win32::Foundation::HWND;
 use windows::Win32::Foundation::LPARAM;
 use windows::Win32::Foundation::POINT;
 use windows::Win32::Foundation::RECT;
 use windows::Win32::Graphics::Dwm::DwmGetWindowAttribute;
+use windows::Win32::Graphics::Dwm::DwmSetWindowAttribute;
 use windows::Win32::Graphics::Dwm::DWMWA_CLOAKED;
 use windows::Win32::Graphics::Dwm::DWMWA_EXTENDED_FRAME_BOUNDS;
+use windows::Win32::Graphics::Dwm::DWMWA_WINDOW_CORNER_PREFERENCE;
+use windows::Win32::Graphics::Dwm::DWMWCP_ROUND;
 use windows::Win32::Graphics::Dwm::DWMWINDOWATTRIBUTE;
 use windows::Win32::Graphics::Dwm::DWM_CLOAKED_APP;
 use windows::Win32::Graphics::Dwm::DWM_CLOAKED_INHERITED;
 use windows::Win32::Graphics::Dwm::DWM_CLOAKED_SHELL;
+use windows::Win32::Graphics::Gdi::CreateSolidBrush;
 use windows::Win32::Graphics::Gdi::EnumDisplayMonitors;
 use windows::Win32::Graphics::Gdi::GetMonitorInfoW;
 use windows::Win32::Graphics::Gdi::MonitorFromPoint;
 use windows::Win32::Graphics::Gdi::MonitorFromWindow;
+use windows::Win32::Graphics::Gdi::HBRUSH;
 use windows::Win32::Graphics::Gdi::HDC;
 use windows::Win32::Graphics::Gdi::HMONITOR;
 use windows::Win32::Graphics::Gdi::MONITORENUMPROC;
 use windows::Win32::Graphics::Gdi::MONITORINFO;
 use windows::Win32::Graphics::Gdi::MONITOR_DEFAULTTONEAREST;
+use windows::Win32::System::LibraryLoader::GetModuleHandleW;
 use windows::Win32::System::RemoteDesktop::ProcessIdToSessionId;
 use windows::Win32::System::Threading::AttachThreadInput;
 use windows::Win32::System::Threading::GetCurrentProcessId;
@@ -41,7 +49,10 @@ use windows::Win32::System::Threading::PROCESS_QUERY_INFORMATION;
 use windows::Win32::UI::HiDpi::SetProcessDpiAwarenessContext;
 use windows::Win32::UI::HiDpi::DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2;
 use windows::Win32::UI::Input::KeyboardAndMouse::SetFocus;
+use windows::Win32::UI::Shell::Common::DEVICE_SCALE_FACTOR;
+use windows::Win32::UI::Shell::GetScaleFactorForMonitor;
 use windows::Win32::UI::WindowsAndMessaging::AllowSetForegroundWindow;
+use windows::Win32::UI::WindowsAndMessaging::CreateWindowExA;
 use windows::Win32::UI::WindowsAndMessaging::EnumWindows;
 use windows::Win32::UI::WindowsAndMessaging::GetCursorPos;
 use windows::Win32::UI::WindowsAndMessaging::GetDesktopWindow;
@@ -56,6 +67,8 @@ use windows::Win32::UI::WindowsAndMessaging::IsIconic;
 use windows::Win32::UI::WindowsAndMessaging::IsWindow;
 use windows::Win32::UI::WindowsAndMessaging::IsWindowVisible;
 use windows::Win32::UI::WindowsAndMessaging::RealGetWindowClassW;
+use windows::Win32::UI::WindowsAndMessaging::RegisterClassA;
+use windows::Win32::UI::WindowsAndMessaging::SetClassLongPtrW;
 use windows::Win32::UI::WindowsAndMessaging::SetCursorPos;
 use windows::Win32::UI::WindowsAndMessaging::SetForegroundWindow;
 use windows::Win32::UI::WindowsAndMessaging::SetWindowLongPtrW;
@@ -63,9 +76,12 @@ use windows::Win32::UI::WindowsAndMessaging::SetWindowPos;
 use windows::Win32::UI::WindowsAndMessaging::ShowWindow;
 use windows::Win32::UI::WindowsAndMessaging::SystemParametersInfoW;
 use windows::Win32::UI::WindowsAndMessaging::WindowFromPoint;
+use windows::Win32::UI::WindowsAndMessaging::CW_USEDEFAULT;
+use windows::Win32::UI::WindowsAndMessaging::GCLP_HBRBACKGROUND;
 use windows::Win32::UI::WindowsAndMessaging::GWL_EXSTYLE;
 use windows::Win32::UI::WindowsAndMessaging::GWL_STYLE;
 use windows::Win32::UI::WindowsAndMessaging::GW_HWNDNEXT;
+use windows::Win32::UI::WindowsAndMessaging::HWND_BOTTOM;
 use windows::Win32::UI::WindowsAndMessaging::HWND_NOTOPMOST;
 use windows::Win32::UI::WindowsAndMessaging::HWND_TOPMOST;
 use windows::Win32::UI::WindowsAndMessaging::SET_WINDOW_POS_FLAGS;
@@ -81,7 +97,13 @@ use windows::Win32::UI::WindowsAndMessaging::SW_RESTORE;
 use windows::Win32::UI::WindowsAndMessaging::SYSTEM_PARAMETERS_INFO_ACTION;
 use windows::Win32::UI::WindowsAndMessaging::SYSTEM_PARAMETERS_INFO_UPDATE_FLAGS;
 use windows::Win32::UI::WindowsAndMessaging::WINDOW_LONG_PTR_INDEX;
+use windows::Win32::UI::WindowsAndMessaging::WNDCLASSA;
 use windows::Win32::UI::WindowsAndMessaging::WNDENUMPROC;
+use windows::Win32::UI::WindowsAndMessaging::WS_EX_TOOLWINDOW;
+use windows::Win32::UI::WindowsAndMessaging::WS_MAXIMIZEBOX;
+use windows::Win32::UI::WindowsAndMessaging::WS_MINIMIZEBOX;
+use windows::Win32::UI::WindowsAndMessaging::WS_POPUP;
+use windows::Win32::UI::WindowsAndMessaging::WS_SYSMENU;
 
 use komorebi_core::Rect;
 
@@ -112,7 +134,7 @@ macro_rules! impl_from_integer_for_windows_result {
     };
 }
 
-impl_from_integer_for_windows_result!(isize, u32, i32);
+impl_from_integer_for_windows_result!(usize, isize, u16, u32, i32);
 
 impl<T, E> From<WindowsResult<T, E>> for Result<T, E> {
     fn from(result: WindowsResult<T, E>) -> Self {
@@ -259,6 +281,24 @@ impl WindowsApi {
 
         let position = if top { HWND_TOPMOST } else { HWND_NOTOPMOST };
         Self::set_window_pos(hwnd, layout, position, flags.bits())
+    }
+
+    pub fn position_border_window(hwnd: HWND, layout: &Rect, activate: bool) -> Result<()> {
+        let flags = if activate {
+            SetWindowPosition::SHOW_WINDOW | SetWindowPosition::NO_ACTIVATE
+        } else {
+            SetWindowPosition::NO_ACTIVATE
+        };
+
+        let position = HWND_BOTTOM;
+        Self::set_window_pos(hwnd, layout, position, flags.bits())
+    }
+
+    pub fn hide_border_window(hwnd: HWND) -> Result<()> {
+        let flags = SetWindowPosition::HIDE_WINDOW;
+
+        let position = HWND_BOTTOM;
+        Self::set_window_pos(hwnd, &Rect::default(), position, flags.bits())
     }
 
     pub fn set_window_pos(hwnd: HWND, layout: &Rect, position: HWND, flags: u32) -> Result<()> {
@@ -443,6 +483,11 @@ impl WindowsApi {
         Self::set_window_long_ptr_w(hwnd, GWL_STYLE, new_value)
     }
 
+    #[allow(dead_code)]
+    pub fn update_ex_style(hwnd: HWND, new_value: isize) -> Result<()> {
+        Self::set_window_long_ptr_w(hwnd, GWL_EXSTYLE, new_value)
+    }
+
     pub fn window_text_w(hwnd: HWND) -> Result<String> {
         let mut text: [u16; 512] = [0; 512];
         match WindowsResult::from(unsafe { GetWindowTextW(hwnd, &mut text) }) {
@@ -622,5 +667,72 @@ impl WindowsApi {
             std::ptr::null_mut::<c_void>(),
             SPIF_SENDCHANGE,
         )
+    }
+
+    pub fn module_handle_w() -> Result<HINSTANCE> {
+        unsafe { GetModuleHandleW(None) }.process()
+    }
+
+    pub fn create_solid_brush(r: u32, g: u32, b: u32) -> HBRUSH {
+        unsafe { CreateSolidBrush(r | (g << 8) | (b << 16)) }
+    }
+
+    pub fn register_class_a(window_class: &WNDCLASSA) -> Result<u16> {
+        Result::from(WindowsResult::from(unsafe { RegisterClassA(window_class) }))
+    }
+
+    pub fn scale_factor_for_monitor(hmonitor: isize) -> Result<DEVICE_SCALE_FACTOR> {
+        unsafe { GetScaleFactorForMonitor(HMONITOR(hmonitor)) }.process()
+    }
+
+    pub fn monitors_have_same_scale_factor(a: isize, b: isize) -> Result<bool> {
+        let a = Self::scale_factor_for_monitor(a)?;
+        let b = Self::scale_factor_for_monitor(b)?;
+
+        Ok(a == b)
+    }
+
+    pub fn change_border_colour(hwnd: isize, r: u32, g: u32, b: u32) -> Result<usize> {
+        Result::from(WindowsResult::from(unsafe {
+            SetClassLongPtrW(
+                HWND(hwnd),
+                GCLP_HBRBACKGROUND,
+                Self::create_solid_brush(r, g, b).0,
+            )
+        }))
+    }
+
+    pub fn round_corners(hwnd: isize) -> Result<()> {
+        let round = DWMWCP_ROUND;
+
+        unsafe {
+            DwmSetWindowAttribute(
+                HWND(hwnd),
+                DWMWA_WINDOW_CORNER_PREFERENCE,
+                std::ptr::addr_of!(round).cast(),
+                4,
+            )
+        }
+        .process()
+    }
+
+    pub fn create_border_window(name: PCSTR, instance: HINSTANCE) -> Result<isize> {
+        unsafe {
+            CreateWindowExA(
+                WS_EX_TOOLWINDOW,
+                name,
+                name,
+                WS_POPUP | WS_SYSMENU | WS_MAXIMIZEBOX | WS_MINIMIZEBOX,
+                CW_USEDEFAULT,
+                CW_USEDEFAULT,
+                CW_USEDEFAULT,
+                CW_USEDEFAULT,
+                None,
+                None,
+                instance,
+                std::ptr::null(),
+            )
+        }
+        .process()
     }
 }

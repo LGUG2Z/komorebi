@@ -7,6 +7,7 @@ use std::io::Write;
 use std::path::PathBuf;
 use std::process::Command;
 use std::sync::atomic::AtomicBool;
+use std::sync::atomic::AtomicIsize;
 use std::sync::atomic::AtomicU32;
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
@@ -20,6 +21,7 @@ use crossbeam_channel::Receiver;
 use crossbeam_channel::Sender;
 use crossbeam_utils::Backoff;
 use lazy_static::lazy_static;
+use os_info::Version;
 #[cfg(feature = "deadlock_detection")]
 use parking_lot::deadlock;
 use parking_lot::Mutex;
@@ -35,6 +37,7 @@ use which::which;
 use winreg::enums::HKEY_CURRENT_USER;
 use winreg::RegKey;
 
+use crate::border::Border;
 use komorebi_core::HidingBehaviour;
 use komorebi_core::SocketMessage;
 
@@ -49,6 +52,7 @@ use crate::windows_api::WindowsApi;
 #[macro_use]
 mod ring;
 
+mod border;
 mod container;
 mod monitor;
 mod process_command;
@@ -140,11 +144,20 @@ lazy_static! {
 
         ahk_v2
     };
+
+    static ref WINDOWS_11: bool = {
+        matches!(
+            os_info::get().version(),
+            Version::Semantic(_, _, x) if x >= &22000
+        )
+    };
 }
 
 pub static INITIAL_CONFIGURATION_LOADED: AtomicBool = AtomicBool::new(false);
 pub static CUSTOM_FFM: AtomicBool = AtomicBool::new(false);
 pub static SESSION_ID: AtomicU32 = AtomicU32::new(0);
+pub static BORDER_HWND: AtomicIsize = AtomicIsize::new(0);
+pub static BORDER_HIDDEN: AtomicBool = AtomicBool::new(false);
 
 fn setup() -> Result<(WorkerGuard, WorkerGuard)> {
     if std::env::var("RUST_LIB_BACKTRACE").is_err() {
@@ -415,6 +428,7 @@ fn main() -> Result<()> {
         let process_id = WindowsApi::current_process_id();
         WindowsApi::allow_set_foreground_window(process_id)?;
         WindowsApi::set_process_dpi_awareness_context()?;
+        Border::create("komorebi-border-window")?;
 
         let (outgoing, incoming): (Sender<WindowManagerEvent>, Receiver<WindowManagerEvent>) =
             crossbeam_channel::unbounded();

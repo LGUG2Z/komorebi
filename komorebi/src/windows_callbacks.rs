@@ -3,10 +3,17 @@ use std::collections::VecDeque;
 use windows::Win32::Foundation::BOOL;
 use windows::Win32::Foundation::HWND;
 use windows::Win32::Foundation::LPARAM;
+use windows::Win32::Foundation::LRESULT;
 use windows::Win32::Foundation::RECT;
+use windows::Win32::Foundation::WPARAM;
+use windows::Win32::Graphics::Gdi::InvalidateRect;
 use windows::Win32::Graphics::Gdi::HDC;
 use windows::Win32::Graphics::Gdi::HMONITOR;
 use windows::Win32::UI::Accessibility::HWINEVENTHOOK;
+use windows::Win32::UI::WindowsAndMessaging::DefWindowProcW;
+use windows::Win32::UI::WindowsAndMessaging::PostQuitMessage;
+use windows::Win32::UI::WindowsAndMessaging::WM_DESTROY;
+use windows::Win32::UI::WindowsAndMessaging::WM_PAINT;
 
 use crate::container::Container;
 use crate::monitor::Monitor;
@@ -100,6 +107,27 @@ pub extern "system" fn win_event_hook(
                 .0
                 .send(event_type)
                 .expect("could not send message on WINEVENT_CALLBACK_CHANNEL");
+        }
+    }
+}
+
+pub extern "system" fn border_window(
+    window: HWND,
+    message: u32,
+    wparam: WPARAM,
+    lparam: LPARAM,
+) -> LRESULT {
+    unsafe {
+        match message as u32 {
+            WM_PAINT => {
+                InvalidateRect(window, std::ptr::null(), true);
+                LRESULT(0)
+            }
+            WM_DESTROY => {
+                PostQuitMessage(0);
+                LRESULT(0)
+            }
+            _ => DefWindowProcW(window, message, wparam, lparam),
         }
     }
 }

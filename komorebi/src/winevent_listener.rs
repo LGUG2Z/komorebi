@@ -45,8 +45,8 @@ impl WinEventListener {
 
         std::thread::spawn(move || unsafe {
             let hook_ref = SetWinEventHook(
-                EVENT_MIN as u32,
-                EVENT_MAX as u32,
+                EVENT_MIN,
+                EVENT_MAX,
                 None,
                 Some(windows_callbacks::win_event_hook),
                 0,

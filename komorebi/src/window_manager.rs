@@ -2,6 +2,7 @@ use std::collections::VecDeque;
 use std::io::ErrorKind;
 use std::num::NonZeroUsize;
 use std::path::PathBuf;
+use std::sync::atomic::Ordering;
 use std::sync::Arc;
 
 use color_eyre::eyre::anyhow;
@@ -14,6 +15,7 @@ use schemars::JsonSchema;
 use serde::Serialize;
 use uds_windows::UnixListener;
 
+use crate::border::Border;
 use komorebi_core::custom_layout::CustomLayout;
 use komorebi_core::Arrangement;
 use komorebi_core::Axis;
@@ -38,6 +40,7 @@ use crate::window_manager_event::WindowManagerEvent;
 use crate::windows_api::WindowsApi;
 use crate::winevent_listener::WINEVENT_CALLBACK_CHANNEL;
 use crate::workspace::Workspace;
+use crate::BORDER_HWND;
 use crate::BORDER_OVERFLOW_IDENTIFIERS;
 use crate::DATA_DIR;
 use crate::FLOAT_IDENTIFIERS;
@@ -104,7 +107,7 @@ impl From<&WindowManager> for State {
             resize_delta: wm.resize_delta,
             new_window_behaviour: wm.window_container_behaviour,
             cross_monitor_move_behaviour: wm.cross_monitor_move_behaviour,
-            focus_follows_mouse: wm.focus_follows_mouse.clone(),
+            focus_follows_mouse: wm.focus_follows_mouse,
             mouse_follows_focus: wm.mouse_follows_focus,
             has_pending_raise_op: wm.has_pending_raise_op,
             float_identifiers: FLOAT_IDENTIFIERS.lock().clone(),
@@ -193,6 +196,26 @@ impl WindowManager {
         WindowsApi::load_workspace_information(&mut self.monitors)
     }
 
+    #[tracing::instrument(skip(self))]
+    pub fn show_border(&self) -> Result<()> {
+        let foreground = WindowsApi::foreground_window()?;
+        let foreground_window = Window { hwnd: foreground };
+        let mut rect = WindowsApi::window_rect(foreground_window.hwnd())?;
+        rect.top -= self.invisible_borders.bottom;
+        rect.bottom += self.invisible_borders.bottom;
+
+        let border = Border::from(BORDER_HWND.load(Ordering::SeqCst));
+        border.set_position(foreground_window, &self.invisible_borders, true)
+    }
+
+    #[tracing::instrument(skip(self))]
+    pub fn hide_border(&self) -> Result<()> {
+        let focused = self.focused_window()?;
+        let border = Border::from(BORDER_HWND.load(Ordering::SeqCst));
+        border.hide()?;
+        focused.focus(false)
+    }
+
     #[tracing::instrument]
     pub fn reload_configuration() {
         tracing::info!("reloading configuration");
@@ -267,7 +290,7 @@ impl WindowManager {
         Ok(())
     }
 
-    pub fn monitor_index_in_direction(&self, direction: OperationDirection) -> Option<usize> {
+    pub fn monitor_idx_in_direction(&self, direction: OperationDirection) -> Option<usize> {
         let current_monitor_size = self.focused_monitor_size().ok()?;
 
         for (idx, monitor) in self.monitors.elements().iter().enumerate() {
@@ -953,7 +976,7 @@ impl WindowManager {
         match new_idx {
             None => {
                 let monitor_idx = self
-                    .monitor_index_in_direction(direction)
+                    .monitor_idx_in_direction(direction)
                     .ok_or_else(|| anyhow!("there is no container or monitor in this direction"))?;
 
                 self.focus_monitor(monitor_idx)?;
@@ -991,7 +1014,7 @@ impl WindowManager {
             // in that direction if there is one
             None => {
                 let target_monitor_idx = self
-                    .monitor_index_in_direction(direction)
+                    .monitor_idx_in_direction(direction)
                     .ok_or_else(|| anyhow!("there is no container or monitor in this direction"))?;
 
                 {
@@ -1069,6 +1092,20 @@ impl WindowManager {
                     .get_mut(origin_monitor_idx)
                     .ok_or_else(|| anyhow!("there is no monitor at this index"))?
                     .update_focused_workspace(offset, &invisible_borders)?;
+
+                let a = self
+                    .focused_monitor()
+                    .ok_or_else(|| anyhow!("there is no monitor focused monitor"))?
+                    .id();
+                let b = self
+                    .monitors_mut()
+                    .get_mut(origin_monitor_idx)
+                    .ok_or_else(|| anyhow!("there is no monitor at this index"))?
+                    .id();
+
+                if !WindowsApi::monitors_have_same_scale_factor(a, b)? {
+                    self.update_focused_workspace(self.mouse_follows_focus)?;
+                }
             }
             Some(new_idx) => {
                 let workspace = self.focused_workspace_mut()?;

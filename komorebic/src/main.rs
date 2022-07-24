@@ -394,6 +394,22 @@ struct FocusFollowsMouse {
 }
 
 #[derive(Parser, AhkFunction)]
+struct ActiveWindowBorder {
+    #[clap(arg_enum)]
+    boolean_state: BooleanState,
+}
+
+#[derive(Parser, AhkFunction)]
+struct ActiveWindowBorderColour {
+    /// Red
+    r: u32,
+    /// Green
+    g: u32,
+    /// Blue
+    b: u32,
+}
+
+#[derive(Parser, AhkFunction)]
 struct Start {
     /// Allow the use of komorebi's custom focus-follows-mouse implementation
     #[clap(action, short, long = "ffm")]
@@ -665,6 +681,12 @@ enum SubCommand {
     #[clap(arg_required_else_help = true)]
     #[clap(alias = "identify-border-overflow")]
     IdentifyBorderOverflowApplication(IdentifyBorderOverflowApplication),
+    /// Enable or disable the active window border
+    #[clap(arg_required_else_help = true)]
+    ActiveWindowBorder(ActiveWindowBorder),
+    /// Set the colour for the active window border
+    #[clap(arg_required_else_help = true)]
+    ActiveWindowBorderColour(ActiveWindowBorderColour),
     /// Enable or disable focus follows mouse for the operating system
     #[clap(arg_required_else_help = true)]
     FocusFollowsMouse(FocusFollowsMouse),
@@ -1181,6 +1203,14 @@ fn main() -> Result<()> {
         }
         SubCommand::MouseFollowsFocus(arg) => {
             send_message(&SocketMessage::MouseFollowsFocus(arg.boolean_state.into()).as_bytes()?)?;
+        }
+        SubCommand::ActiveWindowBorder(arg) => {
+            send_message(&SocketMessage::ActiveWindowBorder(arg.boolean_state.into()).as_bytes()?)?;
+        }
+        SubCommand::ActiveWindowBorderColour(arg) => {
+            send_message(
+                &SocketMessage::ActiveWindowBorderColour(arg.r, arg.g, arg.b).as_bytes()?,
+            )?;
         }
         SubCommand::ResizeDelta(arg) => {
             send_message(&SocketMessage::ResizeDelta(arg.pixels).as_bytes()?)?;

@@ -258,6 +258,17 @@ If you already have configuration files that you wish to keep, move them to the 
 The next time you run `komorebic start`, any files created by or loaded by _komorebi_ will be placed or expected to
 exist in this folder.
 
+#### Adding an Active Window Border
+
+If you would like to add a visual border around the currently focused window, two commands are available:
+
+```powershell
+komorebic.exe active-window-border [enable|disable]
+komorebic.exe active-window-border-colour [R G B]
+```
+
+It is important to note that the active window border will only apply to windows managed by `komorebi`.
+
 #### Removing Gaps
 
 If you would like to remove all gaps from a given workspace, both between windows themselves, and between the monitor edges and the windows, you can set the following two configuration options to `0` for the desired monitors and workspaces:
@@ -532,6 +543,7 @@ manage                                     Force komorebi to manage the focused 
 unmanage                                   Unmanage a window that was forcibly managed
 reload-configuration                       Reload ~/komorebi.ahk (if it exists)
 watch-configuration                        Enable or disable watching of ~/komorebi.ahk (if it exists)
+complete-configuration                     Signal that the final configuration option has been sent
 window-hiding-behaviour                    Set the window behaviour when switching workspaces / cycling stacks
 cross-monitor-move-behaviour               Set the behaviour when moving windows across monitor boundaries
 toggle-cross-monitor-move-behaviour        Toggle the behaviour when moving windows across monitor boundaries
@@ -543,6 +555,8 @@ identify-object-name-change-application    Identify an application that sends EV
 identify-tray-application                  Identify an application that closes to the system tray
 identify-layered-application               Identify an application that has WS_EX_LAYERED, but should still be managed
 identify-border-overflow-application       Identify an application that has overflowing borders
+active-window-border                       Enable or disable the active window border
+active-window-border-colour                Set the colour for the active window border
 focus-follows-mouse                        Enable or disable focus follows mouse for the operating system
 toggle-focus-follows-mouse                 Toggle focus follows mouse for the operating system
 mouse-follows-focus                        Enable or disable mouse follows focus on all workspaces

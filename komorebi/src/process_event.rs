@@ -1,11 +1,14 @@
 use std::fs::OpenOptions;
+use std::sync::atomic::Ordering;
 use std::sync::Arc;
 
 use color_eyre::eyre::anyhow;
 use color_eyre::Result;
 use crossbeam_channel::select;
+
 use parking_lot::Mutex;
 
+use crate::border::Border;
 use komorebi_core::OperationDirection;
 use komorebi_core::Rect;
 use komorebi_core::Sizing;
@@ -18,6 +21,9 @@ use crate::window_manager_event::WindowManagerEvent;
 use crate::windows_api::WindowsApi;
 use crate::Notification;
 use crate::NotificationEvent;
+use crate::BORDER_HIDDEN;
+use crate::BORDER_HWND;
+
 use crate::DATA_DIR;
 use crate::HIDDEN_HWNDS;
 use crate::TRAY_AND_MULTI_WINDOW_IDENTIFIERS;
@@ -469,9 +475,40 @@ impl WindowManager {
             WindowManagerEvent::MonitorPoll(..) | WindowManagerEvent::MouseCapture(..) => {}
         };
 
+        match event {
+            WindowManagerEvent::MoveResizeStart(_, _) => {
+                let border = Border::from(BORDER_HWND.load(Ordering::SeqCst));
+                border.hide()?;
+                BORDER_HIDDEN.store(true, Ordering::SeqCst);
+            }
+            WindowManagerEvent::MoveResizeEnd(_, window)
+            | WindowManagerEvent::Show(_, window)
+            | WindowManagerEvent::FocusChange(_, window) => {
+                let mut rect = WindowsApi::window_rect(window.hwnd())?;
+                rect.top -= self.invisible_borders.bottom;
+                rect.bottom += self.invisible_borders.bottom;
+
+                let activate = BORDER_HIDDEN.load(Ordering::SeqCst);
+
+                let border = Border::from(BORDER_HWND.load(Ordering::SeqCst));
+                border.set_position(*window, &self.invisible_borders, activate)?;
+
+                if activate {
+                    BORDER_HIDDEN.store(false, Ordering::SeqCst);
+                }
+            }
+            _ => {}
+        }
         // If we unmanaged a window, it shouldn't be immediately hidden behind managed windows
         if let WindowManagerEvent::Unmanage(window) = event {
             window.center(&self.focused_monitor_work_area()?, &invisible_borders)?;
+        }
+
+        // If there are no more windows on the workspace, we shouldn't show the border window
+        if self.focused_workspace()?.containers().is_empty() {
+            let border = Border::from(BORDER_HWND.load(Ordering::SeqCst));
+            border.hide()?;
+            BORDER_HIDDEN.store(true, Ordering::SeqCst);
         }
 
         tracing::trace!("updating list of known hwnds");

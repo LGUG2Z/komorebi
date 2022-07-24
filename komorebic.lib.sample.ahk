@@ -300,6 +300,14 @@ IdentifyBorderOverflowApplication(identifier, id) {
     Run, komorebic.exe identify-border-overflow-application %identifier% "%id%", , Hide
 }
 
+ActiveWindowBorder(boolean_state) {
+    Run, komorebic.exe active-window-border %boolean_state%, , Hide
+}
+
+ActiveWindowBorderColour(r, g, b) {
+    Run, komorebic.exe active-window-border-colour %r% %g% %b%, , Hide
+}
+
 FocusFollowsMouse(boolean_state, implementation) {
     Run, komorebic.exe focus-follows-mouse %boolean_state% --implementation %implementation%, , Hide
 }

@@ -97,6 +97,8 @@ pub enum SocketMessage {
     ReloadConfiguration,
     WatchConfiguration(bool),
     CompleteConfiguration,
+    ActiveWindowBorder(bool),
+    ActiveWindowBorderColour(u32, u32, u32),
     InvisibleBorders(Rect),
     WorkAreaOffset(Rect),
     ResizeDelta(i32),
@@ -132,7 +134,7 @@ impl FromStr for SocketMessage {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, Display, EnumString, ArgEnum, JsonSchema)]
+#[derive(Copy, Clone, Debug, Serialize, Deserialize, Display, EnumString, ArgEnum, JsonSchema)]
 #[strum(serialize_all = "snake_case")]
 pub enum StateQuery {
     FocusedMonitorIndex,
@@ -141,7 +143,7 @@ pub enum StateQuery {
     FocusedWindowIndex,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, Display, EnumString, ArgEnum, JsonSchema)]
+#[derive(Copy, Clone, Debug, Serialize, Deserialize, Display, EnumString, ArgEnum, JsonSchema)]
 #[strum(serialize_all = "snake_case")]
 #[serde(rename_all = "snake_case")]
 pub enum ApplicationIdentifier {
@@ -150,7 +152,7 @@ pub enum ApplicationIdentifier {
     Title,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, Display, EnumString, ArgEnum, JsonSchema)]
+#[derive(Copy, Clone, Debug, Serialize, Deserialize, Display, EnumString, ArgEnum, JsonSchema)]
 #[strum(serialize_all = "snake_case")]
 pub enum FocusFollowsMouseImplementation {
     Komorebi,
@@ -171,7 +173,7 @@ pub enum MoveBehaviour {
     Insert,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, Display, EnumString, ArgEnum, JsonSchema)]
+#[derive(Copy, Clone, Debug, Serialize, Deserialize, Display, EnumString, ArgEnum, JsonSchema)]
 #[strum(serialize_all = "snake_case")]
 pub enum HidingBehaviour {
     Hide,
