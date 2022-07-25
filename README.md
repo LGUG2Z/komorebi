@@ -27,6 +27,18 @@ Articles, blog posts, demos, and videos about _komorebi_ can be added to this li
 - [Moving to Windows from Linux Pt 1](https://kvwu.io/posts/moving-to-windows/)
 - [Windows 下的现代化平铺窗口管理器 komorebi](https://zhuanlan.zhihu.com/p/455064481)
 
+## GitHub Sponsors Early Access
+
+[GitHub Sponsors is enabled for this project](https://github.com/sponsors/LGUG2Z). Users who sponsor my work
+on `komorebi` at any of the predefined monthly tiers will be given access to a private fork of this repository where I
+push features-in-progress that are not yet quite ready to be pushed on the main repository.
+
+There will never be any feature of `komorebi` that is gated behind sponsorship; every new feature will always be
+available for free in the public repository once it meets the requisite level of code quality and completion.
+
+Features-in-progress that are available in early access will be tagged in the issues with
+an ["early access" label](https://github.com/LGUG2Z/komorebi/issues?q=is%3Aopen+is%3Aissue+label%3A%22early+access%22).
+
 ## Demonstrations
 
 [@haxibami](https://github.com/haxibami) showing _komorebi_ running on Windows
