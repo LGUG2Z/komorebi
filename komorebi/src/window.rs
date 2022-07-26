@@ -12,6 +12,7 @@ use serde::Serialize;
 use serde::Serializer;
 use windows::Win32::Foundation::HWND;
 
+use komorebi_core::ApplicationIdentifier;
 use komorebi_core::HidingBehaviour;
 use komorebi_core::Rect;
 
@@ -293,58 +294,7 @@ impl Window {
             // If not allowing cloaked windows, we need to ensure the window is not cloaked
             (false, false) => {
                 if let (Ok(title), Ok(exe_name), Ok(class)) = (self.title(), self.exe(), self.class()) {
-                    let mut should_float = false;
-
-                    {
-                        let float_identifiers = FLOAT_IDENTIFIERS.lock();
-                        for identifier in float_identifiers.iter() {
-                            if title.starts_with(identifier) || title.ends_with(identifier) ||
-                                class.starts_with(identifier) || class.ends_with(identifier) ||
-                                identifier == &exe_name {
-                                    should_float = true;
-                            }
-                        }
-                    }
-
-                    let managed_override = {
-                        let manage_identifiers = MANAGE_IDENTIFIERS.lock();
-                        manage_identifiers.contains(&exe_name)
-                            || manage_identifiers.contains(&class)
-                            || manage_identifiers.contains(&title)
-                    };
-
-                    if should_float && !managed_override {
-                        return Ok(false);
-                    }
-
-                    let allow_layered = {
-                        let layered_whitelist = LAYERED_WHITELIST.lock();
-                        layered_whitelist.contains(&exe_name)
-                            || layered_whitelist.contains(&class)
-                            || layered_whitelist.contains(&title)
-                    };
-
-                    let allow_wsl2_gui = {
-                        let wsl2_ui_processes = WSL2_UI_PROCESSES.lock();
-                        wsl2_ui_processes.contains(&exe_name)
-                    };
-
-                    let style = self.style()?;
-                    let ex_style = self.ex_style()?;
-
-                    if (allow_wsl2_gui || style.contains(WindowStyle::CAPTION) && ex_style.contains(ExtendedWindowStyle::WINDOWEDGE))
-                        && !ex_style.contains(ExtendedWindowStyle::DLGMODALFRAME)
-                        // Get a lot of dupe events coming through that make the redrawing go crazy
-                        // on FocusChange events if I don't filter out this one. But, if we are
-                        // allowing a specific layered window on the whitelist (like Steam), it should
-                        // pass this check
-                        && (allow_layered || !ex_style.contains(ExtendedWindowStyle::LAYERED))
-                        || managed_override
-                    {
-                        return Ok(true);
-                    } else if event.is_some() {
-                        tracing::debug!("ignoring (exe: {}, title: {})", exe_name, title);
-                    }
+                    return Ok(window_is_eligible(&title, &exe_name, &class, self.style()?, self.ex_style()?, event));
                 }
             }
             _ => {}
@@ -352,4 +302,84 @@ impl Window {
 
         Ok(false)
     }
+}
+
+fn window_is_eligible(
+    title: &String,
+    exe_name: &String,
+    class: &String,
+    style: WindowStyle,
+    ex_style: ExtendedWindowStyle,
+    event: Option<WindowManagerEvent>,
+) -> bool {
+    let mut should_float = false;
+    let mut matched_identifier = None;
+
+    {
+        let float_identifiers = FLOAT_IDENTIFIERS.lock();
+        for identifier in float_identifiers.iter() {
+            if title.starts_with(identifier) || title.ends_with(identifier) {
+                should_float = true;
+                matched_identifier = Option::from(ApplicationIdentifier::Title);
+            }
+
+            if class.starts_with(identifier) || class.ends_with(identifier) {
+                should_float = true;
+                matched_identifier = Option::from(ApplicationIdentifier::Class);
+            }
+
+            if identifier == exe_name {
+                should_float = true;
+                matched_identifier = Option::from(ApplicationIdentifier::Exe);
+            }
+        }
+    };
+
+    let managed_override = {
+        let manage_identifiers = MANAGE_IDENTIFIERS.lock();
+        matched_identifier.map_or_else(
+            || {
+                manage_identifiers.contains(exe_name)
+                    || manage_identifiers.contains(class)
+                    || manage_identifiers.contains(title)
+            },
+            |matched_identifier| match matched_identifier {
+                ApplicationIdentifier::Exe => manage_identifiers.contains(exe_name),
+                ApplicationIdentifier::Class => manage_identifiers.contains(class),
+                ApplicationIdentifier::Title => manage_identifiers.contains(title),
+            },
+        )
+    };
+
+    if should_float && !managed_override {
+        return false;
+    }
+
+    let allow_layered = {
+        let layered_whitelist = LAYERED_WHITELIST.lock();
+        layered_whitelist.contains(exe_name)
+            || layered_whitelist.contains(class)
+            || layered_whitelist.contains(title)
+    };
+
+    let allow_wsl2_gui = {
+        let wsl2_ui_processes = WSL2_UI_PROCESSES.lock();
+        wsl2_ui_processes.contains(exe_name)
+    };
+
+    if (allow_wsl2_gui || style.contains(WindowStyle::CAPTION) && ex_style.contains(ExtendedWindowStyle::WINDOWEDGE))
+                        && !ex_style.contains(ExtendedWindowStyle::DLGMODALFRAME)
+                        // Get a lot of dupe events coming through that make the redrawing go crazy
+                        // on FocusChange events if I don't filter out this one. But, if we are
+                        // allowing a specific layered window on the whitelist (like Steam), it should
+                        // pass this check
+                        && (allow_layered || !ex_style.contains(ExtendedWindowStyle::LAYERED))
+        || managed_override
+    {
+        return true;
+    } else if event.is_some() {
+        tracing::debug!("ignoring (exe: {}, title: {})", exe_name, title);
+    }
+
+    false
 }
