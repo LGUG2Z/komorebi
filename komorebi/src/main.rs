@@ -11,8 +11,6 @@ use std::sync::atomic::AtomicU32;
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
 #[cfg(feature = "deadlock_detection")]
-use std::thread;
-#[cfg(feature = "deadlock_detection")]
 use std::time::Duration;
 
 use clap::Parser;
@@ -20,6 +18,7 @@ use color_eyre::eyre::anyhow;
 use color_eyre::Result;
 use crossbeam_channel::Receiver;
 use crossbeam_channel::Sender;
+use crossbeam_utils::Backoff;
 use lazy_static::lazy_static;
 #[cfg(feature = "deadlock_detection")]
 use parking_lot::deadlock;
@@ -143,6 +142,7 @@ lazy_static! {
     };
 }
 
+pub static INITIAL_CONFIGURATION_LOADED: AtomicBool = AtomicBool::new(false);
 pub static CUSTOM_FFM: AtomicBool = AtomicBool::new(false);
 pub static SESSION_ID: AtomicU32 = AtomicU32::new(0);
 
@@ -242,6 +242,8 @@ pub fn load_configuration() -> Result<()> {
         Command::new("AutoHotkey64.exe")
             .arg(config_v2.as_os_str())
             .output()?;
+    } else {
+        INITIAL_CONFIGURATION_LOADED.store(true, Ordering::SeqCst);
     };
 
     Ok(())
@@ -341,9 +343,9 @@ pub fn notify_subscribers(notification: &str) -> Result<()> {
 #[tracing::instrument]
 fn detect_deadlocks() {
     // Create a background thread which checks for deadlocks every 10s
-    thread::spawn(move || loop {
+    std::thread::spawn(move || loop {
         tracing::info!("running deadlock detector");
-        thread::sleep(Duration::from_secs(5));
+        std::thread::sleep(Duration::from_secs(5));
         let deadlocks = deadlock::check_deadlock();
         if deadlocks.is_empty() {
             continue;
@@ -364,8 +366,11 @@ fn detect_deadlocks() {
 #[clap(author, about, version)]
 struct Opts {
     /// Allow the use of komorebi's custom focus-follows-mouse implementation
-    #[clap(long = "ffm")]
+    #[clap(action, short, long = "ffm")]
     focus_follows_mouse: bool,
+    /// Wait for 'komorebic complete-configuration' to be sent before processing events
+    #[clap(action, short, long)]
+    await_configuration: bool,
 }
 
 #[tracing::instrument]
@@ -374,7 +379,9 @@ fn main() -> Result<()> {
     CUSTOM_FFM.store(opts.focus_follows_mouse, Ordering::SeqCst);
 
     let arg_count = std::env::args().count();
-    let has_valid_args = arg_count == 1 || (arg_count == 2 && CUSTOM_FFM.load(Ordering::SeqCst));
+    let has_valid_args = arg_count == 1
+        || (arg_count == 2 && (opts.await_configuration || opts.focus_follows_mouse))
+        || (arg_count == 3 && opts.await_configuration && opts.focus_follows_mouse);
 
     if has_valid_args {
         let session_id = WindowsApi::process_id_to_session_id()?;
@@ -421,13 +428,20 @@ fn main() -> Result<()> {
 
         wm.lock().init()?;
         listen_for_commands(wm.clone());
+        std::thread::spawn(|| load_configuration().expect("could not load configuration"));
+
+        if opts.await_configuration {
+            let backoff = Backoff::new();
+            while !INITIAL_CONFIGURATION_LOADED.load(Ordering::SeqCst) {
+                backoff.snooze();
+            }
+        }
+
         listen_for_events(wm.clone());
 
         if CUSTOM_FFM.load(Ordering::SeqCst) {
             listen_for_movements(wm.clone());
         }
-
-        load_configuration()?;
 
         let (ctrlc_sender, ctrlc_receiver) = crossbeam_channel::bounded(1);
         ctrlc::set_handler(move || {

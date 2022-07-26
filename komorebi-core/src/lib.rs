@@ -96,6 +96,7 @@ pub enum SocketMessage {
     // Configuration
     ReloadConfiguration,
     WatchConfiguration(bool),
+    CompleteConfiguration,
     InvisibleBorders(Rect),
     WorkAreaOffset(Rect),
     ResizeDelta(i32),

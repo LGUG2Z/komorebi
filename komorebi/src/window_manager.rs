@@ -3,7 +3,6 @@ use std::io::ErrorKind;
 use std::num::NonZeroUsize;
 use std::path::PathBuf;
 use std::sync::Arc;
-use std::thread;
 
 use color_eyre::eyre::anyhow;
 use color_eyre::Result;
@@ -191,14 +190,13 @@ impl WindowManager {
     pub fn init(&mut self) -> Result<()> {
         tracing::info!("initialising");
         WindowsApi::load_monitor_information(&mut self.monitors)?;
-        WindowsApi::load_workspace_information(&mut self.monitors)?;
-        self.update_focused_workspace(false)
+        WindowsApi::load_workspace_information(&mut self.monitors)
     }
 
     #[tracing::instrument]
     pub fn reload_configuration() {
         tracing::info!("reloading configuration");
-        thread::spawn(|| load_configuration().expect("could not load configuration"));
+        std::thread::spawn(|| load_configuration().expect("could not load configuration"));
     }
 
     #[tracing::instrument(skip(self))]
@@ -247,7 +245,7 @@ impl WindowManager {
                     // Editing in Notepad sends a NoticeWrite while editing in (Neo)Vim sends
                     // a NoticeRemove, presumably because of the use of swap files?
                     DebouncedEvent::NoticeWrite(_) | DebouncedEvent::NoticeRemove(_) => {
-                        thread::spawn(|| {
+                        std::thread::spawn(|| {
                             load_configuration().expect("could not load configuration");
                         });
                     }

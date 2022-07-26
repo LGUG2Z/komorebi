@@ -7,7 +7,6 @@ use std::num::NonZeroUsize;
 use std::str::FromStr;
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
-use std::thread;
 
 use color_eyre::eyre::anyhow;
 use color_eyre::Result;
@@ -40,6 +39,7 @@ use crate::CUSTOM_FFM;
 use crate::FLOAT_IDENTIFIERS;
 use crate::HIDING_BEHAVIOUR;
 use crate::HOME_DIR;
+use crate::INITIAL_CONFIGURATION_LOADED;
 use crate::LAYERED_WHITELIST;
 use crate::MANAGE_IDENTIFIERS;
 use crate::OBJECT_NAME_CHANGE_ON_LAUNCH;
@@ -55,7 +55,7 @@ pub fn listen_for_commands(wm: Arc<Mutex<WindowManager>>) {
         .try_clone()
         .expect("could not clone unix listener");
 
-    thread::spawn(move || {
+    std::thread::spawn(move || {
         tracing::info!("listening");
         for client in listener.incoming() {
             match client {
@@ -573,6 +573,12 @@ impl WindowManager {
             }
             SocketMessage::ReloadConfiguration => {
                 Self::reload_configuration();
+            }
+            SocketMessage::CompleteConfiguration => {
+                if !INITIAL_CONFIGURATION_LOADED.load(Ordering::SeqCst) {
+                    INITIAL_CONFIGURATION_LOADED.store(true, Ordering::SeqCst);
+                    self.update_focused_workspace(false)?;
+                }
             }
             SocketMessage::WatchConfiguration(enable) => {
                 self.watch_configuration(enable)?;

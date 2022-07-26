@@ -1,5 +1,6 @@
 use std::collections::VecDeque;
 use std::num::NonZeroUsize;
+use std::sync::atomic::Ordering;
 
 use color_eyre::eyre::anyhow;
 use color_eyre::Result;
@@ -21,6 +22,7 @@ use crate::container::Container;
 use crate::ring::Ring;
 use crate::window::Window;
 use crate::windows_api::WindowsApi;
+use crate::INITIAL_CONFIGURATION_LOADED;
 
 #[derive(Debug, Clone, Serialize, Getters, CopyGetters, MutGetters, Setters, JsonSchema)]
 pub struct Workspace {
@@ -149,6 +151,10 @@ impl Workspace {
         offset: Option<Rect>,
         invisible_borders: &Rect,
     ) -> Result<()> {
+        if !INITIAL_CONFIGURATION_LOADED.load(Ordering::SeqCst) {
+            return Ok(());
+        }
+
         let container_padding = self.container_padding();
         let mut adjusted_work_area = offset.map_or_else(
             || *work_area,

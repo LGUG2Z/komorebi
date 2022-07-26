@@ -1,7 +1,6 @@
 use std::sync::atomic::AtomicIsize;
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
-use std::thread;
 use std::time::Duration;
 
 use crossbeam_channel::Receiver;
@@ -44,7 +43,7 @@ impl WinEventListener {
         let hook = self.hook.clone();
         let outgoing = self.outgoing_events.lock().clone();
 
-        thread::spawn(move || unsafe {
+        std::thread::spawn(move || unsafe {
             let hook_ref = SetWinEventHook(
                 EVENT_MIN as u32,
                 EVENT_MAX as u32,
@@ -96,7 +95,7 @@ impl MessageLoop {
                 }
             }
 
-            thread::sleep(Duration::from_millis(sleep));
+            std::thread::sleep(Duration::from_millis(sleep));
 
             if !cb(value) {
                 break;

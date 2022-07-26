@@ -396,8 +396,11 @@ struct FocusFollowsMouse {
 #[derive(Parser, AhkFunction)]
 struct Start {
     /// Allow the use of komorebi's custom focus-follows-mouse implementation
-    #[clap(long)]
+    #[clap(action, short, long = "ffm")]
     ffm: bool,
+    /// Wait for 'komorebic complete-configuration' to be sent before processing events
+    #[clap(action, short, long)]
+    await_configuration: bool,
 }
 
 #[derive(Parser, AhkFunction)]
@@ -627,6 +630,8 @@ enum SubCommand {
     /// Enable or disable watching of ~/komorebi.ahk (if it exists)
     #[clap(arg_required_else_help = true)]
     WatchConfiguration(WatchConfiguration),
+    /// Signal that the final configuration option has been sent
+    CompleteConfiguration,
     /// Set the window behaviour when switching workspaces / cycling stacks
     #[clap(arg_required_else_help = true)]
     WindowHidingBehaviour(WindowHidingBehaviour),
@@ -910,19 +915,33 @@ fn main() -> Result<()> {
 
             let script = exec.map_or_else(
                 || {
-                    if arg.ffm {
-                        String::from(
-                            "Start-Process komorebi.exe -ArgumentList '--ffm' -WindowStyle hidden",
+                    if arg.ffm | arg.await_configuration {
+                        format!(
+                            "Start-Process komorebi.exe -ArgumentList {} -WindowStyle hidden",
+                            if arg.ffm && arg.await_configuration {
+                                "'--ffm','--await-configuration'"
+                            } else if arg.ffm {
+                                "'--ffm'"
+                            } else {
+                                "'--await-configuration'"
+                            }
                         )
                     } else {
                         String::from("Start-Process komorebi.exe -WindowStyle hidden")
                     }
                 },
                 |exec| {
-                    if arg.ffm {
+                    if arg.ffm | arg.await_configuration {
                         format!(
-                            "Start-Process '{}' -ArgumentList '--ffm' -WindowStyle hidden",
-                            exec
+                            "Start-Process '{}' -ArgumentList {} -WindowStyle hidden",
+                            exec,
+                            if arg.ffm && arg.await_configuration {
+                                "'--ffm','--await-configuration'"
+                            } else if arg.ffm {
+                                "'--ffm'"
+                            } else {
+                                "'--await-configuration'"
+                            }
                         )
                     } else {
                         format!("Start-Process '{}' -WindowStyle hidden", exec)
@@ -1106,6 +1125,9 @@ fn main() -> Result<()> {
         }
         SubCommand::WatchConfiguration(arg) => {
             send_message(&SocketMessage::WatchConfiguration(arg.boolean_state.into()).as_bytes()?)?;
+        }
+        SubCommand::CompleteConfiguration => {
+            send_message(&SocketMessage::CompleteConfiguration.as_bytes()?)?;
         }
         SubCommand::IdentifyObjectNameChangeApplication(target) => {
             send_message(
