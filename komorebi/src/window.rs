@@ -175,6 +175,18 @@ impl Window {
         WindowsApi::maximize_window(self.hwnd());
     }
 
+    pub fn unmaximize(self) {
+        let mut programmatically_hidden_hwnds = HIDDEN_HWNDS.lock();
+        if let Some(idx) = programmatically_hidden_hwnds
+            .iter()
+            .position(|&hwnd| hwnd == self.hwnd)
+        {
+            programmatically_hidden_hwnds.remove(idx);
+        }
+
+        WindowsApi::unmaximize_window(self.hwnd());
+    }
+
     pub fn raise(self) -> Result<()> {
         // Attach komorebi thread to Window thread
         let (_, window_thread_id) = WindowsApi::window_thread_process_id(self.hwnd());

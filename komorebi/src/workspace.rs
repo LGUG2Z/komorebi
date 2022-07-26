@@ -466,6 +466,7 @@ impl Workspace {
 
         if let Some(window) = self.maximized_window() {
             if window.hwnd == hwnd {
+                window.unmaximize();
                 self.set_maximized_window(None);
                 self.set_maximized_window_restore_idx(None);
                 return Ok(());
