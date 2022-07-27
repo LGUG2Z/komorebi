@@ -6,7 +6,7 @@ clean:
 
 fmt:
     cargo +nightly fmt
-    cargo +nightly clippy
+    cargo +stable clippy
     prettier --write README.md
 
 install-komorebic:
