@@ -771,6 +771,53 @@ impl Workspace {
 
     pub fn new_maximized_window(&mut self) -> Result<()> {
         let focused_idx = self.focused_container_idx();
+        let foreground_hwnd = WindowsApi::foreground_window()?;
+        let mut floating_window = None;
+
+        if !self.floating_windows().is_empty() {
+            let mut focused_floating_window_idx = None;
+            for (i, w) in self.floating_windows().iter().enumerate() {
+                if w.hwnd == foreground_hwnd {
+                    focused_floating_window_idx = Option::from(i);
+                }
+            }
+
+            if let Some(idx) = focused_floating_window_idx {
+                floating_window = Option::from(self.floating_windows_mut().remove(idx));
+            }
+        }
+
+        if let Some(floating_window) = floating_window {
+            self.set_maximized_window(Option::from(floating_window));
+            self.set_maximized_window_restore_idx(Option::from(focused_idx));
+            if let Some(window) = self.maximized_window() {
+                window.maximize();
+            }
+
+            return Ok(());
+        }
+
+        let monocle_restore_idx = self.monocle_container_restore_idx();
+        if let Some(monocle_container) = self.monocle_container_mut() {
+            let window = monocle_container
+                .remove_focused_window()
+                .ok_or_else(|| anyhow!("there is no window"))?;
+
+            if monocle_container.windows().is_empty() {
+                self.set_monocle_container(None);
+                self.set_monocle_container_restore_idx(None);
+            } else {
+                monocle_container.load_focused_window();
+            }
+
+            self.set_maximized_window(Option::from(window));
+            self.set_maximized_window_restore_idx(monocle_restore_idx);
+            if let Some(window) = self.maximized_window() {
+                window.maximize();
+            }
+
+            return Ok(());
+        }
 
         let container = self
             .focused_container_mut()
