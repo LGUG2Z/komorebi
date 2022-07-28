@@ -648,22 +648,44 @@ impl Workspace {
     }
 
     pub fn new_floating_window(&mut self) -> Result<()> {
-        let focused_idx = self.focused_container_idx();
+        let window = if let Some(maximized_window) = self.maximized_window() {
+            let window = *maximized_window;
+            self.set_maximized_window(None);
+            self.set_maximized_window_restore_idx(None);
+            window
+        } else if let Some(monocle_container) = self.monocle_container_mut() {
+            let window = monocle_container
+                .remove_focused_window()
+                .ok_or_else(|| anyhow!("there is no window"))?;
 
-        let container = self
-            .focused_container_mut()
-            .ok_or_else(|| anyhow!("there is no container"))?;
+            if monocle_container.windows().is_empty() {
+                self.set_monocle_container(None);
+                self.set_monocle_container_restore_idx(None);
+            } else {
+                monocle_container.load_focused_window();
+            }
 
-        let window = container
-            .remove_focused_window()
-            .ok_or_else(|| anyhow!("there is no window"))?;
-
-        if container.windows().is_empty() {
-            self.containers_mut().remove(focused_idx);
-            self.resize_dimensions_mut().remove(focused_idx);
+            window
         } else {
-            container.load_focused_window();
-        }
+            let focused_idx = self.focused_container_idx();
+
+            let container = self
+                .focused_container_mut()
+                .ok_or_else(|| anyhow!("there is no container"))?;
+
+            let window = container
+                .remove_focused_window()
+                .ok_or_else(|| anyhow!("there is no window"))?;
+
+            if container.windows().is_empty() {
+                self.containers_mut().remove(focused_idx);
+                self.resize_dimensions_mut().remove(focused_idx);
+            } else {
+                container.load_focused_window();
+            }
+
+            window
+        };
 
         self.floating_windows_mut().push(window);
 
