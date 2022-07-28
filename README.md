@@ -2,6 +2,13 @@
 
 Tiling Window Management for Windows.
 
+![GitHub Workflow Status (branch)](https://img.shields.io/github/workflow/status/LGUG2Z/komorebi/Windows/master)
+![GitHub](https://img.shields.io/github/license/LGUG2Z/komorebi)
+![GitHub all releases](https://img.shields.io/github/downloads/LGUG2Z/komorebi/total)
+![GitHub commits since latest release (by date) for a branch](https://img.shields.io/github/commits-since/LGUG2Z/komorebi/latest/master)
+![Discord](https://img.shields.io/discord/898554690126630914?label=discord)
+![GitHub Sponsors](https://img.shields.io/github/sponsors/LGUG2Z)
+
 ![screenshot](https://i.ibb.co/BTqNS45/komorebi.png)
 
 ## About
