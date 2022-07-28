@@ -1293,15 +1293,18 @@ fn resolve_windows_path(raw_path: &str) -> Result<PathBuf> {
         .parent()
         .ok_or_else(|| anyhow!("cannot parse directory"))?;
 
-    let file = full_path
-        .components()
-        .last()
-        .ok_or_else(|| anyhow!("cannot parse filename"))?;
+    Ok(if parent.is_dir() {
+        let file = full_path
+            .components()
+            .last()
+            .ok_or_else(|| anyhow!("cannot parse filename"))?;
 
-    let mut canonicalized = std::fs::canonicalize(parent)?;
-    canonicalized.push(file);
-
-    Ok(canonicalized)
+        let mut canonicalized = std::fs::canonicalize(parent)?;
+        canonicalized.push(file);
+        canonicalized
+    } else {
+        full_path
+    })
 }
 
 fn show_window(hwnd: HWND, command: SHOW_WINDOW_CMD) {
