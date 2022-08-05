@@ -426,11 +426,9 @@ YAML
 
 ```yaml
 - column: Secondary
-  configuration:
-    Horizontal: 2 # max number of rows,
+  configuration: !Horizontal 2 # max number of rows
 - column: Primary
-  configuration:
-    WidthPercentage: 45 # percentage of screen
+  configuration: !WidthPercentage 50 # percentage of screen
 - column: Tertiary
   configuration: Horizontal
 ```
