@@ -937,9 +937,16 @@ impl WindowManager {
     pub fn focus_container_in_direction(&mut self, direction: OperationDirection) -> Result<()> {
         self.handle_unmanaged_window_behaviour()?;
 
+        let workspace = self.focused_workspace()?;
+
+        if workspace.is_focused_window_monocle_or_maximized()? {
+            return Err(anyhow!(
+                "ignoring command while active window is in monocle mode or maximized"
+            ));
+        }
+
         tracing::info!("focusing container");
 
-        let workspace = self.focused_workspace()?;
         let new_idx = workspace.new_idx_for_direction(direction);
 
         // if there is no container in that direction for this workspace
@@ -966,9 +973,14 @@ impl WindowManager {
     pub fn move_container_in_direction(&mut self, direction: OperationDirection) -> Result<()> {
         self.handle_unmanaged_window_behaviour()?;
 
-        tracing::info!("moving container");
-
         let workspace = self.focused_workspace()?;
+        if workspace.is_focused_window_monocle_or_maximized()? {
+            return Err(anyhow!(
+                "ignoring command while active window is in monocle mode or maximized"
+            ));
+        }
+
+        tracing::info!("moving container");
 
         let origin_container_idx = workspace.focused_container_idx();
         let origin_monitor_idx = self.focused_monitor_idx();
@@ -1109,9 +1121,14 @@ impl WindowManager {
     pub fn move_container_in_cycle_direction(&mut self, direction: CycleDirection) -> Result<()> {
         self.handle_unmanaged_window_behaviour()?;
 
-        tracing::info!("moving container");
-
         let workspace = self.focused_workspace_mut()?;
+        if workspace.is_focused_window_monocle_or_maximized()? {
+            return Err(anyhow!(
+                "ignoring command while active window is in monocle mode or maximized"
+            ));
+        }
+
+        tracing::info!("moving container");
 
         let current_idx = workspace.focused_container_idx();
         let new_idx = workspace

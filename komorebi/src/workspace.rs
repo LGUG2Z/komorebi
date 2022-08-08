@@ -362,6 +362,23 @@ impl Workspace {
         false
     }
 
+    pub fn is_focused_window_monocle_or_maximized(&self) -> Result<bool> {
+        let hwnd = WindowsApi::foreground_window()?;
+        if let Some(window) = self.maximized_window() {
+            if hwnd == window.hwnd {
+                return Ok(true);
+            }
+        }
+
+        if let Some(container) = self.monocle_container() {
+            if container.contains_window(hwnd) {
+                return Ok(true);
+            }
+        }
+
+        Ok(false)
+    }
+
     pub fn contains_window(&self, hwnd: isize) -> bool {
         for container in self.containers() {
             if container.contains_window(hwnd) {
