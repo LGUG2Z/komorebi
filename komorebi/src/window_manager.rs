@@ -1475,6 +1475,7 @@ impl WindowManager {
         }
 
         workspace.set_layout(Layout::Custom(layout));
+        workspace.set_layout_flip(None);
         self.update_focused_workspace(self.mouse_follows_focus)
     }
 
@@ -1715,6 +1716,7 @@ impl WindowManager {
             .ok_or_else(|| anyhow!("there is no monitor"))?;
 
         workspace.set_layout(Layout::Custom(layout));
+        workspace.set_layout_flip(None);
 
         // If this is the focused workspace on a non-focused screen, let's update it
         if focused_monitor_idx != monitor_idx && focused_workspace_idx == workspace_idx {

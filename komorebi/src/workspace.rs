@@ -183,6 +183,10 @@ impl Workspace {
             }
 
             if let Some(updated_layout) = updated_layout {
+                if !matches!(updated_layout, Layout::Default(DefaultLayout::BSP)) {
+                    self.set_layout_flip(None);
+                }
+
                 self.set_layout(updated_layout);
             }
         }
