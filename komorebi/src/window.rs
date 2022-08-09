@@ -243,7 +243,17 @@ impl Window {
         }
 
         // This isn't really needed when the above command works as expected via AHK
-        WindowsApi::set_focus(self.hwnd())
+        match WindowsApi::set_focus(self.hwnd()) {
+            Ok(_) => {}
+            Err(error) => {
+                tracing::error!(
+                    "could not set focus, but continuing execution of focus(): {}",
+                    error
+                );
+            }
+        };
+
+        Ok(())
     }
 
     #[allow(dead_code)]
