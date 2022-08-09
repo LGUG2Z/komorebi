@@ -1911,7 +1911,7 @@ impl WindowManager {
         monitor.focus_workspace(idx)?;
         monitor.load_focused_workspace(mouse_follows_focus)?;
 
-        self.update_focused_workspace(mouse_follows_focus)
+        self.update_focused_workspace(false)
     }
 
     #[tracing::instrument(skip(self))]

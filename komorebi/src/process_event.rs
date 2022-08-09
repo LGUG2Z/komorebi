@@ -481,9 +481,10 @@ impl WindowManager {
                 border.hide()?;
                 BORDER_HIDDEN.store(true, Ordering::SeqCst);
             }
-            WindowManagerEvent::MoveResizeEnd(_, window)
-            | WindowManagerEvent::Show(_, window)
-            | WindowManagerEvent::FocusChange(_, window) => {
+            WindowManagerEvent::MoveResizeEnd(_, _)
+            | WindowManagerEvent::Show(_, _)
+            | WindowManagerEvent::FocusChange(_, _) => {
+                let window = self.focused_window()?;
                 let mut rect = WindowsApi::window_rect(window.hwnd())?;
                 rect.top -= self.invisible_borders.bottom;
                 rect.bottom += self.invisible_borders.bottom;

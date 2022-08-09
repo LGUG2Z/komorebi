@@ -93,7 +93,7 @@ use windows::Win32::UI::WindowsAndMessaging::SW_HIDE;
 use windows::Win32::UI::WindowsAndMessaging::SW_MAXIMIZE;
 use windows::Win32::UI::WindowsAndMessaging::SW_MINIMIZE;
 use windows::Win32::UI::WindowsAndMessaging::SW_NORMAL;
-use windows::Win32::UI::WindowsAndMessaging::SW_RESTORE;
+use windows::Win32::UI::WindowsAndMessaging::SW_SHOWNOACTIVATE;
 use windows::Win32::UI::WindowsAndMessaging::SYSTEM_PARAMETERS_INFO_ACTION;
 use windows::Win32::UI::WindowsAndMessaging::SYSTEM_PARAMETERS_INFO_UPDATE_FLAGS;
 use windows::Win32::UI::WindowsAndMessaging::WINDOW_LONG_PTR_INDEX;
@@ -332,7 +332,7 @@ impl WindowsApi {
     }
 
     pub fn restore_window(hwnd: HWND) {
-        Self::show_window(hwnd, SW_RESTORE);
+        Self::show_window(hwnd, SW_SHOWNOACTIVATE);
     }
 
     pub fn unmaximize_window(hwnd: HWND) {

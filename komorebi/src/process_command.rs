@@ -91,6 +91,20 @@ impl WindowManager {
         }
 
         match message {
+            SocketMessage::CycleFocusMonitor(_)
+            | SocketMessage::CycleFocusWorkspace(_)
+            | SocketMessage::FocusMonitorNumber(_)
+            | SocketMessage::FocusMonitorWorkspaceNumber(_, _)
+            | SocketMessage::FocusWorkspaceNumber(_) => {
+                if self.focused_workspace()?.visible_windows().is_empty() {
+                    let border = Border::from(BORDER_HWND.load(Ordering::SeqCst));
+                    border.hide()?;
+                }
+            }
+            _ => {}
+        };
+
+        match message {
             SocketMessage::Promote => self.promote_container_to_front()?,
             SocketMessage::FocusWindow(direction) => {
                 self.focus_container_in_direction(direction)?;
@@ -781,16 +795,6 @@ impl WindowManager {
 
                 let border = Border::from(BORDER_HWND.load(Ordering::SeqCst));
                 border.set_position(foreground_window, &self.invisible_borders, false)?;
-            }
-            SocketMessage::CycleFocusMonitor(_)
-            | SocketMessage::CycleFocusWorkspace(_)
-            | SocketMessage::FocusMonitorNumber(_)
-            | SocketMessage::FocusMonitorWorkspaceNumber(_, _)
-            | SocketMessage::FocusWorkspaceNumber(_) => {
-                if self.focused_workspace()?.visible_windows().is_empty() {
-                    let border = Border::from(BORDER_HWND.load(Ordering::SeqCst));
-                    border.hide()?;
-                }
             }
             SocketMessage::TogglePause => {
                 let is_paused = self.is_paused;
