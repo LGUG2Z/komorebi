@@ -20,6 +20,9 @@ use crate::window_manager_event::WindowManagerEvent;
 use crate::windows_api::WindowsApi;
 use crate::Notification;
 use crate::NotificationEvent;
+use crate::BORDER_COLOUR_CURRENT;
+use crate::BORDER_COLOUR_SINGLE;
+use crate::BORDER_COLOUR_STACK;
 use crate::BORDER_ENABLED;
 use crate::BORDER_HIDDEN;
 use crate::BORDER_HWND;
@@ -483,19 +486,48 @@ impl WindowManager {
                 }
                 WindowManagerEvent::MoveResizeEnd(_, _)
                 | WindowManagerEvent::Show(_, _)
-                | WindowManagerEvent::FocusChange(_, _) => {
-                    let window = self.focused_window()?;
-                    let mut rect = WindowsApi::window_rect(window.hwnd())?;
-                    rect.top -= self.invisible_borders.bottom;
-                    rect.bottom += self.invisible_borders.bottom;
-
-                    let activate = BORDER_HIDDEN.load(Ordering::SeqCst);
-
+                | WindowManagerEvent::FocusChange(_, _)
+                | WindowManagerEvent::Minimize(_, _) => {
                     let border = Border::from(BORDER_HWND.load(Ordering::SeqCst));
-                    border.set_position(*window, &self.invisible_borders, activate)?;
 
-                    if activate {
-                        BORDER_HIDDEN.store(false, Ordering::SeqCst);
+                    match self.focused_container() {
+                        // if there is no focused container, the desktop is empty
+                        Err(..) => {
+                            WindowsApi::hide_border_window(border.hwnd())?;
+                        }
+                        Ok(container) => {
+                            if !(matches!(event, WindowManagerEvent::Minimize(_, _))
+                                && container.windows().len() == 1)
+                            {
+                                let container_size = self.focused_container()?.windows().len();
+
+                                let window = self.focused_window()?;
+                                let mut rect = WindowsApi::window_rect(window.hwnd())?;
+                                rect.top -= self.invisible_borders.bottom;
+                                rect.bottom += self.invisible_borders.bottom;
+
+                                let activate = BORDER_HIDDEN.load(Ordering::SeqCst);
+
+                                if container_size > 1 {
+                                    BORDER_COLOUR_CURRENT.store(
+                                        BORDER_COLOUR_STACK.load(Ordering::SeqCst),
+                                        Ordering::SeqCst,
+                                    );
+                                } else {
+                                    BORDER_COLOUR_CURRENT.store(
+                                        BORDER_COLOUR_SINGLE.load(Ordering::SeqCst),
+                                        Ordering::SeqCst,
+                                    );
+                                }
+
+                                WindowsApi::invalidate_border_rect()?;
+                                border.set_position(*window, &self.invisible_borders, activate)?;
+
+                                if activate {
+                                    BORDER_HIDDEN.store(false, Ordering::SeqCst);
+                                }
+                            }
+                        }
                     }
                 }
                 _ => {}

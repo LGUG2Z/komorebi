@@ -15,7 +15,6 @@ use schemars::JsonSchema;
 use serde::Serialize;
 use uds_windows::UnixListener;
 
-use crate::border::Border;
 use komorebi_core::custom_layout::CustomLayout;
 use komorebi_core::Arrangement;
 use komorebi_core::Axis;
@@ -30,6 +29,7 @@ use komorebi_core::Rect;
 use komorebi_core::Sizing;
 use komorebi_core::WindowContainerBehaviour;
 
+use crate::border::Border;
 use crate::container::Container;
 use crate::current_virtual_desktop;
 use crate::load_configuration;
@@ -205,7 +205,8 @@ impl WindowManager {
         rect.bottom += self.invisible_borders.bottom;
 
         let border = Border::from(BORDER_HWND.load(Ordering::SeqCst));
-        border.set_position(foreground_window, &self.invisible_borders, true)
+        border.set_position(foreground_window, &self.invisible_borders, true)?;
+        WindowsApi::invalidate_border_rect()
     }
 
     #[tracing::instrument(skip(self))]

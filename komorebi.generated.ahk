@@ -251,6 +251,9 @@ Run, komorebic.exe float-rule exe "RepoZ.exe", , Hide
 Run, komorebic.exe identify-tray-application exe "rbxfpsunlocker.exe", , Hide
 
 ; RoundedTB
+Run, komorebic.exe float-rule exe "RoundedTB.exe", , Hide
+
+; RoundedTB
 Run, komorebic.exe identify-border-overflow-application exe "RoundedTB.exe", , Hide
 ; If you have disabled minimize/close to tray for this application, you can delete/comment out the next line
 Run, komorebic.exe identify-tray-application exe "RoundedTB.exe", , Hide
@@ -300,6 +303,9 @@ Run, komorebic.exe identify-tray-application exe "Telegram.exe", , Hide
 ; If you have disabled minimize/close to tray for this application, you can delete/comment out the next line
 Run, komorebic.exe identify-tray-application exe "tcconfig.exe", , Hide
 Run, komorebic.exe float-rule exe "tcconfig.exe", , Hide
+
+; TranslucentTB
+Run, komorebic.exe float-rule exe "TranslucentTB.exe", , Hide
 
 ; TranslucentTB
 ; If you have disabled minimize/close to tray for this application, you can delete/comment out the next line

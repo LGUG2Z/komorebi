@@ -43,6 +43,7 @@ use komorebi_core::Rect;
 use komorebi_core::Sizing;
 use komorebi_core::SocketMessage;
 use komorebi_core::StateQuery;
+use komorebi_core::WindowKind;
 
 lazy_static! {
     static ref HOME_DIR: PathBuf = {
@@ -401,6 +402,8 @@ struct ActiveWindowBorder {
 
 #[derive(Parser, AhkFunction)]
 struct ActiveWindowBorderColour {
+    #[clap(arg_enum, short, long, default_value = "single")]
+    window_kind: WindowKind,
     /// Red
     r: u32,
     /// Green
@@ -1209,7 +1212,8 @@ fn main() -> Result<()> {
         }
         SubCommand::ActiveWindowBorderColour(arg) => {
             send_message(
-                &SocketMessage::ActiveWindowBorderColour(arg.r, arg.g, arg.b).as_bytes()?,
+                &SocketMessage::ActiveWindowBorderColour(arg.window_kind, arg.r, arg.g, arg.b)
+                    .as_bytes()?,
             )?;
         }
         SubCommand::ResizeDelta(arg) => {

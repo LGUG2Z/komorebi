@@ -98,7 +98,7 @@ pub enum SocketMessage {
     WatchConfiguration(bool),
     CompleteConfiguration,
     ActiveWindowBorder(bool),
-    ActiveWindowBorderColour(u32, u32, u32),
+    ActiveWindowBorderColour(WindowKind, u32, u32, u32),
     InvisibleBorders(Rect),
     WorkAreaOffset(Rect),
     ResizeDelta(i32),
@@ -132,6 +132,13 @@ impl FromStr for SocketMessage {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         serde_json::from_str(s)
     }
+}
+
+#[derive(Copy, Clone, Debug, Serialize, Deserialize, Display, EnumString, ArgEnum, JsonSchema)]
+#[strum(serialize_all = "snake_case")]
+pub enum WindowKind {
+    Single,
+    Stack,
 }
 
 #[derive(Copy, Clone, Debug, Serialize, Deserialize, Display, EnumString, ArgEnum, JsonSchema)]

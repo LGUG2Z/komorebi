@@ -1,6 +1,7 @@
 use std::collections::VecDeque;
 use std::convert::TryFrom;
 use std::ffi::c_void;
+use std::sync::atomic::Ordering;
 
 use color_eyre::eyre::anyhow;
 use color_eyre::eyre::Error;
@@ -28,6 +29,7 @@ use windows::Win32::Graphics::Dwm::DWM_CLOAKED_SHELL;
 use windows::Win32::Graphics::Gdi::CreateSolidBrush;
 use windows::Win32::Graphics::Gdi::EnumDisplayMonitors;
 use windows::Win32::Graphics::Gdi::GetMonitorInfoW;
+use windows::Win32::Graphics::Gdi::InvalidateRect;
 use windows::Win32::Graphics::Gdi::MonitorFromPoint;
 use windows::Win32::Graphics::Gdi::MonitorFromWindow;
 use windows::Win32::Graphics::Gdi::HBRUSH;
@@ -68,22 +70,22 @@ use windows::Win32::UI::WindowsAndMessaging::IsWindow;
 use windows::Win32::UI::WindowsAndMessaging::IsWindowVisible;
 use windows::Win32::UI::WindowsAndMessaging::RealGetWindowClassW;
 use windows::Win32::UI::WindowsAndMessaging::RegisterClassA;
-use windows::Win32::UI::WindowsAndMessaging::SetClassLongPtrW;
 use windows::Win32::UI::WindowsAndMessaging::SetCursorPos;
 use windows::Win32::UI::WindowsAndMessaging::SetForegroundWindow;
+use windows::Win32::UI::WindowsAndMessaging::SetLayeredWindowAttributes;
 use windows::Win32::UI::WindowsAndMessaging::SetWindowLongPtrW;
 use windows::Win32::UI::WindowsAndMessaging::SetWindowPos;
 use windows::Win32::UI::WindowsAndMessaging::ShowWindow;
 use windows::Win32::UI::WindowsAndMessaging::SystemParametersInfoW;
 use windows::Win32::UI::WindowsAndMessaging::WindowFromPoint;
 use windows::Win32::UI::WindowsAndMessaging::CW_USEDEFAULT;
-use windows::Win32::UI::WindowsAndMessaging::GCLP_HBRBACKGROUND;
 use windows::Win32::UI::WindowsAndMessaging::GWL_EXSTYLE;
 use windows::Win32::UI::WindowsAndMessaging::GWL_STYLE;
 use windows::Win32::UI::WindowsAndMessaging::GW_HWNDNEXT;
 use windows::Win32::UI::WindowsAndMessaging::HWND_BOTTOM;
 use windows::Win32::UI::WindowsAndMessaging::HWND_NOTOPMOST;
 use windows::Win32::UI::WindowsAndMessaging::HWND_TOPMOST;
+use windows::Win32::UI::WindowsAndMessaging::LWA_COLORKEY;
 use windows::Win32::UI::WindowsAndMessaging::SET_WINDOW_POS_FLAGS;
 use windows::Win32::UI::WindowsAndMessaging::SHOW_WINDOW_CMD;
 use windows::Win32::UI::WindowsAndMessaging::SPIF_SENDCHANGE;
@@ -99,6 +101,7 @@ use windows::Win32::UI::WindowsAndMessaging::SYSTEM_PARAMETERS_INFO_UPDATE_FLAGS
 use windows::Win32::UI::WindowsAndMessaging::WINDOW_LONG_PTR_INDEX;
 use windows::Win32::UI::WindowsAndMessaging::WNDCLASSA;
 use windows::Win32::UI::WindowsAndMessaging::WNDENUMPROC;
+use windows::Win32::UI::WindowsAndMessaging::WS_EX_LAYERED;
 use windows::Win32::UI::WindowsAndMessaging::WS_EX_TOOLWINDOW;
 use windows::Win32::UI::WindowsAndMessaging::WS_MAXIMIZEBOX;
 use windows::Win32::UI::WindowsAndMessaging::WS_MINIMIZEBOX;
@@ -113,6 +116,8 @@ use crate::monitor::Monitor;
 use crate::ring::Ring;
 use crate::set_window_position::SetWindowPosition;
 use crate::windows_callbacks;
+use crate::BORDER_HWND;
+use crate::TRANSPARENCY_COLOUR;
 
 pub enum WindowsResult<T, E> {
     Err(E),
@@ -673,8 +678,8 @@ impl WindowsApi {
         unsafe { GetModuleHandleW(None) }.process()
     }
 
-    pub fn create_solid_brush(r: u32, g: u32, b: u32) -> HBRUSH {
-        unsafe { CreateSolidBrush(r | (g << 8) | (b << 16)) }
+    pub fn create_solid_brush(colour: u32) -> HBRUSH {
+        unsafe { CreateSolidBrush(colour) }
     }
 
     pub fn register_class_a(window_class: &WNDCLASSA) -> Result<u16> {
@@ -690,16 +695,6 @@ impl WindowsApi {
         let b = Self::scale_factor_for_monitor(b)?;
 
         Ok(a == b)
-    }
-
-    pub fn change_border_colour(hwnd: isize, r: u32, g: u32, b: u32) -> Result<usize> {
-        Result::from(WindowsResult::from(unsafe {
-            SetClassLongPtrW(
-                HWND(hwnd),
-                GCLP_HBRBACKGROUND,
-                Self::create_solid_brush(r, g, b).0,
-            )
-        }))
     }
 
     pub fn round_corners(hwnd: isize) -> Result<()> {
@@ -718,8 +713,8 @@ impl WindowsApi {
 
     pub fn create_border_window(name: PCSTR, instance: HINSTANCE) -> Result<isize> {
         unsafe {
-            CreateWindowExA(
-                WS_EX_TOOLWINDOW,
+            let hwnd = CreateWindowExA(
+                WS_EX_TOOLWINDOW | WS_EX_LAYERED,
                 name,
                 name,
                 WS_POPUP | WS_SYSMENU | WS_MAXIMIZEBOX | WS_MINIMIZEBOX,
@@ -731,8 +726,24 @@ impl WindowsApi {
                 None,
                 instance,
                 std::ptr::null(),
+            );
+
+            SetLayeredWindowAttributes(hwnd, TRANSPARENCY_COLOUR, 0, LWA_COLORKEY);
+
+            hwnd
+        }
+        .process()
+    }
+
+    pub fn invalidate_border_rect() -> Result<()> {
+        unsafe {
+            InvalidateRect(
+                HWND(BORDER_HWND.load(Ordering::SeqCst)),
+                std::ptr::null(),
+                false,
             )
         }
+        .ok()
         .process()
     }
 }

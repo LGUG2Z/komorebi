@@ -38,6 +38,7 @@ use winreg::enums::HKEY_CURRENT_USER;
 use winreg::RegKey;
 
 use komorebi_core::HidingBehaviour;
+use komorebi_core::Rect;
 use komorebi_core::SocketMessage;
 
 use crate::border::Border;
@@ -151,6 +152,9 @@ lazy_static! {
             Version::Semantic(_, _, x) if x >= &22000
         )
     };
+
+    static ref BORDER_RECT: Arc<Mutex<Rect>> =
+        Arc::new(Mutex::new(Rect::default()));
 }
 
 pub static INITIAL_CONFIGURATION_LOADED: AtomicBool = AtomicBool::new(false);
@@ -159,6 +163,11 @@ pub static SESSION_ID: AtomicU32 = AtomicU32::new(0);
 pub static BORDER_ENABLED: AtomicBool = AtomicBool::new(false);
 pub static BORDER_HWND: AtomicIsize = AtomicIsize::new(0);
 pub static BORDER_HIDDEN: AtomicBool = AtomicBool::new(false);
+pub static BORDER_COLOUR_SINGLE: AtomicU32 = AtomicU32::new(0);
+pub static BORDER_COLOUR_STACK: AtomicU32 = AtomicU32::new(0);
+pub static BORDER_COLOUR_CURRENT: AtomicU32 = AtomicU32::new(0);
+// 0 0 0 aka pure black, I doubt anyone will want this as a border colour
+pub const TRANSPARENCY_COLOUR: u32 = 0;
 
 fn setup() -> Result<(WorkerGuard, WorkerGuard)> {
     if std::env::var("RUST_LIB_BACKTRACE").is_err() {

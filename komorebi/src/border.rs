@@ -2,7 +2,6 @@ use std::sync::atomic::Ordering;
 use std::time::Duration;
 
 use color_eyre::Result;
-use komorebi_core::Rect;
 use windows::core::PCSTR;
 use windows::Win32::Foundation::HWND;
 use windows::Win32::UI::WindowsAndMessaging::DispatchMessageA;
@@ -13,11 +12,15 @@ use windows::Win32::UI::WindowsAndMessaging::CS_VREDRAW;
 use windows::Win32::UI::WindowsAndMessaging::MSG;
 use windows::Win32::UI::WindowsAndMessaging::WNDCLASSA;
 
+use komorebi_core::Rect;
+
 use crate::window::Window;
 use crate::windows_callbacks;
 use crate::WindowsApi;
 use crate::BORDER_HWND;
 use crate::BORDER_OVERFLOW_IDENTIFIERS;
+use crate::BORDER_RECT;
+use crate::TRANSPARENCY_COLOUR;
 use crate::WINDOWS_11;
 
 #[derive(Debug, Clone, Copy)]
@@ -40,7 +43,7 @@ impl Border {
         let name = format!("{name}\0");
         let instance = WindowsApi::module_handle_w()?;
         let class_name = PCSTR(name.as_ptr());
-        let brush = WindowsApi::create_solid_brush(255, 140, 0);
+        let brush = WindowsApi::create_solid_brush(TRANSPARENCY_COLOUR);
         let window_class = WNDCLASSA {
             hInstance: instance,
             lpszClassName: class_name,
@@ -113,6 +116,8 @@ impl Border {
             rect.right += invisible_borders.right;
             rect.bottom += invisible_borders.bottom;
         }
+
+        *BORDER_RECT.lock() = rect;
 
         WindowsApi::position_border_window(self.hwnd(), &rect, activate)
     }

@@ -26,6 +26,7 @@ use komorebi_core::Sizing;
 use komorebi_core::SocketMessage;
 use komorebi_core::StateQuery;
 use komorebi_core::WindowContainerBehaviour;
+use komorebi_core::WindowKind;
 
 use crate::border::Border;
 use crate::current_virtual_desktop;
@@ -36,6 +37,9 @@ use crate::window_manager::WindowManager;
 use crate::windows_api::WindowsApi;
 use crate::Notification;
 use crate::NotificationEvent;
+use crate::BORDER_COLOUR_CURRENT;
+use crate::BORDER_COLOUR_SINGLE;
+use crate::BORDER_COLOUR_STACK;
 use crate::BORDER_ENABLED;
 use crate::BORDER_HWND;
 use crate::BORDER_OVERFLOW_IDENTIFIERS;
@@ -758,9 +762,18 @@ impl WindowManager {
                     self.hide_border()?;
                 }
             }
-            SocketMessage::ActiveWindowBorderColour(r, g, b) => {
-                let hwnd = BORDER_HWND.load(Ordering::SeqCst);
-                WindowsApi::change_border_colour(hwnd, r, g, b)?;
+            SocketMessage::ActiveWindowBorderColour(kind, r, g, b) => {
+                match kind {
+                    WindowKind::Single => {
+                        BORDER_COLOUR_SINGLE.store(r | (g << 8) | (b << 16), Ordering::SeqCst);
+                        BORDER_COLOUR_CURRENT.store(r | (g << 8) | (b << 16), Ordering::SeqCst);
+                    }
+                    WindowKind::Stack => {
+                        BORDER_COLOUR_STACK.store(r | (g << 8) | (b << 16), Ordering::SeqCst);
+                    }
+                }
+
+                WindowsApi::invalidate_border_rect()?;
             }
             SocketMessage::NotificationSchema => {
                 let notification = schema_for!(Notification);
@@ -789,6 +802,8 @@ impl WindowManager {
             | SocketMessage::ToggleMaximize
             | SocketMessage::Promote
             | SocketMessage::Retile
+            | SocketMessage::InvisibleBorders(_)
+            | SocketMessage::WorkAreaOffset(_)
             | SocketMessage::MoveWindow(_) => {
                 let foreground = WindowsApi::foreground_window()?;
                 let foreground_window = Window { hwnd: foreground };

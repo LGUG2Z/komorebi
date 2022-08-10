@@ -268,7 +268,10 @@ If you would like to add a visual border around the currently focused window, tw
 
 ```powershell
 komorebic.exe active-window-border [enable|disable]
-komorebic.exe active-window-border-colour [R G B]
+komorebic.exe active-window-border-colour [R G B] --window-kind single
+
+# optionally, if you want a different colour for stacks of windows
+komorebic.exe active-window-border-colour [R G B] --window-kind stack
 ```
 
 It is important to note that the active window border will only apply to windows managed by `komorebi`.
@@ -484,95 +487,6 @@ You can run `komorebic.exe` to get a full list of the commands that you can use 
 keybindings with. You can run `komorebic.exe <COMMAND> --help` to get a full explanation of the arguments required for
 each command.
 
-```
-start                                      Start komorebi.exe as a background process
-stop                                       Stop the komorebi.exe process and restore all hidden windows
-state                                      Show a JSON representation of the current window manager state
-query                                      Query the current window manager state
-subscribe                                  Subscribe to komorebi events
-unsubscribe                                Unsubscribe from komorebi events
-log                                        Tail komorebi.exe's process logs (cancel with Ctrl-C)
-quick-save-resize                          Quicksave the current resize layout dimensions
-quick-load-resize                          Load the last quicksaved resize layout dimensions
-save-resize                                Save the current resize layout dimensions to a file
-load-resize                                Load the resize layout dimensions from a file
-focus                                      Change focus to the window in the specified direction
-move                                       Move the focused window in the specified direction
-cycle-focus                                Change focus to the window in the specified cycle direction
-cycle-move                                 Move the focused window in the specified cycle direction
-stack                                      Stack the focused window in the specified direction
-resize-edge                                Resize the focused window in the specified direction
-resize-axis                                Resize the focused window or primary column along the specified axis
-unstack                                    Unstack the focused window
-cycle-stack                                Cycle the focused stack in the specified cycle direction
-move-to-monitor                            Move the focused window to the specified monitor
-move-to-workspace                          Move the focused window to the specified workspace
-send-to-monitor                            Send the focused window to the specified monitor
-send-to-workspace                          Send the focused window to the specified workspace
-send-to-monitor-workspace                  Send the focused window to the specified monitor workspace
-focus-monitor                              Focus the specified monitor
-focus-workspace                            Focus the specified workspace on the focused monitor
-focus-monitor-workspace                    Focus the specified workspace on the target monitor
-cycle-monitor                              Focus the monitor in the given cycle direction
-cycle-workspace                            Focus the workspace in the given cycle direction
-move-workspace-to-monitor                  Move the focused workspace to the specified monitor
-new-workspace                              Create and append a new workspace on the focused monitor
-resize-delta                               Set the resize delta (used by resize-edge and resize-axis)
-invisible-borders                          Set the invisible border dimensions around each window
-work-area-offset                           Set offsets to exclude parts of the work area from tiling
-adjust-container-padding                   Adjust container padding on the focused workspace
-adjust-workspace-padding                   Adjust workspace padding on the focused workspace
-change-layout                              Set the layout on the focused workspace
-load-custom-layout                         Load a custom layout from file for the focused workspace
-flip-layout                                Flip the layout on the focused workspace (BSP only)
-promote                                    Promote the focused window to the top of the tree
-retile                                     Force the retiling of all managed windows
-ensure-workspaces                          Create at least this many workspaces for the specified monitor
-container-padding                          Set the container padding for the specified workspace
-workspace-padding                          Set the workspace padding for the specified workspace
-workspace-layout                           Set the layout for the specified workspace
-workspace-custom-layout                    Set a custom layout for the specified workspace
-workspace-layout-rule                      Add a dynamic layout rule for the specified workspace
-workspace-custom-layout-rule               Add a dynamic custom layout for the specified workspace
-clear-workspace-layout-rules               Clear all dynamic layout rules for the specified workspace
-workspace-tiling                           Enable or disable window tiling for the specified workspace
-workspace-name                             Set the workspace name for the specified workspace
-toggle-window-container-behaviour          Toggle the behaviour for new windows (stacking or dynamic tiling)
-toggle-pause                               Toggle window tiling on the focused workspace
-toggle-tiling                              Toggle window tiling on the focused workspace
-toggle-float                               Toggle floating mode for the focused window
-toggle-monocle                             Toggle monocle mode for the focused container
-toggle-maximize                            Toggle native maximization for the focused window
-restore-windows                            Restore all hidden windows (debugging command)
-manage                                     Force komorebi to manage the focused window
-unmanage                                   Unmanage a window that was forcibly managed
-reload-configuration                       Reload ~/komorebi.ahk (if it exists)
-watch-configuration                        Enable or disable watching of ~/komorebi.ahk (if it exists)
-complete-configuration                     Signal that the final configuration option has been sent
-window-hiding-behaviour                    Set the window behaviour when switching workspaces / cycling stacks
-cross-monitor-move-behaviour               Set the behaviour when moving windows across monitor boundaries
-toggle-cross-monitor-move-behaviour        Toggle the behaviour when moving windows across monitor boundaries
-unmanaged-window-operation-behaviour       Set the operation behaviour when the focused window is not managed
-float-rule                                 Add a rule to always float the specified application
-manage-rule                                Add a rule to always manage the specified application
-workspace-rule                             Add a rule to associate an application with a workspace
-identify-object-name-change-application    Identify an application that sends EVENT_OBJECT_NAMECHANGE on launch
-identify-tray-application                  Identify an application that closes to the system tray
-identify-layered-application               Identify an application that has WS_EX_LAYERED, but should still be managed
-identify-border-overflow-application       Identify an application that has overflowing borders
-active-window-border                       Enable or disable the active window border
-active-window-border-colour                Set the colour for the active window border
-focus-follows-mouse                        Enable or disable focus follows mouse for the operating system
-toggle-focus-follows-mouse                 Toggle focus follows mouse for the operating system
-mouse-follows-focus                        Enable or disable mouse follows focus on all workspaces
-toggle-mouse-follows-focus                 Toggle mouse follows focus on all workspaces
-ahk-library                                Generate a library of AutoHotKey helper functions
-ahk-app-specific-configuration             Generate common app-specific configurations and fixes to use in komorebi.ahk
-format-app-specific-configuration          Format a YAML file for use with the 'ahk-app-specific-configuration' command
-notification-schema                        Generate a JSON Schema of subscription notifications
-help                                       Print this message or the help of the given subcommand(s)
-```
-
 ### AutoHotKey Helper Library for `komorebic`
 
 Additionally, you may run `komorebic.exe ahk-library` to
@@ -602,7 +516,7 @@ used [is available here](komorebi.sample.with.lib.ahk).
 - [x] Resize window container in direction
 - [x] Resize window container on axis
 - [x] Set custom resize delta
-- [ ] Resize child window containers by split ratio
+- [x] Active window border
 - [x] Quicksave and quickload layouts with resize dimensions
 - [x] Save and load layouts with resize dimensions to/from specific files
 - [x] Mouse drag to swap window container position
@@ -623,7 +537,7 @@ used [is available here](komorebi.sample.with.lib.ahk).
 - [x] Identify applications which overflow their borders by exe name and class
 - [x] Identify 'close/minimize to tray' applications by exe name and class
 - [x] Configure work area offsets to preserve space for custom taskbars
-- [x] Configure and compensate for the size of Windows 10's invisible borders
+- [x] Configure and compensate for the size of Windows invisible borders
 - [x] Toggle floating windows
 - [x] Toggle monocle window
 - [x] Toggle native maximization
@@ -732,6 +646,9 @@ in `komorebi-core`.
 An example of how to create a named pipe and a subscription to `komorebi`'s handled events in Python
 by [@denBot](https://github.com/denBot) can be
 found [here](https://gist.github.com/denBot/4136279812f87819f86d99eba77c1ee0).
+
+An example of how to create a named pipe and a subscription to `komorebi`'s handled events in Rust can also be found
+in the [`komokana`](https://github.com/LGUG2Z/komokana) repository.
 
 ### Subscription Event Notification Schema
 

@@ -1,4 +1,5 @@
 use std::collections::VecDeque;
+use std::sync::atomic::Ordering;
 
 use windows::Win32::Foundation::BOOL;
 use windows::Win32::Foundation::HWND;
@@ -6,9 +7,16 @@ use windows::Win32::Foundation::LPARAM;
 use windows::Win32::Foundation::LRESULT;
 use windows::Win32::Foundation::RECT;
 use windows::Win32::Foundation::WPARAM;
-use windows::Win32::Graphics::Gdi::InvalidateRect;
+use windows::Win32::Graphics::Gdi::BeginPaint;
+use windows::Win32::Graphics::Gdi::CreatePen;
+use windows::Win32::Graphics::Gdi::EndPaint;
+use windows::Win32::Graphics::Gdi::Rectangle;
+use windows::Win32::Graphics::Gdi::SelectObject;
+use windows::Win32::Graphics::Gdi::ValidateRect;
 use windows::Win32::Graphics::Gdi::HDC;
 use windows::Win32::Graphics::Gdi::HMONITOR;
+use windows::Win32::Graphics::Gdi::PAINTSTRUCT;
+use windows::Win32::Graphics::Gdi::PS_SOLID;
 use windows::Win32::UI::Accessibility::HWINEVENTHOOK;
 use windows::Win32::UI::WindowsAndMessaging::DefWindowProcW;
 use windows::Win32::UI::WindowsAndMessaging::PostQuitMessage;
@@ -22,6 +30,9 @@ use crate::window::Window;
 use crate::window_manager_event::WindowManagerEvent;
 use crate::windows_api::WindowsApi;
 use crate::winevent_listener::WINEVENT_CALLBACK_CHANNEL;
+use crate::BORDER_COLOUR_CURRENT;
+use crate::BORDER_RECT;
+use crate::TRANSPARENCY_COLOUR;
 
 pub extern "system" fn valid_display_monitors(
     hmonitor: HMONITOR,
@@ -120,7 +131,18 @@ pub extern "system" fn border_window(
     unsafe {
         match message as u32 {
             WM_PAINT => {
-                InvalidateRect(window, std::ptr::null(), true);
+                let border_rect = *BORDER_RECT.lock();
+                let mut ps = PAINTSTRUCT::default();
+                let hdc = BeginPaint(window, std::ptr::addr_of_mut!(ps).cast());
+                let hpen = CreatePen(PS_SOLID, 20, BORDER_COLOUR_CURRENT.load(Ordering::SeqCst));
+                let hbrush = WindowsApi::create_solid_brush(TRANSPARENCY_COLOUR);
+
+                SelectObject(hdc, hpen);
+                SelectObject(hdc, hbrush);
+                Rectangle(hdc, 0, 0, border_rect.right, border_rect.bottom);
+                EndPaint(window, &ps);
+                ValidateRect(window, std::ptr::null());
+
                 LRESULT(0)
             }
             WM_DESTROY => {
