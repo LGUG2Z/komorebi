@@ -9,9 +9,10 @@ Tiling Window Management for Windows.
 ![Discord](https://img.shields.io/discord/898554690126630914?label=discord)
 ![GitHub Sponsors](https://img.shields.io/github/sponsors/LGUG2Z)
 
-![screenshot](https://i.ibb.co/BTqNS45/komorebi.png)
+![screenshot](https://user-images.githubusercontent.com/13164844/184027064-f5a6cec2-2865-4d65-a549-a1f1da589abf.png)
 
 ## About
+
 
 _komorebi_ is a tiling window manager that works as an extension to
 Microsoft's [Desktop Window Manager](https://docs.microsoft.com/en-us/windows/win32/dwm/dwm-overview) in Windows 10 and
