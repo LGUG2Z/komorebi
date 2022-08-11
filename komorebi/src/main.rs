@@ -37,10 +37,10 @@ use which::which;
 use winreg::enums::HKEY_CURRENT_USER;
 use winreg::RegKey;
 
-use crate::border::Border;
 use komorebi_core::HidingBehaviour;
 use komorebi_core::SocketMessage;
 
+use crate::border::Border;
 use crate::process_command::listen_for_commands;
 use crate::process_event::listen_for_events;
 use crate::process_movement::listen_for_movements;
@@ -156,6 +156,7 @@ lazy_static! {
 pub static INITIAL_CONFIGURATION_LOADED: AtomicBool = AtomicBool::new(false);
 pub static CUSTOM_FFM: AtomicBool = AtomicBool::new(false);
 pub static SESSION_ID: AtomicU32 = AtomicU32::new(0);
+pub static BORDER_ENABLED: AtomicBool = AtomicBool::new(false);
 pub static BORDER_HWND: AtomicIsize = AtomicIsize::new(0);
 pub static BORDER_HIDDEN: AtomicBool = AtomicBool::new(false);
 

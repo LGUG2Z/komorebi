@@ -15,7 +15,6 @@ use parking_lot::Mutex;
 use schemars::schema_for;
 use uds_windows::UnixStream;
 
-use crate::border::Border;
 use komorebi_core::ApplicationIdentifier;
 use komorebi_core::Axis;
 use komorebi_core::FocusFollowsMouseImplementation;
@@ -28,6 +27,7 @@ use komorebi_core::SocketMessage;
 use komorebi_core::StateQuery;
 use komorebi_core::WindowContainerBehaviour;
 
+use crate::border::Border;
 use crate::current_virtual_desktop;
 use crate::notify_subscribers;
 use crate::window::Window;
@@ -36,6 +36,7 @@ use crate::window_manager::WindowManager;
 use crate::windows_api::WindowsApi;
 use crate::Notification;
 use crate::NotificationEvent;
+use crate::BORDER_ENABLED;
 use crate::BORDER_HWND;
 use crate::BORDER_OVERFLOW_IDENTIFIERS;
 use crate::CUSTOM_FFM;
@@ -750,8 +751,10 @@ impl WindowManager {
             }
             SocketMessage::ActiveWindowBorder(enable) => {
                 if enable {
+                    BORDER_ENABLED.store(true, Ordering::SeqCst);
                     self.show_border()?;
                 } else {
+                    BORDER_ENABLED.store(false, Ordering::SeqCst);
                     self.hide_border()?;
                 }
             }

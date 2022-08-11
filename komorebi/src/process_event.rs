@@ -5,15 +5,14 @@ use std::sync::Arc;
 use color_eyre::eyre::anyhow;
 use color_eyre::Result;
 use crossbeam_channel::select;
-
 use parking_lot::Mutex;
 
-use crate::border::Border;
 use komorebi_core::OperationDirection;
 use komorebi_core::Rect;
 use komorebi_core::Sizing;
 use komorebi_core::WindowContainerBehaviour;
 
+use crate::border::Border;
 use crate::current_virtual_desktop;
 use crate::notify_subscribers;
 use crate::window_manager::WindowManager;
@@ -21,9 +20,9 @@ use crate::window_manager_event::WindowManagerEvent;
 use crate::windows_api::WindowsApi;
 use crate::Notification;
 use crate::NotificationEvent;
+use crate::BORDER_ENABLED;
 use crate::BORDER_HIDDEN;
 use crate::BORDER_HWND;
-
 use crate::DATA_DIR;
 use crate::HIDDEN_HWNDS;
 use crate::TRAY_AND_MULTI_WINDOW_IDENTIFIERS;
@@ -475,7 +474,7 @@ impl WindowManager {
             WindowManagerEvent::MonitorPoll(..) | WindowManagerEvent::MouseCapture(..) => {}
         };
 
-        if *self.focused_workspace()?.tile() {
+        if *self.focused_workspace()?.tile() && BORDER_ENABLED.load(Ordering::SeqCst) {
             match event {
                 WindowManagerEvent::MoveResizeStart(_, _) => {
                     let border = Border::from(BORDER_HWND.load(Ordering::SeqCst));
