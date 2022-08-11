@@ -13,7 +13,6 @@ Tiling Window Management for Windows.
 
 ## About
 
-
 _komorebi_ is a tiling window manager that works as an extension to
 Microsoft's [Desktop Window Manager](https://docs.microsoft.com/en-us/windows/win32/dwm/dwm-overview) in Windows 10 and
 above.

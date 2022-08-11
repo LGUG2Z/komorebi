@@ -808,7 +808,7 @@ impl WindowManager {
                     focused.focus(false)?;
                 }
             }
-            SocketMessage::ToggleTiling => {
+            SocketMessage::ToggleTiling | SocketMessage::WorkspaceTiling(..) => {
                 let tiling_enabled = *self.focused_workspace_mut()?.tile();
                 let border = Border::from(BORDER_HWND.load(Ordering::SeqCst));
 
