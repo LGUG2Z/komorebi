@@ -475,31 +475,34 @@ impl WindowManager {
             WindowManagerEvent::MonitorPoll(..) | WindowManagerEvent::MouseCapture(..) => {}
         };
 
-        match event {
-            WindowManagerEvent::MoveResizeStart(_, _) => {
-                let border = Border::from(BORDER_HWND.load(Ordering::SeqCst));
-                border.hide()?;
-                BORDER_HIDDEN.store(true, Ordering::SeqCst);
-            }
-            WindowManagerEvent::MoveResizeEnd(_, _)
-            | WindowManagerEvent::Show(_, _)
-            | WindowManagerEvent::FocusChange(_, _) => {
-                let window = self.focused_window()?;
-                let mut rect = WindowsApi::window_rect(window.hwnd())?;
-                rect.top -= self.invisible_borders.bottom;
-                rect.bottom += self.invisible_borders.bottom;
-
-                let activate = BORDER_HIDDEN.load(Ordering::SeqCst);
-
-                let border = Border::from(BORDER_HWND.load(Ordering::SeqCst));
-                border.set_position(*window, &self.invisible_borders, activate)?;
-
-                if activate {
-                    BORDER_HIDDEN.store(false, Ordering::SeqCst);
+        if *self.focused_workspace()?.tile() {
+            match event {
+                WindowManagerEvent::MoveResizeStart(_, _) => {
+                    let border = Border::from(BORDER_HWND.load(Ordering::SeqCst));
+                    border.hide()?;
+                    BORDER_HIDDEN.store(true, Ordering::SeqCst);
                 }
+                WindowManagerEvent::MoveResizeEnd(_, _)
+                | WindowManagerEvent::Show(_, _)
+                | WindowManagerEvent::FocusChange(_, _) => {
+                    let window = self.focused_window()?;
+                    let mut rect = WindowsApi::window_rect(window.hwnd())?;
+                    rect.top -= self.invisible_borders.bottom;
+                    rect.bottom += self.invisible_borders.bottom;
+
+                    let activate = BORDER_HIDDEN.load(Ordering::SeqCst);
+
+                    let border = Border::from(BORDER_HWND.load(Ordering::SeqCst));
+                    border.set_position(*window, &self.invisible_borders, activate)?;
+
+                    if activate {
+                        BORDER_HIDDEN.store(false, Ordering::SeqCst);
+                    }
+                }
+                _ => {}
             }
-            _ => {}
         }
+
         // If we unmanaged a window, it shouldn't be immediately hidden behind managed windows
         if let WindowManagerEvent::Unmanage(window) = event {
             window.center(&self.focused_monitor_work_area()?, &invisible_borders)?;
