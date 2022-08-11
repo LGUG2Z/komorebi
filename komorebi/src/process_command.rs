@@ -2,15 +2,20 @@ use std::fs::File;
 use std::fs::OpenOptions;
 use std::io::BufRead;
 use std::io::BufReader;
+use std::io::Read;
 use std::io::Write;
+use std::net::TcpListener;
+use std::net::TcpStream;
 use std::num::NonZeroUsize;
 use std::str::FromStr;
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
+use std::time::Duration;
 
 use color_eyre::eyre::anyhow;
 use color_eyre::Result;
 use miow::pipe::connect;
+use net2::TcpStreamExt;
 use parking_lot::Mutex;
 use schemars::schema_for;
 use uds_windows::UnixStream;
@@ -52,6 +57,7 @@ use crate::LAYERED_WHITELIST;
 use crate::MANAGE_IDENTIFIERS;
 use crate::OBJECT_NAME_CHANGE_ON_LAUNCH;
 use crate::SUBSCRIPTION_PIPES;
+use crate::TCP_CONNECTIONS;
 use crate::TRAY_AND_MULTI_WINDOW_IDENTIFIERS;
 use crate::WORKSPACE_RULES;
 
@@ -64,13 +70,55 @@ pub fn listen_for_commands(wm: Arc<Mutex<WindowManager>>) {
         .expect("could not clone unix listener");
 
     std::thread::spawn(move || {
-        tracing::info!("listening");
+        tracing::info!("listening on komorebi.sock");
         for client in listener.incoming() {
             match client {
-                Ok(stream) => match wm.lock().read_commands(stream) {
+                Ok(stream) => match read_commands_uds(&wm, stream) {
                     Ok(()) => {}
                     Err(error) => tracing::error!("{}", error),
                 },
+                Err(error) => {
+                    tracing::error!("{}", error);
+                    break;
+                }
+            }
+        }
+    });
+}
+
+#[tracing::instrument]
+pub fn listen_for_commands_tcp(wm: Arc<Mutex<WindowManager>>, port: usize) {
+    let listener =
+        TcpListener::bind(format!("0.0.0.0:{}", port)).expect("could not start tcp server");
+
+    std::thread::spawn(move || {
+        tracing::info!("listening on 0.0.0.0:43663");
+        for client in listener.incoming() {
+            match client {
+                Ok(mut stream) => {
+                    stream
+                        .set_keepalive(Some(Duration::from_secs(30)))
+                        .expect("TCP keepalive should be set");
+
+                    let addr = stream
+                        .peer_addr()
+                        .expect("incoming connection should have an address")
+                        .to_string();
+
+                    let mut connections = TCP_CONNECTIONS.lock();
+
+                    connections.insert(
+                        addr.clone(),
+                        stream.try_clone().expect("stream should be cloneable"),
+                    );
+
+                    tracing::info!("listening for incoming tcp messages from {}", &addr);
+
+                    match read_commands_tcp(&wm, &mut stream, &addr) {
+                        Ok(()) => {}
+                        Err(error) => tracing::error!("{}", error),
+                    }
+                }
                 Err(error) => {
                     tracing::error!("{}", error);
                     break;
@@ -790,6 +838,16 @@ impl WindowManager {
                 let mut stream = UnixStream::connect(&socket)?;
                 stream.write_all(schema.as_bytes())?;
             }
+            SocketMessage::SocketSchema => {
+                let socket_message = schema_for!(SocketMessage);
+                let schema = serde_json::to_string_pretty(&socket_message)?;
+                let mut socket = HOME_DIR.clone();
+                socket.push("komorebic.sock");
+                let socket = socket.as_path();
+
+                let mut stream = UnixStream::connect(&socket)?;
+                stream.write_all(schema.as_bytes())?;
+            }
         };
 
         match message {
@@ -850,32 +908,87 @@ impl WindowManager {
         tracing::info!("processed");
         Ok(())
     }
+}
 
-    #[tracing::instrument(skip(self, stream))]
-    pub fn read_commands(&mut self, stream: UnixStream) -> Result<()> {
-        let stream = BufReader::new(stream);
-        for line in stream.lines() {
-            let message = SocketMessage::from_str(&line?)?;
+pub fn read_commands_uds(wm: &Arc<Mutex<WindowManager>>, stream: UnixStream) -> Result<()> {
+    let stream = BufReader::new(stream);
+    for line in stream.lines() {
+        let message = SocketMessage::from_str(&line?)?;
 
-            if self.is_paused {
-                return match message {
-                    SocketMessage::TogglePause | SocketMessage::State | SocketMessage::Stop => {
-                        Ok(self.process_command(message)?)
-                    }
-                    _ => {
-                        tracing::trace!("ignoring while paused");
-                        Ok(())
-                    }
-                };
-            }
+        let mut wm = wm.lock();
 
-            self.process_command(message.clone())?;
-            notify_subscribers(&serde_json::to_string(&Notification {
-                event: NotificationEvent::Socket(message.clone()),
-                state: self.as_ref().into(),
-            })?)?;
+        if wm.is_paused {
+            return match message {
+                SocketMessage::TogglePause | SocketMessage::State | SocketMessage::Stop => {
+                    Ok(wm.process_command(message)?)
+                }
+                _ => {
+                    tracing::trace!("ignoring while paused");
+                    Ok(())
+                }
+            };
         }
 
-        Ok(())
+        wm.process_command(message.clone())?;
+        notify_subscribers(&serde_json::to_string(&Notification {
+            event: NotificationEvent::Socket(message.clone()),
+            state: wm.as_ref().into(),
+        })?)?;
     }
+
+    Ok(())
+}
+
+pub fn read_commands_tcp(
+    wm: &Arc<Mutex<WindowManager>>,
+    stream: &mut TcpStream,
+    addr: &str,
+) -> Result<()> {
+    let mut stream = BufReader::new(stream);
+
+    loop {
+        let mut buf = vec![0; 1024];
+        match stream.read(&mut buf) {
+            Err(..) => {
+                tracing::warn!("removing disconnected tcp client: {addr}");
+                let mut connections = TCP_CONNECTIONS.lock();
+                connections.remove(addr);
+                break;
+            }
+            Ok(size) => {
+                let message = if let Ok(message) =
+                    SocketMessage::from_str(&String::from_utf8_lossy(&buf[..size]))
+                {
+                    message
+                } else {
+                    tracing::warn!("client sent an invalid message, disconnecting: {addr}");
+                    let mut connections = TCP_CONNECTIONS.lock();
+                    connections.remove(addr);
+                    break;
+                };
+
+                let mut wm = wm.lock();
+
+                if wm.is_paused {
+                    return match message {
+                        SocketMessage::TogglePause | SocketMessage::State | SocketMessage::Stop => {
+                            Ok(wm.process_command(message)?)
+                        }
+                        _ => {
+                            tracing::trace!("ignoring while paused");
+                            Ok(())
+                        }
+                    };
+                }
+
+                wm.process_command(message.clone())?;
+                notify_subscribers(&serde_json::to_string(&Notification {
+                    event: NotificationEvent::Socket(message.clone()),
+                    state: wm.as_ref().into(),
+                })?)?;
+            }
+        }
+    }
+
+    Ok(())
 }

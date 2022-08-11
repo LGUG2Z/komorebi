@@ -119,6 +119,7 @@ pub enum SocketMessage {
     AddSubscriber(String),
     RemoveSubscriber(String),
     NotificationSchema,
+    SocketSchema,
 }
 
 impl SocketMessage {

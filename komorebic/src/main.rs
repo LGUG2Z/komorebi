@@ -10,6 +10,7 @@ use std::io::ErrorKind;
 use std::io::Write;
 use std::path::PathBuf;
 use std::process::Command;
+use std::time::Duration;
 
 use clap::AppSettings;
 use clap::ArgEnum;
@@ -20,6 +21,7 @@ use fs_tail::TailedFile;
 use heck::ToKebabCase;
 use lazy_static::lazy_static;
 use paste::paste;
+use sysinfo::SystemExt;
 use uds_windows::UnixListener;
 use uds_windows::UnixStream;
 use windows::Win32::Foundation::HWND;
@@ -420,6 +422,9 @@ struct Start {
     /// Wait for 'komorebic complete-configuration' to be sent before processing events
     #[clap(action, short, long)]
     await_configuration: bool,
+    /// Start a TCP server on the given port to allow the direct sending of SocketMessages
+    #[clap(action, short, long)]
+    tcp_port: Option<usize>,
 }
 
 #[derive(Parser, AhkFunction)]
@@ -715,6 +720,8 @@ enum SubCommand {
     FormatAppSpecificConfiguration(FormatAppSpecificConfiguration),
     /// Generate a JSON Schema of subscription notifications
     NotificationSchema,
+    /// Generate a JSON Schema of socket messages
+    SocketSchema,
 }
 
 pub fn send_message(bytes: &[u8]) -> Result<()> {
@@ -945,16 +952,30 @@ fn main() -> Result<()> {
 
             let script = exec.map_or_else(
                 || {
-                    if arg.ffm | arg.await_configuration {
+                    if arg.ffm | arg.await_configuration | arg.tcp_port.is_some() {
                         format!(
                             "Start-Process komorebi.exe -ArgumentList {} -WindowStyle hidden",
-                            if arg.ffm && arg.await_configuration {
-                                "'--ffm','--await-configuration'"
-                            } else if arg.ffm {
-                                "'--ffm'"
-                            } else {
-                                "'--await-configuration'"
-                            }
+                            arg.tcp_port.map_or_else(
+                                || if arg.ffm && arg.await_configuration {
+                                    "'--ffm','--await-configuration'".to_string()
+                                } else if arg.ffm {
+                                    "'--ffm'".to_string()
+                                } else {
+                                    "'--await-configuration'".to_string()
+                                },
+                                |port| if arg.ffm {
+                                    format!("'--ffm','--tcp-server={}'", port)
+                                } else if arg.await_configuration {
+                                    format!("'--await-configuration','--tcp-server={}'", port)
+                                } else if arg.ffm && arg.await_configuration {
+                                    format!(
+                                        "'--ffm','--await-configuration','--tcp-server={}'",
+                                        port
+                                    )
+                                } else {
+                                    format!("'--tcp-server={}'", port)
+                                }
+                            )
                         )
                     } else {
                         String::from("Start-Process komorebi.exe -WindowStyle hidden")
@@ -965,13 +986,27 @@ fn main() -> Result<()> {
                         format!(
                             "Start-Process '{}' -ArgumentList {} -WindowStyle hidden",
                             exec,
-                            if arg.ffm && arg.await_configuration {
-                                "'--ffm','--await-configuration'"
-                            } else if arg.ffm {
-                                "'--ffm'"
-                            } else {
-                                "'--await-configuration'"
-                            }
+                            arg.tcp_port.map_or_else(
+                                || if arg.ffm && arg.await_configuration {
+                                    "'--ffm','--await-configuration'".to_string()
+                                } else if arg.ffm {
+                                    "'--ffm'".to_string()
+                                } else {
+                                    "'--await-configuration'".to_string()
+                                },
+                                |port| if arg.ffm {
+                                    format!("'--ffm','--tcp-server={}'", port)
+                                } else if arg.await_configuration {
+                                    format!("'--await-configuration','--tcp-server={}'", port)
+                                } else if arg.ffm && arg.await_configuration {
+                                    format!(
+                                        "'--ffm','--await-configuration','--tcp-server={}'",
+                                        port
+                                    )
+                                } else {
+                                    format!("'--tcp-server={}'", port)
+                                }
+                            )
                         )
                     } else {
                         format!("Start-Process '{}' -WindowStyle hidden", exec)
@@ -979,12 +1014,29 @@ fn main() -> Result<()> {
                 },
             );
 
-            match powershell_script::run(&script) {
-                Ok(output) => {
-                    println!("{}", output);
+            let mut running = false;
+
+            while !running {
+                match powershell_script::run(&script) {
+                    Ok(_) => {
+                        println!("{}", script);
+                    }
+                    Err(error) => {
+                        println!("Error: {}", error);
+                    }
                 }
-                Err(error) => {
-                    println!("Error: {}", error);
+
+                print!("Waiting for komorebi.exe to start...");
+                std::thread::sleep(Duration::from_secs(3));
+
+                let mut system = sysinfo::System::new_all();
+                system.refresh_processes();
+
+                if system.processes_by_name("komorebi.exe").next().is_some() {
+                    println!("Started!");
+                    running = true;
+                } else {
+                    println!("komorebi.exe did not start... Trying again");
                 }
             }
         }
@@ -1313,6 +1365,40 @@ fn main() -> Result<()> {
             };
 
             send_message(&SocketMessage::NotificationSchema.as_bytes()?)?;
+
+            let listener = UnixListener::bind(&socket)?;
+            match listener.accept() {
+                Ok(incoming) => {
+                    let stream = BufReader::new(incoming.0);
+                    for line in stream.lines() {
+                        println!("{}", line?);
+                    }
+
+                    return Ok(());
+                }
+                Err(error) => {
+                    panic!("{}", error);
+                }
+            }
+        }
+        SubCommand::SocketSchema => {
+            let home = HOME_DIR.clone();
+            let mut socket = home;
+            socket.push("komorebic.sock");
+            let socket = socket.as_path();
+
+            match std::fs::remove_file(&socket) {
+                Ok(_) => {}
+                Err(error) => match error.kind() {
+                    // Doing this because ::exists() doesn't work reliably on Windows via IntelliJ
+                    ErrorKind::NotFound => {}
+                    _ => {
+                        return Err(error.into());
+                    }
+                },
+            };
+
+            send_message(&SocketMessage::SocketSchema.as_bytes()?)?;
 
             let listener = UnixListener::bind(&socket)?;
             match listener.accept() {

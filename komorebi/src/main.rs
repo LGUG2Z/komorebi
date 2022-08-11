@@ -4,6 +4,7 @@
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::Write;
+use std::net::TcpStream;
 use std::path::PathBuf;
 use std::process::Command;
 use std::sync::atomic::AtomicBool;
@@ -42,6 +43,7 @@ use komorebi_core::Rect;
 use komorebi_core::SocketMessage;
 
 use crate::process_command::listen_for_commands;
+use crate::process_command::listen_for_commands_tcp;
 use crate::process_event::listen_for_events;
 use crate::process_movement::listen_for_movements;
 use crate::window_manager::State;
@@ -102,6 +104,8 @@ lazy_static! {
         "vcxsrv.exe".to_string(),
     ]));
     static ref SUBSCRIPTION_PIPES: Arc<Mutex<HashMap<String, File>>> =
+        Arc::new(Mutex::new(HashMap::new()));
+    static ref TCP_CONNECTIONS: Arc<Mutex<HashMap<String, TcpStream>>> =
         Arc::new(Mutex::new(HashMap::new()));
     static ref HIDING_BEHAVIOUR: Arc<Mutex<HidingBehaviour>> =
         Arc::new(Mutex::new(HidingBehaviour::Minimize));
@@ -391,19 +395,33 @@ struct Opts {
     /// Wait for 'komorebic complete-configuration' to be sent before processing events
     #[clap(action, short, long)]
     await_configuration: bool,
+    /// Start a TCP server on the given port to allow the direct sending of SocketMessages
+    #[clap(action, short, long)]
+    tcp_port: Option<usize>,
 }
 
 #[tracing::instrument]
+#[allow(clippy::nonminimal_bool)]
 fn main() -> Result<()> {
     let opts: Opts = Opts::parse();
     CUSTOM_FFM.store(opts.focus_follows_mouse, Ordering::SeqCst);
 
     let arg_count = std::env::args().count();
+
     let has_valid_args = arg_count == 1
-        || (arg_count == 2 && (opts.await_configuration || opts.focus_follows_mouse))
-        || (arg_count == 3 && opts.await_configuration && opts.focus_follows_mouse);
+        || (arg_count == 2
+            && (opts.await_configuration || opts.focus_follows_mouse || opts.tcp_port.is_some()))
+        || (arg_count == 3 && opts.await_configuration && opts.focus_follows_mouse)
+        || (arg_count == 3 && opts.tcp_port.is_some() && opts.focus_follows_mouse)
+        || (arg_count == 3 && opts.tcp_port.is_some() && opts.await_configuration)
+        || (arg_count == 4
+            && (opts.focus_follows_mouse && opts.await_configuration && opts.tcp_port.is_some()));
 
     if has_valid_args {
+        let process_id = WindowsApi::current_process_id();
+        WindowsApi::allow_set_foreground_window(process_id)?;
+        WindowsApi::set_process_dpi_awareness_context()?;
+
         let session_id = WindowsApi::process_id_to_session_id()?;
         SESSION_ID.store(session_id, Ordering::SeqCst);
 
@@ -432,42 +450,6 @@ fn main() -> Result<()> {
         #[cfg(feature = "deadlock_detection")]
         detect_deadlocks();
 
-        let process_id = WindowsApi::current_process_id();
-
-        {
-            let mut proceed = false;
-            let backoff = Backoff::new();
-
-            while !proceed {
-                if WindowsApi::allow_set_foreground_window(process_id).is_ok() {
-                    proceed = true;
-                } else {
-                    tracing::warn!(
-                        "could not allow komorebi to set foreground windows, retrying..."
-                    );
-
-                    backoff.snooze();
-                }
-            }
-        }
-
-        {
-            let mut proceed = false;
-            let backoff = Backoff::new();
-
-            while !proceed {
-                if WindowsApi::set_process_dpi_awareness_context().is_ok() {
-                    proceed = true;
-                } else {
-                    tracing::warn!(
-                        "could not allow komorebi to set itself as dpi-aware, retrying..."
-                    );
-
-                    backoff.snooze();
-                }
-            }
-        }
-
         let (outgoing, incoming): (Sender<WindowManagerEvent>, Receiver<WindowManagerEvent>) =
             crossbeam_channel::unbounded();
 
@@ -484,6 +466,10 @@ fn main() -> Result<()> {
         if !opts.await_configuration && !INITIAL_CONFIGURATION_LOADED.load(Ordering::SeqCst) {
             INITIAL_CONFIGURATION_LOADED.store(true, Ordering::SeqCst);
         };
+
+        if let Some(port) = opts.tcp_port {
+            listen_for_commands_tcp(wm.clone(), port);
+        }
 
         std::thread::spawn(|| {
             load_configuration().expect("could not load configuration");

@@ -656,3 +656,26 @@ A [JSON Schema](https://json-schema.org/) of the event notifications emitted to 
 the `komorebic notification-schema` command. The output of this command can be redirected to the clipboard or a file,
 which can be used with services such as [Quicktype](https://app.quicktype.io/) to generate type definitions in different
 programming languages.
+
+### Communication over TCP
+
+A TCP listener can optionally be exposed on a port of your choosing with the `--tcp-port=N` flag. If this flag is not
+provided to `komorebi` or `komorebic start`, no TCP listener will be created.
+
+Once created, your client may send
+any [SocketMessage](https://github.com/LGUG2Z/komorebi/blob/master/komorebi-core/src/lib.rs#L37) to `komorebi` in the
+same way that `komorebic` would.
+
+This can be used if you would like to create your own alternative to `komorebic` which incorporates scripting and
+various middleware layers, and similarly it can be used if you would like to integrate `komorebi` with
+a [custom input handler](https://github.com/LGUG2Z/komorebi/issues/176#issue-1302643961).
+
+If a client sends an unrecognized message, it will be disconnected and have to reconnect before trying to communicate
+again.
+
+### Socket Message Schema
+
+A [JSON Schema](https://json-schema.org/) of socket messages used to send instructions to `komorebi` can be generated
+with the `komorebic socket-schema` command. The output of this command can be redirected to the clipboard or a file,
+which can be used with services such as [Quicktype](https://app.quicktype.io/) to generate type definitions in different
+programming languages.
