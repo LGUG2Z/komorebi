@@ -35,7 +35,6 @@ archives:
     name_template: "{{ .ProjectName }}-{{ .Version }}-{{ .Arch }}-{{ .Os }}"
     files:
       - LICENSE
-      - komorebi.sample.ahk
       - CHANGELOG.md
 
 checksum:

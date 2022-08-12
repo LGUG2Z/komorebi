@@ -127,10 +127,14 @@ binaries from the latest GitHub Release:
 ```powershell
 scoop bucket add extras
 scoop install komorebi
+
+# To download the example configuration
+iwr https://raw.githubusercontent.com/LGUG2Z/komorebi/master/komorebi.sample.ahk -OutFile $Env:USERPROFILE\komorebi.ahk
+iwr https://raw.githubusercontent.com/LGUG2Z/komorebi/master/komorebic.lib.ahk -OutFile $Env:USERPROFILE\komorebic.lib.ahk
+iwr https://raw.githubusercontent.com/LGUG2Z/komorebi/master/komorebi.generated.ahk -OutFile $Env:USERPROFILE\komorebi.generated.ahk
 ```
 
-If you install _komorebi_ using Scoop, the binaries will automatically be added to your `Path` and a command will be
-shown for you to run in order to get started using the sample configuration file.
+If you install _komorebi_ using Scoop, the binaries will automatically be added to your `Path`.
 
 Thanks to [@sitiom](https://github.com/sitiom) for getting _komorebi_ added to the popular Scoop Extras bucket.
 
@@ -152,7 +156,7 @@ cargo install --path komorebic --locked
 
 Once you have either the prebuilt binaries in your `Path`, or have compiled the binaries from source (these will already
 be in your `Path` if you installed Rust with [rustup](https://rustup.rs), which you absolutely should), you can
-run `komorebic start` at a Powershell prompt, and you will see the following output:
+run `komorebic start --await-configuration` at a Powershell prompt, and you will see the following output:
 
 ```
 Start-Process komorebi -WindowStyle hidden

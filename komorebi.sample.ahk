@@ -1,225 +1,93 @@
 #SingleInstance Force
 
+; You can generate a fresh version of this file with "komorebic ahk-library"
+#Include %A_ScriptDir%\komorebic.lib.ahk
+; https://github.com/LGUG2Z/komorebi/#generating-common-application-specific-configurations
+#Include %A_ScriptDir%\komorebi.generated.ahk
+
+; Default to minimizing windows when switching workspaces
+WindowHidingBehaviour("minimize")
+
+; Set cross-monitor move behaviour to insert instead of swap
+CrossMonitorMoveBehaviour("insert")
+
 ; Enable hot reloading of changes to this file
-Run, komorebic.exe watch-configuration enable, , Hide
+WatchConfiguration("enable")
+
+; Ensure there is 1 workspace created on monitor 0
+EnsureWorkspaces(0, 1)
 
 ; Configure the invisible border dimensions
-Run, komorebic.exe invisible-borders 7 0 14 7, , Hide
+InvisibleBorders(7, 0, 14, 7)
 
-; Enable focus follows mouse
-Run, komorebic.exe focus-follows-mouse enable, , Hide
+; Configure the 1st workspace
+WorkspaceName(0, 0, "I")
 
-; Ensure there are 3 workspaces created on monitor 0
-Run, komorebic.exe ensure-workspaces 0 5, , Hide
+; Uncomment the next two lines if you want a visual border drawn around the focused window
+; ActiveWindowBorderColour(66, 165, 245) ; this is a nice blue colour
+; ActiveWindowBorder("enable")
 
-; Give the workspaces some optional names
-Run, komorebic.exe workspace-name 0 0 bsp, , Hide
-Run, komorebic.exe workspace-name 0 1 columns, , Hide
-Run, komorebic.exe workspace-name 0 2 thicc, , Hide
-Run, komorebic.exe workspace-name 0 3 matrix, , Hide
-Run, komorebic.exe workspace-name 0 4 floaty, , Hide
+; Allow komorebi to start managing windows
+CompleteConfiguration()
 
-; Set the padding of the different workspaces
-Run, komorebic.exe workspace-padding 0 1 30, , Hide
-Run, komorebic.exe container-padding 0 1 30, , Hide
-Run, komorebic.exe workspace-padding 0 2 200, , Hide
-Run, komorebic.exe workspace-padding 0 3 0, , Hide
-Run, komorebic.exe container-padding 0 3 0, , Hide
-
-; Set the layouts of different workspaces
-Run, komorebic.exe workspace-layout 0 1 columns, , Hide
-
-; Set the floaty layout to not tile any windows
-Run, komorebic.exe workspace-tiling 0 4 disable, , Hide
-
-; Always show chat apps on the second workspace
-Run, komorebic.exe workspace-rule exe slack.exe 0 1, , Hide
-Run, komorebic.exe workspace-rule exe Discord.exe 0 1, , Hide
-
-; Always float IntelliJ popups, matching on class
-Run, komorebic.exe float-rule class SunAwtDialog, , Hide
-; Always float Control Panel, matching on title
-Run, komorebic.exe float-rule title "Control Panel", , Hide
-; Always float Task Manager, matching on class
-Run, komorebic.exe float-rule class TaskManagerWindow, , Hide
-; Always float Wally, matching on executable name
-Run, komorebic.exe float-rule exe Wally.exe, , Hide
-Run, komorebic.exe float-rule exe wincompose.exe, , Hide
-; Always float Calculator app, matching on window title
-Run, komorebic.exe float-rule title Calculator, , Hide
-Run, komorebic.exe float-rule exe 1Password.exe, , Hide
-
-; Always manage forcibly these applications that don't automatically get picked up by komorebi
-Run, komorebic.exe manage-rule exe TIM.exe, , Hide
-
-; Identify applications that close to the tray
-Run, komorebic.exe identify-tray-application exe Discord.exe, , Hide
-
-; Identify applications that have overflowing borders
-Run, komorebic.exe identify-border-overflow exe Discord.exe, , Hide
-
-; Change the focused window, Alt + Vim direction keys
+; Change the focused window, Alt + Vim direction keys (HJKL)
 !h::
-Run, komorebic.exe focus left, , Hide
+Focus("left")
 return
 
 !j::
-Run, komorebic.exe focus down, , Hide
+Focus("down")
 return
 
 !k::
-Run, komorebic.exe focus up, , Hide
+Focus("up")
 return
 
 !l::
-Run, komorebic.exe focus right, , Hide
+Focus("right")
 return
 
-; Move the focused window in a given direction, Alt + Shift + Vim direction keys
+; Move the focused window in a given direction, Alt + Shift + Vim direction keys (HJKL)
 !+h::
-Run, komorebic.exe move left, , Hide
+Move("left")
 return
 
 !+j::
-Run, komorebic.exe move down, , Hide
+Move("down")
 return
 
 !+k::
-Run, komorebic.exe move up, , Hide
+Move("up")
 return
 
 !+l::
-Run, komorebic.exe move right, , Hide
+Move("right")
 return
 
-; Stack the focused window in a given direction, Alt + Shift + direction keys
-!+Left::
-Run, komorebic.exe stack left, , Hide
-return
-
-!+Down::
-Run, komorebic.exe stack down, , Hide
-return
-
-!+Up::
-Run, komorebic.exe stack up, , Hide
-return
-
-!+Right::
-Run, komorebic.exe stack right, , Hide
-return
-
-!]::
-Run, komorebic.exe cycle-stack next, , Hide
-return
-
-![::
-Run, komorebic.exe cycle-stack previous, , Hide
-return
-
-; Unstack the focused window, Alt + Shift + D
-!+d::
-Run, komorebic.exe unstack, , Hide
-return
-
-; Promote the focused window to the top of the tree, Alt + Shift + Enter
-!+Enter::
-Run, komorebic.exe promote, , Hide
-return
-
-; Switch to an equal-width, max-height column layout on the main workspace, Alt + Shift + C
-!+c::
-Run, komorebic.exe workspace-layout 0 0 columns, , Hide
-return
-
-; Switch to the default bsp tiling layout on the main workspace, Alt + Shift + T
-!+t::
-Run, komorebic.exe workspace-layout 0 0 bsp, , Hide
-return
-
-; Toggle the Monocle layout for the focused window, Alt + Shift + F
-!+f::
-Run, komorebic.exe toggle-monocle, , Hide
-return
-
-; Toggle native maximize for the focused window, Alt + Shift + =
-!+=::
-Run, komorebic.exe toggle-maximize, , Hide
-return
-
-; Flip horizontally, Alt + X
-!x::
-Run, komorebic.exe flip-layout horizontal, , Hide
-return
-
-; Flip vertically, Alt + Y
-!y::
-Run, komorebic.exe flip-layout vertical, , Hide
-return
-
-; Force a retile if things get janky, Alt + Shift + R
-!+r::
-Run, komorebic.exe retile, , Hide
-return
-
-; Float the focused window, Alt + T
-!t::
-Run, komorebic.exe toggle-float, , Hide
-return
-
-; Reload ~/komorebi.ahk, Alt + O
-!o::
-Run, komorebic.exe reload-configuration, , Hide
-return
-
-; Pause responding to any window events or komorebic commands, Alt + P
-!p::
-Run, komorebic.exe toggle-pause, , Hide
-return
-
-; Switch to workspace
-!1::
-Send !
-Run, komorebic.exe focus-workspace 0, , Hide
-return
-
-!2::
-Send !
-Run, komorebic.exe focus-workspace 1, , Hide
-return
-
-!3::
-Send !
-Run, komorebic.exe focus-workspace 2, , Hide
-return
-
-!4::
-Send !
-Run, komorebic.exe focus-workspace 3, , Hide
-return
-
-!5::
-Send !
-Run, komorebic.exe focus-workspace 4, , Hide
-return
-
-; Move window to workspace
-!+1::
-Run, komorebic.exe move-to-workspace 0, , Hide
-return
-
-!+2::
-Run, komorebic.exe move-to-workspace 1, , Hide
-return
-
-!+3::
-Run, komorebic.exe move-to-workspace 2, , Hide
-return
-
-!+4::
-Run, komorebic.exe move-to-workspace 3, , Hide
-return
-
-!+5::
-Run, komorebic.exe move-to-workspace 4, , Hide
-return
+; There are many more commands that you can bind to whatever keys combinations you want!
+;
+; Have a look at the komorebic.lib.ahk file to see which arguments are required by different commands
+;
+; If you want more information about a command, you can run every komorebic command with "--help"
+;
+; For example, if you see this in komorebic.lib.ahk
+;
+; WorkspaceLayout(monitor, workspace, value) {
+;    Run, komorebic.exe workspace-layout %monitor% %workspace% %value%, , Hide
+; }
+;
+; Just run "komorebic.exe workspace-layout --help" and you'll get all the information you need to use the command
+;
+; komorebic.exe-workspace-layout
+; Set the layout for the specified workspace
+;
+; USAGE:
+;    komorebic.exe workspace-layout <MONITOR> <WORKSPACE> <VALUE>
+;
+; ARGS:
+;    <MONITOR>      Monitor index (zero-indexed)
+;    <WORKSPACE>    Workspace index on the specified monitor (zero-indexed)
+;    <VALUE>        [possible values: bsp, columns, rows, vertical-stack, horizontal-stack, ultrawide-vertical-stack]
+;
+; OPTIONS:
+;    -h, --help    Print help information

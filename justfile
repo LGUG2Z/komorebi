@@ -23,7 +23,8 @@ install:
     just install-komorebic
     just install-komorebi
     komorebic ahk-library
-    cat '%USERPROFILE%\.config\komorebi\komorebic.lib.ahk' > komorebic.lib.sample.ahk
+    cat '%USERPROFILE%\.config\komorebi\komorebic.lib.ahk' > komorebic.lib.ahk
+    cat '%USERPROFILE%\.config\komorebi\komorebi.generated.ahk' > komorebi.generated.ahk
 
 run:
     just install-komorebic
