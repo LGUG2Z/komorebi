@@ -819,9 +819,9 @@ checksum = "e0a7ae3ac2f1173085d398531c705756c94a4c56843785df85a60c1a0afac116"
 
 [[package]]
 name = "powershell_script"
-version = "1.0.2"
+version = "1.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9d5c8599ccb442b80c8c04437bcbcac2f76ff34d7b658b759fb26744dcab6c03"
+checksum = "54bde2e1a395c0aee9423072d781610da37b7b120edf17d4da99f83d04f2cd54"
 
 [[package]]
 name = "ppv-lite86"
