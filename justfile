@@ -8,6 +8,10 @@ fmt:
     cargo +nightly fmt
     cargo +stable clippy
     prettier --write README.md
+    prettier --write .goreleaser.yml
+    prettier --write .github/dependabot.yml
+    prettier --write .github/FUNDING.yml
+    prettier --write .github/workflows/windows.yaml
 
 install-komorebic:
     cargo +stable install --path komorebic --locked

@@ -59,9 +59,9 @@
 
 <Wix xmlns='http://schemas.microsoft.com/wix/2006/wi'>
 
-  <Product Id='*' Name='komorebi' UpgradeCode='F8B967B5-7E7B-4E3A-895B-B789EC898B54' Manufacturer='Jade Iqbal' Language='1033' Codepage='1252' Version='$(var.Version)'>
+  <Product Id='*' Name='komorebi' UpgradeCode='F8B967B5-7E7B-4E3A-895B-B789EC898B54' Manufacturer='LGUG2Z' Language='1033' Codepage='1252' Version='$(var.Version)'>
 
-    <Package Id='*' Keywords='Installer' Description='A tiling window manager for Windows' Manufacturer='Jade Iqbal' InstallerVersion='450' Languages='1033' Compressed='yes' InstallScope='perMachine' SummaryCodepage='1252' />
+    <Package Id='*' Keywords='Installer' Description='A tiling window manager for Windows' Manufacturer='LGUG2Z' InstallerVersion='450' Languages='1033' Compressed='yes' InstallScope='perMachine' SummaryCodepage='1252' />
 
     <MajorUpgrade Schedule='afterInstallInitialize' DowngradeErrorMessage='A newer version of [ProductName] is already installed. Setup will now exit.' />
 

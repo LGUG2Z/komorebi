@@ -76,6 +76,10 @@ jobs:
       - name: Run a full build
         run: |
           cargo build --locked --release --target ${{ matrix.target }}
+      - name: Create MSI installer
+        run: |
+          cargo install cargo-wix
+          cargo wix -p komorebi --nocapture -I .\wix\main.wxs --target x86_64-pc-windows-msvc
       - name: Upload the built artifacts
         uses: actions/upload-artifact@v3
         with:
@@ -85,6 +89,7 @@ jobs:
             target/${{ matrix.target }}/release/komorebic.exe
             target/${{ matrix.target }}/release/komorebi.pdb
             target/${{ matrix.target }}/release/komorebic.pdb
+            target/wix/komorebi-*.msi
           retention-days: 7
       - name: Generate changelog
         if: startsWith(github.ref, 'refs/tags/')
@@ -101,3 +106,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SCOOP_TOKEN: ${{ secrets.SCOOP_TOKEN }}
+      - name: Add MSI to release
+        uses: softprops/action-gh-release@v1
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: "target/wix/komorebi-*.msi"
