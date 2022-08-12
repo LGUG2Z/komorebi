@@ -5,12 +5,15 @@
 use ::std::clone::Clone;
 use ::std::convert::From;
 use ::std::convert::Into;
+use ::std::format;
 use ::std::iter::Extend;
 use ::std::iter::Iterator;
 use ::std::matches;
 use ::std::option::Option::Some;
+use ::std::string::String;
 use ::std::string::ToString;
 use ::std::unreachable;
+use ::std::vec::Vec;
 
 use ::quote::quote;
 use ::syn::parse_macro_input;
@@ -102,7 +105,8 @@ pub fn ahk_function(input: ::proc_macro::TokenStream) -> ::proc_macro::TokenStre
                     let flag_idents_clone = flag_idents.clone();
                     let flags = quote! {#(--#flag_idents_clone) *}
                         .to_string()
-                        .replace("- - ", "--");
+                        .replace("- - ", "--")
+                        .replace('_', "-");
 
                     let called_flag_arguments = quote! {#(%#flag_idents%) *}
                         .to_string()
@@ -110,19 +114,28 @@ pub fn ahk_function(input: ::proc_macro::TokenStream) -> ::proc_macro::TokenStre
                         .replace("% ", "%")
                         .replace("%%", "% %");
 
+                    let flags_split: Vec<_> = flags.split(' ').collect();
+                    let flag_args_split: Vec<_> = called_flag_arguments.split(' ').collect();
+                    let mut consolidated_flags: Vec<String> = Vec::new();
+
+                    for (idx, flag) in flags_split.iter().enumerate() {
+                        consolidated_flags.push(format!("{} {}", flag, flag_args_split[idx]));
+                    }
+
+                    let all_flags = consolidated_flags.join(" ");
+
                     quote! {
                         impl AhkFunction for #name {
                             fn generate_ahk_function() -> String {
                                 ::std::format!(r#"
 {}({}) {{
-    Run, komorebic.exe {} {} {} {}, , Hide
+    Run, komorebic.exe {} {} {}, , Hide
 }}"#,
                                     ::std::stringify!(#name),
                                     #all_arguments,
                                     ::std::stringify!(#name).to_kebab_case(),
                                     #called_arguments,
-                                    #flags,
-                                    #called_flag_arguments
+                                    #all_flags,
                                 )
                            }
                         }
