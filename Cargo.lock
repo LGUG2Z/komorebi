@@ -464,7 +464,7 @@ dependencies = [
 
 [[package]]
 name = "komorebi"
-version = "0.1.11"
+version = "0.1.12"
 dependencies = [
  "bitflags",
  "clap",
@@ -499,7 +499,7 @@ dependencies = [
 
 [[package]]
 name = "komorebi-core"
-version = "0.1.11"
+version = "0.1.12"
 dependencies = [
  "clap",
  "color-eyre",
@@ -513,7 +513,7 @@ dependencies = [
 
 [[package]]
 name = "komorebic"
-version = "0.1.11"
+version = "0.1.12"
 dependencies = [
  "clap",
  "color-eyre",

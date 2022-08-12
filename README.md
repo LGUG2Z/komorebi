@@ -286,9 +286,10 @@ with many retile events.
 If you would like to avoid this, you can start `komorebi` with a flag which tells `komorebi` to wait until all configuration
 has been loaded before listening to and responding to window manager events: `komorebic start --await-configuration`.
 
-If you start `komorebi` with the `--await-configuration` flag, you _must_ send the `komorebic complete-configuration` command
-at the end of your `komorebi.ahk` config. The layout will not be updated and `komorebi` will not respond to `komorebic`
-commands until this command has been received.
+If you start `komorebi` with the `--await-configuration` flag, you _must_ send the `komorebic complete-configuration`
+command at the end of the configuration section of your `komorebi.ahk` config (before you start defining the key
+bindings). The layout will not be updated and `komorebi` will not respond to `komorebic` commands until this command has
+been received.
 
 #### Floating Windows
 

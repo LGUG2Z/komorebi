@@ -256,9 +256,7 @@ pub fn load_configuration() -> Result<()> {
         Command::new("AutoHotkey64.exe")
             .arg(config_v2.as_os_str())
             .output()?;
-    } else {
-        INITIAL_CONFIGURATION_LOADED.store(true, Ordering::SeqCst);
-    };
+    }
 
     Ok(())
 }
@@ -443,7 +441,14 @@ fn main() -> Result<()> {
 
         wm.lock().init()?;
         listen_for_commands(wm.clone());
-        std::thread::spawn(|| load_configuration().expect("could not load configuration"));
+
+        if !opts.await_configuration && !INITIAL_CONFIGURATION_LOADED.load(Ordering::SeqCst) {
+            INITIAL_CONFIGURATION_LOADED.store(true, Ordering::SeqCst);
+        };
+
+        std::thread::spawn(|| {
+            load_configuration().expect("could not load configuration");
+        });
 
         if opts.await_configuration {
             let backoff = Backoff::new();
