@@ -54,6 +54,7 @@ use windows::Win32::UI::Input::KeyboardAndMouse::SetFocus;
 use windows::Win32::UI::Shell::Common::DEVICE_SCALE_FACTOR;
 use windows::Win32::UI::Shell::GetScaleFactorForMonitor;
 use windows::Win32::UI::WindowsAndMessaging::AllowSetForegroundWindow;
+use windows::Win32::UI::WindowsAndMessaging::BringWindowToTop;
 use windows::Win32::UI::WindowsAndMessaging::CreateWindowExA;
 use windows::Win32::UI::WindowsAndMessaging::EnumWindows;
 use windows::Win32::UI::WindowsAndMessaging::GetCursorPos;
@@ -284,8 +285,19 @@ impl WindowsApi {
     pub fn position_window(hwnd: HWND, layout: &Rect, top: bool) -> Result<()> {
         let flags = SetWindowPosition::NO_ACTIVATE;
 
-        let position = if top { HWND_TOPMOST } else { HWND_NOTOPMOST };
+        let position = if top { HWND_TOPMOST } else { HWND_BOTTOM };
         Self::set_window_pos(hwnd, layout, position, flags.bits())
+    }
+
+    pub fn bring_window_to_top(hwnd: HWND) -> Result<()> {
+        unsafe { BringWindowToTop(hwnd) }.ok().process()
+    }
+
+    pub fn raise_window(hwnd: HWND) -> Result<()> {
+        let flags = SetWindowPosition::NO_MOVE;
+
+        let position = HWND_TOPMOST;
+        Self::set_window_pos(hwnd, &Rect::default(), position, flags.bits())
     }
 
     pub fn position_border_window(hwnd: HWND, layout: &Rect, activate: bool) -> Result<()> {
@@ -295,7 +307,7 @@ impl WindowsApi {
             SetWindowPosition::NO_ACTIVATE
         };
 
-        let position = HWND_BOTTOM;
+        let position = HWND_NOTOPMOST;
         Self::set_window_pos(hwnd, layout, position, flags.bits())
     }
 
