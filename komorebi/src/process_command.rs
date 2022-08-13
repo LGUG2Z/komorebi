@@ -755,6 +755,10 @@ impl WindowManager {
             }
             SocketMessage::ActiveWindowBorder(enable) => {
                 if enable {
+                    if BORDER_HWND.load(Ordering::SeqCst) == 0 {
+                        Border::create("komorebi-border-window")?;
+                    }
+
                     BORDER_ENABLED.store(true, Ordering::SeqCst);
                     self.show_border()?;
                 } else {

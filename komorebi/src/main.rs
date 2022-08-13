@@ -41,7 +41,6 @@ use komorebi_core::HidingBehaviour;
 use komorebi_core::Rect;
 use komorebi_core::SocketMessage;
 
-use crate::border::Border;
 use crate::process_command::listen_for_commands;
 use crate::process_event::listen_for_events;
 use crate::process_movement::listen_for_movements;
@@ -468,8 +467,6 @@ fn main() -> Result<()> {
                 }
             }
         }
-
-        Border::create("komorebi-border-window")?;
 
         let (outgoing, incoming): (Sender<WindowManagerEvent>, Receiver<WindowManagerEvent>) =
             crossbeam_channel::unbounded();
