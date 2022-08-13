@@ -434,8 +434,41 @@ fn main() -> Result<()> {
         detect_deadlocks();
 
         let process_id = WindowsApi::current_process_id();
-        WindowsApi::allow_set_foreground_window(process_id)?;
-        WindowsApi::set_process_dpi_awareness_context()?;
+
+        {
+            let mut proceed = false;
+            let backoff = Backoff::new();
+
+            while !proceed {
+                if WindowsApi::allow_set_foreground_window(process_id).is_ok() {
+                    proceed = true;
+                } else {
+                    tracing::warn!(
+                        "could not allow komorebi to set foreground windows, retrying..."
+                    );
+
+                    backoff.snooze();
+                }
+            }
+        }
+
+        {
+            let mut proceed = false;
+            let backoff = Backoff::new();
+
+            while !proceed {
+                if WindowsApi::set_process_dpi_awareness_context().is_ok() {
+                    proceed = true;
+                } else {
+                    tracing::warn!(
+                        "could not allow komorebi to set itself as dpi-aware, retrying..."
+                    );
+
+                    backoff.snooze();
+                }
+            }
+        }
+
         Border::create("komorebi-border-window")?;
 
         let (outgoing, incoming): (Sender<WindowManagerEvent>, Receiver<WindowManagerEvent>) =
