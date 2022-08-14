@@ -489,6 +489,7 @@ impl WindowManager {
                 WindowManagerEvent::MoveResizeEnd(_, window)
                 | WindowManagerEvent::Show(_, window)
                 | WindowManagerEvent::FocusChange(_, window)
+                | WindowManagerEvent::Hide(_, window)
                 | WindowManagerEvent::Minimize(_, window) => {
                     let border = Border::from(BORDER_HWND.load(Ordering::SeqCst));
                     let mut target_window = None;
