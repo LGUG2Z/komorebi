@@ -164,6 +164,10 @@ Promote() {
     Run, komorebic.exe promote, , Hide
 }
 
+PromoteFocus() {
+    Run, komorebic.exe promote-focus, , Hide
+}
+
 Retile() {
     Run, komorebic.exe retile, , Hide
 }

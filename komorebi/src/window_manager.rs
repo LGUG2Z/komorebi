@@ -1252,6 +1252,23 @@ impl WindowManager {
     }
 
     #[tracing::instrument(skip(self))]
+    pub fn promote_focus_to_front(&mut self) -> Result<()> {
+        self.handle_unmanaged_window_behaviour()?;
+
+        tracing::info!("promoting focus");
+
+        let workspace = self.focused_workspace_mut()?;
+        let target_idx = match workspace.layout() {
+            Layout::Default(_) => 0,
+            Layout::Custom(custom) => custom
+                .first_container_idx(custom.primary_idx().map_or(0, |primary_idx| primary_idx)),
+        };
+
+        workspace.focus_container(target_idx);
+        self.update_focused_workspace(self.mouse_follows_focus)
+    }
+
+    #[tracing::instrument(skip(self))]
     pub fn remove_window_from_container(&mut self) -> Result<()> {
         self.handle_unmanaged_window_behaviour()?;
 

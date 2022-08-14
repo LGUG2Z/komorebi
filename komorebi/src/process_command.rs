@@ -111,6 +111,7 @@ impl WindowManager {
 
         match message {
             SocketMessage::Promote => self.promote_container_to_front()?,
+            SocketMessage::PromoteFocus => self.promote_focus_to_front()?,
             SocketMessage::FocusWindow(direction) => {
                 self.focus_container_in_direction(direction)?;
             }
@@ -805,6 +806,7 @@ impl WindowManager {
             | SocketMessage::ToggleMonocle
             | SocketMessage::ToggleMaximize
             | SocketMessage::Promote
+            | SocketMessage::PromoteFocus
             | SocketMessage::Retile
             | SocketMessage::InvisibleBorders(_)
             | SocketMessage::WorkAreaOffset(_)

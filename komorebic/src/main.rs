@@ -594,6 +594,8 @@ enum SubCommand {
     FlipLayout(FlipLayout),
     /// Promote the focused window to the top of the tree
     Promote,
+    /// Promote the user focus to the top of the tree
+    PromoteFocus,
     /// Force the retiling of all managed windows
     Retile,
     /// Create at least this many workspaces for the specified monitor
@@ -768,6 +770,9 @@ fn main() -> Result<()> {
         }
         SubCommand::Promote => {
             send_message(&SocketMessage::Promote.as_bytes()?)?;
+        }
+        SubCommand::PromoteFocus => {
+            send_message(&SocketMessage::PromoteFocus.as_bytes()?)?;
         }
         SubCommand::TogglePause => {
             send_message(&SocketMessage::TogglePause.as_bytes()?)?;
