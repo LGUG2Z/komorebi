@@ -1047,8 +1047,10 @@ impl WindowManager {
                         let origin_workspace =
                             self.focused_workspace_for_monitor_idx_mut(origin_monitor_idx)?;
 
-                        origin_workspace
-                            .focus_container(origin_workspace.focused_container_idx() - 1);
+                        if origin_workspace.focused_container_idx() != 0 {
+                            origin_workspace
+                                .focus_container(origin_workspace.focused_container_idx() - 1);
+                        }
                     }
                 }
 
