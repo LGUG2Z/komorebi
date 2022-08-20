@@ -46,6 +46,15 @@ available for free in the public repository once it meets the requisite level of
 Features-in-progress that are available in early access will be tagged in the issues with
 an ["early access" label](https://github.com/LGUG2Z/komorebi/issues?q=is%3Aopen+is%3Aissue+label%3A%22early+access%22).
 
+## Charitable Donations
+
+`komorebi`, like `vim`, is a free and open-source project, and one that encourages you to make charitable donations if
+you find the software to be useful and have the financial means.
+
+I encourage you to make a charitable donation
+to [Fresh Start Refugee](https://www.freshstartrefugee.org/donate) before
+you consider sponsoring me on GitHub.
+
 ## Demonstrations
 
 [@haxibami](https://github.com/haxibami) showing _komorebi_ running on Windows
