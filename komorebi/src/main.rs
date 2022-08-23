@@ -100,7 +100,6 @@ lazy_static! {
     static ref BORDER_OVERFLOW_IDENTIFIERS: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(vec![]));
     static ref WSL2_UI_PROCESSES: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(vec![
         "X410.exe".to_string(),
-        "mstsc.exe".to_string(),
         "vcxsrv.exe".to_string(),
     ]));
     static ref SUBSCRIPTION_PIPES: Arc<Mutex<HashMap<String, File>>> =
