@@ -88,7 +88,15 @@ impl Workspace {
     pub fn hide(&mut self) {
         for container in self.containers_mut() {
             for window in container.windows_mut() {
-                window.hide();
+                if let (Ok(exe), Ok(title)) = (window.exe(), window.title()) {
+                    if exe == "UnrealEditor.exe" {
+                        if title.ends_with(" - Unreal Editor") {
+                            window.hide();
+                        }
+                    } else {
+                        window.hide();
+                    }
+                }
             }
         }
 
@@ -112,7 +120,15 @@ impl Workspace {
         let mut to_focus = None;
         for (i, container) in self.containers_mut().iter_mut().enumerate() {
             if let Some(window) = container.focused_window_mut() {
-                window.restore();
+                if let (Ok(exe), Ok(title)) = (window.exe(), window.title()) {
+                    if exe == "UnrealEditor.exe" {
+                        if title.ends_with(" - Unreal Editor") {
+                            window.restore();
+                        }
+                    } else {
+                        window.restore();
+                    }
+                }
 
                 if idx == i {
                     to_focus = Option::from(*window);
