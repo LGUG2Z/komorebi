@@ -135,7 +135,7 @@ impl WindowManager {
 
         match event {
             WindowManagerEvent::Raise(window) => {
-                window.raise()?;
+                window.raise();
                 self.has_pending_raise_op = false;
             }
             WindowManagerEvent::Destroy(_, window) | WindowManagerEvent::Unmanage(window) => {

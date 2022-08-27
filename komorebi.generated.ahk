@@ -311,6 +311,11 @@ Run, komorebic.exe float-rule exe "TranslucentTB.exe", , Hide
 ; If you have disabled minimize/close to tray for this application, you can delete/comment out the next line
 Run, komorebic.exe identify-tray-application exe "TranslucentTB.exe", , Hide
 
+; Unreal Editor
+Run, komorebic.exe identify-border-overflow-application exe "UnrealEditor.exe", , Hide
+; If you have disabled minimize/close to tray for this application, you can delete/comment out the next line
+Run, komorebic.exe identify-tray-application exe "UnrealEditor.exe", , Hide
+
 ; Visual Studio Code
 Run, komorebic.exe identify-border-overflow-application exe "Code.exe", , Hide
 
