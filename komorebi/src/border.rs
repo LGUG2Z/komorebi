@@ -87,7 +87,11 @@ impl Border {
     }
 
     pub fn hide(self) -> Result<()> {
-        WindowsApi::hide_border_window(self.hwnd())
+        if self.hwnd == 0 {
+            Ok(())
+        } else {
+            WindowsApi::hide_border_window(self.hwnd())
+        }
     }
 
     pub fn set_position(
@@ -96,29 +100,33 @@ impl Border {
         invisible_borders: &Rect,
         activate: bool,
     ) -> Result<()> {
-        let mut should_expand_border = false;
+        if self.hwnd == 0 {
+            Ok(())
+        } else {
+            let mut should_expand_border = false;
 
-        let mut rect = WindowsApi::window_rect(window.hwnd())?;
-        rect.top -= invisible_borders.bottom;
-        rect.bottom += invisible_borders.bottom;
-
-        let border_overflows = BORDER_OVERFLOW_IDENTIFIERS.lock();
-        if border_overflows.contains(&window.title()?)
-            || border_overflows.contains(&window.exe()?)
-            || border_overflows.contains(&window.class()?)
-        {
-            should_expand_border = true;
-        }
-
-        if should_expand_border {
-            rect.left -= invisible_borders.left;
-            rect.top -= invisible_borders.top;
-            rect.right += invisible_borders.right;
+            let mut rect = WindowsApi::window_rect(window.hwnd())?;
+            rect.top -= invisible_borders.bottom;
             rect.bottom += invisible_borders.bottom;
+
+            let border_overflows = BORDER_OVERFLOW_IDENTIFIERS.lock();
+            if border_overflows.contains(&window.title()?)
+                || border_overflows.contains(&window.exe()?)
+                || border_overflows.contains(&window.class()?)
+            {
+                should_expand_border = true;
+            }
+
+            if should_expand_border {
+                rect.left -= invisible_borders.left;
+                rect.top -= invisible_borders.top;
+                rect.right += invisible_borders.right;
+                rect.bottom += invisible_borders.bottom;
+            }
+
+            *BORDER_RECT.lock() = rect;
+
+            WindowsApi::position_border_window(self.hwnd(), &rect, activate)
         }
-
-        *BORDER_RECT.lock() = rect;
-
-        WindowsApi::position_border_window(self.hwnd(), &rect, activate)
     }
 }
