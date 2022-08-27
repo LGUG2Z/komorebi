@@ -464,7 +464,7 @@ dependencies = [
 
 [[package]]
 name = "komorebi"
-version = "0.1.12"
+version = "0.1.13"
 dependencies = [
  "bitflags",
  "clap",
@@ -500,7 +500,7 @@ dependencies = [
 
 [[package]]
 name = "komorebi-core"
-version = "0.1.12"
+version = "0.1.13"
 dependencies = [
  "clap",
  "color-eyre",
@@ -514,7 +514,7 @@ dependencies = [
 
 [[package]]
 name = "komorebic"
-version = "0.1.12"
+version = "0.1.13"
 dependencies = [
  "clap",
  "color-eyre",
@@ -1255,9 +1255,9 @@ dependencies = [
 
 [[package]]
 name = "time"
-version = "0.3.13"
+version = "0.3.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "db76ff9fa4b1458b3c7f077f3ff9887394058460d21e634355b273aaf11eea45"
+checksum = "3c3f9a28b618c3a6b9251b6908e9c99e04b9e5c02e6581ccbb67d59c34ef7f9b"
 dependencies = [
  "itoa",
  "libc",
