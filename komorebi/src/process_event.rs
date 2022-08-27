@@ -503,6 +503,12 @@ impl WindowManager {
                         WindowsApi::raise_window(border.hwnd())?;
                     };
 
+                    if let Some(monocle_container) = self.focused_workspace()?.monocle_container() {
+                        if let Some(window) = monocle_container.focused_window() {
+                            target_window = Option::from(*window);
+                        }
+                    }
+
                     if target_window.is_none() {
                         match self.focused_container() {
                             // if there is no focused container, the desktop is empty
