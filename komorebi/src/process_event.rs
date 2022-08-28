@@ -198,8 +198,14 @@ impl WindowManager {
                         }
                     }
 
-                    self.focused_workspace_mut()?
-                        .focus_container_by_window(window.hwnd)?;
+                    if let Some(monocle) = workspace.monocle_container() {
+                        if let Some(window) = monocle.focused_window() {
+                            window.focus(false)?;
+                        }
+                    } else {
+                        self.focused_workspace_mut()?
+                            .focus_container_by_window(window.hwnd)?;
+                    }
                 }
             }
             WindowManagerEvent::Show(_, window) | WindowManagerEvent::Manage(window) => {
