@@ -33,6 +33,7 @@ Articles, blog posts, demos, and videos about _komorebi_ can be added to this li
 
 - [Moving to Windows from Linux Pt 1](https://kvwu.io/posts/moving-to-windows/)
 - [Windows 下的现代化平铺窗口管理器 komorebi](https://zhuanlan.zhihu.com/p/455064481)
+- [komorebi を導入してみる](https://zenn.dev/omochice/articles/50f42a3df8f426)
 
 ## GitHub Sponsors Early Access
 
