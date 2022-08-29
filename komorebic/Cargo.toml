@@ -25,7 +25,7 @@ powershell_script = "1.0"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 serde_yaml = "0.9"
-sysinfo = "0.25"
+sysinfo = "0.26"
 uds_windows = "1"
 
 [dependencies.windows]
