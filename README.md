@@ -129,6 +129,14 @@ using [`setx`](https://docs.microsoft.com/en-us/windows-server/administration/wi
 Variables pop up in System Properties Advanced (which can be launched with `SystemPropertiesAdvanced.exe` at a
 PowerShell prompt), and then move the binaries to that directory.
 
+### Winget
+
+You can use the builtin package manager from Windows to install the latest komorebi release:
+
+```powershell
+winget install LGUG2Z.komorebi
+```
+
 ### Scoop
 
 If you use the [Scoop](https://scoop.sh/) command line installer, you can run the following commands to install the
