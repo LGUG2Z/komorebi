@@ -964,16 +964,13 @@ fn main() -> Result<()> {
                                     "'--await-configuration'".to_string()
                                 },
                                 |port| if arg.ffm {
-                                    format!("'--ffm','--tcp-server={}'", port)
+                                    format!("'--ffm','--tcp-port={}'", port)
                                 } else if arg.await_configuration {
-                                    format!("'--await-configuration','--tcp-server={}'", port)
+                                    format!("'--await-configuration','--tcp-port={}'", port)
                                 } else if arg.ffm && arg.await_configuration {
-                                    format!(
-                                        "'--ffm','--await-configuration','--tcp-server={}'",
-                                        port
-                                    )
+                                    format!("'--ffm','--await-configuration','--tcp-port={}'", port)
                                 } else {
-                                    format!("'--tcp-server={}'", port)
+                                    format!("'--tcp-port={}'", port)
                                 }
                             )
                         )
@@ -995,16 +992,13 @@ fn main() -> Result<()> {
                                     "'--await-configuration'".to_string()
                                 },
                                 |port| if arg.ffm {
-                                    format!("'--ffm','--tcp-server={}'", port)
+                                    format!("'--ffm','--tcp-port={}'", port)
                                 } else if arg.await_configuration {
-                                    format!("'--await-configuration','--tcp-server={}'", port)
+                                    format!("'--await-configuration','--tcp-port={}'", port)
                                 } else if arg.ffm && arg.await_configuration {
-                                    format!(
-                                        "'--ffm','--await-configuration','--tcp-server={}'",
-                                        port
-                                    )
+                                    format!("'--ffm','--await-configuration','--tcp-port={}'", port)
                                 } else {
-                                    format!("'--tcp-server={}'", port)
+                                    format!("'--tcp-port={}'", port)
                                 }
                             )
                         )
