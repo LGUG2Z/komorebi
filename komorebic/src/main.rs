@@ -1106,7 +1106,7 @@ fn main() -> Result<()> {
             )?;
         }
         SubCommand::State => {
-            let home = HOME_DIR.clone();
+            let home = DATA_DIR.clone();
             let mut socket = home;
             socket.push("komorebic.sock");
             let socket = socket.as_path();
@@ -1122,9 +1122,10 @@ fn main() -> Result<()> {
                 },
             };
 
+            let listener = UnixListener::bind(&socket)?;
+
             send_message(&SocketMessage::State.as_bytes()?)?;
 
-            let listener = UnixListener::bind(&socket)?;
             match listener.accept() {
                 Ok(incoming) => {
                     let stream = BufReader::new(incoming.0);
@@ -1140,7 +1141,7 @@ fn main() -> Result<()> {
             }
         }
         SubCommand::Query(arg) => {
-            let home = HOME_DIR.clone();
+            let home = DATA_DIR.clone();
             let mut socket = home;
             socket.push("komorebic.sock");
             let socket = socket.as_path();
@@ -1156,9 +1157,10 @@ fn main() -> Result<()> {
                 },
             };
 
+            let listener = UnixListener::bind(&socket)?;
+
             send_message(&SocketMessage::Query(arg.state_query).as_bytes()?)?;
 
-            let listener = UnixListener::bind(&socket)?;
             match listener.accept() {
                 Ok(incoming) => {
                     let stream = BufReader::new(incoming.0);
@@ -1342,7 +1344,7 @@ fn main() -> Result<()> {
             println!("File successfully formatted for PRs to https://github.com/LGUG2Z/komorebi-application-specific-configuration");
         }
         SubCommand::NotificationSchema => {
-            let home = HOME_DIR.clone();
+            let home = DATA_DIR.clone();
             let mut socket = home;
             socket.push("komorebic.sock");
             let socket = socket.as_path();
@@ -1376,7 +1378,7 @@ fn main() -> Result<()> {
             }
         }
         SubCommand::SocketSchema => {
-            let home = HOME_DIR.clone();
+            let home = DATA_DIR.clone();
             let mut socket = home;
             socket.push("komorebic.sock");
             let socket = socket.as_path();

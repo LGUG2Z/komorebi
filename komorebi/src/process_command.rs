@@ -49,9 +49,9 @@ use crate::BORDER_ENABLED;
 use crate::BORDER_HWND;
 use crate::BORDER_OVERFLOW_IDENTIFIERS;
 use crate::CUSTOM_FFM;
+use crate::DATA_DIR;
 use crate::FLOAT_IDENTIFIERS;
 use crate::HIDING_BEHAVIOUR;
-use crate::HOME_DIR;
 use crate::INITIAL_CONFIGURATION_LOADED;
 use crate::LAYERED_WHITELIST;
 use crate::MANAGE_IDENTIFIERS;
@@ -416,7 +416,7 @@ impl WindowManager {
                     Err(error) => error.to_string(),
                 };
 
-                let mut socket = HOME_DIR.clone();
+                let mut socket = DATA_DIR.clone();
                 socket.push("komorebic.sock");
                 let socket = socket.as_path();
 
@@ -439,7 +439,7 @@ impl WindowManager {
                 }
                 .to_string();
 
-                let mut socket = HOME_DIR.clone();
+                let mut socket = DATA_DIR.clone();
                 socket.push("komorebic.sock");
                 let socket = socket.as_path();
 
@@ -831,7 +831,7 @@ impl WindowManager {
             SocketMessage::NotificationSchema => {
                 let notification = schema_for!(Notification);
                 let schema = serde_json::to_string_pretty(&notification)?;
-                let mut socket = HOME_DIR.clone();
+                let mut socket = DATA_DIR.clone();
                 socket.push("komorebic.sock");
                 let socket = socket.as_path();
 
@@ -841,7 +841,7 @@ impl WindowManager {
             SocketMessage::SocketSchema => {
                 let socket_message = schema_for!(SocketMessage);
                 let schema = serde_json::to_string_pretty(&socket_message)?;
-                let mut socket = HOME_DIR.clone();
+                let mut socket = DATA_DIR.clone();
                 socket.push("komorebic.sock");
                 let socket = socket.as_path();
 
