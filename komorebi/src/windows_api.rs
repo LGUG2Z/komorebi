@@ -1,6 +1,7 @@
 use std::collections::VecDeque;
 use std::convert::TryFrom;
 use std::ffi::c_void;
+use std::slice;
 use std::sync::atomic::Ordering;
 
 use color_eyre::eyre::anyhow;
@@ -10,19 +11,17 @@ use windows::core::Result as WindowsCrateResult;
 use windows::core::PCSTR;
 use windows::core::PWSTR;
 use windows::Win32::Foundation::BOOL;
+use windows::Win32::Foundation::COLORREF;
 use windows::Win32::Foundation::HANDLE;
 use windows::Win32::Foundation::HINSTANCE;
 use windows::Win32::Foundation::HWND;
 use windows::Win32::Foundation::LPARAM;
 use windows::Win32::Foundation::POINT;
-use windows::Win32::Foundation::RECT;
 use windows::Win32::Graphics::Dwm::DwmGetWindowAttribute;
 use windows::Win32::Graphics::Dwm::DwmSetWindowAttribute;
 use windows::Win32::Graphics::Dwm::DWMWA_CLOAKED;
-use windows::Win32::Graphics::Dwm::DWMWA_EXTENDED_FRAME_BOUNDS;
 use windows::Win32::Graphics::Dwm::DWMWA_WINDOW_CORNER_PREFERENCE;
 use windows::Win32::Graphics::Dwm::DWMWCP_ROUND;
-use windows::Win32::Graphics::Dwm::DWMWINDOWATTRIBUTE;
 use windows::Win32::Graphics::Dwm::DWM_CLOAKED_APP;
 use windows::Win32::Graphics::Dwm::DWM_CLOAKED_INHERITED;
 use windows::Win32::Graphics::Dwm::DWM_CLOAKED_SHELL;
@@ -193,16 +192,9 @@ impl WindowsApi {
         callback: MONITORENUMPROC,
         callback_data_address: isize,
     ) -> Result<()> {
-        unsafe {
-            EnumDisplayMonitors(
-                HDC(0),
-                std::ptr::null_mut(),
-                callback,
-                LPARAM(callback_data_address),
-            )
-        }
-        .ok()
-        .process()
+        unsafe { EnumDisplayMonitors(HDC(0), None, callback, LPARAM(callback_data_address)) }
+            .ok()
+            .process()
     }
 
     pub fn valid_hmonitors() -> Result<Vec<isize>> {
@@ -433,7 +425,7 @@ impl WindowsApi {
 
         // Behaviour is undefined if an invalid HWND is given
         // https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getwindowthreadprocessid
-        let thread_id = unsafe { GetWindowThreadProcessId(hwnd, &mut process_id) };
+        let thread_id = unsafe { GetWindowThreadProcessId(hwnd, Option::from(&mut process_id)) };
 
         (process_id, thread_id)
     }
@@ -534,12 +526,7 @@ impl WindowsApi {
         let text_ptr = path.as_mut_ptr();
 
         unsafe {
-            QueryFullProcessImageNameW(
-                handle,
-                PROCESS_NAME_WIN32,
-                PWSTR(text_ptr),
-                std::ptr::addr_of_mut!(len),
-            )
+            QueryFullProcessImageNameW(handle, PROCESS_NAME_WIN32, PWSTR(text_ptr), &mut len)
         }
         .ok()
         .process()?;
@@ -566,37 +553,15 @@ impl WindowsApi {
         Ok(String::from_utf16(&class[0..len as usize])?)
     }
 
-    pub fn dwm_get_window_attribute<T>(
-        hwnd: HWND,
-        attribute: DWMWINDOWATTRIBUTE,
-        value: &mut T,
-    ) -> Result<()> {
+    pub fn is_window_cloaked(hwnd: HWND) -> Result<bool> {
+        let mut cloaked = 0_u32.to_be_bytes();
+
         unsafe {
-            DwmGetWindowAttribute(
-                hwnd,
-                attribute,
-                (value as *mut T).cast(),
-                u32::try_from(std::mem::size_of::<T>())?,
-            )?;
+            DwmGetWindowAttribute(hwnd, DWMWA_CLOAKED, &mut cloaked)?;
         }
 
-        Ok(())
-    }
-
-    #[allow(dead_code)]
-    pub fn window_rect_with_extended_frame_bounds(hwnd: HWND) -> Result<Rect> {
-        let mut rect = RECT::default();
-        Self::dwm_get_window_attribute(hwnd, DWMWA_EXTENDED_FRAME_BOUNDS, &mut rect)?;
-
-        Ok(Rect::from(rect))
-    }
-
-    pub fn is_window_cloaked(hwnd: HWND) -> Result<bool> {
-        let mut cloaked: u32 = 0;
-        Self::dwm_get_window_attribute(hwnd, DWMWA_CLOAKED, &mut cloaked)?;
-
         Ok(matches!(
-            cloaked,
+            u32::from_be_bytes(cloaked),
             DWM_CLOAKED_APP | DWM_CLOAKED_SHELL | DWM_CLOAKED_INHERITED
         ))
     }
@@ -617,7 +582,7 @@ impl WindowsApi {
         let mut monitor_info: MONITORINFO = unsafe { std::mem::zeroed() };
         monitor_info.cbSize = u32::try_from(std::mem::size_of::<MONITORINFO>())?;
 
-        unsafe { GetMonitorInfoW(hmonitor, std::ptr::addr_of_mut!(monitor_info).cast()) }
+        unsafe { GetMonitorInfoW(hmonitor, &mut monitor_info) }
             .ok()
             .process()?;
 
@@ -691,7 +656,7 @@ impl WindowsApi {
     }
 
     pub fn create_solid_brush(colour: u32) -> HBRUSH {
-        unsafe { CreateSolidBrush(colour) }
+        unsafe { CreateSolidBrush(COLORREF(colour)) }
     }
 
     pub fn register_class_a(window_class: &WNDCLASSA) -> Result<u16> {
@@ -716,8 +681,7 @@ impl WindowsApi {
             DwmSetWindowAttribute(
                 HWND(hwnd),
                 DWMWA_WINDOW_CORNER_PREFERENCE,
-                std::ptr::addr_of!(round).cast(),
-                4,
+                slice::from_raw_parts(std::ptr::addr_of!(round).cast(), 4),
             )
         }
         .process()
@@ -740,7 +704,7 @@ impl WindowsApi {
                 std::ptr::null(),
             );
 
-            SetLayeredWindowAttributes(hwnd, TRANSPARENCY_COLOUR, 0, LWA_COLORKEY);
+            SetLayeredWindowAttributes(hwnd, COLORREF(TRANSPARENCY_COLOUR), 0, LWA_COLORKEY);
 
             hwnd
         }
@@ -748,14 +712,8 @@ impl WindowsApi {
     }
 
     pub fn invalidate_border_rect() -> Result<()> {
-        unsafe {
-            InvalidateRect(
-                HWND(BORDER_HWND.load(Ordering::SeqCst)),
-                std::ptr::null(),
-                false,
-            )
-        }
-        .ok()
-        .process()
+        unsafe { InvalidateRect(HWND(BORDER_HWND.load(Ordering::SeqCst)), None, false) }
+            .ok()
+            .process()
     }
 }

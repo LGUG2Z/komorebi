@@ -2,6 +2,7 @@ use std::collections::VecDeque;
 use std::sync::atomic::Ordering;
 
 use windows::Win32::Foundation::BOOL;
+use windows::Win32::Foundation::COLORREF;
 use windows::Win32::Foundation::HWND;
 use windows::Win32::Foundation::LPARAM;
 use windows::Win32::Foundation::LRESULT;
@@ -133,15 +134,19 @@ pub extern "system" fn border_window(
             WM_PAINT => {
                 let border_rect = *BORDER_RECT.lock();
                 let mut ps = PAINTSTRUCT::default();
-                let hdc = BeginPaint(window, std::ptr::addr_of_mut!(ps).cast());
-                let hpen = CreatePen(PS_SOLID, 20, BORDER_COLOUR_CURRENT.load(Ordering::SeqCst));
+                let hdc = BeginPaint(window, &mut ps);
+                let hpen = CreatePen(
+                    PS_SOLID,
+                    20,
+                    COLORREF(BORDER_COLOUR_CURRENT.load(Ordering::SeqCst)),
+                );
                 let hbrush = WindowsApi::create_solid_brush(TRANSPARENCY_COLOUR);
 
                 SelectObject(hdc, hpen);
                 SelectObject(hdc, hbrush);
                 Rectangle(hdc, 0, 0, border_rect.right, border_rect.bottom);
                 EndPaint(window, &ps);
-                ValidateRect(window, std::ptr::null());
+                ValidateRect(window, None);
 
                 LRESULT(0)
             }
