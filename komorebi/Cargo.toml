@@ -43,7 +43,7 @@ winput = "0.2"
 winreg = "0.10"
 
 [dependencies.windows]
-version = "0.40"
+version = "0.41"
 features = [
     "Win32_Foundation",
     "Win32_Graphics_Dwm",
