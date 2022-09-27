@@ -1,7 +1,6 @@
 use std::collections::VecDeque;
 use std::convert::TryFrom;
 use std::ffi::c_void;
-use std::slice;
 use std::sync::atomic::Ordering;
 
 use color_eyre::eyre::anyhow;
@@ -22,6 +21,7 @@ use windows::Win32::Graphics::Dwm::DwmSetWindowAttribute;
 use windows::Win32::Graphics::Dwm::DWMWA_CLOAKED;
 use windows::Win32::Graphics::Dwm::DWMWA_WINDOW_CORNER_PREFERENCE;
 use windows::Win32::Graphics::Dwm::DWMWCP_ROUND;
+use windows::Win32::Graphics::Dwm::DWMWINDOWATTRIBUTE;
 use windows::Win32::Graphics::Dwm::DWM_CLOAKED_APP;
 use windows::Win32::Graphics::Dwm::DWM_CLOAKED_INHERITED;
 use windows::Win32::Graphics::Dwm::DWM_CLOAKED_SHELL;
@@ -425,7 +425,9 @@ impl WindowsApi {
 
         // Behaviour is undefined if an invalid HWND is given
         // https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getwindowthreadprocessid
-        let thread_id = unsafe { GetWindowThreadProcessId(hwnd, Option::from(&mut process_id)) };
+        let thread_id = unsafe {
+            GetWindowThreadProcessId(hwnd, Option::from(std::ptr::addr_of_mut!(process_id)))
+        };
 
         (process_id, thread_id)
     }
@@ -553,15 +555,29 @@ impl WindowsApi {
         Ok(String::from_utf16(&class[0..len as usize])?)
     }
 
-    pub fn is_window_cloaked(hwnd: HWND) -> Result<bool> {
-        let mut cloaked = 0_u32.to_be_bytes();
-
+    pub fn dwm_get_window_attribute<T>(
+        hwnd: HWND,
+        attribute: DWMWINDOWATTRIBUTE,
+        value: &mut T,
+    ) -> Result<()> {
         unsafe {
-            DwmGetWindowAttribute(hwnd, DWMWA_CLOAKED, &mut cloaked)?;
+            DwmGetWindowAttribute(
+                hwnd,
+                attribute,
+                (value as *mut T).cast(),
+                u32::try_from(std::mem::size_of::<T>())?,
+            )?;
         }
 
+        Ok(())
+    }
+
+    pub fn is_window_cloaked(hwnd: HWND) -> Result<bool> {
+        let mut cloaked: u32 = 0;
+        Self::dwm_get_window_attribute(hwnd, DWMWA_CLOAKED, &mut cloaked)?;
+
         Ok(matches!(
-            u32::from_be_bytes(cloaked),
+            cloaked,
             DWM_CLOAKED_APP | DWM_CLOAKED_SHELL | DWM_CLOAKED_INHERITED
         ))
     }
@@ -612,7 +628,7 @@ impl WindowsApi {
         pv_param: *mut c_void,
         update_flags: SYSTEM_PARAMETERS_INFO_UPDATE_FLAGS,
     ) -> Result<()> {
-        unsafe { SystemParametersInfoW(action, ui_param, pv_param, update_flags) }
+        unsafe { SystemParametersInfoW(action, ui_param, Option::from(pv_param), update_flags) }
             .ok()
             .process()
     }
@@ -681,7 +697,8 @@ impl WindowsApi {
             DwmSetWindowAttribute(
                 HWND(hwnd),
                 DWMWA_WINDOW_CORNER_PREFERENCE,
-                slice::from_raw_parts(std::ptr::addr_of!(round).cast(), 4),
+                std::ptr::addr_of!(round).cast(),
+                4,
             )
         }
         .process()
@@ -701,7 +718,7 @@ impl WindowsApi {
                 None,
                 None,
                 instance,
-                std::ptr::null(),
+                None,
             );
 
             SetLayeredWindowAttributes(hwnd, COLORREF(TRANSPARENCY_COLOUR), 0, LWA_COLORKEY);
