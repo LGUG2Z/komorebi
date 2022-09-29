@@ -121,8 +121,7 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/v')
 
     steps:
-      - uses: vedantmgoyal2009/winget-releaser@latest
+      - uses: vedantmgoyal2009/winget-releaser@v1
         with:
           identifier: LGUG2Z.komorebi
-          release-tag: ${{ github.ref }}
           token: ${{ secrets.WINGET_TOKEN }}
