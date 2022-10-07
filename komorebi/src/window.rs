@@ -257,15 +257,20 @@ impl Window {
         };
 
         // Raise Window to foreground
-        match WindowsApi::set_foreground_window(self.hwnd()) {
-            Ok(_) => {}
-            Err(error) => {
-                tracing::error!(
-                    "could not set as foreground window, but continuing execution of focus(): {}",
-                    error
-                );
-            }
-        };
+        let mut foregrounded = false;
+        while !foregrounded {
+            match WindowsApi::set_foreground_window(self.hwnd()) {
+                Ok(_) => {
+                    foregrounded = true;
+                }
+                Err(error) => {
+                    tracing::error!(
+                        "could not set as foreground window, but continuing execution of focus(): {}",
+                        error
+                    );
+                }
+            };
+        }
 
         // Center cursor in Window
         if mouse_follows_focus {
