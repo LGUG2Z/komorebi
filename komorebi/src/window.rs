@@ -151,6 +151,14 @@ impl Window {
         }
     }
 
+    pub fn minimize(self) {
+        WindowsApi::minimize_window(self.hwnd());
+    }
+
+    pub fn close(self) {
+        WindowsApi::close_window(self.hwnd());
+    }
+
     pub fn restore(self) {
         let mut programmatically_hidden_hwnds = HIDDEN_HWNDS.lock();
         if let Some(idx) = programmatically_hidden_hwnds

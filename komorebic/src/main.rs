@@ -517,6 +517,10 @@ enum SubCommand {
     /// Move the focused window in the specified direction
     #[clap(arg_required_else_help = true)]
     Move(Move),
+    /// Minimize the focused window
+    Minimize,
+    /// Close the focused window
+    Close,
     /// Change focus to the window in the specified cycle direction
     #[clap(arg_required_else_help = true)]
     CycleFocus(CycleFocus),
@@ -774,6 +778,12 @@ fn main() -> Result<()> {
         }
         SubCommand::Focus(arg) => {
             send_message(&SocketMessage::FocusWindow(arg.operation_direction).as_bytes()?)?;
+        }
+        SubCommand::Close => {
+            send_message(&SocketMessage::Close.as_bytes()?)?;
+        }
+        SubCommand::Minimize => {
+            send_message(&SocketMessage::Minimize.as_bytes()?)?;
         }
         SubCommand::Promote => {
             send_message(&SocketMessage::Promote.as_bytes()?)?;
