@@ -16,6 +16,7 @@ use windows::Win32::Foundation::HINSTANCE;
 use windows::Win32::Foundation::HWND;
 use windows::Win32::Foundation::LPARAM;
 use windows::Win32::Foundation::POINT;
+use windows::Win32::Foundation::WPARAM;
 use windows::Win32::Graphics::Dwm::DwmGetWindowAttribute;
 use windows::Win32::Graphics::Dwm::DwmSetWindowAttribute;
 use windows::Win32::Graphics::Dwm::DWMWA_CLOAKED;
@@ -68,6 +69,7 @@ use windows::Win32::UI::WindowsAndMessaging::GetWindowThreadProcessId;
 use windows::Win32::UI::WindowsAndMessaging::IsIconic;
 use windows::Win32::UI::WindowsAndMessaging::IsWindow;
 use windows::Win32::UI::WindowsAndMessaging::IsWindowVisible;
+use windows::Win32::UI::WindowsAndMessaging::PostMessageW;
 use windows::Win32::UI::WindowsAndMessaging::RealGetWindowClassW;
 use windows::Win32::UI::WindowsAndMessaging::RegisterClassA;
 use windows::Win32::UI::WindowsAndMessaging::SetCursorPos;
@@ -99,6 +101,7 @@ use windows::Win32::UI::WindowsAndMessaging::SW_SHOWNOACTIVATE;
 use windows::Win32::UI::WindowsAndMessaging::SYSTEM_PARAMETERS_INFO_ACTION;
 use windows::Win32::UI::WindowsAndMessaging::SYSTEM_PARAMETERS_INFO_UPDATE_FLAGS;
 use windows::Win32::UI::WindowsAndMessaging::WINDOW_LONG_PTR_INDEX;
+use windows::Win32::UI::WindowsAndMessaging::WM_CLOSE;
 use windows::Win32::UI::WindowsAndMessaging::WNDCLASSA;
 use windows::Win32::UI::WindowsAndMessaging::WNDENUMPROC;
 use windows::Win32::UI::WindowsAndMessaging::WS_EX_LAYERED;
@@ -334,6 +337,10 @@ impl WindowsApi {
 
     pub fn minimize_window(hwnd: HWND) {
         Self::show_window(hwnd, SW_MINIMIZE);
+    }
+
+    pub fn close_window(hwnd: HWND) {
+        unsafe { PostMessageW(hwnd, WM_CLOSE, WPARAM(0), LPARAM(0)) };
     }
 
     pub fn hide_window(hwnd: HWND) {

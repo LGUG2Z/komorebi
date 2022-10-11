@@ -177,6 +177,8 @@ impl WindowManager {
             SocketMessage::CycleStack(direction) => {
                 self.cycle_container_window_in_direction(direction)?;
             }
+            SocketMessage::Close => self.focused_window()?.close(),
+            SocketMessage::Minimize => self.focused_window()?.minimize(),
             SocketMessage::ToggleFloat => self.toggle_float()?,
             SocketMessage::ToggleMonocle => self.toggle_monocle()?,
             SocketMessage::ToggleMaximize => self.toggle_maximize()?,
