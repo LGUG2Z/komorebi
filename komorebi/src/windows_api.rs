@@ -339,8 +339,17 @@ impl WindowsApi {
         Self::show_window(hwnd, SW_MINIMIZE);
     }
 
-    pub fn close_window(hwnd: HWND) {
-        unsafe { PostMessageW(hwnd, WM_CLOSE, WPARAM(0), LPARAM(0)) };
+    fn post_message(hwnd: HWND, message: u32, wparam: WPARAM, lparam: LPARAM) -> Result<()> {
+        unsafe { PostMessageW(hwnd, message, wparam, lparam) }
+            .ok()
+            .process()
+    }
+
+    pub fn close_window(hwnd: HWND) -> Result<()> {
+        match Self::post_message(hwnd, WM_CLOSE, WPARAM(0), LPARAM(0)) {
+            Ok(_) => Ok(()),
+            Err(_) => Err(anyhow!("could not close window")),
+        }
     }
 
     pub fn hide_window(hwnd: HWND) {
