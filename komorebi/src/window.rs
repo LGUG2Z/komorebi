@@ -155,8 +155,8 @@ impl Window {
         WindowsApi::minimize_window(self.hwnd());
     }
 
-    pub fn close(self) {
-        WindowsApi::close_window(self.hwnd());
+    pub fn close(self) -> Result<()> {
+        WindowsApi::close_window(self.hwnd())
     }
 
     pub fn restore(self) {

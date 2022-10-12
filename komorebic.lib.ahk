@@ -52,6 +52,14 @@ Move(operation_direction) {
     Run, komorebic.exe move %operation_direction%, , Hide
 }
 
+Minimize() {
+    Run, komorebic.exe minimize, , Hide
+}
+
+Close() {
+    Run, komorebic.exe close, , Hide
+}
+
 CycleFocus(cycle_direction) {
     Run, komorebic.exe cycle-focus %cycle_direction%, , Hide
 }
