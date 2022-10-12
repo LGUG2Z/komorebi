@@ -258,12 +258,14 @@ impl Window {
 
         // Raise Window to foreground
         let mut foregrounded = false;
-        while !foregrounded {
+        let mut max_attempts = 5;
+        while !foregrounded && max_attempts > 0 {
             match WindowsApi::set_foreground_window(self.hwnd()) {
                 Ok(_) => {
                     foregrounded = true;
                 }
                 Err(error) => {
+                    max_attempts -= 1;
                     tracing::error!(
                         "could not set as foreground window, but continuing execution of focus(): {}",
                         error
