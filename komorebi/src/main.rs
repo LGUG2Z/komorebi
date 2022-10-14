@@ -328,7 +328,12 @@ pub struct Notification {
     pub state: State,
 }
 
-pub fn notify_subscribers(notification: &str) -> Result<()> {
+pub fn send_notification(notification: &str) -> Result<()> {
+    notify_subscribers(notification)?;
+    notify_tcp_clients(notification)
+}
+
+fn notify_subscribers(notification: &str) -> Result<()> {
     let mut stale_subscriptions = vec![];
     let mut subscriptions = SUBSCRIPTION_PIPES.lock();
     for (subscriber, pipe) in subscriptions.iter_mut() {
@@ -357,6 +362,26 @@ pub fn notify_subscribers(notification: &str) -> Result<()> {
     for subscriber in stale_subscriptions {
         tracing::warn!("removing stale subscription: {}", subscriber);
         subscriptions.remove(&subscriber);
+    }
+
+    Ok(())
+}
+
+fn notify_tcp_clients(notification: &str) -> Result<()> {
+    let mut tcp_clients = TCP_CONNECTIONS.lock();
+    for (addrs, stream) in tcp_clients.iter_mut() {
+        match stream.write(notification.as_bytes()) {
+            Ok(_) => {
+                tracing::debug!("pushed notification to the tcp_client: {}", addrs);
+            }
+            Err(error) => {
+                tracing::error!(
+                    "failed to push notification to the tcp_client: {}, got error: {}",
+                    addrs,
+                    error
+                );
+            }
+        }
     }
 
     Ok(())

@@ -14,7 +14,7 @@ use komorebi_core::WindowContainerBehaviour;
 
 use crate::border::Border;
 use crate::current_virtual_desktop;
-use crate::notify_subscribers;
+use crate::send_notification;
 use crate::window_manager::WindowManager;
 use crate::window_manager_event::WindowManagerEvent;
 use crate::windows_api::WindowsApi;
@@ -596,7 +596,7 @@ impl WindowManager {
             .open(hwnd_json)?;
 
         serde_json::to_writer_pretty(&file, &known_hwnds)?;
-        notify_subscribers(&serde_json::to_string(&Notification {
+        send_notification(&serde_json::to_string(&Notification {
             event: NotificationEvent::WindowManager(*event),
             state: self.as_ref().into(),
         })?)?;

@@ -4,6 +4,7 @@ use std::io::BufRead;
 use std::io::BufReader;
 use std::io::Read;
 use std::io::Write;
+use std::mem::drop;
 use std::net::TcpListener;
 use std::net::TcpStream;
 use std::num::NonZeroUsize;
@@ -35,7 +36,7 @@ use komorebi_core::WindowKind;
 
 use crate::border::Border;
 use crate::current_virtual_desktop;
-use crate::notify_subscribers;
+use crate::send_notification;
 use crate::window::Window;
 use crate::window_manager;
 use crate::window_manager::WindowManager;
@@ -111,6 +112,9 @@ pub fn listen_for_commands_tcp(wm: Arc<Mutex<WindowManager>>, port: usize) {
                         addr.clone(),
                         stream.try_clone().expect("stream should be cloneable"),
                     );
+
+                    // This has to be done to be able to send notifications to the tcp_connections
+                    drop(connections);
 
                     tracing::info!("listening for incoming tcp messages from {}", &addr);
 
@@ -932,7 +936,7 @@ pub fn read_commands_uds(wm: &Arc<Mutex<WindowManager>>, stream: UnixStream) -> 
         }
 
         wm.process_command(message.clone())?;
-        notify_subscribers(&serde_json::to_string(&Notification {
+        send_notification(&serde_json::to_string(&Notification {
             event: NotificationEvent::Socket(message.clone()),
             state: wm.as_ref().into(),
         })?)?;
@@ -984,7 +988,7 @@ pub fn read_commands_tcp(
                 }
 
                 wm.process_command(message.clone())?;
-                notify_subscribers(&serde_json::to_string(&Notification {
+                send_notification(&serde_json::to_string(&Notification {
                     event: NotificationEvent::Socket(message.clone()),
                     state: wm.as_ref().into(),
                 })?)?;
