@@ -328,6 +328,8 @@ impl WindowManager {
     pub fn reconcile_monitors(&mut self) -> Result<()> {
         let valid_hmonitors = WindowsApi::valid_hmonitors()?;
         let mut invalid = vec![];
+        let mut updated = vec![];
+        let mut overlapping = vec![];
 
         for monitor in self.monitors_mut() {
             if !valid_hmonitors.contains(&monitor.id()) {
@@ -335,13 +337,22 @@ impl WindowManager {
 
                 // If an invalid hmonitor has at least one window in the window manager state,
                 // we can attempt to update its hmonitor id in-place so that it doesn't get reaped
+                //
+                // This needs to be done because when monitors are attached and detached, even
+                // monitors that remained connected get assigned new HMONITOR values
                 if let Some(workspace) = monitor.focused_workspace() {
                     if let Some(container) = workspace.focused_container() {
                         if let Some(window) = container.focused_window() {
                             let actual_hmonitor = WindowsApi::monitor_from_window(window.hwnd());
                             if actual_hmonitor != monitor.id() {
                                 monitor.set_id(actual_hmonitor);
-                                mark_as_invalid = false;
+
+                                if updated.contains(&actual_hmonitor) {
+                                    overlapping.push(monitor.clone());
+                                } else {
+                                    mark_as_invalid = false;
+                                    updated.push(actual_hmonitor);
+                                }
                             }
                         }
                     }
@@ -355,6 +366,17 @@ impl WindowManager {
 
         // Remove any invalid monitors from our state
         self.monitors_mut().retain(|m| !invalid.contains(&m.id()));
+
+        // If monitor IDs are overlapping we are fucked and need to load
+        // monitor and workspace state again, followed by the configuration
+        if !overlapping.is_empty() {
+            WindowsApi::load_monitor_information(&mut self.monitors)?;
+            WindowsApi::load_workspace_information(&mut self.monitors)?;
+
+            std::thread::spawn(|| {
+                load_configuration().expect("could not load configuration");
+            });
+        }
 
         let invisible_borders = self.invisible_borders;
         let offset = self.work_area_offset;

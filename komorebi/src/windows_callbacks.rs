@@ -22,6 +22,7 @@ use windows::Win32::UI::Accessibility::HWINEVENTHOOK;
 use windows::Win32::UI::WindowsAndMessaging::DefWindowProcW;
 use windows::Win32::UI::WindowsAndMessaging::PostQuitMessage;
 use windows::Win32::UI::WindowsAndMessaging::WM_DESTROY;
+use windows::Win32::UI::WindowsAndMessaging::WM_DISPLAYCHANGE;
 use windows::Win32::UI::WindowsAndMessaging::WM_PAINT;
 
 use crate::container::Container;
@@ -152,6 +153,29 @@ pub extern "system" fn border_window(
             }
             WM_DESTROY => {
                 PostQuitMessage(0);
+                LRESULT(0)
+            }
+            _ => DefWindowProcW(window, message, wparam, lparam),
+        }
+    }
+}
+
+pub extern "system" fn hidden_window(
+    window: HWND,
+    message: u32,
+    wparam: WPARAM,
+    lparam: LPARAM,
+) -> LRESULT {
+    unsafe {
+        match message as u32 {
+            WM_DISPLAYCHANGE => {
+                let event_type = WindowManagerEvent::DisplayChange(Window { hwnd: window.0 });
+                WINEVENT_CALLBACK_CHANNEL
+                    .lock()
+                    .0
+                    .send(event_type)
+                    .expect("could not send message on WINEVENT_CALLBACK_CHANNEL");
+
                 LRESULT(0)
             }
             _ => DefWindowProcW(window, message, wparam, lparam),

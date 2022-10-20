@@ -74,9 +74,9 @@ impl WindowManager {
 
         // Make sure we have the most recently focused monitor from any event
         match event {
-            WindowManagerEvent::MonitorPoll(_, window)
-            | WindowManagerEvent::FocusChange(_, window)
+            WindowManagerEvent::FocusChange(_, window)
             | WindowManagerEvent::Show(_, window)
+            | WindowManagerEvent::DisplayChange(window)
             | WindowManagerEvent::MoveResizeEnd(_, window) => {
                 self.reconcile_monitors()?;
 
@@ -482,7 +482,7 @@ impl WindowManager {
                     }
                 }
             }
-            WindowManagerEvent::MonitorPoll(..) | WindowManagerEvent::MouseCapture(..) => {}
+            WindowManagerEvent::DisplayChange(..) | WindowManagerEvent::MouseCapture(..) => {}
         };
 
         if *self.focused_workspace()?.tile() && BORDER_ENABLED.load(Ordering::SeqCst) {

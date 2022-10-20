@@ -104,7 +104,9 @@ use windows::Win32::UI::WindowsAndMessaging::WINDOW_LONG_PTR_INDEX;
 use windows::Win32::UI::WindowsAndMessaging::WM_CLOSE;
 use windows::Win32::UI::WindowsAndMessaging::WNDCLASSA;
 use windows::Win32::UI::WindowsAndMessaging::WNDENUMPROC;
+use windows::Win32::UI::WindowsAndMessaging::WS_DISABLED;
 use windows::Win32::UI::WindowsAndMessaging::WS_EX_LAYERED;
+use windows::Win32::UI::WindowsAndMessaging::WS_EX_NOACTIVATE;
 use windows::Win32::UI::WindowsAndMessaging::WS_EX_TOOLWINDOW;
 use windows::Win32::UI::WindowsAndMessaging::WS_MAXIMIZEBOX;
 use windows::Win32::UI::WindowsAndMessaging::WS_MINIMIZEBOX;
@@ -740,6 +742,26 @@ impl WindowsApi {
             SetLayeredWindowAttributes(hwnd, COLORREF(TRANSPARENCY_COLOUR), 0, LWA_COLORKEY);
 
             hwnd
+        }
+        .process()
+    }
+
+    pub fn create_hidden_window(name: PCSTR, instance: HINSTANCE) -> Result<isize> {
+        unsafe {
+            CreateWindowExA(
+                WS_EX_NOACTIVATE,
+                name,
+                name,
+                WS_DISABLED,
+                CW_USEDEFAULT,
+                CW_USEDEFAULT,
+                CW_USEDEFAULT,
+                CW_USEDEFAULT,
+                None,
+                None,
+                instance,
+                None,
+            )
         }
         .process()
     }
