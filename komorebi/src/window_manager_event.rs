@@ -22,7 +22,7 @@ pub enum WindowManagerEvent {
     Manage(Window),
     Unmanage(Window),
     Raise(Window),
-    MonitorPoll(WinEvent, Window),
+    DisplayChange(Window),
 }
 
 impl Display for WindowManagerEvent {
@@ -77,12 +77,8 @@ impl Display for WindowManagerEvent {
             Self::Raise(window) => {
                 write!(f, "Raise (Window: {})", window)
             }
-            Self::MonitorPoll(winevent, window) => {
-                write!(
-                    f,
-                    "MonitorPoll (WinEvent: {}, Window: {})",
-                    winevent, window
-                )
+            Self::DisplayChange(window) => {
+                write!(f, "DisplayChange (Window: {})", window)
             }
         }
     }
@@ -99,9 +95,9 @@ impl WindowManagerEvent {
             | Self::MoveResizeStart(_, window)
             | Self::MoveResizeEnd(_, window)
             | Self::MouseCapture(_, window)
-            | Self::MonitorPoll(_, window)
             | Self::Raise(window)
             | Self::Manage(window)
+            | Self::DisplayChange(window)
             | Self::Unmanage(window) => window,
         }
     }
@@ -146,17 +142,6 @@ impl WindowManagerEvent {
                 } else {
                     None
                 }
-            }
-            WinEvent::ObjectCreate => {
-                if let Ok(title) = window.title() {
-                    // Hidden COM support mechanism window that fires this event on both DPI/scaling
-                    // changes and resolution changes, a good candidate for polling
-                    if title == "OLEChannelWnd" {
-                        return Option::from(Self::MonitorPoll(winevent, window));
-                    }
-                }
-
-                None
             }
             _ => None,
         }

@@ -38,6 +38,7 @@ use which::which;
 use winreg::enums::HKEY_CURRENT_USER;
 use winreg::RegKey;
 
+use crate::hidden::Hidden;
 use komorebi_core::HidingBehaviour;
 use komorebi_core::Rect;
 use komorebi_core::SocketMessage;
@@ -56,6 +57,7 @@ mod ring;
 
 mod border;
 mod container;
+mod hidden;
 mod monitor;
 mod process_command;
 mod process_event;
@@ -170,6 +172,8 @@ pub static BORDER_COLOUR_STACK: AtomicU32 = AtomicU32::new(0);
 pub static BORDER_COLOUR_CURRENT: AtomicU32 = AtomicU32::new(0);
 // 0 0 0 aka pure black, I doubt anyone will want this as a border colour
 pub const TRANSPARENCY_COLOUR: u32 = 0;
+
+pub static HIDDEN_HWND: AtomicIsize = AtomicIsize::new(0);
 
 fn setup() -> Result<(WorkerGuard, WorkerGuard)> {
     if std::env::var("RUST_LIB_BACKTRACE").is_err() {
@@ -454,6 +458,8 @@ fn main() -> Result<()> {
 
         let winevent_listener = winevent_listener::new(Arc::new(Mutex::new(outgoing)));
         winevent_listener.start();
+
+        Hidden::create("komorebi-hidden")?;
 
         let wm = Arc::new(Mutex::new(WindowManager::new(Arc::new(Mutex::new(
             incoming,
