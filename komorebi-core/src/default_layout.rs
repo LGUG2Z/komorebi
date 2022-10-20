@@ -1,4 +1,4 @@
-use clap::ArgEnum;
+use clap::ValueEnum;
 use schemars::JsonSchema;
 use serde::Deserialize;
 use serde::Serialize;
@@ -9,7 +9,9 @@ use crate::OperationDirection;
 use crate::Rect;
 use crate::Sizing;
 
-#[derive(Clone, Copy, Debug, Serialize, Deserialize, Display, EnumString, ArgEnum, JsonSchema)]
+#[derive(
+    Clone, Copy, Debug, Serialize, Deserialize, Display, EnumString, ValueEnum, JsonSchema,
+)]
 #[strum(serialize_all = "snake_case")]
 pub enum DefaultLayout {
     BSP,

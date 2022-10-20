@@ -1,4 +1,4 @@
-use clap::ArgEnum;
+use clap::ValueEnum;
 use color_eyre::Result;
 use schemars::JsonSchema;
 use serde::Deserialize;
@@ -8,7 +8,7 @@ use strum::EnumString;
 
 use crate::ApplicationIdentifier;
 
-#[derive(Clone, Debug, Serialize, Deserialize, Display, EnumString, ArgEnum, JsonSchema)]
+#[derive(Clone, Debug, Serialize, Deserialize, Display, EnumString, ValueEnum, JsonSchema)]
 #[strum(serialize_all = "snake_case")]
 #[serde(rename_all = "snake_case")]
 pub enum ApplicationOptions {

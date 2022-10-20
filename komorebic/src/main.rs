@@ -12,9 +12,8 @@ use std::path::PathBuf;
 use std::process::Command;
 use std::time::Duration;
 
-use clap::AppSettings;
-use clap::ArgEnum;
 use clap::Parser;
+use clap::ValueEnum;
 use color_eyre::eyre::anyhow;
 use color_eyre::Result;
 use fs_tail::TailedFile;
@@ -77,7 +76,7 @@ trait AhkFunction {
     fn generate_ahk_function() -> String;
 }
 
-#[derive(Copy, Clone, ArgEnum)]
+#[derive(Copy, Clone, ValueEnum)]
 enum BooleanState {
     Enable,
     Disable,
@@ -99,7 +98,7 @@ macro_rules! gen_enum_subcommand_args {
             paste! {
                 #[derive(clap::Parser, derive_ahk::AhkFunction)]
                 pub struct $name {
-                    #[clap(arg_enum)]
+                    #[clap(value_enum)]
                     [<$element:snake>]: $element
                 }
             }
@@ -154,7 +153,7 @@ gen_target_subcommand_args! {
 macro_rules! gen_workspace_subcommand_args {
     // Workspace Property: #[enum] Value Enum (if the value is an Enum)
     // Workspace Property: Value Type (if the value is anything else)
-    ( $( $name:ident: $(#[enum] $(@$arg_enum:tt)?)? $value:ty ),+ $(,)? ) => (
+    ( $( $name:ident: $(#[enum] $(@$value_enum:tt)?)? $value:ty ),+ $(,)? ) => (
         paste! {
             $(
                 #[derive(clap::Parser, derive_ahk::AhkFunction)]
@@ -165,9 +164,9 @@ macro_rules! gen_workspace_subcommand_args {
                     /// Workspace index on the specified monitor (zero-indexed)
                     workspace: usize,
 
-                    $(#[clap(arg_enum)] $($arg_enum)?)?
+                    $(#[clap(value_enum)] $($value_enum)?)?
                     #[cfg_attr(
-                        all($(FALSE $($arg_enum)?)?),
+                        all($(FALSE $($value_enum)?)?),
                         doc = ""$name " of the workspace as a "$value ""
                     )]
                     value: $value,
@@ -215,7 +214,7 @@ pub struct WorkspaceLayoutRule {
     /// The number of window containers on-screen required to trigger this layout rule
     at_container_count: usize,
 
-    #[clap(arg_enum)]
+    #[clap(value_enum)]
     layout: DefaultLayout,
 }
 
@@ -236,17 +235,17 @@ pub struct WorkspaceCustomLayoutRule {
 
 #[derive(Parser, AhkFunction)]
 struct Resize {
-    #[clap(arg_enum)]
+    #[clap(value_enum)]
     edge: OperationDirection,
-    #[clap(arg_enum)]
+    #[clap(value_enum)]
     sizing: Sizing,
 }
 
 #[derive(Parser, AhkFunction)]
 struct ResizeAxis {
-    #[clap(arg_enum)]
+    #[clap(value_enum)]
     axis: Axis,
-    #[clap(arg_enum)]
+    #[clap(value_enum)]
     sizing: Sizing,
 }
 
@@ -332,7 +331,7 @@ macro_rules! gen_padding_adjustment_subcommand_args {
         $(
             #[derive(clap::Parser, derive_ahk::AhkFunction)]
             pub struct $name {
-                #[clap(arg_enum)]
+                #[clap(value_enum)]
                 sizing: Sizing,
                 /// Pixels to adjust by as an integer
                 adjustment: i32,
@@ -352,7 +351,7 @@ macro_rules! gen_application_target_subcommand_args {
         $(
             #[derive(clap::Parser, derive_ahk::AhkFunction)]
             pub struct $name {
-                #[clap(arg_enum)]
+                #[clap(value_enum)]
                 identifier: ApplicationIdentifier,
                 /// Identifier as a string
                 id: String,
@@ -372,7 +371,7 @@ gen_application_target_subcommand_args! {
 
 #[derive(Parser, AhkFunction)]
 struct WorkspaceRule {
-    #[clap(arg_enum)]
+    #[clap(value_enum)]
     identifier: ApplicationIdentifier,
     /// Identifier as a string
     id: String,
@@ -384,27 +383,27 @@ struct WorkspaceRule {
 
 #[derive(Parser, AhkFunction)]
 struct ToggleFocusFollowsMouse {
-    #[clap(arg_enum, short, long, default_value = "windows")]
+    #[clap(value_enum, short, long, default_value = "windows")]
     implementation: FocusFollowsMouseImplementation,
 }
 
 #[derive(Parser, AhkFunction)]
 struct FocusFollowsMouse {
-    #[clap(arg_enum, short, long, default_value = "windows")]
+    #[clap(value_enum, short, long, default_value = "windows")]
     implementation: FocusFollowsMouseImplementation,
-    #[clap(arg_enum)]
+    #[clap(value_enum)]
     boolean_state: BooleanState,
 }
 
 #[derive(Parser, AhkFunction)]
 struct ActiveWindowBorder {
-    #[clap(arg_enum)]
+    #[clap(value_enum)]
     boolean_state: BooleanState,
 }
 
 #[derive(Parser, AhkFunction)]
 struct ActiveWindowBorderColour {
-    #[clap(arg_enum, short, long, default_value = "single")]
+    #[clap(value_enum, short, long, default_value = "single")]
     window_kind: WindowKind,
     /// Red
     r: u32,
@@ -472,7 +471,7 @@ struct FormatAppSpecificConfiguration {
 }
 
 #[derive(Parser)]
-#[clap(author, about, version, setting = AppSettings::DeriveDisplayOrder)]
+#[clap(author, about, version)]
 struct Opts {
     #[clap(subcommand)]
     subcmd: SubCommand,
