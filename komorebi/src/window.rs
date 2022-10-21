@@ -266,7 +266,8 @@ impl Window {
 
         // Raise Window to foreground
         let mut foregrounded = false;
-        let mut max_attempts = 5;
+        let mut tried_resetting_foreground_access = false;
+        let mut max_attempts = 10;
         while !foregrounded && max_attempts > 0 {
             match WindowsApi::set_foreground_window(self.hwnd()) {
                 Ok(_) => {
@@ -278,6 +279,13 @@ impl Window {
                         "could not set as foreground window, but continuing execution of focus(): {}",
                         error
                     );
+
+                    // If this still doesn't work then maybe try https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-locksetforegroundwindow
+                    if !tried_resetting_foreground_access {
+                        let process_id = WindowsApi::current_process_id();
+                        WindowsApi::allow_set_foreground_window(process_id)?;
+                        tried_resetting_foreground_access = true;
+                    }
                 }
             };
         }
