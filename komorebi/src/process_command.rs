@@ -868,6 +868,10 @@ impl WindowManager {
             | SocketMessage::Promote
             | SocketMessage::PromoteFocus
             | SocketMessage::Retile
+            // Adding this one because sometimes EVENT_SYSTEM_FOREGROUND isn't
+            // getting sent on FocusWindow, meaning the border won't be set
+            // when processing events
+            | SocketMessage::FocusWindow(_)
             | SocketMessage::InvisibleBorders(_)
             | SocketMessage::WorkAreaOffset(_)
             | SocketMessage::MoveWindow(_) => {
