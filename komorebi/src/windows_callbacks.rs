@@ -18,12 +18,17 @@ use windows::Win32::Graphics::Gdi::HDC;
 use windows::Win32::Graphics::Gdi::HMONITOR;
 use windows::Win32::Graphics::Gdi::PAINTSTRUCT;
 use windows::Win32::Graphics::Gdi::PS_SOLID;
+use windows::Win32::System::SystemServices::DBT_DEVNODES_CHANGED;
 use windows::Win32::UI::Accessibility::HWINEVENTHOOK;
 use windows::Win32::UI::WindowsAndMessaging::DefWindowProcW;
 use windows::Win32::UI::WindowsAndMessaging::PostQuitMessage;
+use windows::Win32::UI::WindowsAndMessaging::SPI_ICONVERTICALSPACING;
+use windows::Win32::UI::WindowsAndMessaging::SPI_SETWORKAREA;
 use windows::Win32::UI::WindowsAndMessaging::WM_DESTROY;
+use windows::Win32::UI::WindowsAndMessaging::WM_DEVICECHANGE;
 use windows::Win32::UI::WindowsAndMessaging::WM_DISPLAYCHANGE;
 use windows::Win32::UI::WindowsAndMessaging::WM_PAINT;
+use windows::Win32::UI::WindowsAndMessaging::WM_SETTINGCHANGE;
 
 use crate::container::Container;
 use crate::monitor::Monitor;
@@ -176,6 +181,34 @@ pub extern "system" fn hidden_window(
                     .send(event_type)
                     .expect("could not send message on WINEVENT_CALLBACK_CHANNEL");
 
+                LRESULT(0)
+            }
+            // Added based on this https://stackoverflow.com/a/33762334
+            WM_SETTINGCHANGE => {
+                #[allow(clippy::cast_possible_truncation)]
+                if wparam.0 as u32 == SPI_SETWORKAREA.0
+                    || wparam.0 as u32 == SPI_ICONVERTICALSPACING.0
+                {
+                    let event_type = WindowManagerEvent::DisplayChange(Window { hwnd: window.0 });
+                    WINEVENT_CALLBACK_CHANNEL
+                        .lock()
+                        .0
+                        .send(event_type)
+                        .expect("could not send message on WINEVENT_CALLBACK_CHANNEL");
+                }
+                LRESULT(0)
+            }
+            // Added based on this https://stackoverflow.com/a/33762334
+            WM_DEVICECHANGE => {
+                #[allow(clippy::cast_possible_truncation)]
+                if wparam.0 as u32 == DBT_DEVNODES_CHANGED {
+                    let event_type = WindowManagerEvent::DisplayChange(Window { hwnd: window.0 });
+                    WINEVENT_CALLBACK_CHANNEL
+                        .lock()
+                        .0
+                        .send(event_type)
+                        .expect("could not send message on WINEVENT_CALLBACK_CHANNEL");
+                }
                 LRESULT(0)
             }
             _ => DefWindowProcW(window, message, wparam, lparam),
