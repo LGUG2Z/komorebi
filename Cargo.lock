@@ -688,9 +688,9 @@ dependencies = [
 
 [[package]]
 name = "net2"
-version = "0.2.37"
+version = "0.2.38"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "391630d12b68002ae1e25e8f974306474966550ad82dac6886fb8910c19568ae"
+checksum = "74d0df99cfcd2530b2e694f6e17e7f37b8e26bb23983ac530c0c97408837c631"
 dependencies = [
  "cfg-if 0.1.10",
  "libc",
