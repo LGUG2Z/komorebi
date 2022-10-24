@@ -21,6 +21,8 @@ pub struct Monitor {
     #[getset(get_copy = "pub", set = "pub")]
     id: isize,
     #[getset(get = "pub", set = "pub")]
+    name: String,
+    #[getset(get = "pub", set = "pub")]
     size: Rect,
     #[getset(get = "pub", set = "pub")]
     work_area_size: Rect,
@@ -32,12 +34,13 @@ pub struct Monitor {
 
 impl_ring_elements!(Monitor, Workspace);
 
-pub fn new(id: isize, size: Rect, work_area_size: Rect) -> Monitor {
+pub fn new(id: isize, size: Rect, work_area_size: Rect, name: String) -> Monitor {
     let mut workspaces = Ring::default();
     workspaces.elements_mut().push_back(Workspace::default());
 
     Monitor {
         id,
+        name,
         size,
         work_area_size,
         workspaces,

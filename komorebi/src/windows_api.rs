@@ -1,6 +1,8 @@
 use std::collections::VecDeque;
 use std::convert::TryFrom;
 use std::ffi::c_void;
+use std::ffi::OsString;
+use std::os::windows::ffi::OsStringExt;
 use std::sync::atomic::Ordering;
 
 use color_eyre::eyre::anyhow;
@@ -36,7 +38,7 @@ use windows::Win32::Graphics::Gdi::HBRUSH;
 use windows::Win32::Graphics::Gdi::HDC;
 use windows::Win32::Graphics::Gdi::HMONITOR;
 use windows::Win32::Graphics::Gdi::MONITORENUMPROC;
-use windows::Win32::Graphics::Gdi::MONITORINFO;
+use windows::Win32::Graphics::Gdi::MONITORINFOEXW;
 use windows::Win32::Graphics::Gdi::MONITOR_DEFAULTTONEAREST;
 use windows::Win32::System::LibraryLoader::GetModuleHandleW;
 use windows::Win32::System::RemoteDesktop::ProcessIdToSessionId;
@@ -202,12 +204,12 @@ impl WindowsApi {
             .process()
     }
 
-    pub fn valid_hmonitors() -> Result<Vec<isize>> {
-        let mut monitors: Vec<isize> = vec![];
-        let monitors_ref: &mut Vec<isize> = monitors.as_mut();
+    pub fn valid_hmonitors() -> Result<Vec<(String, isize)>> {
+        let mut monitors: Vec<(String, isize)> = vec![];
+        let monitors_ref: &mut Vec<(String, isize)> = monitors.as_mut();
         Self::enum_display_monitors(
             Option::Some(windows_callbacks::valid_display_monitors),
-            monitors_ref as *mut Vec<isize> as isize,
+            monitors_ref as *mut Vec<(String, isize)> as isize,
         )?;
 
         Ok(monitors)
@@ -228,7 +230,7 @@ impl WindowsApi {
 
     pub fn load_workspace_information(monitors: &mut Ring<Monitor>) -> Result<()> {
         for monitor in monitors.elements_mut() {
-            let monitor_id = monitor.id();
+            let monitor_name = monitor.name().clone();
             if let Some(workspace) = monitor.workspaces_mut().front_mut() {
                 // EnumWindows will enumerate through windows on all monitors
                 Self::enum_windows(
@@ -246,7 +248,7 @@ impl WindowsApi {
 
                 for container in workspace.containers_mut() {
                     for window in container.windows() {
-                        if Self::monitor_from_window(window.hwnd()) != monitor_id {
+                        if Self::monitor_name_from_window(window.hwnd())? != monitor_name {
                             windows_on_other_monitors.push(window.hwnd().0);
                         }
                     }
@@ -271,6 +273,16 @@ impl WindowsApi {
         // MONITOR_DEFAULTTONEAREST ensures that the return value will never be NULL
         // https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-monitorfromwindow
         unsafe { MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST) }.0
+    }
+
+    pub fn monitor_name_from_window(hwnd: HWND) -> Result<String> {
+        // MONITOR_DEFAULTTONEAREST ensures that the return value will never be NULL
+        // https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-monitorfromwindow
+        Ok(
+            Self::monitor(unsafe { MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST) }.0)?
+                .name()
+                .to_string(),
+        )
     }
 
     pub fn monitor_from_point(point: POINT) -> isize {
@@ -612,24 +624,30 @@ impl WindowsApi {
         unsafe { IsIconic(hwnd) }.into()
     }
 
-    pub fn monitor_info_w(hmonitor: HMONITOR) -> Result<MONITORINFO> {
-        let mut monitor_info: MONITORINFO = unsafe { std::mem::zeroed() };
-        monitor_info.cbSize = u32::try_from(std::mem::size_of::<MONITORINFO>())?;
-
-        unsafe { GetMonitorInfoW(hmonitor, &mut monitor_info) }
+    pub fn monitor_info_w(hmonitor: HMONITOR) -> Result<MONITORINFOEXW> {
+        let mut ex_info = MONITORINFOEXW::default();
+        ex_info.monitorInfo.cbSize = u32::try_from(std::mem::size_of::<MONITORINFOEXW>())?;
+        unsafe { GetMonitorInfoW(hmonitor, &mut ex_info.monitorInfo) }
             .ok()
             .process()?;
 
-        Ok(monitor_info)
+        Ok(ex_info)
     }
 
     pub fn monitor(hmonitor: isize) -> Result<Monitor> {
-        let monitor_info = Self::monitor_info_w(HMONITOR(hmonitor))?;
+        let ex_info = Self::monitor_info_w(HMONITOR(hmonitor))?;
+        let name = OsString::from_wide(&ex_info.szDevice);
+        let name = name
+            .to_string_lossy()
+            .replace('\u{0000}', "")
+            .trim_start_matches(r"\\.\")
+            .to_string();
 
         Ok(monitor::new(
             hmonitor,
-            monitor_info.rcMonitor.into(),
-            monitor_info.rcWork.into(),
+            ex_info.monitorInfo.rcMonitor.into(),
+            ex_info.monitorInfo.rcWork.into(),
+            name,
         ))
     }
 

@@ -47,8 +47,11 @@ pub extern "system" fn valid_display_monitors(
     _: *mut RECT,
     lparam: LPARAM,
 ) -> BOOL {
-    let monitors = unsafe { &mut *(lparam.0 as *mut Vec<isize>) };
-    monitors.push(hmonitor.0);
+    let monitors = unsafe { &mut *(lparam.0 as *mut Vec<(String, isize)>) };
+    if let Ok(m) = WindowsApi::monitor(hmonitor.0) {
+        monitors.push((m.name().to_string(), hmonitor.0));
+    }
+
     true.into()
 }
 
