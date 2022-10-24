@@ -327,65 +327,63 @@ impl WindowManager {
     #[tracing::instrument(skip(self))]
     pub fn reconcile_monitors(&mut self) -> Result<()> {
         let valid_hmonitors = WindowsApi::valid_hmonitors()?;
-        let mut invalid = vec![];
-        let mut updated = vec![];
-        let mut overlapping = vec![];
+        let mut valid_names = vec![];
+        let before_count = self.monitors().len();
 
         for monitor in self.monitors_mut() {
-            if !valid_hmonitors.contains(&monitor.id()) {
-                let mut mark_as_invalid = true;
-
-                // If an invalid hmonitor has at least one window in the window manager state,
-                // we can attempt to update its hmonitor id in-place so that it doesn't get reaped
-                //
-                // This needs to be done because when monitors are attached and detached, even
-                // monitors that remained connected get assigned new HMONITOR values
-                if let Some(workspace) = monitor.focused_workspace() {
-                    if let Some(container) = workspace.focused_container() {
-                        if let Some(window) = container.focused_window() {
-                            let actual_hmonitor = WindowsApi::monitor_from_window(window.hwnd());
-                            if actual_hmonitor != monitor.id() {
-                                monitor.set_id(actual_hmonitor);
-
-                                if updated.contains(&actual_hmonitor) {
-                                    overlapping.push(monitor.clone());
-                                } else {
-                                    mark_as_invalid = false;
-                                    updated.push(actual_hmonitor);
-                                }
-                            }
-                        }
-                    }
+            for (valid_name, valid_id) in &valid_hmonitors {
+                let actual_name = monitor.name().clone();
+                if actual_name == *valid_name {
+                    monitor.set_id(*valid_id);
+                    valid_names.push(actual_name);
                 }
+            }
+        }
 
-                if mark_as_invalid {
-                    invalid.push(monitor.id());
+        let mut orphaned_containers = vec![];
+
+        for invalid in self
+            .monitors()
+            .iter()
+            .filter(|m| !valid_names.contains(m.name()))
+        {
+            for workspace in invalid.workspaces() {
+                for container in workspace.containers() {
+                    // Save the orphaned containers from an invalid monitor
+                    // (which has most likely been disconnected)
+                    orphaned_containers.push(container.clone());
                 }
             }
         }
 
         // Remove any invalid monitors from our state
-        self.monitors_mut().retain(|m| !invalid.contains(&m.id()));
+        self.monitors_mut()
+            .retain(|m| valid_names.contains(m.name()));
 
-        // If monitor IDs are overlapping we are fucked and need to load
-        // monitor and workspace state again, followed by the configuration
-        if !overlapping.is_empty() {
-            WindowsApi::load_monitor_information(&mut self.monitors)?;
-            WindowsApi::load_workspace_information(&mut self.monitors)?;
+        let after_count = self.monitors().len();
 
-            std::thread::spawn(|| {
-                load_configuration().expect("could not load configuration");
-            });
+        if let Some(primary) = self.monitors_mut().front_mut() {
+            if let Some(focused_ws) = primary.focused_workspace_mut() {
+                let focused_container_idx = focused_ws.focused_container_idx();
+
+                // Put the orphaned containers somewhere visible
+                for container in orphaned_containers {
+                    focused_ws.add_container(container);
+                }
+
+                // Gotta reset the focus or the movement will feel "off"
+                focused_ws.focus_container(focused_container_idx);
+            }
         }
 
         let invisible_borders = self.invisible_borders;
         let offset = self.work_area_offset;
 
         for monitor in self.monitors_mut() {
-            let mut should_update = false;
-            let reference = WindowsApi::monitor(monitor.id())?;
-            // TODO: If this is different, force a redraw
+            // If we have lost a monitor, update everything to filter out any jank
+            let mut should_update = before_count != after_count;
 
+            let reference = WindowsApi::monitor(monitor.id())?;
             if reference.work_area_size() != monitor.work_area_size() {
                 monitor.set_work_area_size(Rect {
                     left: reference.work_area_size().left,
@@ -415,6 +413,16 @@ impl WindowManager {
 
         // Check for and add any new monitors that may have been plugged in
         WindowsApi::load_monitor_information(&mut self.monitors)?;
+
+        let final_count = self.monitors().len();
+        if after_count != final_count {
+            self.retile_all(true)?;
+            // Second retile to fix DPI/resolution related jank when a window
+            // moves between monitors with different resolutions - this doesn't
+            // really get seen by the user since the screens are flickering anyway
+            // as a result of the display connections / disconnections
+            self.retile_all(true)?;
+        }
 
         Ok(())
     }
