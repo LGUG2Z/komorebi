@@ -90,6 +90,8 @@ lazy_static! {
         "firefox.exe".to_string(),
         "idea64.exe".to_string(),
     ]));
+    static ref MONITOR_INDEX_PREFERENCES: Arc<Mutex<HashMap<usize, Rect>>> =
+        Arc::new(Mutex::new(HashMap::new()));
     static ref WORKSPACE_RULES: Arc<Mutex<HashMap<String, (usize, usize)>>> =
         Arc::new(Mutex::new(HashMap::new()));
     static ref MANAGE_IDENTIFIERS: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(vec![]));

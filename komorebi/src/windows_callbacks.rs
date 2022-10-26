@@ -39,6 +39,7 @@ use crate::windows_api::WindowsApi;
 use crate::winevent_listener::WINEVENT_CALLBACK_CHANNEL;
 use crate::BORDER_COLOUR_CURRENT;
 use crate::BORDER_RECT;
+use crate::MONITOR_INDEX_PREFERENCES;
 use crate::TRANSPARENCY_COLOUR;
 
 pub extern "system" fn valid_display_monitors(
@@ -71,7 +72,24 @@ pub extern "system" fn enum_display_monitor(
     }
 
     if let Ok(m) = WindowsApi::monitor(hmonitor.0) {
-        monitors.elements_mut().push_back(m);
+        let monitor_index_preferences = MONITOR_INDEX_PREFERENCES.lock();
+        let mut index_preference = None;
+        for (index, monitor_size) in &*monitor_index_preferences {
+            if m.size() == monitor_size {
+                index_preference = Option::from(index);
+            }
+        }
+
+        if let Some(preference) = index_preference {
+            let current_len = monitors.elements().len();
+            if *preference > current_len {
+                monitors.elements_mut().reserve(1);
+            }
+
+            monitors.elements_mut().insert(*preference, m);
+        } else {
+            monitors.elements_mut().push_back(m);
+        }
     }
 
     true.into()

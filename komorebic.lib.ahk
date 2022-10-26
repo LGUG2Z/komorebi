@@ -180,6 +180,10 @@ Retile() {
     RunWait, komorebic.exe retile, , Hide
 }
 
+MonitorIndexPreference(index_preference, left, top, right, bottom) {
+    RunWait, komorebic.exe monitor-index-preference %index_preference% %left% %top% %right% %bottom%, , Hide
+}
+
 EnsureWorkspaces(monitor, workspace_count) {
     RunWait, komorebic.exe ensure-workspaces %monitor% %workspace_count%, , Hide
 }
