@@ -55,6 +55,7 @@ use crate::HIDING_BEHAVIOUR;
 use crate::INITIAL_CONFIGURATION_LOADED;
 use crate::LAYERED_WHITELIST;
 use crate::MANAGE_IDENTIFIERS;
+use crate::MONITOR_INDEX_PREFERENCES;
 use crate::OBJECT_NAME_CHANGE_ON_LAUNCH;
 use crate::SUBSCRIPTION_PIPES;
 use crate::TCP_CONNECTIONS;
@@ -401,6 +402,18 @@ impl WindowManager {
                 }
 
                 std::process::exit(0)
+            }
+            SocketMessage::MonitorIndexPreference(index_preference, left, top, right, bottom) => {
+                let mut monitor_index_preferences = MONITOR_INDEX_PREFERENCES.lock();
+                monitor_index_preferences.insert(
+                    index_preference,
+                    Rect {
+                        left,
+                        top,
+                        right,
+                        bottom,
+                    },
+                );
             }
             SocketMessage::EnsureWorkspaces(monitor_idx, workspace_count) => {
                 self.ensure_workspaces_for_monitor(monitor_idx, workspace_count)?;

@@ -72,6 +72,7 @@ pub enum SocketMessage {
     ChangeLayoutCustom(PathBuf),
     FlipLayout(Axis),
     // Monitor and Workspace Commands
+    MonitorIndexPreference(usize, i32, i32, i32, i32),
     EnsureWorkspaces(usize, usize),
     NewWorkspace,
     ToggleTiling,

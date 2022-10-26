@@ -280,6 +280,20 @@ struct WorkAreaOffset {
 }
 
 #[derive(Parser, AhkFunction)]
+struct MonitorIndexPreference {
+    /// Preferred monitor index (zero-indexed)
+    index_preference: usize,
+    /// Left value of the monitor's size Rect
+    left: i32,
+    /// Top value of the monitor's size Rect
+    top: i32,
+    /// Right value of the monitor's size Rect
+    right: i32,
+    /// Bottom value of the monitor's size Rect
+    bottom: i32,
+}
+
+#[derive(Parser, AhkFunction)]
 struct EnsureWorkspaces {
     /// Monitor index (zero-indexed)
     monitor: usize,
@@ -606,6 +620,9 @@ enum SubCommand {
     PromoteFocus,
     /// Force the retiling of all managed windows
     Retile,
+    /// Set the monitor index preference for a monitor identified using its size
+    #[clap(arg_required_else_help = true)]
+    MonitorIndexPreference(MonitorIndexPreference),
     /// Create at least this many workspaces for the specified monitor
     #[clap(arg_required_else_help = true)]
     EnsureWorkspaces(EnsureWorkspaces),
@@ -1106,6 +1123,18 @@ fn main() -> Result<()> {
             send_message(
                 &SocketMessage::WorkspaceName(name.monitor, name.workspace, name.value)
                     .as_bytes()?,
+            )?;
+        }
+        SubCommand::MonitorIndexPreference(arg) => {
+            send_message(
+                &SocketMessage::MonitorIndexPreference(
+                    arg.index_preference,
+                    arg.left,
+                    arg.top,
+                    arg.right,
+                    arg.bottom,
+                )
+                .as_bytes()?,
             )?;
         }
         SubCommand::EnsureWorkspaces(workspaces) => {
