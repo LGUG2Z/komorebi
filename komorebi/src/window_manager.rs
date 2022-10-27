@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::collections::VecDeque;
 use std::io::ErrorKind;
 use std::num::NonZeroUsize;
@@ -54,6 +55,7 @@ use crate::WORKSPACE_RULES;
 #[derive(Debug)]
 pub struct WindowManager {
     pub monitors: Ring<Monitor>,
+    pub monitor_cache: HashMap<usize, Monitor>,
     pub incoming_events: Arc<Mutex<Receiver<WindowManagerEvent>>>,
     pub command_listener: UnixListener,
     pub is_paused: bool,
@@ -166,6 +168,7 @@ impl WindowManager {
 
         Ok(Self {
             monitors: Ring::default(),
+            monitor_cache: HashMap::new(),
             incoming_events: incoming,
             command_listener: listener,
             is_paused: false,
@@ -341,18 +344,27 @@ impl WindowManager {
         }
 
         let mut orphaned_containers = vec![];
+        let mut invalid_indices = vec![];
 
-        for invalid in self
+        for (i, invalid) in self
             .monitors()
             .iter()
-            .filter(|m| !valid_names.contains(m.name()))
+            .enumerate()
+            .filter(|(_, m)| !valid_names.contains(m.name()))
         {
+            invalid_indices.push(i);
             for workspace in invalid.workspaces() {
                 for container in workspace.containers() {
                     // Save the orphaned containers from an invalid monitor
                     // (which has most likely been disconnected)
                     orphaned_containers.push(container.clone());
                 }
+            }
+        }
+
+        for i in invalid_indices {
+            if let Some(monitor) = self.monitors().get(i) {
+                self.monitor_cache.insert(i, monitor.clone());
             }
         }
 
@@ -411,8 +423,40 @@ impl WindowManager {
             }
         }
 
+        #[allow(clippy::needless_collect)]
+        let old_sizes = self
+            .monitors()
+            .iter()
+            .map(Monitor::size)
+            .copied()
+            .collect::<Vec<_>>();
+
         // Check for and add any new monitors that may have been plugged in
         WindowsApi::load_monitor_information(&mut self.monitors)?;
+
+        let mut check_cache = vec![];
+
+        for (i, m) in self.monitors().iter().enumerate() {
+            if !old_sizes.contains(m.size()) {
+                check_cache.push(i);
+            }
+        }
+
+        for i in check_cache {
+            if let Some(cached) = self.monitor_cache.get(&i).cloned() {
+                if let Some(monitor) = self.monitors_mut().get_mut(i) {
+                    for (w_idx, workspace) in monitor.workspaces_mut().iter_mut().enumerate() {
+                        if let Some(cached_workspace) = cached.workspaces().get(w_idx) {
+                            workspace.set_layout(cached_workspace.layout().clone());
+                            workspace.set_layout_rules(cached_workspace.layout_rules().clone());
+                            workspace.set_layout_flip(cached_workspace.layout_flip());
+                            workspace.set_workspace_padding(cached_workspace.workspace_padding());
+                            workspace.set_container_padding(cached_workspace.container_padding());
+                        }
+                    }
+                }
+            }
+        }
 
         let final_count = self.monitors().len();
         if after_count != final_count {
