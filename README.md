@@ -2,12 +2,27 @@
 
 Tiling Window Management for Windows.
 
-![GitHub Workflow Status (branch)](https://img.shields.io/github/workflow/status/LGUG2Z/komorebi/Windows/master)
-![GitHub](https://img.shields.io/github/license/LGUG2Z/komorebi)
-![GitHub all releases](https://img.shields.io/github/downloads/LGUG2Z/komorebi/total)
-![GitHub commits since latest release (by date) for a branch](https://img.shields.io/github/commits-since/LGUG2Z/komorebi/latest/master)
-![Discord](https://img.shields.io/discord/898554690126630914?label=discord)
-![GitHub Sponsors](https://img.shields.io/github/sponsors/LGUG2Z)
+<p>
+  <img alt="GitHub Workflow Status" src="https://img.shields.io/github/workflow/status/LGUG2Z/komorebi/Windows">
+  <img alt="GitHub" src="https://img.shields.io/github/license/LGUG2Z/komorebi">
+  <img alt="GitHub all releases" src="https://img.shields.io/github/downloads/LGUG2Z/komorebi/total">
+  <img alt="GitHub commits since latest release (by date) for a branch" src="https://img.shields.io/github/commits-since/LGUG2Z/komorebi/latest">
+  <a href="https://discord.gg/mGkn66PHkx">
+    <img alt="Discord" src="https://img.shields.io/discord/898554690126630914">
+  </a>
+  <a href="https://github.com/sponsors/LGUG2Z">
+    <img alt="GitHub Sponsors" src="https://img.shields.io/github/sponsors/LGUG2Z">
+  </a>
+  <a href="https://notado.app/feeds/jado/software-development">
+    <img alt="Notado Feed" src="https://img.shields.io/badge/Notado-Subscribe-informational">
+  </a>
+  <a href="https://jeezy.substack.com">
+    <img alt="Substack Read" src="https://img.shields.io/badge/Substack-Read-orange">
+  </a>
+  <a href="https://twitter.com/LGUG2Z">
+    <img alt="Twitter Follow" src="https://img.shields.io/twitter/follow/LGUG2Z">
+  </a>
+</p>
 
 ![screenshot](https://user-images.githubusercontent.com/13164844/184027064-f5a6cec2-2865-4d65-a549-a1f1da589abf.png)
 
