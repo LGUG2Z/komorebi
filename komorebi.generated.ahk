@@ -72,6 +72,15 @@ Run, komorebic.exe identify-tray-application exe "Element.exe", , Hide
 ; If you have disabled minimize/close to tray for this application, you can delete/comment out the next line
 Run, komorebic.exe identify-tray-application exe "ElevenClock.exe", , Hide
 
+; Elgato Camera Hub
+Run, komorebic.exe float-rule exe "Camera Hub.exe", , Hide
+
+; Elgato Control Center
+Run, komorebic.exe float-rule exe "ControlCenter.exe", , Hide
+
+; Elgato Wave Link
+Run, komorebic.exe float-rule exe "WaveLink.exe", , Hide
+
 ; Epic Games Launcher
 Run, komorebic.exe identify-border-overflow-application exe "EpicGamesLauncher.exe", , Hide
 ; If you have disabled minimize/close to tray for this application, you can delete/comment out the next line
@@ -331,6 +340,10 @@ Run, komorebic.exe identify-border-overflow-application exe "UnrealEditor.exe", 
 ; If you have disabled minimize/close to tray for this application, you can delete/comment out the next line
 Run, komorebic.exe identify-tray-application exe "UnrealEditor.exe", , Hide
 
+; Visual Studio
+Run, komorebic.exe manage-rule exe "devenv.exe", , Hide
+Run, komorebic.exe float-rule class "GenericPane", , Hide
+
 ; Visual Studio Code
 Run, komorebic.exe identify-border-overflow-application exe "Code.exe", , Hide
 
@@ -364,10 +377,6 @@ Run, komorebic.exe float-rule title "Hotkey sink", , Hide
 
 ; Zoom
 Run, komorebic.exe float-rule exe "Zoom.exe", , Hide
-
-; mpv
-; If you have disabled minimize/close to tray for this application, you can delete/comment out the next line
-Run, komorebic.exe identify-tray-application class "mpv", , Hide
 
 ; mpv.net
 Run, komorebic.exe identify-object-name-change-application exe "mpvnet.exe", , Hide
