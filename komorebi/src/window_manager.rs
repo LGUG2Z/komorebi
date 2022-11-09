@@ -329,6 +329,10 @@ impl WindowManager {
 
     #[tracing::instrument(skip(self))]
     pub fn reconcile_monitors(&mut self) -> Result<()> {
+        if self.pending_move_op.is_some() {
+            return Ok(());
+        }
+
         let valid_hmonitors = WindowsApi::valid_hmonitors()?;
         let mut valid_names = vec![];
         let before_count = self.monitors().len();
