@@ -59,26 +59,26 @@ impl ApplicationOptions {
 
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 pub struct IdWithIdentifier {
-    kind: ApplicationIdentifier,
-    id: String,
+    pub kind: ApplicationIdentifier,
+    pub id: String,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 pub struct IdWithIdentifierAndComment {
-    kind: ApplicationIdentifier,
-    id: String,
+    pub kind: ApplicationIdentifier,
+    pub id: String,
     #[serde(skip_serializing_if = "Option::is_none")]
-    comment: Option<String>,
+    pub comment: Option<String>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 pub struct ApplicationConfiguration {
-    name: String,
-    identifier: IdWithIdentifier,
+    pub name: String,
+    pub identifier: IdWithIdentifier,
     #[serde(skip_serializing_if = "Option::is_none")]
-    options: Option<Vec<ApplicationOptions>>,
+    pub options: Option<Vec<ApplicationOptions>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    float_identifiers: Option<Vec<IdWithIdentifierAndComment>>,
+    pub float_identifiers: Option<Vec<IdWithIdentifierAndComment>>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
