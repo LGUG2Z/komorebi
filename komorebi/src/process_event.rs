@@ -109,6 +109,12 @@ impl WindowManager {
 
         for (i, monitor) in self.monitors_mut().iter_mut().enumerate() {
             let work_area = *monitor.work_area_size();
+            let offset = if monitor.work_area_offset().is_some() {
+                monitor.work_area_offset()
+            } else {
+                offset
+            };
+
             for (j, workspace) in monitor.workspaces_mut().iter_mut().enumerate() {
                 let reaped_orphans = workspace.reap_orphans()?;
                 if reaped_orphans.0 > 0 || reaped_orphans.1 > 0 {

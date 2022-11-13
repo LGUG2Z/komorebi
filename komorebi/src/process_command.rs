@@ -709,6 +709,12 @@ impl WindowManager {
                 self.work_area_offset = Option::from(rect);
                 self.retile_all(false)?;
             }
+            SocketMessage::MonitorWorkAreaOffset(monitor_idx, rect) => {
+                if let Some(monitor) = self.monitors_mut().get_mut(monitor_idx) {
+                    monitor.set_work_area_offset(Option::from(rect));
+                    self.retile_all(false)?;
+                }
+            }
             SocketMessage::QuickSave => {
                 let workspace = self.focused_workspace()?;
                 let resize = workspace.resize_dimensions();

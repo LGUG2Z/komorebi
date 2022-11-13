@@ -268,7 +268,21 @@ struct InvisibleBorders {
 }
 
 #[derive(Parser, AhkFunction)]
-struct WorkAreaOffset {
+struct GlobalWorkAreaOffset {
+    /// Size of the left work area offset (set right to left * 2 to maintain right padding)
+    left: i32,
+    /// Size of the top work area offset (set bottom to the same value to maintain bottom padding)
+    top: i32,
+    /// Size of the right work area offset
+    right: i32,
+    /// Size of the bottom work area offset
+    bottom: i32,
+}
+
+#[derive(Parser, AhkFunction)]
+struct MonitorWorkAreaOffset {
+    /// Monitor index (zero-indexed)
+    monitor: usize,
     /// Size of the left work area offset (set right to left * 2 to maintain right padding)
     left: i32,
     /// Size of the top work area offset (set bottom to the same value to maintain bottom padding)
@@ -598,7 +612,11 @@ enum SubCommand {
     InvisibleBorders(InvisibleBorders),
     /// Set offsets to exclude parts of the work area from tiling
     #[clap(arg_required_else_help = true)]
-    WorkAreaOffset(WorkAreaOffset),
+    #[clap(alias = "global-work-area-offset")]
+    GlobalWorkAreaOffset(GlobalWorkAreaOffset),
+    /// Set offsets for a monitor to exclude parts of the work area from tiling
+    #[clap(arg_required_else_help = true)]
+    MonitorWorkAreaOffset(MonitorWorkAreaOffset),
     /// Adjust container padding on the focused workspace
     #[clap(arg_required_else_help = true)]
     AdjustContainerPadding(AdjustContainerPadding),
@@ -857,7 +875,21 @@ fn main() -> Result<()> {
                 .as_bytes()?,
             )?;
         }
-        SubCommand::WorkAreaOffset(arg) => {
+        SubCommand::MonitorWorkAreaOffset(arg) => {
+            send_message(
+                &SocketMessage::MonitorWorkAreaOffset(
+                    arg.monitor,
+                    Rect {
+                        left: arg.left,
+                        top: arg.top,
+                        right: arg.right,
+                        bottom: arg.bottom,
+                    },
+                )
+                .as_bytes()?,
+            )?;
+        }
+        SubCommand::GlobalWorkAreaOffset(arg) => {
             send_message(
                 &SocketMessage::WorkAreaOffset(Rect {
                     left: arg.left,

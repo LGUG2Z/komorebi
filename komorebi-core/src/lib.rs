@@ -105,6 +105,7 @@ pub enum SocketMessage {
     ActiveWindowBorderColour(WindowKind, u32, u32, u32),
     InvisibleBorders(Rect),
     WorkAreaOffset(Rect),
+    MonitorWorkAreaOffset(usize, Rect),
     ResizeDelta(i32),
     WorkspaceRule(ApplicationIdentifier, String, usize, usize),
     FloatRule(ApplicationIdentifier, String),

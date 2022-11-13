@@ -599,6 +599,12 @@ impl WindowManager {
 
         for monitor in self.monitors_mut() {
             let work_area = *monitor.work_area_size();
+            let offset = if monitor.work_area_offset().is_some() {
+                monitor.work_area_offset()
+            } else {
+                offset
+            };
+
             let workspace = monitor
                 .focused_workspace_mut()
                 .ok_or_else(|| anyhow!("there is no workspace"))?;
@@ -1650,6 +1656,11 @@ impl WindowManager {
 
         let work_area = *monitor.work_area_size();
         let focused_workspace_idx = monitor.focused_workspace_idx();
+        let offset = if monitor.work_area_offset().is_some() {
+            monitor.work_area_offset()
+        } else {
+            offset
+        };
 
         let workspace = monitor
             .workspaces_mut()
@@ -1691,6 +1702,11 @@ impl WindowManager {
 
         let work_area = *monitor.work_area_size();
         let focused_workspace_idx = monitor.focused_workspace_idx();
+        let offset = if monitor.work_area_offset().is_some() {
+            monitor.work_area_offset()
+        } else {
+            offset
+        };
 
         let workspace = monitor
             .workspaces_mut()
@@ -1732,6 +1748,11 @@ impl WindowManager {
 
         let work_area = *monitor.work_area_size();
         let focused_workspace_idx = monitor.focused_workspace_idx();
+        let offset = if monitor.work_area_offset().is_some() {
+            monitor.work_area_offset()
+        } else {
+            offset
+        };
 
         let workspace = monitor
             .workspaces_mut()
@@ -1770,6 +1791,11 @@ impl WindowManager {
 
         let work_area = *monitor.work_area_size();
         let focused_workspace_idx = monitor.focused_workspace_idx();
+        let offset = if monitor.work_area_offset().is_some() {
+            monitor.work_area_offset()
+        } else {
+            offset
+        };
 
         let workspace = monitor
             .workspaces_mut()
@@ -1807,6 +1833,11 @@ impl WindowManager {
 
         let work_area = *monitor.work_area_size();
         let focused_workspace_idx = monitor.focused_workspace_idx();
+        let offset = if monitor.work_area_offset().is_some() {
+            monitor.work_area_offset()
+        } else {
+            offset
+        };
 
         let workspace = monitor
             .workspaces_mut()

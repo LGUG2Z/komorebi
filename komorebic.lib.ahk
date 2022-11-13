@@ -144,8 +144,12 @@ InvisibleBorders(left, top, right, bottom) {
     RunWait, komorebic.exe invisible-borders %left% %top% %right% %bottom%, , Hide
 }
 
-WorkAreaOffset(left, top, right, bottom) {
-    RunWait, komorebic.exe work-area-offset %left% %top% %right% %bottom%, , Hide
+GlobalWorkAreaOffset(left, top, right, bottom) {
+    RunWait, komorebic.exe global-work-area-offset %left% %top% %right% %bottom%, , Hide
+}
+
+MonitorWorkAreaOffset(monitor, left, top, right, bottom) {
+    RunWait, komorebic.exe monitor-work-area-offset %monitor% %left% %top% %right% %bottom%, , Hide
 }
 
 AdjustContainerPadding(sizing, adjustment) {
