@@ -127,6 +127,7 @@ impl Monitor {
 
         let workspaces = self.workspaces_mut();
 
+        #[allow(clippy::option_if_let_else)]
         let target_workspace = match workspaces.get_mut(target_workspace_idx) {
             None => {
                 workspaces.resize(target_workspace_idx + 1, Workspace::default());

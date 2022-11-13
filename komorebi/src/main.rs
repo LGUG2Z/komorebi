@@ -113,7 +113,7 @@ lazy_static! {
     static ref HIDING_BEHAVIOUR: Arc<Mutex<HidingBehaviour>> =
         Arc::new(Mutex::new(HidingBehaviour::Minimize));
     static ref HOME_DIR: PathBuf = {
-        if let Ok(home_path) = std::env::var("KOMOREBI_CONFIG_HOME") {
+        std::env::var("KOMOREBI_CONFIG_HOME").map_or_else(|_| dirs::home_dir().expect("there is no home directory"), |home_path| {
             let home = PathBuf::from(&home_path);
 
             if home.as_path().is_dir() {
@@ -124,9 +124,7 @@ lazy_static! {
                     home_path
                 );
             }
-        } else {
-            dirs::home_dir().expect("there is no home directory")
-        }
+        })
     };
     static ref DATA_DIR: PathBuf = dirs::data_local_dir().expect("there is no local data directory").join("komorebi");
     static ref AHK_V1_EXE: String = {

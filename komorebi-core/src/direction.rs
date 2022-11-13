@@ -229,16 +229,13 @@ impl Direction for CustomLayout {
                 }
 
                 let (column_idx, column) = self.column_with_idx(idx);
-                match column {
-                    None => false,
-                    Some(column) => match column {
-                        Column::Secondary(Some(ColumnSplitWithCapacity::Horizontal(_)))
-                        | Column::Tertiary(ColumnSplit::Horizontal) => {
-                            self.column_for_container_idx(idx - 1) == column_idx
-                        }
-                        _ => false,
-                    },
-                }
+                column.map_or(false, |column| match column {
+                    Column::Secondary(Some(ColumnSplitWithCapacity::Horizontal(_)))
+                    | Column::Tertiary(ColumnSplit::Horizontal) => {
+                        self.column_for_container_idx(idx - 1) == column_idx
+                    }
+                    _ => false,
+                })
             }
             OperationDirection::Down => {
                 if idx == count - 1 {
@@ -246,16 +243,13 @@ impl Direction for CustomLayout {
                 }
 
                 let (column_idx, column) = self.column_with_idx(idx);
-                match column {
-                    None => false,
-                    Some(column) => match column {
-                        Column::Secondary(Some(ColumnSplitWithCapacity::Horizontal(_)))
-                        | Column::Tertiary(ColumnSplit::Horizontal) => {
-                            self.column_for_container_idx(idx + 1) == column_idx
-                        }
-                        _ => false,
-                    },
-                }
+                column.map_or(false, |column| match column {
+                    Column::Secondary(Some(ColumnSplitWithCapacity::Horizontal(_)))
+                    | Column::Tertiary(ColumnSplit::Horizontal) => {
+                        self.column_for_container_idx(idx + 1) == column_idx
+                    }
+                    _ => false,
+                })
             }
         }
     }

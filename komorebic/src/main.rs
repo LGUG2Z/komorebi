@@ -48,20 +48,21 @@ use komorebi_core::WindowKind;
 
 lazy_static! {
     static ref HOME_DIR: PathBuf = {
-        if let Ok(home_path) = std::env::var("KOMOREBI_CONFIG_HOME") {
-            let home = PathBuf::from(&home_path);
+        std::env::var("KOMOREBI_CONFIG_HOME").map_or_else(
+            |_| dirs::home_dir().expect("there is no home directory"),
+            |home_path| {
+                let home = PathBuf::from(&home_path);
 
-            if home.as_path().is_dir() {
-                home
-            } else {
-                panic!(
-                    "$Env:KOMOREBI_CONFIG_HOME is set to '{}', which is not a valid directory",
-                    home_path
-                );
-            }
-        } else {
-            dirs::home_dir().expect("there is no home directory")
-        }
+                if home.as_path().is_dir() {
+                    home
+                } else {
+                    panic!(
+                        "$Env:KOMOREBI_CONFIG_HOME is set to '{}', which is not a valid directory",
+                        home_path
+                    );
+                }
+            },
+        )
     };
     static ref DATA_DIR: PathBuf = dirs::data_local_dir()
         .expect("there is no local data directory")
@@ -1181,7 +1182,7 @@ fn main() -> Result<()> {
             socket.push("komorebic.sock");
             let socket = socket.as_path();
 
-            match std::fs::remove_file(&socket) {
+            match std::fs::remove_file(socket) {
                 Ok(_) => {}
                 Err(error) => match error.kind() {
                     // Doing this because ::exists() doesn't work reliably on Windows via IntelliJ
@@ -1192,7 +1193,7 @@ fn main() -> Result<()> {
                 },
             };
 
-            let listener = UnixListener::bind(&socket)?;
+            let listener = UnixListener::bind(socket)?;
 
             send_message(&SocketMessage::State.as_bytes()?)?;
 
@@ -1216,7 +1217,7 @@ fn main() -> Result<()> {
             socket.push("komorebic.sock");
             let socket = socket.as_path();
 
-            match std::fs::remove_file(&socket) {
+            match std::fs::remove_file(socket) {
                 Ok(_) => {}
                 Err(error) => match error.kind() {
                     // Doing this because ::exists() doesn't work reliably on Windows via IntelliJ
@@ -1227,7 +1228,7 @@ fn main() -> Result<()> {
                 },
             };
 
-            let listener = UnixListener::bind(&socket)?;
+            let listener = UnixListener::bind(socket)?;
 
             send_message(&SocketMessage::Query(arg.state_query).as_bytes()?)?;
 
@@ -1419,7 +1420,7 @@ fn main() -> Result<()> {
             socket.push("komorebic.sock");
             let socket = socket.as_path();
 
-            match std::fs::remove_file(&socket) {
+            match std::fs::remove_file(socket) {
                 Ok(_) => {}
                 Err(error) => match error.kind() {
                     // Doing this because ::exists() doesn't work reliably on Windows via IntelliJ
@@ -1432,7 +1433,7 @@ fn main() -> Result<()> {
 
             send_message(&SocketMessage::NotificationSchema.as_bytes()?)?;
 
-            let listener = UnixListener::bind(&socket)?;
+            let listener = UnixListener::bind(socket)?;
             match listener.accept() {
                 Ok(incoming) => {
                     let stream = BufReader::new(incoming.0);
@@ -1453,7 +1454,7 @@ fn main() -> Result<()> {
             socket.push("komorebic.sock");
             let socket = socket.as_path();
 
-            match std::fs::remove_file(&socket) {
+            match std::fs::remove_file(socket) {
                 Ok(_) => {}
                 Err(error) => match error.kind() {
                     // Doing this because ::exists() doesn't work reliably on Windows via IntelliJ
@@ -1466,7 +1467,7 @@ fn main() -> Result<()> {
 
             send_message(&SocketMessage::SocketSchema.as_bytes()?)?;
 
-            let listener = UnixListener::bind(&socket)?;
+            let listener = UnixListener::bind(socket)?;
             match listener.accept() {
                 Ok(incoming) => {
                     let stream = BufReader::new(incoming.0);

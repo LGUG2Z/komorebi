@@ -435,7 +435,7 @@ impl WindowManager {
                 socket.push("komorebic.sock");
                 let socket = socket.as_path();
 
-                let mut stream = UnixStream::connect(&socket)?;
+                let mut stream = UnixStream::connect(socket)?;
                 stream.write_all(state.as_bytes())?;
             }
             SocketMessage::Query(query) => {
@@ -458,7 +458,7 @@ impl WindowManager {
                 socket.push("komorebic.sock");
                 let socket = socket.as_path();
 
-                let mut stream = UnixStream::connect(&socket)?;
+                let mut stream = UnixStream::connect(socket)?;
                 stream.write_all(response.as_bytes())?;
             }
             SocketMessage::ResizeWindowEdge(direction, sizing) => {
@@ -856,7 +856,7 @@ impl WindowManager {
                 socket.push("komorebic.sock");
                 let socket = socket.as_path();
 
-                let mut stream = UnixStream::connect(&socket)?;
+                let mut stream = UnixStream::connect(socket)?;
                 stream.write_all(schema.as_bytes())?;
             }
             SocketMessage::SocketSchema => {
@@ -866,7 +866,7 @@ impl WindowManager {
                 socket.push("komorebic.sock");
                 let socket = socket.as_path();
 
-                let mut stream = UnixStream::connect(&socket)?;
+                let mut stream = UnixStream::connect(socket)?;
                 stream.write_all(schema.as_bytes())?;
             }
         };
