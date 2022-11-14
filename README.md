@@ -44,6 +44,11 @@ There is a [Discord server](https://discord.gg/mGkn66PHkx) available for _komore
 troubleshooting etc. If you have any specific feature requests or bugs to report, please create an issue in this
 repository.
 
+There is a [YouTube channel](https://www.youtube.com/channel/UCeai3-do-9O4MNy9_xjO6mg) where I livestream development
+on _komorebi_. If you would like to be notified of upcoming livestreams please subscribe and turn on
+notifications. Videos of previous livestreams are also made available in
+a [dedicated playlist](https://www.youtube.com/playlist?list=PLllZnrEJu89Cpu4tMO8LAg1m6gWYWLSGJ).
+
 Articles, blog posts, demos, and videos about _komorebi_ can be added to this list by PR:
 
 - [Moving to Windows from Linux Pt 1](https://kvwu.io/posts/moving-to-windows/)
