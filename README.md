@@ -320,7 +320,7 @@ If you would like to remove all gaps from a given workspace, both between window
 
 ```powershell
 komorebic.exe container-padding <MONITOR_INDEX> <WORKSPACE_INDEX> 0
-komorebic.exe workspace padding <MONITOR_INDEX> <WORKSPACE_INDEX> 0
+komorebic.exe workspace-padding <MONITOR_INDEX> <WORKSPACE_INDEX> 0
 ```
 
 #### Multiple Layout Changes on Startup
