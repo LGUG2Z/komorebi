@@ -265,10 +265,42 @@ impl WindowManager {
             SocketMessage::MoveContainerToWorkspaceNumber(workspace_idx) => {
                 self.move_container_to_workspace(workspace_idx, true)?;
             }
+            SocketMessage::CycleMoveContainerToWorkspace(direction) => {
+                let focused_monitor = self
+                    .focused_monitor()
+                    .ok_or_else(|| anyhow!("there is no monitor"))?;
+
+                let focused_workspace_idx = focused_monitor.focused_workspace_idx();
+                let workspaces = focused_monitor.workspaces().len();
+
+                let workspace_idx = direction.next_idx(
+                    focused_workspace_idx,
+                    NonZeroUsize::new(workspaces)
+                        .ok_or_else(|| anyhow!("there must be at least one workspace"))?,
+                );
+
+                self.move_container_to_workspace(workspace_idx, true)?;
+            }
             SocketMessage::MoveContainerToMonitorNumber(monitor_idx) => {
                 self.move_container_to_monitor(monitor_idx, None, true)?;
             }
             SocketMessage::SendContainerToWorkspaceNumber(workspace_idx) => {
+                self.move_container_to_workspace(workspace_idx, false)?;
+            }
+            SocketMessage::CycleSendContainerToWorkspace(direction) => {
+                let focused_monitor = self
+                    .focused_monitor()
+                    .ok_or_else(|| anyhow!("there is no monitor"))?;
+
+                let focused_workspace_idx = focused_monitor.focused_workspace_idx();
+                let workspaces = focused_monitor.workspaces().len();
+
+                let workspace_idx = direction.next_idx(
+                    focused_workspace_idx,
+                    NonZeroUsize::new(workspaces)
+                        .ok_or_else(|| anyhow!("there must be at least one workspace"))?,
+                );
+
                 self.move_container_to_workspace(workspace_idx, false)?;
             }
             SocketMessage::SendContainerToMonitorNumber(monitor_idx) => {

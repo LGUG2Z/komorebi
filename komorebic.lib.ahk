@@ -96,12 +96,20 @@ MoveToWorkspace(target) {
     RunWait, komorebic.exe move-to-workspace %target%, , Hide
 }
 
+CycleMoveToWorkspace(cycle_direction) {
+    RunWait, komorebic.exe cycle-move-to-workspace %cycle_direction%, , Hide
+}
+
 SendToMonitor(target) {
     RunWait, komorebic.exe send-to-monitor %target%, , Hide
 }
 
 SendToWorkspace(target) {
     RunWait, komorebic.exe send-to-workspace %target%, , Hide
+}
+
+CycleSendToWorkspace(cycle_direction) {
+    RunWait, komorebic.exe cycle-send-to-workspace %cycle_direction%, , Hide
 }
 
 SendToMonitorWorkspace(target_monitor, target_workspace) {
