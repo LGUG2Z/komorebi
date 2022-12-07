@@ -165,11 +165,6 @@ binaries from the latest GitHub Release:
 ```powershell
 scoop bucket add extras
 scoop install komorebi
-
-# To download the example configuration
-iwr https://raw.githubusercontent.com/LGUG2Z/komorebi/master/komorebi.sample.ahk -OutFile $Env:USERPROFILE\komorebi.ahk
-iwr https://raw.githubusercontent.com/LGUG2Z/komorebi/master/komorebic.lib.ahk -OutFile $Env:USERPROFILE\komorebic.lib.ahk
-iwr https://raw.githubusercontent.com/LGUG2Z/komorebi/master/komorebi.generated.ahk -OutFile $Env:USERPROFILE\komorebi.generated.ahk
 ```
 
 If you install _komorebi_ using Scoop, the binaries will automatically be added to your `Path`.
@@ -188,6 +183,20 @@ You can then clone this repo and compile the source code to install the binaries
 ```powershell
 cargo install --path komorebi --locked
 cargo install --path komorebic --locked
+```
+
+### Using Example Configurations
+
+To download example configurations from this repository, which will work regardless of your installation method, you may
+run the following commands at a PowerShell prompt.
+
+These commands will download the `komorebi.sample.ahk`, `komorebic.lib.ahk` and `komorebi.generated.ahk` files from the
+master branch of this repository and save them to your `$HOME` directory.
+
+```powershell
+iwr https://raw.githubusercontent.com/LGUG2Z/komorebi/master/komorebi.sample.ahk -OutFile $Env:USERPROFILE\komorebi.ahk
+iwr https://raw.githubusercontent.com/LGUG2Z/komorebi/master/komorebic.lib.ahk -OutFile $Env:USERPROFILE\komorebic.lib.ahk
+iwr https://raw.githubusercontent.com/LGUG2Z/komorebi/master/komorebi.generated.ahk -OutFile $Env:USERPROFILE\komorebi.generated.ahk
 ```
 
 ### Running
