@@ -1047,12 +1047,6 @@ impl WindowManager {
 
         let workspace = self.focused_workspace()?;
 
-        if workspace.is_focused_window_monocle_or_maximized()? {
-            return Err(anyhow!(
-                "ignoring command while active window is in monocle mode or maximized"
-            ));
-        }
-
         tracing::info!("focusing container");
 
         let new_idx = workspace.new_idx_for_direction(direction);
@@ -1082,6 +1076,9 @@ impl WindowManager {
         self.handle_unmanaged_window_behaviour()?;
 
         let workspace = self.focused_workspace()?;
+
+        // removing this messes up the monitor / container / window index somewhere
+        // and results in the wrong window getting moved across the monitor boundary
         if workspace.is_focused_window_monocle_or_maximized()? {
             return Err(anyhow!(
                 "ignoring command while active window is in monocle mode or maximized"
