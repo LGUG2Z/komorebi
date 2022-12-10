@@ -103,6 +103,10 @@ impl Border {
         if self.hwnd == 0 {
             Ok(())
         } else {
+            if !WindowsApi::is_window(self.hwnd()) {
+                Self::create("komorebi-border-window")?;
+            }
+
             let mut should_expand_border = false;
 
             let mut rect = WindowsApi::window_rect(window.hwnd())?;

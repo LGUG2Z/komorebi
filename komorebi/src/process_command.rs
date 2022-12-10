@@ -48,6 +48,7 @@ use crate::BORDER_COLOUR_STACK;
 use crate::BORDER_ENABLED;
 use crate::BORDER_HWND;
 use crate::BORDER_OVERFLOW_IDENTIFIERS;
+use crate::BORDER_WIDTH;
 use crate::CUSTOM_FFM;
 use crate::DATA_DIR;
 use crate::FLOAT_IDENTIFIERS;
@@ -879,6 +880,10 @@ impl WindowManager {
                     }
                 }
 
+                WindowsApi::invalidate_border_rect()?;
+            }
+            SocketMessage::ActiveWindowBorderWidth(width) => {
+                BORDER_WIDTH.store(width, Ordering::SeqCst);
                 WindowsApi::invalidate_border_rect()?;
             }
             SocketMessage::NotificationSchema => {

@@ -39,6 +39,7 @@ use crate::windows_api::WindowsApi;
 use crate::winevent_listener::WINEVENT_CALLBACK_CHANNEL;
 use crate::BORDER_COLOUR_CURRENT;
 use crate::BORDER_RECT;
+use crate::BORDER_WIDTH;
 use crate::MONITOR_INDEX_PREFERENCES;
 use crate::TRANSPARENCY_COLOUR;
 
@@ -164,7 +165,7 @@ pub extern "system" fn border_window(
                 let hdc = BeginPaint(window, &mut ps);
                 let hpen = CreatePen(
                     PS_SOLID,
-                    20,
+                    BORDER_WIDTH.load(Ordering::SeqCst),
                     COLORREF(BORDER_COLOUR_CURRENT.load(Ordering::SeqCst)),
                 );
                 let hbrush = WindowsApi::create_solid_brush(TRANSPARENCY_COLOUR);

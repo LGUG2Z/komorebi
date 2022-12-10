@@ -336,6 +336,10 @@ ActiveWindowBorderColour(r, g, b, window_kind) {
     RunWait, komorebic.exe active-window-border-colour %r% %g% %b% --window-kind %window_kind%, , Hide
 }
 
+ActiveWindowBorderWidth(width) {
+    RunWait, komorebic.exe active-window-border-width %width%, , Hide
+}
+
 FocusFollowsMouse(boolean_state, implementation) {
     RunWait, komorebic.exe focus-follows-mouse %boolean_state% --implementation %implementation%, , Hide
 }

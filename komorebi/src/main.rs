@@ -8,6 +8,7 @@ use std::net::TcpStream;
 use std::path::PathBuf;
 use std::process::Command;
 use std::sync::atomic::AtomicBool;
+use std::sync::atomic::AtomicI32;
 use std::sync::atomic::AtomicIsize;
 use std::sync::atomic::AtomicU32;
 use std::sync::atomic::Ordering;
@@ -170,6 +171,7 @@ pub static BORDER_HIDDEN: AtomicBool = AtomicBool::new(false);
 pub static BORDER_COLOUR_SINGLE: AtomicU32 = AtomicU32::new(0);
 pub static BORDER_COLOUR_STACK: AtomicU32 = AtomicU32::new(0);
 pub static BORDER_COLOUR_CURRENT: AtomicU32 = AtomicU32::new(0);
+pub static BORDER_WIDTH: AtomicI32 = AtomicI32::new(20);
 // 0 0 0 aka pure black, I doubt anyone will want this as a border colour
 pub const TRANSPARENCY_COLOUR: u32 = 0;
 
