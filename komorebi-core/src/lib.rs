@@ -53,6 +53,7 @@ pub enum SocketMessage {
     CycleSendContainerToWorkspace(CycleDirection),
     SendContainerToMonitorWorkspaceNumber(usize, usize),
     MoveWorkspaceToMonitorNumber(usize),
+    ForceFocus,
     Close,
     Minimize,
     Promote,

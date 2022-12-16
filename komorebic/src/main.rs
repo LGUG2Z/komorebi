@@ -557,6 +557,8 @@ enum SubCommand {
     Minimize,
     /// Close the focused window
     Close,
+    /// Forcibly focus the window at the cursor with a left mouse click
+    ForceFocus,
     /// Change focus to the window in the specified cycle direction
     #[clap(arg_required_else_help = true)]
     CycleFocus(CycleFocus),
@@ -830,6 +832,9 @@ fn main() -> Result<()> {
         }
         SubCommand::Focus(arg) => {
             send_message(&SocketMessage::FocusWindow(arg.operation_direction).as_bytes()?)?;
+        }
+        SubCommand::ForceFocus => {
+            send_message(&SocketMessage::ForceFocus.as_bytes()?)?;
         }
         SubCommand::Close => {
             send_message(&SocketMessage::Close.as_bytes()?)?;

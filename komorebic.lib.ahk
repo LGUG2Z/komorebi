@@ -60,6 +60,10 @@ Close() {
     RunWait, komorebic.exe close, , Hide
 }
 
+ForceFocus() {
+    RunWait, komorebic.exe force-focus, , Hide
+}
+
 CycleFocus(cycle_direction) {
     RunWait, komorebic.exe cycle-focus %cycle_direction%, , Hide
 }

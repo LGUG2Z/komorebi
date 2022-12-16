@@ -179,6 +179,9 @@ impl WindowManager {
             SocketMessage::CycleStack(direction) => {
                 self.cycle_container_window_in_direction(direction)?;
             }
+            SocketMessage::ForceFocus => {
+                WindowsApi::left_click();
+            }
             SocketMessage::Close => self.focused_window()?.close()?,
             SocketMessage::Minimize => self.focused_window()?.minimize(),
             SocketMessage::ToggleFloat => self.toggle_float()?,
