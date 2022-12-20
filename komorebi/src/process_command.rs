@@ -47,6 +47,7 @@ use crate::BORDER_COLOUR_SINGLE;
 use crate::BORDER_COLOUR_STACK;
 use crate::BORDER_ENABLED;
 use crate::BORDER_HWND;
+use crate::BORDER_OFFSET;
 use crate::BORDER_OVERFLOW_IDENTIFIERS;
 use crate::BORDER_WIDTH;
 use crate::CUSTOM_FFM;
@@ -889,6 +890,20 @@ impl WindowManager {
                 BORDER_WIDTH.store(width, Ordering::SeqCst);
                 WindowsApi::invalidate_border_rect()?;
             }
+            SocketMessage::ActiveWindowBorderOffset(offset) => {
+                let mut current_border_offset = BORDER_OFFSET.lock();
+
+                let new_border_offset = Rect {
+                    left: offset,
+                    top: offset,
+                    right: offset * 2,
+                    bottom: offset * 2,
+                };
+
+                *current_border_offset = Option::from(new_border_offset);
+
+                WindowsApi::invalidate_border_rect()?;
+            }
             SocketMessage::NotificationSchema => {
                 let notification = schema_for!(Notification);
                 let schema = serde_json::to_string_pretty(&notification)?;
@@ -927,6 +942,9 @@ impl WindowManager {
             | SocketMessage::Promote
             | SocketMessage::PromoteFocus
             | SocketMessage::Retile
+            // Adding this one so that changes can be seen instantly after
+            // modifying the active window border offset
+            | SocketMessage::ActiveWindowBorderOffset(_)
             // Adding this one because sometimes EVENT_SYSTEM_FOREGROUND isn't
             // getting sent on FocusWindow, meaning the border won't be set
             // when processing events

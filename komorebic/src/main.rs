@@ -451,6 +451,12 @@ struct ActiveWindowBorderWidth {
 }
 
 #[derive(Parser, AhkFunction)]
+struct ActiveWindowBorderOffset {
+    /// Desired offset of the active window border
+    offset: i32,
+}
+
+#[derive(Parser, AhkFunction)]
 struct Start {
     /// Allow the use of komorebi's custom focus-follows-mouse implementation
     #[clap(action, short, long = "ffm")]
@@ -755,6 +761,9 @@ enum SubCommand {
     /// Set the width for the active window border
     #[clap(arg_required_else_help = true)]
     ActiveWindowBorderWidth(ActiveWindowBorderWidth),
+    /// Set the offset for the active window border
+    #[clap(arg_required_else_help = true)]
+    ActiveWindowBorderOffset(ActiveWindowBorderOffset),
     /// Enable or disable focus follows mouse for the operating system
     #[clap(arg_required_else_help = true)]
     FocusFollowsMouse(FocusFollowsMouse),
@@ -1374,6 +1383,9 @@ fn main() -> Result<()> {
         }
         SubCommand::ActiveWindowBorderWidth(arg) => {
             send_message(&SocketMessage::ActiveWindowBorderWidth(arg.width).as_bytes()?)?;
+        }
+        SubCommand::ActiveWindowBorderOffset(arg) => {
+            send_message(&SocketMessage::ActiveWindowBorderOffset(arg.offset).as_bytes()?)?;
         }
         SubCommand::ResizeDelta(arg) => {
             send_message(&SocketMessage::ResizeDelta(arg.pixels).as_bytes()?)?;

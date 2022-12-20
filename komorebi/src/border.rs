@@ -18,6 +18,7 @@ use crate::window::Window;
 use crate::windows_callbacks;
 use crate::WindowsApi;
 use crate::BORDER_HWND;
+use crate::BORDER_OFFSET;
 use crate::BORDER_OVERFLOW_IDENTIFIERS;
 use crate::BORDER_RECT;
 use crate::TRANSPARENCY_COLOUR;
@@ -126,6 +127,14 @@ impl Border {
                 rect.top -= invisible_borders.top;
                 rect.right += invisible_borders.right;
                 rect.bottom += invisible_borders.bottom;
+            }
+
+            let border_offset = BORDER_OFFSET.lock();
+            if let Some(border_offset) = *border_offset {
+                rect.left -= border_offset.left;
+                rect.top -= border_offset.top;
+                rect.right += border_offset.right;
+                rect.bottom += border_offset.bottom;
             }
 
             *BORDER_RECT.lock() = rect;

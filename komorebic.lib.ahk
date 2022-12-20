@@ -344,6 +344,10 @@ ActiveWindowBorderWidth(width) {
     RunWait, komorebic.exe active-window-border-width %width%, , Hide
 }
 
+ActiveWindowBorderOffset(offset) {
+    RunWait, komorebic.exe active-window-border-offset %offset%, , Hide
+}
+
 FocusFollowsMouse(boolean_state, implementation) {
     RunWait, komorebic.exe focus-follows-mouse %boolean_state% --implementation %implementation%, , Hide
 }

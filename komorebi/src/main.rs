@@ -160,6 +160,9 @@ lazy_static! {
 
     static ref BORDER_RECT: Arc<Mutex<Rect>> =
         Arc::new(Mutex::new(Rect::default()));
+
+    static ref BORDER_OFFSET: Arc<Mutex<Option<Rect>>> =
+        Arc::new(Mutex::new(None));
 }
 
 pub static INITIAL_CONFIGURATION_LOADED: AtomicBool = AtomicBool::new(false);
