@@ -181,6 +181,9 @@ impl WindowManager {
                 self.cycle_container_window_in_direction(direction)?;
             }
             SocketMessage::ForceFocus => {
+                let focused_window = self.focused_window()?;
+                let focused_window_rect = WindowsApi::window_rect(focused_window.hwnd())?;
+                WindowsApi::center_cursor_in_rect(&focused_window_rect)?;
                 WindowsApi::left_click();
             }
             SocketMessage::Close => self.focused_window()?.close()?,
