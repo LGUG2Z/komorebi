@@ -9,6 +9,9 @@ Run, komorebic.exe float-rule exe "1Password.exe", , Hide
 ; If you have disabled minimize/close to tray for this application, you can delete/comment out the next line
 Run, komorebic.exe identify-tray-application class "CreativeCloudDesktopWindowClass", , Hide
 
+; Adobe Photoshop
+Run, komorebic.exe identify-border-overflow-application class "Photoshop", , Hide
+
 ; ArmCord
 Run, komorebic.exe identify-border-overflow-application exe "ArmCord.exe", , Hide
 ; If you have disabled minimize/close to tray for this application, you can delete/comment out the next line
@@ -28,6 +31,9 @@ Run, komorebic.exe identify-tray-application exe "Beeper.exe", , Hide
 ; If you have disabled minimize/close to tray for this application, you can delete/comment out the next line
 Run, komorebic.exe identify-tray-application exe "Bitwarden.exe", , Hide
 
+; Bloxstrap
+Run, komorebic.exe float-rule exe "Bloxstrap.exe", , Hide
+
 ; Calculator
 Run, komorebic.exe float-rule title "Calculator", , Hide
 
@@ -39,6 +45,12 @@ Run, komorebic.exe float-rule exe "CredentialUIBroker.exe", , Hide
 Run, komorebic.exe identify-border-overflow-application exe "Cron.exe", , Hide
 ; If you have disabled minimize/close to tray for this application, you can delete/comment out the next line
 Run, komorebic.exe identify-tray-application exe "Cron.exe", , Hide
+
+; Delphi applications
+; Target hidden window spawned by Delphi applications
+Run, komorebic.exe float-rule class "TApplication", , Hide
+; Target Inno Setup installers
+Run, komorebic.exe float-rule class "TWizardForm", , Hide
 
 ; Discord
 Run, komorebic.exe identify-border-overflow-application exe "Discord.exe", , Hide
@@ -101,6 +113,11 @@ Run, komorebic.exe float-rule class "Chrome_RenderWidgetHostHWND", , Hide
 ; If you have disabled minimize/close to tray for this application, you can delete/comment out the next line
 Run, komorebic.exe identify-tray-application class "GoPro Webcam", , Hide
 
+; Godot Manager
+Run, komorebic.exe identify-border-overflow-application exe "GodotManager.exe", , Hide
+Run, komorebic.exe manage-rule exe "GodotManager.exe", , Hide
+Run, komorebic.exe identify-object-name-change-application exe "GodotManager.exe", , Hide
+
 ; Google Chrome
 ; If you have disabled minimize/close to tray for this application, you can delete/comment out the next line
 Run, komorebic.exe identify-tray-application exe "chrome.exe", , Hide
@@ -112,18 +129,20 @@ Run, komorebic.exe identify-tray-application exe "GoogleDriveFS.exe", , Hide
 ; Houdoku
 Run, komorebic.exe identify-border-overflow-application exe "Houdoku.exe", , Hide
 
-; Inno Setup
-; Target hidden window spawned by Inno Setup applications
-Run, komorebic.exe float-rule class "TApplication", , Hide
-; Target Inno Setup installers
-Run, komorebic.exe float-rule class "TWizardForm", , Hide
-
 ; IntelliJ IDEA
 Run, komorebic.exe identify-object-name-change-application exe "idea64.exe", , Hide
 ; If you have disabled minimize/close to tray for this application, you can delete/comment out the next line
 Run, komorebic.exe identify-tray-application exe "idea64.exe", , Hide
 ; Targets JetBrains IDE popups and floating windows
 Run, komorebic.exe float-rule class "SunAwtDialog", , Hide
+
+; Itch.io
+Run, komorebic.exe identify-border-overflow-application exe "itch.exe", , Hide
+; If you have disabled minimize/close to tray for this application, you can delete/comment out the next line
+Run, komorebic.exe identify-tray-application exe "itch.exe", , Hide
+
+; Keyviz
+Run, komorebic.exe float-rule exe "keyviz.exe", , Hide
 
 ; Kleopatra
 ; If you have disabled minimize/close to tray for this application, you can delete/comment out the next line
@@ -173,13 +192,19 @@ Run, komorebic.exe identify-layered-application exe "OUTLOOK.EXE", , Hide
 ; If you have disabled minimize/close to tray for this application, you can delete/comment out the next line
 Run, komorebic.exe identify-tray-application exe "OUTLOOK.EXE", , Hide
 
+; Microsoft PC Manager
+Run, komorebic.exe float-rule exe "MSPCManager.exe", , Hide
+
 ; Microsoft PowerPoint
 Run, komorebic.exe identify-border-overflow-application exe "POWERPNT.EXE", , Hide
 Run, komorebic.exe identify-layered-application exe "POWERPNT.EXE", , Hide
 
 ; Microsoft Teams
+Run, komorebic.exe identify-border-overflow-application exe "Teams.exe", , Hide
 ; Target Teams pop-up notification windows
-Run, komorebic.exe float-rule title "Microsoft Teams Notifications", , Hide
+Run, komorebic.exe float-rule title "Microsoft Teams Notification", , Hide
+; Target Teams call in progress windows
+Run, komorebic.exe float-rule title "Microsoft Teams Call", , Hide
 
 ; Microsoft Word
 Run, komorebic.exe identify-border-overflow-application exe "WINWORD.EXE", , Hide
@@ -242,7 +267,6 @@ Run, komorebic.exe float-rule exe "PowerToys.ColorPickerUI.exe", , Hide
 Run, komorebic.exe float-rule exe "PowerToys.ImageResizer.exe", , Hide
 
 ; Process Hacker
-Run, komorebic.exe identify-border-overflow-application exe "ProcessHacker.exe", , Hide
 ; If you have disabled minimize/close to tray for this application, you can delete/comment out the next line
 Run, komorebic.exe identify-tray-application exe "ProcessHacker.exe", , Hide
 Run, komorebic.exe float-rule exe "ProcessHacker.exe", , Hide
@@ -300,6 +324,12 @@ Run, komorebic.exe manage-rule exe "slack.exe", , Hide
 ; If you have disabled minimize/close to tray for this application, you can delete/comment out the next line
 Run, komorebic.exe identify-tray-application exe "slack.exe", , Hide
 
+; Smart Install Maker
+; Target hidden window spawned by installer
+Run, komorebic.exe float-rule class "obj_App", , Hide
+; Target installer
+Run, komorebic.exe float-rule class "obj_Form", , Hide
+
 ; SoulseekQt
 ; If you have disabled minimize/close to tray for this application, you can delete/comment out the next line
 Run, komorebic.exe identify-tray-application exe "SoulseekQt.exe", , Hide
@@ -311,6 +341,11 @@ Run, komorebic.exe identify-tray-application exe "Spotify.exe", , Hide
 
 ; Steam
 Run, komorebic.exe identify-border-overflow-application class "vguiPopupWindow", , Hide
+
+; System Informer
+; If you have disabled minimize/close to tray for this application, you can delete/comment out the next line
+Run, komorebic.exe identify-tray-application exe "SystemInformer.exe", , Hide
+Run, komorebic.exe float-rule exe "SystemInformer.exe", , Hide
 
 ; SystemSettings
 Run, komorebic.exe float-rule class "Shell_Dialog", , Hide
@@ -341,8 +376,7 @@ Run, komorebic.exe identify-border-overflow-application exe "UnrealEditor.exe", 
 Run, komorebic.exe identify-tray-application exe "UnrealEditor.exe", , Hide
 
 ; Visual Studio
-Run, komorebic.exe manage-rule exe "devenv.exe", , Hide
-Run, komorebic.exe float-rule class "GenericPane", , Hide
+Run, komorebic.exe identify-object-name-change-application exe "devenv.exe", , Hide
 
 ; Visual Studio Code
 Run, komorebic.exe identify-border-overflow-application exe "Code.exe", , Hide
@@ -375,6 +409,10 @@ Run, komorebic.exe identify-tray-application exe "wingetui.exe", , Hide
 ; Targets a hidden window spawned by Wox
 Run, komorebic.exe float-rule title "Hotkey sink", , Hide
 
+; XAMPP Control Panel
+; If you have disabled minimize/close to tray for this application, you can delete/comment out the next line
+Run, komorebic.exe identify-tray-application exe "xampp-control.exe", , Hide
+
 ; Zoom
 Run, komorebic.exe float-rule exe "Zoom.exe", , Hide
 
@@ -383,6 +421,9 @@ Run, komorebic.exe identify-object-name-change-application exe "mpvnet.exe", , H
 
 ; paint.net
 Run, komorebic.exe float-rule exe "paintdotnet.exe", , Hide
+
+; pinentry
+Run, komorebic.exe float-rule exe "pinentry.exe", , Hide
 
 ; qBittorrent
 ; If you have disabled minimize/close to tray for this application, you can delete/comment out the next line
