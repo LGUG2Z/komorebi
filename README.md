@@ -227,10 +227,13 @@ for _komorebi_ can be found [here](https://gist.github.com/crosstyan/dafacc0778d
 
 #### Using Different AHK Executables
 
+The sample configuration and the generated helper library both currently only support AutoHotKey v1.1.
+
 The preferred way to install AutoHotKey for use with `komorebi` is to install it via `scoop`:
 
 ```powershell
-scoop install autohotkey
+scoop bucket add versions
+scoop install autohotkey1.1
 ```
 
 If you install AutoHotKey using a different method, the name of the executable file may differ from the name given by
