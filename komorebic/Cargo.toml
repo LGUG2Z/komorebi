@@ -29,7 +29,7 @@ sysinfo = "0.27"
 uds_windows = "1"
 
 [dependencies.windows]
-version = "0.43"
+version = "0.44"
 features = [
     "Win32_Foundation",
     "Win32_UI_WindowsAndMessaging"

@@ -668,7 +668,7 @@ impl WindowsApi {
     pub fn system_parameters_info_w(
         action: SYSTEM_PARAMETERS_INFO_ACTION,
         ui_param: u32,
-        pv_param: *mut c_void,
+        pv_param: *const c_void,
         update_flags: SYSTEM_PARAMETERS_INFO_UPDATE_FLAGS,
     ) -> Result<()> {
         unsafe { SystemParametersInfoW(action, ui_param, Option::from(pv_param), update_flags) }
@@ -678,12 +678,12 @@ impl WindowsApi {
 
     #[allow(dead_code)]
     pub fn focus_follows_mouse() -> Result<bool> {
-        let mut is_enabled: BOOL = unsafe { std::mem::zeroed() };
+        let is_enabled: BOOL = unsafe { std::mem::zeroed() };
 
         Self::system_parameters_info_w(
             SPI_GETACTIVEWINDOWTRACKING,
             0,
-            std::ptr::addr_of_mut!(is_enabled).cast(),
+            std::ptr::addr_of!(is_enabled).cast(),
             SPIF_SENDCHANGE,
         )?;
 
@@ -695,7 +695,7 @@ impl WindowsApi {
         Self::system_parameters_info_w(
             SPI_SETACTIVEWINDOWTRACKING,
             0,
-            1 as *mut c_void,
+            1 as *const c_void,
             SPIF_SENDCHANGE,
         )
     }
@@ -705,7 +705,7 @@ impl WindowsApi {
         Self::system_parameters_info_w(
             SPI_SETACTIVEWINDOWTRACKING,
             0,
-            std::ptr::null_mut::<c_void>(),
+            std::ptr::null::<c_void>(),
             SPIF_SENDCHANGE,
         )
     }
