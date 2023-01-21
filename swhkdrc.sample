@@ -1,0 +1,67 @@
+.shell pwsh
+
+# reload swhkd configuration
+# alt + o                 : taskkill /f /im swhkd.exe && start /b swhkd # if shell is cmd
+alt + o                 : taskkill /f /im swhkd.exe && Start-Process swhkd -WindowStyle hidden # if shell is pwsh / powershell
+alt + shift + o         : komorebic reload-configuration
+
+# app shortcuts - these require shell to be pwsh / powershell
+# the apps will be focused if open, or launched if not open
+# alt + f                 : if ($wshell.AppActivate('Firefox') -eq $False) { start firefox }
+# alt + b                 : if ($wshell.AppActivate('Chrome') -eq $False) { start chrome }
+
+# focus windows
+alt + h                 : komorebic focus left
+alt + j                 : komorebic focus down
+alt + k                 : komorebic focus up
+alt + l                 : komorebic focus right
+alt + oem_1             : komorebic force-focus # oem_1 is ;
+alt + u                 : komorebic cycle-focus previous
+alt + i                 : komorebic cycle-focus next
+
+# move windows
+alt + shift + h         : komorebic move left
+alt + shift + j         : komorebic move down
+alt + shift + k         : komorebic move up
+alt + shift + l         : komorebic move right
+alt + shift + return    : komorebic promote
+
+# stack windows
+alt + shift + left      : komorebic stack left
+alt + shift + down      : komorebic stack down
+alt + shift + up        : komorebic stack up
+alt + shift + right     : komorebic stack right
+alt + shift + d         : komorebic unstack
+alt + i                 : komorebic cycle-stack next
+alt + u                 : komorebic cycle-stack previous
+
+# resize
+alt + oem_plus          : komorebic resize-axis horizontal increase
+alt + oem_minus         : komorebic resize-axis horizontal decrease
+alt + shift + oem_plus  : komorebic resize-axis vertical increase
+alt + shift + oem_minus : komorebic resize-axis vertical decrease
+
+# manipulate windows
+alt + t                 : komorebic toggle-float
+alt + shift + f         : komorebic toggle-monocle
+
+# window manager options
+alt + shift + r         : komorebic retile
+alt + p                 : komorebic toggle-pause
+alt + 0                 : komorebic toggle-focus-follows-mouse
+
+# layouts
+alt + x                 : komorebic flip-layout horizontal
+alt + y                 : komorebic flip-layout vertical
+
+# workspaces
+alt + 1                 : komorebic focus-workspace 0
+alt + 2                 : komorebic focus-workspace 1
+alt + 3                 : komorebic focus-workspace 2
+alt + 4                 : komorebic focus-workspace 3
+
+# move windows across workspaces
+alt + shift + 1         : komorebic move-to-workspace 0
+alt + shift + 2         : komorebic move-to-workspace 1
+alt + shift + 3         : komorebic move-to-workspace 2
+alt + shift + 4         : komorebic move-to-workspace 3

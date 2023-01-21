@@ -230,13 +230,18 @@ impl WindowManager {
     pub fn watch_configuration(&mut self, enable: bool) -> Result<()> {
         let home = HOME_DIR.clone();
 
+        let mut config_pwsh = home.clone();
+        config_pwsh.push("komorebi.ps1");
+
         let mut config_v1 = home.clone();
         config_v1.push("komorebi.ahk");
 
         let mut config_v2 = home;
         config_v2.push("komorebi.ahk2");
 
-        if config_v1.exists() {
+        if config_pwsh.exists() {
+            self.configure_watcher(enable, config_pwsh)?;
+        } else if config_v1.exists() {
             self.configure_watcher(enable, config_v1)?;
         } else if config_v2.exists() {
             self.configure_watcher(enable, config_v2)?;
