@@ -288,6 +288,10 @@ CompleteConfiguration() {
     RunWait, komorebic.exe complete-configuration, , Hide
 }
 
+AltFocusHack(boolean_state) {
+    RunWait, komorebic.exe alt-focus-hack %boolean_state%, , Hide
+}
+
 WindowHidingBehaviour(hiding_behaviour) {
     RunWait, komorebic.exe window-hiding-behaviour %hiding_behaviour%, , Hide
 }

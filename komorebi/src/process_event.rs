@@ -97,7 +97,9 @@ impl WindowManager {
                 //
                 // This check ensures that we only update the focused monitor when the window
                 // triggering monitor reconciliation is known to not be tied to a specific monitor.
-                if window.class()? != "OleMainThreadWndClass" {
+                if window.class()? != "OleMainThreadWndClass"
+                    && self.focused_monitor_idx() != monitor_idx
+                {
                     self.focus_monitor(monitor_idx)?;
                 }
             }

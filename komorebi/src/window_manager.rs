@@ -388,7 +388,9 @@ impl WindowManager {
                 }
 
                 // Gotta reset the focus or the movement will feel "off"
-                focused_ws.focus_container(focused_container_idx);
+                if before_count != after_count {
+                    focused_ws.focus_container(focused_container_idx);
+                }
             }
         }
 

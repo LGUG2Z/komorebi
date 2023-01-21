@@ -104,6 +104,7 @@ pub enum SocketMessage {
     ReloadConfiguration,
     WatchConfiguration(bool),
     CompleteConfiguration,
+    AltFocusHack(bool),
     ActiveWindowBorder(bool),
     ActiveWindowBorderColour(WindowKind, u32, u32, u32),
     ActiveWindowBorderWidth(i32),

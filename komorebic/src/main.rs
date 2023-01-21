@@ -513,6 +513,12 @@ struct FormatAppSpecificConfiguration {
     path: String,
 }
 
+#[derive(Parser, AhkFunction)]
+struct AltFocusHack {
+    #[clap(value_enum)]
+    boolean_state: BooleanState,
+}
+
 #[derive(Parser)]
 #[clap(author, about, version)]
 struct Opts {
@@ -719,6 +725,9 @@ enum SubCommand {
     WatchConfiguration(WatchConfiguration),
     /// Signal that the final configuration option has been sent
     CompleteConfiguration,
+    /// Enable or disable a hack simulating ALT key presses to ensure focus changes succeed
+    #[clap(arg_required_else_help = true)]
+    AltFocusHack(AltFocusHack),
     /// Set the window behaviour when switching workspaces / cycling stacks
     #[clap(arg_required_else_help = true)]
     WindowHidingBehaviour(WindowHidingBehaviour),
@@ -1318,6 +1327,9 @@ fn main() -> Result<()> {
         }
         SubCommand::CompleteConfiguration => {
             send_message(&SocketMessage::CompleteConfiguration.as_bytes()?)?;
+        }
+        SubCommand::AltFocusHack(arg) => {
+            send_message(&SocketMessage::AltFocusHack(arg.boolean_state.into()).as_bytes()?)?;
         }
         SubCommand::IdentifyObjectNameChangeApplication(target) => {
             send_message(

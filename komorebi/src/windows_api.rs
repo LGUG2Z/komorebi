@@ -52,6 +52,7 @@ use windows::Win32::System::Threading::PROCESS_NAME_WIN32;
 use windows::Win32::System::Threading::PROCESS_QUERY_INFORMATION;
 use windows::Win32::UI::HiDpi::SetProcessDpiAwarenessContext;
 use windows::Win32::UI::HiDpi::DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2;
+use windows::Win32::UI::Input::KeyboardAndMouse::GetKeyState;
 use windows::Win32::UI::Input::KeyboardAndMouse::SendInput;
 use windows::Win32::UI::Input::KeyboardAndMouse::SetFocus;
 use windows::Win32::UI::Input::KeyboardAndMouse::INPUT;
@@ -60,6 +61,7 @@ use windows::Win32::UI::Input::KeyboardAndMouse::INPUT_MOUSE;
 use windows::Win32::UI::Input::KeyboardAndMouse::MOUSEEVENTF_LEFTDOWN;
 use windows::Win32::UI::Input::KeyboardAndMouse::MOUSEEVENTF_LEFTUP;
 use windows::Win32::UI::Input::KeyboardAndMouse::MOUSEINPUT;
+use windows::Win32::UI::Input::KeyboardAndMouse::VK_MENU;
 use windows::Win32::UI::Shell::Common::DEVICE_SCALE_FACTOR;
 use windows::Win32::UI::Shell::GetScaleFactorForMonitor;
 use windows::Win32::UI::WindowsAndMessaging::AllowSetForegroundWindow;
@@ -795,6 +797,13 @@ impl WindowsApi {
         unsafe { InvalidateRect(HWND(BORDER_HWND.load(Ordering::SeqCst)), None, false) }
             .ok()
             .process()
+    }
+
+    pub fn alt_is_pressed() -> bool {
+        let state = unsafe { GetKeyState(i32::from(VK_MENU.0)) };
+        #[allow(clippy::cast_sign_loss)]
+        let actual = (state as u16) & 0x8000;
+        actual != 0
     }
 
     pub fn left_click() -> u32 {
