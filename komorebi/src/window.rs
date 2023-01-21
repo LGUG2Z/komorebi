@@ -283,8 +283,9 @@ impl Window {
                     // If this still doesn't work then maybe try https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-locksetforegroundwindow
                     if !tried_resetting_foreground_access {
                         let process_id = WindowsApi::current_process_id();
-                        WindowsApi::allow_set_foreground_window(process_id)?;
-                        tried_resetting_foreground_access = true;
+                        if WindowsApi::allow_set_foreground_window(process_id).is_ok() {
+                            tried_resetting_foreground_access = true;
+                        }
                     }
                 }
             };
