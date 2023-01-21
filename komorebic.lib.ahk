@@ -428,6 +428,10 @@ AhkAppSpecificConfiguration(path, override_path) {
     RunWait, komorebic.exe ahk-app-specific-configuration %path% %override_path%, , Hide
 }
 
+PwshAppSpecificConfiguration(path, override_path) {
+    RunWait, komorebic.exe pwsh-app-specific-configuration %path% %override_path%, , Hide
+}
+
 FormatAppSpecificConfiguration(path) {
     RunWait, komorebic.exe format-app-specific-configuration %path%, , Hide
 }

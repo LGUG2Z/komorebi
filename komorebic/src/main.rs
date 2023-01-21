@@ -627,6 +627,14 @@ struct AhkAppSpecificConfiguration {
 }
 
 #[derive(Parser, AhkFunction)]
+struct PwshAppSpecificConfiguration {
+    /// YAML file from which the application-specific configurations should be loaded
+    path: String,
+    /// Optional YAML file of overrides to apply over the first file
+    override_path: Option<String>,
+}
+
+#[derive(Parser, AhkFunction)]
 struct FormatAppSpecificConfiguration {
     /// YAML file from which the application-specific configurations should be loaded
     path: String,
@@ -948,6 +956,10 @@ enum SubCommand {
     #[clap(arg_required_else_help = true)]
     #[clap(alias = "ahk-asc")]
     AhkAppSpecificConfiguration(AhkAppSpecificConfiguration),
+    /// Generate common app-specific configurations and fixes in a PowerShell script
+    #[clap(arg_required_else_help = true)]
+    #[clap(alias = "pwsh-asc")]
+    PwshAppSpecificConfiguration(PwshAppSpecificConfiguration),
     /// Format a YAML file for use with the 'ahk-app-specific-configuration' command
     #[clap(arg_required_else_help = true)]
     #[clap(alias = "fmt-asc")]
@@ -1691,6 +1703,36 @@ fn main() -> Result<()> {
             );
 
             println!("\n#Include %A_ScriptDir%\\komorebi.generated.ahk");
+        }
+        SubCommand::PwshAppSpecificConfiguration(arg) => {
+            let content = fs::read_to_string(resolve_windows_path(&arg.path)?)?;
+            let lines = if let Some(override_path) = arg.override_path {
+                let override_content = fs::read_to_string(resolve_windows_path(&override_path)?)?;
+
+                ApplicationConfigurationGenerator::generate_pwsh(
+                    &content,
+                    Option::from(override_content.as_str()),
+                )?
+            } else {
+                ApplicationConfigurationGenerator::generate_pwsh(&content, None)?
+            };
+
+            let mut generated_config = HOME_DIR.clone();
+            generated_config.push("komorebi.generated.ps1");
+            let mut file = OpenOptions::new()
+                .write(true)
+                .create(true)
+                .truncate(true)
+                .open(generated_config.clone())?;
+
+            file.write_all(lines.join("\n").as_bytes())?;
+
+            println!(
+                "\nApplication-specific generated configuration written to {}",
+                generated_config.to_str().ok_or_else(|| anyhow!(
+                    "could not find the path to the generated configuration file"
+                ))?
+            );
         }
         SubCommand::FormatAppSpecificConfiguration(arg) => {
             let file_path = resolve_windows_path(&arg.path)?;

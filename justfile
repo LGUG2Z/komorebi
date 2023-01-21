@@ -25,6 +25,7 @@ install:
     komorebic ahk-library
     cat '%USERPROFILE%\.config\komorebi\komorebic.lib.ahk' > komorebic.lib.ahk
     cat '%USERPROFILE%\.config\komorebi\komorebi.generated.ahk' > komorebi.generated.ahk
+    cat '%USERPROFILE%\.config\komorebi\komorebi.generated.ps1' > komorebi.generated.ps1
 
 run:
     just install-komorebic

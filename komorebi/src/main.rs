@@ -248,13 +248,34 @@ fn setup() -> Result<(WorkerGuard, WorkerGuard)> {
 pub fn load_configuration() -> Result<()> {
     let home = HOME_DIR.clone();
 
+    let mut config_pwsh = home.clone();
+    config_pwsh.push("komorebi.ps1");
+
     let mut config_v1 = home.clone();
     config_v1.push("komorebi.ahk");
 
     let mut config_v2 = home;
     config_v2.push("komorebi.ahk2");
 
-    if config_v1.exists() && which(&*AHK_V1_EXE).is_ok() {
+    if config_pwsh.exists() {
+        let powershell_exe = if which("pwsh.exe").is_ok() {
+            "pwsh.exe"
+        } else {
+            "powershell.exe"
+        };
+
+        tracing::info!(
+            "loading configuration file: {}",
+            config_pwsh
+                .as_os_str()
+                .to_str()
+                .ok_or_else(|| anyhow!("cannot convert path to string"))?
+        );
+
+        Command::new(powershell_exe)
+            .arg(config_pwsh.as_os_str())
+            .output()?;
+    } else if config_v1.exists() && which(&*AHK_V1_EXE).is_ok() {
         tracing::info!(
             "loading configuration file: {}",
             config_v1
