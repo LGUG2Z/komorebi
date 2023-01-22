@@ -493,6 +493,8 @@ fn main() -> Result<()> {
             }
         }
 
+        wm.lock().retile_all(false)?;
+
         listen_for_events(wm.clone());
 
         if CUSTOM_FFM.load(Ordering::SeqCst) {
