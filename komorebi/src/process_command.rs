@@ -396,11 +396,9 @@ impl WindowManager {
                 // This is to ensure that even on an empty workspace on a secondary monitor, the
                 // secondary monitor where the cursor is focused will be used as the target for
                 // the workspace switch op
-                let monitor_idx = self.monitor_idx_from_current_pos().ok_or_else(|| {
-                    anyhow!("there is no monitor associated with the current cursor position")
-                })?;
-
-                self.focus_monitor(monitor_idx)?;
+                if let Some(monitor_idx) = self.monitor_idx_from_current_pos() {
+                    self.focus_monitor(monitor_idx)?;
+                }
 
                 let focused_monitor = self
                     .focused_monitor()
@@ -421,11 +419,10 @@ impl WindowManager {
                 // This is to ensure that even on an empty workspace on a secondary monitor, the
                 // secondary monitor where the cursor is focused will be used as the target for
                 // the workspace switch op
-                let monitor_idx = self.monitor_idx_from_current_pos().ok_or_else(|| {
-                    anyhow!("there is no monitor associated with the current cursor position")
-                })?;
+                if let Some(monitor_idx) = self.monitor_idx_from_current_pos() {
+                    self.focus_monitor(monitor_idx)?;
+                }
 
-                self.focus_monitor(monitor_idx)?;
                 self.focus_workspace(workspace_idx)?;
             }
             SocketMessage::FocusMonitorWorkspaceNumber(monitor_idx, workspace_idx) => {
