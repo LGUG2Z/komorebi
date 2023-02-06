@@ -26,7 +26,7 @@ lazy_static = "1"
 miow = "0.5"
 nanoid = "0.4"
 net2 = "0.2"
-os_info = "3.4"
+os_info = "3.6"
 parking_lot = { version = "0.12", features = ["deadlock_detection"] }
 paste = "1"
 schemars = "0.8"
