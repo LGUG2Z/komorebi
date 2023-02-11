@@ -14,8 +14,10 @@ pub enum WindowManagerEvent {
     Destroy(WinEvent, Window),
     FocusChange(WinEvent, Window),
     Hide(WinEvent, Window),
+    Cloak(WinEvent, Window),
     Minimize(WinEvent, Window),
     Show(WinEvent, Window),
+    Uncloak(WinEvent, Window),
     MoveResizeStart(WinEvent, Window),
     MoveResizeEnd(WinEvent, Window),
     MouseCapture(WinEvent, Window),
@@ -47,11 +49,17 @@ impl Display for WindowManagerEvent {
             Self::Hide(winevent, window) => {
                 write!(f, "Hide (WinEvent: {}, Window: {})", winevent, window)
             }
+            Self::Cloak(winevent, window) => {
+                write!(f, "Cloak (WinEvent: {}, Window: {})", winevent, window)
+            }
             Self::Minimize(winevent, window) => {
                 write!(f, "Minimize (WinEvent: {}, Window: {})", winevent, window)
             }
             Self::Show(winevent, window) => {
                 write!(f, "Show (WinEvent: {}, Window: {})", winevent, window)
+            }
+            Self::Uncloak(winevent, window) => {
+                write!(f, "Uncloak (WinEvent: {}, Window: {})", winevent, window)
             }
             Self::MoveResizeStart(winevent, window) => {
                 write!(
@@ -90,8 +98,10 @@ impl WindowManagerEvent {
             Self::Destroy(_, window)
             | Self::FocusChange(_, window)
             | Self::Hide(_, window)
+            | Self::Cloak(_, window)
             | Self::Minimize(_, window)
             | Self::Show(_, window)
+            | Self::Uncloak(_, window)
             | Self::MoveResizeStart(_, window)
             | Self::MoveResizeEnd(_, window)
             | Self::MouseCapture(_, window)
@@ -106,15 +116,16 @@ impl WindowManagerEvent {
         match winevent {
             WinEvent::ObjectDestroy => Option::from(Self::Destroy(winevent, window)),
 
-            WinEvent::ObjectCloaked | WinEvent::ObjectHide => {
-                Option::from(Self::Hide(winevent, window))
-            }
+            WinEvent::ObjectHide => Option::from(Self::Hide(winevent, window)),
+            WinEvent::ObjectCloaked => Option::from(Self::Cloak(winevent, window)),
 
             WinEvent::SystemMinimizeStart => Option::from(Self::Minimize(winevent, window)),
 
-            WinEvent::ObjectShow | WinEvent::ObjectUncloaked | WinEvent::SystemMinimizeEnd => {
+            WinEvent::ObjectShow | WinEvent::SystemMinimizeEnd => {
                 Option::from(Self::Show(winevent, window))
             }
+
+            WinEvent::ObjectUncloaked => Option::from(Self::Uncloak(winevent, window)),
 
             WinEvent::ObjectFocus | WinEvent::SystemForeground => {
                 Option::from(Self::FocusChange(winevent, window))

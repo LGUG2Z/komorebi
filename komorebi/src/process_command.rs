@@ -47,6 +47,7 @@ use crate::BORDER_COLOUR_CURRENT;
 use crate::BORDER_COLOUR_SINGLE;
 use crate::BORDER_COLOUR_STACK;
 use crate::BORDER_ENABLED;
+use crate::BORDER_HIDDEN;
 use crate::BORDER_HWND;
 use crate::BORDER_OFFSET;
 use crate::BORDER_OVERFLOW_IDENTIFIERS;
@@ -156,6 +157,7 @@ impl WindowManager {
                 if self.focused_workspace()?.visible_windows().is_empty() {
                     let border = Border::from(BORDER_HWND.load(Ordering::SeqCst));
                     border.hide()?;
+                    BORDER_HIDDEN.store(true, Ordering::SeqCst);
                 }
             }
             _ => {}

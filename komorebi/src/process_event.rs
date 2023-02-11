@@ -490,7 +490,10 @@ impl WindowManager {
                     }
                 }
             }
-            WindowManagerEvent::DisplayChange(..) | WindowManagerEvent::MouseCapture(..) => {}
+            WindowManagerEvent::DisplayChange(..)
+            | WindowManagerEvent::MouseCapture(..)
+            | WindowManagerEvent::Cloak(..)
+            | WindowManagerEvent::Uncloak(..) => {}
         };
 
         if *self.focused_workspace()?.tile() && BORDER_ENABLED.load(Ordering::SeqCst) {
@@ -502,6 +505,8 @@ impl WindowManager {
                 }
                 WindowManagerEvent::MoveResizeEnd(_, window)
                 | WindowManagerEvent::Show(_, window)
+                | WindowManagerEvent::Cloak(_, window)
+                | WindowManagerEvent::Uncloak(_, window)
                 | WindowManagerEvent::FocusChange(_, window)
                 | WindowManagerEvent::Hide(_, window)
                 | WindowManagerEvent::Minimize(_, window) => {

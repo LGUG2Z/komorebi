@@ -41,10 +41,14 @@ uds_windows = "1"
 which = "4"
 winput = "0.2"
 winreg = "0.10"
-
+windows-interface = { version = "0.44" }
+windows-implement = { version = "0.44" }
 [dependencies.windows]
 version = "0.44"
 features = [
+    "implement",
+    "Win32_System_Com",
+    "Win32_UI_Shell_Common", # for IObjectArray
     "Win32_Foundation",
     "Win32_Graphics_Dwm",
     "Win32_Graphics_Gdi",

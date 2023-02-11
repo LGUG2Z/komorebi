@@ -1,3 +1,4 @@
+use crate::com::SetCloak;
 use std::convert::TryFrom;
 use std::fmt::Display;
 use std::fmt::Formatter;
@@ -153,15 +154,8 @@ impl Window {
         match *hiding_behaviour {
             HidingBehaviour::Hide => WindowsApi::hide_window(self.hwnd()),
             HidingBehaviour::Minimize => WindowsApi::minimize_window(self.hwnd()),
+            HidingBehaviour::Cloak => SetCloak(self.hwnd(), 1, 2),
         }
-    }
-
-    pub fn minimize(self) {
-        WindowsApi::minimize_window(self.hwnd());
-    }
-
-    pub fn close(self) -> Result<()> {
-        WindowsApi::close_window(self.hwnd())
     }
 
     pub fn restore(self) {
@@ -173,7 +167,21 @@ impl Window {
             programmatically_hidden_hwnds.remove(idx);
         }
 
-        WindowsApi::restore_window(self.hwnd());
+        let hiding_behaviour = HIDING_BEHAVIOUR.lock();
+        match *hiding_behaviour {
+            HidingBehaviour::Hide | HidingBehaviour::Minimize => {
+                WindowsApi::restore_window(self.hwnd());
+            }
+            HidingBehaviour::Cloak => SetCloak(self.hwnd(), 1, 0),
+        }
+    }
+
+    pub fn minimize(self) {
+        WindowsApi::minimize_window(self.hwnd());
+    }
+
+    pub fn close(self) -> Result<()> {
+        WindowsApi::close_window(self.hwnd())
     }
 
     pub fn maximize(self) {
@@ -385,8 +393,14 @@ impl Window {
         let is_cloaked = self.is_cloaked()?;
 
         let mut allow_cloaked = false;
-        if let Some(WindowManagerEvent::Hide(_, _)) = event {
-            allow_cloaked = true;
+
+        if let Some(event) = event {
+            if matches!(
+                event,
+                WindowManagerEvent::Hide(_, _) | WindowManagerEvent::Cloak(_, _)
+            ) {
+                allow_cloaked = true;
+            }
         }
 
         match (allow_cloaked, is_cloaked) {

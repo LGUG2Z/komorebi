@@ -211,6 +211,7 @@ pub enum MoveBehaviour {
 pub enum HidingBehaviour {
     Hide,
     Minimize,
+    Cloak,
 }
 
 #[derive(

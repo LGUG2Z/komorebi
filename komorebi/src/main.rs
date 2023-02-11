@@ -57,6 +57,7 @@ use crate::windows_api::WindowsApi;
 mod ring;
 
 mod border;
+mod com;
 mod container;
 mod hidden;
 mod monitor;
