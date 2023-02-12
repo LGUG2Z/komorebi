@@ -1,4 +1,4 @@
-set shell := ["cmd.exe", "/C"]
+set windows-shell := ["pwsh.exe", "-NoLogo", "-Command"]
 export RUST_BACKTRACE := "full"
 
 clean:
@@ -22,10 +22,7 @@ install-komorebi:
 install:
     just install-komorebic
     just install-komorebi
-    komorebic ahk-library
-    cat '%USERPROFILE%\.config\komorebi\komorebic.lib.ahk' > komorebic.lib.ahk
-    cat '%USERPROFILE%\.config\komorebi\komorebi.generated.ahk' > komorebi.generated.ahk
-    cat '%USERPROFILE%\.config\komorebi\komorebi.generated.ps1' > komorebi.generated.ps1
+    cat '~/.config/komorebi/komorebi.generated.ps1' > komorebi.generated.ps1
 
 run:
     just install-komorebic
