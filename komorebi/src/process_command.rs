@@ -208,6 +208,18 @@ impl WindowManager {
 
                 self.enforce_workspace_rules()?;
             }
+            SocketMessage::NamedWorkspaceRule(_, ref id, ref workspace) => {
+                if let Some((monitor_idx, workspace_idx)) =
+                    self.monitor_workspace_index_by_name(workspace)
+                {
+                    {
+                        let mut workspace_rules = WORKSPACE_RULES.lock();
+                        workspace_rules.insert(id.to_string(), (monitor_idx, workspace_idx));
+                    }
+
+                    self.enforce_workspace_rules()?;
+                }
+            }
             SocketMessage::ManageRule(_, ref id) => {
                 let mut manage_identifiers = MANAGE_IDENTIFIERS.lock();
                 if !manage_identifiers.contains(id) {
@@ -453,6 +465,25 @@ impl WindowManager {
                 self.focus_monitor(monitor_idx)?;
                 self.focus_workspace(workspace_idx)?;
             }
+            SocketMessage::FocusNamedWorkspace(ref name) => {
+                let reenable_border = if BORDER_ENABLED.load(Ordering::SeqCst) {
+                    self.hide_border()?;
+                    true
+                } else {
+                    false
+                };
+
+                if let Some((monitor_idx, workspace_idx)) =
+                    self.monitor_workspace_index_by_name(name)
+                {
+                    self.focus_monitor(monitor_idx)?;
+                    self.focus_workspace(workspace_idx)?;
+                }
+
+                if reenable_border {
+                    self.show_border()?;
+                }
+            }
             SocketMessage::Stop => {
                 tracing::info!(
                     "received stop command, restoring all hidden windows and terminating process"
@@ -479,6 +510,9 @@ impl WindowManager {
             }
             SocketMessage::EnsureWorkspaces(monitor_idx, workspace_count) => {
                 self.ensure_workspaces_for_monitor(monitor_idx, workspace_count)?;
+            }
+            SocketMessage::EnsureNamedWorkspaces(monitor_idx, ref names) => {
+                self.ensure_named_workspaces_for_monitor(monitor_idx, names)?;
             }
             SocketMessage::NewWorkspace => {
                 self.new_workspace()?;

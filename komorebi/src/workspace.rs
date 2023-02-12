@@ -26,7 +26,7 @@ use crate::INITIAL_CONFIGURATION_LOADED;
 
 #[derive(Debug, Clone, Serialize, Getters, CopyGetters, MutGetters, Setters, JsonSchema)]
 pub struct Workspace {
-    #[getset(set = "pub")]
+    #[getset(get = "pub", set = "pub")]
     name: Option<String>,
     containers: Ring<Container>,
     #[getset(get = "pub", get_mut = "pub", set = "pub")]

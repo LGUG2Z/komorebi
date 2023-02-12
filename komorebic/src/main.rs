@@ -319,11 +319,25 @@ struct EnsureWorkspaces {
 }
 
 #[derive(Parser, AhkFunction)]
+struct EnsureNamedWorkspaces {
+    /// Monitor index (zero-indexed)
+    monitor: usize,
+    /// Names of desired workspaces
+    names: Vec<String>,
+}
+
+#[derive(Parser, AhkFunction)]
 struct FocusMonitorWorkspace {
     /// Target monitor index (zero-indexed)
     target_monitor: usize,
     /// Workspace index on the target monitor (zero-indexed)
     target_workspace: usize,
+}
+
+#[derive(Parser, AhkFunction)]
+struct FocusNamedWorkspace {
+    /// Target workspace name
+    name: String,
 }
 
 #[derive(Parser, AhkFunction)]
@@ -410,6 +424,16 @@ struct WorkspaceRule {
     monitor: usize,
     /// Workspace index on the specified monitor (zero-indexed)
     workspace: usize,
+}
+
+#[derive(Parser, AhkFunction)]
+struct NamedWorkspaceRule {
+    #[clap(value_enum)]
+    identifier: ApplicationIdentifier,
+    /// Identifier as a string
+    id: String,
+    /// Name of a workspace
+    workspace: String,
 }
 
 #[derive(Parser, AhkFunction)]
@@ -622,6 +646,9 @@ enum SubCommand {
     /// Focus the specified workspace on the target monitor
     #[clap(arg_required_else_help = true)]
     FocusMonitorWorkspace(FocusMonitorWorkspace),
+    /// Focus the specified workspace on the target monitor
+    #[clap(arg_required_else_help = true)]
+    FocusNamedWorkspace(FocusNamedWorkspace),
     /// Focus the monitor in the given cycle direction
     #[clap(arg_required_else_help = true)]
     CycleMonitor(CycleMonitor),
@@ -673,6 +700,9 @@ enum SubCommand {
     /// Create at least this many workspaces for the specified monitor
     #[clap(arg_required_else_help = true)]
     EnsureWorkspaces(EnsureWorkspaces),
+    /// Create at least this many workspaces for the specified monitor
+    #[clap(arg_required_else_help = true)]
+    EnsureNamedWorkspaces(EnsureNamedWorkspaces),
     /// Set the container padding for the specified workspace
     #[clap(arg_required_else_help = true)]
     ContainerPadding(ContainerPadding),
@@ -748,6 +778,9 @@ enum SubCommand {
     /// Add a rule to associate an application with a workspace
     #[clap(arg_required_else_help = true)]
     WorkspaceRule(WorkspaceRule),
+    /// Add a rule to associate an application with a named workspace
+    #[clap(arg_required_else_help = true)]
+    NamedWorkspaceRule(NamedWorkspaceRule),
     /// Identify an application that sends EVENT_OBJECT_NAMECHANGE on launch
     #[clap(arg_required_else_help = true)]
     IdentifyObjectNameChangeApplication(IdentifyObjectNameChangeApplication),
@@ -1158,6 +1191,12 @@ fn main() -> Result<()> {
                     .as_bytes()?,
             )?;
         }
+        SubCommand::NamedWorkspaceRule(arg) => {
+            send_message(
+                &SocketMessage::NamedWorkspaceRule(arg.identifier, arg.id, arg.workspace)
+                    .as_bytes()?,
+            )?;
+        }
         SubCommand::Stack(arg) => {
             send_message(&SocketMessage::StackWindow(arg.operation_direction).as_bytes()?)?;
         }
@@ -1193,6 +1232,9 @@ fn main() -> Result<()> {
                 .as_bytes()?,
             )?;
         }
+        SubCommand::FocusNamedWorkspace(arg) => {
+            send_message(&SocketMessage::FocusNamedWorkspace(arg.name).as_bytes()?)?;
+        }
         SubCommand::CycleMonitor(arg) => {
             send_message(&SocketMessage::CycleFocusMonitor(arg.cycle_direction).as_bytes()?)?;
         }
@@ -1224,6 +1266,11 @@ fn main() -> Result<()> {
             send_message(
                 &SocketMessage::EnsureWorkspaces(workspaces.monitor, workspaces.workspace_count)
                     .as_bytes()?,
+            )?;
+        }
+        SubCommand::EnsureNamedWorkspaces(arg) => {
+            send_message(
+                &SocketMessage::EnsureNamedWorkspaces(arg.monitor, arg.names).as_bytes()?,
             )?;
         }
         SubCommand::State => {

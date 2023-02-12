@@ -77,6 +77,7 @@ pub enum SocketMessage {
     // Monitor and Workspace Commands
     MonitorIndexPreference(usize, i32, i32, i32, i32),
     EnsureWorkspaces(usize, usize),
+    EnsureNamedWorkspaces(usize, Vec<String>),
     NewWorkspace,
     ToggleTiling,
     Stop,
@@ -91,6 +92,7 @@ pub enum SocketMessage {
     FocusMonitorNumber(usize),
     FocusWorkspaceNumber(usize),
     FocusMonitorWorkspaceNumber(usize, usize),
+    FocusNamedWorkspace(String),
     ContainerPadding(usize, usize, i32),
     WorkspacePadding(usize, usize, i32),
     WorkspaceTiling(usize, usize, bool),
@@ -114,6 +116,7 @@ pub enum SocketMessage {
     MonitorWorkAreaOffset(usize, Rect),
     ResizeDelta(i32),
     WorkspaceRule(ApplicationIdentifier, String, usize, usize),
+    NamedWorkspaceRule(ApplicationIdentifier, String, String),
     FloatRule(ApplicationIdentifier, String),
     ManageRule(ApplicationIdentifier, String),
     IdentifyObjectNameChangeApplication(ApplicationIdentifier, String),
