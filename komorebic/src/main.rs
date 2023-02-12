@@ -1276,6 +1276,8 @@ fn main() -> Result<()> {
                 let stdout = String::from_utf8(output.stdout)?;
                 match stdout.trim() {
                     stdout if stdout.is_empty() => None,
+                    // It's possible that a komorebi.ps1 config will be in %USERPROFILE% - ignore this
+                    stdout if !stdout.contains("scoop") => None,
                     stdout => {
                         buf = PathBuf::from(stdout);
                         buf.pop(); // %USERPROFILE%\scoop\shims
@@ -1705,9 +1707,10 @@ fn main() -> Result<()> {
             println!("\n#Include %A_ScriptDir%\\komorebi.generated.ahk");
         }
         SubCommand::PwshAppSpecificConfiguration(arg) => {
-            let content = fs::read_to_string(resolve_windows_path(&arg.path)?)?;
+            let content = std::fs::read_to_string(resolve_windows_path(&arg.path)?)?;
             let lines = if let Some(override_path) = arg.override_path {
-                let override_content = fs::read_to_string(resolve_windows_path(&override_path)?)?;
+                let override_content =
+                    std::fs::read_to_string(resolve_windows_path(&override_path)?)?;
 
                 ApplicationConfigurationGenerator::generate_pwsh(
                     &content,

@@ -15,9 +15,8 @@ alt + h                 : komorebic focus left
 alt + j                 : komorebic focus down
 alt + k                 : komorebic focus up
 alt + l                 : komorebic focus right
-alt + oem_1             : komorebic force-focus # oem_1 is ;
-alt + u                 : komorebic cycle-focus previous
-alt + i                 : komorebic cycle-focus next
+alt + shift + oem_4     : komorebic cycle-focus previous # oem_4 is [
+alt + shift + oem_6     : komorebic cycle-focus next # oem_6 is ]
 
 # move windows
 alt + shift + h         : komorebic move left
@@ -27,13 +26,13 @@ alt + shift + l         : komorebic move right
 alt + shift + return    : komorebic promote
 
 # stack windows
-alt + shift + left      : komorebic stack left
-alt + shift + down      : komorebic stack down
-alt + shift + up        : komorebic stack up
-alt + shift + right     : komorebic stack right
-alt + shift + d         : komorebic unstack
-alt + i                 : komorebic cycle-stack next
-alt + u                 : komorebic cycle-stack previous
+alt + left              : komorebic stack left
+alt + down              : komorebic stack down
+alt + up                : komorebic stack up
+alt + right             : komorebic stack right
+alt + oem_1             : komorebic unstack # oem_1 is ;
+alt + oem_4             : komorebic cycle-stack previous # oem_4 is [
+alt + oem_6             : komorebic cycle-stack next # oem_6 is ]
 
 # resize
 alt + oem_plus          : komorebic resize-axis horizontal increase
@@ -58,10 +57,8 @@ alt + y                 : komorebic flip-layout vertical
 alt + 1                 : komorebic focus-workspace 0
 alt + 2                 : komorebic focus-workspace 1
 alt + 3                 : komorebic focus-workspace 2
-alt + 4                 : komorebic focus-workspace 3
 
 # move windows across workspaces
 alt + shift + 1         : komorebic move-to-workspace 0
 alt + shift + 2         : komorebic move-to-workspace 1
 alt + shift + 3         : komorebic move-to-workspace 2
-alt + shift + 4         : komorebic move-to-workspace 3

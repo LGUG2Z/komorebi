@@ -26,6 +26,30 @@ Tiling Window Management for Windows.
 
 ![screenshot](https://user-images.githubusercontent.com/13164844/184027064-f5a6cec2-2865-4d65-a549-a1f1da589abf.png)
 
+- [About](#about)
+- [Charitable Donations](#charitable-donations)
+- [GitHub Sponsors](#github-sponsors)
+- [Demonstrations](#demonstrations)
+- [Description](#description)
+- [Design](#design)
+- [Getting Started](#getting-started)
+  - [Quickstart](#quickstart)
+  - [GitHub Releases](#github-releases)
+  - [Building from Source](#building-from-source)
+  - [Running](#running)
+  - [Configuring](#configuring)
+  - [Common First-Time Tips](#common-first-time-tips)
+- [Development](#development)
+- [Logs and Debugging](#logs-and-debugging)
+  - [Restoring Windows](#restoring-windows)
+  - [Panics and Deadlocks](#panics-and-deadlocks)
+- [Window Manager State and Integrations](#window-manager-state-and-integrations)
+- [Window Manager Event Subscriptions](#window-manager-event-subscriptions)
+  - [Subscription Event Notification Schema](#subscription-event-notification-schema)
+  - [Communication over TCP](#communication-over-tcp)
+  - [Socket Message Schema](#socket-message-schema)
+- [Appreciations](#appreciations)
+
 ## About
 
 _komorebi_ is a tiling window manager that works as an extension to
@@ -35,6 +59,10 @@ above.
 _komorebi_ allows you to control application windows, virtual workspaces and display monitors with a CLI which can be
 used with third-party software such as [AutoHotKey](https://github.com/Lexikos/AutoHotkey_L) to set user-defined
 keyboard shortcuts.
+
+_komorebi_ aims to make _as few modifications as possible_ to the operating system and desktop environment by default.
+Users are free to make such modifications in their own configuration files for _komorebi_, but these will remain
+opt-in and off-by-default for the foreseeable future.
 
 Translations of this document can be found in the project wiki:
 
@@ -55,7 +83,16 @@ Articles, blog posts, demos, and videos about _komorebi_ can be added to this li
 - [Windows 下的现代化平铺窗口管理器 komorebi](https://zhuanlan.zhihu.com/p/455064481)
 - [komorebi を導入してみる](https://zenn.dev/omochice/articles/50f42a3df8f426)
 
-## GitHub Sponsors Early Access
+## Charitable Donations
+
+_komorebi_ is a free and open-source project, and one that encourages you to make charitable donations if
+you find the software to be useful and have the financial means.
+
+I encourage you to make a charitable donation
+to [Fresh Start Refugee](https://www.freshstartrefugee.org/donate) before
+you consider sponsoring me on GitHub.
+
+## GitHub Sponsors
 
 [GitHub Sponsors is enabled for this project](https://github.com/sponsors/LGUG2Z). Users who sponsor my work
 on `komorebi` at any of the predefined monthly tiers will be given access to a private fork of this repository where I
@@ -66,15 +103,6 @@ available for free in the public repository once it meets the requisite level of
 
 Features-in-progress that are available in early access will be tagged in the issues with
 an ["early access" label](https://github.com/LGUG2Z/komorebi/issues?q=is%3Aopen+is%3Aissue+label%3A%22early+access%22).
-
-## Charitable Donations
-
-`komorebi`, like `vim`, is a free and open-source project, and one that encourages you to make charitable donations if
-you find the software to be useful and have the financial means.
-
-I encourage you to make a charitable donation
-to [Fresh Start Refugee](https://www.freshstartrefugee.org/donate) before
-you consider sponsoring me on GitHub.
 
 ## Demonstrations
 
@@ -100,26 +128,18 @@ messages it receives on a dedicated socket.
 
 _komorebic_ is a CLI that writes messages on _komorebi_'s socket.
 
-_komorebi_ doesn't handle any keyboard or mouse inputs; a third party program (e.g. AutoHotKey) is needed in order to
-translate keyboard and mouse events to _komorebic_ commands.
+_komorebi_ doesn't handle any keyboard or mouse inputs; a third party program (e.g.
+[whkd](https://github.com/LGUG2Z/whkd)) is needed in order to translate keyboard and mouse events to _komorebic_ commands.
 
 This architecture, popularised by [_bspwm_](https://github.com/baskerville/bspwm) on Linux and
 [_yabai_](https://github.com/koekeishiya/yabai) on macOS, is outlined as follows:
 
 ```
-     PROCESS                SOCKET
-ahk  -------->  komorebic  <------>  komorebi
+          PROCESS                SOCKET
+whkd/ahk  -------->  komorebic  <------>  komorebi
 ```
 
 ## Design
-
-_komorebi_ is the successor to [_yatta_](https://github.com/LGUG2Z/yatta) and as such aims to build on the learnings
-from that project.
-
-While _yatta_ was primary an attempt to learn how to work with and call Windows APIs from Rust, while secondarily
-implementing a minimal viable tiling window manager for my own needs (largely single monitor, single workspace),
-_komorebi_ has been redesigned from the ground-up to support more complex features that have become standard in tiling
-window managers on other platforms.
 
 _komorebi_ holds a list of physical monitors.
 
@@ -138,43 +158,50 @@ This means that:
 
 ## Getting Started
 
+### Quickstart
+
+Make sure that you have either the [Scoop Package Manager](https://scoop.sh) or WinGet installed, then run the following
+commands at a PowerShell prompt.
+
+```powershell
+# if using scoop
+scoop bucket add extras
+scoop install whkd
+scoop install komorebi
+
+# if using winget
+winget install LGUG2Z.whkd
+winget install LGUG2Z.komorebi
+
+# save the latest generated app-specific config tweaks and fixes to ~/komorebi.generated.ps1
+iwr https://raw.githubusercontent.com/LGUG2Z/komorebi/master/komorebi.generated.ps1 -OutFile $Env:USERPROFILE\komorebi.generated.ps1
+
+# save the sample komorebi configuration file to ~/komorebi.ps1
+iwr https://raw.githubusercontent.com/LGUG2Z/komorebi/master/komorebi.sample.ps1 -OutFile $Env:USERPROFILE\komorebi.ps1
+
+# ensure the ~/.config folder exists
+mkdir $Env:USERPROFILE\.config -ea 0
+
+# save the sample whkdrc file with key bindings to ~/.config/whkdrc
+iwr https://raw.githubusercontent.com/LGUG2Z/komorebi/master/whkdrc -OutFile $Env:USERPROFILE\whkdrc
+
+# start komorebi
+komorebic start --await-configuration
+```
+
+Thanks to [@sitiom](https://github.com/sitiom) for getting _komorebi_ added to both the popular Scoop Extras bucket and
+to WinGet.
+
 ### GitHub Releases
 
 Prebuilt binaries are available on the [releases page](https://github.com/LGUG2Z/komorebi/releases) in a `zip` archive.
 Once downloaded, you will need to move the `komorebi.exe` and `komorebic.exe` binaries to a directory in your `Path` (
 you can see these directories by running `$Env:Path.split(";")` at a PowerShell prompt).
 
-Alternatively, you may add a new directory to your `Path`
-using [`setx`](https://docs.microsoft.com/en-us/windows-server/administration/windows-commands/setx) or the Environment
-Variables pop up in System Properties Advanced (which can be launched with `SystemPropertiesAdvanced.exe` at a
-PowerShell prompt), and then move the binaries to that directory.
-
-### Winget
-
-You can use the builtin package manager from Windows to install the latest komorebi release:
-
-```powershell
-winget install LGUG2Z.komorebi
-```
-
-### Scoop
-
-If you use the [Scoop](https://scoop.sh/) command line installer, you can run the following commands to install the
-binaries from the latest GitHub Release:
-
-```powershell
-scoop bucket add extras
-scoop install komorebi
-```
-
-If you install _komorebi_ using Scoop, the binaries will automatically be added to your `Path`.
-
-Thanks to [@sitiom](https://github.com/sitiom) for getting _komorebi_ added to the popular Scoop Extras bucket.
-
 ### Building from Source
 
 If you prefer to compile _komorebi_ from source, you will need
-a [working Rust development environment on Windows 10](https://rustup.rs/). The `x86_64-pc-windows-msvc` toolchain is
+a [working Rust development environment on Windows 10/11](https://rustup.rs/). The `x86_64-pc-windows-msvc` toolchain is
 required, so make sure you have also installed
 the [Build Tools for Visual Studio 2019](https://stackoverflow.com/a/55603112).
 
@@ -185,28 +212,13 @@ cargo install --path komorebi --locked
 cargo install --path komorebic --locked
 ```
 
-### Using Example Configurations
-
-To download example configurations from this repository, which will work regardless of your installation method, you may
-run the following commands at a PowerShell prompt.
-
-These commands will download the `komorebi.sample.ahk`, `komorebic.lib.ahk` and `komorebi.generated.ahk` files from the
-master branch of this repository and save them to your `$HOME` directory.
-
-```powershell
-iwr https://raw.githubusercontent.com/LGUG2Z/komorebi/master/komorebi.sample.ahk -OutFile $Env:USERPROFILE\komorebi.ahk
-iwr https://raw.githubusercontent.com/LGUG2Z/komorebi/master/komorebic.lib.ahk -OutFile $Env:USERPROFILE\komorebic.lib.ahk
-iwr https://raw.githubusercontent.com/LGUG2Z/komorebi/master/komorebi.generated.ahk -OutFile $Env:USERPROFILE\komorebi.generated.ahk
-```
-
 ### Running
 
-Once you have either the prebuilt binaries in your `Path`, or have compiled the binaries from source (these will already
-be in your `Path` if you installed Rust with [rustup](https://rustup.rs), which you absolutely should), you can
-run `komorebic start --await-configuration` at a Powershell prompt, and you will see the following output:
+Run `komorebic start --await-configuration` at a Powershell prompt, and you will see the following output:
 
 ```
-Start-Process komorebi -WindowStyle hidden
+Start-Process komorebi.exe -ArgumentList '--await-configuration' -WindowStyle hidden
+Waiting for komorebi.exe to start...Started!
 ```
 
 This means that `komorebi` is now running in the background, tiling all your windows, and listening for commands sent to
@@ -214,20 +226,43 @@ it by `komorebic`. You can similarly stop the process by running `komorebic stop
 
 ### Configuring
 
-Once `komorebi` is running, you can execute the `komorebi.sample.ahk` script to set up the default keybindings via AHK
-(the file includes comments to help you start building your own configuration).
+If you followed the quickstart, `komorebi` will find the sample `komorebi.ps1` file in your `$Env:USERPROFILE` directory
+and automatically load it. This file also starts `whkd` using the sample `whkrc` file in your `$Env:USERPROFILE\.config`
+directory.
 
-If you have AutoHotKey installed and a `komorebi.ahk` file in your home directory (run `$Env:UserProfile` at a
-PowerShell prompt to find your home directory), `komorebi` will automatically try to load it when starting.
+Alternatively, if you have AutoHotKey installed and a `komorebi.ahk` file in `$Env:UserProfile` directory, `komorebi`
+will automatically try to load it when starting.
 
-There is also tentative support for loading a AutoHotKey v2 files, if the file is named `komorebi.ahk2` and
-the `AutoHotKey64.exe` executable for AutoHotKey v2 is in your `Path`. If both `komorebi.ahk` and `komorebi.ahk2` files
-exist in your home directory, only `komorebi.ahk` will be loaded. An example of an AutoHotKey v2 configuration file
-for _komorebi_ can be found [here](https://gist.github.com/crosstyan/dafacc0778dabf693ce9236c57b201cd).
+#### Configuration with `komorebic`
+
+As previously mentioned, this project does not handle anything related to keybindings and shortcuts directly. I
+personally use [`whkd`](https://github.com/LGUG2Z/whkd) to manage my window management shortcuts, and have provided a
+sample [whkdrc](whkdrc.sample) configuration that you can use as a starting point for your own.
+
+You can run `komorebic.exe` to get a full list of the commands that you can use to customise `komorebi` and create
+keybindings with. You can run `komorebic.exe <COMMAND> --help` to get a full explanation of the arguments required for
+each command.
+
+You can run any configuration command in the `komorebi.ps1` file, and you can bind any action command to your desired
+key combinations in the `whkdrc` file.
+
+#### AutoHotKey Helper Library for `komorebic`
+
+❗️**NOTE**: This section is only relevant for people who wish to use AutoHotKey instead of [`whkd`](https://github.com/LGUG2Z/whkd).
+
+❗️**NOTE**: This helper library is only compatible with AutoHotKey v1.1, not with AutoHotKey v2.
+
+Additionally, you may run `komorebic.exe ahk-library` to generate a helper library for AutoHotKey which wraps
+every `komorebic` command in a native AHK function.
+
+If you include the generated library at the top of your `~/komorebi.ahk` configuration file, you will be able to call
+any of the functions that it contains.
 
 #### Using Different AHK Executables
 
-The sample configuration and the generated helper library both currently only support AutoHotKey v1.1.
+❗️**NOTE**: This section is only relevant for people who wish to use AutoHotKey instead of [`whkd`](https://github.com/LGUG2Z/whkd).
+
+The generated helper library for AutoHotKey currently only supports AutoHotKey v1.1.
 
 The preferred way to install AutoHotKey for use with `komorebi` is to install it via `scoop`:
 
@@ -250,45 +285,9 @@ are still required to be in your `Path`.
 
 ### Common First-Time Tips
 
-#### Generating Common Application-Specific Configurations
-
-A curated selection of application-specific configurations can be generated to
-help ease the setup for first-time users.
-[`komorebi-application-specific-configuration`](https://github.com/LGUG2Z/komorebi-application-specific-configuration)
-contains YAML definitions of settings that are known to make tricky
-applications behave as expected. These YAML definitions can be used to generate
-an AHK file which you can import at the start of your own `komorebi.ahk` file,
-leaving you to focus primarily on your desired keybindings and workspace
-configurations.
-
-If you have settings for an application that you think should be part of this
-curated selection, please open a PR on the configuration repository.
-
-In the event that your PR is not accepted, or if you find there are any
-settings that you wish to override, this can easily be done using an override
-file.
-
-```powershell
-# Clone and enter the repository
-git clone https://github.com/LGUG2Z/komorebi-application-specific-configuration.git
-cd komorebi-application-specific-configuration
-
-# Use komorebic to generate an AHK file
-komorebic.exe ahk-app-specific-configuration applications.yaml
-
-# Application-specific generated configuration written to C:\Users\LGUG2Z\.config\komorebi\komorebi.generated.ahk
-#
-# You can include the generated configuration at the top of your komorebi.ahk config with this line:
-#
-# #Include %A_ScriptDir%\komorebi.generated.ahk
-
-# Optionally, provide an override file that follows the same schema as the second argument
-komorebic.exe ahk-app-specific-configuration applications.yaml overrides.yaml
-```
-
 #### Setting a Custom KOMOREBI_CONFIG_HOME Directory
 
-If you do not want to keep _komorebi_-related files in your `$Env:UserProfile` directory, you can specify a custom directory
+If you do not want to keep _komorebi_-related files in your `$Env:USERPROFILE` directory, you can specify a custom directory
 by setting the `$Env:KOMOREBI_CONFIG_HOME` environment variable.
 
 For example, to use the `~/.config/komorebi` directory:
@@ -311,6 +310,47 @@ If you already have configuration files that you wish to keep, move them to the 
 
 The next time you run `komorebic start`, any files created by or loaded by _komorebi_ will be placed or expected to
 exist in this folder.
+
+#### Generating Common Application-Specific Configurations
+
+A curated selection of application-specific configurations can be generated to
+help ease the setup for first-time users.
+[`komorebi-application-specific-configuration`](https://github.com/LGUG2Z/komorebi-application-specific-configuration)
+contains YAML definitions of settings that are known to make tricky
+applications behave as expected. These YAML definitions can be used to generate
+a `ps1` or an `ahk` file which you can import at the start of your own `komorebi.ps1` or `komorebi.ahk` files,
+leaving you to focus primarily on your desired keybindings and workspace
+configurations.
+
+If you have settings for an application that you think should be part of this
+curated selection, please open a PR on the configuration repository.
+
+In the event that your PR is not accepted, or if you find there are any
+settings that you wish to override, this can easily be done using an override
+file.
+
+```powershell
+# Clone and enter the repository
+git clone https://github.com/LGUG2Z/komorebi-application-specific-configuration.git
+cd komorebi-application-specific-configuration
+
+# Use komorebic to generate a ps1 file
+komorebic.exe pwsh-app-specific-configuration applications.yaml
+
+# Application-specific generated configuration written to C:\Users\LGUG2Z\.config\komorebi\komorebi.generated.ps1
+
+# Or use komorebic to generate an ahk file
+komorebic.exe ahk-app-specific-configuration applications.yaml
+
+# Application-specific generated configuration written to C:\Users\LGUG2Z\.config\komorebi\komorebi.generated.ahk
+#
+# You can include the generated configuration at the top of your komorebi.ahk config with this line:
+#
+# #Include %A_ScriptDir%\komorebi.generated.ahk
+
+# Optionally, provide an override file that follows the same schema as the second argument
+komorebic.exe pwsh-app-specific-configuration applications.yaml overrides.yaml
+```
 
 #### Adding an Active Window Border
 
@@ -337,6 +377,8 @@ komorebic.exe workspace-padding <MONITOR_INDEX> <WORKSPACE_INDEX> 0
 
 #### Multiple Layout Changes on Startup
 
+❗️**NOTE**: If you followed the quickstart and are using the sample configurations, this is already the default behaviour.
+
 Depending on what is in your configuration, when `komorebi` is started, you may experience the layout rapidly being adjusted
 with many retile events.
 
@@ -344,13 +386,16 @@ If you would like to avoid this, you can start `komorebi` with a flag which tell
 has been loaded before listening to and responding to window manager events: `komorebic start --await-configuration`.
 
 If you start `komorebi` with the `--await-configuration` flag, you _must_ send the `komorebic complete-configuration`
-command at the end of the configuration section of your `komorebi.ahk` config (before you start defining the key
-bindings). The layout will not be updated and `komorebi` will not respond to `komorebic` commands until this command has
-been received.
+command at the end of the configuration section of your `komorebi.ps1` (or `komorebi.ahk` config, before you start
+defining the key bindings). The layout will not be updated and `komorebi` will not respond to `komorebic` commands until
+this command has been received.
 
 #### Floating Windows
 
-Sometimes you will want a specific application to never be tiled, and instead float all the time. You add add rules to
+❗️**NOTE**: A significant number of floating window rules for the most common applications are
+[already generated for you](https://github.com/LGUG2Z/komorebi/#generating-common-application-specific-configurations)
+
+Sometimes you will want a specific application to never be tiled, and instead float all the time. You can add rules to
 enforce this behaviour:
 
 ```powershell
@@ -360,6 +405,9 @@ komorebic.exe float-rule title "Control Panel"
 ```
 
 #### Windows Not Getting Managed
+
+❗️**NOTE**: A significant number of force-manage window rules for the most common applications are
+[already generated for you](https://github.com/LGUG2Z/komorebi/#generating-common-application-specific-configurations)
 
 In some rare cases, a window may not automatically be registered to be managed by `komorebi`. When this happens, you can
 manually add a rule to force `komorebi` to manage it:
@@ -371,6 +419,9 @@ komorebic.exe manage-rule exe TIM.exe
 ```
 
 #### Tray Applications
+
+❗️**NOTE**: A significant number of tray application rules for the most common applications are
+[already generated for you](https://github.com/LGUG2Z/komorebi/#generating-common-application-specific-configurations)
 
 If you are experiencing behaviour where
 [closing a window leaves a blank tile, but minimizing the same window does not](https://github.com/LGUG2Z/komorebi/issues/6)
@@ -384,6 +435,9 @@ komorebic.exe identify-tray-application exe Discord.exe
 ```
 
 #### Microsoft Office Applications
+
+❗️**NOTE**: Microsoft Office-specific application rules are
+[already generated for you](https://github.com/LGUG2Z/komorebi/#generating-common-application-specific-configurations)
 
 Microsoft Office applications such as Word and Excel require certain configuration options to be set in order to be
 managed correctly. Below is an example of configuring Microsoft Word to be managed correctly by _komorebi_.
@@ -527,83 +581,6 @@ layout rules for that workspace have been cleared.
 komorebic clear-workspace-layout-rules 0 0
 ```
 
-## Configuration with `komorebic`
-
-As previously mentioned, this project does not handle anything related to keybindings and shortcuts directly. I
-personally use AutoHotKey to manage my window management shortcuts, and have provided a
-sample [komorebi.ahk](komorebi.sample.ahk) AHK script that you can use as a starting point for your own.
-
-You can run `komorebic.exe` to get a full list of the commands that you can use to customise `komorebi` and create
-keybindings with. You can run `komorebic.exe <COMMAND> --help` to get a full explanation of the arguments required for
-each command.
-
-### AutoHotKey Helper Library for `komorebic`
-
-Additionally, you may run `komorebic.exe ahk-library` to
-generate [a helper library for AutoHotKey](komorebic.lib.sample.ahk) which wraps every `komorebic` command in a native
-AHK function.
-
-If you include the generated library at the top of your `~/komorebi.ahk` configuration file, you will be able to call
-any of the functions that it contains. A sample AHK script that shows how this library can be
-used [is available here](komorebi.sample.with.lib.ahk).
-
-## Features
-
-- [x] Multi-monitor
-- [x] Virtual workspaces
-- [x] Window stacks
-- [x] Cycle through stacked windows
-- [x] Change focused window by direction
-- [x] Change focused window by direction across monitor boundary
-- [x] Move focused window container in direction
-- [x] Move focused window container in direction across monitor boundary
-- [x] Move focused window container to monitor and follow
-- [x] Move focused window container to workspace follow
-- [x] Send focused window container to monitor
-- [x] Send focused window container to workspace
-- [x] Move focused workspace to monitor
-- [x] Mouse follows focused container
-- [x] Resize window container in direction
-- [x] Resize window container on axis
-- [x] Set custom resize delta
-- [x] Active window border
-- [x] Quicksave and quickload layouts with resize dimensions
-- [x] Save and load layouts with resize dimensions to/from specific files
-- [x] Mouse drag to swap window container position
-- [x] Mouse drag to resize window container
-- [x] Configurable workspace and container gaps
-- [x] BSP tree layout (`bsp`)
-- [x] Flip BSP tree layout horizontally or vertically
-- [x] Equal-width, max-height column layout (`columns`)
-- [x] Equal-height, max-width row layout (`rows`)
-- [x] Main half-height window with vertical stack layout (`horizontal-stack`)
-- [x] Main half-width window with horizontal stack layout (`vertical-stack`)
-- [x] 2x Main window (half and quarter-width) with horizontal stack layout (`ultrawide-vertical-stack`)
-- [x] Load custom layouts from JSON and YAML representations
-- [x] Dynamically select layout based on the number of open windows
-- [x] Floating rules based on exe name, window title and class
-- [x] Workspace rules based on exe name and window class
-- [x] Additional manage rules based on exe name and window class
-- [x] Identify applications which overflow their borders by exe name and class
-- [x] Identify 'close/minimize to tray' applications by exe name and class
-- [x] Configure work area offsets to preserve space for custom taskbars
-- [x] Configure and compensate for the size of Windows invisible borders
-- [x] Toggle floating windows
-- [x] Toggle monocle window
-- [x] Toggle native maximization
-- [x] Toggle mouse follows focus
-- [x] Toggle Xmouse/Windows focus follows mouse implementation
-- [x] Toggle Komorebi focus follows mouse implementation (desktop and system tray-aware)
-- [x] Toggle automatic tiling
-- [x] Pause all window management
-- [x] Load configuration on startup
-- [x] Manually reload configuration
-- [x] Watch configuration for changes
-- [x] Helper library for AutoHotKey
-- [x] View window manager state
-- [x] Query window manager state
-- [x] Subscribe to event and message notifications
-
 ## Development
 
 If you would like to contribute code to this repository, there are a few requests that I have to ensure a foundation of
@@ -729,3 +706,15 @@ A [JSON Schema](https://json-schema.org/) of socket messages used to send instru
 with the `komorebic socket-schema` command. The output of this command can be redirected to the clipboard or a file,
 which can be used with services such as [Quicktype](https://app.quicktype.io/) to generate type definitions in different
 programming languages.
+
+## Appreciations
+
+- First and foremost, thank you to my wife, both for naming this project and for her patience throughout its never-ending development
+
+- Thank you to [@sitiom](https://github.com/sitiom) for being [an exemplary open source community leader](https://jeezy.substack.com/p/the-open-source-contributions-i-appreciate)
+
+- Thank you to the developers of [nog](https://github.com/TimUntersberger/nog) who came before me and whose work taught me more than I can ever hope to repay
+
+- Thank you to the developers of [GlazeWM](https://github.com/lars-berger/GlazeWM) for pushing the boundaries of tiling window management on Windows with me and having an excellent spirit of collaboration
+
+- Thank you to [@Ciantic](https://github.com/Ciantic) for helping me bring the [hidden Virtual Desktops cloaking function](https://github.com/Ciantic/AltTabAccessor/issues/1) to `komorebi`

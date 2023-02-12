@@ -3,6 +3,12 @@
 # 1Password
 komorebic.exe float-rule exe "1Password.exe"
 
+# Ableton Live
+# Targets VST2 windows
+komorebic.exe float-rule class "AbletonVstPlugClass"
+# Targets VST3 windows
+komorebic.exe float-rule class "Vst3PlugWindow"
+
 # Adobe Creative Cloud
 # If you have disabled minimize/close to tray for this application, you can delete/comment out the next line
 komorebic.exe identify-tray-application class "CreativeCloudDesktopWindowClass"
@@ -151,6 +157,10 @@ komorebic.exe identify-border-overflow-application exe "Kotatogram.exe"
 # If you have disabled minimize/close to tray for this application, you can delete/comment out the next line
 komorebic.exe identify-tray-application exe "Kotatogram.exe"
 
+# LocalSend
+# If you have disabled minimize/close to tray for this application, you can delete/comment out the next line
+komorebic.exe identify-tray-application exe "localsend_app.exe"
+
 # Logi Bolt
 komorebic.exe float-rule exe "LogiBolt.exe"
 
@@ -258,6 +268,9 @@ komorebic.exe identify-tray-application exe "OpenRGB.exe"
 # Paradox Launcher
 komorebic.exe float-rule exe "Paradox Launcher.exe"
 
+# Plexamp
+komorebic.exe identify-border-overflow-application exe "Plexamp.exe"
+
 # PowerToys
 # Target color picker dialog
 komorebic.exe float-rule exe "PowerToys.ColorPickerUI.exe"
@@ -279,11 +292,20 @@ komorebic.exe identify-object-name-change-application exe "pycharm64.exe"
 # If you have disabled minimize/close to tray for this application, you can delete/comment out the next line
 komorebic.exe identify-tray-application exe "pycharm64.exe"
 
+# QtScrcpy
+# If you have disabled minimize/close to tray for this application, you can delete/comment out the next line
+komorebic.exe identify-tray-application exe "QtScrcpy.exe"
+
 # QuickLook
 komorebic.exe float-rule exe "QuickLook.exe"
 
 # RepoZ
 komorebic.exe float-rule exe "RepoZ.exe"
+
+# Rider
+komorebic.exe identify-object-name-change-application exe "rider64.exe"
+# If you have disabled minimize/close to tray for this application, you can delete/comment out the next line
+komorebic.exe identify-tray-application exe "rider64.exe"
 
 # Roblox FPS Unlocker
 # If you have disabled minimize/close to tray for this application, you can delete/comment out the next line
@@ -301,6 +323,9 @@ komorebic.exe identify-tray-application exe "RoundedTB.exe"
 komorebic.exe identify-border-overflow-application exe "ShareX.exe"
 # If you have disabled minimize/close to tray for this application, you can delete/comment out the next line
 komorebic.exe identify-tray-application exe "ShareX.exe"
+
+# Sideloadly
+komorebic.exe float-rule exe "sideloadly.exe"
 
 # Signal
 # If you have disabled minimize/close to tray for this application, you can delete/comment out the next line
@@ -377,11 +402,20 @@ komorebic.exe identify-border-overflow-application exe "UnrealEditor.exe"
 # If you have disabled minimize/close to tray for this application, you can delete/comment out the next line
 komorebic.exe identify-tray-application exe "UnrealEditor.exe"
 
+# VRCX
+# If you have disabled minimize/close to tray for this application, you can delete/comment out the next line
+komorebic.exe identify-tray-application exe "VRCX.exe"
+
 # Visual Studio
 komorebic.exe identify-object-name-change-application exe "devenv.exe"
 
 # Visual Studio Code
 komorebic.exe identify-border-overflow-application exe "Code.exe"
+
+# Voice.ai
+komorebic.exe identify-border-overflow-application exe "VoiceAI.exe"
+# If you have disabled minimize/close to tray for this application, you can delete/comment out the next line
+komorebic.exe identify-tray-application exe "VoiceAI.exe"
 
 # WebTorrent Desktop
 # If you have disabled minimize/close to tray for this application, you can delete/comment out the next line
@@ -396,8 +430,7 @@ komorebic.exe float-rule class "OperationStatusWindow"
 komorebic.exe float-rule title "Control Panel"
 
 # Windows Installer
-# Targets MSI Installers
-komorebic.exe float-rule class "MsiDialogCloseClass"
+komorebic.exe float-rule exe "msiexec.exe"
 
 # WingetUI
 # If you have disabled minimize/close to tray for this application, you can delete/comment out the next line
