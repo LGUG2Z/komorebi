@@ -505,8 +505,6 @@ impl WindowManager {
                 }
                 WindowManagerEvent::MoveResizeEnd(_, window)
                 | WindowManagerEvent::Show(_, window)
-                | WindowManagerEvent::Cloak(_, window)
-                | WindowManagerEvent::Uncloak(_, window)
                 | WindowManagerEvent::FocusChange(_, window)
                 | WindowManagerEvent::Hide(_, window)
                 | WindowManagerEvent::Minimize(_, window) => {

@@ -395,6 +395,13 @@ impl WindowManager {
                 self.clear_workspace_layout_rules(monitor_idx, workspace_idx)?;
             }
             SocketMessage::CycleFocusWorkspace(direction) => {
+                let reenable_border = if BORDER_ENABLED.load(Ordering::SeqCst) {
+                    self.hide_border()?;
+                    true
+                } else {
+                    false
+                };
+
                 // This is to ensure that even on an empty workspace on a secondary monitor, the
                 // secondary monitor where the cursor is focused will be used as the target for
                 // the workspace switch op
@@ -416,8 +423,19 @@ impl WindowManager {
                 );
 
                 self.focus_workspace(workspace_idx)?;
+
+                if reenable_border {
+                    self.show_border()?;
+                }
             }
             SocketMessage::FocusWorkspaceNumber(workspace_idx) => {
+                let reenable_border = if BORDER_ENABLED.load(Ordering::SeqCst) {
+                    self.hide_border()?;
+                    true
+                } else {
+                    false
+                };
+
                 // This is to ensure that even on an empty workspace on a secondary monitor, the
                 // secondary monitor where the cursor is focused will be used as the target for
                 // the workspace switch op
@@ -426,6 +444,10 @@ impl WindowManager {
                 }
 
                 self.focus_workspace(workspace_idx)?;
+
+                if reenable_border {
+                    self.show_border()?;
+                }
             }
             SocketMessage::FocusMonitorWorkspaceNumber(monitor_idx, workspace_idx) => {
                 self.focus_monitor(monitor_idx)?;
