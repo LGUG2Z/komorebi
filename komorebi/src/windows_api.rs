@@ -98,6 +98,7 @@ use windows::Win32::UI::WindowsAndMessaging::GW_HWNDNEXT;
 use windows::Win32::UI::WindowsAndMessaging::HWND_BOTTOM;
 use windows::Win32::UI::WindowsAndMessaging::HWND_NOTOPMOST;
 use windows::Win32::UI::WindowsAndMessaging::HWND_TOPMOST;
+use windows::Win32::UI::WindowsAndMessaging::LWA_ALPHA;
 use windows::Win32::UI::WindowsAndMessaging::LWA_COLORKEY;
 use windows::Win32::UI::WindowsAndMessaging::SET_WINDOW_POS_FLAGS;
 use windows::Win32::UI::WindowsAndMessaging::SHOW_WINDOW_CMD;
@@ -771,6 +772,14 @@ impl WindowsApi {
             hwnd
         }
         .process()
+    }
+
+    pub fn set_transparent(hwnd: HWND) {
+        unsafe {
+            #[allow(clippy::cast_sign_loss)]
+            // TODO: alpha should be configurable
+            SetLayeredWindowAttributes(hwnd, COLORREF(-1i32 as u32), 150, LWA_ALPHA);
+        }
     }
 
     pub fn create_hidden_window(name: PCSTR, instance: HINSTANCE) -> Result<isize> {

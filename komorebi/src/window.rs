@@ -343,9 +343,27 @@ impl Window {
         Ok(())
     }
 
+    pub fn transparent(self) -> Result<()> {
+        let mut ex_style = self.ex_style()?;
+        ex_style.insert(ExtendedWindowStyle::LAYERED);
+        self.update_ex_style(ex_style)?;
+        WindowsApi::set_transparent(self.hwnd());
+        Ok(())
+    }
+
+    pub fn opaque(self) -> Result<()> {
+        let mut ex_style = self.ex_style()?;
+        ex_style.remove(ExtendedWindowStyle::LAYERED);
+        self.update_ex_style(ex_style)
+    }
+
     #[allow(dead_code)]
     pub fn update_style(self, style: WindowStyle) -> Result<()> {
         WindowsApi::update_style(self.hwnd(), isize::try_from(style.bits())?)
+    }
+
+    pub fn update_ex_style(self, style: ExtendedWindowStyle) -> Result<()> {
+        WindowsApi::update_ex_style(self.hwnd(), isize::try_from(style.bits())?)
     }
 
     pub fn style(self) -> Result<WindowStyle> {
@@ -476,6 +494,9 @@ fn window_is_eligible(
             || layered_whitelist.contains(class)
             || layered_whitelist.contains(title)
     };
+
+    // TODO: might need this for transparency
+    // let allow_layered = true;
 
     let allow_wsl2_gui = {
         let wsl2_ui_processes = WSL2_UI_PROCESSES.lock();
