@@ -5,6 +5,12 @@
 ; 1Password
 Run, komorebic.exe float-rule exe "1Password.exe", , Hide
 
+; Ableton Live
+; Targets VST2 windows
+Run, komorebic.exe float-rule class "AbletonVstPlugClass", , Hide
+; Targets VST3 windows
+Run, komorebic.exe float-rule class "Vst3PlugWindow", , Hide
+
 ; Adobe Creative Cloud
 ; If you have disabled minimize/close to tray for this application, you can delete/comment out the next line
 Run, komorebic.exe identify-tray-application class "CreativeCloudDesktopWindowClass", , Hide
@@ -153,6 +159,10 @@ Run, komorebic.exe identify-border-overflow-application exe "Kotatogram.exe", , 
 ; If you have disabled minimize/close to tray for this application, you can delete/comment out the next line
 Run, komorebic.exe identify-tray-application exe "Kotatogram.exe", , Hide
 
+; LocalSend
+; If you have disabled minimize/close to tray for this application, you can delete/comment out the next line
+Run, komorebic.exe identify-tray-application exe "localsend_app.exe", , Hide
+
 ; Logi Bolt
 Run, komorebic.exe float-rule exe "LogiBolt.exe", , Hide
 
@@ -287,6 +297,11 @@ Run, komorebic.exe float-rule exe "QuickLook.exe", , Hide
 ; RepoZ
 Run, komorebic.exe float-rule exe "RepoZ.exe", , Hide
 
+; Rider
+Run, komorebic.exe identify-object-name-change-application exe "rider64.exe", , Hide
+; If you have disabled minimize/close to tray for this application, you can delete/comment out the next line
+Run, komorebic.exe identify-tray-application exe "rider64.exe", , Hide
+
 ; Roblox FPS Unlocker
 ; If you have disabled minimize/close to tray for this application, you can delete/comment out the next line
 Run, komorebic.exe identify-tray-application exe "rbxfpsunlocker.exe", , Hide
@@ -303,6 +318,9 @@ Run, komorebic.exe identify-tray-application exe "RoundedTB.exe", , Hide
 Run, komorebic.exe identify-border-overflow-application exe "ShareX.exe", , Hide
 ; If you have disabled minimize/close to tray for this application, you can delete/comment out the next line
 Run, komorebic.exe identify-tray-application exe "ShareX.exe", , Hide
+
+; Sideloadly
+Run, komorebic.exe float-rule exe "sideloadly.exe", , Hide
 
 ; Signal
 ; If you have disabled minimize/close to tray for this application, you can delete/comment out the next line
@@ -342,6 +360,10 @@ Run, komorebic.exe identify-tray-application exe "Spotify.exe", , Hide
 ; Steam
 Run, komorebic.exe identify-border-overflow-application class "vguiPopupWindow", , Hide
 
+; Stremio
+; If you have disabled minimize/close to tray for this application, you can delete/comment out the next line
+Run, komorebic.exe identify-tray-application exe "stremio.exe", , Hide
+
 ; System Informer
 ; If you have disabled minimize/close to tray for this application, you can delete/comment out the next line
 Run, komorebic.exe identify-tray-application exe "SystemInformer.exe", , Hide
@@ -375,11 +397,20 @@ Run, komorebic.exe identify-border-overflow-application exe "UnrealEditor.exe", 
 ; If you have disabled minimize/close to tray for this application, you can delete/comment out the next line
 Run, komorebic.exe identify-tray-application exe "UnrealEditor.exe", , Hide
 
+; VRCX
+; If you have disabled minimize/close to tray for this application, you can delete/comment out the next line
+Run, komorebic.exe identify-tray-application exe "VRCX.exe", , Hide
+
 ; Visual Studio
 Run, komorebic.exe identify-object-name-change-application exe "devenv.exe", , Hide
 
 ; Visual Studio Code
 Run, komorebic.exe identify-border-overflow-application exe "Code.exe", , Hide
+
+; Voice.ai
+Run, komorebic.exe identify-border-overflow-application exe "VoiceAI.exe", , Hide
+; If you have disabled minimize/close to tray for this application, you can delete/comment out the next line
+Run, komorebic.exe identify-tray-application exe "VoiceAI.exe", , Hide
 
 ; WebTorrent Desktop
 ; If you have disabled minimize/close to tray for this application, you can delete/comment out the next line
@@ -394,8 +425,7 @@ Run, komorebic.exe float-rule class "OperationStatusWindow", , Hide
 Run, komorebic.exe float-rule title "Control Panel", , Hide
 
 ; Windows Installer
-; Targets MSI Installers
-Run, komorebic.exe float-rule class "MsiDialogCloseClass", , Hide
+Run, komorebic.exe float-rule exe "msiexec.exe", , Hide
 
 ; WingetUI
 ; If you have disabled minimize/close to tray for this application, you can delete/comment out the next line

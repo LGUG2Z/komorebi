@@ -100,6 +100,10 @@ MoveToWorkspace(target) {
     RunWait, komorebic.exe move-to-workspace %target%, , Hide
 }
 
+MoveToNamedWorkspace(workspace) {
+    RunWait, komorebic.exe move-to-named-workspace %workspace%, , Hide
+}
+
 CycleMoveToWorkspace(cycle_direction) {
     RunWait, komorebic.exe cycle-move-to-workspace %cycle_direction%, , Hide
 }
@@ -110,6 +114,10 @@ SendToMonitor(target) {
 
 SendToWorkspace(target) {
     RunWait, komorebic.exe send-to-workspace %target%, , Hide
+}
+
+SendToNamedWorkspace(workspace) {
+    RunWait, komorebic.exe send-to-named-workspace %workspace%, , Hide
 }
 
 CycleSendToWorkspace(cycle_direction) {
@@ -130,6 +138,10 @@ FocusWorkspace(target) {
 
 FocusMonitorWorkspace(target_monitor, target_workspace) {
     RunWait, komorebic.exe focus-monitor-workspace %target_monitor% %target_workspace%, , Hide
+}
+
+FocusNamedWorkspace(workspace) {
+    RunWait, komorebic.exe focus-named-workspace %workspace%, , Hide
 }
 
 CycleMonitor(cycle_direction) {
@@ -204,36 +216,72 @@ EnsureWorkspaces(monitor, workspace_count) {
     RunWait, komorebic.exe ensure-workspaces %monitor% %workspace_count%, , Hide
 }
 
+EnsureNamedWorkspaces(monitor, names) {
+    RunWait, komorebic.exe ensure-named-workspaces %monitor% %names%, , Hide
+}
+
 ContainerPadding(monitor, workspace, size) {
     RunWait, komorebic.exe container-padding %monitor% %workspace% %size%, , Hide
+}
+
+NamedWorkspaceContainerPadding(workspace, size) {
+    RunWait, komorebic.exe named-workspace-container-padding %workspace% %size%, , Hide
 }
 
 WorkspacePadding(monitor, workspace, size) {
     RunWait, komorebic.exe workspace-padding %monitor% %workspace% %size%, , Hide
 }
 
+NamedWorkspacePadding(workspace, size) {
+    RunWait, komorebic.exe named-workspace-padding %workspace% %size%, , Hide
+}
+
 WorkspaceLayout(monitor, workspace, value) {
     RunWait, komorebic.exe workspace-layout %monitor% %workspace% %value%, , Hide
+}
+
+NamedWorkspaceLayout(workspace, value) {
+    RunWait, komorebic.exe named-workspace-layout %workspace% %value%, , Hide
 }
 
 WorkspaceCustomLayout(monitor, workspace, path) {
     RunWait, komorebic.exe workspace-custom-layout %monitor% %workspace% %path%, , Hide
 }
 
+NamedWorkspaceCustomLayout(workspace, path) {
+    RunWait, komorebic.exe named-workspace-custom-layout %workspace% %path%, , Hide
+}
+
 WorkspaceLayoutRule(monitor, workspace, at_container_count, layout) {
     RunWait, komorebic.exe workspace-layout-rule %monitor% %workspace% %at_container_count% %layout%, , Hide
+}
+
+NamedWorkspaceLayoutRule(workspace, at_container_count, layout) {
+    RunWait, komorebic.exe named-workspace-layout-rule %workspace% %at_container_count% %layout%, , Hide
 }
 
 WorkspaceCustomLayoutRule(monitor, workspace, at_container_count, path) {
     RunWait, komorebic.exe workspace-custom-layout-rule %monitor% %workspace% %at_container_count% %path%, , Hide
 }
 
+NamedWorkspaceCustomLayoutRule(workspace, at_container_count, path) {
+    RunWait, komorebic.exe named-workspace-custom-layout-rule %workspace% %at_container_count% %path%, , Hide
+}
+
 ClearWorkspaceLayoutRules(monitor, workspace) {
     RunWait, komorebic.exe clear-workspace-layout-rules %monitor% %workspace%, , Hide
 }
 
+ClearNamedWorkspaceLayoutRules(workspace) {
+    RunWait, komorebic.exe clear-named-workspace-layout-rules %workspace%, , Hide
+}
+
 WorkspaceTiling(monitor, workspace, value) {
     RunWait, komorebic.exe workspace-tiling %monitor% %workspace% %value%, , Hide
+}
+
+NamedWorkspaceTiling(workspace, value) {
+    RunWait, komorebic.exe named-workspace-tiling %workspace% %value%, , Hide
 }
 
 WorkspaceName(monitor, workspace, value) {
@@ -318,6 +366,10 @@ ManageRule(identifier, id) {
 
 WorkspaceRule(identifier, id, monitor, workspace) {
     RunWait, komorebic.exe workspace-rule %identifier% "%id%" %monitor% %workspace%, , Hide
+}
+
+NamedWorkspaceRule(identifier, id, workspace) {
+    RunWait, komorebic.exe named-workspace-rule %identifier% "%id%" %workspace%, , Hide
 }
 
 IdentifyObjectNameChangeApplication(identifier, id) {

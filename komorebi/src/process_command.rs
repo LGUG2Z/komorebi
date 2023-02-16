@@ -197,8 +197,22 @@ impl WindowManager {
             SocketMessage::ContainerPadding(monitor_idx, workspace_idx, size) => {
                 self.set_container_padding(monitor_idx, workspace_idx, size)?;
             }
+            SocketMessage::NamedWorkspaceContainerPadding(ref workspace, size) => {
+                if let Some((monitor_idx, workspace_idx)) =
+                    self.monitor_workspace_index_by_name(workspace)
+                {
+                    self.set_container_padding(monitor_idx, workspace_idx, size)?;
+                }
+            }
             SocketMessage::WorkspacePadding(monitor_idx, workspace_idx, size) => {
                 self.set_workspace_padding(monitor_idx, workspace_idx, size)?;
+            }
+            SocketMessage::NamedWorkspacePadding(ref workspace, size) => {
+                if let Some((monitor_idx, workspace_idx)) =
+                    self.monitor_workspace_index_by_name(workspace)
+                {
+                    self.set_workspace_padding(monitor_idx, workspace_idx, size)?;
+                }
             }
             SocketMessage::WorkspaceRule(_, ref id, monitor_idx, workspace_idx) => {
                 {
@@ -332,6 +346,25 @@ impl WindowManager {
             SocketMessage::SendContainerToMonitorWorkspaceNumber(monitor_idx, workspace_idx) => {
                 self.move_container_to_monitor(monitor_idx, Option::from(workspace_idx), false)?;
             }
+            SocketMessage::SendContainerToNamedWorkspace(ref workspace) => {
+                if let Some((monitor_idx, workspace_idx)) =
+                    self.monitor_workspace_index_by_name(workspace)
+                {
+                    self.move_container_to_monitor(
+                        monitor_idx,
+                        Option::from(workspace_idx),
+                        false,
+                    )?;
+                }
+            }
+            SocketMessage::MoveContainerToNamedWorkspace(ref workspace) => {
+                if let Some((monitor_idx, workspace_idx)) =
+                    self.monitor_workspace_index_by_name(workspace)
+                {
+                    self.move_container_to_monitor(monitor_idx, Option::from(workspace_idx), true)?;
+                }
+            }
+
             SocketMessage::MoveWorkspaceToMonitorNumber(monitor_idx) => {
                 self.move_workspace_to_monitor(monitor_idx)?;
             }
@@ -405,6 +438,62 @@ impl WindowManager {
             }
             SocketMessage::ClearWorkspaceLayoutRules(monitor_idx, workspace_idx) => {
                 self.clear_workspace_layout_rules(monitor_idx, workspace_idx)?;
+            }
+            SocketMessage::NamedWorkspaceLayoutCustom(ref workspace, ref path) => {
+                if let Some((monitor_idx, workspace_idx)) =
+                    self.monitor_workspace_index_by_name(workspace)
+                {
+                    self.set_workspace_layout_custom(monitor_idx, workspace_idx, path.clone())?;
+                }
+            }
+            SocketMessage::NamedWorkspaceTiling(ref workspace, tile) => {
+                if let Some((monitor_idx, workspace_idx)) =
+                    self.monitor_workspace_index_by_name(workspace)
+                {
+                    self.set_workspace_tiling(monitor_idx, workspace_idx, tile)?;
+                }
+            }
+            SocketMessage::NamedWorkspaceLayout(ref workspace, layout) => {
+                if let Some((monitor_idx, workspace_idx)) =
+                    self.monitor_workspace_index_by_name(workspace)
+                {
+                    self.set_workspace_layout_default(monitor_idx, workspace_idx, layout)?;
+                }
+            }
+            SocketMessage::NamedWorkspaceLayoutRule(ref workspace, at_container_count, layout) => {
+                if let Some((monitor_idx, workspace_idx)) =
+                    self.monitor_workspace_index_by_name(workspace)
+                {
+                    self.add_workspace_layout_default_rule(
+                        monitor_idx,
+                        workspace_idx,
+                        at_container_count,
+                        layout,
+                    )?;
+                }
+            }
+            SocketMessage::NamedWorkspaceLayoutCustomRule(
+                ref workspace,
+                at_container_count,
+                ref path,
+            ) => {
+                if let Some((monitor_idx, workspace_idx)) =
+                    self.monitor_workspace_index_by_name(workspace)
+                {
+                    self.add_workspace_layout_custom_rule(
+                        monitor_idx,
+                        workspace_idx,
+                        at_container_count,
+                        path.clone(),
+                    )?;
+                }
+            }
+            SocketMessage::ClearNamedWorkspaceLayoutRules(ref workspace) => {
+                if let Some((monitor_idx, workspace_idx)) =
+                    self.monitor_workspace_index_by_name(workspace)
+                {
+                    self.clear_workspace_layout_rules(monitor_idx, workspace_idx)?;
+                }
             }
             SocketMessage::CycleFocusWorkspace(direction) => {
                 // This is to ensure that even on an empty workspace on a secondary monitor, the

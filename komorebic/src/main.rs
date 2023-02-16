@@ -1,7 +1,6 @@
 #![warn(clippy::all, clippy::nursery, clippy::pedantic)]
 #![allow(clippy::missing_errors_doc)]
 
-use std::fs;
 use std::fs::File;
 use std::fs::OpenOptions;
 use std::io::BufRead;
@@ -151,6 +150,26 @@ gen_target_subcommand_args! {
     MoveWorkspaceToMonitor,
 }
 
+macro_rules! gen_named_target_subcommand_args {
+    // SubCommand Pattern
+    ( $( $name:ident ),+ $(,)? ) => {
+        $(
+            #[derive(clap::Parser, derive_ahk::AhkFunction)]
+            pub struct $name {
+                /// Target workspace name
+                workspace: String,
+            }
+        )+
+    };
+}
+
+gen_named_target_subcommand_args! {
+    MoveToNamedWorkspace,
+    SendToNamedWorkspace,
+    FocusNamedWorkspace,
+    ClearNamedWorkspaceLayoutRules
+}
+
 // Thanks to @danielhenrymantilla for showing me how to use cfg_attr with an optional argument like
 // this on the Rust Programming Language Community Discord Server
 macro_rules! gen_workspace_subcommand_args {
@@ -185,6 +204,34 @@ gen_workspace_subcommand_args! {
     Tiling: #[enum] BooleanState,
 }
 
+macro_rules! gen_named_workspace_subcommand_args {
+    // Workspace Property: #[enum] Value Enum (if the value is an Enum)
+    // Workspace Property: Value Type (if the value is anything else)
+    ( $( $name:ident: $(#[enum] $(@$value_enum:tt)?)? $value:ty ),+ $(,)? ) => (
+        paste! {
+            $(
+                #[derive(clap::Parser, derive_ahk::AhkFunction)]
+                pub struct [<NamedWorkspace $name>] {
+                    /// Target workspace name
+                    workspace: String,
+
+                    $(#[clap(value_enum)] $($value_enum)?)?
+                    #[cfg_attr(
+                        all($(FALSE $($value_enum)?)?),
+                        doc = ""$name " of the workspace as a "$value ""
+                    )]
+                    value: $value,
+                }
+            )+
+        }
+    )
+}
+
+gen_named_workspace_subcommand_args! {
+    Layout: #[enum] DefaultLayout,
+    Tiling: #[enum] BooleanState,
+}
+
 #[derive(Parser, AhkFunction)]
 pub struct ClearWorkspaceLayoutRules {
     /// Monitor index (zero-indexed)
@@ -207,6 +254,15 @@ pub struct WorkspaceCustomLayout {
 }
 
 #[derive(Parser, AhkFunction)]
+pub struct NamedWorkspaceCustomLayout {
+    /// Target workspace name
+    workspace: String,
+
+    /// JSON or YAML file from which the custom layout definition should be loaded
+    path: String,
+}
+
+#[derive(Parser, AhkFunction)]
 pub struct WorkspaceLayoutRule {
     /// Monitor index (zero-indexed)
     monitor: usize,
@@ -222,12 +278,36 @@ pub struct WorkspaceLayoutRule {
 }
 
 #[derive(Parser, AhkFunction)]
+pub struct NamedWorkspaceLayoutRule {
+    /// Target workspace name
+    workspace: String,
+
+    /// The number of window containers on-screen required to trigger this layout rule
+    at_container_count: usize,
+
+    #[clap(value_enum)]
+    layout: DefaultLayout,
+}
+
+#[derive(Parser, AhkFunction)]
 pub struct WorkspaceCustomLayoutRule {
     /// Monitor index (zero-indexed)
     monitor: usize,
 
     /// Workspace index on the specified monitor (zero-indexed)
     workspace: usize,
+
+    /// The number of window containers on-screen required to trigger this layout rule
+    at_container_count: usize,
+
+    /// JSON or YAML file from which the custom layout definition should be loaded
+    path: String,
+}
+
+#[derive(Parser, AhkFunction)]
+pub struct NamedWorkspaceCustomLayoutRule {
+    /// Target workspace name
+    workspace: String,
 
     /// The number of window containers on-screen required to trigger this layout rule
     at_container_count: usize,
@@ -335,12 +415,6 @@ struct FocusMonitorWorkspace {
 }
 
 #[derive(Parser, AhkFunction)]
-struct FocusNamedWorkspace {
-    /// Target workspace name
-    name: String,
-}
-
-#[derive(Parser, AhkFunction)]
 pub struct SendToMonitorWorkspace {
     /// Target monitor index (zero-indexed)
     target_monitor: usize,
@@ -368,6 +442,27 @@ macro_rules! gen_padding_subcommand_args {
 gen_padding_subcommand_args! {
     ContainerPadding,
     WorkspacePadding,
+}
+
+macro_rules! gen_named_padding_subcommand_args {
+    // SubCommand Pattern
+    ( $( $name:ident ),+ $(,)? ) => {
+        $(
+            #[derive(clap::Parser, derive_ahk::AhkFunction)]
+            pub struct $name {
+                /// Target workspace name
+                workspace: String,
+
+                /// Pixels to pad with as an integer
+                size: i32,
+            }
+        )+
+    };
+}
+
+gen_named_padding_subcommand_args! {
+    NamedWorkspaceContainerPadding,
+    NamedWorkspacePadding,
 }
 
 macro_rules! gen_padding_adjustment_subcommand_args {
@@ -622,6 +717,9 @@ enum SubCommand {
     /// Move the focused window to the specified workspace
     #[clap(arg_required_else_help = true)]
     MoveToWorkspace(MoveToWorkspace),
+    /// Move the focused window to the specified workspace
+    #[clap(arg_required_else_help = true)]
+    MoveToNamedWorkspace(MoveToNamedWorkspace),
     /// Move the focused window to the workspace in the given cycle direction
     #[clap(arg_required_else_help = true)]
     CycleMoveToWorkspace(CycleMoveToWorkspace),
@@ -631,6 +729,9 @@ enum SubCommand {
     /// Send the focused window to the specified workspace
     #[clap(arg_required_else_help = true)]
     SendToWorkspace(SendToWorkspace),
+    /// Send the focused window to the specified workspace
+    #[clap(arg_required_else_help = true)]
+    SendToNamedWorkspace(SendToNamedWorkspace),
     /// Send the focused window to the workspace in the given cycle direction
     #[clap(arg_required_else_help = true)]
     CycleSendToWorkspace(CycleSendToWorkspace),
@@ -646,7 +747,7 @@ enum SubCommand {
     /// Focus the specified workspace on the target monitor
     #[clap(arg_required_else_help = true)]
     FocusMonitorWorkspace(FocusMonitorWorkspace),
-    /// Focus the specified workspace on the target monitor
+    /// Focus the specified workspace
     #[clap(arg_required_else_help = true)]
     FocusNamedWorkspace(FocusNamedWorkspace),
     /// Focus the monitor in the given cycle direction
@@ -700,33 +801,57 @@ enum SubCommand {
     /// Create at least this many workspaces for the specified monitor
     #[clap(arg_required_else_help = true)]
     EnsureWorkspaces(EnsureWorkspaces),
-    /// Create at least this many workspaces for the specified monitor
+    /// Create these many named workspaces for the specified monitor
     #[clap(arg_required_else_help = true)]
     EnsureNamedWorkspaces(EnsureNamedWorkspaces),
     /// Set the container padding for the specified workspace
     #[clap(arg_required_else_help = true)]
     ContainerPadding(ContainerPadding),
+    /// Set the container padding for the specified workspace
+    #[clap(arg_required_else_help = true)]
+    NamedWorkspaceContainerPadding(NamedWorkspaceContainerPadding),
     /// Set the workspace padding for the specified workspace
     #[clap(arg_required_else_help = true)]
     WorkspacePadding(WorkspacePadding),
+    /// Set the workspace padding for the specified workspace
+    #[clap(arg_required_else_help = true)]
+    NamedWorkspacePadding(NamedWorkspacePadding),
     /// Set the layout for the specified workspace
     #[clap(arg_required_else_help = true)]
     WorkspaceLayout(WorkspaceLayout),
+    /// Set the layout for the specified workspace
+    #[clap(arg_required_else_help = true)]
+    NamedWorkspaceLayout(NamedWorkspaceLayout),
     /// Set a custom layout for the specified workspace
     #[clap(arg_required_else_help = true)]
     WorkspaceCustomLayout(WorkspaceCustomLayout),
+    /// Set a custom layout for the specified workspace
+    #[clap(arg_required_else_help = true)]
+    NamedWorkspaceCustomLayout(NamedWorkspaceCustomLayout),
     /// Add a dynamic layout rule for the specified workspace
     #[clap(arg_required_else_help = true)]
     WorkspaceLayoutRule(WorkspaceLayoutRule),
+    /// Add a dynamic layout rule for the specified workspace
+    #[clap(arg_required_else_help = true)]
+    NamedWorkspaceLayoutRule(NamedWorkspaceLayoutRule),
     /// Add a dynamic custom layout for the specified workspace
     #[clap(arg_required_else_help = true)]
     WorkspaceCustomLayoutRule(WorkspaceCustomLayoutRule),
+    /// Add a dynamic custom layout for the specified workspace
+    #[clap(arg_required_else_help = true)]
+    NamedWorkspaceCustomLayoutRule(NamedWorkspaceCustomLayoutRule),
     /// Clear all dynamic layout rules for the specified workspace
     #[clap(arg_required_else_help = true)]
     ClearWorkspaceLayoutRules(ClearWorkspaceLayoutRules),
+    /// Clear all dynamic layout rules for the specified workspace
+    #[clap(arg_required_else_help = true)]
+    ClearNamedWorkspaceLayoutRules(ClearNamedWorkspaceLayoutRules),
     /// Enable or disable window tiling for the specified workspace
     #[clap(arg_required_else_help = true)]
     WorkspaceTiling(WorkspaceTiling),
+    /// Enable or disable window tiling for the specified workspace
+    #[clap(arg_required_else_help = true)]
+    NamedWorkspaceTiling(NamedWorkspaceTiling),
     /// Set the workspace name for the specified workspace
     #[clap(arg_required_else_help = true)]
     WorkspaceName(WorkspaceName),
@@ -920,6 +1045,9 @@ fn main() -> Result<()> {
         SubCommand::MoveToWorkspace(arg) => {
             send_message(&SocketMessage::MoveContainerToWorkspaceNumber(arg.target).as_bytes()?)?;
         }
+        SubCommand::MoveToNamedWorkspace(arg) => {
+            send_message(&SocketMessage::MoveContainerToNamedWorkspace(arg.workspace).as_bytes()?)?;
+        }
         SubCommand::CycleMoveToWorkspace(arg) => {
             send_message(
                 &SocketMessage::CycleMoveContainerToWorkspace(arg.cycle_direction).as_bytes()?,
@@ -930,6 +1058,9 @@ fn main() -> Result<()> {
         }
         SubCommand::SendToWorkspace(arg) => {
             send_message(&SocketMessage::SendContainerToWorkspaceNumber(arg.target).as_bytes()?)?;
+        }
+        SubCommand::SendToNamedWorkspace(arg) => {
+            send_message(&SocketMessage::SendContainerToNamedWorkspace(arg.workspace).as_bytes()?)?;
         }
         SubCommand::CycleSendToWorkspace(arg) => {
             send_message(
@@ -990,10 +1121,21 @@ fn main() -> Result<()> {
                     .as_bytes()?,
             )?;
         }
+        SubCommand::NamedWorkspaceContainerPadding(arg) => {
+            send_message(
+                &SocketMessage::NamedWorkspaceContainerPadding(arg.workspace, arg.size)
+                    .as_bytes()?,
+            )?;
+        }
         SubCommand::WorkspacePadding(arg) => {
             send_message(
                 &SocketMessage::WorkspacePadding(arg.monitor, arg.workspace, arg.size)
                     .as_bytes()?,
+            )?;
+        }
+        SubCommand::NamedWorkspacePadding(arg) => {
+            send_message(
+                &SocketMessage::NamedWorkspacePadding(arg.workspace, arg.size).as_bytes()?,
             )?;
         }
         SubCommand::AdjustWorkspacePadding(arg) => {
@@ -1027,6 +1169,11 @@ fn main() -> Result<()> {
                     .as_bytes()?,
             )?;
         }
+        SubCommand::NamedWorkspaceLayout(arg) => {
+            send_message(
+                &SocketMessage::NamedWorkspaceLayout(arg.workspace, arg.value).as_bytes()?,
+            )?;
+        }
         SubCommand::WorkspaceCustomLayout(arg) => {
             send_message(
                 &SocketMessage::WorkspaceLayoutCustom(
@@ -1037,10 +1184,29 @@ fn main() -> Result<()> {
                 .as_bytes()?,
             )?;
         }
+        SubCommand::NamedWorkspaceCustomLayout(arg) => {
+            send_message(
+                &SocketMessage::NamedWorkspaceLayoutCustom(
+                    arg.workspace,
+                    resolve_windows_path(&arg.path)?,
+                )
+                .as_bytes()?,
+            )?;
+        }
         SubCommand::WorkspaceLayoutRule(arg) => {
             send_message(
                 &SocketMessage::WorkspaceLayoutRule(
                     arg.monitor,
+                    arg.workspace,
+                    arg.at_container_count,
+                    arg.layout,
+                )
+                .as_bytes()?,
+            )?;
+        }
+        SubCommand::NamedWorkspaceLayoutRule(arg) => {
+            send_message(
+                &SocketMessage::NamedWorkspaceLayoutRule(
                     arg.workspace,
                     arg.at_container_count,
                     arg.layout,
@@ -1059,15 +1225,35 @@ fn main() -> Result<()> {
                 .as_bytes()?,
             )?;
         }
+        SubCommand::NamedWorkspaceCustomLayoutRule(arg) => {
+            send_message(
+                &SocketMessage::NamedWorkspaceLayoutCustomRule(
+                    arg.workspace,
+                    arg.at_container_count,
+                    resolve_windows_path(&arg.path)?,
+                )
+                .as_bytes()?,
+            )?;
+        }
         SubCommand::ClearWorkspaceLayoutRules(arg) => {
             send_message(
                 &SocketMessage::ClearWorkspaceLayoutRules(arg.monitor, arg.workspace).as_bytes()?,
+            )?;
+        }
+        SubCommand::ClearNamedWorkspaceLayoutRules(arg) => {
+            send_message(
+                &SocketMessage::ClearNamedWorkspaceLayoutRules(arg.workspace).as_bytes()?,
             )?;
         }
         SubCommand::WorkspaceTiling(arg) => {
             send_message(
                 &SocketMessage::WorkspaceTiling(arg.monitor, arg.workspace, arg.value.into())
                     .as_bytes()?,
+            )?;
+        }
+        SubCommand::NamedWorkspaceTiling(arg) => {
+            send_message(
+                &SocketMessage::NamedWorkspaceTiling(arg.workspace, arg.value.into()).as_bytes()?,
             )?;
         }
         SubCommand::Start(arg) => {
@@ -1233,7 +1419,7 @@ fn main() -> Result<()> {
             )?;
         }
         SubCommand::FocusNamedWorkspace(arg) => {
-            send_message(&SocketMessage::FocusNamedWorkspace(arg.name).as_bytes()?)?;
+            send_message(&SocketMessage::FocusNamedWorkspace(arg.workspace).as_bytes()?)?;
         }
         SubCommand::CycleMonitor(arg) => {
             send_message(&SocketMessage::CycleFocusMonitor(arg.cycle_direction).as_bytes()?)?;
@@ -1470,9 +1656,10 @@ fn main() -> Result<()> {
             )?;
         }
         SubCommand::AhkAppSpecificConfiguration(arg) => {
-            let content = fs::read_to_string(resolve_windows_path(&arg.path)?)?;
+            let content = std::fs::read_to_string(resolve_windows_path(&arg.path)?)?;
             let lines = if let Some(override_path) = arg.override_path {
-                let override_content = fs::read_to_string(resolve_windows_path(&override_path)?)?;
+                let override_content =
+                    std::fs::read_to_string(resolve_windows_path(&override_path)?)?;
 
                 ApplicationConfigurationGenerator::generate_ahk(
                     &content,
@@ -1507,7 +1694,7 @@ fn main() -> Result<()> {
         }
         SubCommand::FormatAppSpecificConfiguration(arg) => {
             let file_path = resolve_windows_path(&arg.path)?;
-            let content = fs::read_to_string(&file_path)?;
+            let content = std::fs::read_to_string(&file_path)?;
             let formatted_content = ApplicationConfigurationGenerator::format(&content)?;
 
             let mut file = OpenOptions::new()
