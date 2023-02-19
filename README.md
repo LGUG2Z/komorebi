@@ -183,7 +183,7 @@ iwr https://raw.githubusercontent.com/LGUG2Z/komorebi/master/komorebi.sample.ps1
 mkdir $Env:USERPROFILE\.config -ea 0
 
 # save the sample whkdrc file with key bindings to ~/.config/whkdrc
-iwr https://raw.githubusercontent.com/LGUG2Z/komorebi/master/whkdrc -OutFile $Env:USERPROFILE\whkdrc
+iwr https://raw.githubusercontent.com/LGUG2Z/komorebi/master/whkdrc.sample -OutFile $Env:USERPROFILE\.config\whkdrc
 
 # start komorebi
 komorebic start --await-configuration
