@@ -233,18 +233,13 @@ impl WindowManager {
         let mut config_pwsh = home.clone();
         config_pwsh.push("komorebi.ps1");
 
-        let mut config_v1 = home.clone();
-        config_v1.push("komorebi.ahk");
-
-        let mut config_v2 = home;
-        config_v2.push("komorebi.ahk2");
+        let mut config_ahk = home.clone();
+        config_ahk.push("komorebi.ahk");
 
         if config_pwsh.exists() {
             self.configure_watcher(enable, config_pwsh)?;
-        } else if config_v1.exists() {
-            self.configure_watcher(enable, config_v1)?;
-        } else if config_v2.exists() {
-            self.configure_watcher(enable, config_v2)?;
+        } else if config_ahk.exists() {
+            self.configure_watcher(enable, config_ahk)?;
         }
 
         Ok(())

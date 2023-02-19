@@ -129,29 +129,17 @@ lazy_static! {
         })
     };
     static ref DATA_DIR: PathBuf = dirs::data_local_dir().expect("there is no local data directory").join("komorebi");
-    static ref AHK_V1_EXE: String = {
-        let mut ahk_v1: String = String::from("autohotkey.exe");
+    static ref AHK_EXE: String = {
+        let mut ahk: String = String::from("autohotkey.exe");
 
-        if let Ok(komorebi_ahk_v1_exe) = std::env::var("KOMOREBI_AHK_V1_EXE") {
-            if which(&komorebi_ahk_v1_exe).is_ok() {
-                ahk_v1 = komorebi_ahk_v1_exe;
+        if let Ok(komorebi_ahk_exe) = std::env::var("KOMOREBI_AHK_EXE") {
+            if which(&komorebi_ahk_exe).is_ok() {
+                ahk = komorebi_ahk_exe;
             }
         }
 
-        ahk_v1
+        ahk
     };
-    static ref AHK_V2_EXE: String = {
-        let mut ahk_v2: String = String::from("AutoHotkey64.exe");
-
-        if let Ok(komorebi_ahk_v2_exe) = std::env::var("KOMOREBI_AHK_V2_EXE") {
-            if which(&komorebi_ahk_v2_exe).is_ok() {
-                ahk_v2 = komorebi_ahk_v2_exe;
-            }
-        }
-
-        ahk_v2
-    };
-
     static ref WINDOWS_11: bool = {
         matches!(
             os_info::get().version(),
@@ -251,11 +239,8 @@ pub fn load_configuration() -> Result<()> {
     let mut config_pwsh = home.clone();
     config_pwsh.push("komorebi.ps1");
 
-    let mut config_v1 = home.clone();
-    config_v1.push("komorebi.ahk");
-
-    let mut config_v2 = home;
-    config_v2.push("komorebi.ahk2");
+    let mut config_ahk = home.clone();
+    config_ahk.push("komorebi.ahk");
 
     if config_pwsh.exists() {
         let powershell_exe = if which("pwsh.exe").is_ok() {
@@ -275,29 +260,17 @@ pub fn load_configuration() -> Result<()> {
         Command::new(powershell_exe)
             .arg(config_pwsh.as_os_str())
             .output()?;
-    } else if config_v1.exists() && which(&*AHK_V1_EXE).is_ok() {
+    } else if config_ahk.exists() && which(&*AHK_EXE).is_ok() {
         tracing::info!(
             "loading configuration file: {}",
-            config_v1
+            config_ahk
                 .as_os_str()
                 .to_str()
                 .ok_or_else(|| anyhow!("cannot convert path to string"))?
         );
 
         Command::new("autohotkey.exe")
-            .arg(config_v1.as_os_str())
-            .output()?;
-    } else if config_v2.exists() && which(&*AHK_V2_EXE).is_ok() {
-        tracing::info!(
-            "loading configuration file: {}",
-            config_v2
-                .as_os_str()
-                .to_str()
-                .ok_or_else(|| anyhow!("cannot convert path to string"))?
-        );
-
-        Command::new("AutoHotkey64.exe")
-            .arg(config_v2.as_os_str())
+            .arg(config_ahk.as_os_str())
             .output()?;
     }
 
