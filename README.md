@@ -274,11 +274,8 @@ scoop install autohotkey1.1
 If you install AutoHotKey using a different method, the name of the executable file may differ from the name given by
 `scoop`, and thus what is expected by default in `komorebi`.
 
-You may override the executables that `komorebi` looks for to launch and reload `komorebi.ahk` configuration files using
-by setting one of the following two environment variables depending on which version of AutoHotKey you wish to use:
-
-- `$Env:KOMOREBI_AHK_V1_EXE`
-- `$Env:KOMOREBI_AHK_V2_EXE`
+You may override the executable that `komorebi` looks for to launch and reload `komorebi.ahk` configuration files by
+setting the `$Env:KOMOREBI_AHK_EXE` environment variable.
 
 Please keep in mind that even when setting a custom executable name using these environment variables, the executables
 are still required to be in your `Path`.
