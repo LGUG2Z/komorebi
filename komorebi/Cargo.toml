@@ -40,7 +40,7 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 uds_windows = "1"
 which = "4"
 winput = "0.2"
-winreg = "0.10"
+winreg = "0.11"
 windows-interface = { version = "0.44" }
 windows-implement = { version = "0.44" }
 [dependencies.windows]
