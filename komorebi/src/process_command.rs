@@ -321,6 +321,15 @@ impl WindowManager {
             SocketMessage::MoveContainerToMonitorNumber(monitor_idx) => {
                 self.move_container_to_monitor(monitor_idx, None, true)?;
             }
+            SocketMessage::CycleMoveContainerToMonitor(direction) => {
+                let monitor_idx = direction.next_idx(
+                    self.focused_monitor_idx(),
+                    NonZeroUsize::new(self.monitors().len())
+                        .ok_or_else(|| anyhow!("there must be at least one monitor"))?,
+                );
+
+                self.move_container_to_monitor(monitor_idx, None, true)?;
+            }
             SocketMessage::SendContainerToWorkspaceNumber(workspace_idx) => {
                 self.move_container_to_workspace(workspace_idx, false)?;
             }
@@ -341,6 +350,15 @@ impl WindowManager {
                 self.move_container_to_workspace(workspace_idx, false)?;
             }
             SocketMessage::SendContainerToMonitorNumber(monitor_idx) => {
+                self.move_container_to_monitor(monitor_idx, None, false)?;
+            }
+            SocketMessage::CycleSendContainerToMonitor(direction) => {
+                let monitor_idx = direction.next_idx(
+                    self.focused_monitor_idx(),
+                    NonZeroUsize::new(self.monitors().len())
+                        .ok_or_else(|| anyhow!("there must be at least one monitor"))?,
+                );
+
                 self.move_container_to_monitor(monitor_idx, None, false)?;
             }
             SocketMessage::SendContainerToMonitorWorkspaceNumber(monitor_idx, workspace_idx) => {

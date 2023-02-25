@@ -113,6 +113,8 @@ gen_enum_subcommand_args! {
     CycleMove: CycleDirection,
     CycleMoveToWorkspace: CycleDirection,
     CycleSendToWorkspace: CycleDirection,
+    CycleSendToMonitor: CycleDirection,
+    CycleMoveToMonitor: CycleDirection,
     CycleMonitor: CycleDirection,
     CycleWorkspace: CycleDirection,
     Stack: OperationDirection,
@@ -722,6 +724,9 @@ enum SubCommand {
     /// Move the focused window to the specified monitor
     #[clap(arg_required_else_help = true)]
     MoveToMonitor(MoveToMonitor),
+    /// Move the focused window to the monitor in the given cycle direction
+    #[clap(arg_required_else_help = true)]
+    CycleMoveToMonitor(CycleMoveToMonitor),
     /// Move the focused window to the specified workspace
     #[clap(arg_required_else_help = true)]
     MoveToWorkspace(MoveToWorkspace),
@@ -734,6 +739,9 @@ enum SubCommand {
     /// Send the focused window to the specified monitor
     #[clap(arg_required_else_help = true)]
     SendToMonitor(SendToMonitor),
+    /// Send the focused window to the monitor in the given cycle direction
+    #[clap(arg_required_else_help = true)]
+    CycleSendToMonitor(CycleSendToMonitor),
     /// Send the focused window to the specified workspace
     #[clap(arg_required_else_help = true)]
     SendToWorkspace(SendToWorkspace),
@@ -1054,6 +1062,11 @@ fn main() -> Result<()> {
         SubCommand::MoveToMonitor(arg) => {
             send_message(&SocketMessage::MoveContainerToMonitorNumber(arg.target).as_bytes()?)?;
         }
+        SubCommand::CycleMoveToMonitor(arg) => {
+            send_message(
+                &SocketMessage::CycleMoveContainerToMonitor(arg.cycle_direction).as_bytes()?,
+            )?;
+        }
         SubCommand::MoveToWorkspace(arg) => {
             send_message(&SocketMessage::MoveContainerToWorkspaceNumber(arg.target).as_bytes()?)?;
         }
@@ -1067,6 +1080,11 @@ fn main() -> Result<()> {
         }
         SubCommand::SendToMonitor(arg) => {
             send_message(&SocketMessage::SendContainerToMonitorNumber(arg.target).as_bytes()?)?;
+        }
+        SubCommand::CycleSendToMonitor(arg) => {
+            send_message(
+                &SocketMessage::CycleSendContainerToMonitor(arg.cycle_direction).as_bytes()?,
+            )?;
         }
         SubCommand::SendToWorkspace(arg) => {
             send_message(&SocketMessage::SendContainerToWorkspaceNumber(arg.target).as_bytes()?)?;
