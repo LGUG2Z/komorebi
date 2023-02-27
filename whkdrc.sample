@@ -1,4 +1,4 @@
-.shell pwsh
+.shell powershell
 
 # reload swhkd configuration
 # alt + o                 : taskkill /f /im swhkd.exe && start /b swhkd # if shell is cmd
