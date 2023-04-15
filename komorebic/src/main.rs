@@ -785,7 +785,6 @@ enum SubCommand {
     InvisibleBorders(InvisibleBorders),
     /// Set offsets to exclude parts of the work area from tiling
     #[clap(arg_required_else_help = true)]
-    #[clap(alias = "global-work-area-offset")]
     GlobalWorkAreaOffset(GlobalWorkAreaOffset),
     /// Set offsets for a monitor to exclude parts of the work area from tiling
     #[clap(arg_required_else_help = true)]
