@@ -41,7 +41,7 @@ uds_windows = "1"
 which = "4"
 winput = "0.2"
 winreg = "0.50"
-windows-interface = { version = "0.44" }
+windows-interface = { version = "0.48" }
 windows-implement = { version = "0.44" }
 [dependencies.windows]
 version = "0.44"
