@@ -76,6 +76,9 @@ komorebic.exe identify-border-overflow-application exe "DiscordPTB.exe"
 # If you have disabled minimize/close to tray for this application, you can delete/comment out the next line
 komorebic.exe identify-tray-application exe "DiscordPTB.exe"
 
+# Dropbox
+komorebic.exe float-rule exe "Dropbox.exe"
+
 # ElectronMail
 # If you have disabled minimize/close to tray for this application, you can delete/comment out the next line
 komorebic.exe identify-tray-application exe "ElectronMail.exe"
@@ -83,6 +86,9 @@ komorebic.exe identify-tray-application exe "ElectronMail.exe"
 # Element
 # If you have disabled minimize/close to tray for this application, you can delete/comment out the next line
 komorebic.exe identify-tray-application exe "Element.exe"
+
+# Elephicon
+komorebic.exe float-rule exe "Elephicon.exe"
 
 # ElevenClock
 # If you have disabled minimize/close to tray for this application, you can delete/comment out the next line
@@ -420,6 +426,12 @@ komorebic.exe identify-tray-application exe "VoiceAI.exe"
 # WebTorrent Desktop
 # If you have disabled minimize/close to tray for this application, you can delete/comment out the next line
 komorebic.exe identify-tray-application exe "WebTorrent.exe"
+
+# WinZip (32-bit)
+komorebic.exe float-rule exe "winzip32.exe"
+
+# WinZip (64-bit)
+komorebic.exe float-rule exe "winzip64.exe"
 
 # Windows Console (conhost.exe)
 komorebic.exe manage-rule class "ConsoleWindowClass"

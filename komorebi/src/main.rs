@@ -239,7 +239,7 @@ pub fn load_configuration() -> Result<()> {
     let mut config_pwsh = home.clone();
     config_pwsh.push("komorebi.ps1");
 
-    let mut config_ahk = home.clone();
+    let mut config_ahk = home;
     config_ahk.push("komorebi.ahk");
 
     if config_pwsh.exists() {
@@ -277,6 +277,7 @@ pub fn load_configuration() -> Result<()> {
     Ok(())
 }
 
+#[must_use]
 pub fn current_virtual_desktop() -> Option<Vec<u8>> {
     let hkcu = RegKey::predef(HKEY_CURRENT_USER);
 

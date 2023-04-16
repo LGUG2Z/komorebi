@@ -1075,6 +1075,20 @@ impl WindowManager {
         };
 
         match message {
+            SocketMessage::StackWindow(_) => {
+                BORDER_COLOUR_CURRENT
+                    .store(BORDER_COLOUR_STACK.load(Ordering::SeqCst), Ordering::SeqCst);
+            }
+            SocketMessage::UnstackWindow => {
+                BORDER_COLOUR_CURRENT.store(
+                    BORDER_COLOUR_SINGLE.load(Ordering::SeqCst),
+                    Ordering::SeqCst,
+                );
+            }
+            _ => {}
+        }
+
+        match message {
             SocketMessage::ChangeLayout(_)
             | SocketMessage::ChangeLayoutCustom(_)
             | SocketMessage::FlipLayout(_)
@@ -1089,6 +1103,8 @@ impl WindowManager {
             | SocketMessage::ToggleMaximize
             | SocketMessage::Promote
             | SocketMessage::PromoteFocus
+            | SocketMessage::StackWindow(_)
+            | SocketMessage::UnstackWindow
             | SocketMessage::Retile
             // Adding this one so that changes can be seen instantly after
             // modifying the active window border offset
