@@ -44,7 +44,7 @@ winreg = "0.50"
 windows-interface = { version = "0.44" }
 windows-implement = { version = "0.44" }
 [dependencies.windows]
-version = "0.44"
+version = "0.48"
 features = [
     "implement",
     "Win32_System_Com",
