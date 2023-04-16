@@ -14,7 +14,7 @@ use windows::core::PWSTR;
 use windows::Win32::Foundation::BOOL;
 use windows::Win32::Foundation::COLORREF;
 use windows::Win32::Foundation::HANDLE;
-use windows::Win32::Foundation::HINSTANCE;
+use windows::Win32::Foundation::HMODULE;
 use windows::Win32::Foundation::HWND;
 use windows::Win32::Foundation::LPARAM;
 use windows::Win32::Foundation::POINT;
@@ -671,7 +671,7 @@ impl WindowsApi {
     pub fn system_parameters_info_w(
         action: SYSTEM_PARAMETERS_INFO_ACTION,
         ui_param: u32,
-        pv_param: *const c_void,
+        pv_param: *mut c_void,
         update_flags: SYSTEM_PARAMETERS_INFO_UPDATE_FLAGS,
     ) -> Result<()> {
         unsafe { SystemParametersInfoW(action, ui_param, Option::from(pv_param), update_flags) }
@@ -681,12 +681,12 @@ impl WindowsApi {
 
     #[allow(dead_code)]
     pub fn focus_follows_mouse() -> Result<bool> {
-        let is_enabled: BOOL = unsafe { std::mem::zeroed() };
+        let mut is_enabled: BOOL = unsafe { std::mem::zeroed() };
 
         Self::system_parameters_info_w(
             SPI_GETACTIVEWINDOWTRACKING,
             0,
-            std::ptr::addr_of!(is_enabled).cast(),
+            std::ptr::addr_of_mut!(is_enabled).cast(),
             SPIF_SENDCHANGE,
         )?;
 
@@ -698,7 +698,7 @@ impl WindowsApi {
         Self::system_parameters_info_w(
             SPI_SETACTIVEWINDOWTRACKING,
             0,
-            1 as *const c_void,
+            1 as *mut c_void,
             SPIF_SENDCHANGE,
         )
     }
@@ -708,12 +708,12 @@ impl WindowsApi {
         Self::system_parameters_info_w(
             SPI_SETACTIVEWINDOWTRACKING,
             0,
-            std::ptr::null::<c_void>(),
+            std::ptr::null_mut::<c_void>(),
             SPIF_SENDCHANGE,
         )
     }
 
-    pub fn module_handle_w() -> Result<HINSTANCE> {
+    pub fn module_handle_w() -> Result<HMODULE> {
         unsafe { GetModuleHandleW(None) }.process()
     }
 
@@ -750,7 +750,7 @@ impl WindowsApi {
         .process()
     }
 
-    pub fn create_border_window(name: PCSTR, instance: HINSTANCE) -> Result<isize> {
+    pub fn create_border_window(name: PCSTR, instance: HMODULE) -> Result<isize> {
         unsafe {
             let hwnd = CreateWindowExA(
                 WS_EX_TOOLWINDOW | WS_EX_LAYERED,
@@ -782,7 +782,7 @@ impl WindowsApi {
         }
     }
 
-    pub fn create_hidden_window(name: PCSTR, instance: HINSTANCE) -> Result<isize> {
+    pub fn create_hidden_window(name: PCSTR, instance: HMODULE) -> Result<isize> {
         unsafe {
             CreateWindowExA(
                 WS_EX_NOACTIVATE,
