@@ -25,27 +25,30 @@ impl ApplicationOptions {
         match self {
             ApplicationOptions::ObjectNameChange => {
                 format!(
-                    "komorebic.exe identify-object-name-change-application {} '{}'",
+                    "komorebic.exe identify-object-name-change-application {} \"{}\"",
                     kind, id
                 )
             }
             ApplicationOptions::Layered => {
                 format!(
-                    "komorebic.exe identify-layered-application {} '{}'",
+                    "komorebic.exe identify-layered-application {} \"{}\"",
                     kind, id
                 )
             }
             ApplicationOptions::BorderOverflow => {
                 format!(
-                    "komorebic.exe identify-border-overflow-application {} '{}'",
+                    "komorebic.exe identify-border-overflow-application {} \"{}\"",
                     kind, id
                 )
             }
             ApplicationOptions::TrayAndMultiWindow => {
-                format!("komorebic.exe identify-tray-application {} '{}'", kind, id)
+                format!(
+                    "komorebic.exe identify-tray-application {} \"{}\"",
+                    kind, id
+                )
             }
             ApplicationOptions::Force => {
-                format!("komorebic.exe manage-rule {} '{}'", kind, id)
+                format!("komorebic.exe manage-rule {} \"{}\"", kind, id)
             }
         }
     }
@@ -53,7 +56,7 @@ impl ApplicationOptions {
     #[must_use]
     pub fn cfgen(&self, kind: &ApplicationIdentifier, id: &str) -> String {
         format!(
-            "RunWait(\"{}\", , \"Hide\")",
+            "RunWait('{}', , \"Hide\")",
             ApplicationOptions::raw_cfgen(self, kind, id)
         )
     }
@@ -151,7 +154,7 @@ impl ApplicationConfigurationGenerator {
             if let Some(float_identifiers) = app.float_identifiers {
                 for float in float_identifiers {
                     let float_rule =
-                        format!("komorebic.exe float-rule {} '{}'", float.kind, float.id);
+                        format!("komorebic.exe float-rule {} \"{}\"", float.kind, float.id);
 
                     // Don't want to send duped signals especially as configs get larger
                     if !float_rules.contains(&float_rule) {
@@ -205,7 +208,7 @@ impl ApplicationConfigurationGenerator {
             if let Some(float_identifiers) = app.float_identifiers {
                 for float in float_identifiers {
                     let float_rule = format!(
-                        "RunWait(\"komorebic.exe float-rule {} '{}'\", , \"Hide\")",
+                        "RunWait('komorebic.exe float-rule {} \"{}\"', , \"Hide\")",
                         float.kind, float.id
                     );
 
