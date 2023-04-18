@@ -26,10 +26,7 @@ install:
     komorebic pwsh-asc '~/komorebi-application-specific-configuration/applications.yaml'
     cat '~/.config/komorebi/komorebi.generated.ps1' >komorebi.generated.ps1
     cat '~/.config/komorebi/komorebi.generated.ahk' >komorebi.generated.ahk
-    echo '#Requires AutoHotkey v2.0.2' >komorebic.lib.ahk
-    echo '#SingleInstance Force' >>komorebic.lib.ahk
-    echo '' >>komorebic.lib.ahk
-    cat '~/.config/komorebi/komorebic.lib_newV2.ahk' >>komorebic.lib.ahk
+    cat '~/.config/komorebi/komorebic.lib_newV2.ahk' >komorebic.lib.ahk
 
 run:
     just install-komorebic

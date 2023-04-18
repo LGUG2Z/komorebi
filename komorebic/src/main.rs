@@ -1076,17 +1076,19 @@ fn main() -> Result<()> {
             file.write_all(fixed_output.as_bytes())?;
 
             println!(
-                "\nAHK helper library for komorebic written to {}",
+                "\nAHKv1 helper library for komorebic written to {}",
                 library.to_str().ok_or_else(|| anyhow!(
                     "could not find the path to the generated ahk lib file"
                 ))?
             );
 
+            println!("\nYou can convert this file to AHKv2 syntax using https://github.com/mmikeww/AHK-v2-script-converter");
+
             println!(
-                "\nYou can include the library at the top of your ~/komorebi.ahk config with this line:"
+                "\nYou can include the converted library at the top of your komorebi.ahk config with this line:"
             );
 
-            println!("\n#Include %A_ScriptDir%\\komorebic.lib.ahk");
+            println!("\n#Include komorebic.lib.ahk");
         }
         SubCommand::Log => {
             let mut color_log = std::env::temp_dir();
