@@ -192,6 +192,10 @@ komorebic start --await-configuration
 Thanks to [@sitiom](https://github.com/sitiom) for getting _komorebi_ added to both the popular Scoop Extras bucket and
 to WinGet.
 
+You can watch a walkthrough video of this quickstart below on YouTube.
+
+[![Watch the quickstart walkthrough video](https://img.youtube.com/vi/cBnLIwMtv8g/hqdefault.jpg)](https://www.youtube.com/watch?v=cBnLIwMtv8g)
+
 ### GitHub Releases
 
 Prebuilt binaries are available on the [releases page](https://github.com/LGUG2Z/komorebi/releases) in a `zip` archive.
