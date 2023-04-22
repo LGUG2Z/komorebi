@@ -498,8 +498,7 @@ impl WindowManager {
                 // And all the visible windows (at the top of a container)
                 for window in workspace.visible_windows().into_iter().flatten() {
                     // TODO this function needs some TLC
-                    let mut already_moved_window_handles =
-                        self.already_moved_window_handles.lock();
+                    let mut already_moved_window_handles = self.already_moved_window_handles.lock();
                     // If the executable names or titles of any of those windows are in our rules map
                     if let Some((monitor_idx, workspace_idx, apply_on_first_show_only)) =
                         workspace_rules.get(&window.exe()?)
@@ -513,8 +512,7 @@ impl WindowManager {
                                     *workspace_idx
                                 );
 
-                                already_moved_window_handles
-                                    .insert(window.hwnd);
+                                already_moved_window_handles.insert(window.hwnd);
 
                                 // Create an operation outline and save it for later in the fn
                                 to_move.push(EnforceWorkspaceRuleOp {
@@ -554,8 +552,7 @@ impl WindowManager {
                                     *workspace_idx
                                 );
 
-                                already_moved_window_handles
-                                    .insert(window.hwnd);
+                                already_moved_window_handles.insert(window.hwnd);
                                 to_move.push(EnforceWorkspaceRuleOp {
                                     hwnd: window.hwnd,
                                     origin_monitor_idx: i,

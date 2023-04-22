@@ -521,7 +521,7 @@ struct WorkspaceRule {
     monitor: usize,
     /// Workspace index on the specified monitor (zero-indexed)
     workspace: usize,
-    #[clap(short,long)]
+    #[clap(short, long)]
     /// Only apply once on first app load
     apply_on_first_show_only: bool,
 }
@@ -534,7 +534,7 @@ struct NamedWorkspaceRule {
     id: String,
     /// Name of a workspace
     workspace: String,
-    #[clap(short,long)]
+    #[clap(short, long)]
     /// Only apply once on first app load
     apply_on_first_show_only: bool,
 }
