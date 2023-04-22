@@ -201,7 +201,6 @@ impl WindowManager {
                 let mut already_moved_window_handles = self.already_moved_window_handles.lock();
 
                 already_moved_window_handles.remove(&window.hwnd);
-
             }
             WindowManagerEvent::FocusChange(_, window) => {
                 let workspace = self.focused_workspace_mut()?;
