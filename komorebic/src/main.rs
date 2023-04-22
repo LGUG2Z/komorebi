@@ -525,6 +525,9 @@ struct WorkspaceRule {
     monitor: usize,
     /// Workspace index on the specified monitor (zero-indexed)
     workspace: usize,
+    #[clap(short,long)]
+    /// Only apply once on first app load
+    apply_on_first_show_only: bool,
 }
 
 #[derive(Parser, AhkFunction)]
@@ -535,6 +538,9 @@ struct NamedWorkspaceRule {
     id: String,
     /// Name of a workspace
     workspace: String,
+    #[clap(short,long)]
+    /// Only apply once on first app load
+    apply_on_first_show_only: bool,
 }
 
 #[derive(Parser, AhkFunction)]
@@ -1449,14 +1455,25 @@ fn main() -> Result<()> {
         }
         SubCommand::WorkspaceRule(arg) => {
             send_message(
-                &SocketMessage::WorkspaceRule(arg.identifier, arg.id, arg.monitor, arg.workspace)
-                    .as_bytes()?,
+                &SocketMessage::WorkspaceRule(
+                    arg.identifier,
+                    arg.id,
+                    arg.monitor,
+                    arg.workspace,
+                    arg.apply_on_first_show_only,
+                )
+                .as_bytes()?,
             )?;
         }
         SubCommand::NamedWorkspaceRule(arg) => {
             send_message(
-                &SocketMessage::NamedWorkspaceRule(arg.identifier, arg.id, arg.workspace)
-                    .as_bytes()?,
+                &SocketMessage::NamedWorkspaceRule(
+                    arg.identifier,
+                    arg.id,
+                    arg.workspace,
+                    arg.apply_on_first_show_only,
+                )
+                .as_bytes()?,
             )?;
         }
         SubCommand::Stack(arg) => {

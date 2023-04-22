@@ -150,6 +150,10 @@ impl WindowManager {
             WindowManagerEvent::Destroy(_, window) | WindowManagerEvent::Unmanage(window) => {
                 self.focused_workspace_mut()?.remove_window(window.hwnd)?;
                 self.update_focused_workspace(false)?;
+
+                let mut already_moved_window_handles = self.already_moved_window_handles.lock();
+
+                already_moved_window_handles.remove(&window.hwnd);
             }
             WindowManagerEvent::Minimize(_, window) => {
                 let mut hide = false;
@@ -193,6 +197,11 @@ impl WindowManager {
                     self.focused_workspace_mut()?.remove_window(window.hwnd)?;
                     self.update_focused_workspace(false)?;
                 }
+
+                let mut already_moved_window_handles = self.already_moved_window_handles.lock();
+
+                already_moved_window_handles.remove(&window.hwnd);
+
             }
             WindowManagerEvent::FocusChange(_, window) => {
                 let workspace = self.focused_workspace_mut()?;
