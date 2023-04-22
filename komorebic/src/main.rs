@@ -516,6 +516,28 @@ gen_application_target_subcommand_args! {
 }
 
 #[derive(Parser, AhkFunction)]
+struct InitialWorkspaceRule {
+    #[clap(value_enum)]
+    identifier: ApplicationIdentifier,
+    /// Identifier as a string
+    id: String,
+    /// Monitor index (zero-indexed)
+    monitor: usize,
+    /// Workspace index on the specified monitor (zero-indexed)
+    workspace: usize,
+}
+
+#[derive(Parser, AhkFunction)]
+struct InitialNamedWorkspaceRule {
+    #[clap(value_enum)]
+    identifier: ApplicationIdentifier,
+    /// Identifier as a string
+    id: String,
+    /// Name of a workspace
+    workspace: String,
+}
+
+#[derive(Parser, AhkFunction)]
 struct WorkspaceRule {
     #[clap(value_enum)]
     identifier: ApplicationIdentifier,
@@ -525,9 +547,6 @@ struct WorkspaceRule {
     monitor: usize,
     /// Workspace index on the specified monitor (zero-indexed)
     workspace: usize,
-    #[clap(short, long)]
-    /// Only apply once on first app load
-    apply_on_first_show_only: bool,
 }
 
 #[derive(Parser, AhkFunction)]
@@ -538,9 +557,6 @@ struct NamedWorkspaceRule {
     id: String,
     /// Name of a workspace
     workspace: String,
-    #[clap(short, long)]
-    /// Only apply once on first app load
-    apply_on_first_show_only: bool,
 }
 
 #[derive(Parser, AhkFunction)]
@@ -927,6 +943,12 @@ enum SubCommand {
     /// Add a rule to always manage the specified application
     #[clap(arg_required_else_help = true)]
     ManageRule(ManageRule),
+    /// Add a rule to associate an application with a workspace on first show
+    #[clap(arg_required_else_help = true)]
+    InitialWorkspaceRule(InitialWorkspaceRule),
+    /// Add a rule to associate an application with a named workspace on first show
+    #[clap(arg_required_else_help = true)]
+    InitialNamedWorkspaceRule(InitialNamedWorkspaceRule),
     /// Add a rule to associate an application with a workspace
     #[clap(arg_required_else_help = true)]
     WorkspaceRule(WorkspaceRule),
@@ -1453,27 +1475,33 @@ fn main() -> Result<()> {
         SubCommand::ManageRule(arg) => {
             send_message(&SocketMessage::ManageRule(arg.identifier, arg.id).as_bytes()?)?;
         }
-        SubCommand::WorkspaceRule(arg) => {
+        SubCommand::InitialWorkspaceRule(arg) => {
             send_message(
-                &SocketMessage::WorkspaceRule(
+                &SocketMessage::InitialWorkspaceRule(
                     arg.identifier,
                     arg.id,
                     arg.monitor,
                     arg.workspace,
-                    arg.apply_on_first_show_only,
                 )
                 .as_bytes()?,
             )?;
         }
+        SubCommand::InitialNamedWorkspaceRule(arg) => {
+            send_message(
+                &SocketMessage::InitialNamedWorkspaceRule(arg.identifier, arg.id, arg.workspace)
+                    .as_bytes()?,
+            )?;
+        }
+        SubCommand::WorkspaceRule(arg) => {
+            send_message(
+                &SocketMessage::WorkspaceRule(arg.identifier, arg.id, arg.monitor, arg.workspace)
+                    .as_bytes()?,
+            )?;
+        }
         SubCommand::NamedWorkspaceRule(arg) => {
             send_message(
-                &SocketMessage::NamedWorkspaceRule(
-                    arg.identifier,
-                    arg.id,
-                    arg.workspace,
-                    arg.apply_on_first_show_only,
-                )
-                .as_bytes()?,
+                &SocketMessage::NamedWorkspaceRule(arg.identifier, arg.id, arg.workspace)
+                    .as_bytes()?,
             )?;
         }
         SubCommand::Stack(arg) => {

@@ -215,41 +215,24 @@ impl WindowManager {
                     self.set_workspace_padding(monitor_idx, workspace_idx, size)?;
                 }
             }
-            SocketMessage::WorkspaceRule(
-                _,
-                ref id,
-                monitor_idx,
-                workspace_idx,
-                apply_on_first_show_only,
-            ) => {
-                {
-                    let mut workspace_rules = WORKSPACE_RULES.lock();
-                    workspace_rules.insert(
-                        id.to_string(),
-                        (monitor_idx, workspace_idx, apply_on_first_show_only),
-                    );
-                }
-
-                self.enforce_workspace_rules()?;
+            SocketMessage::InitialWorkspaceRule(_, ref id, monitor_idx, workspace_idx) => {
+                self.handle_initial_workspace_rules(id, monitor_idx, workspace_idx)?;
             }
-            SocketMessage::NamedWorkspaceRule(
-                _,
-                ref id,
-                ref workspace,
-                apply_on_first_show_only,
-            ) => {
+            SocketMessage::InitialNamedWorkspaceRule(_, ref id, ref workspace) => {
                 if let Some((monitor_idx, workspace_idx)) =
                     self.monitor_workspace_index_by_name(workspace)
                 {
-                    {
-                        let mut workspace_rules = WORKSPACE_RULES.lock();
-                        workspace_rules.insert(
-                            id.to_string(),
-                            (monitor_idx, workspace_idx, apply_on_first_show_only),
-                        );
-                    }
-
-                    self.enforce_workspace_rules()?;
+                    self.handle_initial_workspace_rules(id, monitor_idx, workspace_idx)?;
+                }
+            }
+            SocketMessage::WorkspaceRule(_, ref id, monitor_idx, workspace_idx) => {
+                self.handle_definitive_workspace_rules(id, monitor_idx, workspace_idx)?;
+            }
+            SocketMessage::NamedWorkspaceRule(_, ref id, ref workspace) => {
+                if let Some((monitor_idx, workspace_idx)) =
+                    self.monitor_workspace_index_by_name(workspace)
+                {
+                    self.handle_definitive_workspace_rules(id, monitor_idx, workspace_idx)?;
                 }
             }
             SocketMessage::ManageRule(_, ref id) => {
@@ -1195,6 +1178,51 @@ impl WindowManager {
         };
 
         tracing::info!("processed");
+        Ok(())
+    }
+
+    #[tracing::instrument(skip(self))]
+    fn handle_initial_workspace_rules(
+        &mut self,
+        id: &String,
+        monitor_idx: usize,
+        workspace_idx: usize,
+    ) -> Result<()> {
+        self.handle_workspace_rules(id, monitor_idx, workspace_idx, true)?;
+
+        Ok(())
+    }
+
+    #[tracing::instrument(skip(self))]
+    fn handle_definitive_workspace_rules(
+        &mut self,
+        id: &String,
+        monitor_idx: usize,
+        workspace_idx: usize,
+    ) -> Result<()> {
+        self.handle_workspace_rules(id, monitor_idx, workspace_idx, false)?;
+
+        Ok(())
+    }
+
+    #[tracing::instrument(skip(self))]
+    fn handle_workspace_rules(
+        &mut self,
+        id: &String,
+        monitor_idx: usize,
+        workspace_idx: usize,
+        initial_workspace_rule: bool,
+    ) -> Result<()> {
+        {
+            let mut workspace_rules = WORKSPACE_RULES.lock();
+            workspace_rules.insert(
+                id.to_string(),
+                (monitor_idx, workspace_idx, initial_workspace_rule),
+            );
+        }
+
+        self.enforce_workspace_rules()?;
+
         Ok(())
     }
 }
