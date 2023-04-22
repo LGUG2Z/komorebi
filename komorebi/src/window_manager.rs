@@ -481,6 +481,34 @@ impl WindowManager {
     }
 
     #[tracing::instrument(skip(self))]
+    fn add_window_handle_to_move_based_on_workspace_rule(
+        &self,
+        window_title: &String,
+        hwnd: isize,
+        origin_monitor_idx: usize,
+        origin_workspace_idx: usize,
+        target_monitor_idx: usize,
+        target_workspace_idx: usize,
+        to_move: &mut Vec<EnforceWorkspaceRuleOp>,
+    ) -> () {
+        tracing::info!(
+            "{} should be on monitor {}, workspace {}",
+            window_title,
+            target_monitor_idx,
+            target_workspace_idx
+        );
+
+        // Create an operation outline and save it for later in the fn
+        to_move.push(EnforceWorkspaceRuleOp {
+            hwnd,
+            origin_monitor_idx,
+            origin_workspace_idx,
+            target_monitor_idx,
+            target_workspace_idx,
+        });
+    }
+
+    #[tracing::instrument(skip(self))]
     pub fn enforce_workspace_rules(&mut self) -> Result<()> {
         let mut to_move = vec![];
 
@@ -497,85 +525,42 @@ impl WindowManager {
             for (j, workspace) in monitor.workspaces().iter().enumerate() {
                 // And all the visible windows (at the top of a container)
                 for window in workspace.visible_windows().into_iter().flatten() {
-                    // TODO this function needs some TLC
                     let mut already_moved_window_handles = self.already_moved_window_handles.lock();
+
+                    let mut found_workspace_rule = workspace_rules.get(&window.exe()?);
+
+                    if found_workspace_rule.is_none() {
+                        found_workspace_rule = workspace_rules.get(&window.title()?);
+                    }
+
                     // If the executable names or titles of any of those windows are in our rules map
                     if let Some((monitor_idx, workspace_idx, apply_on_first_show_only)) =
-                        workspace_rules.get(&window.exe()?)
+                        found_workspace_rule
                     {
                         if *apply_on_first_show_only {
                             if !already_moved_window_handles.contains(&window.hwnd) {
-                                tracing::info!(
-                                    "{} should be on monitor {}, workspace {}",
-                                    window.title()?,
-                                    *monitor_idx,
-                                    *workspace_idx
-                                );
-
                                 already_moved_window_handles.insert(window.hwnd);
 
-                                // Create an operation outline and save it for later in the fn
-                                to_move.push(EnforceWorkspaceRuleOp {
-                                    hwnd: window.hwnd,
-                                    origin_monitor_idx: i,
-                                    origin_workspace_idx: j,
-                                    target_monitor_idx: *monitor_idx,
-                                    target_workspace_idx: *workspace_idx,
-                                });
-                            }
-                        } else {
-                            tracing::info!(
-                                "{} should be on monitor {}, workspace {}",
-                                window.title()?,
-                                *monitor_idx,
-                                *workspace_idx
-                            );
-
-                            // Create an operation outline and save it for later in the fn
-                            to_move.push(EnforceWorkspaceRuleOp {
-                                hwnd: window.hwnd,
-                                origin_monitor_idx: i,
-                                origin_workspace_idx: j,
-                                target_monitor_idx: *monitor_idx,
-                                target_workspace_idx: *workspace_idx,
-                            });
-                        }
-                    } else if let Some((monitor_idx, workspace_idx, apply_on_first_show_only)) =
-                        workspace_rules.get(&window.title()?)
-                    {
-                        if *apply_on_first_show_only {
-                            if !already_moved_window_handles.contains(&window.hwnd) {
-                                tracing::info!(
-                                    "{} should be on monitor {}, workspace {}",
-                                    window.title()?,
+                                self.add_window_handle_to_move_based_on_workspace_rule(
+                                    &window.title()?,
+                                    window.hwnd,
+                                    i,
+                                    j,
                                     *monitor_idx,
-                                    *workspace_idx
+                                    *workspace_idx,
+                                    &mut to_move,
                                 );
-
-                                already_moved_window_handles.insert(window.hwnd);
-                                to_move.push(EnforceWorkspaceRuleOp {
-                                    hwnd: window.hwnd,
-                                    origin_monitor_idx: i,
-                                    origin_workspace_idx: j,
-                                    target_monitor_idx: *monitor_idx,
-                                    target_workspace_idx: *workspace_idx,
-                                });
                             }
                         } else {
-                            tracing::info!(
-                                "{} should be on monitor {}, workspace {}",
-                                window.title()?,
+                            self.add_window_handle_to_move_based_on_workspace_rule(
+                                &window.title()?,
+                                window.hwnd,
+                                i,
+                                j,
                                 *monitor_idx,
-                                *workspace_idx
+                                *workspace_idx,
+                                &mut to_move,
                             );
-
-                            to_move.push(EnforceWorkspaceRuleOp {
-                                hwnd: window.hwnd,
-                                origin_monitor_idx: i,
-                                origin_workspace_idx: j,
-                                target_monitor_idx: *monitor_idx,
-                                target_workspace_idx: *workspace_idx,
-                            });
                         }
                     }
                 }
