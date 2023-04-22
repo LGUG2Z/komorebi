@@ -94,7 +94,7 @@ lazy_static! {
     ]));
     static ref MONITOR_INDEX_PREFERENCES: Arc<Mutex<HashMap<usize, Rect>>> =
         Arc::new(Mutex::new(HashMap::new()));
-    static ref WORKSPACE_RULES: Arc<Mutex<HashMap<String, (usize, usize)>>> =
+    static ref WORKSPACE_RULES: Arc<Mutex<HashMap<String, (usize, usize, bool)>>> =
         Arc::new(Mutex::new(HashMap::new()));
     static ref MANAGE_IDENTIFIERS: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(vec![]));
     static ref FLOAT_IDENTIFIERS: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(vec![

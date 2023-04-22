@@ -214,21 +214,38 @@ impl WindowManager {
                     self.set_workspace_padding(monitor_idx, workspace_idx, size)?;
                 }
             }
-            SocketMessage::WorkspaceRule(_, ref id, monitor_idx, workspace_idx) => {
+            SocketMessage::WorkspaceRule(
+                _,
+                ref id,
+                monitor_idx,
+                workspace_idx,
+                apply_on_first_show_only,
+            ) => {
                 {
                     let mut workspace_rules = WORKSPACE_RULES.lock();
-                    workspace_rules.insert(id.to_string(), (monitor_idx, workspace_idx));
+                    workspace_rules.insert(
+                        id.to_string(),
+                        (monitor_idx, workspace_idx, apply_on_first_show_only),
+                    );
                 }
 
                 self.enforce_workspace_rules()?;
             }
-            SocketMessage::NamedWorkspaceRule(_, ref id, ref workspace) => {
+            SocketMessage::NamedWorkspaceRule(
+                _,
+                ref id,
+                ref workspace,
+                apply_on_first_show_only,
+            ) => {
                 if let Some((monitor_idx, workspace_idx)) =
                     self.monitor_workspace_index_by_name(workspace)
                 {
                     {
                         let mut workspace_rules = WORKSPACE_RULES.lock();
-                        workspace_rules.insert(id.to_string(), (monitor_idx, workspace_idx));
+                        workspace_rules.insert(
+                            id.to_string(),
+                            (monitor_idx, workspace_idx, apply_on_first_show_only),
+                        );
                     }
 
                     self.enforce_workspace_rules()?;
