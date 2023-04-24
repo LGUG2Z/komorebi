@@ -363,6 +363,9 @@ komorebic.exe active-window-border-colour [R G B] --window-kind single
 
 # optionally, if you want a different colour for stacks of windows
 komorebic.exe active-window-border-colour [R G B] --window-kind stack
+
+# optionally, if you want a different colour for windows in monocle mode
+komorebic.exe active-window-border-colour [R G B] --window-kind monocle
 ```
 
 It is important to note that the active window border will only apply to windows managed by `komorebi`.

@@ -168,6 +168,7 @@ impl FromStr for SocketMessage {
 pub enum WindowKind {
     Single,
     Stack,
+    Monocle,
 }
 
 #[derive(

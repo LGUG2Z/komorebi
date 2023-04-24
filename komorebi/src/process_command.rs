@@ -44,6 +44,7 @@ use crate::Notification;
 use crate::NotificationEvent;
 use crate::ALT_FOCUS_HACK;
 use crate::BORDER_COLOUR_CURRENT;
+use crate::BORDER_COLOUR_MONOCLE;
 use crate::BORDER_COLOUR_SINGLE;
 use crate::BORDER_COLOUR_STACK;
 use crate::BORDER_ENABLED;
@@ -1027,6 +1028,9 @@ impl WindowManager {
                     WindowKind::Stack => {
                         BORDER_COLOUR_STACK.store(r | (g << 8) | (b << 16), Ordering::SeqCst);
                     }
+                    WindowKind::Monocle => {
+                        BORDER_COLOUR_MONOCLE.store(r | (g << 8) | (b << 16), Ordering::SeqCst);
+                    }
                 }
 
                 WindowsApi::invalidate_border_rect()?;
@@ -1075,9 +1079,30 @@ impl WindowManager {
         };
 
         match message {
+            SocketMessage::ToggleMonocle => {
+                let current = BORDER_COLOUR_CURRENT.load(Ordering::SeqCst);
+                let monocle = BORDER_COLOUR_MONOCLE.load(Ordering::SeqCst);
+
+                if monocle != 0 {
+                    if current == monocle {
+                        BORDER_COLOUR_CURRENT.store(
+                            BORDER_COLOUR_SINGLE.load(Ordering::SeqCst),
+                            Ordering::SeqCst,
+                        );
+                    } else {
+                        BORDER_COLOUR_CURRENT.store(
+                            BORDER_COLOUR_MONOCLE.load(Ordering::SeqCst),
+                            Ordering::SeqCst,
+                        );
+                    }
+                }
+            }
             SocketMessage::StackWindow(_) => {
-                BORDER_COLOUR_CURRENT
-                    .store(BORDER_COLOUR_STACK.load(Ordering::SeqCst), Ordering::SeqCst);
+                let stack = BORDER_COLOUR_STACK.load(Ordering::SeqCst);
+                if stack != 0 {
+                    BORDER_COLOUR_CURRENT
+                        .store(BORDER_COLOUR_STACK.load(Ordering::SeqCst), Ordering::SeqCst);
+                }
             }
             SocketMessage::UnstackWindow => {
                 BORDER_COLOUR_CURRENT.store(

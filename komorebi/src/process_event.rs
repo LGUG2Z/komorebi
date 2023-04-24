@@ -21,6 +21,7 @@ use crate::windows_api::WindowsApi;
 use crate::Notification;
 use crate::NotificationEvent;
 use crate::BORDER_COLOUR_CURRENT;
+use crate::BORDER_COLOUR_MONOCLE;
 use crate::BORDER_COLOUR_SINGLE;
 use crate::BORDER_COLOUR_STACK;
 use crate::BORDER_ENABLED;
@@ -510,6 +511,7 @@ impl WindowManager {
                 | WindowManagerEvent::Minimize(_, window) => {
                     let border = Border::from(BORDER_HWND.load(Ordering::SeqCst));
                     let mut target_window = None;
+                    let mut target_window_is_monocle = false;
                     if self
                         .focused_workspace()?
                         .floating_windows()
@@ -523,6 +525,7 @@ impl WindowManager {
                     if let Some(monocle_container) = self.focused_workspace()?.monocle_container() {
                         if let Some(window) = monocle_container.focused_window() {
                             target_window = Option::from(*window);
+                            target_window_is_monocle = true;
                         }
                     }
 
@@ -539,7 +542,12 @@ impl WindowManager {
                                     let container_size = self.focused_container()?.windows().len();
                                     target_window = Option::from(*self.focused_window()?);
 
-                                    if container_size > 1 {
+                                    if target_window_is_monocle {
+                                        BORDER_COLOUR_CURRENT.store(
+                                            BORDER_COLOUR_MONOCLE.load(Ordering::SeqCst),
+                                            Ordering::SeqCst,
+                                        );
+                                    } else if container_size > 1 {
                                         BORDER_COLOUR_CURRENT.store(
                                             BORDER_COLOUR_STACK.load(Ordering::SeqCst),
                                             Ordering::SeqCst,

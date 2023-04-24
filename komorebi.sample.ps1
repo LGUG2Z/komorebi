@@ -37,6 +37,7 @@ komorebic invisible-borders 7 0 14 7
 # Uncomment the next lines if you want a visual border around the active window
 # komorebic active-window-border-colour 66 165 245 --window-kind single
 # komorebic active-window-border-colour 256 165 66 --window-kind stack
+# komorebic active-window-border-colour 255 51 153 --window-kind monocle
 # komorebic active-window-border enable
 
 komorebic complete-configuration

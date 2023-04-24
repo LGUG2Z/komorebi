@@ -163,6 +163,7 @@ pub static BORDER_HWND: AtomicIsize = AtomicIsize::new(0);
 pub static BORDER_HIDDEN: AtomicBool = AtomicBool::new(false);
 pub static BORDER_COLOUR_SINGLE: AtomicU32 = AtomicU32::new(0);
 pub static BORDER_COLOUR_STACK: AtomicU32 = AtomicU32::new(0);
+pub static BORDER_COLOUR_MONOCLE: AtomicU32 = AtomicU32::new(0);
 pub static BORDER_COLOUR_CURRENT: AtomicU32 = AtomicU32::new(0);
 pub static BORDER_WIDTH: AtomicI32 = AtomicI32::new(20);
 // 0 0 0 aka pure black, I doubt anyone will want this as a border colour
