@@ -13,7 +13,7 @@ edition = "2021"
 [dependencies]
 komorebi-core = { path = "../komorebi-core" }
 
-bitflags = "1"
+bitflags = "2"
 clap = { version = "4", features = ["derive"] }
 color-eyre = "0.6"
 crossbeam-channel = "0.5"
