@@ -370,6 +370,8 @@ komorebic.exe active-window-border-colour [R G B] --window-kind monocle
 
 It is important to note that the active window border will only apply to windows managed by `komorebi`.
 
+[![Watch the tutorial video](https://img.youtube.com/vi/ywiAvoMV_gE/hqdefault.jpg)](https://www.youtube.com/watch?v=ywiAvoMV_gE)
+
 #### Removing Gaps
 
 If you would like to remove all gaps from a given workspace, both between windows themselves, and between the monitor edges and the windows, you can set the following two configuration options to `0` for the desired monitors and workspaces:
@@ -378,6 +380,8 @@ If you would like to remove all gaps from a given workspace, both between window
 komorebic.exe container-padding <MONITOR_INDEX> <WORKSPACE_INDEX> 0
 komorebic.exe workspace-padding <MONITOR_INDEX> <WORKSPACE_INDEX> 0
 ```
+
+[![Watch the tutorial video](https://img.youtube.com/vi/eGr07mymgWE/hqdefault.jpg)](https://www.youtube.com/watch?v=eGr07mymgWE)
 
 #### Multiple Layout Changes on Startup
 
@@ -485,9 +489,11 @@ By default, the mouse will move to the center of the window when the focus is ch
 behaviour is know is 'mouse follows focus'. To disable this behaviour across all workspaces, add the following command
 to your configuration file:
 
-```ahk
-Run, komorebic.exe toggle-mouse-follows-focus, , Hide
+```powershell
+komorebic.exe mouse-follows-focus disable
 ```
+
+[![Watch the tutorial video](https://img.youtube.com/vi/LBoyXQiNINc/hqdefault.jpg)](https://www.youtube.com/watch?v=LBoyXQiNINc)
 
 #### Saving and Loading Resized Layouts
 
@@ -559,6 +565,8 @@ YAML
 - column: Tertiary
   configuration: Horizontal
 ```
+
+[![Watch the tutorial video](https://img.youtube.com/vi/SgmBHKEOcQ4/hqdefault.jpg)](https://www.youtube.com/watch?v=SgmBHKEOcQ4)
 
 #### Dynamically Changing Layouts Based on Number of Visible Window Containers
 
