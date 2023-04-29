@@ -32,6 +32,20 @@ OS Name:                   Microsoft Windows 11 Pro
 OS Version:                10.0.22000 N/A Build 22000
 ```
 
+**`komorebic check` Output**
+Provide the output of `komorebic check`
+
+For example:
+```
+No KOMOREBI_CONFIG_HOME detected, defaulting to C:\Users\LGUG2Z
+
+Looking for configuration files in C:\Users\LGUG2Z
+
+No komorebi configuration found in C:\Users\LGUG2Z
+
+If running 'komorebic start --await-configuration', you will manually have to call the following command to begin tiling: komorebic complete-configuration
+```
+
 **Additional context**
 Add any other context about the problem here.
 

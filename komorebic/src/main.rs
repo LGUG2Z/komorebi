@@ -9,6 +9,8 @@ use std::io::ErrorKind;
 use std::io::Write;
 use std::path::PathBuf;
 use std::process::Command;
+use std::sync::atomic::AtomicBool;
+use std::sync::atomic::Ordering;
 use std::time::Duration;
 
 use clap::Parser;
@@ -46,6 +48,7 @@ use komorebi_core::StateQuery;
 use komorebi_core::WindowKind;
 
 lazy_static! {
+    static ref HAS_CUSTOM_CONFIG_HOME: AtomicBool = AtomicBool::new(false);
     static ref HOME_DIR: PathBuf = {
         std::env::var("KOMOREBI_CONFIG_HOME").map_or_else(
             |_| dirs::home_dir().expect("there is no home directory"),
@@ -53,6 +56,7 @@ lazy_static! {
                 let home = PathBuf::from(&home_path);
 
                 if home.as_path().is_dir() {
+                    HAS_CUSTOM_CONFIG_HOME.store(true, Ordering::SeqCst);
                     home
                 } else {
                     panic!(
@@ -661,6 +665,8 @@ enum SubCommand {
     Start(Start),
     /// Stop the komorebi.exe process and restore all hidden windows
     Stop,
+    /// Output various important komorebi-related environment values
+    Check,
     /// Show a JSON representation of the current window manager state
     State,
     /// Query the current window manager state
@@ -988,6 +994,45 @@ fn main() -> Result<()> {
     let opts: Opts = Opts::parse();
 
     match opts.subcmd {
+        SubCommand::Check => {
+            let home = HOME_DIR.clone();
+            let home_lossy_string = home.to_string_lossy();
+            if HAS_CUSTOM_CONFIG_HOME.load(Ordering::SeqCst) {
+                println!("KOMOREBI_CONFIG_HOME detected: {home_lossy_string}\n");
+            } else {
+                println!(
+                    "No KOMOREBI_CONFIG_HOME detected, defaulting to {}\n",
+                    dirs::home_dir()
+                        .expect("could not find home dir")
+                        .to_string_lossy()
+                );
+            }
+
+            println!("Looking for configuration files in {home_lossy_string}\n");
+
+            let mut config_pwsh = home.clone();
+            config_pwsh.push("komorebi.ps1");
+
+            let mut config_ahk = home.clone();
+            config_ahk.push("komorebi.ahk");
+
+            if config_pwsh.exists() {
+                println!("Found komorebi.ps1; this file will be autoloaded by komorebi\n");
+                let mut config_whkd = dirs::home_dir().expect("could not find home dir");
+                config_whkd.push(".config");
+                config_whkd.push("whkdrc");
+                if config_whkd.exists() {
+                    println!("Found ~/.config/whkdrc; key bindings will be loaded from here when whkd is started\n");
+                } else {
+                    println!("No ~/.config/whkdrc found; you may not be able to control komorebi with your keyboard\n");
+                }
+            } else if config_ahk.exists() {
+                println!("Found komorebi.ahk; this file will be autoloaded by komorebi\n");
+            } else {
+                println!("No komorebi configuration found in {home_lossy_string}\n");
+                println!("If running 'komorebic start --await-configuration', you will manually have to call the following command to begin tiling: komorebic complete-configuration\n");
+            }
+        }
         SubCommand::AhkLibrary => {
             let mut library = HOME_DIR.clone();
             library.push("komorebic.lib.ahk");
