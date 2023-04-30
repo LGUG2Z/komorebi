@@ -196,6 +196,27 @@ You can watch a walkthrough video of this quickstart below on YouTube.
 
 [![Watch the quickstart walkthrough video](https://img.youtube.com/vi/cBnLIwMtv8g/hqdefault.jpg)](https://www.youtube.com/watch?v=cBnLIwMtv8g)
 
+#### Using Autohotkey
+
+If you would like to use Autohotkey, please make sure you have AutoHotKey v2 installed.
+
+Generally, users who opt for AHK will have specific needs that can only be addressed by the advanced functionality of AHK,
+and so they are assumed to be able to craft their own configuration files.
+
+If you would like to try out AHK, a simple sample configuration powered by `komorebic.lib.ahk` is provided as a starting
+point.
+
+```powershell
+# save the latest generated komorebic library to ~/komorebic.lib.ahk
+iwr https://raw.githubusercontent.com/LGUG2Z/komorebi/master/komorebic.lib.ahk -OutFile $Env:USERPROFILE\komorebic.lib.ahk
+
+# save the latest generated app-specific config tweaks and fixes to ~/komorebi.generated.ahk
+iwr https://raw.githubusercontent.com/LGUG2Z/komorebi/master/komorebi.generated.ahk -OutFile $Env:USERPROFILE\komorebi.generated.ahk
+
+# save the sample komorebi configuration file to ~/komorebi.ahk
+iwr https://raw.githubusercontent.com/LGUG2Z/komorebi/master/komorebi.sample.ahk -OutFile $Env:USERPROFILE\komorebi.ahk
+```
+
 ### GitHub Releases
 
 Prebuilt binaries are available on the [releases page](https://github.com/LGUG2Z/komorebi/releases) in a `zip` archive.
@@ -259,6 +280,9 @@ key combinations in the `whkdrc` file.
 Additionally, you may run `komorebic.exe ahk-library` to generate a helper library for AutoHotKey which wraps
 every `komorebic` command in a native AHK function.
 
+The output of this command is in AHKv1 syntax. It must be manually converted to AHKv2 syntax
+using [this tool](https://github.com/mmikeww/AHK-v2-script-converter) or something similar.
+
 If you include the generated library at the top of your `~/komorebi.ahk` configuration file, you will be able to call
 any of the functions that it contains.
 
@@ -266,13 +290,11 @@ any of the functions that it contains.
 
 ❗️**NOTE**: This section is only relevant for people who wish to use AutoHotKey instead of [`whkd`](https://github.com/LGUG2Z/whkd).
 
-The generated helper library for AutoHotKey currently only supports AutoHotKey v1.1.
-
 The preferred way to install AutoHotKey for use with `komorebi` is to install it via `scoop`:
 
 ```powershell
 scoop bucket add versions
-scoop install autohotkey1.1
+scoop install autohotkey
 ```
 
 If you install AutoHotKey using a different method, the name of the executable file may differ from the name given by
