@@ -1808,12 +1808,6 @@ fn main() -> Result<()> {
                     "could not find the path to the generated configuration file"
                 ))?
             );
-
-            println!(
-                "\nYou can include the generated configuration at the top of your komorebi.ahk config with this line:"
-            );
-
-            println!("\n#Include %A_ScriptDir%\\komorebi.generated.ahk");
         }
         SubCommand::PwshAppSpecificConfiguration(arg) => {
             let content = std::fs::read_to_string(resolve_windows_path(&arg.path)?)?;
