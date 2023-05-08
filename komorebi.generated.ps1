@@ -16,6 +16,10 @@ komorebic.exe identify-tray-application class "CreativeCloudDesktopWindowClass"
 # Adobe Photoshop
 komorebic.exe identify-border-overflow-application class "Photoshop"
 
+# Akiflow
+# If you have disabled minimize/close to tray for this application, you can delete/comment out the next line
+komorebic.exe identify-tray-application exe "Akiflow.exe"
+
 # ArmCord
 komorebic.exe identify-border-overflow-application exe "ArmCord.exe"
 # If you have disabled minimize/close to tray for this application, you can delete/comment out the next line

@@ -16,6 +16,10 @@ RunWait('komorebic.exe identify-tray-application class "CreativeCloudDesktopWind
 ; Adobe Photoshop
 RunWait('komorebic.exe identify-border-overflow-application class "Photoshop"', , "Hide")
 
+; Akiflow
+; If you have disabled minimize/close to tray for this application, you can delete/comment out the next line
+RunWait('komorebic.exe identify-tray-application exe "Akiflow.exe"', , "Hide")
+
 ; ArmCord
 RunWait('komorebic.exe identify-border-overflow-application exe "ArmCord.exe"', , "Hide")
 ; If you have disabled minimize/close to tray for this application, you can delete/comment out the next line
