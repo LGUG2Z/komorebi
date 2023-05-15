@@ -143,6 +143,8 @@ pub enum SocketMessage {
     ToggleFocusFollowsMouse(FocusFollowsMouseImplementation),
     MouseFollowsFocus(bool),
     ToggleMouseFollowsFocus,
+    RemoveTitleBar(ApplicationIdentifier, String),
+    ToggleTitleBars,
     AddSubscriber(String),
     RemoveSubscriber(String),
     NotificationSchema,

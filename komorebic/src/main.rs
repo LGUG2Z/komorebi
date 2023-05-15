@@ -513,6 +513,7 @@ gen_application_target_subcommand_args! {
     IdentifyLayeredApplication,
     IdentifyObjectNameChangeApplication,
     IdentifyBorderOverflowApplication,
+    RemoveTitleBar,
 }
 
 #[derive(Parser, AhkFunction)]
@@ -964,6 +965,11 @@ enum SubCommand {
     /// Identify an application that has WS_EX_LAYERED, but should still be managed
     #[clap(arg_required_else_help = true)]
     IdentifyLayeredApplication(IdentifyLayeredApplication),
+    /// Whitelist an application for title bar removal
+    #[clap(arg_required_else_help = true)]
+    RemoveTitleBar(RemoveTitleBar),
+    /// Toggle title bars for whitelisted applications
+    ToggleTitleBars,
     /// Identify an application that has overflowing borders
     #[clap(arg_required_else_help = true)]
     #[clap(alias = "identify-border-overflow")]
@@ -1709,6 +1715,21 @@ fn main() -> Result<()> {
                 &SocketMessage::IdentifyBorderOverflowApplication(target.identifier, target.id)
                     .as_bytes()?,
             )?;
+        }
+        SubCommand::RemoveTitleBar(target) => {
+            match target.identifier {
+                ApplicationIdentifier::Exe => {}
+                _ => {
+                    return Err(anyhow!(
+                        "this command requires applications to be identified by their exe"
+                    ))
+                }
+            }
+
+            send_message(&SocketMessage::RemoveTitleBar(target.identifier, target.id).as_bytes()?)?;
+        }
+        SubCommand::ToggleTitleBars => {
+            send_message(&SocketMessage::ToggleTitleBars.as_bytes()?)?;
         }
         SubCommand::Manage => {
             send_message(&SocketMessage::ManageFocusedWindow.as_bytes()?)?;

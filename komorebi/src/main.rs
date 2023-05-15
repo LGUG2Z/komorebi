@@ -152,6 +152,10 @@ lazy_static! {
 
     static ref BORDER_OFFSET: Arc<Mutex<Option<Rect>>> =
         Arc::new(Mutex::new(None));
+
+    // Use app-specific titlebar removal options where possible
+    // eg. Windows Terminal, IntelliJ IDEA, Firefox
+    static ref NO_TITLEBAR: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(vec![]));
 }
 
 pub static INITIAL_CONFIGURATION_LOADED: AtomicBool = AtomicBool::new(false);
@@ -168,6 +172,7 @@ pub static BORDER_COLOUR_CURRENT: AtomicU32 = AtomicU32::new(0);
 pub static BORDER_WIDTH: AtomicI32 = AtomicI32::new(20);
 // 0 0 0 aka pure black, I doubt anyone will want this as a border colour
 pub const TRANSPARENCY_COLOUR: u32 = 0;
+pub static REMOVE_TITLEBARS: AtomicBool = AtomicBool::new(false);
 
 pub static HIDDEN_HWND: AtomicIsize = AtomicIsize::new(0);
 
@@ -511,7 +516,7 @@ fn main() -> Result<()> {
 
         tracing::error!("received ctrl-c, restoring all hidden windows and terminating process");
 
-        wm.lock().restore_all_windows();
+        wm.lock().restore_all_windows()?;
 
         if WindowsApi::focus_follows_mouse()? {
             WindowsApi::disable_focus_follows_mouse()?;

@@ -61,7 +61,9 @@ use crate::INITIAL_CONFIGURATION_LOADED;
 use crate::LAYERED_WHITELIST;
 use crate::MANAGE_IDENTIFIERS;
 use crate::MONITOR_INDEX_PREFERENCES;
+use crate::NO_TITLEBAR;
 use crate::OBJECT_NAME_CHANGE_ON_LAUNCH;
+use crate::REMOVE_TITLEBARS;
 use crate::SUBSCRIPTION_PIPES;
 use crate::TCP_CONNECTIONS;
 use crate::TRAY_AND_MULTI_WINDOW_IDENTIFIERS;
@@ -575,7 +577,7 @@ impl WindowManager {
                 tracing::info!(
                     "received stop command, restoring all hidden windows and terminating process"
                 );
-                self.restore_all_windows();
+                self.restore_all_windows()?;
 
                 if WindowsApi::focus_follows_mouse()? {
                     WindowsApi::disable_focus_follows_mouse()?;
@@ -1075,6 +1077,17 @@ impl WindowManager {
 
                 let mut stream = UnixStream::connect(socket)?;
                 stream.write_all(schema.as_bytes())?;
+            }
+            SocketMessage::RemoveTitleBar(_, ref id) => {
+                let mut identifiers = NO_TITLEBAR.lock();
+                if !identifiers.contains(id) {
+                    identifiers.push(id.clone());
+                }
+            }
+            SocketMessage::ToggleTitleBars => {
+                let current = REMOVE_TITLEBARS.load(Ordering::SeqCst);
+                REMOVE_TITLEBARS.store(!current, Ordering::SeqCst);
+                self.update_focused_workspace(false)?;
             }
         };
 

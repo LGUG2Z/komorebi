@@ -49,7 +49,9 @@ use crate::FLOAT_IDENTIFIERS;
 use crate::HOME_DIR;
 use crate::LAYERED_WHITELIST;
 use crate::MANAGE_IDENTIFIERS;
+use crate::NO_TITLEBAR;
 use crate::OBJECT_NAME_CHANGE_ON_LAUNCH;
+use crate::REMOVE_TITLEBARS;
 use crate::TRAY_AND_MULTI_WINDOW_IDENTIFIERS;
 use crate::WORKSPACE_RULES;
 
@@ -75,6 +77,7 @@ pub struct WindowManager {
     pub already_moved_window_handles: Arc<Mutex<HashSet<isize>>>,
 }
 
+#[allow(clippy::struct_excessive_bools)]
 #[derive(Debug, Serialize, JsonSchema)]
 pub struct State {
     pub monitors: Ring<Monitor>,
@@ -87,6 +90,7 @@ pub struct State {
     pub focus_follows_mouse: Option<FocusFollowsMouseImplementation>,
     pub mouse_follows_focus: bool,
     pub has_pending_raise_op: bool,
+    pub remove_titlebars: bool,
     pub float_identifiers: Vec<String>,
     pub manage_identifiers: Vec<String>,
     pub layered_whitelist: Vec<String>,
@@ -114,6 +118,7 @@ impl From<&WindowManager> for State {
             focus_follows_mouse: wm.focus_follows_mouse,
             mouse_follows_focus: wm.mouse_follows_focus,
             has_pending_raise_op: wm.has_pending_raise_op,
+            remove_titlebars: REMOVE_TITLEBARS.load(Ordering::SeqCst),
             float_identifiers: FLOAT_IDENTIFIERS.lock().clone(),
             manage_identifiers: MANAGE_IDENTIFIERS.lock().clone(),
             layered_whitelist: LAYERED_WHITELIST.lock().clone(),
@@ -480,6 +485,7 @@ impl WindowManager {
         Ok(())
     }
 
+    #[allow(clippy::too_many_arguments)]
     #[tracing::instrument(skip(self))]
     fn add_window_handle_to_move_based_on_workspace_rule(
         &self,
@@ -954,18 +960,26 @@ impl WindowManager {
     }
 
     #[tracing::instrument(skip(self))]
-    pub fn restore_all_windows(&mut self) {
+    pub fn restore_all_windows(&mut self) -> Result<()> {
         tracing::info!("restoring all hidden windows");
+
+        let no_titlebar = NO_TITLEBAR.lock();
 
         for monitor in self.monitors_mut() {
             for workspace in monitor.workspaces_mut() {
                 for containers in workspace.containers_mut() {
                     for window in containers.windows_mut() {
+                        if no_titlebar.contains(&window.exe()?) {
+                            window.add_title_bar()?;
+                        }
+
                         window.restore();
                     }
                 }
             }
         }
+
+        Ok(())
     }
 
     #[tracing::instrument(skip(self))]

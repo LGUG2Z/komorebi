@@ -32,6 +32,7 @@ use crate::HIDDEN_HWNDS;
 use crate::HIDING_BEHAVIOUR;
 use crate::LAYERED_WHITELIST;
 use crate::MANAGE_IDENTIFIERS;
+use crate::NO_TITLEBAR;
 use crate::WSL2_UI_PROCESSES;
 
 #[derive(Debug, Clone, Copy, JsonSchema)]
@@ -346,7 +347,7 @@ impl Window {
     pub fn transparent(self) -> Result<()> {
         let mut ex_style = self.ex_style()?;
         ex_style.insert(ExtendedWindowStyle::LAYERED);
-        self.update_ex_style(ex_style)?;
+        self.update_ex_style(&ex_style)?;
         WindowsApi::set_transparent(self.hwnd());
         Ok(())
     }
@@ -354,15 +355,15 @@ impl Window {
     pub fn opaque(self) -> Result<()> {
         let mut ex_style = self.ex_style()?;
         ex_style.remove(ExtendedWindowStyle::LAYERED);
-        self.update_ex_style(ex_style)
+        self.update_ex_style(&ex_style)
     }
 
     #[allow(dead_code)]
-    pub fn update_style(self, style: WindowStyle) -> Result<()> {
+    pub fn update_style(self, style: &WindowStyle) -> Result<()> {
         WindowsApi::update_style(self.hwnd(), isize::try_from(style.bits())?)
     }
 
-    pub fn update_ex_style(self, style: ExtendedWindowStyle) -> Result<()> {
+    pub fn update_ex_style(self, style: &ExtendedWindowStyle) -> Result<()> {
         WindowsApi::update_ex_style(self.hwnd(), isize::try_from(style.bits())?)
     }
 
@@ -397,6 +398,20 @@ impl Window {
         WindowsApi::is_window(self.hwnd())
     }
 
+    pub fn remove_title_bar(self) -> Result<()> {
+        let mut style = self.style()?;
+        style.remove(WindowStyle::CAPTION);
+        style.remove(WindowStyle::THICKFRAME);
+        self.update_style(&style)
+    }
+
+    pub fn add_title_bar(self) -> Result<()> {
+        let mut style = self.style()?;
+        style.insert(WindowStyle::CAPTION);
+        style.insert(WindowStyle::THICKFRAME);
+        self.update_style(&style)
+    }
+
     #[tracing::instrument(fields(exe, title))]
     pub fn should_manage(self, event: Option<WindowManagerEvent>) -> Result<bool> {
         if let Some(WindowManagerEvent::DisplayChange(_)) = event {
@@ -427,7 +442,7 @@ impl Window {
             // If not allowing cloaked windows, we need to ensure the window is not cloaked
             (false, false) => {
                 if let (Ok(title), Ok(exe_name), Ok(class)) = (self.title(), self.exe(), self.class()) {
-                    return Ok(window_is_eligible(&title, &exe_name, &class, self.style()?, self.ex_style()?, event));
+                    return Ok(window_is_eligible(&title, &exe_name, &class, &self.style()?, &self.ex_style()?, event));
                 }
             }
             _ => {}
@@ -441,8 +456,8 @@ fn window_is_eligible(
     title: &String,
     exe_name: &String,
     class: &String,
-    style: WindowStyle,
-    ex_style: ExtendedWindowStyle,
+    style: &WindowStyle,
+    ex_style: &ExtendedWindowStyle,
     event: Option<WindowManagerEvent>,
 ) -> bool {
     let mut should_float = false;
@@ -503,7 +518,12 @@ fn window_is_eligible(
         wsl2_ui_processes.contains(exe_name)
     };
 
-    if (allow_wsl2_gui || style.contains(WindowStyle::CAPTION) && ex_style.contains(ExtendedWindowStyle::WINDOWEDGE))
+    let allow_titlebar_removed = {
+        let titlebars_removed = NO_TITLEBAR.lock();
+        titlebars_removed.contains(exe_name)
+    };
+
+    if (allow_wsl2_gui || allow_titlebar_removed || style.contains(WindowStyle::CAPTION) && ex_style.contains(ExtendedWindowStyle::WINDOWEDGE))
                         && !ex_style.contains(ExtendedWindowStyle::DLGMODALFRAME)
                         // Get a lot of dupe events coming through that make the redrawing go crazy
                         // on FocusChange events if I don't filter out this one. But, if we are
