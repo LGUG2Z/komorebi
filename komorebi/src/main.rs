@@ -122,8 +122,7 @@ lazy_static! {
                 home
             } else {
                 panic!(
-                    "$Env:KOMOREBI_CONFIG_HOME is set to '{}', which is not a valid directory",
-                    home_path
+                    "$Env:KOMOREBI_CONFIG_HOME is set to '{home_path}', which is not a valid directory",
                 );
             }
         })
@@ -344,7 +343,7 @@ pub fn notify_subscribers(notification: &str) -> Result<()> {
     let mut stale_subscriptions = vec![];
     let mut subscriptions = SUBSCRIPTION_PIPES.lock();
     for (subscriber, pipe) in subscriptions.iter_mut() {
-        match writeln!(pipe, "{}", notification) {
+        match writeln!(pipe, "{notification}") {
             Ok(_) => {
                 tracing::debug!("pushed notification to subscriber: {}", subscriber);
             }

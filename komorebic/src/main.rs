@@ -60,8 +60,7 @@ lazy_static! {
                     home
                 } else {
                     panic!(
-                        "$Env:KOMOREBI_CONFIG_HOME is set to '{}', which is not a valid directory",
-                        home_path
+                        "$Env:KOMOREBI_CONFIG_HOME is set to '{home_path}', which is not a valid directory",
                     );
                 }
             },
@@ -153,6 +152,7 @@ gen_target_subcommand_args! {
     SendToWorkspace,
     FocusMonitor,
     FocusWorkspace,
+    FocusWorkspaces,
     MoveWorkspaceToMonitor,
 }
 
@@ -789,6 +789,9 @@ enum SubCommand {
     /// Focus the specified workspace on the focused monitor
     #[clap(arg_required_else_help = true)]
     FocusWorkspace(FocusWorkspace),
+    /// Focus the specified workspace on all monitors
+    #[clap(arg_required_else_help = true)]
+    FocusWorkspaces(FocusWorkspaces),
     /// Focus the specified workspace on the target monitor
     #[clap(arg_required_else_help = true)]
     FocusMonitorWorkspace(FocusMonitorWorkspace),
@@ -1019,7 +1022,7 @@ enum SubCommand {
 
 pub fn send_message(bytes: &[u8]) -> Result<()> {
     let socket = DATA_DIR.join("komorebi.sock");
-    let mut stream = UnixStream::connect(&socket)?;
+    let mut stream = UnixStream::connect(socket)?;
     Ok(stream.write_all(bytes)?)
 }
 
@@ -1103,7 +1106,7 @@ fn main() -> Result<()> {
             let locked = file.lock();
             #[allow(clippy::significant_drop_in_scrutinee)]
             for line in locked.lines().flatten() {
-                println!("{}", line);
+                println!("{line}");
             }
         }
         SubCommand::Focus(arg) => {
@@ -1404,13 +1407,13 @@ fn main() -> Result<()> {
                                     "'--await-configuration'".to_string()
                                 },
                                 |port| if arg.ffm {
-                                    format!("'--ffm','--tcp-port={}'", port)
+                                    format!("'--ffm','--tcp-port={port}'")
                                 } else if arg.await_configuration {
-                                    format!("'--await-configuration','--tcp-port={}'", port)
+                                    format!("'--await-configuration','--tcp-port={port}'")
                                 } else if arg.ffm && arg.await_configuration {
-                                    format!("'--ffm','--await-configuration','--tcp-port={}'", port)
+                                    format!("'--ffm','--await-configuration','--tcp-port={port}'")
                                 } else {
-                                    format!("'--tcp-port={}'", port)
+                                    format!("'--tcp-port={port}'")
                                 }
                             )
                         )
@@ -1432,18 +1435,18 @@ fn main() -> Result<()> {
                                     "'--await-configuration'".to_string()
                                 },
                                 |port| if arg.ffm {
-                                    format!("'--ffm','--tcp-port={}'", port)
+                                    format!("'--ffm','--tcp-port={port}'")
                                 } else if arg.await_configuration {
-                                    format!("'--await-configuration','--tcp-port={}'", port)
+                                    format!("'--await-configuration','--tcp-port={port}'")
                                 } else if arg.ffm && arg.await_configuration {
-                                    format!("'--ffm','--await-configuration','--tcp-port={}'", port)
+                                    format!("'--ffm','--await-configuration','--tcp-port={port}'")
                                 } else {
-                                    format!("'--tcp-port={}'", port)
+                                    format!("'--tcp-port={port}'")
                                 }
                             )
                         )
                     } else {
-                        format!("Start-Process '{}' -WindowStyle hidden", exec)
+                        format!("Start-Process '{exec}' -WindowStyle hidden")
                     }
                 },
             );
@@ -1453,10 +1456,10 @@ fn main() -> Result<()> {
             while !running {
                 match powershell_script::run(&script) {
                     Ok(_) => {
-                        println!("{}", script);
+                        println!("{script}");
                     }
                     Err(error) => {
-                        println!("Error: {}", error);
+                        println!("Error: {error}");
                     }
                 }
 
@@ -1537,6 +1540,9 @@ fn main() -> Result<()> {
         }
         SubCommand::FocusWorkspace(arg) => {
             send_message(&SocketMessage::FocusWorkspaceNumber(arg.target).as_bytes()?)?;
+        }
+        SubCommand::FocusWorkspaces(arg) => {
+            send_message(&SocketMessage::FocusWorkspaceNumbers(arg.target).as_bytes()?)?;
         }
         SubCommand::FocusMonitorWorkspace(arg) => {
             send_message(

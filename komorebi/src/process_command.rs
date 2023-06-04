@@ -97,7 +97,7 @@ pub fn listen_for_commands(wm: Arc<Mutex<WindowManager>>) {
 #[tracing::instrument]
 pub fn listen_for_commands_tcp(wm: Arc<Mutex<WindowManager>>, port: usize) {
     let listener =
-        TcpListener::bind(format!("0.0.0.0:{}", port)).expect("could not start tcp server");
+        TcpListener::bind(format!("0.0.0.0:{port}")).expect("could not start tcp server");
 
     std::thread::spawn(move || {
         tracing::info!("listening on 0.0.0.0:43663");
@@ -557,6 +557,29 @@ impl WindowManager {
                     self.show_border()?;
                 };
             }
+            SocketMessage::FocusWorkspaceNumbers(workspace_idx) => {
+                // This is to ensure that even on an empty workspace on a secondary monitor, the
+                // secondary monitor where the cursor is focused will be used as the target for
+                // the workspace switch op
+                if let Some(monitor_idx) = self.monitor_idx_from_current_pos() {
+                    self.focus_monitor(monitor_idx)?;
+                }
+
+                let focused_monitor_idx = self.focused_monitor_idx();
+
+                for (i, monitor) in self.monitors_mut().iter_mut().enumerate() {
+                    if i != focused_monitor_idx {
+                        monitor.focus_workspace(workspace_idx)?;
+                        monitor.load_focused_workspace(false)?;
+                    }
+                }
+
+                self.focus_workspace(workspace_idx)?;
+
+                if BORDER_ENABLED.load(Ordering::SeqCst) {
+                    self.show_border()?;
+                };
+            }
             SocketMessage::FocusMonitorWorkspaceNumber(monitor_idx, workspace_idx) => {
                 self.focus_monitor(monitor_idx)?;
                 self.focus_workspace(workspace_idx)?;
@@ -688,8 +711,8 @@ impl WindowManager {
                             }
                         }
                     }
-                // Otherwise proceed with the resizing logic for individual window containers in the
-                // assumed BSP layout
+                    // Otherwise proceed with the resizing logic for individual window containers in the
+                    // assumed BSP layout
                 } else {
                     match axis {
                         Axis::Horizontal => {
@@ -773,9 +796,10 @@ impl WindowManager {
                         }
                     }
                     FocusFollowsMouseImplementation::Windows => {
-                        if let Some(FocusFollowsMouseImplementation::Komorebi) =
-                            self.focus_follows_mouse
-                        {
+                        if matches!(
+                            self.focus_follows_mouse,
+                            Some(FocusFollowsMouseImplementation::Komorebi)
+                        ) {
                             tracing::warn!(
                                 "the windows implementation of focus follows mouse cannot be enabled while the komorebi implementation is enabled"
                             );
@@ -820,9 +844,10 @@ impl WindowManager {
                         }
                     }
                     FocusFollowsMouseImplementation::Windows => {
-                        if let Some(FocusFollowsMouseImplementation::Komorebi) =
-                            self.focus_follows_mouse
-                        {
+                        if matches!(
+                            self.focus_follows_mouse,
+                            Some(FocusFollowsMouseImplementation::Komorebi)
+                        ) {
                             tracing::warn!(
                                 "the windows implementation of focus follows mouse cannot be toggled while the komorebi implementation is enabled"
                             );
@@ -958,7 +983,7 @@ impl WindowManager {
             }
             SocketMessage::AddSubscriber(ref subscriber) => {
                 let mut pipes = SUBSCRIPTION_PIPES.lock();
-                let pipe_path = format!(r"\\.\pipe\{}", subscriber);
+                let pipe_path = format!(r"\\.\pipe\{subscriber}");
                 let pipe = connect(&pipe_path).map_err(|_| {
                     anyhow!("the named pipe '{}' has not yet been created; please create it before running this command", pipe_path)
                 })?;
@@ -1286,11 +1311,7 @@ pub fn read_commands_tcp(
                 break;
             }
             Ok(size) => {
-                let message = if let Ok(message) =
-                    SocketMessage::from_str(&String::from_utf8_lossy(&buf[..size]))
-                {
-                    message
-                } else {
+                let Ok(message) = SocketMessage::from_str(&String::from_utf8_lossy(&buf[..size])) else {
                     tracing::warn!("client sent an invalid message, disconnecting: {addr}");
                     let mut connections = TCP_CONNECTIONS.lock();
                     connections.remove(addr);

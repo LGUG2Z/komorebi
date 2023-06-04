@@ -20,6 +20,9 @@ komorebic.exe identify-border-overflow-application class "Photoshop"
 # If you have disabled minimize/close to tray for this application, you can delete/comment out the next line
 komorebic.exe identify-tray-application exe "Akiflow.exe"
 
+# Android Studio
+komorebic.exe identify-object-name-change-application exe "studio64.exe"
+
 # ArmCord
 komorebic.exe identify-border-overflow-application exe "ArmCord.exe"
 # If you have disabled minimize/close to tray for this application, you can delete/comment out the next line
@@ -274,6 +277,9 @@ komorebic.exe identify-tray-application class "DocEditorsWindowClass"
 komorebic.exe identify-border-overflow-application exe "Obsidian.exe"
 komorebic.exe manage-rule exe "Obsidian.exe"
 
+# OneDrive
+komorebic.exe float-rule class "OneDriveReactNativeWin32WindowClass"
+
 # OpenRGB
 # If you have disabled minimize/close to tray for this application, you can delete/comment out the next line
 komorebic.exe identify-tray-application exe "OpenRGB.exe"
@@ -289,6 +295,8 @@ komorebic.exe identify-border-overflow-application exe "Plexamp.exe"
 komorebic.exe float-rule exe "PowerToys.ColorPickerUI.exe"
 # Target image resizer dialog
 komorebic.exe float-rule exe "PowerToys.ImageResizer.exe"
+# Target Peek popup
+komorebic.exe float-rule exe "PowerToys.Peek.UI.exe"
 
 # Process Hacker
 # If you have disabled minimize/close to tray for this application, you can delete/comment out the next line
@@ -420,6 +428,10 @@ komorebic.exe float-rule exe "TranslucentTB.exe"
 # If you have disabled minimize/close to tray for this application, you can delete/comment out the next line
 komorebic.exe identify-tray-application exe "TranslucentTB.exe"
 
+# Unity Hub
+# If you have disabled minimize/close to tray for this application, you can delete/comment out the next line
+komorebic.exe identify-tray-application exe "Unity Hub.exe"
+
 # Unreal Editor
 komorebic.exe identify-border-overflow-application exe "UnrealEditor.exe"
 # If you have disabled minimize/close to tray for this application, you can delete/comment out the next line
@@ -434,6 +446,9 @@ komorebic.exe identify-object-name-change-application exe "devenv.exe"
 
 # Visual Studio Code
 komorebic.exe identify-border-overflow-application exe "Code.exe"
+
+# Visual Studio Code - Insiders
+komorebic.exe identify-border-overflow-application exe "Code - Insiders.exe"
 
 # Voice.ai
 komorebic.exe identify-border-overflow-application exe "VoiceAI.exe"

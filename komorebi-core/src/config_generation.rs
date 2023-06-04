@@ -24,31 +24,19 @@ impl ApplicationOptions {
     pub fn raw_cfgen(&self, kind: &ApplicationIdentifier, id: &str) -> String {
         match self {
             ApplicationOptions::ObjectNameChange => {
-                format!(
-                    "komorebic.exe identify-object-name-change-application {} \"{}\"",
-                    kind, id
-                )
+                format!("komorebic.exe identify-object-name-change-application {kind} \"{id}\"",)
             }
             ApplicationOptions::Layered => {
-                format!(
-                    "komorebic.exe identify-layered-application {} \"{}\"",
-                    kind, id
-                )
+                format!("komorebic.exe identify-layered-application {kind} \"{id}\"",)
             }
             ApplicationOptions::BorderOverflow => {
-                format!(
-                    "komorebic.exe identify-border-overflow-application {} \"{}\"",
-                    kind, id
-                )
+                format!("komorebic.exe identify-border-overflow-application {kind} \"{id}\"",)
             }
             ApplicationOptions::TrayAndMultiWindow => {
-                format!(
-                    "komorebic.exe identify-tray-application {} \"{}\"",
-                    kind, id
-                )
+                format!("komorebic.exe identify-tray-application {kind} \"{id}\"",)
             }
             ApplicationOptions::Force => {
-                format!("komorebic.exe manage-rule {} \"{}\"", kind, id)
+                format!("komorebic.exe manage-rule {kind} \"{id}\"")
             }
         }
     }
@@ -143,7 +131,7 @@ impl ApplicationConfigurationGenerator {
             lines.push(format!("# {}", app.name));
             if let Some(options) = app.options {
                 for opt in options {
-                    if let ApplicationOptions::TrayAndMultiWindow = opt {
+                    if matches!(opt, ApplicationOptions::TrayAndMultiWindow) {
                         lines.push(String::from("# If you have disabled minimize/close to tray for this application, you can delete/comment out the next line"));
                     }
 
@@ -161,7 +149,7 @@ impl ApplicationConfigurationGenerator {
                         float_rules.push(float_rule.clone());
 
                         if let Some(comment) = float.comment {
-                            lines.push(format!("# {}", comment));
+                            lines.push(format!("# {comment}"));
                         };
 
                         lines.push(float_rule);
@@ -192,7 +180,7 @@ impl ApplicationConfigurationGenerator {
             lines.push(format!("; {}", app.name));
             if let Some(options) = app.options {
                 for opt in options {
-                    if let ApplicationOptions::TrayAndMultiWindow = opt {
+                    if matches!(opt, ApplicationOptions::TrayAndMultiWindow) {
                         lines.push(String::from("; If you have disabled minimize/close to tray for this application, you can delete/comment out the next line"));
                     }
 
@@ -212,7 +200,7 @@ impl ApplicationConfigurationGenerator {
                         float_rules.push(float_rule.clone());
 
                         if let Some(comment) = float.comment {
-                            lines.push(format!("; {}", comment));
+                            lines.push(format!("; {comment}"));
                         };
 
                         lines.push(float_rule);

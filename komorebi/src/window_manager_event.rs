@@ -31,62 +31,49 @@ impl Display for WindowManagerEvent {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Manage(window) => {
-                write!(f, "Manage (Window: {})", window)
+                write!(f, "Manage (Window: {window})")
             }
             Self::Unmanage(window) => {
-                write!(f, "Unmanage (Window: {})", window)
+                write!(f, "Unmanage (Window: {window})")
             }
             Self::Destroy(winevent, window) => {
-                write!(f, "Destroy (WinEvent: {}, Window: {})", winevent, window)
+                write!(f, "Destroy (WinEvent: {winevent}, Window: {window})")
             }
             Self::FocusChange(winevent, window) => {
-                write!(
-                    f,
-                    "FocusChange (WinEvent: {}, Window: {})",
-                    winevent, window
-                )
+                write!(f, "FocusChange (WinEvent: {winevent}, Window: {window})",)
             }
             Self::Hide(winevent, window) => {
-                write!(f, "Hide (WinEvent: {}, Window: {})", winevent, window)
+                write!(f, "Hide (WinEvent: {winevent}, Window: {window})")
             }
             Self::Cloak(winevent, window) => {
-                write!(f, "Cloak (WinEvent: {}, Window: {})", winevent, window)
+                write!(f, "Cloak (WinEvent: {winevent}, Window: {window})")
             }
             Self::Minimize(winevent, window) => {
-                write!(f, "Minimize (WinEvent: {}, Window: {})", winevent, window)
+                write!(f, "Minimize (WinEvent: {winevent}, Window: {window})")
             }
             Self::Show(winevent, window) => {
-                write!(f, "Show (WinEvent: {}, Window: {})", winevent, window)
+                write!(f, "Show (WinEvent: {winevent}, Window: {window})")
             }
             Self::Uncloak(winevent, window) => {
-                write!(f, "Uncloak (WinEvent: {}, Window: {})", winevent, window)
+                write!(f, "Uncloak (WinEvent: {winevent}, Window: {window})")
             }
             Self::MoveResizeStart(winevent, window) => {
                 write!(
                     f,
-                    "MoveResizeStart (WinEvent: {}, Window: {})",
-                    winevent, window
+                    "MoveResizeStart (WinEvent: {winevent}, Window: {window})",
                 )
             }
             Self::MoveResizeEnd(winevent, window) => {
-                write!(
-                    f,
-                    "MoveResizeEnd (WinEvent: {}, Window: {})",
-                    winevent, window
-                )
+                write!(f, "MoveResizeEnd (WinEvent: {winevent}, Window: {window})",)
             }
             Self::MouseCapture(winevent, window) => {
-                write!(
-                    f,
-                    "MouseCapture (WinEvent: {}, Window: {})",
-                    winevent, window
-                )
+                write!(f, "MouseCapture (WinEvent: {winevent}, Window: {window})",)
             }
             Self::Raise(window) => {
-                write!(f, "Raise (Window: {})", window)
+                write!(f, "Raise (Window: {window})")
             }
             Self::DisplayChange(window) => {
-                write!(f, "DisplayChange (Window: {})", window)
+                write!(f, "DisplayChange (Window: {window})")
             }
         }
     }

@@ -984,7 +984,10 @@ impl WindowManager {
 
     #[tracing::instrument(skip(self))]
     fn handle_unmanaged_window_behaviour(&self) -> Result<()> {
-        if let OperationBehaviour::NoOp = self.unmanaged_window_operation_behaviour {
+        if matches!(
+            self.unmanaged_window_operation_behaviour,
+            OperationBehaviour::NoOp
+        ) {
             let workspace = self.focused_workspace()?;
             let focused_hwnd = WindowsApi::foreground_window()?;
             if !workspace.contains_managed_window(focused_hwnd) {

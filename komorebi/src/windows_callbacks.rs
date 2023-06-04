@@ -158,7 +158,7 @@ pub extern "system" fn border_window(
     lparam: LPARAM,
 ) -> LRESULT {
     unsafe {
-        match message as u32 {
+        match message {
             WM_PAINT => {
                 let border_rect = *BORDER_RECT.lock();
                 let mut ps = PAINTSTRUCT::default();
@@ -194,7 +194,7 @@ pub extern "system" fn hidden_window(
     lparam: LPARAM,
 ) -> LRESULT {
     unsafe {
-        match message as u32 {
+        match message {
             WM_DISPLAYCHANGE => {
                 let event_type = WindowManagerEvent::DisplayChange(Window { hwnd: window.0 });
                 WINEVENT_CALLBACK_CHANNEL

@@ -45,20 +45,20 @@ impl Display for Window {
         let mut display = format!("(hwnd: {}", self.hwnd);
 
         if let Ok(title) = self.title() {
-            write!(display, ", title: {}", title)?;
+            write!(display, ", title: {title}")?;
         }
 
         if let Ok(exe) = self.exe() {
-            write!(display, ", exe: {}", exe)?;
+            write!(display, ", exe: {exe}")?;
         }
 
         if let Ok(class) = self.class() {
-            write!(display, ", class: {}", class)?;
+            write!(display, ", class: {class}")?;
         }
 
         write!(display, ")")?;
 
-        write!(f, "{}", display)
+        write!(f, "{display}")
     }
 }
 

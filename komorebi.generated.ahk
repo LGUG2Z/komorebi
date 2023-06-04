@@ -20,6 +20,9 @@ RunWait('komorebic.exe identify-border-overflow-application class "Photoshop"', 
 ; If you have disabled minimize/close to tray for this application, you can delete/comment out the next line
 RunWait('komorebic.exe identify-tray-application exe "Akiflow.exe"', , "Hide")
 
+; Android Studio
+RunWait('komorebic.exe identify-object-name-change-application exe "studio64.exe"', , "Hide")
+
 ; ArmCord
 RunWait('komorebic.exe identify-border-overflow-application exe "ArmCord.exe"', , "Hide")
 ; If you have disabled minimize/close to tray for this application, you can delete/comment out the next line
@@ -274,6 +277,9 @@ RunWait('komorebic.exe identify-tray-application class "DocEditorsWindowClass"',
 RunWait('komorebic.exe identify-border-overflow-application exe "Obsidian.exe"', , "Hide")
 RunWait('komorebic.exe manage-rule exe "Obsidian.exe"', , "Hide")
 
+; OneDrive
+RunWait('komorebic.exe float-rule class "OneDriveReactNativeWin32WindowClass"', , "Hide")
+
 ; OpenRGB
 ; If you have disabled minimize/close to tray for this application, you can delete/comment out the next line
 RunWait('komorebic.exe identify-tray-application exe "OpenRGB.exe"', , "Hide")
@@ -289,6 +295,8 @@ RunWait('komorebic.exe identify-border-overflow-application exe "Plexamp.exe"', 
 RunWait('komorebic.exe float-rule exe "PowerToys.ColorPickerUI.exe"', , "Hide")
 ; Target image resizer dialog
 RunWait('komorebic.exe float-rule exe "PowerToys.ImageResizer.exe"', , "Hide")
+; Target Peek popup
+RunWait('komorebic.exe float-rule exe "PowerToys.Peek.UI.exe"', , "Hide")
 
 ; Process Hacker
 ; If you have disabled minimize/close to tray for this application, you can delete/comment out the next line
@@ -420,6 +428,10 @@ RunWait('komorebic.exe float-rule exe "TranslucentTB.exe"', , "Hide")
 ; If you have disabled minimize/close to tray for this application, you can delete/comment out the next line
 RunWait('komorebic.exe identify-tray-application exe "TranslucentTB.exe"', , "Hide")
 
+; Unity Hub
+; If you have disabled minimize/close to tray for this application, you can delete/comment out the next line
+RunWait('komorebic.exe identify-tray-application exe "Unity Hub.exe"', , "Hide")
+
 ; Unreal Editor
 RunWait('komorebic.exe identify-border-overflow-application exe "UnrealEditor.exe"', , "Hide")
 ; If you have disabled minimize/close to tray for this application, you can delete/comment out the next line
@@ -434,6 +446,9 @@ RunWait('komorebic.exe identify-object-name-change-application exe "devenv.exe"'
 
 ; Visual Studio Code
 RunWait('komorebic.exe identify-border-overflow-application exe "Code.exe"', , "Hide")
+
+; Visual Studio Code - Insiders
+RunWait('komorebic.exe identify-border-overflow-application exe "Code - Insiders.exe"', , "Hide")
 
 ; Voice.ai
 RunWait('komorebic.exe identify-border-overflow-application exe "VoiceAI.exe"', , "Hide")

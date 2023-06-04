@@ -18,7 +18,10 @@ pub fn listen_for_movements(wm: Arc<Mutex<WindowManager>>) {
 
         loop {
             let focus_follows_mouse = wm.lock().focus_follows_mouse;
-            if let Some(FocusFollowsMouseImplementation::Komorebi) = focus_follows_mouse {
+            if matches!(
+                focus_follows_mouse,
+                Some(FocusFollowsMouseImplementation::Komorebi)
+            ) {
                 match receiver.next_event() {
                     // Don't want to send any raise events while we are dragging or resizing
                     Event::MouseButton { action, .. } => match action {
