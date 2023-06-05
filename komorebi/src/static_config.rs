@@ -32,7 +32,7 @@ use crate::WORKSPACE_RULES;
 
 use color_eyre::Result;
 use crossbeam_channel::Receiver;
-use hotwatch::notify::DebouncedEvent;
+use hotwatch::EventKind;
 use hotwatch::Hotwatch;
 use komorebi_core::config_generation::ApplicationConfigurationGenerator;
 use komorebi_core::config_generation::ApplicationOptions;
@@ -744,10 +744,10 @@ impl StaticConfig {
 
         let bytes = SocketMessage::ReloadStaticConfiguration(path.clone()).as_bytes()?;
 
-        wm.hotwatch.watch(path, move |event| match event {
+        wm.hotwatch.watch(path, move |event| match event.kind {
             // Editing in Notepad sends a NoticeWrite while editing in (Neo)Vim sends
             // a NoticeRemove, presumably because of the use of swap files?
-            DebouncedEvent::NoticeWrite(_) | DebouncedEvent::NoticeRemove(_) => {
+            EventKind::Modify(_) | EventKind::Remove(_) => {
                 let socket = DATA_DIR.join("komorebi.sock");
                 let mut stream =
                     UnixStream::connect(socket).expect("could not connect to komorebi.sock");

@@ -12,7 +12,8 @@ use color_eyre::eyre::anyhow;
 use color_eyre::eyre::bail;
 use color_eyre::Result;
 use crossbeam_channel::Receiver;
-use hotwatch::notify::DebouncedEvent;
+use hotwatch::notify::ErrorKind as NotifyErrorKind;
+use hotwatch::EventKind;
 use hotwatch::Hotwatch;
 use parking_lot::Mutex;
 use schemars::JsonSchema;
@@ -261,18 +262,18 @@ impl WindowManager {
             match self.hotwatch.unwatch(&config) {
                 Ok(()) => {}
                 Err(error) => match error {
-                    hotwatch::Error::Notify(error) => match error {
-                        hotwatch::notify::Error::WatchNotFound => {}
-                        error => return Err(error.into()),
+                    hotwatch::Error::Notify(ref notify_error) => match notify_error.kind {
+                        NotifyErrorKind::WatchNotFound => {}
+                        _ => return Err(error.into()),
                     },
                     error @ hotwatch::Error::Io(_) => return Err(error.into()),
                 },
             }
 
-            self.hotwatch.watch(config, |event| match event {
+            self.hotwatch.watch(config, |event| match event.kind {
                 // Editing in Notepad sends a NoticeWrite while editing in (Neo)Vim sends
                 // a NoticeRemove, presumably because of the use of swap files?
-                DebouncedEvent::NoticeWrite(_) | DebouncedEvent::NoticeRemove(_) => {
+                EventKind::Modify(_) | EventKind::Remove(_) => {
                     std::thread::spawn(|| {
                         load_configuration().expect("could not load configuration");
                     });

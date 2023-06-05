@@ -22,7 +22,7 @@ ctrlc = "3"
 dirs = { workspace = true }
 getset = "0.1"
 hex_color = { version = "3", features = ["serde"] }
-hotwatch = "0.4"
+hotwatch = "0.5"
 lazy_static = "1"
 miow = "0.5"
 nanoid = "0.4"
