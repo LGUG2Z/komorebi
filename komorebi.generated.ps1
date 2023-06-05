@@ -358,13 +358,11 @@ komorebic.exe identify-tray-application exe "sirikali.exe"
 
 # Slack
 komorebic.exe identify-border-overflow-application exe "Slack.exe"
-komorebic.exe manage-rule exe "Slack.exe"
 # If you have disabled minimize/close to tray for this application, you can delete/comment out the next line
 komorebic.exe identify-tray-application exe "Slack.exe"
 
 # Slack
 komorebic.exe identify-border-overflow-application exe "slack.exe"
-komorebic.exe manage-rule exe "slack.exe"
 # If you have disabled minimize/close to tray for this application, you can delete/comment out the next line
 komorebic.exe identify-tray-application exe "slack.exe"
 

@@ -358,13 +358,11 @@ RunWait('komorebic.exe identify-tray-application exe "sirikali.exe"', , "Hide")
 
 ; Slack
 RunWait('komorebic.exe identify-border-overflow-application exe "Slack.exe"', , "Hide")
-RunWait('komorebic.exe manage-rule exe "Slack.exe"', , "Hide")
 ; If you have disabled minimize/close to tray for this application, you can delete/comment out the next line
 RunWait('komorebic.exe identify-tray-application exe "Slack.exe"', , "Hide")
 
 ; Slack
 RunWait('komorebic.exe identify-border-overflow-application exe "slack.exe"', , "Hide")
-RunWait('komorebic.exe manage-rule exe "slack.exe"', , "Hide")
 ; If you have disabled minimize/close to tray for this application, you can delete/comment out the next line
 RunWait('komorebic.exe identify-tray-application exe "slack.exe"', , "Hide")
 

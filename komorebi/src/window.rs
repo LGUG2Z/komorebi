@@ -485,18 +485,9 @@ fn window_is_eligible(
 
     let managed_override = {
         let manage_identifiers = MANAGE_IDENTIFIERS.lock();
-        matched_identifier.map_or_else(
-            || {
-                manage_identifiers.contains(exe_name)
-                    || manage_identifiers.contains(class)
-                    || manage_identifiers.contains(title)
-            },
-            |matched_identifier| match matched_identifier {
-                ApplicationIdentifier::Exe => manage_identifiers.contains(exe_name),
-                ApplicationIdentifier::Class => manage_identifiers.contains(class),
-                ApplicationIdentifier::Title => manage_identifiers.contains(title),
-            },
-        )
+        manage_identifiers.contains(exe_name)
+            || manage_identifiers.contains(class)
+            || manage_identifiers.contains(title)
     };
 
     if should_float && !managed_override {
