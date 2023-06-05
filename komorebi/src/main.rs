@@ -103,6 +103,9 @@ lazy_static! {
         "OPContainerClass".to_string(),
         "IHWindowClass".to_string()
     ]));
+    static ref PERMAIGNORE_CLASSES: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(vec![
+        "Chrome_RenderWidgetHostHWND".to_string(),
+    ]));
     static ref BORDER_OVERFLOW_IDENTIFIERS: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(vec![]));
     static ref WSL2_UI_PROCESSES: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(vec![
         "X410.exe".to_string(),

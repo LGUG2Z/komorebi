@@ -17,7 +17,6 @@ use winput::press;
 use winput::release;
 use winput::Vk;
 
-use komorebi_core::ApplicationIdentifier;
 use komorebi_core::HidingBehaviour;
 use komorebi_core::Rect;
 
@@ -33,6 +32,7 @@ use crate::HIDING_BEHAVIOUR;
 use crate::LAYERED_WHITELIST;
 use crate::MANAGE_IDENTIFIERS;
 use crate::NO_TITLEBAR;
+use crate::PERMAIGNORE_CLASSES;
 use crate::WSL2_UI_PROCESSES;
 
 #[derive(Debug, Clone, Copy, JsonSchema)]
@@ -460,25 +460,28 @@ fn window_is_eligible(
     ex_style: &ExtendedWindowStyle,
     event: Option<WindowManagerEvent>,
 ) -> bool {
+    {
+        let permaignore_classes = PERMAIGNORE_CLASSES.lock();
+        if permaignore_classes.contains(class) {
+            return false;
+        }
+    }
+
     let mut should_float = false;
-    let mut matched_identifier = None;
 
     {
         let float_identifiers = FLOAT_IDENTIFIERS.lock();
         for identifier in float_identifiers.iter() {
             if title.starts_with(identifier) || title.ends_with(identifier) {
                 should_float = true;
-                matched_identifier = Option::from(ApplicationIdentifier::Title);
             }
 
             if class.starts_with(identifier) || class.ends_with(identifier) {
                 should_float = true;
-                matched_identifier = Option::from(ApplicationIdentifier::Class);
             }
 
             if identifier == exe_name {
                 should_float = true;
-                matched_identifier = Option::from(ApplicationIdentifier::Exe);
             }
         }
     };
