@@ -105,6 +105,10 @@ impl Monitor {
         }
     }
 
+    pub fn remove_workspaces(&mut self) -> VecDeque<Workspace> {
+        self.workspaces_mut().drain(..).collect()
+    }
+
     #[tracing::instrument(skip(self))]
     pub fn move_container_to_workspace(
         &mut self,
