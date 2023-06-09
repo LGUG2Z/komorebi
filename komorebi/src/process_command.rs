@@ -324,6 +324,9 @@ impl WindowManager {
             SocketMessage::MoveContainerToMonitorNumber(monitor_idx) => {
                 self.move_container_to_monitor(monitor_idx, None, true)?;
             }
+            SocketMessage::SwapWorkspacesToMonitorNumber(monitor_idx) => {
+                self.swap_focused_monitor(monitor_idx)?;
+            }
             SocketMessage::CycleMoveContainerToMonitor(direction) => {
                 let monitor_idx = direction.next_idx(
                     self.focused_monitor_idx(),

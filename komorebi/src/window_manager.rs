@@ -1000,6 +1000,92 @@ impl WindowManager {
         Ok(())
     }
 
+    pub fn update_focused_workspace_by_monitor_idx(&mut self, idx: usize) -> Result<()> {
+        let invisible_borders = self.invisible_borders;
+        let offset = self.work_area_offset;
+
+        self.monitors_mut()
+            .get_mut(idx)
+            .ok_or_else(|| anyhow!("there is no monitor"))?
+            .update_focused_workspace(offset, &invisible_borders)
+    }
+
+    #[tracing::instrument(skip(self))]
+    pub fn swap_monitor_workspaces(&mut self, first_idx: usize, second_idx: usize) -> Result<()> {
+        tracing::info!("swaping monitors");
+        if first_idx == second_idx {
+            return Ok(());
+        }
+        let mouse_follows_focus = self.mouse_follows_focus;
+        let first_focused_workspace = {
+            let first_monitor = self
+                .monitors()
+                .get(first_idx)
+                .ok_or_else(|| anyhow!("There is no monitor"))?;
+            first_monitor.focused_workspace_idx()
+        };
+
+        let second_focused_workspace = {
+            let second_monitor = self
+                .monitors()
+                .get(second_idx)
+                .ok_or_else(|| anyhow!("There is no monitor"))?;
+            second_monitor.focused_workspace_idx()
+        };
+
+        // Swap workspaces between the first and second monitors
+
+        let first_workspaces = self
+            .monitors_mut()
+            .get_mut(first_idx)
+            .ok_or_else(|| anyhow!("There is no monitor"))?
+            .remove_workspaces();
+        
+        let second_workspaces = self
+            .monitors_mut()
+            .get_mut(second_idx)
+            .ok_or_else(|| anyhow!("There is no monitor"))?
+            .remove_workspaces();
+
+        self.monitors_mut()
+            .get_mut(first_idx)
+            .ok_or_else(|| anyhow!("There is no monitor"))?
+            .workspaces_mut()
+            .extend(second_workspaces);
+
+        self.monitors_mut()
+            .get_mut(second_idx)
+            .ok_or_else(|| anyhow!("There is no monitor"))?
+            .workspaces_mut()
+            .extend(first_workspaces);
+
+        // Set the focused workspaces for the first and second monitors
+        if let Some(first_monitor) = self.monitors_mut().get_mut(first_idx) {
+            first_monitor.focus_workspace(second_focused_workspace)?;
+            first_monitor.load_focused_workspace(mouse_follows_focus)?;
+        }
+
+        if let Some(second_monitor) = self.monitors_mut().get_mut(second_idx) {
+            second_monitor.focus_workspace(first_focused_workspace)?;
+            second_monitor.load_focused_workspace(mouse_follows_focus)?;
+        }
+
+        self.update_focused_workspace_by_monitor_idx(second_idx)?;
+        self.update_focused_workspace_by_monitor_idx(first_idx)
+    }
+
+    #[tracing::instrument(skip(self))]
+    pub fn swap_focused_monitor(&mut self, idx: usize) -> Result<()> {
+        tracing::info!("swapping focused monitor");
+
+        let focused_monitor_idx = self.focused_monitor_idx();
+        let mouse_follows_focus = self.mouse_follows_focus;
+
+        self.swap_monitor_workspaces(focused_monitor_idx, idx)?;
+
+        self.update_focused_workspace(mouse_follows_focus)
+    }
+
     #[tracing::instrument(skip(self))]
     pub fn move_container_to_monitor(
         &mut self,
