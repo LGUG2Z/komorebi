@@ -161,7 +161,13 @@ This means that:
 ### Quickstart
 
 Make sure that you have either the [Scoop Package Manager](https://scoop.sh) or WinGet installed, then run the following
-commands at a PowerShell prompt.
+commands at a PowerShell prompt. If you are using WinGet, make sure that you open a new terminal window or reload your
+profile after running the installation steps. Since this is not required when using `scoop`, I personally recommend that
+you use `scoop` for this process.
+
+As of v0.1.17, the quickstart recommends the use of a static configuration file. If you would like to see older versions
+of this quickstart which recommend the use of dynamic configuration scripts, please refer to
+the [README file of v0.1.16](https://github.com/LGUG2Z/komorebi/tree/v0.1.16).
 
 ```powershell
 # if using scoop
@@ -173,11 +179,11 @@ scoop install komorebi
 winget install LGUG2Z.whkd
 winget install LGUG2Z.komorebi
 
-# save the latest generated app-specific config tweaks and fixes to ~/komorebi.generated.ps1
-iwr https://raw.githubusercontent.com/LGUG2Z/komorebi/master/komorebi.generated.ps1 -OutFile $Env:USERPROFILE\komorebi.generated.ps1
+# save the example configuration to ~/komorebi.json
+iwr https://raw.githubusercontent.com/LGUG2Z/komorebi/master/komorebi.example.json -OutFile $Env:USERPROFILE\komorebi.example.json
 
-# save the sample komorebi configuration file to ~/komorebi.ps1
-iwr https://raw.githubusercontent.com/LGUG2Z/komorebi/master/komorebi.sample.ps1 -OutFile $Env:USERPROFILE\komorebi.ps1
+# save the latest generated app-specific config tweaks and fixes
+komorebic fetch-app-specific-configuration
 
 # ensure the ~/.config folder exists
 mkdir $Env:USERPROFILE\.config -ea 0
@@ -185,16 +191,16 @@ mkdir $Env:USERPROFILE\.config -ea 0
 # save the sample whkdrc file with key bindings to ~/.config/whkdrc
 iwr https://raw.githubusercontent.com/LGUG2Z/komorebi/master/whkdrc.sample -OutFile $Env:USERPROFILE\.config\whkdrc
 
-# start komorebi
-komorebic start --await-configuration
+# start komorebi and whkd
+komorebic start -c $Env:USERPROFILE\komorebi.json --whkd
 ```
 
 Thanks to [@sitiom](https://github.com/sitiom) for getting _komorebi_ added to both the popular Scoop Extras bucket and
 to WinGet.
 
-You can watch a walkthrough video of this quickstart below on YouTube.
+<!-- You can watch a walkthrough video of this quickstart below on YouTube. -->
 
-[![Watch the quickstart walkthrough video](https://img.youtube.com/vi/cBnLIwMtv8g/hqdefault.jpg)](https://www.youtube.com/watch?v=cBnLIwMtv8g)
+<!-- [![Watch the quickstart walkthrough video](https://img.youtube.com/vi/cBnLIwMtv8g/hqdefault.jpg)](https://www.youtube.com/watch?v=cBnLIwMtv8g) -->
 
 #### Using Autohotkey
 
@@ -204,7 +210,9 @@ Generally, users who opt for AHK will have specific needs that can only be addre
 and so they are assumed to be able to craft their own configuration files.
 
 If you would like to try out AHK, a simple sample configuration powered by `komorebic.lib.ahk` is provided as a starting
-point.
+point. This sample configuration does not take into account the use of a static configuration file; if you choose to use
+a static configuration file alongside AHK, you can remove all the configuration options from your `komorebi.ahk` and use
+it solely to handle hotkey bindings.
 
 ```powershell
 # save the latest generated komorebic library to ~/komorebic.lib.ahk
@@ -239,7 +247,12 @@ cargo install --path komorebic --locked
 
 ### Running
 
-Run `komorebic start --await-configuration` at a Powershell prompt, and you will see the following output:
+`komorebi` can be run in two ways, using either a static configuration file or a dynamic configuration script.
+
+The quickstart covers running with a static configuration file.
+
+If you would like to use a dynamic configuration script, ensure that you have a `komorebi.ps1` or `komorebi.ahk` file
+present, run `komorebic start --await-configuration` at a Powershell prompt, and you will see the following output:
 
 ```
 Start-Process komorebi.exe -ArgumentList '--await-configuration' -WindowStyle hidden
@@ -249,14 +262,36 @@ Waiting for komorebi.exe to start...Started!
 This means that `komorebi` is now running in the background, tiling all your windows, and listening for commands sent to
 it by `komorebic`. You can similarly stop the process by running `komorebic stop`.
 
+For further information on running with a dynamic configuration script, please refer to
+the quickstart section in the [README file of v0.1.16](https://github.com/LGUG2Z/komorebi/tree/v0.1.16)
+
 ### Configuring
 
-If you followed the quickstart, `komorebi` will find the sample `komorebi.ps1` file in your `$Env:USERPROFILE` directory
-and automatically load it. This file also starts `whkd` using the sample `whkrc` file in your `$Env:USERPROFILE\.config`
-directory.
+If you followed the quickstart, `komorebi.json` will be the single place where you declaratively configure the behaviour
+of the window manager. There is a [complete JSON Schema for this configuration file](schema.json) available to provide
+users with auto-completions in their editors.
+
+If you are running with a dynamic configuration script as recommended in v0.1.16 and earlier, `komorebi` will find the
+sample `komorebi.ps1` file in your `$Env:USERPROFILE` directory and automatically load it. This file also starts `whkd` using the sample `whkrc` file
+in your `$Env:USERPROFILE\.config` directory.
 
 Alternatively, if you have AutoHotKey installed and a `komorebi.ahk` file in `$Env:UserProfile` directory, `komorebi`
 will automatically try to load it when starting.
+
+#### Migrating to a Static Configuration File
+
+If you have been using `komorebi` with a dynamic configuration script and wish to migrate to using a static
+configuration file, once you have `komorebi` running in the desired configuration state, you can
+run `komorebic generate-static-config`.
+
+This will print a static configuration that mostly represents your current configuration to the terminal.
+
+There are four configuration options that you may need to set yourself, if you make use of them:
+
+- Custom layouts paths for workspaces
+- Custom layout rules for workspaces
+- The applications.yaml path
+- Any individual application rules you have that are not in applications.yaml
 
 #### Configuration with `komorebic`
 
@@ -336,6 +371,8 @@ exist in this folder.
 
 #### Generating Common Application-Specific Configurations
 
+❗️**NOTE**: This section is only relevant for people who use dynamic configuration scripts.
+
 A curated selection of application-specific configurations can be generated to
 help ease the setup for first-time users.
 [`komorebi-application-specific-configuration`](https://github.com/LGUG2Z/komorebi-application-specific-configuration)
@@ -407,7 +444,7 @@ komorebic.exe workspace-padding <MONITOR_INDEX> <WORKSPACE_INDEX> 0
 
 #### Multiple Layout Changes on Startup
 
-❗️**NOTE**: If you followed the quickstart and are using the sample configurations, this is already the default behaviour.
+❗️**NOTE**: This section is only relevant for people who use dynamic configuration scripts.
 
 Depending on what is in your configuration, when `komorebi` is started, you may experience the layout rapidly being adjusted
 with many retile events.

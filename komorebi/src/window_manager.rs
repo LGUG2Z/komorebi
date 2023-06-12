@@ -37,6 +37,7 @@ use crate::current_virtual_desktop;
 use crate::load_configuration;
 use crate::monitor::Monitor;
 use crate::ring::Ring;
+use crate::static_config::StaticConfig;
 use crate::window::Window;
 use crate::window_manager_event::WindowManagerEvent;
 use crate::windows_api::WindowsApi;
@@ -232,6 +233,12 @@ impl WindowManager {
     pub fn reload_configuration() {
         tracing::info!("reloading configuration");
         std::thread::spawn(|| load_configuration().expect("could not load configuration"));
+    }
+
+    #[tracing::instrument(skip(self))]
+    pub fn reload_static_configuration(&mut self, pathbuf: &PathBuf) -> Result<()> {
+        tracing::info!("reloading static configuration");
+        StaticConfig::reload(pathbuf, self)
     }
 
     #[tracing::instrument(skip(self))]

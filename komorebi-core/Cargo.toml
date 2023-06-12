@@ -13,9 +13,4 @@ serde_json = "1"
 serde_yaml = "0.9"
 strum = { version = "0.25", features = ["derive"] }
 schemars = "0.8"
-
-[dependencies.windows]
-version = "0.48"
-features = [
-    "Win32_Foundation",
-]
+windows = { workspace = true }

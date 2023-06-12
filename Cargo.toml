@@ -6,3 +6,28 @@ members = [
     "komorebi-core",
     "komorebic",
 ]
+
+[workspace.dependencies]
+windows-interface = { version = "0.48" }
+windows-implement = { version = "0.48" }
+
+[workspace.dependencies.windows]
+version = "0.48"
+features = [
+    "implement",
+    "Win32_System_Com",
+    "Win32_UI_Shell_Common", # for IObjectArray
+    "Win32_Foundation",
+    "Win32_Graphics_Dwm",
+    "Win32_Graphics_Gdi",
+    "Win32_System_LibraryLoader",
+    "Win32_System_RemoteDesktop",
+    "Win32_System_Threading",
+    "Win32_UI_Accessibility",
+    "Win32_UI_HiDpi",
+    "Win32_UI_Input_KeyboardAndMouse",
+    "Win32_UI_Shell",
+    "Win32_UI_Shell_Common",
+    "Win32_UI_WindowsAndMessaging",
+    "Win32_System_SystemServices"
+]

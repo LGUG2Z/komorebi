@@ -118,6 +118,7 @@ pub enum SocketMessage {
     ClearNamedWorkspaceLayoutRules(String),
     // Configuration
     ReloadConfiguration,
+    ReloadStaticConfiguration(PathBuf),
     WatchConfiguration(bool),
     CompleteConfiguration,
     AltFocusHack(bool),
@@ -151,6 +152,8 @@ pub enum SocketMessage {
     RemoveSubscriber(String),
     NotificationSchema,
     SocketSchema,
+    StaticConfigSchema,
+    GenerateStaticConfig,
 }
 
 impl SocketMessage {
@@ -192,10 +195,12 @@ pub enum StateQuery {
     Copy, Clone, Debug, Serialize, Deserialize, Display, EnumString, ValueEnum, JsonSchema,
 )]
 #[strum(serialize_all = "snake_case")]
-#[serde(rename_all = "snake_case")]
 pub enum ApplicationIdentifier {
+    #[serde(alias = "exe")]
     Exe,
+    #[serde(alias = "class")]
     Class,
+    #[serde(alias = "title")]
     Title,
 }
 
@@ -204,7 +209,9 @@ pub enum ApplicationIdentifier {
 )]
 #[strum(serialize_all = "snake_case")]
 pub enum FocusFollowsMouseImplementation {
+    /// A custom FFM implementation (slightly more CPU-intensive)
     Komorebi,
+    /// The native (legacy) Windows FFM implementation
     Windows,
 }
 
@@ -213,7 +220,9 @@ pub enum FocusFollowsMouseImplementation {
 )]
 #[strum(serialize_all = "snake_case")]
 pub enum WindowContainerBehaviour {
+    /// Create a new container for each new window
     Create,
+    /// Append new windows to the focused window container
     Append,
 }
 
@@ -222,7 +231,9 @@ pub enum WindowContainerBehaviour {
 )]
 #[strum(serialize_all = "snake_case")]
 pub enum MoveBehaviour {
+    /// Swap the window container with the window container at the edge of the adjacent monitor
     Swap,
+    /// Insert the window container into the focused workspace on the adjacent monitor
     Insert,
 }
 
@@ -231,8 +242,11 @@ pub enum MoveBehaviour {
 )]
 #[strum(serialize_all = "snake_case")]
 pub enum HidingBehaviour {
+    /// Use the SW_HIDE flag to hide windows when switching workspaces (has issues with Electron apps)
     Hide,
+    /// Use the SW_MINIMIZE flag to hide windows when switching workspaces (has issues with frequent workspace switching)
     Minimize,
+    /// Use the undocumented SetCloak Win32 function to hide windows when switching workspaces (has foregrounding issues)
     Cloak,
 }
 
@@ -241,7 +255,9 @@ pub enum HidingBehaviour {
 )]
 #[strum(serialize_all = "snake_case")]
 pub enum OperationBehaviour {
+    /// Process komorebic commands on temporarily unmanaged/floated windows
     Op,
+    /// Ignore komorebic commands on temporarily unmanaged/floated windows
     NoOp,
 }
 

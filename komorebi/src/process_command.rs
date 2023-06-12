@@ -36,6 +36,7 @@ use komorebi_core::WindowKind;
 use crate::border::Border;
 use crate::current_virtual_desktop;
 use crate::notify_subscribers;
+use crate::static_config::StaticConfig;
 use crate::window::Window;
 use crate::window_manager;
 use crate::window_manager::WindowManager;
@@ -684,6 +685,7 @@ impl WindowManager {
 
                 if let Layout::Custom(ref mut custom) = workspace.layout_mut() {
                     if matches!(axis, Axis::Horizontal) {
+                        #[allow(clippy::cast_precision_loss)]
                         let percentage = custom
                             .primary_width_percentage()
                             .unwrap_or(100.0 / (custom.len() as f32));
@@ -876,6 +878,9 @@ impl WindowManager {
             }
             SocketMessage::ReloadConfiguration => {
                 Self::reload_configuration();
+            }
+            SocketMessage::ReloadStaticConfiguration(ref pathbuf) => {
+                self.reload_static_configuration(pathbuf)?;
             }
             SocketMessage::CompleteConfiguration => {
                 if !INITIAL_CONFIGURATION_LOADED.load(Ordering::SeqCst) {
@@ -1108,6 +1113,25 @@ impl WindowManager {
                 let mut stream = UnixStream::connect(socket)?;
                 stream.write_all(schema.as_bytes())?;
             }
+            SocketMessage::StaticConfigSchema => {
+                let socket_message = schema_for!(StaticConfig);
+                let schema = serde_json::to_string_pretty(&socket_message)?;
+                let mut socket = DATA_DIR.clone();
+                socket.push("komorebic.sock");
+                let socket = socket.as_path();
+
+                let mut stream = UnixStream::connect(socket)?;
+                stream.write_all(schema.as_bytes())?;
+            }
+            SocketMessage::GenerateStaticConfig => {
+                let config = serde_json::to_string_pretty(&StaticConfig::from(&*self))?;
+                let mut socket = DATA_DIR.clone();
+                socket.push("komorebic.sock");
+                let socket = socket.as_path();
+
+                let mut stream = UnixStream::connect(socket)?;
+                stream.write_all(config.as_bytes())?;
+            }
             SocketMessage::RemoveTitleBar(_, ref id) => {
                 let mut identifiers = NO_TITLEBAR.lock();
                 if !identifiers.contains(id) {
@@ -1250,7 +1274,7 @@ impl WindowManager {
     }
 
     #[tracing::instrument(skip(self))]
-    fn handle_workspace_rules(
+    pub fn handle_workspace_rules(
         &mut self,
         id: &String,
         monitor_idx: usize,
