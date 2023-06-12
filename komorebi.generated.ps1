@@ -16,6 +16,10 @@ komorebic.exe identify-tray-application class "CreativeCloudDesktopWindowClass"
 # Adobe Photoshop
 komorebic.exe identify-border-overflow-application class "Photoshop"
 
+# Affinity Photo 2
+komorebic.exe manage-rule title "Affinity Photo 2"
+komorebic.exe float-rule exe "Photo.exe"
+
 # Akiflow
 # If you have disabled minimize/close to tray for this application, you can delete/comment out the next line
 komorebic.exe identify-tray-application exe "Akiflow.exe"
@@ -56,6 +60,10 @@ komorebic.exe float-rule exe "CredentialUIBroker.exe"
 komorebic.exe identify-border-overflow-application exe "Cron.exe"
 # If you have disabled minimize/close to tray for this application, you can delete/comment out the next line
 komorebic.exe identify-tray-application exe "Cron.exe"
+
+# DS4Windows
+# If you have disabled minimize/close to tray for this application, you can delete/comment out the next line
+komorebic.exe identify-tray-application exe "DS4Windows.exe"
 
 # Delphi applications
 # Target hidden window spawned by Delphi applications
@@ -388,6 +396,8 @@ komorebic.exe identify-border-overflow-application class "vguiPopupWindow"
 komorebic.exe identify-border-overflow-application class "SDL_app"
 # If you have disabled minimize/close to tray for this application, you can delete/comment out the next line
 komorebic.exe identify-tray-application class "SDL_app"
+# Target notification toast popups
+komorebic.exe float-rule title "notificationtoasts_"
 
 # Stremio
 # If you have disabled minimize/close to tray for this application, you can delete/comment out the next line

@@ -11,6 +11,7 @@ use color_eyre::Result;
 use windows::core::Result as WindowsCrateResult;
 use windows::core::PCSTR;
 use windows::core::PWSTR;
+use windows::Win32::Foundation::CloseHandle;
 use windows::Win32::Foundation::BOOL;
 use windows::Win32::Foundation::COLORREF;
 use windows::Win32::Foundation::HANDLE;
@@ -558,6 +559,10 @@ impl WindowsApi {
         process_id: u32,
     ) -> Result<HANDLE> {
         unsafe { OpenProcess(access_rights, inherit_handle, process_id) }.process()
+    }
+
+    pub fn close_process(handle: HANDLE) -> Result<()> {
+        unsafe { CloseHandle(handle) }.ok().process()
     }
 
     pub fn process_handle(process_id: u32) -> Result<HANDLE> {

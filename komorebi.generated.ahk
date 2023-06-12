@@ -16,6 +16,10 @@ RunWait('komorebic.exe identify-tray-application class "CreativeCloudDesktopWind
 ; Adobe Photoshop
 RunWait('komorebic.exe identify-border-overflow-application class "Photoshop"', , "Hide")
 
+; Affinity Photo 2
+RunWait('komorebic.exe manage-rule title "Affinity Photo 2"', , "Hide")
+RunWait('komorebic.exe float-rule exe "Photo.exe"', , "Hide")
+
 ; Akiflow
 ; If you have disabled minimize/close to tray for this application, you can delete/comment out the next line
 RunWait('komorebic.exe identify-tray-application exe "Akiflow.exe"', , "Hide")
@@ -56,6 +60,10 @@ RunWait('komorebic.exe float-rule exe "CredentialUIBroker.exe"', , "Hide")
 RunWait('komorebic.exe identify-border-overflow-application exe "Cron.exe"', , "Hide")
 ; If you have disabled minimize/close to tray for this application, you can delete/comment out the next line
 RunWait('komorebic.exe identify-tray-application exe "Cron.exe"', , "Hide")
+
+; DS4Windows
+; If you have disabled minimize/close to tray for this application, you can delete/comment out the next line
+RunWait('komorebic.exe identify-tray-application exe "DS4Windows.exe"', , "Hide")
 
 ; Delphi applications
 ; Target hidden window spawned by Delphi applications
@@ -388,6 +396,8 @@ RunWait('komorebic.exe identify-border-overflow-application class "vguiPopupWind
 RunWait('komorebic.exe identify-border-overflow-application class "SDL_app"', , "Hide")
 ; If you have disabled minimize/close to tray for this application, you can delete/comment out the next line
 RunWait('komorebic.exe identify-tray-application class "SDL_app"', , "Hide")
+; Target notification toast popups
+RunWait('komorebic.exe float-rule title "notificationtoasts_"', , "Hide")
 
 ; Stremio
 ; If you have disabled minimize/close to tray for this application, you can delete/comment out the next line

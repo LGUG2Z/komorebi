@@ -383,7 +383,10 @@ impl Window {
 
     pub fn exe(self) -> Result<String> {
         let (process_id, _) = WindowsApi::window_thread_process_id(self.hwnd());
-        WindowsApi::exe(WindowsApi::process_handle(process_id)?)
+        let handle = WindowsApi::process_handle(process_id)?;
+        let exe = WindowsApi::exe(handle);
+        WindowsApi::close_process(handle)?;
+        exe
     }
 
     pub fn class(self) -> Result<String> {
