@@ -5,9 +5,13 @@ use windows::Win32::Foundation::RECT;
 
 #[derive(Debug, Default, Clone, Copy, Serialize, Deserialize, Eq, PartialEq, JsonSchema)]
 pub struct Rect {
+    /// The left point in a Win32 Rect
     pub left: i32,
+    /// The top point in a Win32 Rect
     pub top: i32,
+    /// The right point in a Win32 Rect
     pub right: i32,
+    /// The bottom point in a Win32 Rect
     pub bottom: i32,
 }
 

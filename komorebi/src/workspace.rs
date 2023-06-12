@@ -12,6 +12,7 @@ use schemars::JsonSchema;
 use serde::Serialize;
 
 use komorebi_core::Axis;
+use komorebi_core::CustomLayout;
 use komorebi_core::CycleDirection;
 use komorebi_core::DefaultLayout;
 use komorebi_core::Layout;
@@ -20,8 +21,11 @@ use komorebi_core::Rect;
 
 use crate::container::Container;
 use crate::ring::Ring;
+use crate::static_config::WorkspaceConfig;
 use crate::window::Window;
 use crate::windows_api::WindowsApi;
+use crate::DEFAULT_CONTAINER_PADDING;
+use crate::DEFAULT_WORKSPACE_PADDING;
 use crate::INITIAL_CONFIGURATION_LOADED;
 use crate::NO_TITLEBAR;
 use crate::REMOVE_TITLEBARS;
@@ -77,8 +81,8 @@ impl Default for Workspace {
             layout: Layout::Default(DefaultLayout::BSP),
             layout_rules: vec![],
             layout_flip: None,
-            workspace_padding: Option::from(10),
-            container_padding: Option::from(10),
+            workspace_padding: Option::from(DEFAULT_WORKSPACE_PADDING.load(Ordering::SeqCst)),
+            container_padding: Option::from(DEFAULT_CONTAINER_PADDING.load(Ordering::SeqCst)),
             latest_layout: vec![],
             resize_dimensions: vec![],
             tile: true,
@@ -87,6 +91,46 @@ impl Default for Workspace {
 }
 
 impl Workspace {
+    pub fn load_static_config(&mut self, config: &WorkspaceConfig) -> Result<()> {
+        self.name = Option::from(config.name.clone());
+
+        if config.container_padding.is_some() {
+            self.set_container_padding(config.container_padding);
+        }
+
+        if config.workspace_padding.is_some() {
+            self.set_workspace_padding(config.workspace_padding);
+        }
+
+        if let Some(layout) = &config.layout {
+            self.layout = Layout::Default(*layout);
+        }
+
+        if let Some(pathbuf) = &config.custom_layout {
+            let layout = CustomLayout::from_path_buf(pathbuf.clone())?;
+            self.layout = Layout::Custom(layout);
+        }
+
+        if let Some(layout_rules) = &config.layout_rules {
+            let mut all_rules = vec![];
+            for (count, rule) in layout_rules {
+                all_rules.push((*count, Layout::Default(*rule)));
+            }
+
+            self.set_layout_rules(all_rules);
+        }
+
+        if let Some(layout_rules) = &config.custom_layout_rules {
+            let rules = self.layout_rules_mut();
+            for (count, pathbuf) in layout_rules {
+                let rule = CustomLayout::from_path_buf(pathbuf.clone())?;
+                rules.push((*count, Layout::Custom(rule)));
+            }
+        }
+
+        Ok(())
+    }
+
     pub fn hide(&mut self) {
         for container in self.containers_mut() {
             for window in container.windows_mut() {

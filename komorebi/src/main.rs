@@ -48,6 +48,7 @@ use crate::process_command::listen_for_commands;
 use crate::process_command::listen_for_commands_tcp;
 use crate::process_event::listen_for_events;
 use crate::process_movement::listen_for_movements;
+use crate::static_config::StaticConfig;
 use crate::window_manager::State;
 use crate::window_manager::WindowManager;
 use crate::window_manager_event::WindowManagerEvent;
@@ -65,6 +66,7 @@ mod process_command;
 mod process_event;
 mod process_movement;
 mod set_window_position;
+mod static_config;
 mod styles;
 mod window;
 mod window_manager;
@@ -74,6 +76,8 @@ mod windows_callbacks;
 mod winevent;
 mod winevent_listener;
 mod workspace;
+
+type WorkspaceRule = (usize, usize, bool);
 
 lazy_static! {
     static ref HIDDEN_HWNDS: Arc<Mutex<Vec<isize>>> = Arc::new(Mutex::new(vec![]));
@@ -94,7 +98,7 @@ lazy_static! {
     ]));
     static ref MONITOR_INDEX_PREFERENCES: Arc<Mutex<HashMap<usize, Rect>>> =
         Arc::new(Mutex::new(HashMap::new()));
-    static ref WORKSPACE_RULES: Arc<Mutex<HashMap<String, (usize, usize, bool)>>> =
+    static ref WORKSPACE_RULES: Arc<Mutex<HashMap<String, WorkspaceRule>>> =
         Arc::new(Mutex::new(HashMap::new()));
     static ref MANAGE_IDENTIFIERS: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(vec![]));
     static ref FLOAT_IDENTIFIERS: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(vec![
@@ -159,6 +163,9 @@ lazy_static! {
     // eg. Windows Terminal, IntelliJ IDEA, Firefox
     static ref NO_TITLEBAR: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(vec![]));
 }
+
+pub static DEFAULT_WORKSPACE_PADDING: AtomicI32 = AtomicI32::new(10);
+pub static DEFAULT_CONTAINER_PADDING: AtomicI32 = AtomicI32::new(10);
 
 pub static INITIAL_CONFIGURATION_LOADED: AtomicBool = AtomicBool::new(false);
 pub static CUSTOM_FFM: AtomicBool = AtomicBool::new(false);
@@ -411,81 +418,89 @@ struct Opts {
     /// Start a TCP server on the given port to allow the direct sending of SocketMessages
     #[clap(action, short, long)]
     tcp_port: Option<usize>,
+    /// Path to a static configuration JSON file
+    #[clap(action, short, long)]
+    config: Option<PathBuf>,
 }
 
 #[tracing::instrument]
-#[allow(clippy::nonminimal_bool)]
+#[allow(clippy::cognitive_complexity)]
 fn main() -> Result<()> {
     let opts: Opts = Opts::parse();
     CUSTOM_FFM.store(opts.focus_follows_mouse, Ordering::SeqCst);
 
-    let arg_count = std::env::args().count();
+    let process_id = WindowsApi::current_process_id();
+    WindowsApi::allow_set_foreground_window(process_id)?;
+    WindowsApi::set_process_dpi_awareness_context()?;
 
-    let has_valid_args = arg_count == 1
-        || (arg_count == 2
-            && (opts.await_configuration || opts.focus_follows_mouse || opts.tcp_port.is_some()))
-        || (arg_count == 3 && opts.await_configuration && opts.focus_follows_mouse)
-        || (arg_count == 3 && opts.tcp_port.is_some() && opts.focus_follows_mouse)
-        || (arg_count == 3 && opts.tcp_port.is_some() && opts.await_configuration)
-        || (arg_count == 4
-            && (opts.focus_follows_mouse && opts.await_configuration && opts.tcp_port.is_some()));
+    let session_id = WindowsApi::process_id_to_session_id()?;
+    SESSION_ID.store(session_id, Ordering::SeqCst);
 
-    if has_valid_args {
-        let process_id = WindowsApi::current_process_id();
-        WindowsApi::allow_set_foreground_window(process_id)?;
-        WindowsApi::set_process_dpi_awareness_context()?;
+    let mut system = sysinfo::System::new_all();
+    system.refresh_processes();
 
-        let session_id = WindowsApi::process_id_to_session_id()?;
-        SESSION_ID.store(session_id, Ordering::SeqCst);
+    let matched_procs: Vec<&Process> = system.processes_by_name("komorebi.exe").collect();
 
-        let mut system = sysinfo::System::new_all();
-        system.refresh_processes();
-
-        let matched_procs: Vec<&Process> = system.processes_by_name("komorebi.exe").collect();
-
-        if matched_procs.len() > 1 {
-            let mut len = matched_procs.len();
-            for proc in matched_procs {
-                if proc.root().ends_with("shims") {
-                    len -= 1;
-                }
-            }
-
-            if len > 1 {
-                tracing::error!("komorebi.exe is already running, please exit the existing process before starting a new one");
-                std::process::exit(1);
+    if matched_procs.len() > 1 {
+        let mut len = matched_procs.len();
+        for proc in matched_procs {
+            if proc.root().ends_with("shims") {
+                len -= 1;
             }
         }
 
-        // File logging worker guard has to have an assignment in the main fn to work
-        let (_guard, _color_guard) = setup()?;
+        if len > 1 {
+            tracing::error!("komorebi.exe is already running, please exit the existing process before starting a new one");
+            std::process::exit(1);
+        }
+    }
 
-        #[cfg(feature = "deadlock_detection")]
-        detect_deadlocks();
+    // File logging worker guard has to have an assignment in the main fn to work
+    let (_guard, _color_guard) = setup()?;
 
-        let (outgoing, incoming): (Sender<WindowManagerEvent>, Receiver<WindowManagerEvent>) =
-            crossbeam_channel::unbounded();
+    #[cfg(feature = "deadlock_detection")]
+    detect_deadlocks();
 
-        let winevent_listener = winevent_listener::new(Arc::new(Mutex::new(outgoing)));
-        winevent_listener.start();
+    let (outgoing, incoming): (Sender<WindowManagerEvent>, Receiver<WindowManagerEvent>) =
+        crossbeam_channel::unbounded();
 
-        Hidden::create("komorebi-hidden")?;
+    let winevent_listener = winevent_listener::new(Arc::new(Mutex::new(outgoing)));
+    winevent_listener.start();
 
-        let wm = Arc::new(Mutex::new(WindowManager::new(Arc::new(Mutex::new(
+    Hidden::create("komorebi-hidden")?;
+
+    let wm = if let Some(config) = &opts.config {
+        tracing::info!(
+            "creating window manager from static configuration file: {}",
+            config.as_os_str().to_str().unwrap()
+        );
+
+        Arc::new(Mutex::new(StaticConfig::preload(
+            config,
+            Arc::new(Mutex::new(incoming)),
+        )?))
+    } else {
+        Arc::new(Mutex::new(WindowManager::new(Arc::new(Mutex::new(
             incoming,
-        )))?));
+        )))?))
+    };
 
-        wm.lock().init()?;
-        listen_for_commands(wm.clone());
+    wm.lock().init()?;
+    if let Some(config) = &opts.config {
+        StaticConfig::postload(config, &wm)?;
+    }
 
-        if !opts.await_configuration && !INITIAL_CONFIGURATION_LOADED.load(Ordering::SeqCst) {
-            INITIAL_CONFIGURATION_LOADED.store(true, Ordering::SeqCst);
-        };
+    listen_for_commands(wm.clone());
 
-        if let Some(port) = opts.tcp_port {
-            listen_for_commands_tcp(wm.clone(), port);
-        }
+    if !opts.await_configuration && !INITIAL_CONFIGURATION_LOADED.load(Ordering::SeqCst) {
+        INITIAL_CONFIGURATION_LOADED.store(true, Ordering::SeqCst);
+    };
 
+    if let Some(port) = opts.tcp_port {
+        listen_for_commands_tcp(wm.clone(), port);
+    }
+
+    if opts.config.is_none() {
         std::thread::spawn(|| {
             load_configuration().expect("could not load configuration");
         });
@@ -496,36 +511,34 @@ fn main() -> Result<()> {
                 backoff.snooze();
             }
         }
-
-        wm.lock().retile_all(false)?;
-
-        listen_for_events(wm.clone());
-
-        if CUSTOM_FFM.load(Ordering::SeqCst) {
-            listen_for_movements(wm.clone());
-        }
-
-        let (ctrlc_sender, ctrlc_receiver) = crossbeam_channel::bounded(1);
-        ctrlc::set_handler(move || {
-            ctrlc_sender
-                .send(())
-                .expect("could not send signal on ctrl-c channel");
-        })?;
-
-        ctrlc_receiver
-            .recv()
-            .expect("could not receive signal on ctrl-c channel");
-
-        tracing::error!("received ctrl-c, restoring all hidden windows and terminating process");
-
-        wm.lock().restore_all_windows()?;
-
-        if WindowsApi::focus_follows_mouse()? {
-            WindowsApi::disable_focus_follows_mouse()?;
-        }
-
-        std::process::exit(130);
     }
 
-    Ok(())
+    wm.lock().retile_all(false)?;
+
+    listen_for_events(wm.clone());
+
+    if CUSTOM_FFM.load(Ordering::SeqCst) {
+        listen_for_movements(wm.clone());
+    }
+
+    let (ctrlc_sender, ctrlc_receiver) = crossbeam_channel::bounded(1);
+    ctrlc::set_handler(move || {
+        ctrlc_sender
+            .send(())
+            .expect("could not send signal on ctrl-c channel");
+    })?;
+
+    ctrlc_receiver
+        .recv()
+        .expect("could not receive signal on ctrl-c channel");
+
+    tracing::error!("received ctrl-c, restoring all hidden windows and terminating process");
+
+    wm.lock().restore_all_windows()?;
+
+    if WindowsApi::focus_follows_mouse()? {
+        WindowsApi::disable_focus_follows_mouse()?;
+    }
+
+    std::process::exit(130);
 }

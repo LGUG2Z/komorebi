@@ -24,6 +24,7 @@ use paste::paste;
 use sysinfo::SystemExt;
 use uds_windows::UnixListener;
 use uds_windows::UnixStream;
+use which::which;
 use windows::Win32::Foundation::HWND;
 use windows::Win32::UI::WindowsAndMessaging::ShowWindow;
 use windows::Win32::UI::WindowsAndMessaging::SHOW_WINDOW_CMD;
@@ -610,12 +611,18 @@ struct Start {
     /// Allow the use of komorebi's custom focus-follows-mouse implementation
     #[clap(action, short, long = "ffm")]
     ffm: bool,
+    /// Path to a static configuration JSON file
+    #[clap(action, short, long)]
+    config: Option<PathBuf>,
     /// Wait for 'komorebic complete-configuration' to be sent before processing events
     #[clap(action, short, long)]
     await_configuration: bool,
     /// Start a TCP server on the given port to allow the direct sending of SocketMessages
     #[clap(action, short, long)]
     tcp_port: Option<usize>,
+    /// Start whkd in a background process
+    #[clap(action, long)]
+    whkd: bool,
 }
 
 #[derive(Parser, AhkFunction)]
@@ -1018,10 +1025,17 @@ enum SubCommand {
     #[clap(arg_required_else_help = true)]
     #[clap(alias = "fmt-asc")]
     FormatAppSpecificConfiguration(FormatAppSpecificConfiguration),
+    /// Fetch the latest version of applications.yaml from komorebi-application-specific-configuration
+    #[clap(alias = "fetch-asc")]
+    FetchAppSpecificConfiguration,
     /// Generate a JSON Schema of subscription notifications
     NotificationSchema,
     /// Generate a JSON Schema of socket messages
     SocketSchema,
+    /// Generate a JSON Schema of the static configuration file
+    StaticConfigSchema,
+    /// Generates a static configuration JSON file based on the current window manager state
+    GenerateStaticConfig,
 }
 
 pub fn send_message(bytes: &[u8]) -> Result<()> {
@@ -1030,7 +1044,7 @@ pub fn send_message(bytes: &[u8]) -> Result<()> {
     Ok(stream.write_all(bytes)?)
 }
 
-#[allow(clippy::too_many_lines)]
+#[allow(clippy::too_many_lines, clippy::cognitive_complexity)]
 fn main() -> Result<()> {
     let opts: Opts = Opts::parse();
 
@@ -1377,6 +1391,10 @@ fn main() -> Result<()> {
             )?;
         }
         SubCommand::Start(arg) => {
+            if arg.whkd && which("whkd").is_err() {
+                return Err(anyhow!("could not find whkd, please make sure it is installed before using the --whkd flag"));
+            }
+
             let mut buf: PathBuf;
 
             // The komorebi.ps1 shim will only exist in the Path if installed by Scoop
@@ -1400,63 +1418,40 @@ fn main() -> Result<()> {
                 None
             };
 
-            let script = exec.map_or_else(
-                || {
-                    if arg.ffm | arg.await_configuration | arg.tcp_port.is_some() {
-                        format!(
-                            "Start-Process komorebi.exe -ArgumentList {} -WindowStyle hidden",
-                            arg.tcp_port.map_or_else(
-                                || if arg.ffm && arg.await_configuration {
-                                    "'--ffm','--await-configuration'".to_string()
-                                } else if arg.ffm {
-                                    "'--ffm'".to_string()
-                                } else {
-                                    "'--await-configuration'".to_string()
-                                },
-                                |port| if arg.ffm {
-                                    format!("'--ffm','--tcp-port={port}'")
-                                } else if arg.await_configuration {
-                                    format!("'--await-configuration','--tcp-port={port}'")
-                                } else if arg.ffm && arg.await_configuration {
-                                    format!("'--ffm','--await-configuration','--tcp-port={port}'")
-                                } else {
-                                    format!("'--tcp-port={port}'")
-                                }
-                            )
-                        )
-                    } else {
-                        String::from("Start-Process komorebi.exe -WindowStyle hidden")
-                    }
-                },
-                |exec| {
-                    if arg.ffm | arg.await_configuration {
-                        format!(
-                            "Start-Process '{}' -ArgumentList {} -WindowStyle hidden",
-                            exec,
-                            arg.tcp_port.map_or_else(
-                                || if arg.ffm && arg.await_configuration {
-                                    "'--ffm','--await-configuration'".to_string()
-                                } else if arg.ffm {
-                                    "'--ffm'".to_string()
-                                } else {
-                                    "'--await-configuration'".to_string()
-                                },
-                                |port| if arg.ffm {
-                                    format!("'--ffm','--tcp-port={port}'")
-                                } else if arg.await_configuration {
-                                    format!("'--await-configuration','--tcp-port={port}'")
-                                } else if arg.ffm && arg.await_configuration {
-                                    format!("'--ffm','--await-configuration','--tcp-port={port}'")
-                                } else {
-                                    format!("'--tcp-port={port}'")
-                                }
-                            )
-                        )
-                    } else {
-                        format!("Start-Process '{exec}' -WindowStyle hidden")
-                    }
-                },
-            );
+            let mut flags = vec![];
+            if let Some(config) = arg.config {
+                let path = resolve_windows_path(config.as_os_str().to_str().unwrap())?;
+                if !path.is_file() {
+                    return Err(anyhow!("could not find file: {}", path.to_string_lossy()));
+                }
+
+                flags.push(format!(
+                    "'--config={}'",
+                    path.as_os_str()
+                        .to_string_lossy()
+                        .trim_start_matches(r#"\\?\"#),
+                ));
+            }
+
+            if arg.ffm {
+                flags.push("'--ffm'".to_string());
+            }
+
+            if arg.await_configuration {
+                flags.push("'--await-configuration'".to_string());
+            }
+
+            if let Some(port) = arg.tcp_port {
+                flags.push(format!("'--tcp-port={port}'"));
+            }
+
+            let argument_list = flags.join(",");
+            let script = {
+                format!(
+                    "Start-Process '{}' -ArgumentList {argument_list} -WindowStyle hidden",
+                    exec.unwrap_or("komorebi.exe")
+                )
+            };
 
             let mut running = false;
 
@@ -1481,6 +1476,23 @@ fn main() -> Result<()> {
                     running = true;
                 } else {
                     println!("komorebi.exe did not start... Trying again");
+                }
+            }
+
+            if arg.whkd {
+                let script = r#"
+if (!(Get-Process whkd -ErrorAction SilentlyContinue))
+{
+  Start-Process whkd -WindowStyle hidden
+}
+                "#;
+                match powershell_script::run(script) {
+                    Ok(_) => {
+                        println!("{script}");
+                    }
+                    Err(error) => {
+                        println!("Error: {error}");
+                    }
                 }
             }
         }
@@ -1735,7 +1747,7 @@ fn main() -> Result<()> {
                 _ => {
                     return Err(anyhow!(
                         "this command requires applications to be identified by their exe"
-                    ))
+                    ));
                 }
             }
 
@@ -1889,6 +1901,29 @@ fn main() -> Result<()> {
 
             println!("File successfully formatted for PRs to https://github.com/LGUG2Z/komorebi-application-specific-configuration");
         }
+        SubCommand::FetchAppSpecificConfiguration => {
+            let content = reqwest::blocking::get("https://raw.githubusercontent.com/LGUG2Z/komorebi-application-specific-configuration/master/applications.yaml")?
+                .text()?;
+
+            let mut output_file = HOME_DIR.clone();
+            output_file.push("applications.yaml");
+
+            let mut file = OpenOptions::new()
+                .write(true)
+                .create(true)
+                .truncate(true)
+                .open(&output_file)?;
+
+            file.write_all(content.as_bytes())?;
+
+            let output_path = output_file.to_str().unwrap().to_string();
+            let output_path = output_path.replace('\\', "/");
+
+            println!("Latest version of applications.yaml from https://github.com/LGUG2Z/komorebi-application-specific-configuration downloaded\n");
+            println!(
+               "You can add this to your komorebi.json static configuration file like this: \n\n\"app_specific_configuration_path\": \"{output_path}\"",
+            );
+        }
         SubCommand::NotificationSchema => {
             let home = DATA_DIR.clone();
             let mut socket = home;
@@ -1941,6 +1976,74 @@ fn main() -> Result<()> {
             };
 
             send_message(&SocketMessage::SocketSchema.as_bytes()?)?;
+
+            let listener = UnixListener::bind(socket)?;
+            match listener.accept() {
+                Ok(incoming) => {
+                    let stream = BufReader::new(incoming.0);
+                    for line in stream.lines() {
+                        println!("{}", line?);
+                    }
+
+                    return Ok(());
+                }
+                Err(error) => {
+                    panic!("{}", error);
+                }
+            }
+        }
+        SubCommand::StaticConfigSchema => {
+            let home = DATA_DIR.clone();
+            let mut socket = home;
+            socket.push("komorebic.sock");
+            let socket = socket.as_path();
+
+            match std::fs::remove_file(socket) {
+                Ok(_) => {}
+                Err(error) => match error.kind() {
+                    // Doing this because ::exists() doesn't work reliably on Windows via IntelliJ
+                    ErrorKind::NotFound => {}
+                    _ => {
+                        return Err(error.into());
+                    }
+                },
+            };
+
+            send_message(&SocketMessage::StaticConfigSchema.as_bytes()?)?;
+
+            let listener = UnixListener::bind(socket)?;
+            match listener.accept() {
+                Ok(incoming) => {
+                    let stream = BufReader::new(incoming.0);
+                    for line in stream.lines() {
+                        println!("{}", line?);
+                    }
+
+                    return Ok(());
+                }
+                Err(error) => {
+                    panic!("{}", error);
+                }
+            }
+        }
+        SubCommand::GenerateStaticConfig => {
+            let home = DATA_DIR.clone();
+            let mut socket = home;
+            socket.push("komorebic.sock");
+            let socket = socket.as_path();
+
+            match std::fs::remove_file(socket) {
+                Ok(_) => {}
+                Err(error) => match error.kind() {
+                    // Doing this because ::exists() doesn't work reliably on Windows via IntelliJ
+                    ErrorKind::NotFound => {}
+                    _ => {
+                        return Err(error.into());
+                    }
+                },
+            };
+
+            send_message(&SocketMessage::GenerateStaticConfig.as_bytes()?)?;
 
             let listener = UnixListener::bind(socket)?;
             match listener.accept() {

@@ -78,7 +78,7 @@ pub struct ApplicationConfiguration {
 pub struct ApplicationConfigurationGenerator;
 
 impl ApplicationConfigurationGenerator {
-    fn load(content: &str) -> Result<Vec<ApplicationConfiguration>> {
+    pub fn load(content: &str) -> Result<Vec<ApplicationConfiguration>> {
         Ok(serde_yaml::from_str(content)?)
     }
 

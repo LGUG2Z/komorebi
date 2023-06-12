@@ -22,15 +22,11 @@ heck = "0.4"
 lazy_static = "1"
 paste = "1"
 powershell_script = "1.0"
+reqwest = { version = "0.11", features = ["blocking"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 serde_yaml = "0.9"
 sysinfo = "0.29"
 uds_windows = "1"
-
-[dependencies.windows]
-version = "0.48"
-features = [
-    "Win32_Foundation",
-    "Win32_UI_WindowsAndMessaging"
-]
+which = "4"
+windows = { workspace = true }
