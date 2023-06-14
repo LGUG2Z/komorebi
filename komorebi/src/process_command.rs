@@ -1178,6 +1178,7 @@ impl WindowManager {
             | SocketMessage::FocusWindow(_)
             | SocketMessage::InvisibleBorders(_)
             | SocketMessage::WorkAreaOffset(_)
+            | SocketMessage::CycleMoveWindow(_)
             | SocketMessage::MoveWindow(_) => {
                 let foreground = WindowsApi::foreground_window()?;
                 let foreground_window = Window { hwnd: foreground };
