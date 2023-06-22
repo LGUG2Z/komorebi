@@ -72,7 +72,7 @@ impl CustomLayout {
     }
 
     #[must_use]
-    pub fn primary_width_percentage(&self) -> Option<usize> {
+    pub fn primary_width_percentage(&self) -> Option<f32> {
         for column in self.iter() {
             if let Column::Primary(Option::Some(ColumnWidth::WidthPercentage(percentage))) = column
             {
@@ -83,7 +83,7 @@ impl CustomLayout {
         None
     }
 
-    pub fn set_primary_width_percentage(&mut self, percentage: usize) {
+    pub fn set_primary_width_percentage(&mut self, percentage: f32) {
         for column in self.iter_mut() {
             if let Column::Primary(Option::Some(ColumnWidth::WidthPercentage(current))) = column {
                 *current = percentage;
@@ -262,7 +262,7 @@ pub enum Column {
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, JsonSchema)]
 pub enum ColumnWidth {
-    WidthPercentage(usize),
+    WidthPercentage(f32),
 }
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, JsonSchema)]

@@ -683,15 +683,15 @@ impl WindowManager {
                     if matches!(axis, Axis::Horizontal) {
                         let percentage = custom
                             .primary_width_percentage()
-                            .unwrap_or(100 / custom.len());
+                            .unwrap_or(100.0 / (custom.len() as f32));
 
                         if no_layout_rules {
                             match sizing {
                                 Sizing::Increase => {
-                                    custom.set_primary_width_percentage(percentage + 5);
+                                    custom.set_primary_width_percentage(percentage + 5.0);
                                 }
                                 Sizing::Decrease => {
-                                    custom.set_primary_width_percentage(percentage - 5);
+                                    custom.set_primary_width_percentage(percentage - 5.0);
                                 }
                             }
                         } else {
@@ -700,10 +700,10 @@ impl WindowManager {
                                     if let Layout::Custom(ref mut custom) = rule.1 {
                                         match sizing {
                                             Sizing::Increase => {
-                                                custom.set_primary_width_percentage(percentage + 5);
+                                                custom.set_primary_width_percentage(percentage + 5.0);
                                             }
                                             Sizing::Decrease => {
-                                                custom.set_primary_width_percentage(percentage - 5);
+                                                custom.set_primary_width_percentage(percentage - 5.0);
                                             }
                                         }
                                     }
