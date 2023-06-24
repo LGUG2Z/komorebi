@@ -154,7 +154,7 @@ gen_target_subcommand_args! {
     FocusWorkspace,
     FocusWorkspaces,
     MoveWorkspaceToMonitor,
-    SwapWorkspacesToMonitor,
+    SwapWorkspacesWithMonitor,
 }
 
 macro_rules! gen_named_target_subcommand_args {
@@ -808,9 +808,9 @@ enum SubCommand {
     /// Move the focused workspace to the specified monitor
     #[clap(arg_required_else_help = true)]
     MoveWorkspaceToMonitor(MoveWorkspaceToMonitor),
-    /// Swap focused monitior workspaces with specified monitor
+    /// Swap focused monitor workspaces with specified monitor
     #[clap(arg_required_else_help = true)]
-    SwapWorkspacesToMonitor(SwapWorkspacesToMonitor),
+    SwapWorkspacesWithMonitor(SwapWorkspacesWithMonitor),
     /// Create and append a new workspace on the focused monitor
     NewWorkspace,
     /// Set the resize delta (used by resize-edge and resize-axis)
@@ -1196,7 +1196,7 @@ fn main() -> Result<()> {
         SubCommand::MoveWorkspaceToMonitor(arg) => {
             send_message(&SocketMessage::MoveWorkspaceToMonitorNumber(arg.target).as_bytes()?)?;
         }
-        SubCommand::SwapWorkspacesToMonitor(arg) => {
+        SubCommand::SwapWorkspacesWithMonitor(arg) => {
             send_message(&SocketMessage::SwapWorkspacesToMonitorNumber(arg.target).as_bytes()?)?;
         }
         SubCommand::InvisibleBorders(arg) => {
