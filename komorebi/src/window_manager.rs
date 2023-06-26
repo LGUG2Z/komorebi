@@ -309,12 +309,20 @@ impl WindowManager {
             match direction {
                 OperationDirection::Left => {
                     if monitor.size().left + monitor.size().right == current_monitor_size.left {
+                        if current_monitor_size.top > monitor.size().bottom {
+                            continue;
+                        }
+
                         return Option::from(idx);
                     }
                 }
                 OperationDirection::Right => {
                     if current_monitor_size.right + current_monitor_size.left == monitor.size().left
                     {
+                        if current_monitor_size.top > monitor.size().bottom {
+                            continue;
+                        }
+
                         return Option::from(idx);
                     }
                 }
@@ -1040,7 +1048,7 @@ impl WindowManager {
             .get_mut(first_idx)
             .ok_or_else(|| anyhow!("There is no monitor"))?
             .remove_workspaces();
-        
+
         let second_workspaces = self
             .monitors_mut()
             .get_mut(second_idx)
