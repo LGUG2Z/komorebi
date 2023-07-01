@@ -231,7 +231,7 @@ impl Arrangement for CustomLayout {
         let mut dimensions = vec![];
         let container_count = len.get();
 
-        if container_count <= self.len() {
+        if container_count < self.len() {
             let mut layouts = columns(area, container_count);
             dimensions.append(&mut layouts);
         } else {
