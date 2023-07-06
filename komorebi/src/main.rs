@@ -277,7 +277,7 @@ pub fn load_configuration() -> Result<()> {
                 .ok_or_else(|| anyhow!("cannot convert path to string"))?
         );
 
-        Command::new("autohotkey.exe")
+        Command::new(&*AHK_EXE)
             .arg(config_ahk.as_os_str())
             .output()?;
     }
