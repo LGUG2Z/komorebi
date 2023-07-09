@@ -547,6 +547,11 @@ impl WindowManager {
                 };
             }
             SocketMessage::FocusWorkspaceNumber(workspace_idx) => {
+                // hide the border while changing the workspace
+                if BORDER_ENABLED.load(Ordering::SeqCst) {
+                    self.hide_border()?;
+                }
+
                 // This is to ensure that even on an empty workspace on a secondary monitor, the
                 // secondary monitor where the cursor is focused will be used as the target for
                 // the workspace switch op
@@ -703,10 +708,12 @@ impl WindowManager {
                                     if let Layout::Custom(ref mut custom) = rule.1 {
                                         match sizing {
                                             Sizing::Increase => {
-                                                custom.set_primary_width_percentage(percentage + 5.0);
+                                                custom
+                                                    .set_primary_width_percentage(percentage + 5.0);
                                             }
                                             Sizing::Decrease => {
-                                                custom.set_primary_width_percentage(percentage - 5.0);
+                                                custom
+                                                    .set_primary_width_percentage(percentage - 5.0);
                                             }
                                         }
                                     }
@@ -879,6 +886,10 @@ impl WindowManager {
                 if !INITIAL_CONFIGURATION_LOADED.load(Ordering::SeqCst) {
                     INITIAL_CONFIGURATION_LOADED.store(true, Ordering::SeqCst);
                     self.update_focused_workspace(false)?;
+
+                    if BORDER_ENABLED.load(Ordering::SeqCst) {
+                        self.show_border()?;
+                    };
                 }
             }
             SocketMessage::WatchConfiguration(enable) => {
@@ -1121,20 +1132,16 @@ impl WindowManager {
 
         match message {
             SocketMessage::ToggleMonocle => {
-                let current = BORDER_COLOUR_CURRENT.load(Ordering::SeqCst);
                 let monocle = BORDER_COLOUR_MONOCLE.load(Ordering::SeqCst);
 
                 if monocle != 0 {
-                    if current == monocle {
-                        BORDER_COLOUR_CURRENT.store(
+                    let workspace = self.focused_workspace_mut()?;
+                    match workspace.monocle_container() {
+                        None => BORDER_COLOUR_CURRENT.store(
                             BORDER_COLOUR_SINGLE.load(Ordering::SeqCst),
                             Ordering::SeqCst,
-                        );
-                    } else {
-                        BORDER_COLOUR_CURRENT.store(
-                            BORDER_COLOUR_MONOCLE.load(Ordering::SeqCst),
-                            Ordering::SeqCst,
-                        );
+                        ),
+                        Some(_) => BORDER_COLOUR_CURRENT.store(monocle, Ordering::SeqCst),
                     }
                 }
             }
@@ -1183,14 +1190,15 @@ impl WindowManager {
             | SocketMessage::WorkAreaOffset(_)
             | SocketMessage::CycleMoveWindow(_)
             | SocketMessage::MoveWindow(_) => {
-                let foreground = WindowsApi::foreground_window()?;
+                /* let foreground = WindowsApi::foreground_window()?;
                 let foreground_window = Window { hwnd: foreground };
-                let mut rect = WindowsApi::window_rect(foreground_window.hwnd())?;
-                rect.top -= self.invisible_borders.bottom;
-                rect.bottom += self.invisible_borders.bottom;
-
+                
                 let border = Border::from(BORDER_HWND.load(Ordering::SeqCst));
-                border.set_position(foreground_window, &self.invisible_borders, false)?;
+                border.set_position(foreground_window, &self.invisible_borders, false)?; */
+
+                if BORDER_ENABLED.load(Ordering::SeqCst) {
+                    self.show_border()?;
+                };
             }
             SocketMessage::TogglePause => {
                 let is_paused = self.is_paused;
@@ -1315,7 +1323,8 @@ pub fn read_commands_tcp(
                 break;
             }
             Ok(size) => {
-                let Ok(message) = SocketMessage::from_str(&String::from_utf8_lossy(&buf[..size])) else {
+                let Ok(message) = SocketMessage::from_str(&String::from_utf8_lossy(&buf[..size]))
+                else {
                     tracing::warn!("client sent an invalid message, disconnecting: {addr}");
                     let mut connections = TCP_CONNECTIONS.lock();
                     connections.remove(addr);

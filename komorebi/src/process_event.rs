@@ -223,6 +223,8 @@ impl WindowManager {
                         self.focused_workspace_mut()?
                             .focus_container_by_window(window.hwnd)?;
                     }
+                } else {
+                    tracing::info!(" workspace not found");
                 }
             }
             WindowManagerEvent::Show(_, window) | WindowManagerEvent::Manage(window) => {
@@ -519,7 +521,6 @@ impl WindowManager {
                 | WindowManagerEvent::Minimize(_, window) => {
                     let border = Border::from(BORDER_HWND.load(Ordering::SeqCst));
                     let mut target_window = None;
-                    let mut target_window_is_monocle = false;
                     if self
                         .focused_workspace()?
                         .floating_windows()
@@ -533,7 +534,10 @@ impl WindowManager {
                     if let Some(monocle_container) = self.focused_workspace()?.monocle_container() {
                         if let Some(window) = monocle_container.focused_window() {
                             target_window = Option::from(*window);
-                            target_window_is_monocle = true;
+                            BORDER_COLOUR_CURRENT.store(
+                                BORDER_COLOUR_MONOCLE.load(Ordering::SeqCst),
+                                Ordering::SeqCst,
+                            );
                         }
                     }
 
@@ -550,12 +554,7 @@ impl WindowManager {
                                     let container_size = self.focused_container()?.windows().len();
                                     target_window = Option::from(*self.focused_window()?);
 
-                                    if target_window_is_monocle {
-                                        BORDER_COLOUR_CURRENT.store(
-                                            BORDER_COLOUR_MONOCLE.load(Ordering::SeqCst),
-                                            Ordering::SeqCst,
-                                        );
-                                    } else if container_size > 1 {
+                                    if container_size > 1 {
                                         BORDER_COLOUR_CURRENT.store(
                                             BORDER_COLOUR_STACK.load(Ordering::SeqCst),
                                             Ordering::SeqCst,
@@ -573,9 +572,6 @@ impl WindowManager {
 
                     if let Some(target_window) = target_window {
                         let window = target_window;
-                        let mut rect = WindowsApi::window_rect(window.hwnd())?;
-                        rect.top -= self.invisible_borders.bottom;
-                        rect.bottom += self.invisible_borders.bottom;
 
                         let activate = BORDER_HIDDEN.load(Ordering::SeqCst);
 
@@ -597,7 +593,9 @@ impl WindowManager {
         }
 
         // If there are no more windows on the workspace, we shouldn't show the border window
-        if self.focused_workspace()?.containers().is_empty() {
+        if self.focused_workspace()?.containers().is_empty()
+            && self.focused_workspace()?.monocle_container().is_none()
+        {
             let border = Border::from(BORDER_HWND.load(Ordering::SeqCst));
             border.hide()?;
             BORDER_HIDDEN.store(true, Ordering::SeqCst);

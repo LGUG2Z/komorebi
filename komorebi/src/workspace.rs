@@ -288,9 +288,21 @@ impl Workspace {
     }
 
     pub fn focus_container_by_window(&mut self, hwnd: isize) -> Result<()> {
+        if let Some(container) = self.monocle_container_mut() {
+            if let Some(window_idx) = container
+                .windows()
+                .iter()
+                .position(|window| window.hwnd == hwnd)
+            {
+                container.focus_window(window_idx);
+
+                return Ok(());
+            }
+        }
+
         let container_idx = self
             .container_idx_for_window(hwnd)
-            .ok_or_else(|| anyhow!("there is no container/window"))?;
+            .ok_or_else(|| anyhow!("there is no container/window focus by window"))?;
 
         let container = self
             .containers_mut()
@@ -790,7 +802,7 @@ impl Workspace {
             .ok_or_else(|| anyhow!("there is no monocle container"))?;
 
         let container = container.clone();
-        if restore_idx > self.containers().len() - 1 {
+        if self.containers().len() > 0 && restore_idx > self.containers().len() - 1 {
             self.containers_mut()
                 .resize(restore_idx, Container::default());
         }

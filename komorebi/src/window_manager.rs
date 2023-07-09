@@ -211,9 +211,6 @@ impl WindowManager {
     pub fn show_border(&self) -> Result<()> {
         let foreground = WindowsApi::foreground_window()?;
         let foreground_window = Window { hwnd: foreground };
-        let mut rect = WindowsApi::window_rect(foreground_window.hwnd())?;
-        rect.top -= self.invisible_borders.bottom;
-        rect.bottom += self.invisible_borders.bottom;
 
         let border = Border::from(BORDER_HWND.load(Ordering::SeqCst));
         border.set_position(foreground_window, &self.invisible_borders, true)?;
@@ -1040,7 +1037,7 @@ impl WindowManager {
             .get_mut(first_idx)
             .ok_or_else(|| anyhow!("There is no monitor"))?
             .remove_workspaces();
-        
+
         let second_workspaces = self
             .monitors_mut()
             .get_mut(second_idx)
@@ -2238,15 +2235,23 @@ impl WindowManager {
     }
 
     pub fn focused_container(&self) -> Result<&Container> {
-        self.focused_workspace()?
-            .focused_container()
-            .ok_or_else(|| anyhow!("there is no container"))
+        let container = if self.focused_workspace()?.monocle_container().is_some() {
+            self.focused_workspace()?.monocle_container().as_ref()
+        } else {
+            self.focused_workspace()?.focused_container()
+        };
+        container.ok_or_else(|| anyhow!("there is no container"))
     }
 
     pub fn focused_container_mut(&mut self) -> Result<&mut Container> {
-        self.focused_workspace_mut()?
-            .focused_container_mut()
-            .ok_or_else(|| anyhow!("there is no container"))
+        let workspace = self.focused_workspace_mut()?;
+
+        let container = if workspace.monocle_container().is_some() {
+            workspace.monocle_container_mut().as_mut()
+        } else {
+            workspace.focused_container_mut()
+        };
+        container.ok_or_else(|| anyhow!("there is no container (mut)"))
     }
 
     pub fn focused_window(&self) -> Result<&Window> {
