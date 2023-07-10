@@ -303,7 +303,10 @@ impl WindowsApi {
     }
 
     pub fn position_window(hwnd: HWND, layout: &Rect, top: bool) -> Result<()> {
-        let flags = SetWindowPosition::NO_ACTIVATE;
+        let flags = SetWindowPosition::NO_ACTIVATE
+            | SetWindowPosition::NO_SEND_CHANGING
+            | SetWindowPosition::NO_COPY_BITS
+            | SetWindowPosition::FRAME_CHANGED;
 
         let position = if top { HWND_TOPMOST } else { HWND_BOTTOM };
         Self::set_window_pos(hwnd, layout, position, flags.bits())
