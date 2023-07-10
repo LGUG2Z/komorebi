@@ -1040,7 +1040,7 @@ impl WindowManager {
             .get_mut(first_idx)
             .ok_or_else(|| anyhow!("There is no monitor"))?
             .remove_workspaces();
-        
+
         let second_workspaces = self
             .monitors_mut()
             .get_mut(second_idx)

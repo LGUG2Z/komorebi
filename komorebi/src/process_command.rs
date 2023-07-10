@@ -703,10 +703,12 @@ impl WindowManager {
                                     if let Layout::Custom(ref mut custom) = rule.1 {
                                         match sizing {
                                             Sizing::Increase => {
-                                                custom.set_primary_width_percentage(percentage + 5.0);
+                                                custom
+                                                    .set_primary_width_percentage(percentage + 5.0);
                                             }
                                             Sizing::Decrease => {
-                                                custom.set_primary_width_percentage(percentage - 5.0);
+                                                custom
+                                                    .set_primary_width_percentage(percentage - 5.0);
                                             }
                                         }
                                     }
