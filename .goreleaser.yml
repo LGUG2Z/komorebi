@@ -28,11 +28,8 @@ builds:
         - cp ".\target\x86_64-pc-windows-msvc\release\komorebic.exe" ".\dist\komorebic_windows_amd64_v1\komorebic.exe"
 
 archives:
-  - replacements:
-      windows: pc-windows-msvc
-      amd64: x86_64
+  - name_template: "{{ .ProjectName }}-{{ .Version }}-x86_64-pc-windows-msvc"
     format: zip
-    name_template: "{{ .ProjectName }}-{{ .Version }}-{{ .Arch }}-{{ .Os }}"
     files:
       - LICENSE
       - CHANGELOG.md

@@ -104,7 +104,7 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/v')
         with:
           version: latest
-          args: release --skip-validate --rm-dist --release-notes=CHANGELOG.md
+          args: release --skip-validate --clean --release-notes=CHANGELOG.md
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SCOOP_TOKEN: ${{ secrets.SCOOP_TOKEN }}
