@@ -160,6 +160,13 @@ This means that:
 
 ### Quickstart
 
+It highly recommended that you enable support for long paths in Windows by running the following command in an
+Administrator Terminal before starting with this quickstart guide:
+
+```powershell
+Set-ItemProperty 'HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem' -Name 'LongPathsEnabled' -Value 1
+```
+
 Make sure that you have either the [Scoop Package Manager](https://scoop.sh) or WinGet installed, then run the following
 commands at a PowerShell prompt. If you are using WinGet, make sure that you open a new terminal window or reload your
 profile after running the installation steps. Since this is not required when using `scoop`, I personally recommend that
