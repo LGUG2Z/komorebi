@@ -1426,7 +1426,7 @@ fn main() -> Result<()> {
                 }
 
                 flags.push(format!(
-                    "'--config={}'",
+                    "'--config=\"{}\"'",
                     path.as_os_str()
                         .to_string_lossy()
                         .trim_start_matches(r#"\\?\"#),
