@@ -300,6 +300,8 @@ There are four configuration options that you may need to set yourself, if you m
 - The applications.yaml path
 - Any individual application rules you have that are not in applications.yaml
 
+[![Watch the tutorial video](https://img.youtube.com/vi/yqCAOJgL3C0/hqdefault.jpg)](https://www.youtube.com/watch?v=yqCAOJgL3C0)
+
 #### Configuration with `komorebic`
 
 As previously mentioned, this project does not handle anything related to keybindings and shortcuts directly. I
