@@ -67,6 +67,16 @@ pub struct Rgb {
     pub b: u32,
 }
 
+impl From<u32> for Rgb {
+    fn from(value: u32) -> Self {
+        Self {
+            r: value        & 0xff,
+            g: value >> 8   & 0xff,
+            b: value >> 16  & 0xff
+        }
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize, JsonSchema)]
 pub struct ActiveWindowBorderColours {
     /// Border colour when the container contains a single window
@@ -348,6 +358,12 @@ impl From<&WindowManager> for StaticConfig {
             }
         }
 
+        let border_colours = ActiveWindowBorderColours {
+            single: Rgb::from(BORDER_COLOUR_SINGLE.load(Ordering::SeqCst)),
+            stack: Rgb::from(BORDER_COLOUR_STACK.load(Ordering::SeqCst)),
+            monocle: Rgb::from(BORDER_COLOUR_MONOCLE.load(Ordering::SeqCst)),
+        };
+
         Self {
             invisible_borders: if value.invisible_borders == default_invisible_borders {
                 None
@@ -366,7 +382,7 @@ impl From<&WindowManager> for StaticConfig {
             border_width: Option::from(BORDER_WIDTH.load(Ordering::SeqCst)),
             border_offset: *BORDER_OFFSET.lock(),
             active_window_border: Option::from(BORDER_ENABLED.load(Ordering::SeqCst)),
-            active_window_border_colours: None,
+            active_window_border_colours: Option::from(border_colours),
             default_workspace_padding: Option::from(
                 DEFAULT_WORKSPACE_PADDING.load(Ordering::SeqCst),
             ),
@@ -384,6 +400,8 @@ impl From<&WindowManager> for StaticConfig {
             layered_applications: None,
             object_name_change_applications: None,
         }
+
+        
     }
 }
 
