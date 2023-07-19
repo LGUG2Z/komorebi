@@ -358,10 +358,22 @@ impl From<&WindowManager> for StaticConfig {
             }
         }
 
-        let border_colours = ActiveWindowBorderColours {
-            single: Rgb::from(BORDER_COLOUR_SINGLE.load(Ordering::SeqCst)),
-            stack: Rgb::from(BORDER_COLOUR_STACK.load(Ordering::SeqCst)),
-            monocle: Rgb::from(BORDER_COLOUR_MONOCLE.load(Ordering::SeqCst)),
+        let border_colours = if BORDER_COLOUR_SINGLE.load(Ordering::SeqCst) == 0 {
+            None
+        } else {
+            Option::from(ActiveWindowBorderColours {
+                single: Rgb::from(BORDER_COLOUR_SINGLE.load(Ordering::SeqCst)),
+                stack: Rgb::from(if BORDER_COLOUR_STACK.load(Ordering::SeqCst) == 0 {
+                    BORDER_COLOUR_SINGLE.load(Ordering::SeqCst)
+                } else {
+                    BORDER_COLOUR_STACK.load(Ordering::SeqCst)
+                }),
+                monocle: Rgb::from(if BORDER_COLOUR_MONOCLE.load(Ordering::SeqCst) == 0 {
+                    BORDER_COLOUR_SINGLE.load(Ordering::SeqCst)
+                } else {
+                    BORDER_COLOUR_MONOCLE.load(Ordering::SeqCst)
+                }),
+            })
         };
 
         Self {
@@ -382,7 +394,7 @@ impl From<&WindowManager> for StaticConfig {
             border_width: Option::from(BORDER_WIDTH.load(Ordering::SeqCst)),
             border_offset: *BORDER_OFFSET.lock(),
             active_window_border: Option::from(BORDER_ENABLED.load(Ordering::SeqCst)),
-            active_window_border_colours: Option::from(border_colours),
+            active_window_border_colours: border_colours,
             default_workspace_padding: Option::from(
                 DEFAULT_WORKSPACE_PADDING.load(Ordering::SeqCst),
             ),
