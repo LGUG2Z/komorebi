@@ -634,8 +634,6 @@ impl StaticConfig {
             already_moved_window_handles: Arc::new(Mutex::new(HashSet::new())),
         };
 
-        let bytes = SocketMessage::ReloadStaticConfiguration(path.clone()).as_bytes()?;
-
         wm.hotwatch.watch(path, move |event| match event {
             // Editing in Notepad sends a NoticeWrite while editing in (Neo)Vim sends
             // a NoticeRemove, presumably because of the use of swap files?
@@ -643,6 +641,7 @@ impl StaticConfig {
                 let socket = DATA_DIR.join("komorebi.sock");
                 let mut stream =
                     UnixStream::connect(socket).expect("could not connect to komorebi.sock");
+                let bytes = SocketMessage::ReloadStaticConfiguration(event.paths[0].clone()).as_bytes()?;
                 stream
                     .write_all(&bytes)
                     .expect("could not write to komorebi.sock");
