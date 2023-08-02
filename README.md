@@ -279,7 +279,7 @@ of the window manager. There is a [complete JSON Schema for this configuration f
 users with auto-completions in their editors.
 
 If you are running with a dynamic configuration script as recommended in v0.1.16 and earlier, `komorebi` will find the
-sample `komorebi.ps1` file in your `$Env:USERPROFILE` directory and automatically load it. This file also starts `whkd` using the sample `whkrc` file
+sample `komorebi.ps1` file in your `$Env:USERPROFILE` directory and automatically load it. This file also starts `whkd` using the sample `whkdrc` file
 in your `$Env:USERPROFILE\.config` directory.
 
 Alternatively, if you have AutoHotKey installed and a `komorebi.ahk` file in `$Env:UserProfile` directory, `komorebi`
