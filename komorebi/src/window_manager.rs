@@ -50,6 +50,7 @@ use crate::FLOAT_IDENTIFIERS;
 use crate::HOME_DIR;
 use crate::LAYERED_WHITELIST;
 use crate::MANAGE_IDENTIFIERS;
+use crate::MONITOR_INDEX_PREFERENCES;
 use crate::NO_TITLEBAR;
 use crate::OBJECT_NAME_CHANGE_ON_LAUNCH;
 use crate::REMOVE_TITLEBARS;
@@ -98,6 +99,7 @@ pub struct State {
     pub tray_and_multi_window_identifiers: Vec<String>,
     pub border_overflow_identifiers: Vec<String>,
     pub name_change_on_launch_identifiers: Vec<String>,
+    pub monitor_index_preferences: HashMap<usize, Rect>,
 }
 
 impl AsRef<Self> for WindowManager {
@@ -126,6 +128,7 @@ impl From<&WindowManager> for State {
             tray_and_multi_window_identifiers: TRAY_AND_MULTI_WINDOW_IDENTIFIERS.lock().clone(),
             border_overflow_identifiers: BORDER_OVERFLOW_IDENTIFIERS.lock().clone(),
             name_change_on_launch_identifiers: OBJECT_NAME_CHANGE_ON_LAUNCH.lock().clone(),
+            monitor_index_preferences: MONITOR_INDEX_PREFERENCES.lock().clone(),
         }
     }
 }

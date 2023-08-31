@@ -154,6 +154,16 @@
         "$ref": "#/definitions/IdWithIdentifier"
       }
     },
+    "monitor_index_preferences": {
+      "description": "Set monitor index preferences",
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": {
+        "$ref": "#/definitions/Rect"
+      }
+    },
     "monitors": {
       "description": "Monitor and workspace configurations",
       "type": [

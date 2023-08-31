@@ -1,5 +1,10 @@
 #![warn(clippy::all, clippy::nursery, clippy::pedantic)]
-#![allow(clippy::missing_errors_doc, clippy::redundant_pub_crate)]
+#![allow(
+    clippy::missing_errors_doc,
+    clippy::redundant_pub_crate,
+    clippy::significant_drop_tightening,
+    clippy::significant_drop_in_scrutinee
+)]
 
 use std::collections::HashMap;
 use std::fs::File;

@@ -1341,7 +1341,8 @@ pub fn read_commands_tcp(
                 break;
             }
             Ok(size) => {
-                let Ok(message) = SocketMessage::from_str(&String::from_utf8_lossy(&buf[..size])) else {
+                let Ok(message) = SocketMessage::from_str(&String::from_utf8_lossy(&buf[..size]))
+                else {
                     tracing::warn!("client sent an invalid message, disconnecting: {addr}");
                     let mut connections = TCP_CONNECTIONS.lock();
                     connections.remove(addr);

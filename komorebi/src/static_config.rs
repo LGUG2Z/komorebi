@@ -22,6 +22,7 @@ use crate::FLOAT_IDENTIFIERS;
 use crate::HIDING_BEHAVIOUR;
 use crate::LAYERED_WHITELIST;
 use crate::MANAGE_IDENTIFIERS;
+use crate::MONITOR_INDEX_PREFERENCES;
 use crate::OBJECT_NAME_CHANGE_ON_LAUNCH;
 use crate::TRAY_AND_MULTI_WINDOW_IDENTIFIERS;
 use crate::WORKSPACE_RULES;
@@ -70,9 +71,9 @@ pub struct Rgb {
 impl From<u32> for Rgb {
     fn from(value: u32) -> Self {
         Self {
-            r: value        & 0xff,
-            g: value >> 8   & 0xff,
-            b: value >> 16  & 0xff
+            r: value & 0xff,
+            g: value >> 8 & 0xff,
+            b: value >> 16 & 0xff,
         }
     }
 }
@@ -297,9 +298,13 @@ pub struct StaticConfig {
     /// Identify applications that send EVENT_OBJECT_NAMECHANGE on launch (very rare)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub object_name_change_applications: Option<Vec<IdWithIdentifier>>,
+    /// Set monitor index preferences
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub monitor_index_preferences: Option<HashMap<usize, Rect>>,
 }
 
 impl From<&WindowManager> for StaticConfig {
+    #[allow(clippy::too_many_lines)]
     fn from(value: &WindowManager) -> Self {
         let default_invisible_borders = Rect {
             left: 7,
@@ -411,15 +416,19 @@ impl From<&WindowManager> for StaticConfig {
             tray_and_multi_window_applications: None,
             layered_applications: None,
             object_name_change_applications: None,
+            monitor_index_preferences: Option::from(MONITOR_INDEX_PREFERENCES.lock().clone()),
         }
-
-        
     }
 }
 
 impl StaticConfig {
     #[allow(clippy::cognitive_complexity, clippy::too_many_lines)]
     fn apply_globals(&self) -> Result<()> {
+        if let Some(monitor_index_preferences) = &self.monitor_index_preferences {
+            let mut preferences = MONITOR_INDEX_PREFERENCES.lock();
+            *preferences = monitor_index_preferences.clone();
+        }
+
         if let Some(behaviour) = self.window_hiding_behaviour {
             let mut window_hiding_behaviour = HIDING_BEHAVIOUR.lock();
             *window_hiding_behaviour = behaviour;
