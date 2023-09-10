@@ -626,6 +626,13 @@ struct Start {
 }
 
 #[derive(Parser, AhkFunction)]
+struct Stop {
+    /// Stop whkd if it is running as a background process
+    #[clap(action, long)]
+    whkd: bool,
+}
+
+#[derive(Parser, AhkFunction)]
 struct SaveResize {
     /// File to which the resize layout dimensions should be saved
     path: String,
@@ -695,7 +702,7 @@ enum SubCommand {
     /// Start komorebi.exe as a background process
     Start(Start),
     /// Stop the komorebi.exe process and restore all hidden windows
-    Stop,
+    Stop(Stop),
     /// Output various important komorebi-related environment values
     Check,
     /// Show a JSON representation of the current window manager state
@@ -1496,7 +1503,21 @@ if (!(Get-Process whkd -ErrorAction SilentlyContinue))
                 }
             }
         }
-        SubCommand::Stop => {
+        SubCommand::Stop(arg) => {
+            if arg.whkd {
+                let script = r#"
+Stop-Process -Name:whkd -ErrorAction SilentlyContinue
+                "#;
+                match powershell_script::run(script) {
+                    Ok(_) => {
+                        println!("{script}");
+                    }
+                    Err(error) => {
+                        println!("Error: {error}");
+                    }
+                }
+            }
+
             send_message(&SocketMessage::Stop.as_bytes()?)?;
         }
         SubCommand::FloatRule(arg) => {
