@@ -607,6 +607,7 @@ struct ActiveWindowBorderOffset {
 }
 
 #[derive(Parser, AhkFunction)]
+#[allow(clippy::struct_excessive_bools)]
 struct Start {
     /// Allow the use of komorebi's custom focus-follows-mouse implementation
     #[clap(action, short, long = "ffm")]
@@ -623,6 +624,9 @@ struct Start {
     /// Start whkd in a background process
     #[clap(action, long)]
     whkd: bool,
+    /// Start autohotkey configuration file
+    #[clap(action, long)]
+    ahk: bool,
 }
 
 #[derive(Parser, AhkFunction)]
@@ -1398,8 +1402,20 @@ fn main() -> Result<()> {
             )?;
         }
         SubCommand::Start(arg) => {
+            let mut ahk: String = String::from("autohotkey.exe");
+
+            if let Ok(komorebi_ahk_exe) = std::env::var("KOMOREBI_AHK_EXE") {
+                if which(&komorebi_ahk_exe).is_ok() {
+                    ahk = komorebi_ahk_exe;
+                }
+            }
+
             if arg.whkd && which("whkd").is_err() {
                 return Err(anyhow!("could not find whkd, please make sure it is installed before using the --whkd flag"));
+            }
+
+            if arg.ahk && which(&ahk).is_err() {
+                return Err(anyhow!("could not find autohotkey, please make sure it is installed before using the --ahk flag"));
             }
 
             let mut buf: PathBuf;
@@ -1494,6 +1510,28 @@ if (!(Get-Process whkd -ErrorAction SilentlyContinue))
 }
                 "#;
                 match powershell_script::run(script) {
+                    Ok(_) => {
+                        println!("{script}");
+                    }
+                    Err(error) => {
+                        println!("Error: {error}");
+                    }
+                }
+            }
+
+            if arg.ahk {
+                let home = HOME_DIR.clone();
+                let mut config_ahk = home;
+                config_ahk.push("komorebi.ahk");
+
+                let script = format!(
+                    r#"
+  Start-Process {ahk} {config} -WindowStyle hidden
+                "#,
+                    config = config_ahk.as_os_str().to_string_lossy()
+                );
+
+                match powershell_script::run(&script) {
                     Ok(_) => {
                         println!("{script}");
                     }
