@@ -1468,8 +1468,13 @@ fn main() -> Result<()> {
                 flags.push(format!("'--tcp-port={port}'"));
             }
 
-            let argument_list = flags.join(",");
-            let script = {
+            let script = if flags.is_empty() {
+                format!(
+                    "Start-Process '{}' -WindowStyle hidden",
+                    exec.unwrap_or("komorebi.exe")
+                )
+            } else {
+                let argument_list = flags.join(",");
                 format!(
                     "Start-Process '{}' -ArgumentList {argument_list} -WindowStyle hidden",
                     exec.unwrap_or("komorebi.exe")
