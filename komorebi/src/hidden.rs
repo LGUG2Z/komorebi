@@ -39,7 +39,7 @@ impl Hidden {
         let class_name = PCSTR(name.as_ptr());
         let brush = WindowsApi::create_solid_brush(TRANSPARENCY_COLOUR);
         let window_class = WNDCLASSA {
-            hInstance: instance,
+            hInstance: instance.into(),
             lpszClassName: class_name,
             style: CS_HREDRAW | CS_VREDRAW,
             lpfnWndProc: Some(windows_callbacks::hidden_window),

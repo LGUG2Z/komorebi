@@ -8,11 +8,11 @@ members = [
 ]
 
 [workspace.dependencies]
-windows-interface = { version = "0.48" }
-windows-implement = { version = "0.48" }
+windows-interface = { version = "0.51" }
+windows-implement = { version = "0.51" }
 
 [workspace.dependencies.windows]
-version = "0.48"
+version = "0.51"
 features = [
     "implement",
     "Win32_System_Com",

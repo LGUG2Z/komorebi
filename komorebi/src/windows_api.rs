@@ -235,7 +235,6 @@ impl WindowsApi {
 
     pub fn enum_windows(callback: WNDENUMPROC, callback_data_address: isize) -> Result<()> {
         unsafe { EnumWindows(callback, LPARAM(callback_data_address)) }
-            .ok()
             .process()
     }
 
@@ -276,7 +275,6 @@ impl WindowsApi {
 
     pub fn allow_set_foreground_window(process_id: u32) -> Result<()> {
         unsafe { AllowSetForegroundWindow(process_id) }
-            .ok()
             .process()
     }
 
@@ -313,7 +311,7 @@ impl WindowsApi {
     }
 
     pub fn bring_window_to_top(hwnd: HWND) -> Result<()> {
-        unsafe { BringWindowToTop(hwnd) }.ok().process()
+        unsafe { BringWindowToTop(hwnd) }.process()
     }
 
     pub fn raise_window(hwnd: HWND) -> Result<()> {
@@ -353,7 +351,6 @@ impl WindowsApi {
                 SET_WINDOW_POS_FLAGS(flags),
             )
         }
-        .ok()
         .process()
     }
 
@@ -369,7 +366,6 @@ impl WindowsApi {
 
     fn post_message(hwnd: HWND, message: u32, wparam: WPARAM, lparam: LPARAM) -> Result<()> {
         unsafe { PostMessageW(hwnd, message, wparam, lparam) }
-            .ok()
             .process()
     }
 
@@ -436,18 +432,18 @@ impl WindowsApi {
 
     pub fn window_rect(hwnd: HWND) -> Result<Rect> {
         let mut rect = unsafe { std::mem::zeroed() };
-        unsafe { GetWindowRect(hwnd, &mut rect) }.ok().process()?;
+        unsafe { GetWindowRect(hwnd, &mut rect) }.process()?;
 
         Ok(Rect::from(rect))
     }
 
     fn set_cursor_pos(x: i32, y: i32) -> Result<()> {
-        unsafe { SetCursorPos(x, y) }.ok().process()
+        unsafe { SetCursorPos(x, y) }.process()
     }
 
     pub fn cursor_pos() -> Result<POINT> {
         let mut cursor_pos = POINT::default();
-        unsafe { GetCursorPos(&mut cursor_pos) }.ok().process()?;
+        unsafe { GetCursorPos(&mut cursor_pos) }.process()?;
 
         Ok(cursor_pos)
     }
@@ -489,7 +485,7 @@ impl WindowsApi {
         let mut session_id = 0;
 
         unsafe {
-            if ProcessIdToSessionId(process_id, &mut session_id).as_bool() {
+            if ProcessIdToSessionId(process_id, &mut session_id).is_ok() {
                 Ok(session_id)
             } else {
                 Err(anyhow!("could not determine current session id"))
@@ -565,7 +561,7 @@ impl WindowsApi {
     }
 
     pub fn close_process(handle: HANDLE) -> Result<()> {
-        unsafe { CloseHandle(handle) }.ok().process()
+        unsafe { CloseHandle(handle) }.process()
     }
 
     pub fn process_handle(process_id: u32) -> Result<HANDLE> {
@@ -580,7 +576,6 @@ impl WindowsApi {
         unsafe {
             QueryFullProcessImageNameW(handle, PROCESS_NAME_WIN32, PWSTR(text_ptr), &mut len)
         }
-        .ok()
         .process()?;
 
         Ok(String::from_utf16(&path[..len as usize])?)
@@ -673,7 +668,6 @@ impl WindowsApi {
 
     pub fn set_process_dpi_awareness_context() -> Result<()> {
         unsafe { SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2) }
-            .ok()
             .process()
     }
 
@@ -685,7 +679,6 @@ impl WindowsApi {
         update_flags: SYSTEM_PARAMETERS_INFO_UPDATE_FLAGS,
     ) -> Result<()> {
         unsafe { SystemParametersInfoW(action, ui_param, Option::from(pv_param), update_flags) }
-            .ok()
             .process()
     }
 
@@ -777,19 +770,21 @@ impl WindowsApi {
                 None,
             );
 
-            SetLayeredWindowAttributes(hwnd, COLORREF(TRANSPARENCY_COLOUR), 0, LWA_COLORKEY);
+            SetLayeredWindowAttributes(hwnd, COLORREF(TRANSPARENCY_COLOUR), 0, LWA_COLORKEY)?;
 
             hwnd
         }
         .process()
     }
 
-    pub fn set_transparent(hwnd: HWND) {
+    pub fn set_transparent(hwnd: HWND) -> Result<()> {
         unsafe {
             #[allow(clippy::cast_sign_loss)]
             // TODO: alpha should be configurable
-            SetLayeredWindowAttributes(hwnd, COLORREF(-1i32 as u32), 150, LWA_ALPHA);
+            SetLayeredWindowAttributes(hwnd, COLORREF(-1i32 as u32), 150, LWA_ALPHA)?;
         }
+
+        Ok(())
     }
 
     pub fn create_hidden_window(name: PCSTR, instance: HMODULE) -> Result<isize> {

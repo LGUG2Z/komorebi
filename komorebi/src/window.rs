@@ -348,8 +348,7 @@ impl Window {
         let mut ex_style = self.ex_style()?;
         ex_style.insert(ExtendedWindowStyle::LAYERED);
         self.update_ex_style(&ex_style)?;
-        WindowsApi::set_transparent(self.hwnd());
-        Ok(())
+        WindowsApi::set_transparent(self.hwnd())
     }
 
     pub fn opaque(self) -> Result<()> {
