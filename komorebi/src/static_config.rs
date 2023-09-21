@@ -250,12 +250,18 @@ pub struct StaticConfig {
     /// Path to applications.yaml from komorebi-application-specific-configurations (default: None)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub app_specific_configuration_path: Option<PathBuf>,
-    /// Width of the active window border (default: 20)
+    /// DEPRECATED from v0.1.19: use active_window_border_width instead
     #[serde(skip_serializing_if = "Option::is_none")]
     pub border_width: Option<i32>,
-    /// Offset of the active window border (default: None)
+    /// DEPRECATED from v0.1.19: use active_window_border_offset instead
     #[serde(skip_serializing_if = "Option::is_none")]
     pub border_offset: Option<Rect>,
+    /// Width of the active window border (default: 20)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub active_window_border_width: Option<i32>,
+    /// Offset of the active window border (default: None)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub active_window_border_offset: Option<i32>,
     /// Display an active window border (default: false)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub active_window_border: Option<bool>,
@@ -396,8 +402,12 @@ impl From<&WindowManager> for StaticConfig {
             focus_follows_mouse: value.focus_follows_mouse,
             mouse_follows_focus: Option::from(value.mouse_follows_focus),
             app_specific_configuration_path: None,
-            border_width: Option::from(BORDER_WIDTH.load(Ordering::SeqCst)),
-            border_offset: *BORDER_OFFSET.lock(),
+            active_window_border_width: Option::from(BORDER_WIDTH.load(Ordering::SeqCst)),
+            active_window_border_offset: BORDER_OFFSET
+                .lock()
+                .map_or(None, |offset| Option::from(offset.left)),
+            border_width: None,
+            border_offset: None,
             active_window_border: Option::from(BORDER_ENABLED.load(Ordering::SeqCst)),
             active_window_border_colours: border_colours,
             default_workspace_padding: Option::from(
@@ -446,14 +456,31 @@ impl StaticConfig {
             DEFAULT_WORKSPACE_PADDING.store(workspace, Ordering::SeqCst);
         }
 
-        if let Some(width) = self.border_width {
-            BORDER_WIDTH.store(width, Ordering::SeqCst);
-        }
+        self.active_window_border_width.map_or_else(
+            || {
+                BORDER_WIDTH.store(20, Ordering::SeqCst);
+            },
+            |width| {
+                BORDER_WIDTH.store(width, Ordering::SeqCst);
+            },
+        );
+        self.active_window_border_offset.map_or_else(
+            || {
+                let mut border_offset = BORDER_OFFSET.lock();
+                *border_offset = None;
+            },
+            |offset| {
+                let new_border_offset = Rect {
+                    left: offset,
+                    top: offset,
+                    right: offset * 2,
+                    bottom: offset * 2,
+                };
 
-        if let Some(offset) = self.border_offset {
-            let mut border_offset = BORDER_OFFSET.lock();
-            *border_offset = Some(offset);
-        }
+                let mut border_offset = BORDER_OFFSET.lock();
+                *border_offset = Some(new_border_offset);
+            },
+        );
 
         if let Some(colours) = &self.active_window_border_colours {
             BORDER_COLOUR_SINGLE.store(

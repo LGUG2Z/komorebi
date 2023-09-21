@@ -318,7 +318,7 @@ pub fn current_virtual_desktop() -> Option<Vec<u8>> {
     // This is the path on Windows 11
     if current.is_none() {
         current = hkcu
-            .open_subkey(r#"SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\VirtualDesktops"#)
+            .open_subkey(r"SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\VirtualDesktops")
             .ok()
             .and_then(
                 |desktops| match desktops.get_raw_value("CurrentVirtualDesktop") {
@@ -357,7 +357,7 @@ pub struct Notification {
 pub fn notify_subscribers(notification: &str) -> Result<()> {
     let mut stale_subscriptions = vec![];
     let mut subscriptions = SUBSCRIPTION_PIPES.lock();
-    for (subscriber, pipe) in subscriptions.iter_mut() {
+    for (subscriber, pipe) in &mut *subscriptions {
         match writeln!(pipe, "{notification}") {
             Ok(_) => {
                 tracing::debug!("pushed notification to subscriber: {}", subscriber);

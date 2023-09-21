@@ -234,8 +234,7 @@ impl WindowsApi {
     }
 
     pub fn enum_windows(callback: WNDENUMPROC, callback_data_address: isize) -> Result<()> {
-        unsafe { EnumWindows(callback, LPARAM(callback_data_address)) }
-            .process()
+        unsafe { EnumWindows(callback, LPARAM(callback_data_address)) }.process()
     }
 
     pub fn load_workspace_information(monitors: &mut Ring<Monitor>) -> Result<()> {
@@ -274,8 +273,7 @@ impl WindowsApi {
     }
 
     pub fn allow_set_foreground_window(process_id: u32) -> Result<()> {
-        unsafe { AllowSetForegroundWindow(process_id) }
-            .process()
+        unsafe { AllowSetForegroundWindow(process_id) }.process()
     }
 
     pub fn monitor_from_window(hwnd: HWND) -> isize {
@@ -365,8 +363,7 @@ impl WindowsApi {
     }
 
     fn post_message(hwnd: HWND, message: u32, wparam: WPARAM, lparam: LPARAM) -> Result<()> {
-        unsafe { PostMessageW(hwnd, message, wparam, lparam) }
-            .process()
+        unsafe { PostMessageW(hwnd, message, wparam, lparam) }.process()
     }
 
     pub fn close_window(hwnd: HWND) -> Result<()> {

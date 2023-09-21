@@ -1452,7 +1452,7 @@ fn main() -> Result<()> {
                     "'--config=\"{}\"'",
                     path.as_os_str()
                         .to_string_lossy()
-                        .trim_start_matches(r#"\\?\"#),
+                        .trim_start_matches(r"\\?\"),
                 ));
             }
 

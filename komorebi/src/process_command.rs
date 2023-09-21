@@ -259,9 +259,8 @@ impl WindowManager {
                         .focused_workspace()
                         .ok_or_else(|| anyhow!("there is no workspace"))?
                         .containers()
-                        .iter()
                     {
-                        for window in container.windows().iter() {
+                        for window in container.windows() {
                             match identifier {
                                 ApplicationIdentifier::Exe => {
                                     if window.exe()? == *id {
