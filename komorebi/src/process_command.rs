@@ -20,6 +20,8 @@ use parking_lot::Mutex;
 use schemars::schema_for;
 use uds_windows::UnixStream;
 
+use komorebi_core::config_generation::IdWithIdentifier;
+use komorebi_core::config_generation::MatchingStrategy;
 use komorebi_core::ApplicationIdentifier;
 use komorebi_core::Axis;
 use komorebi_core::FocusFollowsMouseImplementation;
@@ -246,8 +248,20 @@ impl WindowManager {
             }
             SocketMessage::FloatRule(identifier, ref id) => {
                 let mut float_identifiers = FLOAT_IDENTIFIERS.lock();
-                if !float_identifiers.contains(id) {
-                    float_identifiers.push(id.to_string());
+
+                let mut should_push = true;
+                for f in &*float_identifiers {
+                    if f.id.eq(id) {
+                        should_push = false;
+                    }
+                }
+
+                if should_push {
+                    float_identifiers.push(IdWithIdentifier {
+                        kind: identifier,
+                        id: id.clone(),
+                        matching_strategy: Option::from(MatchingStrategy::Legacy),
+                    });
                 }
 
                 let invisible_borders = self.invisible_borders;

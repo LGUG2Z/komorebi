@@ -50,10 +50,22 @@ impl ApplicationOptions {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, JsonSchema)]
 pub struct IdWithIdentifier {
     pub kind: ApplicationIdentifier,
     pub id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub matching_strategy: Option<MatchingStrategy>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub enum MatchingStrategy {
+    Legacy,
+    Equals,
+    StartsWith,
+    EndsWith,
+    Contains,
+    Regex,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
@@ -62,6 +74,18 @@ pub struct IdWithIdentifierAndComment {
     pub id: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub comment: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub matching_strategy: Option<MatchingStrategy>,
+}
+
+impl From<IdWithIdentifierAndComment> for IdWithIdentifier {
+    fn from(value: IdWithIdentifierAndComment) -> Self {
+        Self {
+            kind: value.kind,
+            id: value.id.clone(),
+            matching_strategy: value.matching_strategy,
+        }
+    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]

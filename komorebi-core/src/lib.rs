@@ -192,7 +192,17 @@ pub enum StateQuery {
 }
 
 #[derive(
-    Copy, Clone, Debug, Serialize, Deserialize, Display, EnumString, ValueEnum, JsonSchema,
+    Copy,
+    Clone,
+    Debug,
+    Eq,
+    PartialEq,
+    Serialize,
+    Deserialize,
+    Display,
+    EnumString,
+    ValueEnum,
+    JsonSchema,
 )]
 #[strum(serialize_all = "snake_case")]
 pub enum ApplicationIdentifier {

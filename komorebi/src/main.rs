@@ -45,6 +45,9 @@ use winreg::enums::HKEY_CURRENT_USER;
 use winreg::RegKey;
 
 use crate::hidden::Hidden;
+use komorebi_core::config_generation::IdWithIdentifier;
+use komorebi_core::config_generation::MatchingStrategy;
+use komorebi_core::ApplicationIdentifier;
 use komorebi_core::HidingBehaviour;
 use komorebi_core::Rect;
 use komorebi_core::SocketMessage;
@@ -106,11 +109,19 @@ lazy_static! {
     static ref WORKSPACE_RULES: Arc<Mutex<HashMap<String, WorkspaceRule>>> =
         Arc::new(Mutex::new(HashMap::new()));
     static ref MANAGE_IDENTIFIERS: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(vec![]));
-    static ref FLOAT_IDENTIFIERS: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(vec![
+    static ref FLOAT_IDENTIFIERS: Arc<Mutex<Vec<IdWithIdentifier>>> = Arc::new(Mutex::new(vec![
         // mstsc.exe creates these on Windows 11 when a WSL process is launched
         // https://github.com/LGUG2Z/komorebi/issues/74
-        "OPContainerClass".to_string(),
-        "IHWindowClass".to_string()
+        IdWithIdentifier {
+            kind: ApplicationIdentifier::Class,
+            id: String::from("OPContainerClass"),
+            matching_strategy: Option::from(MatchingStrategy::Equals),
+        },
+        IdWithIdentifier {
+            kind: ApplicationIdentifier::Class,
+            id: String::from("IHWindowClass"),
+            matching_strategy: Option::from(MatchingStrategy::Equals),
+        }
     ]));
     static ref PERMAIGNORE_CLASSES: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(vec![
         "Chrome_RenderWidgetHostHWND".to_string(),

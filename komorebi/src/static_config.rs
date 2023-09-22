@@ -34,6 +34,7 @@ use hotwatch::Hotwatch;
 use komorebi_core::config_generation::ApplicationConfigurationGenerator;
 use komorebi_core::config_generation::ApplicationOptions;
 use komorebi_core::config_generation::IdWithIdentifier;
+use komorebi_core::config_generation::MatchingStrategy;
 use komorebi_core::ApplicationIdentifier;
 use komorebi_core::DefaultLayout;
 use komorebi_core::FocusFollowsMouseImplementation;
@@ -139,6 +140,7 @@ impl From<&Workspace> for WorkspaceConfig {
                 let rule = IdWithIdentifier {
                     kind: ApplicationIdentifier::Exe,
                     id: identifier.clone(),
+                    matching_strategy: None,
                 };
 
                 if *is_initial {
@@ -433,7 +435,7 @@ impl From<&WindowManager> for StaticConfig {
 
 impl StaticConfig {
     #[allow(clippy::cognitive_complexity, clippy::too_many_lines)]
-    fn apply_globals(&self) -> Result<()> {
+    fn apply_globals(&mut self) -> Result<()> {
         if let Some(monitor_index_preferences) = &self.monitor_index_preferences {
             let mut preferences = MONITOR_INDEX_PREFERENCES.lock();
             *preferences = monitor_index_preferences.clone();
@@ -508,10 +510,14 @@ impl StaticConfig {
         let mut object_name_change_identifiers = OBJECT_NAME_CHANGE_ON_LAUNCH.lock();
         let mut layered_identifiers = LAYERED_WHITELIST.lock();
 
-        if let Some(float) = &self.float_rules {
+        if let Some(float) = &mut self.float_rules {
             for identifier in float {
-                if !float_identifiers.contains(&identifier.id) {
-                    float_identifiers.push(identifier.id.clone());
+                if identifier.matching_strategy.is_none() {
+                    identifier.matching_strategy = Option::from(MatchingStrategy::Legacy);
+                }
+
+                if !float_identifiers.contains(identifier) {
+                    float_identifiers.push(identifier.clone());
                 }
             }
         }
@@ -569,8 +575,14 @@ impl StaticConfig {
             for entry in asc {
                 if let Some(float) = entry.float_identifiers {
                     for f in float {
-                        if !float_identifiers.contains(&f.id) {
-                            float_identifiers.push(f.id.clone());
+                        let mut without_comment: IdWithIdentifier = f.into();
+                        if without_comment.matching_strategy.is_none() {
+                            without_comment.matching_strategy =
+                                Option::from(MatchingStrategy::Legacy);
+                        }
+
+                        if !float_identifiers.contains(&without_comment) {
+                            float_identifiers.push(without_comment.clone());
                         }
                     }
                 }
@@ -620,7 +632,7 @@ impl StaticConfig {
         incoming: Arc<Mutex<Receiver<WindowManagerEvent>>>,
     ) -> Result<WindowManager> {
         let content = std::fs::read_to_string(path)?;
-        let value: Self = serde_json::from_str(&content)?;
+        let mut value: Self = serde_json::from_str(&content)?;
         value.apply_globals()?;
 
         let socket = DATA_DIR.join("komorebi.sock");
@@ -740,7 +752,7 @@ impl StaticConfig {
 
     pub fn reload(path: &PathBuf, wm: &mut WindowManager) -> Result<()> {
         let content = std::fs::read_to_string(path)?;
-        let value: Self = serde_json::from_str(&content)?;
+        let mut value: Self = serde_json::from_str(&content)?;
 
         value.apply_globals()?;
 

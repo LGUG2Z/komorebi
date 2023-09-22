@@ -7,6 +7,7 @@ use std::sync::atomic::Ordering;
 
 use color_eyre::eyre::anyhow;
 use color_eyre::Result;
+use komorebi_core::config_generation::MatchingStrategy;
 use schemars::JsonSchema;
 use serde::ser::Error;
 use serde::ser::SerializeStruct;
@@ -17,6 +18,7 @@ use winput::press;
 use winput::release;
 use winput::Vk;
 
+use komorebi_core::ApplicationIdentifier;
 use komorebi_core::HidingBehaviour;
 use komorebi_core::Rect;
 
@@ -474,16 +476,45 @@ fn window_is_eligible(
     {
         let float_identifiers = FLOAT_IDENTIFIERS.lock();
         for identifier in float_identifiers.iter() {
-            if title.starts_with(identifier) || title.ends_with(identifier) {
-                should_float = true;
-            }
-
-            if class.starts_with(identifier) || class.ends_with(identifier) {
-                should_float = true;
-            }
-
-            if identifier == exe_name {
-                should_float = true;
+            match identifier.matching_strategy {
+                None => {
+                    panic!("there is no matching strategy identified for this rule");
+                }
+                Some(MatchingStrategy::Equals) => match identifier.kind {
+                    ApplicationIdentifier::Title => {
+                        if title.eq(&identifier.id) {
+                            should_float = true;
+                        }
+                    }
+                    ApplicationIdentifier::Class => {
+                        if class.eq(&identifier.id) {
+                            should_float = true;
+                        }
+                    }
+                    ApplicationIdentifier::Exe => {
+                        if exe_name.eq(&identifier.id) {
+                            should_float = true;
+                        }
+                    }
+                },
+                Some(MatchingStrategy::Legacy) => match identifier.kind {
+                    ApplicationIdentifier::Title => {
+                        if title.starts_with(&identifier.id) || title.ends_with(&identifier.id) {
+                            should_float = true;
+                        }
+                    }
+                    ApplicationIdentifier::Class => {
+                        if class.starts_with(&identifier.id) || class.ends_with(&identifier.id) {
+                            should_float = true;
+                        }
+                    }
+                    ApplicationIdentifier::Exe => {
+                        if exe_name.eq(&identifier.id) {
+                            should_float = true;
+                        }
+                    }
+                },
+                _ => unimplemented!(),
             }
         }
     };

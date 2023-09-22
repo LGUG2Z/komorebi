@@ -17,6 +17,7 @@ use schemars::JsonSchema;
 use serde::Serialize;
 use uds_windows::UnixListener;
 
+use komorebi_core::config_generation::IdWithIdentifier;
 use komorebi_core::custom_layout::CustomLayout;
 use komorebi_core::Arrangement;
 use komorebi_core::Axis;
@@ -93,7 +94,7 @@ pub struct State {
     pub mouse_follows_focus: bool,
     pub has_pending_raise_op: bool,
     pub remove_titlebars: bool,
-    pub float_identifiers: Vec<String>,
+    pub float_identifiers: Vec<IdWithIdentifier>,
     pub manage_identifiers: Vec<String>,
     pub layered_whitelist: Vec<String>,
     pub tray_and_multi_window_identifiers: Vec<String>,
