@@ -33,7 +33,7 @@ impl DefaultLayout {
         sizing: Sizing,
         delta: i32,
     ) -> Option<Rect> {
-        if !matches!(self, Self::BSP) {
+        if !matches!(self, Self::BSP) && !matches!(self, Self::UltrawideVerticalStack) {
             return None;
         };
 
