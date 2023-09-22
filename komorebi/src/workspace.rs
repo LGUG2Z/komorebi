@@ -775,6 +775,13 @@ impl Workspace {
     }
 
     fn enforce_resize_constraints(&mut self) {
+        match self.layout {
+            Layout::Default(DefaultLayout::BSP) => self.enforce_resize_constraints_for_bsp(),
+            _ => self.enforce_no_resize(),
+        }
+    }
+
+    fn enforce_resize_constraints_for_bsp(&mut self) {
         for (i, rect) in self.resize_dimensions_mut().iter_mut().enumerate() {
             if let Some(rect) = rect {
                 // Even containers can't be resized to the bottom
@@ -797,6 +804,17 @@ impl Workspace {
         if let Some(Some(last)) = self.resize_dimensions_mut().last_mut() {
             last.bottom = 0;
             last.right = 0;
+        }
+    }
+
+    fn enforce_no_resize(&mut self) {
+        for rect in self.resize_dimensions_mut().iter_mut() {
+            if let Some(rect) = rect {
+                rect.left = 0;
+                rect.right = 0;
+                rect.top = 0;
+                rect.bottom = 0;
+            }
         }
     }
 
