@@ -130,85 +130,7 @@ impl Arrangement for DefaultLayout {
 
                 layouts
             }
-            Self::UltrawideVerticalStack => {
-                let mut layouts: Vec<Rect> = vec![];
-
-                let primary_right = match len {
-                    1 => area.right,
-                    _ => area.right / 2,
-                };
-
-                let secondary_right = match len {
-                    1 => 0,
-                    2 => area.right - primary_right,
-                    _ => (area.right - primary_right) / 2,
-                };
-
-                let (primary_left, secondary_left, stack_left) = match len {
-                    1 => (area.left, 0, 0),
-                    2 => {
-                        let mut primary = area.left + secondary_right;
-                        let mut secondary = area.left;
-
-                        match layout_flip {
-                            Some(Axis::Horizontal | Axis::HorizontalAndVertical) if len > 1 => {
-                                primary = area.left;
-                                secondary = area.left + primary_right;
-                            }
-                            _ => {}
-                        }
-
-                        (primary, secondary, 0)
-                    }
-                    _ => {
-                        let primary = area.left + secondary_right;
-                        let mut secondary = area.left;
-                        let mut stack = area.left + primary_right + secondary_right;
-
-                        match layout_flip {
-                            Some(Axis::Horizontal | Axis::HorizontalAndVertical) if len > 1 => {
-                                secondary = area.left + primary_right + secondary_right;
-                                stack = area.left;
-                            }
-                            _ => {}
-                        }
-
-                        (primary, secondary, stack)
-                    }
-                };
-
-                if len >= 1 {
-                    layouts.push(Rect {
-                        left: primary_left,
-                        top: area.top,
-                        right: primary_right,
-                        bottom: area.bottom,
-                    });
-
-                    if len >= 2 {
-                        layouts.push(Rect {
-                            left: secondary_left,
-                            top: area.top,
-                            right: secondary_right,
-                            bottom: area.bottom,
-                        });
-
-                        if len > 2 {
-                            layouts.append(&mut rows(
-                                &Rect {
-                                    left: stack_left,
-                                    top: area.top,
-                                    right: secondary_right,
-                                    bottom: area.bottom,
-                                },
-                                len - 2,
-                            ));
-                        }
-                    }
-                }
-
-                layouts
-            }
+            Self::UltrawideVerticalStack => ultrawide(area, len, layout_flip, resize_dimensions),
         };
 
         dimensions
@@ -585,4 +507,176 @@ fn recursive_fibonacci(
         ));
         res
     }
+}
+
+fn calculate_ultrawide_adjustment(resize_dimensions: &[Option<Rect>]) -> Vec<Rect> {
+    let len = resize_dimensions.len();
+    let mut result = vec![Rect::default(); len];
+    match len {
+        // One container can't be resized
+        0 | 1 => (),
+        2 => {
+            // With two containers on screen container 0 is on the right
+            if let Some(resize_primary) = resize_dimensions[0] {
+                result[0].left += resize_primary.left / 2;
+                result[0].right += -resize_primary.left / 2;
+                result[1].right += resize_primary.left / 2;
+            }
+
+            if let Some(resize_secondary) = resize_dimensions[1] {
+                result[0].left += resize_secondary.right / 2;
+                result[0].right += -resize_secondary.right / 2;
+                result[1].right += resize_secondary.right / 2;
+            }
+        }
+        _ => {
+            // With three or more containers container 0 is in the center
+            if let Some(resize_primary) = resize_dimensions[0] {
+                result[0].left += resize_primary.left / 2;
+                result[0].right += -resize_primary.left / 2;
+                result[0].right += resize_primary.right / 2;
+
+                result[1].right += resize_primary.left / 2;
+
+                result[2..]
+                    .iter_mut()
+                    .for_each(|vertical_element| {
+                        vertical_element.left += resize_primary.right / 2;
+                        vertical_element.right += -resize_primary.right / 2;
+                    });
+            }
+
+            // Container 1 is on the left
+            if let Some(resize_secondary) = resize_dimensions[1] {
+                result[0].left += resize_secondary.right / 2;
+                result[0].right += -resize_secondary.right / 2;
+                result[1].right += resize_secondary.right / 2;
+            }
+
+            // Handle stack on the right
+            for (i, rect) in resize_dimensions[2..].iter().enumerate() {
+                if let Some(rect) = rect {
+                    result[0].right += rect.left / 2;
+                    result[2..]
+                        .iter_mut()
+                        .for_each(|vertical_element| {
+                            vertical_element.left += rect.left / 2;
+                            vertical_element.right += -rect.left / 2;
+                        });
+
+
+                    // Containers in stack except first can be resized up displacing container
+                    // above them
+                    if i != 0 {
+                        result[2..][i - 1].bottom += rect.top / 2;
+                        result[2..][i].top += rect.top / 2;
+                        result[2..][i].bottom += -rect.top / 2;
+                    }
+
+                    // Containers in stack except last can be resized down displacing container
+                    // below them
+                    if i != result[2..].len() - 1 {
+                        result[2..][i].bottom += rect.bottom / 2;
+                        result[2..][i + 1].top += rect.bottom / 2;
+                        result[2..][i + 1].bottom += -rect.bottom / 2;
+                    }
+                }
+            }
+        }
+    };
+
+    result
+}
+
+fn ultrawide(
+    area: &Rect,
+    len: usize,
+    layout_flip: Option<Axis>,
+    resize_dimensions: &[Option<Rect>],
+) -> Vec<Rect> {
+    let mut layouts: Vec<Rect> = vec![];
+
+    let primary_right = match len {
+        1 => area.right,
+        _ => area.right / 2,
+    };
+
+    let secondary_right = match len {
+        1 => 0,
+        2 => area.right - primary_right,
+        _ => (area.right - primary_right) / 2,
+    };
+
+    let (primary_left, secondary_left, stack_left) = match len {
+        1 => (area.left, 0, 0),
+        2 => {
+            let mut primary = area.left + secondary_right;
+            let mut secondary = area.left;
+
+            match layout_flip {
+                Some(Axis::Horizontal | Axis::HorizontalAndVertical) if len > 1 => {
+                    primary = area.left;
+                    secondary = area.left + primary_right;
+                }
+                _ => {}
+            }
+
+            (primary, secondary, 0)
+        }
+        _ => {
+            let primary = area.left + secondary_right;
+            let mut secondary = area.left;
+            let mut stack = area.left + primary_right + secondary_right;
+
+            match layout_flip {
+                Some(Axis::Horizontal | Axis::HorizontalAndVertical) if len > 1 => {
+                    secondary = area.left + primary_right + secondary_right;
+                    stack = area.left;
+                }
+                _ => {}
+            }
+
+            (primary, secondary, stack)
+        }
+    };
+
+    if len >= 1 {
+        layouts.push(Rect {
+            left: primary_left,
+            top: area.top,
+            right: primary_right,
+            bottom: area.bottom,
+        });
+
+        if len >= 2 {
+            layouts.push(Rect {
+                left: secondary_left,
+                top: area.top,
+                right: secondary_right,
+                bottom: area.bottom,
+            });
+
+            if len > 2 {
+                layouts.append(&mut rows(
+                    &Rect {
+                        left: stack_left,
+                        top: area.top,
+                        right: secondary_right,
+                        bottom: area.bottom,
+                    },
+                    len - 2,
+                ));
+            }
+        }
+    }
+
+    let adjustment = calculate_ultrawide_adjustment(resize_dimensions);
+    layouts.iter_mut().zip(adjustment.iter()).for_each(|(layout, adjustment)| {
+        layout.top += adjustment.top;
+        layout.bottom += adjustment.bottom;
+        layout.left += adjustment.left;
+        layout.right += adjustment.right;
+    });
+
+    layouts
 }
