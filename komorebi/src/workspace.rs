@@ -778,7 +778,7 @@ impl Workspace {
         match self.layout {
             Layout::Default(DefaultLayout::BSP) => self.enforce_resize_constraints_for_bsp(),
             Layout::Default(DefaultLayout::UltrawideVerticalStack) => {
-                self.enforce_resize_for_ultrawide()
+                self.enforce_resize_for_ultrawide();
             }
             _ => self.enforce_no_resize(),
         }
@@ -811,7 +811,7 @@ impl Workspace {
     }
 
     fn enforce_resize_for_ultrawide(&mut self) {
-        let mut resize_dimensions = self.resize_dimensions_mut();
+        let resize_dimensions = self.resize_dimensions_mut();
         match resize_dimensions.len() {
             // Single window can not be resized at all
             0 | 1 => self.enforce_no_resize(),
@@ -868,13 +868,11 @@ impl Workspace {
     }
 
     fn enforce_no_resize(&mut self) {
-        for rect in self.resize_dimensions_mut().iter_mut() {
-            if let Some(rect) = rect {
-                rect.left = 0;
-                rect.right = 0;
-                rect.top = 0;
-                rect.bottom = 0;
-            }
+        for rect in self.resize_dimensions_mut().iter_mut().flatten() {
+            rect.left = 0;
+            rect.right = 0;
+            rect.top = 0;
+            rect.bottom = 0;
         }
     }
 

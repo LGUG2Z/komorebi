@@ -516,69 +516,63 @@ fn calculate_ultrawide_adjustment(resize_dimensions: &[Option<Rect>]) -> Vec<Rec
         // One container can't be resized
         0 | 1 => (),
         2 => {
+            let (primary, secondary) = result.split_at_mut(1);
+            let primary = &mut primary[0];
+            let secondary = &mut secondary[0];
             // With two containers on screen container 0 is on the right
             if let Some(resize_primary) = resize_dimensions[0] {
-                result[0].left += resize_primary.left / 2;
-                result[0].right += -resize_primary.left / 2;
-                result[1].right += resize_primary.left / 2;
+                resize_left(primary, resize_primary.left);
+                resize_right(secondary, resize_primary.left);
             }
 
             if let Some(resize_secondary) = resize_dimensions[1] {
-                result[0].left += resize_secondary.right / 2;
-                result[0].right += -resize_secondary.right / 2;
-                result[1].right += resize_secondary.right / 2;
+                resize_left(primary, resize_secondary.right);
+                resize_right(secondary, resize_secondary.right);
             }
         }
         _ => {
+            let (primary, rest) = result.split_at_mut(1);
+            let (secondary, tertiary) = rest.split_at_mut(1);
+            let primary = &mut primary[0];
+            let secondary = &mut secondary[0];
             // With three or more containers container 0 is in the center
             if let Some(resize_primary) = resize_dimensions[0] {
-                result[0].left += resize_primary.left / 2;
-                result[0].right += -resize_primary.left / 2;
-                result[0].right += resize_primary.right / 2;
+                resize_left(primary, resize_primary.left);
+                resize_right(primary, resize_primary.right);
 
-                result[1].right += resize_primary.left / 2;
+                resize_right(secondary, resize_primary.left);
 
-                result[2..]
-                    .iter_mut()
-                    .for_each(|vertical_element| {
-                        vertical_element.left += resize_primary.right / 2;
-                        vertical_element.right += -resize_primary.right / 2;
-                    });
+                for vertical_element in &mut *tertiary {
+                    resize_left(vertical_element, resize_primary.right);
+                }
             }
 
             // Container 1 is on the left
             if let Some(resize_secondary) = resize_dimensions[1] {
-                result[0].left += resize_secondary.right / 2;
-                result[0].right += -resize_secondary.right / 2;
-                result[1].right += resize_secondary.right / 2;
+                resize_left(primary, resize_secondary.right);
+                resize_right(secondary, resize_secondary.right);
             }
 
             // Handle stack on the right
             for (i, rect) in resize_dimensions[2..].iter().enumerate() {
                 if let Some(rect) = rect {
-                    result[0].right += rect.left / 2;
-                    result[2..]
+                    resize_right(primary, rect.left);
+                    tertiary
                         .iter_mut()
-                        .for_each(|vertical_element| {
-                            vertical_element.left += rect.left / 2;
-                            vertical_element.right += -rect.left / 2;
-                        });
-
+                        .for_each(|vertical_element| resize_left(vertical_element, rect.left));
 
                     // Containers in stack except first can be resized up displacing container
                     // above them
                     if i != 0 {
-                        result[2..][i - 1].bottom += rect.top / 2;
-                        result[2..][i].top += rect.top / 2;
-                        result[2..][i].bottom += -rect.top / 2;
+                        resize_bottom(&mut tertiary[i - 1], rect.top);
+                        resize_top(&mut tertiary[i], rect.top);
                     }
 
                     // Containers in stack except last can be resized down displacing container
                     // below them
-                    if i != result[2..].len() - 1 {
-                        result[2..][i].bottom += rect.bottom / 2;
-                        result[2..][i + 1].top += rect.bottom / 2;
-                        result[2..][i + 1].bottom += -rect.bottom / 2;
+                    if i != tertiary.len() - 1 {
+                        resize_bottom(&mut tertiary[i], rect.bottom);
+                        resize_top(&mut tertiary[i + 1], rect.bottom);
                     }
                 }
             }
@@ -586,6 +580,24 @@ fn calculate_ultrawide_adjustment(resize_dimensions: &[Option<Rect>]) -> Vec<Rec
     };
 
     result
+}
+
+fn resize_left(rect: &mut Rect, resize: i32) {
+    rect.left += resize / 2;
+    rect.right += -resize / 2;
+}
+
+fn resize_right(rect: &mut Rect, resize: i32) {
+    rect.right += resize / 2;
+}
+
+fn resize_top(rect: &mut Rect, resize: i32) {
+    rect.top += resize / 2;
+    rect.bottom += -resize / 2;
+}
+
+fn resize_bottom(rect: &mut Rect, resize: i32) {
+    rect.bottom += resize / 2;
 }
 
 fn ultrawide(
@@ -671,12 +683,15 @@ fn ultrawide(
     }
 
     let adjustment = calculate_ultrawide_adjustment(resize_dimensions);
-    layouts.iter_mut().zip(adjustment.iter()).for_each(|(layout, adjustment)| {
-        layout.top += adjustment.top;
-        layout.bottom += adjustment.bottom;
-        layout.left += adjustment.left;
-        layout.right += adjustment.right;
-    });
+    layouts
+        .iter_mut()
+        .zip(adjustment.iter())
+        .for_each(|(layout, adjustment)| {
+            layout.top += adjustment.top;
+            layout.bottom += adjustment.bottom;
+            layout.left += adjustment.left;
+            layout.right += adjustment.right;
+        });
 
     layouts
 }
