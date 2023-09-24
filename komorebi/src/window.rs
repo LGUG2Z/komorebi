@@ -5,6 +5,8 @@ use std::fmt::Display;
 use std::fmt::Formatter;
 use std::fmt::Write as _;
 use std::sync::atomic::Ordering;
+use std::thread;
+use std::time::Duration;
 
 use color_eyre::eyre::anyhow;
 use color_eyre::Result;
@@ -25,6 +27,7 @@ use komorebi_core::ApplicationIdentifier;
 use komorebi_core::HidingBehaviour;
 use komorebi_core::Rect;
 
+use crate::animation::Animation;
 use crate::styles::ExtendedWindowStyle;
 use crate::styles::WindowStyle;
 use crate::window_manager_event::WindowManagerEvent;
@@ -122,6 +125,22 @@ impl Window {
             true,
         )
     }
+    pub fn animate_position(hwnd: HWND, layout: &Rect, top: bool) -> Result<()> {
+        let duration = Duration::from_millis(200);
+        let curr_rect = WindowsApi::window_rect(hwnd).unwrap();
+
+        if assert_eq!(curr_rect, *layout) {
+            WindowsApi::position_window(hwnd, layout, top);
+        }
+
+        let animate_window = |progress: f64| {
+            let new_rect = Animation::lerp_rect(&curr_rect, layout, progress);
+            WindowsApi::position_window(hwnd, &new_rect, top);
+        };
+
+        Animation::animate(duration, animate_window);
+        Ok(())
+    }
 
     pub fn set_position(
         &mut self,
@@ -154,7 +173,14 @@ impl Window {
             rect.bottom += invisible_borders.bottom;
         }
 
-        WindowsApi::position_window(self.hwnd(), &rect, top)
+        let hwnd = self.hwnd();
+
+        thread::spawn(move || {
+            Window::animate_position(hwnd, &rect, top).unwrap();
+        });
+        Ok(())
+
+        // WindowsApi::position_window(self.hwnd(), &rect, top)
     }
 
     pub fn hide(self) {

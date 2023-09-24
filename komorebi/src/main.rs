@@ -65,6 +65,7 @@ use crate::windows_api::WindowsApi;
 #[macro_use]
 mod ring;
 
+mod animation;
 mod border;
 mod com;
 mod container;
