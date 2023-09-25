@@ -307,7 +307,7 @@ There are four configuration options that you may need to set yourself, if you m
 
 If you want to fire up Komorebi with your static configuration file, open PowerShell and paste the following :
 
-```
+```powershell
 Invoke-WebRequest -Uri "https://github.com/LGUG2Z/komorebi/raw/main/StartKomorebi.exe" -OutFile "C:\ProgramData\Microsoft\Windows\Start Menu\Programs\Startup\StartKomorebi.exe"
 ```
 
