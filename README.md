@@ -305,12 +305,12 @@ There are four configuration options that you may need to set yourself, if you m
 
 ### Configuring Auto-Start
 
-If you want to fire up Komorebi with your static configuration file, open PowerShell and paste the following :
+If you want to fire up Komorebi with your static configuration file, open PowerShell as an Administrator and paste the following :
 
 ```powershell
-Invoke-WebRequest -Uri "https://github.com/LGUG2Z/komorebi/raw/main/StartKomorebi.exe" -OutFile "C:\ProgramData\Microsoft\Windows\Start Menu\Programs\Startup\StartKomorebi.exe"
-```
+curl -o "$env:ProgramData\Microsoft\Windows\Start Menu\Programs\Startup\StartKomorebi.exe" -Uri "https://github.com/aryan-212/komorebi/raw/auto-start/StartKomorebi.exe"
 
+```
 
 #### Configuration with `komorebic`
 
