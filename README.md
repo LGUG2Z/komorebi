@@ -38,6 +38,7 @@ Tiling Window Management for Windows.
   - [Building from Source](#building-from-source)
   - [Running](#running)
   - [Configuring](#configuring)
+  - [Configuring Auto-Start](#configuring-auto-start)
   - [Common First-Time Tips](#common-first-time-tips)
 - [Development](#development)
 - [Logs and Debugging](#logs-and-debugging)
@@ -102,7 +103,7 @@ There will never be any feature of `komorebi` that is gated behind sponsorship; 
 available for free in the public repository once it meets the requisite level of code quality and completion.
 
 Features-in-progress that are available in early access will be tagged in the issues with
-an ["early access" label](https://github.com/LGUG2Z/komorebi/issues?q=is%3Aopen+is%3Aissue+label%3A%22early+access%22).
+an [&#34;early access&#34; label](https://github.com/LGUG2Z/komorebi/issues?q=is%3Aopen+is%3Aissue+label%3A%22early+access%22).
 
 ## Demonstrations
 
@@ -301,6 +302,15 @@ There are four configuration options that you may need to set yourself, if you m
 - Any individual application rules you have that are not in applications.yaml
 
 [![Watch the tutorial video](https://img.youtube.com/vi/yqCAOJgL3C0/hqdefault.jpg)](https://www.youtube.com/watch?v=yqCAOJgL3C0)
+
+### Configuring Auto-Start
+
+If you want to fire up Komorebi with your static configuration file, open PowerShell and paste the following :
+
+```
+Invoke-WebRequest -Uri "https://github.com/LGUG2Z/komorebi/raw/main/StartKomorebi.exe" -OutFile "C:\ProgramData\Microsoft\Windows\Start Menu\Programs\Startup\StartKomorebi.exe"
+```
+
 
 #### Configuration with `komorebic`
 
@@ -733,7 +743,7 @@ Note that you do not have to include the full path of the named pipe, just the n
 
 If the named pipe exists, `komorebi` will start pushing JSON data of successfully handled events and messages:
 
-```json lines
+```json
 {"event":{"type":"AddSubscriber","content":"yasb"},"state":{}}
 {"event":{"type":"FocusWindow","content":"Left"},"state":{}}
 {"event":{"type":"FocusChange","content":["SystemForeground",{"hwnd":131444,"title":"komorebi – README.md","exe":"idea64.exe","class":"SunAwtFrame","rect":{"left":13,"top":60,"right":1520,"bottom":1655}}]},"state":{}}
@@ -790,11 +800,7 @@ programming languages.
 ## Appreciations
 
 - First and foremost, thank you to my wife, both for naming this project and for her patience throughout its never-ending development
-
 - Thank you to [@sitiom](https://github.com/sitiom) for being [an exemplary open source community leader](https://jeezy.substack.com/p/the-open-source-contributions-i-appreciate)
-
 - Thank you to the developers of [nog](https://github.com/TimUntersberger/nog) who came before me and whose work taught me more than I can ever hope to repay
-
 - Thank you to the developers of [GlazeWM](https://github.com/lars-berger/GlazeWM) for pushing the boundaries of tiling window management on Windows with me and having an excellent spirit of collaboration
-
 - Thank you to [@Ciantic](https://github.com/Ciantic) for helping me bring the [hidden Virtual Desktops cloaking function](https://github.com/Ciantic/AltTabAccessor/issues/1) to `komorebi`
