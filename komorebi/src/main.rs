@@ -16,6 +16,7 @@ use std::sync::atomic::AtomicBool;
 use std::sync::atomic::AtomicI32;
 use std::sync::atomic::AtomicIsize;
 use std::sync::atomic::AtomicU32;
+use std::sync::atomic::AtomicU64;
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
 #[cfg(feature = "deadlock_detection")]
@@ -26,6 +27,7 @@ use color_eyre::Result;
 use crossbeam_channel::Receiver;
 use crossbeam_channel::Sender;
 use crossbeam_utils::Backoff;
+use komorebi_core::EaseEnum;
 use lazy_static::lazy_static;
 use os_info::Version;
 #[cfg(feature = "deadlock_detection")]
@@ -215,6 +217,8 @@ lazy_static! {
     static ref BORDER_OFFSET: Arc<Mutex<Option<Rect>>> =
         Arc::new(Mutex::new(None));
 
+    static ref ANIMATE_EASE: Arc<Mutex<EaseEnum>> = Arc::new(Mutex::new(EaseEnum::EaseInOutExpo));
+
     // Use app-specific titlebar removal options where possible
     // eg. Windows Terminal, IntelliJ IDEA, Firefox
     static ref NO_TITLEBAR: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(vec![]));
@@ -238,6 +242,8 @@ pub static BORDER_WIDTH: AtomicI32 = AtomicI32::new(20);
 // 0 0 0 aka pure black, I doubt anyone will want this as a border colour
 pub const TRANSPARENCY_COLOUR: u32 = 0;
 pub static REMOVE_TITLEBARS: AtomicBool = AtomicBool::new(false);
+pub static ANIMATE_ENABLED: AtomicBool = AtomicBool::new(true);
+pub static ANIMATE_DURATION: AtomicU64 = AtomicU64::new(250);
 
 pub static HIDDEN_HWND: AtomicIsize = AtomicIsize::new(0);
 

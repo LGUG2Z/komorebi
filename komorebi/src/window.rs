@@ -1,11 +1,12 @@
 use crate::com::SetCloak;
+use crate::ANIMATE_DURATION;
+use crate::ANIMATE_ENABLED;
 use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::fmt::Display;
 use std::fmt::Formatter;
 use std::fmt::Write as _;
 use std::sync::atomic::Ordering;
-use std::thread;
 use std::time::Duration;
 
 use color_eyre::eyre::anyhow;
@@ -47,6 +48,7 @@ use crate::WSL2_UI_PROCESSES;
 #[derive(Debug, Clone, Copy, JsonSchema)]
 pub struct Window {
     pub(crate) hwnd: isize,
+    animation: Animation,
 }
 
 impl Display for Window {
@@ -106,6 +108,14 @@ impl Serialize for Window {
 }
 
 impl Window {
+    // for instantiation of animation struct
+    pub fn new(hwnd: isize) -> Self {
+        Window {
+            hwnd,
+            animation: Animation::default(),
+        }
+    }
+
     pub const fn hwnd(self) -> HWND {
         HWND(self.hwnd)
     }
@@ -125,21 +135,37 @@ impl Window {
             true,
         )
     }
-    pub fn animate_position(hwnd: HWND, layout: &Rect, top: bool) -> Result<()> {
-        let duration = Duration::from_millis(200);
+    pub fn animate_position(&mut self, layout: &Rect, top: bool) -> Result<()> {
+        let hwnd = self.hwnd();
         let curr_rect = WindowsApi::window_rect(hwnd).unwrap();
 
-        if assert_eq!(curr_rect, *layout) {
-            WindowsApi::position_window(hwnd, layout, top);
+        if curr_rect.left == layout.left
+            && curr_rect.top == layout.top
+            && curr_rect.bottom == layout.bottom
+            && curr_rect.right == layout.right
+        {
+            WindowsApi::position_window(hwnd, layout, top)
+        } else {
+            let target_rect = *layout;
+            let duration = Duration::from_millis(ANIMATE_DURATION.load(Ordering::SeqCst));
+            let mut animation = self.animation;
+            std::thread::spawn(move || {
+                animation
+                    .animate(duration, |progress: f64| {
+                        let new_rect = Animation::lerp_rect(&curr_rect, &target_rect, progress);
+                        if progress < 1.0 {
+                            // using MoveWindow because it runs faster than SetWindowPos
+                            // so animation have more fps and feel smoother
+                            WindowsApi::move_window(hwnd, &new_rect, true)
+                        } else {
+                            WindowsApi::position_window(hwnd, &new_rect, top)
+                        }
+                    })
+                    .unwrap();
+            });
+
+            Ok(())
         }
-
-        let animate_window = |progress: f64| {
-            let new_rect = Animation::lerp_rect(&curr_rect, layout, progress);
-            WindowsApi::position_window(hwnd, &new_rect, top);
-        };
-
-        Animation::animate(duration, animate_window);
-        Ok(())
     }
 
     pub fn set_position(
@@ -173,14 +199,17 @@ impl Window {
             rect.bottom += invisible_borders.bottom;
         }
 
-        let hwnd = self.hwnd();
+        if ANIMATE_ENABLED.load(Ordering::SeqCst) {
+            // check if animation is in progress
+            if self.animation.in_progress {
+                // wait for cancle animation
+                self.animation.cancel().unwrap();
+            }
 
-        thread::spawn(move || {
-            Window::animate_position(hwnd, &rect, top).unwrap();
-        });
-        Ok(())
-
-        // WindowsApi::position_window(self.hwnd(), &rect, top)
+            self.animate_position(&rect, top)
+        } else {
+            WindowsApi::position_window(self.hwnd(), &rect, top)
+        }
     }
 
     pub fn hide(self) {

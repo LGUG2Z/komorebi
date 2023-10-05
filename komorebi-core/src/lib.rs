@@ -14,6 +14,7 @@ use serde::Serialize;
 use strum::Display;
 use strum::EnumString;
 
+pub use animation::EaseEnum;
 pub use arrangement::Arrangement;
 pub use arrangement::Axis;
 pub use custom_layout::CustomLayout;
@@ -24,6 +25,7 @@ pub use layout::Layout;
 pub use operation_direction::OperationDirection;
 pub use rect::Rect;
 
+pub mod animation;
 pub mod arrangement;
 pub mod config_generation;
 pub mod custom_layout;
@@ -127,6 +129,9 @@ pub enum SocketMessage {
     WatchConfiguration(bool),
     CompleteConfiguration,
     AltFocusHack(bool),
+    Animate(bool),
+    AnimateDuration(u64),
+    AnimateEase(EaseEnum),
     ActiveWindowBorder(bool),
     ActiveWindowBorderColour(WindowKind, u32, u32, u32),
     ActiveWindowBorderWidth(i32),

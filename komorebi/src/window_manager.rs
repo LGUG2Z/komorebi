@@ -217,7 +217,7 @@ impl WindowManager {
     #[tracing::instrument(skip(self))]
     pub fn show_border(&self) -> Result<()> {
         let foreground = WindowsApi::foreground_window()?;
-        let foreground_window = Window { hwnd: foreground };
+        let foreground_window = Window::new(foreground);
         let mut rect = WindowsApi::window_rect(foreground_window.hwnd())?;
         rect.top -= self.invisible_borders.bottom;
         rect.bottom += self.invisible_borders.bottom;
@@ -589,7 +589,7 @@ impl WindowManager {
 
             // Hide the window we are about to remove if it is on the currently focused workspace
             if op.is_origin(focused_monitor_idx, focused_workspace_idx) {
-                Window { hwnd: op.hwnd }.hide();
+                Window::new(op.hwnd).hide();
                 should_update_focused_workspace = true;
             }
 
@@ -619,7 +619,7 @@ impl WindowManager {
                 .get_mut(op.target_workspace_idx)
                 .ok_or_else(|| anyhow!("there is no workspace with that index"))?;
 
-            target_workspace.new_container_for_window(Window { hwnd: op.hwnd });
+            target_workspace.new_container_for_window(Window::new(op.hwnd));
         }
 
         // Only re-tile the focused workspace if we need to
@@ -663,14 +663,14 @@ impl WindowManager {
     #[tracing::instrument(skip(self))]
     pub fn manage_focused_window(&mut self) -> Result<()> {
         let hwnd = WindowsApi::foreground_window()?;
-        let event = WindowManagerEvent::Manage(Window { hwnd });
+        let event = WindowManagerEvent::Manage(Window::new(hwnd));
         Ok(WINEVENT_CALLBACK_CHANNEL.lock().0.send(event)?)
     }
 
     #[tracing::instrument(skip(self))]
     pub fn unmanage_focused_window(&mut self) -> Result<()> {
         let hwnd = WindowsApi::foreground_window()?;
-        let event = WindowManagerEvent::Unmanage(Window { hwnd });
+        let event = WindowManagerEvent::Unmanage(Window::new(hwnd));
         Ok(WINEVENT_CALLBACK_CHANNEL.lock().0.send(event)?)
     }
 
@@ -708,13 +708,14 @@ impl WindowManager {
             ];
 
             if !known_hwnd {
-                let class = Window { hwnd }.class()?;
+                let class = Window::new(hwnd).class()?;
                 // Some applications (Electron/Chromium-based, explorer) have (invisible?) overlays
                 // windows that we need to look beyond to find the actual window to raise
                 if overlay_classes.contains(&class) {
                     for monitor in self.monitors() {
                         for workspace in monitor.workspaces() {
-                            if let Some(exe_hwnd) = workspace.hwnd_from_exe(&Window { hwnd }.exe()?)
+                            if let Some(exe_hwnd) =
+                                workspace.hwnd_from_exe(&Window::new(hwnd).exe()?)
                             {
                                 hwnd = exe_hwnd;
                                 known_hwnd = true;
@@ -725,11 +726,11 @@ impl WindowManager {
             }
 
             if known_hwnd {
-                let event = WindowManagerEvent::Raise(Window { hwnd });
+                let event = WindowManagerEvent::Raise(Window::new(hwnd));
                 self.has_pending_raise_op = true;
                 Ok(WINEVENT_CALLBACK_CHANNEL.lock().0.send(event)?)
             } else {
-                tracing::debug!("not raising unknown window: {}", Window { hwnd });
+                tracing::debug!("not raising unknown window: {}", Window::new(hwnd,));
                 Ok(())
             }
         }
@@ -843,9 +844,7 @@ impl WindowManager {
             } else if let Ok(window) = self.focused_window_mut() {
                 window.focus(self.mouse_follows_focus)?;
             } else {
-                let desktop_window = Window {
-                    hwnd: WindowsApi::desktop_window()?,
-                };
+                let desktop_window = Window::new(WindowsApi::desktop_window()?);
 
                 let rect = self.focused_monitor_size()?;
                 WindowsApi::center_cursor_in_rect(&rect)?;

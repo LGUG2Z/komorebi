@@ -21,6 +21,7 @@ use color_eyre::Result;
 use fs_tail::TailedFile;
 use heck::ToKebabCase;
 use komorebi_core::resolve_home_path;
+use komorebi_core::EaseEnum;
 use lazy_static::lazy_static;
 use paste::paste;
 use sysinfo::SystemExt;
@@ -628,6 +629,25 @@ struct ActiveWindowBorderOffset {
 }
 
 #[derive(Parser, AhkFunction)]
+struct Animate {
+    #[clap(value_enum)]
+    boolean_state: BooleanState,
+}
+
+#[derive(Parser, AhkFunction)]
+struct AnimateDuration {
+    /// Desired animation durations in ms
+    duration: u64,
+}
+
+#[derive(Parser, AhkFunction)]
+struct AnimateEase {
+    /// Desired ease function for animation
+    #[clap(value_enum, short, long, default_value = "linear")]
+    ease_func: EaseEnum,
+}
+
+#[derive(Parser, AhkFunction)]
 #[allow(clippy::struct_excessive_bools)]
 struct Start {
     /// Allow the use of komorebi's custom focus-follows-mouse implementation
@@ -1059,6 +1079,15 @@ enum SubCommand {
     /// Set the offset for the active window border
     #[clap(arg_required_else_help = true)]
     ActiveWindowBorderOffset(ActiveWindowBorderOffset),
+    /// Enable or disable the window move animation
+    #[clap(arg_required_else_help = true)]
+    Animate(Animate),
+    /// Set the duration for the window move animation in ms
+    #[clap(arg_required_else_help = true)]
+    AnimateDuration(AnimateDuration),
+    /// Set the ease function for the window move animation
+    #[clap(arg_required_else_help = true)]
+    AnimateEase(AnimateEase),
     /// Enable or disable focus follows mouse for the operating system
     #[clap(arg_required_else_help = true)]
     FocusFollowsMouse(FocusFollowsMouse),
@@ -1985,6 +2014,15 @@ Stop-Process -Name:whkd -ErrorAction SilentlyContinue
         }
         SubCommand::ActiveWindowBorderOffset(arg) => {
             send_message(&SocketMessage::ActiveWindowBorderOffset(arg.offset).as_bytes()?)?;
+        }
+        SubCommand::Animate(arg) => {
+            send_message(&SocketMessage::Animate(arg.boolean_state.into()).as_bytes()?)?;
+        }
+        SubCommand::AnimateDuration(arg) => {
+            send_message(&SocketMessage::AnimateDuration(arg.duration).as_bytes()?)?;
+        }
+        SubCommand::AnimateEase(arg) => {
+            send_message(&SocketMessage::AnimateEase(arg.ease_func).as_bytes()?)?;
         }
         SubCommand::ResizeDelta(arg) => {
             send_message(&SocketMessage::ResizeDelta(arg.pixels).as_bytes()?)?;

@@ -81,6 +81,7 @@ use windows::Win32::UI::WindowsAndMessaging::GetWindowThreadProcessId;
 use windows::Win32::UI::WindowsAndMessaging::IsIconic;
 use windows::Win32::UI::WindowsAndMessaging::IsWindow;
 use windows::Win32::UI::WindowsAndMessaging::IsWindowVisible;
+use windows::Win32::UI::WindowsAndMessaging::MoveWindow;
 use windows::Win32::UI::WindowsAndMessaging::PostMessageW;
 use windows::Win32::UI::WindowsAndMessaging::RealGetWindowClassW;
 use windows::Win32::UI::WindowsAndMessaging::RegisterClassA;
@@ -349,6 +350,20 @@ impl WindowsApi {
                 layout.right,
                 layout.bottom,
                 SET_WINDOW_POS_FLAGS(flags),
+            )
+        }
+        .process()
+    }
+
+    pub fn move_window(hwnd: HWND, layout: &Rect, repaint: bool) -> Result<()> {
+        unsafe {
+            MoveWindow(
+                hwnd,
+                layout.left,
+                layout.top,
+                layout.right,
+                layout.bottom,
+                repaint,
             )
         }
         .process()

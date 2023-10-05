@@ -104,7 +104,7 @@ pub extern "system" fn enum_window(hwnd: HWND, lparam: LPARAM) -> BOOL {
     let is_minimized = WindowsApi::is_iconic(hwnd);
 
     if is_visible && is_window && !is_minimized {
-        let window = Window { hwnd: hwnd.0 };
+        let window = Window::new(hwnd.0);
 
         if let Ok(should_manage) = window.should_manage(None) {
             if should_manage {
@@ -132,7 +132,7 @@ pub extern "system" fn win_event_hook(
         return;
     }
 
-    let window = Window { hwnd: hwnd.0 };
+    let window = Window::new(hwnd.0);
 
     let winevent = unsafe { ::std::mem::transmute(event) };
     let event_type = match WindowManagerEvent::from_win_event(winevent, window) {
@@ -196,7 +196,7 @@ pub extern "system" fn hidden_window(
     unsafe {
         match message {
             WM_DISPLAYCHANGE => {
-                let event_type = WindowManagerEvent::DisplayChange(Window { hwnd: window.0 });
+                let event_type = WindowManagerEvent::DisplayChange(Window::new(window.0));
                 WINEVENT_CALLBACK_CHANNEL
                     .lock()
                     .0
@@ -211,7 +211,7 @@ pub extern "system" fn hidden_window(
                 if wparam.0 as u32 == SPI_SETWORKAREA.0
                     || wparam.0 as u32 == SPI_ICONVERTICALSPACING.0
                 {
-                    let event_type = WindowManagerEvent::DisplayChange(Window { hwnd: window.0 });
+                    let event_type = WindowManagerEvent::DisplayChange(Window::new(window.0));
                     WINEVENT_CALLBACK_CHANNEL
                         .lock()
                         .0
@@ -224,7 +224,7 @@ pub extern "system" fn hidden_window(
             WM_DEVICECHANGE => {
                 #[allow(clippy::cast_possible_truncation)]
                 if wparam.0 as u32 == DBT_DEVNODES_CHANGED {
-                    let event_type = WindowManagerEvent::DisplayChange(Window { hwnd: window.0 });
+                    let event_type = WindowManagerEvent::DisplayChange(Window::new(window.0));
                     WINEVENT_CALLBACK_CHANNEL
                         .lock()
                         .0
