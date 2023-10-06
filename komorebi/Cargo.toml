@@ -29,6 +29,7 @@ net2 = "0.2"
 os_info = "3.7"
 parking_lot = { version = "0.12", features = ["deadlock_detection"] }
 paste = "1"
+regex = "1"
 schemars = "0.8"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"

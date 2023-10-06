@@ -813,6 +813,7 @@ dependencies = [
  "os_info",
  "parking_lot",
  "paste",
+ "regex",
  "schemars",
  "serde",
  "serde_json",

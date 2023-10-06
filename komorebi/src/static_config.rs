@@ -24,6 +24,7 @@ use crate::LAYERED_WHITELIST;
 use crate::MANAGE_IDENTIFIERS;
 use crate::MONITOR_INDEX_PREFERENCES;
 use crate::OBJECT_NAME_CHANGE_ON_LAUNCH;
+use crate::REGEX_IDENTIFIERS;
 use crate::TRAY_AND_MULTI_WINDOW_IDENTIFIERS;
 use crate::WORKSPACE_RULES;
 use color_eyre::Result;
@@ -46,6 +47,7 @@ use komorebi_core::Rect;
 use komorebi_core::SocketMessage;
 use komorebi_core::WindowContainerBehaviour;
 use parking_lot::Mutex;
+use regex::Regex;
 use schemars::JsonSchema;
 use serde::Deserialize;
 use serde::Serialize;
@@ -504,6 +506,7 @@ impl StaticConfig {
         }
 
         let mut float_identifiers = FLOAT_IDENTIFIERS.lock();
+        let mut regex_identifiers = REGEX_IDENTIFIERS.lock();
         let mut manage_identifiers = MANAGE_IDENTIFIERS.lock();
         let mut tray_and_multi_window_identifiers = TRAY_AND_MULTI_WINDOW_IDENTIFIERS.lock();
         let mut border_overflow_identifiers = BORDER_OVERFLOW_IDENTIFIERS.lock();
@@ -518,46 +521,96 @@ impl StaticConfig {
 
                 if !float_identifiers.contains(identifier) {
                     float_identifiers.push(identifier.clone());
+
+                    if matches!(identifier.matching_strategy, Some(MatchingStrategy::Regex)) {
+                        let re = Regex::new(&identifier.id)?;
+                        regex_identifiers.insert(identifier.id.clone(), re);
+                    }
                 }
             }
         }
 
-        if let Some(float) = &self.manage_rules {
-            for identifier in float {
-                if !manage_identifiers.contains(&identifier.id) {
-                    manage_identifiers.push(identifier.id.clone());
+        if let Some(manage) = &mut self.manage_rules {
+            for identifier in manage {
+                if identifier.matching_strategy.is_none() {
+                    identifier.matching_strategy = Option::from(MatchingStrategy::Legacy);
+                }
+
+                if !manage_identifiers.contains(identifier) {
+                    manage_identifiers.push(identifier.clone());
+
+                    if matches!(identifier.matching_strategy, Some(MatchingStrategy::Regex)) {
+                        let re = Regex::new(&identifier.id)?;
+                        regex_identifiers.insert(identifier.id.clone(), re);
+                    }
                 }
             }
         }
 
-        if let Some(identifiers) = &self.object_name_change_applications {
+        if let Some(identifiers) = &mut self.object_name_change_applications {
             for identifier in identifiers {
-                if !object_name_change_identifiers.contains(&identifier.id) {
-                    object_name_change_identifiers.push(identifier.id.clone());
+                if identifier.matching_strategy.is_none() {
+                    identifier.matching_strategy = Option::from(MatchingStrategy::Legacy);
+                }
+
+                if !object_name_change_identifiers.contains(identifier) {
+                    object_name_change_identifiers.push(identifier.clone());
+
+                    if matches!(identifier.matching_strategy, Some(MatchingStrategy::Regex)) {
+                        let re = Regex::new(&identifier.id)?;
+                        regex_identifiers.insert(identifier.id.clone(), re);
+                    }
                 }
             }
         }
 
-        if let Some(identifiers) = &self.layered_applications {
+        if let Some(identifiers) = &mut self.layered_applications {
             for identifier in identifiers {
-                if !layered_identifiers.contains(&identifier.id) {
-                    layered_identifiers.push(identifier.id.clone());
+                if identifier.matching_strategy.is_none() {
+                    identifier.matching_strategy = Option::from(MatchingStrategy::Legacy);
+                }
+
+                if !border_overflow_identifiers.contains(identifier) {
+                    border_overflow_identifiers.push(identifier.clone());
+
+                    if matches!(identifier.matching_strategy, Some(MatchingStrategy::Regex)) {
+                        let re = Regex::new(&identifier.id)?;
+                        regex_identifiers.insert(identifier.id.clone(), re);
+                    }
                 }
             }
         }
 
-        if let Some(identifiers) = &self.border_overflow_applications {
+        if let Some(identifiers) = &mut self.border_overflow_applications {
             for identifier in identifiers {
-                if !border_overflow_identifiers.contains(&identifier.id) {
-                    border_overflow_identifiers.push(identifier.id.clone());
+                if identifier.matching_strategy.is_none() {
+                    identifier.matching_strategy = Option::from(MatchingStrategy::Legacy);
+                }
+
+                if !border_overflow_identifiers.contains(identifier) {
+                    border_overflow_identifiers.push(identifier.clone());
+
+                    if matches!(identifier.matching_strategy, Some(MatchingStrategy::Regex)) {
+                        let re = Regex::new(&identifier.id)?;
+                        regex_identifiers.insert(identifier.id.clone(), re);
+                    }
                 }
             }
         }
 
-        if let Some(identifiers) = &self.tray_and_multi_window_applications {
+        if let Some(identifiers) = &mut self.tray_and_multi_window_applications {
             for identifier in identifiers {
-                if !tray_and_multi_window_identifiers.contains(&identifier.id) {
-                    tray_and_multi_window_identifiers.push(identifier.id.clone());
+                if identifier.matching_strategy.is_none() {
+                    identifier.matching_strategy = Option::from(MatchingStrategy::Legacy);
+                }
+
+                if !tray_and_multi_window_identifiers.contains(identifier) {
+                    tray_and_multi_window_identifiers.push(identifier.clone());
+
+                    if matches!(identifier.matching_strategy, Some(MatchingStrategy::Regex)) {
+                        let re = Regex::new(&identifier.id)?;
+                        regex_identifiers.insert(identifier.id.clone(), re);
+                    }
                 }
             }
         }
@@ -572,7 +625,7 @@ impl StaticConfig {
             let content = std::fs::read_to_string(stringified)?;
             let asc = ApplicationConfigurationGenerator::load(&content)?;
 
-            for entry in asc {
+            for mut entry in asc {
                 if let Some(float) = entry.float_identifiers {
                     for f in float {
                         let mut without_comment: IdWithIdentifier = f.into();
@@ -583,6 +636,14 @@ impl StaticConfig {
 
                         if !float_identifiers.contains(&without_comment) {
                             float_identifiers.push(without_comment.clone());
+
+                            if matches!(
+                                without_comment.matching_strategy,
+                                Some(MatchingStrategy::Regex)
+                            ) {
+                                let re = Regex::new(&without_comment.id)?;
+                                regex_identifiers.insert(without_comment.id.clone(), re);
+                            }
                         }
                     }
                 }
@@ -590,31 +651,94 @@ impl StaticConfig {
                     for o in options {
                         match o {
                             ApplicationOptions::ObjectNameChange => {
-                                if !object_name_change_identifiers.contains(&entry.identifier.id) {
-                                    object_name_change_identifiers
-                                        .push(entry.identifier.id.clone());
+                                if entry.identifier.matching_strategy.is_none() {
+                                    entry.identifier.matching_strategy =
+                                        Option::from(MatchingStrategy::Legacy);
+                                }
+
+                                if !object_name_change_identifiers.contains(&entry.identifier) {
+                                    object_name_change_identifiers.push(entry.identifier.clone());
+
+                                    if matches!(
+                                        entry.identifier.matching_strategy,
+                                        Some(MatchingStrategy::Regex)
+                                    ) {
+                                        let re = Regex::new(&entry.identifier.id)?;
+                                        regex_identifiers.insert(entry.identifier.id.clone(), re);
+                                    }
                                 }
                             }
                             ApplicationOptions::Layered => {
-                                if !layered_identifiers.contains(&entry.identifier.id) {
-                                    layered_identifiers.push(entry.identifier.id.clone());
+                                if entry.identifier.matching_strategy.is_none() {
+                                    entry.identifier.matching_strategy =
+                                        Option::from(MatchingStrategy::Legacy);
+                                }
+
+                                if !layered_identifiers.contains(&entry.identifier) {
+                                    layered_identifiers.push(entry.identifier.clone());
+
+                                    if matches!(
+                                        entry.identifier.matching_strategy,
+                                        Some(MatchingStrategy::Regex)
+                                    ) {
+                                        let re = Regex::new(&entry.identifier.id)?;
+                                        regex_identifiers.insert(entry.identifier.id.clone(), re);
+                                    }
                                 }
                             }
                             ApplicationOptions::BorderOverflow => {
-                                if !border_overflow_identifiers.contains(&entry.identifier.id) {
-                                    border_overflow_identifiers.push(entry.identifier.id.clone());
+                                if entry.identifier.matching_strategy.is_none() {
+                                    entry.identifier.matching_strategy =
+                                        Option::from(MatchingStrategy::Legacy);
+                                }
+
+                                if !border_overflow_identifiers.contains(&entry.identifier) {
+                                    border_overflow_identifiers.push(entry.identifier.clone());
+
+                                    if matches!(
+                                        entry.identifier.matching_strategy,
+                                        Some(MatchingStrategy::Regex)
+                                    ) {
+                                        let re = Regex::new(&entry.identifier.id)?;
+                                        regex_identifiers.insert(entry.identifier.id.clone(), re);
+                                    }
                                 }
                             }
                             ApplicationOptions::TrayAndMultiWindow => {
-                                if !tray_and_multi_window_identifiers.contains(&entry.identifier.id)
-                                {
+                                if entry.identifier.matching_strategy.is_none() {
+                                    entry.identifier.matching_strategy =
+                                        Option::from(MatchingStrategy::Legacy);
+                                }
+
+                                if !tray_and_multi_window_identifiers.contains(&entry.identifier) {
                                     tray_and_multi_window_identifiers
-                                        .push(entry.identifier.id.clone());
+                                        .push(entry.identifier.clone());
+
+                                    if matches!(
+                                        entry.identifier.matching_strategy,
+                                        Some(MatchingStrategy::Regex)
+                                    ) {
+                                        let re = Regex::new(&entry.identifier.id)?;
+                                        regex_identifiers.insert(entry.identifier.id.clone(), re);
+                                    }
                                 }
                             }
                             ApplicationOptions::Force => {
-                                if !manage_identifiers.contains(&entry.identifier.id) {
-                                    manage_identifiers.push(entry.identifier.id.clone());
+                                if entry.identifier.matching_strategy.is_none() {
+                                    entry.identifier.matching_strategy =
+                                        Option::from(MatchingStrategy::Legacy);
+                                }
+
+                                if !manage_identifiers.contains(&entry.identifier) {
+                                    manage_identifiers.push(entry.identifier.clone());
+
+                                    if matches!(
+                                        entry.identifier.matching_strategy,
+                                        Some(MatchingStrategy::Regex)
+                                    ) {
+                                        let re = Regex::new(&entry.identifier.id)?;
+                                        regex_identifiers.insert(entry.identifier.id.clone(), re);
+                                    }
                                 }
                             }
                         }

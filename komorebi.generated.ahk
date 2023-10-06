@@ -27,6 +27,10 @@ RunWait('komorebic.exe identify-tray-application exe "Akiflow.exe"', , "Hide")
 ; Android Studio
 RunWait('komorebic.exe identify-object-name-change-application exe "studio64.exe"', , "Hide")
 
+; Anki
+; If you have disabled minimize/close to tray for this application, you can delete/comment out the next line
+RunWait('komorebic.exe identify-tray-application exe "anki.exe"', , "Hide")
+
 ; ArmCord
 RunWait('komorebic.exe identify-border-overflow-application exe "ArmCord.exe"', , "Hide")
 ; If you have disabled minimize/close to tray for this application, you can delete/comment out the next line
@@ -36,6 +40,7 @@ RunWait('komorebic.exe identify-tray-application exe "ArmCord.exe"', , "Hide")
 ; If you have disabled minimize/close to tray for this application, you can delete/comment out the next line
 RunWait('komorebic.exe identify-tray-application exe "AutoHotkeyU64.exe"', , "Hide")
 RunWait('komorebic.exe float-rule title "Window Spy"', , "Hide")
+RunWait('komorebic.exe float-rule exe "AutoHotkeyUX.exe"', , "Hide")
 
 ; Beeper
 RunWait('komorebic.exe identify-border-overflow-application exe "Beeper.exe"', , "Hide")
@@ -51,6 +56,19 @@ RunWait('komorebic.exe float-rule exe "Bloxstrap.exe"', , "Hide")
 
 ; Calculator
 RunWait('komorebic.exe float-rule title "Calculator"', , "Hide")
+
+; Clash Verge
+RunWait('komorebic.exe identify-border-overflow-application exe "Clash Verge.exe"', , "Hide")
+; If you have disabled minimize/close to tray for this application, you can delete/comment out the next line
+RunWait('komorebic.exe identify-tray-application exe "Clash Verge.exe"', , "Hide")
+
+; Clementine
+; If you have disabled minimize/close to tray for this application, you can delete/comment out the next line
+RunWait('komorebic.exe identify-tray-application exe "clementine.exe"', , "Hide")
+
+; CopyQ
+; If you have disabled minimize/close to tray for this application, you can delete/comment out the next line
+RunWait('komorebic.exe identify-tray-application exe "copyq.exe"', , "Hide")
 
 ; Credential Manager UI Host
 ; Targets the Windows popup prompting you for a PIN instead of a password on 1Password etc.
@@ -91,6 +109,9 @@ RunWait('komorebic.exe identify-border-overflow-application exe "DiscordPTB.exe"
 ; If you have disabled minimize/close to tray for this application, you can delete/comment out the next line
 RunWait('komorebic.exe identify-tray-application exe "DiscordPTB.exe"', , "Hide")
 
+; Docker Desktop
+RunWait('komorebic.exe identify-border-overflow-application exe "Docker Desktop.exe"', , "Hide")
+
 ; Dropbox
 RunWait('komorebic.exe float-rule exe "Dropbox.exe"', , "Hide")
 
@@ -123,6 +144,13 @@ RunWait('komorebic.exe identify-border-overflow-application exe "EpicGamesLaunch
 ; If you have disabled minimize/close to tray for this application, you can delete/comment out the next line
 RunWait('komorebic.exe identify-tray-application exe "EpicGamesLauncher.exe"', , "Hide")
 
+; Everything
+; If you have disabled minimize/close to tray for this application, you can delete/comment out the next line
+RunWait('komorebic.exe identify-tray-application exe "Everything.exe"', , "Hide")
+
+; Figma
+RunWait('komorebic.exe identify-border-overflow-application exe "Figma.exe"', , "Hide")
+
 ; Flow Launcher
 RunWait('komorebic.exe identify-border-overflow-application exe "Flow.Launcher.exe"', , "Hide")
 
@@ -143,11 +171,17 @@ RunWait('komorebic.exe identify-border-overflow-application exe "GodotManager.ex
 RunWait('komorebic.exe manage-rule exe "GodotManager.exe"', , "Hide")
 RunWait('komorebic.exe identify-object-name-change-application exe "GodotManager.exe"', , "Hide")
 
+; Golden Dict
+; If you have disabled minimize/close to tray for this application, you can delete/comment out the next line
+RunWait('komorebic.exe identify-tray-application exe "GoldenDict.exe"', , "Hide")
+
 ; Google Chrome
 ; If you have disabled minimize/close to tray for this application, you can delete/comment out the next line
 RunWait('komorebic.exe identify-tray-application exe "chrome.exe"', , "Hide")
 
 ; Google Drive
+; If you have disabled minimize/close to tray for this application, you can delete/comment out the next line
+RunWait('komorebic.exe identify-tray-application exe "GoogleDriveFS.exe"', , "Hide")
 RunWait('komorebic.exe float-rule exe "GoogleDriveFS.exe"', , "Hide")
 
 ; Houdoku
@@ -256,6 +290,10 @@ RunWait('komorebic.exe identify-border-overflow-application exe "NVIDIA GeForce 
 ; If you have disabled minimize/close to tray for this application, you can delete/comment out the next line
 RunWait('komorebic.exe identify-tray-application exe "NZXT CAM.exe"', , "Hide")
 
+; NetEase Cloud Music
+; If you have disabled minimize/close to tray for this application, you can delete/comment out the next line
+RunWait('komorebic.exe identify-tray-application exe "cloudmusic.exe"', , "Hide")
+
 ; NiceHash Miner
 RunWait('komorebic.exe identify-border-overflow-application exe "nhm_app.exe"', , "Hide")
 RunWait('komorebic.exe manage-rule exe "nhm_app.exe"', , "Hide")
@@ -288,12 +326,23 @@ RunWait('komorebic.exe manage-rule exe "Obsidian.exe"', , "Hide")
 ; OneDrive
 RunWait('komorebic.exe float-rule class "OneDriveReactNativeWin32WindowClass"', , "Hide")
 
+; OneQuick
+; If you have disabled minimize/close to tray for this application, you can delete/comment out the next line
+RunWait('komorebic.exe identify-tray-application exe "OneQuick.exe"', , "Hide")
+
 ; OpenRGB
 ; If you have disabled minimize/close to tray for this application, you can delete/comment out the next line
 RunWait('komorebic.exe identify-tray-application exe "OpenRGB.exe"', , "Hide")
 
 ; Paradox Launcher
 RunWait('komorebic.exe float-rule exe "Paradox Launcher.exe"', , "Hide")
+
+; Playnite
+RunWait('komorebic.exe identify-border-overflow-application exe "Playnite.DesktopApp.exe"', , "Hide")
+; If you have disabled minimize/close to tray for this application, you can delete/comment out the next line
+RunWait('komorebic.exe identify-tray-application exe "Playnite.DesktopApp.exe"', , "Hide")
+; Target fullscreen app
+RunWait('komorebic.exe float-rule exe "Playnite.FullscreenApp.exe"', , "Hide")
 
 ; Plexamp
 RunWait('komorebic.exe identify-border-overflow-application exe "Plexamp.exe"', , "Hide")
@@ -320,6 +369,13 @@ RunWait('komorebic.exe identify-tray-application exe "ProtonVPN.exe"', , "Hide")
 RunWait('komorebic.exe identify-object-name-change-application exe "pycharm64.exe"', , "Hide")
 ; If you have disabled minimize/close to tray for this application, you can delete/comment out the next line
 RunWait('komorebic.exe identify-tray-application exe "pycharm64.exe"', , "Hide")
+
+; QQ
+; If you have disabled minimize/close to tray for this application, you can delete/comment out the next line
+RunWait('komorebic.exe identify-tray-application exe "QQ.exe"', , "Hide")
+RunWait('komorebic.exe float-rule title "图片查看器"', , "Hide")
+RunWait('komorebic.exe float-rule title "群聊的聊天记录"', , "Hide")
+RunWait('komorebic.exe float-rule title "语音通话"', , "Hide")
 
 ; QtScrcpy
 ; If you have disabled minimize/close to tray for this application, you can delete/comment out the next line
@@ -348,6 +404,15 @@ RunWait('komorebic.exe identify-border-overflow-application exe "RoundedTB.exe"'
 ; If you have disabled minimize/close to tray for this application, you can delete/comment out the next line
 RunWait('komorebic.exe identify-tray-application exe "RoundedTB.exe"', , "Hide")
 
+; RustRover
+RunWait('komorebic.exe identify-object-name-change-application exe "rustrover64.exe"', , "Hide")
+; If you have disabled minimize/close to tray for this application, you can delete/comment out the next line
+RunWait('komorebic.exe identify-tray-application exe "rustrover64.exe"', , "Hide")
+
+; Sandboxie Plus
+; If you have disabled minimize/close to tray for this application, you can delete/comment out the next line
+RunWait('komorebic.exe identify-tray-application exe "SandMan.exe"', , "Hide")
+
 ; ShareX
 RunWait('komorebic.exe identify-border-overflow-application exe "ShareX.exe"', , "Hide")
 ; If you have disabled minimize/close to tray for this application, you can delete/comment out the next line
@@ -358,7 +423,7 @@ RunWait('komorebic.exe float-rule exe "sideloadly.exe"', , "Hide")
 
 ; Signal
 ; If you have disabled minimize/close to tray for this application, you can delete/comment out the next line
-RunWait('komorebic.exe identify-tray-application exe "signal.exe"', , "Hide")
+RunWait('komorebic.exe identify-tray-application exe "Signal.exe"', , "Hide")
 
 ; SiriKali
 ; If you have disabled minimize/close to tray for this application, you can delete/comment out the next line
@@ -484,6 +549,10 @@ RunWait('komorebic.exe float-rule title "Control Panel"', , "Hide")
 ; Windows Installer
 RunWait('komorebic.exe float-rule exe "msiexec.exe"', , "Hide")
 
+; Windows Subsystem for Android
+; Targets splash/startup screen
+RunWait('komorebic.exe float-rule class "android(splash)"', , "Hide")
+
 ; WingetUI
 ; If you have disabled minimize/close to tray for this application, you can delete/comment out the next line
 RunWait('komorebic.exe identify-tray-application exe "WingetUI.exe"', , "Hide")
@@ -502,6 +571,9 @@ RunWait('komorebic.exe identify-tray-application exe "xampp-control.exe"', , "Hi
 
 ; Zoom
 RunWait('komorebic.exe float-rule exe "Zoom.exe"', , "Hide")
+
+; mpv
+RunWait('komorebic.exe identify-object-name-change-application class "mpv"', , "Hide")
 
 ; mpv.net
 RunWait('komorebic.exe identify-object-name-change-application exe "mpvnet.exe"', , "Hide")

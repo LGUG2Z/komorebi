@@ -15,6 +15,7 @@ use komorebi_core::WindowContainerBehaviour;
 use crate::border::Border;
 use crate::current_virtual_desktop;
 use crate::notify_subscribers;
+use crate::window::should_act;
 use crate::window_manager::WindowManager;
 use crate::window_manager_event::WindowManagerEvent;
 use crate::windows_api::WindowsApi;
@@ -29,6 +30,7 @@ use crate::BORDER_HIDDEN;
 use crate::BORDER_HWND;
 use crate::DATA_DIR;
 use crate::HIDDEN_HWNDS;
+use crate::REGEX_IDENTIFIERS;
 use crate::TRAY_AND_MULTI_WINDOW_IDENTIFIERS;
 
 #[tracing::instrument]
@@ -179,15 +181,26 @@ impl WindowManager {
                 {
                     let tray_and_multi_window_identifiers =
                         TRAY_AND_MULTI_WINDOW_IDENTIFIERS.lock();
+                    let regex_identifiers = REGEX_IDENTIFIERS.lock();
+
+                    let title = &window.title()?;
+                    let exe_name = &window.exe()?;
+                    let class = &window.class()?;
 
                     // We don't want to purge windows that have been deliberately hidden by us, eg. when
                     // they are not on the top of a container stack.
                     let programmatically_hidden_hwnds = HIDDEN_HWNDS.lock();
+                    let should_act = should_act(
+                        title,
+                        exe_name,
+                        class,
+                        &tray_and_multi_window_identifiers,
+                        &regex_identifiers,
+                    );
 
-                    if ((!window.is_window()
-                        || tray_and_multi_window_identifiers.contains(&window.exe()?))
-                        || tray_and_multi_window_identifiers.contains(&window.class()?))
-                        && !programmatically_hidden_hwnds.contains(&window.hwnd)
+                    if !window.is_window()
+                        || should_act
+                        || !programmatically_hidden_hwnds.contains(&window.hwnd)
                     {
                         hide = true;
                     }

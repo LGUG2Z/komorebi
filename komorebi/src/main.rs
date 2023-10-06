@@ -32,6 +32,7 @@ use os_info::Version;
 #[cfg(feature = "deadlock_detection")]
 use parking_lot::deadlock;
 use parking_lot::Mutex;
+use regex::Regex;
 use schemars::JsonSchema;
 use serde::Serialize;
 use sysinfo::Process;
@@ -89,26 +90,65 @@ type WorkspaceRule = (usize, usize, bool);
 
 lazy_static! {
     static ref HIDDEN_HWNDS: Arc<Mutex<Vec<isize>>> = Arc::new(Mutex::new(vec![]));
-    static ref LAYERED_WHITELIST: Arc<Mutex<Vec<String>>> =
-        Arc::new(Mutex::new(vec!["steam.exe".to_string()]));
-    static ref TRAY_AND_MULTI_WINDOW_IDENTIFIERS: Arc<Mutex<Vec<String>>> =
+    static ref LAYERED_WHITELIST: Arc<Mutex<Vec<IdWithIdentifier>>> = Arc::new(Mutex::new(vec![
+        IdWithIdentifier {
+            kind: ApplicationIdentifier::Exe,
+            id: String::from("steam.exe"),
+            matching_strategy: Option::from(MatchingStrategy::Equals),
+        },
+    ]));
+    static ref TRAY_AND_MULTI_WINDOW_IDENTIFIERS: Arc<Mutex<Vec<IdWithIdentifier>>> =
         Arc::new(Mutex::new(vec![
-            "explorer.exe".to_string(),
-            "firefox.exe".to_string(),
-            "chrome.exe".to_string(),
-            "idea64.exe".to_string(),
-            "ApplicationFrameHost.exe".to_string(),
-            "steam.exe".to_string(),
+            IdWithIdentifier {
+                kind: ApplicationIdentifier::Exe,
+                id: String::from("explorer.exe"),
+                matching_strategy: Option::from(MatchingStrategy::Equals),
+            },
+            IdWithIdentifier {
+                kind: ApplicationIdentifier::Exe,
+                id: String::from("firefox.exe"),
+                matching_strategy: Option::from(MatchingStrategy::Equals),
+            },
+            IdWithIdentifier {
+                kind: ApplicationIdentifier::Exe,
+                id: String::from("chrome.exe"),
+                matching_strategy: Option::from(MatchingStrategy::Equals),
+            },
+            IdWithIdentifier {
+                kind: ApplicationIdentifier::Exe,
+                id: String::from("idea64.exe"),
+                matching_strategy: Option::from(MatchingStrategy::Equals),
+            },
+            IdWithIdentifier {
+                kind: ApplicationIdentifier::Exe,
+                id: String::from("ApplicationFrameHost.exe"),
+                matching_strategy: Option::from(MatchingStrategy::Equals),
+            },
+            IdWithIdentifier {
+                kind: ApplicationIdentifier::Exe,
+                id: String::from("steam.exe"),
+                matching_strategy: Option::from(MatchingStrategy::Equals),
+            }
         ]));
-    static ref OBJECT_NAME_CHANGE_ON_LAUNCH: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(vec![
-        "firefox.exe".to_string(),
-        "idea64.exe".to_string(),
+    static ref OBJECT_NAME_CHANGE_ON_LAUNCH: Arc<Mutex<Vec<IdWithIdentifier>>> = Arc::new(Mutex::new(vec![
+        IdWithIdentifier {
+            kind: ApplicationIdentifier::Exe,
+            id: String::from("firefox.exe"),
+            matching_strategy: Option::from(MatchingStrategy::Equals),
+        },
+        IdWithIdentifier {
+            kind: ApplicationIdentifier::Exe,
+            id: String::from("idea64.exe"),
+            matching_strategy: Option::from(MatchingStrategy::Equals),
+        },
     ]));
     static ref MONITOR_INDEX_PREFERENCES: Arc<Mutex<HashMap<usize, Rect>>> =
         Arc::new(Mutex::new(HashMap::new()));
     static ref WORKSPACE_RULES: Arc<Mutex<HashMap<String, WorkspaceRule>>> =
         Arc::new(Mutex::new(HashMap::new()));
-    static ref MANAGE_IDENTIFIERS: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(vec![]));
+    static ref REGEX_IDENTIFIERS: Arc<Mutex<HashMap<String, Regex>>> =
+        Arc::new(Mutex::new(HashMap::new()));
+    static ref MANAGE_IDENTIFIERS: Arc<Mutex<Vec<IdWithIdentifier>>> = Arc::new(Mutex::new(vec![]));
     static ref FLOAT_IDENTIFIERS: Arc<Mutex<Vec<IdWithIdentifier>>> = Arc::new(Mutex::new(vec![
         // mstsc.exe creates these on Windows 11 when a WSL process is launched
         // https://github.com/LGUG2Z/komorebi/issues/74
@@ -126,7 +166,7 @@ lazy_static! {
     static ref PERMAIGNORE_CLASSES: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(vec![
         "Chrome_RenderWidgetHostHWND".to_string(),
     ]));
-    static ref BORDER_OVERFLOW_IDENTIFIERS: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(vec![]));
+    static ref BORDER_OVERFLOW_IDENTIFIERS: Arc<Mutex<Vec<IdWithIdentifier>>> = Arc::new(Mutex::new(vec![]));
     static ref WSL2_UI_PROCESSES: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(vec![
         "X410.exe".to_string(),
         "vcxsrv.exe".to_string(),

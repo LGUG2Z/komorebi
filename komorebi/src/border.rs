@@ -14,6 +14,7 @@ use windows::Win32::UI::WindowsAndMessaging::WNDCLASSA;
 
 use komorebi_core::Rect;
 
+use crate::window::should_act;
 use crate::window::Window;
 use crate::windows_callbacks;
 use crate::WindowsApi;
@@ -21,6 +22,7 @@ use crate::BORDER_HWND;
 use crate::BORDER_OFFSET;
 use crate::BORDER_OVERFLOW_IDENTIFIERS;
 use crate::BORDER_RECT;
+use crate::REGEX_IDENTIFIERS;
 use crate::TRANSPARENCY_COLOUR;
 use crate::WINDOWS_11;
 
@@ -108,19 +110,24 @@ impl Border {
                 Self::create("komorebi-border-window")?;
             }
 
-            let mut should_expand_border = false;
-
             let mut rect = WindowsApi::window_rect(window.hwnd())?;
             rect.top -= invisible_borders.bottom;
             rect.bottom += invisible_borders.bottom;
 
             let border_overflows = BORDER_OVERFLOW_IDENTIFIERS.lock();
-            if border_overflows.contains(&window.title()?)
-                || border_overflows.contains(&window.exe()?)
-                || border_overflows.contains(&window.class()?)
-            {
-                should_expand_border = true;
-            }
+            let regex_identifiers = REGEX_IDENTIFIERS.lock();
+
+            let title = &window.title()?;
+            let exe_name = &window.exe()?;
+            let class = &window.class()?;
+
+            let should_expand_border = should_act(
+                title,
+                exe_name,
+                class,
+                &border_overflows,
+                &regex_identifiers,
+            );
 
             if should_expand_border {
                 rect.left -= invisible_borders.left;

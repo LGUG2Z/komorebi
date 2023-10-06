@@ -27,6 +27,10 @@ komorebic.exe identify-tray-application exe "Akiflow.exe"
 # Android Studio
 komorebic.exe identify-object-name-change-application exe "studio64.exe"
 
+# Anki
+# If you have disabled minimize/close to tray for this application, you can delete/comment out the next line
+komorebic.exe identify-tray-application exe "anki.exe"
+
 # ArmCord
 komorebic.exe identify-border-overflow-application exe "ArmCord.exe"
 # If you have disabled minimize/close to tray for this application, you can delete/comment out the next line
@@ -36,6 +40,7 @@ komorebic.exe identify-tray-application exe "ArmCord.exe"
 # If you have disabled minimize/close to tray for this application, you can delete/comment out the next line
 komorebic.exe identify-tray-application exe "AutoHotkeyU64.exe"
 komorebic.exe float-rule title "Window Spy"
+komorebic.exe float-rule exe "AutoHotkeyUX.exe"
 
 # Beeper
 komorebic.exe identify-border-overflow-application exe "Beeper.exe"
@@ -51,6 +56,19 @@ komorebic.exe float-rule exe "Bloxstrap.exe"
 
 # Calculator
 komorebic.exe float-rule title "Calculator"
+
+# Clash Verge
+komorebic.exe identify-border-overflow-application exe "Clash Verge.exe"
+# If you have disabled minimize/close to tray for this application, you can delete/comment out the next line
+komorebic.exe identify-tray-application exe "Clash Verge.exe"
+
+# Clementine
+# If you have disabled minimize/close to tray for this application, you can delete/comment out the next line
+komorebic.exe identify-tray-application exe "clementine.exe"
+
+# CopyQ
+# If you have disabled minimize/close to tray for this application, you can delete/comment out the next line
+komorebic.exe identify-tray-application exe "copyq.exe"
 
 # Credential Manager UI Host
 # Targets the Windows popup prompting you for a PIN instead of a password on 1Password etc.
@@ -91,6 +109,9 @@ komorebic.exe identify-border-overflow-application exe "DiscordPTB.exe"
 # If you have disabled minimize/close to tray for this application, you can delete/comment out the next line
 komorebic.exe identify-tray-application exe "DiscordPTB.exe"
 
+# Docker Desktop
+komorebic.exe identify-border-overflow-application exe "Docker Desktop.exe"
+
 # Dropbox
 komorebic.exe float-rule exe "Dropbox.exe"
 
@@ -123,6 +144,13 @@ komorebic.exe identify-border-overflow-application exe "EpicGamesLauncher.exe"
 # If you have disabled minimize/close to tray for this application, you can delete/comment out the next line
 komorebic.exe identify-tray-application exe "EpicGamesLauncher.exe"
 
+# Everything
+# If you have disabled minimize/close to tray for this application, you can delete/comment out the next line
+komorebic.exe identify-tray-application exe "Everything.exe"
+
+# Figma
+komorebic.exe identify-border-overflow-application exe "Figma.exe"
+
 # Flow Launcher
 komorebic.exe identify-border-overflow-application exe "Flow.Launcher.exe"
 
@@ -143,11 +171,17 @@ komorebic.exe identify-border-overflow-application exe "GodotManager.exe"
 komorebic.exe manage-rule exe "GodotManager.exe"
 komorebic.exe identify-object-name-change-application exe "GodotManager.exe"
 
+# Golden Dict
+# If you have disabled minimize/close to tray for this application, you can delete/comment out the next line
+komorebic.exe identify-tray-application exe "GoldenDict.exe"
+
 # Google Chrome
 # If you have disabled minimize/close to tray for this application, you can delete/comment out the next line
 komorebic.exe identify-tray-application exe "chrome.exe"
 
 # Google Drive
+# If you have disabled minimize/close to tray for this application, you can delete/comment out the next line
+komorebic.exe identify-tray-application exe "GoogleDriveFS.exe"
 komorebic.exe float-rule exe "GoogleDriveFS.exe"
 
 # Houdoku
@@ -256,6 +290,10 @@ komorebic.exe identify-border-overflow-application exe "NVIDIA GeForce Experienc
 # If you have disabled minimize/close to tray for this application, you can delete/comment out the next line
 komorebic.exe identify-tray-application exe "NZXT CAM.exe"
 
+# NetEase Cloud Music
+# If you have disabled minimize/close to tray for this application, you can delete/comment out the next line
+komorebic.exe identify-tray-application exe "cloudmusic.exe"
+
 # NiceHash Miner
 komorebic.exe identify-border-overflow-application exe "nhm_app.exe"
 komorebic.exe manage-rule exe "nhm_app.exe"
@@ -288,12 +326,23 @@ komorebic.exe manage-rule exe "Obsidian.exe"
 # OneDrive
 komorebic.exe float-rule class "OneDriveReactNativeWin32WindowClass"
 
+# OneQuick
+# If you have disabled minimize/close to tray for this application, you can delete/comment out the next line
+komorebic.exe identify-tray-application exe "OneQuick.exe"
+
 # OpenRGB
 # If you have disabled minimize/close to tray for this application, you can delete/comment out the next line
 komorebic.exe identify-tray-application exe "OpenRGB.exe"
 
 # Paradox Launcher
 komorebic.exe float-rule exe "Paradox Launcher.exe"
+
+# Playnite
+komorebic.exe identify-border-overflow-application exe "Playnite.DesktopApp.exe"
+# If you have disabled minimize/close to tray for this application, you can delete/comment out the next line
+komorebic.exe identify-tray-application exe "Playnite.DesktopApp.exe"
+# Target fullscreen app
+komorebic.exe float-rule exe "Playnite.FullscreenApp.exe"
 
 # Plexamp
 komorebic.exe identify-border-overflow-application exe "Plexamp.exe"
@@ -320,6 +369,13 @@ komorebic.exe identify-tray-application exe "ProtonVPN.exe"
 komorebic.exe identify-object-name-change-application exe "pycharm64.exe"
 # If you have disabled minimize/close to tray for this application, you can delete/comment out the next line
 komorebic.exe identify-tray-application exe "pycharm64.exe"
+
+# QQ
+# If you have disabled minimize/close to tray for this application, you can delete/comment out the next line
+komorebic.exe identify-tray-application exe "QQ.exe"
+komorebic.exe float-rule title "图片查看器"
+komorebic.exe float-rule title "群聊的聊天记录"
+komorebic.exe float-rule title "语音通话"
 
 # QtScrcpy
 # If you have disabled minimize/close to tray for this application, you can delete/comment out the next line
@@ -348,6 +404,15 @@ komorebic.exe identify-border-overflow-application exe "RoundedTB.exe"
 # If you have disabled minimize/close to tray for this application, you can delete/comment out the next line
 komorebic.exe identify-tray-application exe "RoundedTB.exe"
 
+# RustRover
+komorebic.exe identify-object-name-change-application exe "rustrover64.exe"
+# If you have disabled minimize/close to tray for this application, you can delete/comment out the next line
+komorebic.exe identify-tray-application exe "rustrover64.exe"
+
+# Sandboxie Plus
+# If you have disabled minimize/close to tray for this application, you can delete/comment out the next line
+komorebic.exe identify-tray-application exe "SandMan.exe"
+
 # ShareX
 komorebic.exe identify-border-overflow-application exe "ShareX.exe"
 # If you have disabled minimize/close to tray for this application, you can delete/comment out the next line
@@ -358,7 +423,7 @@ komorebic.exe float-rule exe "sideloadly.exe"
 
 # Signal
 # If you have disabled minimize/close to tray for this application, you can delete/comment out the next line
-komorebic.exe identify-tray-application exe "signal.exe"
+komorebic.exe identify-tray-application exe "Signal.exe"
 
 # SiriKali
 # If you have disabled minimize/close to tray for this application, you can delete/comment out the next line
@@ -484,6 +549,10 @@ komorebic.exe float-rule title "Control Panel"
 # Windows Installer
 komorebic.exe float-rule exe "msiexec.exe"
 
+# Windows Subsystem for Android
+# Targets splash/startup screen
+komorebic.exe float-rule class "android(splash)"
+
 # WingetUI
 # If you have disabled minimize/close to tray for this application, you can delete/comment out the next line
 komorebic.exe identify-tray-application exe "WingetUI.exe"
@@ -502,6 +571,9 @@ komorebic.exe identify-tray-application exe "xampp-control.exe"
 
 # Zoom
 komorebic.exe float-rule exe "Zoom.exe"
+
+# mpv
+komorebic.exe identify-object-name-change-application class "mpv"
 
 # mpv.net
 komorebic.exe identify-object-name-change-application exe "mpvnet.exe"

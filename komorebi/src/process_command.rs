@@ -240,10 +240,22 @@ impl WindowManager {
                     self.handle_definitive_workspace_rules(id, monitor_idx, workspace_idx)?;
                 }
             }
-            SocketMessage::ManageRule(_, ref id) => {
+            SocketMessage::ManageRule(identifier, ref id) => {
                 let mut manage_identifiers = MANAGE_IDENTIFIERS.lock();
-                if !manage_identifiers.contains(id) {
-                    manage_identifiers.push(id.to_string());
+
+                let mut should_push = true;
+                for m in &*manage_identifiers {
+                    if m.id.eq(id) {
+                        should_push = false;
+                    }
+                }
+
+                if should_push {
+                    manage_identifiers.push(IdWithIdentifier {
+                        kind: identifier,
+                        id: id.clone(),
+                        matching_strategy: Option::from(MatchingStrategy::Legacy),
+                    });
                 }
             }
             SocketMessage::FloatRule(identifier, ref id) => {
@@ -904,28 +916,75 @@ impl WindowManager {
             SocketMessage::WatchConfiguration(enable) => {
                 self.watch_configuration(enable)?;
             }
-            SocketMessage::IdentifyBorderOverflowApplication(_, ref id) => {
+            SocketMessage::IdentifyBorderOverflowApplication(identifier, ref id) => {
                 let mut identifiers = BORDER_OVERFLOW_IDENTIFIERS.lock();
-                if !identifiers.contains(id) {
-                    identifiers.push(id.to_string());
+
+                let mut should_push = true;
+                for i in &*identifiers {
+                    if i.id.eq(id) {
+                        should_push = false;
+                    }
+                }
+
+                if should_push {
+                    identifiers.push(IdWithIdentifier {
+                        kind: identifier,
+                        id: id.clone(),
+                        matching_strategy: Option::from(MatchingStrategy::Legacy),
+                    });
                 }
             }
-            SocketMessage::IdentifyObjectNameChangeApplication(_, ref id) => {
+            SocketMessage::IdentifyObjectNameChangeApplication(identifier, ref id) => {
                 let mut identifiers = OBJECT_NAME_CHANGE_ON_LAUNCH.lock();
-                if !identifiers.contains(id) {
-                    identifiers.push(id.to_string());
+
+                let mut should_push = true;
+                for i in &*identifiers {
+                    if i.id.eq(id) {
+                        should_push = false;
+                    }
+                }
+
+                if should_push {
+                    identifiers.push(IdWithIdentifier {
+                        kind: identifier,
+                        id: id.clone(),
+                        matching_strategy: Option::from(MatchingStrategy::Legacy),
+                    });
                 }
             }
-            SocketMessage::IdentifyTrayApplication(_, ref id) => {
+            SocketMessage::IdentifyTrayApplication(identifier, ref id) => {
                 let mut identifiers = TRAY_AND_MULTI_WINDOW_IDENTIFIERS.lock();
-                if !identifiers.contains(id) {
-                    identifiers.push(id.to_string());
+                let mut should_push = true;
+                for i in &*identifiers {
+                    if i.id.eq(id) {
+                        should_push = false;
+                    }
+                }
+
+                if should_push {
+                    identifiers.push(IdWithIdentifier {
+                        kind: identifier,
+                        id: id.clone(),
+                        matching_strategy: Option::from(MatchingStrategy::Legacy),
+                    });
                 }
             }
-            SocketMessage::IdentifyLayeredApplication(_, ref id) => {
+            SocketMessage::IdentifyLayeredApplication(identifier, ref id) => {
                 let mut identifiers = LAYERED_WHITELIST.lock();
-                if !identifiers.contains(id) {
-                    identifiers.push(id.to_string());
+
+                let mut should_push = true;
+                for i in &*identifiers {
+                    if i.id.eq(id) {
+                        should_push = false;
+                    }
+                }
+
+                if should_push {
+                    identifiers.push(IdWithIdentifier {
+                        kind: identifier,
+                        id: id.clone(),
+                        matching_strategy: Option::from(MatchingStrategy::Legacy),
+                    });
                 }
             }
             SocketMessage::ManageFocusedWindow => {

@@ -4,9 +4,11 @@ use std::fmt::Formatter;
 use schemars::JsonSchema;
 use serde::Serialize;
 
+use crate::window::should_act;
 use crate::window::Window;
 use crate::winevent::WinEvent;
 use crate::OBJECT_NAME_CHANGE_ON_LAUNCH;
+use crate::REGEX_IDENTIFIERS;
 
 #[derive(Debug, Copy, Clone, Serialize, JsonSchema)]
 #[serde(tag = "type", content = "content")]
@@ -131,11 +133,21 @@ impl WindowManagerEvent {
                 // [yatta\src\windows_event.rs:110] event = 32779 ObjectLocationChange
 
                 let object_name_change_on_launch = OBJECT_NAME_CHANGE_ON_LAUNCH.lock();
+                let regex_identifiers = REGEX_IDENTIFIERS.lock();
 
-                if object_name_change_on_launch.contains(&window.exe().ok()?)
-                    || object_name_change_on_launch.contains(&window.class().ok()?)
-                    || object_name_change_on_launch.contains(&window.title().ok()?)
-                {
+                let title = &window.title().ok()?;
+                let exe_name = &window.exe().ok()?;
+                let class = &window.class().ok()?;
+
+                let should_trigger = should_act(
+                    title,
+                    exe_name,
+                    class,
+                    &object_name_change_on_launch,
+                    &regex_identifiers,
+                );
+
+                if should_trigger {
                     Option::from(Self::Show(winevent, window))
                 } else {
                     None
