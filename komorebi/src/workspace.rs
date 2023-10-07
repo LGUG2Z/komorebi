@@ -775,6 +775,16 @@ impl Workspace {
     }
 
     fn enforce_resize_constraints(&mut self) {
+        match self.layout {
+            Layout::Default(DefaultLayout::BSP) => self.enforce_resize_constraints_for_bsp(),
+            Layout::Default(DefaultLayout::UltrawideVerticalStack) => {
+                self.enforce_resize_for_ultrawide();
+            }
+            _ => self.enforce_no_resize(),
+        }
+    }
+
+    fn enforce_resize_constraints_for_bsp(&mut self) {
         for (i, rect) in self.resize_dimensions_mut().iter_mut().enumerate() {
             if let Some(rect) = rect {
                 // Even containers can't be resized to the bottom
@@ -797,6 +807,72 @@ impl Workspace {
         if let Some(Some(last)) = self.resize_dimensions_mut().last_mut() {
             last.bottom = 0;
             last.right = 0;
+        }
+    }
+
+    fn enforce_resize_for_ultrawide(&mut self) {
+        let resize_dimensions = self.resize_dimensions_mut();
+        match resize_dimensions.len() {
+            // Single window can not be resized at all
+            0 | 1 => self.enforce_no_resize(),
+            // Two windows can only be resized in the middle
+            2 => {
+                // Zero is actually on the right
+                if let Some(mut right) = resize_dimensions[0] {
+                    right.top = 0;
+                    right.bottom = 0;
+                    right.right = 0;
+                }
+
+                // One is on the left
+                if let Some(mut left) = resize_dimensions[1] {
+                    left.top = 0;
+                    left.bottom = 0;
+                    left.left = 0;
+                }
+            }
+            // Three or more windows means 0 is in center, 1 is at the left, 2.. are a vertical
+            // stack on the right
+            _ => {
+                // Central can be resized left or right
+                if let Some(mut right) = resize_dimensions[0] {
+                    right.top = 0;
+                    right.bottom = 0;
+                }
+
+                // Left one can only be resized to the right
+                if let Some(mut left) = resize_dimensions[1] {
+                    left.top = 0;
+                    left.bottom = 0;
+                    left.left = 0;
+                }
+
+                // Handle stack on the right
+                let stack_size = resize_dimensions[2..].len();
+                for (i, rect) in resize_dimensions[2..].iter_mut().enumerate() {
+                    if let Some(rect) = rect {
+                        // No containers can resize to the right
+                        rect.right = 0;
+
+                        // First container in stack cant resize up
+                        if i == 0 {
+                            rect.top = 0;
+                        } else if i == stack_size - 1 {
+                            // Last cant be resized to the bottom
+                            rect.bottom = 0;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    fn enforce_no_resize(&mut self) {
+        for rect in self.resize_dimensions_mut().iter_mut().flatten() {
+            rect.left = 0;
+            rect.right = 0;
+            rect.top = 0;
+            rect.bottom = 0;
         }
     }
 
