@@ -78,7 +78,6 @@ pub struct WindowManager {
     pub has_pending_raise_op: bool,
     pub pending_move_op: Option<(usize, usize, usize)>,
     pub already_moved_window_handles: Arc<Mutex<HashSet<isize>>>,
-    pub all_layouts: Vec<Layout>,
 }
 
 #[allow(clippy::struct_excessive_bools)]
