@@ -196,8 +196,8 @@ ChangeLayout(default_layout) {
     RunWait("komorebic.exe change-layout " default_layout, , "Hide")
 }
 
-ToggleLayout() {
-  RunWait("komorebic.exe toggle-layout " , , "Hide")
+CycleLayout() {
+  RunWait("komorebic.exe cycle-layout " , , "Hide")
 }
 
 LoadCustomLayout(path) {

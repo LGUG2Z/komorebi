@@ -125,7 +125,7 @@ gen_enum_subcommand_args! {
     CycleStack: CycleDirection,
     FlipLayout: Axis,
     ChangeLayout: DefaultLayout,
-    ToggleLayout: ToggleLayout,
+    CycleLayout: CycleLayout,
     WatchConfiguration: BooleanState,
     MouseFollowsFocus: BooleanState,
     Query: StateQuery,
@@ -853,8 +853,9 @@ enum SubCommand {
     /// Set the layout on the focused workspace
     #[clap(arg_required_else_help = true)]
     ChangeLayout(ChangeLayout),
+    // Cycle between available layouts
     #[clap(arg_required_else_help = false)]
-    ToggleLayout(),
+    CycleLayout(),
     /// Load a custom layout from file for the focused workspace
     #[clap(arg_required_else_help = true)]
     LoadCustomLayout(LoadCustomLayout),
@@ -1613,8 +1614,8 @@ Stop-Process -Name:whkd -ErrorAction SilentlyContinue
         SubCommand::ChangeLayout(arg) => {
             send_message(&SocketMessage::ChangeLayout(arg.default_layout).as_bytes()?)?;
         }
-        SubCommand::ToggleLayout() => {
-            send_message(&SocketMessage::ToggleLayout().as_bytes()?)?;
+        SubCommand::CycleLayout() => {
+            send_message(&SocketMessage::CycleLayout().as_bytes()?)?;
         }
         SubCommand::LoadCustomLayout(arg) => {
             send_message(

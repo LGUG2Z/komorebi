@@ -1707,11 +1707,11 @@ impl WindowManager {
     }
 
     #[tracing::instrument(skip(self))]
-    pub fn toggle_layout(&mut self) -> Result<()> {
+    pub fn cycle_layout(&mut self) -> Result<()> {
         tracing::info!("toggling layout");
 
         let workspace = self.focused_workspace_mut()?;
-        // Get current layout -> and toggle to the next layout in the given order
+        // Get current layout -> and cycle to the next layout in the given order
         let current_layout = workspace.layout()?;
 
         // All layouts
