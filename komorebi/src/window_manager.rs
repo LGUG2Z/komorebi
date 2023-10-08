@@ -1717,13 +1717,10 @@ impl WindowManager {
         // All layouts
         let layouts_size = std::mem::size_of_val(&DefaultLayout::BSP);
         for i in 0..enum_size {
-            let enum_value = DefaultLayout::from_u8(i).unwrap();
-            if enum_value == current_layout {
-                if i == (enum_size - 1) {
-                    workspace.set_layout(DefaultLayout::from_u8(0).unwrap());
-                } else {
-                    workspace.set_layout(DefaultLayout::from_u8(i + 1).unwrap());
-                }
+            let layout_value = DefaultLayout::from_u8(i).unwrap();
+            if layout_value == current_layout {
+                workspace.set_layout(DefaultLayout::from_u8(i + 1 % enum_size).unwrap());
+                break;
             }
         }
         self.update_focused_workspace(self.mouse_follows_focus)
