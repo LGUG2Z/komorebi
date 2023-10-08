@@ -20,6 +20,7 @@ pub enum DefaultLayout {
     VerticalStack,
     HorizontalStack,
     UltrawideVerticalStack,
+    // NOTE: If any new layout is added, please make sure to register the same in `DefaultLayout::cycle`
 }
 
 impl DefaultLayout {
@@ -123,6 +124,18 @@ impl DefaultLayout {
             None
         } else {
             Option::from(r)
+        }
+    }
+
+    #[must_use]
+    pub const fn cycle(self) -> Self {
+        match self {
+            Self::BSP => Self::Columns,
+            Self::Columns => Self::Rows,
+            Self::Rows => Self::VerticalStack,
+            Self::VerticalStack => Self::HorizontalStack,
+            Self::HorizontalStack => Self::UltrawideVerticalStack,
+            Self::UltrawideVerticalStack => Self::BSP,
         }
     }
 }

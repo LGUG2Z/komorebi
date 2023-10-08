@@ -1708,19 +1708,19 @@ impl WindowManager {
 
     #[tracing::instrument(skip(self))]
     pub fn cycle_layout(&mut self) -> Result<()> {
-        tracing::info!("toggling layout");
+        tracing::info!("cycling layout");
 
         let workspace = self.focused_workspace_mut()?;
-        // Get current layout -> and cycle to the next layout in the given order
         let current_layout = workspace.layout()?;
-
-        // All layouts
-        let layouts_size = std::mem::size_of_val(&DefaultLayout::BSP);
-        for i in 0..enum_size {
-            let layout_value = DefaultLayout::from_u8(i).unwrap();
-            if layout_value == current_layout {
-                workspace.set_layout(DefaultLayout::from_u8(i + 1 % enum_size).unwrap());
-                break;
+        match current_layout {
+            // For cycling, only Default Layout is supported
+            DefaultLayout => {
+                let new_layout = current_layout.cycle();
+                tracing::info!("Next layout for cycling: {:?}", new_layout);
+                current_layout.set_layout(new_layout);
+            }
+            CustomLayout => {
+                tracing::info!("Current layout is custom, skipping cycling");
             }
         }
         self.update_focused_workspace(self.mouse_follows_focus)
