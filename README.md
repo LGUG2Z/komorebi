@@ -3,6 +3,9 @@
 Tiling Window Management for Windows.
 
 <p>
+  <a href="https://bdsmovement.net">
+    <img alt="Stand With Palestine" src="https://img.shields.io/badge/Stand_With_Palestine-%F0%9F%87%B5%F0%9F%87%B8-white">
+  </a>
   <img alt="GitHub Workflow Status" src="https://img.shields.io/github/actions/workflow/status/LGUG2Z/komorebi/.github/workflows/windows.yaml">
   <img alt="GitHub" src="https://img.shields.io/github/license/LGUG2Z/komorebi">
   <img alt="GitHub all releases" src="https://img.shields.io/github/downloads/LGUG2Z/komorebi/total">
@@ -16,11 +19,8 @@ Tiling Window Management for Windows.
   <a href="https://notado.app/feeds/jado/software-development">
     <img alt="Notado Feed" src="https://img.shields.io/badge/Notado-Subscribe-informational">
   </a>
-  <a href="https://jeezy.substack.com">
-    <img alt="Substack Read" src="https://img.shields.io/badge/Substack-Read-orange">
-  </a>
   <a href="https://twitter.com/LGUG2Z">
-    <img alt="Twitter Follow" src="https://img.shields.io/twitter/follow/LGUG2Z">
+    <img alt="Twitter Follow" src="https://img.shields.io/twitter/follow/LGUG2Z?style=flat">
   </a>
 </p>
 
