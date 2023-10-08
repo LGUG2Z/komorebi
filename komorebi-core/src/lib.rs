@@ -77,6 +77,7 @@ pub enum SocketMessage {
     AdjustContainerPadding(Sizing, i32),
     AdjustWorkspacePadding(Sizing, i32),
     ChangeLayout(DefaultLayout),
+    ToggleLayout(),
     ChangeLayoutCustom(PathBuf),
     FlipLayout(Axis),
     // Monitor and Workspace Commands

@@ -78,6 +78,7 @@ pub struct WindowManager {
     pub has_pending_raise_op: bool,
     pub pending_move_op: Option<(usize, usize, usize)>,
     pub already_moved_window_handles: Arc<Mutex<HashSet<isize>>>,
+    pub all_layouts: Vec<Layout>,
 }
 
 #[allow(clippy::struct_excessive_bools)]
@@ -1702,6 +1703,29 @@ impl WindowManager {
         }
 
         workspace.set_layout(Layout::Default(layout));
+        self.update_focused_workspace(self.mouse_follows_focus)
+    }
+
+    #[tracing::instrument(skip(self))]
+    pub fn toggle_layout(&mut self) -> Result<()> {
+        tracing::info!("toggling layout");
+
+        let workspace = self.focused_workspace_mut()?;
+        // Get current layout -> and toggle to the next layout in the given order
+        let current_layout = workspace.layout()?;
+
+        // All layouts
+        let layouts_size = std::mem::size_of_val(&DefaultLayout::BSP);
+        for i in 0..enum_size {
+            let enum_value = DefaultLayout::from_u8(i).unwrap();
+            if enum_value == current_layout {
+                if i == (enum_size - 1) {
+                    workspace.set_layout(DefaultLayout::from_u8(0).unwrap());
+                } else {
+                    workspace.set_layout(DefaultLayout::from_u8(i + 1).unwrap());
+                }
+            }
+        }
         self.update_focused_workspace(self.mouse_follows_focus)
     }
 
