@@ -854,7 +854,7 @@ enum SubCommand {
     #[clap(arg_required_else_help = true)]
     ChangeLayout(ChangeLayout),
     // Cycle between available layouts
-    #[clap(arg_required_else_help = false)]
+    #[clap(arg_required_else_help = true)]
     CycleLayout(CycleLayout),
     /// Load a custom layout from file for the focused workspace
     #[clap(arg_required_else_help = true)]
