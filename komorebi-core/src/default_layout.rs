@@ -128,7 +128,7 @@ impl DefaultLayout {
     }
 
     #[must_use]
-    pub const fn cycle(self) -> Self {
+    pub const fn cycle_next(self) -> Self {
         match self {
             Self::BSP => Self::Columns,
             Self::Columns => Self::Rows,
@@ -136,6 +136,18 @@ impl DefaultLayout {
             Self::VerticalStack => Self::HorizontalStack,
             Self::HorizontalStack => Self::UltrawideVerticalStack,
             Self::UltrawideVerticalStack => Self::BSP,
+        }
+    }
+
+    #[must_use]
+    pub const fn cycle_previous(self) -> Self {
+        match self {
+            Self::BSP => Self::UltrawideVerticalStack,
+            Self::UltrawideVerticalStack => Self::HorizontalStack,
+            Self::HorizontalStack => Self::VerticalStack,
+            Self::VerticalStack => Self::Rows,
+            Self::Rows => Self::Columns,
+            Self::Columns => Self::BSP,
         }
     }
 }

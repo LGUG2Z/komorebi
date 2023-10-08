@@ -1706,22 +1706,25 @@ impl WindowManager {
     }
 
     #[tracing::instrument(skip(self))]
-    pub fn cycle_layout(&mut self) -> Result<()> {
+    pub fn cycle_layout(&mut self, direction: CycleDirection) -> Result<()> {
         tracing::info!("cycling layout");
 
         let workspace = self.focused_workspace_mut()?;
-        let current_layout = workspace.layout()?;
+        let current_layout = workspace.layout();
+
         match current_layout {
-            // For cycling, only Default Layout is supported
-            DefaultLayout => {
-                let new_layout = current_layout.cycle();
-                tracing::info!("Next layout for cycling: {:?}", new_layout);
-                current_layout.set_layout(new_layout);
+            Layout::Default(current) => {
+                let new_layout = match direction {
+                    CycleDirection::Previous => current.cycle_previous(),
+                    CycleDirection::Next => current.cycle_next(),
+                };
+
+                tracing::info!("next layout: {new_layout}");
+                workspace.set_layout(Layout::Default(new_layout));
             }
-            CustomLayout => {
-                tracing::info!("Current layout is custom, skipping cycling");
-            }
+            Layout::Custom(_) => {}
         }
+
         self.update_focused_workspace(self.mouse_follows_focus)
     }
 

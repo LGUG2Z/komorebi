@@ -448,7 +448,7 @@ impl WindowManager {
             SocketMessage::Retile => self.retile_all(false)?,
             SocketMessage::FlipLayout(layout_flip) => self.flip_layout(layout_flip)?,
             SocketMessage::ChangeLayout(layout) => self.change_workspace_layout_default(layout)?,
-            SocketMessage::CycleLayout() => self.cycle_layout()?,
+            SocketMessage::CycleLayout(direction) => self.cycle_layout(direction)?,
             SocketMessage::ChangeLayoutCustom(ref path) => {
                 self.change_workspace_custom_layout(path.clone())?;
             }
