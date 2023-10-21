@@ -694,6 +694,19 @@ struct AltFocusHack {
     boolean_state: BooleanState,
 }
 
+#[derive(Parser, AhkFunction)]
+struct EnableAutostart {
+    /// Path to a static configuration JSON file
+    #[clap(action, short, long)]
+    config: String,
+    /// Enable autostart of whkd
+    #[clap(action, long)]
+    whkd: bool,
+    /// Enable autostart of ahk
+    #[clap(action, long)]
+    ahk: bool,
+}
+
 #[derive(Parser)]
 #[clap(author, about, version)]
 struct Opts {
@@ -1047,6 +1060,11 @@ enum SubCommand {
     StaticConfigSchema,
     /// Generates a static configuration JSON file based on the current window manager state
     GenerateStaticConfig,
+    /// Generates the komorebi.lnk shortcut in shell:startup to autostart komorebi
+    #[clap(arg_required_else_help = true)]
+    EnableAutostart(EnableAutostart),
+    /// Deletes the komorebi.lnk shortcut in shell:startup to disable autostart
+    DisableAutostart,
 }
 
 pub fn send_message(bytes: &[u8]) -> Result<()> {
@@ -1055,11 +1073,61 @@ pub fn send_message(bytes: &[u8]) -> Result<()> {
     Ok(stream.write_all(bytes)?)
 }
 
+fn startup_dir() -> Result<PathBuf> {
+    let home_dir = dirs::home_dir().expect("unable to obtain user's home folder");
+    let app_data = home_dir.join("AppData");
+    let roaming = app_data.join("Roaming");
+    let microsoft = roaming.join("Microsoft");
+    let windows = microsoft.join("Windows");
+    let start_menu = windows.join("Start Menu");
+    let programs = start_menu.join("Programs");
+    let startup = programs.join("Startup");
+
+    if !startup.is_dir() {
+        std::fs::create_dir_all(&startup)?;
+    }
+
+    Ok(startup)
+}
+
 #[allow(clippy::too_many_lines, clippy::cognitive_complexity)]
 fn main() -> Result<()> {
     let opts: Opts = Opts::parse();
 
     match opts.subcmd {
+        SubCommand::EnableAutostart(args) => {
+            let mut current_exe = std::env::current_exe().expect("unable to get exec path");
+            current_exe.pop();
+
+            let komorebic_exe = current_exe.join("komorebic.exe");
+
+            let startup_dir = startup_dir()?;
+            let shortcut_file = startup_dir.join("komorebi.lnk");
+
+            let mut arguments = format!("start --config {}", args.config);
+
+            if args.whkd {
+                arguments.push_str(" --whkd");
+            } else if args.ahk {
+                arguments.push_str(" --ahk");
+            }
+
+            Command::new("powershell")
+            .arg("-c")
+            .arg("$WshShell = New-Object -comObject WScript.Shell; $Shortcut = $WshShell.CreateShortcut($env:SHORTCUT_PATH); $Shortcut.TargetPath = $env:TARGET_PATH; $Shortcut.Arguments = $env:TARGET_ARGS; $Shortcut.Save()")
+            .env("SHORTCUT_PATH", shortcut_file.to_string_lossy().to_string())
+            .env("TARGET_PATH", komorebic_exe.to_string_lossy().to_string())
+            .env("TARGET_ARGS", arguments)
+            .output()?;
+        }
+        SubCommand::DisableAutostart => {
+            let startup_dir = startup_dir()?;
+            let shortcut_file = startup_dir.join("komorebi.lnk");
+
+            if shortcut_file.is_file() {
+                std::fs::remove_file(shortcut_file)?;
+            }
+        }
         SubCommand::Check => {
             let home = HOME_DIR.clone();
             let home_lossy_string = home.to_string_lossy();
