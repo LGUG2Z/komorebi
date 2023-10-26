@@ -1706,6 +1706,29 @@ impl WindowManager {
     }
 
     #[tracing::instrument(skip(self))]
+    pub fn cycle_layout(&mut self, direction: CycleDirection) -> Result<()> {
+        tracing::info!("cycling layout");
+
+        let workspace = self.focused_workspace_mut()?;
+        let current_layout = workspace.layout();
+
+        match current_layout {
+            Layout::Default(current) => {
+                let new_layout = match direction {
+                    CycleDirection::Previous => current.cycle_previous(),
+                    CycleDirection::Next => current.cycle_next(),
+                };
+
+                tracing::info!("next layout: {new_layout}");
+                workspace.set_layout(Layout::Default(new_layout));
+            }
+            Layout::Custom(_) => {}
+        }
+
+        self.update_focused_workspace(self.mouse_follows_focus)
+    }
+
+    #[tracing::instrument(skip(self))]
     pub fn change_workspace_custom_layout(&mut self, path: PathBuf) -> Result<()> {
         tracing::info!("changing layout");
 
