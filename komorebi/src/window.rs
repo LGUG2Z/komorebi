@@ -138,7 +138,7 @@ impl Window {
         let class = &self.class()?;
         let exe_name = &self.exe()?;
 
-        let should_remove_border = should_act(
+        let should_remove_border = !should_act(
             title,
             exe_name,
             class,
