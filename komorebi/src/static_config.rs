@@ -570,8 +570,8 @@ impl StaticConfig {
                     identifier.matching_strategy = Option::from(MatchingStrategy::Legacy);
                 }
 
-                if !border_overflow_identifiers.contains(identifier) {
-                    border_overflow_identifiers.push(identifier.clone());
+                if !layered_identifiers.contains(identifier) {
+                    layered_identifiers.push(identifier.clone());
 
                     if matches!(identifier.matching_strategy, Some(MatchingStrategy::Regex)) {
                         let re = Regex::new(&identifier.id)?;
