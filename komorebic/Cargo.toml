@@ -28,5 +28,5 @@ serde_json = "1"
 serde_yaml = "0.9"
 sysinfo = "0.29"
 uds_windows = "1"
-which = "4"
+which = "5"
 windows = { workspace = true }

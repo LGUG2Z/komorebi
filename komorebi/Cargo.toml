@@ -39,7 +39,7 @@ tracing = "0.1"
 tracing-appender = "0.2"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 uds_windows = "1"
-which = "4"
+which = "5"
 winput = "0.2"
 winreg = "0.51"
 windows-interface = { workspace = true }
