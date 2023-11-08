@@ -187,19 +187,19 @@ winget install LGUG2Z.whkd
 winget install LGUG2Z.komorebi
 
 # save the example configuration to ~/komorebi.json
-iwr https://raw.githubusercontent.com/LGUG2Z/komorebi/master/komorebi.example.json -OutFile $Env:USERPROFILE\komorebi.json
+iwr https://raw.githubusercontent.com/LGUG2Z/komorebi/master/komorebi.example.json -OutFile "$Env:USERPROFILE\komorebi.json"
 
 # save the latest generated app-specific config tweaks and fixes
 komorebic fetch-app-specific-configuration
 
 # ensure the ~/.config folder exists
-mkdir $Env:USERPROFILE\.config -ea 0
+mkdir "$Env:USERPROFILE\.config" -ea 0
 
 # save the sample whkdrc file with key bindings to ~/.config/whkdrc
-iwr https://raw.githubusercontent.com/LGUG2Z/komorebi/master/whkdrc.sample -OutFile $Env:USERPROFILE\.config\whkdrc
+iwr https://raw.githubusercontent.com/LGUG2Z/komorebi/master/whkdrc.sample -OutFile "$Env:USERPROFILE\.config\whkdrc"
 
 # start komorebi and whkd
-komorebic start -c $Env:USERPROFILE\komorebi.json --whkd
+komorebic start -c "$Env:USERPROFILE\komorebi.json" --whkd
 ```
 
 Thanks to [@sitiom](https://github.com/sitiom) for getting _komorebi_ added to both the popular Scoop Extras bucket and
