@@ -104,11 +104,17 @@ impl Workspace {
 
         if let Some(layout) = &config.layout {
             self.layout = Layout::Default(*layout);
+            self.tile = true;
         }
 
         if let Some(pathbuf) = &config.custom_layout {
             let layout = CustomLayout::from_path_buf(pathbuf.clone())?;
             self.layout = Layout::Custom(layout);
+            self.tile = true;
+        }
+
+        if config.custom_layout.is_none() && config.layout.is_none() {
+            self.tile = false;
         }
 
         if let Some(layout_rules) = &config.layout_rules {
