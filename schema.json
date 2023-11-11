@@ -21,6 +21,22 @@
         }
       ]
     },
+    "active_window_border_offset": {
+      "description": "Offset of the active window border (default: None)",
+      "type": [
+        "integer",
+        "null"
+      ],
+      "format": "int32"
+    },
+    "active_window_border_width": {
+      "description": "Width of the active window border (default: 20)",
+      "type": [
+        "integer",
+        "null"
+      ],
+      "format": "int32"
+    },
     "alt_focus_hack": {
       "description": "Always send the ALT key when using focus commands (default: false)",
       "type": [
@@ -36,7 +52,7 @@
       ]
     },
     "border_offset": {
-      "description": "Offset of the active window border (default: None)",
+      "description": "DEPRECATED from v0.1.19: use active_window_border_offset instead",
       "anyOf": [
         {
           "$ref": "#/definitions/Rect"
@@ -57,7 +73,7 @@
       }
     },
     "border_width": {
-      "description": "Width of the active window border (default: 20)",
+      "description": "DEPRECATED from v0.1.19: use active_window_border_width instead",
       "type": [
         "integer",
         "null"
@@ -352,8 +368,29 @@
         },
         "kind": {
           "$ref": "#/definitions/ApplicationIdentifier"
+        },
+        "matching_strategy": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/MatchingStrategy"
+            },
+            {
+              "type": "null"
+            }
+          ]
         }
       }
+    },
+    "MatchingStrategy": {
+      "type": "string",
+      "enum": [
+        "Legacy",
+        "Equals",
+        "StartsWith",
+        "EndsWith",
+        "Contains",
+        "Regex"
+      ]
     },
     "MonitorConfig": {
       "type": "object",
