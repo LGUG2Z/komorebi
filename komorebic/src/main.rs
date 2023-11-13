@@ -1181,7 +1181,10 @@ fn main() -> Result<()> {
                 .open(library.clone())?;
 
             let output: String = SubCommand::generate_ahk_library();
-            let fixed_output = output.replace("%id%", "\"%id%\"");
+            let fixed_id = output.replace("%id%", "\"%id%\"");
+            let fixed_stop_def = fixed_id.replace("Stop(whkd)", "Stop()");
+            let fixed_output =
+                fixed_stop_def.replace("komorebic.exe stop  --whkd %whkd%", "komorebic.exe stop");
 
             file.write_all(fixed_output.as_bytes())?;
 
