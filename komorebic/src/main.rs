@@ -431,6 +431,24 @@ pub struct SendToMonitorWorkspace {
     target_workspace: usize,
 }
 
+macro_rules! gen_focused_workspace_padding_subcommand_args {
+    // SubCommand Pattern
+    ( $( $name:ident ),+ $(,)? ) => {
+        $(
+            #[derive(clap::Parser, derive_ahk::AhkFunction)]
+            pub struct $name {
+                /// Pixels size to set as an integer
+                size: i32,
+            }
+        )+
+    };
+}
+
+gen_focused_workspace_padding_subcommand_args! {
+    FocusedWorkspaceContainerPadding,
+    FocusedWorkspacePadding,
+}
+
 macro_rules! gen_padding_subcommand_args {
     // SubCommand Pattern
     ( $( $name:ident ),+ $(,)? ) => {
@@ -857,6 +875,12 @@ enum SubCommand {
     /// Set offsets for a monitor to exclude parts of the work area from tiling
     #[clap(arg_required_else_help = true)]
     MonitorWorkAreaOffset(MonitorWorkAreaOffset),
+    /// Set container padding on the focused workspace
+    #[clap(arg_required_else_help = true)]
+    FocusedWorkspaceContainerPadding(FocusedWorkspaceContainerPadding),
+    /// Set workspace padding on the focused workspace
+    #[clap(arg_required_else_help = true)]
+    FocusedWorkspacePadding(FocusedWorkspacePadding),
     /// Adjust container padding on the focused workspace
     #[clap(arg_required_else_help = true)]
     AdjustContainerPadding(AdjustContainerPadding),
@@ -1357,6 +1381,12 @@ fn main() -> Result<()> {
             send_message(
                 &SocketMessage::NamedWorkspacePadding(arg.workspace, arg.size).as_bytes()?,
             )?;
+        }
+        SubCommand::FocusedWorkspacePadding(arg) => {
+            send_message(&SocketMessage::FocusedWorkspacePadding(arg.size).as_bytes()?)?;
+        }
+        SubCommand::FocusedWorkspaceContainerPadding(arg) => {
+            send_message(&SocketMessage::FocusedWorkspaceContainerPadding(arg.size).as_bytes()?)?;
         }
         SubCommand::AdjustWorkspacePadding(arg) => {
             send_message(

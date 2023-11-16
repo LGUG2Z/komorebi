@@ -322,6 +322,28 @@ impl WindowManager {
                     monitor.update_focused_workspace(offset, &invisible_borders)?;
                 }
             }
+            SocketMessage::FocusedWorkspaceContainerPadding(adjustment) => {
+                let focused_monitor_idx = self.focused_monitor_idx();
+
+                let focused_monitor = self
+                    .focused_monitor()
+                    .ok_or_else(|| anyhow!("there is no monitor"))?;
+
+                let focused_workspace_idx = focused_monitor.focused_workspace_idx();
+
+                self.set_container_padding(focused_monitor_idx, focused_workspace_idx, adjustment)?;
+            }
+            SocketMessage::FocusedWorkspacePadding(adjustment) => {
+                let focused_monitor_idx = self.focused_monitor_idx();
+
+                let focused_monitor = self
+                    .focused_monitor()
+                    .ok_or_else(|| anyhow!("there is no monitor"))?;
+
+                let focused_workspace_idx = focused_monitor.focused_workspace_idx();
+
+                self.set_workspace_padding(focused_monitor_idx, focused_workspace_idx, adjustment)?;
+            }
             SocketMessage::AdjustContainerPadding(sizing, adjustment) => {
                 self.adjust_container_padding(sizing, adjustment)?;
             }
