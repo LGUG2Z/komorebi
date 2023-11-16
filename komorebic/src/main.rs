@@ -1172,17 +1172,28 @@ fn main() -> Result<()> {
 
             println!("Looking for configuration files in {home_lossy_string}\n");
 
+            let mut static_config = home.clone();
+            static_config.push("komorebi.json");
+
             let mut config_pwsh = home.clone();
             config_pwsh.push("komorebi.ps1");
 
             let mut config_ahk = home.clone();
             config_ahk.push("komorebi.ahk");
 
-            if config_pwsh.exists() {
+            let mut config_whkd = dirs::home_dir().expect("no home dir found");
+            config_whkd.push(".config");
+            config_whkd.push("whkdrc");
+
+            if static_config.exists() {
+                println!("Found komorebi.json; this file can be passed to the start command with the --config flag\n");
+                if config_whkd.exists() {
+                    println!("Found ~/.config/whkdrc; key bindings will be loaded from here when whkd is started, and you can start it automatically using the --whkd flag\n");
+                } else {
+                    println!("No ~/.config/whkdrc found; you may not be able to control komorebi with your keyboard\n");
+                }
+            } else if config_pwsh.exists() {
                 println!("Found komorebi.ps1; this file will be autoloaded by komorebi\n");
-                let mut config_whkd = dirs::home_dir().expect("could not find home dir");
-                config_whkd.push(".config");
-                config_whkd.push("whkdrc");
                 if config_whkd.exists() {
                     println!("Found ~/.config/whkdrc; key bindings will be loaded from here when whkd is started\n");
                 } else {
