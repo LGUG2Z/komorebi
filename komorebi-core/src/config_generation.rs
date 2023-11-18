@@ -98,6 +98,20 @@ pub struct ApplicationConfiguration {
     pub float_identifiers: Option<Vec<IdWithIdentifierAndComment>>,
 }
 
+impl ApplicationConfiguration {
+    pub fn populate_default_matching_strategies(&mut self) {
+        if self.identifier.matching_strategy.is_none() {
+            match self.identifier.kind {
+                ApplicationIdentifier::Exe => {
+                    self.identifier.matching_strategy = Option::from(MatchingStrategy::Equals);
+                }
+                ApplicationIdentifier::Class => {}
+                ApplicationIdentifier::Title => {}
+            }
+        }
+    }
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 pub struct ApplicationConfigurationGenerator;
 
@@ -108,6 +122,10 @@ impl ApplicationConfigurationGenerator {
 
     pub fn format(content: &str) -> Result<String> {
         let mut cfgen = Self::load(content)?;
+        for cfg in &mut cfgen {
+            cfg.populate_default_matching_strategies();
+        }
+
         cfgen.sort_by(|a, b| a.name.cmp(&b.name));
         Ok(serde_yaml::to_string(&cfgen)?)
     }
