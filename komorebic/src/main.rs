@@ -735,6 +735,8 @@ struct Opts {
 
 #[derive(Parser, AhkLibrary)]
 enum SubCommand {
+    /// Gather example configurations for a new-user quickstart
+    Quickstart,
     /// Start komorebi.exe as a background process
     Start(Start),
     /// Stop the komorebi.exe process and restore all hidden windows
@@ -1123,6 +1125,43 @@ fn main() -> Result<()> {
     let opts: Opts = Opts::parse();
 
     match opts.subcmd {
+        SubCommand::Quickstart => {
+            let version = env!("CARGO_PKG_VERSION");
+
+            let home_dir = dirs::home_dir().expect("could not find home dir");
+            let mut config_dir = home_dir;
+            config_dir.push(".config");
+            std::fs::create_dir_all(".config")?;
+
+            let komorebi_json = reqwest::blocking::get(
+                format!("https://raw.githubusercontent.com/LGUG2Z/komorebi/v{version}/komorebi.example.json")
+            )?.text()?;
+            let mut komorebi_json_file_path = HOME_DIR.clone();
+            komorebi_json_file_path.push("komorebi.json");
+            std::fs::write(komorebi_json_file_path, komorebi_json)?;
+
+            let applications_yaml = reqwest::blocking::get(
+                "https://raw.githubusercontent.com/LGUG2Z/komorebi-application-specific-configuration/master/applications.yaml"
+            )?
+                .text()?;
+            let mut komorebi_json_file_path = HOME_DIR.clone();
+            komorebi_json_file_path.push("applications.yaml");
+            std::fs::write(komorebi_json_file_path, applications_yaml)?;
+
+            let whkdrc = reqwest::blocking::get(format!(
+                "https://raw.githubusercontent.com/LGUG2Z/komorebi/v{version}/whkdrc.sample"
+            ))?
+            .text()?;
+            let mut whkdrc_file_path = config_dir.clone();
+            whkdrc_file_path.push("whkdrc");
+
+            std::fs::write(whkdrc_file_path, whkdrc)?;
+
+            println!("Example ~/komorebi.json, ~/.config/whkdrc and latest ~/applications.yaml files downloaded");
+            println!(
+                "You can now run komorebic start -c \"$Env:USERPROFILE\\komorebi.json\" --whkd"
+            );
+        }
         SubCommand::EnableAutostart(args) => {
             let mut current_exe = std::env::current_exe().expect("unable to get exec path");
             current_exe.pop();

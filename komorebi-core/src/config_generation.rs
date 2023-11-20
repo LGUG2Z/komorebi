@@ -105,8 +105,7 @@ impl ApplicationConfiguration {
                 ApplicationIdentifier::Exe => {
                     self.identifier.matching_strategy = Option::from(MatchingStrategy::Equals);
                 }
-                ApplicationIdentifier::Class => {}
-                ApplicationIdentifier::Title => {}
+                ApplicationIdentifier::Class | ApplicationIdentifier::Title => {}
             }
         }
     }
