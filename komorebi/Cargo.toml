@@ -41,7 +41,7 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 uds_windows = "1"
 which = "5"
 winput = "0.2"
-winreg = "0.51"
+winreg = "0.52"
 windows-interface = { workspace = true }
 windows-implement = { workspace = true }
 windows = { workspace = true }
