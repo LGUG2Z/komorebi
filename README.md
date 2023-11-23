@@ -3,9 +3,6 @@
 Tiling Window Management for Windows.
 
 <p>
-  <a href="https://bdsmovement.net">
-    <img alt="Stand With Palestine" src="https://img.shields.io/badge/Stand_With_Palestine-%F0%9F%87%B5%F0%9F%87%B8-white">
-  </a>
   <img alt="GitHub Workflow Status" src="https://img.shields.io/github/actions/workflow/status/LGUG2Z/komorebi/.github/workflows/windows.yaml">
   <img alt="GitHub" src="https://img.shields.io/github/license/LGUG2Z/komorebi">
   <img alt="GitHub all releases" src="https://img.shields.io/github/downloads/LGUG2Z/komorebi/total">
@@ -16,11 +13,14 @@ Tiling Window Management for Windows.
   <a href="https://github.com/sponsors/LGUG2Z">
     <img alt="GitHub Sponsors" src="https://img.shields.io/github/sponsors/LGUG2Z">
   </a>
+  <a href="https://ko-fi.com/lgug2z">
+    <img alt="Ko-fi" src="https://img.shields.io/badge/kofi-tip-green">
+  </a>
   <a href="https://notado.app/feeds/jado/software-development">
     <img alt="Notado Feed" src="https://img.shields.io/badge/Notado-Subscribe-informational">
   </a>
-  <a href="https://twitter.com/LGUG2Z">
-    <img alt="Twitter Follow" src="https://img.shields.io/twitter/follow/LGUG2Z?style=flat">
+  <a href="https://www.youtube.com/channel/UCeai3-do-9O4MNy9_xjO6mg?sub_confirmation=1">
+    <img alt="YouTube" src="https://img.shields.io/youtube/channel/subscribers/UCeai3-do-9O4MNy9_xjO6mg">
   </a>
 </p>
 
@@ -88,21 +88,20 @@ Articles, blog posts, demos, and videos about _komorebi_ can be added to this li
 _komorebi_ is a free and open-source project, and one that encourages you to make charitable donations if
 you find the software to be useful and have the financial means.
 
-I encourage you to make a charitable donation
-to [Fresh Start Refugee](https://www.freshstartrefugee.org/donate) before
-you consider sponsoring me on GitHub.
+I encourage you to make a charitable donation to the [Palestine Children's
+Relief Fund](https://pcrf1.app.neoncrm.com/forms/gaza-recovery) and [Fresh
+Start Refugee](https://www.freshstartrefugee.org/donate) before you consider
+sponsoring me on GitHub.
 
-## GitHub Sponsors
+## Project Sponsorship
 
-[GitHub Sponsors is enabled for this project](https://github.com/sponsors/LGUG2Z). Users who sponsor my work
-on `komorebi` at any of the predefined monthly tiers will be given access to a private fork of this repository where I
-push features-in-progress that are not yet quite ready to be pushed on the main repository.
+[GitHub Sponsors is enabled for this
+project](https://github.com/sponsors/LGUG2Z). Unfortunately I don't have
+anything specific to offer besides my gratitude and shout outs at the end of
+_komorebi_ live development videos and tutorials.
 
-There will never be any feature of `komorebi` that is gated behind sponsorship; every new feature will always be
-available for free in the public repository once it meets the requisite level of code quality and completion.
-
-Features-in-progress that are available in early access will be tagged in the issues with
-an ["early access" label](https://github.com/LGUG2Z/komorebi/issues?q=is%3Aopen+is%3Aissue+label%3A%22early+access%22).
+If you would like to tip or sponsor the project but are unable to use GitHub
+Sponsors, you may also sponsor through [Ko-fi](https://ko-fi.com/lgug2z).
 
 ## Demonstrations
 
