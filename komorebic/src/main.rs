@@ -718,6 +718,9 @@ struct EnableAutostart {
     /// Path to a static configuration JSON file
     #[clap(action, short, long)]
     config: String,
+    /// Enable komorebi's custom focus-follows-mouse implementation
+    #[clap(action, short, long = "ffm")]
+    ffm: bool,
     /// Enable autostart of whkd
     #[clap(action, long)]
     whkd: bool,
@@ -1172,6 +1175,10 @@ fn main() -> Result<()> {
             let shortcut_file = startup_dir.join("komorebi.lnk");
 
             let mut arguments = format!("start --config {}", args.config);
+
+            if args.ffm {
+                arguments.push_str(" --ffm");
+            }
 
             if args.whkd {
                 arguments.push_str(" --whkd");
