@@ -6,6 +6,7 @@ members = [
     "komorebi",
     "komorebi-core",
     "komorebic",
+    "komorebic-no-console",
 ]
 
 [workspace.dependencies]
