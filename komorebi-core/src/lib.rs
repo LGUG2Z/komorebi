@@ -1,10 +1,12 @@
 #![warn(clippy::all, clippy::nursery, clippy::pedantic)]
 #![allow(clippy::missing_errors_doc, clippy::use_self)]
 
+use std::path::Path;
 use std::path::PathBuf;
 use std::str::FromStr;
 
 use clap::ValueEnum;
+use color_eyre::eyre::anyhow;
 use color_eyre::Result;
 use schemars::JsonSchema;
 use serde::Deserialize;
@@ -297,4 +299,37 @@ impl Sizing {
             }
         }
     }
+}
+
+pub fn resolve_home_path<P: AsRef<Path>>(path: P) -> Result<PathBuf> {
+    let mut resolved_path = PathBuf::new();
+    let mut resolved = false;
+    for c in path.as_ref().components() {
+        match c {
+            std::path::Component::Normal(c)
+                if (c == "~" || c == "$Env:USERPROFILE" || c == "$HOME") && !resolved =>
+            {
+                let home = dirs::home_dir().ok_or_else(|| anyhow!("there is no home directory"))?;
+
+                resolved_path.extend(home.components());
+                resolved = true;
+            }
+
+            _ => resolved_path.push(c),
+        }
+    }
+
+    let parent = resolved_path
+        .parent()
+        .ok_or_else(|| anyhow!("cannot parse parent directory"))?;
+
+    Ok(if parent.is_dir() {
+        let file = resolved_path
+            .components()
+            .last()
+            .ok_or_else(|| anyhow!("cannot parse filename"))?;
+        dunce::canonicalize(parent)?.join(file)
+    } else {
+        resolved_path
+    })
 }

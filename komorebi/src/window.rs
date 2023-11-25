@@ -241,7 +241,7 @@ impl Window {
 
         // Raise Window to foreground
         match WindowsApi::set_foreground_window(self.hwnd()) {
-            Ok(_) => {}
+            Ok(()) => {}
             Err(error) => {
                 tracing::error!(
                     "could not set as foreground window, but continuing execution of raise(): {}",
@@ -252,7 +252,7 @@ impl Window {
 
         // This isn't really needed when the above command works as expected via AHK
         match WindowsApi::set_focus(self.hwnd()) {
-            Ok(_) => {}
+            Ok(()) => {}
             Err(error) => {
                 tracing::error!(
                     "could not set focus, but continuing execution of raise(): {}",
@@ -302,7 +302,7 @@ impl Window {
             }
 
             match WindowsApi::set_foreground_window(self.hwnd()) {
-                Ok(_) => {
+                Ok(()) => {
                     foregrounded = true;
                 }
                 Err(error) => {
@@ -334,7 +334,7 @@ impl Window {
 
         // This isn't really needed when the above command works as expected via AHK
         match WindowsApi::set_focus(self.hwnd()) {
-            Ok(_) => {}
+            Ok(()) => {}
             Err(error) => {
                 tracing::error!(
                     "could not set focus, but continuing execution of focus(): {}",
