@@ -92,6 +92,9 @@
             <Component Id='binary1' Guid='*'>
               <File Id='exe1' Name='komorebic.exe' DiskId='1' Source='$(var.CargoTargetBinDir)\komorebic.exe' KeyPath='yes' />
             </Component>
+            <Component Id='binary3' Guid='*'>
+              <File Id='exe1' Name='komorebic-no-console.exe' DiskId='1' Source='$(var.CargoTargetBinDir)\komorebic-no-console.exe' KeyPath='yes' />
+            </Component>
           </Directory>
         </Directory>
       </Directory>
