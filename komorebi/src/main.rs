@@ -466,16 +466,16 @@ fn detect_deadlocks() {
 #[clap(author, about, version)]
 struct Opts {
     /// Allow the use of komorebi's custom focus-follows-mouse implementation
-    #[clap(action, short, long = "ffm")]
+    #[clap(short, long = "ffm")]
     focus_follows_mouse: bool,
     /// Wait for 'komorebic complete-configuration' to be sent before processing events
-    #[clap(action, short, long)]
+    #[clap(short, long)]
     await_configuration: bool,
     /// Start a TCP server on the given port to allow the direct sending of SocketMessages
-    #[clap(action, short, long)]
+    #[clap(short, long)]
     tcp_port: Option<usize>,
     /// Path to a static configuration JSON file
-    #[clap(action, short, long)]
+    #[clap(short, long)]
     config: Option<PathBuf>,
 }
 

@@ -629,29 +629,29 @@ struct ActiveWindowBorderOffset {
 #[allow(clippy::struct_excessive_bools)]
 struct Start {
     /// Allow the use of komorebi's custom focus-follows-mouse implementation
-    #[clap(action, short, long = "ffm")]
+    #[clap(short, long = "ffm")]
     ffm: bool,
     /// Path to a static configuration JSON file
-    #[clap(action, short, long)]
+    #[clap(short, long)]
     config: Option<PathBuf>,
     /// Wait for 'komorebic complete-configuration' to be sent before processing events
-    #[clap(action, short, long)]
+    #[clap(short, long)]
     await_configuration: bool,
     /// Start a TCP server on the given port to allow the direct sending of SocketMessages
-    #[clap(action, short, long)]
+    #[clap(short, long)]
     tcp_port: Option<usize>,
     /// Start whkd in a background process
-    #[clap(action, long)]
+    #[clap(long)]
     whkd: bool,
     /// Start autohotkey configuration file
-    #[clap(action, long)]
+    #[clap(long)]
     ahk: bool,
 }
 
 #[derive(Parser, AhkFunction)]
 struct Stop {
     /// Stop whkd if it is running as a background process
-    #[clap(action, long)]
+    #[clap(long)]
     whkd: bool,
 }
 
@@ -716,16 +716,16 @@ struct AltFocusHack {
 #[derive(Parser, AhkFunction)]
 struct EnableAutostart {
     /// Path to a static configuration JSON file
-    #[clap(action, short, long)]
+    #[clap(short, long)]
     config: Option<String>,
     /// Enable komorebi's custom focus-follows-mouse implementation
-    #[clap(action, short, long = "ffm")]
+    #[clap(short, long = "ffm")]
     ffm: bool,
     /// Enable autostart of whkd
-    #[clap(action, long)]
+    #[clap(long)]
     whkd: bool,
     /// Enable autostart of ahk
-    #[clap(action, long)]
+    #[clap(long)]
     ahk: bool,
 }
 
