@@ -1094,7 +1094,6 @@ enum SubCommand {
     /// Generates a static configuration JSON file based on the current window manager state
     GenerateStaticConfig,
     /// Generates the komorebi.lnk shortcut in shell:startup to autostart komorebi
-    #[clap(arg_required_else_help = true)]
     EnableAutostart(EnableAutostart),
     /// Deletes the komorebi.lnk shortcut in shell:startup to disable autostart
     DisableAutostart,
