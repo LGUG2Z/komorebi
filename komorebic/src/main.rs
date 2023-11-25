@@ -717,7 +717,7 @@ struct AltFocusHack {
 struct EnableAutostart {
     /// Path to a static configuration JSON file
     #[clap(action, short, long)]
-    config: String,
+    config: Option<String>,
     /// Enable komorebi's custom focus-follows-mouse implementation
     #[clap(action, short, long = "ffm")]
     ffm: bool,
@@ -1174,7 +1174,12 @@ fn main() -> Result<()> {
             let startup_dir = startup_dir()?;
             let shortcut_file = startup_dir.join("komorebi.lnk");
 
-            let mut arguments = format!("start --config {}", args.config);
+            let mut arguments = String::from("start");
+
+            if let Some(config) = args.config {
+                arguments.push_str("--config ");
+                arguments.push_str(&config);
+            }
 
             if args.ffm {
                 arguments.push_str(" --ffm");
