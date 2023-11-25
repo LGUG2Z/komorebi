@@ -3,11 +3,13 @@ use std::collections::HashSet;
 use std::collections::VecDeque;
 use std::io::ErrorKind;
 use std::num::NonZeroUsize;
+use std::path::Path;
 use std::path::PathBuf;
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
 
 use color_eyre::eyre::anyhow;
+use color_eyre::eyre::bail;
 use color_eyre::Result;
 use crossbeam_channel::Receiver;
 use hotwatch::notify::DebouncedEvent;
@@ -166,7 +168,7 @@ impl WindowManager {
         let socket = DATA_DIR.join("komorebi.sock");
 
         match std::fs::remove_file(&socket) {
-            Ok(_) => {}
+            Ok(()) => {}
             Err(error) => match error.kind() {
                 // Doing this because ::exists() doesn't work reliably on Windows via IntelliJ
                 ErrorKind::NotFound => {}
@@ -247,13 +249,8 @@ impl WindowManager {
 
     #[tracing::instrument(skip(self))]
     pub fn watch_configuration(&mut self, enable: bool) -> Result<()> {
-        let home = HOME_DIR.clone();
-
-        let mut config_pwsh = home.clone();
-        config_pwsh.push("komorebi.ps1");
-
-        let mut config_ahk = home;
-        config_ahk.push("komorebi.ahk");
+        let config_pwsh = HOME_DIR.join("komorebi.ps1");
+        let config_ahk = HOME_DIR.join("komorebi.ahk");
 
         if config_pwsh.exists() {
             self.configure_watcher(enable, config_pwsh)?;
@@ -265,50 +262,39 @@ impl WindowManager {
     }
 
     fn configure_watcher(&mut self, enable: bool, config: PathBuf) -> Result<()> {
-        if config.exists() {
-            if enable {
-                tracing::info!(
-                    "watching configuration for changes: {}",
-                    config
-                        .as_os_str()
-                        .to_str()
-                        .ok_or_else(|| anyhow!("cannot convert path to string"))?
-                );
-                // Always make absolutely sure that there isn't an already existing watch, because
-                // hotwatch allows multiple watches to be registered for the same path
-                match self.hotwatch.unwatch(config.clone()) {
-                    Ok(_) => {}
-                    Err(error) => match error {
-                        hotwatch::Error::Notify(error) => match error {
-                            hotwatch::notify::Error::WatchNotFound => {}
-                            error => return Err(error.into()),
-                        },
-                        error @ hotwatch::Error::Io(_) => return Err(error.into()),
+        if enable {
+            tracing::info!("watching configuration for changes: {}", config.display());
+            // Always make absolutely sure that there isn't an already existing watch, because
+            // hotwatch allows multiple watches to be registered for the same path
+            match self.hotwatch.unwatch(&config) {
+                Ok(()) => {}
+                Err(error) => match error {
+                    hotwatch::Error::Notify(error) => match error {
+                        hotwatch::notify::Error::WatchNotFound => {}
+                        error => return Err(error.into()),
                     },
+                    error @ hotwatch::Error::Io(_) => return Err(error.into()),
+                },
+            }
+
+            self.hotwatch.watch(config, |event| match event {
+                // Editing in Notepad sends a NoticeWrite while editing in (Neo)Vim sends
+                // a NoticeRemove, presumably because of the use of swap files?
+                DebouncedEvent::NoticeWrite(_) | DebouncedEvent::NoticeRemove(_) => {
+                    std::thread::spawn(|| {
+                        load_configuration().expect("could not load configuration");
+                    });
                 }
+                _ => {}
+            })?;
+        } else {
+            tracing::info!(
+                "no longer watching configuration for changes: {}",
+                config.display()
+            );
 
-                self.hotwatch.watch(config, |event| match event {
-                    // Editing in Notepad sends a NoticeWrite while editing in (Neo)Vim sends
-                    // a NoticeRemove, presumably because of the use of swap files?
-                    DebouncedEvent::NoticeWrite(_) | DebouncedEvent::NoticeRemove(_) => {
-                        std::thread::spawn(|| {
-                            load_configuration().expect("could not load configuration");
-                        });
-                    }
-                    _ => {}
-                })?;
-            } else {
-                tracing::info!(
-                    "no longer watching configuration for changes: {}",
-                    config
-                        .as_os_str()
-                        .to_str()
-                        .ok_or_else(|| anyhow!("cannot convert path to string"))?
-                );
-
-                self.hotwatch.unwatch(config)?;
-            };
-        }
+            self.hotwatch.unwatch(config)?;
+        };
 
         Ok(())
     }
@@ -868,7 +854,7 @@ impl WindowManager {
                 // attach to the thread of the desktop window always seems to result in "Access is
                 // denied (os error 5)"
                 match WindowsApi::set_foreground_window(desktop_window.hwnd()) {
-                    Ok(_) => {}
+                    Ok(()) => {}
                     Err(error) => {
                         tracing::warn!("{} {}:{}", error, file!(), line!());
                     }
@@ -1002,9 +988,7 @@ impl WindowManager {
             let workspace = self.focused_workspace()?;
             let focused_hwnd = WindowsApi::foreground_window()?;
             if !workspace.contains_managed_window(focused_hwnd) {
-                return Err(anyhow!(
-                    "ignoring commands while active window is not managed by komorebi"
-                ));
+                bail!("ignoring commands while active window is not managed by komorebi");
             }
         }
 
@@ -1120,9 +1104,7 @@ impl WindowManager {
             .ok_or_else(|| anyhow!("there is no workspace"))?;
 
         if workspace.maximized_window().is_some() {
-            return Err(anyhow!(
-                "cannot move native maximized window to another monitor or workspace"
-            ));
+            bail!("cannot move native maximized window to another monitor or workspace");
         }
 
         let container = workspace
@@ -1232,9 +1214,7 @@ impl WindowManager {
         // removing this messes up the monitor / container / window index somewhere
         // and results in the wrong window getting moved across the monitor boundary
         if workspace.is_focused_window_monocle_or_maximized()? {
-            return Err(anyhow!(
-                "ignoring command while active window is in monocle mode or maximized"
-            ));
+            bail!("ignoring command while active window is in monocle mode or maximized");
         }
 
         tracing::info!("moving container");
@@ -1396,9 +1376,7 @@ impl WindowManager {
 
         let workspace = self.focused_workspace_mut()?;
         if workspace.is_focused_window_monocle_or_maximized()? {
-            return Err(anyhow!(
-                "ignoring command while active window is in monocle mode or maximized"
-            ));
+            bail!("ignoring command while active window is in monocle mode or maximized");
         }
 
         tracing::info!("moving container");
@@ -1425,7 +1403,7 @@ impl WindowManager {
             .ok_or_else(|| anyhow!("there must be at least one window in a container"))?;
 
         if len.get() == 1 {
-            return Err(anyhow!("there is only one window in this container"));
+            bail!("there is only one window in this container");
         }
 
         let current_idx = container.focused_window_idx();
@@ -1510,7 +1488,7 @@ impl WindowManager {
         tracing::info!("removing window");
 
         if self.focused_container()?.windows().len() == 1 {
-            return Err(anyhow!("a container must have at least one window"));
+            bail!("a container must have at least one window");
         }
 
         let workspace = self.focused_workspace_mut()?;
@@ -1729,10 +1707,13 @@ impl WindowManager {
     }
 
     #[tracing::instrument(skip(self))]
-    pub fn change_workspace_custom_layout(&mut self, path: PathBuf) -> Result<()> {
+    pub fn change_workspace_custom_layout<P>(&mut self, path: P) -> Result<()>
+    where
+        P: AsRef<Path> + std::fmt::Debug,
+    {
         tracing::info!("changing layout");
 
-        let layout = CustomLayout::from_path_buf(path)?;
+        let layout = CustomLayout::from_path(path)?;
         let workspace = self.focused_workspace_mut()?;
 
         match workspace.layout() {
@@ -1854,13 +1835,16 @@ impl WindowManager {
     }
 
     #[tracing::instrument(skip(self))]
-    pub fn add_workspace_layout_custom_rule(
+    pub fn add_workspace_layout_custom_rule<P>(
         &mut self,
         monitor_idx: usize,
         workspace_idx: usize,
         at_container_count: usize,
-        path: PathBuf,
-    ) -> Result<()> {
+        path: P,
+    ) -> Result<()>
+    where
+        P: AsRef<Path> + std::fmt::Debug,
+    {
         tracing::info!("setting workspace layout");
 
         let invisible_borders = self.invisible_borders;
@@ -1885,7 +1869,7 @@ impl WindowManager {
             .get_mut(workspace_idx)
             .ok_or_else(|| anyhow!("there is no monitor"))?;
 
-        let layout = CustomLayout::from_path_buf(path)?;
+        let layout = CustomLayout::from_path(path)?;
 
         let rules: &mut Vec<(usize, Layout)> = workspace.layout_rules_mut();
         rules.retain(|pair| pair.0 != at_container_count);
@@ -1986,14 +1970,17 @@ impl WindowManager {
     }
 
     #[tracing::instrument(skip(self))]
-    pub fn set_workspace_layout_custom(
+    pub fn set_workspace_layout_custom<P>(
         &mut self,
         monitor_idx: usize,
         workspace_idx: usize,
-        path: PathBuf,
-    ) -> Result<()> {
+        path: P,
+    ) -> Result<()>
+    where
+        P: AsRef<Path> + std::fmt::Debug,
+    {
         tracing::info!("setting workspace layout");
-        let layout = CustomLayout::from_path_buf(path)?;
+        let layout = CustomLayout::from_path(path)?;
         let invisible_borders = self.invisible_borders;
         let offset = self.work_area_offset;
         let focused_monitor_idx = self.focused_monitor_idx();
@@ -2164,7 +2151,7 @@ impl WindowManager {
         if self.monitors().get(idx).is_some() {
             self.monitors.focus(idx);
         } else {
-            return Err(anyhow!("this is not a valid monitor index"));
+            bail!("this is not a valid monitor index");
         }
 
         Ok(())

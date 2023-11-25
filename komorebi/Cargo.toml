@@ -15,11 +15,9 @@ komorebi-core = { path = "../komorebi-core" }
 
 bitflags = "2"
 clap = { version = "4", features = ["derive"] }
-color-eyre = "0.6"
 crossbeam-channel = "0.5"
 crossbeam-utils = "0.8"
 ctrlc = "3"
-dirs = "5"
 getset = "0.1"
 hotwatch = "0.4"
 lazy_static = "1"
@@ -45,6 +43,8 @@ winreg = "0.52"
 windows-interface = { workspace = true }
 windows-implement = { workspace = true }
 windows = { workspace = true }
+color-eyre = { workspace = true }
+dirs = { workspace = true }
 
 [features]
 deadlock_detection = []

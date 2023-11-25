@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::collections::VecDeque;
 
 use color_eyre::eyre::anyhow;
+use color_eyre::eyre::bail;
 use color_eyre::Result;
 use getset::CopyGetters;
 use getset::Getters;
@@ -120,9 +121,7 @@ impl Monitor {
             .ok_or_else(|| anyhow!("there is no workspace"))?;
 
         if workspace.maximized_window().is_some() {
-            return Err(anyhow!(
-                "cannot move native maximized window to another monitor or workspace"
-            ));
+            bail!("cannot move native maximized window to another monitor or workspace");
         }
 
         let container = workspace
