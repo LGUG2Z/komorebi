@@ -19,11 +19,15 @@ use komorebi_core::Layout;
 use komorebi_core::OperationDirection;
 use komorebi_core::Rect;
 
+use crate::border::Border;
 use crate::container::Container;
 use crate::ring::Ring;
 use crate::static_config::WorkspaceConfig;
 use crate::window::Window;
 use crate::windows_api::WindowsApi;
+use crate::ANIMATE_ENABLED;
+use crate::BORDER_HIDDEN;
+use crate::BORDER_HWND;
 use crate::DEFAULT_CONTAINER_PADDING;
 use crate::DEFAULT_WORKSPACE_PADDING;
 use crate::INITIAL_CONFIGURATION_LOADED;
@@ -274,6 +278,12 @@ impl Workspace {
                             window.remove_title_bar()?;
                         } else if no_titlebar.contains(&window.exe()?) {
                             window.add_title_bar()?;
+                        }
+
+                        if ANIMATE_ENABLED.load(Ordering::SeqCst) {
+                            let border = Border::from(BORDER_HWND.load(Ordering::SeqCst));
+                            border.hide()?;
+                            BORDER_HIDDEN.store(true, Ordering::SeqCst);
                         }
 
                         window.set_position(layout, invisible_borders, false)?;

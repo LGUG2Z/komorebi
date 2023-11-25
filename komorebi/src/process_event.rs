@@ -515,7 +515,8 @@ impl WindowManager {
             WindowManagerEvent::DisplayChange(..)
             | WindowManagerEvent::MouseCapture(..)
             | WindowManagerEvent::Cloak(..)
-            | WindowManagerEvent::Uncloak(..) => {}
+            | WindowManagerEvent::Uncloak(..)
+            | WindowManagerEvent::SetFocusedBorderWindow(..) => {}
         };
 
         if *self.focused_workspace()?.tile() && BORDER_ENABLED.load(Ordering::SeqCst) {
@@ -529,7 +530,8 @@ impl WindowManager {
                 | WindowManagerEvent::Show(_, window)
                 | WindowManagerEvent::FocusChange(_, window)
                 | WindowManagerEvent::Hide(_, window)
-                | WindowManagerEvent::Minimize(_, window) => {
+                | WindowManagerEvent::Minimize(_, window)
+                | WindowManagerEvent::SetFocusedBorderWindow(window) => {
                     let border = Border::from(BORDER_HWND.load(Ordering::SeqCst));
                     let mut target_window = None;
                     let mut target_window_is_monocle = false;

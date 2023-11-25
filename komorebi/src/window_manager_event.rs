@@ -27,6 +27,7 @@ pub enum WindowManagerEvent {
     Unmanage(Window),
     Raise(Window),
     DisplayChange(Window),
+    SetFocusedBorderWindow(Window),
 }
 
 impl Display for WindowManagerEvent {
@@ -77,6 +78,9 @@ impl Display for WindowManagerEvent {
             Self::DisplayChange(window) => {
                 write!(f, "DisplayChange (Window: {window})")
             }
+            Self::SetFocusedBorderWindow(window) => {
+                write!(f, "SetFocusedBorderWindow (Window: {window})")
+            }
         }
     }
 }
@@ -97,7 +101,8 @@ impl WindowManagerEvent {
             | Self::Raise(window)
             | Self::Manage(window)
             | Self::DisplayChange(window)
-            | Self::Unmanage(window) => window,
+            | Self::Unmanage(window)
+            | Self::SetFocusedBorderWindow(window) => window,
         }
     }
 

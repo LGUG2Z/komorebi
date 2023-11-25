@@ -1,4 +1,5 @@
 use crate::com::SetCloak;
+use crate::winevent_listener::WINEVENT_CALLBACK_CHANNEL;
 use crate::ANIMATE_DURATION;
 use crate::ANIMATE_ENABLED;
 use std::collections::HashMap;
@@ -110,7 +111,7 @@ impl Serialize for Window {
 impl Window {
     // for instantiation of animation struct
     pub fn new(hwnd: isize) -> Self {
-        Window {
+        Self {
             hwnd,
             animation: Animation::default(),
         }
@@ -149,19 +150,23 @@ impl Window {
             let target_rect = *layout;
             let duration = Duration::from_millis(ANIMATE_DURATION.load(Ordering::SeqCst));
             let mut animation = self.animation;
+
+            let self_copied = *self;
             std::thread::spawn(move || {
-                animation
-                    .animate(duration, |progress: f64| {
-                        let new_rect = Animation::lerp_rect(&curr_rect, &target_rect, progress);
-                        if progress < 1.0 {
-                            // using MoveWindow because it runs faster than SetWindowPos
-                            // so animation have more fps and feel smoother
-                            WindowsApi::move_window(hwnd, &new_rect, true)
-                        } else {
-                            WindowsApi::position_window(hwnd, &new_rect, top)
-                        }
-                    })
-                    .unwrap();
+                animation.animate(duration, |progress: f64| {
+                    let new_rect = Animation::lerp_rect(&curr_rect, &target_rect, progress);
+                    if progress < 1.0 {
+                        // using MoveWindow because it runs faster than SetWindowPos
+                        // so animation have more fps and feel smoother
+                        WindowsApi::move_window(hwnd, &new_rect, true)
+                    } else {
+                        WindowsApi::position_window(hwnd, &new_rect, top)?;
+                        Ok(WINEVENT_CALLBACK_CHANNEL
+                            .lock()
+                            .0
+                            .send(WindowManagerEvent::SetFocusedBorderWindow(self_copied))?)
+                    }
+                })
             });
 
             Ok(())
@@ -202,8 +207,8 @@ impl Window {
         if ANIMATE_ENABLED.load(Ordering::SeqCst) {
             // check if animation is in progress
             if self.animation.in_progress {
-                // wait for cancle animation
-                self.animation.cancel().unwrap();
+                // wait for cancel animation
+                self.animation.cancel();
             }
 
             self.animate_position(&rect, top)

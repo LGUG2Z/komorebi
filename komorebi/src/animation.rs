@@ -174,7 +174,7 @@ pub struct EaseOutExpo;
 
 impl Ease for EaseOutExpo {
     fn evaluate(t: f64) -> f64 {
-        if t == 1.0 {
+        if (t - 1.0).abs() < f64::EPSILON {
             return t;
         }
 
@@ -186,7 +186,7 @@ pub struct EaseInOutExpo;
 
 impl Ease for EaseInOutExpo {
     fn evaluate(t: f64) -> f64 {
-        if t == 0.0 || t == 1.0 {
+        if t == 0.0 || (t - 1.0).abs() < f64::EPSILON {
             return t;
         }
 
@@ -275,7 +275,7 @@ pub struct EaseInElastic;
 
 impl Ease for EaseInElastic {
     fn evaluate(t: f64) -> f64 {
-        if t == 1.0 || t == 0.0 {
+        if (t - 1.0).abs() < f64::EPSILON || t == 0.0 {
             return t;
         }
 
@@ -289,7 +289,7 @@ pub struct EaseOutElastic;
 
 impl Ease for EaseOutElastic {
     fn evaluate(t: f64) -> f64 {
-        if t == 1.0 || t == 0.0 {
+        if (t - 1.0).abs() < f64::EPSILON || t == 0.0 {
             return t;
         }
 
@@ -305,7 +305,7 @@ pub struct EaseInOutElastic;
 
 impl Ease for EaseInOutElastic {
     fn evaluate(t: f64) -> f64 {
-        if t == 1.0 || t == 0.0 {
+        if (t - 1.0).abs() < f64::EPSILON || t == 0.0 {
             return t;
         }
 
@@ -399,7 +399,7 @@ fn apply_ease_func(t: f64) -> f64 {
     }
 }
 
-#[derive(Debug, Clone, Copy, JsonSchema)]
+#[derive(Debug, Default, Clone, Copy, JsonSchema)]
 pub struct Animation {
     // is_cancel: AtomicBool,
     // pub in_progress: AtomicBool,
@@ -407,36 +407,37 @@ pub struct Animation {
     pub in_progress: bool,
 }
 
-impl Default for Animation {
-    fn default() -> Self {
-        Animation {
-            // I'm not sure if this is the right way to do it
-            // I've tried to use Arc<Mutex<bool>> but it dooes not implement Copy trait
-            // and I dont want to rewrite everything cause I'm not experienced with rust
-            // Down here you can see the idea I've tried to achive like in any other OOP language
-            // My thought is that in order to prevent Google Chrome breaking render window
-            // I need to cancel animation if user starting new window movement. So window stops
-            // moving at one point and then fires new animation.
-            // But my approach does not work because of rust borrowing rules and wired pointers
-            // lifetime annotation that I dont know how to use.
-            is_cancel: false,
-            in_progress: false,
-            // is_cancel: AtomicBool::new(false),
-            // in_progress: AtomicBool::new(false),
-        }
-    }
-}
+// impl Default for Animation {
+//     fn default() -> Self {
+//         Animation {
+//             // I'm not sure if this is the right way to do it
+//             // I've tried to use Arc<Mutex<bool>> but it dooes not implement Copy trait
+//             // and I dont want to rewrite everything cause I'm not experienced with rust
+//             // Down here you can see the idea I've tried to achive like in any other OOP language
+//             // My thought is that in order to prevent Google Chrome breaking render window
+//             // I need to cancel animation if user starting new window movement. So window stops
+//             // moving at one point and then fires new animation.
+//             // But my approach does not work because of rust borrowing rules and wired pointers
+//             // lifetime annotation that I dont know how to use.
+//             is_cancel: false,
+//             in_progress: false,
+//             // is_cancel: AtomicBool::new(false),
+//             // in_progress: AtomicBool::new(false),
+//         }
+//     }
+// }
 
 impl Animation {
-    pub fn cancel(&mut self) -> Result<()> {
+    pub fn cancel(&mut self) {
         if !self.in_progress {
-            return Ok(());
+            return;
         }
 
         self.is_cancel = true;
         let max_duration = Duration::from_secs(1);
         let spent_duration = Instant::now();
 
+        // TODO: Come back to this clippy lint
         while self.in_progress {
             if spent_duration.elapsed() >= max_duration {
                 break;
@@ -444,10 +445,9 @@ impl Animation {
 
             std::thread::sleep(Duration::from_millis(16));
         }
-
-        Ok(())
     }
 
+    #[allow(clippy::cast_possible_truncation)]
     pub fn lerp(x: i32, new_x: i32, t: f64) -> i32 {
         let time = apply_ease_func(t);
         f64::from(new_x - x).mul_add(time, f64::from(x)) as i32
@@ -462,6 +462,7 @@ impl Animation {
         }
     }
 
+    #[allow(clippy::cast_precision_loss)]
     pub fn animate(
         &mut self,
         duration: Duration,
