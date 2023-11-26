@@ -108,7 +108,7 @@ impl Workspace {
         }
 
         if let Some(pathbuf) = &config.custom_layout {
-            let layout = CustomLayout::from_path_buf(pathbuf.clone())?;
+            let layout = CustomLayout::from_path(pathbuf)?;
             self.layout = Layout::Custom(layout);
             self.tile = true;
         }
@@ -129,7 +129,7 @@ impl Workspace {
         if let Some(layout_rules) = &config.custom_layout_rules {
             let rules = self.layout_rules_mut();
             for (count, pathbuf) in layout_rules {
-                let rule = CustomLayout::from_path_buf(pathbuf.clone())?;
+                let rule = CustomLayout::from_path(pathbuf)?;
                 rules.push((*count, Layout::Custom(rule)));
             }
         }

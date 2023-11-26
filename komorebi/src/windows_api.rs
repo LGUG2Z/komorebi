@@ -368,7 +368,7 @@ impl WindowsApi {
 
     pub fn close_window(hwnd: HWND) -> Result<()> {
         match Self::post_message(hwnd, WM_CLOSE, WPARAM(0), LPARAM(0)) {
-            Ok(_) => Ok(()),
+            Ok(()) => Ok(()),
             Err(_) => Err(anyhow!("could not close window")),
         }
     }

@@ -472,10 +472,10 @@ impl WindowManager {
             SocketMessage::ChangeLayout(layout) => self.change_workspace_layout_default(layout)?,
             SocketMessage::CycleLayout(direction) => self.cycle_layout(direction)?,
             SocketMessage::ChangeLayoutCustom(ref path) => {
-                self.change_workspace_custom_layout(path.clone())?;
+                self.change_workspace_custom_layout(path)?;
             }
             SocketMessage::WorkspaceLayoutCustom(monitor_idx, workspace_idx, ref path) => {
-                self.set_workspace_layout_custom(monitor_idx, workspace_idx, path.clone())?;
+                self.set_workspace_layout_custom(monitor_idx, workspace_idx, path)?;
             }
             SocketMessage::WorkspaceTiling(monitor_idx, workspace_idx, tile) => {
                 self.set_workspace_tiling(monitor_idx, workspace_idx, tile)?;
@@ -506,7 +506,7 @@ impl WindowManager {
                     monitor_idx,
                     workspace_idx,
                     at_container_count,
-                    path.clone(),
+                    path,
                 )?;
             }
             SocketMessage::ClearWorkspaceLayoutRules(monitor_idx, workspace_idx) => {
@@ -516,7 +516,7 @@ impl WindowManager {
                 if let Some((monitor_idx, workspace_idx)) =
                     self.monitor_workspace_index_by_name(workspace)
                 {
-                    self.set_workspace_layout_custom(monitor_idx, workspace_idx, path.clone())?;
+                    self.set_workspace_layout_custom(monitor_idx, workspace_idx, path)?;
                 }
             }
             SocketMessage::NamedWorkspaceTiling(ref workspace, tile) => {
@@ -557,7 +557,7 @@ impl WindowManager {
                         monitor_idx,
                         workspace_idx,
                         at_container_count,
-                        path.clone(),
+                        path,
                     )?;
                 }
             }
@@ -691,10 +691,7 @@ impl WindowManager {
                     Err(error) => error.to_string(),
                 };
 
-                let mut socket = DATA_DIR.clone();
-                socket.push("komorebic.sock");
-                let socket = socket.as_path();
-
+                let socket = DATA_DIR.join("komorebic.sock");
                 let mut stream = UnixStream::connect(socket)?;
                 stream.write_all(state.as_bytes())?;
             }
@@ -714,10 +711,7 @@ impl WindowManager {
                 }
                 .to_string();
 
-                let mut socket = DATA_DIR.clone();
-                socket.push("komorebic.sock");
-                let socket = socket.as_path();
-
+                let socket = DATA_DIR.join("komorebic.sock");
                 let mut stream = UnixStream::connect(socket)?;
                 stream.write_all(response.as_bytes())?;
             }
@@ -1034,8 +1028,7 @@ impl WindowManager {
                 let workspace = self.focused_workspace()?;
                 let resize = workspace.resize_dimensions();
 
-                let mut quicksave_json = std::env::temp_dir();
-                quicksave_json.push("komorebi.quicksave.json");
+                let quicksave_json = std::env::temp_dir().join("komorebi.quicksave.json");
 
                 let file = OpenOptions::new()
                     .write(true)
@@ -1048,15 +1041,10 @@ impl WindowManager {
             SocketMessage::QuickLoad => {
                 let workspace = self.focused_workspace_mut()?;
 
-                let mut quicksave_json = std::env::temp_dir();
-                quicksave_json.push("komorebi.quicksave.json");
+                let quicksave_json = std::env::temp_dir().join("komorebi.quicksave.json");
 
-                let file = File::open(&quicksave_json).map_err(|_| {
-                    anyhow!(
-                        "no quicksave found at {}",
-                        quicksave_json.display().to_string()
-                    )
-                })?;
+                let file = File::open(&quicksave_json)
+                    .map_err(|_| anyhow!("no quicksave found at {}", quicksave_json.display()))?;
 
                 let resize: Vec<Option<Rect>> = serde_json::from_reader(file)?;
 
@@ -1071,15 +1059,15 @@ impl WindowManager {
                     .write(true)
                     .truncate(true)
                     .create(true)
-                    .open(path.clone())?;
+                    .open(path)?;
 
                 serde_json::to_writer_pretty(&file, &resize)?;
             }
             SocketMessage::Load(ref path) => {
                 let workspace = self.focused_workspace_mut()?;
 
-                let file = File::open(path)
-                    .map_err(|_| anyhow!("no file found at {}", path.display().to_string()))?;
+                let file =
+                    File::open(path).map_err(|_| anyhow!("no file found at {}", path.display()))?;
 
                 let resize: Vec<Option<Rect>> = serde_json::from_reader(file)?;
 
@@ -1191,9 +1179,7 @@ impl WindowManager {
             SocketMessage::NotificationSchema => {
                 let notification = schema_for!(Notification);
                 let schema = serde_json::to_string_pretty(&notification)?;
-                let mut socket = DATA_DIR.clone();
-                socket.push("komorebic.sock");
-                let socket = socket.as_path();
+                let socket = DATA_DIR.join("komorebic.sock");
 
                 let mut stream = UnixStream::connect(socket)?;
                 stream.write_all(schema.as_bytes())?;
@@ -1201,9 +1187,7 @@ impl WindowManager {
             SocketMessage::SocketSchema => {
                 let socket_message = schema_for!(SocketMessage);
                 let schema = serde_json::to_string_pretty(&socket_message)?;
-                let mut socket = DATA_DIR.clone();
-                socket.push("komorebic.sock");
-                let socket = socket.as_path();
+                let socket = DATA_DIR.join("komorebic.sock");
 
                 let mut stream = UnixStream::connect(socket)?;
                 stream.write_all(schema.as_bytes())?;
@@ -1211,18 +1195,14 @@ impl WindowManager {
             SocketMessage::StaticConfigSchema => {
                 let socket_message = schema_for!(StaticConfig);
                 let schema = serde_json::to_string_pretty(&socket_message)?;
-                let mut socket = DATA_DIR.clone();
-                socket.push("komorebic.sock");
-                let socket = socket.as_path();
+                let socket = DATA_DIR.join("komorebic.sock");
 
                 let mut stream = UnixStream::connect(socket)?;
                 stream.write_all(schema.as_bytes())?;
             }
             SocketMessage::GenerateStaticConfig => {
                 let config = serde_json::to_string_pretty(&StaticConfig::from(&*self))?;
-                let mut socket = DATA_DIR.clone();
-                socket.push("komorebic.sock");
-                let socket = socket.as_path();
+                let socket = DATA_DIR.join("komorebic.sock");
 
                 let mut stream = UnixStream::connect(socket)?;
                 stream.write_all(config.as_bytes())?;
