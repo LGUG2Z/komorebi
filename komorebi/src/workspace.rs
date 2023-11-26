@@ -248,6 +248,12 @@ impl Workspace {
         }
 
         if *self.tile() {
+            if ANIMATE_ENABLED.load(Ordering::SeqCst) {
+                let border = Border::from(BORDER_HWND.load(Ordering::SeqCst));
+                border.hide()?;
+                BORDER_HIDDEN.store(true, Ordering::SeqCst);
+            }
+
             if let Some(container) = self.monocle_container_mut() {
                 if let Some(window) = container.focused_window_mut() {
                     adjusted_work_area.add_padding(container_padding);
@@ -278,12 +284,6 @@ impl Workspace {
                             window.remove_title_bar()?;
                         } else if no_titlebar.contains(&window.exe()?) {
                             window.add_title_bar()?;
-                        }
-
-                        if ANIMATE_ENABLED.load(Ordering::SeqCst) {
-                            let border = Border::from(BORDER_HWND.load(Ordering::SeqCst));
-                            border.hide()?;
-                            BORDER_HIDDEN.store(true, Ordering::SeqCst);
                         }
 
                         window.set_position(layout, invisible_borders, false)?;

@@ -516,7 +516,7 @@ impl WindowManager {
             | WindowManagerEvent::MouseCapture(..)
             | WindowManagerEvent::Cloak(..)
             | WindowManagerEvent::Uncloak(..)
-            | WindowManagerEvent::SetFocusedBorderWindow(..) => {}
+            | WindowManagerEvent::UpdateFocusedWindowBorder(..) => {}
         };
 
         if *self.focused_workspace()?.tile() && BORDER_ENABLED.load(Ordering::SeqCst) {
@@ -531,7 +531,7 @@ impl WindowManager {
                 | WindowManagerEvent::FocusChange(_, window)
                 | WindowManagerEvent::Hide(_, window)
                 | WindowManagerEvent::Minimize(_, window)
-                | WindowManagerEvent::SetFocusedBorderWindow(window) => {
+                | WindowManagerEvent::UpdateFocusedWindowBorder(window) => {
                     let border = Border::from(BORDER_HWND.load(Ordering::SeqCst));
                     let mut target_window = None;
                     let mut target_window_is_monocle = false;
@@ -596,6 +596,10 @@ impl WindowManager {
 
                         WindowsApi::invalidate_border_rect()?;
                         border.set_position(target_window, &self.invisible_borders, activate)?;
+
+                        if matches!(event, WindowManagerEvent::UpdateFocusedWindowBorder(_)) {
+                            window.focus(self.mouse_follows_focus)?;
+                        }
 
                         if activate {
                             BORDER_HIDDEN.store(false, Ordering::SeqCst);

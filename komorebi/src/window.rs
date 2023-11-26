@@ -158,14 +158,19 @@ impl Window {
                     if progress < 1.0 {
                         // using MoveWindow because it runs faster than SetWindowPos
                         // so animation have more fps and feel smoother
-                        WindowsApi::move_window(hwnd, &new_rect, true)
+                        WindowsApi::move_window(hwnd, &new_rect, true)?;
                     } else {
                         WindowsApi::position_window(hwnd, &new_rect, top)?;
-                        Ok(WINEVENT_CALLBACK_CHANNEL
-                            .lock()
-                            .0
-                            .send(WindowManagerEvent::SetFocusedBorderWindow(self_copied))?)
+
+                        if WindowsApi::foreground_window()? == self_copied.hwnd {
+                            WINEVENT_CALLBACK_CHANNEL
+                                .lock()
+                                .0
+                                .send(WindowManagerEvent::UpdateFocusedWindowBorder(self_copied))?;
+                        }
                     }
+
+                    Ok(())
                 })
             });
 

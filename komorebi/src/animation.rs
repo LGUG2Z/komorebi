@@ -437,10 +437,9 @@ impl Animation {
         let max_duration = Duration::from_secs(1);
         let spent_duration = Instant::now();
 
-        // TODO: Come back to this clippy lint
         while self.in_progress {
             if spent_duration.elapsed() >= max_duration {
-                break;
+                self.in_progress = false;
             }
 
             std::thread::sleep(Duration::from_millis(16));
