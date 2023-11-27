@@ -1,7 +1,7 @@
 use crate::com::SetCloak;
 use crate::winevent_listener::WINEVENT_CALLBACK_CHANNEL;
-use crate::ANIMATE_DURATION;
-use crate::ANIMATE_ENABLED;
+use crate::ANIMATION_DURATION;
+use crate::ANIMATION_ENABLED;
 use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::fmt::Display;
@@ -148,7 +148,7 @@ impl Window {
             WindowsApi::position_window(hwnd, layout, top)
         } else {
             let target_rect = *layout;
-            let duration = Duration::from_millis(ANIMATE_DURATION.load(Ordering::SeqCst));
+            let duration = Duration::from_millis(ANIMATION_DURATION.load(Ordering::SeqCst));
             let mut animation = self.animation;
 
             let self_copied = *self;
@@ -209,7 +209,7 @@ impl Window {
             rect.bottom += invisible_borders.bottom;
         }
 
-        if ANIMATE_ENABLED.load(Ordering::SeqCst) {
+        if ANIMATION_ENABLED.load(Ordering::SeqCst) {
             // check if animation is in progress
             if self.animation.in_progress {
                 // wait for cancel animation

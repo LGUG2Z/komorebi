@@ -2016,13 +2016,13 @@ Stop-Process -Name:whkd -ErrorAction SilentlyContinue
             send_message(&SocketMessage::ActiveWindowBorderOffset(arg.offset).as_bytes()?)?;
         }
         SubCommand::Animate(arg) => {
-            send_message(&SocketMessage::Animate(arg.boolean_state.into()).as_bytes()?)?;
+            send_message(&SocketMessage::Animation(arg.boolean_state.into()).as_bytes()?)?;
         }
         SubCommand::AnimateDuration(arg) => {
-            send_message(&SocketMessage::AnimateDuration(arg.duration).as_bytes()?)?;
+            send_message(&SocketMessage::AnimationDuration(arg.duration).as_bytes()?)?;
         }
         SubCommand::AnimateEase(arg) => {
-            send_message(&SocketMessage::AnimateEase(arg.ease_func).as_bytes()?)?;
+            send_message(&SocketMessage::AnimationEase(arg.ease_func).as_bytes()?)?;
         }
         SubCommand::ResizeDelta(arg) => {
             send_message(&SocketMessage::ResizeDelta(arg.pixels).as_bytes()?)?;

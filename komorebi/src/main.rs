@@ -217,7 +217,7 @@ lazy_static! {
     static ref BORDER_OFFSET: Arc<Mutex<Option<Rect>>> =
         Arc::new(Mutex::new(None));
 
-    static ref ANIMATE_EASE: Arc<Mutex<EaseEnum>> = Arc::new(Mutex::new(EaseEnum::EaseInOutExpo));
+    static ref ANIMATION_EASE: Arc<Mutex<EaseEnum>> = Arc::new(Mutex::new(EaseEnum::Linear));
 
     // Use app-specific titlebar removal options where possible
     // eg. Windows Terminal, IntelliJ IDEA, Firefox
@@ -242,8 +242,8 @@ pub static BORDER_WIDTH: AtomicI32 = AtomicI32::new(20);
 // 0 0 0 aka pure black, I doubt anyone will want this as a border colour
 pub const TRANSPARENCY_COLOUR: u32 = 0;
 pub static REMOVE_TITLEBARS: AtomicBool = AtomicBool::new(false);
-pub static ANIMATE_ENABLED: AtomicBool = AtomicBool::new(true);
-pub static ANIMATE_DURATION: AtomicU64 = AtomicU64::new(250);
+pub static ANIMATION_ENABLED: AtomicBool = AtomicBool::new(false);
+pub static ANIMATION_DURATION: AtomicU64 = AtomicU64::new(250);
 
 pub static HIDDEN_HWND: AtomicIsize = AtomicIsize::new(0);
 

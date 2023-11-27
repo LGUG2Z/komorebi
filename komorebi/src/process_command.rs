@@ -47,9 +47,9 @@ use crate::windows_api::WindowsApi;
 use crate::Notification;
 use crate::NotificationEvent;
 use crate::ALT_FOCUS_HACK;
-use crate::ANIMATE_DURATION;
-use crate::ANIMATE_EASE;
-use crate::ANIMATE_ENABLED;
+use crate::ANIMATION_DURATION;
+use crate::ANIMATION_EASE;
+use crate::ANIMATION_ENABLED;
 use crate::BORDER_COLOUR_CURRENT;
 use crate::BORDER_COLOUR_MONOCLE;
 use crate::BORDER_COLOUR_SINGLE;
@@ -1143,14 +1143,14 @@ impl WindowManager {
                     self.hide_border()?;
                 }
             }
-            SocketMessage::Animate(enable) => {
-                ANIMATE_ENABLED.store(enable, Ordering::SeqCst);
+            SocketMessage::Animation(enable) => {
+                ANIMATION_ENABLED.store(enable, Ordering::SeqCst);
             }
-            SocketMessage::AnimateDuration(duration) => {
-                ANIMATE_DURATION.store(duration, Ordering::SeqCst);
+            SocketMessage::AnimationDuration(duration) => {
+                ANIMATION_DURATION.store(duration, Ordering::SeqCst);
             }
-            SocketMessage::AnimateEase(ease) => {
-                *ANIMATE_EASE.lock() = ease;
+            SocketMessage::AnimationEase(ease) => {
+                *ANIMATION_EASE.lock() = ease;
             }
             SocketMessage::ActiveWindowBorderColour(kind, r, g, b) => {
                 match kind {

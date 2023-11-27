@@ -8,7 +8,7 @@ use std::f64::consts::PI;
 use std::time::Duration;
 use std::time::Instant;
 
-use crate::ANIMATE_EASE;
+use crate::ANIMATION_EASE;
 
 pub trait Ease {
     fn evaluate(t: f64) -> f64;
@@ -363,7 +363,7 @@ impl Ease for EaseInOutBounce {
     }
 }
 fn apply_ease_func(t: f64) -> f64 {
-    let ease = *ANIMATE_EASE.lock();
+    let ease = *ANIMATION_EASE.lock();
 
     match ease {
         EaseEnum::Linear => Linear::evaluate(t),

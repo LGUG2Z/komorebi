@@ -25,7 +25,7 @@ use crate::ring::Ring;
 use crate::static_config::WorkspaceConfig;
 use crate::window::Window;
 use crate::windows_api::WindowsApi;
-use crate::ANIMATE_ENABLED;
+use crate::ANIMATION_ENABLED;
 use crate::BORDER_HIDDEN;
 use crate::BORDER_HWND;
 use crate::DEFAULT_CONTAINER_PADDING;
@@ -248,7 +248,7 @@ impl Workspace {
         }
 
         if *self.tile() {
-            if ANIMATE_ENABLED.load(Ordering::SeqCst) {
+            if ANIMATION_ENABLED.load(Ordering::SeqCst) {
                 let border = Border::from(BORDER_HWND.load(Ordering::SeqCst));
                 border.hide()?;
                 BORDER_HIDDEN.store(true, Ordering::SeqCst);
