@@ -4,6 +4,7 @@ use crate::monitor::Monitor;
 use crate::ring::Ring;
 use crate::window_manager::WindowManager;
 use crate::window_manager_event::WindowManagerEvent;
+use crate::windows_api::WindowsApi;
 use crate::workspace::Workspace;
 use crate::ALT_FOCUS_HACK;
 use crate::BORDER_COLOUR_CURRENT;
@@ -801,6 +802,14 @@ impl StaticConfig {
             already_moved_window_handles: Arc::new(Mutex::new(HashSet::new())),
         };
 
+        match value.focus_follows_mouse {
+            None => WindowsApi::disable_focus_follows_mouse()?,
+            Some(FocusFollowsMouseImplementation::Windows) => {
+                WindowsApi::enable_focus_follows_mouse()?;
+            }
+            Some(FocusFollowsMouseImplementation::Komorebi) => {}
+        };
+
         let bytes = SocketMessage::ReloadStaticConfiguration(path.clone()).as_bytes()?;
 
         wm.hotwatch.watch(path, move |event| match event {
@@ -944,6 +953,15 @@ impl StaticConfig {
         }
 
         wm.work_area_offset = value.global_work_area_offset;
+
+        match value.focus_follows_mouse {
+            None => WindowsApi::disable_focus_follows_mouse()?,
+            Some(FocusFollowsMouseImplementation::Windows) => {
+                WindowsApi::enable_focus_follows_mouse()?;
+            }
+            Some(FocusFollowsMouseImplementation::Komorebi) => {}
+        };
+
         wm.focus_follows_mouse = value.focus_follows_mouse;
 
         Ok(())
