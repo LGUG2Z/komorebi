@@ -496,6 +496,8 @@ fn main() -> Result<()> {
     // File logging worker guard has to have an assignment in the main fn to work
     let (_guard, _color_guard) = setup()?;
 
+    WindowsApi::foreground_lock_timeout()?;
+
     #[cfg(feature = "deadlock_detection")]
     detect_deadlocks();
 
