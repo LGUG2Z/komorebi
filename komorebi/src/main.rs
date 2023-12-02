@@ -509,16 +509,17 @@ fn main() -> Result<()> {
 
     Hidden::create("komorebi-hidden")?;
 
-    let static_config = if let Some(config) = opts.config {
-        Option::from(config)
-    } else {
-        let komorebi_json = HOME_DIR.join("komorebi.json");
-        if komorebi_json.is_file() {
-            Option::from(komorebi_json)
-        } else {
-            None
-        }
-    };
+    let static_config = opts.config.map_or_else(
+        || {
+            let komorebi_json = HOME_DIR.join("komorebi.json");
+            if komorebi_json.is_file() {
+                Option::from(komorebi_json)
+            } else {
+                None
+            }
+        },
+        Option::from,
+    );
 
     let wm = if let Some(config) = &static_config {
         tracing::info!(

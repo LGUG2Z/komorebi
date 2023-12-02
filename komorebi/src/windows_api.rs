@@ -700,7 +700,7 @@ impl WindowsApi {
             Self::system_parameters_info_w(
                 SPI_SETFOREGROUNDLOCKTIMEOUT,
                 0,
-                0 as *mut c_void,
+                std::ptr::null_mut::<c_void>(),
                 SPIF_SENDCHANGE,
             )?;
 
