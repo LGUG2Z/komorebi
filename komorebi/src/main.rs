@@ -509,7 +509,18 @@ fn main() -> Result<()> {
 
     Hidden::create("komorebi-hidden")?;
 
-    let wm = if let Some(config) = &opts.config {
+    let static_config = if let Some(config) = opts.config {
+        Option::from(config)
+    } else {
+        let komorebi_json = HOME_DIR.join("komorebi.json");
+        if komorebi_json.is_file() {
+            Option::from(komorebi_json)
+        } else {
+            None
+        }
+    };
+
+    let wm = if let Some(config) = &static_config {
         tracing::info!(
             "creating window manager from static configuration file: {}",
             config.display()
@@ -526,7 +537,8 @@ fn main() -> Result<()> {
     };
 
     wm.lock().init()?;
-    if let Some(config) = &opts.config {
+
+    if let Some(config) = &static_config {
         StaticConfig::postload(config, &wm)?;
     }
 
@@ -540,7 +552,7 @@ fn main() -> Result<()> {
         listen_for_commands_tcp(wm.clone(), port);
     }
 
-    if opts.config.is_none() {
+    if static_config.is_none() {
         std::thread::spawn(|| load_configuration().expect("could not load configuration"));
 
         if opts.await_configuration {
