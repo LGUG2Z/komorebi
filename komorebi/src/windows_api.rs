@@ -105,7 +105,9 @@ use windows::Win32::UI::WindowsAndMessaging::SET_WINDOW_POS_FLAGS;
 use windows::Win32::UI::WindowsAndMessaging::SHOW_WINDOW_CMD;
 use windows::Win32::UI::WindowsAndMessaging::SPIF_SENDCHANGE;
 use windows::Win32::UI::WindowsAndMessaging::SPI_GETACTIVEWINDOWTRACKING;
+use windows::Win32::UI::WindowsAndMessaging::SPI_GETFOREGROUNDLOCKTIMEOUT;
 use windows::Win32::UI::WindowsAndMessaging::SPI_SETACTIVEWINDOWTRACKING;
+use windows::Win32::UI::WindowsAndMessaging::SPI_SETFOREGROUNDLOCKTIMEOUT;
 use windows::Win32::UI::WindowsAndMessaging::SW_HIDE;
 use windows::Win32::UI::WindowsAndMessaging::SW_MAXIMIZE;
 use windows::Win32::UI::WindowsAndMessaging::SW_MINIMIZE;
@@ -368,7 +370,7 @@ impl WindowsApi {
 
     pub fn close_window(hwnd: HWND) -> Result<()> {
         match Self::post_message(hwnd, WM_CLOSE, WPARAM(0), LPARAM(0)) {
-            Ok(_) => Ok(()),
+            Ok(()) => Ok(()),
             Err(_) => Err(anyhow!("could not close window")),
         }
     }
@@ -677,6 +679,42 @@ impl WindowsApi {
     ) -> Result<()> {
         unsafe { SystemParametersInfoW(action, ui_param, Option::from(pv_param), update_flags) }
             .process()
+    }
+
+    #[tracing::instrument]
+    pub fn foreground_lock_timeout() -> Result<()> {
+        let mut value: u32 = 0;
+
+        Self::system_parameters_info_w(
+            SPI_GETFOREGROUNDLOCKTIMEOUT,
+            0,
+            std::ptr::addr_of_mut!(value).cast(),
+            SPIF_SENDCHANGE,
+        )?;
+
+        tracing::info!("current value of ForegroundLockTimeout is {value}");
+
+        if value != 0 {
+            tracing::info!("updating value of ForegroundLockTimeout to {value} in order to enable keyboard-driven focus updating");
+
+            Self::system_parameters_info_w(
+                SPI_SETFOREGROUNDLOCKTIMEOUT,
+                0,
+                0 as *mut c_void,
+                SPIF_SENDCHANGE,
+            )?;
+
+            Self::system_parameters_info_w(
+                SPI_GETFOREGROUNDLOCKTIMEOUT,
+                0,
+                std::ptr::addr_of_mut!(value).cast(),
+                SPIF_SENDCHANGE,
+            )?;
+
+            tracing::info!("updated value of ForegroundLockTimeout is now {value}");
+        }
+
+        Ok(())
     }
 
     #[allow(dead_code)]

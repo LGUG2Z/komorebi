@@ -61,7 +61,7 @@ impl WinEventListener {
             MessageLoop::start(10, |_msg| {
                 if let Ok(event) = WINEVENT_CALLBACK_CHANNEL.lock().1.try_recv() {
                     match outgoing.send(event) {
-                        Ok(_) => {}
+                        Ok(()) => {}
                         Err(error) => {
                             tracing::error!("{}", error);
                         }

@@ -4,6 +4,7 @@ use crate::monitor::Monitor;
 use crate::ring::Ring;
 use crate::window_manager::WindowManager;
 use crate::window_manager_event::WindowManagerEvent;
+use crate::windows_api::WindowsApi;
 use crate::workspace::Workspace;
 use crate::ALT_FOCUS_HACK;
 use crate::BORDER_COLOUR_CURRENT;
@@ -29,13 +30,13 @@ use crate::TRAY_AND_MULTI_WINDOW_IDENTIFIERS;
 use crate::WORKSPACE_RULES;
 use color_eyre::Result;
 use crossbeam_channel::Receiver;
-use dirs::home_dir;
 use hotwatch::notify::DebouncedEvent;
 use hotwatch::Hotwatch;
 use komorebi_core::config_generation::ApplicationConfigurationGenerator;
 use komorebi_core::config_generation::ApplicationOptions;
 use komorebi_core::config_generation::IdWithIdentifier;
 use komorebi_core::config_generation::MatchingStrategy;
+use komorebi_core::resolve_home_path;
 use komorebi_core::ApplicationIdentifier;
 use komorebi_core::DefaultLayout;
 use komorebi_core::FocusFollowsMouseImplementation;
@@ -616,13 +617,8 @@ impl StaticConfig {
         }
 
         if let Some(path) = &self.app_specific_configuration_path {
-            let stringified = path.to_string_lossy();
-            let stringified = stringified.replace(
-                "$Env:USERPROFILE",
-                &home_dir().expect("no home dir").to_string_lossy(),
-            );
-
-            let content = std::fs::read_to_string(stringified)?;
+            let path = resolve_home_path(path)?;
+            let content = std::fs::read_to_string(path)?;
             let asc = ApplicationConfigurationGenerator::load(&content)?;
 
             for mut entry in asc {
@@ -762,7 +758,7 @@ impl StaticConfig {
         let socket = DATA_DIR.join("komorebi.sock");
 
         match std::fs::remove_file(&socket) {
-            Ok(_) => {}
+            Ok(()) => {}
             Err(error) => match error.kind() {
                 // Doing this because ::exists() doesn't work reliably on Windows via IntelliJ
                 ErrorKind::NotFound => {}
@@ -804,6 +800,14 @@ impl StaticConfig {
             has_pending_raise_op: false,
             pending_move_op: None,
             already_moved_window_handles: Arc::new(Mutex::new(HashSet::new())),
+        };
+
+        match value.focus_follows_mouse {
+            None => WindowsApi::disable_focus_follows_mouse()?,
+            Some(FocusFollowsMouseImplementation::Windows) => {
+                WindowsApi::enable_focus_follows_mouse()?;
+            }
+            Some(FocusFollowsMouseImplementation::Komorebi) => {}
         };
 
         let bytes = SocketMessage::ReloadStaticConfiguration(path.clone()).as_bytes()?;
@@ -949,6 +953,15 @@ impl StaticConfig {
         }
 
         wm.work_area_offset = value.global_work_area_offset;
+
+        match value.focus_follows_mouse {
+            None => WindowsApi::disable_focus_follows_mouse()?,
+            Some(FocusFollowsMouseImplementation::Windows) => {
+                WindowsApi::enable_focus_follows_mouse()?;
+            }
+            Some(FocusFollowsMouseImplementation::Komorebi) => {}
+        };
+
         wm.focus_follows_mouse = value.focus_follows_mouse;
 
         Ok(())

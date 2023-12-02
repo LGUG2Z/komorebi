@@ -22,7 +22,6 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use clap::Parser;
-use color_eyre::eyre::anyhow;
 use color_eyre::Result;
 use crossbeam_channel::Receiver;
 use crossbeam_channel::Sender;
@@ -252,7 +251,7 @@ fn setup() -> Result<(WorkerGuard, WorkerGuard)> {
         std::env::set_var("RUST_LOG", "info");
     }
 
-    let appender = tracing_appender::rolling::never(DATA_DIR.clone(), "komorebi.log");
+    let appender = tracing_appender::rolling::never(&*DATA_DIR, "komorebi.log");
     let color_appender = tracing_appender::rolling::never(std::env::temp_dir(), "komorebi.log");
     let (non_blocking, guard) = tracing_appender::non_blocking(appender);
     let (color_non_blocking, color_guard) = tracing_appender::non_blocking(color_appender);
@@ -305,13 +304,8 @@ fn setup() -> Result<(WorkerGuard, WorkerGuard)> {
 }
 
 pub fn load_configuration() -> Result<()> {
-    let home = HOME_DIR.clone();
-
-    let mut config_pwsh = home.clone();
-    config_pwsh.push("komorebi.ps1");
-
-    let mut config_ahk = home;
-    config_ahk.push("komorebi.ahk");
+    let config_pwsh = HOME_DIR.join("komorebi.ps1");
+    let config_ahk = HOME_DIR.join("komorebi.ahk");
 
     if config_pwsh.exists() {
         let powershell_exe = if which("pwsh.exe").is_ok() {
@@ -320,25 +314,13 @@ pub fn load_configuration() -> Result<()> {
             "powershell.exe"
         };
 
-        tracing::info!(
-            "loading configuration file: {}",
-            config_pwsh
-                .as_os_str()
-                .to_str()
-                .ok_or_else(|| anyhow!("cannot convert path to string"))?
-        );
+        tracing::info!("loading configuration file: {}", config_pwsh.display());
 
         Command::new(powershell_exe)
             .arg(config_pwsh.as_os_str())
             .output()?;
     } else if config_ahk.exists() && which(&*AHK_EXE).is_ok() {
-        tracing::info!(
-            "loading configuration file: {}",
-            config_ahk
-                .as_os_str()
-                .to_str()
-                .ok_or_else(|| anyhow!("cannot convert path to string"))?
-        );
+        tracing::info!("loading configuration file: {}", config_ahk.display());
 
         Command::new(&*AHK_EXE)
             .arg(config_ahk.as_os_str())
@@ -410,7 +392,7 @@ pub fn notify_subscribers(notification: &str) -> Result<()> {
     let mut subscriptions = SUBSCRIPTION_PIPES.lock();
     for (subscriber, pipe) in &mut *subscriptions {
         match writeln!(pipe, "{notification}") {
-            Ok(_) => {
+            Ok(()) => {
                 tracing::debug!("pushed notification to subscriber: {}", subscriber);
             }
             Err(error) => {
@@ -514,6 +496,8 @@ fn main() -> Result<()> {
     // File logging worker guard has to have an assignment in the main fn to work
     let (_guard, _color_guard) = setup()?;
 
+    WindowsApi::foreground_lock_timeout()?;
+
     #[cfg(feature = "deadlock_detection")]
     detect_deadlocks();
 
@@ -528,7 +512,7 @@ fn main() -> Result<()> {
     let wm = if let Some(config) = &opts.config {
         tracing::info!(
             "creating window manager from static configuration file: {}",
-            config.as_os_str().to_str().unwrap()
+            config.display()
         );
 
         Arc::new(Mutex::new(StaticConfig::preload(
@@ -557,9 +541,7 @@ fn main() -> Result<()> {
     }
 
     if opts.config.is_none() {
-        std::thread::spawn(|| {
-            load_configuration().expect("could not load configuration");
-        });
+        std::thread::spawn(|| load_configuration().expect("could not load configuration"));
 
         if opts.await_configuration {
             let backoff = Backoff::new();
