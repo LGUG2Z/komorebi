@@ -729,9 +729,6 @@ struct EnableAutostart {
     /// Enable autostart of ahk
     #[clap(action, long)]
     ahk: bool,
-    /// Hides the console window when starting up komorebi
-    #[clap(action, long)]
-    no_console: bool,
 }
 
 #[derive(Parser)]
@@ -1199,12 +1196,7 @@ fn main() -> Result<()> {
             let mut current_exe_dir = std::env::current_exe().expect("unable to get exec path");
             current_exe_dir.pop();
 
-            let bin = if args.no_console {
-                "komorebic-no-console.exe"
-            } else {
-                "komorebic.exe"
-            };
-            let komorebic_exe = current_exe.join(bin);
+            let komorebic_exe = current_exe.join("komorebic-no-console.exe");
             let komorebic_exe = dunce::simplified(&komorebic_exe);
 
             let startup_dir = startup_dir()?;
