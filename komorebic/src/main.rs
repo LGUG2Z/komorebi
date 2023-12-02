@@ -1087,6 +1087,9 @@ enum SubCommand {
     /// Fetch the latest version of applications.yaml from komorebi-application-specific-configuration
     #[clap(alias = "fetch-asc")]
     FetchAppSpecificConfiguration,
+    /// Generate a JSON Schema for applications.yaml
+    #[clap(alias = "asc-schema")]
+    ApplicationSpecificConfigurationSchema,
     /// Generate a JSON Schema of subscription notifications
     NotificationSchema,
     /// Generate a JSON Schema of socket messages
@@ -2094,6 +2097,11 @@ Stop-Process -Name:whkd -ErrorAction SilentlyContinue
                "You can add this to your komorebi.json static configuration file like this: \n\n\"app_specific_configuration_path\": \"{}\"",
                output_file.display()
             );
+        }
+        SubCommand::ApplicationSpecificConfigurationSchema => {
+            with_komorebic_socket(|| {
+                send_message(&SocketMessage::ApplicationSpecificConfigurationSchema.as_bytes()?)
+            })?;
         }
         SubCommand::NotificationSchema => {
             with_komorebic_socket(|| send_message(&SocketMessage::NotificationSchema.as_bytes()?))?;

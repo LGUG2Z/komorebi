@@ -155,6 +155,7 @@ pub enum SocketMessage {
     ToggleTitleBars,
     AddSubscriber(String),
     RemoveSubscriber(String),
+    ApplicationSpecificConfigurationSchema,
     NotificationSchema,
     SocketSchema,
     StaticConfigSchema,

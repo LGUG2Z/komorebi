@@ -20,6 +20,7 @@ use parking_lot::Mutex;
 use schemars::schema_for;
 use uds_windows::UnixStream;
 
+use komorebi_core::config_generation::ApplicationConfiguration;
 use komorebi_core::config_generation::IdWithIdentifier;
 use komorebi_core::config_generation::MatchingStrategy;
 use komorebi_core::ApplicationIdentifier;
@@ -1175,6 +1176,14 @@ impl WindowManager {
             }
             SocketMessage::AltFocusHack(enable) => {
                 ALT_FOCUS_HACK.store(enable, Ordering::SeqCst);
+            }
+            SocketMessage::ApplicationSpecificConfigurationSchema => {
+                let asc = schema_for!(Vec<ApplicationConfiguration>);
+                let schema = serde_json::to_string_pretty(&asc)?;
+                let socket = DATA_DIR.join("komorebic.sock");
+
+                let mut stream = UnixStream::connect(socket)?;
+                stream.write_all(schema.as_bytes())?;
             }
             SocketMessage::NotificationSchema => {
                 let notification = schema_for!(Notification);

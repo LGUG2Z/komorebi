@@ -1,0 +1,128 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Array_of_ApplicationConfiguration",
+  "type": "array",
+  "items": {
+    "$ref": "#/definitions/ApplicationConfiguration"
+  },
+  "definitions": {
+    "ApplicationConfiguration": {
+      "type": "object",
+      "required": [
+        "identifier",
+        "name"
+      ],
+      "properties": {
+        "float_identifiers": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "$ref": "#/definitions/IdWithIdentifierAndComment"
+          }
+        },
+        "identifier": {
+          "$ref": "#/definitions/IdWithIdentifier"
+        },
+        "name": {
+          "type": "string"
+        },
+        "options": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "$ref": "#/definitions/ApplicationOptions"
+          }
+        }
+      }
+    },
+    "ApplicationIdentifier": {
+      "type": "string",
+      "enum": [
+        "Exe",
+        "Class",
+        "Title"
+      ]
+    },
+    "ApplicationOptions": {
+      "type": "string",
+      "enum": [
+        "object_name_change",
+        "layered",
+        "border_overflow",
+        "tray_and_multi_window",
+        "force"
+      ]
+    },
+    "IdWithIdentifier": {
+      "type": "object",
+      "required": [
+        "id",
+        "kind"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/definitions/ApplicationIdentifier"
+        },
+        "matching_strategy": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/MatchingStrategy"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "IdWithIdentifierAndComment": {
+      "type": "object",
+      "required": [
+        "id",
+        "kind"
+      ],
+      "properties": {
+        "comment": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "id": {
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/definitions/ApplicationIdentifier"
+        },
+        "matching_strategy": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/MatchingStrategy"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "MatchingStrategy": {
+      "type": "string",
+      "enum": [
+        "Legacy",
+        "Equals",
+        "StartsWith",
+        "EndsWith",
+        "Contains",
+        "Regex"
+      ]
+    }
+  }
+}
