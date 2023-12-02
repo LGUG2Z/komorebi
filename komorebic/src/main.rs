@@ -1193,9 +1193,8 @@ fn main() -> Result<()> {
             );
         }
         SubCommand::EnableAutostart(args) => {
-            let mut current_exe_dir = std::env::current_exe().expect("unable to get exec path");
-            current_exe_dir.pop();
-
+            let mut current_exe = std::env::current_exe().expect("unable to get exec path");
+            current_exe.pop();
             let komorebic_exe = current_exe.join("komorebic-no-console.exe");
             let komorebic_exe = dunce::simplified(&komorebic_exe);
 
