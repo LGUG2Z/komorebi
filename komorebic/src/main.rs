@@ -629,19 +629,19 @@ struct ActiveWindowBorderOffset {
 }
 
 #[derive(Parser, AhkFunction)]
-struct Animate {
+struct Animation {
     #[clap(value_enum)]
     boolean_state: BooleanState,
 }
 
 #[derive(Parser, AhkFunction)]
-struct AnimateDuration {
+struct AnimationDuration {
     /// Desired animation durations in ms
     duration: u64,
 }
 
 #[derive(Parser, AhkFunction)]
-struct AnimateEase {
+struct AnimationEase {
     /// Desired ease function for animation
     #[clap(value_enum, short, long, default_value = "linear")]
     ease_func: EaseEnum,
@@ -1081,13 +1081,13 @@ enum SubCommand {
     ActiveWindowBorderOffset(ActiveWindowBorderOffset),
     /// Enable or disable the window move animation
     #[clap(arg_required_else_help = true)]
-    Animate(Animate),
+    Animation(Animation),
     /// Set the duration for the window move animation in ms
     #[clap(arg_required_else_help = true)]
-    AnimateDuration(AnimateDuration),
+    AnimationDuration(AnimationDuration),
     /// Set the ease function for the window move animation
     #[clap(arg_required_else_help = true)]
-    AnimateEase(AnimateEase),
+    AnimationEase(AnimationEase),
     /// Enable or disable focus follows mouse for the operating system
     #[clap(arg_required_else_help = true)]
     FocusFollowsMouse(FocusFollowsMouse),
@@ -2015,13 +2015,13 @@ Stop-Process -Name:whkd -ErrorAction SilentlyContinue
         SubCommand::ActiveWindowBorderOffset(arg) => {
             send_message(&SocketMessage::ActiveWindowBorderOffset(arg.offset).as_bytes()?)?;
         }
-        SubCommand::Animate(arg) => {
+        SubCommand::Animation(arg) => {
             send_message(&SocketMessage::Animation(arg.boolean_state.into()).as_bytes()?)?;
         }
-        SubCommand::AnimateDuration(arg) => {
+        SubCommand::AnimationDuration(arg) => {
             send_message(&SocketMessage::AnimationDuration(arg.duration).as_bytes()?)?;
         }
-        SubCommand::AnimateEase(arg) => {
+        SubCommand::AnimationEase(arg) => {
             send_message(&SocketMessage::AnimationEase(arg.ease_func).as_bytes()?)?;
         }
         SubCommand::ResizeDelta(arg) => {
