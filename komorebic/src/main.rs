@@ -22,6 +22,10 @@ use fs_tail::TailedFile;
 use heck::ToKebabCase;
 use komorebi_core::resolve_home_path;
 use lazy_static::lazy_static;
+use miette::NamedSource;
+use miette::Report;
+use miette::SourceOffset;
+use miette::SourceSpan;
 use paste::paste;
 use sysinfo::SystemExt;
 use uds_windows::UnixListener;
@@ -80,6 +84,17 @@ trait AhkLibrary {
 
 trait AhkFunction {
     fn generate_ahk_function() -> String;
+}
+
+#[derive(thiserror::Error, Debug, miette::Diagnostic)]
+#[error("{message}")]
+#[diagnostic(code(komorebi::configuration), help("try fixing this syntax error"))]
+struct ConfigurationError {
+    message: String,
+    #[source_code]
+    src: NamedSource,
+    #[label("This bit here")]
+    bad_bit: SourceSpan,
 }
 
 #[derive(Copy, Clone, ValueEnum)]
@@ -1261,6 +1276,30 @@ fn main() -> Result<()> {
                 .join("whkdrc");
 
             if static_config.exists() {
+                let config_source = std::fs::read_to_string(&static_config)?;
+                let lines: Vec<_> = config_source.lines().collect();
+                let parsed_config = serde_json::from_str::<serde_json::Value>(&config_source);
+                if let Err(serde_error) = parsed_config {
+                    let line = lines[serde_error.line() - 2];
+
+                    let offset = SourceOffset::from_location(
+                        config_source.clone(),
+                        serde_error.line() - 1,
+                        line.len(),
+                    );
+
+                    let error_string = serde_error.to_string();
+                    let msgs: Vec<_> = error_string.split(" at ").collect();
+
+                    let diagnostic = ConfigurationError {
+                        message: msgs[0].to_string(),
+                        src: NamedSource::new("komorebi.json", config_source.clone()),
+                        bad_bit: SourceSpan::new(offset, 2.into()),
+                    };
+
+                    println!("{:?}", Report::new(diagnostic));
+                }
+
                 println!("Found komorebi.json; this file can be passed to the start command with the --config flag\n");
                 if config_whkd.exists() {
                     println!("Found ~/.config/whkdrc; key bindings will be loaded from here when whkd is started, and you can start it automatically using the --whkd flag\n");
