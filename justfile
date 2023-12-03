@@ -13,24 +13,23 @@ fmt:
     prettier --write .github/FUNDING.yml
     prettier --write .github/workflows/windows.yaml
 
-install-komorebic:
-    cargo +stable install --path komorebic --locked
+install-target target:
+    cargo +stable install --path {{ target }} --locked
 
-install-komorebi:
-    cargo +stable install --path komorebi --locked
-
-install:
-    just install-komorebic
-    just install-komorebi
-    komorebic ahk-asc '~/komorebi-application-specific-configuration/applications.yaml'
-    komorebic pwsh-asc '~/komorebi-application-specific-configuration/applications.yaml'
+prepare:
+    komorebic ahk-asc '~/.config/komorebi/applications.yaml'
+    komorebic pwsh-asc '~/.config/komorebi/applications.yaml'
     cat '~/.config/komorebi/komorebi.generated.ps1' >komorebi.generated.ps1
     cat '~/.config/komorebi/komorebi.generated.ahk' >komorebi.generated.ahk
-    cat '~/.config/komorebi/komorebic.lib_newV2.ahk' >komorebic.lib.ahk
+
+install:
+    just install-target komorebic
+    just install-target komorebic-no-console
+    just install-target komorebi
 
 run:
     just install-komorebic
-    cargo +stable run --bin komorebi --locked -- -a
+    cargo +stable run --bin komorebi --locked
 
 warn $RUST_LOG="warn":
     just run
