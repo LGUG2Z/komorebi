@@ -631,29 +631,29 @@ struct ActiveWindowBorderOffset {
 #[allow(clippy::struct_excessive_bools)]
 struct Start {
     /// Allow the use of komorebi's custom focus-follows-mouse implementation
-    #[clap(action, short, long = "ffm")]
+    #[clap(short, long = "ffm")]
     ffm: bool,
     /// Path to a static configuration JSON file
-    #[clap(action, short, long)]
+    #[clap(short, long)]
     config: Option<PathBuf>,
     /// Wait for 'komorebic complete-configuration' to be sent before processing events
-    #[clap(action, short, long)]
+    #[clap(short, long)]
     await_configuration: bool,
     /// Start a TCP server on the given port to allow the direct sending of SocketMessages
-    #[clap(action, short, long)]
+    #[clap(short, long)]
     tcp_port: Option<usize>,
     /// Start whkd in a background process
-    #[clap(action, long)]
+    #[clap(long)]
     whkd: bool,
     /// Start autohotkey configuration file
-    #[clap(action, long)]
+    #[clap(long)]
     ahk: bool,
 }
 
 #[derive(Parser, AhkFunction)]
 struct Stop {
     /// Stop whkd if it is running as a background process
-    #[clap(action, long)]
+    #[clap(long)]
     whkd: bool,
 }
 
@@ -719,15 +719,15 @@ struct AltFocusHack {
 struct EnableAutostart {
     /// Path to a static configuration JSON file
     #[clap(action, short, long)]
-    config: PathBuf,
+    config: Option<PathBuf>,
     /// Enable komorebi's custom focus-follows-mouse implementation
-    #[clap(action, short, long = "ffm")]
+    #[clap(short, long = "ffm")]
     ffm: bool,
     /// Enable autostart of whkd
-    #[clap(action, long)]
+    #[clap(long)]
     whkd: bool,
     /// Enable autostart of ahk
-    #[clap(action, long)]
+    #[clap(long)]
     ahk: bool,
 }
 
@@ -1099,7 +1099,6 @@ enum SubCommand {
     /// Generates a static configuration JSON file based on the current window manager state
     GenerateStaticConfig,
     /// Generates the komorebi.lnk shortcut in shell:startup to autostart komorebi
-    #[clap(arg_required_else_help = true)]
     EnableAutostart(EnableAutostart),
     /// Deletes the komorebi.lnk shortcut in shell:startup to disable autostart
     DisableAutostart,
@@ -1205,10 +1204,12 @@ fn main() -> Result<()> {
             let shortcut_file = startup_dir.join("komorebi.lnk");
             let shortcut_file = dunce::simplified(&shortcut_file);
 
-            let mut arguments = format!(
-                "start --config {}",
-                dunce::canonicalize(args.config)?.display()
-            );
+            let mut arguments = String::from("start");
+
+            if let Some(config) = args.config {
+                arguments.push_str("--config ");
+                arguments.push_str(&config.to_string_lossy());
+            }
 
             if args.ffm {
                 arguments.push_str(" --ffm");
