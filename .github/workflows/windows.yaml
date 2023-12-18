@@ -81,7 +81,7 @@ jobs:
           cargo install cargo-wix
           cargo wix -p komorebi --nocapture -I .\wix\main.wxs --target x86_64-pc-windows-msvc
       - name: Upload the built artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: komorebi-${{ matrix.target }}
           path: |
