@@ -110,14 +110,16 @@ pub extern "system" fn enum_display_monitor(
 
         let display_index_preferences = DISPLAY_INDEX_PREFERENCES.lock();
         for (index, device) in &*display_index_preferences {
-            if let Some(known_device) = m.device() {
+            if let Some(known_device) = m.device_id() {
                 if device == known_device {
                     index_preference = Option::from(index);
                 }
             }
         }
 
-        if let Some(preference) = index_preference {
+        if monitors.elements().is_empty() {
+            monitors.elements_mut().push_back(m);
+        } else if let Some(preference) = index_preference {
             let current_len = monitors.elements().len();
             if *preference > current_len {
                 monitors.elements_mut().reserve(1);
