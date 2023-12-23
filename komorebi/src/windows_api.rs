@@ -242,13 +242,12 @@ impl WindowsApi {
 
     pub fn enum_display_devices(
         index: u32,
-        lp_device: Option<[u8; 32]>,
+        lp_device: Option<*const u8>,
     ) -> Result<DISPLAY_DEVICEA> {
         #[allow(clippy::option_if_let_else)]
-        let lp_device = if let Some(lp_device) = lp_device {
-            PCSTR::from_raw(lp_device.as_ptr())
-        } else {
-            PCSTR::null()
+        let lp_device = match lp_device {
+            None => PCSTR::null(),
+            Some(lp_device) => PCSTR(lp_device),
         };
 
         let mut display_device = DISPLAY_DEVICEA {

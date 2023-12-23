@@ -85,7 +85,8 @@ pub extern "system" fn enum_display_monitor(
                 .to_string();
 
             if clean_name.eq(m.name()) {
-                if let Ok(device) = WindowsApi::enum_display_devices(0, Some(d.DeviceName)) {
+                if let Ok(device) = WindowsApi::enum_display_devices(0, Some(d.DeviceName.as_ptr()))
+                {
                     let id = String::from_utf8_lossy(&device.DeviceID);
                     let clean_id = id.replace('\u{0000}', "");
 
