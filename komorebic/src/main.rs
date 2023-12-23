@@ -417,6 +417,14 @@ struct MonitorIndexPreference {
 }
 
 #[derive(Parser, AhkFunction)]
+struct DisplayIndexPreference {
+    /// Preferred monitor index (zero-indexed)
+    index_preference: usize,
+    /// Display name as identified in komorebic state
+    display: String,
+}
+
+#[derive(Parser, AhkFunction)]
 struct EnsureWorkspaces {
     /// Monitor index (zero-indexed)
     monitor: usize,
@@ -930,6 +938,9 @@ enum SubCommand {
     /// Set the monitor index preference for a monitor identified using its size
     #[clap(arg_required_else_help = true)]
     MonitorIndexPreference(MonitorIndexPreference),
+    /// Set the display index preference for a monitor identified using its display name
+    #[clap(arg_required_else_help = true)]
+    DisplayIndexPreference(DisplayIndexPreference),
     /// Create at least this many workspaces for the specified monitor
     #[clap(arg_required_else_help = true)]
     EnsureWorkspaces(EnsureWorkspaces),
@@ -1888,6 +1899,12 @@ Stop-Process -Name:whkd -ErrorAction SilentlyContinue
                     arg.bottom,
                 )
                 .as_bytes()?,
+            )?;
+        }
+        SubCommand::DisplayIndexPreference(arg) => {
+            send_message(
+                &SocketMessage::DisplayIndexPreference(arg.index_preference, arg.display)
+                    .as_bytes()?,
             )?;
         }
         SubCommand::EnsureWorkspaces(workspaces) => {

@@ -49,6 +49,7 @@ use crate::workspace::Workspace;
 use crate::BORDER_HWND;
 use crate::BORDER_OVERFLOW_IDENTIFIERS;
 use crate::DATA_DIR;
+use crate::DISPLAY_INDEX_PREFERENCES;
 use crate::FLOAT_IDENTIFIERS;
 use crate::HOME_DIR;
 use crate::LAYERED_WHITELIST;
@@ -103,6 +104,7 @@ pub struct State {
     pub border_overflow_identifiers: Vec<IdWithIdentifier>,
     pub name_change_on_launch_identifiers: Vec<IdWithIdentifier>,
     pub monitor_index_preferences: HashMap<usize, Rect>,
+    pub display_index_preferences: HashMap<usize, String>,
 }
 
 impl AsRef<Self> for WindowManager {
@@ -132,6 +134,7 @@ impl From<&WindowManager> for State {
             border_overflow_identifiers: BORDER_OVERFLOW_IDENTIFIERS.lock().clone(),
             name_change_on_launch_identifiers: OBJECT_NAME_CHANGE_ON_LAUNCH.lock().clone(),
             monitor_index_preferences: MONITOR_INDEX_PREFERENCES.lock().clone(),
+            display_index_preferences: DISPLAY_INDEX_PREFERENCES.lock().clone(),
         }
     }
 }

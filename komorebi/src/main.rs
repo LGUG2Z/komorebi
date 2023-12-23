@@ -143,6 +143,8 @@ lazy_static! {
     ]));
     static ref MONITOR_INDEX_PREFERENCES: Arc<Mutex<HashMap<usize, Rect>>> =
         Arc::new(Mutex::new(HashMap::new()));
+    static ref DISPLAY_INDEX_PREFERENCES: Arc<Mutex<HashMap<usize, String>>> =
+        Arc::new(Mutex::new(HashMap::new()));
     static ref WORKSPACE_RULES: Arc<Mutex<HashMap<String, WorkspaceRule>>> =
         Arc::new(Mutex::new(HashMap::new()));
     static ref REGEX_IDENTIFIERS: Arc<Mutex<HashMap<String, Regex>>> =

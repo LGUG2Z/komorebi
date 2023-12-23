@@ -19,6 +19,7 @@ use crate::BORDER_WIDTH;
 use crate::DATA_DIR;
 use crate::DEFAULT_CONTAINER_PADDING;
 use crate::DEFAULT_WORKSPACE_PADDING;
+use crate::DISPLAY_INDEX_PREFERENCES;
 use crate::FLOAT_IDENTIFIERS;
 use crate::HIDING_BEHAVIOUR;
 use crate::LAYERED_WHITELIST;
@@ -312,6 +313,9 @@ pub struct StaticConfig {
     /// Set monitor index preferences
     #[serde(skip_serializing_if = "Option::is_none")]
     pub monitor_index_preferences: Option<HashMap<usize, Rect>>,
+    /// Set display index preferences
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub display_index_preferences: Option<HashMap<usize, String>>,
 }
 
 impl From<&WindowManager> for StaticConfig {
@@ -432,6 +436,7 @@ impl From<&WindowManager> for StaticConfig {
             layered_applications: None,
             object_name_change_applications: None,
             monitor_index_preferences: Option::from(MONITOR_INDEX_PREFERENCES.lock().clone()),
+            display_index_preferences: Option::from(DISPLAY_INDEX_PREFERENCES.lock().clone()),
         }
     }
 }
@@ -442,6 +447,11 @@ impl StaticConfig {
         if let Some(monitor_index_preferences) = &self.monitor_index_preferences {
             let mut preferences = MONITOR_INDEX_PREFERENCES.lock();
             *preferences = monitor_index_preferences.clone();
+        }
+
+        if let Some(display_index_preferences) = &self.display_index_preferences {
+            let mut preferences = DISPLAY_INDEX_PREFERENCES.lock();
+            *preferences = display_index_preferences.clone();
         }
 
         if let Some(behaviour) = self.window_hiding_behaviour {

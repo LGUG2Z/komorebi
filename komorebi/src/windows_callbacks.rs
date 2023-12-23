@@ -40,6 +40,7 @@ use crate::winevent_listener::WINEVENT_CALLBACK_CHANNEL;
 use crate::BORDER_COLOUR_CURRENT;
 use crate::BORDER_RECT;
 use crate::BORDER_WIDTH;
+use crate::DISPLAY_INDEX_PREFERENCES;
 use crate::MONITOR_INDEX_PREFERENCES;
 use crate::TRANSPARENCY_COLOUR;
 
@@ -72,12 +73,46 @@ pub extern "system" fn enum_display_monitor(
         }
     }
 
-    if let Ok(m) = WindowsApi::monitor(hmonitor.0) {
+    let current_index = monitors.elements().len();
+
+    if let Ok(mut m) = WindowsApi::monitor(hmonitor.0) {
+        #[allow(clippy::cast_possible_truncation)]
+        if let Ok(d) = WindowsApi::enum_display_devices(current_index as u32, None) {
+            let name = String::from_utf8_lossy(&d.DeviceName);
+            let clean_name = name
+                .replace('\u{0000}', "")
+                .trim_start_matches(r"\\.\")
+                .to_string();
+
+            if clean_name.eq(m.name()) {
+                if let Ok(device) = WindowsApi::enum_display_devices(0, Some(d.DeviceName)) {
+                    let id = String::from_utf8_lossy(&device.DeviceID);
+                    let clean_id = id.replace('\u{0000}', "");
+
+                    let mut split: Vec<_> = clean_id.split('#').collect();
+                    split.remove(0);
+                    split.remove(split.len() - 1);
+
+                    m.set_device(Option::from(split[0].to_string()));
+                    m.set_device_id(Option::from(split.join("-")));
+                }
+            }
+        }
+
         let monitor_index_preferences = MONITOR_INDEX_PREFERENCES.lock();
         let mut index_preference = None;
         for (index, monitor_size) in &*monitor_index_preferences {
             if m.size() == monitor_size {
                 index_preference = Option::from(index);
+            }
+        }
+
+        let display_index_preferences = DISPLAY_INDEX_PREFERENCES.lock();
+        for (index, device) in &*display_index_preferences {
+            if let Some(known_device) = m.device() {
+                if device == known_device {
+                    index_preference = Option::from(index);
+                }
             }
         }
 

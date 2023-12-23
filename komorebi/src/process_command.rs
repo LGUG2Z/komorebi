@@ -59,6 +59,7 @@ use crate::BORDER_OVERFLOW_IDENTIFIERS;
 use crate::BORDER_WIDTH;
 use crate::CUSTOM_FFM;
 use crate::DATA_DIR;
+use crate::DISPLAY_INDEX_PREFERENCES;
 use crate::FLOAT_IDENTIFIERS;
 use crate::HIDING_BEHAVIOUR;
 use crate::INITIAL_CONFIGURATION_LOADED;
@@ -672,6 +673,10 @@ impl WindowManager {
                         bottom,
                     },
                 );
+            }
+            SocketMessage::DisplayIndexPreference(index_preference, ref display) => {
+                let mut display_index_preferences = DISPLAY_INDEX_PREFERENCES.lock();
+                display_index_preferences.insert(index_preference, display.clone());
             }
             SocketMessage::EnsureWorkspaces(monitor_idx, workspace_count) => {
                 self.ensure_workspaces_for_monitor(monitor_idx, workspace_count)?;

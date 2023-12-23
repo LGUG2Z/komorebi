@@ -24,6 +24,10 @@ pub struct Monitor {
     #[getset(get = "pub", set = "pub")]
     name: String,
     #[getset(get = "pub", set = "pub")]
+    device: Option<String>,
+    #[getset(get = "pub", set = "pub")]
+    device_id: Option<String>,
+    #[getset(get = "pub", set = "pub")]
     size: Rect,
     #[getset(get = "pub", set = "pub")]
     work_area_size: Rect,
@@ -44,6 +48,8 @@ pub fn new(id: isize, size: Rect, work_area_size: Rect, name: String) -> Monitor
     Monitor {
         id,
         name,
+        device: None,
+        device_id: None,
         size,
         work_area_size,
         work_area_offset: None,

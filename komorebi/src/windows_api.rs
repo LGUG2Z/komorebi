@@ -30,11 +30,13 @@ use windows::Win32::Graphics::Dwm::DWM_CLOAKED_APP;
 use windows::Win32::Graphics::Dwm::DWM_CLOAKED_INHERITED;
 use windows::Win32::Graphics::Dwm::DWM_CLOAKED_SHELL;
 use windows::Win32::Graphics::Gdi::CreateSolidBrush;
+use windows::Win32::Graphics::Gdi::EnumDisplayDevicesA;
 use windows::Win32::Graphics::Gdi::EnumDisplayMonitors;
 use windows::Win32::Graphics::Gdi::GetMonitorInfoW;
 use windows::Win32::Graphics::Gdi::InvalidateRect;
 use windows::Win32::Graphics::Gdi::MonitorFromPoint;
 use windows::Win32::Graphics::Gdi::MonitorFromWindow;
+use windows::Win32::Graphics::Gdi::DISPLAY_DEVICEA;
 use windows::Win32::Graphics::Gdi::HBRUSH;
 use windows::Win32::Graphics::Gdi::HDC;
 use windows::Win32::Graphics::Gdi::HMONITOR;
@@ -93,6 +95,7 @@ use windows::Win32::UI::WindowsAndMessaging::ShowWindow;
 use windows::Win32::UI::WindowsAndMessaging::SystemParametersInfoW;
 use windows::Win32::UI::WindowsAndMessaging::WindowFromPoint;
 use windows::Win32::UI::WindowsAndMessaging::CW_USEDEFAULT;
+use windows::Win32::UI::WindowsAndMessaging::EDD_GET_DEVICE_INTERFACE_NAME;
 use windows::Win32::UI::WindowsAndMessaging::GWL_EXSTYLE;
 use windows::Win32::UI::WindowsAndMessaging::GWL_STYLE;
 use windows::Win32::UI::WindowsAndMessaging::GW_HWNDNEXT;
@@ -164,8 +167,8 @@ impl_from_integer_for_windows_result!(usize, isize, u16, u32, i32);
 impl<T, E> From<WindowsResult<T, E>> for Result<T, E> {
     fn from(result: WindowsResult<T, E>) -> Self {
         match result {
-            WindowsResult::Err(error) => Self::Err(error),
-            WindowsResult::Ok(ok) => Self::Ok(ok),
+            WindowsResult::Err(error) => Err(error),
+            WindowsResult::Ok(ok) => Ok(ok),
         }
     }
 }
@@ -221,7 +224,7 @@ impl WindowsApi {
         let mut monitors: Vec<(String, isize)> = vec![];
         let monitors_ref: &mut Vec<(String, isize)> = monitors.as_mut();
         Self::enum_display_monitors(
-            Option::Some(windows_callbacks::valid_display_monitors),
+            Some(windows_callbacks::valid_display_monitors),
             monitors_ref as *mut Vec<(String, isize)> as isize,
         )?;
 
@@ -230,9 +233,47 @@ impl WindowsApi {
 
     pub fn load_monitor_information(monitors: &mut Ring<Monitor>) -> Result<()> {
         Self::enum_display_monitors(
-            Option::Some(windows_callbacks::enum_display_monitor),
+            Some(windows_callbacks::enum_display_monitor),
             monitors as *mut Ring<Monitor> as isize,
-        )
+        )?;
+
+        Ok(())
+    }
+
+    pub fn enum_display_devices(
+        index: u32,
+        lp_device: Option<[u8; 32]>,
+    ) -> Result<DISPLAY_DEVICEA> {
+        #[allow(clippy::option_if_let_else)]
+        let lp_device = if let Some(lp_device) = lp_device {
+            PCSTR::from_raw(lp_device.as_ptr())
+        } else {
+            PCSTR::null()
+        };
+
+        let mut display_device = DISPLAY_DEVICEA {
+            cb: u32::try_from(std::mem::size_of::<DISPLAY_DEVICEA>())?,
+            ..Default::default()
+        };
+
+        match unsafe {
+            EnumDisplayDevicesA(
+                lp_device,
+                index,
+                std::ptr::addr_of_mut!(display_device),
+                EDD_GET_DEVICE_INTERFACE_NAME,
+            )
+        }
+        .ok()
+        {
+            Ok(_) => {}
+            Err(error) => {
+                tracing::error!("enum_display_devices: {}", error);
+                return Err(error.into());
+            }
+        }
+
+        Ok(display_device)
     }
 
     pub fn enum_windows(callback: WNDENUMPROC, callback_data_address: isize) -> Result<()> {
@@ -245,7 +286,7 @@ impl WindowsApi {
             if let Some(workspace) = monitor.workspaces_mut().front_mut() {
                 // EnumWindows will enumerate through windows on all monitors
                 Self::enum_windows(
-                    Option::Some(windows_callbacks::enum_window),
+                    Some(windows_callbacks::enum_window),
                     workspace.containers_mut() as *mut VecDeque<Container> as isize,
                 )?;
 
