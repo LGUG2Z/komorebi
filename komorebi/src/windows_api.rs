@@ -1,15 +1,14 @@
 use std::collections::VecDeque;
 use std::convert::TryFrom;
 use std::ffi::c_void;
-use std::ffi::OsString;
-use std::os::windows::ffi::OsStringExt;
 use std::sync::atomic::Ordering;
 
 use color_eyre::eyre::anyhow;
 use color_eyre::eyre::Error;
 use color_eyre::Result;
+use widestring::U16CStr;
 use windows::core::Result as WindowsCrateResult;
-use windows::core::PCSTR;
+use windows::core::PCWSTR;
 use windows::core::PWSTR;
 use windows::Win32::Foundation::CloseHandle;
 use windows::Win32::Foundation::BOOL;
@@ -30,13 +29,13 @@ use windows::Win32::Graphics::Dwm::DWM_CLOAKED_APP;
 use windows::Win32::Graphics::Dwm::DWM_CLOAKED_INHERITED;
 use windows::Win32::Graphics::Dwm::DWM_CLOAKED_SHELL;
 use windows::Win32::Graphics::Gdi::CreateSolidBrush;
-use windows::Win32::Graphics::Gdi::EnumDisplayDevicesA;
+use windows::Win32::Graphics::Gdi::EnumDisplayDevicesW;
 use windows::Win32::Graphics::Gdi::EnumDisplayMonitors;
 use windows::Win32::Graphics::Gdi::GetMonitorInfoW;
 use windows::Win32::Graphics::Gdi::InvalidateRect;
 use windows::Win32::Graphics::Gdi::MonitorFromPoint;
 use windows::Win32::Graphics::Gdi::MonitorFromWindow;
-use windows::Win32::Graphics::Gdi::DISPLAY_DEVICEA;
+use windows::Win32::Graphics::Gdi::DISPLAY_DEVICEW;
 use windows::Win32::Graphics::Gdi::HBRUSH;
 use windows::Win32::Graphics::Gdi::HDC;
 use windows::Win32::Graphics::Gdi::HMONITOR;
@@ -69,7 +68,7 @@ use windows::Win32::UI::Shell::Common::DEVICE_SCALE_FACTOR;
 use windows::Win32::UI::Shell::GetScaleFactorForMonitor;
 use windows::Win32::UI::WindowsAndMessaging::AllowSetForegroundWindow;
 use windows::Win32::UI::WindowsAndMessaging::BringWindowToTop;
-use windows::Win32::UI::WindowsAndMessaging::CreateWindowExA;
+use windows::Win32::UI::WindowsAndMessaging::CreateWindowExW;
 use windows::Win32::UI::WindowsAndMessaging::EnumWindows;
 use windows::Win32::UI::WindowsAndMessaging::GetCursorPos;
 use windows::Win32::UI::WindowsAndMessaging::GetDesktopWindow;
@@ -85,7 +84,7 @@ use windows::Win32::UI::WindowsAndMessaging::IsWindow;
 use windows::Win32::UI::WindowsAndMessaging::IsWindowVisible;
 use windows::Win32::UI::WindowsAndMessaging::PostMessageW;
 use windows::Win32::UI::WindowsAndMessaging::RealGetWindowClassW;
-use windows::Win32::UI::WindowsAndMessaging::RegisterClassA;
+use windows::Win32::UI::WindowsAndMessaging::RegisterClassW;
 use windows::Win32::UI::WindowsAndMessaging::SetCursorPos;
 use windows::Win32::UI::WindowsAndMessaging::SetForegroundWindow;
 use windows::Win32::UI::WindowsAndMessaging::SetLayeredWindowAttributes;
@@ -120,7 +119,7 @@ use windows::Win32::UI::WindowsAndMessaging::SYSTEM_PARAMETERS_INFO_ACTION;
 use windows::Win32::UI::WindowsAndMessaging::SYSTEM_PARAMETERS_INFO_UPDATE_FLAGS;
 use windows::Win32::UI::WindowsAndMessaging::WINDOW_LONG_PTR_INDEX;
 use windows::Win32::UI::WindowsAndMessaging::WM_CLOSE;
-use windows::Win32::UI::WindowsAndMessaging::WNDCLASSA;
+use windows::Win32::UI::WindowsAndMessaging::WNDCLASSW;
 use windows::Win32::UI::WindowsAndMessaging::WNDENUMPROC;
 use windows::Win32::UI::WindowsAndMessaging::WS_DISABLED;
 use windows::Win32::UI::WindowsAndMessaging::WS_EX_LAYERED;
@@ -242,21 +241,21 @@ impl WindowsApi {
 
     pub fn enum_display_devices(
         index: u32,
-        lp_device: Option<*const u8>,
-    ) -> Result<DISPLAY_DEVICEA> {
+        lp_device: Option<*const u16>,
+    ) -> Result<DISPLAY_DEVICEW> {
         #[allow(clippy::option_if_let_else)]
         let lp_device = match lp_device {
-            None => PCSTR::null(),
-            Some(lp_device) => PCSTR(lp_device),
+            None => PCWSTR::null(),
+            Some(lp_device) => PCWSTR(lp_device),
         };
 
-        let mut display_device = DISPLAY_DEVICEA {
-            cb: u32::try_from(std::mem::size_of::<DISPLAY_DEVICEA>())?,
+        let mut display_device = DISPLAY_DEVICEW {
+            cb: u32::try_from(std::mem::size_of::<DISPLAY_DEVICEW>())?,
             ..Default::default()
         };
 
         match unsafe {
-            EnumDisplayDevicesA(
+            EnumDisplayDevicesW(
                 lp_device,
                 index,
                 std::ptr::addr_of_mut!(display_device),
@@ -690,10 +689,10 @@ impl WindowsApi {
 
     pub fn monitor(hmonitor: isize) -> Result<Monitor> {
         let ex_info = Self::monitor_info_w(HMONITOR(hmonitor))?;
-        let name = OsString::from_wide(&ex_info.szDevice);
-        let name = name
+        let name = U16CStr::from_slice_truncate(&ex_info.szDevice)
+            .expect("monitor name was not a valid u16 c string")
+            .to_ustring()
             .to_string_lossy()
-            .replace('\u{0000}', "")
             .trim_start_matches(r"\\.\")
             .to_string();
 
@@ -799,8 +798,8 @@ impl WindowsApi {
         unsafe { CreateSolidBrush(COLORREF(colour)) }
     }
 
-    pub fn register_class_a(window_class: &WNDCLASSA) -> Result<u16> {
-        Result::from(WindowsResult::from(unsafe { RegisterClassA(window_class) }))
+    pub fn register_class_w(window_class: &WNDCLASSW) -> Result<u16> {
+        Result::from(WindowsResult::from(unsafe { RegisterClassW(window_class) }))
     }
 
     pub fn scale_factor_for_monitor(hmonitor: isize) -> Result<DEVICE_SCALE_FACTOR> {
@@ -828,9 +827,9 @@ impl WindowsApi {
         .process()
     }
 
-    pub fn create_border_window(name: PCSTR, instance: HMODULE) -> Result<isize> {
+    pub fn create_border_window(name: PCWSTR, instance: HMODULE) -> Result<isize> {
         unsafe {
-            let hwnd = CreateWindowExA(
+            let hwnd = CreateWindowExW(
                 WS_EX_TOOLWINDOW | WS_EX_LAYERED,
                 name,
                 name,
@@ -862,9 +861,9 @@ impl WindowsApi {
         Ok(())
     }
 
-    pub fn create_hidden_window(name: PCSTR, instance: HMODULE) -> Result<isize> {
+    pub fn create_hidden_window(name: PCWSTR, instance: HMODULE) -> Result<isize> {
         unsafe {
-            CreateWindowExA(
+            CreateWindowExW(
                 WS_EX_NOACTIVATE,
                 name,
                 name,
