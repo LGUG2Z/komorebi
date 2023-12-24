@@ -2,15 +2,15 @@ use std::sync::atomic::Ordering;
 use std::time::Duration;
 
 use color_eyre::Result;
-use windows::core::PCSTR;
+use windows::core::PCWSTR;
 use windows::Win32::Foundation::HWND;
-use windows::Win32::UI::WindowsAndMessaging::DispatchMessageA;
-use windows::Win32::UI::WindowsAndMessaging::FindWindowA;
-use windows::Win32::UI::WindowsAndMessaging::GetMessageA;
+use windows::Win32::UI::WindowsAndMessaging::DispatchMessageW;
+use windows::Win32::UI::WindowsAndMessaging::FindWindowW;
+use windows::Win32::UI::WindowsAndMessaging::GetMessageW;
 use windows::Win32::UI::WindowsAndMessaging::CS_HREDRAW;
 use windows::Win32::UI::WindowsAndMessaging::CS_VREDRAW;
 use windows::Win32::UI::WindowsAndMessaging::MSG;
-use windows::Win32::UI::WindowsAndMessaging::WNDCLASSA;
+use windows::Win32::UI::WindowsAndMessaging::WNDCLASSW;
 
 use komorebi_core::Rect;
 
@@ -43,11 +43,11 @@ impl Border {
     }
 
     pub fn create(name: &str) -> Result<()> {
-        let name = format!("{name}\0");
+        let name: Vec<u16> = format!("{name}\0").encode_utf16().collect();
         let instance = WindowsApi::module_handle_w()?;
-        let class_name = PCSTR(name.as_ptr());
+        let class_name = PCWSTR(name.as_ptr());
         let brush = WindowsApi::create_solid_brush(TRANSPARENCY_COLOUR);
-        let window_class = WNDCLASSA {
+        let window_class = WNDCLASSW {
             hInstance: instance.into(),
             lpszClassName: class_name,
             style: CS_HREDRAW | CS_VREDRAW,
@@ -56,18 +56,18 @@ impl Border {
             ..Default::default()
         };
 
-        let _atom = WindowsApi::register_class_a(&window_class)?;
+        let _atom = WindowsApi::register_class_w(&window_class)?;
 
         let name_cl = name.clone();
         std::thread::spawn(move || -> Result<()> {
-            let hwnd = WindowsApi::create_border_window(PCSTR(name_cl.as_ptr()), instance)?;
+            let hwnd = WindowsApi::create_border_window(PCWSTR(name_cl.as_ptr()), instance)?;
             let border = Self::from(hwnd);
 
             let mut message = MSG::default();
 
             unsafe {
-                while GetMessageA(&mut message, border.hwnd(), 0, 0).into() {
-                    DispatchMessageA(&message);
+                while GetMessageW(&mut message, border.hwnd(), 0, 0).into() {
+                    DispatchMessageW(&message);
                     std::thread::sleep(Duration::from_millis(10));
                 }
             }
@@ -77,7 +77,7 @@ impl Border {
 
         let mut hwnd = HWND(0);
         while hwnd == HWND(0) {
-            hwnd = unsafe { FindWindowA(PCSTR(name.as_ptr()), PCSTR::null()) };
+            hwnd = unsafe { FindWindowW(PCWSTR(name.as_ptr()), PCWSTR::null()) };
         }
 
         BORDER_HWND.store(hwnd.0, Ordering::SeqCst);

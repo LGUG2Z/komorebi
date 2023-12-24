@@ -1,5 +1,6 @@
 use std::collections::VecDeque;
 use std::sync::atomic::Ordering;
+use widestring::U16CStr;
 
 use windows::Win32::Foundation::BOOL;
 use windows::Win32::Foundation::COLORREF;
@@ -78,19 +79,24 @@ pub extern "system" fn enum_display_monitor(
     if let Ok(mut m) = WindowsApi::monitor(hmonitor.0) {
         #[allow(clippy::cast_possible_truncation)]
         if let Ok(d) = WindowsApi::enum_display_devices(current_index as u32, None) {
-            let name = String::from_utf8_lossy(&d.DeviceName);
-            let clean_name = name
-                .replace('\u{0000}', "")
+            let name = U16CStr::from_slice_truncate(d.DeviceName.as_ref())
+                .expect("display device name was not a valid u16 c string")
+                .to_ustring()
+                .to_string_lossy()
                 .trim_start_matches(r"\\.\")
                 .to_string();
 
-            if clean_name.eq(m.name()) {
+            if name.eq(m.name()) {
                 if let Ok(device) = WindowsApi::enum_display_devices(0, Some(d.DeviceName.as_ptr()))
                 {
-                    let id = String::from_utf8_lossy(&device.DeviceID);
-                    let clean_id = id.replace('\u{0000}', "");
+                    let id = U16CStr::from_slice_truncate(device.DeviceID.as_ref())
+                        .expect("display device id was not a valid u16 c string")
+                        .to_ustring()
+                        .to_string_lossy()
+                        .trim_start_matches(r"\\?\")
+                        .to_string();
 
-                    let mut split: Vec<_> = clean_id.split('#').collect();
+                    let mut split: Vec<_> = id.split('#').collect();
                     split.remove(0);
                     split.remove(split.len() - 1);
 
