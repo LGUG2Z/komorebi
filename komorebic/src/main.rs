@@ -773,6 +773,8 @@ enum SubCommand {
     Check,
     /// Show a JSON representation of the current window manager state
     State,
+    /// Show a JSON representation of visible windows
+    VisibleWindows,
     /// Query the current window manager state
     #[clap(arg_required_else_help = true)]
     Query(Query),
@@ -1920,6 +1922,9 @@ Stop-Process -Name:whkd -ErrorAction SilentlyContinue
         }
         SubCommand::State => {
             with_komorebic_socket(|| send_message(&SocketMessage::State.as_bytes()?))?;
+        }
+        SubCommand::VisibleWindows => {
+            with_komorebic_socket(|| send_message(&SocketMessage::VisibleWindows.as_bytes()?))?;
         }
         SubCommand::Query(arg) => {
             with_komorebic_socket(|| {

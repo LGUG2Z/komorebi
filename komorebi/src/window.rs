@@ -6,6 +6,7 @@ use std::fmt::Formatter;
 use std::fmt::Write as _;
 use std::sync::atomic::Ordering;
 
+use color_eyre::eyre;
 use color_eyre::eyre::anyhow;
 use color_eyre::Result;
 use komorebi_core::config_generation::IdWithIdentifier;
@@ -44,6 +45,26 @@ use crate::WSL2_UI_PROCESSES;
 #[derive(Debug, Clone, Copy, JsonSchema)]
 pub struct Window {
     pub(crate) hwnd: isize,
+}
+
+#[allow(clippy::module_name_repetitions)]
+#[derive(Debug, Clone, Serialize, JsonSchema)]
+pub struct WindowDetails {
+    pub title: String,
+    pub exe: String,
+    pub class: String,
+}
+
+impl TryFrom<Window> for WindowDetails {
+    type Error = eyre::ErrReport;
+
+    fn try_from(value: Window) -> std::result::Result<Self, Self::Error> {
+        Ok(Self {
+            title: value.title()?,
+            exe: value.exe()?,
+            class: value.class()?,
+        })
+    }
 }
 
 impl Display for Window {

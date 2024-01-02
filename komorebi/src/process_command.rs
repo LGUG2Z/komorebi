@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::fs::File;
 use std::fs::OpenOptions;
 use std::io::BufRead;
@@ -701,6 +702,32 @@ impl WindowManager {
                 let mut stream = UnixStream::connect(socket)?;
                 stream.write_all(state.as_bytes())?;
             }
+            SocketMessage::VisibleWindows => {
+                let mut monitor_visible_windows = HashMap::new();
+
+                for (index, monitor) in self.monitors().iter().enumerate() {
+                    if let Some(ws) = monitor.focused_workspace() {
+                        monitor_visible_windows.insert(
+                            monitor
+                                .device_id()
+                                .clone()
+                                .unwrap_or_else(|| format!("{index}")),
+                            ws.visible_window_details().clone(),
+                        );
+                    }
+                }
+
+                let visible_windows_state =
+                    match serde_json::to_string_pretty(&monitor_visible_windows) {
+                        Ok(state) => state,
+                        Err(error) => error.to_string(),
+                    };
+
+                let socket = DATA_DIR.join("komorebic.sock");
+                let mut stream = UnixStream::connect(socket)?;
+                stream.write_all(visible_windows_state.as_bytes())?;
+            }
+
             SocketMessage::Query(query) => {
                 let response = match query {
                     StateQuery::FocusedMonitorIndex => self.focused_monitor_idx(),

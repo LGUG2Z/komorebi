@@ -147,6 +147,7 @@ pub enum SocketMessage {
     IdentifyLayeredApplication(ApplicationIdentifier, String),
     IdentifyBorderOverflowApplication(ApplicationIdentifier, String),
     State,
+    VisibleWindows,
     Query(StateQuery),
     FocusFollowsMouse(FocusFollowsMouseImplementation, bool),
     ToggleFocusFollowsMouse(FocusFollowsMouseImplementation),

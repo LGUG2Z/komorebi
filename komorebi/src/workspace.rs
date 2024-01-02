@@ -23,6 +23,7 @@ use crate::container::Container;
 use crate::ring::Ring;
 use crate::static_config::WorkspaceConfig;
 use crate::window::Window;
+use crate::window::WindowDetails;
 use crate::windows_api::WindowsApi;
 use crate::DEFAULT_CONTAINER_PADDING;
 use crate::DEFAULT_WORKSPACE_PADDING;
@@ -1082,6 +1083,20 @@ impl Workspace {
         let mut vec = vec![];
         for container in self.containers() {
             vec.push(container.focused_window());
+        }
+
+        vec
+    }
+
+    pub fn visible_window_details(&self) -> Vec<WindowDetails> {
+        let mut vec: Vec<WindowDetails> = vec![];
+
+        for container in self.containers() {
+            if let Some(focused) = container.focused_window() {
+                if let Ok(details) = (*focused).try_into() {
+                    vec.push(details);
+                }
+            }
         }
 
         vec
