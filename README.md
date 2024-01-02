@@ -3,6 +3,9 @@
 Tiling Window Management for Windows.
 
 <p>
+  <a href="https://techforpalestine.org/learn-more">
+    <img alt="Tech for Palestine" src="https://badge.techforpalestine.org/default">
+  </a>
   <img alt="GitHub Workflow Status" src="https://img.shields.io/github/actions/workflow/status/LGUG2Z/komorebi/.github/workflows/windows.yaml">
   <img alt="GitHub" src="https://img.shields.io/github/license/LGUG2Z/komorebi">
   <img alt="GitHub all releases" src="https://img.shields.io/github/downloads/LGUG2Z/komorebi/total">
