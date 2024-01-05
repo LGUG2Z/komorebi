@@ -43,4 +43,14 @@ impl Rect {
             && point.1 >= self.top
             && point.1 <= self.top + self.bottom
     }
+
+    #[must_use]
+    pub const fn scale(&self, system_dpi: i32, rect_dpi: i32) -> Rect {
+        Rect {
+            left: (self.left * rect_dpi) / system_dpi,
+            top: (self.top * rect_dpi) / system_dpi,
+            right: (self.right * rect_dpi) / system_dpi,
+            bottom: (self.bottom * rect_dpi) / system_dpi,
+        }
+    }
 }
