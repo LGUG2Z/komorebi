@@ -22,6 +22,7 @@ use windows::Win32::Foundation::WPARAM;
 use windows::Win32::Graphics::Dwm::DwmGetWindowAttribute;
 use windows::Win32::Graphics::Dwm::DwmSetWindowAttribute;
 use windows::Win32::Graphics::Dwm::DWMWA_CLOAKED;
+use windows::Win32::Graphics::Dwm::DWMWA_EXTENDED_FRAME_BOUNDS;
 use windows::Win32::Graphics::Dwm::DWMWA_WINDOW_CORNER_PREFERENCE;
 use windows::Win32::Graphics::Dwm::DWMWCP_ROUND;
 use windows::Win32::Graphics::Dwm::DWMWINDOWATTRIBUTE;
@@ -52,6 +53,8 @@ use windows::Win32::System::Threading::QueryFullProcessImageNameW;
 use windows::Win32::System::Threading::PROCESS_ACCESS_RIGHTS;
 use windows::Win32::System::Threading::PROCESS_NAME_WIN32;
 use windows::Win32::System::Threading::PROCESS_QUERY_INFORMATION;
+use windows::Win32::UI::HiDpi::GetDpiForSystem;
+use windows::Win32::UI::HiDpi::GetDpiForWindow;
 use windows::Win32::UI::HiDpi::SetProcessDpiAwarenessContext;
 use windows::Win32::UI::HiDpi::DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2;
 use windows::Win32::UI::Input::KeyboardAndMouse::GetKeyState;
@@ -470,9 +473,15 @@ impl WindowsApi {
 
     pub fn window_rect(hwnd: HWND) -> Result<Rect> {
         let mut rect = unsafe { std::mem::zeroed() };
-        unsafe { GetWindowRect(hwnd, &mut rect) }.process()?;
 
-        Ok(Rect::from(rect))
+        if Self::dwm_get_window_attribute(hwnd, DWMWA_EXTENDED_FRAME_BOUNDS, &mut rect).is_ok() {
+            let window_scale = unsafe { GetDpiForWindow(hwnd) };
+            let system_scale = unsafe { GetDpiForSystem() };
+            Ok(Rect::from(rect).scale(system_scale.try_into()?, window_scale.try_into()?))
+        } else {
+            unsafe { GetWindowRect(hwnd, &mut rect) }.process()?;
+            Ok(Rect::from(rect))
+        }
     }
 
     fn set_cursor_pos(x: i32, y: i32) -> Result<()> {
