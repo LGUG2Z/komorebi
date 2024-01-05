@@ -1,5 +1,4 @@
 use std::sync::atomic::Ordering;
-use std::time::Duration;
 
 use color_eyre::Result;
 use windows::core::PCWSTR;
@@ -12,17 +11,12 @@ use windows::Win32::UI::WindowsAndMessaging::CS_VREDRAW;
 use windows::Win32::UI::WindowsAndMessaging::MSG;
 use windows::Win32::UI::WindowsAndMessaging::WNDCLASSW;
 
-use komorebi_core::Rect;
-
-use crate::window::should_act;
 use crate::window::Window;
 use crate::windows_callbacks;
 use crate::WindowsApi;
 use crate::BORDER_HWND;
 use crate::BORDER_OFFSET;
-use crate::BORDER_OVERFLOW_IDENTIFIERS;
 use crate::BORDER_RECT;
-use crate::REGEX_IDENTIFIERS;
 use crate::TRANSPARENCY_COLOUR;
 use crate::WINDOWS_11;
 
@@ -68,7 +62,6 @@ impl Border {
             unsafe {
                 while GetMessageW(&mut message, border.hwnd(), 0, 0).into() {
                     DispatchMessageW(&message);
-                    std::thread::sleep(Duration::from_millis(10));
                 }
             }
 
@@ -100,7 +93,6 @@ impl Border {
     pub fn set_position(
         self,
         window: Window,
-        invisible_borders: &Rect,
         activate: bool,
     ) -> Result<()> {
         if self.hwnd == 0 {
@@ -111,30 +103,6 @@ impl Border {
             }
 
             let mut rect = WindowsApi::window_rect(window.hwnd())?;
-            rect.top -= invisible_borders.bottom;
-            rect.bottom += invisible_borders.bottom;
-
-            let border_overflows = BORDER_OVERFLOW_IDENTIFIERS.lock();
-            let regex_identifiers = REGEX_IDENTIFIERS.lock();
-
-            let title = &window.title()?;
-            let exe_name = &window.exe()?;
-            let class = &window.class()?;
-
-            let should_expand_border = should_act(
-                title,
-                exe_name,
-                class,
-                &border_overflows,
-                &regex_identifiers,
-            );
-
-            if should_expand_border {
-                rect.left -= invisible_borders.left;
-                rect.top -= invisible_borders.top;
-                rect.right += invisible_borders.right;
-                rect.bottom += invisible_borders.bottom;
-            }
 
             let border_offset = BORDER_OFFSET.lock();
             if let Some(border_offset) = *border_offset {

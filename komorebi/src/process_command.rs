@@ -305,7 +305,6 @@ impl WindowManager {
                     });
                 }
 
-                let invisible_borders = self.invisible_borders;
                 let offset = self.work_area_offset;
 
                 let mut hwnds_to_purge = vec![];
@@ -348,7 +347,7 @@ impl WindowManager {
                         .ok_or_else(|| anyhow!("there is no focused workspace"))?
                         .remove_window(hwnd)?;
 
-                    monitor.update_focused_workspace(offset, &invisible_borders)?;
+                    monitor.update_focused_workspace(offset)?;
                 }
             }
             SocketMessage::FocusedWorkspaceContainerPadding(adjustment) => {
@@ -1094,10 +1093,7 @@ impl WindowManager {
             SocketMessage::UnmanageFocusedWindow => {
                 self.unmanage_focused_window()?;
             }
-            SocketMessage::InvisibleBorders(rect) => {
-                self.invisible_borders = rect;
-                self.retile_all(false)?;
-            }
+            SocketMessage::InvisibleBorders(_rect) => {}
             SocketMessage::WorkAreaOffset(rect) => {
                 self.work_area_offset = Option::from(rect);
                 self.retile_all(false)?;
@@ -1390,9 +1386,6 @@ impl WindowManager {
             | SocketMessage::FocusWorkspaceNumber(_) => {
                 let foreground = WindowsApi::foreground_window()?;
                 let foreground_window = Window { hwnd: foreground };
-                let mut rect = WindowsApi::window_rect(foreground_window.hwnd())?;
-                rect.top -= self.invisible_borders.bottom;
-                rect.bottom += self.invisible_borders.bottom;
 
                 let monocle = BORDER_COLOUR_MONOCLE.load(Ordering::SeqCst);
                 if monocle != 0 && self.focused_workspace()?.monocle_container().is_some() {
@@ -1409,7 +1402,7 @@ impl WindowManager {
                 }
 
                 let border = Border::from(BORDER_HWND.load(Ordering::SeqCst));
-                border.set_position(foreground_window, &self.invisible_borders, false)?;
+                border.set_position(foreground_window, false)?;
             }
             SocketMessage::TogglePause => {
                 let is_paused = self.is_paused;
@@ -1419,7 +1412,7 @@ impl WindowManager {
                     border.hide()?;
                 } else {
                     let focused = self.focused_window()?;
-                    border.set_position(*focused, &self.invisible_borders, true)?;
+                    border.set_position(*focused, true)?;
                     focused.focus(false)?;
                 }
             }
@@ -1429,7 +1422,7 @@ impl WindowManager {
 
                 if tiling_enabled {
                     let focused = self.focused_window()?;
-                    border.set_position(*focused, &self.invisible_borders, true)?;
+                    border.set_position(*focused, true)?;
                     focused.focus(false)?;
                 } else {
                     border.hide()?;
