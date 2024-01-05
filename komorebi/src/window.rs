@@ -32,7 +32,6 @@ use crate::styles::WindowStyle;
 use crate::window_manager_event::WindowManagerEvent;
 use crate::windows_api::WindowsApi;
 use crate::ALT_FOCUS_HACK;
-use crate::BORDER_OVERFLOW_IDENTIFIERS;
 use crate::FLOAT_IDENTIFIERS;
 use crate::HIDDEN_HWNDS;
 use crate::HIDING_BEHAVIOUR;
@@ -129,7 +128,7 @@ impl Window {
         HWND(self.hwnd)
     }
 
-    pub fn center(&mut self, work_area: &Rect, invisible_borders: &Rect) -> Result<()> {
+    pub fn center(&mut self, work_area: &Rect) -> Result<()> {
         let half_width = work_area.right / 2;
         let half_weight = work_area.bottom / 2;
 
@@ -140,7 +139,6 @@ impl Window {
                 right: half_width,
                 bottom: half_weight,
             },
-            invisible_borders,
             true,
         )
     }
@@ -148,34 +146,9 @@ impl Window {
     pub fn set_position(
         &mut self,
         layout: &Rect,
-        invisible_borders: &Rect,
         top: bool,
     ) -> Result<()> {
-        let mut rect = *layout;
-
-        let border_overflows = BORDER_OVERFLOW_IDENTIFIERS.lock();
-        let regex_identifiers = REGEX_IDENTIFIERS.lock();
-
-        let title = &self.title()?;
-        let class = &self.class()?;
-        let exe_name = &self.exe()?;
-
-        let should_remove_border = !should_act(
-            title,
-            exe_name,
-            class,
-            &border_overflows,
-            &regex_identifiers,
-        );
-
-        if should_remove_border {
-            // Remove the invisible borders
-            rect.left -= invisible_borders.left;
-            rect.top -= invisible_borders.top;
-            rect.right += invisible_borders.right;
-            rect.bottom += invisible_borders.bottom;
-        }
-
+        let rect = *layout;
         WindowsApi::position_window(self.hwnd(), &rect, top)
     }
 

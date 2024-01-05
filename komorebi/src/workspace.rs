@@ -205,7 +205,6 @@ impl Workspace {
         &mut self,
         work_area: &Rect,
         offset: Option<Rect>,
-        invisible_borders: &Rect,
     ) -> Result<()> {
         if !INITIAL_CONFIGURATION_LOADED.load(Ordering::SeqCst) {
             return Ok(());
@@ -253,7 +252,7 @@ impl Workspace {
             if let Some(container) = self.monocle_container_mut() {
                 if let Some(window) = container.focused_window_mut() {
                     adjusted_work_area.add_padding(container_padding);
-                    window.set_position(&adjusted_work_area, invisible_borders, true)?;
+                    window.set_position(&adjusted_work_area, true)?;
                 };
             } else if let Some(window) = self.maximized_window_mut() {
                 window.maximize();
@@ -288,7 +287,7 @@ impl Workspace {
                             WindowsApi::restore_window(window.hwnd());
                         }
 
-                        window.set_position(layout, invisible_borders, false)?;
+                        window.set_position(layout, false)?;
                     }
                 }
 

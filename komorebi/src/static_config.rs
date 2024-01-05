@@ -316,13 +316,6 @@ pub struct StaticConfig {
 impl From<&WindowManager> for StaticConfig {
     #[allow(clippy::too_many_lines)]
     fn from(value: &WindowManager) -> Self {
-        let default_invisible_borders = Rect {
-            left: 7,
-            top: 0,
-            right: 14,
-            bottom: 7,
-        };
-
         let mut monitors = vec![];
         for m in value.monitors() {
             monitors.push(MonitorConfig::from(m));
@@ -392,11 +385,7 @@ impl From<&WindowManager> for StaticConfig {
         };
 
         Self {
-            invisible_borders: if value.invisible_borders == default_invisible_borders {
-                None
-            } else {
-                Option::from(value.invisible_borders)
-            },
+            invisible_borders: None,
             resize_delta: Option::from(value.resize_delta),
             window_container_behaviour: Option::from(value.window_container_behaviour),
             cross_monitor_move_behaviour: Option::from(value.cross_monitor_move_behaviour),
@@ -775,12 +764,6 @@ impl StaticConfig {
             incoming_events: incoming,
             command_listener: listener,
             is_paused: false,
-            invisible_borders: value.invisible_borders.unwrap_or(Rect {
-                left: 7,
-                top: 0,
-                right: 14,
-                bottom: 7,
-            }),
             virtual_desktop_id: current_virtual_desktop(),
             work_area_offset: value.global_work_area_offset,
             window_container_behaviour: value
@@ -925,10 +908,6 @@ impl StaticConfig {
         } else {
             BORDER_ENABLED.store(false, Ordering::SeqCst);
             wm.hide_border()?;
-        }
-
-        if let Some(val) = value.invisible_borders {
-            wm.invisible_borders = val;
         }
 
         if let Some(val) = value.window_container_behaviour {

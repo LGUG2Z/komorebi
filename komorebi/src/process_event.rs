@@ -109,7 +109,6 @@ impl WindowManager {
             _ => {}
         }
 
-        let invisible_borders = self.invisible_borders;
         let offset = self.work_area_offset;
 
         for (i, monitor) in self.monitors_mut().iter_mut().enumerate() {
@@ -123,7 +122,7 @@ impl WindowManager {
             for (j, workspace) in monitor.workspaces_mut().iter_mut().enumerate() {
                 let reaped_orphans = workspace.reap_orphans()?;
                 if reaped_orphans.0 > 0 || reaped_orphans.1 > 0 {
-                    workspace.update(&work_area, offset, &invisible_borders)?;
+                    workspace.update(&work_area, offset)?;
                     tracing::info!(
                         "reaped {} orphan window(s) and {} orphaned container(s) on monitor: {}, workspace: {}",
                         reaped_orphans.0,
@@ -331,7 +330,6 @@ impl WindowManager {
                     .ok_or_else(|| anyhow!("cannot get monitor idx from current position"))?;
 
                 let new_window_behaviour = self.window_container_behaviour;
-                let invisible_borders = self.invisible_borders;
 
                 let workspace = self.focused_workspace_mut()?;
                 if !workspace
@@ -341,7 +339,7 @@ impl WindowManager {
                 {
                     let focused_container_idx = workspace.focused_container_idx();
 
-                    let mut new_position = WindowsApi::window_rect(window.hwnd())?;
+                    let new_position = WindowsApi::window_rect(window.hwnd())?;
 
                     let old_position = *workspace
                         .latest_layout()
@@ -366,12 +364,6 @@ impl WindowManager {
                         }
                     }
 
-                    // Adjust for the invisible borders
-                    new_position.left += invisible_borders.left;
-                    new_position.top += invisible_borders.top;
-                    new_position.right -= invisible_borders.right;
-                    new_position.bottom -= invisible_borders.bottom;
-
                     let resize = Rect {
                         left: new_position.left - old_position.left,
                         top: new_position.top - old_position.top,
@@ -382,9 +374,7 @@ impl WindowManager {
                     // If we have moved across the monitors, use that override, otherwise determine
                     // if a move has taken place by ruling out a resize
                     let is_move = moved_across_monitors
-                        || resize.right == 0 && resize.bottom == 0
-                        || resize.right.abs() == invisible_borders.right
-                            && resize.bottom.abs() == invisible_borders.bottom;
+                        || resize.right == 0 && resize.bottom == 0;
 
                     if is_move {
                         tracing::info!("moving with mouse");
@@ -585,15 +575,10 @@ impl WindowManager {
                     }
 
                     if let Some(target_window) = target_window {
-                        let window = target_window;
-                        let mut rect = WindowsApi::window_rect(window.hwnd())?;
-                        rect.top -= self.invisible_borders.bottom;
-                        rect.bottom += self.invisible_borders.bottom;
-
                         let activate = BORDER_HIDDEN.load(Ordering::SeqCst);
 
                         WindowsApi::invalidate_border_rect()?;
-                        border.set_position(target_window, &self.invisible_borders, activate)?;
+                        border.set_position(target_window, activate)?;
 
                         if activate {
                             BORDER_HIDDEN.store(false, Ordering::SeqCst);
@@ -606,7 +591,7 @@ impl WindowManager {
 
         // If we unmanaged a window, it shouldn't be immediately hidden behind managed windows
         if let WindowManagerEvent::Unmanage(window) = event {
-            window.center(&self.focused_monitor_work_area()?, &invisible_borders)?;
+            window.center(&self.focused_monitor_work_area()?)?;
         }
 
         // If there are no more windows on the workspace, we shouldn't show the border window
