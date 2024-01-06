@@ -28,7 +28,7 @@ install:
     just install-target komorebi
 
 run:
-    just install-komorebic
+    just install-target komorebic
     cargo +stable run --bin komorebi --locked
 
 warn $RUST_LOG="warn":

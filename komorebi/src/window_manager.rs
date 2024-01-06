@@ -1322,7 +1322,7 @@ impl WindowManager {
                     .ok_or_else(|| anyhow!("there is no monitor at this index"))?
                     .id();
 
-                if !WindowsApi::monitors_have_same_scale_factor(a, b)? {
+                if !WindowsApi::monitors_have_same_dpi(a, b)? {
                     self.update_focused_workspace(self.mouse_follows_focus)?;
                 }
             }

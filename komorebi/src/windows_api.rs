@@ -52,8 +52,10 @@ use windows::Win32::System::Threading::QueryFullProcessImageNameW;
 use windows::Win32::System::Threading::PROCESS_ACCESS_RIGHTS;
 use windows::Win32::System::Threading::PROCESS_NAME_WIN32;
 use windows::Win32::System::Threading::PROCESS_QUERY_INFORMATION;
+use windows::Win32::UI::HiDpi::GetDpiForMonitor;
 use windows::Win32::UI::HiDpi::SetProcessDpiAwarenessContext;
 use windows::Win32::UI::HiDpi::DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2;
+use windows::Win32::UI::HiDpi::MDT_EFFECTIVE_DPI;
 use windows::Win32::UI::Input::KeyboardAndMouse::GetKeyState;
 use windows::Win32::UI::Input::KeyboardAndMouse::SendInput;
 use windows::Win32::UI::Input::KeyboardAndMouse::SetFocus;
@@ -64,8 +66,6 @@ use windows::Win32::UI::Input::KeyboardAndMouse::MOUSEEVENTF_LEFTDOWN;
 use windows::Win32::UI::Input::KeyboardAndMouse::MOUSEEVENTF_LEFTUP;
 use windows::Win32::UI::Input::KeyboardAndMouse::MOUSEINPUT;
 use windows::Win32::UI::Input::KeyboardAndMouse::VK_MENU;
-use windows::Win32::UI::Shell::Common::DEVICE_SCALE_FACTOR;
-use windows::Win32::UI::Shell::GetScaleFactorForMonitor;
 use windows::Win32::UI::WindowsAndMessaging::AllowSetForegroundWindow;
 use windows::Win32::UI::WindowsAndMessaging::BringWindowToTop;
 use windows::Win32::UI::WindowsAndMessaging::CreateWindowExW;
@@ -802,15 +802,29 @@ impl WindowsApi {
         Result::from(WindowsResult::from(unsafe { RegisterClassW(window_class) }))
     }
 
-    pub fn scale_factor_for_monitor(hmonitor: isize) -> Result<DEVICE_SCALE_FACTOR> {
-        unsafe { GetScaleFactorForMonitor(HMONITOR(hmonitor)) }.process()
+    pub fn dpi_for_monitor(hmonitor: isize) -> Result<f32> {
+        let mut dpi_x = u32::default();
+        let mut dpi_y = u32::default();
+
+        unsafe {
+            GetDpiForMonitor(
+                HMONITOR(hmonitor),
+                MDT_EFFECTIVE_DPI,
+                std::ptr::addr_of_mut!(dpi_x),
+                std::ptr::addr_of_mut!(dpi_y),
+            )
+        }
+        .process()?;
+
+        #[allow(clippy::cast_precision_loss)]
+        Ok(dpi_y as f32 / 96.0)
     }
 
-    pub fn monitors_have_same_scale_factor(a: isize, b: isize) -> Result<bool> {
-        let a = Self::scale_factor_for_monitor(a)?;
-        let b = Self::scale_factor_for_monitor(b)?;
+    pub fn monitors_have_same_dpi(hmonitor_a: isize, hmonitor_b: isize) -> Result<bool> {
+        let dpi_a = Self::dpi_for_monitor(hmonitor_a)?;
+        let dpi_b = Self::dpi_for_monitor(hmonitor_b)?;
 
-        Ok(a == b)
+        Ok((dpi_a - dpi_b).abs() < f32::EPSILON)
     }
 
     pub fn round_corners(hwnd: isize) -> Result<()> {
