@@ -1235,7 +1235,7 @@ fn main() -> Result<()> {
             let mut arguments = String::from("start");
 
             if let Some(config) = args.config {
-                arguments.push_str("--config ");
+                arguments.push_str(" --config ");
                 arguments.push_str(&config.to_string_lossy());
             }
 
