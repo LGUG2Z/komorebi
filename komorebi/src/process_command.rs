@@ -1325,12 +1325,35 @@ impl WindowManager {
             | SocketMessage::InvisibleBorders(_)
             | SocketMessage::WorkAreaOffset(_)
             | SocketMessage::CycleMoveWindow(_)
-            | SocketMessage::MoveWindow(_) => {
+            | SocketMessage::MoveWindow(_)
+            | SocketMessage::CycleFocusMonitor(_)
+            | SocketMessage::CycleFocusWorkspace(_)
+            | SocketMessage::FocusMonitorNumber(_)
+            | SocketMessage::FocusMonitorWorkspaceNumber(_, _)
+            | SocketMessage::FocusWorkspaceNumber(_) => {
                 let foreground = WindowsApi::foreground_window()?;
                 let foreground_window = Window { hwnd: foreground };
                 let mut rect = WindowsApi::window_rect(foreground_window.hwnd())?;
                 rect.top -= self.invisible_borders.bottom;
                 rect.bottom += self.invisible_borders.bottom;
+
+                let monocle = BORDER_COLOUR_MONOCLE.load(Ordering::SeqCst);
+                if monocle != 0 {
+                    if self.focused_workspace()?.monocle_container().is_some() {
+                        BORDER_COLOUR_CURRENT.store(
+                            monocle,
+                            Ordering::SeqCst,
+                        );
+                    }
+                }
+
+                let stack = BORDER_COLOUR_STACK.load(Ordering::SeqCst);
+                if stack != 0 {
+                    if self.focused_container()?.windows().len() > 1 {
+                        BORDER_COLOUR_CURRENT
+                            .store(stack, Ordering::SeqCst);
+                    }
+                }
 
                 let border = Border::from(BORDER_HWND.load(Ordering::SeqCst));
                 border.set_position(foreground_window, &self.invisible_borders, false)?;
