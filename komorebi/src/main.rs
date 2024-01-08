@@ -35,8 +35,6 @@ use regex::Regex;
 use schemars::JsonSchema;
 use serde::Serialize;
 use sysinfo::Process;
-use sysinfo::ProcessExt;
-use sysinfo::SystemExt;
 use tracing_appender::non_blocking::WorkerGuard;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::EnvFilter;
@@ -484,8 +482,10 @@ fn main() -> Result<()> {
     if matched_procs.len() > 1 {
         let mut len = matched_procs.len();
         for proc in matched_procs {
-            if proc.root().ends_with("shims") {
-                len -= 1;
+            if let Some(root) = proc.root() {
+                if root.ends_with("shims") {
+                    len -= 1;
+                }
             }
         }
 

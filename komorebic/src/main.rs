@@ -27,7 +27,6 @@ use miette::Report;
 use miette::SourceOffset;
 use miette::SourceSpan;
 use paste::paste;
-use sysinfo::SystemExt;
 use uds_windows::UnixListener;
 use uds_windows::UnixStream;
 use which::which;
