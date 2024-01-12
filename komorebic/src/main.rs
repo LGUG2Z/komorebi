@@ -868,6 +868,8 @@ enum SubCommand {
     /// Focus the specified monitor
     #[clap(arg_required_else_help = true)]
     FocusMonitor(FocusMonitor),
+    /// Focus the last focused workspace on the focused monitor
+    FocusLastWorkspace,
     /// Focus the specified workspace on the focused monitor
     #[clap(arg_required_else_help = true)]
     FocusWorkspace(FocusWorkspace),
@@ -1856,6 +1858,9 @@ Stop-Process -Name:whkd -ErrorAction SilentlyContinue
         }
         SubCommand::FocusMonitor(arg) => {
             send_message(&SocketMessage::FocusMonitorNumber(arg.target).as_bytes()?)?;
+        }
+        SubCommand::FocusLastWorkspace => {
+            send_message(&SocketMessage::FocusLastWorkspace.as_bytes()?)?;
         }
         SubCommand::FocusWorkspace(arg) => {
             send_message(&SocketMessage::FocusWorkspaceNumber(arg.target).as_bytes()?)?;

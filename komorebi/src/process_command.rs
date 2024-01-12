@@ -173,6 +173,23 @@ impl WindowManager {
         };
 
         match message {
+            SocketMessage::CycleFocusWorkspace(_) | SocketMessage::FocusWorkspaceNumber(_) => {
+                if let Some(monitor) = self.focused_monitor_mut() {
+                    let idx = monitor.focused_workspace_idx();
+                    monitor.set_last_focused_workspace(Option::from(idx));
+                }
+            }
+            SocketMessage::FocusMonitorWorkspaceNumber(target_monitor_idx, _) => {
+                let idx = self.focused_workspace_idx_for_monitor_idx(target_monitor_idx)?;
+                if let Some(monitor) = self.monitors_mut().get_mut(target_monitor_idx) {
+                    monitor.set_last_focused_workspace(Option::from(idx));
+                }
+            }
+
+            _ => {}
+        };
+
+        match message {
             SocketMessage::Promote => self.promote_container_to_front()?,
             SocketMessage::PromoteFocus => self.promote_focus_to_front()?,
             SocketMessage::FocusWindow(direction) => {
@@ -593,6 +610,33 @@ impl WindowManager {
                 );
 
                 self.focus_workspace(workspace_idx)?;
+
+                if BORDER_ENABLED.load(Ordering::SeqCst) {
+                    self.show_border()?;
+                };
+            }
+            SocketMessage::FocusLastWorkspace => {
+                // This is to ensure that even on an empty workspace on a secondary monitor, the
+                // secondary monitor where the cursor is focused will be used as the target for
+                // the workspace switch op
+                if let Some(monitor_idx) = self.monitor_idx_from_current_pos() {
+                    self.focus_monitor(monitor_idx)?;
+                }
+
+                let idx = self
+                    .focused_monitor()
+                    .ok_or_else(|| anyhow!("there is no monitor"))?
+                    .focused_workspace_idx();
+
+                if let Some(monitor) = self.focused_monitor_mut() {
+                    if let Some(last_focused_workspace) = monitor.last_focused_workspace() {
+                        self.focus_workspace(last_focused_workspace)?;
+                    }
+                }
+
+                self.focused_monitor_mut()
+                    .ok_or_else(|| anyhow!("there is no monitor"))?
+                    .set_last_focused_workspace(Option::from(idx));
 
                 if BORDER_ENABLED.load(Ordering::SeqCst) {
                     self.show_border()?;
@@ -1338,21 +1382,17 @@ impl WindowManager {
                 rect.bottom += self.invisible_borders.bottom;
 
                 let monocle = BORDER_COLOUR_MONOCLE.load(Ordering::SeqCst);
-                if monocle != 0 {
-                    if self.focused_workspace()?.monocle_container().is_some() {
-                        BORDER_COLOUR_CURRENT.store(
-                            monocle,
-                            Ordering::SeqCst,
-                        );
-                    }
+                if monocle != 0 && self.focused_workspace()?.monocle_container().is_some() {
+                    BORDER_COLOUR_CURRENT.store(
+                        monocle,
+                        Ordering::SeqCst,
+                    );
                 }
 
                 let stack = BORDER_COLOUR_STACK.load(Ordering::SeqCst);
-                if stack != 0 {
-                    if self.focused_container()?.windows().len() > 1 {
-                        BORDER_COLOUR_CURRENT
-                            .store(stack, Ordering::SeqCst);
-                    }
+                if stack != 0 && self.focused_container()?.windows().len() > 1 {
+                    BORDER_COLOUR_CURRENT
+                        .store(stack, Ordering::SeqCst);
                 }
 
                 let border = Border::from(BORDER_HWND.load(Ordering::SeqCst));

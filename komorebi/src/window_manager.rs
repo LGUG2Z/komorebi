@@ -2198,6 +2198,14 @@ impl WindowManager {
             .ok_or_else(|| anyhow!("there is no workspace"))
     }
 
+    pub fn focused_workspace_idx_for_monitor_idx(&self, idx: usize) -> Result<usize> {
+        Ok(self
+            .monitors()
+            .get(idx)
+            .ok_or_else(|| anyhow!("there is no monitor at this index"))?
+            .focused_workspace_idx())
+    }
+
     pub fn focused_workspace_for_monitor_idx(&self, idx: usize) -> Result<&Workspace> {
         self.monitors()
             .get(idx)

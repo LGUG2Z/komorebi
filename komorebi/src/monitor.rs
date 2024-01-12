@@ -35,6 +35,9 @@ pub struct Monitor {
     work_area_offset: Option<Rect>,
     workspaces: Ring<Workspace>,
     #[serde(skip_serializing)]
+    #[getset(get_copy = "pub", set = "pub")]
+    last_focused_workspace: Option<usize>,
+    #[serde(skip_serializing)]
     #[getset(get_mut = "pub")]
     workspace_names: HashMap<usize, String>,
 }
@@ -54,6 +57,7 @@ pub fn new(id: isize, size: Rect, work_area_size: Rect, name: String) -> Monitor
         work_area_size,
         work_area_offset: None,
         workspaces,
+        last_focused_workspace: None,
         workspace_names: HashMap::default(),
     }
 }
