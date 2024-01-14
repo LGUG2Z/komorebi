@@ -31,11 +31,21 @@ theme:
     - content.tabs.link
     - navigation.footer
     - navigation.indexes
+    - navigation.sections
     - navigation.tabs
-    - navigation.tabs.sticky
-    - navigation.tracking
     - navigation.top
+    - navigation.tracking
     - search.highlight
     - search.share
     - search.suggest
     - toc.follow
+plugins:
+  - macros
+
+nav:
+  - Komorebi:
+    - index.md
+    - Design: design.md
+  - Getting started:
+    - Installation: installation.md
+    - Example configurations: example-configurations.md
