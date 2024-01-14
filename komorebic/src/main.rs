@@ -7,6 +7,7 @@ use std::io::BufRead;
 use std::io::BufReader;
 use std::io::ErrorKind;
 use std::io::Write;
+use std::path::Path;
 use std::path::PathBuf;
 use std::process::Command;
 use std::sync::atomic::AtomicBool;
@@ -1293,7 +1294,7 @@ fn main() -> Result<()> {
                 let config_source = std::fs::read_to_string(&static_config)?;
                 let lines: Vec<_> = config_source.lines().collect();
                 let parsed_config = serde_json::from_str::<serde_json::Value>(&config_source);
-                if let Err(serde_error) = parsed_config {
+                if let Err(serde_error) = &parsed_config {
                     let line = lines[serde_error.line() - 2];
 
                     let offset = SourceOffset::from_location(
@@ -1315,6 +1316,24 @@ fn main() -> Result<()> {
                 }
 
                 println!("Found komorebi.json; this file can be passed to the start command with the --config flag\n");
+
+                if let Ok(config) = &parsed_config {
+                    if let Some(asc_path) = config.get("app_specific_configuration_path") {
+                        let normalized_asc_path = asc_path
+                            .to_string()
+                            .replace(
+                                "$Env:USERPROFILE",
+                                &dirs::home_dir().unwrap().to_string_lossy(),
+                            )
+                            .replace('"', "")
+                            .replace('\\', "/");
+
+                        if !Path::exists(Path::new(&normalized_asc_path)) {
+                            println!("Application specific configuration file path '{normalized_asc_path}' does not exist. Try running 'komorebic fetch-asc'\n");
+                        }
+                    }
+                }
+
                 if config_whkd.exists() {
                     println!("Found ~/.config/whkdrc; key bindings will be loaded from here when whkd is started, and you can start it automatically using the --whkd flag\n");
                 } else {
