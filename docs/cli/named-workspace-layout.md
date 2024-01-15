@@ -1,0 +1,19 @@
+# named-workspace-layout
+
+```
+Set the layout for the specified workspace
+
+Usage: named-workspace-layout <WORKSPACE> <VALUE>
+
+Arguments:
+  <WORKSPACE>
+          Target workspace name
+
+  <VALUE>
+          [possible values: bsp, columns, rows, vertical-stack, horizontal-stack, ultrawide-vertical-stack]
+
+Options:
+  -h, --help
+          Print help
+
+```
