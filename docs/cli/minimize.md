@@ -3,7 +3,7 @@
 ```
 Minimize the focused window
 
-Usage: minimize
+Usage: komorebic.exe minimize
 
 Options:
   -h, --help

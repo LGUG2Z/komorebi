@@ -3,7 +3,7 @@
 ```
 Send the focused window to the workspace in the given cycle direction
 
-Usage: cycle-send-to-workspace <CYCLE_DIRECTION>
+Usage: komorebic.exe cycle-send-to-workspace <CYCLE_DIRECTION>
 
 Arguments:
   <CYCLE_DIRECTION>

@@ -3,7 +3,7 @@
 ```
 Change focus to the window in the specified direction
 
-Usage: focus <OPERATION_DIRECTION>
+Usage: komorebic.exe focus <OPERATION_DIRECTION>
 
 Arguments:
   <OPERATION_DIRECTION>

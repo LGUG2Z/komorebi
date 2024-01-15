@@ -3,7 +3,7 @@
 ```
 Stack the focused window in the specified direction
 
-Usage: stack <OPERATION_DIRECTION>
+Usage: komorebic.exe stack <OPERATION_DIRECTION>
 
 Arguments:
   <OPERATION_DIRECTION>

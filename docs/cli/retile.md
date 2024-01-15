@@ -3,7 +3,7 @@
 ```
 Force the retiling of all managed windows
 
-Usage: retile
+Usage: komorebic.exe retile
 
 Options:
   -h, --help

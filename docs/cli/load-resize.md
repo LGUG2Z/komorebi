@@ -3,7 +3,7 @@
 ```
 Load the resize layout dimensions from a file
 
-Usage: load-resize <PATH>
+Usage: komorebic.exe load-resize <PATH>
 
 Arguments:
   <PATH>

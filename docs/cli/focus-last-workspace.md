@@ -3,7 +3,7 @@
 ```
 Focus the last focused workspace on the focused monitor
 
-Usage: focus-last-workspace
+Usage: komorebic.exe focus-last-workspace
 
 Options:
   -h, --help

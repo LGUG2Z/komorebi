@@ -3,7 +3,7 @@
 ```
 Add a rule to associate an application with a named workspace
 
-Usage: named-workspace-rule <IDENTIFIER> <ID> <WORKSPACE>
+Usage: komorebic.exe named-workspace-rule <IDENTIFIER> <ID> <WORKSPACE>
 
 Arguments:
   <IDENTIFIER>

@@ -3,7 +3,7 @@
 ```
 Set the offset for the active window border
 
-Usage: active-window-border-offset <OFFSET>
+Usage: komorebic.exe active-window-border-offset <OFFSET>
 
 Arguments:
   <OFFSET>

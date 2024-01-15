@@ -3,7 +3,7 @@
 ```
 Create these many named workspaces for the specified monitor
 
-Usage: ensure-named-workspaces <MONITOR> [NAMES]...
+Usage: komorebic.exe ensure-named-workspaces <MONITOR> [NAMES]...
 
 Arguments:
   <MONITOR>

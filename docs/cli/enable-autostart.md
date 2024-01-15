@@ -3,7 +3,7 @@
 ```
 Generates the komorebi.lnk shortcut in shell:startup to autostart komorebi
 
-Usage: enable-autostart [OPTIONS]
+Usage: komorebic.exe enable-autostart [OPTIONS]
 
 Options:
   -c, --config <CONFIG>

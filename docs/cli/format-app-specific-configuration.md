@@ -3,7 +3,7 @@
 ```
 Format a YAML file for use with the 'ahk-app-specific-configuration' command
 
-Usage: format-app-specific-configuration <PATH>
+Usage: komorebic.exe format-app-specific-configuration <PATH>
 
 Arguments:
   <PATH>

@@ -3,7 +3,7 @@
 ```
 Add a rule to always float the specified application
 
-Usage: float-rule <IDENTIFIER> <ID>
+Usage: komorebic.exe float-rule <IDENTIFIER> <ID>
 
 Arguments:
   <IDENTIFIER>

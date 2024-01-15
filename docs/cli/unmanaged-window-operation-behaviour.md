@@ -3,7 +3,7 @@
 ```
 Set the operation behaviour when the focused window is not managed
 
-Usage: unmanaged-window-operation-behaviour <OPERATION_BEHAVIOUR>
+Usage: komorebic.exe unmanaged-window-operation-behaviour <OPERATION_BEHAVIOUR>
 
 Arguments:
   <OPERATION_BEHAVIOUR>

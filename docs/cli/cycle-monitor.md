@@ -3,7 +3,7 @@
 ```
 Focus the monitor in the given cycle direction
 
-Usage: cycle-monitor <CYCLE_DIRECTION>
+Usage: komorebic.exe cycle-monitor <CYCLE_DIRECTION>
 
 Arguments:
   <CYCLE_DIRECTION>

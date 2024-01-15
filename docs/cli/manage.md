@@ -3,7 +3,7 @@
 ```
 Force komorebi to manage the focused window
 
-Usage: manage
+Usage: komorebic.exe manage
 
 Options:
   -h, --help

@@ -3,7 +3,7 @@
 ```
 Focus the workspace in the given cycle direction
 
-Usage: cycle-workspace <CYCLE_DIRECTION>
+Usage: komorebic.exe cycle-workspace <CYCLE_DIRECTION>
 
 Arguments:
   <CYCLE_DIRECTION>

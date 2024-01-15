@@ -3,7 +3,7 @@
 ```
 Move the focused window in the specified cycle direction
 
-Usage: cycle-move <CYCLE_DIRECTION>
+Usage: komorebic.exe cycle-move <CYCLE_DIRECTION>
 
 Arguments:
   <CYCLE_DIRECTION>

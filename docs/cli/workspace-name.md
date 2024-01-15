@@ -3,7 +3,7 @@
 ```
 Set the workspace name for the specified workspace
 
-Usage: workspace-name <MONITOR> <WORKSPACE> <VALUE>
+Usage: komorebic.exe workspace-name <MONITOR> <WORKSPACE> <VALUE>
 
 Arguments:
   <MONITOR>

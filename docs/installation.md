@@ -30,9 +30,9 @@ to manipulate the window manager, you use
 [WinGet](https://winget.run/pkg/LGUG2Z/komorebi), and you may also built
 it from [source](https://github.com/LGUG2Z/komorebi) if you would prefer.
 
- - [Scoop](install/scoop.md)
- - [WinGet](install/winget.md)
- - [Build from source](install/source.md)
+ - [Scoop](#scoop)
+ - [WinGet](#winget)
+ - [Building from source](#building-from-source)
 
 ## Long path support
 
@@ -69,7 +69,7 @@ scoop install komorebi whkd
 ```
 
 Once komorebi is installed, proceed to get the [example
-configurations](./example-configurations).
+configurations](example-configurations.md).
 
 ## WinGet
 
@@ -93,7 +93,7 @@ winget install LGUG2Z.whkd
 ```
 
 Once komorebi is installed, proceed to get the [example
-configurations](./example-configurations).
+configurations](example-configurations.md).
 
 ## Building from source
 

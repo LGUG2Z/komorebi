@@ -3,7 +3,7 @@
 ```
 Unstack the focused window
 
-Usage: unstack
+Usage: komorebic.exe unstack
 
 Options:
   -h, --help

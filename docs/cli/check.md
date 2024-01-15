@@ -3,7 +3,7 @@
 ```
 Output various important komorebi-related environment values
 
-Usage: check
+Usage: komorebic.exe check
 
 Options:
   -h, --help

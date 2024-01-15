@@ -3,7 +3,7 @@
 ```
 Add a rule to always manage the specified application
 
-Usage: manage-rule <IDENTIFIER> <ID>
+Usage: komorebic.exe manage-rule <IDENTIFIER> <ID>
 
 Arguments:
   <IDENTIFIER>

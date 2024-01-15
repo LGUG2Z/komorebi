@@ -3,7 +3,7 @@
 ```
 Gather example configurations for a new-user quickstart
 
-Usage: quickstart
+Usage: komorebic.exe quickstart
 
 Options:
   -h, --help

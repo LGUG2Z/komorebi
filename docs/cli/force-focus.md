@@ -3,7 +3,7 @@
 ```
 Forcibly focus the window at the cursor with a left mouse click
 
-Usage: force-focus
+Usage: komorebic.exe force-focus
 
 Options:
   -h, --help

@@ -3,7 +3,7 @@
 ```
 Send the focused window to the specified monitor workspace
 
-Usage: send-to-monitor-workspace <TARGET_MONITOR> <TARGET_WORKSPACE>
+Usage: komorebic.exe send-to-monitor-workspace <TARGET_MONITOR> <TARGET_WORKSPACE>
 
 Arguments:
   <TARGET_MONITOR>

@@ -3,7 +3,7 @@
 ```
 Save the current resize layout dimensions to a file
 
-Usage: save-resize <PATH>
+Usage: komorebic.exe save-resize <PATH>
 
 Arguments:
   <PATH>

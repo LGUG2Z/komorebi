@@ -3,7 +3,7 @@
 ```
 Unsubscribe from komorebi events
 
-Usage: unsubscribe <NAMED_PIPE>
+Usage: komorebic.exe unsubscribe <NAMED_PIPE>
 
 Arguments:
   <NAMED_PIPE>

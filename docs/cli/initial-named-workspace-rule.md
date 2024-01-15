@@ -3,7 +3,7 @@
 ```
 Add a rule to associate an application with a named workspace on first show
 
-Usage: initial-named-workspace-rule <IDENTIFIER> <ID> <WORKSPACE>
+Usage: komorebic.exe initial-named-workspace-rule <IDENTIFIER> <ID> <WORKSPACE>
 
 Arguments:
   <IDENTIFIER>

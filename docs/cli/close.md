@@ -3,7 +3,7 @@
 ```
 Close the focused window
 
-Usage: close
+Usage: komorebic.exe close
 
 Options:
   -h, --help

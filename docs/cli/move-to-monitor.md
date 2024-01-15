@@ -3,7 +3,7 @@
 ```
 Move the focused window to the specified monitor
 
-Usage: move-to-monitor <TARGET>
+Usage: komorebic.exe move-to-monitor <TARGET>
 
 Arguments:
   <TARGET>

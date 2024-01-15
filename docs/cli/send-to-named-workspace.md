@@ -3,7 +3,7 @@
 ```
 Send the focused window to the specified workspace
 
-Usage: send-to-named-workspace <WORKSPACE>
+Usage: komorebic.exe send-to-named-workspace <WORKSPACE>
 
 Arguments:
   <WORKSPACE>

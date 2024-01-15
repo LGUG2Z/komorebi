@@ -3,7 +3,7 @@
 ```
 Restore all hidden windows (debugging command)
 
-Usage: restore-windows
+Usage: komorebic.exe restore-windows
 
 Options:
   -h, --help

@@ -3,7 +3,7 @@
 ```
 Adjust workspace padding on the focused workspace
 
-Usage: adjust-workspace-padding <SIZING> <ADJUSTMENT>
+Usage: komorebic.exe adjust-workspace-padding <SIZING> <ADJUSTMENT>
 
 Arguments:
   <SIZING>

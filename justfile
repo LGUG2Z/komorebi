@@ -46,3 +46,7 @@ trace $RUST_LOG="trace":
 deadlock $RUST_LOG="trace":
     just install-komorebic
     cargo +stable run --bin komorebi --locked --features deadlock_detection
+
+docgen:
+    komorebic docgen
+    Get-ChildItem -Path "docs/cli" -Recurse -File | ForEach-Object { (Get-Content $_.FullName) -replace 'Usage: ', 'Usage: komorebic.exe ' | Set-Content $_.FullName }

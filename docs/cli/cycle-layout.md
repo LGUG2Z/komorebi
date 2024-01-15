@@ -3,7 +3,7 @@
 ```
 Cycle between available layouts
 
-Usage: cycle-layout <CYCLE_DIRECTION>
+Usage: komorebic.exe cycle-layout <CYCLE_DIRECTION>
 
 Arguments:
   <CYCLE_DIRECTION>

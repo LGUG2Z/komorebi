@@ -3,7 +3,7 @@
 ```
 Set the workspace padding for the specified workspace
 
-Usage: workspace-padding <MONITOR> <WORKSPACE> <SIZE>
+Usage: komorebic.exe workspace-padding <MONITOR> <WORKSPACE> <SIZE>
 
 Arguments:
   <MONITOR>

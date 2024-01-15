@@ -3,7 +3,7 @@
 ```
 Set the width for the active window border
 
-Usage: active-window-border-width <WIDTH>
+Usage: komorebic.exe active-window-border-width <WIDTH>
 
 Arguments:
   <WIDTH>

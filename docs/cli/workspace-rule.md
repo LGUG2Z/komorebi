@@ -3,7 +3,7 @@
 ```
 Add a rule to associate an application with a workspace
 
-Usage: workspace-rule <IDENTIFIER> <ID> <MONITOR> <WORKSPACE>
+Usage: komorebic.exe workspace-rule <IDENTIFIER> <ID> <MONITOR> <WORKSPACE>
 
 Arguments:
   <IDENTIFIER>

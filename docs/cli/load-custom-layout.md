@@ -3,7 +3,7 @@
 ```
 Load a custom layout from file for the focused workspace
 
-Usage: load-custom-layout <PATH>
+Usage: komorebic.exe load-custom-layout <PATH>
 
 Arguments:
   <PATH>

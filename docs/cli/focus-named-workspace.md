@@ -3,7 +3,7 @@
 ```
 Focus the specified workspace
 
-Usage: focus-named-workspace <WORKSPACE>
+Usage: komorebic.exe focus-named-workspace <WORKSPACE>
 
 Arguments:
   <WORKSPACE>

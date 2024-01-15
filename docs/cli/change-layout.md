@@ -3,7 +3,7 @@
 ```
 Set the layout on the focused workspace
 
-Usage: change-layout <DEFAULT_LAYOUT>
+Usage: komorebic.exe change-layout <DEFAULT_LAYOUT>
 
 Arguments:
   <DEFAULT_LAYOUT>

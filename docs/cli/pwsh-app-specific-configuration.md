@@ -3,7 +3,7 @@
 ```
 Generate common app-specific configurations and fixes in a PowerShell script
 
-Usage: pwsh-app-specific-configuration <PATH> [OVERRIDE_PATH]
+Usage: komorebic.exe pwsh-app-specific-configuration <PATH> [OVERRIDE_PATH]
 
 Arguments:
   <PATH>

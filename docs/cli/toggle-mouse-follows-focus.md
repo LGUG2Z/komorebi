@@ -3,7 +3,7 @@
 ```
 Toggle mouse follows focus on all workspaces
 
-Usage: toggle-mouse-follows-focus
+Usage: komorebic.exe toggle-mouse-follows-focus
 
 Options:
   -h, --help

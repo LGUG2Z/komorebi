@@ -3,7 +3,7 @@
 ```
 Enable or disable a hack simulating ALT key presses to ensure focus changes succeed
 
-Usage: alt-focus-hack <BOOLEAN_STATE>
+Usage: komorebic.exe alt-focus-hack <BOOLEAN_STATE>
 
 Arguments:
   <BOOLEAN_STATE>

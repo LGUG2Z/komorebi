@@ -3,7 +3,7 @@
 ```
 Focus the specified workspace on all monitors
 
-Usage: focus-workspaces <TARGET>
+Usage: komorebic.exe focus-workspaces <TARGET>
 
 Arguments:
   <TARGET>

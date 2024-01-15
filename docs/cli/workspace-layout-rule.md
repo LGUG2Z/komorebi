@@ -3,7 +3,7 @@
 ```
 Add a dynamic layout rule for the specified workspace
 
-Usage: workspace-layout-rule <MONITOR> <WORKSPACE> <AT_CONTAINER_COUNT> <LAYOUT>
+Usage: komorebic.exe workspace-layout-rule <MONITOR> <WORKSPACE> <AT_CONTAINER_COUNT> <LAYOUT>
 
 Arguments:
   <MONITOR>

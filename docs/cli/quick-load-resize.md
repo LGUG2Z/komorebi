@@ -3,7 +3,7 @@
 ```
 Load the last quicksaved resize layout dimensions
 
-Usage: quick-load-resize
+Usage: komorebic.exe quick-load-resize
 
 Options:
   -h, --help

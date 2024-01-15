@@ -3,7 +3,7 @@
 ```
 Set the layout for the specified workspace
 
-Usage: workspace-layout <MONITOR> <WORKSPACE> <VALUE>
+Usage: komorebic.exe workspace-layout <MONITOR> <WORKSPACE> <VALUE>
 
 Arguments:
   <MONITOR>

@@ -3,7 +3,7 @@
 ```
 Set a custom layout for the specified workspace
 
-Usage: named-workspace-custom-layout <WORKSPACE> <PATH>
+Usage: komorebic.exe named-workspace-custom-layout <WORKSPACE> <PATH>
 
 Arguments:
   <WORKSPACE>

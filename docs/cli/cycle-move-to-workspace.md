@@ -3,7 +3,7 @@
 ```
 Move the focused window to the workspace in the given cycle direction
 
-Usage: cycle-move-to-workspace <CYCLE_DIRECTION>
+Usage: komorebic.exe cycle-move-to-workspace <CYCLE_DIRECTION>
 
 Arguments:
   <CYCLE_DIRECTION>

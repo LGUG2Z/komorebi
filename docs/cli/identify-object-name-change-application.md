@@ -3,7 +3,7 @@
 ```
 Identify an application that sends EVENT_OBJECT_NAMECHANGE on launch
 
-Usage: identify-object-name-change-application <IDENTIFIER> <ID>
+Usage: komorebic.exe identify-object-name-change-application <IDENTIFIER> <ID>
 
 Arguments:
   <IDENTIFIER>

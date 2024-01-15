@@ -3,7 +3,7 @@
 ```
 Move the focused workspace to the specified monitor
 
-Usage: move-workspace-to-monitor <TARGET>
+Usage: komorebic.exe move-workspace-to-monitor <TARGET>
 
 Arguments:
   <TARGET>

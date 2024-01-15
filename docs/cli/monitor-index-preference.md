@@ -3,7 +3,7 @@
 ```
 Set the monitor index preference for a monitor identified using its size
 
-Usage: monitor-index-preference <INDEX_PREFERENCE> <LEFT> <TOP> <RIGHT> <BOTTOM>
+Usage: komorebic.exe monitor-index-preference <INDEX_PREFERENCE> <LEFT> <TOP> <RIGHT> <BOTTOM>
 
 Arguments:
   <INDEX_PREFERENCE>

@@ -3,7 +3,7 @@
 ```
 Resize the focused window in the specified direction
 
-Usage: resize-edge <EDGE> <SIZING>
+Usage: komorebic.exe resize-edge <EDGE> <SIZING>
 
 Arguments:
   <EDGE>

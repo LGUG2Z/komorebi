@@ -3,7 +3,7 @@
 ```
 Stop the komorebi.exe process and restore all hidden windows
 
-Usage: stop [OPTIONS]
+Usage: komorebic.exe stop [OPTIONS]
 
 Options:
       --whkd

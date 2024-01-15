@@ -3,7 +3,7 @@
 ```
 Enable or disable mouse follows focus on all workspaces
 
-Usage: mouse-follows-focus <BOOLEAN_STATE>
+Usage: komorebic.exe mouse-follows-focus <BOOLEAN_STATE>
 
 Arguments:
   <BOOLEAN_STATE>

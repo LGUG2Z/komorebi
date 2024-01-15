@@ -3,7 +3,7 @@
 ```
 Whitelist an application for title bar removal
 
-Usage: remove-title-bar <IDENTIFIER> <ID>
+Usage: komorebic.exe remove-title-bar <IDENTIFIER> <ID>
 
 Arguments:
   <IDENTIFIER>

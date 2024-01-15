@@ -3,7 +3,7 @@
 ```
 Toggle monocle mode for the focused container
 
-Usage: toggle-monocle
+Usage: komorebic.exe toggle-monocle
 
 Options:
   -h, --help

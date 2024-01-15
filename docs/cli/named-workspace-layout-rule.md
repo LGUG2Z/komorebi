@@ -3,7 +3,7 @@
 ```
 Add a dynamic layout rule for the specified workspace
 
-Usage: named-workspace-layout-rule <WORKSPACE> <AT_CONTAINER_COUNT> <LAYOUT>
+Usage: komorebic.exe named-workspace-layout-rule <WORKSPACE> <AT_CONTAINER_COUNT> <LAYOUT>
 
 Arguments:
   <WORKSPACE>

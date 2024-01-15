@@ -3,7 +3,7 @@
 ```
 Generate a JSON Schema of socket messages
 
-Usage: socket-schema
+Usage: komorebic.exe socket-schema
 
 Options:
   -h, --help
