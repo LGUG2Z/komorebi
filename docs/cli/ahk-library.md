@@ -3,7 +3,7 @@
 ```
 Generate a library of AutoHotKey helper functions
 
-Usage: ahk-library
+Usage: komorebic.exe ahk-library
 
 Options:
   -h, --help

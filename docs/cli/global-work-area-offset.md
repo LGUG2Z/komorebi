@@ -3,7 +3,7 @@
 ```
 Set offsets to exclude parts of the work area from tiling
 
-Usage: global-work-area-offset <LEFT> <TOP> <RIGHT> <BOTTOM>
+Usage: komorebic.exe global-work-area-offset <LEFT> <TOP> <RIGHT> <BOTTOM>
 
 Arguments:
   <LEFT>

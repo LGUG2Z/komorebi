@@ -3,7 +3,7 @@
 ```
 Set the container padding for the specified workspace
 
-Usage: container-padding <MONITOR> <WORKSPACE> <SIZE>
+Usage: komorebic.exe container-padding <MONITOR> <WORKSPACE> <SIZE>
 
 Arguments:
   <MONITOR>

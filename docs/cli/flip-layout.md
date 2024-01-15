@@ -3,7 +3,7 @@
 ```
 Flip the layout on the focused workspace (BSP only)
 
-Usage: flip-layout <AXIS>
+Usage: komorebic.exe flip-layout <AXIS>
 
 Arguments:
   <AXIS>

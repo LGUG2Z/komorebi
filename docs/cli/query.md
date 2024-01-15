@@ -3,7 +3,7 @@
 ```
 Query the current window manager state
 
-Usage: query <STATE_QUERY>
+Usage: komorebic.exe query <STATE_QUERY>
 
 Arguments:
   <STATE_QUERY>

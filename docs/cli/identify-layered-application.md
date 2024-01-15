@@ -3,7 +3,7 @@
 ```
 Identify an application that has WS_EX_LAYERED, but should still be managed
 
-Usage: identify-layered-application <IDENTIFIER> <ID>
+Usage: komorebic.exe identify-layered-application <IDENTIFIER> <ID>
 
 Arguments:
   <IDENTIFIER>

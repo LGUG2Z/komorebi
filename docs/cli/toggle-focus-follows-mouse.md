@@ -3,7 +3,7 @@
 ```
 Toggle focus follows mouse for the operating system
 
-Usage: toggle-focus-follows-mouse [OPTIONS]
+Usage: komorebic.exe toggle-focus-follows-mouse [OPTIONS]
 
 Options:
   -i, --implementation <IMPLEMENTATION>

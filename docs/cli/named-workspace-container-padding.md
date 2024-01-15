@@ -3,7 +3,7 @@
 ```
 Set the container padding for the specified workspace
 
-Usage: named-workspace-container-padding <WORKSPACE> <SIZE>
+Usage: komorebic.exe named-workspace-container-padding <WORKSPACE> <SIZE>
 
 Arguments:
   <WORKSPACE>

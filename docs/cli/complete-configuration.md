@@ -3,7 +3,7 @@
 ```
 Signal that the final configuration option has been sent
 
-Usage: complete-configuration
+Usage: komorebic.exe complete-configuration
 
 Options:
   -h, --help

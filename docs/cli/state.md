@@ -3,7 +3,7 @@
 ```
 Show a JSON representation of the current window manager state
 
-Usage: state
+Usage: komorebic.exe state
 
 Options:
   -h, --help

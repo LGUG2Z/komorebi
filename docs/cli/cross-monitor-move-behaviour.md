@@ -3,7 +3,7 @@
 ```
 Set the behaviour when moving windows across monitor boundaries
 
-Usage: cross-monitor-move-behaviour <MOVE_BEHAVIOUR>
+Usage: komorebic.exe cross-monitor-move-behaviour <MOVE_BEHAVIOUR>
 
 Arguments:
   <MOVE_BEHAVIOUR>

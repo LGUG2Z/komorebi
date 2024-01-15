@@ -3,7 +3,7 @@
 ```
 Set container padding on the focused workspace
 
-Usage: focused-workspace-container-padding <SIZE>
+Usage: komorebic.exe focused-workspace-container-padding <SIZE>
 
 Arguments:
   <SIZE>

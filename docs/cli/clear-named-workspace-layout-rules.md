@@ -3,7 +3,7 @@
 ```
 Clear all dynamic layout rules for the specified workspace
 
-Usage: clear-named-workspace-layout-rules <WORKSPACE>
+Usage: komorebic.exe clear-named-workspace-layout-rules <WORKSPACE>
 
 Arguments:
   <WORKSPACE>

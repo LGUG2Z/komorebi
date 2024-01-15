@@ -3,7 +3,7 @@
 ```
 Enable or disable watching of ~/komorebi.ahk (if it exists)
 
-Usage: watch-configuration <BOOLEAN_STATE>
+Usage: komorebic.exe watch-configuration <BOOLEAN_STATE>
 
 Arguments:
   <BOOLEAN_STATE>

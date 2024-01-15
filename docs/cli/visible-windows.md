@@ -3,7 +3,7 @@
 ```
 Show a JSON representation of visible windows
 
-Usage: visible-windows
+Usage: komorebic.exe visible-windows
 
 Options:
   -h, --help

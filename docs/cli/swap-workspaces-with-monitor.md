@@ -3,7 +3,7 @@
 ```
 Swap focused monitor workspaces with specified monitor
 
-Usage: swap-workspaces-with-monitor <TARGET>
+Usage: komorebic.exe swap-workspaces-with-monitor <TARGET>
 
 Arguments:
   <TARGET>

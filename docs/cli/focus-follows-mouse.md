@@ -3,7 +3,7 @@
 ```
 Enable or disable focus follows mouse for the operating system
 
-Usage: focus-follows-mouse [OPTIONS] <BOOLEAN_STATE>
+Usage: komorebic.exe focus-follows-mouse [OPTIONS] <BOOLEAN_STATE>
 
 Arguments:
   <BOOLEAN_STATE>

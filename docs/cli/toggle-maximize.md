@@ -3,7 +3,7 @@
 ```
 Toggle native maximization for the focused window
 
-Usage: toggle-maximize
+Usage: komorebic.exe toggle-maximize
 
 Options:
   -h, --help

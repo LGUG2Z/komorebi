@@ -3,7 +3,7 @@
 ```
 Set the window behaviour when switching workspaces / cycling stacks
 
-Usage: window-hiding-behaviour <HIDING_BEHAVIOUR>
+Usage: komorebic.exe window-hiding-behaviour <HIDING_BEHAVIOUR>
 
 Arguments:
   <HIDING_BEHAVIOUR>

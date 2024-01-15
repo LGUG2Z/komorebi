@@ -3,7 +3,7 @@
 ```
 Set offsets for a monitor to exclude parts of the work area from tiling
 
-Usage: monitor-work-area-offset <MONITOR> <LEFT> <TOP> <RIGHT> <BOTTOM>
+Usage: komorebic.exe monitor-work-area-offset <MONITOR> <LEFT> <TOP> <RIGHT> <BOTTOM>
 
 Arguments:
   <MONITOR>

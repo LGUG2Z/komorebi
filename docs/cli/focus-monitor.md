@@ -3,7 +3,7 @@
 ```
 Focus the specified monitor
 
-Usage: focus-monitor <TARGET>
+Usage: komorebic.exe focus-monitor <TARGET>
 
 Arguments:
   <TARGET>

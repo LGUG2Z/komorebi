@@ -3,7 +3,7 @@
 ```
 Toggle floating mode for the focused window
 
-Usage: toggle-float
+Usage: komorebic.exe toggle-float
 
 Options:
   -h, --help

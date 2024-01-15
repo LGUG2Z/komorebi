@@ -3,7 +3,7 @@
 ```
 Identify an application that closes to the system tray
 
-Usage: identify-tray-application <IDENTIFIER> <ID>
+Usage: komorebic.exe identify-tray-application <IDENTIFIER> <ID>
 
 Arguments:
   <IDENTIFIER>

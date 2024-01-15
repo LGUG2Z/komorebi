@@ -3,7 +3,7 @@
 ```
 Set the colour for the active window border
 
-Usage: active-window-border-colour [OPTIONS] <R> <G> <B>
+Usage: komorebic.exe active-window-border-colour [OPTIONS] <R> <G> <B>
 
 Arguments:
   <R>

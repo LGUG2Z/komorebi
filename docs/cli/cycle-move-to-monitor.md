@@ -3,7 +3,7 @@
 ```
 Move the focused window to the monitor in the given cycle direction
 
-Usage: cycle-move-to-monitor <CYCLE_DIRECTION>
+Usage: komorebic.exe cycle-move-to-monitor <CYCLE_DIRECTION>
 
 Arguments:
   <CYCLE_DIRECTION>

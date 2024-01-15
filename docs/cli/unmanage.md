@@ -3,7 +3,7 @@
 ```
 Unmanage a window that was forcibly managed
 
-Usage: unmanage
+Usage: komorebic.exe unmanage
 
 Options:
   -h, --help

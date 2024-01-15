@@ -3,7 +3,7 @@
 ```
 Generate a JSON Schema for applications.yaml
 
-Usage: application-specific-configuration-schema
+Usage: komorebic.exe application-specific-configuration-schema
 
 Options:
   -h, --help

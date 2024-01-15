@@ -3,7 +3,7 @@
 ```
 Toggle window tiling on the focused workspace
 
-Usage: toggle-pause
+Usage: komorebic.exe toggle-pause
 
 Options:
   -h, --help

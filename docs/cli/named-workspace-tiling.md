@@ -3,7 +3,7 @@
 ```
 Enable or disable window tiling for the specified workspace
 
-Usage: named-workspace-tiling <WORKSPACE> <VALUE>
+Usage: komorebic.exe named-workspace-tiling <WORKSPACE> <VALUE>
 
 Arguments:
   <WORKSPACE>

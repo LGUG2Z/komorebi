@@ -3,7 +3,7 @@
 ```
 Promote the user focus to the top of the tree
 
-Usage: promote-focus
+Usage: komorebic.exe promote-focus
 
 Options:
   -h, --help

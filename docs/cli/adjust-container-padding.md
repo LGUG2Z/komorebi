@@ -3,7 +3,7 @@
 ```
 Adjust container padding on the focused workspace
 
-Usage: adjust-container-padding <SIZING> <ADJUSTMENT>
+Usage: komorebic.exe adjust-container-padding <SIZING> <ADJUSTMENT>
 
 Arguments:
   <SIZING>

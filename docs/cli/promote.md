@@ -3,7 +3,7 @@
 ```
 Promote the focused window to the top of the tree
 
-Usage: promote
+Usage: komorebic.exe promote
 
 Options:
   -h, --help

@@ -3,7 +3,7 @@
 ```
 Resize the focused window or primary column along the specified axis
 
-Usage: resize-axis <AXIS> <SIZING>
+Usage: komorebic.exe resize-axis <AXIS> <SIZING>
 
 Arguments:
   <AXIS>

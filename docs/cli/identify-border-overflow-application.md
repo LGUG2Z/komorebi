@@ -3,7 +3,7 @@
 ```
 Identify an application that has overflowing borders
 
-Usage: identify-border-overflow-application <IDENTIFIER> <ID>
+Usage: komorebic.exe identify-border-overflow-application <IDENTIFIER> <ID>
 
 Arguments:
   <IDENTIFIER>

@@ -3,7 +3,7 @@
 ```
 Generate common app-specific configurations and fixes to use in komorebi.ahk
 
-Usage: ahk-app-specific-configuration <PATH> [OVERRIDE_PATH]
+Usage: komorebic.exe ahk-app-specific-configuration <PATH> [OVERRIDE_PATH]
 
 Arguments:
   <PATH>

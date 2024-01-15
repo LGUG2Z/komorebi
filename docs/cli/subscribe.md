@@ -3,7 +3,7 @@
 ```
 Subscribe to komorebi events
 
-Usage: subscribe <NAMED_PIPE>
+Usage: komorebic.exe subscribe <NAMED_PIPE>
 
 Arguments:
   <NAMED_PIPE>

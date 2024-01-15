@@ -3,7 +3,7 @@
 ```
 Generate a JSON Schema of the static configuration file
 
-Usage: static-config-schema
+Usage: komorebic.exe static-config-schema
 
 Options:
   -h, --help

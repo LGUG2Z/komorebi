@@ -3,7 +3,7 @@
 ```
 Set the display index preference for a monitor identified using its display name
 
-Usage: display-index-preference <INDEX_PREFERENCE> <DISPLAY>
+Usage: komorebic.exe display-index-preference <INDEX_PREFERENCE> <DISPLAY>
 
 Arguments:
   <INDEX_PREFERENCE>

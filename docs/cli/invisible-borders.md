@@ -3,7 +3,7 @@
 ```
 Set the invisible border dimensions around each window
 
-Usage: invisible-borders <LEFT> <TOP> <RIGHT> <BOTTOM>
+Usage: komorebic.exe invisible-borders <LEFT> <TOP> <RIGHT> <BOTTOM>
 
 Arguments:
   <LEFT>

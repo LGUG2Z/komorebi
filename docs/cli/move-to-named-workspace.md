@@ -3,7 +3,7 @@
 ```
 Move the focused window to the specified workspace
 
-Usage: move-to-named-workspace <WORKSPACE>
+Usage: komorebic.exe move-to-named-workspace <WORKSPACE>
 
 Arguments:
   <WORKSPACE>

@@ -3,7 +3,7 @@
 ```
 Set a custom layout for the specified workspace
 
-Usage: workspace-custom-layout <MONITOR> <WORKSPACE> <PATH>
+Usage: komorebic.exe workspace-custom-layout <MONITOR> <WORKSPACE> <PATH>
 
 Arguments:
   <MONITOR>

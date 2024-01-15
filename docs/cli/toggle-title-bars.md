@@ -3,7 +3,7 @@
 ```
 Toggle title bars for whitelisted applications
 
-Usage: toggle-title-bars
+Usage: komorebic.exe toggle-title-bars
 
 Options:
   -h, --help

@@ -3,7 +3,7 @@
 ```
 Fetch the latest version of applications.yaml from komorebi-application-specific-configuration
 
-Usage: fetch-app-specific-configuration
+Usage: komorebic.exe fetch-app-specific-configuration
 
 Options:
   -h, --help

@@ -3,7 +3,7 @@
 ```
 Reload ~/komorebi.ahk (if it exists)
 
-Usage: reload-configuration
+Usage: komorebic.exe reload-configuration
 
 Options:
   -h, --help

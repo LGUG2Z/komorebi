@@ -3,7 +3,7 @@
 ```
 Generate a JSON Schema of subscription notifications
 
-Usage: notification-schema
+Usage: komorebic.exe notification-schema
 
 Options:
   -h, --help

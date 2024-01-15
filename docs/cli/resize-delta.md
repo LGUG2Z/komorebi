@@ -3,7 +3,7 @@
 ```
 Set the resize delta (used by resize-edge and resize-axis)
 
-Usage: resize-delta <PIXELS>
+Usage: komorebic.exe resize-delta <PIXELS>
 
 Arguments:
   <PIXELS>

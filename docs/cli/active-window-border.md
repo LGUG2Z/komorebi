@@ -3,7 +3,7 @@
 ```
 Enable or disable the active window border
 
-Usage: active-window-border <BOOLEAN_STATE>
+Usage: komorebic.exe active-window-border <BOOLEAN_STATE>
 
 Arguments:
   <BOOLEAN_STATE>

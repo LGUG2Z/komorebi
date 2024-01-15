@@ -3,7 +3,7 @@
 ```
 Start komorebi.exe as a background process
 
-Usage: start [OPTIONS]
+Usage: komorebic.exe start [OPTIONS]
 
 Options:
   -f, --ffm

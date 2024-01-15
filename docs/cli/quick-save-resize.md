@@ -3,7 +3,7 @@
 ```
 Quicksave the current resize layout dimensions
 
-Usage: quick-save-resize
+Usage: komorebic.exe quick-save-resize
 
 Options:
   -h, --help
