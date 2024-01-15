@@ -1,0 +1,16 @@
+# change-layout
+
+```
+Set the layout on the focused workspace
+
+Usage: change-layout <DEFAULT_LAYOUT>
+
+Arguments:
+  <DEFAULT_LAYOUT>
+          [possible values: bsp, columns, rows, vertical-stack, horizontal-stack, ultrawide-vertical-stack]
+
+Options:
+  -h, --help
+          Print help
+
+```
