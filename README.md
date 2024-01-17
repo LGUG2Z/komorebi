@@ -365,6 +365,9 @@ For example, to use the `~/.config/komorebi` directory:
 # Run this command to make sure that the directory has been created
 mkdir -p ~/.config/komorebi
 
+Run this command to make sure that the PowerShell profile configuration file exists. If it does not exist, this command creates one
+if (-not (Test-Path $PROFILE)) { new-item $profile -ItemType file }
+
 # Run this command to open up your PowerShell profile configuration in Notepad
 notepad $PROFILE
 
