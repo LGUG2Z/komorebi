@@ -743,8 +743,14 @@ impl WindowManager {
                 };
 
                 let socket = DATA_DIR.join("komorebic.sock");
-                let mut stream = UnixStream::connect(socket)?;
-                stream.write_all(state.as_bytes())?;
+
+                let mut connected = false;
+                while !connected {
+                    if let Ok(mut stream) = UnixStream::connect(&socket) {
+                        connected = true;
+                        stream.write_all(state.as_bytes())?;
+                    }
+                }
             }
             SocketMessage::VisibleWindows => {
                 let mut monitor_visible_windows = HashMap::new();
@@ -768,8 +774,14 @@ impl WindowManager {
                     };
 
                 let socket = DATA_DIR.join("komorebic.sock");
-                let mut stream = UnixStream::connect(socket)?;
-                stream.write_all(visible_windows_state.as_bytes())?;
+
+                let mut connected = false;
+                while !connected {
+                    if let Ok(mut stream) = UnixStream::connect(&socket) {
+                        connected = true;
+                        stream.write_all(visible_windows_state.as_bytes())?;
+                    }
+                }
             }
 
             SocketMessage::Query(query) => {
@@ -789,8 +801,14 @@ impl WindowManager {
                 .to_string();
 
                 let socket = DATA_DIR.join("komorebic.sock");
-                let mut stream = UnixStream::connect(socket)?;
-                stream.write_all(response.as_bytes())?;
+
+                let mut connected = false;
+                while !connected {
+                    if let Ok(mut stream) = UnixStream::connect(&socket) {
+                        connected = true;
+                        stream.write_all(response.as_bytes())?;
+                    }
+                }
             }
             SocketMessage::ResizeWindowEdge(direction, sizing) => {
                 self.resize_window(direction, sizing, self.resize_delta, true)?;
@@ -1258,39 +1276,64 @@ impl WindowManager {
                 let schema = serde_json::to_string_pretty(&asc)?;
                 let socket = DATA_DIR.join("komorebic.sock");
 
-                let mut stream = UnixStream::connect(socket)?;
-                stream.write_all(schema.as_bytes())?;
+                let mut connected = false;
+                while !connected {
+                    if let Ok(mut stream) = UnixStream::connect(&socket) {
+                        connected = true;
+                        stream.write_all(schema.as_bytes())?;
+                    }
+                }
             }
             SocketMessage::NotificationSchema => {
                 let notification = schema_for!(Notification);
                 let schema = serde_json::to_string_pretty(&notification)?;
                 let socket = DATA_DIR.join("komorebic.sock");
 
-                let mut stream = UnixStream::connect(socket)?;
-                stream.write_all(schema.as_bytes())?;
+                let mut connected = false;
+                while !connected {
+                    if let Ok(mut stream) = UnixStream::connect(&socket) {
+                        connected = true;
+                        stream.write_all(schema.as_bytes())?;
+                    }
+                }
             }
             SocketMessage::SocketSchema => {
                 let socket_message = schema_for!(SocketMessage);
                 let schema = serde_json::to_string_pretty(&socket_message)?;
                 let socket = DATA_DIR.join("komorebic.sock");
 
-                let mut stream = UnixStream::connect(socket)?;
-                stream.write_all(schema.as_bytes())?;
+                let mut connected = false;
+                while !connected {
+                    if let Ok(mut stream) = UnixStream::connect(&socket) {
+                        connected = true;
+                        stream.write_all(schema.as_bytes())?;
+                    }
+                }
             }
             SocketMessage::StaticConfigSchema => {
                 let socket_message = schema_for!(StaticConfig);
                 let schema = serde_json::to_string_pretty(&socket_message)?;
                 let socket = DATA_DIR.join("komorebic.sock");
 
-                let mut stream = UnixStream::connect(socket)?;
-                stream.write_all(schema.as_bytes())?;
+                let mut connected = false;
+                while !connected {
+                    if let Ok(mut stream) = UnixStream::connect(&socket) {
+                        connected = true;
+                        stream.write_all(schema.as_bytes())?;
+                    }
+                }
             }
             SocketMessage::GenerateStaticConfig => {
                 let config = serde_json::to_string_pretty(&StaticConfig::from(&*self))?;
                 let socket = DATA_DIR.join("komorebic.sock");
 
-                let mut stream = UnixStream::connect(socket)?;
-                stream.write_all(config.as_bytes())?;
+                let mut connected = false;
+                while !connected {
+                    if let Ok(mut stream) = UnixStream::connect(&socket) {
+                        connected = true;
+                        stream.write_all(config.as_bytes())?;
+                    }
+                }
             }
             SocketMessage::RemoveTitleBar(_, ref id) => {
                 let mut identifiers = NO_TITLEBAR.lock();
