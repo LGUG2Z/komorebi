@@ -231,6 +231,7 @@ impl From<&Monitor> for MonitorConfig {
 }
 
 #[derive(Debug, Serialize, Deserialize, JsonSchema)]
+/// The `komorebi.json` static configuration file reference for `v0.1.20`
 pub struct StaticConfig {
     /// Dimensions of Windows' own invisible borders; don't set these yourself unless you are told to
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -257,10 +258,12 @@ pub struct StaticConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub app_specific_configuration_path: Option<PathBuf>,
     /// DEPRECATED from v0.1.19: use active_window_border_width instead
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[schemars(skip)]
+    #[serde(skip_serializing)]
     pub border_width: Option<i32>,
     /// DEPRECATED from v0.1.19: use active_window_border_offset instead
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[schemars(skip)]
+    #[serde(skip_serializing)]
     pub border_offset: Option<Rect>,
     /// Width of the active window border (default: 20)
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -283,8 +286,9 @@ pub struct StaticConfig {
     /// Monitor and workspace configurations
     #[serde(skip_serializing_if = "Option::is_none")]
     pub monitors: Option<Vec<MonitorConfig>>,
-    /// Always send the ALT key when using focus commands (default: false)
-    #[serde(skip_serializing_if = "Option::is_none")]
+    /// DEPRECATED from v0.1.20: no longer required
+    #[schemars(skip)]
+    #[serde(skip_serializing)]
     pub alt_focus_hack: Option<bool>,
     /// Which Windows signal to use when hiding windows (default: minimize)
     #[serde(skip_serializing_if = "Option::is_none")]

@@ -1,266 +1,15 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "StaticConfig",
+  "description": "The `komorebi.json` static configuration file reference for `v0.1.20`",
   "type": "object",
   "properties": {
     "active_window_border": {
       "description": "Display an active window border (default: false)",
-      "type": [
-        "boolean",
-        "null"
-      ]
+      "type": "boolean"
     },
     "active_window_border_colours": {
       "description": "Active window border colours for different container types",
-      "anyOf": [
-        {
-          "$ref": "#/definitions/ActiveWindowBorderColours"
-        },
-        {
-          "type": "null"
-        }
-      ]
-    },
-    "active_window_border_offset": {
-      "description": "Offset of the active window border (default: None)",
-      "type": [
-        "integer",
-        "null"
-      ],
-      "format": "int32"
-    },
-    "active_window_border_width": {
-      "description": "Width of the active window border (default: 20)",
-      "type": [
-        "integer",
-        "null"
-      ],
-      "format": "int32"
-    },
-    "alt_focus_hack": {
-      "description": "Always send the ALT key when using focus commands (default: false)",
-      "type": [
-        "boolean",
-        "null"
-      ]
-    },
-    "app_specific_configuration_path": {
-      "description": "Path to applications.yaml from komorebi-application-specific-configurations (default: None)",
-      "type": [
-        "string",
-        "null"
-      ]
-    },
-    "border_offset": {
-      "description": "DEPRECATED from v0.1.19: use active_window_border_offset instead",
-      "anyOf": [
-        {
-          "$ref": "#/definitions/Rect"
-        },
-        {
-          "type": "null"
-        }
-      ]
-    },
-    "border_overflow_applications": {
-      "description": "Identify border overflow applications",
-      "type": [
-        "array",
-        "null"
-      ],
-      "items": {
-        "$ref": "#/definitions/IdWithIdentifier"
-      }
-    },
-    "border_width": {
-      "description": "DEPRECATED from v0.1.19: use active_window_border_width instead",
-      "type": [
-        "integer",
-        "null"
-      ],
-      "format": "int32"
-    },
-    "cross_monitor_move_behaviour": {
-      "description": "Determine what happens when a window is moved across a monitor boundary (default: Swap)",
-      "anyOf": [
-        {
-          "$ref": "#/definitions/MoveBehaviour"
-        },
-        {
-          "type": "null"
-        }
-      ]
-    },
-    "default_container_padding": {
-      "description": "Global default container padding (default: 10)",
-      "type": [
-        "integer",
-        "null"
-      ],
-      "format": "int32"
-    },
-    "default_workspace_padding": {
-      "description": "Global default workspace padding (default: 10)",
-      "type": [
-        "integer",
-        "null"
-      ],
-      "format": "int32"
-    },
-    "float_rules": {
-      "description": "Individual window floating rules",
-      "type": [
-        "array",
-        "null"
-      ],
-      "items": {
-        "$ref": "#/definitions/IdWithIdentifier"
-      }
-    },
-    "focus_follows_mouse": {
-      "description": "Determine focus follows mouse implementation (default: None)",
-      "anyOf": [
-        {
-          "$ref": "#/definitions/FocusFollowsMouseImplementation"
-        },
-        {
-          "type": "null"
-        }
-      ]
-    },
-    "global_work_area_offset": {
-      "description": "Global work area (space used for tiling) offset (default: None)",
-      "anyOf": [
-        {
-          "$ref": "#/definitions/Rect"
-        },
-        {
-          "type": "null"
-        }
-      ]
-    },
-    "invisible_borders": {
-      "description": "Dimensions of Windows' own invisible borders; don't set these yourself unless you are told to",
-      "anyOf": [
-        {
-          "$ref": "#/definitions/Rect"
-        },
-        {
-          "type": "null"
-        }
-      ]
-    },
-    "layered_applications": {
-      "description": "Identify applications that have the WS_EX_LAYERED extended window style",
-      "type": [
-        "array",
-        "null"
-      ],
-      "items": {
-        "$ref": "#/definitions/IdWithIdentifier"
-      }
-    },
-    "manage_rules": {
-      "description": "Individual window force-manage rules",
-      "type": [
-        "array",
-        "null"
-      ],
-      "items": {
-        "$ref": "#/definitions/IdWithIdentifier"
-      }
-    },
-    "monitor_index_preferences": {
-      "description": "Set monitor index preferences",
-      "type": [
-        "object",
-        "null"
-      ],
-      "additionalProperties": {
-        "$ref": "#/definitions/Rect"
-      }
-    },
-    "monitors": {
-      "description": "Monitor and workspace configurations",
-      "type": [
-        "array",
-        "null"
-      ],
-      "items": {
-        "$ref": "#/definitions/MonitorConfig"
-      }
-    },
-    "mouse_follows_focus": {
-      "description": "Enable or disable mouse follows focus (default: true)",
-      "type": [
-        "boolean",
-        "null"
-      ]
-    },
-    "object_name_change_applications": {
-      "description": "Identify applications that send EVENT_OBJECT_NAMECHANGE on launch (very rare)",
-      "type": [
-        "array",
-        "null"
-      ],
-      "items": {
-        "$ref": "#/definitions/IdWithIdentifier"
-      }
-    },
-    "resize_delta": {
-      "description": "Delta to resize windows by (default 50)",
-      "type": [
-        "integer",
-        "null"
-      ],
-      "format": "int32"
-    },
-    "tray_and_multi_window_applications": {
-      "description": "Identify tray and multi-window applications",
-      "type": [
-        "array",
-        "null"
-      ],
-      "items": {
-        "$ref": "#/definitions/IdWithIdentifier"
-      }
-    },
-    "unmanaged_window_operation_behaviour": {
-      "description": "Determine what happens when commands are sent while an unmanaged window is in the foreground (default: Op)",
-      "anyOf": [
-        {
-          "$ref": "#/definitions/OperationBehaviour"
-        },
-        {
-          "type": "null"
-        }
-      ]
-    },
-    "window_container_behaviour": {
-      "description": "Determine what happens when a new window is opened (default: Create)",
-      "anyOf": [
-        {
-          "$ref": "#/definitions/WindowContainerBehaviour"
-        },
-        {
-          "type": "null"
-        }
-      ]
-    },
-    "window_hiding_behaviour": {
-      "description": "Which Windows signal to use when hiding windows (default: minimize)",
-      "anyOf": [
-        {
-          "$ref": "#/definitions/HidingBehaviour"
-        },
-        {
-          "type": "null"
-        }
-      ]
-    }
-  },
-  "definitions": {
-    "ActiveWindowBorderColours": {
       "type": "object",
       "required": [
         "monocle",
@@ -270,155 +19,144 @@
       "properties": {
         "monocle": {
           "description": "Border colour when the container is in monocle mode",
-          "allOf": [
-            {
-              "$ref": "#/definitions/Rgb"
+          "type": "object",
+          "required": [
+            "b",
+            "g",
+            "r"
+          ],
+          "properties": {
+            "b": {
+              "description": "Blue",
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "g": {
+              "description": "Green",
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "r": {
+              "description": "Red",
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
             }
-          ]
+          }
         },
         "single": {
           "description": "Border colour when the container contains a single window",
-          "allOf": [
-            {
-              "$ref": "#/definitions/Rgb"
+          "type": "object",
+          "required": [
+            "b",
+            "g",
+            "r"
+          ],
+          "properties": {
+            "b": {
+              "description": "Blue",
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "g": {
+              "description": "Green",
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "r": {
+              "description": "Red",
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
             }
-          ]
+          }
         },
         "stack": {
           "description": "Border colour when the container contains multiple windows",
-          "allOf": [
-            {
-              "$ref": "#/definitions/Rgb"
-            }
-          ]
-        }
-      }
-    },
-    "ApplicationIdentifier": {
-      "type": "string",
-      "enum": [
-        "Exe",
-        "Class",
-        "Title"
-      ]
-    },
-    "DefaultLayout": {
-      "type": "string",
-      "enum": [
-        "BSP",
-        "Columns",
-        "Rows",
-        "VerticalStack",
-        "HorizontalStack",
-        "UltrawideVerticalStack"
-      ]
-    },
-    "FocusFollowsMouseImplementation": {
-      "oneOf": [
-        {
-          "description": "A custom FFM implementation (slightly more CPU-intensive)",
-          "type": "string",
-          "enum": [
-            "Komorebi"
-          ]
-        },
-        {
-          "description": "The native (legacy) Windows FFM implementation",
-          "type": "string",
-          "enum": [
-            "Windows"
-          ]
-        }
-      ]
-    },
-    "HidingBehaviour": {
-      "oneOf": [
-        {
-          "description": "Use the SW_HIDE flag to hide windows when switching workspaces (has issues with Electron apps)",
-          "type": "string",
-          "enum": [
-            "Hide"
-          ]
-        },
-        {
-          "description": "Use the SW_MINIMIZE flag to hide windows when switching workspaces (has issues with frequent workspace switching)",
-          "type": "string",
-          "enum": [
-            "Minimize"
-          ]
-        },
-        {
-          "description": "Use the undocumented SetCloak Win32 function to hide windows when switching workspaces (has foregrounding issues)",
-          "type": "string",
-          "enum": [
-            "Cloak"
-          ]
-        }
-      ]
-    },
-    "IdWithIdentifier": {
-      "type": "object",
-      "required": [
-        "id",
-        "kind"
-      ],
-      "properties": {
-        "id": {
-          "type": "string"
-        },
-        "kind": {
-          "$ref": "#/definitions/ApplicationIdentifier"
-        },
-        "matching_strategy": {
-          "anyOf": [
-            {
-              "$ref": "#/definitions/MatchingStrategy"
+          "type": "object",
+          "required": [
+            "b",
+            "g",
+            "r"
+          ],
+          "properties": {
+            "b": {
+              "description": "Blue",
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
             },
-            {
-              "type": "null"
-            }
-          ]
-        }
-      }
-    },
-    "MatchingStrategy": {
-      "type": "string",
-      "enum": [
-        "Legacy",
-        "Equals",
-        "StartsWith",
-        "EndsWith",
-        "Contains",
-        "Regex"
-      ]
-    },
-    "MonitorConfig": {
-      "type": "object",
-      "required": [
-        "workspaces"
-      ],
-      "properties": {
-        "work_area_offset": {
-          "description": "Monitor-specific work area offset (default: None)",
-          "anyOf": [
-            {
-              "$ref": "#/definitions/Rect"
+            "g": {
+              "description": "Green",
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
             },
-            {
-              "type": "null"
+            "r": {
+              "description": "Red",
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
             }
-          ]
-        },
-        "workspaces": {
-          "description": "Workspace configurations",
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/WorkspaceConfig"
           }
         }
       }
     },
-    "MoveBehaviour": {
+    "active_window_border_offset": {
+      "description": "Offset of the active window border (default: None)",
+      "type": "integer",
+      "format": "int32"
+    },
+    "active_window_border_width": {
+      "description": "Width of the active window border (default: 20)",
+      "type": "integer",
+      "format": "int32"
+    },
+    "app_specific_configuration_path": {
+      "description": "Path to applications.yaml from komorebi-application-specific-configurations (default: None)",
+      "type": "string"
+    },
+    "border_overflow_applications": {
+      "description": "Identify border overflow applications",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "kind"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "Exe",
+              "Class",
+              "Title"
+            ]
+          },
+          "matching_strategy": {
+            "type": "string",
+            "enum": [
+              "Legacy",
+              "Equals",
+              "StartsWith",
+              "EndsWith",
+              "Contains",
+              "Regex"
+            ]
+          }
+        }
+      }
+    },
+    "cross_monitor_move_behaviour": {
+      "description": "Determine what happens when a window is moved across a monitor boundary (default: Swap)",
       "oneOf": [
         {
           "description": "Swap the window container with the window container at the edge of the adjacent monitor",
@@ -436,25 +174,79 @@
         }
       ]
     },
-    "OperationBehaviour": {
+    "default_container_padding": {
+      "description": "Global default container padding (default: 10)",
+      "type": "integer",
+      "format": "int32"
+    },
+    "default_workspace_padding": {
+      "description": "Global default workspace padding (default: 10)",
+      "type": "integer",
+      "format": "int32"
+    },
+    "display_index_preferences": {
+      "description": "Set display index preferences",
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "float_rules": {
+      "description": "Individual window floating rules",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "kind"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "Exe",
+              "Class",
+              "Title"
+            ]
+          },
+          "matching_strategy": {
+            "type": "string",
+            "enum": [
+              "Legacy",
+              "Equals",
+              "StartsWith",
+              "EndsWith",
+              "Contains",
+              "Regex"
+            ]
+          }
+        }
+      }
+    },
+    "focus_follows_mouse": {
+      "description": "Determine focus follows mouse implementation (default: None)",
       "oneOf": [
         {
-          "description": "Process komorebic commands on temporarily unmanaged/floated windows",
+          "description": "A custom FFM implementation (slightly more CPU-intensive)",
           "type": "string",
           "enum": [
-            "Op"
+            "Komorebi"
           ]
         },
         {
-          "description": "Ignore komorebic commands on temporarily unmanaged/floated windows",
+          "description": "The native (legacy) Windows FFM implementation",
           "type": "string",
           "enum": [
-            "NoOp"
+            "Windows"
           ]
         }
       ]
     },
-    "Rect": {
+    "global_work_area_offset": {
+      "description": "Global work area (space used for tiling) offset (default: None)",
       "type": "object",
       "required": [
         "bottom",
@@ -485,35 +277,421 @@
         }
       }
     },
-    "Rgb": {
+    "invisible_borders": {
+      "description": "Dimensions of Windows' own invisible borders; don't set these yourself unless you are told to",
       "type": "object",
       "required": [
-        "b",
-        "g",
-        "r"
+        "bottom",
+        "left",
+        "right",
+        "top"
       ],
       "properties": {
-        "b": {
-          "description": "Blue",
+        "bottom": {
+          "description": "The bottom point in a Win32 Rect",
           "type": "integer",
-          "format": "uint32",
-          "minimum": 0.0
+          "format": "int32"
         },
-        "g": {
-          "description": "Green",
+        "left": {
+          "description": "The left point in a Win32 Rect",
           "type": "integer",
-          "format": "uint32",
-          "minimum": 0.0
+          "format": "int32"
         },
-        "r": {
-          "description": "Red",
+        "right": {
+          "description": "The right point in a Win32 Rect",
           "type": "integer",
-          "format": "uint32",
-          "minimum": 0.0
+          "format": "int32"
+        },
+        "top": {
+          "description": "The top point in a Win32 Rect",
+          "type": "integer",
+          "format": "int32"
         }
       }
     },
-    "WindowContainerBehaviour": {
+    "layered_applications": {
+      "description": "Identify applications that have the WS_EX_LAYERED extended window style",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "kind"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "Exe",
+              "Class",
+              "Title"
+            ]
+          },
+          "matching_strategy": {
+            "type": "string",
+            "enum": [
+              "Legacy",
+              "Equals",
+              "StartsWith",
+              "EndsWith",
+              "Contains",
+              "Regex"
+            ]
+          }
+        }
+      }
+    },
+    "manage_rules": {
+      "description": "Individual window force-manage rules",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "kind"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "Exe",
+              "Class",
+              "Title"
+            ]
+          },
+          "matching_strategy": {
+            "type": "string",
+            "enum": [
+              "Legacy",
+              "Equals",
+              "StartsWith",
+              "EndsWith",
+              "Contains",
+              "Regex"
+            ]
+          }
+        }
+      }
+    },
+    "monitor_index_preferences": {
+      "description": "Set monitor index preferences",
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": [
+          "bottom",
+          "left",
+          "right",
+          "top"
+        ],
+        "properties": {
+          "bottom": {
+            "description": "The bottom point in a Win32 Rect",
+            "type": "integer",
+            "format": "int32"
+          },
+          "left": {
+            "description": "The left point in a Win32 Rect",
+            "type": "integer",
+            "format": "int32"
+          },
+          "right": {
+            "description": "The right point in a Win32 Rect",
+            "type": "integer",
+            "format": "int32"
+          },
+          "top": {
+            "description": "The top point in a Win32 Rect",
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      }
+    },
+    "monitors": {
+      "description": "Monitor and workspace configurations",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "workspaces"
+        ],
+        "properties": {
+          "work_area_offset": {
+            "description": "Monitor-specific work area offset (default: None)",
+            "type": "object",
+            "required": [
+              "bottom",
+              "left",
+              "right",
+              "top"
+            ],
+            "properties": {
+              "bottom": {
+                "description": "The bottom point in a Win32 Rect",
+                "type": "integer",
+                "format": "int32"
+              },
+              "left": {
+                "description": "The left point in a Win32 Rect",
+                "type": "integer",
+                "format": "int32"
+              },
+              "right": {
+                "description": "The right point in a Win32 Rect",
+                "type": "integer",
+                "format": "int32"
+              },
+              "top": {
+                "description": "The top point in a Win32 Rect",
+                "type": "integer",
+                "format": "int32"
+              }
+            }
+          },
+          "workspaces": {
+            "description": "Workspace configurations",
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "name"
+              ],
+              "properties": {
+                "container_padding": {
+                  "description": "Container padding (default: global)",
+                  "type": "integer",
+                  "format": "int32"
+                },
+                "custom_layout": {
+                  "description": "Custom Layout (default: None)",
+                  "type": "string"
+                },
+                "custom_layout_rules": {
+                  "description": "Layout rules (default: None)",
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                },
+                "initial_workspace_rules": {
+                  "description": "Initial workspace application rules",
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "id",
+                      "kind"
+                    ],
+                    "properties": {
+                      "id": {
+                        "type": "string"
+                      },
+                      "kind": {
+                        "type": "string",
+                        "enum": [
+                          "Exe",
+                          "Class",
+                          "Title"
+                        ]
+                      },
+                      "matching_strategy": {
+                        "type": "string",
+                        "enum": [
+                          "Legacy",
+                          "Equals",
+                          "StartsWith",
+                          "EndsWith",
+                          "Contains",
+                          "Regex"
+                        ]
+                      }
+                    }
+                  }
+                },
+                "layout": {
+                  "description": "Layout (default: BSP)",
+                  "type": "string",
+                  "enum": [
+                    "BSP",
+                    "Columns",
+                    "Rows",
+                    "VerticalStack",
+                    "HorizontalStack",
+                    "UltrawideVerticalStack"
+                  ]
+                },
+                "layout_rules": {
+                  "description": "Layout rules (default: None)",
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string",
+                    "enum": [
+                      "BSP",
+                      "Columns",
+                      "Rows",
+                      "VerticalStack",
+                      "HorizontalStack",
+                      "UltrawideVerticalStack"
+                    ]
+                  }
+                },
+                "name": {
+                  "description": "Name",
+                  "type": "string"
+                },
+                "workspace_padding": {
+                  "description": "Container padding (default: global)",
+                  "type": "integer",
+                  "format": "int32"
+                },
+                "workspace_rules": {
+                  "description": "Permanent workspace application rules",
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "id",
+                      "kind"
+                    ],
+                    "properties": {
+                      "id": {
+                        "type": "string"
+                      },
+                      "kind": {
+                        "type": "string",
+                        "enum": [
+                          "Exe",
+                          "Class",
+                          "Title"
+                        ]
+                      },
+                      "matching_strategy": {
+                        "type": "string",
+                        "enum": [
+                          "Legacy",
+                          "Equals",
+                          "StartsWith",
+                          "EndsWith",
+                          "Contains",
+                          "Regex"
+                        ]
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "mouse_follows_focus": {
+      "description": "Enable or disable mouse follows focus (default: true)",
+      "type": "boolean"
+    },
+    "object_name_change_applications": {
+      "description": "Identify applications that send EVENT_OBJECT_NAMECHANGE on launch (very rare)",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "kind"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "Exe",
+              "Class",
+              "Title"
+            ]
+          },
+          "matching_strategy": {
+            "type": "string",
+            "enum": [
+              "Legacy",
+              "Equals",
+              "StartsWith",
+              "EndsWith",
+              "Contains",
+              "Regex"
+            ]
+          }
+        }
+      }
+    },
+    "resize_delta": {
+      "description": "Delta to resize windows by (default 50)",
+      "type": "integer",
+      "format": "int32"
+    },
+    "tray_and_multi_window_applications": {
+      "description": "Identify tray and multi-window applications",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "kind"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "Exe",
+              "Class",
+              "Title"
+            ]
+          },
+          "matching_strategy": {
+            "type": "string",
+            "enum": [
+              "Legacy",
+              "Equals",
+              "StartsWith",
+              "EndsWith",
+              "Contains",
+              "Regex"
+            ]
+          }
+        }
+      }
+    },
+    "unmanaged_window_operation_behaviour": {
+      "description": "Determine what happens when commands are sent while an unmanaged window is in the foreground (default: Op)",
+      "oneOf": [
+        {
+          "description": "Process komorebic commands on temporarily unmanaged/floated windows",
+          "type": "string",
+          "enum": [
+            "Op"
+          ]
+        },
+        {
+          "description": "Ignore komorebic commands on temporarily unmanaged/floated windows",
+          "type": "string",
+          "enum": [
+            "NoOp"
+          ]
+        }
+      ]
+    },
+    "window_container_behaviour": {
+      "description": "Determine what happens when a new window is opened (default: Create)",
       "oneOf": [
         {
           "description": "Create a new container for each new window",
@@ -531,91 +709,31 @@
         }
       ]
     },
-    "WorkspaceConfig": {
-      "type": "object",
-      "required": [
-        "name"
-      ],
-      "properties": {
-        "container_padding": {
-          "description": "Container padding (default: global)",
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "int32"
-        },
-        "custom_layout": {
-          "description": "Custom Layout (default: None)",
-          "type": [
-            "string",
-            "null"
+    "window_hiding_behaviour": {
+      "description": "Which Windows signal to use when hiding windows (default: minimize)",
+      "oneOf": [
+        {
+          "description": "Use the SW_HIDE flag to hide windows when switching workspaces (has issues with Electron apps)",
+          "type": "string",
+          "enum": [
+            "Hide"
           ]
         },
-        "custom_layout_rules": {
-          "description": "Layout rules (default: None)",
-          "type": [
-            "object",
-            "null"
-          ],
-          "additionalProperties": {
-            "type": "string"
-          }
-        },
-        "initial_workspace_rules": {
-          "description": "Initial workspace application rules",
-          "type": [
-            "array",
-            "null"
-          ],
-          "items": {
-            "$ref": "#/definitions/IdWithIdentifier"
-          }
-        },
-        "layout": {
-          "description": "Layout (default: BSP)",
-          "anyOf": [
-            {
-              "$ref": "#/definitions/DefaultLayout"
-            },
-            {
-              "type": "null"
-            }
+        {
+          "description": "Use the SW_MINIMIZE flag to hide windows when switching workspaces (has issues with frequent workspace switching)",
+          "type": "string",
+          "enum": [
+            "Minimize"
           ]
         },
-        "layout_rules": {
-          "description": "Layout rules (default: None)",
-          "type": [
-            "object",
-            "null"
-          ],
-          "additionalProperties": {
-            "$ref": "#/definitions/DefaultLayout"
-          }
-        },
-        "name": {
-          "description": "Name",
-          "type": "string"
-        },
-        "workspace_padding": {
-          "description": "Container padding (default: global)",
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "int32"
-        },
-        "workspace_rules": {
-          "description": "Permanent workspace application rules",
-          "type": [
-            "array",
-            "null"
-          ],
-          "items": {
-            "$ref": "#/definitions/IdWithIdentifier"
-          }
+        {
+          "description": "Use the undocumented SetCloak Win32 function to hide windows when switching workspaces (has foregrounding issues)",
+          "type": "string",
+          "enum": [
+            "Cloak"
+          ]
         }
-      }
+      ]
     }
   }
 }

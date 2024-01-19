@@ -50,7 +50,8 @@ nav:
   - Getting started:
     - Installation: installation.md
     - Example configurations: example-configurations.md
-  - Configuration reference: https://komorebi.lgug2z.com/schema
+  - Configuration:
+    - JSONSchema reference: https://komorebi.lgug2z.com/schema
   - CLI reference:
     - cli/quickstart.md
     - cli/start.md
