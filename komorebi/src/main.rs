@@ -251,7 +251,7 @@ fn setup() -> Result<(WorkerGuard, WorkerGuard)> {
         std::env::set_var("RUST_LOG", "info");
     }
 
-    let appender = tracing_appender::rolling::never(&*DATA_DIR, "komorebi.log");
+    let appender = tracing_appender::rolling::never(std::env::temp_dir(), "komorebi_plaintext.log");
     let color_appender = tracing_appender::rolling::never(std::env::temp_dir(), "komorebi.log");
     let (non_blocking, guard) = tracing_appender::non_blocking(appender);
     let (color_non_blocking, color_guard) = tracing_appender::non_blocking(color_appender);
