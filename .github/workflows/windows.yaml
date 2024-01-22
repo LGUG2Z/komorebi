@@ -42,7 +42,7 @@ jobs:
           echo "TARGET=${{ matrix.target }}" | Out-File -Append -FilePath $env:GITHUB_ENV -Encoding utf8
           echo "SKIP_TESTS=" | Out-File -Append -FilePath $env:GITHUB_ENV -Encoding utf8
       - name: Cache cargo registry, git trees and binaries
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: |
             ~/.cargo/registry
@@ -55,7 +55,7 @@ jobs:
           echo "::set-output name=rust_hash::$(rustc -Vv | grep commit-hash | awk '{print $2}')"
         shell: bash
       - name: Cache cargo build
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: target
           key: ${{ github.base_ref }}-${{ github.head_ref }}-${{ matrix.target }}-cargo-target-dir-${{ steps.cargo-target-cache.outputs.rust_hash }}-${{ hashFiles('**/Cargo.lock') }}
