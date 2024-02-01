@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 use std::collections::VecDeque;
+use std::thread::sleep;
+use std::time::Duration;
 
 use color_eyre::eyre::anyhow;
 use color_eyre::eyre::bail;
@@ -11,11 +13,13 @@ use getset::Setters;
 use schemars::JsonSchema;
 use serde::Serialize;
 
+use komorebi_core::HidingBehaviour;
 use komorebi_core::Rect;
 
 use crate::container::Container;
 use crate::ring::Ring;
 use crate::workspace::Workspace;
+use crate::HIDING_BEHAVIOUR;
 
 #[derive(Debug, Clone, Serialize, Getters, CopyGetters, MutGetters, Setters, JsonSchema)]
 pub struct Monitor {
@@ -63,14 +67,26 @@ pub fn new(id: isize, size: Rect, work_area_size: Rect, name: String) -> Monitor
 }
 
 impl Monitor {
-    pub fn load_focused_workspace(&mut self, mouse_follows_focus: bool) -> Result<()> {
+    pub fn load_focused_workspace(
+        &mut self,
+        mouse_follows_focus: bool,
+        wait_animation: bool,
+    ) -> Result<()> {
         let focused_idx = self.focused_workspace_idx();
         for (i, workspace) in self.workspaces_mut().iter_mut().enumerate() {
-            if i == focused_idx {
-                workspace.restore(mouse_follows_focus)?;
-            } else {
+            if i != focused_idx {
                 workspace.hide();
             }
+        }
+
+        if let HidingBehaviour::Minimize = *HIDING_BEHAVIOUR.lock() {
+            if wait_animation {
+                sleep(Duration::from_millis(200)); // wait miminize animation
+            }
+        }
+
+        if let Some(workspace) = self.focused_workspace_mut() {
+            workspace.restore(mouse_follows_focus)?;
         }
 
         Ok(())

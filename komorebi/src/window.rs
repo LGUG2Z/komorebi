@@ -5,6 +5,8 @@ use std::fmt::Display;
 use std::fmt::Formatter;
 use std::fmt::Write as _;
 use std::sync::atomic::Ordering;
+use std::thread::sleep;
+use std::time::Duration;
 
 use color_eyre::eyre;
 use color_eyre::eyre::anyhow;
@@ -187,7 +189,7 @@ impl Window {
         let hiding_behaviour = HIDING_BEHAVIOUR.lock();
         match *hiding_behaviour {
             HidingBehaviour::Hide => WindowsApi::hide_window(self.hwnd()),
-            HidingBehaviour::Minimize => WindowsApi::minimize_window(self.hwnd()),
+            HidingBehaviour::Minimize => self.minimize(),
             HidingBehaviour::Cloak => SetCloak(self.hwnd(), 1, 2),
         }
     }
@@ -203,15 +205,21 @@ impl Window {
 
         let hiding_behaviour = HIDING_BEHAVIOUR.lock();
         match *hiding_behaviour {
-            HidingBehaviour::Hide | HidingBehaviour::Minimize => {
+            HidingBehaviour::Hide => WindowsApi::restore_window(self.hwnd()),
+            HidingBehaviour::Minimize => {
                 WindowsApi::restore_window(self.hwnd());
-            }
+                sleep(Duration::from_millis(35));
+            },
             HidingBehaviour::Cloak => SetCloak(self.hwnd(), 1, 0),
         }
     }
 
     pub fn minimize(self) {
+        if WindowsApi::is_iconic(self.hwnd()) {
+            return;
+        }
         WindowsApi::minimize_window(self.hwnd());
+        sleep(Duration::from_millis(35));
     }
 
     pub fn close(self) -> Result<()> {

@@ -139,10 +139,12 @@ impl Workspace {
     }
 
     pub fn hide(&mut self) {
-        for container in self.containers_mut() {
-            for window in container.windows_mut() {
-                window.hide();
-            }
+        for window in self.floating_windows_mut().iter_mut().rev() {
+            window.hide();
+        }
+
+        for container in self.containers_mut().iter_mut().rev() {
+            container.hide();
         }
 
         if let Some(window) = self.maximized_window() {
@@ -150,13 +152,7 @@ impl Workspace {
         }
 
         if let Some(container) = self.monocle_container_mut() {
-            for window in container.windows_mut() {
-                window.hide();
-            }
-        }
-
-        for window in self.floating_windows() {
-            window.hide();
+            container.hide();
         }
     }
 

@@ -669,7 +669,7 @@ impl WindowManager {
                 for (i, monitor) in self.monitors_mut().iter_mut().enumerate() {
                     if i != focused_monitor_idx {
                         monitor.focus_workspace(workspace_idx)?;
-                        monitor.load_focused_workspace(false)?;
+                        monitor.load_focused_workspace(false, true)?;
                     }
                 }
 
