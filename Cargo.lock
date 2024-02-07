@@ -843,11 +843,13 @@ dependencies = [
  "color-eyre",
  "dirs",
  "dunce",
+ "lazy_static",
  "schemars",
  "serde",
  "serde_json",
  "serde_yaml",
  "strum",
+ "uds_windows",
  "windows",
 ]
 

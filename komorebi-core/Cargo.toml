@@ -16,3 +16,5 @@ color-eyre = { workspace = true }
 windows = { workspace = true }
 dunce = { workspace = true }
 dirs = { workspace = true }
+lazy_static = "1"
+uds_windows = "1"
