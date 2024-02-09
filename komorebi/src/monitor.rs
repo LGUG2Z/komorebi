@@ -84,7 +84,7 @@ impl Monitor {
 
         if let HidingBehaviour::Minimize = *HIDING_BEHAVIOUR.lock() {
             if self.wait_for_minimization {
-                sleep(Duration::from_millis(200)); // wait miminize animation
+                sleep(Duration::from_millis(200));
             }
         }
 
