@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::collections::VecDeque;
+use std::sync::atomic::Ordering;
 use std::thread::sleep;
 use std::time::Duration;
 
@@ -20,6 +21,7 @@ use crate::container::Container;
 use crate::ring::Ring;
 use crate::workspace::Workspace;
 use crate::HIDING_BEHAVIOUR;
+use crate::FINISH_MINIMIZE_ANIMATION;
 
 #[derive(Debug, Clone, Serialize, Getters, CopyGetters, MutGetters, Setters, JsonSchema)]
 pub struct Monitor {
@@ -44,6 +46,7 @@ pub struct Monitor {
     #[serde(skip_serializing)]
     #[getset(get_mut = "pub")]
     workspace_names: HashMap<usize, String>,
+    wait_for_minimization: bool,
 }
 
 impl_ring_elements!(Monitor, Workspace);
@@ -63,6 +66,7 @@ pub fn new(id: isize, size: Rect, work_area_size: Rect, name: String) -> Monitor
         workspaces,
         last_focused_workspace: None,
         workspace_names: HashMap::default(),
+        wait_for_minimization: FINISH_MINIMIZE_ANIMATION.load(Ordering::SeqCst),
     }
 }
 
@@ -70,7 +74,6 @@ impl Monitor {
     pub fn load_focused_workspace(
         &mut self,
         mouse_follows_focus: bool,
-        wait_animation: bool,
     ) -> Result<()> {
         let focused_idx = self.focused_workspace_idx();
         for (i, workspace) in self.workspaces_mut().iter_mut().enumerate() {
@@ -80,7 +83,7 @@ impl Monitor {
         }
 
         if let HidingBehaviour::Minimize = *HIDING_BEHAVIOUR.lock() {
-            if wait_animation {
+            if self.wait_for_minimization {
                 sleep(Duration::from_millis(200)); // wait miminize animation
             }
         }

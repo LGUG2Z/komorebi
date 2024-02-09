@@ -20,11 +20,13 @@ use crate::DATA_DIR;
 use crate::DEFAULT_CONTAINER_PADDING;
 use crate::DEFAULT_WORKSPACE_PADDING;
 use crate::DISPLAY_INDEX_PREFERENCES;
+use crate::FINISH_MINIMIZE_ANIMATION;
 use crate::FLOAT_IDENTIFIERS;
 use crate::HIDING_BEHAVIOUR;
 use crate::LAYERED_WHITELIST;
 use crate::MANAGE_IDENTIFIERS;
 use crate::MONITOR_INDEX_PREFERENCES;
+use crate::NATIVE_ANIMATION_DELAY;
 use crate::OBJECT_NAME_CHANGE_ON_LAUNCH;
 use crate::REGEX_IDENTIFIERS;
 use crate::TRAY_AND_MULTI_WINDOW_IDENTIFIERS;
@@ -231,6 +233,14 @@ impl From<&Monitor> for MonitorConfig {
 }
 
 #[derive(Debug, Serialize, Deserialize, JsonSchema)]
+pub struct AnimationsConfig {
+    /// native windows animations delay for consecutive actions in ms (minimize, maximize, restore, etc)
+    pub native_animations_delay: Option<u64>,
+    /// wait for minimization before restore workspace
+    pub finish_miminization_before_restore: Option<bool>,
+}
+
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
 pub struct StaticConfig {
     /// Dimensions of Windows' own invisible borders; don't set these yourself unless you are told to
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -292,6 +302,9 @@ pub struct StaticConfig {
     /// Global work area (space used for tiling) offset (default: None)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub global_work_area_offset: Option<Rect>,
+    /// Animations configurations for windows, borders, etc.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub animations: Option<AnimationsConfig>,
     /// Individual window floating rules
     #[serde(skip_serializing_if = "Option::is_none")]
     pub float_rules: Option<Vec<IdWithIdentifier>>,
@@ -429,6 +442,14 @@ impl From<&WindowManager> for StaticConfig {
             alt_focus_hack: Option::from(ALT_FOCUS_HACK.load(Ordering::SeqCst)),
             window_hiding_behaviour: Option::from(*HIDING_BEHAVIOUR.lock()),
             global_work_area_offset: value.work_area_offset,
+            animations: Option::from(AnimationsConfig {
+                native_animations_delay: Option::from(
+                    NATIVE_ANIMATION_DELAY.load(Ordering::SeqCst),
+                ),
+                finish_miminization_before_restore: Option::from(
+                    FINISH_MINIMIZE_ANIMATION.load(Ordering::SeqCst),
+                ),
+            }),
             float_rules: None,
             manage_rules: None,
             border_overflow_applications: None,
@@ -496,6 +517,15 @@ impl StaticConfig {
                 *border_offset = Some(new_border_offset);
             },
         );
+
+        if let Some(animations) = &self.animations {
+            if let Some(delay) = animations.native_animations_delay {
+                NATIVE_ANIMATION_DELAY.store(delay, Ordering::SeqCst);
+            }
+            if let Some(val) = animations.finish_miminization_before_restore {
+                FINISH_MINIMIZE_ANIMATION.store(val, Ordering::SeqCst);
+            }
+        }
 
         if let Some(colours) = &self.active_window_border_colours {
             BORDER_COLOUR_SINGLE.store(

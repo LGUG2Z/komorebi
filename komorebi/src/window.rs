@@ -1,4 +1,5 @@
 use crate::com::SetCloak;
+use crate::NATIVE_ANIMATION_DELAY;
 use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::fmt::Display;
@@ -194,6 +195,10 @@ impl Window {
         }
     }
 
+    fn wait_native_animation(self) {
+        sleep(Duration::from_millis(NATIVE_ANIMATION_DELAY.load(Ordering::SeqCst)));
+    }
+
     pub fn restore(self) {
         let mut programmatically_hidden_hwnds = HIDDEN_HWNDS.lock();
         if let Some(idx) = programmatically_hidden_hwnds
@@ -208,7 +213,7 @@ impl Window {
             HidingBehaviour::Hide => WindowsApi::restore_window(self.hwnd()),
             HidingBehaviour::Minimize => {
                 WindowsApi::restore_window(self.hwnd());
-                sleep(Duration::from_millis(35));
+                self.wait_native_animation();
             },
             HidingBehaviour::Cloak => SetCloak(self.hwnd(), 1, 0),
         }
@@ -219,7 +224,7 @@ impl Window {
             return;
         }
         WindowsApi::minimize_window(self.hwnd());
-        sleep(Duration::from_millis(35));
+        self.wait_native_animation();
     }
 
     pub fn close(self) -> Result<()> {

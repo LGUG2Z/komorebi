@@ -16,6 +16,7 @@ use std::sync::atomic::AtomicBool;
 use std::sync::atomic::AtomicI32;
 use std::sync::atomic::AtomicIsize;
 use std::sync::atomic::AtomicU32;
+use std::sync::atomic::AtomicU64;
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
 #[cfg(feature = "deadlock_detection")]
@@ -219,13 +220,19 @@ lazy_static! {
     static ref NO_TITLEBAR: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(vec![]));
 }
 
-pub static DEFAULT_WORKSPACE_PADDING: AtomicI32 = AtomicI32::new(10);
-pub static DEFAULT_CONTAINER_PADDING: AtomicI32 = AtomicI32::new(10);
-
 pub static INITIAL_CONFIGURATION_LOADED: AtomicBool = AtomicBool::new(false);
 pub static CUSTOM_FFM: AtomicBool = AtomicBool::new(false);
 pub static SESSION_ID: AtomicU32 = AtomicU32::new(0);
 pub static ALT_FOCUS_HACK: AtomicBool = AtomicBool::new(false);
+
+pub static DEFAULT_WORKSPACE_PADDING: AtomicI32 = AtomicI32::new(10);
+pub static DEFAULT_CONTAINER_PADDING: AtomicI32 = AtomicI32::new(10);
+
+// animations statics
+pub static NATIVE_ANIMATION_DELAY: AtomicU64 = AtomicU64::new(35);
+pub static FINISH_MINIMIZE_ANIMATION: AtomicBool = AtomicBool::new(true);
+
+// border statics
 pub static BORDER_ENABLED: AtomicBool = AtomicBool::new(false);
 pub static BORDER_HWND: AtomicIsize = AtomicIsize::new(0);
 pub static BORDER_HIDDEN: AtomicBool = AtomicBool::new(false);
@@ -234,6 +241,7 @@ pub static BORDER_COLOUR_STACK: AtomicU32 = AtomicU32::new(0);
 pub static BORDER_COLOUR_MONOCLE: AtomicU32 = AtomicU32::new(0);
 pub static BORDER_COLOUR_CURRENT: AtomicU32 = AtomicU32::new(0);
 pub static BORDER_WIDTH: AtomicI32 = AtomicI32::new(20);
+
 // 0 0 0 aka pure black, I doubt anyone will want this as a border colour
 pub const TRANSPARENCY_COLOUR: u32 = 0;
 pub static REMOVE_TITLEBARS: AtomicBool = AtomicBool::new(false);

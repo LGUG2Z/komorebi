@@ -51,6 +51,24 @@
         "null"
       ]
     },
+    "animations": {
+      "description": "Configurations for native Windows and Komorebi animations",
+      "type": [
+        "null",
+        "object"
+      ],
+      "properties": {
+        "native_animations_delay": {
+          "description": "native windows animations delay for consecutive actions in ms (default: 35)",
+          "type": "integer",
+          "format": "int32"
+        },
+        "finish_miminization_before_restore": {
+          "description": "wait for minimization before restore workspace (default: true)",
+          "type": "boolean"
+        }
+      }
+    },
     "border_offset": {
       "description": "DEPRECATED from v0.1.19: use active_window_border_offset instead",
       "anyOf": [
