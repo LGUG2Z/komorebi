@@ -1344,7 +1344,7 @@ fn main() -> Result<()> {
 
                 if let Ok(config) = &parsed_config {
                     if let Some(asc_path) = config.get("app_specific_configuration_path") {
-                        let normalized_asc_path = asc_path
+                        let mut normalized_asc_path = asc_path
                             .to_string()
                             .replace(
                                 "$Env:USERPROFILE",
@@ -1352,6 +1352,13 @@ fn main() -> Result<()> {
                             )
                             .replace('"', "")
                             .replace('\\', "/");
+
+                        if let Ok(komorebi_config_home) = std::env::var("KOMOREBI_CONFIG_HOME") {
+                            normalized_asc_path = normalized_asc_path
+                                .replace("$Env:KOMOREBI_CONFIG_HOME", &komorebi_config_home)
+                                .replace('"', "")
+                                .replace('\\', "/");
+                        }
 
                         if !Path::exists(Path::new(&normalized_asc_path)) {
                             println!("Application specific configuration file path '{normalized_asc_path}' does not exist. Try running 'komorebic fetch-asc'\n");
