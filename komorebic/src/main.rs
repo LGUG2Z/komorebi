@@ -5,8 +5,9 @@ use std::fs::File;
 use std::fs::OpenOptions;
 use std::io::BufRead;
 use std::io::BufReader;
-use std::io::ErrorKind;
+use std::io::Read;
 use std::io::Write;
+use std::net::Shutdown;
 use std::path::Path;
 use std::path::PathBuf;
 use std::process::Command;
@@ -30,7 +31,6 @@ use miette::Report;
 use miette::SourceOffset;
 use miette::SourceSpan;
 use paste::paste;
-use uds_windows::UnixListener;
 use uds_windows::UnixStream;
 use which::which;
 use windows::Win32::Foundation::HWND;
@@ -1172,35 +1172,26 @@ pub fn send_message(bytes: &[u8]) -> Result<()> {
     Ok(())
 }
 
-fn with_komorebic_socket<F: Fn() -> Result<()>>(f: F) -> Result<()> {
-    let socket = DATA_DIR.join("komorebic.sock");
+pub fn send_query(bytes: &[u8]) -> Result<String> {
+    let socket = DATA_DIR.join("komorebi.sock");
 
-    match std::fs::remove_file(&socket) {
-        Ok(()) => {}
-        Err(error) => match error.kind() {
-            // Doing this because ::exists() doesn't work reliably on Windows via IntelliJ
-            ErrorKind::NotFound => {}
-            _ => {
-                return Err(error.into());
-            }
-        },
-    };
+    let mut stream = UnixStream::connect(&socket)?;
+    stream.write_all(bytes)?;
+    stream.shutdown(Shutdown::Write)?;
 
-    f()?;
+    let mut reader = BufReader::new(stream);
+    let mut response = String::new();
+    reader.read_to_string(&mut response)?;
 
-    let listener = UnixListener::bind(socket)?;
-    match listener.accept() {
-        Ok(incoming) => {
-            let stream = BufReader::new(incoming.0);
-            for line in stream.lines() {
-                println!("{}", line?);
-            }
+    Ok(response)
+}
 
-            Ok(())
-        }
-        Err(error) => {
-            panic!("{}", error);
-        }
+// print_query is a helper that queries komorebi and prints the response.
+// panics on error.
+pub fn print_query(bytes: &[u8]) {
+    match send_query(bytes) {
+        Ok(response) => println!("{}", response),
+        Err(error) => panic!("{}", error),
     }
 }
 
@@ -2000,15 +1991,13 @@ Stop-Process -Name:whkd -ErrorAction SilentlyContinue
             )?;
         }
         SubCommand::State => {
-            with_komorebic_socket(|| send_message(&SocketMessage::State.as_bytes()?))?;
+            print_query(&SocketMessage::State.as_bytes()?);
         }
         SubCommand::VisibleWindows => {
-            with_komorebic_socket(|| send_message(&SocketMessage::VisibleWindows.as_bytes()?))?;
+            print_query(&SocketMessage::VisibleWindows.as_bytes()?);
         }
         SubCommand::Query(arg) => {
-            with_komorebic_socket(|| {
-                send_message(&SocketMessage::Query(arg.state_query).as_bytes()?)
-            })?;
+            print_query(&SocketMessage::Query(arg.state_query).as_bytes()?);
         }
         SubCommand::RestoreWindows => {
             let hwnd_json = DATA_DIR.join("komorebi.hwnd.json");
@@ -2239,23 +2228,19 @@ Stop-Process -Name:whkd -ErrorAction SilentlyContinue
             );
         }
         SubCommand::ApplicationSpecificConfigurationSchema => {
-            with_komorebic_socket(|| {
-                send_message(&SocketMessage::ApplicationSpecificConfigurationSchema.as_bytes()?)
-            })?;
+            print_query(&SocketMessage::ApplicationSpecificConfigurationSchema.as_bytes()?);
         }
         SubCommand::NotificationSchema => {
-            with_komorebic_socket(|| send_message(&SocketMessage::NotificationSchema.as_bytes()?))?;
+            print_query(&SocketMessage::NotificationSchema.as_bytes()?);
         }
         SubCommand::SocketSchema => {
-            with_komorebic_socket(|| send_message(&SocketMessage::SocketSchema.as_bytes()?))?;
+            print_query(&SocketMessage::SocketSchema.as_bytes()?);
         }
         SubCommand::StaticConfigSchema => {
-            with_komorebic_socket(|| send_message(&SocketMessage::StaticConfigSchema.as_bytes()?))?;
+            print_query(&SocketMessage::StaticConfigSchema.as_bytes()?);
         }
         SubCommand::GenerateStaticConfig => {
-            with_komorebic_socket(|| {
-                send_message(&SocketMessage::GenerateStaticConfig.as_bytes()?)
-            })?;
+            print_query(&SocketMessage::GenerateStaticConfig.as_bytes()?);
         }
     }
 
