@@ -183,14 +183,10 @@ fn main() -> Result<()> {
 
     WindowsApi::foreground_lock_timeout()?;
 
+    winevent_listener::start();
+
     #[cfg(feature = "deadlock_detection")]
     detect_deadlocks();
-
-    let (outgoing, incoming): (Sender<WindowManagerEvent>, Receiver<WindowManagerEvent>) =
-        crossbeam_channel::unbounded();
-
-    let winevent_listener = winevent_listener::new(Arc::new(Mutex::new(outgoing)));
-    winevent_listener.start();
 
     Hidden::create("komorebi-hidden")?;
 
@@ -214,12 +210,10 @@ fn main() -> Result<()> {
 
         Arc::new(Mutex::new(StaticConfig::preload(
             config,
-            Arc::new(Mutex::new(incoming)),
+            winevent_listener::event_rx(),
         )?))
     } else {
-        Arc::new(Mutex::new(WindowManager::new(Arc::new(Mutex::new(
-            incoming,
-        )))?))
+        Arc::new(Mutex::new(WindowManager::new(winevent_listener::event_rx())?))
     };
 
     wm.lock().init()?;

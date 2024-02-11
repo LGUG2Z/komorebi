@@ -59,7 +59,6 @@ impl Hidden {
             unsafe {
                 while GetMessageW(&mut message, hidden.hwnd(), 0, 0).into() {
                     DispatchMessageW(&message);
-                    std::thread::sleep(Duration::from_millis(10));
                 }
             }
 

@@ -45,7 +45,7 @@ use crate::static_config::StaticConfig;
 use crate::window::Window;
 use crate::window_manager_event::WindowManagerEvent;
 use crate::windows_api::WindowsApi;
-use crate::winevent_listener::WINEVENT_CALLBACK_CHANNEL;
+use crate::winevent_listener;
 use crate::workspace::Workspace;
 use crate::BORDER_HWND;
 use crate::BORDER_OVERFLOW_IDENTIFIERS;
@@ -66,7 +66,7 @@ use crate::WORKSPACE_RULES;
 pub struct WindowManager {
     pub monitors: Ring<Monitor>,
     pub monitor_cache: HashMap<usize, Monitor>,
-    pub incoming_events: Arc<Mutex<Receiver<WindowManagerEvent>>>,
+    pub incoming_events: Receiver<WindowManagerEvent>,
     pub command_listener: UnixListener,
     pub is_paused: bool,
     pub invisible_borders: Rect,
@@ -168,7 +168,7 @@ impl EnforceWorkspaceRuleOp {
 
 impl WindowManager {
     #[tracing::instrument]
-    pub fn new(incoming: Arc<Mutex<Receiver<WindowManagerEvent>>>) -> Result<Self> {
+    pub fn new(incoming: Receiver<WindowManagerEvent>) -> Result<Self> {
         let socket = DATA_DIR.join("komorebi.sock");
 
         match std::fs::remove_file(&socket) {
@@ -668,14 +668,14 @@ impl WindowManager {
     pub fn manage_focused_window(&mut self) -> Result<()> {
         let hwnd = WindowsApi::foreground_window()?;
         let event = WindowManagerEvent::Manage(Window { hwnd });
-        Ok(WINEVENT_CALLBACK_CHANNEL.lock().0.send(event)?)
+        Ok(winevent_listener::event_tx().send(event)?)
     }
 
     #[tracing::instrument(skip(self))]
     pub fn unmanage_focused_window(&mut self) -> Result<()> {
         let hwnd = WindowsApi::foreground_window()?;
         let event = WindowManagerEvent::Unmanage(Window { hwnd });
-        Ok(WINEVENT_CALLBACK_CHANNEL.lock().0.send(event)?)
+        Ok(winevent_listener::event_tx().send(event)?)
     }
 
     #[tracing::instrument(skip(self))]
@@ -731,7 +731,7 @@ impl WindowManager {
             if known_hwnd {
                 let event = WindowManagerEvent::Raise(Window { hwnd });
                 self.has_pending_raise_op = true;
-                Ok(WINEVENT_CALLBACK_CHANNEL.lock().0.send(event)?)
+                Ok(winevent_listener::event_tx().send(event)?)
             } else {
                 tracing::debug!("not raising unknown window: {}", Window { hwnd });
                 Ok(())
