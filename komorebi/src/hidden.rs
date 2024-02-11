@@ -1,5 +1,4 @@
 use std::sync::atomic::Ordering;
-use std::time::Duration;
 
 use color_eyre::Result;
 use windows::core::PCWSTR;
@@ -59,7 +58,6 @@ impl Hidden {
             unsafe {
                 while GetMessageW(&mut message, hidden.hwnd(), 0, 0).into() {
                     DispatchMessageW(&message);
-                    std::thread::sleep(Duration::from_millis(10));
                 }
             }
 

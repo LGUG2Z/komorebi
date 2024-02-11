@@ -37,7 +37,7 @@ use crate::ring::Ring;
 use crate::window::Window;
 use crate::window_manager_event::WindowManagerEvent;
 use crate::windows_api::WindowsApi;
-use crate::winevent_listener::WINEVENT_CALLBACK_CHANNEL;
+use crate::winevent_listener;
 use crate::BORDER_COLOUR_CURRENT;
 use crate::BORDER_RECT;
 use crate::BORDER_WIDTH;
@@ -186,11 +186,9 @@ pub extern "system" fn win_event_hook(
 
     if let Ok(should_manage) = window.should_manage(Option::from(event_type)) {
         if should_manage {
-            WINEVENT_CALLBACK_CHANNEL
-                .lock()
-                .0
+            winevent_listener::event_tx()
                 .send(event_type)
-                .expect("could not send message on WINEVENT_CALLBACK_CHANNEL");
+                .expect("could not send message on winevent_listener::event_tx");
         }
     }
 }
@@ -241,11 +239,9 @@ pub extern "system" fn hidden_window(
         match message {
             WM_DISPLAYCHANGE => {
                 let event_type = WindowManagerEvent::DisplayChange(Window { hwnd: window.0 });
-                WINEVENT_CALLBACK_CHANNEL
-                    .lock()
-                    .0
-                    .send(event_type)
-                    .expect("could not send message on WINEVENT_CALLBACK_CHANNEL");
+            winevent_listener::event_tx()
+                .send(event_type)
+                .expect("could not send message on winevent_listener::event_tx");
 
                 LRESULT(0)
             }
@@ -256,11 +252,9 @@ pub extern "system" fn hidden_window(
                     || wparam.0 as u32 == SPI_ICONVERTICALSPACING.0
                 {
                     let event_type = WindowManagerEvent::DisplayChange(Window { hwnd: window.0 });
-                    WINEVENT_CALLBACK_CHANNEL
-                        .lock()
-                        .0
-                        .send(event_type)
-                        .expect("could not send message on WINEVENT_CALLBACK_CHANNEL");
+            winevent_listener::event_tx()
+                .send(event_type)
+                .expect("could not send message on winevent_listener::event_tx");
                 }
                 LRESULT(0)
             }
@@ -269,11 +263,9 @@ pub extern "system" fn hidden_window(
                 #[allow(clippy::cast_possible_truncation)]
                 if wparam.0 as u32 == DBT_DEVNODES_CHANGED {
                     let event_type = WindowManagerEvent::DisplayChange(Window { hwnd: window.0 });
-                    WINEVENT_CALLBACK_CHANNEL
-                        .lock()
-                        .0
-                        .send(event_type)
-                        .expect("could not send message on WINEVENT_CALLBACK_CHANNEL");
+            winevent_listener::event_tx()
+                .send(event_type)
+                .expect("could not send message on winevent_listener::event_tx");
                 }
                 LRESULT(0)
             }

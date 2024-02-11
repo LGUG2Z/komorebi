@@ -748,7 +748,7 @@ impl StaticConfig {
     #[allow(clippy::too_many_lines)]
     pub fn preload(
         path: &PathBuf,
-        incoming: Arc<Mutex<Receiver<WindowManagerEvent>>>,
+        incoming: Receiver<WindowManagerEvent>,
     ) -> Result<WindowManager> {
         let content = std::fs::read_to_string(path)?;
         let mut value: Self = serde_json::from_str(&content)?;

@@ -14,8 +14,6 @@ use std::time::Duration;
 
 use clap::Parser;
 use color_eyre::Result;
-use crossbeam_channel::Receiver;
-use crossbeam_channel::Sender;
 use crossbeam_utils::Backoff;
 #[cfg(feature = "deadlock_detection")]
 use parking_lot::deadlock;
@@ -33,7 +31,6 @@ use komorebi::process_event::listen_for_events;
 use komorebi::process_movement::listen_for_movements;
 use komorebi::static_config::StaticConfig;
 use komorebi::window_manager::WindowManager;
-use komorebi::window_manager_event::WindowManagerEvent;
 use komorebi::windows_api::WindowsApi;
 use komorebi::winevent_listener;
 use komorebi::CUSTOM_FFM;
@@ -183,14 +180,10 @@ fn main() -> Result<()> {
 
     WindowsApi::foreground_lock_timeout()?;
 
+    winevent_listener::start();
+
     #[cfg(feature = "deadlock_detection")]
     detect_deadlocks();
-
-    let (outgoing, incoming): (Sender<WindowManagerEvent>, Receiver<WindowManagerEvent>) =
-        crossbeam_channel::unbounded();
-
-    let winevent_listener = winevent_listener::new(Arc::new(Mutex::new(outgoing)));
-    winevent_listener.start();
 
     Hidden::create("komorebi-hidden")?;
 
@@ -214,12 +207,12 @@ fn main() -> Result<()> {
 
         Arc::new(Mutex::new(StaticConfig::preload(
             config,
-            Arc::new(Mutex::new(incoming)),
+            winevent_listener::event_rx(),
         )?))
     } else {
-        Arc::new(Mutex::new(WindowManager::new(Arc::new(Mutex::new(
-            incoming,
-        )))?))
+        Arc::new(Mutex::new(WindowManager::new(
+            winevent_listener::event_rx(),
+        )?))
     };
 
     wm.lock().init()?;
