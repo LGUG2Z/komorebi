@@ -76,6 +76,26 @@ lazy_static! {
     static ref DATA_DIR: PathBuf = dirs::data_local_dir()
         .expect("there is no local data directory")
         .join("komorebi");
+    static ref WHKD_CONFIG_DIR: PathBuf = {
+        std::env::var("WHKD_CONFIG_HOME").map_or_else(
+            |_| {
+                dirs::home_dir()
+                    .expect("there is no home directory")
+                    .join(".config")
+            },
+            |home_path| {
+                let whkd_config_home = PathBuf::from(&home_path);
+
+                assert!(
+                    whkd_config_home.as_path().is_dir(),
+                    "$Env:WHKD_CONFIG_HOME is set to '{}', which is not a valid directory",
+                    whkd_config_home.to_string_lossy()
+                );
+
+                whkd_config_home
+            },
+        )
+    };
 }
 
 trait AhkLibrary {
@@ -1293,10 +1313,7 @@ fn main() -> Result<()> {
             let static_config = HOME_DIR.join("komorebi.json");
             let config_pwsh = HOME_DIR.join("komorebi.ps1");
             let config_ahk = HOME_DIR.join("komorebi.ahk");
-            let config_whkd = dirs::home_dir()
-                .expect("no home dir found")
-                .join(".config")
-                .join("whkdrc");
+            let config_whkd = WHKD_CONFIG_DIR.join("whkdrc");
 
             if static_config.exists() {
                 let config_source = std::fs::read_to_string(&static_config)?;
@@ -1327,7 +1344,7 @@ fn main() -> Result<()> {
 
                 if let Ok(config) = &parsed_config {
                     if let Some(asc_path) = config.get("app_specific_configuration_path") {
-                        let normalized_asc_path = asc_path
+                        let mut normalized_asc_path = asc_path
                             .to_string()
                             .replace(
                                 "$Env:USERPROFILE",
@@ -1336,6 +1353,13 @@ fn main() -> Result<()> {
                             .replace('"', "")
                             .replace('\\', "/");
 
+                        if let Ok(komorebi_config_home) = std::env::var("KOMOREBI_CONFIG_HOME") {
+                            normalized_asc_path = normalized_asc_path
+                                .replace("$Env:KOMOREBI_CONFIG_HOME", &komorebi_config_home)
+                                .replace('"', "")
+                                .replace('\\', "/");
+                        }
+
                         if !Path::exists(Path::new(&normalized_asc_path)) {
                             println!("Application specific configuration file path '{normalized_asc_path}' does not exist. Try running 'komorebic fetch-asc'\n");
                         }
@@ -1343,14 +1367,17 @@ fn main() -> Result<()> {
                 }
 
                 if config_whkd.exists() {
-                    println!("Found ~/.config/whkdrc; key bindings will be loaded from here when whkd is started, and you can start it automatically using the --whkd flag\n");
+                    println!("Found {}; key bindings will be loaded from here when whkd is started, and you can start it automatically using the --whkd flag\n", config_whkd.to_string_lossy());
                 } else {
                     println!("No ~/.config/whkdrc found; you may not be able to control komorebi with your keyboard\n");
                 }
             } else if config_pwsh.exists() {
                 println!("Found komorebi.ps1; this file will be autoloaded by komorebi\n");
                 if config_whkd.exists() {
-                    println!("Found ~/.config/whkdrc; key bindings will be loaded from here when whkd is started\n");
+                    println!(
+                        "Found {}; key bindings will be loaded from here when whkd is started\n",
+                        config_whkd.to_string_lossy()
+                    );
                 } else {
                     println!("No ~/.config/whkdrc found; you may not be able to control komorebi with your keyboard\n");
                 }
