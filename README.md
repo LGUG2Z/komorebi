@@ -29,38 +29,26 @@ Tiling Window Management for Windows.
 
 ![screenshot](https://user-images.githubusercontent.com/13164844/184027064-f5a6cec2-2865-4d65-a549-a1f1da589abf.png)
 
-- [About](#about)
-- [Charitable Donations](#charitable-donations)
-- [GitHub Sponsors](#github-sponsors)
-- [Demonstrations](#demonstrations)
-- [Getting Started](#getting-started)
-- [Development](#development)
-- [Logs and Debugging](#logs-and-debugging)
-  - [Restoring Windows](#restoring-windows)
-  - [Panics and Deadlocks](#panics-and-deadlocks)
-- [Window Manager State and Integrations](#window-manager-state-and-integrations)
-- [Window Manager Event Subscriptions](#window-manager-event-subscriptions)
-  - [Subscription Event Notification Schema](#subscription-event-notification-schema)
-  - [Communication over TCP](#communication-over-tcp)
-  - [Socket Message Schema](#socket-message-schema)
-- [Appreciations](#appreciations)
-
-## About
-
 _komorebi_ is a tiling window manager that works as an extension to Microsoft's
 [Desktop Window
 Manager](https://docs.microsoft.com/en-us/windows/win32/dwm/dwm-overview) in
 Windows 10 and above.
 
-_komorebi_ allows you to control application windows, virtual workspaces and
-display monitors with a CLI which can be used with third-party software such as
-[AutoHotKey](https://github.com/Lexikos/AutoHotkey_L) to set user-defined
-keyboard shortcuts.
+_komorebi_ allows you to control application windows, virtual workspaces and display monitors with a CLI which can be
+used with third-party software such as [`whkd`](https://github.com/LGUG2Z/whkd)
+and [AutoHotKey](https://github.com/Lexikos/AutoHotkey_L) to set user-defined keyboard shortcuts.
 
 _komorebi_ aims to make _as few modifications as possible_ to the operating
 system and desktop environment by default. Users are free to make such
 modifications in their own configuration files for _komorebi_, but these will
 remain opt-in and off-by-default for the foreseeable future.
+
+Please refer to the [documentation](https://lgug2z.github.io/komorebi) for instructions on how
+to [install](https://lgug2z.github.io/komorebi/installation.html) and
+[configure](https://lgug2z.github.io/komorebi/example-configurations.html)
+_komorebi_, [common workflows](https://lgug2z.github.io/komorebi/common-workflows/komorebi-config-home.html), a complete
+[configuration schema reference](https://komorebi.lgug2z.com/schema) and a
+complete [CLI reference](https://lgug2z.github.io/komorebi/cli/quickstart.html).
 
 There is a [Discord server](https://discord.gg/mGkn66PHkx) available for
 _komorebi_-related discussion, help, troubleshooting etc. If you have any
@@ -72,21 +60,6 @@ channel](https://www.youtube.com/channel/UCeai3-do-9O4MNy9_xjO6mg) where I post
 _komorebi_ development videos. If you would like to be notified of upcoming
 videos please subscribe and turn on notifications.
 
-Articles, blog posts, demos, and videos about _komorebi_ can be added to this
-list by PR:
-
-- [Moving to Windows from Linux Pt 1](https://kvwu.io/posts/moving-to-windows/)
-- [Windows 下的现代化平铺窗口管理器 komorebi](https://zhuanlan.zhihu.com/p/455064481)
-- [komorebi を導入してみる](https://zenn.dev/omochice/articles/50f42a3df8f426)
-
-## Getting Started
-
-A [detailed quickstart
-guide](https://lgug2z.github.io/komorebi/installation.html) is available on the
-documentation website.
-
-## Charitable Donations
-
 _komorebi_ is a free and open-source project, and one that encourages you to
 make charitable donations if you find the software to be useful and have the
 financial means.
@@ -94,8 +67,6 @@ financial means.
 I encourage you to make a charitable donation to the [Palestine Children's
 Relief Fund](https://pcrf1.app.neoncrm.com/forms/gaza-recovery) before you
 consider sponsoring me on GitHub.
-
-## Project Sponsorship
 
 [GitHub Sponsors is enabled for this
 project](https://github.com/sponsors/LGUG2Z). Unfortunately I don't have
@@ -105,7 +76,13 @@ _komorebi_ live development videos and tutorials.
 If you would like to tip or sponsor the project but are unable to use GitHub
 Sponsors, you may also sponsor through [Ko-fi](https://ko-fi.com/lgug2z).
 
-## Demonstrations
+# Installation
+
+A [detailed installation and quickstart
+guide](https://lgug2z.github.io/komorebi/installation.html) is available which shows how to get started
+using `scoop`, `winget` or building from source.
+
+# Demonstrations
 
 [@haxibami](https://github.com/haxibami) showing _komorebi_ running on Windows
 11 with a terminal emulator, a web browser and a code editor. The original
@@ -122,7 +99,7 @@ widget enabled. The original video can be viewed
 
 https://user-images.githubusercontent.com/13164844/163496414-a9cde3d1-b8a7-4a7a-96fb-a8985380bc70.mp4
 
-## Development
+# Development
 
 If you would like to contribute code to this repository, there are a few requests that I have to ensure a foundation of
 code quality, consistency and commit hygiene:
@@ -145,7 +122,7 @@ the IDE for completions and navigation:
   - `org.rust.cargo.evaluate.build.scripts`
   - `org.rust.macros.proc`
 
-## Logs and Debugging
+# Logs and Debugging
 
 Logs from `komorebi` will be appended to `%LOCALAPPDATA%/komorebi/komorebi.log`; this file is never rotated or overwritten, so it will keep
 growing until it is deleted by the user.
@@ -156,12 +133,12 @@ ensures that all hidden windows are restored before termination.
 If however, you ever end up with windows that are hidden and cannot be restored, a list of window handles known
 to `komorebi` are stored and continuously updated in `%LOCALAPPDATA%/komorebi//komorebi.hwnd.json`.
 
-### Restoring Windows
+## Restoring Windows
 
 Running `komorebic restore-windows` will read the list of window handles and forcibly restore them, regardless of
 whether the main `komorebi` process is running.
 
-### Panics and Deadlocks
+## Panics and Deadlocks
 
 If `komorebi` ever stops responding, it is most likely either due to either a panic or a deadlock. In the case of a
 panic, this will be reported in the log. In the case of a deadlock, there will not be any errors in the log, but the
@@ -171,7 +148,7 @@ If you believe you have encountered a deadlock, you can compile `komorebi` with 
 reproducing the deadlock again. This will check for deadlocks every 5 seconds in the background, and if a deadlock is
 found, information about it will appear in the log which can be shared when opening an issue.
 
-## Window Manager State and Integrations
+# Window Manager State and Integrations
 
 The current state of the window manager can be queried using the `komorebic state` command, which returns a JSON
 representation of the `State` struct, which includes the current state of `WindowManager`.
@@ -179,7 +156,7 @@ representation of the `State` struct, which includes the current state of `Windo
 This may also be polled to build further integrations and widgets on top of (if you ever wanted to build something
 like [Stackline](https://github.com/AdamWagner/stackline) for Windows, you could do it by polling this command).
 
-## Window Manager Event Subscriptions
+# Window Manager Event Subscriptions
 
 It is also possible to subscribe to notifications of every `WindowManagerEvent` and `SocketMessage` handled
 by `komorebi` using [Named Pipes](https://docs.microsoft.com/en-us/windows/win32/ipc/named-pipes).
@@ -218,14 +195,14 @@ found [here](https://gist.github.com/denBot/4136279812f87819f86d99eba77c1ee0).
 An example of how to create a named pipe and a subscription to `komorebi`'s handled events in Rust can also be found
 in the [`komokana`](https://github.com/LGUG2Z/komokana) repository.
 
-### Subscription Event Notification Schema
+## Subscription Event Notification Schema
 
 A [JSON Schema](https://json-schema.org/) of the event notifications emitted to subscribers can be generated with
 the `komorebic notification-schema` command. The output of this command can be redirected to the clipboard or a file,
 which can be used with services such as [Quicktype](https://app.quicktype.io/) to generate type definitions in different
 programming languages.
 
-### Communication over TCP
+## Communication over TCP
 
 A TCP listener can optionally be exposed on a port of your choosing with the `--tcp-port=N` flag. If this flag is not
 provided to `komorebi` or `komorebic start`, no TCP listener will be created.
@@ -241,14 +218,14 @@ a [custom input handler](https://github.com/LGUG2Z/komorebi/issues/176#issue-130
 If a client sends an unrecognized message, it will be disconnected and have to reconnect before trying to communicate
 again.
 
-### Socket Message Schema
+## Socket Message Schema
 
 A [JSON Schema](https://json-schema.org/) of socket messages used to send instructions to `komorebi` can be generated
 with the `komorebic socket-schema` command. The output of this command can be redirected to the clipboard or a file,
 which can be used with services such as [Quicktype](https://app.quicktype.io/) to generate type definitions in different
 programming languages.
 
-## Appreciations
+# Appreciations
 
 - First and foremost, thank you to my wife, both for naming this project and for her patience throughout its never-ending development
 
