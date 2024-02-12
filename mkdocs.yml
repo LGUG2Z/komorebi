@@ -50,8 +50,19 @@ nav:
   - Getting started:
     - Installation: installation.md
     - Example configurations: example-configurations.md
-  - Configuration:
-    - JSONSchema reference: https://komorebi.lgug2z.com/schema
+  - Common workflows:
+    - common-workflows/komorebi-config-home.md
+    - common-workflows/active-window-border.md
+    - common-workflows/remove-gaps.md
+    - common-workflows/ignore-windows.md
+    - common-workflows/force-manage-windows.md
+    - common-workflows/tray-and-multi-window-applications.md
+    - common-workflows/focus-follows-mouse.md
+    - common-workflows/mouse-follows-focus.md
+    - common-workflows/custom-layouts.md
+    - common-workflows/dynamic-layout-switching.md
+    - common-workflows/autohotkey.md
+  - Configuration reference: https://komorebi.lgug2z.com/schema
   - CLI reference:
     - cli/quickstart.md
     - cli/start.md
