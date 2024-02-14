@@ -1,3 +1,5 @@
+pub mod applications_configuration;
+
 use crate::border::Border;
 use crate::current_virtual_desktop;
 use crate::monitor::Monitor;
@@ -27,6 +29,7 @@ use crate::MANAGE_IDENTIFIERS;
 use crate::MONITOR_INDEX_PREFERENCES;
 use crate::OBJECT_NAME_CHANGE_ON_LAUNCH;
 use crate::REGEX_IDENTIFIERS;
+use crate::STACK_BY_CATEGORY;
 use crate::TRAY_AND_MULTI_WINDOW_IDENTIFIERS;
 use crate::WORKSPACE_RULES;
 use color_eyre::Result;
@@ -62,6 +65,8 @@ use std::sync::atomic::Ordering;
 use std::sync::Arc;
 use uds_windows::UnixListener;
 use uds_windows::UnixStream;
+
+use applications_configuration::SETTINGS_BY_APP;
 
 #[derive(Debug, Serialize, Deserialize, JsonSchema)]
 pub struct Rgb {
@@ -316,6 +321,9 @@ pub struct StaticConfig {
     /// Set display index preferences
     #[serde(skip_serializing_if = "Option::is_none")]
     pub display_index_preferences: Option<HashMap<usize, String>>,
+    /// Set categories stackin behavior.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub auto_stack_by_category: Option<bool>,
 }
 
 impl From<&WindowManager> for StaticConfig {
@@ -437,6 +445,7 @@ impl From<&WindowManager> for StaticConfig {
             object_name_change_applications: None,
             monitor_index_preferences: Option::from(MONITOR_INDEX_PREFERENCES.lock().clone()),
             display_index_preferences: Option::from(DISPLAY_INDEX_PREFERENCES.lock().clone()),
+            auto_stack_by_category: None,
         }
     }
 }
@@ -444,6 +453,11 @@ impl From<&WindowManager> for StaticConfig {
 impl StaticConfig {
     #[allow(clippy::cognitive_complexity, clippy::too_many_lines)]
     fn apply_globals(&mut self) -> Result<()> {
+        if let Some(auto_stack_by_category) = self.auto_stack_by_category {
+            let mut preferences = STACK_BY_CATEGORY.lock();
+            *preferences = auto_stack_by_category
+        }
+
         if let Some(monitor_index_preferences) = &self.monitor_index_preferences {
             let mut preferences = MONITOR_INDEX_PREFERENCES.lock();
             *preferences = monitor_index_preferences.clone();
@@ -632,6 +646,8 @@ impl StaticConfig {
             let asc = ApplicationConfigurationGenerator::load(&content)?;
 
             for mut entry in asc {
+                SETTINGS_BY_APP.lock().add(entry.clone().into())?;
+
                 if let Some(float) = entry.float_identifiers {
                     for f in float {
                         let mut without_comment: IdWithIdentifier = f.into();

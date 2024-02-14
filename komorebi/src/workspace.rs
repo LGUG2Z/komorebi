@@ -30,6 +30,7 @@ use crate::DEFAULT_WORKSPACE_PADDING;
 use crate::INITIAL_CONFIGURATION_LOADED;
 use crate::NO_TITLEBAR;
 use crate::REMOVE_TITLEBARS;
+use crate::STACK_BY_CATEGORY;
 
 #[derive(Debug, Clone, Serialize, Getters, CopyGetters, MutGetters, Setters, JsonSchema)]
 pub struct Workspace {
@@ -691,18 +692,22 @@ impl Workspace {
         }
 
         self.new_container_for_window(window);
-
-        let mut container = Container::default();
-        container.add_window(window);
         Ok(())
     }
 
     pub fn new_container_for_floating_window(&mut self) -> Result<()> {
-        let focused_idx = self.focused_container_idx();
         let window = self
             .remove_focused_floating_window()
             .ok_or_else(|| anyhow!("there is no floating window"))?;
 
+        if *STACK_BY_CATEGORY.lock() {
+            if let Some(container) = self.get_container_by_category(window) {
+                container.add_window(window);
+                return Ok(());
+            }
+        }
+
+        let focused_idx = self.focused_container_idx();
         let mut container = Container::default();
         container.add_window(window);
         self.containers_mut().insert(focused_idx, container);
@@ -711,7 +716,25 @@ impl Workspace {
         Ok(())
     }
 
+    pub fn get_container_by_category(&mut self, window: Window) -> Option<&mut Container> {
+        if let Some(category) = window.category() {
+            for container in self.containers_mut() {
+                if container.categories().iter().any(|s| s.eq(&category)) {
+                    return Option::from(container);
+                }
+            }
+        }
+        None
+    }
+
     pub fn new_container_for_window(&mut self, window: Window) {
+        if *STACK_BY_CATEGORY.lock() {
+            if let Some(container) = self.get_container_by_category(window) {
+                container.add_window(window);
+                return;
+            }
+        }
+
         let next_idx = if self.containers().is_empty() {
             0
         } else {

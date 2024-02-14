@@ -91,6 +91,7 @@ impl From<IdWithIdentifierAndComment> for IdWithIdentifier {
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 pub struct ApplicationConfiguration {
     pub name: String,
+    pub category: Option<String>,
     pub identifier: IdWithIdentifier,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub options: Option<Vec<ApplicationOptions>>,

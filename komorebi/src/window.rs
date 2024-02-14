@@ -1,4 +1,5 @@
 use crate::com::SetCloak;
+use crate::static_config::applications_configuration::SETTINGS_BY_APP;
 use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::fmt::Display;
@@ -126,6 +127,15 @@ impl Serialize for Window {
 impl Window {
     pub const fn hwnd(self) -> HWND {
         HWND(self.hwnd)
+    }
+
+    pub fn category(&self) -> Option<String> {
+        if let Some(config) = SETTINGS_BY_APP.lock().get_by_window(self) {
+            if let Some(category) = config.category() {
+                return Option::from(category.to_string());
+            }
+        }
+        None
     }
 
     pub fn center(&mut self, work_area: &Rect, invisible_borders: &Rect) -> Result<()> {

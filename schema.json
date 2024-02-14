@@ -44,6 +44,11 @@
         "null"
       ]
     },
+    "auto_stack_by_category": {
+      "description": "Auto stack windows with the same category in the workspace (default: false)",
+      "type": "boolean",
+      "default": false
+    },
     "app_specific_configuration_path": {
       "description": "Path to applications.yaml from komorebi-application-specific-configurations (default: None)",
       "type": [
