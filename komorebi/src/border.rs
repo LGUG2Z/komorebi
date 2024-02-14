@@ -17,8 +17,8 @@ use crate::WindowsApi;
 use crate::BORDER_HWND;
 use crate::BORDER_OFFSET;
 use crate::BORDER_RECT;
+use crate::BORDER_WIDTH;
 use crate::TRANSPARENCY_COLOUR;
-use crate::WINDOWS_11;
 
 #[derive(Debug, Clone, Copy)]
 pub struct Border {
@@ -75,10 +75,6 @@ impl Border {
 
         BORDER_HWND.store(hwnd.0, Ordering::SeqCst);
 
-        if *WINDOWS_11 {
-            WindowsApi::round_corners(hwnd.0)?;
-        }
-
         Ok(())
     }
 
@@ -111,6 +107,13 @@ impl Border {
                 rect.right += border_offset.right;
                 rect.bottom += border_offset.bottom;
             }
+
+            let border_width = BORDER_WIDTH.load(Ordering::SeqCst);
+
+            rect.left -= border_width;
+            rect.top -= border_width;
+            rect.right += border_width * 2;
+            rect.bottom += border_width * 2;
 
             *BORDER_RECT.lock() = rect;
 

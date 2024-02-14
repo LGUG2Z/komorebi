@@ -129,8 +129,7 @@ use windows::Win32::UI::WindowsAndMessaging::WS_DISABLED;
 use windows::Win32::UI::WindowsAndMessaging::WS_EX_LAYERED;
 use windows::Win32::UI::WindowsAndMessaging::WS_EX_NOACTIVATE;
 use windows::Win32::UI::WindowsAndMessaging::WS_EX_TOOLWINDOW;
-use windows::Win32::UI::WindowsAndMessaging::WS_MAXIMIZEBOX;
-use windows::Win32::UI::WindowsAndMessaging::WS_MINIMIZEBOX;
+use windows::Win32::UI::WindowsAndMessaging::WS_EX_TOPMOST;
 use windows::Win32::UI::WindowsAndMessaging::WS_POPUP;
 use windows::Win32::UI::WindowsAndMessaging::WS_SYSMENU;
 
@@ -858,10 +857,10 @@ impl WindowsApi {
     pub fn create_border_window(name: PCWSTR, instance: HMODULE) -> Result<isize> {
         unsafe {
             let hwnd = CreateWindowExW(
-                WS_EX_TOOLWINDOW | WS_EX_LAYERED,
+                WS_EX_TOOLWINDOW | WS_EX_LAYERED | WS_EX_TOPMOST | WS_EX_NOACTIVATE,
                 name,
                 name,
-                WS_POPUP | WS_SYSMENU | WS_MAXIMIZEBOX | WS_MINIMIZEBOX,
+                WS_POPUP | WS_SYSMENU,
                 CW_USEDEFAULT,
                 CW_USEDEFAULT,
                 CW_USEDEFAULT,
