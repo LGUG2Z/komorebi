@@ -1267,9 +1267,7 @@ fn main() -> Result<()> {
             std::fs::write(config_dir.join("whkdrc"), whkdrc)?;
 
             println!("Example ~/komorebi.json, ~/.config/whkdrc and latest ~/applications.yaml files downloaded");
-            println!(
-                "You can now run komorebic start -c \"$Env:USERPROFILE\\komorebi.json\" --whkd"
-            );
+            println!("You can now run komorebic start --whkd");
         }
         SubCommand::EnableAutostart(args) => {
             let mut current_exe = std::env::current_exe().expect("unable to get exec path");
