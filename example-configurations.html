@@ -723,8 +723,6 @@
       
         
       
-        
-      
     
     
     <li class="md-nav__item md-nav__item--nested">
@@ -944,26 +942,6 @@
   
   <span class="md-ellipsis">
     Dynamically Layout Switching
-  </span>
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="common-workflows/autohotkey.html" class="md-nav__link">
-        
-  
-  <span class="md-ellipsis">
-    AutoHotKey
   </span>
   
 
@@ -4172,11 +4150,10 @@ the example files have been downloaded. For most new users this will be in the
 five preconfigured workspaces on the primary monitor each with a different
 layout.</p>
 <pre><code class="language-json">{
-  &quot;$schema&quot;: &quot;https://raw.githubusercontent.com/LGUG2Z/komorebi/master/schema.json&quot;,
+  &quot;$schema&quot;: &quot;https://raw.githubusercontent.com/LGUG2Z/komorebi/v0.1.20/schema.json&quot;,
   &quot;app_specific_configuration_path&quot;: &quot;$Env:USERPROFILE/applications.yaml&quot;,
   &quot;window_hiding_behaviour&quot;: &quot;Cloak&quot;,
   &quot;cross_monitor_move_behaviour&quot;: &quot;Insert&quot;,
-  &quot;alt_focus_hack&quot;: true,
   &quot;default_workspace_padding&quot;: 20,
   &quot;default_container_padding&quot;: 20,
   &quot;active_window_border&quot;: false,
@@ -4292,7 +4269,7 @@ bindings for <code>komorebic</code> commands instead.</p>
 
 # Reload whkd configuration
 # alt + o                 : taskkill /f /im whkd.exe &amp;&amp; start /b whkd # if shell is cmd
-alt + o                 : taskkill /f /im whkd.exe &amp;&amp; Start-Process whkd -WindowStyle hidden # if shell is pwsh / powershell
+alt + o                 : taskkill /f /im whkd.exe; Start-Process whkd -WindowStyle hidden # if shell is pwsh / powershell
 alt + shift + o         : komorebic reload-configuration
 
 # App shortcuts - these require shell to be pwsh / powershell
