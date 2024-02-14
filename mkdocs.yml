@@ -61,7 +61,7 @@ nav:
     - common-workflows/mouse-follows-focus.md
     - common-workflows/custom-layouts.md
     - common-workflows/dynamic-layout-switching.md
-    - common-workflows/autohotkey.md
+#    - common-workflows/autohotkey.md
   - Configuration reference: https://komorebi.lgug2z.com/schema
   - CLI reference:
     - cli/quickstart.md

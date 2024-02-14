@@ -19,12 +19,12 @@ hotkey bindings.
 
 ```powershell
 # save the latest generated komorebic library to ~/komorebic.lib.ahk
-iwr https://raw.githubusercontent.com/LGUG2Z/komorebi/v0.1.19/komorebic.lib.ahk -OutFile $Env:USERPROFILE\komorebic.lib.ahk
+iwr https://raw.githubusercontent.com/LGUG2Z/komorebi/v0.1.20/komorebic.lib.ahk -OutFile $Env:USERPROFILE\komorebic.lib.ahk
 
 # save the latest generated app-specific config tweaks and fixes to ~/komorebi.generated.ahk
-iwr https://raw.githubusercontent.com/LGUG2Z/komorebi/v0.1.19/komorebi.generated.ahk -OutFile $Env:USERPROFILE\komorebi.generated.ahk
+iwr https://raw.githubusercontent.com/LGUG2Z/komorebi/v0.1.20/komorebi.generated.ahk -OutFile $Env:USERPROFILE\komorebi.generated.ahk
 
 # save the sample komorebi configuration file to ~/komorebi.ahk
-iwr https://raw.githubusercontent.com/LGUG2Z/komorebi/v0.1.19/komorebi.sample.ahk -OutFile $Env:USERPROFILE\komorebi.ahk
+iwr https://raw.githubusercontent.com/LGUG2Z/komorebi/v0.1.20/komorebi.sample.ahk -OutFile $Env:USERPROFILE\komorebi.ahk
 ```
 
