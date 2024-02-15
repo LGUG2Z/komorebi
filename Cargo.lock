@@ -124,9 +124,9 @@ checksum = "ed570934406eb16438a4e976b1b4500774099c13b8cb96eec99f620f05090ddf"
 
 [[package]]
 name = "bumpalo"
-version = "3.14.0"
+version = "3.15.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7f30e7476521f6f8af1a1c4c0b8cc94f0bee37d91763d0ca2665f299b6cd8aec"
+checksum = "d32a994c2b3ca201d9b263612a374263f05e7adde37c4707f693dcd375076d1f"
 
 [[package]]
 name = "bytes"
@@ -788,7 +788,7 @@ dependencies = [
 
 [[package]]
 name = "komorebi"
-version = "0.1.20"
+version = "0.1.21-dev.0"
 dependencies = [
  "bitflags 2.4.2",
  "clap",
@@ -828,7 +828,7 @@ dependencies = [
 
 [[package]]
 name = "komorebi-core"
-version = "0.1.20"
+version = "0.1.21-dev.0"
 dependencies = [
  "clap",
  "color-eyre",
@@ -844,7 +844,7 @@ dependencies = [
 
 [[package]]
 name = "komorebic"
-version = "0.1.20"
+version = "0.1.21-dev.0"
 dependencies = [
  "clap",
  "color-eyre",
@@ -871,7 +871,7 @@ dependencies = [
 
 [[package]]
 name = "komorebic-no-console"
-version = "0.1.20"
+version = "0.1.21-dev.0"
 
 [[package]]
 name = "lazy_static"
