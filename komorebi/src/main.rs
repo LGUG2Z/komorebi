@@ -482,8 +482,8 @@ fn main() -> Result<()> {
     if matched_procs.len() > 1 {
         let mut len = matched_procs.len();
         for proc in matched_procs {
-            if let Some(root) = proc.root() {
-                if root.ends_with("shims") {
+            if let Some(executable_path) = proc.exe() {
+                if executable_path.to_string_lossy().contains("shims") {
                     len -= 1;
                 }
             }
