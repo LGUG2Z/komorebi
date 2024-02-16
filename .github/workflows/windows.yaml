@@ -87,8 +87,10 @@ jobs:
           path: |
             target/${{ matrix.target }}/release/komorebi.exe
             target/${{ matrix.target }}/release/komorebic.exe
+            target/${{ matrix.target }}/release/komorebic-no-console.exe
             target/${{ matrix.target }}/release/komorebi.pdb
             target/${{ matrix.target }}/release/komorebic.pdb
+            target/${{ matrix.target }}/release/komorebic-no-console.pdb
             target/wix/komorebi-*.msi
           retention-days: 7
 

@@ -1,6 +1,6 @@
 [package]
 name = "komorebi"
-version = "0.1.19"
+version = "0.1.21"
 authors = ["Jade Iqbal <jadeiqbal@fastmail.com>"]
 description = "A tiling window manager for Windows"
 categories = ["tiling-window-manager", "windows"]

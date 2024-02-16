@@ -14,6 +14,7 @@ use std::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering;
 use std::time::Duration;
 
+use clap::CommandFactory;
 use clap::Parser;
 use clap::ValueEnum;
 use color_eyre::eyre::anyhow;
@@ -783,6 +784,8 @@ struct Opts {
 
 #[derive(Parser, AhkLibrary)]
 enum SubCommand {
+    #[clap(hide = true)]
+    Docgen,
     /// Gather example configurations for a new-user quickstart
     Quickstart,
     /// Start komorebi.exe as a background process
@@ -1223,6 +1226,22 @@ fn main() -> Result<()> {
     let opts: Opts = Opts::parse();
 
     match opts.subcmd {
+        SubCommand::Docgen => {
+            let mut cli = Opts::command();
+            let subcommands = cli.get_subcommands_mut();
+            std::fs::create_dir_all("docs/cli")?;
+
+            for cmd in subcommands {
+                let name = cmd.get_name().to_string();
+                if name != "docgen" {
+                    let help_text = cmd.render_long_help().to_string();
+                    let outpath = format!("docs/cli/{name}.md");
+                    let markdown = format!("# {name}\n\n```\n{help_text}\n```");
+                    std::fs::write(outpath, markdown)?;
+                    println!("    - cli/{name}.md");
+                }
+            }
+        }
         SubCommand::Quickstart => {
             let version = env!("CARGO_PKG_VERSION");
 
@@ -1248,9 +1267,7 @@ fn main() -> Result<()> {
             std::fs::write(config_dir.join("whkdrc"), whkdrc)?;
 
             println!("Example ~/komorebi.json, ~/.config/whkdrc and latest ~/applications.yaml files downloaded");
-            println!(
-                "You can now run komorebic start -c \"$Env:USERPROFILE\\komorebi.json\" --whkd"
-            );
+            println!("You can now run komorebic start --whkd");
         }
         SubCommand::EnableAutostart(args) => {
             let mut current_exe = std::env::current_exe().expect("unable to get exec path");
