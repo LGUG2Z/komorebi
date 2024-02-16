@@ -264,7 +264,7 @@ impl WindowsApi {
         }
         .ok()
         {
-            Ok(_) => {}
+            Ok(()) => {}
             Err(error) => {
                 tracing::error!("enum_display_devices: {}", error);
                 return Err(error.into());

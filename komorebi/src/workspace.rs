@@ -31,6 +31,7 @@ use crate::INITIAL_CONFIGURATION_LOADED;
 use crate::NO_TITLEBAR;
 use crate::REMOVE_TITLEBARS;
 
+#[allow(clippy::struct_field_names)]
 #[derive(Debug, Clone, Serialize, Getters, CopyGetters, MutGetters, Setters, JsonSchema)]
 pub struct Workspace {
     #[getset(get = "pub", set = "pub")]

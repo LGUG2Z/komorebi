@@ -20,6 +20,7 @@ use clap::ValueEnum;
 use color_eyre::eyre::anyhow;
 use color_eyre::eyre::bail;
 use color_eyre::Result;
+use dirs::data_local_dir;
 use fs_tail::TailedFile;
 use heck::ToKebabCase;
 use komorebi_core::resolve_home_path;
@@ -1247,7 +1248,10 @@ fn main() -> Result<()> {
 
             let home_dir = dirs::home_dir().expect("could not find home dir");
             let config_dir = home_dir.join(".config");
+            let local_appdata_dir = data_local_dir().expect("could not find localdata dir");
+            let data_dir = local_appdata_dir.join("komorebi");
             std::fs::create_dir_all(&config_dir)?;
+            std::fs::create_dir_all(data_dir)?;
 
             let komorebi_json = reqwest::blocking::get(
                 format!("https://raw.githubusercontent.com/LGUG2Z/komorebi/v{version}/komorebi.example.json")
@@ -1438,7 +1442,7 @@ fn main() -> Result<()> {
             let color_log = std::env::temp_dir().join("komorebi.log");
             let file = TailedFile::new(File::open(color_log)?);
             let locked = file.lock();
-            #[allow(clippy::significant_drop_in_scrutinee)]
+            #[allow(clippy::significant_drop_in_scrutinee, clippy::lines_filter_map_ok)]
             for line in locked.lines().flatten() {
                 println!("{line}");
             }
@@ -1735,7 +1739,7 @@ fn main() -> Result<()> {
             let exec = if let Ok(output) = Command::new("where.exe").arg("komorebi.ps1").output() {
                 let stdout = String::from_utf8(output.stdout)?;
                 match stdout.trim() {
-                    stdout if stdout.is_empty() => None,
+                    "" => None,
                     // It's possible that a komorebi.ps1 config will be in %USERPROFILE% - ignore this
                     stdout if !stdout.contains("scoop") => None,
                     stdout => {

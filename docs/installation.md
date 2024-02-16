@@ -44,15 +44,6 @@ running the following command in an Administrator Terminal before installing
 Set-ItemProperty 'HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem' -Name 'LongPathsEnabled' -Value 1
 ```
 
-## Local data directory
-
-If you are installing `komorebi` for the first time on a new machine, create a
-dedicated folder for `komorebi` in `$Env:LOCALAPPDATA`.
-
-```powershell
-mkdir "$Env:LOCALAPPDATA\komorebi" -ea 0
-```
-
 ## Scoop
 
 Make sure you have installed [`scoop`](https://scoop.sh) and verified that
