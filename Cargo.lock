@@ -157,9 +157,9 @@ checksum = "baf1de4339761588bc0619e3cbc0120ee582ebb74b53b4efbf79117bd2da40fd"
 
 [[package]]
 name = "clap"
-version = "4.5.0"
+version = "4.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "80c21025abd42669a92efc996ef13cfb2c5c627858421ea58d5c3b331a6c134f"
+checksum = "c918d541ef2913577a0f9566e9ce27cb35b6df072075769e0b26cb5a554520da"
 dependencies = [
  "clap_builder",
  "clap_derive",
@@ -167,9 +167,9 @@ dependencies = [
 
 [[package]]
 name = "clap_builder"
-version = "4.5.0"
+version = "4.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "458bf1f341769dfcf849846f65dffdf9146daa56bcd2a47cb4e1de9915567c99"
+checksum = "9f3e7391dad68afb0c2ede1bf619f579a3dc9c2ec67f089baa397123a2f3d1eb"
 dependencies = [
  "anstream",
  "anstyle",
@@ -788,7 +788,7 @@ dependencies = [
 
 [[package]]
 name = "komorebi"
-version = "0.1.21"
+version = "0.1.22-dev.0"
 dependencies = [
  "bitflags 2.4.2",
  "clap",
@@ -828,7 +828,7 @@ dependencies = [
 
 [[package]]
 name = "komorebi-core"
-version = "0.1.21"
+version = "0.1.22-dev.0"
 dependencies = [
  "clap",
  "color-eyre",
@@ -844,7 +844,7 @@ dependencies = [
 
 [[package]]
 name = "komorebic"
-version = "0.1.21"
+version = "0.1.22-dev.0"
 dependencies = [
  "clap",
  "color-eyre",
@@ -871,7 +871,7 @@ dependencies = [
 
 [[package]]
 name = "komorebic-no-console"
-version = "0.1.21"
+version = "0.1.22-dev.0"
 
 [[package]]
 name = "lazy_static"
