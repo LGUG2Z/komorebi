@@ -319,6 +319,16 @@ pub fn resolve_home_path<P: AsRef<Path>>(path: P) -> Result<PathBuf> {
                 resolved = true;
             }
 
+            std::path::Component::Normal(c) if (c == "$Env:KOMOREBI_CONFIG_HOME") && !resolved => {
+                let komorebi_config_home =
+                    PathBuf::from(std::env::var("KOMOREBI_CONFIG_HOME").ok().ok_or_else(|| {
+                        anyhow!("there is no KOMOREBI_CONFIG_HOME environment variable set")
+                    })?);
+
+                resolved_path.extend(komorebi_config_home.components());
+                resolved = true;
+            }
+
             _ => resolved_path.push(c),
         }
     }

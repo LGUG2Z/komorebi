@@ -46,3 +46,15 @@ trace $RUST_LOG="trace":
 deadlock $RUST_LOG="trace":
     just install-komorebic
     cargo +stable run --bin komorebi --locked --features deadlock_detection
+
+docgen:
+    komorebic docgen
+    Get-ChildItem -Path "docs/cli" -Recurse -File | ForEach-Object { (Get-Content $_.FullName) -replace 'Usage: ', 'Usage: komorebic.exe ' | Set-Content $_.FullName }
+
+exampledocs:
+    cp whkdrc.sample docs/whkdrc.sample
+    cp komorebi.example.json docs/komorebi.example.json
+
+schemagen:
+    komorebic static-config-schema > schema.json
+    generate-schema-doc .\schema.json --config template_name=js_offline --config minify=false .\static-config-docs\
