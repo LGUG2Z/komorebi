@@ -20,6 +20,7 @@ pub enum DefaultLayout {
     VerticalStack,
     HorizontalStack,
     UltrawideVerticalStack,
+    Grid,
     // NOTE: If any new layout is added, please make sure to register the same in `DefaultLayout::cycle`
 }
 
@@ -135,7 +136,8 @@ impl DefaultLayout {
             Self::Rows => Self::VerticalStack,
             Self::VerticalStack => Self::HorizontalStack,
             Self::HorizontalStack => Self::UltrawideVerticalStack,
-            Self::UltrawideVerticalStack => Self::BSP,
+            Self::UltrawideVerticalStack => Self::Grid,
+            Self::Grid => Self::BSP,
         }
     }
 
@@ -147,7 +149,8 @@ impl DefaultLayout {
             Self::HorizontalStack => Self::VerticalStack,
             Self::VerticalStack => Self::Rows,
             Self::Rows => Self::Columns,
-            Self::Columns => Self::BSP,
+            Self::Columns => Self::Grid,
+            Self::Grid => Self::BSP
         }
     }
 }
