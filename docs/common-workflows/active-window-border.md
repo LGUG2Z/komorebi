@@ -34,7 +34,5 @@ windows managed by `komorebi`.
 This feature is not considered stable and you may encounter visual artifacts
 from time to time.
 
-<!-- TODO: Record a new video -->
-
 [![Watch the tutorial
-video](https://img.youtube.com/vi/ywiAvoMV_gE/hqdefault.jpg)](https://www.youtube.com/watch?v=ywiAvoMV_gE)
+video](https://img.youtube.com/vi/7_9D22t7KK4/hqdefault.jpg)](https://www.youtube.com/watch?v=7_9D22t7KK4)

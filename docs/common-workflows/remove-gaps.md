@@ -12,6 +12,6 @@ file.
 }
 ```
 
-<!-- TODO: Record a new video -->
+A restart of `komorebi` is required after changing these settings.
 
-[![Watch the tutorial video](https://img.youtube.com/vi/eGr07mymgWE/hqdefault.jpg)](https://www.youtube.com/watch?v=eGr07mymgWE)
+[![Watch the tutorial video](https://img.youtube.com/vi/6QYLao953XE/hqdefault.jpg)](https://www.youtube.com/watch?v=6QYLao953XE)

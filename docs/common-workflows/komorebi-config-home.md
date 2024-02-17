@@ -25,3 +25,6 @@ If you already have configuration files that you wish to keep, move them to the
 
 The next time you run `komorebic start`, any files created by or loaded by
 _komorebi_ will be placed or expected to exist in this folder.
+
+[![Watch the tutorial
+video](https://img.youtube.com/vi/C_KWUqQ6kko/hqdefault.jpg)](https://www.youtube.com/watch?v=C_KWUqQ6kko)
