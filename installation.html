@@ -548,6 +548,13 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#local-data-directory" class="md-nav__link">
+    Local data directory
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#scoop" class="md-nav__link">
     Scoop
   </a>
@@ -3922,6 +3929,13 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#local-data-directory" class="md-nav__link">
+    Local data directory
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#scoop" class="md-nav__link">
     Scoop
   </a>
@@ -4033,6 +4047,11 @@ it from <a href="https://github.com/LGUG2Z/komorebi">source</a> if you would pre
 running the following command in an Administrator Terminal before installing
 <code>komorebi</code>.</p>
 <pre><code class="language-powershell">Set-ItemProperty 'HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem' -Name 'LongPathsEnabled' -Value 1
+</code></pre>
+<h2 id="local-data-directory">Local data directory</h2>
+<p>If you are installing <code>komorebi</code> for the first time on a new machine, create a
+dedicated folder for <code>komorebi</code> in <code>$Env:LOCALAPPDATA</code>.</p>
+<pre><code class="language-powershell">mkdir &quot;$Env:LOCALAPPDATA\komorebi&quot; -ea 0
 </code></pre>
 <h2 id="scoop">Scoop</h2>
 <p>Make sure you have installed <a href="https://scoop.sh"><code>scoop</code></a> and verified that
