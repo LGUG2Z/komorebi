@@ -9,6 +9,7 @@ use getset::Getters;
 use getset::MutGetters;
 use getset::Setters;
 use schemars::JsonSchema;
+use serde::Deserialize;
 use serde::Serialize;
 
 use komorebi_core::Axis;
@@ -32,7 +33,9 @@ use crate::NO_TITLEBAR;
 use crate::REMOVE_TITLEBARS;
 
 #[allow(clippy::struct_field_names)]
-#[derive(Debug, Clone, Serialize, Getters, CopyGetters, MutGetters, Setters, JsonSchema)]
+#[derive(
+    Debug, Clone, Serialize, Deserialize, Getters, CopyGetters, MutGetters, Setters, JsonSchema,
+)]
 pub struct Workspace {
     #[getset(get = "pub", set = "pub")]
     name: Option<String>,

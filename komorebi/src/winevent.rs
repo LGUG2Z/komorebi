@@ -1,6 +1,7 @@
 #![allow(clippy::use_self)]
 
 use schemars::JsonSchema;
+use serde::Deserialize;
 use serde::Serialize;
 use strum::Display;
 use windows::Win32::UI::WindowsAndMessaging::EVENT_AIA_END;
@@ -88,7 +89,7 @@ use windows::Win32::UI::WindowsAndMessaging::EVENT_UIA_EVENTID_START;
 use windows::Win32::UI::WindowsAndMessaging::EVENT_UIA_PROPID_END;
 use windows::Win32::UI::WindowsAndMessaging::EVENT_UIA_PROPID_START;
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug, Serialize, Display, JsonSchema)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Serialize, Deserialize, Display, JsonSchema)]
 #[repr(u32)]
 #[allow(dead_code)]
 pub enum WinEvent {
