@@ -37,10 +37,9 @@ pub struct Monitor {
     #[getset(get_copy = "pub", set = "pub")]
     work_area_offset: Option<Rect>,
     workspaces: Ring<Workspace>,
-    #[serde(skip_serializing)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     #[getset(get_copy = "pub", set = "pub")]
     last_focused_workspace: Option<usize>,
-    #[serde(skip_serializing)]
     #[getset(get_mut = "pub")]
     workspace_names: HashMap<usize, String>,
 }

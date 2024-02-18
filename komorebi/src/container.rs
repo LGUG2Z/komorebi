@@ -11,7 +11,6 @@ use crate::window::Window;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Getters, JsonSchema)]
 pub struct Container {
-    #[serde(skip_serializing)]
     #[getset(get = "pub")]
     id: String,
     windows: Ring<Window>,
