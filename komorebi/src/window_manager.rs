@@ -16,6 +16,7 @@ use hotwatch::notify::DebouncedEvent;
 use hotwatch::Hotwatch;
 use parking_lot::Mutex;
 use schemars::JsonSchema;
+use serde::Deserialize;
 use serde::Serialize;
 use uds_windows::UnixListener;
 
@@ -84,7 +85,7 @@ pub struct WindowManager {
 }
 
 #[allow(clippy::struct_excessive_bools)]
-#[derive(Debug, Serialize, JsonSchema)]
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
 pub struct State {
     pub monitors: Ring<Monitor>,
     pub is_paused: bool,

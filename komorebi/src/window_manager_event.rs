@@ -2,6 +2,7 @@ use std::fmt::Display;
 use std::fmt::Formatter;
 
 use schemars::JsonSchema;
+use serde::Deserialize;
 use serde::Serialize;
 
 use crate::window::should_act;
@@ -10,7 +11,7 @@ use crate::winevent::WinEvent;
 use crate::OBJECT_NAME_CHANGE_ON_LAUNCH;
 use crate::REGEX_IDENTIFIERS;
 
-#[derive(Debug, Copy, Clone, Serialize, JsonSchema)]
+#[derive(Debug, Copy, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(tag = "type", content = "content")]
 pub enum WindowManagerEvent {
     Destroy(WinEvent, Window),

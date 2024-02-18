@@ -1,9 +1,10 @@
 use std::collections::VecDeque;
 
 use schemars::JsonSchema;
+use serde::Deserialize;
 use serde::Serialize;
 
-#[derive(Debug, Clone, Serialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct Ring<T> {
     elements: VecDeque<T>,
     focused: usize,

@@ -9,6 +9,7 @@ use getset::Getters;
 use getset::MutGetters;
 use getset::Setters;
 use schemars::JsonSchema;
+use serde::Deserialize;
 use serde::Serialize;
 
 use komorebi_core::Axis;
@@ -32,19 +33,21 @@ use crate::NO_TITLEBAR;
 use crate::REMOVE_TITLEBARS;
 
 #[allow(clippy::struct_field_names)]
-#[derive(Debug, Clone, Serialize, Getters, CopyGetters, MutGetters, Setters, JsonSchema)]
+#[derive(
+    Debug, Clone, Serialize, Deserialize, Getters, CopyGetters, MutGetters, Setters, JsonSchema,
+)]
 pub struct Workspace {
     #[getset(get = "pub", set = "pub")]
     name: Option<String>,
     containers: Ring<Container>,
     #[getset(get = "pub", get_mut = "pub", set = "pub")]
     monocle_container: Option<Container>,
-    #[serde(skip_serializing)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     #[getset(get_copy = "pub", set = "pub")]
     monocle_container_restore_idx: Option<usize>,
     #[getset(get = "pub", get_mut = "pub", set = "pub")]
     maximized_window: Option<Window>,
-    #[serde(skip_serializing)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     #[getset(get_copy = "pub", set = "pub")]
     maximized_window_restore_idx: Option<usize>,
     #[getset(get = "pub", get_mut = "pub")]
@@ -59,7 +62,6 @@ pub struct Workspace {
     workspace_padding: Option<i32>,
     #[getset(get_copy = "pub", set = "pub")]
     container_padding: Option<i32>,
-    #[serde(skip_serializing)]
     #[getset(get = "pub", set = "pub")]
     latest_layout: Vec<Rect>,
     #[getset(get = "pub", get_mut = "pub", set = "pub")]
