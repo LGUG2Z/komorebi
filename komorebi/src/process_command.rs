@@ -59,6 +59,7 @@ use crate::BORDER_OFFSET;
 use crate::BORDER_OVERFLOW_IDENTIFIERS;
 use crate::BORDER_WIDTH;
 use crate::CUSTOM_FFM;
+use crate::DATA_DIR;
 use crate::DISPLAY_INDEX_PREFERENCES;
 use crate::FLOAT_IDENTIFIERS;
 use crate::HIDING_BEHAVIOUR;
@@ -70,6 +71,7 @@ use crate::NO_TITLEBAR;
 use crate::OBJECT_NAME_CHANGE_ON_LAUNCH;
 use crate::REMOVE_TITLEBARS;
 use crate::SUBSCRIPTION_PIPES;
+use crate::SUBSCRIPTION_SOCKETS;
 use crate::TCP_CONNECTIONS;
 use crate::TRAY_AND_MULTI_WINDOW_IDENTIFIERS;
 use crate::WORKSPACE_RULES;
@@ -1155,7 +1157,16 @@ impl WindowManager {
                 workspace.set_resize_dimensions(resize);
                 self.update_focused_workspace(false)?;
             }
-            SocketMessage::AddSubscriber(ref subscriber) => {
+            SocketMessage::AddSubscriberSocket(ref socket) => {
+                let mut sockets = SUBSCRIPTION_SOCKETS.lock();
+                let socket_path = DATA_DIR.join(socket);
+                sockets.insert(socket.clone(), socket_path);
+            }
+            SocketMessage::RemoveSubscriberSocket(ref socket) => {
+                let mut sockets = SUBSCRIPTION_SOCKETS.lock();
+                sockets.remove(socket);
+            }
+            SocketMessage::AddSubscriberPipe(ref subscriber) => {
                 let mut pipes = SUBSCRIPTION_PIPES.lock();
                 let pipe_path = format!(r"\\.\pipe\{subscriber}");
                 let pipe = connect(&pipe_path).map_err(|_| {
@@ -1164,7 +1175,7 @@ impl WindowManager {
 
                 pipes.insert(subscriber.clone(), pipe);
             }
-            SocketMessage::RemoveSubscriber(ref subscriber) => {
+            SocketMessage::RemoveSubscriberPipe(ref subscriber) => {
                 let mut pipes = SUBSCRIPTION_PIPES.lock();
                 pipes.remove(subscriber);
             }

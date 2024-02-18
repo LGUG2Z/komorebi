@@ -721,13 +721,25 @@ struct LoadCustomLayout {
 }
 
 #[derive(Parser, AhkFunction)]
-struct Subscribe {
+struct SubscribeSocket {
+    /// Name of the socket to send event notifications to
+    socket: String,
+}
+
+#[derive(Parser, AhkFunction)]
+struct UnsubscribeSocket {
+    /// Name of the socket to stop sending event notifications to
+    socket: String,
+}
+
+#[derive(Parser, AhkFunction)]
+struct SubscribePipe {
     /// Name of the pipe to send event notifications to (without "\\.\pipe\" prepended)
     named_pipe: String,
 }
 
 #[derive(Parser, AhkFunction)]
-struct Unsubscribe {
+struct UnsubscribePipe {
     /// Name of the pipe to stop sending event notifications to (without "\\.\pipe\" prepended)
     named_pipe: String,
 }
@@ -802,12 +814,20 @@ enum SubCommand {
     /// Query the current window manager state
     #[clap(arg_required_else_help = true)]
     Query(Query),
-    /// Subscribe to komorebi events
+    /// Subscribe to komorebi events using a Unix Domain Socket
     #[clap(arg_required_else_help = true)]
-    Subscribe(Subscribe),
+    SubscribeSocket(SubscribeSocket),
     /// Unsubscribe from komorebi events
     #[clap(arg_required_else_help = true)]
-    Unsubscribe(Unsubscribe),
+    UnsubscribeSocket(UnsubscribeSocket),
+    /// Subscribe to komorebi events using a Named Pipe
+    #[clap(arg_required_else_help = true)]
+    #[clap(alias = "subscribe")]
+    SubscribePipe(SubscribePipe),
+    /// Unsubscribe from komorebi events
+    #[clap(arg_required_else_help = true)]
+    #[clap(alias = "unsubscribe")]
+    UnsubscribePipe(UnsubscribePipe),
     /// Tail komorebi.exe's process logs (cancel with Ctrl-C)
     Log,
     /// Quicksave the current resize layout dimensions
@@ -1175,7 +1195,7 @@ pub fn send_message(bytes: &[u8]) -> Result<()> {
 pub fn send_query(bytes: &[u8]) -> Result<String> {
     let socket = DATA_DIR.join("komorebi.sock");
 
-    let mut stream = UnixStream::connect(&socket)?;
+    let mut stream = UnixStream::connect(socket)?;
     stream.write_all(bytes)?;
     stream.shutdown(Shutdown::Write)?;
 
@@ -1188,9 +1208,9 @@ pub fn send_query(bytes: &[u8]) -> Result<String> {
 
 // print_query is a helper that queries komorebi and prints the response.
 // panics on error.
-pub fn print_query(bytes: &[u8]) {
+fn print_query(bytes: &[u8]) {
     match send_query(bytes) {
-        Ok(response) => println!("{}", response),
+        Ok(response) => println!("{response}"),
         Err(error) => panic!("{}", error),
     }
 }
@@ -2088,11 +2108,17 @@ Stop-Process -Name:whkd -ErrorAction SilentlyContinue
         SubCommand::LoadResize(arg) => {
             send_message(&SocketMessage::Load(resolve_home_path(arg.path)?).as_bytes()?)?;
         }
-        SubCommand::Subscribe(arg) => {
-            send_message(&SocketMessage::AddSubscriber(arg.named_pipe).as_bytes()?)?;
+        SubCommand::SubscribeSocket(arg) => {
+            send_message(&SocketMessage::AddSubscriberSocket(arg.socket).as_bytes()?)?;
         }
-        SubCommand::Unsubscribe(arg) => {
-            send_message(&SocketMessage::RemoveSubscriber(arg.named_pipe).as_bytes()?)?;
+        SubCommand::UnsubscribeSocket(arg) => {
+            send_message(&SocketMessage::RemoveSubscriberSocket(arg.socket).as_bytes()?)?;
+        }
+        SubCommand::SubscribePipe(arg) => {
+            send_message(&SocketMessage::AddSubscriberPipe(arg.named_pipe).as_bytes()?)?;
+        }
+        SubCommand::UnsubscribePipe(arg) => {
+            send_message(&SocketMessage::RemoveSubscriberPipe(arg.named_pipe).as_bytes()?)?;
         }
         SubCommand::ToggleMouseFollowsFocus => {
             send_message(&SocketMessage::ToggleMouseFollowsFocus.as_bytes()?)?;

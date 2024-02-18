@@ -38,6 +38,7 @@ use sysinfo::Process;
 use tracing_appender::non_blocking::WorkerGuard;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::EnvFilter;
+use uds_windows::UnixStream;
 use which::which;
 use winreg::enums::HKEY_CURRENT_USER;
 use winreg::RegKey;
@@ -171,6 +172,8 @@ lazy_static! {
         "vcxsrv.exe".to_string(),
     ]));
     static ref SUBSCRIPTION_PIPES: Arc<Mutex<HashMap<String, File>>> =
+        Arc::new(Mutex::new(HashMap::new()));
+    static ref SUBSCRIPTION_SOCKETS: Arc<Mutex<HashMap<String, PathBuf>>> =
         Arc::new(Mutex::new(HashMap::new()));
     static ref TCP_CONNECTIONS: Arc<Mutex<HashMap<String, TcpStream>>> =
         Arc::new(Mutex::new(HashMap::new()));
@@ -388,12 +391,32 @@ pub struct Notification {
 }
 
 pub fn notify_subscribers(notification: &str) -> Result<()> {
-    let mut stale_subscriptions = vec![];
-    let mut subscriptions = SUBSCRIPTION_PIPES.lock();
-    for (subscriber, pipe) in &mut *subscriptions {
+    let mut stale_sockets = vec![];
+    let mut sockets = SUBSCRIPTION_SOCKETS.lock();
+
+    for (socket, path) in &mut *sockets {
+        match UnixStream::connect(path) {
+            Ok(mut stream) => {
+                tracing::debug!("pushed notification to subscriber: {socket}");
+                stream.write_all(notification.as_bytes())?;
+            }
+            Err(_) => {
+                stale_sockets.push(socket.clone());
+            }
+        }
+    }
+
+    for socket in stale_sockets {
+        tracing::warn!("removing stale subscription: {socket}");
+        sockets.remove(&socket);
+    }
+
+    let mut stale_pipes = vec![];
+    let mut pipes = SUBSCRIPTION_PIPES.lock();
+    for (subscriber, pipe) in &mut *pipes {
         match writeln!(pipe, "{notification}") {
             Ok(()) => {
-                tracing::debug!("pushed notification to subscriber: {}", subscriber);
+                tracing::debug!("pushed notification to subscriber: {subscriber}");
             }
             Err(error) => {
                 // ERROR_FILE_NOT_FOUND
@@ -406,16 +429,15 @@ pub fn notify_subscribers(notification: &str) -> Result<()> {
 
                 // Remove the subscription; the process will have to subscribe again
                 if let Some(2 | 232) = error.raw_os_error() {
-                    let subscriber_cl = subscriber.clone();
-                    stale_subscriptions.push(subscriber_cl);
+                    stale_pipes.push(subscriber.clone());
                 }
             }
         }
     }
 
-    for subscriber in stale_subscriptions {
+    for subscriber in stale_pipes {
         tracing::warn!("removing stale subscription: {}", subscriber);
-        subscriptions.remove(&subscriber);
+        pipes.remove(&subscriber);
     }
 
     Ok(())
