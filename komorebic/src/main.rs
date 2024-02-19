@@ -114,7 +114,7 @@ trait AhkFunction {
 struct ConfigurationError {
     message: String,
     #[source_code]
-    src: NamedSource,
+    src: NamedSource<String>,
     #[label("This bit here")]
     bad_bit: SourceSpan,
 }
@@ -1367,7 +1367,7 @@ fn main() -> Result<()> {
                     let diagnostic = ConfigurationError {
                         message: msgs[0].to_string(),
                         src: NamedSource::new("komorebi.json", config_source.clone()),
-                        bad_bit: SourceSpan::new(offset, 2.into()),
+                        bad_bit: SourceSpan::new(offset, 2),
                     };
 
                     println!("{:?}", Report::new(diagnostic));
