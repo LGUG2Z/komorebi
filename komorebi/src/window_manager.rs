@@ -1487,6 +1487,16 @@ impl WindowManager {
         tracing::info!("promoting container");
 
         let workspace = self.focused_workspace_mut()?;
+
+        // NoOp on Grid layout
+        match workspace.layout() {
+            Layout::Default(layout) => match layout {
+                DefaultLayout::Grid => return Ok(()),
+                _ => (),
+            },
+            _ => (),
+        }
+
         workspace.promote_container()?;
         self.update_focused_workspace(self.mouse_follows_focus)
     }
@@ -1499,7 +1509,11 @@ impl WindowManager {
 
         let workspace = self.focused_workspace_mut()?;
         let target_idx = match workspace.layout() {
-            Layout::Default(_) => 0,
+            Layout::Default(layout) => match layout {
+                // NoOp on Grid layout
+                DefaultLayout::Grid => return Ok(()),
+                _ => 0,
+            },
             Layout::Custom(custom) => custom
                 .first_container_idx(custom.primary_idx().map_or(0, |primary_idx| primary_idx)),
         };
