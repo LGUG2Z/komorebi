@@ -4,6 +4,7 @@ resolver = "2"
 members = [
     "derive-ahk",
     "komorebi",
+    "komorebi-client",
     "komorebi-core",
     "komorebic",
     "komorebic-no-console",

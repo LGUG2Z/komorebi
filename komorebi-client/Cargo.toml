@@ -1,0 +1,12 @@
+[package]
+name = "komorebi-client"
+version = "0.1.22-dev.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+komorebi = { path = "../komorebi" }
+komorebi-core = { path = "../komorebi-core" }
+uds_windows = "1"
+serde_json = "1"

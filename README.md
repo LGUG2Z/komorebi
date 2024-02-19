@@ -129,7 +129,7 @@ if you want to test them together or create a build with everything integrated.
 
 ## Refactors to the codebase must have prior approval
 
-`komorebi` is mature codebase with an internal consistency and structure that has developed organically over close to
+`komorebi` is a mature codebase with an internal consistency and structure that has developed organically over close to
 half a decade.
 
 There are [countless hours of live coding videos](https://youtube.com/@LGUG2Z) demonstrating work on this project and
@@ -138,8 +138,8 @@ distinguishing monitors by manufacturer hardware identifiers and video card port
 
 Refactors to the structure of the codebase are not taken lightly and require prior discussion and approval.
 
-Please do not start refactoring the codebase with the expectation of having your changes integrated into the codebase
-until you receive an explicit approval or a request to do so.
+Please do not start refactoring the codebase with the expectation of having your changes integrated until you receive an
+explicit approval or a request to do so.
 
 Similarly, when implementing features and bug fixes, please stick to the structure of the codebase as much as possible
 and do not take this as an opportunity to do some "refactoring along the way".
