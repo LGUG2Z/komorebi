@@ -21,7 +21,7 @@ dunce = { workspace = true }
 fs-tail = "0.1"
 heck = "0.4"
 lazy_static = "1"
-miette = { version = "5", features = ["fancy"] }
+miette = { version = "7", features = ["fancy"] }
 paste = "1"
 powershell_script = "1.0"
 reqwest = { version = "0.11", features = ["blocking"] }
