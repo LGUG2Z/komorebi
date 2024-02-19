@@ -227,7 +227,9 @@ impl TryFrom<u32> for WinEvent {
             EVENT_OBJECT_SELECTIONWITHIN => Ok(Self::ObjectSelectionWithin),
             EVENT_OBJECT_SHOW => Ok(Self::ObjectShow),
             EVENT_OBJECT_STATECHANGE => Ok(Self::ObjectStateChange),
-            EVENT_OBJECT_TEXTEDIT_CONVERSIONTARGETCHANGED => Ok(Self::ObjectTextEditConversionTargetChanged),
+            EVENT_OBJECT_TEXTEDIT_CONVERSIONTARGETCHANGED => {
+                Ok(Self::ObjectTextEditConversionTargetChanged)
+            }
             EVENT_OBJECT_TEXTSELECTIONCHANGED => Ok(Self::ObjectTextSelectionChanged),
             EVENT_OBJECT_UNCLOAKED => Ok(Self::ObjectUncloaked),
             EVENT_OBJECT_VALUECHANGE => Ok(Self::ObjectValueChange),
