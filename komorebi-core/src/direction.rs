@@ -19,10 +19,10 @@ pub trait Direction {
         idx: usize,
         count: usize,
     ) -> bool;
-    fn up_index(&self, op_direction: OperationDirection, idx: usize, count: usize) -> usize;
-    fn down_index(&self, op_direction: OperationDirection, idx: usize, count: usize) -> usize;
-    fn left_index(&self, op_direction: OperationDirection, idx: usize, count: usize) -> usize;
-    fn right_index(&self, op_direction: OperationDirection, idx: usize, count: usize) -> usize;
+    fn up_index(&self, op_direction: Option<OperationDirection>, idx: usize, count: Option<usize>) -> usize;
+    fn down_index(&self, op_direction: Option<OperationDirection>, idx: usize, count: Option<usize>) -> usize;
+    fn left_index(&self, op_direction: Option<OperationDirection>, idx: usize, count: Option<usize>) -> usize;
+    fn right_index(&self, op_direction: Option<OperationDirection>, idx: usize, count: Option<usize>) -> usize;
 }
 
 impl Direction for DefaultLayout {
@@ -35,28 +35,28 @@ impl Direction for DefaultLayout {
         match op_direction {
             OperationDirection::Left => {
                 if self.is_valid_direction(op_direction, idx, count) {
-                    Option::from(self.left_index(op_direction, idx, count))
+                    Option::from(self.left_index(Some(op_direction), idx, Some(count)))
                 } else {
                     None
                 }
             }
             OperationDirection::Right => {
                 if self.is_valid_direction(op_direction, idx, count) {
-                    Option::from(self.right_index(op_direction, idx, count))
+                    Option::from(self.right_index(Some(op_direction), idx, Some(count)))
                 } else {
                     None
                 }
             }
             OperationDirection::Up => {
                 if self.is_valid_direction(op_direction, idx, count) {
-                    Option::from(self.up_index(op_direction, idx, count))
+                    Option::from(self.up_index(Some(op_direction), idx, Some(count)))
                 } else {
                     None
                 }
             }
             OperationDirection::Down => {
                 if self.is_valid_direction(op_direction, idx, count) {
-                    Option::from(self.down_index(op_direction, idx, count))
+                    Option::from(self.down_index(Some(op_direction), idx, Some(count)))
                 } else {
                     None
                 }
@@ -112,7 +112,7 @@ impl Direction for DefaultLayout {
         }
     }
 
-    fn up_index(&self, op_direction: OperationDirection, idx: usize, count: usize) -> usize {
+    fn up_index(&self, op_direction: Option<OperationDirection>, idx: usize, count: Option<usize>) -> usize {
         match self {
             Self::BSP => {
                 if idx % 2 == 0 {
@@ -128,7 +128,7 @@ impl Direction for DefaultLayout {
         }
     }
 
-    fn down_index(&self, op_direction: OperationDirection, idx: usize, count: usize) -> usize {
+    fn down_index(&self, op_direction: Option<OperationDirection>, idx: usize, count: Option<usize>) -> usize {
         match self {
             Self::BSP | Self::Rows | Self::VerticalStack | Self::UltrawideVerticalStack => idx + 1,
             Self::Columns => unreachable!(),
@@ -137,7 +137,7 @@ impl Direction for DefaultLayout {
         }
     }
 
-    fn left_index(&self, op_direction: OperationDirection, idx: usize, count: usize) -> usize {
+    fn left_index(&self, op_direction: Option<OperationDirection>, idx: usize, count: Option<usize>) -> usize {
         match self {
             Self::BSP => {
                 if idx % 2 == 0 {
@@ -158,7 +158,7 @@ impl Direction for DefaultLayout {
         }
     }
 
-    fn right_index(&self, op_direction: OperationDirection, idx: usize, count: usize) -> usize {
+    fn right_index(&self, op_direction: Option<OperationDirection>, idx: usize, count: Option<usize>) -> usize {
         match self {
             Self::BSP | Self::Columns | Self::HorizontalStack => idx + 1,
             Self::Rows => unreachable!(),
@@ -248,7 +248,10 @@ fn is_grid_edge(op_direction: OperationDirection, idx: usize, count: usize) -> b
     }
 }
 
-fn grid_neighbor(op_direction: OperationDirection, idx: usize, count: usize) -> usize {
+fn grid_neighbor(op_direction: Option<OperationDirection>, idx: usize, count: Option<usize>) -> usize {
+    let op_direction = if let Some(dir) = op_direction { dir } else { return 0; };
+    let count = if let Some(count) = count { count } else { return 0; };
+
     let item = get_grid_item(idx, count);
 
     match op_direction {
@@ -285,28 +288,28 @@ impl Direction for CustomLayout {
         match op_direction {
             OperationDirection::Left => {
                 if self.is_valid_direction(op_direction, idx, count) {
-                    Option::from(self.left_index(op_direction, idx, count))
+                    Option::from(self.left_index(None, idx, None))
                 } else {
                     None
                 }
             }
             OperationDirection::Right => {
                 if self.is_valid_direction(op_direction, idx, count) {
-                    Option::from(self.right_index(op_direction, idx, count))
+                    Option::from(self.right_index(None, idx, None))
                 } else {
                     None
                 }
             }
             OperationDirection::Up => {
                 if self.is_valid_direction(op_direction, idx, count) {
-                    Option::from(self.up_index(op_direction, idx, count))
+                    Option::from(self.up_index(None, idx, None))
                 } else {
                     None
                 }
             }
             OperationDirection::Down => {
                 if self.is_valid_direction(op_direction, idx, count) {
-                    Option::from(self.down_index(op_direction, idx, count))
+                    Option::from(self.down_index(None, idx, None))
                 } else {
                     None
                 }
@@ -360,15 +363,15 @@ impl Direction for CustomLayout {
         }
     }
 
-    fn up_index(&self, _op_direction: OperationDirection, idx: usize, _count: usize) -> usize {
+    fn up_index(&self, _op_direction: Option<OperationDirection>, idx: usize, _count: Option<usize>) -> usize {
         idx - 1
     }
 
-    fn down_index(&self, _op_direction: OperationDirection, idx: usize, _count: usize) -> usize {
+    fn down_index(&self, _op_direction: Option<OperationDirection>, idx: usize, _count: Option<usize>) -> usize {
         idx + 1
     }
 
-    fn left_index(&self, _op_direction: OperationDirection, idx: usize, _count: usize) -> usize {
+    fn left_index(&self, _op_direction: Option<OperationDirection>, idx: usize, _count: Option<usize>) -> usize {
         let column_idx = self.column_for_container_idx(idx);
         if column_idx - 1 == 0 {
             0
@@ -377,7 +380,7 @@ impl Direction for CustomLayout {
         }
     }
 
-    fn right_index(&self, _op_direction: OperationDirection, idx: usize, _count: usize) -> usize {
+    fn right_index(&self, _op_direction: Option<OperationDirection>, idx: usize, _count: Option<usize>) -> usize {
         let column_idx = self.column_for_container_idx(idx);
         self.first_container_idx(column_idx + 1)
     }
