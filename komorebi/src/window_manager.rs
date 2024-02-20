@@ -1484,18 +1484,14 @@ impl WindowManager {
     pub fn promote_container_to_front(&mut self) -> Result<()> {
         self.handle_unmanaged_window_behaviour()?;
 
-        tracing::info!("promoting container");
-
         let workspace = self.focused_workspace_mut()?;
 
-        // NoOp on Grid layout
-        match workspace.layout() {
-            Layout::Default(layout) => match layout {
-                DefaultLayout::Grid => return Ok(()),
-                _ => (),
-            },
-            _ => (),
+        if matches!(workspace.layout(), Layout::Default(DefaultLayout::Grid)) {
+            tracing::debug!("ignoring promote command for grid layout");
+            return Ok(())
         }
+
+        tracing::info!("promoting container");
 
         workspace.promote_container()?;
         self.update_focused_workspace(self.mouse_follows_focus)
@@ -1505,15 +1501,17 @@ impl WindowManager {
     pub fn promote_focus_to_front(&mut self) -> Result<()> {
         self.handle_unmanaged_window_behaviour()?;
 
+        let workspace = self.focused_workspace_mut()?;
+
+        if matches!(workspace.layout(), Layout::Default(DefaultLayout::Grid)) {
+            tracing::info!("ignoring promote focus command for grid layout");
+            return Ok(())
+        }
+
         tracing::info!("promoting focus");
 
-        let workspace = self.focused_workspace_mut()?;
         let target_idx = match workspace.layout() {
-            Layout::Default(layout) => match layout {
-                // NoOp on Grid layout
-                DefaultLayout::Grid => return Ok(()),
-                _ => 0,
-            },
+            Layout::Default(_) => 0,
             Layout::Custom(custom) => custom
                 .first_container_idx(custom.primary_idx().map_or(0, |primary_idx| primary_idx)),
         };
@@ -1658,18 +1656,14 @@ impl WindowManager {
 
     #[tracing::instrument(skip(self))]
     pub fn flip_layout(&mut self, layout_flip: Axis) -> Result<()> {
-        tracing::info!("flipping layout");
-
         let workspace = self.focused_workspace_mut()?;
 
-        // don't flip on Grid layout
-        match workspace.layout() {
-            Layout::Default(layout) => match layout {
-                DefaultLayout::Grid => return Ok(()),
-                _ => (),
-            },
-            _ => (),
+        if matches!(workspace.layout(), Layout::Default(DefaultLayout::Grid)) {
+            tracing::debug!("ignoring flip layout command for grid layout");
+            return Ok(())
         }
+
+        tracing::info!("flipping layout");
 
         #[allow(clippy::match_same_arms)]
         match workspace.layout_flip() {
