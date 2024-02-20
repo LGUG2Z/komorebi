@@ -1639,6 +1639,15 @@ impl WindowManager {
 
         let workspace = self.focused_workspace_mut()?;
 
+        // don't flip on Grid layout
+        match workspace.layout() {
+            Layout::Default(layout) => match layout {
+                DefaultLayout::Grid => return Ok(()),
+                _ => (),
+            },
+            _ => (),
+        }
+
         #[allow(clippy::match_same_arms)]
         match workspace.layout_flip() {
             None => {
