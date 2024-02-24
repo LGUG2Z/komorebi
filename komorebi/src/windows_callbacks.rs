@@ -239,9 +239,9 @@ pub extern "system" fn hidden_window(
         match message {
             WM_DISPLAYCHANGE => {
                 let event_type = WindowManagerEvent::DisplayChange(Window { hwnd: window.0 });
-            winevent_listener::event_tx()
-                .send(event_type)
-                .expect("could not send message on winevent_listener::event_tx");
+                winevent_listener::event_tx()
+                    .send(event_type)
+                    .expect("could not send message on winevent_listener::event_tx");
 
                 LRESULT(0)
             }
@@ -252,9 +252,9 @@ pub extern "system" fn hidden_window(
                     || wparam.0 as u32 == SPI_ICONVERTICALSPACING.0
                 {
                     let event_type = WindowManagerEvent::DisplayChange(Window { hwnd: window.0 });
-            winevent_listener::event_tx()
-                .send(event_type)
-                .expect("could not send message on winevent_listener::event_tx");
+                    winevent_listener::event_tx()
+                        .send(event_type)
+                        .expect("could not send message on winevent_listener::event_tx");
                 }
                 LRESULT(0)
             }
@@ -263,9 +263,9 @@ pub extern "system" fn hidden_window(
                 #[allow(clippy::cast_possible_truncation)]
                 if wparam.0 as u32 == DBT_DEVNODES_CHANGED {
                     let event_type = WindowManagerEvent::DisplayChange(Window { hwnd: window.0 });
-            winevent_listener::event_tx()
-                .send(event_type)
-                .expect("could not send message on winevent_listener::event_tx");
+                    winevent_listener::event_tx()
+                        .send(event_type)
+                        .expect("could not send message on winevent_listener::event_tx");
                 }
                 LRESULT(0)
             }
