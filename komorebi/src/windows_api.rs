@@ -103,6 +103,7 @@ use windows::Win32::UI::WindowsAndMessaging::GWL_EXSTYLE;
 use windows::Win32::UI::WindowsAndMessaging::GWL_STYLE;
 use windows::Win32::UI::WindowsAndMessaging::GW_HWNDNEXT;
 use windows::Win32::UI::WindowsAndMessaging::HWND_BOTTOM;
+use windows::Win32::UI::WindowsAndMessaging::HWND_NOTOPMOST;
 use windows::Win32::UI::WindowsAndMessaging::HWND_TOP;
 use windows::Win32::UI::WindowsAndMessaging::LWA_ALPHA;
 use windows::Win32::UI::WindowsAndMessaging::LWA_COLORKEY;
@@ -380,13 +381,19 @@ impl WindowsApi {
             SetWindowPosition::NO_ACTIVATE
         };
 
-        // Always raise the border window to the top, but not overlapping
-        // topmost windows, so that when it is a single-pixel inset border, it
-        // always draws atop the window (i.e.  support an offset of -1 that
-        // draws over the Windows 11 default translucent single pixel border,
-        // while reamining visible in cases such as the EPIC Games launcher that
-        // uses an opaque custom border).
-        let position = HWND_TOP;
+        // TODO(raggi): This leaves the window behind the active window, which
+        // can result e.g. single pixel window borders being invisible in the
+        // case of opaque window borders (e.g. EPIC Games Launcher). Ideally
+        // we'd be able to pass a parent window to place ourselves just in front
+        // of, however the SetWindowPos API explicitly ignores that parameter
+        // unless the window being positioned is being activated - and we don't
+        // want to activate the border window here. We can hopefully find a
+        // better workaround in the future.
+        // The trade-off chosen prevents the border window from sitting over the
+        // top of other pop-up dialogs such as a file picker dialog from
+        // Firefox. When adjusting this in the future, it's important to check
+        // those dialog cases.
+        let position = HWND_NOTOPMOST;
         Self::set_window_pos(hwnd, layout, position, flags.bits())
     }
 
