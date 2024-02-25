@@ -103,7 +103,6 @@ use windows::Win32::UI::WindowsAndMessaging::GWL_EXSTYLE;
 use windows::Win32::UI::WindowsAndMessaging::GWL_STYLE;
 use windows::Win32::UI::WindowsAndMessaging::GW_HWNDNEXT;
 use windows::Win32::UI::WindowsAndMessaging::HWND_BOTTOM;
-use windows::Win32::UI::WindowsAndMessaging::HWND_NOTOPMOST;
 use windows::Win32::UI::WindowsAndMessaging::HWND_TOPMOST;
 use windows::Win32::UI::WindowsAndMessaging::LWA_ALPHA;
 use windows::Win32::UI::WindowsAndMessaging::LWA_COLORKEY;
@@ -342,14 +341,25 @@ impl WindowsApi {
         unsafe { MonitorFromPoint(point, MONITOR_DEFAULTTONEAREST) }.0
     }
 
+    /// position window resizes the target window to the given layout, adjusting
+    /// the layout to account for any window shadow borders (the window painted
+    /// region will match layout on completion).
     pub fn position_window(hwnd: HWND, layout: &Rect, top: bool) -> Result<()> {
         let flags = SetWindowPosition::NO_ACTIVATE
             | SetWindowPosition::NO_SEND_CHANGING
             | SetWindowPosition::NO_COPY_BITS
             | SetWindowPosition::FRAME_CHANGED;
 
+        let shadow_rect = Self::shadow_rect(hwnd)?;
+        let rect = Rect{
+            left: layout.left + shadow_rect.left,
+            top: layout.top + shadow_rect.top,
+            right: layout.right + shadow_rect.right,
+            bottom: layout.bottom + shadow_rect.bottom,
+        };
+
         let position = if top { HWND_TOPMOST } else { HWND_BOTTOM };
-        Self::set_window_pos(hwnd, layout, position, flags.bits())
+        Self::set_window_pos(hwnd, &rect, position, flags.bits())
     }
 
     pub fn bring_window_to_top(hwnd: HWND) -> Result<()> {
@@ -370,7 +380,12 @@ impl WindowsApi {
             SetWindowPosition::NO_ACTIVATE
         };
 
-        let position = HWND_NOTOPMOST;
+        // Always raise the border window to topmost, so that when it is a
+        // single-pixel inset border, it always draws atop the window (i.e.
+        // support an offset of -1 that draws over the Windows 11 default
+        // translucent single pixel border, while reamining visible in cases
+        // such as the EPIC Games launcher that uses an opaque custom border).
+        let position = HWND_TOPMOST;
         Self::set_window_pos(hwnd, layout, position, flags.bits())
     }
 
@@ -381,7 +396,8 @@ impl WindowsApi {
         Self::set_window_pos(hwnd, &Rect::default(), position, flags.bits())
     }
 
-    pub fn set_window_pos(hwnd: HWND, layout: &Rect, position: HWND, flags: u32) -> Result<()> {
+    /// set_window_pos calls SetWindowPos without any accounting for Window decorations.
+    fn set_window_pos(hwnd: HWND, layout: &Rect, position: HWND, flags: u32) -> Result<()> {
         unsafe {
             SetWindowPos(
                 hwnd,
@@ -482,6 +498,25 @@ impl WindowsApi {
             unsafe { GetWindowRect(hwnd, &mut rect) }.process()?;
             Ok(Rect::from(rect))
         }
+    }
+
+    /// shadow_rect computes the offset of the shadow position of the window to
+    /// the window painted region. The four values in the returned Rect can be
+    /// added to a position rect to compute a size for set_window_pos that will
+    /// fill the target area, ignoring shadows.
+    fn shadow_rect(hwnd: HWND) -> Result<Rect> {
+        let window_rect = Self::window_rect(hwnd)?;
+
+        let mut srect = Default::default();
+        unsafe { GetWindowRect(hwnd, &mut srect) }.process()?;
+        let shadow_rect = Rect::from(srect);
+
+        Ok(Rect {
+            left: shadow_rect.left - window_rect.left,
+            top: shadow_rect.top - window_rect.top,
+            right: shadow_rect.right - window_rect.right,
+            bottom: shadow_rect.bottom - window_rect.bottom,
+        })
     }
 
     fn set_cursor_pos(x: i32, y: i32) -> Result<()> {
