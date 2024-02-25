@@ -1249,17 +1249,7 @@ impl WindowManager {
                 WindowsApi::invalidate_border_rect()?;
             }
             SocketMessage::ActiveWindowBorderOffset(offset) => {
-                let mut current_border_offset = BORDER_OFFSET.lock();
-
-                let new_border_offset = Rect {
-                    left: offset,
-                    top: offset,
-                    right: offset * 2,
-                    bottom: offset * 2,
-                };
-
-                *current_border_offset = Option::from(new_border_offset);
-
+                BORDER_OFFSET.store(offset, Ordering::SeqCst);
                 WindowsApi::invalidate_border_rect()?;
             }
             SocketMessage::AltFocusHack(enable) => {

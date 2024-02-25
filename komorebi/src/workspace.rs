@@ -26,6 +26,8 @@ use crate::static_config::WorkspaceConfig;
 use crate::window::Window;
 use crate::window::WindowDetails;
 use crate::windows_api::WindowsApi;
+use crate::BORDER_OFFSET;
+use crate::BORDER_WIDTH;
 use crate::DEFAULT_CONTAINER_PADDING;
 use crate::DEFAULT_WORKSPACE_PADDING;
 use crate::INITIAL_CONFIGURATION_LOADED;
@@ -224,7 +226,7 @@ impl Workspace {
             },
         );
 
-        adjusted_work_area.add_padding(self.workspace_padding());
+        adjusted_work_area.add_padding(self.workspace_padding().unwrap_or_default());
 
         self.enforce_resize_constraints();
 
@@ -251,7 +253,13 @@ impl Workspace {
         if *self.tile() {
             if let Some(container) = self.monocle_container_mut() {
                 if let Some(window) = container.focused_window_mut() {
-                    adjusted_work_area.add_padding(container_padding);
+                    adjusted_work_area.add_padding(container_padding.unwrap_or_default());
+                    {
+                        let border_offset = BORDER_OFFSET.load(Ordering::SeqCst);
+                        adjusted_work_area.add_padding(border_offset);
+                        let width = BORDER_WIDTH.load(Ordering::SeqCst);
+                        adjusted_work_area.add_padding(width);
+                    }
                     window.set_position(&adjusted_work_area, true)?;
                 };
             } else if let Some(window) = self.maximized_window_mut() {
@@ -287,7 +295,16 @@ impl Workspace {
                             WindowsApi::restore_window(window.hwnd());
                         }
 
-                        window.set_position(layout, false)?;
+                        let mut rect = *layout;
+                        {
+                            let border_offset = BORDER_OFFSET.load(Ordering::SeqCst);
+                            rect.add_padding(border_offset);
+
+                            let width = BORDER_WIDTH.load(Ordering::SeqCst);
+                            rect.add_padding(width);
+                        }
+
+                        window.set_position(&rect, false)?;
                     }
                 }
 

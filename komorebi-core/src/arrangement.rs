@@ -189,7 +189,7 @@ impl Arrangement for DefaultLayout {
 
         dimensions
             .iter_mut()
-            .for_each(|l| l.add_padding(container_padding));
+            .for_each(|l| l.add_padding(container_padding.unwrap_or_default()));
 
         dimensions
     }
@@ -312,7 +312,7 @@ impl Arrangement for CustomLayout {
 
         dimensions
             .iter_mut()
-            .for_each(|l| l.add_padding(container_padding));
+            .for_each(|l| l.add_padding(container_padding.unwrap_or_default()));
 
         dimensions
     }

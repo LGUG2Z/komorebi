@@ -99,21 +99,10 @@ impl Border {
             }
 
             let mut rect = WindowsApi::window_rect(window.hwnd())?;
-
-            let border_offset = BORDER_OFFSET.lock();
-            if let Some(border_offset) = *border_offset {
-                rect.left -= border_offset.left;
-                rect.top -= border_offset.top;
-                rect.right += border_offset.right;
-                rect.bottom += border_offset.bottom;
-            }
+            rect.add_padding(-BORDER_OFFSET.load(Ordering::SeqCst));
 
             let border_width = BORDER_WIDTH.load(Ordering::SeqCst);
-
-            rect.left -= border_width;
-            rect.top -= border_width;
-            rect.right += border_width * 2;
-            rect.bottom += border_width * 2;
+            rect.add_margin(border_width);
 
             *BORDER_RECT.lock() = rect;
 
