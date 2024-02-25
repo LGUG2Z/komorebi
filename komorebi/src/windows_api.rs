@@ -18,6 +18,7 @@ use windows::Win32::Foundation::HMODULE;
 use windows::Win32::Foundation::HWND;
 use windows::Win32::Foundation::LPARAM;
 use windows::Win32::Foundation::POINT;
+use windows::Win32::Foundation::RECT;
 use windows::Win32::Foundation::WPARAM;
 use windows::Win32::Graphics::Dwm::DwmGetWindowAttribute;
 use windows::Win32::Graphics::Dwm::DwmSetWindowAttribute;
@@ -34,6 +35,7 @@ use windows::Win32::Graphics::Dwm::DWM_CLOAKED_SHELL;
 use windows::Win32::Graphics::Gdi::CreateSolidBrush;
 use windows::Win32::Graphics::Gdi::EnumDisplayMonitors;
 use windows::Win32::Graphics::Gdi::GetMonitorInfoW;
+use windows::Win32::Graphics::Gdi::InvalidateRect;
 use windows::Win32::Graphics::Gdi::MonitorFromPoint;
 use windows::Win32::Graphics::Gdi::MonitorFromWindow;
 use windows::Win32::Graphics::Gdi::Rectangle;
@@ -84,6 +86,7 @@ use windows::Win32::UI::WindowsAndMessaging::IsIconic;
 use windows::Win32::UI::WindowsAndMessaging::IsWindow;
 use windows::Win32::UI::WindowsAndMessaging::IsWindowVisible;
 use windows::Win32::UI::WindowsAndMessaging::IsZoomed;
+use windows::Win32::UI::WindowsAndMessaging::MoveWindow;
 use windows::Win32::UI::WindowsAndMessaging::PostMessageW;
 use windows::Win32::UI::WindowsAndMessaging::RealGetWindowClassW;
 use windows::Win32::UI::WindowsAndMessaging::RegisterClassW;
@@ -427,6 +430,17 @@ impl WindowsApi {
             )
         }
         .process()
+    }
+
+    pub fn move_window(hwnd: HWND, layout: &Rect, repaint: bool) -> Result<()> {
+        let shadow_rect = Self::shadow_rect(hwnd).unwrap_or_default();
+        let rect = Rect {
+            left: layout.left + shadow_rect.left,
+            top: layout.top + shadow_rect.top,
+            right: layout.right + shadow_rect.right,
+            bottom: layout.bottom + shadow_rect.bottom,
+        };
+        unsafe { MoveWindow(hwnd, rect.left, rect.top, rect.right, rect.bottom, repaint) }.process()
     }
 
     pub fn show_window(hwnd: HWND, command: SHOW_WINDOW_CMD) {
@@ -1021,6 +1035,11 @@ impl WindowsApi {
             )
         }
         .process()
+    }
+
+    pub fn invalidate_rect(hwnd: HWND, rect: Option<&Rect>, erase: bool) -> bool {
+        let rect = rect.map(|rect| &rect.rect() as *const RECT);
+        unsafe { InvalidateRect(hwnd, rect, erase) }.as_bool()
     }
 
     pub fn alt_is_pressed() -> bool {
