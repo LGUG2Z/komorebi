@@ -1181,15 +1181,9 @@ enum SubCommand {
 pub fn send_message(bytes: &[u8]) -> Result<()> {
     let socket = DATA_DIR.join("komorebi.sock");
 
-    let mut connected = false;
-    while !connected {
-        if let Ok(mut stream) = UnixStream::connect(&socket) {
-            connected = true;
-            stream.write_all(bytes)?;
-        }
-    }
-
-    Ok(())
+    let mut stream = UnixStream::connect(socket)?;
+    stream.write_all(bytes)?;
+    Ok(stream.shutdown(Shutdown::Write)?)
 }
 
 pub fn send_query(bytes: &[u8]) -> Result<String> {
