@@ -1,9 +1,9 @@
-# unsubscribe
+# unsubscribe-pipe
 
 ```
 Unsubscribe from komorebi events
 
-Usage: komorebic.exe unsubscribe <NAMED_PIPE>
+Usage: komorebic.exe unsubscribe-pipe <NAMED_PIPE>
 
 Arguments:
   <NAMED_PIPE>

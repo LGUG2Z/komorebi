@@ -1,7 +1,7 @@
 # alt-focus-hack
 
 ```
-Enable or disable a hack simulating ALT key presses to ensure focus changes succeed
+DEPRECATED since v0.1.22
 
 Usage: komorebic.exe alt-focus-hack <BOOLEAN_STATE>
 

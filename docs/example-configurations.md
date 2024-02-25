@@ -16,6 +16,12 @@ the example files have been downloaded. For most new users this will be in the
 komorebic quickstart
 ```
 
+With the example configurations downloaded, you can now start `komorebi` and `whkd.
+
+```powershell
+komorebic start --whkd
+```
+
 ## komorebi.json
 
 The example window manager configuration sets some sane defaults and provides
@@ -139,6 +145,19 @@ If you have an ultrawide monitor, I recommend using this layout.
 +-----+-----------+-----+
 ```
 
+### Grid
+If you like the `grid` layout in [LeftWM](https://github.com/leftwm/leftwm-layouts) this is almost exactly the same!
+
+```
++-----+-----+   +---+---+---+   +---+---+---+   +---+---+---+
+|     |     |   |   |   |   |   |   |   |   |   |   |   |   |
+|     |     |   |   |   |   |   |   |   |   |   |   |   +---+
++-----+-----+   |   +---+---+   +---+---+---+   +---+---|   |
+|     |     |   |   |   |   |   |   |   |   |   |   |   +---+
+|     |     |   |   |   |   |   |   |   |   |   |   |   |   |
++-----+-----+   +---+---+---+   +---+---+---+   +---+---+---+
+  4 windows       5 windows       6 windows       7 windows
+```
 
 ## whkdrc
 

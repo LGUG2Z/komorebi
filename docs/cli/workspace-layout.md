@@ -13,7 +13,7 @@ Arguments:
           Workspace index on the specified monitor (zero-indexed)
 
   <VALUE>
-          [possible values: bsp, columns, rows, vertical-stack, horizontal-stack, ultrawide-vertical-stack]
+          [possible values: bsp, columns, rows, vertical-stack, horizontal-stack, ultrawide-vertical-stack, grid]
 
 Options:
   -h, --help

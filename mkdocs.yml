@@ -62,17 +62,23 @@ nav:
     - common-workflows/custom-layouts.md
     - common-workflows/dynamic-layout-switching.md
 #    - common-workflows/autohotkey.md
+  - Release notes:
+    - release/v0-1-22.md
   - Configuration reference: https://komorebi.lgug2z.com/schema
   - CLI reference:
     - cli/quickstart.md
     - cli/start.md
     - cli/stop.md
     - cli/check.md
+    - cli/configuration.md
+    - cli/whkdrc.md
     - cli/state.md
     - cli/visible-windows.md
     - cli/query.md
-    - cli/subscribe.md
-    - cli/unsubscribe.md
+    - cli/subscribe-socket.md
+    - cli/unsubscribe-socket.md
+    - cli/subscribe-pipe.md
+    - cli/unsubscribe-pipe.md
     - cli/log.md
     - cli/quick-save-resize.md
     - cli/quick-load-resize.md
@@ -160,7 +166,6 @@ nav:
     - cli/reload-configuration.md
     - cli/watch-configuration.md
     - cli/complete-configuration.md
-    - cli/alt-focus-hack.md
     - cli/window-hiding-behaviour.md
     - cli/cross-monitor-move-behaviour.md
     - cli/toggle-cross-monitor-move-behaviour.md

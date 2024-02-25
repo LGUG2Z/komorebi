@@ -1,7 +1,7 @@
 # check
 
 ```
-Output various important komorebi-related environment values
+Check komorebi configuration and related files for common errors
 
 Usage: komorebic.exe check
 
