@@ -23,6 +23,10 @@ use crate::window_manager::WindowManager;
 use crate::window_manager_event::WindowManagerEvent;
 use crate::windows_api::WindowsApi;
 use crate::workspace::Workspace;
+use crate::ANIMATION_DURATION;
+use crate::ANIMATION_ENABLED;
+use crate::ANIMATION_FPS;
+use crate::ANIMATION_STYLE;
 use crate::DATA_DIR;
 use crate::DEFAULT_CONTAINER_PADDING;
 use crate::DEFAULT_WORKSPACE_PADDING;
@@ -52,6 +56,7 @@ use komorebi_core::config_generation::IdWithIdentifier;
 use komorebi_core::config_generation::MatchingRule;
 use komorebi_core::config_generation::MatchingStrategy;
 use komorebi_core::resolve_home_path;
+use komorebi_core::AnimationStyle;
 use komorebi_core::ApplicationIdentifier;
 use komorebi_core::BorderStyle;
 use komorebi_core::DefaultLayout;
@@ -346,6 +351,21 @@ pub struct StaticConfig {
     /// Stackbar configuration options
     #[serde(skip_serializing_if = "Option::is_none")]
     pub stackbar: Option<StackbarConfig>,
+    /// Animations configuration options
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub animation: Option<AnimationsConfig>,
+}
+
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+pub struct AnimationsConfig {
+    /// Enable or disable animations (default: false)
+    enabled: bool,
+    /// Set the animation duration in ms (default: 250)
+    duration: Option<u64>,
+    /// Set the animation style (default: Linear)
+    style: Option<AnimationStyle>,
+    /// Set the animation FPS (default: 60)
+    fps: Option<u64>,
 }
 
 impl StaticConfig {
@@ -584,6 +604,7 @@ impl From<&WindowManager> for StaticConfig {
             monitor_index_preferences: Option::from(MONITOR_INDEX_PREFERENCES.lock().clone()),
             display_index_preferences: Option::from(DISPLAY_INDEX_PREFERENCES.lock().clone()),
             stackbar: None,
+            animation: None,
         }
     }
 }
@@ -612,6 +633,14 @@ impl StaticConfig {
 
         if let Some(width) = self.minimum_window_width {
             window::MINIMUM_WIDTH.store(width, Ordering::SeqCst);
+        }
+
+        if let Some(animations) = &self.animation {
+            ANIMATION_ENABLED.store(animations.enabled, Ordering::SeqCst);
+            ANIMATION_DURATION.store(animations.duration.unwrap_or(250), Ordering::SeqCst);
+            ANIMATION_FPS.store(animations.fps.unwrap_or(60), Ordering::SeqCst);
+            let mut animation_style = ANIMATION_STYLE.lock();
+            *animation_style = animations.style.unwrap_or(AnimationStyle::Linear);
         }
 
         if let Some(container) = self.default_container_padding {
