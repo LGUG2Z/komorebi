@@ -15,8 +15,10 @@ use lazy_static::lazy_static;
 use parking_lot::Mutex;
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
+use std::sync::atomic::AtomicBool;
 use std::sync::atomic::AtomicI32;
 use std::sync::atomic::AtomicU32;
+use std::sync::atomic::Ordering;
 use std::sync::Arc;
 use std::sync::OnceLock;
 use windows::Win32::Foundation::HWND;
@@ -28,6 +30,8 @@ pub static STACKBAR_TAB_HEIGHT: AtomicI32 = AtomicI32::new(40);
 pub static STACKBAR_TAB_WIDTH: AtomicI32 = AtomicI32::new(200);
 pub static STACKBAR_LABEL: AtomicCell<StackbarLabel> = AtomicCell::new(StackbarLabel::Process);
 pub static STACKBAR_MODE: AtomicCell<StackbarMode> = AtomicCell::new(StackbarMode::OnStack);
+
+pub static STACKBAR_TEMPORARILY_DISABLED: AtomicBool = AtomicBool::new(false);
 
 lazy_static! {
     pub static ref STACKBAR_STATE: Mutex<HashMap<String, Stackbar>> = Mutex::new(HashMap::new());
@@ -91,7 +95,9 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
         let mut state = wm.lock();
 
         // If stackbars are disabled
-        if matches!(STACKBAR_MODE.load(), StackbarMode::Never) {
+        if matches!(STACKBAR_MODE.load(), StackbarMode::Never)
+            || STACKBAR_TEMPORARILY_DISABLED.load(Ordering::SeqCst)
+        {
             for (_, stackbar) in stackbars.iter() {
                 stackbar.destroy()?;
             }

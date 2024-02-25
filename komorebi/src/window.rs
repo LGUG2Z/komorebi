@@ -1,9 +1,15 @@
+use crate::border_manager;
 use crate::com::SetCloak;
+use crate::stackbar_manager;
+use crate::ANIMATIONS_IN_PROGRESS;
+use crate::ANIMATION_DURATION;
+use crate::ANIMATION_ENABLED;
 use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::fmt::Display;
 use std::fmt::Formatter;
 use std::fmt::Write as _;
+use std::sync::atomic::Ordering;
 use std::time::Duration;
 
 use color_eyre::eyre;
@@ -24,6 +30,7 @@ use komorebi_core::ApplicationIdentifier;
 use komorebi_core::HidingBehaviour;
 use komorebi_core::Rect;
 
+use crate::animation::Animation;
 use crate::styles::ExtendedWindowStyle;
 use crate::styles::WindowStyle;
 use crate::transparency_manager;
@@ -42,17 +49,24 @@ use crate::WSL2_UI_PROCESSES;
 #[derive(Debug, Default, Clone, Copy, Deserialize, JsonSchema, PartialEq)]
 pub struct Window {
     pub hwnd: isize,
+    animation: Animation,
 }
 
 impl From<isize> for Window {
     fn from(value: isize) -> Self {
-        Self { hwnd: value }
+        Self {
+            hwnd: value,
+            animation: Animation::new(value),
+        }
     }
 }
 
 impl From<HWND> for Window {
     fn from(value: HWND) -> Self {
-        Self { hwnd: value.0 }
+        Self {
+            hwnd: value.0,
+            animation: Animation::new(value.0),
+        }
     }
 }
 
@@ -136,7 +150,7 @@ impl Window {
         HWND(self.hwnd)
     }
 
-    pub fn center(&self, work_area: &Rect) -> Result<()> {
+    pub fn center(&mut self, work_area: &Rect) -> Result<()> {
         let half_width = work_area.right / 2;
         let half_weight = work_area.bottom / 2;
 
@@ -151,13 +165,70 @@ impl Window {
         )
     }
 
+    pub fn animate_position(&self, layout: &Rect, top: bool) -> Result<()> {
+        let hwnd = self.hwnd();
+        let curr_rect = WindowsApi::window_rect(hwnd).unwrap();
+
+        if curr_rect.left == layout.left
+            && curr_rect.top == layout.top
+            && curr_rect.bottom == layout.bottom
+            && curr_rect.right == layout.right
+        {
+            WindowsApi::position_window(hwnd, layout, top)
+        } else {
+            let target_rect = *layout;
+            let duration = Duration::from_millis(ANIMATION_DURATION.load(Ordering::SeqCst));
+            let mut animation = self.animation;
+
+            border_manager::BORDER_TEMPORARILY_DISABLED.store(true, Ordering::SeqCst);
+            border_manager::send_notification();
+
+            stackbar_manager::STACKBAR_TEMPORARILY_DISABLED.store(true, Ordering::SeqCst);
+            stackbar_manager::send_notification();
+
+            std::thread::spawn(move || {
+                animation.animate(duration, |progress: f64| {
+                    let new_rect = Animation::lerp_rect(&curr_rect, &target_rect, progress);
+
+                    if progress < 1.0 {
+                        // using MoveWindow because it runs faster than SetWindowPos
+                        // so animation have more fps and feel smoother
+                        WindowsApi::move_window(hwnd, &new_rect, true)?;
+                        WindowsApi::invalidate_rect(hwnd, None, false);
+                    } else {
+                        WindowsApi::position_window(hwnd, &new_rect, top)?;
+
+                        if ANIMATIONS_IN_PROGRESS.load(Ordering::Acquire) == 0 {
+                            border_manager::BORDER_TEMPORARILY_DISABLED
+                                .store(false, Ordering::SeqCst);
+                            stackbar_manager::STACKBAR_TEMPORARILY_DISABLED
+                                .store(false, Ordering::SeqCst);
+
+                            border_manager::send_notification();
+                            stackbar_manager::send_notification();
+                            transparency_manager::send_notification();
+                        }
+                    }
+
+                    Ok(())
+                })
+            });
+
+            Ok(())
+        }
+    }
+
     pub fn set_position(&self, layout: &Rect, top: bool) -> Result<()> {
         if WindowsApi::window_rect(self.hwnd())?.eq(layout) {
             return Ok(());
         }
 
         let rect = *layout;
-        WindowsApi::position_window(self.hwnd(), &rect, top)
+        if ANIMATION_ENABLED.load(Ordering::SeqCst) {
+            self.animate_position(&rect, top)
+        } else {
+            WindowsApi::position_window(self.hwnd(), &rect, top)
+        }
     }
 
     pub fn is_maximized(self) -> bool {
