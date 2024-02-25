@@ -107,12 +107,12 @@
       }
     },
     "active_window_border_offset": {
-      "description": "Offset of the active window border (default: None)",
+      "description": "Offset of the active window border (default: -1)",
       "type": "integer",
       "format": "int32"
     },
     "active_window_border_width": {
-      "description": "Width of the active window border (default: 20)",
+      "description": "Width of the active window border (default: 8)",
       "type": "integer",
       "format": "int32"
     },
