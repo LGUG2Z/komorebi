@@ -229,7 +229,7 @@ pub extern "system" fn border_window(
                 // wrong size.  In the future we should read the DWM properties
                 // of windows and attempt to match appropriately.
                 if *WINDOWS_11 {
-                    RoundRect(hdc, 0, 0, border_rect.right, border_rect.bottom, 14, 14);
+                    RoundRect(hdc, 0, 0, border_rect.right, border_rect.bottom, 20, 20);
                 } else {
                     Rectangle(hdc, 0, 0, border_rect.right, border_rect.bottom);
                 }
