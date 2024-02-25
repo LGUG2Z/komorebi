@@ -26,13 +26,29 @@ impl From<RECT> for Rect {
     }
 }
 
+impl From<Rect> for RECT {
+    fn from(rect: Rect) -> Self {
+        Self {
+            left: rect.left,
+            top: rect.top,
+            right: rect.right,
+            bottom: rect.bottom,
+        }
+    }
+}
+
 impl Rect {
     /// decrease the size of self by the padding amount.
-    pub fn add_padding(&mut self, padding: i32) {
-        self.left += padding;
-        self.top += padding;
-        self.right -= padding * 2;
-        self.bottom -= padding * 2;
+    pub fn add_padding<T>(&mut self, padding: T)
+    where
+        T: Into<Option<i32>>,
+    {
+        if let Some(padding) = padding.into() {
+            self.left += padding;
+            self.top += padding;
+            self.right -= padding * 2;
+            self.bottom -= padding * 2;
+        }
     }
 
     /// increase the size of self by the margin amount.
@@ -41,6 +57,14 @@ impl Rect {
         self.top -= margin;
         self.right += margin * 2;
         self.bottom += margin * 2;
+    }
+
+    pub fn left_padding(&mut self, padding: i32) {
+        self.left += padding;
+    }
+
+    pub fn right_padding(&mut self, padding: i32) {
+        self.right -= padding;
     }
 
     #[must_use]

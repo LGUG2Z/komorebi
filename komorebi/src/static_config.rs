@@ -27,6 +27,12 @@ use crate::MANAGE_IDENTIFIERS;
 use crate::MONITOR_INDEX_PREFERENCES;
 use crate::OBJECT_NAME_CHANGE_ON_LAUNCH;
 use crate::REGEX_IDENTIFIERS;
+use crate::STACKBAR_FOCUSED_TEXT_COLOUR;
+use crate::STACKBAR_MODE;
+use crate::STACKBAR_TAB_BACKGROUND_COLOUR;
+use crate::STACKBAR_TAB_HEIGHT;
+use crate::STACKBAR_TAB_WIDTH;
+use crate::STACKBAR_UNFOCUSED_TEXT_COLOUR;
 use crate::TRAY_AND_MULTI_WINDOW_IDENTIFIERS;
 use crate::WORKSPACE_RULES;
 
@@ -293,6 +299,30 @@ pub struct StaticConfig {
     /// Set display index preferences
     #[serde(skip_serializing_if = "Option::is_none")]
     pub display_index_preferences: Option<HashMap<usize, String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub stackbar: Option<StackbarConfig>,
+}
+
+#[derive(Debug, Copy, Clone, Serialize, Deserialize, JsonSchema)]
+pub enum StackbarMode {
+    Always,
+    Never,
+    OnStack,
+}
+
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+pub struct TabsConfig {
+    width: Option<i32>,
+    focused_text: Option<Colour>,
+    unfocused_text: Option<Colour>,
+    background: Option<Colour>,
+}
+
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+pub struct StackbarConfig {
+    height: Option<i32>,
+    mode: Option<StackbarMode>,
+    tabs: Option<TabsConfig>,
 }
 
 impl From<&WindowManager> for StaticConfig {
@@ -398,6 +428,7 @@ impl From<&WindowManager> for StaticConfig {
             object_name_change_applications: None,
             monitor_index_preferences: Option::from(MONITOR_INDEX_PREFERENCES.lock().clone()),
             display_index_preferences: Option::from(DISPLAY_INDEX_PREFERENCES.lock().clone()),
+            stackbar: None,
         }
     }
 }
@@ -488,6 +519,33 @@ impl StaticConfig {
                 &mut tray_and_multi_window_identifiers,
                 &mut regex_identifiers,
             )?;
+        }
+
+        if let Some(stackbar) = &self.stackbar {
+            if let Some(height) = &stackbar.height {
+                STACKBAR_TAB_HEIGHT.store(*height, Ordering::SeqCst);
+            }
+            if let Some(mode) = &stackbar.mode {
+                let mut stackbar_mode = STACKBAR_MODE.lock();
+                *stackbar_mode = *mode;
+            }
+            if let Some(tabs) = &stackbar.tabs {
+                if let Some(background) = &tabs.background {
+                    STACKBAR_TAB_BACKGROUND_COLOUR.store((*background).into(), Ordering::SeqCst);
+                }
+
+                if let Some(colour) = &tabs.focused_text {
+                    STACKBAR_FOCUSED_TEXT_COLOUR.store((*colour).into(), Ordering::SeqCst);
+                }
+
+                if let Some(colour) = &tabs.unfocused_text {
+                    STACKBAR_UNFOCUSED_TEXT_COLOUR.store((*colour).into(), Ordering::SeqCst);
+                }
+
+                if let Some(width) = &tabs.width {
+                    STACKBAR_TAB_WIDTH.store(*width, Ordering::SeqCst);
+                }
+            }
         }
 
         if let Some(path) = &self.app_specific_configuration_path {

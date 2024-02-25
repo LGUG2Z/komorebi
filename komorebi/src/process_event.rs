@@ -518,6 +518,9 @@ impl WindowManager {
                     }
                 }
             }
+            WindowManagerEvent::ForceUpdate(_) => {
+                self.update_focused_workspace(false)?;
+            }
             WindowManagerEvent::DisplayChange(..)
             | WindowManagerEvent::MouseCapture(..)
             | WindowManagerEvent::Cloak(..)

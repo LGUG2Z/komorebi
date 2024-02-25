@@ -36,6 +36,8 @@ use windows::Win32::Graphics::Gdi::GetMonitorInfoW;
 use windows::Win32::Graphics::Gdi::InvalidateRect;
 use windows::Win32::Graphics::Gdi::MonitorFromPoint;
 use windows::Win32::Graphics::Gdi::MonitorFromWindow;
+use windows::Win32::Graphics::Gdi::Rectangle;
+use windows::Win32::Graphics::Gdi::RoundRect;
 use windows::Win32::Graphics::Gdi::DISPLAY_DEVICEW;
 use windows::Win32::Graphics::Gdi::HBRUSH;
 use windows::Win32::Graphics::Gdi::HDC;
@@ -66,6 +68,7 @@ use windows::Win32::UI::Input::KeyboardAndMouse::INPUT_MOUSE;
 use windows::Win32::UI::Input::KeyboardAndMouse::MOUSEEVENTF_LEFTDOWN;
 use windows::Win32::UI::Input::KeyboardAndMouse::MOUSEEVENTF_LEFTUP;
 use windows::Win32::UI::Input::KeyboardAndMouse::MOUSEINPUT;
+use windows::Win32::UI::Input::KeyboardAndMouse::VK_LBUTTON;
 use windows::Win32::UI::Input::KeyboardAndMouse::VK_MENU;
 use windows::Win32::UI::WindowsAndMessaging::AllowSetForegroundWindow;
 use windows::Win32::UI::WindowsAndMessaging::BringWindowToTop;
@@ -418,7 +421,7 @@ impl WindowsApi {
         .process()
     }
 
-    fn show_window(hwnd: HWND, command: SHOW_WINDOW_CMD) {
+    pub fn show_window(hwnd: HWND, command: SHOW_WINDOW_CMD) {
         // BOOL is returned but does not signify whether or not the operation was succesful
         // https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-showwindow
         unsafe { ShowWindow(hwnd, command) };
@@ -527,6 +530,24 @@ impl WindowsApi {
         })
     }
 
+    pub fn round_rect(hdc: HDC, rect: &Rect, border_radius: i32) {
+        unsafe {
+            RoundRect(
+                hdc,
+                rect.left,
+                rect.top,
+                rect.right,
+                rect.bottom,
+                border_radius,
+                border_radius,
+            );
+        }
+    }
+    pub fn rectangle(hdc: HDC, rect: &Rect) {
+        unsafe {
+            Rectangle(hdc, rect.left, rect.top, rect.right, rect.bottom);
+        }
+    }
     fn set_cursor_pos(x: i32, y: i32) -> Result<()> {
         unsafe { SetCursorPos(x, y) }.process()
     }
@@ -959,6 +980,13 @@ impl WindowsApi {
 
     pub fn alt_is_pressed() -> bool {
         let state = unsafe { GetKeyState(i32::from(VK_MENU.0)) };
+        #[allow(clippy::cast_sign_loss)]
+        let actual = (state as u16) & 0x8000;
+        actual != 0
+    }
+
+    pub fn lbutton_is_pressed() -> bool {
+        let state = unsafe { GetKeyState(i32::from(VK_LBUTTON.0)) };
         #[allow(clippy::cast_sign_loss)]
         let actual = (state as u16) & 0x8000;
         actual != 0

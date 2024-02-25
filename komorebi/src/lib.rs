@@ -10,6 +10,7 @@ pub mod process_command;
 pub mod process_event;
 pub mod process_movement;
 pub mod set_window_position;
+pub mod stackbar;
 pub mod static_config;
 pub mod styles;
 pub mod window;
@@ -23,6 +24,7 @@ pub mod workspace;
 
 use lazy_static::lazy_static;
 use std::collections::HashMap;
+use std::collections::VecDeque;
 use std::fs::File;
 use std::io::Write;
 use std::net::TcpStream;
@@ -38,6 +40,7 @@ use std::sync::Arc;
 pub use hidden::*;
 pub use process_command::*;
 pub use process_event::*;
+pub use stackbar::*;
 pub use static_config::*;
 pub use window_manager::*;
 pub use window_manager_event::*;
@@ -198,6 +201,11 @@ lazy_static! {
     // Use app-specific titlebar removal options where possible
     // eg. Windows Terminal, IntelliJ IDEA, Firefox
     static ref NO_TITLEBAR: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(vec![]));
+
+    static ref STACKBAR_MODE: Arc<Mutex<StackbarMode >> = Arc::new(Mutex::new(StackbarMode::Never));
+    static ref WINDOWS_BY_BAR_HWNDS: Arc<Mutex<HashMap<isize, VecDeque<isize>>>> =
+        Arc::new(Mutex::new(HashMap::new()));
+
 }
 
 pub static DEFAULT_WORKSPACE_PADDING: AtomicI32 = AtomicI32::new(10);
@@ -221,6 +229,12 @@ pub const TRANSPARENCY_COLOUR: u32 = 0;
 pub static REMOVE_TITLEBARS: AtomicBool = AtomicBool::new(false);
 
 pub static HIDDEN_HWND: AtomicIsize = AtomicIsize::new(0);
+
+pub static STACKBAR_FOCUSED_TEXT_COLOUR: AtomicU32 = AtomicU32::new(16777215); // white
+pub static STACKBAR_UNFOCUSED_TEXT_COLOUR: AtomicU32 = AtomicU32::new(11776947); // gray text
+pub static STACKBAR_TAB_BACKGROUND_COLOUR: AtomicU32 = AtomicU32::new(3355443); // gray
+pub static STACKBAR_TAB_HEIGHT: AtomicI32 = AtomicI32::new(40);
+pub static STACKBAR_TAB_WIDTH: AtomicI32 = AtomicI32::new(200);
 
 #[must_use]
 pub fn current_virtual_desktop() -> Option<Vec<u8>> {

@@ -71,7 +71,7 @@ impl Monitor {
             if i == focused_idx {
                 workspace.restore(mouse_follows_focus)?;
             } else {
-                workspace.hide();
+                workspace.hide(None);
             }
         }
 
