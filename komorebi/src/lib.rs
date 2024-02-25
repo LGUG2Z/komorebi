@@ -2,6 +2,7 @@ pub mod border;
 pub mod com;
 #[macro_use]
 pub mod ring;
+pub mod colour;
 pub mod container;
 pub mod hidden;
 pub mod monitor;

@@ -15,10 +15,13 @@ komorebi-core = { path = "../komorebi-core" }
 
 bitflags = "2"
 clap = { version = "4", features = ["derive"] }
+color-eyre = { workspace = true }
 crossbeam-channel = "0.5"
 crossbeam-utils = "0.8"
 ctrlc = "3"
+dirs = { workspace = true }
 getset = "0.1"
+hex_color = { version = "3", features = ["serde"] }
 hotwatch = "0.4"
 lazy_static = "1"
 miow = "0.5"
@@ -38,14 +41,12 @@ tracing-appender = "0.2"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 uds_windows = "1"
 which = "5"
+widestring = "1"
+windows = { workspace = true }
+windows-implement = { workspace = true }
+windows-interface = { workspace = true }
 winput = "0.2"
 winreg = "0.52"
-windows-interface = { workspace = true }
-windows-implement = { workspace = true }
-windows = { workspace = true }
-color-eyre = { workspace = true }
-dirs = { workspace = true }
-widestring = "1"
 
 [features]
 deadlock_detection = []

@@ -38,6 +38,7 @@ use komorebi_core::WindowContainerBehaviour;
 use komorebi_core::WindowKind;
 
 use crate::border::Border;
+use crate::colour::Rgb;
 use crate::current_virtual_desktop;
 use crate::notify_subscribers;
 use crate::static_config::StaticConfig;
@@ -1234,14 +1235,14 @@ impl WindowManager {
             SocketMessage::ActiveWindowBorderColour(kind, r, g, b) => {
                 match kind {
                     WindowKind::Single => {
-                        BORDER_COLOUR_SINGLE.store(r | (g << 8) | (b << 16), Ordering::SeqCst);
-                        BORDER_COLOUR_CURRENT.store(r | (g << 8) | (b << 16), Ordering::SeqCst);
+                        BORDER_COLOUR_SINGLE.store(Rgb::new(r, g, b).into(), Ordering::SeqCst);
+                        BORDER_COLOUR_CURRENT.store(Rgb::new(r, g, b).into(), Ordering::SeqCst);
                     }
                     WindowKind::Stack => {
-                        BORDER_COLOUR_STACK.store(r | (g << 8) | (b << 16), Ordering::SeqCst);
+                        BORDER_COLOUR_STACK.store(Rgb::new(r, g, b).into(), Ordering::SeqCst);
                     }
                     WindowKind::Monocle => {
-                        BORDER_COLOUR_MONOCLE.store(r | (g << 8) | (b << 16), Ordering::SeqCst);
+                        BORDER_COLOUR_MONOCLE.store(Rgb::new(r, g, b).into(), Ordering::SeqCst);
                     }
                 }
 

@@ -1,4 +1,5 @@
 use crate::border::Border;
+use crate::colour::Colour;
 use crate::current_virtual_desktop;
 use crate::monitor::Monitor;
 use crate::ring::Ring;
@@ -28,6 +29,7 @@ use crate::OBJECT_NAME_CHANGE_ON_LAUNCH;
 use crate::REGEX_IDENTIFIERS;
 use crate::TRAY_AND_MULTI_WINDOW_IDENTIFIERS;
 use crate::WORKSPACE_RULES;
+
 use color_eyre::Result;
 use crossbeam_channel::Receiver;
 use hotwatch::notify::DebouncedEvent;
@@ -63,33 +65,13 @@ use uds_windows::UnixListener;
 use uds_windows::UnixStream;
 
 #[derive(Debug, Serialize, Deserialize, JsonSchema)]
-pub struct Rgb {
-    /// Red
-    pub r: u32,
-    /// Green
-    pub g: u32,
-    /// Blue
-    pub b: u32,
-}
-
-impl From<u32> for Rgb {
-    fn from(value: u32) -> Self {
-        Self {
-            r: value & 0xff,
-            g: value >> 8 & 0xff,
-            b: value >> 16 & 0xff,
-        }
-    }
-}
-
-#[derive(Debug, Serialize, Deserialize, JsonSchema)]
 pub struct ActiveWindowBorderColours {
     /// Border colour when the container contains a single window
-    pub single: Rgb,
+    pub single: Colour,
     /// Border colour when the container contains multiple windows
-    pub stack: Rgb,
+    pub stack: Colour,
     /// Border colour when the container is in monocle mode
-    pub monocle: Rgb,
+    pub monocle: Colour,
 }
 
 #[derive(Debug, Serialize, Deserialize, JsonSchema)]
@@ -377,13 +359,13 @@ impl From<&WindowManager> for StaticConfig {
             None
         } else {
             Option::from(ActiveWindowBorderColours {
-                single: Rgb::from(BORDER_COLOUR_SINGLE.load(Ordering::SeqCst)),
-                stack: Rgb::from(if BORDER_COLOUR_STACK.load(Ordering::SeqCst) == 0 {
+                single: Colour::from(BORDER_COLOUR_SINGLE.load(Ordering::SeqCst)),
+                stack: Colour::from(if BORDER_COLOUR_STACK.load(Ordering::SeqCst) == 0 {
                     BORDER_COLOUR_SINGLE.load(Ordering::SeqCst)
                 } else {
                     BORDER_COLOUR_STACK.load(Ordering::SeqCst)
                 }),
-                monocle: Rgb::from(if BORDER_COLOUR_MONOCLE.load(Ordering::SeqCst) == 0 {
+                monocle: Colour::from(if BORDER_COLOUR_MONOCLE.load(Ordering::SeqCst) == 0 {
                     BORDER_COLOUR_SINGLE.load(Ordering::SeqCst)
                 } else {
                     BORDER_COLOUR_MONOCLE.load(Ordering::SeqCst)
@@ -487,22 +469,10 @@ impl StaticConfig {
         );
 
         if let Some(colours) = &self.active_window_border_colours {
-            BORDER_COLOUR_SINGLE.store(
-                colours.single.r | (colours.single.g << 8) | (colours.single.b << 16),
-                Ordering::SeqCst,
-            );
-            BORDER_COLOUR_CURRENT.store(
-                colours.single.r | (colours.single.g << 8) | (colours.single.b << 16),
-                Ordering::SeqCst,
-            );
-            BORDER_COLOUR_STACK.store(
-                colours.stack.r | (colours.stack.g << 8) | (colours.stack.b << 16),
-                Ordering::SeqCst,
-            );
-            BORDER_COLOUR_MONOCLE.store(
-                colours.monocle.r | (colours.monocle.g << 8) | (colours.monocle.b << 16),
-                Ordering::SeqCst,
-            );
+            BORDER_COLOUR_SINGLE.store(u32::from(colours.single), Ordering::SeqCst);
+            BORDER_COLOUR_CURRENT.store(u32::from(colours.single), Ordering::SeqCst);
+            BORDER_COLOUR_STACK.store(u32::from(colours.stack), Ordering::SeqCst);
+            BORDER_COLOUR_MONOCLE.store(u32::from(colours.monocle), Ordering::SeqCst);
         }
 
         let mut float_identifiers = FLOAT_IDENTIFIERS.lock();
