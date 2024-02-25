@@ -131,21 +131,23 @@ impl Arrangement for DefaultLayout {
                 layouts
             }
             Self::UltrawideVerticalStack => ultrawide(area, len, layout_flip, resize_dimensions),
+            #[allow(
+                clippy::cast_precision_loss,
+                clippy::cast_possible_truncation,
+                clippy::cast_possible_wrap
+            )]
             Self::Grid => {
                 // Shamelessly lifted from LeftWM
                 // https://github.com/leftwm/leftwm/blob/18675067b8450e520ef75db2ebbb0d973aa1199e/leftwm-core/src/layouts/grid_horizontal.rs
                 let mut layouts: Vec<Rect> = vec![];
                 layouts.resize(len, Rect::default());
 
-                #[allow(clippy::cast_possible_truncation)]
                 let len = len as i32;
 
-                #[allow(clippy::cast_possible_truncation)]
                 let num_cols = (len as f32).sqrt().ceil() as i32;
                 let mut iter = layouts.iter_mut().enumerate().peekable();
 
                 for col in 0..num_cols {
-                    #[allow(clippy::cast_possible_truncation)]
                     let iter_peek = iter.peek().map(|x| x.0).unwrap_or_default() as i32;
                     let remaining_windows = len - iter_peek;
                     let remaining_columns = num_cols - col;

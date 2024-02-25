@@ -150,7 +150,7 @@ impl DefaultLayout {
             Self::VerticalStack => Self::Rows,
             Self::Rows => Self::Columns,
             Self::Columns => Self::Grid,
-            Self::Grid => Self::BSP
+            Self::Grid => Self::BSP,
         }
     }
 }

@@ -1488,7 +1488,7 @@ impl WindowManager {
 
         if matches!(workspace.layout(), Layout::Default(DefaultLayout::Grid)) {
             tracing::debug!("ignoring promote command for grid layout");
-            return Ok(())
+            return Ok(());
         }
 
         tracing::info!("promoting container");
@@ -1505,7 +1505,7 @@ impl WindowManager {
 
         if matches!(workspace.layout(), Layout::Default(DefaultLayout::Grid)) {
             tracing::info!("ignoring promote focus command for grid layout");
-            return Ok(())
+            return Ok(());
         }
 
         tracing::info!("promoting focus");

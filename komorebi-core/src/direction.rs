@@ -19,10 +19,30 @@ pub trait Direction {
         idx: usize,
         count: usize,
     ) -> bool;
-    fn up_index(&self, op_direction: Option<OperationDirection>, idx: usize, count: Option<usize>) -> usize;
-    fn down_index(&self, op_direction: Option<OperationDirection>, idx: usize, count: Option<usize>) -> usize;
-    fn left_index(&self, op_direction: Option<OperationDirection>, idx: usize, count: Option<usize>) -> usize;
-    fn right_index(&self, op_direction: Option<OperationDirection>, idx: usize, count: Option<usize>) -> usize;
+    fn up_index(
+        &self,
+        op_direction: Option<OperationDirection>,
+        idx: usize,
+        count: Option<usize>,
+    ) -> usize;
+    fn down_index(
+        &self,
+        op_direction: Option<OperationDirection>,
+        idx: usize,
+        count: Option<usize>,
+    ) -> usize;
+    fn left_index(
+        &self,
+        op_direction: Option<OperationDirection>,
+        idx: usize,
+        count: Option<usize>,
+    ) -> usize;
+    fn right_index(
+        &self,
+        op_direction: Option<OperationDirection>,
+        idx: usize,
+        count: Option<usize>,
+    ) -> usize;
 }
 
 impl Direction for DefaultLayout {
@@ -112,7 +132,12 @@ impl Direction for DefaultLayout {
         }
     }
 
-    fn up_index(&self, op_direction: Option<OperationDirection>, idx: usize, count: Option<usize>) -> usize {
+    fn up_index(
+        &self,
+        op_direction: Option<OperationDirection>,
+        idx: usize,
+        count: Option<usize>,
+    ) -> usize {
         match self {
             Self::BSP => {
                 if idx % 2 == 0 {
@@ -128,7 +153,12 @@ impl Direction for DefaultLayout {
         }
     }
 
-    fn down_index(&self, op_direction: Option<OperationDirection>, idx: usize, count: Option<usize>) -> usize {
+    fn down_index(
+        &self,
+        op_direction: Option<OperationDirection>,
+        idx: usize,
+        count: Option<usize>,
+    ) -> usize {
         match self {
             Self::BSP | Self::Rows | Self::VerticalStack | Self::UltrawideVerticalStack => idx + 1,
             Self::Columns => unreachable!(),
@@ -137,7 +167,12 @@ impl Direction for DefaultLayout {
         }
     }
 
-    fn left_index(&self, op_direction: Option<OperationDirection>, idx: usize, count: Option<usize>) -> usize {
+    fn left_index(
+        &self,
+        op_direction: Option<OperationDirection>,
+        idx: usize,
+        count: Option<usize>,
+    ) -> usize {
         match self {
             Self::BSP => {
                 if idx % 2 == 0 {
@@ -158,7 +193,12 @@ impl Direction for DefaultLayout {
         }
     }
 
-    fn right_index(&self, op_direction: Option<OperationDirection>, idx: usize, count: Option<usize>) -> usize {
+    fn right_index(
+        &self,
+        op_direction: Option<OperationDirection>,
+        idx: usize,
+        count: Option<usize>,
+    ) -> usize {
         match self {
             Self::BSP | Self::Columns | Self::HorizontalStack => idx + 1,
             Self::Rows => unreachable!(),
@@ -185,6 +225,7 @@ enum GridItemState {
     Invalid,
 }
 
+#[allow(clippy::struct_excessive_bools)]
 struct GridTouchingEdges {
     left: bool,
     right: bool,
@@ -192,8 +233,12 @@ struct GridTouchingEdges {
     down: bool,
 }
 
+#[allow(
+    clippy::cast_possible_truncation,
+    clippy::cast_precision_loss,
+    clippy::cast_sign_loss
+)]
 fn get_grid_item(idx: usize, count: usize) -> GridItem {
-    #[allow(clippy::cast_possible_truncation)]
     let num_cols = (count as f32).sqrt().ceil() as usize;
     let mut iter = 0;
 
@@ -248,9 +293,18 @@ fn is_grid_edge(op_direction: OperationDirection, idx: usize, count: usize) -> b
     }
 }
 
-fn grid_neighbor(op_direction: Option<OperationDirection>, idx: usize, count: Option<usize>) -> usize {
-    let op_direction = if let Some(dir) = op_direction { dir } else { return 0; };
-    let count = if let Some(count) = count { count } else { return 0; };
+fn grid_neighbor(
+    op_direction: Option<OperationDirection>,
+    idx: usize,
+    count: Option<usize>,
+) -> usize {
+    let Some(op_direction) = op_direction else {
+        return 0;
+    };
+
+    let Some(count) = count else {
+        return 0;
+    };
 
     let item = get_grid_item(idx, count);
 
@@ -363,15 +417,30 @@ impl Direction for CustomLayout {
         }
     }
 
-    fn up_index(&self, _op_direction: Option<OperationDirection>, idx: usize, _count: Option<usize>) -> usize {
+    fn up_index(
+        &self,
+        _op_direction: Option<OperationDirection>,
+        idx: usize,
+        _count: Option<usize>,
+    ) -> usize {
         idx - 1
     }
 
-    fn down_index(&self, _op_direction: Option<OperationDirection>, idx: usize, _count: Option<usize>) -> usize {
+    fn down_index(
+        &self,
+        _op_direction: Option<OperationDirection>,
+        idx: usize,
+        _count: Option<usize>,
+    ) -> usize {
         idx + 1
     }
 
-    fn left_index(&self, _op_direction: Option<OperationDirection>, idx: usize, _count: Option<usize>) -> usize {
+    fn left_index(
+        &self,
+        _op_direction: Option<OperationDirection>,
+        idx: usize,
+        _count: Option<usize>,
+    ) -> usize {
         let column_idx = self.column_for_container_idx(idx);
         if column_idx - 1 == 0 {
             0
@@ -380,7 +449,12 @@ impl Direction for CustomLayout {
         }
     }
 
-    fn right_index(&self, _op_direction: Option<OperationDirection>, idx: usize, _count: Option<usize>) -> usize {
+    fn right_index(
+        &self,
+        _op_direction: Option<OperationDirection>,
+        idx: usize,
+        _count: Option<usize>,
+    ) -> usize {
         let column_idx = self.column_for_container_idx(idx);
         self.first_container_idx(column_idx + 1)
     }
