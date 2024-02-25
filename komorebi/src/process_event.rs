@@ -303,21 +303,24 @@ impl WindowManager {
                 }
             }
             WindowManagerEvent::MoveResizeStart(_, window) => {
-                let monitor_idx = self.focused_monitor_idx();
-                let workspace_idx = self
-                    .focused_monitor()
-                    .ok_or_else(|| anyhow!("there is no monitor with this idx"))?
-                    .focused_workspace_idx();
-                let container_idx = self
-                    .focused_monitor()
-                    .ok_or_else(|| anyhow!("there is no monitor with this idx"))?
-                    .focused_workspace()
-                    .ok_or_else(|| anyhow!("there is no workspace with this idx"))?
-                    .focused_container_idx();
+                if *self.focused_workspace()?.tile() {
+                    let monitor_idx = self.focused_monitor_idx();
+                    let workspace_idx = self
+                        .focused_monitor()
+                        .ok_or_else(|| anyhow!("there is no monitor with this idx"))?
+                        .focused_workspace_idx();
+                    let container_idx = self
+                        .focused_monitor()
+                        .ok_or_else(|| anyhow!("there is no monitor with this idx"))?
+                        .focused_workspace()
+                        .ok_or_else(|| anyhow!("there is no workspace with this idx"))?
+                        .focused_container_idx();
 
-                WindowsApi::bring_window_to_top(window.hwnd())?;
+                    WindowsApi::bring_window_to_top(window.hwnd())?;
 
-                self.pending_move_op = Option::from((monitor_idx, workspace_idx, container_idx));
+                    self.pending_move_op =
+                        Option::from((monitor_idx, workspace_idx, container_idx));
+                }
             }
             WindowManagerEvent::MoveResizeEnd(_, window) => {
                 // We need this because if the event ends on a different monitor,
@@ -518,6 +521,12 @@ impl WindowManager {
             | WindowManagerEvent::Uncloak(..) => {}
         };
 
+        if !self.focused_workspace()?.tile() {
+            let border = Border::from(BORDER_HWND.load(Ordering::SeqCst));
+            border.hide()?;
+            BORDER_HIDDEN.store(true, Ordering::SeqCst);
+        }
+
         if *self.focused_workspace()?.tile() && BORDER_ENABLED.load(Ordering::SeqCst) {
             match event {
                 WindowManagerEvent::MoveResizeStart(_, _) => {
@@ -529,6 +538,7 @@ impl WindowManager {
                 | WindowManagerEvent::Show(_, window)
                 | WindowManagerEvent::FocusChange(_, window)
                 | WindowManagerEvent::Hide(_, window)
+                | WindowManagerEvent::Uncloak(_, window)
                 | WindowManagerEvent::Minimize(_, window) => {
                     let border = Border::from(BORDER_HWND.load(Ordering::SeqCst));
                     let mut target_window = None;
