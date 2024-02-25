@@ -16,7 +16,7 @@ Arguments:
           The number of window containers on-screen required to trigger this layout rule
 
   <LAYOUT>
-          [possible values: bsp, columns, rows, vertical-stack, horizontal-stack, ultrawide-vertical-stack]
+          [possible values: bsp, columns, rows, vertical-stack, horizontal-stack, ultrawide-vertical-stack, grid]
 
 Options:
   -h, --help

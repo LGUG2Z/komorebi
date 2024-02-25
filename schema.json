@@ -133,19 +133,14 @@
         }
       }
     },
-    "active_window_border_offset": {
-      "description": "Offset of the active window border (default: -1)",
-      "type": "integer",
-      "format": "int32"
-    },
-    "active_window_border_width": {
-      "description": "Width of the active window border (default: 8)",
-      "type": "integer",
-      "format": "int32"
-    },
     "app_specific_configuration_path": {
       "description": "Path to applications.yaml from komorebi-application-specific-configurations (default: None)",
       "type": "string"
+    },
+    "border_offset": {
+      "description": "Offset of the window border (default: -1)",
+      "type": "integer",
+      "format": "int32"
     },
     "border_overflow_applications": {
       "description": "Identify border overflow applications",
@@ -163,10 +158,10 @@
           "kind": {
             "type": "string",
             "enum": [
-              "Path",
               "Exe",
               "Class",
-              "Title"
+              "Title",
+              "Path"
             ]
           },
           "matching_strategy": {
@@ -182,6 +177,11 @@
           }
         }
       }
+    },
+    "border_width": {
+      "description": "Width of the window border (default: 8)",
+      "type": "integer",
+      "format": "int32"
     },
     "cross_monitor_move_behaviour": {
       "description": "Determine what happens when a window is moved across a monitor boundary (default: Swap)",
@@ -235,10 +235,10 @@
           "kind": {
             "type": "string",
             "enum": [
-              "Path",
               "Exe",
               "Class",
-              "Title"
+              "Title",
+              "Path"
             ]
           },
           "matching_strategy": {
@@ -307,7 +307,7 @@
       }
     },
     "invisible_borders": {
-      "description": "Dimensions of Windows' own invisible borders; don't set these yourself unless you are told to",
+      "description": "DEPRECATED from v0.1.22: no longer required",
       "type": "object",
       "required": [
         "bottom",
@@ -354,10 +354,10 @@
           "kind": {
             "type": "string",
             "enum": [
-              "Path",
               "Exe",
               "Class",
-              "Title"
+              "Title",
+              "Path"
             ]
           },
           "matching_strategy": {
@@ -390,10 +390,10 @@
           "kind": {
             "type": "string",
             "enum": [
-              "Path",
               "Exe",
               "Class",
-              "Title"
+              "Title",
+              "Path"
             ]
           },
           "matching_strategy": {
@@ -527,10 +527,10 @@
                       "kind": {
                         "type": "string",
                         "enum": [
-                          "Path",
                           "Exe",
                           "Class",
-                          "Title"
+                          "Title",
+                          "Path"
                         ]
                       },
                       "matching_strategy": {
@@ -556,7 +556,8 @@
                     "Rows",
                     "VerticalStack",
                     "HorizontalStack",
-                    "UltrawideVerticalStack"
+                    "UltrawideVerticalStack",
+                    "Grid"
                   ]
                 },
                 "layout_rules": {
@@ -570,7 +571,8 @@
                       "Rows",
                       "VerticalStack",
                       "HorizontalStack",
-                      "UltrawideVerticalStack"
+                      "UltrawideVerticalStack",
+                      "Grid"
                     ]
                   }
                 },
@@ -599,10 +601,10 @@
                       "kind": {
                         "type": "string",
                         "enum": [
-                          "Path",
                           "Exe",
                           "Class",
-                          "Title"
+                          "Title",
+                          "Path"
                         ]
                       },
                       "matching_strategy": {
@@ -645,10 +647,10 @@
           "kind": {
             "type": "string",
             "enum": [
-              "Path",
               "Exe",
               "Class",
-              "Title"
+              "Title",
+              "Path"
             ]
           },
           "matching_strategy": {
@@ -670,6 +672,143 @@
       "type": "integer",
       "format": "int32"
     },
+    "stackbar": {
+      "type": "object",
+      "properties": {
+        "height": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "mode": {
+          "type": "string",
+          "enum": [
+            "Always",
+            "Never",
+            "OnStack"
+          ]
+        },
+        "tabs": {
+          "type": "object",
+          "properties": {
+            "background": {
+              "anyOf": [
+                {
+                  "description": "Colour represented as RGB",
+                  "type": "object",
+                  "required": [
+                    "b",
+                    "g",
+                    "r"
+                  ],
+                  "properties": {
+                    "b": {
+                      "description": "Blue",
+                      "type": "integer",
+                      "format": "uint32",
+                      "minimum": 0.0
+                    },
+                    "g": {
+                      "description": "Green",
+                      "type": "integer",
+                      "format": "uint32",
+                      "minimum": 0.0
+                    },
+                    "r": {
+                      "description": "Red",
+                      "type": "integer",
+                      "format": "uint32",
+                      "minimum": 0.0
+                    }
+                  }
+                },
+                {
+                  "description": "Colour represented as Hex",
+                  "type": "string"
+                }
+              ]
+            },
+            "focused_text": {
+              "anyOf": [
+                {
+                  "description": "Colour represented as RGB",
+                  "type": "object",
+                  "required": [
+                    "b",
+                    "g",
+                    "r"
+                  ],
+                  "properties": {
+                    "b": {
+                      "description": "Blue",
+                      "type": "integer",
+                      "format": "uint32",
+                      "minimum": 0.0
+                    },
+                    "g": {
+                      "description": "Green",
+                      "type": "integer",
+                      "format": "uint32",
+                      "minimum": 0.0
+                    },
+                    "r": {
+                      "description": "Red",
+                      "type": "integer",
+                      "format": "uint32",
+                      "minimum": 0.0
+                    }
+                  }
+                },
+                {
+                  "description": "Colour represented as Hex",
+                  "type": "string"
+                }
+              ]
+            },
+            "unfocused_text": {
+              "anyOf": [
+                {
+                  "description": "Colour represented as RGB",
+                  "type": "object",
+                  "required": [
+                    "b",
+                    "g",
+                    "r"
+                  ],
+                  "properties": {
+                    "b": {
+                      "description": "Blue",
+                      "type": "integer",
+                      "format": "uint32",
+                      "minimum": 0.0
+                    },
+                    "g": {
+                      "description": "Green",
+                      "type": "integer",
+                      "format": "uint32",
+                      "minimum": 0.0
+                    },
+                    "r": {
+                      "description": "Red",
+                      "type": "integer",
+                      "format": "uint32",
+                      "minimum": 0.0
+                    }
+                  }
+                },
+                {
+                  "description": "Colour represented as Hex",
+                  "type": "string"
+                }
+              ]
+            },
+            "width": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        }
+      }
+    },
     "tray_and_multi_window_applications": {
       "description": "Identify tray and multi-window applications",
       "type": "array",
@@ -688,7 +827,8 @@
             "enum": [
               "Exe",
               "Class",
-              "Title"
+              "Title",
+              "Path"
             ]
           },
           "matching_strategy": {

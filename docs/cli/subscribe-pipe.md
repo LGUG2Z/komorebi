@@ -1,9 +1,9 @@
-# subscribe
+# subscribe-pipe
 
 ```
-Subscribe to komorebi events
+Subscribe to komorebi events using a Named Pipe
 
-Usage: komorebic.exe subscribe <NAMED_PIPE>
+Usage: komorebic.exe subscribe-pipe <NAMED_PIPE>
 
 Arguments:
   <NAMED_PIPE>
