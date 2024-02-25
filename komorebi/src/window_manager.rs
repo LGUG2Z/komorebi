@@ -1635,11 +1635,6 @@ impl WindowManager {
     pub fn flip_layout(&mut self, layout_flip: Axis) -> Result<()> {
         let workspace = self.focused_workspace_mut()?;
 
-        if matches!(workspace.layout(), Layout::Default(DefaultLayout::Grid)) {
-            tracing::debug!("ignoring flip layout command for grid layout");
-            return Ok(())
-        }
-
         tracing::info!("flipping layout");
 
         #[allow(clippy::match_same_arms)]

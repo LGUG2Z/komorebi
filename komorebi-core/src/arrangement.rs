@@ -156,11 +156,27 @@ impl Arrangement for DefaultLayout {
 
                     for row in 0..num_rows_in_this_col {
                         if let Some((_idx, win)) = iter.next() {
+                            let mut left = area.left + win_width * col;
+                            let mut top = area.top + win_height * row;
+
+                            match layout_flip {
+                                Some(Axis::Horizontal) => {
+                                    left = area.right - win_width * (col + 1) + area.left;
+                                }
+                                Some(Axis::Vertical) => {
+                                    top = area.bottom - win_height * (row + 1) + area.top;
+                                }
+                                Some(Axis::HorizontalAndVertical) => {
+                                    left = area.right - win_width * (col + 1) + area.left;
+                                    top = area.bottom - win_height * (row + 1) + area.top;
+                                }
+                                None => {} // No flip
+                            }
+
                             win.bottom = win_height;
                             win.right = win_width;
-
-                            win.left = area.left + win_width * col;
-                            win.top = area.top + win_height * row;
+                            win.left = left;
+                            win.top = top;
                         }
                     }
                 }
