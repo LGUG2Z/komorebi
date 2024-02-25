@@ -396,9 +396,7 @@ impl From<&WindowManager> for StaticConfig {
             mouse_follows_focus: Option::from(value.mouse_follows_focus),
             app_specific_configuration_path: None,
             active_window_border_width: Option::from(BORDER_WIDTH.load(Ordering::SeqCst)),
-            active_window_border_offset: BORDER_OFFSET
-                .lock()
-                .map_or(None, |offset| Option::from(offset.left)),
+            active_window_border_offset: Option::from(BORDER_OFFSET.load(Ordering::SeqCst)),
             active_window_border: Option::from(BORDER_ENABLED.load(Ordering::SeqCst)),
             active_window_border_colours: border_colours,
             default_workspace_padding: Option::from(
@@ -457,23 +455,8 @@ impl StaticConfig {
                 BORDER_WIDTH.store(width, Ordering::SeqCst);
             },
         );
-        self.active_window_border_offset.map_or_else(
-            || {
-                let mut border_offset = BORDER_OFFSET.lock();
-                *border_offset = None;
-            },
-            |offset| {
-                let new_border_offset = Rect {
-                    left: offset,
-                    top: offset,
-                    right: offset * 2,
-                    bottom: offset * 2,
-                };
 
-                let mut border_offset = BORDER_OFFSET.lock();
-                *border_offset = Some(new_border_offset);
-            },
-        );
+        BORDER_OFFSET.store(self.active_window_border_offset.unwrap_or_default(), Ordering::SeqCst);
 
         if let Some(colours) = &self.active_window_border_colours {
             BORDER_COLOUR_SINGLE.store(

@@ -191,8 +191,7 @@ lazy_static! {
     static ref BORDER_RECT: Arc<Mutex<Rect>> =
         Arc::new(Mutex::new(Rect::default()));
 
-    static ref BORDER_OFFSET: Arc<Mutex<Option<Rect>>> =
-        Arc::new(Mutex::new(None));
+    static ref BORDER_OFFSET: AtomicI32 = Default::default();
 
     // Use app-specific titlebar removal options where possible
     // eg. Windows Terminal, IntelliJ IDEA, Firefox
