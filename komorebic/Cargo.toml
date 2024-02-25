@@ -31,5 +31,5 @@ serde_yaml = "0.9"
 sysinfo = "0.30"
 thiserror = "1"
 uds_windows = "1"
-which = "5"
+which = "6"
 windows = { workspace = true }

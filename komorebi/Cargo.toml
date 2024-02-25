@@ -40,7 +40,7 @@ tracing = "0.1"
 tracing-appender = "0.2"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 uds_windows = "1"
-which = "5"
+which = "6"
 widestring = "1"
 windows = { workspace = true }
 windows-implement = { workspace = true }
