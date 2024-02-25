@@ -33,6 +33,7 @@ use crate::DEFAULT_WORKSPACE_PADDING;
 use crate::INITIAL_CONFIGURATION_LOADED;
 use crate::NO_TITLEBAR;
 use crate::REMOVE_TITLEBARS;
+use crate::STACKBAR_TAB_HEIGHT;
 
 #[allow(clippy::struct_field_names)]
 #[derive(
@@ -143,11 +144,25 @@ impl Workspace {
         Ok(())
     }
 
-    pub fn hide(&mut self) {
-        for container in self.containers_mut() {
-            for window in container.windows_mut() {
+    pub fn hide(&mut self, omit: Option<isize>) {
+        for window in self.floating_windows_mut().iter_mut().rev() {
+            let mut should_hide = omit.is_none();
+
+            if !should_hide {
+                if let Some(omit) = omit {
+                    if omit != window.hwnd {
+                        should_hide = true
+                    }
+                }
+            }
+
+            if should_hide {
                 window.hide();
             }
+        }
+
+        for container in self.containers_mut() {
+            container.hide(omit)
         }
 
         if let Some(window) = self.maximized_window() {
@@ -155,41 +170,38 @@ impl Workspace {
         }
 
         if let Some(container) = self.monocle_container_mut() {
-            for window in container.windows_mut() {
-                window.hide();
-            }
-        }
-
-        for window in self.floating_windows() {
-            window.hide();
+            container.hide(omit)
         }
     }
 
     pub fn restore(&mut self, mouse_follows_focus: bool) -> Result<()> {
         let idx = self.focused_container_idx();
         let mut to_focus = None;
+
         for (i, container) in self.containers_mut().iter_mut().enumerate() {
             if let Some(window) = container.focused_window_mut() {
-                window.restore();
-
                 if idx == i {
                     to_focus = Option::from(*window);
                 }
             }
+
+            container.restore();
         }
 
-        if let Some(window) = self.maximized_window() {
-            window.maximize();
+        for container in self.containers_mut() {
+            container.restore();
         }
 
         if let Some(container) = self.monocle_container_mut() {
-            for window in container.windows_mut() {
-                window.restore();
-            }
+            container.restore();
         }
 
         for window in self.floating_windows() {
             window.restore();
+        }
+
+        if let Some(container) = self.focused_container_mut() {
+            container.focus_window(container.focused_window_idx());
         }
 
         // Do this here to make sure that an error doesn't stop the restoration of other windows
@@ -276,9 +288,23 @@ impl Workspace {
                 let should_remove_titlebars = REMOVE_TITLEBARS.load(Ordering::SeqCst);
                 let no_titlebar = NO_TITLEBAR.lock().clone();
 
-                let windows = self.visible_windows_mut();
-                for (i, window) in windows.into_iter().enumerate() {
-                    if let (Some(window), Some(layout)) = (window, layouts.get(i)) {
+                let focused_hwnd = self
+                    .focused_container()
+                    .ok_or_else(|| anyhow!("couldn't find a focused container"))?
+                    .focused_window()
+                    .ok_or_else(|| anyhow!("couldn't find a focused window"))?
+                    .hwnd;
+
+                let container_padding = self.container_padding().unwrap_or(0);
+                let containers = self.containers_mut();
+
+                for (i, container) in containers.iter_mut().enumerate() {
+                    let container_windows = container.windows().clone();
+                    let container_topbar = container.stackbar().clone();
+
+                    if let (Some(window), Some(layout)) =
+                        (container.focused_window_mut(), layouts.get(i))
+                    {
                         if should_remove_titlebars && no_titlebar.contains(&window.exe()?) {
                             window.remove_title_bar()?;
                         } else if no_titlebar.contains(&window.exe()?) {
@@ -298,6 +324,20 @@ impl Workspace {
 
                             let width = BORDER_WIDTH.load(Ordering::SeqCst);
                             rect.add_padding(width);
+                        }
+
+                        if let Some(stackbar) = container_topbar {
+                            stackbar.set_position(
+                                &stackbar.get_position_from_container_layout(layout),
+                                false,
+                            )?;
+
+                            stackbar.update(&container_windows, focused_hwnd)?;
+                            let tab_height = STACKBAR_TAB_HEIGHT.load(Ordering::SeqCst);
+                            let total_height = tab_height + container_padding;
+
+                            rect.top += total_height;
+                            rect.bottom -= total_height;
                         }
 
                         window.set_position(&rect, false)?;
@@ -375,7 +415,18 @@ impl Workspace {
             .idx_for_window(hwnd)
             .ok_or_else(|| anyhow!("there is no window"))?;
 
+        let mut should_load = false;
+
+        if container.focused_window_idx() != window_idx {
+            should_load = true
+        }
+
         container.focus_window(window_idx);
+
+        if should_load {
+            container.load_focused_window();
+        }
+
         self.focus_container(container_idx);
 
         Ok(())

@@ -217,6 +217,7 @@ impl WindowManager {
             SocketMessage::UnstackWindow => self.remove_window_from_container()?,
             SocketMessage::CycleStack(direction) => {
                 self.cycle_container_window_in_direction(direction)?;
+                self.focused_window()?.focus(self.mouse_follows_focus)?;
             }
             SocketMessage::ForceFocus => {
                 let focused_window = self.focused_window()?;

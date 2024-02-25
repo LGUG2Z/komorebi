@@ -841,16 +841,16 @@ impl WindowManager {
         if !follow_focus && self.focused_container_mut().is_ok() {
             // and we have a stack with >1 windows
             if self.focused_container_mut()?.windows().len() > 1
-            // and we don't have a maxed window 
-            && self.focused_workspace()?.maximized_window().is_none()
-            // and we don't have a monocle container
-            && self.focused_workspace()?.monocle_container().is_none()
+                // and we don't have a maxed window 
+                && self.focused_workspace()?.maximized_window().is_none()
+                // and we don't have a monocle container
+                && self.focused_workspace()?.monocle_container().is_none()
             {
                 if let Ok(window) = self.focused_window_mut() {
                     window.focus(self.mouse_follows_focus)?;
                 }
             }
-        };
+        }
 
         // This is to correctly restore and focus when switching to a workspace which
         // contains a managed maximized window
@@ -1197,7 +1197,21 @@ impl WindowManager {
             }
         }
 
-        self.focused_window_mut()?.focus(self.mouse_follows_focus)?;
+        // When switching workspaces and landing focus on a window that is not stack, but a stack
+        // exists, and there is a stackbar visible, when changing focus to that container stack,
+        // the focused text colour will not be applied until the stack has been cycled at least once
+        //
+        // With this piece of code, we check if we have changed focus to a container stack with
+        // a stackbar, and if we have, we run a quick update to make sure the focused text colour
+        // has been applied
+        let focused_window = self.focused_window_mut()?;
+        let focused_window_hwnd = focused_window.hwnd;
+        focused_window.focus(self.mouse_follows_focus)?;
+
+        let focused_container = self.focused_container()?;
+        if let Some(stackbar) = focused_container.stackbar() {
+            stackbar.update(focused_container.windows(), focused_window_hwnd)?;
+        }
 
         Ok(())
     }
