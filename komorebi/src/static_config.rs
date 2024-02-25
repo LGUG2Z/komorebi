@@ -431,14 +431,14 @@ impl StaticConfig {
 
         self.active_window_border_width.map_or_else(
             || {
-                BORDER_WIDTH.store(20, Ordering::SeqCst);
+                BORDER_WIDTH.store(8, Ordering::SeqCst);
             },
             |width| {
                 BORDER_WIDTH.store(width, Ordering::SeqCst);
             },
         );
 
-        BORDER_OFFSET.store(self.active_window_border_offset.unwrap_or_default(), Ordering::SeqCst);
+        BORDER_OFFSET.store(self.active_window_border_offset.unwrap_or(-1), Ordering::SeqCst);
 
         if let Some(colours) = &self.active_window_border_colours {
             BORDER_COLOUR_SINGLE.store(u32::from(colours.single), Ordering::SeqCst);
