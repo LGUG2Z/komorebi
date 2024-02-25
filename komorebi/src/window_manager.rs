@@ -880,6 +880,15 @@ impl WindowManager {
             }
         };
 
+        // This is to correctly restore and focus when switching to a workspace which
+        // contains a managed maximized window
+        if !follow_focus {
+            if let Some(window) = self.focused_workspace()?.maximized_window() {
+                window.restore();
+                window.focus(self.mouse_follows_focus)?;
+            }
+        }
+
         Ok(())
     }
 

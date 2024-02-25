@@ -82,6 +82,7 @@ use windows::Win32::UI::WindowsAndMessaging::GetWindowThreadProcessId;
 use windows::Win32::UI::WindowsAndMessaging::IsIconic;
 use windows::Win32::UI::WindowsAndMessaging::IsWindow;
 use windows::Win32::UI::WindowsAndMessaging::IsWindowVisible;
+use windows::Win32::UI::WindowsAndMessaging::IsZoomed;
 use windows::Win32::UI::WindowsAndMessaging::PostMessageW;
 use windows::Win32::UI::WindowsAndMessaging::RealGetWindowClassW;
 use windows::Win32::UI::WindowsAndMessaging::RegisterClassW;
@@ -675,6 +676,10 @@ impl WindowsApi {
 
     pub fn is_iconic(hwnd: HWND) -> bool {
         unsafe { IsIconic(hwnd) }.into()
+    }
+
+    pub fn is_zoomed(hwnd: HWND) -> bool {
+        unsafe { IsZoomed(hwnd) }.into()
     }
 
     pub fn monitor_info_w(hmonitor: HMONITOR) -> Result<MONITORINFOEXW> {

@@ -179,6 +179,14 @@ impl Window {
         WindowsApi::position_window(self.hwnd(), &rect, top)
     }
 
+    pub fn is_maximized(self) -> bool {
+        WindowsApi::is_zoomed(self.hwnd())
+    }
+
+    pub fn is_miminized(self) -> bool {
+        WindowsApi::is_iconic(self.hwnd())
+    }
+
     pub fn hide(self) {
         let mut programmatically_hidden_hwnds = HIDDEN_HWNDS.lock();
         if !programmatically_hidden_hwnds.contains(&self.hwnd) {

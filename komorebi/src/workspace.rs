@@ -247,6 +247,8 @@ impl Workspace {
             }
         }
 
+        let managed_maximized_window = self.maximized_window().is_some();
+
         if *self.tile() {
             if let Some(container) = self.monocle_container_mut() {
                 if let Some(window) = container.focused_window_mut() {
@@ -278,6 +280,12 @@ impl Workspace {
                             window.remove_title_bar()?;
                         } else if no_titlebar.contains(&window.exe()?) {
                             window.add_title_bar()?;
+                        }
+
+                        // If a window has been unmaximized via toggle-maximize, this block
+                        // will make sure that it is unmaximized via restore_window
+                        if window.is_maximized() && !managed_maximized_window {
+                            WindowsApi::restore_window(window.hwnd());
                         }
 
                         window.set_position(layout, invisible_borders, false)?;

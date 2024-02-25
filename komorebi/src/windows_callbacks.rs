@@ -146,12 +146,17 @@ pub extern "system" fn enum_window(hwnd: HWND, lparam: LPARAM) -> BOOL {
     let is_visible = WindowsApi::is_window_visible(hwnd);
     let is_window = WindowsApi::is_window(hwnd);
     let is_minimized = WindowsApi::is_iconic(hwnd);
+    let is_maximized = WindowsApi::is_zoomed(hwnd);
 
     if is_visible && is_window && !is_minimized {
         let window = Window { hwnd: hwnd.0 };
 
         if let Ok(should_manage) = window.should_manage(None) {
             if should_manage {
+                if is_maximized {
+                    WindowsApi::restore_window(hwnd);
+                }
+
                 let mut container = Container::default();
                 container.windows_mut().push_back(window);
                 containers.push_back(container);
