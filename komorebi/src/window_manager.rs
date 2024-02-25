@@ -290,7 +290,7 @@ impl WindowManager {
     pub fn show_border(&self) -> Result<()> {
         if self.focused_container().is_ok() {
             let foreground = WindowsApi::foreground_window()?;
-            let foreground_window = Window { hwnd: foreground };
+            let foreground_window = Window::new(foreground);
 
             let border = Border::from(BORDER_HWND.load(Ordering::SeqCst));
             border.set_position(foreground_window, true)?;
@@ -686,7 +686,7 @@ impl WindowManager {
 
             // Hide the window we are about to remove if it is on the currently focused workspace
             if op.is_origin(focused_monitor_idx, focused_workspace_idx) {
-                Window { hwnd: op.hwnd }.hide();
+                Window::new(op.hwnd).hide();
                 should_update_focused_workspace = true;
             }
 
@@ -716,7 +716,7 @@ impl WindowManager {
                 .get_mut(op.target_workspace_idx)
                 .ok_or_else(|| anyhow!("there is no workspace with that index"))?;
 
-            target_workspace.new_container_for_window(Window { hwnd: op.hwnd });
+            target_workspace.new_container_for_window(Window::new(op.hwnd));
         }
 
         // Only re-tile the focused workspace if we need to
@@ -759,14 +759,14 @@ impl WindowManager {
     #[tracing::instrument(skip(self))]
     pub fn manage_focused_window(&mut self) -> Result<()> {
         let hwnd = WindowsApi::foreground_window()?;
-        let event = WindowManagerEvent::Manage(Window { hwnd });
+        let event = WindowManagerEvent::Manage(Window::new(hwnd));
         Ok(winevent_listener::event_tx().send(event)?)
     }
 
     #[tracing::instrument(skip(self))]
     pub fn unmanage_focused_window(&mut self) -> Result<()> {
         let hwnd = WindowsApi::foreground_window()?;
-        let event = WindowManagerEvent::Unmanage(Window { hwnd });
+        let event = WindowManagerEvent::Unmanage(Window::new(hwnd));
         Ok(winevent_listener::event_tx().send(event)?)
     }
 
@@ -794,15 +794,13 @@ impl WindowManager {
                 return Ok(());
             }
 
-            let event = WindowManagerEvent::Raise(Window { hwnd });
+            let event = WindowManagerEvent::Raise(Window::new(hwnd));
             self.has_pending_raise_op = true;
             winevent_listener::event_tx().send(event)?;
         } else {
             tracing::debug!(
                 "not raising unknown window: {}",
-                Window {
-                    hwnd: WindowsApi::window_at_cursor_pos()?
-                }
+                Window::new(WindowsApi::window_at_cursor_pos()?)
             );
         }
 
@@ -926,9 +924,7 @@ impl WindowManager {
                     window.focus(self.mouse_follows_focus)?;
                 }
             } else {
-                let desktop_window = Window {
-                    hwnd: WindowsApi::desktop_window()?,
-                };
+                let desktop_window = Window::new(WindowsApi::desktop_window()?);
 
                 let rect = self.focused_monitor_size()?;
                 WindowsApi::center_cursor_in_rect(&rect)?;

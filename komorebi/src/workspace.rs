@@ -20,12 +20,16 @@ use komorebi_core::Layout;
 use komorebi_core::OperationDirection;
 use komorebi_core::Rect;
 
+use crate::border::Border;
 use crate::container::Container;
 use crate::ring::Ring;
 use crate::static_config::WorkspaceConfig;
 use crate::window::Window;
 use crate::window::WindowDetails;
 use crate::windows_api::WindowsApi;
+use crate::ANIMATION_ENABLED;
+use crate::BORDER_HIDDEN;
+use crate::BORDER_HWND;
 use crate::BORDER_OFFSET;
 use crate::BORDER_WIDTH;
 use crate::DEFAULT_CONTAINER_PADDING;
@@ -263,6 +267,12 @@ impl Workspace {
         let managed_maximized_window = self.maximized_window().is_some();
 
         if *self.tile() {
+            if ANIMATION_ENABLED.load(Ordering::SeqCst) {
+                let border = Border::from(BORDER_HWND.load(Ordering::SeqCst));
+                border.hide()?;
+                BORDER_HIDDEN.store(true, Ordering::SeqCst);
+            }
+
             if let Some(container) = self.monocle_container_mut() {
                 if let Some(window) = container.focused_window_mut() {
                     adjusted_work_area.add_padding(container_padding.unwrap_or_default());

@@ -584,7 +584,8 @@ impl WindowManager {
             WindowManagerEvent::DisplayChange(..)
             | WindowManagerEvent::MouseCapture(..)
             | WindowManagerEvent::Cloak(..)
-            | WindowManagerEvent::Uncloak(..) => {}
+            | WindowManagerEvent::Uncloak(..)
+            | WindowManagerEvent::UpdateFocusedWindowBorder(..) => {}
         };
 
         if !self.focused_workspace()?.tile() {
@@ -594,7 +595,7 @@ impl WindowManager {
         }
 
         if *self.focused_workspace()?.tile() && BORDER_ENABLED.load(Ordering::SeqCst) {
-            match event {
+            match &event {
                 WindowManagerEvent::MoveResizeStart(_, _) => {
                     let border = Border::from(BORDER_HWND.load(Ordering::SeqCst));
                     border.hide()?;
@@ -605,7 +606,8 @@ impl WindowManager {
                 | WindowManagerEvent::FocusChange(_, window)
                 | WindowManagerEvent::Hide(_, window)
                 | WindowManagerEvent::Uncloak(_, window)
-                | WindowManagerEvent::Minimize(_, window) => {
+                | WindowManagerEvent::Minimize(_, window)
+                | WindowManagerEvent::UpdateFocusedWindowBorder(window) => {
                     let border = Border::from(BORDER_HWND.load(Ordering::SeqCst));
                     let mut target_window = None;
                     let mut target_window_is_monocle = false;
@@ -621,10 +623,12 @@ impl WindowManager {
 
                     if let Some(monocle_container) = self.focused_workspace()?.monocle_container() {
                         if let Some(window) = monocle_container.focused_window() {
-                            target_window = Option::from(*window);
+                            target_window = Option::from(window);
                             target_window_is_monocle = true;
                         }
                     }
+
+                    let window = *window;
 
                     if target_window.is_none() {
                         match self.focused_container() {
@@ -637,7 +641,7 @@ impl WindowManager {
                                     && container.windows().len() == 1)
                                 {
                                     let container_size = self.focused_container()?.windows().len();
-                                    target_window = Option::from(*self.focused_window()?);
+                                    target_window = Option::from(self.focused_window()?);
 
                                     if target_window_is_monocle {
                                         BORDER_COLOUR_CURRENT.store(
@@ -664,7 +668,11 @@ impl WindowManager {
                         let activate = BORDER_HIDDEN.load(Ordering::SeqCst);
 
                         WindowsApi::invalidate_border_rect()?;
-                        border.set_position(target_window, activate)?;
+                        border.set_position(*target_window, activate)?;
+
+                        if matches!(event, WindowManagerEvent::UpdateFocusedWindowBorder(_)) {
+                            window.focus(self.mouse_follows_focus)?;
+                        }
 
                         if activate {
                             BORDER_HIDDEN.store(false, Ordering::SeqCst);
@@ -676,7 +684,7 @@ impl WindowManager {
         }
 
         // If we unmanaged a window, it shouldn't be immediately hidden behind managed windows
-        if let WindowManagerEvent::Unmanage(window) = event {
+        if let WindowManagerEvent::Unmanage(mut window) = event {
             window.center(&self.focused_monitor_work_area()?)?;
         }
 

@@ -53,6 +53,9 @@ use crate::GlobalState;
 use crate::Notification;
 use crate::NotificationEvent;
 use crate::ACTIVE_WINDOW_BORDER_STYLE;
+use crate::ANIMATION_DURATION;
+use crate::ANIMATION_ENABLED;
+use crate::ANIMATION_STYLE;
 use crate::BORDER_COLOUR_CURRENT;
 use crate::BORDER_COLOUR_MONOCLE;
 use crate::BORDER_COLOUR_SINGLE;
@@ -1250,6 +1253,15 @@ impl WindowManager {
                     self.hide_border()?;
                 }
             }
+            SocketMessage::Animation(enable) => {
+                ANIMATION_ENABLED.store(enable, Ordering::SeqCst);
+            }
+            SocketMessage::AnimationDuration(duration) => {
+                ANIMATION_DURATION.store(duration, Ordering::SeqCst);
+            }
+            SocketMessage::AnimationStyle(style) => {
+                *ANIMATION_STYLE.lock() = style;
+            }
             SocketMessage::ActiveWindowBorderColour(kind, r, g, b) => {
                 match kind {
                     WindowKind::Single => {
@@ -1358,7 +1370,7 @@ impl WindowManager {
                 self.update_focused_workspace(false, false)?;
             }
             SocketMessage::DebugWindow(hwnd) => {
-                let window = Window { hwnd };
+                let window = Window::new(hwnd);
                 let mut rule_debug = RuleDebug::default();
                 let _ = window.should_manage(None, &mut rule_debug);
                 let schema = serde_json::to_string_pretty(&rule_debug)?;
@@ -1469,7 +1481,7 @@ impl WindowManager {
                         }
                     };
                 };
-                let foreground_window = Window { hwnd: foreground };
+                let foreground_window = Window::new(foreground);
 
                 let monocle = BORDER_COLOUR_MONOCLE.load(Ordering::SeqCst);
                 if monocle != 0 && self.focused_workspace()?.monocle_container().is_some() {

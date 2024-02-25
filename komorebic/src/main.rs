@@ -681,6 +681,25 @@ struct ActiveWindowBorderOffset {
 }
 
 #[derive(Parser, AhkFunction)]
+struct Animation {
+    #[clap(value_enum)]
+    boolean_state: BooleanState,
+}
+
+#[derive(Parser, AhkFunction)]
+struct AnimationDuration {
+    /// Desired animation durations in ms
+    duration: u64,
+}
+
+#[derive(Parser, AhkFunction)]
+struct AnimationStyle {
+    /// Desired ease function for animation
+    #[clap(value_enum, short, long, default_value = "linear")]
+    style: komorebi_core::AnimationStyle,
+}
+
+#[derive(Parser, AhkFunction)]
 #[allow(clippy::struct_excessive_bools)]
 struct Start {
     /// Allow the use of komorebi's custom focus-follows-mouse implementation
@@ -1153,6 +1172,15 @@ enum SubCommand {
     /// Set the offset for the active window border
     #[clap(arg_required_else_help = true)]
     ActiveWindowBorderOffset(ActiveWindowBorderOffset),
+    /// Enable or disable the window move animation
+    #[clap(arg_required_else_help = true)]
+    Animation(Animation),
+    /// Set the duration for the window move animation in ms
+    #[clap(arg_required_else_help = true)]
+    AnimationDuration(AnimationDuration),
+    /// Set the ease function for the window move animation
+    #[clap(arg_required_else_help = true)]
+    AnimationStyle(AnimationStyle),
     /// Enable or disable focus follows mouse for the operating system
     #[clap(arg_required_else_help = true)]
     FocusFollowsMouse(FocusFollowsMouse),
@@ -2226,6 +2254,15 @@ Stop-Process -Name:komorebi -ErrorAction SilentlyContinue
         }
         SubCommand::ActiveWindowBorderOffset(arg) => {
             send_message(&SocketMessage::BorderOffset(arg.offset).as_bytes()?)?;
+        }
+        SubCommand::Animation(arg) => {
+            send_message(&SocketMessage::Animation(arg.boolean_state.into()).as_bytes()?)?;
+        }
+        SubCommand::AnimationDuration(arg) => {
+            send_message(&SocketMessage::AnimationDuration(arg.duration).as_bytes()?)?;
+        }
+        SubCommand::AnimationStyle(arg) => {
+            send_message(&SocketMessage::AnimationStyle(arg.style).as_bytes()?)?;
         }
         SubCommand::ResizeDelta(arg) => {
             send_message(&SocketMessage::ResizeDelta(arg.pixels).as_bytes()?)?;
