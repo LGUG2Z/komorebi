@@ -805,8 +805,10 @@ enum SubCommand {
     Start(Start),
     /// Stop the komorebi.exe process and restore all hidden windows
     Stop(Stop),
-    /// Output various important komorebi-related environment values
+    /// Check komorebi configuration and related files for common errors
     Check,
+    /// Show the path to komorebi.json
+    Config,
     /// Show a JSON representation of the current window manager state
     State,
     /// Show a JSON representation of visible windows
@@ -1414,6 +1416,14 @@ fn main() -> Result<()> {
                 println!("If running 'komorebic start --await-configuration', you will manually have to call the following command to begin tiling: komorebic complete-configuration\n");
             }
         }
+        SubCommand::Config => {
+            let static_config = HOME_DIR.join("komorebi.json");
+
+            if static_config.exists() {
+                println!("{}", static_config.display());
+            }
+        }
+
         SubCommand::AhkLibrary => {
             let library = HOME_DIR.join("komorebic.lib.ahk");
             let mut file = OpenOptions::new()
