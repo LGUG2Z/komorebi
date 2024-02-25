@@ -1158,17 +1158,21 @@ enum SubCommand {
 }
 
 pub fn send_message(bytes: &[u8]) -> Result<()> {
-    let socket = DATA_DIR.join("komorebi.sock");
-
-    let mut connected = false;
-    while !connected {
-        if let Ok(mut stream) = UnixStream::connect(&socket) {
-            connected = true;
-            stream.write_all(bytes)?;
+    let mut system = sysinfo::System::new_all();
+    system.refresh_processes();
+    if system.processes_by_name("komorebi.exe").next().is_some() {
+        let socket = DATA_DIR.join("komorebi.sock");
+        for _attempts in 0..10 {
+            match UnixStream::connect(&socket) {
+                Ok(mut stream) => {
+                    stream.write_all(bytes)?;
+                    return Ok(());
+                }
+                Err(_) => std::thread::sleep(Duration::from_millis(200)),
+            }
         }
     }
-
-    Ok(())
+    Err(anyhow!("Can not stablish connection."))
 }
 
 fn with_komorebic_socket<F: Fn() -> Result<()>>(f: F) -> Result<()> {
