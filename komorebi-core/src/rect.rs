@@ -84,4 +84,14 @@ impl Rect {
             bottom: (self.bottom * rect_dpi) / system_dpi,
         }
     }
+
+    #[must_use]
+    pub const fn rect(&self) -> RECT {
+        RECT {
+            left: self.left,
+            top: self.top,
+            right: self.left + self.right,
+            bottom: self.top + self.bottom,
+        }
+    }
 }

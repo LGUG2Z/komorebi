@@ -1,9 +1,14 @@
 use crate::com::SetCloak;
+use crate::winevent_listener;
+use crate::ANIMATION_DURATION;
+use crate::ANIMATION_ENABLED;
+use crate::ANIMATION_MANAGER;
 use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::fmt::Display;
 use std::fmt::Formatter;
 use std::fmt::Write as _;
+use std::sync::atomic::Ordering;
 use std::time::Duration;
 
 use color_eyre::eyre;
@@ -25,6 +30,7 @@ use komorebi_core::ApplicationIdentifier;
 use komorebi_core::HidingBehaviour;
 use komorebi_core::Rect;
 
+use crate::animation::Animation;
 use crate::styles::ExtendedWindowStyle;
 use crate::styles::WindowStyle;
 use crate::window_manager_event::WindowManagerEvent;
@@ -42,6 +48,7 @@ use crate::WSL2_UI_PROCESSES;
 #[derive(Debug, Clone, Copy, Deserialize, JsonSchema)]
 pub struct Window {
     pub hwnd: isize,
+    animation: Animation,
 }
 
 #[allow(clippy::module_name_repetitions)]
@@ -121,11 +128,19 @@ impl Serialize for Window {
 }
 
 impl Window {
+    // for instantiation of animation struct
+    pub fn new(hwnd: isize) -> Self {
+        Self {
+            hwnd,
+            animation: Animation::new(hwnd),
+        }
+    }
+
     pub const fn hwnd(self) -> HWND {
         HWND(self.hwnd)
     }
 
-    pub fn center(&self, work_area: &Rect) -> Result<()> {
+    pub fn center(&mut self, work_area: &Rect) -> Result<()> {
         let half_width = work_area.right / 2;
         let half_weight = work_area.bottom / 2;
 
@@ -140,9 +155,58 @@ impl Window {
         )
     }
 
-    pub fn set_position(&self, layout: &Rect, top: bool) -> Result<()> {
+    pub fn animate_position(&self, layout: &Rect, top: bool) -> Result<()> {
+        let hwnd = self.hwnd();
+        let curr_rect = WindowsApi::window_rect(hwnd).unwrap();
+
+        if curr_rect.left == layout.left
+            && curr_rect.top == layout.top
+            && curr_rect.bottom == layout.bottom
+            && curr_rect.right == layout.right
+        {
+            WindowsApi::position_window(hwnd, layout, top)
+        } else {
+            let target_rect = *layout;
+            let duration = Duration::from_millis(ANIMATION_DURATION.load(Ordering::SeqCst));
+            let mut animation = self.animation;
+
+            let self_copied = *self;
+            std::thread::spawn(move || {
+                animation.animate(duration, |progress: f64| {
+                    let new_rect = Animation::lerp_rect(&curr_rect, &target_rect, progress);
+                    if progress < 1.0 {
+                        // using MoveWindow because it runs faster than SetWindowPos
+                        // so animation have more fps and feel smoother
+                        WindowsApi::move_window(hwnd, &new_rect, true)?;
+                        WindowsApi::invalidate_rect(hwnd, None, false);
+                    } else {
+                        WindowsApi::position_window(hwnd, &new_rect, top)?;
+
+                        if WindowsApi::foreground_window()? == self_copied.hwnd {
+                            winevent_listener::event_tx()
+                                .send(WindowManagerEvent::UpdateFocusedWindowBorder(self_copied))?;
+                        }
+                    }
+
+                    Ok(())
+                })
+            });
+
+            Ok(())
+        }
+    }
+
+    pub fn set_position(&mut self, layout: &Rect, top: bool) -> Result<()> {
         let rect = *layout;
-        WindowsApi::position_window(self.hwnd(), &rect, top)
+        if ANIMATION_ENABLED.load(Ordering::SeqCst) {
+            if ANIMATION_MANAGER.lock().in_progress(self.hwnd) {
+                self.animation.cancel();
+            }
+
+            self.animate_position(&rect, top)
+        } else {
+            WindowsApi::position_window(self.hwnd(), &rect, top)
+        }
     }
 
     pub fn is_maximized(self) -> bool {
