@@ -103,7 +103,7 @@ use windows::Win32::UI::WindowsAndMessaging::GWL_EXSTYLE;
 use windows::Win32::UI::WindowsAndMessaging::GWL_STYLE;
 use windows::Win32::UI::WindowsAndMessaging::GW_HWNDNEXT;
 use windows::Win32::UI::WindowsAndMessaging::HWND_BOTTOM;
-use windows::Win32::UI::WindowsAndMessaging::HWND_TOPMOST;
+use windows::Win32::UI::WindowsAndMessaging::HWND_TOP;
 use windows::Win32::UI::WindowsAndMessaging::LWA_ALPHA;
 use windows::Win32::UI::WindowsAndMessaging::LWA_COLORKEY;
 use windows::Win32::UI::WindowsAndMessaging::SET_WINDOW_POS_FLAGS;
@@ -358,7 +358,7 @@ impl WindowsApi {
             bottom: layout.bottom + shadow_rect.bottom,
         };
 
-        let position = if top { HWND_TOPMOST } else { HWND_BOTTOM };
+        let position = if top { HWND_TOP } else { HWND_BOTTOM };
         Self::set_window_pos(hwnd, &rect, position, flags.bits())
     }
 
@@ -369,7 +369,7 @@ impl WindowsApi {
     pub fn raise_window(hwnd: HWND) -> Result<()> {
         let flags = SetWindowPosition::NO_MOVE;
 
-        let position = HWND_TOPMOST;
+        let position = HWND_TOP;
         Self::set_window_pos(hwnd, &Rect::default(), position, flags.bits())
     }
 
@@ -380,12 +380,13 @@ impl WindowsApi {
             SetWindowPosition::NO_ACTIVATE
         };
 
-        // Always raise the border window to topmost, so that when it is a
-        // single-pixel inset border, it always draws atop the window (i.e.
-        // support an offset of -1 that draws over the Windows 11 default
-        // translucent single pixel border, while reamining visible in cases
-        // such as the EPIC Games launcher that uses an opaque custom border).
-        let position = HWND_TOPMOST;
+        // Always raise the border window to the top, but not overlapping
+        // topmost windows, so that when it is a single-pixel inset border, it
+        // always draws atop the window (i.e.  support an offset of -1 that
+        // draws over the Windows 11 default translucent single pixel border,
+        // while reamining visible in cases such as the EPIC Games launcher that
+        // uses an opaque custom border).
+        let position = HWND_TOP;
         Self::set_window_pos(hwnd, layout, position, flags.bits())
     }
 
