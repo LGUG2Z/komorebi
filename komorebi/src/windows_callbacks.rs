@@ -39,6 +39,7 @@ use crate::ring::Ring;
 use crate::window::Window;
 use crate::window_manager_event::WindowManagerEvent;
 use crate::windows_api::WindowsApi;
+use crate::winevent::WinEvent;
 use crate::winevent_listener;
 use crate::BORDER_COLOUR_CURRENT;
 use crate::BORDER_RECT;
@@ -186,7 +187,10 @@ pub extern "system" fn win_event_hook(
 
     let window = Window { hwnd: hwnd.0 };
 
-    let winevent = unsafe { ::std::mem::transmute(event) };
+    let winevent = match WinEvent::try_from(event) {
+        Ok(event) => event,
+        Err(_) => return,
+    };
     let event_type = match WindowManagerEvent::from_win_event(winevent, window) {
         None => return,
         Some(event) => event,
