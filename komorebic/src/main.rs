@@ -1077,8 +1077,9 @@ enum SubCommand {
     WatchConfiguration(WatchConfiguration),
     /// Signal that the final configuration option has been sent
     CompleteConfiguration,
-    /// Enable or disable a hack simulating ALT key presses to ensure focus changes succeed
+    /// DEPRECATED since v0.1.22
     #[clap(arg_required_else_help = true)]
+    #[clap(hide = true)]
     AltFocusHack(AltFocusHack),
     /// Set the window behaviour when switching workspaces / cycling stacks
     #[clap(arg_required_else_help = true)]

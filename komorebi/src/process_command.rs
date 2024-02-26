@@ -48,7 +48,6 @@ use crate::window_manager::WindowManager;
 use crate::windows_api::WindowsApi;
 use crate::Notification;
 use crate::NotificationEvent;
-use crate::ALT_FOCUS_HACK;
 use crate::BORDER_COLOUR_CURRENT;
 use crate::BORDER_COLOUR_MONOCLE;
 use crate::BORDER_COLOUR_SINGLE;
@@ -1252,8 +1251,8 @@ impl WindowManager {
                 BORDER_OFFSET.store(offset, Ordering::SeqCst);
                 WindowsApi::invalidate_border_rect()?;
             }
-            SocketMessage::AltFocusHack(enable) => {
-                ALT_FOCUS_HACK.store(enable, Ordering::SeqCst);
+            SocketMessage::AltFocusHack(_) => {
+                tracing::info!("this action is deprecated");
             }
             SocketMessage::ApplicationSpecificConfigurationSchema => {
                 let asc = schema_for!(Vec<ApplicationConfiguration>);

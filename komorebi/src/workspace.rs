@@ -203,11 +203,7 @@ impl Workspace {
         Ok(())
     }
 
-    pub fn update(
-        &mut self,
-        work_area: &Rect,
-        offset: Option<Rect>,
-    ) -> Result<()> {
+    pub fn update(&mut self, work_area: &Rect, offset: Option<Rect>) -> Result<()> {
         if !INITIAL_CONFIGURATION_LOADED.load(Ordering::SeqCst) {
             return Ok(());
         }

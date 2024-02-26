@@ -352,7 +352,7 @@ impl WindowsApi {
             | SetWindowPosition::FRAME_CHANGED;
 
         let shadow_rect = Self::shadow_rect(hwnd)?;
-        let rect = Rect{
+        let rect = Rect {
             left: layout.left + shadow_rect.left,
             top: layout.top + shadow_rect.top,
             right: layout.right + shadow_rect.right,

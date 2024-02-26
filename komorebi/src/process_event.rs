@@ -376,8 +376,7 @@ impl WindowManager {
 
                     // If we have moved across the monitors, use that override, otherwise determine
                     // if a move has taken place by ruling out a resize
-                    let is_move = moved_across_monitors
-                        || resize.right == 0 && resize.bottom == 0;
+                    let is_move = moved_across_monitors || resize.right == 0 && resize.bottom == 0;
 
                     if is_move {
                         tracing::info!("moving with mouse");

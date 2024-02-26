@@ -86,11 +86,7 @@ impl Border {
         }
     }
 
-    pub fn set_position(
-        self,
-        window: Window,
-        activate: bool,
-    ) -> Result<()> {
+    pub fn set_position(self, window: Window, activate: bool) -> Result<()> {
         if self.hwnd == 0 {
             Ok(())
         } else {

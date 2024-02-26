@@ -214,7 +214,7 @@ impl From<&Monitor> for MonitorConfig {
 #[derive(Debug, Serialize, Deserialize, JsonSchema)]
 /// The `komorebi.json` static configuration file reference for `v0.1.20`
 pub struct StaticConfig {
-    /// Dimensions of Windows' own invisible borders; don't set these yourself unless you are told to
+    /// DEPRECATED from v0.1.22: no longer required
     #[serde(skip_serializing_if = "Option::is_none")]
     pub invisible_borders: Option<Rect>,
     /// Delta to resize windows by (default 50)
@@ -238,12 +238,14 @@ pub struct StaticConfig {
     /// Path to applications.yaml from komorebi-application-specific-configurations (default: None)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub app_specific_configuration_path: Option<PathBuf>,
-    /// Width of the active window border (default: 20)
+    /// Width of the window border (default: 8)
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub active_window_border_width: Option<i32>,
-    /// Offset of the active window border (default: None)
+    #[serde(alias = "active_window_border_width")]
+    pub border_width: Option<i32>,
+    /// Offset of the window border (default: -1)
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub active_window_border_offset: Option<i32>,
+    #[serde(alias = "active_window_border_offset")]
+    pub border_offset: Option<i32>,
     /// Display an active window border (default: false)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub active_window_border: Option<bool>,
@@ -259,10 +261,6 @@ pub struct StaticConfig {
     /// Monitor and workspace configurations
     #[serde(skip_serializing_if = "Option::is_none")]
     pub monitors: Option<Vec<MonitorConfig>>,
-    /// DEPRECATED from v0.1.20: no longer required
-    #[schemars(skip)]
-    #[serde(skip_serializing)]
-    pub alt_focus_hack: Option<bool>,
     /// Which Windows signal to use when hiding windows (default: minimize)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub window_hiding_behaviour: Option<HidingBehaviour>,
@@ -377,8 +375,8 @@ impl From<&WindowManager> for StaticConfig {
             focus_follows_mouse: value.focus_follows_mouse,
             mouse_follows_focus: Option::from(value.mouse_follows_focus),
             app_specific_configuration_path: None,
-            active_window_border_width: Option::from(BORDER_WIDTH.load(Ordering::SeqCst)),
-            active_window_border_offset: Option::from(BORDER_OFFSET.load(Ordering::SeqCst)),
+            border_width: Option::from(BORDER_WIDTH.load(Ordering::SeqCst)),
+            border_offset: Option::from(BORDER_OFFSET.load(Ordering::SeqCst)),
             active_window_border: Option::from(BORDER_ENABLED.load(Ordering::SeqCst)),
             active_window_border_colours: border_colours,
             default_workspace_padding: Option::from(
@@ -388,7 +386,6 @@ impl From<&WindowManager> for StaticConfig {
                 DEFAULT_CONTAINER_PADDING.load(Ordering::SeqCst),
             ),
             monitors: Option::from(monitors),
-            alt_focus_hack: None,
             window_hiding_behaviour: Option::from(*HIDING_BEHAVIOUR.lock()),
             global_work_area_offset: value.work_area_offset,
             float_rules: None,
@@ -429,7 +426,7 @@ impl StaticConfig {
             DEFAULT_WORKSPACE_PADDING.store(workspace, Ordering::SeqCst);
         }
 
-        self.active_window_border_width.map_or_else(
+        self.border_width.map_or_else(
             || {
                 BORDER_WIDTH.store(8, Ordering::SeqCst);
             },
@@ -438,7 +435,7 @@ impl StaticConfig {
             },
         );
 
-        BORDER_OFFSET.store(self.active_window_border_offset.unwrap_or(-1), Ordering::SeqCst);
+        BORDER_OFFSET.store(self.border_offset.unwrap_or(-1), Ordering::SeqCst);
 
         if let Some(colours) = &self.active_window_border_colours {
             BORDER_COLOUR_SINGLE.store(u32::from(colours.single), Ordering::SeqCst);
@@ -894,6 +891,12 @@ impl StaticConfig {
         };
 
         wm.focus_follows_mouse = value.focus_follows_mouse;
+
+        let monitor_count = wm.monitors().len();
+
+        for i in 0..monitor_count {
+            wm.update_focused_workspace_by_monitor_idx(i)?;
+        }
 
         Ok(())
     }

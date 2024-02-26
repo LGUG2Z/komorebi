@@ -192,10 +192,7 @@ impl Monitor {
         self.workspaces().len()
     }
 
-    pub fn update_focused_workspace(
-        &mut self,
-        offset: Option<Rect>,
-    ) -> Result<()> {
+    pub fn update_focused_workspace(&mut self, offset: Option<Rect>) -> Result<()> {
         let work_area = *self.work_area_size();
         let offset = if self.work_area_offset().is_some() {
             self.work_area_offset()

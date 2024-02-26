@@ -4,7 +4,6 @@ use std::convert::TryFrom;
 use std::fmt::Display;
 use std::fmt::Formatter;
 use std::fmt::Write as _;
-use std::sync::atomic::Ordering;
 
 use color_eyre::eyre;
 use color_eyre::eyre::anyhow;
@@ -19,9 +18,6 @@ use serde::Deserialize;
 use serde::Serialize;
 use serde::Serializer;
 use windows::Win32::Foundation::HWND;
-use winput::press;
-use winput::release;
-use winput::Vk;
 
 use komorebi_core::ApplicationIdentifier;
 use komorebi_core::HidingBehaviour;
@@ -31,7 +27,6 @@ use crate::styles::ExtendedWindowStyle;
 use crate::styles::WindowStyle;
 use crate::window_manager_event::WindowManagerEvent;
 use crate::windows_api::WindowsApi;
-use crate::ALT_FOCUS_HACK;
 use crate::FLOAT_IDENTIFIERS;
 use crate::HIDDEN_HWNDS;
 use crate::HIDING_BEHAVIOUR;
@@ -143,11 +138,7 @@ impl Window {
         )
     }
 
-    pub fn set_position(
-        &mut self,
-        layout: &Rect,
-        top: bool,
-    ) -> Result<()> {
+    pub fn set_position(&mut self, layout: &Rect, top: bool) -> Result<()> {
         let rect = *layout;
         WindowsApi::position_window(self.hwnd(), &rect, top)
     }
@@ -298,12 +289,7 @@ impl Window {
         let mut tried_resetting_foreground_access = false;
         let mut max_attempts = 10;
 
-        let hotkey_uses_alt = WindowsApi::alt_is_pressed();
         while !foregrounded && max_attempts > 0 {
-            if ALT_FOCUS_HACK.load(Ordering::SeqCst) {
-                press(Vk::Alt);
-            }
-
             match WindowsApi::set_foreground_window(self.hwnd()) {
                 Ok(()) => {
                     foregrounded = true;
@@ -324,10 +310,6 @@ impl Window {
                     }
                 }
             };
-
-            if ALT_FOCUS_HACK.load(Ordering::SeqCst) && !hotkey_uses_alt {
-                release(Vk::Alt);
-            }
         }
 
         // Center cursor in Window

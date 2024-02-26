@@ -205,7 +205,6 @@ pub static DEFAULT_CONTAINER_PADDING: AtomicI32 = AtomicI32::new(10);
 pub static INITIAL_CONFIGURATION_LOADED: AtomicBool = AtomicBool::new(false);
 pub static CUSTOM_FFM: AtomicBool = AtomicBool::new(false);
 pub static SESSION_ID: AtomicU32 = AtomicU32::new(0);
-pub static ALT_FOCUS_HACK: AtomicBool = AtomicBool::new(false);
 pub static BORDER_ENABLED: AtomicBool = AtomicBool::new(false);
 pub static BORDER_HWND: AtomicIsize = AtomicIsize::new(0);
 pub static BORDER_HIDDEN: AtomicBool = AtomicBool::new(false);
