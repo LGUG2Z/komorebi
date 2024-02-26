@@ -499,9 +499,11 @@ impl WindowsApi {
         let mut rect = unsafe { std::mem::zeroed() };
 
         if Self::dwm_get_window_attribute(hwnd, DWMWA_EXTENDED_FRAME_BOUNDS, &mut rect).is_ok() {
-            let window_scale = unsafe { GetDpiForWindow(hwnd) };
-            let system_scale = unsafe { GetDpiForSystem() };
-            Ok(Rect::from(rect).scale(system_scale.try_into()?, window_scale.try_into()?))
+            // TODO(raggi): once we declare DPI awareness, we will need to scale the rect.
+            // let window_scale = unsafe { GetDpiForWindow(hwnd) };
+            // let system_scale = unsafe { GetDpiForSystem() };
+            // Ok(Rect::from(rect).scale(system_scale.try_into()?, window_scale.try_into()?))
+            Ok(Rect::from(rect))
         } else {
             unsafe { GetWindowRect(hwnd, &mut rect) }.process()?;
             Ok(Rect::from(rect))
