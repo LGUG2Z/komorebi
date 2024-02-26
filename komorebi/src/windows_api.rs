@@ -54,8 +54,6 @@ use windows::Win32::System::Threading::PROCESS_ACCESS_RIGHTS;
 use windows::Win32::System::Threading::PROCESS_NAME_WIN32;
 use windows::Win32::System::Threading::PROCESS_QUERY_INFORMATION;
 use windows::Win32::UI::HiDpi::GetDpiForMonitor;
-use windows::Win32::UI::HiDpi::GetDpiForSystem;
-use windows::Win32::UI::HiDpi::GetDpiForWindow;
 use windows::Win32::UI::HiDpi::SetProcessDpiAwarenessContext;
 use windows::Win32::UI::HiDpi::DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2;
 use windows::Win32::UI::HiDpi::MDT_EFFECTIVE_DPI;
