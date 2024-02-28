@@ -163,6 +163,7 @@
           "kind": {
             "type": "string",
             "enum": [
+              "Path",
               "Exe",
               "Class",
               "Title"
@@ -234,6 +235,7 @@
           "kind": {
             "type": "string",
             "enum": [
+              "Path",
               "Exe",
               "Class",
               "Title"
@@ -352,6 +354,7 @@
           "kind": {
             "type": "string",
             "enum": [
+              "Path",
               "Exe",
               "Class",
               "Title"
@@ -387,6 +390,7 @@
           "kind": {
             "type": "string",
             "enum": [
+              "Path",
               "Exe",
               "Class",
               "Title"
@@ -523,6 +527,7 @@
                       "kind": {
                         "type": "string",
                         "enum": [
+                          "Path",
                           "Exe",
                           "Class",
                           "Title"
@@ -594,6 +599,7 @@
                       "kind": {
                         "type": "string",
                         "enum": [
+                          "Path",
                           "Exe",
                           "Class",
                           "Title"
@@ -639,6 +645,7 @@
           "kind": {
             "type": "string",
             "enum": [
+              "Path",
               "Exe",
               "Class",
               "Title"
