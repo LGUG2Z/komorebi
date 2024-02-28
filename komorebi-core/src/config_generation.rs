@@ -102,7 +102,7 @@ impl ApplicationConfiguration {
     pub fn populate_default_matching_strategies(&mut self) {
         if self.identifier.matching_strategy.is_none() {
             match self.identifier.kind {
-                ApplicationIdentifier::Exe => {
+                ApplicationIdentifier::Exe | ApplicationIdentifier::Path => {
                     self.identifier.matching_strategy = Option::from(MatchingStrategy::Equals);
                 }
                 ApplicationIdentifier::Class | ApplicationIdentifier::Title => {}

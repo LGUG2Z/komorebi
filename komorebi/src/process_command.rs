@@ -315,6 +315,11 @@ impl WindowManager {
                     {
                         for window in container.windows() {
                             match identifier {
+                                ApplicationIdentifier::Path => {
+                                    if window.path()? == *id {
+                                        hwnds_to_purge.push((i, window.hwnd));
+                                    }
+                                }
                                 ApplicationIdentifier::Exe => {
                                     if window.exe()? == *id {
                                         hwnds_to_purge.push((i, window.hwnd));

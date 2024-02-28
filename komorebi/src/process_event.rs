@@ -185,6 +185,7 @@ impl WindowManager {
                     let title = &window.title()?;
                     let exe_name = &window.exe()?;
                     let class = &window.class()?;
+                    let path = &window.path()?;
 
                     // We don't want to purge windows that have been deliberately hidden by us, eg. when
                     // they are not on the top of a container stack.
@@ -193,6 +194,7 @@ impl WindowManager {
                         title,
                         exe_name,
                         class,
+                        path,
                         &tray_and_multi_window_identifiers,
                         &regex_identifiers,
                     );

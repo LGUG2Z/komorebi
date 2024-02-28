@@ -139,11 +139,13 @@ impl WindowManagerEvent {
                 let title = &window.title().ok()?;
                 let exe_name = &window.exe().ok()?;
                 let class = &window.class().ok()?;
+                let path = &window.path().ok()?;
 
                 let should_trigger = should_act(
                     title,
                     exe_name,
                     class,
+                    path,
                     &object_name_change_on_launch,
                     &regex_identifiers,
                 );
