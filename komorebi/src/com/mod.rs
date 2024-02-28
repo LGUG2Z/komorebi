@@ -10,7 +10,6 @@ use interfaces::IServiceProvider;
 
 use std::ffi::c_void;
 
-use windows::core::ComInterface;
 use windows::core::Interface;
 use windows::Win32::Foundation::HWND;
 use windows::Win32::System::Com::CoCreateInstance;
