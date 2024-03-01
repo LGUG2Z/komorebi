@@ -1450,7 +1450,9 @@ impl WindowManager {
                 anyhow!("this is not a valid direction from the current position")
             })?;
 
-            let adjusted_new_index = if new_idx > current_container_idx {
+            let adjusted_new_index = if new_idx > current_container_idx
+                && !matches!(workspace.layout(), Layout::Default(DefaultLayout::Grid))
+            {
                 new_idx - 1
             } else {
                 new_idx
