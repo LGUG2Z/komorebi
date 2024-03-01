@@ -463,7 +463,7 @@ fn window_is_eligible(
     title: &String,
     exe_name: &String,
     class: &String,
-    path: &String,
+    path: &str,
     style: &WindowStyle,
     ex_style: &ExtendedWindowStyle,
     event: Option<WindowManagerEvent>,

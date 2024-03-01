@@ -779,7 +779,7 @@ dependencies = [
  "regex",
  "schemars",
  "serde",
- "serde_json",
+ "serde_json_lenient",
  "strum",
  "sysinfo",
  "tracing",
@@ -801,7 +801,7 @@ version = "0.1.22-dev.0"
 dependencies = [
  "komorebi",
  "komorebi-core",
- "serde_json",
+ "serde_json_lenient",
  "uds_windows",
 ]
 
@@ -815,7 +815,7 @@ dependencies = [
  "dunce",
  "schemars",
  "serde",
- "serde_json",
+ "serde_json_lenient",
  "serde_yaml",
  "strum",
  "windows 0.54.0",
@@ -839,7 +839,7 @@ dependencies = [
  "powershell_script",
  "reqwest",
  "serde",
- "serde_json",
+ "serde_json_lenient",
  "serde_yaml",
  "sysinfo",
  "thiserror",
@@ -1644,6 +1644,17 @@ name = "serde_json"
 version = "1.0.114"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c5f09b1bd632ef549eaa9f60a1f8de742bdbc698e6cee2095fc84dde5f549ae0"
+dependencies = [
+ "itoa",
+ "ryu",
+ "serde",
+]
+
+[[package]]
+name = "serde_json_lenient"
+version = "0.1.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dc61c66b53a4035fcce237ef38043f4b2f0ebf918fd0e69541a5166104065581"
 dependencies = [
  "itoa",
  "ryu",

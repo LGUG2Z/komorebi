@@ -33,7 +33,7 @@ paste = "1"
 regex = "1"
 schemars = "0.8"
 serde = { version = "1", features = ["derive"] }
-serde_json = "1"
+serde_json = { workspace = true }
 strum = { version = "0.26", features = ["derive"] }
 sysinfo = "0.30"
 tracing = "0.1"
