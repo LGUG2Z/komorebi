@@ -28,6 +28,8 @@ use crate::BORDER_COLOUR_STACK;
 use crate::BORDER_ENABLED;
 use crate::BORDER_HIDDEN;
 use crate::BORDER_HWND;
+use crate::BORDER_OFFSET;
+use crate::BORDER_WIDTH;
 use crate::DATA_DIR;
 use crate::HIDDEN_HWNDS;
 use crate::REGEX_IDENTIFIERS;
@@ -378,7 +380,14 @@ impl WindowManager {
 
                     // If we have moved across the monitors, use that override, otherwise determine
                     // if a move has taken place by ruling out a resize
-                    let is_move = moved_across_monitors || resize.right == 0 && resize.bottom == 0;
+                    let right_bottom_constant = ((BORDER_WIDTH.load(Ordering::SeqCst)
+                        + BORDER_OFFSET.load(Ordering::SeqCst))
+                        * 2)
+                    .abs();
+
+                    let is_move = moved_across_monitors
+                        || resize.right.abs() == right_bottom_constant
+                            && resize.bottom.abs() == right_bottom_constant;
 
                     if is_move {
                         tracing::info!("moving with mouse");

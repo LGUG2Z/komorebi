@@ -192,7 +192,6 @@ lazy_static! {
     static ref BORDER_RECT: Arc<Mutex<Rect>> =
         Arc::new(Mutex::new(Rect::default()));
 
-    static ref BORDER_OFFSET: AtomicI32 = Default::default();
 
     // Use app-specific titlebar removal options where possible
     // eg. Windows Terminal, IntelliJ IDEA, Firefox
@@ -212,7 +211,9 @@ pub static BORDER_COLOUR_SINGLE: AtomicU32 = AtomicU32::new(0);
 pub static BORDER_COLOUR_STACK: AtomicU32 = AtomicU32::new(0);
 pub static BORDER_COLOUR_MONOCLE: AtomicU32 = AtomicU32::new(0);
 pub static BORDER_COLOUR_CURRENT: AtomicU32 = AtomicU32::new(0);
-pub static BORDER_WIDTH: AtomicI32 = AtomicI32::new(20);
+pub static BORDER_WIDTH: AtomicI32 = AtomicI32::new(8);
+pub static BORDER_OFFSET: AtomicI32 = AtomicI32::new(-1);
+
 // 0 0 0 aka pure black, I doubt anyone will want this as a border colour
 pub const TRANSPARENCY_COLOUR: u32 = 0;
 pub static REMOVE_TITLEBARS: AtomicBool = AtomicBool::new(false);
