@@ -479,17 +479,17 @@ impl WindowManager {
                         let mut ops = vec![];
 
                         macro_rules! resize_op {
-                        ($coordinate:expr, $comparator:tt, $direction:expr) => {{
-                            let adjusted = $coordinate * 2;
-                            let sizing = if adjusted $comparator 0 {
-                                Sizing::Decrease
-                            } else {
-                                Sizing::Increase
-                            };
+                            ($coordinate:expr, $comparator:tt, $direction:expr) => {{
+                                let adjusted = $coordinate * 2;
+                                let sizing = if adjusted $comparator 0 {
+                                    Sizing::Decrease
+                                } else {
+                                    Sizing::Increase
+                                };
 
-                            ($direction, sizing, adjusted.abs())
-                        }};
-                    }
+                                ($direction, sizing, adjusted.abs())
+                            }};
+                        }
 
                         if resize.left != 0 {
                             ops.push(resize_op!(resize.left, >, OperationDirection::Left));
@@ -499,11 +499,14 @@ impl WindowManager {
                             ops.push(resize_op!(resize.top, >, OperationDirection::Up));
                         }
 
-                        if resize.right != 0 && resize.left == 0 {
+                        let top_left_constant = BORDER_WIDTH.load(Ordering::SeqCst)
+                            + BORDER_OFFSET.load(Ordering::SeqCst);
+
+                        if resize.right != 0 && resize.left == top_left_constant {
                             ops.push(resize_op!(resize.right, <, OperationDirection::Right));
                         }
 
-                        if resize.bottom != 0 && resize.top == 0 {
+                        if resize.bottom != 0 && resize.top == top_left_constant {
                             ops.push(resize_op!(resize.bottom, <, OperationDirection::Down));
                         }
 
