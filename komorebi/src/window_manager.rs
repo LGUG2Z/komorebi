@@ -852,17 +852,18 @@ impl WindowManager {
             }
         }
 
-        // if we passed false for follow_focus
-        if !follow_focus
+        // if we passed false for follow_focus and there is a container on the workspace
+        if !follow_focus && self.focused_container_mut().is_ok() {
             // and we have a stack with >1 windows
-            && self.focused_container_mut()?.windows().len() > 1
+            if self.focused_container_mut()?.windows().len() > 1
             // and we don't have a maxed window 
             && self.focused_workspace()?.maximized_window().is_none()
             // and we don't have a monocle container
             && self.focused_workspace()?.monocle_container().is_none()
-        {
-            if let Ok(window) = self.focused_window_mut() {
-                window.focus(self.mouse_follows_focus)?;
+            {
+                if let Ok(window) = self.focused_window_mut() {
+                    window.focus(self.mouse_follows_focus)?;
+                }
             }
         };
 

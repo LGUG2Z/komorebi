@@ -1389,10 +1389,14 @@ impl WindowManager {
                     );
                 }
 
-                let stack = BORDER_COLOUR_STACK.load(Ordering::SeqCst);
-                if stack != 0 && self.focused_container()?.windows().len() > 1 {
-                    BORDER_COLOUR_CURRENT
-                        .store(stack, Ordering::SeqCst);
+                // it is not acceptable to fail here; we need to be able to send the event to
+                // subscribers
+                if self.focused_container().is_ok() {
+                    let stack = BORDER_COLOUR_STACK.load(Ordering::SeqCst);
+                    if stack != 0 && self.focused_container()?.windows().len() > 1 {
+                        BORDER_COLOUR_CURRENT
+                            .store(stack, Ordering::SeqCst);
+                    }
                 }
 
                 let border = Border::from(BORDER_HWND.load(Ordering::SeqCst));
