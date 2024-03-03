@@ -534,8 +534,13 @@ fn window_is_eligible(
         || managed_override
     {
         return true;
-    } else if event.is_some() {
-        tracing::debug!("ignoring (exe: {}, title: {})", exe_name, title);
+    } else if let Some(event) = event {
+        tracing::debug!(
+            "ignoring (exe: {}, title: {}, event: {})",
+            exe_name,
+            title,
+            event
+        );
     }
 
     false
