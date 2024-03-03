@@ -212,12 +212,16 @@ impl WindowManager {
 
     #[tracing::instrument(skip(self))]
     pub fn show_border(&self) -> Result<()> {
-        let foreground = WindowsApi::foreground_window()?;
-        let foreground_window = Window { hwnd: foreground };
+        if self.focused_container().is_ok() {
+            let foreground = WindowsApi::foreground_window()?;
+            let foreground_window = Window { hwnd: foreground };
 
-        let border = Border::from(BORDER_HWND.load(Ordering::SeqCst));
-        border.set_position(foreground_window, true)?;
-        WindowsApi::invalidate_border_rect()
+            let border = Border::from(BORDER_HWND.load(Ordering::SeqCst));
+            border.set_position(foreground_window, true)?;
+            WindowsApi::invalidate_border_rect()?;
+        }
+
+        Ok(())
     }
 
     #[tracing::instrument(skip(self))]
