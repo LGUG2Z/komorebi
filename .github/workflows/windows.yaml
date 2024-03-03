@@ -73,6 +73,11 @@ jobs:
       - name: Install the target
         run: |
           rustup target install ${{ matrix.target }}
+      - name: Run Cargo checks
+        run: |
+          cargo fmt --check
+          cargo check
+          cargo clippy
       - name: Run a full build
         run: |
           cargo build --locked --release --target ${{ matrix.target }}
