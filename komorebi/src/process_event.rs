@@ -325,7 +325,7 @@ impl WindowManager {
                         Option::from((monitor_idx, workspace_idx, container_idx));
                 }
             }
-            WindowManagerEvent::MoveResizeEnd(_, window) => {
+            WindowManagerEvent::MoveResizeEnd(_, window) => 'moveresizeend: {
                 // We need this because if the event ends on a different monitor,
                 // that monitor will already have been focused and updated in the state
                 let pending = self.pending_move_op;
@@ -339,6 +339,23 @@ impl WindowManager {
                 let new_window_behaviour = self.window_container_behaviour;
 
                 let workspace = self.focused_workspace_mut()?;
+
+                // Hack: if we have a window that for some reason we are not
+                // managing (e.g. a just started WhatsApp window), and it is
+                // then moved, we do not want to move an arbitrary focused
+                // container around. This is a broader issue that the notion of
+                // a "focused container" is not safe for consideration when
+                // processing events, as focus is not necessarily synchronized -
+                // but also there is no requirement that a moved or resized
+                // window be focused - that's only a happenstance of how some
+                // common operations are performed by the user. We should move
+                // away from considering our notion of "focused", and instead
+                // find the "affected container" by searching for the container
+                // that in our state model currently contains the window.
+                if !workspace.contains_window(window.hwnd) {
+                    break 'moveresizeend;
+                }
+
                 if !workspace
                     .floating_windows()
                     .iter()
