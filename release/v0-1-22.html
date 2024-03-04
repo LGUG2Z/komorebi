@@ -11,10 +11,10 @@
       
       
       
-        <link rel="prev" href="generate-static-config.html">
+        <link rel="prev" href="../common-workflows/dynamic-layout-switching.html">
       
       
-        <link rel="next" href="disable-autostart.html">
+        <link rel="next" href="../cli/quickstart.html">
       
       
       <link rel="icon" href="../assets/images/favicon.png">
@@ -22,7 +22,7 @@
     
     
       
-        <title>enable-autostart - Komorebi</title>
+        <title>V0 1 22 - Komorebi</title>
       
     
     
@@ -77,7 +77,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#enable-autostart" class="md-skip">
+        <a href="#tldr" class="md-skip">
           Skip to content
         </a>
       
@@ -111,7 +111,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              enable-autostart
+              V0 1 22
             
           </span>
         </div>
@@ -280,11 +280,13 @@
         
   
   
+    
+  
   
     
     
-      <li class="md-tabs__item">
-        <a href="../release/v0-1-22.html" class="md-tabs__link">
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="v0-1-22.html" class="md-tabs__link">
           
   
     
@@ -317,13 +319,11 @@
         
   
   
-    
-  
   
     
     
-      <li class="md-tabs__item md-tabs__item--active">
-        <a href="quickstart.html" class="md-tabs__link">
+      <li class="md-tabs__item">
+        <a href="../cli/quickstart.html" class="md-tabs__link">
           
   
     
@@ -814,6 +814,8 @@
       
   
   
+    
+  
   
     
     
@@ -822,13 +824,13 @@
       
     
     
-    <li class="md-nav__item md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
       
         
         
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
         
           <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
             
@@ -841,7 +843,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
           <label class="md-nav__title" for="__nav_4">
             <span class="md-nav__icon md-icon"></span>
             Release notes
@@ -852,9 +854,27 @@
                 
   
   
+    
   
-    <li class="md-nav__item">
-      <a href="../release/v0-1-22.html" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  <span class="md-ellipsis">
+    V0 1 22
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="v0-1-22.html" class="md-nav__link md-nav__link--active">
         
   
   <span class="md-ellipsis">
@@ -863,6 +883,65 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#tldr" class="md-nav__link">
+    tl;dr
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#changes-to-active_window_border-and-window-sizing" class="md-nav__link">
+    Changes to active_window_border, and window sizing:
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#recommended-patterns" class="md-nav__link">
+    Recommended patterns
+  </a>
+  
+    <nav class="md-nav" aria-label="Recommended patterns">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#gapless" class="md-nav__link">
+    Gapless
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#1px-border" class="md-nav__link">
+    1px border
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -898,8 +977,6 @@
       
   
   
-    
-  
   
     
     
@@ -1178,13 +1255,13 @@
       
     
     
-    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--nested">
       
         
         
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" checked>
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
         
           <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
             
@@ -1197,7 +1274,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="true">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_6">
             <span class="md-nav__icon md-icon"></span>
             CLI reference
@@ -1210,7 +1287,7 @@
   
   
     <li class="md-nav__item">
-      <a href="quickstart.html" class="md-nav__link">
+      <a href="../cli/quickstart.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -1230,7 +1307,7 @@
   
   
     <li class="md-nav__item">
-      <a href="start.html" class="md-nav__link">
+      <a href="../cli/start.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -1250,7 +1327,7 @@
   
   
     <li class="md-nav__item">
-      <a href="stop.html" class="md-nav__link">
+      <a href="../cli/stop.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -1270,7 +1347,7 @@
   
   
     <li class="md-nav__item">
-      <a href="check.html" class="md-nav__link">
+      <a href="../cli/check.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -1290,7 +1367,7 @@
   
   
     <li class="md-nav__item">
-      <a href="configuration.html" class="md-nav__link">
+      <a href="../cli/configuration.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -1310,7 +1387,7 @@
   
   
     <li class="md-nav__item">
-      <a href="whkdrc.html" class="md-nav__link">
+      <a href="../cli/whkdrc.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -1330,7 +1407,7 @@
   
   
     <li class="md-nav__item">
-      <a href="state.html" class="md-nav__link">
+      <a href="../cli/state.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -1350,7 +1427,7 @@
   
   
     <li class="md-nav__item">
-      <a href="visible-windows.html" class="md-nav__link">
+      <a href="../cli/visible-windows.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -1370,7 +1447,7 @@
   
   
     <li class="md-nav__item">
-      <a href="query.html" class="md-nav__link">
+      <a href="../cli/query.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -1390,7 +1467,7 @@
   
   
     <li class="md-nav__item">
-      <a href="subscribe-socket.html" class="md-nav__link">
+      <a href="../cli/subscribe-socket.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -1410,7 +1487,7 @@
   
   
     <li class="md-nav__item">
-      <a href="unsubscribe-socket.html" class="md-nav__link">
+      <a href="../cli/unsubscribe-socket.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -1430,7 +1507,7 @@
   
   
     <li class="md-nav__item">
-      <a href="subscribe-pipe.html" class="md-nav__link">
+      <a href="../cli/subscribe-pipe.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -1450,7 +1527,7 @@
   
   
     <li class="md-nav__item">
-      <a href="unsubscribe-pipe.html" class="md-nav__link">
+      <a href="../cli/unsubscribe-pipe.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -1470,7 +1547,7 @@
   
   
     <li class="md-nav__item">
-      <a href="log.html" class="md-nav__link">
+      <a href="../cli/log.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -1490,7 +1567,7 @@
   
   
     <li class="md-nav__item">
-      <a href="quick-save-resize.html" class="md-nav__link">
+      <a href="../cli/quick-save-resize.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -1510,7 +1587,7 @@
   
   
     <li class="md-nav__item">
-      <a href="quick-load-resize.html" class="md-nav__link">
+      <a href="../cli/quick-load-resize.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -1530,7 +1607,7 @@
   
   
     <li class="md-nav__item">
-      <a href="save-resize.html" class="md-nav__link">
+      <a href="../cli/save-resize.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -1550,7 +1627,7 @@
   
   
     <li class="md-nav__item">
-      <a href="load-resize.html" class="md-nav__link">
+      <a href="../cli/load-resize.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -1570,7 +1647,7 @@
   
   
     <li class="md-nav__item">
-      <a href="focus.html" class="md-nav__link">
+      <a href="../cli/focus.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -1590,7 +1667,7 @@
   
   
     <li class="md-nav__item">
-      <a href="move.html" class="md-nav__link">
+      <a href="../cli/move.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -1610,7 +1687,7 @@
   
   
     <li class="md-nav__item">
-      <a href="minimize.html" class="md-nav__link">
+      <a href="../cli/minimize.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -1630,7 +1707,7 @@
   
   
     <li class="md-nav__item">
-      <a href="close.html" class="md-nav__link">
+      <a href="../cli/close.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -1650,7 +1727,7 @@
   
   
     <li class="md-nav__item">
-      <a href="force-focus.html" class="md-nav__link">
+      <a href="../cli/force-focus.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -1670,7 +1747,7 @@
   
   
     <li class="md-nav__item">
-      <a href="cycle-focus.html" class="md-nav__link">
+      <a href="../cli/cycle-focus.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -1690,7 +1767,7 @@
   
   
     <li class="md-nav__item">
-      <a href="cycle-move.html" class="md-nav__link">
+      <a href="../cli/cycle-move.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -1710,7 +1787,7 @@
   
   
     <li class="md-nav__item">
-      <a href="stack.html" class="md-nav__link">
+      <a href="../cli/stack.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -1730,7 +1807,7 @@
   
   
     <li class="md-nav__item">
-      <a href="resize-edge.html" class="md-nav__link">
+      <a href="../cli/resize-edge.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -1750,7 +1827,7 @@
   
   
     <li class="md-nav__item">
-      <a href="resize-axis.html" class="md-nav__link">
+      <a href="../cli/resize-axis.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -1770,7 +1847,7 @@
   
   
     <li class="md-nav__item">
-      <a href="unstack.html" class="md-nav__link">
+      <a href="../cli/unstack.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -1790,7 +1867,7 @@
   
   
     <li class="md-nav__item">
-      <a href="cycle-stack.html" class="md-nav__link">
+      <a href="../cli/cycle-stack.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -1810,7 +1887,7 @@
   
   
     <li class="md-nav__item">
-      <a href="move-to-monitor.html" class="md-nav__link">
+      <a href="../cli/move-to-monitor.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -1830,7 +1907,7 @@
   
   
     <li class="md-nav__item">
-      <a href="cycle-move-to-monitor.html" class="md-nav__link">
+      <a href="../cli/cycle-move-to-monitor.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -1850,7 +1927,7 @@
   
   
     <li class="md-nav__item">
-      <a href="move-to-workspace.html" class="md-nav__link">
+      <a href="../cli/move-to-workspace.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -1870,7 +1947,7 @@
   
   
     <li class="md-nav__item">
-      <a href="move-to-named-workspace.html" class="md-nav__link">
+      <a href="../cli/move-to-named-workspace.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -1890,7 +1967,7 @@
   
   
     <li class="md-nav__item">
-      <a href="cycle-move-to-workspace.html" class="md-nav__link">
+      <a href="../cli/cycle-move-to-workspace.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -1910,7 +1987,7 @@
   
   
     <li class="md-nav__item">
-      <a href="send-to-monitor.html" class="md-nav__link">
+      <a href="../cli/send-to-monitor.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -1930,7 +2007,7 @@
   
   
     <li class="md-nav__item">
-      <a href="cycle-send-to-monitor.html" class="md-nav__link">
+      <a href="../cli/cycle-send-to-monitor.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -1950,7 +2027,7 @@
   
   
     <li class="md-nav__item">
-      <a href="send-to-workspace.html" class="md-nav__link">
+      <a href="../cli/send-to-workspace.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -1970,7 +2047,7 @@
   
   
     <li class="md-nav__item">
-      <a href="send-to-named-workspace.html" class="md-nav__link">
+      <a href="../cli/send-to-named-workspace.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -1990,7 +2067,7 @@
   
   
     <li class="md-nav__item">
-      <a href="cycle-send-to-workspace.html" class="md-nav__link">
+      <a href="../cli/cycle-send-to-workspace.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -2010,7 +2087,7 @@
   
   
     <li class="md-nav__item">
-      <a href="send-to-monitor-workspace.html" class="md-nav__link">
+      <a href="../cli/send-to-monitor-workspace.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -2030,7 +2107,7 @@
   
   
     <li class="md-nav__item">
-      <a href="focus-monitor.html" class="md-nav__link">
+      <a href="../cli/focus-monitor.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -2050,7 +2127,7 @@
   
   
     <li class="md-nav__item">
-      <a href="focus-last-workspace.html" class="md-nav__link">
+      <a href="../cli/focus-last-workspace.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -2070,7 +2147,7 @@
   
   
     <li class="md-nav__item">
-      <a href="focus-workspace.html" class="md-nav__link">
+      <a href="../cli/focus-workspace.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -2090,7 +2167,7 @@
   
   
     <li class="md-nav__item">
-      <a href="focus-workspaces.html" class="md-nav__link">
+      <a href="../cli/focus-workspaces.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -2110,7 +2187,7 @@
   
   
     <li class="md-nav__item">
-      <a href="focus-monitor-workspace.html" class="md-nav__link">
+      <a href="../cli/focus-monitor-workspace.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -2130,7 +2207,7 @@
   
   
     <li class="md-nav__item">
-      <a href="focus-named-workspace.html" class="md-nav__link">
+      <a href="../cli/focus-named-workspace.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -2150,7 +2227,7 @@
   
   
     <li class="md-nav__item">
-      <a href="cycle-monitor.html" class="md-nav__link">
+      <a href="../cli/cycle-monitor.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -2170,7 +2247,7 @@
   
   
     <li class="md-nav__item">
-      <a href="cycle-workspace.html" class="md-nav__link">
+      <a href="../cli/cycle-workspace.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -2190,7 +2267,7 @@
   
   
     <li class="md-nav__item">
-      <a href="move-workspace-to-monitor.html" class="md-nav__link">
+      <a href="../cli/move-workspace-to-monitor.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -2210,7 +2287,7 @@
   
   
     <li class="md-nav__item">
-      <a href="swap-workspaces-with-monitor.html" class="md-nav__link">
+      <a href="../cli/swap-workspaces-with-monitor.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -2230,7 +2307,7 @@
   
   
     <li class="md-nav__item">
-      <a href="new-workspace.html" class="md-nav__link">
+      <a href="../cli/new-workspace.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -2250,7 +2327,7 @@
   
   
     <li class="md-nav__item">
-      <a href="resize-delta.html" class="md-nav__link">
+      <a href="../cli/resize-delta.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -2270,7 +2347,7 @@
   
   
     <li class="md-nav__item">
-      <a href="invisible-borders.html" class="md-nav__link">
+      <a href="../cli/invisible-borders.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -2290,7 +2367,7 @@
   
   
     <li class="md-nav__item">
-      <a href="global-work-area-offset.html" class="md-nav__link">
+      <a href="../cli/global-work-area-offset.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -2310,7 +2387,7 @@
   
   
     <li class="md-nav__item">
-      <a href="monitor-work-area-offset.html" class="md-nav__link">
+      <a href="../cli/monitor-work-area-offset.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -2330,7 +2407,7 @@
   
   
     <li class="md-nav__item">
-      <a href="focused-workspace-container-padding.html" class="md-nav__link">
+      <a href="../cli/focused-workspace-container-padding.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -2350,7 +2427,7 @@
   
   
     <li class="md-nav__item">
-      <a href="focused-workspace-padding.html" class="md-nav__link">
+      <a href="../cli/focused-workspace-padding.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -2370,7 +2447,7 @@
   
   
     <li class="md-nav__item">
-      <a href="adjust-container-padding.html" class="md-nav__link">
+      <a href="../cli/adjust-container-padding.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -2390,7 +2467,7 @@
   
   
     <li class="md-nav__item">
-      <a href="adjust-workspace-padding.html" class="md-nav__link">
+      <a href="../cli/adjust-workspace-padding.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -2410,7 +2487,7 @@
   
   
     <li class="md-nav__item">
-      <a href="change-layout.html" class="md-nav__link">
+      <a href="../cli/change-layout.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -2430,7 +2507,7 @@
   
   
     <li class="md-nav__item">
-      <a href="cycle-layout.html" class="md-nav__link">
+      <a href="../cli/cycle-layout.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -2450,7 +2527,7 @@
   
   
     <li class="md-nav__item">
-      <a href="load-custom-layout.html" class="md-nav__link">
+      <a href="../cli/load-custom-layout.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -2470,7 +2547,7 @@
   
   
     <li class="md-nav__item">
-      <a href="flip-layout.html" class="md-nav__link">
+      <a href="../cli/flip-layout.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -2490,7 +2567,7 @@
   
   
     <li class="md-nav__item">
-      <a href="promote.html" class="md-nav__link">
+      <a href="../cli/promote.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -2510,7 +2587,7 @@
   
   
     <li class="md-nav__item">
-      <a href="promote-focus.html" class="md-nav__link">
+      <a href="../cli/promote-focus.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -2530,7 +2607,7 @@
   
   
     <li class="md-nav__item">
-      <a href="retile.html" class="md-nav__link">
+      <a href="../cli/retile.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -2550,7 +2627,7 @@
   
   
     <li class="md-nav__item">
-      <a href="monitor-index-preference.html" class="md-nav__link">
+      <a href="../cli/monitor-index-preference.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -2570,7 +2647,7 @@
   
   
     <li class="md-nav__item">
-      <a href="display-index-preference.html" class="md-nav__link">
+      <a href="../cli/display-index-preference.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -2590,7 +2667,7 @@
   
   
     <li class="md-nav__item">
-      <a href="ensure-workspaces.html" class="md-nav__link">
+      <a href="../cli/ensure-workspaces.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -2610,7 +2687,7 @@
   
   
     <li class="md-nav__item">
-      <a href="ensure-named-workspaces.html" class="md-nav__link">
+      <a href="../cli/ensure-named-workspaces.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -2630,7 +2707,7 @@
   
   
     <li class="md-nav__item">
-      <a href="container-padding.html" class="md-nav__link">
+      <a href="../cli/container-padding.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -2650,7 +2727,7 @@
   
   
     <li class="md-nav__item">
-      <a href="named-workspace-container-padding.html" class="md-nav__link">
+      <a href="../cli/named-workspace-container-padding.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -2670,7 +2747,7 @@
   
   
     <li class="md-nav__item">
-      <a href="workspace-padding.html" class="md-nav__link">
+      <a href="../cli/workspace-padding.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -2690,7 +2767,7 @@
   
   
     <li class="md-nav__item">
-      <a href="named-workspace-padding.html" class="md-nav__link">
+      <a href="../cli/named-workspace-padding.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -2710,7 +2787,7 @@
   
   
     <li class="md-nav__item">
-      <a href="workspace-layout.html" class="md-nav__link">
+      <a href="../cli/workspace-layout.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -2730,7 +2807,7 @@
   
   
     <li class="md-nav__item">
-      <a href="named-workspace-layout.html" class="md-nav__link">
+      <a href="../cli/named-workspace-layout.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -2750,7 +2827,7 @@
   
   
     <li class="md-nav__item">
-      <a href="workspace-custom-layout.html" class="md-nav__link">
+      <a href="../cli/workspace-custom-layout.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -2770,7 +2847,7 @@
   
   
     <li class="md-nav__item">
-      <a href="named-workspace-custom-layout.html" class="md-nav__link">
+      <a href="../cli/named-workspace-custom-layout.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -2790,7 +2867,7 @@
   
   
     <li class="md-nav__item">
-      <a href="workspace-layout-rule.html" class="md-nav__link">
+      <a href="../cli/workspace-layout-rule.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -2810,7 +2887,7 @@
   
   
     <li class="md-nav__item">
-      <a href="named-workspace-layout-rule.html" class="md-nav__link">
+      <a href="../cli/named-workspace-layout-rule.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -2830,7 +2907,7 @@
   
   
     <li class="md-nav__item">
-      <a href="workspace-custom-layout-rule.html" class="md-nav__link">
+      <a href="../cli/workspace-custom-layout-rule.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -2850,7 +2927,7 @@
   
   
     <li class="md-nav__item">
-      <a href="named-workspace-custom-layout-rule.html" class="md-nav__link">
+      <a href="../cli/named-workspace-custom-layout-rule.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -2870,7 +2947,7 @@
   
   
     <li class="md-nav__item">
-      <a href="clear-workspace-layout-rules.html" class="md-nav__link">
+      <a href="../cli/clear-workspace-layout-rules.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -2890,7 +2967,7 @@
   
   
     <li class="md-nav__item">
-      <a href="clear-named-workspace-layout-rules.html" class="md-nav__link">
+      <a href="../cli/clear-named-workspace-layout-rules.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -2910,7 +2987,7 @@
   
   
     <li class="md-nav__item">
-      <a href="workspace-tiling.html" class="md-nav__link">
+      <a href="../cli/workspace-tiling.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -2930,7 +3007,7 @@
   
   
     <li class="md-nav__item">
-      <a href="named-workspace-tiling.html" class="md-nav__link">
+      <a href="../cli/named-workspace-tiling.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -2950,7 +3027,7 @@
   
   
     <li class="md-nav__item">
-      <a href="workspace-name.html" class="md-nav__link">
+      <a href="../cli/workspace-name.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -2970,7 +3047,7 @@
   
   
     <li class="md-nav__item">
-      <a href="toggle-window-container-behaviour.html" class="md-nav__link">
+      <a href="../cli/toggle-window-container-behaviour.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -2990,7 +3067,7 @@
   
   
     <li class="md-nav__item">
-      <a href="toggle-pause.html" class="md-nav__link">
+      <a href="../cli/toggle-pause.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -3010,7 +3087,7 @@
   
   
     <li class="md-nav__item">
-      <a href="toggle-tiling.html" class="md-nav__link">
+      <a href="../cli/toggle-tiling.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -3030,7 +3107,7 @@
   
   
     <li class="md-nav__item">
-      <a href="toggle-float.html" class="md-nav__link">
+      <a href="../cli/toggle-float.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -3050,7 +3127,7 @@
   
   
     <li class="md-nav__item">
-      <a href="toggle-monocle.html" class="md-nav__link">
+      <a href="../cli/toggle-monocle.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -3070,7 +3147,7 @@
   
   
     <li class="md-nav__item">
-      <a href="toggle-maximize.html" class="md-nav__link">
+      <a href="../cli/toggle-maximize.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -3090,7 +3167,7 @@
   
   
     <li class="md-nav__item">
-      <a href="restore-windows.html" class="md-nav__link">
+      <a href="../cli/restore-windows.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -3110,7 +3187,7 @@
   
   
     <li class="md-nav__item">
-      <a href="manage.html" class="md-nav__link">
+      <a href="../cli/manage.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -3130,7 +3207,7 @@
   
   
     <li class="md-nav__item">
-      <a href="unmanage.html" class="md-nav__link">
+      <a href="../cli/unmanage.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -3150,7 +3227,7 @@
   
   
     <li class="md-nav__item">
-      <a href="reload-configuration.html" class="md-nav__link">
+      <a href="../cli/reload-configuration.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -3170,7 +3247,7 @@
   
   
     <li class="md-nav__item">
-      <a href="watch-configuration.html" class="md-nav__link">
+      <a href="../cli/watch-configuration.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -3190,7 +3267,7 @@
   
   
     <li class="md-nav__item">
-      <a href="complete-configuration.html" class="md-nav__link">
+      <a href="../cli/complete-configuration.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -3210,7 +3287,7 @@
   
   
     <li class="md-nav__item">
-      <a href="window-hiding-behaviour.html" class="md-nav__link">
+      <a href="../cli/window-hiding-behaviour.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -3230,7 +3307,7 @@
   
   
     <li class="md-nav__item">
-      <a href="cross-monitor-move-behaviour.html" class="md-nav__link">
+      <a href="../cli/cross-monitor-move-behaviour.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -3250,7 +3327,7 @@
   
   
     <li class="md-nav__item">
-      <a href="toggle-cross-monitor-move-behaviour.html" class="md-nav__link">
+      <a href="../cli/toggle-cross-monitor-move-behaviour.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -3270,7 +3347,7 @@
   
   
     <li class="md-nav__item">
-      <a href="unmanaged-window-operation-behaviour.html" class="md-nav__link">
+      <a href="../cli/unmanaged-window-operation-behaviour.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -3290,7 +3367,7 @@
   
   
     <li class="md-nav__item">
-      <a href="float-rule.html" class="md-nav__link">
+      <a href="../cli/float-rule.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -3310,7 +3387,7 @@
   
   
     <li class="md-nav__item">
-      <a href="manage-rule.html" class="md-nav__link">
+      <a href="../cli/manage-rule.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -3330,7 +3407,7 @@
   
   
     <li class="md-nav__item">
-      <a href="initial-workspace-rule.html" class="md-nav__link">
+      <a href="../cli/initial-workspace-rule.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -3350,7 +3427,7 @@
   
   
     <li class="md-nav__item">
-      <a href="initial-named-workspace-rule.html" class="md-nav__link">
+      <a href="../cli/initial-named-workspace-rule.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -3370,7 +3447,7 @@
   
   
     <li class="md-nav__item">
-      <a href="workspace-rule.html" class="md-nav__link">
+      <a href="../cli/workspace-rule.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -3390,7 +3467,7 @@
   
   
     <li class="md-nav__item">
-      <a href="named-workspace-rule.html" class="md-nav__link">
+      <a href="../cli/named-workspace-rule.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -3410,7 +3487,7 @@
   
   
     <li class="md-nav__item">
-      <a href="identify-object-name-change-application.html" class="md-nav__link">
+      <a href="../cli/identify-object-name-change-application.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -3430,7 +3507,7 @@
   
   
     <li class="md-nav__item">
-      <a href="identify-tray-application.html" class="md-nav__link">
+      <a href="../cli/identify-tray-application.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -3450,7 +3527,7 @@
   
   
     <li class="md-nav__item">
-      <a href="identify-layered-application.html" class="md-nav__link">
+      <a href="../cli/identify-layered-application.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -3470,7 +3547,7 @@
   
   
     <li class="md-nav__item">
-      <a href="remove-title-bar.html" class="md-nav__link">
+      <a href="../cli/remove-title-bar.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -3490,7 +3567,7 @@
   
   
     <li class="md-nav__item">
-      <a href="toggle-title-bars.html" class="md-nav__link">
+      <a href="../cli/toggle-title-bars.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -3510,7 +3587,7 @@
   
   
     <li class="md-nav__item">
-      <a href="identify-border-overflow-application.html" class="md-nav__link">
+      <a href="../cli/identify-border-overflow-application.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -3530,7 +3607,7 @@
   
   
     <li class="md-nav__item">
-      <a href="active-window-border.html" class="md-nav__link">
+      <a href="../cli/active-window-border.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -3550,7 +3627,7 @@
   
   
     <li class="md-nav__item">
-      <a href="active-window-border-colour.html" class="md-nav__link">
+      <a href="../cli/active-window-border-colour.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -3570,7 +3647,7 @@
   
   
     <li class="md-nav__item">
-      <a href="active-window-border-width.html" class="md-nav__link">
+      <a href="../cli/active-window-border-width.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -3590,7 +3667,7 @@
   
   
     <li class="md-nav__item">
-      <a href="active-window-border-offset.html" class="md-nav__link">
+      <a href="../cli/active-window-border-offset.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -3610,7 +3687,7 @@
   
   
     <li class="md-nav__item">
-      <a href="focus-follows-mouse.html" class="md-nav__link">
+      <a href="../cli/focus-follows-mouse.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -3630,7 +3707,7 @@
   
   
     <li class="md-nav__item">
-      <a href="toggle-focus-follows-mouse.html" class="md-nav__link">
+      <a href="../cli/toggle-focus-follows-mouse.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -3650,7 +3727,7 @@
   
   
     <li class="md-nav__item">
-      <a href="mouse-follows-focus.html" class="md-nav__link">
+      <a href="../cli/mouse-follows-focus.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -3670,7 +3747,7 @@
   
   
     <li class="md-nav__item">
-      <a href="toggle-mouse-follows-focus.html" class="md-nav__link">
+      <a href="../cli/toggle-mouse-follows-focus.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -3690,7 +3767,7 @@
   
   
     <li class="md-nav__item">
-      <a href="ahk-library.html" class="md-nav__link">
+      <a href="../cli/ahk-library.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -3710,7 +3787,7 @@
   
   
     <li class="md-nav__item">
-      <a href="ahk-app-specific-configuration.html" class="md-nav__link">
+      <a href="../cli/ahk-app-specific-configuration.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -3730,7 +3807,7 @@
   
   
     <li class="md-nav__item">
-      <a href="pwsh-app-specific-configuration.html" class="md-nav__link">
+      <a href="../cli/pwsh-app-specific-configuration.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -3750,7 +3827,7 @@
   
   
     <li class="md-nav__item">
-      <a href="format-app-specific-configuration.html" class="md-nav__link">
+      <a href="../cli/format-app-specific-configuration.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -3770,7 +3847,7 @@
   
   
     <li class="md-nav__item">
-      <a href="fetch-app-specific-configuration.html" class="md-nav__link">
+      <a href="../cli/fetch-app-specific-configuration.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -3790,7 +3867,7 @@
   
   
     <li class="md-nav__item">
-      <a href="application-specific-configuration-schema.html" class="md-nav__link">
+      <a href="../cli/application-specific-configuration-schema.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -3810,7 +3887,7 @@
   
   
     <li class="md-nav__item">
-      <a href="notification-schema.html" class="md-nav__link">
+      <a href="../cli/notification-schema.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -3830,7 +3907,7 @@
   
   
     <li class="md-nav__item">
-      <a href="socket-schema.html" class="md-nav__link">
+      <a href="../cli/socket-schema.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -3850,7 +3927,7 @@
   
   
     <li class="md-nav__item">
-      <a href="static-config-schema.html" class="md-nav__link">
+      <a href="../cli/static-config-schema.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -3870,7 +3947,7 @@
   
   
     <li class="md-nav__item">
-      <a href="generate-static-config.html" class="md-nav__link">
+      <a href="../cli/generate-static-config.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -3888,18 +3965,9 @@
                 
   
   
-    
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-      <a href="enable-autostart.html" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../cli/enable-autostart.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -3908,7 +3976,6 @@
   
 
       </a>
-      
     </li>
   
 
@@ -3920,7 +3987,7 @@
   
   
     <li class="md-nav__item">
-      <a href="disable-autostart.html" class="md-nav__link">
+      <a href="../cli/disable-autostart.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -3958,8 +4025,55 @@
   
   
   
-    
   
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#tldr" class="md-nav__link">
+    tl;dr
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#changes-to-active_window_border-and-window-sizing" class="md-nav__link">
+    Changes to active_window_border, and window sizing:
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#recommended-patterns" class="md-nav__link">
+    Recommended patterns
+  </a>
+  
+    <nav class="md-nav" aria-label="Recommended patterns">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#gapless" class="md-nav__link">
+    Gapless
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#1px-border" class="md-nav__link">
+    1px border
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
   
 </nav>
                   </div>
@@ -3974,7 +4088,7 @@
                   
 
   
-    <a href="https://github.com/LGUG2Z/komorebi/edit/master/docs/cli/enable-autostart.md" title="Edit this page" class="md-content__button md-icon">
+    <a href="https://github.com/LGUG2Z/komorebi/edit/master/docs/release/v0-1-22.md" title="Edit this page" class="md-content__button md-icon">
       
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M10 20H6V4h7v5h5v3.1l2-2V8l-6-6H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h4v-2m10.2-7c.1 0 .3.1.4.2l1.3 1.3c.2.2.2.6 0 .8l-1 1-2.1-2.1 1-1c.1-.1.2-.2.4-.2m0 3.9L14.1 23H12v-2.1l6.1-6.1 2.1 2.1Z"/></svg>
     </a>
@@ -3983,34 +4097,58 @@
     
       
     
-    <a href="https://github.com/LGUG2Z/komorebi/raw/master/docs/cli/enable-autostart.md" title="View source of this page" class="md-content__button md-icon">
+    <a href="https://github.com/LGUG2Z/komorebi/raw/master/docs/release/v0-1-22.md" title="View source of this page" class="md-content__button md-icon">
       
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M17 18c.56 0 1 .44 1 1s-.44 1-1 1-1-.44-1-1 .44-1 1-1m0-3c-2.73 0-5.06 1.66-6 4 .94 2.34 3.27 4 6 4s5.06-1.66 6-4c-.94-2.34-3.27-4-6-4m0 6.5a2.5 2.5 0 0 1-2.5-2.5 2.5 2.5 0 0 1 2.5-2.5 2.5 2.5 0 0 1 2.5 2.5 2.5 2.5 0 0 1-2.5 2.5M9.27 20H6V4h7v5h5v4.07c.7.08 1.36.25 2 .49V8l-6-6H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h4.5a8.15 8.15 0 0 1-1.23-2Z"/></svg>
     </a>
   
 
 
-<h1 id="enable-autostart">enable-autostart</h1>
-<pre><code>Generates the komorebi.lnk shortcut in shell:startup to autostart komorebi
+  <h1>V0 1 22</h1>
 
-Usage: komorebic.exe enable-autostart [OPTIONS]
-
-Options:
-  -c, --config &lt;CONFIG&gt;
-          Path to a static configuration JSON file
-
-  -f, --ffm
-          Enable komorebi's custom focus-follows-mouse implementation
-
-      --whkd
-          Enable autostart of whkd
-
-      --ahk
-          Enable autostart of ahk
-
-  -h, --help
-          Print help
-
+<p>In addition to the <a href="https://github.com/LGUG2Z/komorebi/releases/tag/v0.1.22">changelog</a> of new features and fixes,
+please note the following changes from <code>v0.1.21</code> to adjust your configuration files accordingly.</p>
+<h2 id="tldr">tl;dr</h2>
+<p>The way windows are sized and drawn has been improved to remove the need to manually specify and remove invisible
+borders for applications that overflow them. If you use the active window border, the first time you launch <code>v0.1.22</code>
+you may end up with a <em>huge</em> border due to these changes.</p>
+<p><code>active_window_border_width</code> and <code>active_window_border_offset</code> have been renamed to <code>border_width</code> and <code>border_offset</code>
+as they now also apply outside the context of the active window border.</p>
+<pre><code class="language-json">{
+  &quot;active_window_border&quot;: true,
+  &quot;border_width&quot;: 8,
+  &quot;border_offset&quot;: -1
+}
+</code></pre>
+<p>Users of the active window border should start from these settings and read the notes below before making further
+adjustments.</p>
+<h2 id="changes-to-active_window_border-and-window-sizing">Changes to <code>active_window_border</code>, and window sizing:</h2>
+<ul>
+<li>The border no longer creates a second drop-shadow around the active window</li>
+<li>Windows are now sized to fill the layout region entirely, ignoring window decorations such as drop shadows</li>
+<li>Border offset now starts exactly at the paint edge of the window on all sides</li>
+<li>Windows are sized such that the border offset and border width are taken into account</li>
+</ul>
+<h2 id="recommended-patterns">Recommended patterns</h2>
+<h3 id="gapless">Gapless</h3>
+<ul>
+<li>Disable "transparency effects" Personalization &gt; Colors</li>
+<li>Set the following settings in <code>komorebi.json</code>:</li>
+</ul>
+<pre><code class="language-json">{
+  &quot;default_workspace_padding&quot;: 0,
+  &quot;default_container_padding&quot;: 0,
+  &quot;border_offset&quot;: -1,
+  &quot;border_width&quot;: 0
+}
+</code></pre>
+<h3 id="1px-border">1px border</h3>
+<p>A 1px border is drawn around the window edge. Users may see a gap for a single pixel, if the system theme has a
+transparent edge - this is the windows themed edge, and is not present for all applications.</p>
+<pre><code class="language-json">  {
+  &quot;border_offset&quot;: 0,
+  &quot;border_width&quot;: 1
+}
 </code></pre>
 
 
@@ -4041,7 +4179,7 @@ Options:
       <nav class="md-footer__inner md-grid" aria-label="Footer" >
         
           
-          <a href="generate-static-config.html" class="md-footer__link md-footer__link--prev" aria-label="Previous: generate-static-config" rel="prev">
+          <a href="../common-workflows/dynamic-layout-switching.html" class="md-footer__link md-footer__link--prev" aria-label="Previous: Dynamically Layout Switching" rel="prev">
             <div class="md-footer__button md-icon">
               
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11h12Z"/></svg>
@@ -4051,20 +4189,20 @@ Options:
                 Previous
               </span>
               <div class="md-ellipsis">
-                generate-static-config
+                Dynamically Layout Switching
               </div>
             </div>
           </a>
         
         
           
-          <a href="disable-autostart.html" class="md-footer__link md-footer__link--next" aria-label="Next: disable-autostart" rel="next">
+          <a href="../cli/quickstart.html" class="md-footer__link md-footer__link--next" aria-label="Next: quickstart" rel="next">
             <div class="md-footer__title">
               <span class="md-footer__direction">
                 Next
               </span>
               <div class="md-ellipsis">
-                disable-autostart
+                quickstart
               </div>
             </div>
             <div class="md-footer__button md-icon">
