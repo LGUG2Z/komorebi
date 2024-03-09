@@ -357,7 +357,7 @@ impl WindowsApi {
             bottom: layout.bottom + shadow_rect.bottom,
         };
 
-        let position = if top { HWND_TOP } else { HWND_BOTTOM };
+        let position = if top { HWND_TOP } else { HWND_NOTOPMOST };
         Self::set_window_pos(hwnd, &rect, position, flags.bits())
     }
 
