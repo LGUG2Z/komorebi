@@ -215,57 +215,6 @@ impl Window {
         WindowsApi::unmaximize_window(self.hwnd());
     }
 
-    pub fn raise(self) {
-        // Attach komorebi thread to Window thread
-        let (_, window_thread_id) = WindowsApi::window_thread_process_id(self.hwnd());
-        let current_thread_id = WindowsApi::current_thread_id();
-
-        // This can be allowed to fail if a window doesn't have a message queue or if a journal record
-        // hook has been installed
-        // https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-attachthreadinput#remarks
-        match WindowsApi::attach_thread_input(current_thread_id, window_thread_id, true) {
-            Ok(()) => {}
-            Err(error) => {
-                tracing::error!(
-                    "could not attach to window thread input processing mechanism, but continuing execution of raise(): {}",
-                    error
-                );
-            }
-        };
-
-        // Raise Window to foreground
-        match WindowsApi::set_foreground_window(self.hwnd()) {
-            Ok(()) => {}
-            Err(error) => {
-                tracing::error!(
-                    "could not set as foreground window, but continuing execution of raise(): {}",
-                    error
-                );
-            }
-        };
-
-        // This isn't really needed when the above command works as expected via AHK
-        match WindowsApi::set_focus(self.hwnd()) {
-            Ok(()) => {}
-            Err(error) => {
-                tracing::error!(
-                    "could not set focus, but continuing execution of raise(): {}",
-                    error
-                );
-            }
-        };
-
-        match WindowsApi::attach_thread_input(current_thread_id, window_thread_id, false) {
-            Ok(()) => {}
-            Err(error) => {
-                tracing::error!(
-                    "could not detach from window thread input processing mechanism, but continuing execution of raise(): {}",
-                    error
-                );
-            }
-        };
-    }
-
     pub fn focus(self, mouse_follows_focus: bool) -> Result<()> {
         // Attach komorebi thread to Window thread
         let (_, window_thread_id) = WindowsApi::window_thread_process_id(self.hwnd());
