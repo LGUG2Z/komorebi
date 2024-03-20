@@ -23,6 +23,7 @@ use uds_windows::UnixStream;
 
 use komorebi_core::config_generation::ApplicationConfiguration;
 use komorebi_core::config_generation::IdWithIdentifier;
+use komorebi_core::config_generation::MatchingRule;
 use komorebi_core::config_generation::MatchingStrategy;
 use komorebi_core::ApplicationIdentifier;
 use komorebi_core::Axis;
@@ -273,17 +274,19 @@ impl WindowManager {
 
                 let mut should_push = true;
                 for m in &*manage_identifiers {
-                    if m.id.eq(id) {
-                        should_push = false;
+                    if let MatchingRule::Simple(m) = m {
+                        if m.id.eq(id) {
+                            should_push = false;
+                        }
                     }
                 }
 
                 if should_push {
-                    manage_identifiers.push(IdWithIdentifier {
+                    manage_identifiers.push(MatchingRule::Simple(IdWithIdentifier {
                         kind: identifier,
                         id: id.clone(),
                         matching_strategy: Option::from(MatchingStrategy::Legacy),
-                    });
+                    }));
                 }
             }
             SocketMessage::FloatRule(identifier, ref id) => {
@@ -291,17 +294,19 @@ impl WindowManager {
 
                 let mut should_push = true;
                 for f in &*float_identifiers {
-                    if f.id.eq(id) {
-                        should_push = false;
+                    if let MatchingRule::Simple(f) = f {
+                        if f.id.eq(id) {
+                            should_push = false;
+                        }
                     }
                 }
 
                 if should_push {
-                    float_identifiers.push(IdWithIdentifier {
+                    float_identifiers.push(MatchingRule::Simple(IdWithIdentifier {
                         kind: identifier,
                         id: id.clone(),
                         matching_strategy: Option::from(MatchingStrategy::Legacy),
-                    });
+                    }));
                 }
 
                 let offset = self.work_area_offset;
@@ -1025,17 +1030,19 @@ impl WindowManager {
 
                 let mut should_push = true;
                 for i in &*identifiers {
-                    if i.id.eq(id) {
-                        should_push = false;
+                    if let MatchingRule::Simple(i) = i {
+                        if i.id.eq(id) {
+                            should_push = false;
+                        }
                     }
                 }
 
                 if should_push {
-                    identifiers.push(IdWithIdentifier {
+                    identifiers.push(MatchingRule::Simple(IdWithIdentifier {
                         kind: identifier,
                         id: id.clone(),
                         matching_strategy: Option::from(MatchingStrategy::Legacy),
-                    });
+                    }));
                 }
             }
             SocketMessage::IdentifyObjectNameChangeApplication(identifier, ref id) => {
@@ -1043,34 +1050,38 @@ impl WindowManager {
 
                 let mut should_push = true;
                 for i in &*identifiers {
-                    if i.id.eq(id) {
-                        should_push = false;
+                    if let MatchingRule::Simple(i) = i {
+                        if i.id.eq(id) {
+                            should_push = false;
+                        }
                     }
                 }
 
                 if should_push {
-                    identifiers.push(IdWithIdentifier {
+                    identifiers.push(MatchingRule::Simple(IdWithIdentifier {
                         kind: identifier,
                         id: id.clone(),
                         matching_strategy: Option::from(MatchingStrategy::Legacy),
-                    });
+                    }));
                 }
             }
             SocketMessage::IdentifyTrayApplication(identifier, ref id) => {
                 let mut identifiers = TRAY_AND_MULTI_WINDOW_IDENTIFIERS.lock();
                 let mut should_push = true;
                 for i in &*identifiers {
-                    if i.id.eq(id) {
-                        should_push = false;
+                    if let MatchingRule::Simple(i) = i {
+                        if i.id.eq(id) {
+                            should_push = false;
+                        }
                     }
                 }
 
                 if should_push {
-                    identifiers.push(IdWithIdentifier {
+                    identifiers.push(MatchingRule::Simple(IdWithIdentifier {
                         kind: identifier,
                         id: id.clone(),
                         matching_strategy: Option::from(MatchingStrategy::Legacy),
-                    });
+                    }));
                 }
             }
             SocketMessage::IdentifyLayeredApplication(identifier, ref id) => {
@@ -1078,17 +1089,19 @@ impl WindowManager {
 
                 let mut should_push = true;
                 for i in &*identifiers {
-                    if i.id.eq(id) {
-                        should_push = false;
+                    if let MatchingRule::Simple(i) = i {
+                        if i.id.eq(id) {
+                            should_push = false;
+                        }
                     }
                 }
 
                 if should_push {
-                    identifiers.push(IdWithIdentifier {
+                    identifiers.push(MatchingRule::Simple(IdWithIdentifier {
                         kind: identifier,
                         id: id.clone(),
                         matching_strategy: Option::from(MatchingStrategy::Legacy),
-                    });
+                    }));
                 }
             }
             SocketMessage::ManageFocusedWindow => {
