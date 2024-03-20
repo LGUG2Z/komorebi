@@ -34,9 +34,11 @@ use color_eyre::Result;
 use crossbeam_channel::Receiver;
 use hotwatch::EventKind;
 use hotwatch::Hotwatch;
+use komorebi_core::config_generation::ApplicationConfiguration;
 use komorebi_core::config_generation::ApplicationConfigurationGenerator;
 use komorebi_core::config_generation::ApplicationOptions;
 use komorebi_core::config_generation::IdWithIdentifier;
+use komorebi_core::config_generation::MatchingRule;
 use komorebi_core::config_generation::MatchingStrategy;
 use komorebi_core::resolve_home_path;
 use komorebi_core::ApplicationIdentifier;
@@ -269,22 +271,22 @@ pub struct StaticConfig {
     pub global_work_area_offset: Option<Rect>,
     /// Individual window floating rules
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub float_rules: Option<Vec<IdWithIdentifier>>,
+    pub float_rules: Option<Vec<MatchingRule>>,
     /// Individual window force-manage rules
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub manage_rules: Option<Vec<IdWithIdentifier>>,
+    pub manage_rules: Option<Vec<MatchingRule>>,
     /// Identify border overflow applications
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub border_overflow_applications: Option<Vec<IdWithIdentifier>>,
+    pub border_overflow_applications: Option<Vec<MatchingRule>>,
     /// Identify tray and multi-window applications
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub tray_and_multi_window_applications: Option<Vec<IdWithIdentifier>>,
+    pub tray_and_multi_window_applications: Option<Vec<MatchingRule>>,
     /// Identify applications that have the WS_EX_LAYERED extended window style
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub layered_applications: Option<Vec<IdWithIdentifier>>,
+    pub layered_applications: Option<Vec<MatchingRule>>,
     /// Identify applications that send EVENT_OBJECT_NAMECHANGE on launch (very rare)
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub object_name_change_applications: Option<Vec<IdWithIdentifier>>,
+    pub object_name_change_applications: Option<Vec<MatchingRule>>,
     /// Set monitor index preferences
     #[serde(skip_serializing_if = "Option::is_none")]
     pub monitor_index_preferences: Option<HashMap<usize, Rect>>,
@@ -452,106 +454,40 @@ impl StaticConfig {
         let mut object_name_change_identifiers = OBJECT_NAME_CHANGE_ON_LAUNCH.lock();
         let mut layered_identifiers = LAYERED_WHITELIST.lock();
 
-        if let Some(float) = &mut self.float_rules {
-            for identifier in float {
-                if identifier.matching_strategy.is_none() {
-                    identifier.matching_strategy = Option::from(MatchingStrategy::Legacy);
-                }
-
-                if !float_identifiers.contains(identifier) {
-                    float_identifiers.push(identifier.clone());
-
-                    if matches!(identifier.matching_strategy, Some(MatchingStrategy::Regex)) {
-                        let re = Regex::new(&identifier.id)?;
-                        regex_identifiers.insert(identifier.id.clone(), re);
-                    }
-                }
-            }
+        if let Some(rules) = &mut self.float_rules {
+            populate_rules(rules, &mut float_identifiers, &mut regex_identifiers)?;
         }
 
-        if let Some(manage) = &mut self.manage_rules {
-            for identifier in manage {
-                if identifier.matching_strategy.is_none() {
-                    identifier.matching_strategy = Option::from(MatchingStrategy::Legacy);
-                }
-
-                if !manage_identifiers.contains(identifier) {
-                    manage_identifiers.push(identifier.clone());
-
-                    if matches!(identifier.matching_strategy, Some(MatchingStrategy::Regex)) {
-                        let re = Regex::new(&identifier.id)?;
-                        regex_identifiers.insert(identifier.id.clone(), re);
-                    }
-                }
-            }
+        if let Some(rules) = &mut self.manage_rules {
+            populate_rules(rules, &mut manage_identifiers, &mut regex_identifiers)?;
         }
 
-        if let Some(identifiers) = &mut self.object_name_change_applications {
-            for identifier in identifiers {
-                if identifier.matching_strategy.is_none() {
-                    identifier.matching_strategy = Option::from(MatchingStrategy::Legacy);
-                }
-
-                if !object_name_change_identifiers.contains(identifier) {
-                    object_name_change_identifiers.push(identifier.clone());
-
-                    if matches!(identifier.matching_strategy, Some(MatchingStrategy::Regex)) {
-                        let re = Regex::new(&identifier.id)?;
-                        regex_identifiers.insert(identifier.id.clone(), re);
-                    }
-                }
-            }
+        if let Some(rules) = &mut self.object_name_change_applications {
+            populate_rules(
+                rules,
+                &mut object_name_change_identifiers,
+                &mut regex_identifiers,
+            )?;
         }
 
-        if let Some(identifiers) = &mut self.layered_applications {
-            for identifier in identifiers {
-                if identifier.matching_strategy.is_none() {
-                    identifier.matching_strategy = Option::from(MatchingStrategy::Legacy);
-                }
-
-                if !layered_identifiers.contains(identifier) {
-                    layered_identifiers.push(identifier.clone());
-
-                    if matches!(identifier.matching_strategy, Some(MatchingStrategy::Regex)) {
-                        let re = Regex::new(&identifier.id)?;
-                        regex_identifiers.insert(identifier.id.clone(), re);
-                    }
-                }
-            }
+        if let Some(rules) = &mut self.layered_applications {
+            populate_rules(rules, &mut layered_identifiers, &mut regex_identifiers)?;
         }
 
-        if let Some(identifiers) = &mut self.border_overflow_applications {
-            for identifier in identifiers {
-                if identifier.matching_strategy.is_none() {
-                    identifier.matching_strategy = Option::from(MatchingStrategy::Legacy);
-                }
-
-                if !border_overflow_identifiers.contains(identifier) {
-                    border_overflow_identifiers.push(identifier.clone());
-
-                    if matches!(identifier.matching_strategy, Some(MatchingStrategy::Regex)) {
-                        let re = Regex::new(&identifier.id)?;
-                        regex_identifiers.insert(identifier.id.clone(), re);
-                    }
-                }
-            }
+        if let Some(rules) = &mut self.border_overflow_applications {
+            populate_rules(
+                rules,
+                &mut border_overflow_identifiers,
+                &mut regex_identifiers,
+            )?;
         }
 
-        if let Some(identifiers) = &mut self.tray_and_multi_window_applications {
-            for identifier in identifiers {
-                if identifier.matching_strategy.is_none() {
-                    identifier.matching_strategy = Option::from(MatchingStrategy::Legacy);
-                }
-
-                if !tray_and_multi_window_identifiers.contains(identifier) {
-                    tray_and_multi_window_identifiers.push(identifier.clone());
-
-                    if matches!(identifier.matching_strategy, Some(MatchingStrategy::Regex)) {
-                        let re = Regex::new(&identifier.id)?;
-                        regex_identifiers.insert(identifier.id.clone(), re);
-                    }
-                }
-            }
+        if let Some(rules) = &mut self.tray_and_multi_window_applications {
+            populate_rules(
+                rules,
+                &mut tray_and_multi_window_identifiers,
+                &mut regex_identifiers,
+            )?;
         }
 
         if let Some(path) = &self.app_specific_configuration_path {
@@ -560,120 +496,48 @@ impl StaticConfig {
             let asc = ApplicationConfigurationGenerator::load(&content)?;
 
             for mut entry in asc {
-                if let Some(float) = entry.float_identifiers {
-                    for f in float {
-                        let mut without_comment: IdWithIdentifier = f.into();
-                        if without_comment.matching_strategy.is_none() {
-                            without_comment.matching_strategy =
-                                Option::from(MatchingStrategy::Legacy);
-                        }
-
-                        if !float_identifiers.contains(&without_comment) {
-                            float_identifiers.push(without_comment.clone());
-
-                            if matches!(
-                                without_comment.matching_strategy,
-                                Some(MatchingStrategy::Regex)
-                            ) {
-                                let re = Regex::new(&without_comment.id)?;
-                                regex_identifiers.insert(without_comment.id.clone(), re);
-                            }
-                        }
-                    }
+                if let Some(rules) = &mut entry.float_identifiers {
+                    populate_rules(rules, &mut float_identifiers, &mut regex_identifiers)?;
                 }
-                if let Some(options) = entry.options {
+
+                if let Some(ref options) = entry.options {
+                    let options = options.clone();
                     for o in options {
                         match o {
                             ApplicationOptions::ObjectNameChange => {
-                                if entry.identifier.matching_strategy.is_none() {
-                                    entry.identifier.matching_strategy =
-                                        Option::from(MatchingStrategy::Legacy);
-                                }
-
-                                if !object_name_change_identifiers.contains(&entry.identifier) {
-                                    object_name_change_identifiers.push(entry.identifier.clone());
-
-                                    if matches!(
-                                        entry.identifier.matching_strategy,
-                                        Some(MatchingStrategy::Regex)
-                                    ) {
-                                        let re = Regex::new(&entry.identifier.id)?;
-                                        regex_identifiers.insert(entry.identifier.id.clone(), re);
-                                    }
-                                }
+                                populate_option(
+                                    &mut entry,
+                                    &mut object_name_change_identifiers,
+                                    &mut regex_identifiers,
+                                )?;
                             }
                             ApplicationOptions::Layered => {
-                                if entry.identifier.matching_strategy.is_none() {
-                                    entry.identifier.matching_strategy =
-                                        Option::from(MatchingStrategy::Legacy);
-                                }
-
-                                if !layered_identifiers.contains(&entry.identifier) {
-                                    layered_identifiers.push(entry.identifier.clone());
-
-                                    if matches!(
-                                        entry.identifier.matching_strategy,
-                                        Some(MatchingStrategy::Regex)
-                                    ) {
-                                        let re = Regex::new(&entry.identifier.id)?;
-                                        regex_identifiers.insert(entry.identifier.id.clone(), re);
-                                    }
-                                }
+                                populate_option(
+                                    &mut entry,
+                                    &mut layered_identifiers,
+                                    &mut regex_identifiers,
+                                )?;
                             }
                             ApplicationOptions::BorderOverflow => {
-                                if entry.identifier.matching_strategy.is_none() {
-                                    entry.identifier.matching_strategy =
-                                        Option::from(MatchingStrategy::Legacy);
-                                }
-
-                                if !border_overflow_identifiers.contains(&entry.identifier) {
-                                    border_overflow_identifiers.push(entry.identifier.clone());
-
-                                    if matches!(
-                                        entry.identifier.matching_strategy,
-                                        Some(MatchingStrategy::Regex)
-                                    ) {
-                                        let re = Regex::new(&entry.identifier.id)?;
-                                        regex_identifiers.insert(entry.identifier.id.clone(), re);
-                                    }
-                                }
+                                populate_option(
+                                    &mut entry,
+                                    &mut border_overflow_identifiers,
+                                    &mut regex_identifiers,
+                                )?;
                             }
                             ApplicationOptions::TrayAndMultiWindow => {
-                                if entry.identifier.matching_strategy.is_none() {
-                                    entry.identifier.matching_strategy =
-                                        Option::from(MatchingStrategy::Legacy);
-                                }
-
-                                if !tray_and_multi_window_identifiers.contains(&entry.identifier) {
-                                    tray_and_multi_window_identifiers
-                                        .push(entry.identifier.clone());
-
-                                    if matches!(
-                                        entry.identifier.matching_strategy,
-                                        Some(MatchingStrategy::Regex)
-                                    ) {
-                                        let re = Regex::new(&entry.identifier.id)?;
-                                        regex_identifiers.insert(entry.identifier.id.clone(), re);
-                                    }
-                                }
+                                populate_option(
+                                    &mut entry,
+                                    &mut tray_and_multi_window_identifiers,
+                                    &mut regex_identifiers,
+                                )?;
                             }
                             ApplicationOptions::Force => {
-                                if entry.identifier.matching_strategy.is_none() {
-                                    entry.identifier.matching_strategy =
-                                        Option::from(MatchingStrategy::Legacy);
-                                }
-
-                                if !manage_identifiers.contains(&entry.identifier) {
-                                    manage_identifiers.push(entry.identifier.clone());
-
-                                    if matches!(
-                                        entry.identifier.matching_strategy,
-                                        Some(MatchingStrategy::Regex)
-                                    ) {
-                                        let re = Regex::new(&entry.identifier.id)?;
-                                        regex_identifiers.insert(entry.identifier.id.clone(), re);
-                                    }
-                                }
+                                populate_option(
+                                    &mut entry,
+                                    &mut manage_identifiers,
+                                    &mut regex_identifiers,
+                                )?;
                             }
                         }
                     }
@@ -900,4 +764,68 @@ impl StaticConfig {
 
         Ok(())
     }
+}
+
+fn populate_option(
+    entry: &mut ApplicationConfiguration,
+    identifiers: &mut Vec<MatchingRule>,
+    regex_identifiers: &mut HashMap<String, Regex>,
+) -> Result<()> {
+    if entry.identifier.matching_strategy.is_none() {
+        entry.identifier.matching_strategy = Option::from(MatchingStrategy::Legacy);
+    }
+
+    let rule = MatchingRule::Simple(entry.identifier.clone());
+
+    if !identifiers.contains(&rule) {
+        identifiers.push(rule);
+
+        if matches!(
+            entry.identifier.matching_strategy,
+            Some(MatchingStrategy::Regex)
+        ) {
+            let re = Regex::new(&entry.identifier.id)?;
+            regex_identifiers.insert(entry.identifier.id.clone(), re);
+        }
+    }
+
+    Ok(())
+}
+
+fn populate_rules(
+    matching_rules: &mut Vec<MatchingRule>,
+    identifiers: &mut Vec<MatchingRule>,
+    regex_identifiers: &mut HashMap<String, Regex>,
+) -> Result<()> {
+    for matching_rule in matching_rules {
+        if !identifiers.contains(matching_rule) {
+            match matching_rule {
+                MatchingRule::Simple(simple) => {
+                    if simple.matching_strategy.is_none() {
+                        simple.matching_strategy = Option::from(MatchingStrategy::Legacy);
+                    }
+
+                    if matches!(simple.matching_strategy, Some(MatchingStrategy::Regex)) {
+                        let re = Regex::new(&simple.id)?;
+                        regex_identifiers.insert(simple.id.clone(), re);
+                    }
+                }
+                MatchingRule::Composite(composite) => {
+                    for rule in composite {
+                        if rule.matching_strategy.is_none() {
+                            rule.matching_strategy = Option::from(MatchingStrategy::Legacy);
+                        }
+
+                        if matches!(rule.matching_strategy, Some(MatchingStrategy::Regex)) {
+                            let re = Regex::new(&rule.id)?;
+                            regex_identifiers.insert(rule.id.clone(), re);
+                        }
+                    }
+                }
+            }
+            identifiers.push(matching_rule.clone());
+        }
+    }
+
+    Ok(())
 }

@@ -21,7 +21,7 @@ use serde::Deserialize;
 use serde::Serialize;
 use uds_windows::UnixListener;
 
-use komorebi_core::config_generation::IdWithIdentifier;
+use komorebi_core::config_generation::MatchingRule;
 use komorebi_core::custom_layout::CustomLayout;
 use komorebi_core::Arrangement;
 use komorebi_core::Axis;
@@ -97,12 +97,12 @@ pub struct State {
     pub mouse_follows_focus: bool,
     pub has_pending_raise_op: bool,
     pub remove_titlebars: bool,
-    pub float_identifiers: Vec<IdWithIdentifier>,
-    pub manage_identifiers: Vec<IdWithIdentifier>,
-    pub layered_whitelist: Vec<IdWithIdentifier>,
-    pub tray_and_multi_window_identifiers: Vec<IdWithIdentifier>,
-    pub border_overflow_identifiers: Vec<IdWithIdentifier>,
-    pub name_change_on_launch_identifiers: Vec<IdWithIdentifier>,
+    pub float_identifiers: Vec<MatchingRule>,
+    pub manage_identifiers: Vec<MatchingRule>,
+    pub layered_whitelist: Vec<MatchingRule>,
+    pub tray_and_multi_window_identifiers: Vec<MatchingRule>,
+    pub border_overflow_identifiers: Vec<MatchingRule>,
+    pub name_change_on_launch_identifiers: Vec<MatchingRule>,
     pub monitor_index_preferences: HashMap<usize, Rect>,
     pub display_index_preferences: HashMap<usize, String>,
 }
