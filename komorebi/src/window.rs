@@ -4,6 +4,7 @@ use std::convert::TryFrom;
 use std::fmt::Display;
 use std::fmt::Formatter;
 use std::fmt::Write as _;
+use std::time::Duration;
 
 use color_eyre::eyre;
 use color_eyre::eyre::anyhow;
@@ -472,6 +473,10 @@ fn window_is_eligible(
         let titlebars_removed = NO_TITLEBAR.lock();
         titlebars_removed.contains(exe_name)
     };
+
+    if exe_name.contains("firefox") {
+        std::thread::sleep(Duration::from_millis(10));
+    }
 
     if (allow_wsl2_gui || allow_titlebar_removed || style.contains(WindowStyle::CAPTION) && ex_style.contains(ExtendedWindowStyle::WINDOWEDGE))
                         && !ex_style.contains(ExtendedWindowStyle::DLGMODALFRAME)
