@@ -75,6 +75,10 @@ pub enum MatchingStrategy {
     EndsWith,
     Contains,
     Regex,
+    DoesNotEndWith,
+    DoesNotStartWith,
+    DoesNotEqual,
+    DoesNotContain,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]

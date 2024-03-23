@@ -548,7 +548,6 @@ pub fn should_act(
     should_act
 }
 
-#[allow(clippy::cognitive_complexity, clippy::too_many_lines)]
 pub fn should_act_individual(
     title: &str,
     exe_name: &str,
@@ -607,6 +606,28 @@ pub fn should_act_individual(
                 }
             }
         },
+        Some(MatchingStrategy::DoesNotEqual) => match identifier.kind {
+            ApplicationIdentifier::Title => {
+                if !title.eq(&identifier.id) {
+                    should_act = true;
+                }
+            }
+            ApplicationIdentifier::Class => {
+                if !class.eq(&identifier.id) {
+                    should_act = true;
+                }
+            }
+            ApplicationIdentifier::Exe => {
+                if !exe_name.eq(&identifier.id) {
+                    should_act = true;
+                }
+            }
+            ApplicationIdentifier::Path => {
+                if !path.eq(&identifier.id) {
+                    should_act = true;
+                }
+            }
+        },
         Some(MatchingStrategy::StartsWith) => match identifier.kind {
             ApplicationIdentifier::Title => {
                 if title.starts_with(&identifier.id) {
@@ -625,6 +646,28 @@ pub fn should_act_individual(
             }
             ApplicationIdentifier::Path => {
                 if path.starts_with(&identifier.id) {
+                    should_act = true;
+                }
+            }
+        },
+        Some(MatchingStrategy::DoesNotStartWith) => match identifier.kind {
+            ApplicationIdentifier::Title => {
+                if !title.starts_with(&identifier.id) {
+                    should_act = true;
+                }
+            }
+            ApplicationIdentifier::Class => {
+                if !class.starts_with(&identifier.id) {
+                    should_act = true;
+                }
+            }
+            ApplicationIdentifier::Exe => {
+                if !exe_name.starts_with(&identifier.id) {
+                    should_act = true;
+                }
+            }
+            ApplicationIdentifier::Path => {
+                if !path.starts_with(&identifier.id) {
                     should_act = true;
                 }
             }
@@ -651,6 +694,28 @@ pub fn should_act_individual(
                 }
             }
         },
+        Some(MatchingStrategy::DoesNotEndWith) => match identifier.kind {
+            ApplicationIdentifier::Title => {
+                if !title.ends_with(&identifier.id) {
+                    should_act = true;
+                }
+            }
+            ApplicationIdentifier::Class => {
+                if !class.ends_with(&identifier.id) {
+                    should_act = true;
+                }
+            }
+            ApplicationIdentifier::Exe => {
+                if !exe_name.ends_with(&identifier.id) {
+                    should_act = true;
+                }
+            }
+            ApplicationIdentifier::Path => {
+                if !path.ends_with(&identifier.id) {
+                    should_act = true;
+                }
+            }
+        },
         Some(MatchingStrategy::Contains) => match identifier.kind {
             ApplicationIdentifier::Title => {
                 if title.contains(&identifier.id) {
@@ -669,6 +734,28 @@ pub fn should_act_individual(
             }
             ApplicationIdentifier::Path => {
                 if path.contains(&identifier.id) {
+                    should_act = true;
+                }
+            }
+        },
+        Some(MatchingStrategy::DoesNotContain) => match identifier.kind {
+            ApplicationIdentifier::Title => {
+                if !title.contains(&identifier.id) {
+                    should_act = true;
+                }
+            }
+            ApplicationIdentifier::Class => {
+                if !class.contains(&identifier.id) {
+                    should_act = true;
+                }
+            }
+            ApplicationIdentifier::Exe => {
+                if !exe_name.contains(&identifier.id) {
+                    should_act = true;
+                }
+            }
+            ApplicationIdentifier::Path => {
+                if !path.contains(&identifier.id) {
                     should_act = true;
                 }
             }
