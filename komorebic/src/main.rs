@@ -1256,8 +1256,6 @@ fn main() -> Result<()> {
             }
         }
         SubCommand::Quickstart => {
-            let version = env!("CARGO_PKG_VERSION");
-
             let home_dir = dirs::home_dir().expect("could not find home dir");
             let config_dir = home_dir.join(".config");
             let local_appdata_dir = data_local_dir().expect("could not find localdata dir");
@@ -1265,21 +1263,13 @@ fn main() -> Result<()> {
             std::fs::create_dir_all(&config_dir)?;
             std::fs::create_dir_all(data_dir)?;
 
-            let komorebi_json = reqwest::blocking::get(
-                format!("https://raw.githubusercontent.com/LGUG2Z/komorebi/v{version}/komorebi.example.json")
-            )?.text()?;
+            let komorebi_json = include_str!("../../docs/komorebi.example.json");
             std::fs::write(HOME_DIR.join("komorebi.json"), komorebi_json)?;
 
-            let applications_yaml = reqwest::blocking::get(
-                "https://raw.githubusercontent.com/LGUG2Z/komorebi-application-specific-configuration/master/applications.yaml"
-            )?
-                .text()?;
+            let applications_yaml = include_str!("../applications.yaml");
             std::fs::write(HOME_DIR.join("applications.yaml"), applications_yaml)?;
 
-            let whkdrc = reqwest::blocking::get(format!(
-                "https://raw.githubusercontent.com/LGUG2Z/komorebi/v{version}/whkdrc.sample"
-            ))?
-            .text()?;
+            let whkdrc = include_str!("../../docs/whkdrc.sample");
             std::fs::write(config_dir.join("whkdrc"), whkdrc)?;
 
             println!("Example ~/komorebi.json, ~/.config/whkdrc and latest ~/applications.yaml files downloaded");
