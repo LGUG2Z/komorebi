@@ -19,7 +19,7 @@ color-eyre = { workspace = true }
 dirs = { workspace = true }
 dunce = { workspace = true }
 fs-tail = "0.1"
-heck = "0.4"
+heck = "0.5"
 lazy_static = "1"
 miette = { version = "7", features = ["fancy"] }
 paste = "1"

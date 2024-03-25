@@ -837,7 +837,7 @@ dependencies = [
  "dirs",
  "dunce",
  "fs-tail",
- "heck 0.4.1",
+ "heck 0.5.0",
  "komorebi-core",
  "lazy_static",
  "miette",
