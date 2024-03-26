@@ -194,6 +194,9 @@ lazy_static! {
         )
     };
 
+    static ref ACTIVE_WINDOW_BORDER_STYLE: Arc<Mutex<ActiveWindowBorderStyle>> =
+        Arc::new(Mutex::new(ActiveWindowBorderStyle::System));
+
     static ref BORDER_RECT: Arc<Mutex<Rect>> =
         Arc::new(Mutex::new(Rect::default()));
 
