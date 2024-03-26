@@ -18,6 +18,7 @@ use windows::Win32::Foundation::HMODULE;
 use windows::Win32::Foundation::HWND;
 use windows::Win32::Foundation::LPARAM;
 use windows::Win32::Foundation::POINT;
+use windows::Win32::Foundation::RECT;
 use windows::Win32::Foundation::WPARAM;
 use windows::Win32::Graphics::Dwm::DwmGetWindowAttribute;
 use windows::Win32::Graphics::Dwm::DwmSetWindowAttribute;
@@ -87,6 +88,7 @@ use windows::Win32::UI::WindowsAndMessaging::IsIconic;
 use windows::Win32::UI::WindowsAndMessaging::IsWindow;
 use windows::Win32::UI::WindowsAndMessaging::IsWindowVisible;
 use windows::Win32::UI::WindowsAndMessaging::IsZoomed;
+use windows::Win32::UI::WindowsAndMessaging::MoveWindow;
 use windows::Win32::UI::WindowsAndMessaging::PostMessageW;
 use windows::Win32::UI::WindowsAndMessaging::RealGetWindowClassW;
 use windows::Win32::UI::WindowsAndMessaging::RegisterClassW;
@@ -416,6 +418,20 @@ impl WindowsApi {
                 layout.right,
                 layout.bottom,
                 SET_WINDOW_POS_FLAGS(flags),
+            )
+        }
+        .process()
+    }
+
+    pub fn move_window(hwnd: HWND, layout: &Rect, repaint: bool) -> Result<()> {
+        unsafe {
+            MoveWindow(
+                hwnd,
+                layout.left,
+                layout.top,
+                layout.right,
+                layout.bottom,
+                repaint,
             )
         }
         .process()
@@ -970,6 +986,11 @@ impl WindowsApi {
             )
         }
         .process()
+    }
+
+    pub fn invalidate_rect(hwnd: HWND, rect: Option<&Rect>, erase: bool) -> bool {
+        let rect = rect.map(|rect| &rect.rect() as *const RECT);
+        unsafe { InvalidateRect(hwnd, rect, erase) }.as_bool()
     }
 
     pub fn invalidate_border_rect() -> Result<()> {

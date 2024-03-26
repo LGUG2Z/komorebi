@@ -49,6 +49,9 @@ use crate::window_manager::WindowManager;
 use crate::windows_api::WindowsApi;
 use crate::Notification;
 use crate::NotificationEvent;
+use crate::ANIMATION_DURATION;
+use crate::ANIMATION_EASE;
+use crate::ANIMATION_ENABLED;
 use crate::BORDER_COLOUR_CURRENT;
 use crate::BORDER_COLOUR_MONOCLE;
 use crate::BORDER_COLOUR_SINGLE;
@@ -1246,6 +1249,15 @@ impl WindowManager {
                     self.hide_border()?;
                 }
             }
+            SocketMessage::Animation(enable) => {
+                ANIMATION_ENABLED.store(enable, Ordering::SeqCst);
+            }
+            SocketMessage::AnimationDuration(duration) => {
+                ANIMATION_DURATION.store(duration, Ordering::SeqCst);
+            }
+            SocketMessage::AnimationEase(ease) => {
+                *ANIMATION_EASE.lock() = ease;
+            }
             SocketMessage::ActiveWindowBorderColour(kind, r, g, b) => {
                 match kind {
                     WindowKind::Single => {
@@ -1393,7 +1405,7 @@ impl WindowManager {
             | SocketMessage::FocusMonitorWorkspaceNumber(_, _)
             | SocketMessage::FocusWorkspaceNumber(_) => {
                 let foreground = WindowsApi::foreground_window()?;
-                let foreground_window = Window { hwnd: foreground };
+                let foreground_window = Window::new(foreground);
 
                 let monocle = BORDER_COLOUR_MONOCLE.load(Ordering::SeqCst);
                 if monocle != 0 && self.focused_workspace()?.monocle_container().is_some() {

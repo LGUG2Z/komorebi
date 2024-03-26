@@ -524,7 +524,8 @@ impl WindowManager {
             WindowManagerEvent::DisplayChange(..)
             | WindowManagerEvent::MouseCapture(..)
             | WindowManagerEvent::Cloak(..)
-            | WindowManagerEvent::Uncloak(..) => {}
+            | WindowManagerEvent::Uncloak(..)
+            | WindowManagerEvent::UpdateFocusedWindowBorder(..) => {}
         };
 
         if !self.focused_workspace()?.tile() {
@@ -534,7 +535,7 @@ impl WindowManager {
         }
 
         if *self.focused_workspace()?.tile() && BORDER_ENABLED.load(Ordering::SeqCst) {
-            match event {
+            match &event {
                 WindowManagerEvent::MoveResizeStart(_, _) => {
                     let border = Border::from(BORDER_HWND.load(Ordering::SeqCst));
                     border.hide()?;
@@ -545,7 +546,8 @@ impl WindowManager {
                 | WindowManagerEvent::FocusChange(_, window)
                 | WindowManagerEvent::Hide(_, window)
                 | WindowManagerEvent::Uncloak(_, window)
-                | WindowManagerEvent::Minimize(_, window) => {
+                | WindowManagerEvent::Minimize(_, window)
+                | WindowManagerEvent::UpdateFocusedWindowBorder(window) => {
                     let border = Border::from(BORDER_HWND.load(Ordering::SeqCst));
                     let mut target_window = None;
                     let mut target_window_is_monocle = false;
@@ -565,6 +567,8 @@ impl WindowManager {
                             target_window_is_monocle = true;
                         }
                     }
+
+                    let window = *window;
 
                     if target_window.is_none() {
                         match self.focused_container() {
@@ -605,6 +609,10 @@ impl WindowManager {
 
                         WindowsApi::invalidate_border_rect()?;
                         border.set_position(target_window, activate)?;
+
+                        if matches!(event, WindowManagerEvent::UpdateFocusedWindowBorder(_)) {
+                            window.focus(self.mouse_follows_focus)?;
+                        }
 
                         if activate {
                             BORDER_HIDDEN.store(false, Ordering::SeqCst);

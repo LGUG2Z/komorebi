@@ -1,3 +1,4 @@
+pub mod animation;
 pub mod border;
 pub mod com;
 #[macro_use]
@@ -34,9 +35,11 @@ use std::sync::atomic::AtomicBool;
 use std::sync::atomic::AtomicI32;
 use std::sync::atomic::AtomicIsize;
 use std::sync::atomic::AtomicU32;
+use std::sync::atomic::AtomicU64;
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
 
+pub use animation::*;
 pub use hidden::*;
 pub use process_command::*;
 pub use process_event::*;
@@ -52,6 +55,7 @@ use komorebi_core::config_generation::IdWithIdentifier;
 use komorebi_core::config_generation::MatchingRule;
 use komorebi_core::config_generation::MatchingStrategy;
 use komorebi_core::ApplicationIdentifier;
+use komorebi_core::EaseEnum;
 use komorebi_core::HidingBehaviour;
 use komorebi_core::Rect;
 use komorebi_core::SocketMessage;
@@ -198,6 +202,9 @@ lazy_static! {
         Arc::new(Mutex::new(Rect::default()));
 
 
+    static ref ANIMATION_EASE: Arc<Mutex<EaseEnum>> =
+        Arc::new(Mutex::new(EaseEnum::Linear));
+
     // Use app-specific titlebar removal options where possible
     // eg. Windows Terminal, IntelliJ IDEA, Firefox
     static ref NO_TITLEBAR: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(vec![]));
@@ -227,7 +234,8 @@ pub static BORDER_OFFSET: AtomicI32 = AtomicI32::new(-1);
 // 0 0 0 aka pure black, I doubt anyone will want this as a border colour
 pub const TRANSPARENCY_COLOUR: u32 = 0;
 pub static REMOVE_TITLEBARS: AtomicBool = AtomicBool::new(false);
-
+pub static ANIMATION_ENABLED: AtomicBool = AtomicBool::new(false);
+pub static ANIMATION_DURATION: AtomicU64 = AtomicU64::new(250);
 pub static HIDDEN_HWND: AtomicIsize = AtomicIsize::new(0);
 
 pub static STACKBAR_FOCUSED_TEXT_COLOUR: AtomicU32 = AtomicU32::new(16777215); // white

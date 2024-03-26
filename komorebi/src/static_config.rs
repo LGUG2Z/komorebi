@@ -7,6 +7,9 @@ use crate::window_manager::WindowManager;
 use crate::window_manager_event::WindowManagerEvent;
 use crate::windows_api::WindowsApi;
 use crate::workspace::Workspace;
+use crate::ANIMATION_DURATION;
+use crate::ANIMATION_EASE;
+use crate::ANIMATION_ENABLED;
 use crate::BORDER_COLOUR_CURRENT;
 use crate::BORDER_COLOUR_MONOCLE;
 use crate::BORDER_COLOUR_SINGLE;
@@ -49,6 +52,7 @@ use komorebi_core::config_generation::MatchingStrategy;
 use komorebi_core::resolve_home_path;
 use komorebi_core::ApplicationIdentifier;
 use komorebi_core::DefaultLayout;
+use komorebi_core::EaseEnum;
 use komorebi_core::FocusFollowsMouseImplementation;
 use komorebi_core::HidingBehaviour;
 use komorebi_core::Layout;
@@ -299,6 +303,15 @@ pub struct StaticConfig {
     /// Set display index preferences
     #[serde(skip_serializing_if = "Option::is_none")]
     pub display_index_preferences: Option<HashMap<usize, String>>,
+    /// Enable or disable animations (default: false)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub animation: Option<bool>,
+    /// Set the animation ease function (default: Linear)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub animation_ease: Option<EaseEnum>,
+    /// Set the animation duration in ms (default: 250)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub animation_duration: Option<u64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub stackbar: Option<StackbarConfig>,
 }
@@ -428,6 +441,9 @@ impl From<&WindowManager> for StaticConfig {
             object_name_change_applications: None,
             monitor_index_preferences: Option::from(MONITOR_INDEX_PREFERENCES.lock().clone()),
             display_index_preferences: Option::from(DISPLAY_INDEX_PREFERENCES.lock().clone()),
+            animation: Option::from(ANIMATION_ENABLED.load(Ordering::SeqCst)),
+            animation_duration: Option::from(ANIMATION_DURATION.load(Ordering::SeqCst)),
+            animation_ease: Option::from(*ANIMATION_EASE.lock()),
             stackbar: None,
         }
     }
@@ -449,6 +465,19 @@ impl StaticConfig {
         if let Some(behaviour) = self.window_hiding_behaviour {
             let mut window_hiding_behaviour = HIDING_BEHAVIOUR.lock();
             *window_hiding_behaviour = behaviour;
+        }
+
+        if let Some(animation) = self.animation {
+            ANIMATION_ENABLED.store(animation, Ordering::SeqCst);
+        }
+
+        if let Some(duration) = self.animation_duration {
+            ANIMATION_DURATION.store(duration, Ordering::SeqCst);
+        }
+
+        if let Some(ease) = self.animation_ease {
+            let mut animation_ease = ANIMATION_EASE.lock();
+            *animation_ease = ease;
         }
 
         if let Some(container) = self.default_container_padding {

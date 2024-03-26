@@ -115,7 +115,7 @@ impl Stackbar {
                         let bottom = height;
 
                         if x >= left && x <= right && y >= top && y <= bottom {
-                            let window = Window { hwnd: *win_hwnd };
+                            let window = Window::new(*win_hwnd);
                             let event_sender = winevent_listener::event_tx();
                             let _ = event_sender.send(WindowManagerEvent::FocusChange(
                                 WinEvent::ObjectFocus,
