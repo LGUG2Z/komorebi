@@ -7,6 +7,7 @@ use crate::window_manager::WindowManager;
 use crate::window_manager_event::WindowManagerEvent;
 use crate::windows_api::WindowsApi;
 use crate::workspace::Workspace;
+use crate::ACTIVE_WINDOW_BORDER_STYLE;
 use crate::BORDER_COLOUR_CURRENT;
 use crate::BORDER_COLOUR_MONOCLE;
 use crate::BORDER_COLOUR_SINGLE;
@@ -80,6 +81,17 @@ pub struct ActiveWindowBorderColours {
     pub stack: Colour,
     /// Border colour when the container is in monocle mode
     pub monocle: Colour,
+}
+
+#[derive(Default, Copy, Clone, Debug, Serialize, Deserialize, JsonSchema)]
+pub enum ActiveWindowBorderStyle {
+    #[default]
+    /// Use the system border style
+    System,
+    /// Use the Windows 11-style rounded borders
+    Rounded,
+    /// Use the Windows 10-style square borders
+    Square,
 }
 
 #[derive(Debug, Serialize, Deserialize, JsonSchema)]
@@ -260,6 +272,9 @@ pub struct StaticConfig {
     /// Active window border colours for different container types
     #[serde(skip_serializing_if = "Option::is_none")]
     pub active_window_border_colours: Option<ActiveWindowBorderColours>,
+    /// Active window border style (default: System)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub active_window_border_style: Option<ActiveWindowBorderStyle>,
     /// Global default workspace padding (default: 10)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub default_workspace_padding: Option<i32>,
@@ -411,6 +426,7 @@ impl From<&WindowManager> for StaticConfig {
             border_offset: Option::from(BORDER_OFFSET.load(Ordering::SeqCst)),
             active_window_border: Option::from(BORDER_ENABLED.load(Ordering::SeqCst)),
             active_window_border_colours: border_colours,
+            active_window_border_style: Option::from(*ACTIVE_WINDOW_BORDER_STYLE.lock()),
             default_workspace_padding: Option::from(
                 DEFAULT_WORKSPACE_PADDING.load(Ordering::SeqCst),
             ),
@@ -476,6 +492,9 @@ impl StaticConfig {
             BORDER_COLOUR_STACK.store(u32::from(colours.stack), Ordering::SeqCst);
             BORDER_COLOUR_MONOCLE.store(u32::from(colours.monocle), Ordering::SeqCst);
         }
+
+        let active_window_border_style = self.active_window_border_style.unwrap_or_default();
+        *ACTIVE_WINDOW_BORDER_STYLE.lock() = active_window_border_style;
 
         let mut float_identifiers = FLOAT_IDENTIFIERS.lock();
         let mut regex_identifiers = REGEX_IDENTIFIERS.lock();
