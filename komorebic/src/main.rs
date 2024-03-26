@@ -1871,6 +1871,13 @@ if (!(Get-Process whkd -ErrorAction SilentlyContinue))
                     }
                 }
             }
+
+            println!("\nThank you for using komorebi!\n");
+            println!("* Become a sponsor https://github.com/sponsors/LGUG2Z - Even $1/month makes a big difference");
+            println!(
+                "* Subscribe to https://youtube.com/@LGUG2Z - Live dev videos and feature previews"
+            );
+            println!("* Join the Discord https://discord.gg/mGkn66PHkx - Chat, ask questions, share your desktops");
         }
         SubCommand::Stop(arg) => {
             if arg.whkd {
