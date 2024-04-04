@@ -57,7 +57,6 @@ use crate::BORDER_ENABLED;
 use crate::BORDER_HIDDEN;
 use crate::BORDER_HWND;
 use crate::BORDER_OFFSET;
-use crate::BORDER_OVERFLOW_IDENTIFIERS;
 use crate::BORDER_WIDTH;
 use crate::CUSTOM_FFM;
 use crate::DATA_DIR;
@@ -1026,26 +1025,6 @@ impl WindowManager {
             SocketMessage::WatchConfiguration(enable) => {
                 self.watch_configuration(enable)?;
             }
-            SocketMessage::IdentifyBorderOverflowApplication(identifier, ref id) => {
-                let mut identifiers = BORDER_OVERFLOW_IDENTIFIERS.lock();
-
-                let mut should_push = true;
-                for i in &*identifiers {
-                    if let MatchingRule::Simple(i) = i {
-                        if i.id.eq(id) {
-                            should_push = false;
-                        }
-                    }
-                }
-
-                if should_push {
-                    identifiers.push(MatchingRule::Simple(IdWithIdentifier {
-                        kind: identifier,
-                        id: id.clone(),
-                        matching_strategy: Option::from(MatchingStrategy::Legacy),
-                    }));
-                }
-            }
             SocketMessage::IdentifyObjectNameChangeApplication(identifier, ref id) => {
                 let mut identifiers = OBJECT_NAME_CHANGE_ON_LAUNCH.lock();
 
@@ -1270,9 +1249,6 @@ impl WindowManager {
                 BORDER_OFFSET.store(offset, Ordering::SeqCst);
                 WindowsApi::invalidate_border_rect()?;
             }
-            SocketMessage::AltFocusHack(_) => {
-                tracing::info!("this action is deprecated");
-            }
             SocketMessage::ApplicationSpecificConfigurationSchema => {
                 let asc = schema_for!(Vec<ApplicationConfiguration>);
                 let schema = serde_json::to_string_pretty(&asc)?;
@@ -1320,6 +1296,9 @@ impl WindowManager {
                 REMOVE_TITLEBARS.store(!current, Ordering::SeqCst);
                 self.update_focused_workspace(false)?;
             }
+            // Deprecated commands
+            SocketMessage::AltFocusHack(_)
+            | SocketMessage::IdentifyBorderOverflowApplication(_, _) => {}
         };
 
         match message {

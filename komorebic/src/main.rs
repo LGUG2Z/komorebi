@@ -1125,7 +1125,7 @@ enum SubCommand {
     /// Toggle title bars for whitelisted applications
     ToggleTitleBars,
     /// Identify an application that has overflowing borders
-    #[clap(arg_required_else_help = true)]
+    #[clap(hide = true)]
     #[clap(alias = "identify-border-overflow")]
     IdentifyBorderOverflowApplication(IdentifyBorderOverflowApplication),
     /// Enable or disable the active window border
@@ -2063,9 +2063,6 @@ Stop-Process -Name:whkd -ErrorAction SilentlyContinue
         SubCommand::CompleteConfiguration => {
             send_message(&SocketMessage::CompleteConfiguration.as_bytes()?)?;
         }
-        SubCommand::AltFocusHack(arg) => {
-            send_message(&SocketMessage::AltFocusHack(arg.boolean_state.into()).as_bytes()?)?;
-        }
         SubCommand::IdentifyObjectNameChangeApplication(target) => {
             send_message(
                 &SocketMessage::IdentifyObjectNameChangeApplication(target.identifier, target.id)
@@ -2080,12 +2077,6 @@ Stop-Process -Name:whkd -ErrorAction SilentlyContinue
         SubCommand::IdentifyLayeredApplication(target) => {
             send_message(
                 &SocketMessage::IdentifyLayeredApplication(target.identifier, target.id)
-                    .as_bytes()?,
-            )?;
-        }
-        SubCommand::IdentifyBorderOverflowApplication(target) => {
-            send_message(
-                &SocketMessage::IdentifyBorderOverflowApplication(target.identifier, target.id)
                     .as_bytes()?,
             )?;
         }
@@ -2279,6 +2270,10 @@ Stop-Process -Name:whkd -ErrorAction SilentlyContinue
         }
         SubCommand::GenerateStaticConfig => {
             print_query(&SocketMessage::GenerateStaticConfig.as_bytes()?);
+        }
+        // Deprecated
+        SubCommand::AltFocusHack(_) | SubCommand::IdentifyBorderOverflowApplication(_) => {
+            println!("Command deprecated - this is now automatically handled by komorebi! 🎉");
         }
     }
 

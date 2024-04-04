@@ -16,7 +16,6 @@ use crate::ApplicationIdentifier;
 pub enum ApplicationOptions {
     ObjectNameChange,
     Layered,
-    BorderOverflow,
     TrayAndMultiWindow,
     Force,
 }
@@ -30,9 +29,6 @@ impl ApplicationOptions {
             }
             ApplicationOptions::Layered => {
                 format!("komorebic.exe identify-layered-application {kind} \"{id}\"",)
-            }
-            ApplicationOptions::BorderOverflow => {
-                format!("komorebic.exe identify-border-overflow-application {kind} \"{id}\"",)
             }
             ApplicationOptions::TrayAndMultiWindow => {
                 format!("komorebic.exe identify-tray-application {kind} \"{id}\"",)

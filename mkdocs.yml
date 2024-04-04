@@ -181,7 +181,6 @@ nav:
     - cli/identify-layered-application.md
     - cli/remove-title-bar.md
     - cli/toggle-title-bars.md
-    - cli/identify-border-overflow-application.md
     - cli/active-window-border.md
     - cli/active-window-border-colour.md
     - cli/active-window-border-width.md
