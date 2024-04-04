@@ -7,7 +7,7 @@ Usage: komorebic.exe initial-workspace-rule <IDENTIFIER> <ID> <MONITOR> <WORKSPA
 
 Arguments:
   <IDENTIFIER>
-          [possible values: exe, class, title]
+          [possible values: exe, class, title, path]
 
   <ID>
           Identifier as a string

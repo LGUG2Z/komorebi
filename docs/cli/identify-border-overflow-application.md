@@ -7,7 +7,7 @@ Usage: komorebic.exe identify-border-overflow-application <IDENTIFIER> <ID>
 
 Arguments:
   <IDENTIFIER>
-          [possible values: exe, class, title]
+          [possible values: exe, class, title, path]
 
   <ID>
           Identifier as a string

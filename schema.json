@@ -133,6 +133,32 @@
         }
       }
     },
+    "active_window_border_style": {
+      "description": "Active window border style (default: System)",
+      "oneOf": [
+        {
+          "description": "Use the system border style",
+          "type": "string",
+          "enum": [
+            "System"
+          ]
+        },
+        {
+          "description": "Use the Windows 11-style rounded borders",
+          "type": "string",
+          "enum": [
+            "Rounded"
+          ]
+        },
+        {
+          "description": "Use the Windows 10-style square borders",
+          "type": "string",
+          "enum": [
+            "Square"
+          ]
+        }
+      ]
+    },
     "app_specific_configuration_path": {
       "description": "Path to applications.yaml from komorebi-application-specific-configurations (default: None)",
       "type": "string"
@@ -146,36 +172,83 @@
       "description": "Identify border overflow applications",
       "type": "array",
       "items": {
-        "type": "object",
-        "required": [
-          "id",
-          "kind"
-        ],
-        "properties": {
-          "id": {
-            "type": "string"
+        "anyOf": [
+          {
+            "type": "object",
+            "required": [
+              "id",
+              "kind"
+            ],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "Exe",
+                  "Class",
+                  "Title",
+                  "Path"
+                ]
+              },
+              "matching_strategy": {
+                "type": "string",
+                "enum": [
+                  "Legacy",
+                  "Equals",
+                  "StartsWith",
+                  "EndsWith",
+                  "Contains",
+                  "Regex",
+                  "DoesNotEndWith",
+                  "DoesNotStartWith",
+                  "DoesNotEqual",
+                  "DoesNotContain"
+                ]
+              }
+            }
           },
-          "kind": {
-            "type": "string",
-            "enum": [
-              "Exe",
-              "Class",
-              "Title",
-              "Path"
-            ]
-          },
-          "matching_strategy": {
-            "type": "string",
-            "enum": [
-              "Legacy",
-              "Equals",
-              "StartsWith",
-              "EndsWith",
-              "Contains",
-              "Regex"
-            ]
+          {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "id",
+                "kind"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "kind": {
+                  "type": "string",
+                  "enum": [
+                    "Exe",
+                    "Class",
+                    "Title",
+                    "Path"
+                  ]
+                },
+                "matching_strategy": {
+                  "type": "string",
+                  "enum": [
+                    "Legacy",
+                    "Equals",
+                    "StartsWith",
+                    "EndsWith",
+                    "Contains",
+                    "Regex",
+                    "DoesNotEndWith",
+                    "DoesNotStartWith",
+                    "DoesNotEqual",
+                    "DoesNotContain"
+                  ]
+                }
+              }
+            }
           }
-        }
+        ]
       }
     },
     "border_width": {
@@ -223,36 +296,83 @@
       "description": "Individual window floating rules",
       "type": "array",
       "items": {
-        "type": "object",
-        "required": [
-          "id",
-          "kind"
-        ],
-        "properties": {
-          "id": {
-            "type": "string"
+        "anyOf": [
+          {
+            "type": "object",
+            "required": [
+              "id",
+              "kind"
+            ],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "Exe",
+                  "Class",
+                  "Title",
+                  "Path"
+                ]
+              },
+              "matching_strategy": {
+                "type": "string",
+                "enum": [
+                  "Legacy",
+                  "Equals",
+                  "StartsWith",
+                  "EndsWith",
+                  "Contains",
+                  "Regex",
+                  "DoesNotEndWith",
+                  "DoesNotStartWith",
+                  "DoesNotEqual",
+                  "DoesNotContain"
+                ]
+              }
+            }
           },
-          "kind": {
-            "type": "string",
-            "enum": [
-              "Exe",
-              "Class",
-              "Title",
-              "Path"
-            ]
-          },
-          "matching_strategy": {
-            "type": "string",
-            "enum": [
-              "Legacy",
-              "Equals",
-              "StartsWith",
-              "EndsWith",
-              "Contains",
-              "Regex"
-            ]
+          {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "id",
+                "kind"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "kind": {
+                  "type": "string",
+                  "enum": [
+                    "Exe",
+                    "Class",
+                    "Title",
+                    "Path"
+                  ]
+                },
+                "matching_strategy": {
+                  "type": "string",
+                  "enum": [
+                    "Legacy",
+                    "Equals",
+                    "StartsWith",
+                    "EndsWith",
+                    "Contains",
+                    "Regex",
+                    "DoesNotEndWith",
+                    "DoesNotStartWith",
+                    "DoesNotEqual",
+                    "DoesNotContain"
+                  ]
+                }
+              }
+            }
           }
-        }
+        ]
       }
     },
     "focus_follows_mouse": {
@@ -342,72 +462,166 @@
       "description": "Identify applications that have the WS_EX_LAYERED extended window style",
       "type": "array",
       "items": {
-        "type": "object",
-        "required": [
-          "id",
-          "kind"
-        ],
-        "properties": {
-          "id": {
-            "type": "string"
+        "anyOf": [
+          {
+            "type": "object",
+            "required": [
+              "id",
+              "kind"
+            ],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "Exe",
+                  "Class",
+                  "Title",
+                  "Path"
+                ]
+              },
+              "matching_strategy": {
+                "type": "string",
+                "enum": [
+                  "Legacy",
+                  "Equals",
+                  "StartsWith",
+                  "EndsWith",
+                  "Contains",
+                  "Regex",
+                  "DoesNotEndWith",
+                  "DoesNotStartWith",
+                  "DoesNotEqual",
+                  "DoesNotContain"
+                ]
+              }
+            }
           },
-          "kind": {
-            "type": "string",
-            "enum": [
-              "Exe",
-              "Class",
-              "Title",
-              "Path"
-            ]
-          },
-          "matching_strategy": {
-            "type": "string",
-            "enum": [
-              "Legacy",
-              "Equals",
-              "StartsWith",
-              "EndsWith",
-              "Contains",
-              "Regex"
-            ]
+          {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "id",
+                "kind"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "kind": {
+                  "type": "string",
+                  "enum": [
+                    "Exe",
+                    "Class",
+                    "Title",
+                    "Path"
+                  ]
+                },
+                "matching_strategy": {
+                  "type": "string",
+                  "enum": [
+                    "Legacy",
+                    "Equals",
+                    "StartsWith",
+                    "EndsWith",
+                    "Contains",
+                    "Regex",
+                    "DoesNotEndWith",
+                    "DoesNotStartWith",
+                    "DoesNotEqual",
+                    "DoesNotContain"
+                  ]
+                }
+              }
+            }
           }
-        }
+        ]
       }
     },
     "manage_rules": {
       "description": "Individual window force-manage rules",
       "type": "array",
       "items": {
-        "type": "object",
-        "required": [
-          "id",
-          "kind"
-        ],
-        "properties": {
-          "id": {
-            "type": "string"
+        "anyOf": [
+          {
+            "type": "object",
+            "required": [
+              "id",
+              "kind"
+            ],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "Exe",
+                  "Class",
+                  "Title",
+                  "Path"
+                ]
+              },
+              "matching_strategy": {
+                "type": "string",
+                "enum": [
+                  "Legacy",
+                  "Equals",
+                  "StartsWith",
+                  "EndsWith",
+                  "Contains",
+                  "Regex",
+                  "DoesNotEndWith",
+                  "DoesNotStartWith",
+                  "DoesNotEqual",
+                  "DoesNotContain"
+                ]
+              }
+            }
           },
-          "kind": {
-            "type": "string",
-            "enum": [
-              "Exe",
-              "Class",
-              "Title",
-              "Path"
-            ]
-          },
-          "matching_strategy": {
-            "type": "string",
-            "enum": [
-              "Legacy",
-              "Equals",
-              "StartsWith",
-              "EndsWith",
-              "Contains",
-              "Regex"
-            ]
+          {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "id",
+                "kind"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "kind": {
+                  "type": "string",
+                  "enum": [
+                    "Exe",
+                    "Class",
+                    "Title",
+                    "Path"
+                  ]
+                },
+                "matching_strategy": {
+                  "type": "string",
+                  "enum": [
+                    "Legacy",
+                    "Equals",
+                    "StartsWith",
+                    "EndsWith",
+                    "Contains",
+                    "Regex",
+                    "DoesNotEndWith",
+                    "DoesNotStartWith",
+                    "DoesNotEqual",
+                    "DoesNotContain"
+                  ]
+                }
+              }
+            }
           }
-        }
+        ]
       }
     },
     "monitor_index_preferences": {
@@ -541,7 +755,11 @@
                           "StartsWith",
                           "EndsWith",
                           "Contains",
-                          "Regex"
+                          "Regex",
+                          "DoesNotEndWith",
+                          "DoesNotStartWith",
+                          "DoesNotEqual",
+                          "DoesNotContain"
                         ]
                       }
                     }
@@ -615,7 +833,11 @@
                           "StartsWith",
                           "EndsWith",
                           "Contains",
-                          "Regex"
+                          "Regex",
+                          "DoesNotEndWith",
+                          "DoesNotStartWith",
+                          "DoesNotEqual",
+                          "DoesNotContain"
                         ]
                       }
                     }
@@ -635,36 +857,83 @@
       "description": "Identify applications that send EVENT_OBJECT_NAMECHANGE on launch (very rare)",
       "type": "array",
       "items": {
-        "type": "object",
-        "required": [
-          "id",
-          "kind"
-        ],
-        "properties": {
-          "id": {
-            "type": "string"
+        "anyOf": [
+          {
+            "type": "object",
+            "required": [
+              "id",
+              "kind"
+            ],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "Exe",
+                  "Class",
+                  "Title",
+                  "Path"
+                ]
+              },
+              "matching_strategy": {
+                "type": "string",
+                "enum": [
+                  "Legacy",
+                  "Equals",
+                  "StartsWith",
+                  "EndsWith",
+                  "Contains",
+                  "Regex",
+                  "DoesNotEndWith",
+                  "DoesNotStartWith",
+                  "DoesNotEqual",
+                  "DoesNotContain"
+                ]
+              }
+            }
           },
-          "kind": {
-            "type": "string",
-            "enum": [
-              "Exe",
-              "Class",
-              "Title",
-              "Path"
-            ]
-          },
-          "matching_strategy": {
-            "type": "string",
-            "enum": [
-              "Legacy",
-              "Equals",
-              "StartsWith",
-              "EndsWith",
-              "Contains",
-              "Regex"
-            ]
+          {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "id",
+                "kind"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "kind": {
+                  "type": "string",
+                  "enum": [
+                    "Exe",
+                    "Class",
+                    "Title",
+                    "Path"
+                  ]
+                },
+                "matching_strategy": {
+                  "type": "string",
+                  "enum": [
+                    "Legacy",
+                    "Equals",
+                    "StartsWith",
+                    "EndsWith",
+                    "Contains",
+                    "Regex",
+                    "DoesNotEndWith",
+                    "DoesNotStartWith",
+                    "DoesNotEqual",
+                    "DoesNotContain"
+                  ]
+                }
+              }
+            }
           }
-        }
+        ]
       }
     },
     "resize_delta": {
@@ -813,36 +1082,83 @@
       "description": "Identify tray and multi-window applications",
       "type": "array",
       "items": {
-        "type": "object",
-        "required": [
-          "id",
-          "kind"
-        ],
-        "properties": {
-          "id": {
-            "type": "string"
+        "anyOf": [
+          {
+            "type": "object",
+            "required": [
+              "id",
+              "kind"
+            ],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "Exe",
+                  "Class",
+                  "Title",
+                  "Path"
+                ]
+              },
+              "matching_strategy": {
+                "type": "string",
+                "enum": [
+                  "Legacy",
+                  "Equals",
+                  "StartsWith",
+                  "EndsWith",
+                  "Contains",
+                  "Regex",
+                  "DoesNotEndWith",
+                  "DoesNotStartWith",
+                  "DoesNotEqual",
+                  "DoesNotContain"
+                ]
+              }
+            }
           },
-          "kind": {
-            "type": "string",
-            "enum": [
-              "Exe",
-              "Class",
-              "Title",
-              "Path"
-            ]
-          },
-          "matching_strategy": {
-            "type": "string",
-            "enum": [
-              "Legacy",
-              "Equals",
-              "StartsWith",
-              "EndsWith",
-              "Contains",
-              "Regex"
-            ]
+          {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "id",
+                "kind"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "kind": {
+                  "type": "string",
+                  "enum": [
+                    "Exe",
+                    "Class",
+                    "Title",
+                    "Path"
+                  ]
+                },
+                "matching_strategy": {
+                  "type": "string",
+                  "enum": [
+                    "Legacy",
+                    "Equals",
+                    "StartsWith",
+                    "EndsWith",
+                    "Contains",
+                    "Regex",
+                    "DoesNotEndWith",
+                    "DoesNotStartWith",
+                    "DoesNotEqual",
+                    "DoesNotContain"
+                  ]
+                }
+              }
+            }
           }
-        }
+        ]
       }
     },
     "unmanaged_window_operation_behaviour": {
