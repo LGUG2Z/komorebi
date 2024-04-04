@@ -34,6 +34,7 @@ use komorebi::window_manager::WindowManager;
 use komorebi::windows_api::WindowsApi;
 use komorebi::winevent_listener;
 use komorebi::CUSTOM_FFM;
+use komorebi::DATA_DIR;
 use komorebi::HOME_DIR;
 use komorebi::INITIAL_CONFIGURATION_LOADED;
 use komorebi::SESSION_ID;
@@ -198,6 +199,8 @@ fn main() -> Result<()> {
         },
         Option::from,
     );
+
+    std::fs::create_dir_all(&*DATA_DIR)?;
 
     let wm = if let Some(config) = &static_config {
         tracing::info!(
