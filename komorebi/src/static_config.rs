@@ -599,6 +599,7 @@ impl StaticConfig {
                                     &mut regex_identifiers,
                                 )?;
                             }
+                            ApplicationOptions::BorderOverflow => {} // deprecated
                         }
                     }
                 }

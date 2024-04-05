@@ -18,6 +18,7 @@ pub enum ApplicationOptions {
     Layered,
     TrayAndMultiWindow,
     Force,
+    BorderOverflow,
 }
 
 impl ApplicationOptions {
@@ -35,6 +36,9 @@ impl ApplicationOptions {
             }
             ApplicationOptions::Force => {
                 format!("komorebic.exe manage-rule {kind} \"{id}\"")
+            }
+            ApplicationOptions::BorderOverflow => {
+                unreachable!("deprecated");
             }
         }
     }
