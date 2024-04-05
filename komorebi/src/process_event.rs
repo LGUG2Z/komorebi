@@ -339,11 +339,8 @@ impl WindowManager {
                 let new_window_behaviour = self.window_container_behaviour;
 
                 let workspace = self.focused_workspace_mut()?;
-                if !workspace
-                    .floating_windows()
-                    .iter()
-                    .any(|w| w.hwnd == window.hwnd)
-                {
+
+                if workspace.contains_managed_window(window.hwnd) {
                     let focused_container_idx = workspace.focused_container_idx();
 
                     let new_position = WindowsApi::window_rect(window.hwnd())?;
