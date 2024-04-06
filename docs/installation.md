@@ -33,6 +33,7 @@ it from [source](https://github.com/LGUG2Z/komorebi) if you would prefer.
  - [Scoop](#scoop)
  - [WinGet](#winget)
  - [Building from source](#building-from-source)
+ - [Offline](#offline)
 
 ## Long path support
 
@@ -111,3 +112,12 @@ cargo +stable install --path komorebic-no-console --locked
 
 If the binaries have been built and added to your `$PATH` correctly, you should
 see some output when running `komorebi --help` and `komorebic --help`
+
+### Offline
+
+Download the latest [komorebi](https://github.com/LGUG2Z/komorebi/releases)
+and [whkd](https://github.com/LGUG2Z/whkd/releases) MSI installers on an internet-connected computer, then copy them to
+an offline machine to install.
+
+Once installed, proceed to get the [example configurations](example-configurations.md) (none of the commands for
+first-time set up and running komorebi require an internet connection).

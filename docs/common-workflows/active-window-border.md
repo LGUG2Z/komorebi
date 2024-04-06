@@ -7,6 +7,7 @@ file.
 ```json
 {
   "active_window_border": true,
+  "active_window_border_style": "Rounded",
   "active_window_border_colours": {
     "single": {
       "r": 66,
@@ -23,7 +24,7 @@ file.
       "g": 51,
       "b": 153
     }
-  }
+  },
 }
 
 ```
@@ -31,7 +32,7 @@ file.
 It is important to note that the active window border will only apply to
 windows managed by `komorebi`.
 
-This feature is not considered stable and you may encounter visual artifacts
+This feature is not considered stable, and you may encounter visual artifacts
 from time to time.
 
 [![Watch the tutorial

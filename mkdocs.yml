@@ -53,6 +53,7 @@ nav:
   - Common workflows:
     - common-workflows/komorebi-config-home.md
     - common-workflows/active-window-border.md
+    - common-workflows/stackbar.md
     - common-workflows/remove-gaps.md
     - common-workflows/ignore-windows.md
     - common-workflows/force-manage-windows.md
