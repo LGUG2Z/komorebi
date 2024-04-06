@@ -843,6 +843,10 @@ impl Workspace {
             if container.windows().is_empty() {
                 self.containers_mut().remove(focused_idx);
                 self.resize_dimensions_mut().remove(focused_idx);
+
+                if focused_idx == self.containers().len() {
+                    self.focus_container(focused_idx - 1);
+                }
             } else {
                 container.load_focused_window();
             }
