@@ -477,6 +477,30 @@ impl WindowManager {
             SocketMessage::MoveWorkspaceToMonitorNumber(monitor_idx) => {
                 self.move_workspace_to_monitor(monitor_idx)?;
             }
+            SocketMessage::ToggleTaskbarVisibility => {
+                let (taskbar, startmenu) = WindowsApi::get_taskbar_handles()?;
+                let is_hidden = WindowsApi::is_taskbar_hidden(taskbar);
+                if is_hidden {
+                    WindowsApi::hide_taskbar((taskbar, startmenu), true);
+                } else {
+                    WindowsApi::hide_taskbar((taskbar, startmenu), false);
+                }
+            }
+            SocketMessage::ShowTaskbar(show) => {
+                let (taskbar, startmenu) = WindowsApi::get_taskbar_handles()?;
+                if show {
+                    WindowsApi::hide_taskbar((taskbar, startmenu), true);
+                } else {
+                    WindowsApi::hide_taskbar((taskbar, startmenu), false);
+                }
+            }
+            SocketMessage::MoveWorkspaceToMonitorNumber(monitor_idx) => {
+                self.move_workspace_to_monitor(monitor_idx)?;
+            }
+            SocketMessage::MoveWorkspaceToMonitorNumber(monitor_idx) => {
+                self.move_workspace_to_monitor(monitor_idx)?;
+            }
+
             SocketMessage::TogglePause => {
                 if self.is_paused {
                     tracing::info!("resuming");

@@ -167,6 +167,7 @@ gen_enum_subcommand_args! {
     CycleLayout: CycleDirection,
     WatchConfiguration: BooleanState,
     MouseFollowsFocus: BooleanState,
+    ShowTaskbar: BooleanState,
     Query: StateQuery,
     WindowHidingBehaviour: HidingBehaviour,
     CrossMonitorMoveBehaviour: MoveBehaviour,
@@ -1052,6 +1053,11 @@ enum SubCommand {
     /// Set the workspace name for the specified workspace
     #[clap(arg_required_else_help = true)]
     WorkspaceName(WorkspaceName),
+    /// Toggles tasbar visibility
+    ToggleTaskbarVisibility,
+    /// shows tasbar
+    #[clap(arg_required_else_help = true)]
+    ShowTaskbar(ShowTaskbar),
     /// Toggle the behaviour for new windows (stacking or dynamic tiling)
     ToggleWindowContainerBehaviour,
     /// Toggle window tiling on the focused workspace
@@ -1992,6 +1998,12 @@ Stop-Process -Name:whkd -ErrorAction SilentlyContinue
                 &SocketMessage::WorkspaceName(name.monitor, name.workspace, name.value)
                     .as_bytes()?,
             )?;
+        }
+        SubCommand::ToggleTaskbarVisibility => {
+            send_message(&SocketMessage::ToggleTaskbarVisibility.as_bytes()?)?;
+        }
+        SubCommand::ShowTaskbar(arg) => {
+            send_message(&SocketMessage::ShowTaskbar(arg.boolean_state.into()).as_bytes()?)?;
         }
         SubCommand::MonitorIndexPreference(arg) => {
             send_message(

@@ -7,7 +7,9 @@ use color_eyre::eyre::anyhow;
 use color_eyre::eyre::Error;
 use color_eyre::Result;
 use widestring::U16CStr;
+use windows::core::s;
 use windows::core::Result as WindowsCrateResult;
+use windows::core::PCSTR;
 use windows::core::PCWSTR;
 use windows::core::PWSTR;
 use windows::Win32::Foundation::CloseHandle;
@@ -74,6 +76,8 @@ use windows::Win32::UI::WindowsAndMessaging::AllowSetForegroundWindow;
 use windows::Win32::UI::WindowsAndMessaging::BringWindowToTop;
 use windows::Win32::UI::WindowsAndMessaging::CreateWindowExW;
 use windows::Win32::UI::WindowsAndMessaging::EnumWindows;
+use windows::Win32::UI::WindowsAndMessaging::FindWindowA;
+use windows::Win32::UI::WindowsAndMessaging::FindWindowExA;
 use windows::Win32::UI::WindowsAndMessaging::GetCursorPos;
 use windows::Win32::UI::WindowsAndMessaging::GetDesktopWindow;
 use windows::Win32::UI::WindowsAndMessaging::GetForegroundWindow;
@@ -569,6 +573,29 @@ impl WindowsApi {
 
     pub fn center_cursor_in_rect(rect: &Rect) -> Result<()> {
         Self::set_cursor_pos(rect.left + (rect.right / 2), rect.top + (rect.bottom / 2))
+    }
+
+    pub fn get_taskbar_handles() -> Result<(HWND, HWND)> {
+        let taskbar = unsafe { FindWindowA(s!("Shell_TrayWnd"), PCSTR::null()) };
+        let startmenu = unsafe { FindWindowExA(taskbar, HWND { 0: 0 }, s!("Button"), s!("Start")) };
+        Ok((HWND(taskbar.process()?), HWND(startmenu.process()?)))
+    }
+
+    pub fn is_taskbar_hidden(taskbar_hwnd: HWND) -> bool {
+        unsafe { IsWindowVisible(taskbar_hwnd) }.as_bool()
+    }
+
+    pub fn hide_taskbar(taskbar_hwnds: (HWND, HWND), hide: bool) {
+        unsafe {
+            if hide {
+                // 0 hides the taskbar and 5 enables visibility
+                ShowWindow(taskbar_hwnds.0, SHOW_WINDOW_CMD(0));
+                ShowWindow(taskbar_hwnds.1, SHOW_WINDOW_CMD(0));
+            } else {
+                ShowWindow(taskbar_hwnds.0, SHOW_WINDOW_CMD(5));
+                ShowWindow(taskbar_hwnds.1, SHOW_WINDOW_CMD(5));
+            }
+        }
     }
 
     pub fn window_thread_process_id(hwnd: HWND) -> (u32, u32) {
