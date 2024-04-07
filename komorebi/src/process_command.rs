@@ -477,7 +477,7 @@ impl WindowManager {
             SocketMessage::MoveWorkspaceToMonitorNumber(monitor_idx) => {
                 self.move_workspace_to_monitor(monitor_idx)?;
             }
-            SocketMessage::ToggleTaskbarVisibility => {
+            SocketMessage::ToggleTaskbar => {
                 let (taskbar, startmenu) = WindowsApi::get_taskbar_handles()?;
                 let is_hidden = WindowsApi::is_taskbar_hidden(taskbar);
                 if is_hidden {
@@ -486,7 +486,7 @@ impl WindowManager {
                     WindowsApi::hide_taskbar((taskbar, startmenu), false);
                 }
             }
-            SocketMessage::ShowTaskbar(show) => {
+            SocketMessage::Taskbar(show) => {
                 let (taskbar, startmenu) = WindowsApi::get_taskbar_handles()?;
                 if show {
                     WindowsApi::hide_taskbar((taskbar, startmenu), true);

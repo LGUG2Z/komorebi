@@ -123,6 +123,7 @@ use windows::Win32::UI::WindowsAndMessaging::SW_HIDE;
 use windows::Win32::UI::WindowsAndMessaging::SW_MAXIMIZE;
 use windows::Win32::UI::WindowsAndMessaging::SW_MINIMIZE;
 use windows::Win32::UI::WindowsAndMessaging::SW_NORMAL;
+use windows::Win32::UI::WindowsAndMessaging::SW_SHOW;
 use windows::Win32::UI::WindowsAndMessaging::SW_SHOWNOACTIVATE;
 use windows::Win32::UI::WindowsAndMessaging::SYSTEM_PARAMETERS_INFO_ACTION;
 use windows::Win32::UI::WindowsAndMessaging::SYSTEM_PARAMETERS_INFO_UPDATE_FLAGS;
@@ -589,11 +590,11 @@ impl WindowsApi {
         unsafe {
             if hide {
                 // 0 hides the taskbar and 5 enables visibility
-                ShowWindow(taskbar_hwnds.0, SHOW_WINDOW_CMD(0));
-                ShowWindow(taskbar_hwnds.1, SHOW_WINDOW_CMD(0));
+                ShowWindow(taskbar_hwnds.0, SW_HIDE);
+                ShowWindow(taskbar_hwnds.1, SW_HIDE);
             } else {
-                ShowWindow(taskbar_hwnds.0, SHOW_WINDOW_CMD(5));
-                ShowWindow(taskbar_hwnds.1, SHOW_WINDOW_CMD(5));
+                ShowWindow(taskbar_hwnds.0, SW_SHOW);
+                ShowWindow(taskbar_hwnds.1, SW_SHOW);
             }
         }
     }
