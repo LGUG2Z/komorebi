@@ -795,7 +795,7 @@ dependencies = [
 
 [[package]]
 name = "komorebi"
-version = "0.1.23"
+version = "0.1.24-dev.0"
 dependencies = [
  "bitflags 2.5.0",
  "clap",
@@ -836,7 +836,7 @@ dependencies = [
 
 [[package]]
 name = "komorebi-client"
-version = "0.1.23"
+version = "0.1.24-dev.0"
 dependencies = [
  "komorebi",
  "komorebi-core",
@@ -846,7 +846,7 @@ dependencies = [
 
 [[package]]
 name = "komorebi-core"
-version = "0.1.23"
+version = "0.1.24-dev.0"
 dependencies = [
  "clap",
  "color-eyre",
@@ -862,7 +862,7 @@ dependencies = [
 
 [[package]]
 name = "komorebic"
-version = "0.1.23"
+version = "0.1.24-dev.0"
 dependencies = [
  "clap",
  "color-eyre",
@@ -889,7 +889,7 @@ dependencies = [
 
 [[package]]
 name = "komorebic-no-console"
-version = "0.1.23"
+version = "0.1.24-dev.0"
 
 [[package]]
 name = "kqueue"
