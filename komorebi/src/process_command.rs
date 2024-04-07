@@ -741,6 +741,7 @@ impl WindowManager {
                     "received stop command, restoring all hidden windows and terminating process"
                 );
                 self.restore_all_windows()?;
+                WindowsApi::hide_taskbar(WindowsApi::get_taskbar_handles()?, false);
 
                 if WindowsApi::focus_follows_mouse()? {
                     WindowsApi::disable_focus_follows_mouse()?;
