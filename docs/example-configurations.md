@@ -162,8 +162,8 @@ If you like the `grid` layout in [LeftWM](https://github.com/leftwm/leftwm-layou
 ## whkdrc
 
 `whkd` is a fairly basic piece of software with a simple configuration format:
-key bindings go to the left of the, and shell commands go to the right of the
-colon.
+key bindings go to the left of the colon, and shell commands go to the right of the
+colon. By default, the `whkdrc` file should be located in the `$Env:USERPROFILE/.config/` directory.
 
 Please remember that `whkd` does not support overriding Microsoft's limitations
 on hotkey bindings that include the `Windows` key. If this is important to you,
