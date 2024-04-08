@@ -478,7 +478,7 @@ impl WindowManager {
                 self.move_workspace_to_monitor(monitor_idx)?;
             }
             SocketMessage::ToggleTaskbar => {
-                let (taskbar, startmenu) = WindowsApi::get_taskbar_handles()?;
+                let (taskbar, startmenu) = WindowsApi::get_taskbar_handles();
                 let is_hidden = WindowsApi::is_taskbar_hidden(taskbar);
                 if is_hidden {
                     WindowsApi::hide_taskbar((taskbar, startmenu), true);
@@ -487,11 +487,11 @@ impl WindowManager {
                 }
             }
             SocketMessage::Taskbar(show) => {
-                let (taskbar, startmenu) = WindowsApi::get_taskbar_handles()?;
+                let (taskbar, startmenu) = WindowsApi::get_taskbar_handles();
                 if show {
-                    WindowsApi::hide_taskbar((taskbar, startmenu), true);
-                } else {
                     WindowsApi::hide_taskbar((taskbar, startmenu), false);
+                } else {
+                    WindowsApi::hide_taskbar((taskbar, startmenu), true);
                 }
             }
 
@@ -735,7 +735,7 @@ impl WindowManager {
                     "received stop command, restoring all hidden windows and terminating process"
                 );
                 self.restore_all_windows()?;
-                WindowsApi::hide_taskbar(WindowsApi::get_taskbar_handles()?, false);
+                WindowsApi::hide_taskbar(WindowsApi::get_taskbar_handles(), false);
 
                 if WindowsApi::focus_follows_mouse()? {
                     WindowsApi::disable_focus_follows_mouse()?;

@@ -576,10 +576,10 @@ impl WindowsApi {
         Self::set_cursor_pos(rect.left + (rect.right / 2), rect.top + (rect.bottom / 2))
     }
 
-    pub fn get_taskbar_handles() -> Result<(HWND, HWND)> {
+    pub fn get_taskbar_handles() -> (HWND, HWND) {
         let taskbar = unsafe { FindWindowA(s!("Shell_TrayWnd"), PCSTR::null()) };
         let startmenu = unsafe { FindWindowExA(taskbar, HWND { 0: 0 }, s!("Button"), s!("Start")) };
-        Ok((HWND(taskbar.process()?), HWND(startmenu.process()?)))
+        (HWND(taskbar.0), HWND(startmenu.0))
     }
 
     pub fn is_taskbar_hidden(taskbar_hwnd: HWND) -> bool {
