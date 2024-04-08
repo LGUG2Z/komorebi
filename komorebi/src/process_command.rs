@@ -494,12 +494,6 @@ impl WindowManager {
                     WindowsApi::hide_taskbar((taskbar, startmenu), false);
                 }
             }
-            SocketMessage::MoveWorkspaceToMonitorNumber(monitor_idx) => {
-                self.move_workspace_to_monitor(monitor_idx)?;
-            }
-            SocketMessage::MoveWorkspaceToMonitorNumber(monitor_idx) => {
-                self.move_workspace_to_monitor(monitor_idx)?;
-            }
 
             SocketMessage::TogglePause => {
                 if self.is_paused {
