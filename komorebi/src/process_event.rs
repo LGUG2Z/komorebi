@@ -340,34 +340,52 @@ impl WindowManager {
 
                 let workspace = self.focused_workspace_mut()?;
 
-                if workspace.contains_managed_window(window.hwnd) {
-                    let focused_container_idx = workspace.focused_container_idx();
+                let focused_container_idx = workspace.focused_container_idx();
+                let new_position = WindowsApi::window_rect(window.hwnd())?;
+                let old_position = *workspace
+                    .latest_layout()
+                    .get(focused_container_idx)
+                    // If the move was to another monitor with an empty workspace, the
+                    // workspace here will refer to that empty workspace, which won't
+                    // have any latest layout set. We fall back to a Default for Rect
+                    // which allows us to make a reasonable guess that the drag has taken
+                    // place across a monitor boundary to an empty workspace
+                    .unwrap_or(&Rect::default());
 
-                    let new_position = WindowsApi::window_rect(window.hwnd())?;
+                // This will be true if we have moved to an empty workspace on another monitor
+                let mut moved_across_monitors = old_position == Rect::default();
+                if let Some((origin_monitor_idx, origin_workspace_idx, _)) = pending {
+                    // If we didn't move to another monitor with an empty workspace, it is
+                    // still possible that we moved to another monitor with a populated workspace
+                    if !moved_across_monitors {
+                        // So we'll check if the origin monitor index and the target monitor index
+                        // are different, if they are, we can set the override
+                        moved_across_monitors = origin_monitor_idx != target_monitor_idx;
 
-                    let old_position = *workspace
-                        .latest_layout()
-                        .get(focused_container_idx)
-                        // If the move was to another monitor with an empty workspace, the
-                        // workspace here will refer to that empty workspace, which won't
-                        // have any latest layout set. We fall back to a Default for Rect
-                        // which allows us to make a reasonable guess that the drag has taken
-                        // place across a monitor boundary to an empty workspace
-                        .unwrap_or(&Rect::default());
+                        if moved_across_monitors {
+                            // Want to make sure that we exclude unmanaged windows from cross-monitor
+                            // moves with a mouse, otherwise the currently focused idx container will
+                            // be moved when we just want to drag an unmanaged window
+                            let origin_workspace = self
+                                .monitors()
+                                .get(origin_monitor_idx)
+                                .ok_or_else(|| anyhow!("cannot get monitor idx"))?
+                                .workspaces()
+                                .get(origin_workspace_idx)
+                                .ok_or_else(|| anyhow!("cannot get workspace idx"))?;
 
-                    // This will be true if we have moved to an empty workspace on another monitor
-                    let mut moved_across_monitors = old_position == Rect::default();
+                            let managed_window =
+                                origin_workspace.contains_managed_window(window.hwnd);
 
-                    if let Some((origin_monitor_idx, _, _)) = pending {
-                        // If we didn't move to another monitor with an empty workspace, it is
-                        // still possible that we moved to another monitor with a populated workspace
-                        if !moved_across_monitors {
-                            // So we'll check if the origin monitor index and the target monitor index
-                            // are different, if they are, we can set the override
-                            moved_across_monitors = origin_monitor_idx != target_monitor_idx;
+                            if !managed_window {
+                                moved_across_monitors = false;
+                            }
                         }
                     }
+                }
 
+                let workspace = self.focused_workspace_mut()?;
+                if workspace.contains_managed_window(window.hwnd) || moved_across_monitors {
                     let resize = Rect {
                         left: new_position.left - old_position.left,
                         top: new_position.top - old_position.top,
