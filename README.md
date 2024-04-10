@@ -22,7 +22,7 @@ Tiling Window Management for Windows.
   <a href="https://notado.app/feeds/jado/software-development">
     <img alt="Notado Feed" src="https://img.shields.io/badge/Notado-Subscribe-informational">
   </a>
-  <a href="https://www.youtube.com/channel/UCeai3-do-9O4MNy9_xjO6mg?sub_confirmation=1">
+  <a href="https://www.youtube.com/channel/@LGUG2Z?sub_confirmation=1">
     <img alt="YouTube" src="https://img.shields.io/youtube/channel/subscribers/UCeai3-do-9O4MNy9_xjO6mg">
   </a>
 </p>
@@ -36,7 +36,7 @@ Windows 10 and above.
 
 _komorebi_ allows you to control application windows, virtual workspaces and display monitors with a CLI which can be
 used with third-party software such as [`whkd`](https://github.com/LGUG2Z/whkd)
-and [AutoHotKey](https://github.com/Lexikos/AutoHotkey_L) to set user-defined keyboard shortcuts.
+and [AutoHotKey](https://github.com/AutoHotkey/AutoHotkey) to set user-defined keyboard shortcuts.
 
 _komorebi_ aims to make _as few modifications as possible_ to the operating
 system and desktop environment by default. Users are free to make such
@@ -44,11 +44,11 @@ modifications in their own configuration files for _komorebi_, but these will
 remain opt-in and off-by-default for the foreseeable future.
 
 Please refer to the [documentation](https://lgug2z.github.io/komorebi) for instructions on how
-to [install](https://lgug2z.github.io/komorebi/installation.html) and
-[configure](https://lgug2z.github.io/komorebi/example-configurations.html)
-_komorebi_, [common workflows](https://lgug2z.github.io/komorebi/common-workflows/komorebi-config-home.html), a complete
+to [install](https://lgug2z.github.io/komorebi/installation) and
+[configure](https://lgug2z.github.io/komorebi/example-configurations)
+_komorebi_, [common workflows](https://lgug2z.github.io/komorebi/common-workflows/komorebi-config-home), a complete
 [configuration schema reference](https://komorebi.lgug2z.com/schema) and a
-complete [CLI reference](https://lgug2z.github.io/komorebi/cli/quickstart.html).
+complete [CLI reference](https://lgug2z.github.io/komorebi/cli/quickstart).
 
 There is a [Discord server](https://discord.gg/mGkn66PHkx) available for
 _komorebi_-related discussion, help, troubleshooting etc. If you have any
@@ -56,7 +56,7 @@ specific feature requests or bugs to report, please create an issue in this
 repository.
 
 There is a [YouTube
-channel](https://www.youtube.com/channel/UCeai3-do-9O4MNy9_xjO6mg) where I post
+channel](https://www.youtube.com/@LGUG2Z) where I post
 _komorebi_ development videos. If you would like to be notified of upcoming
 videos please subscribe and turn on notifications.
 
@@ -405,6 +405,6 @@ programming languages.
 
 - Thank you to the developers of [nog](https://github.com/TimUntersberger/nog) who came before me and whose work taught me more than I can ever hope to repay
 
-- Thank you to the developers of [GlazeWM](https://github.com/lars-berger/GlazeWM) for pushing the boundaries of tiling window management on Windows with me and having an excellent spirit of collaboration
+- Thank you to the developers of [GlazeWM](https://github.com/glzr-io/glazewm) for pushing the boundaries of tiling window management on Windows with me and having an excellent spirit of collaboration
 
 - Thank you to [@Ciantic](https://github.com/Ciantic) for helping me bring the [hidden Virtual Desktops cloaking function](https://github.com/Ciantic/AltTabAccessor/issues/1) to `komorebi`
