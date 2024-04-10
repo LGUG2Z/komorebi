@@ -476,7 +476,7 @@ impl WindowManager {
     }
 
     #[allow(clippy::too_many_arguments)]
-    #[tracing::instrument(skip(self))]
+    #[tracing::instrument(skip(self), level = "debug")]
     fn add_window_handle_to_move_based_on_workspace_rule(
         &self,
         window_title: &String,
@@ -504,7 +504,7 @@ impl WindowManager {
         });
     }
 
-    #[tracing::instrument(skip(self))]
+    #[tracing::instrument(skip(self), level = "debug")]
     pub fn enforce_workspace_rules(&mut self) -> Result<()> {
         let mut to_move = vec![];
 

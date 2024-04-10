@@ -1426,7 +1426,7 @@ impl WindowManager {
         Ok(())
     }
 
-    #[tracing::instrument(skip(self))]
+    #[tracing::instrument(skip(self), level = "debug")]
     fn handle_initial_workspace_rules(
         &mut self,
         id: &String,
@@ -1438,7 +1438,7 @@ impl WindowManager {
         Ok(())
     }
 
-    #[tracing::instrument(skip(self))]
+    #[tracing::instrument(skip(self), level = "debug")]
     fn handle_definitive_workspace_rules(
         &mut self,
         id: &String,
@@ -1450,7 +1450,7 @@ impl WindowManager {
         Ok(())
     }
 
-    #[tracing::instrument(skip(self))]
+    #[tracing::instrument(skip(self), level = "debug")]
     pub fn handle_workspace_rules(
         &mut self,
         id: &String,
