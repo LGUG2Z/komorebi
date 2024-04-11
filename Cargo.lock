@@ -357,9 +357,9 @@ checksum = "11157ac094ffbdde99aa67b23417ebdd801842852b500e395a45a9c0aac03e4a"
 
 [[package]]
 name = "encoding_rs"
-version = "0.8.33"
+version = "0.8.34"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7268b386296a025e474d5140678f75d6de9493ae55a5d709eeb9dd08149945e1"
+checksum = "b45de904aa0b010bce2ab45264d0631681847fa7b6f2eaa7dab7619943bc4f59"
 dependencies = [
  "cfg-if 1.0.0",
 ]
@@ -795,7 +795,7 @@ dependencies = [
 
 [[package]]
 name = "komorebi"
-version = "0.1.24"
+version = "0.1.25-dev.0"
 dependencies = [
  "bitflags 2.5.0",
  "clap",
@@ -836,7 +836,7 @@ dependencies = [
 
 [[package]]
 name = "komorebi-client"
-version = "0.1.24"
+version = "0.1.25-dev.0"
 dependencies = [
  "komorebi",
  "komorebi-core",
@@ -846,7 +846,7 @@ dependencies = [
 
 [[package]]
 name = "komorebi-core"
-version = "0.1.24"
+version = "0.1.25-dev.0"
 dependencies = [
  "clap",
  "color-eyre",
@@ -862,7 +862,7 @@ dependencies = [
 
 [[package]]
 name = "komorebic"
-version = "0.1.24"
+version = "0.1.25-dev.0"
 dependencies = [
  "clap",
  "color-eyre",
@@ -889,7 +889,7 @@ dependencies = [
 
 [[package]]
 name = "komorebic-no-console"
-version = "0.1.24"
+version = "0.1.25-dev.0"
 
 [[package]]
 name = "kqueue"
@@ -1396,9 +1396,9 @@ dependencies = [
 
 [[package]]
 name = "quote"
-version = "1.0.35"
+version = "1.0.36"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "291ec9ab5efd934aaf503a6466c5d5251535d108ee747472c3977cc5acc868ef"
+checksum = "0fa76aaf39101c457836aec0ce2316dbdc3ab723cdda1c6bd4e6ad4208acaca7"
 dependencies = [
  "proc-macro2",
 ]
@@ -1875,9 +1875,9 @@ checksum = "2047c6ded9c721764247e62cd3b03c09ffc529b2ba5b10ec482ae507a4a70160"
 
 [[package]]
 name = "sysinfo"
-version = "0.30.9"
+version = "0.30.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e9a84fe4cfc513b41cb2596b624e561ec9e7e1c4b46328e496ed56a53514ef2a"
+checksum = "26d7c217777061d5a2d652aea771fb9ba98b6dade657204b08c4b9604d11555b"
 dependencies = [
  "cfg-if 1.0.0",
  "core-foundation-sys",
@@ -1984,9 +1984,9 @@ dependencies = [
 
 [[package]]
 name = "time"
-version = "0.3.34"
+version = "0.3.36"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c8248b6521bb14bc45b4067159b9b6ad792e2d6d754d6c41fb50e29fefe38749"
+checksum = "5dfd88e563464686c916c7e46e623e520ddc6d79fa6641390f2e3fa86e83e885"
 dependencies = [
  "deranged",
  "itoa",
@@ -2005,9 +2005,9 @@ checksum = "ef927ca75afb808a4d64dd374f00a2adf8d0fcff8e7b184af886c3c87ec4a3f3"
 
 [[package]]
 name = "time-macros"
-version = "0.2.17"
+version = "0.2.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7ba3a3ef41e6672a2f0f001392bb5dcd3ff0a9992d618ca761a11c3121547774"
+checksum = "3f252a68540fde3a3877aeea552b832b40ab9a69e318efd078774a01ddee1ccf"
 dependencies = [
  "num-conv",
  "time-core",
