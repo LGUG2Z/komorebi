@@ -11,15 +11,16 @@ members = [
 ]
 
 [workspace.dependencies]
-windows-interface = { version = "0.53" }
-windows-implement = { version = "0.53" }
+windows-interface = { version = "0.56" }
+windows-implement = { version = "0.56" }
+windows-core = { version = "0.56.0" }
 dunce = "1"
 dirs = "5"
 color-eyre = "0.6"
 serde_json = { package = "serde_json_lenient", version = "0.1" }
 
 [workspace.dependencies.windows]
-version = "0.54"
+version = "0.56"
 features = [
     "implement",
     "Win32_System_Com",

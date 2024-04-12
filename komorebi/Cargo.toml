@@ -43,6 +43,7 @@ uds_windows = "1"
 which = "6"
 widestring = "1"
 windows = { workspace = true }
+windows-core = { workspace = true }
 windows-implement = { workspace = true }
 windows-interface = { workspace = true }
 winput = "0.2"
