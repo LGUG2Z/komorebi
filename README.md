@@ -22,7 +22,7 @@ Tiling Window Management for Windows.
   <a href="https://notado.app/feeds/jado/software-development">
     <img alt="Notado Feed" src="https://img.shields.io/badge/Notado-Subscribe-informational">
   </a>
-  <a href="https://www.youtube.com/channel/@LGUG2Z?sub_confirmation=1">
+  <a href="https://www.youtube.com/channel/UCeai3-do-9O4MNy9_xjO6mg?sub_confirmation=1">
     <img alt="YouTube" src="https://img.shields.io/youtube/channel/subscribers/UCeai3-do-9O4MNy9_xjO6mg">
   </a>
 </p>
@@ -43,12 +43,12 @@ system and desktop environment by default. Users are free to make such
 modifications in their own configuration files for _komorebi_, but these will
 remain opt-in and off-by-default for the foreseeable future.
 
-Please refer to the [documentation](https://lgug2z.github.io/komorebi) for instructions on how
-to [install](https://lgug2z.github.io/komorebi/installation) and
-[configure](https://lgug2z.github.io/komorebi/example-configurations)
-_komorebi_, [common workflows](https://lgug2z.github.io/komorebi/common-workflows/komorebi-config-home), a complete
+Please refer to the [documentation](https://lgug2z.github.io/komorebi.html) for instructions on how
+to [install](https://lgug2z.github.io/komorebi/installation.html) and
+[configure](https://lgug2z.github.io/komorebi/example-configurations.html)
+_komorebi_, [common workflows](https://lgug2z.github.io/komorebi/common-workflows/komorebi-config-home.html), a complete
 [configuration schema reference](https://komorebi.lgug2z.com/schema) and a
-complete [CLI reference](https://lgug2z.github.io/komorebi/cli/quickstart).
+complete [CLI reference](https://lgug2z.github.io/komorebi/cli/quickstart.html).
 
 There is a [Discord server](https://discord.gg/mGkn66PHkx) available for
 _komorebi_-related discussion, help, troubleshooting etc. If you have any
@@ -79,7 +79,7 @@ Sponsors, you may also sponsor through [Ko-fi](https://ko-fi.com/lgug2z).
 # Installation
 
 A [detailed installation and quickstart
-guide](https://lgug2z.github.io/komorebi/installation) is available which shows how to get started
+guide](https://lgug2z.github.io/komorebi/installation.html) is available which shows how to get started
 using `scoop`, `winget` or building from source.
 
 [![Watch the quickstart walkthrough video](https://img.youtube.com/vi/H9-_c1egQ4g/hqdefault.jpg)](https://www.youtube.com/watch?v=H9-_c1egQ4g)
