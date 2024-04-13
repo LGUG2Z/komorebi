@@ -198,13 +198,9 @@ pub extern "system" fn win_event_hook(
         Some(event) => event,
     };
 
-    if let Ok(should_manage) = window.should_manage(Option::from(event_type)) {
-        if should_manage {
-            winevent_listener::event_tx()
-                .send(event_type)
-                .expect("could not send message on winevent_listener::event_tx");
-        }
-    }
+    winevent_listener::event_tx()
+        .send(event_type)
+        .expect("could not send message on winevent_listener::event_tx");
 }
 
 pub extern "system" fn border_window(
