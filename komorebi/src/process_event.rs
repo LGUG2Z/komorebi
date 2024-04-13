@@ -71,10 +71,20 @@ impl WindowManager {
         if BORDER_ENABLED.load(Ordering::SeqCst) {
             if let WindowManagerEvent::FocusChange(_, window) = event {
                 let border_window = Border::from(BORDER_HWND.load(Ordering::SeqCst));
+
                 if should_manage {
                     border_window.set_position(*window, true)?;
                 } else {
-                    border_window.hide()?;
+                    let mut stackbar = false;
+                    if let Ok(class) = window.class() {
+                        if class == "komorebi_stackbar" {
+                            stackbar = true;
+                        }
+                    }
+
+                    if !stackbar {
+                        border_window.hide()?;
+                    }
                 }
             }
         }

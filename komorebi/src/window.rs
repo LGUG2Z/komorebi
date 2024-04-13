@@ -400,7 +400,12 @@ impl Window {
             // If not allowing cloaked windows, we need to ensure the window is not cloaked
             (false, false) => {
                 if let (Ok(title), Ok(exe_name), Ok(class), Ok(path)) = (self.title(), self.exe(), self.class(), self.path()) {
-                    return Ok(window_is_eligible(&title, &exe_name, &class, &path, &self.style()?, &self.ex_style()?, event));
+                    // calls for styles can fail quite often for events with windows that aren't really "windows"
+                    // since we have moved up calls of should_manage to the beginning of the process_event handler,
+                    // we should handle failures here gracefully to be able to continue the execution of process_event
+                    if let (Ok(style), Ok(ex_style)) = (&self.style(), &self.ex_style()) {
+                        return Ok(window_is_eligible(&title, &exe_name, &class, &path, style, ex_style, event));
+                    }
                 }
             }
             _ => {}
