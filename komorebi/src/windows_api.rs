@@ -1,6 +1,7 @@
 use std::collections::VecDeque;
 use std::convert::TryFrom;
 use std::ffi::c_void;
+use std::mem::size_of;
 use std::sync::atomic::Ordering;
 
 use color_eyre::eyre::anyhow;
@@ -47,9 +48,7 @@ use windows::Win32::Graphics::Gdi::MONITORINFOEXW;
 use windows::Win32::Graphics::Gdi::MONITOR_DEFAULTTONEAREST;
 use windows::Win32::System::LibraryLoader::GetModuleHandleW;
 use windows::Win32::System::RemoteDesktop::ProcessIdToSessionId;
-use windows::Win32::System::Threading::AttachThreadInput;
 use windows::Win32::System::Threading::GetCurrentProcessId;
-use windows::Win32::System::Threading::GetCurrentThreadId;
 use windows::Win32::System::Threading::OpenProcess;
 use windows::Win32::System::Threading::QueryFullProcessImageNameW;
 use windows::Win32::System::Threading::PROCESS_ACCESS_RIGHTS;
@@ -61,7 +60,6 @@ use windows::Win32::UI::HiDpi::DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2;
 use windows::Win32::UI::HiDpi::MDT_EFFECTIVE_DPI;
 use windows::Win32::UI::Input::KeyboardAndMouse::GetKeyState;
 use windows::Win32::UI::Input::KeyboardAndMouse::SendInput;
-use windows::Win32::UI::Input::KeyboardAndMouse::SetFocus;
 use windows::Win32::UI::Input::KeyboardAndMouse::INPUT;
 use windows::Win32::UI::Input::KeyboardAndMouse::INPUT_0;
 use windows::Win32::UI::Input::KeyboardAndMouse::INPUT_MOUSE;
@@ -115,6 +113,9 @@ use windows::Win32::UI::WindowsAndMessaging::SPI_GETACTIVEWINDOWTRACKING;
 use windows::Win32::UI::WindowsAndMessaging::SPI_GETFOREGROUNDLOCKTIMEOUT;
 use windows::Win32::UI::WindowsAndMessaging::SPI_SETACTIVEWINDOWTRACKING;
 use windows::Win32::UI::WindowsAndMessaging::SPI_SETFOREGROUNDLOCKTIMEOUT;
+use windows::Win32::UI::WindowsAndMessaging::SWP_NOMOVE;
+use windows::Win32::UI::WindowsAndMessaging::SWP_NOSIZE;
+use windows::Win32::UI::WindowsAndMessaging::SWP_SHOWWINDOW;
 use windows::Win32::UI::WindowsAndMessaging::SW_HIDE;
 use windows::Win32::UI::WindowsAndMessaging::SW_MAXIMIZE;
 use windows::Win32::UI::WindowsAndMessaging::SW_MINIMIZE;
@@ -368,8 +369,10 @@ impl WindowsApi {
         unsafe { BringWindowToTop(hwnd) }.process()
     }
 
+    // Raise the window to the top of the Z order, but do not activate or focus
+    // it. Use raise_and_focus_window to activate and focus a window.
     pub fn raise_window(hwnd: HWND) -> Result<()> {
-        let flags = SetWindowPosition::NO_MOVE;
+        let flags = SetWindowPosition::NO_MOVE | SetWindowPosition::NO_ACTIVATE;
 
         let position = HWND_TOP;
         Self::set_window_pos(hwnd, &Rect::default(), position, flags.bits())
@@ -462,8 +465,31 @@ impl WindowsApi {
         unsafe { GetForegroundWindow() }.process()
     }
 
-    pub fn set_foreground_window(hwnd: HWND) -> Result<()> {
-        unsafe { SetForegroundWindow(hwnd) }.ok().process()
+    pub fn raise_and_focus_window(hwnd: HWND) -> Result<()> {
+        let event = [INPUT {
+            r#type: INPUT_MOUSE,
+            ..Default::default()
+        }];
+
+        unsafe {
+            // Send an input event to our own process first so that we pass the
+            // foreground lock check
+            SendInput(&event, size_of::<INPUT>() as i32);
+            // Error ignored, as the operation is not always necessary.
+            let _ = SetWindowPos(
+                hwnd,
+                HWND_TOP,
+                0,
+                0,
+                0,
+                0,
+                SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW,
+            )
+            .process();
+            SetForegroundWindow(hwnd)
+        }
+        .ok()
+        .process()
     }
 
     #[allow(dead_code)]
@@ -583,10 +609,6 @@ impl WindowsApi {
         (process_id, thread_id)
     }
 
-    pub fn current_thread_id() -> u32 {
-        unsafe { GetCurrentThreadId() }
-    }
-
     pub fn current_process_id() -> u32 {
         unsafe { GetCurrentProcessId() }
     }
@@ -602,16 +624,6 @@ impl WindowsApi {
                 Err(anyhow!("could not determine current session id"))
             }
         }
-    }
-
-    pub fn attach_thread_input(thread_id: u32, target_thread_id: u32, attach: bool) -> Result<()> {
-        unsafe { AttachThreadInput(thread_id, target_thread_id, attach) }
-            .ok()
-            .process()
-    }
-
-    pub fn set_focus(hwnd: HWND) -> Result<()> {
-        unsafe { SetFocus(hwnd) }.process().map(|_| ())
     }
 
     #[allow(dead_code)]

@@ -218,76 +218,19 @@ impl Window {
     }
 
     pub fn focus(self, mouse_follows_focus: bool) -> Result<()> {
-        // Attach komorebi thread to Window thread
-        let (_, window_thread_id) = WindowsApi::window_thread_process_id(self.hwnd());
-        let current_thread_id = WindowsApi::current_thread_id();
-
-        // This can be allowed to fail if a window doesn't have a message queue or if a journal record
-        // hook has been installed
-        // https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-attachthreadinput#remarks
-        match WindowsApi::attach_thread_input(current_thread_id, window_thread_id, true) {
-            Ok(()) => {}
-            Err(error) => {
-                tracing::error!(
-                    "could not attach to window thread input processing mechanism, but continuing execution of focus(): {}",
-                    error
-                );
+        // If the target window is already focused, do nothing.
+        if let Ok(ihwnd) = WindowsApi::foreground_window() {
+            if HWND(ihwnd) == self.hwnd() {
+                return Ok(());
             }
-        };
-
-        // Raise Window to foreground
-        let mut foregrounded = false;
-        let mut tried_resetting_foreground_access = false;
-        let mut max_attempts = 10;
-
-        while !foregrounded && max_attempts > 0 {
-            match WindowsApi::set_foreground_window(self.hwnd()) {
-                Ok(()) => {
-                    foregrounded = true;
-                }
-                Err(error) => {
-                    max_attempts -= 1;
-                    tracing::error!(
-                        "could not set as foreground window, but continuing execution of focus(): {}",
-                        error
-                    );
-
-                    // If this still doesn't work then maybe try https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-locksetforegroundwindow
-                    if !tried_resetting_foreground_access {
-                        let process_id = WindowsApi::current_process_id();
-                        if WindowsApi::allow_set_foreground_window(process_id).is_ok() {
-                            tried_resetting_foreground_access = true;
-                        }
-                    }
-                }
-            };
         }
+
+        WindowsApi::raise_and_focus_window(self.hwnd())?;
 
         // Center cursor in Window
         if mouse_follows_focus {
             WindowsApi::center_cursor_in_rect(&WindowsApi::window_rect(self.hwnd())?)?;
         }
-
-        // This isn't really needed when the above command works as expected via AHK
-        match WindowsApi::set_focus(self.hwnd()) {
-            Ok(()) => {}
-            Err(error) => {
-                tracing::error!(
-                    "could not set focus, but continuing execution of focus(): {}",
-                    error
-                );
-            }
-        };
-
-        match WindowsApi::attach_thread_input(current_thread_id, window_thread_id, false) {
-            Ok(()) => {}
-            Err(error) => {
-                tracing::error!(
-                    "could not detach from window thread input processing mechanism, but continuing execution of focus(): {}",
-                    error
-                );
-            }
-        };
 
         Ok(())
     }
