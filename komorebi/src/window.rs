@@ -125,7 +125,7 @@ impl Window {
         HWND(self.hwnd)
     }
 
-    pub fn center(&mut self, work_area: &Rect) -> Result<()> {
+    pub fn center(&self, work_area: &Rect) -> Result<()> {
         let half_width = work_area.right / 2;
         let half_weight = work_area.bottom / 2;
 
@@ -140,7 +140,7 @@ impl Window {
         )
     }
 
-    pub fn set_position(&mut self, layout: &Rect, top: bool) -> Result<()> {
+    pub fn set_position(&self, layout: &Rect, top: bool) -> Result<()> {
         let rect = *layout;
         WindowsApi::position_window(self.hwnd(), &rect, top)
     }
