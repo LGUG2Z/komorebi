@@ -822,10 +822,7 @@ impl WindowManager {
                 let rect = self.focused_monitor_size()?;
                 WindowsApi::center_cursor_in_rect(&rect)?;
 
-                // Calling this directly instead of the window.focus() wrapper because trying to
-                // attach to the thread of the desktop window always seems to result in "Access is
-                // denied (os error 5)"
-                match WindowsApi::set_foreground_window(desktop_window.hwnd()) {
+                match WindowsApi::raise_and_focus_window(desktop_window.hwnd()) {
                     Ok(()) => {}
                     Err(error) => {
                         tracing::warn!("{} {}:{}", error, file!(), line!());

@@ -13,6 +13,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use color_eyre::eyre::anyhow;
+use color_eyre::eyre::bail;
 use color_eyre::Result;
 use miow::pipe::connect;
 use net2::TcpStreamExt;
@@ -1371,7 +1372,33 @@ impl WindowManager {
             | SocketMessage::FocusMonitorNumber(_)
             | SocketMessage::FocusMonitorWorkspaceNumber(_, _)
             | SocketMessage::FocusWorkspaceNumber(_) => {
-                let foreground = WindowsApi::foreground_window()?;
+                // The foreground window might be de-activating if we've just
+                // set it as a result of our own actions, so wait until the new
+                // one returns. This particularly happens when switching monitors.
+                //
+                // TODO(raggi): re-evaluate this branch. I checked the
+                // suggestion from the comment above, that we don't get
+                // EVENT_SYSTEM_FOREGROUND, but if I print out trace events I
+                // see that we do.
+                // XXX(raggi) We drop FocusChange events though for windows that
+                // we're not managing, so that's one of the ways that the border
+                // window gets stuck. We should stop overloading `should_manage`
+                // as an event filter, and separately filter events that we want
+                // to handle, and windows that we want to handle, as some events
+                // must be handled even if we're not managing the target window.
+                let mut attempts = 0;
+                let foreground = loop {
+                    match WindowsApi::foreground_window() {
+                        Ok(foreground) => break foreground,
+                        Err(_) => {
+                            std::thread::sleep(std::time::Duration::from_millis(10));
+                            attempts+=1;
+                            if attempts == 10 {
+                                bail!("failed to get foreground window after 100ms")
+                            }
+                        }
+                    };
+                };
                 let foreground_window = Window { hwnd: foreground };
 
                 let monocle = BORDER_COLOUR_MONOCLE.load(Ordering::SeqCst);
