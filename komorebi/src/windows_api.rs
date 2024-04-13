@@ -102,7 +102,6 @@ use windows::Win32::UI::WindowsAndMessaging::GWL_EXSTYLE;
 use windows::Win32::UI::WindowsAndMessaging::GWL_STYLE;
 use windows::Win32::UI::WindowsAndMessaging::GW_HWNDNEXT;
 use windows::Win32::UI::WindowsAndMessaging::HWND_BOTTOM;
-use windows::Win32::UI::WindowsAndMessaging::HWND_NOTOPMOST;
 use windows::Win32::UI::WindowsAndMessaging::HWND_TOP;
 use windows::Win32::UI::WindowsAndMessaging::LWA_ALPHA;
 use windows::Win32::UI::WindowsAndMessaging::LWA_COLORKEY;
@@ -348,10 +347,17 @@ impl WindowsApi {
     /// the layout to account for any window shadow borders (the window painted
     /// region will match layout on completion).
     pub fn position_window(hwnd: HWND, layout: &Rect, top: bool) -> Result<()> {
-        let flags = SetWindowPosition::NO_ACTIVATE
+        let mut flags = SetWindowPosition::NO_ACTIVATE
             | SetWindowPosition::NO_SEND_CHANGING
             | SetWindowPosition::NO_COPY_BITS
             | SetWindowPosition::FRAME_CHANGED;
+
+        // If the request is to place the window on top, then HWND_TOP will take
+        // effect, otherwise pass NO_Z_ORDER that will cause set_window_pos to
+        // ignore the z-order paramter.
+        if !top {
+            flags |= SetWindowPosition::NO_Z_ORDER;
+        }
 
         let shadow_rect = Self::shadow_rect(hwnd)?;
         let rect = Rect {
@@ -361,8 +367,19 @@ impl WindowsApi {
             bottom: layout.bottom + shadow_rect.bottom,
         };
 
-        let position = if top { HWND_TOP } else { HWND_NOTOPMOST };
-        Self::set_window_pos(hwnd, &rect, position, flags.bits())
+        // Note: earlier code had set HWND_TOPMOST here, but we should not do
+        // that. HWND_TOPMOST is a sticky z-order change, rather than a regular
+        // z-order reordering. Programs will use TOPMOST themselves to do things
+        // such as making sure that their tool windows or dialog pop-ups are
+        // above their main window. If any such windows are unmanaged, they must
+        // still remian topmost, so we set HWND_TOP here, which will cause the
+        // managed window to come to the front, but if the managed window has a
+        // child that is TOPMOST it will still be rendered above, in the proper
+        // order expected by the application. It's also important to understand
+        // that TOPMOST is somewhat viral, in that when you set a window to
+        // TOPMOST all of its owned windows are also made TOPMOST.
+        // See https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-setwindowpos#remarks
+        Self::set_window_pos(hwnd, &rect, HWND_TOP, flags.bits())
     }
 
     pub fn bring_window_to_top(hwnd: HWND) -> Result<()> {
@@ -397,8 +414,7 @@ impl WindowsApi {
         // top of other pop-up dialogs such as a file picker dialog from
         // Firefox. When adjusting this in the future, it's important to check
         // those dialog cases.
-        let position = HWND_NOTOPMOST;
-        Self::set_window_pos(hwnd, layout, position, flags.bits())
+        Self::set_window_pos(hwnd, layout, HWND_TOP, flags.bits())
     }
 
     pub fn hide_border_window(hwnd: HWND) -> Result<()> {
