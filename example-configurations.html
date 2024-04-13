@@ -4318,7 +4318,7 @@ the example files have been downloaded. For most new users this will be in the
 five preconfigured workspaces on the primary monitor each with a different
 layout.</p>
 <pre><code class="language-json">{
-  &quot;$schema&quot;: &quot;https://raw.githubusercontent.com/LGUG2Z/komorebi/v0.1.23/schema.json&quot;,
+  &quot;$schema&quot;: &quot;https://raw.githubusercontent.com/LGUG2Z/komorebi/v0.1.24/schema.json&quot;,
   &quot;app_specific_configuration_path&quot;: &quot;$Env:USERPROFILE/applications.yaml&quot;,
   &quot;window_hiding_behaviour&quot;: &quot;Cloak&quot;,
   &quot;cross_monitor_move_behaviour&quot;: &quot;Insert&quot;,
@@ -4455,8 +4455,8 @@ monocle.</p>
 </code></pre>
 <h2 id="whkdrc">whkdrc</h2>
 <p><code>whkd</code> is a fairly basic piece of software with a simple configuration format:
-key bindings go to the left of the, and shell commands go to the right of the
-colon.</p>
+key bindings go to the left of the colon, and shell commands go to the right of the
+colon. By default, the <code>whkdrc</code> file should be located in the <code>$Env:USERPROFILE/.config/</code> directory.</p>
 <p>Please remember that <code>whkd</code> does not support overriding Microsoft's limitations
 on hotkey bindings that include the <code>Windows</code> key. If this is important to you,
 I recommend using <a href="https://autohotkey.com">AutoHotKey</a> to set up your key
