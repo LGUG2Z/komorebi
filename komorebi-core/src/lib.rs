@@ -67,6 +67,7 @@ pub enum SocketMessage {
     Minimize,
     Promote,
     PromoteFocus,
+    PromoteWindow(OperationDirection),
     ToggleFloat,
     ToggleMonocle,
     ToggleMaximize,
