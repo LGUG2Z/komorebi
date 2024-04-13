@@ -172,6 +172,7 @@ gen_enum_subcommand_args! {
     WindowHidingBehaviour: HidingBehaviour,
     CrossMonitorMoveBehaviour: MoveBehaviour,
     UnmanagedWindowOperationBehaviour: OperationBehaviour,
+    PromoteWindow: OperationDirection,
 }
 
 macro_rules! gen_target_subcommand_args {
@@ -1004,6 +1005,8 @@ enum SubCommand {
     Promote,
     /// Promote the user focus to the top of the tree
     PromoteFocus,
+    /// Promote the window in the specified direction
+    PromoteWindow(PromoteWindow),
     /// Force the retiling of all managed windows
     Retile,
     /// Set the monitor index preference for a monitor identified using its size
@@ -1512,6 +1515,9 @@ fn main() -> Result<()> {
         }
         SubCommand::PromoteFocus => {
             send_message(&SocketMessage::PromoteFocus.as_bytes()?)?;
+        }
+        SubCommand::PromoteWindow(arg) => {
+            send_message(&SocketMessage::PromoteWindow(arg.operation_direction).as_bytes()?)?;
         }
         SubCommand::TogglePause => {
             send_message(&SocketMessage::TogglePause.as_bytes()?)?;
