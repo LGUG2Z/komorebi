@@ -65,6 +65,26 @@ impl WindowManager {
             return Ok(());
         }
 
+        let should_manage = event.window().should_manage(Some(*event))?;
+
+        // Hide or reposition the window based on whether the target is managed.
+        if BORDER_ENABLED.load(Ordering::SeqCst) {
+            if let WindowManagerEvent::FocusChange(_, window) = event {
+                let border_window = Border::from(BORDER_HWND.load(Ordering::SeqCst));
+                if should_manage {
+                    border_window.set_position(*window, true)?;
+                } else {
+                    border_window.hide()?;
+                }
+            }
+        }
+
+        // All event handlers below this point should only be processed if the event is
+        // related to a window that should be managed by the WindowManager.
+        if !should_manage {
+            return Ok(());
+        }
+
         if let Some(virtual_desktop_id) = &self.virtual_desktop_id {
             if let Some(id) = current_virtual_desktop() {
                 if id != *virtual_desktop_id {
