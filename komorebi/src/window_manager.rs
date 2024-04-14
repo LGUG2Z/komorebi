@@ -617,7 +617,7 @@ impl WindowManager {
 
         // Only re-tile the focused workspace if we need to
         if should_update_focused_workspace {
-            self.update_focused_workspace(false)?;
+            self.update_focused_workspace(false, false)?;
         }
 
         Ok(())
@@ -796,7 +796,11 @@ impl WindowManager {
     }
 
     #[tracing::instrument(skip(self))]
-    pub fn update_focused_workspace(&mut self, follow_focus: bool) -> Result<()> {
+    pub fn update_focused_workspace(
+        &mut self,
+        follow_focus: bool,
+        trigger_focus: bool,
+    ) -> Result<()> {
         tracing::info!("updating");
 
         let offset = self.work_area_offset;
@@ -807,13 +811,19 @@ impl WindowManager {
 
         if follow_focus {
             if let Some(window) = self.focused_workspace()?.maximized_window() {
-                window.focus(self.mouse_follows_focus)?;
-            } else if let Some(container) = self.focused_workspace()?.monocle_container() {
-                if let Some(window) = container.focused_window() {
+                if trigger_focus {
                     window.focus(self.mouse_follows_focus)?;
                 }
+            } else if let Some(container) = self.focused_workspace()?.monocle_container() {
+                if let Some(window) = container.focused_window() {
+                    if trigger_focus {
+                        window.focus(self.mouse_follows_focus)?;
+                    }
+                }
             } else if let Ok(window) = self.focused_window_mut() {
-                window.focus(self.mouse_follows_focus)?;
+                if trigger_focus {
+                    window.focus(self.mouse_follows_focus)?;
+                }
             } else {
                 let desktop_window = Window {
                     hwnd: WindowsApi::desktop_window()?,
@@ -841,7 +851,9 @@ impl WindowManager {
                 && self.focused_workspace()?.monocle_container().is_none()
             {
                 if let Ok(window) = self.focused_window_mut() {
-                    window.focus(self.mouse_follows_focus)?;
+                    if trigger_focus {
+                        window.focus(self.mouse_follows_focus)?;
+                    }
                 }
             }
         }
@@ -851,7 +863,9 @@ impl WindowManager {
         if !follow_focus {
             if let Some(window) = self.focused_workspace()?.maximized_window() {
                 window.restore();
-                window.focus(self.mouse_follows_focus)?;
+                if trigger_focus {
+                    window.focus(self.mouse_follows_focus)?;
+                }
             }
         }
 
@@ -934,7 +948,7 @@ impl WindowManager {
                     workspace.resize_dimensions_mut()[focused_idx] = resize;
 
                     return if update {
-                        self.update_focused_workspace(false)
+                        self.update_focused_workspace(false, false)
                     } else {
                         Ok(())
                     };
@@ -1070,7 +1084,7 @@ impl WindowManager {
 
         self.swap_monitor_workspaces(focused_monitor_idx, idx)?;
 
-        self.update_focused_workspace(mouse_follows_focus)
+        self.update_focused_workspace(mouse_follows_focus, true)
     }
 
     #[tracing::instrument(skip(self))]
@@ -1117,7 +1131,7 @@ impl WindowManager {
             self.focus_monitor(monitor_idx)?;
         }
 
-        self.update_focused_workspace(self.mouse_follows_focus)
+        self.update_focused_workspace(self.mouse_follows_focus, true)
     }
 
     #[tracing::instrument(skip(self))]
@@ -1134,7 +1148,7 @@ impl WindowManager {
         monitor.move_container_to_workspace(idx, follow)?;
         monitor.load_focused_workspace(mouse_follows_focus)?;
 
-        self.update_focused_workspace(mouse_follows_focus)
+        self.update_focused_workspace(mouse_follows_focus, true)
     }
 
     pub fn remove_focused_workspace(&mut self) -> Option<Workspace> {
@@ -1163,7 +1177,7 @@ impl WindowManager {
         }
 
         self.focus_monitor(idx)?;
-        self.update_focused_workspace(mouse_follows_focus)
+        self.update_focused_workspace(mouse_follows_focus, true)
     }
 
     #[tracing::instrument(skip(self))]
@@ -1324,7 +1338,7 @@ impl WindowManager {
                     .id();
 
                 if !WindowsApi::monitors_have_same_dpi(a, b)? {
-                    self.update_focused_workspace(self.mouse_follows_focus)?;
+                    self.update_focused_workspace(self.mouse_follows_focus, true)?;
                 }
             }
             Some(new_idx) => {
@@ -1334,7 +1348,7 @@ impl WindowManager {
             }
         }
 
-        self.update_focused_workspace(self.mouse_follows_focus)
+        self.update_focused_workspace(self.mouse_follows_focus, true)
     }
 
     #[tracing::instrument(skip(self))]
@@ -1392,7 +1406,7 @@ impl WindowManager {
 
         workspace.swap_containers(current_idx, new_idx);
         workspace.focus_container(new_idx);
-        self.update_focused_workspace(self.mouse_follows_focus)
+        self.update_focused_workspace(self.mouse_follows_focus, true)
     }
 
     #[tracing::instrument(skip(self))]
@@ -1416,7 +1430,7 @@ impl WindowManager {
         container.focus_window(next_idx);
         container.load_focused_window();
 
-        self.update_focused_workspace(self.mouse_follows_focus)
+        self.update_focused_workspace(self.mouse_follows_focus, true)
     }
 
     #[tracing::instrument(skip(self))]
@@ -1453,7 +1467,7 @@ impl WindowManager {
             };
 
             workspace.move_window_to_container(adjusted_new_index)?;
-            self.update_focused_workspace(self.mouse_follows_focus)?;
+            self.update_focused_workspace(self.mouse_follows_focus, false)?;
         }
 
         Ok(())
@@ -1473,7 +1487,7 @@ impl WindowManager {
         tracing::info!("promoting container");
 
         workspace.promote_container()?;
-        self.update_focused_workspace(self.mouse_follows_focus)
+        self.update_focused_workspace(self.mouse_follows_focus, true)
     }
 
     #[tracing::instrument(skip(self))]
@@ -1496,7 +1510,7 @@ impl WindowManager {
         };
 
         workspace.focus_container(target_idx);
-        self.update_focused_workspace(self.mouse_follows_focus)
+        self.update_focused_workspace(self.mouse_follows_focus, true)
     }
 
     #[tracing::instrument(skip(self))]
@@ -1512,14 +1526,14 @@ impl WindowManager {
         let workspace = self.focused_workspace_mut()?;
 
         workspace.new_container_for_focused_window()?;
-        self.update_focused_workspace(self.mouse_follows_focus)
+        self.update_focused_workspace(self.mouse_follows_focus, false)
     }
 
     #[tracing::instrument(skip(self))]
     pub fn toggle_tiling(&mut self) -> Result<()> {
         let workspace = self.focused_workspace_mut()?;
         workspace.set_tile(!*workspace.tile());
-        self.update_focused_workspace(false)
+        self.update_focused_workspace(false, false)
     }
 
     #[tracing::instrument(skip(self))]
@@ -1541,7 +1555,7 @@ impl WindowManager {
             self.float_window()?;
         }
 
-        self.update_focused_workspace(is_floating_window)
+        self.update_focused_workspace(is_floating_window, true)
     }
 
     #[tracing::instrument(skip(self))]
@@ -1583,7 +1597,7 @@ impl WindowManager {
             Some(_) => self.monocle_off()?,
         }
 
-        self.update_focused_workspace(true)
+        self.update_focused_workspace(true, true)
     }
 
     #[tracing::instrument(skip(self))]
@@ -1613,7 +1627,7 @@ impl WindowManager {
             Some(_) => self.unmaximize_window()?,
         }
 
-        self.update_focused_workspace(true)
+        self.update_focused_workspace(true, false)
     }
 
     #[tracing::instrument(skip(self))]
@@ -1672,7 +1686,7 @@ impl WindowManager {
             }
         }
 
-        self.update_focused_workspace(false)
+        self.update_focused_workspace(false, false)
     }
 
     #[tracing::instrument(skip(self))]
@@ -1697,7 +1711,7 @@ impl WindowManager {
         }
 
         workspace.set_layout(Layout::Default(layout));
-        self.update_focused_workspace(self.mouse_follows_focus)
+        self.update_focused_workspace(self.mouse_follows_focus, false)
     }
 
     #[tracing::instrument(skip(self))]
@@ -1720,7 +1734,7 @@ impl WindowManager {
             Layout::Custom(_) => {}
         }
 
-        self.update_focused_workspace(self.mouse_follows_focus)
+        self.update_focused_workspace(self.mouse_follows_focus, false)
     }
 
     #[tracing::instrument(skip(self))]
@@ -1750,7 +1764,7 @@ impl WindowManager {
 
         workspace.set_layout(Layout::Custom(layout));
         workspace.set_layout_flip(None);
-        self.update_focused_workspace(self.mouse_follows_focus)
+        self.update_focused_workspace(self.mouse_follows_focus, false)
     }
 
     #[tracing::instrument(skip(self))]
@@ -1765,7 +1779,7 @@ impl WindowManager {
 
         workspace.set_workspace_padding(Option::from(sizing.adjust_by(padding, adjustment)));
 
-        self.update_focused_workspace(false)
+        self.update_focused_workspace(false, false)
     }
 
     #[tracing::instrument(skip(self))]
@@ -1780,7 +1794,7 @@ impl WindowManager {
 
         workspace.set_container_padding(Option::from(sizing.adjust_by(padding, adjustment)));
 
-        self.update_focused_workspace(false)
+        self.update_focused_workspace(false, false)
     }
 
     #[tracing::instrument(skip(self))]
@@ -1802,7 +1816,7 @@ impl WindowManager {
 
         workspace.set_tile(tile);
 
-        self.update_focused_workspace(false)
+        self.update_focused_workspace(false, false)
     }
 
     #[tracing::instrument(skip(self))]
@@ -1846,7 +1860,7 @@ impl WindowManager {
             workspace.update(&work_area, offset)?;
             Ok(())
         } else {
-            Ok(self.update_focused_workspace(false)?)
+            Ok(self.update_focused_workspace(false, false)?)
         }
     }
 
@@ -1896,7 +1910,7 @@ impl WindowManager {
             workspace.update(&work_area, offset)?;
             Ok(())
         } else {
-            Ok(self.update_focused_workspace(false)?)
+            Ok(self.update_focused_workspace(false, false)?)
         }
     }
 
@@ -1937,7 +1951,7 @@ impl WindowManager {
             workspace.update(&work_area, offset)?;
             Ok(())
         } else {
-            Ok(self.update_focused_workspace(false)?)
+            Ok(self.update_focused_workspace(false, false)?)
         }
     }
 
@@ -1978,7 +1992,7 @@ impl WindowManager {
             workspace.update(&work_area, offset)?;
             Ok(())
         } else {
-            Ok(self.update_focused_workspace(false)?)
+            Ok(self.update_focused_workspace(false, false)?)
         }
     }
 
@@ -2023,7 +2037,7 @@ impl WindowManager {
             workspace.update(&work_area, offset)?;
             Ok(())
         } else {
-            Ok(self.update_focused_workspace(false)?)
+            Ok(self.update_focused_workspace(false, false)?)
         }
     }
 
@@ -2090,7 +2104,7 @@ impl WindowManager {
 
         workspace.set_workspace_padding(Option::from(size));
 
-        self.update_focused_workspace(false)
+        self.update_focused_workspace(false, false)
     }
 
     #[tracing::instrument(skip(self))]
@@ -2139,7 +2153,7 @@ impl WindowManager {
 
         workspace.set_container_padding(Option::from(size));
 
-        self.update_focused_workspace(false)
+        self.update_focused_workspace(false, false)
     }
 
     pub fn focused_monitor_size(&self) -> Result<Rect> {
@@ -2243,7 +2257,7 @@ impl WindowManager {
         monitor.focus_workspace(idx)?;
         monitor.load_focused_workspace(mouse_follows_focus)?;
 
-        self.update_focused_workspace(false)
+        self.update_focused_workspace(false, true)
     }
 
     #[tracing::instrument(skip(self))]
@@ -2275,7 +2289,7 @@ impl WindowManager {
         monitor.focus_workspace(monitor.new_workspace_idx())?;
         monitor.load_focused_workspace(mouse_follows_focus)?;
 
-        self.update_focused_workspace(self.mouse_follows_focus)
+        self.update_focused_workspace(self.mouse_follows_focus, false)
     }
 
     pub fn focused_container(&self) -> Result<&Container> {
