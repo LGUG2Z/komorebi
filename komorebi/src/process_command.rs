@@ -499,11 +499,11 @@ impl WindowManager {
                 );
 
                 self.focus_monitor(monitor_idx)?;
-                self.update_focused_workspace(self.mouse_follows_focus)?;
+                self.update_focused_workspace(self.mouse_follows_focus, true)?;
             }
             SocketMessage::FocusMonitorNumber(monitor_idx) => {
                 self.focus_monitor(monitor_idx)?;
-                self.update_focused_workspace(self.mouse_follows_focus)?;
+                self.update_focused_workspace(self.mouse_follows_focus, true)?;
             }
             SocketMessage::Retile => self.retile_all(false)?,
             SocketMessage::FlipLayout(layout_flip) => self.flip_layout(layout_flip)?,
@@ -914,7 +914,7 @@ impl WindowManager {
                     }
                 }
 
-                self.update_focused_workspace(false)?;
+                self.update_focused_workspace(false, false)?;
             }
             SocketMessage::FocusFollowsMouse(mut implementation, enable) => {
                 if !CUSTOM_FFM.load(Ordering::SeqCst) {
@@ -1020,7 +1020,7 @@ impl WindowManager {
             SocketMessage::CompleteConfiguration => {
                 if !INITIAL_CONFIGURATION_LOADED.load(Ordering::SeqCst) {
                     INITIAL_CONFIGURATION_LOADED.store(true, Ordering::SeqCst);
-                    self.update_focused_workspace(false)?;
+                    self.update_focused_workspace(false, false)?;
                 }
             }
             SocketMessage::WatchConfiguration(enable) => {
@@ -1127,7 +1127,7 @@ impl WindowManager {
                 let resize: Vec<Option<Rect>> = serde_json::from_reader(file)?;
 
                 workspace.set_resize_dimensions(resize);
-                self.update_focused_workspace(false)?;
+                self.update_focused_workspace(false, false)?;
             }
             SocketMessage::Save(ref path) => {
                 let workspace = self.focused_workspace_mut()?;
@@ -1150,7 +1150,7 @@ impl WindowManager {
                 let resize: Vec<Option<Rect>> = serde_json::from_reader(file)?;
 
                 workspace.set_resize_dimensions(resize);
-                self.update_focused_workspace(false)?;
+                self.update_focused_workspace(false, false)?;
             }
             SocketMessage::AddSubscriberSocket(ref socket) => {
                 let mut sockets = SUBSCRIPTION_SOCKETS.lock();
@@ -1295,7 +1295,7 @@ impl WindowManager {
             SocketMessage::ToggleTitleBars => {
                 let current = REMOVE_TITLEBARS.load(Ordering::SeqCst);
                 REMOVE_TITLEBARS.store(!current, Ordering::SeqCst);
-                self.update_focused_workspace(false)?;
+                self.update_focused_workspace(false, false)?;
             }
             // Deprecated commands
             SocketMessage::AltFocusHack(_)

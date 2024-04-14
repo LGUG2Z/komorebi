@@ -55,6 +55,8 @@ use komorebi_core::Rect;
 
 use crate::window::Window;
 use crate::windows_api::WindowsApi;
+use crate::winevent_listener::event_tx;
+use crate::WindowManagerEvent;
 use crate::DEFAULT_CONTAINER_PADDING;
 use crate::STACKBAR_FOCUSED_TEXT_COLOUR;
 use crate::STACKBAR_TAB_BACKGROUND_COLOUR;
@@ -234,8 +236,6 @@ impl Stackbar {
             for (i, window) in windows.iter().enumerate() {
                 if window.hwnd == focused_hwnd {
                     SetTextColor(hdc, COLORREF(focused_text_colour));
-
-                    window.focus(false)?;
                 } else {
                     SetTextColor(hdc, COLORREF(unfocused_text_colour));
                 }

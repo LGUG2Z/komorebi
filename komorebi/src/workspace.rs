@@ -357,6 +357,33 @@ impl Workspace {
         Ok(())
     }
 
+    // focus_changed performs updates in response to the fact that a focus
+    // change event has occurred. The focus change is assumed to be valid, and
+    // should not result in a new  focus change - the intent here is to update
+    // focus-reactive elements, such as the stackbar.
+    pub fn focus_changed(&mut self, hwnd: isize) -> Result<()> {
+        if !self.tile() {
+            return Ok(());
+        }
+
+        let containers = self.containers_mut();
+
+        for container in containers.iter_mut() {
+            let container_windows = container.windows().clone();
+            let container_topbar = container.stackbar().clone();
+
+            if let Some(idx) = container.idx_for_window(hwnd) {
+                container.focus_window(idx);
+                container.restore();
+            }
+
+            if let Some(stackbar) = container_topbar {
+                stackbar.update(&container_windows, hwnd)?;
+            }
+        }
+        Ok(())
+    }
+
     pub fn reap_orphans(&mut self) -> Result<(usize, usize)> {
         let mut hwnds = vec![];
         let mut floating_hwnds = vec![];
