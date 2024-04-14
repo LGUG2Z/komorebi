@@ -44,7 +44,13 @@ pub fn listen_for_events(wm: Arc<Mutex<WindowManager>>) {
             if let Ok(event) = receiver.recv() {
                 match wm.lock().process_event(event) {
                     Ok(()) => {}
-                    Err(error) => tracing::error!("{}", error),
+                    Err(error) => {
+                        if cfg!(debug_assertions) {
+                            tracing::error!("{:?}", error)
+                        } else {
+                            tracing::error!("{}", error)
+                        }
+                    }
                 }
             }
         }
