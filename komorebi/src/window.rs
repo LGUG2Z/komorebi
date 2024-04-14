@@ -315,7 +315,10 @@ impl Window {
 
     #[tracing::instrument(fields(exe, title))]
     pub fn should_manage(self, event: Option<WindowManagerEvent>) -> Result<bool> {
-        #[allow(clippy::question_mark)]
+        if !self.is_window() {
+            return Ok(false);
+        }
+
         if self.title().is_err() {
             return Ok(false);
         }
