@@ -1022,7 +1022,7 @@ impl Workspace {
             .ok_or_else(|| anyhow!("there is no monocle container"))?;
 
         let container = container.clone();
-        if restore_idx > self.containers().len() - 1 {
+        if restore_idx >= self.containers().len() {
             self.containers_mut()
                 .resize(restore_idx, Container::default());
         }
