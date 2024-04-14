@@ -92,14 +92,7 @@ impl WindowManager {
 
         // All event handlers below this point should only be processed if the event is
         // related to a window that should be managed by the WindowManager.
-        if !should_manage
-            && !matches!(
-                event,
-                WindowManagerEvent::DisplayChange(_)
-                    | WindowManagerEvent::ForceUpdate(_)
-                    | WindowManagerEvent::FocusChange(_, _)
-            )
-        {
+        if !should_manage && !matches!(event, WindowManagerEvent::DisplayChange(_)) {
             return Ok(());
         }
 
