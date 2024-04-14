@@ -26,6 +26,7 @@ install:
     just install-target komorebic
     just install-target komorebic-no-console
     just install-target komorebi
+    just install-target komorebi-egui
 
 run:
     just install-target komorebic
