@@ -323,7 +323,7 @@ impl Window {
             return Ok(false);
         }
 
-        let is_cloaked = self.is_cloaked()?;
+        let is_cloaked = self.is_cloaked().unwrap_or_default();
 
         let mut allow_cloaked = false;
 

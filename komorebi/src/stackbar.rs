@@ -55,8 +55,6 @@ use komorebi_core::Rect;
 
 use crate::window::Window;
 use crate::windows_api::WindowsApi;
-use crate::winevent_listener::event_tx;
-use crate::WindowManagerEvent;
 use crate::DEFAULT_CONTAINER_PADDING;
 use crate::STACKBAR_FOCUSED_TEXT_COLOUR;
 use crate::STACKBAR_TAB_BACKGROUND_COLOUR;
@@ -115,6 +113,7 @@ impl Stackbar {
 
                         if x >= left && x <= right && y >= top && y <= bottom {
                             let window = Window { hwnd: *win_hwnd };
+                            window.restore();
                             if let Err(err) = window.focus(false) {
                                 tracing::error!("Stackbar focus error: HWND:{} {}", *win_hwnd, err);
                             }
