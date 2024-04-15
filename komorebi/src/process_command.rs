@@ -44,6 +44,7 @@ use crate::colour::Rgb;
 use crate::current_virtual_desktop;
 use crate::notify_subscribers;
 use crate::static_config::StaticConfig;
+use crate::window::RuleDebug;
 use crate::window::Window;
 use crate::window_manager;
 use crate::window_manager::WindowManager;
@@ -1344,6 +1345,14 @@ impl WindowManager {
                 let current = REMOVE_TITLEBARS.load(Ordering::SeqCst);
                 REMOVE_TITLEBARS.store(!current, Ordering::SeqCst);
                 self.update_focused_workspace(false, false)?;
+            }
+            SocketMessage::DebugWindow(hwnd) => {
+                let window = Window { hwnd };
+                let mut rule_debug = RuleDebug::default();
+                let _ = window.should_manage(None, &mut rule_debug);
+                let schema = serde_json::to_string_pretty(&rule_debug)?;
+
+                reply.write_all(schema.as_bytes())?;
             }
             // Deprecated commands
             SocketMessage::AltFocusHack(_)

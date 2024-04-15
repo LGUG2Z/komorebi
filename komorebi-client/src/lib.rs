@@ -13,6 +13,7 @@ pub use komorebi::ActiveWindowBorderColours;
 pub use komorebi::GlobalState;
 pub use komorebi::Notification;
 pub use komorebi::NotificationEvent;
+pub use komorebi::RuleDebug;
 pub use komorebi::StackbarConfig;
 pub use komorebi::State;
 pub use komorebi::TabsConfig;

@@ -43,6 +43,7 @@ pub use process_command::*;
 pub use process_event::*;
 pub use stackbar::*;
 pub use static_config::*;
+pub use window::*;
 pub use window_manager::*;
 pub use window_manager_event::*;
 pub use windows_api::WindowsApi;

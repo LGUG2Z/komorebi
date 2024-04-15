@@ -36,6 +36,7 @@ use windows::Win32::UI::WindowsAndMessaging::WM_SETTINGCHANGE;
 use crate::container::Container;
 use crate::monitor::Monitor;
 use crate::ring::Ring;
+use crate::window::RuleDebug;
 use crate::window::Window;
 use crate::window_manager_event::WindowManagerEvent;
 use crate::windows_api::WindowsApi;
@@ -157,7 +158,7 @@ pub extern "system" fn enum_window(hwnd: HWND, lparam: LPARAM) -> BOOL {
     if is_visible && is_window && !is_minimized {
         let window = Window { hwnd: hwnd.0 };
 
-        if let Ok(should_manage) = window.should_manage(None) {
+        if let Ok(should_manage) = window.should_manage(None, &mut RuleDebug::default()) {
             if should_manage {
                 if is_maximized {
                     WindowsApi::restore_window(hwnd);

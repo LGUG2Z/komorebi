@@ -153,7 +153,8 @@ impl WindowManagerEvent {
                     path,
                     &object_name_change_on_launch,
                     &regex_identifiers,
-                );
+                )
+                .is_some();
 
                 if should_trigger {
                     Option::from(Self::Show(winevent, window))

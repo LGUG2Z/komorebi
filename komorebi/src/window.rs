@@ -41,7 +41,7 @@ use crate::WSL2_UI_PROCESSES;
 
 #[derive(Debug, Clone, Copy, Deserialize, JsonSchema)]
 pub struct Window {
-    pub(crate) hwnd: isize,
+    pub hwnd: isize,
 }
 
 #[allow(clippy::module_name_repetitions)]
@@ -151,6 +151,10 @@ impl Window {
 
     pub fn is_miminized(self) -> bool {
         WindowsApi::is_iconic(self.hwnd())
+    }
+
+    pub fn is_visible(self) -> bool {
+        WindowsApi::is_window_visible(self.hwnd())
     }
 
     pub fn hide(self) {
@@ -313,17 +317,27 @@ impl Window {
         self.update_style(&style)
     }
 
-    #[tracing::instrument(fields(exe, title))]
-    pub fn should_manage(self, event: Option<WindowManagerEvent>) -> Result<bool> {
+    #[tracing::instrument(fields(exe, title), skip(debug))]
+    pub fn should_manage(
+        self,
+        event: Option<WindowManagerEvent>,
+        debug: &mut RuleDebug,
+    ) -> Result<bool> {
         if !self.is_window() {
             return Ok(false);
         }
+
+        debug.is_window = true;
 
         if self.title().is_err() {
             return Ok(false);
         }
 
+        debug.has_title = true;
+
         let is_cloaked = self.is_cloaked().unwrap_or_default();
+
+        debug.is_cloaked = is_cloaked;
 
         let mut allow_cloaked = false;
 
@@ -336,17 +350,27 @@ impl Window {
             }
         }
 
+        debug.allow_cloaked = allow_cloaked;
+
         match (allow_cloaked, is_cloaked) {
             // If allowing cloaked windows, we don't need to check the cloaked status
             (true, _) |
             // If not allowing cloaked windows, we need to ensure the window is not cloaked
             (false, false) => {
                 if let (Ok(title), Ok(exe_name), Ok(class), Ok(path)) = (self.title(), self.exe(), self.class(), self.path()) {
+                    debug.title = Some(title.clone());
+                    debug.exe_name = Some(exe_name.clone());
+                    debug.class = Some(class.clone());
+                    debug.path = Some(path.clone());
                     // calls for styles can fail quite often for events with windows that aren't really "windows"
                     // since we have moved up calls of should_manage to the beginning of the process_event handler,
                     // we should handle failures here gracefully to be able to continue the execution of process_event
                     if let (Ok(style), Ok(ex_style)) = (&self.style(), &self.ex_style()) {
-                        return Ok(window_is_eligible(&title, &exe_name, &class, &path, style, ex_style, event));
+                        debug.window_style = Some(*style);
+                        debug.extended_window_style = Some(*ex_style);
+                        let eligible = window_is_eligible(&title, &exe_name, &class, &path, style, ex_style, event, debug);
+                        debug.should_manage = eligible;
+                        return Ok(eligible);
                     }
                 }
             }
@@ -357,6 +381,28 @@ impl Window {
     }
 }
 
+#[derive(Debug, Default, Serialize, Deserialize)]
+pub struct RuleDebug {
+    pub should_manage: bool,
+    pub is_window: bool,
+    pub has_title: bool,
+    pub is_cloaked: bool,
+    pub allow_cloaked: bool,
+    pub window_style: Option<WindowStyle>,
+    pub extended_window_style: Option<ExtendedWindowStyle>,
+    pub title: Option<String>,
+    pub exe_name: Option<String>,
+    pub class: Option<String>,
+    pub path: Option<String>,
+    pub matches_permaignore_class: Option<String>,
+    pub matches_float_identifier: Option<MatchingRule>,
+    pub matches_managed_override: Option<MatchingRule>,
+    pub matches_layered_whitelist: Option<MatchingRule>,
+    pub matches_wsl2_gui: Option<String>,
+    pub matches_no_titlebar: Option<String>,
+}
+
+#[allow(clippy::too_many_arguments)]
 fn window_is_eligible(
     title: &String,
     exe_name: &String,
@@ -365,10 +411,12 @@ fn window_is_eligible(
     style: &WindowStyle,
     ex_style: &ExtendedWindowStyle,
     event: Option<WindowManagerEvent>,
+    debug: &mut RuleDebug,
 ) -> bool {
     {
         let permaignore_classes = PERMAIGNORE_CLASSES.lock();
         if permaignore_classes.contains(class) {
+            debug.matches_permaignore_class = Some(class.clone());
             return false;
         }
     }
@@ -376,45 +424,65 @@ fn window_is_eligible(
     let regex_identifiers = REGEX_IDENTIFIERS.lock();
 
     let float_identifiers = FLOAT_IDENTIFIERS.lock();
-    let should_float = should_act(
+    let should_float = if let Some(rule) = should_act(
         title,
         exe_name,
         class,
         path,
         &float_identifiers,
         &regex_identifiers,
-    );
+    ) {
+        debug.matches_float_identifier = Some(rule);
+        true
+    } else {
+        false
+    };
 
     let manage_identifiers = MANAGE_IDENTIFIERS.lock();
-    let managed_override = should_act(
+    let managed_override = if let Some(rule) = should_act(
         title,
         exe_name,
         class,
         path,
         &manage_identifiers,
         &regex_identifiers,
-    );
+    ) {
+        debug.matches_managed_override = Some(rule);
+        true
+    } else {
+        false
+    };
 
     if should_float && !managed_override {
         return false;
     }
 
     let layered_whitelist = LAYERED_WHITELIST.lock();
-    let allow_layered = should_act(
+    let allow_layered = if let Some(rule) = should_act(
         title,
         exe_name,
         class,
         path,
         &layered_whitelist,
         &regex_identifiers,
-    );
+    ) {
+        debug.matches_layered_whitelist = Some(rule);
+        true
+    } else {
+        false
+    };
 
     // TODO: might need this for transparency
     // let allow_layered = true;
 
     let allow_wsl2_gui = {
         let wsl2_ui_processes = WSL2_UI_PROCESSES.lock();
-        wsl2_ui_processes.contains(exe_name)
+        let allow = wsl2_ui_processes.contains(exe_name);
+        if allow {
+            debug.matches_wsl2_gui = Some(exe_name.clone())
+        }
+
+        allow
     };
 
     let allow_titlebar_removed = {
@@ -456,10 +524,10 @@ pub fn should_act(
     path: &str,
     identifiers: &[MatchingRule],
     regex_identifiers: &HashMap<String, Regex>,
-) -> bool {
-    let mut should_act = false;
-    for identifier in identifiers {
-        match identifier {
+) -> Option<MatchingRule> {
+    let mut matching_rule = None;
+    for rule in identifiers {
+        match rule {
             MatchingRule::Simple(identifier) => {
                 if should_act_individual(
                     title,
@@ -469,7 +537,7 @@ pub fn should_act(
                     identifier,
                     regex_identifiers,
                 ) {
-                    should_act = true
+                    matching_rule = Some(rule.clone());
                 };
             }
             MatchingRule::Composite(identifiers) => {
@@ -486,13 +554,13 @@ pub fn should_act(
                 }
 
                 if composite_results.iter().all(|&x| x) {
-                    should_act = true;
+                    matching_rule = Some(rule.clone());
                 }
             }
         }
     }
 
-    should_act
+    matching_rule
 }
 
 pub fn should_act_individual(

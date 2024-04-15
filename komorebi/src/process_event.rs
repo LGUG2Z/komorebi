@@ -15,6 +15,7 @@ use crate::border::Border;
 use crate::current_virtual_desktop;
 use crate::notify_subscribers;
 use crate::window::should_act;
+use crate::window::RuleDebug;
 use crate::window_manager::WindowManager;
 use crate::window_manager_event::WindowManagerEvent;
 use crate::windows_api::WindowsApi;
@@ -66,7 +67,9 @@ impl WindowManager {
             return Ok(());
         }
 
-        let should_manage = event.window().should_manage(Some(event))?;
+        let mut rule_debug = RuleDebug::default();
+
+        let should_manage = event.window().should_manage(Some(event), &mut rule_debug)?;
 
         // Hide or reposition the window based on whether the target is managed.
         if BORDER_ENABLED.load(Ordering::SeqCst) {
@@ -233,7 +236,8 @@ impl WindowManager {
                         path,
                         &tray_and_multi_window_identifiers,
                         &regex_identifiers,
-                    );
+                    )
+                    .is_some();
 
                     if !window.is_window()
                         || should_act
