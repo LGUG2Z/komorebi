@@ -321,7 +321,6 @@ impl Arrangement for CustomLayout {
 #[derive(
     Clone, Copy, Debug, Serialize, Deserialize, Display, EnumString, ValueEnum, JsonSchema,
 )]
-#[strum(serialize_all = "snake_case")]
 pub enum Axis {
     Horizontal,
     Vertical,

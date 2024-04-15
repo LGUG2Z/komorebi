@@ -815,6 +815,8 @@ enum SubCommand {
     Whkdrc,
     /// Show a JSON representation of the current window manager state
     State,
+    /// Show a JSON representation of the current global state
+    GlobalState,
     /// Show a JSON representation of visible windows
     VisibleWindows,
     /// Query the current window manager state
@@ -2025,6 +2027,9 @@ Stop-Process -Name:whkd -ErrorAction SilentlyContinue
         SubCommand::State => {
             print_query(&SocketMessage::State.as_bytes()?);
         }
+        SubCommand::GlobalState => {
+            print_query(&SocketMessage::GlobalState.as_bytes()?);
+        }
         SubCommand::VisibleWindows => {
             print_query(&SocketMessage::VisibleWindows.as_bytes()?);
         }
@@ -2139,10 +2144,10 @@ Stop-Process -Name:whkd -ErrorAction SilentlyContinue
             )?;
         }
         SubCommand::ActiveWindowBorderWidth(arg) => {
-            send_message(&SocketMessage::ActiveWindowBorderWidth(arg.width).as_bytes()?)?;
+            send_message(&SocketMessage::BorderWidth(arg.width).as_bytes()?)?;
         }
         SubCommand::ActiveWindowBorderOffset(arg) => {
-            send_message(&SocketMessage::ActiveWindowBorderOffset(arg.offset).as_bytes()?)?;
+            send_message(&SocketMessage::BorderOffset(arg.offset).as_bytes()?)?;
         }
         SubCommand::ResizeDelta(arg) => {
             send_message(&SocketMessage::ResizeDelta(arg.pixels).as_bytes()?)?;

@@ -9,8 +9,8 @@ use serde::Serialize;
 use crate::ring::Ring;
 use crate::stackbar::Stackbar;
 use crate::window::Window;
-use crate::StackbarMode;
 use crate::STACKBAR_MODE;
+use komorebi_core::StackbarMode;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Getters, JsonSchema)]
 pub struct Container {

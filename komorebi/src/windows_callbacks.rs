@@ -41,7 +41,6 @@ use crate::window_manager_event::WindowManagerEvent;
 use crate::windows_api::WindowsApi;
 use crate::winevent::WinEvent;
 use crate::winevent_listener;
-use crate::ActiveWindowBorderStyle;
 use crate::ACTIVE_WINDOW_BORDER_STYLE;
 use crate::BORDER_COLOUR_CURRENT;
 use crate::BORDER_RECT;
@@ -50,6 +49,7 @@ use crate::DISPLAY_INDEX_PREFERENCES;
 use crate::MONITOR_INDEX_PREFERENCES;
 use crate::TRANSPARENCY_COLOUR;
 use crate::WINDOWS_11;
+use komorebi_core::ActiveWindowBorderStyle;
 
 pub extern "system" fn valid_display_monitors(
     hmonitor: HMONITOR,

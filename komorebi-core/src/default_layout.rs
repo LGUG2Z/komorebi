@@ -10,9 +10,18 @@ use crate::Rect;
 use crate::Sizing;
 
 #[derive(
-    Clone, Copy, Debug, Serialize, Deserialize, Display, EnumString, ValueEnum, JsonSchema,
+    Clone,
+    Copy,
+    Debug,
+    Serialize,
+    Deserialize,
+    Eq,
+    PartialEq,
+    Display,
+    EnumString,
+    ValueEnum,
+    JsonSchema,
 )]
-#[strum(serialize_all = "snake_case")]
 pub enum DefaultLayout {
     BSP,
     Columns,

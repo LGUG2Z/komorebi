@@ -1,15 +1,22 @@
 #![warn(clippy::all, clippy::nursery, clippy::pedantic)]
 #![allow(clippy::missing_errors_doc)]
 
+pub use komorebi::colour::Colour;
+pub use komorebi::colour::Rgb;
 pub use komorebi::container::Container;
 pub use komorebi::monitor::Monitor;
 pub use komorebi::ring::Ring;
 pub use komorebi::window::Window;
 pub use komorebi::window_manager_event::WindowManagerEvent;
 pub use komorebi::workspace::Workspace;
+pub use komorebi::ActiveWindowBorderColours;
+pub use komorebi::GlobalState;
 pub use komorebi::Notification;
 pub use komorebi::NotificationEvent;
+pub use komorebi::StackbarConfig;
 pub use komorebi::State;
+pub use komorebi::TabsConfig;
+pub use komorebi_core::ActiveWindowBorderStyle;
 pub use komorebi_core::Arrangement;
 pub use komorebi_core::Axis;
 pub use komorebi_core::CustomLayout;
@@ -20,6 +27,8 @@ pub use komorebi_core::Layout;
 pub use komorebi_core::OperationDirection;
 pub use komorebi_core::Rect;
 pub use komorebi_core::SocketMessage;
+pub use komorebi_core::StackbarMode;
+pub use komorebi_core::WindowKind;
 
 use komorebi::DATA_DIR;
 

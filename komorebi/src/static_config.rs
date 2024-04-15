@@ -35,6 +35,7 @@ use crate::STACKBAR_TAB_WIDTH;
 use crate::STACKBAR_UNFOCUSED_TEXT_COLOUR;
 use crate::TRAY_AND_MULTI_WINDOW_IDENTIFIERS;
 use crate::WORKSPACE_RULES;
+use komorebi_core::StackbarMode;
 
 use color_eyre::Result;
 use crossbeam_channel::Receiver;
@@ -47,6 +48,7 @@ use komorebi_core::config_generation::IdWithIdentifier;
 use komorebi_core::config_generation::MatchingRule;
 use komorebi_core::config_generation::MatchingStrategy;
 use komorebi_core::resolve_home_path;
+use komorebi_core::ActiveWindowBorderStyle;
 use komorebi_core::ApplicationIdentifier;
 use komorebi_core::DefaultLayout;
 use komorebi_core::FocusFollowsMouseImplementation;
@@ -80,17 +82,6 @@ pub struct ActiveWindowBorderColours {
     pub stack: Colour,
     /// Border colour when the container is in monocle mode
     pub monocle: Colour,
-}
-
-#[derive(Default, Copy, Clone, Debug, Serialize, Deserialize, JsonSchema)]
-pub enum ActiveWindowBorderStyle {
-    #[default]
-    /// Use the system border style
-    System,
-    /// Use the Windows 11-style rounded borders
-    Rounded,
-    /// Use the Windows 10-style square borders
-    Square,
 }
 
 #[derive(Debug, Serialize, Deserialize, JsonSchema)]
@@ -317,13 +308,6 @@ pub struct StaticConfig {
     pub stackbar: Option<StackbarConfig>,
 }
 
-#[derive(Debug, Copy, Clone, Serialize, Deserialize, JsonSchema)]
-pub enum StackbarMode {
-    Always,
-    Never,
-    OnStack,
-}
-
 #[derive(Debug, Serialize, Deserialize, JsonSchema)]
 pub struct TabsConfig {
     width: Option<i32>,
@@ -334,9 +318,9 @@ pub struct TabsConfig {
 
 #[derive(Debug, Serialize, Deserialize, JsonSchema)]
 pub struct StackbarConfig {
-    height: Option<i32>,
-    mode: Option<StackbarMode>,
-    tabs: Option<TabsConfig>,
+    pub height: Option<i32>,
+    pub mode: Option<StackbarMode>,
+    pub tabs: Option<TabsConfig>,
 }
 
 impl From<&WindowManager> for StaticConfig {
