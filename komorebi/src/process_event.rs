@@ -188,12 +188,14 @@ impl WindowManager {
                 self.has_pending_raise_op = false;
             }
             WindowManagerEvent::Destroy(_, window) | WindowManagerEvent::Unmanage(window) => {
-                self.focused_workspace_mut()?.remove_window(window.hwnd)?;
-                self.update_focused_workspace(false, false)?;
+                if self.focused_workspace()?.contains_window(window.hwnd) {
+                    self.focused_workspace_mut()?.remove_window(window.hwnd)?;
+                    self.update_focused_workspace(false, false)?;
 
-                let mut already_moved_window_handles = self.already_moved_window_handles.lock();
+                    let mut already_moved_window_handles = self.already_moved_window_handles.lock();
 
-                already_moved_window_handles.remove(&window.hwnd);
+                    already_moved_window_handles.remove(&window.hwnd);
+                }
             }
             WindowManagerEvent::Minimize(_, window) => {
                 let mut hide = false;

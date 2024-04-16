@@ -327,17 +327,17 @@ impl Workspace {
                         }
 
                         if let Some(stackbar) = container_topbar {
-                            stackbar.set_position(
+                            if let Ok(_) = stackbar.set_position(
                                 &stackbar.get_position_from_container_layout(layout),
                                 false,
-                            )?;
+                            ) {
+                                stackbar.update(&container_windows, focused_hwnd)?;
+                                let tab_height = STACKBAR_TAB_HEIGHT.load(Ordering::SeqCst);
+                                let total_height = tab_height + container_padding;
 
-                            stackbar.update(&container_windows, focused_hwnd)?;
-                            let tab_height = STACKBAR_TAB_HEIGHT.load(Ordering::SeqCst);
-                            let total_height = tab_height + container_padding;
-
-                            rect.top += total_height;
-                            rect.bottom -= total_height;
+                                rect.top += total_height;
+                                rect.bottom -= total_height;
+                            }
                         }
 
                         window.set_position(&rect, false)?;

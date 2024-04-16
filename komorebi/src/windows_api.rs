@@ -359,7 +359,7 @@ impl WindowsApi {
             flags |= SetWindowPosition::NO_Z_ORDER;
         }
 
-        let shadow_rect = Self::shadow_rect(hwnd)?;
+        let shadow_rect = Self::shadow_rect(hwnd).unwrap_or_default();
         let rect = Rect {
             left: layout.left + shadow_rect.left,
             top: layout.top + shadow_rect.top,

@@ -1280,6 +1280,14 @@ impl WindowManager {
             SocketMessage::StackbarMode(mode) => {
                 let mut stackbar_mode = STACKBAR_MODE.lock();
                 *stackbar_mode = mode;
+
+                for m in self.monitors_mut() {
+                    for w in m.workspaces_mut() {
+                        for c in w.containers_mut() {
+                            c.set_stackbar_mode(mode);
+                        }
+                    }
+                }
             }
             SocketMessage::StackbarFocusedTextColour(r, g, b) => {
                 let rgb = Rgb::new(r, g, b);

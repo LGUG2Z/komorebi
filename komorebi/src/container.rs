@@ -156,4 +156,18 @@ impl Container {
         tracing::info!("focusing window");
         self.windows.focus(idx);
     }
+
+    pub fn set_stackbar_mode(&mut self, mode: StackbarMode) {
+        self.stackbar = match mode {
+            StackbarMode::Always => Stackbar::create().ok(),
+            StackbarMode::Never => None,
+            StackbarMode::OnStack => {
+                if self.windows().len() > 1 && self.stackbar().is_none() {
+                    Stackbar::create().ok()
+                } else {
+                    None
+                }
+            }
+        };
+    }
 }
