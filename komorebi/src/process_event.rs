@@ -283,7 +283,9 @@ impl WindowManager {
                     }
                 }
             }
-            WindowManagerEvent::Show(_, window) | WindowManagerEvent::Manage(window) => {
+            WindowManagerEvent::Show(_, window)
+            | WindowManagerEvent::Uncloak(_, window)
+            | WindowManagerEvent::Manage(window) => {
                 let mut switch_to = None;
                 for (i, monitors) in self.monitors().iter().enumerate() {
                     for (j, workspace) in monitors.workspaces().iter().enumerate() {
@@ -582,8 +584,7 @@ impl WindowManager {
             }
             WindowManagerEvent::DisplayChange(..)
             | WindowManagerEvent::MouseCapture(..)
-            | WindowManagerEvent::Cloak(..)
-            | WindowManagerEvent::Uncloak(..) => {}
+            | WindowManagerEvent::Cloak(..) => {}
         };
 
         if !self.focused_workspace()?.tile() {
