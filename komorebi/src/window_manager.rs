@@ -37,6 +37,7 @@ use komorebi_core::OperationBehaviour;
 use komorebi_core::OperationDirection;
 use komorebi_core::Rect;
 use komorebi_core::Sizing;
+use komorebi_core::StackbarLabel;
 use komorebi_core::WindowContainerBehaviour;
 
 use crate::border_manager;
@@ -47,6 +48,7 @@ use crate::load_configuration;
 use crate::monitor::Monitor;
 use crate::ring::Ring;
 use crate::stackbar_manager::STACKBAR_FOCUSED_TEXT_COLOUR;
+use crate::stackbar_manager::STACKBAR_LABEL;
 use crate::stackbar_manager::STACKBAR_MODE;
 use crate::stackbar_manager::STACKBAR_TAB_BACKGROUND_COLOUR;
 use crate::stackbar_manager::STACKBAR_TAB_HEIGHT;
@@ -122,6 +124,7 @@ pub struct GlobalState {
     pub border_offset: i32,
     pub border_width: i32,
     pub stackbar_mode: StackbarMode,
+    pub stackbar_label: StackbarLabel,
     pub stackbar_focused_text_colour: Colour,
     pub stackbar_unfocused_text_colour: Colour,
     pub stackbar_tab_background_colour: Colour,
@@ -164,6 +167,7 @@ impl Default for GlobalState {
             border_offset: border_manager::BORDER_OFFSET.load(Ordering::SeqCst),
             border_width: border_manager::BORDER_WIDTH.load(Ordering::SeqCst),
             stackbar_mode: STACKBAR_MODE.load(),
+            stackbar_label: STACKBAR_LABEL.load(),
             stackbar_focused_text_colour: Colour::Rgb(Rgb::from(
                 STACKBAR_FOCUSED_TEXT_COLOUR.load(Ordering::SeqCst),
             )),
