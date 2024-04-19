@@ -16,6 +16,7 @@ use hotwatch::notify::ErrorKind as NotifyErrorKind;
 use hotwatch::EventKind;
 use hotwatch::Hotwatch;
 use parking_lot::Mutex;
+use regex::Regex;
 use schemars::JsonSchema;
 use serde::Deserialize;
 use serde::Serialize;
@@ -600,11 +601,36 @@ impl WindowManager {
                 // And all the visible windows (at the top of a container)
                 for window in workspace.visible_windows().into_iter().flatten() {
                     let mut already_moved_window_handles = self.already_moved_window_handles.lock();
+                    let exe_name = window.exe()?;
+                    let title = window.title()?;
+                    let class = window.class()?;
 
-                    let mut found_workspace_rule = workspace_rules.get(&window.exe()?);
+                    let mut found_workspace_rule = workspace_rules.get(&exe_name);
 
                     if found_workspace_rule.is_none() {
-                        found_workspace_rule = workspace_rules.get(&window.title()?);
+                        found_workspace_rule = workspace_rules.get(&title);
+                    }
+
+                    if found_workspace_rule.is_none() {
+                        found_workspace_rule = workspace_rules.get(&class);
+                    }
+
+                    if found_workspace_rule.is_none() {
+                        for (k, v) in workspace_rules.iter() {
+                            if let Ok(re) = Regex::new(k) {
+                                if re.is_match(&exe_name) {
+                                    found_workspace_rule = Some(v);
+                                }
+
+                                if re.is_match(&title) {
+                                    found_workspace_rule = Some(v);
+                                }
+
+                                if re.is_match(&class) {
+                                    found_workspace_rule = Some(v);
+                                }
+                            }
+                        }
                     }
 
                     // If the executable names or titles of any of those windows are in our rules map
