@@ -13,6 +13,7 @@ edition = "2021"
 [dependencies]
 derive-ahk = { path = "../derive-ahk" }
 komorebi-core = { path = "../komorebi-core" }
+komorebi-client = { path = "../komorebi-client" }
 
 clap = { version = "4", features = ["derive", "wrap_help"] }
 color-eyre = { workspace = true }

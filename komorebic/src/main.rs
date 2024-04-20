@@ -1391,6 +1391,11 @@ fn main() -> Result<()> {
                     }
                 }
 
+                // Check that this file adheres to the schema static config schema as the last step,
+                // so that more basic errors above can be shown to the error before schema-specific
+                // errors
+                let _ = serde_json::from_str::<komorebi_client::StaticConfig>(&config_source)?;
+
                 if config_whkd.exists() {
                     println!("Found {}; key bindings will be loaded from here when whkd is started, and you can start it automatically using the --whkd flag\n", config_whkd.to_string_lossy());
                 } else {
@@ -1775,7 +1780,7 @@ fn main() -> Result<()> {
             };
 
             let mut flags = vec![];
-            if let Some(config) = arg.config {
+            if let Some(config) = &arg.config {
                 let path = resolve_home_path(config)?;
                 if !path.is_file() {
                     bail!("could not find file: {}", path.display());
@@ -1810,9 +1815,10 @@ fn main() -> Result<()> {
                 )
             };
 
+            let mut attempts = 0;
             let mut running = false;
 
-            while !running {
+            while !running && attempts <= 2 {
                 match powershell_script::run(&script) {
                     Ok(_) => {
                         println!("{script}");
@@ -1833,7 +1839,25 @@ fn main() -> Result<()> {
                     running = true;
                 } else {
                     println!("komorebi.exe did not start... Trying again");
+                    attempts += 1;
                 }
+            }
+
+            if !running {
+                println!("\nRunning komorebi.exe directly for detailed error output\n");
+                if let Some(config) = arg.config {
+                    let path = resolve_home_path(config)?;
+                    if let Ok(output) = Command::new("komorebi.exe")
+                        .arg(format!("'--config=\"{}\"'", path.display()))
+                        .output()
+                    {
+                        println!("{}", String::from_utf8(output.stderr)?);
+                    }
+                } else if let Ok(output) = Command::new("komorebi.exe").output() {
+                    println!("{}", String::from_utf8(output.stderr)?);
+                }
+
+                return Ok(());
             }
 
             if arg.whkd {

@@ -16,6 +16,7 @@ pub use komorebi::NotificationEvent;
 pub use komorebi::RuleDebug;
 pub use komorebi::StackbarConfig;
 pub use komorebi::State;
+pub use komorebi::StaticConfig;
 pub use komorebi::TabsConfig;
 pub use komorebi_core::ActiveWindowBorderStyle;
 pub use komorebi_core::Arrangement;
