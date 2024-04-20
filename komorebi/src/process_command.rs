@@ -465,6 +465,9 @@ impl WindowManager {
             SocketMessage::SendContainerToMonitorWorkspaceNumber(monitor_idx, workspace_idx) => {
                 self.move_container_to_monitor(monitor_idx, Option::from(workspace_idx), false)?;
             }
+            SocketMessage::MoveContainerToMonitorWorkspaceNumber(monitor_idx, workspace_idx) => {
+                self.move_container_to_monitor(monitor_idx, Option::from(workspace_idx), true)?;
+            }
             SocketMessage::SendContainerToNamedWorkspace(ref workspace) => {
                 if let Some((monitor_idx, workspace_idx)) =
                     self.monitor_workspace_index_by_name(workspace)
@@ -1411,6 +1414,8 @@ impl WindowManager {
             | SocketMessage::MoveWorkspaceToMonitorNumber(_)
             | SocketMessage::MoveContainerToMonitorNumber(_)
             | SocketMessage::MoveContainerToWorkspaceNumber(_)
+            | SocketMessage::MoveContainerToMonitorWorkspaceNumber(_, _)
+            | SocketMessage::MoveContainerToNamedWorkspace(_)
             | SocketMessage::ResizeWindowEdge(_, _)
             | SocketMessage::ResizeWindowAxis(_, _)
             | SocketMessage::ToggleFloat
