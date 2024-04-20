@@ -327,10 +327,13 @@ impl Workspace {
                         }
 
                         if let Some(stackbar) = container_topbar {
-                            if let Ok(_) = stackbar.set_position(
-                                &stackbar.get_position_from_container_layout(layout),
-                                false,
-                            ) {
+                            if stackbar
+                                .set_position(
+                                    &stackbar.get_position_from_container_layout(layout),
+                                    false,
+                                )
+                                .is_ok()
+                            {
                                 stackbar.update(&container_windows, focused_hwnd)?;
                                 let tab_height = STACKBAR_TAB_HEIGHT.load(Ordering::SeqCst);
                                 let total_height = tab_height + container_padding;

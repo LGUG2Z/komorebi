@@ -17,6 +17,7 @@ dunce = "1"
 dirs = "5"
 color-eyre = "0.6"
 serde_json = { package = "serde_json_lenient", version = "0.1" }
+sysinfo = "0.30"
 
 [workspace.dependencies.windows]
 version = "0.54"

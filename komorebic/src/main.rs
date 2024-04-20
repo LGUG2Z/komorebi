@@ -1897,6 +1897,34 @@ Stop-Process -Name:whkd -ErrorAction SilentlyContinue
             }
 
             send_message(&SocketMessage::Stop.as_bytes()?)?;
+            let mut system = sysinfo::System::new_all();
+            system.refresh_processes();
+
+            if system.processes_by_name("komorebi.exe").count() >= 1 {
+                println!("komorebi is still running, attempting to force-quit");
+
+                let script = r"
+Stop-Process -Name:komorebi -ErrorAction SilentlyContinue
+                ";
+                match powershell_script::run(script) {
+                    Ok(_) => {
+                        println!("{script}");
+
+                        let hwnd_json = DATA_DIR.join("komorebi.hwnd.json");
+
+                        let file = File::open(hwnd_json)?;
+                        let reader = BufReader::new(file);
+                        let hwnds: Vec<isize> = serde_json::from_reader(reader)?;
+
+                        for hwnd in hwnds {
+                            restore_window(HWND(hwnd));
+                        }
+                    }
+                    Err(error) => {
+                        println!("Error: {error}");
+                    }
+                }
+            }
         }
         SubCommand::FloatRule(arg) => {
             send_message(&SocketMessage::FloatRule(arg.identifier, arg.id).as_bytes()?)?;

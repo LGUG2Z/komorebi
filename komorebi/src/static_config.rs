@@ -727,7 +727,7 @@ impl StaticConfig {
 
         value.apply_globals()?;
 
-        let stackbar_mode = STACKBAR_MODE.lock().clone();
+        let stackbar_mode = *STACKBAR_MODE.lock();
 
         for m in wm.monitors_mut() {
             for w in m.workspaces_mut() {

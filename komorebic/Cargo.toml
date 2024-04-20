@@ -28,7 +28,7 @@ reqwest = { version = "0.12", features = ["blocking"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = { workspace = true }
 serde_yaml = "0.9"
-sysinfo = "0.30"
+sysinfo = { workspace = true }
 thiserror = "1"
 uds_windows = "1"
 which = "6"
