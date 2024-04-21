@@ -304,22 +304,30 @@ pub struct StaticConfig {
     /// Set display index preferences
     #[serde(skip_serializing_if = "Option::is_none")]
     pub display_index_preferences: Option<HashMap<usize, String>>,
+    /// Stackbar configuration options
     #[serde(skip_serializing_if = "Option::is_none")]
     pub stackbar: Option<StackbarConfig>,
 }
 
 #[derive(Debug, Serialize, Deserialize, JsonSchema)]
 pub struct TabsConfig {
+    /// Width of a stackbar tab
     width: Option<i32>,
+    /// Focused tab text colour
     focused_text: Option<Colour>,
+    /// Unfocused tab text colour
     unfocused_text: Option<Colour>,
+    /// Tab background colour
     background: Option<Colour>,
 }
 
 #[derive(Debug, Serialize, Deserialize, JsonSchema)]
 pub struct StackbarConfig {
+    /// Stackbar height
     pub height: Option<i32>,
+    /// Stackbar mode
     pub mode: Option<StackbarMode>,
+    /// Stackbar tab configuration options
     pub tabs: Option<TabsConfig>,
 }
 
