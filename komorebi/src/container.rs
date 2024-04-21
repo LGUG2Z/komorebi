@@ -9,6 +9,7 @@ use serde::Serialize;
 use crate::ring::Ring;
 use crate::stackbar::Stackbar;
 use crate::window::Window;
+use crate::WindowsApi;
 use crate::STACKBAR_MODE;
 use komorebi_core::StackbarMode;
 
@@ -169,5 +170,16 @@ impl Container {
                 }
             }
         };
+    }
+
+    pub fn renew_stackbar(&mut self) {
+        match &self.stackbar {
+            None => {}
+            Some(stackbar) => {
+                if !WindowsApi::is_window(stackbar.hwnd()) {
+                    self.stackbar = Stackbar::create().ok()
+                }
+            }
+        }
     }
 }

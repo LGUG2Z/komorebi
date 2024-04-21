@@ -1694,14 +1694,25 @@ impl WindowManager {
     pub fn toggle_monocle(&mut self) -> Result<()> {
         self.handle_unmanaged_window_behaviour()?;
 
-        let workspace = self.focused_workspace_mut()?;
-
+        let workspace = self.focused_workspace()?;
         match workspace.monocle_container() {
             None => self.monocle_on()?,
             Some(_) => self.monocle_off()?,
         }
 
-        self.update_focused_workspace(true, true)
+        self.update_focused_workspace(true, true)?;
+
+        // TODO: fix this ugly hack to restore stackbar after monocle is toggled off
+        let workspace = self.focused_workspace()?;
+        if workspace.monocle_container().is_none() {
+            if let Some(container) = workspace.focused_container() {
+                if container.stackbar().is_some() {
+                    self.retile_all(true)?;
+                };
+            }
+        };
+
+        Ok(())
     }
 
     #[tracing::instrument(skip(self))]

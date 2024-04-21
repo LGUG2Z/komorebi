@@ -299,8 +299,10 @@ impl Workspace {
                 let containers = self.containers_mut();
 
                 for (i, container) in containers.iter_mut().enumerate() {
+                    container.renew_stackbar();
+
                     let container_windows = container.windows().clone();
-                    let container_topbar = container.stackbar().clone();
+                    let container_stackbar = container.stackbar().clone();
 
                     if let (Some(window), Some(layout)) =
                         (container.focused_window_mut(), layouts.get(i))
@@ -326,7 +328,7 @@ impl Workspace {
                             rect.add_padding(width);
                         }
 
-                        if let Some(stackbar) = container_topbar {
+                        if let Some(stackbar) = container_stackbar {
                             if stackbar
                                 .set_position(
                                     &stackbar.get_position_from_container_layout(layout),
