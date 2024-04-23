@@ -774,14 +774,11 @@ impl WindowManager {
     pub fn raise_window_at_cursor_pos(&mut self) -> Result<()> {
         let mut hwnd = None;
 
-        for monitor in self.monitors() {
-            for workspace in monitor.workspaces() {
-                if let Some(container_idx) = workspace.container_idx_from_current_point() {
-                    if let Some(container) = workspace.containers().get(container_idx) {
-                        if let Some(window) = container.focused_window() {
-                            hwnd = Some(window.hwnd);
-                        }
-                    }
+        let workspace = self.focused_workspace()?;
+        if let Some(container_idx) = workspace.container_idx_from_current_point() {
+            if let Some(container) = workspace.containers().get(container_idx) {
+                if let Some(window) = container.focused_window() {
+                    hwnd = Some(window.hwnd);
                 }
             }
         }
