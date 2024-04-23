@@ -260,7 +260,7 @@ impl WindowManager {
                 already_moved_window_handles.remove(&window.hwnd);
             }
             WindowManagerEvent::FocusChange(_, window) => {
-                self.update_focused_workspace(true, false)?;
+                self.update_focused_workspace(self.mouse_follows_focus, false)?;
 
                 let workspace = self.focused_workspace_mut()?;
                 if !workspace
