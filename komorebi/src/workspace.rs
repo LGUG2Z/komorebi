@@ -876,7 +876,7 @@ impl Workspace {
                 self.containers_mut().remove(focused_idx);
                 self.resize_dimensions_mut().remove(focused_idx);
 
-                if focused_idx == self.containers().len() {
+                if focused_idx == self.containers().len() && focused_idx != 0 {
                     self.focus_container(focused_idx - 1);
                 }
             } else {
