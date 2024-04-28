@@ -95,7 +95,7 @@ impl Direction for DefaultLayout {
                 Self::BSP => count > 2 && idx != 0 && idx != 1,
                 Self::Columns => false,
                 Self::Rows | Self::HorizontalStack => idx != 0,
-                Self::VerticalStack => idx != 0 && idx != 1,
+                Self::VerticalStack | Self::RightMainVerticalStack => idx != 0 && idx != 1,
                 Self::UltrawideVerticalStack => idx > 2,
                 Self::Grid => !is_grid_edge(op_direction, idx, count),
             },
@@ -103,7 +103,7 @@ impl Direction for DefaultLayout {
                 Self::BSP => count > 2 && idx != count - 1 && idx % 2 != 0,
                 Self::Columns => false,
                 Self::Rows => idx != count - 1,
-                Self::VerticalStack => idx != 0 && idx != count - 1,
+                Self::VerticalStack | Self::RightMainVerticalStack => idx != 0 && idx != count - 1,
                 Self::HorizontalStack => idx == 0,
                 Self::UltrawideVerticalStack => idx > 1 && idx != count - 1,
                 Self::Grid => !is_grid_edge(op_direction, idx, count),
@@ -111,6 +111,7 @@ impl Direction for DefaultLayout {
             OperationDirection::Left => match self {
                 Self::BSP => count > 1 && idx != 0,
                 Self::Columns | Self::VerticalStack => idx != 0,
+                Self::RightMainVerticalStack => idx == 0,
                 Self::Rows => false,
                 Self::HorizontalStack => idx != 0 && idx != 1,
                 Self::UltrawideVerticalStack => count > 1 && idx != 1,
@@ -121,6 +122,7 @@ impl Direction for DefaultLayout {
                 Self::Columns => idx != count - 1,
                 Self::Rows => false,
                 Self::VerticalStack => idx == 0,
+                Self::RightMainVerticalStack => idx != 0,
                 Self::HorizontalStack => idx != 0 && idx != count - 1,
                 Self::UltrawideVerticalStack => match count {
                     0 | 1 => false,
@@ -147,7 +149,10 @@ impl Direction for DefaultLayout {
                 }
             }
             Self::Columns => unreachable!(),
-            Self::Rows | Self::VerticalStack | Self::UltrawideVerticalStack => idx - 1,
+            Self::Rows
+            | Self::VerticalStack
+            | Self::UltrawideVerticalStack
+            | Self::RightMainVerticalStack => idx - 1,
             Self::HorizontalStack => 0,
             Self::Grid => grid_neighbor(op_direction, idx, count),
         }
@@ -160,7 +165,11 @@ impl Direction for DefaultLayout {
         count: Option<usize>,
     ) -> usize {
         match self {
-            Self::BSP | Self::Rows | Self::VerticalStack | Self::UltrawideVerticalStack => idx + 1,
+            Self::BSP
+            | Self::Rows
+            | Self::VerticalStack
+            | Self::UltrawideVerticalStack
+            | Self::RightMainVerticalStack => idx + 1,
             Self::Columns => unreachable!(),
             Self::HorizontalStack => 1,
             Self::Grid => grid_neighbor(op_direction, idx, count),
@@ -184,6 +193,7 @@ impl Direction for DefaultLayout {
             Self::Columns | Self::HorizontalStack => idx - 1,
             Self::Rows => unreachable!(),
             Self::VerticalStack => 0,
+            Self::RightMainVerticalStack => 1,
             Self::UltrawideVerticalStack => match idx {
                 0 => 1,
                 1 => unreachable!(),
@@ -203,6 +213,7 @@ impl Direction for DefaultLayout {
             Self::BSP | Self::Columns | Self::HorizontalStack => idx + 1,
             Self::Rows => unreachable!(),
             Self::VerticalStack => 1,
+            Self::RightMainVerticalStack => 0,
             Self::UltrawideVerticalStack => match idx {
                 1 => 0,
                 0 => 2,

@@ -30,6 +30,7 @@ pub enum DefaultLayout {
     HorizontalStack,
     UltrawideVerticalStack,
     Grid,
+    RightMainVerticalStack,
     // NOTE: If any new layout is added, please make sure to register the same in `DefaultLayout::cycle`
 }
 
@@ -44,7 +45,13 @@ impl DefaultLayout {
         sizing: Sizing,
         delta: i32,
     ) -> Option<Rect> {
-        if !matches!(self, Self::BSP) && !matches!(self, Self::UltrawideVerticalStack) {
+        if !matches!(
+            self,
+            Self::BSP
+                | Self::UltrawideVerticalStack
+                | Self::VerticalStack
+                | Self::RightMainVerticalStack
+        ) {
             return None;
         };
 
@@ -146,7 +153,8 @@ impl DefaultLayout {
             Self::VerticalStack => Self::HorizontalStack,
             Self::HorizontalStack => Self::UltrawideVerticalStack,
             Self::UltrawideVerticalStack => Self::Grid,
-            Self::Grid => Self::BSP,
+            Self::Grid => Self::RightMainVerticalStack,
+            Self::RightMainVerticalStack => Self::BSP,
         }
     }
 
@@ -159,7 +167,8 @@ impl DefaultLayout {
             Self::VerticalStack => Self::Rows,
             Self::Rows => Self::Columns,
             Self::Columns => Self::Grid,
-            Self::Grid => Self::BSP,
+            Self::Grid => Self::RightMainVerticalStack,
+            Self::RightMainVerticalStack => Self::BSP,
         }
     }
 }
