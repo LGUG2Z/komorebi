@@ -1257,9 +1257,15 @@ fn main() -> Result<()> {
             let subcommands = cli.get_subcommands_mut();
             std::fs::create_dir_all("docs/cli")?;
 
+            let ignore = [
+                "docgen",
+                "alt-focus-hack",
+                "identify-border-overflow-application",
+            ];
+
             for cmd in subcommands {
                 let name = cmd.get_name().to_string();
-                if name != "docgen" {
+                if !ignore.contains(&name.as_str()) {
                     let help_text = cmd.render_long_help().to_string();
                     let outpath = format!("docs/cli/{name}.md");
                     let markdown = format!("# {name}\n\n```\n{help_text}\n```");

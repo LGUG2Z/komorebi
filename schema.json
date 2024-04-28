@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "StaticConfig",
-  "description": "The `komorebi.json` static configuration file reference for `v0.1.20`",
+  "description": "The `komorebi.json` static configuration file reference for `v0.1.25`",
   "type": "object",
   "properties": {
     "active_window_border": {
@@ -775,7 +775,8 @@
                     "VerticalStack",
                     "HorizontalStack",
                     "UltrawideVerticalStack",
-                    "Grid"
+                    "Grid",
+                    "RightMainVerticalStack"
                   ]
                 },
                 "layout_rules": {
@@ -790,7 +791,8 @@
                       "VerticalStack",
                       "HorizontalStack",
                       "UltrawideVerticalStack",
-                      "Grid"
+                      "Grid",
+                      "RightMainVerticalStack"
                     ]
                   }
                 },
@@ -942,13 +944,16 @@
       "format": "int32"
     },
     "stackbar": {
+      "description": "Stackbar configuration options",
       "type": "object",
       "properties": {
         "height": {
+          "description": "Stackbar height",
           "type": "integer",
           "format": "int32"
         },
         "mode": {
+          "description": "Stackbar mode",
           "type": "string",
           "enum": [
             "Always",
@@ -957,9 +962,11 @@
           ]
         },
         "tabs": {
+          "description": "Stackbar tab configuration options",
           "type": "object",
           "properties": {
             "background": {
+              "description": "Tab background colour",
               "anyOf": [
                 {
                   "description": "Colour represented as RGB",
@@ -997,6 +1004,7 @@
               ]
             },
             "focused_text": {
+              "description": "Focused tab text colour",
               "anyOf": [
                 {
                   "description": "Colour represented as RGB",
@@ -1034,6 +1042,7 @@
               ]
             },
             "unfocused_text": {
+              "description": "Unfocused tab text colour",
               "anyOf": [
                 {
                   "description": "Colour represented as RGB",
@@ -1071,6 +1080,7 @@
               ]
             },
             "width": {
+              "description": "Width of a stackbar tab",
               "type": "integer",
               "format": "int32"
             }

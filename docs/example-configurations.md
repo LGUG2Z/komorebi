@@ -101,6 +101,16 @@ monocle.
 +-------+-----+
 ```
 
+### RightMainVerticalStack
+
+```
++-----+-------+
+|     |       |
++-----+       |
+|     |       |
++-----+-------+
+```
+
 #### Horizontal Stack
 
 ```
@@ -122,6 +132,7 @@ monocle.
 ```
 
 #### Rows
+
 If you have a vertical monitor, I recommend using this layout.
 
 ```
@@ -133,6 +144,7 @@ If you have a vertical monitor, I recommend using this layout.
 ```
 
 #### Ultrawide Vertical Stack
+
 If you have an ultrawide monitor, I recommend using this layout.
 
 ```
@@ -146,6 +158,7 @@ If you have an ultrawide monitor, I recommend using this layout.
 ```
 
 ### Grid
+
 If you like the `grid` layout in [LeftWM](https://github.com/leftwm/leftwm-layouts) this is almost exactly the same!
 
 ```
@@ -183,7 +196,8 @@ which shell you use in your terminal.
 * `powershell` - set this if you are using the version of PowerShell that comes
   installed with Windows 10+ (the executable file for this is `powershell.exe`)
 
-* `pwsh` - set this if you are using PowerShell 7+, which you have installed yourself either through the Windows Store or WinGet (the executable file for this is `pwsh.exe`)
+* `pwsh` - set this if you are using PowerShell 7+, which you have installed yourself either through the Windows Store
+  or WinGet (the executable file for this is `pwsh.exe`)
 
 * `cmd` - set this if you don't want to use PowerShell at all and instead you
   want to call commands through the shell used by the old-school Command
