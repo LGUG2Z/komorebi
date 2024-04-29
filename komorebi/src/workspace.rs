@@ -898,11 +898,16 @@ impl Workspace {
     fn enforce_resize_constraints(&mut self) {
         match self.layout {
             Layout::Default(DefaultLayout::BSP) => self.enforce_resize_constraints_for_bsp(),
+            Layout::Default(DefaultLayout::Columns) => self.enforce_resize_for_columns(),
+            Layout::Default(DefaultLayout::Rows) => self.enforce_resize_for_rows(),
             Layout::Default(DefaultLayout::VerticalStack) => {
-                self.enforce_resize_for_vertical_stack()
+                self.enforce_resize_for_vertical_stack();
             }
             Layout::Default(DefaultLayout::RightMainVerticalStack) => {
-                self.enforce_resize_for_right_vertical_stack()
+                self.enforce_resize_for_right_vertical_stack();
+            }
+            Layout::Default(DefaultLayout::HorizontalStack) => {
+                self.enforce_resize_for_horizontal_stack();
             }
             Layout::Default(DefaultLayout::UltrawideVerticalStack) => {
                 self.enforce_resize_for_ultrawide();
@@ -934,6 +939,52 @@ impl Workspace {
         if let Some(Some(last)) = self.resize_dimensions_mut().last_mut() {
             last.bottom = 0;
             last.right = 0;
+        }
+    }
+
+    fn enforce_resize_for_columns(&mut self) {
+        let resize_dimensions = self.resize_dimensions_mut();
+        match resize_dimensions.len() {
+            0 | 1 => self.enforce_no_resize(),
+            _ => {
+                let len = resize_dimensions.len();
+                for (i, rect) in resize_dimensions.iter_mut().enumerate() {
+                    if let Some(rect) = rect {
+                        rect.top = 0;
+                        rect.bottom = 0;
+
+                        if i == 0 {
+                            rect.left = 0;
+                        }
+                        if i == len - 1 {
+                            rect.right = 0;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    fn enforce_resize_for_rows(&mut self) {
+        let resize_dimensions = self.resize_dimensions_mut();
+        match resize_dimensions.len() {
+            0 | 1 => self.enforce_no_resize(),
+            _ => {
+                let len = resize_dimensions.len();
+                for (i, rect) in resize_dimensions.iter_mut().enumerate() {
+                    if let Some(rect) = rect {
+                        rect.left = 0;
+                        rect.right = 0;
+
+                        if i == 0 {
+                            rect.top = 0;
+                        }
+                        if i == len - 1 {
+                            rect.bottom = 0;
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -996,6 +1047,34 @@ impl Workspace {
                         } else if i == stack_size - 1 {
                             // Last cant be resized to the bottom
                             rect.bottom = 0;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    fn enforce_resize_for_horizontal_stack(&mut self) {
+        let resize_dimensions = self.resize_dimensions_mut();
+        match resize_dimensions.len() {
+            0 | 1 => self.enforce_no_resize(),
+            _ => {
+                if let Some(mut left) = resize_dimensions[0] {
+                    left.top = 0;
+                    left.left = 0;
+                    left.right = 0;
+                }
+
+                let stack_size = resize_dimensions[1..].len();
+                for (i, rect) in resize_dimensions[1..].iter_mut().enumerate() {
+                    if let Some(rect) = rect {
+                        rect.bottom = 0;
+
+                        if i == 0 {
+                            rect.left = 0;
+                        }
+                        if i == stack_size - 1 {
+                            rect.right = 0;
                         }
                     }
                 }

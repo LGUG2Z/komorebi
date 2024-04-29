@@ -48,9 +48,12 @@ impl DefaultLayout {
         if !matches!(
             self,
             Self::BSP
-                | Self::UltrawideVerticalStack
+                | Self::Columns
+                | Self::Rows
                 | Self::VerticalStack
                 | Self::RightMainVerticalStack
+                | Self::HorizontalStack
+                | Self::UltrawideVerticalStack
         ) {
             return None;
         };
