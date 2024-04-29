@@ -131,6 +131,8 @@ impl Workspace {
             }
 
             self.set_layout_rules(all_rules);
+
+            self.tile = true;
         }
 
         if let Some(layout_rules) = &config.custom_layout_rules {
@@ -139,6 +141,8 @@ impl Workspace {
                 let rule = CustomLayout::from_path(pathbuf)?;
                 rules.push((*count, Layout::Custom(rule)));
             }
+
+            self.tile = true;
         }
 
         Ok(())
