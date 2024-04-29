@@ -159,26 +159,33 @@ impl Container {
     }
 
     pub fn set_stackbar_mode(&mut self, mode: StackbarMode) {
-        self.stackbar = match mode {
-            StackbarMode::Always => Stackbar::create().ok(),
-            StackbarMode::Never => None,
-            StackbarMode::OnStack => {
-                if self.windows().len() > 1 && self.stackbar().is_none() {
-                    Stackbar::create().ok()
-                } else {
-                    None
+        match mode {
+            StackbarMode::Always => {
+                if self.stackbar.is_none() {
+                    self.stackbar = Stackbar::create().ok();
                 }
             }
-        };
+            StackbarMode::Never => {
+                if self.stackbar.is_some() {
+                    self.stackbar = None
+                }
+            }
+            StackbarMode::OnStack => {
+                if self.windows().len() > 1 && self.stackbar().is_none() {
+                    self.stackbar = Stackbar::create().ok();
+                }
+
+                if self.windows().len() == 1 && self.stackbar.is_some() {
+                    self.stackbar = None;
+                }
+            }
+        }
     }
 
     pub fn renew_stackbar(&mut self) {
-        match &self.stackbar {
-            None => {}
-            Some(stackbar) => {
-                if !WindowsApi::is_window(stackbar.hwnd()) {
-                    self.stackbar = Stackbar::create().ok()
-                }
+        if let Some(stackbar) = &self.stackbar {
+            if !WindowsApi::is_window(stackbar.hwnd()) {
+                self.stackbar = Stackbar::create().ok()
             }
         }
     }

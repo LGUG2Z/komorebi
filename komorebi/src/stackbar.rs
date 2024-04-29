@@ -74,6 +74,7 @@ pub struct Stackbar {
 impl Drop for Stackbar {
     fn drop(&mut self) {
         if !self.is_cloned {
+            tracing::debug!("dropping and calling close_window on stackbar");
             let _ = WindowsApi::close_window(self.hwnd());
         }
     }
@@ -87,6 +88,7 @@ impl Clone for Stackbar {
         }
     }
 }
+
 impl Stackbar {
     unsafe extern "system" fn window_proc(
         hwnd: HWND,
