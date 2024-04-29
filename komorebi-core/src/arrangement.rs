@@ -217,16 +217,8 @@ impl Arrangement for DefaultLayout {
                     _ => area.bottom / 2,
                 };
 
-                let mut main_top = area.top;
-                let mut stack_top = area.top + bottom;
-
-                match layout_flip {
-                    Some(Axis::Vertical | Axis::HorizontalAndVertical) if len > 1 => {
-                        main_top = main_top + area.bottom - bottom;
-                        stack_top = area.top;
-                    }
-                    _ => {}
-                }
+                let main_top = area.top;
+                let stack_top = area.top + bottom;
 
                 if len >= 1 {
                     layouts.push(Rect {
