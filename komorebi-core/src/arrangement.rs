@@ -207,6 +207,30 @@ impl Arrangement for DefaultLayout {
                         layout.right += adjustment.right;
                     });
 
+                match layout_flip {
+                    Some(Axis::Horizontal | Axis::HorizontalAndVertical) => match len {
+                        2.. => {
+                            let (primary, rest) = layouts.split_at_mut(1);
+                            let primary = &mut primary[0];
+
+                            primary.left = rest[0].left;
+                            for rect in rest.iter_mut() {
+                                rect.left = primary.left + primary.right;
+                            }
+                        }
+                        _ => {}
+                    },
+                    _ => {}
+                }
+
+                match layout_flip {
+                    Some(Axis::Vertical | Axis::HorizontalAndVertical) => match len {
+                        3.. => rows_reverse(&mut layouts[1..]),
+                        _ => {}
+                    },
+                    _ => {}
+                }
+
                 layouts
             }
             Self::HorizontalStack => {
