@@ -64,29 +64,9 @@ use crate::STACKBAR_UNFOCUSED_TEXT_COLOUR;
 use crate::TRANSPARENCY_COLOUR;
 use crate::WINDOWS_BY_BAR_HWNDS;
 
-#[derive(Debug, Default, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
 pub struct Stackbar {
     pub(crate) hwnd: isize,
-    #[serde(skip)]
-    pub is_cloned: bool,
-}
-
-impl Drop for Stackbar {
-    fn drop(&mut self) {
-        if !self.is_cloned {
-            tracing::debug!("dropping and calling close_window on stackbar");
-            let _ = WindowsApi::close_window(self.hwnd());
-        }
-    }
-}
-
-impl Clone for Stackbar {
-    fn clone(&self) -> Self {
-        Self {
-            hwnd: self.hwnd,
-            is_cloned: true,
-        }
-    }
 }
 
 impl Stackbar {
@@ -193,7 +173,6 @@ impl Stackbar {
 
         Ok(Self {
             hwnd: hwnd_receiver.recv()?.0,
-            ..Default::default()
         })
     }
 

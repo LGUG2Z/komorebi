@@ -18,6 +18,7 @@ pub struct Container {
     #[getset(get = "pub")]
     id: String,
     windows: Ring<Window>,
+    #[serde(skip)]
     #[getset(get = "pub", get_mut = "pub")]
     stackbar: Option<Stackbar>,
 }
@@ -124,7 +125,10 @@ impl Container {
         let window = self.windows_mut().remove(idx);
 
         if matches!(*STACKBAR_MODE.lock(), StackbarMode::OnStack) && self.windows().len() <= 1 {
-            self.stackbar = None;
+            if let Some(stackbar) = &self.stackbar {
+                let _ = WindowsApi::close_window(stackbar.hwnd());
+                self.stackbar = None;
+            }
         }
 
         if idx != 0 {
@@ -166,17 +170,22 @@ impl Container {
                 }
             }
             StackbarMode::Never => {
-                if self.stackbar.is_some() {
-                    self.stackbar = None
+                if let Some(stackbar) = &self.stackbar {
+                    let _ = WindowsApi::close_window(stackbar.hwnd());
                 }
+
+                self.stackbar = None
             }
             StackbarMode::OnStack => {
                 if self.windows().len() > 1 && self.stackbar().is_none() {
                     self.stackbar = Stackbar::create().ok();
                 }
 
-                if self.windows().len() == 1 && self.stackbar.is_some() {
-                    self.stackbar = None;
+                if let Some(stackbar) = &self.stackbar {
+                    if self.windows().len() == 1 {
+                        let _ = WindowsApi::close_window(stackbar.hwnd());
+                        self.stackbar = None;
+                    }
                 }
             }
         }
