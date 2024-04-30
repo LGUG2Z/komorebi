@@ -19,28 +19,25 @@ impl AnimationManager {
     }
 
     pub fn is_cancelled(&self, hwnd: isize) -> bool {
-        if !self.animations.contains_key(&hwnd) {
-            return false;
+        if let Some(animation_state) = self.animations.get(&hwnd) {
+            animation_state.is_cancelled
+        } else {
+            false
         }
-
-        self.animations.get(&hwnd).unwrap().is_cancelled
     }
 
     pub fn in_progress(&self, hwnd: isize) -> bool {
-        if !self.animations.contains_key(&hwnd) {
-            return false;
+        if let Some(animation_state) = self.animations.get(&hwnd) {
+            animation_state.in_progress
+        } else {
+            false
         }
-
-        self.animations.get(&hwnd).unwrap().in_progress
     }
 
     pub fn cancel(&mut self, hwnd: isize) {
-        if !self.animations.contains_key(&hwnd) {
-            return;
+        if let Some(animation_state) = self.animations.get_mut(&hwnd) {
+            animation_state.is_cancelled = true;
         }
-
-        let state = self.animations.get_mut(&hwnd).unwrap();
-        state.is_cancelled = true;
     }
 
     pub fn start(&mut self, hwnd: isize) {
@@ -55,22 +52,17 @@ impl AnimationManager {
             return;
         }
 
-        let state = self.animations.get_mut(&hwnd).unwrap();
-
-        if !state.in_progress {
-            state.in_progress = true;
+        if let Some(animation_state) = self.animations.get_mut(&hwnd) {
+            animation_state.in_progress = true;
         }
     }
 
     pub fn end(&mut self, hwnd: isize) {
-        if !self.animations.contains_key(&hwnd) {
-            return;
+        if let Some(animation_state) = self.animations.get_mut(&hwnd) {
+            animation_state.in_progress = false;
+            animation_state.is_cancelled = false;
+
+            self.animations.remove(&hwnd);
         }
-
-        let state = self.animations.get_mut(&hwnd).unwrap();
-        state.in_progress = false;
-        state.is_cancelled = false;
-
-        self.animations.remove(&hwnd);
     }
 }
