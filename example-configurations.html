@@ -634,6 +634,19 @@
   
 </li>
         
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rightmainverticalstack" class="md-nav__link">
+    RightMainVerticalStack
+  </a>
+  
+    <nav class="md-nav" aria-label="RightMainVerticalStack">
+      <ul class="md-nav__list">
+        
           <li class="md-nav__item">
   <a href="#horizontal-stack" class="md-nav__link">
     Horizontal Stack
@@ -1369,6 +1382,10 @@
       
         
       
+        
+      
+        
+      
     
     
     <li class="md-nav__item md-nav__item--nested">
@@ -1528,6 +1545,26 @@
   
   <span class="md-ellipsis">
     state
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="cli/global-state.html" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    global-state
   </span>
   
 
@@ -2208,6 +2245,26 @@
   
   <span class="md-ellipsis">
     send-to-monitor-workspace
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="cli/move-to-monitor-workspace.html" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    move-to-monitor-workspace
   </span>
   
 
@@ -4193,6 +4250,19 @@
   
 </li>
         
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rightmainverticalstack" class="md-nav__link">
+    RightMainVerticalStack
+  </a>
+  
+    <nav class="md-nav" aria-label="RightMainVerticalStack">
+      <ul class="md-nav__list">
+        
           <li class="md-nav__item">
   <a href="#horizontal-stack" class="md-nav__link">
     Horizontal Stack
@@ -4318,19 +4388,29 @@ the example files have been downloaded. For most new users this will be in the
 five preconfigured workspaces on the primary monitor each with a different
 layout.</p>
 <pre><code class="language-json">{
-  &quot;$schema&quot;: &quot;https://raw.githubusercontent.com/LGUG2Z/komorebi/v0.1.24/schema.json&quot;,
+  &quot;$schema&quot;: &quot;https://raw.githubusercontent.com/LGUG2Z/komorebi/v0.1.25/schema.json&quot;,
   &quot;app_specific_configuration_path&quot;: &quot;$Env:USERPROFILE/applications.yaml&quot;,
   &quot;window_hiding_behaviour&quot;: &quot;Cloak&quot;,
   &quot;cross_monitor_move_behaviour&quot;: &quot;Insert&quot;,
   &quot;default_workspace_padding&quot;: 20,
   &quot;default_container_padding&quot;: 20,
-  &quot;border_padding&quot;: 8,
+  &quot;border_width&quot;: 8,
   &quot;border_offset&quot;: -1,
   &quot;active_window_border&quot;: false,
   &quot;active_window_border_colours&quot;: {
     &quot;single&quot;: &quot;#42a5f5&quot;,
     &quot;stack&quot;: &quot;#00a542&quot;,
     &quot;monocle&quot;: &quot;#ff3399&quot;
+  },
+  &quot;stackbar&quot;: {
+    &quot;height&quot;: 40,
+    &quot;mode&quot;: &quot;Never&quot;,
+    &quot;tabs&quot;: {
+      &quot;width&quot;: 300,
+      &quot;focused_text&quot;: &quot;#00a542&quot;,
+      &quot;unfocused_text&quot;: &quot;#b3b3b3&quot;,
+      &quot;background&quot;: &quot;#141414&quot;
+    }
   },
   &quot;monitors&quot;: [
     {
@@ -4354,6 +4434,14 @@ layout.</p>
         {
           &quot;name&quot;: &quot;V&quot;,
           &quot;layout&quot;: &quot;Rows&quot;
+        },
+        {
+          &quot;name&quot;: &quot;VI&quot;,
+          &quot;layout&quot;: &quot;Grid&quot;
+        },
+        {
+          &quot;name&quot;: &quot;VII&quot;,
+          &quot;layout&quot;: &quot;RightMainVerticalStack&quot;
         }
       ]
     }
@@ -4409,6 +4497,13 @@ monocle.</p>
 |       +-----+
 |       |     |
 +-------+-----+
+</code></pre>
+<h3 id="rightmainverticalstack">RightMainVerticalStack</h3>
+<pre><code>+-----+-------+
+|     |       |
++-----+       |
+|     |       |
++-----+-------+
 </code></pre>
 <h4 id="horizontal-stack">Horizontal Stack</h4>
 <pre><code>+------+------+
@@ -4535,7 +4630,8 @@ which shell you use in your terminal.</p>
   installed with Windows 10+ (the executable file for this is <code>powershell.exe</code>)</p>
 </li>
 <li>
-<p><code>pwsh</code> - set this if you are using PowerShell 7+, which you have installed yourself either through the Windows Store or WinGet (the executable file for this is <code>pwsh.exe</code>)</p>
+<p><code>pwsh</code> - set this if you are using PowerShell 7+, which you have installed yourself either through the Windows Store
+  or WinGet (the executable file for this is <code>pwsh.exe</code>)</p>
 </li>
 <li>
 <p><code>cmd</code> - set this if you don't want to use PowerShell at all and instead you
