@@ -2,6 +2,7 @@ use crate::com::SetCloak;
 use crate::winevent_listener;
 use crate::ANIMATION_DURATION;
 use crate::ANIMATION_ENABLED;
+use crate::ANIMATION_MANAGER;
 use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::fmt::Display;
@@ -131,7 +132,7 @@ impl Window {
     pub fn new(hwnd: isize) -> Self {
         Self {
             hwnd,
-            animation: Animation::default(),
+            animation: Animation::new(hwnd),
         }
     }
 
@@ -198,9 +199,7 @@ impl Window {
     pub fn set_position(&mut self, layout: &Rect, top: bool) -> Result<()> {
         let rect = *layout;
         if ANIMATION_ENABLED.load(Ordering::SeqCst) {
-            // check if animation is in progress
-            if self.animation.in_progress {
-                // wait for cancel animation
+            if ANIMATION_MANAGER.lock().in_progress(self.hwnd) {
                 self.animation.cancel();
             }
 

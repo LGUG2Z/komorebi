@@ -1,4 +1,5 @@
 pub mod animation;
+pub mod animation_manager;
 pub mod border;
 pub mod com;
 #[macro_use]
@@ -40,6 +41,7 @@ use std::sync::atomic::Ordering;
 use std::sync::Arc;
 
 pub use animation::*;
+pub use animation_manager::*;
 pub use colour::*;
 pub use hidden::*;
 pub use process_command::*;
@@ -210,6 +212,9 @@ lazy_static! {
 
     static ref ANIMATION_STYLE: Arc<Mutex<AnimationStyle >> =
         Arc::new(Mutex::new(AnimationStyle::Linear));
+
+    static ref ANIMATION_MANAGER: Arc<Mutex<AnimationManager>> =
+        Arc::new(Mutex::new(AnimationManager::new()));
 
     // Use app-specific titlebar removal options where possible
     // eg. Windows Terminal, IntelliJ IDEA, Firefox

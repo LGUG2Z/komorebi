@@ -7,9 +7,12 @@ use schemars::JsonSchema;
 use serde::Deserialize;
 use serde::Serialize;
 use std::f64::consts::PI;
+use std::sync::atomic::Ordering;
 use std::time::Duration;
 use std::time::Instant;
 
+use crate::ANIMATION_DURATION;
+use crate::ANIMATION_MANAGER;
 use crate::ANIMATION_STYLE;
 
 pub trait Ease {
@@ -403,48 +406,30 @@ fn apply_ease_func(t: f64) -> f64 {
 
 #[derive(Debug, Default, Clone, Copy, Serialize, Deserialize, JsonSchema)]
 pub struct Animation {
-    // is_cancel: AtomicBool,
-    // pub in_progress: AtomicBool,
-    is_cancel: bool,
-    pub in_progress: bool,
+    pub hwnd: isize,
 }
 
-// impl Default for Animation {
-//     fn default() -> Self {
-//         Animation {
-//             // I'm not sure if this is the right way to do it
-//             // I've tried to use Arc<Mutex<bool>> but it dooes not implement Copy trait
-//             // and I dont want to rewrite everything cause I'm not experienced with rust
-//             // Down here you can see the idea I've tried to achive like in any other OOP language
-//             // My thought is that in order to prevent Google Chrome breaking render window
-//             // I need to cancel animation if user starting new window movement. So window stops
-//             // moving at one point and then fires new animation.
-//             // But my approach does not work because of rust borrowing rules and wired pointers
-//             // lifetime annotation that I dont know how to use.
-//             is_cancel: false,
-//             in_progress: false,
-//             // is_cancel: AtomicBool::new(false),
-//             // in_progress: AtomicBool::new(false),
-//         }
-//     }
-// }
-
 impl Animation {
+    pub fn new(hwnd: isize) -> Self {
+        Self { hwnd }
+    }
     pub fn cancel(&mut self) {
-        if !self.in_progress {
+        if !ANIMATION_MANAGER.lock().in_progress(self.hwnd) {
             return;
         }
 
-        self.is_cancel = true;
+        ANIMATION_MANAGER.lock().cancel(self.hwnd);
         let max_duration = Duration::from_secs(1);
         let spent_duration = Instant::now();
 
-        while self.in_progress {
+        while ANIMATION_MANAGER.lock().in_progress(self.hwnd) {
             if spent_duration.elapsed() >= max_duration {
-                self.in_progress = false;
+                ANIMATION_MANAGER.lock().end(self.hwnd);
             }
 
-            std::thread::sleep(Duration::from_millis(16));
+            std::thread::sleep(Duration::from_millis(
+                ANIMATION_DURATION.load(Ordering::SeqCst) / 2,
+            ));
         }
     }
 
@@ -469,9 +454,10 @@ impl Animation {
         duration: Duration,
         mut f: impl FnMut(f64) -> Result<()>,
     ) -> Result<()> {
-        self.in_progress = true;
+        ANIMATION_MANAGER.lock().start(self.hwnd);
+
         // set target frame time to match 240 fps (my max refresh rate of monitor)
-        // probably not the best way to do it is take actual monitor refresh rate
+        // probably the best way to do it is take actual monitor refresh rate
         // or make it configurable
         let target_frame_time = Duration::from_millis(1000 / 240);
         let mut progress = 0.0;
@@ -480,11 +466,10 @@ impl Animation {
         // start animation
         while progress < 1.0 {
             // check if animation is cancelled
-            if self.is_cancel {
+            if ANIMATION_MANAGER.lock().is_cancelled(self.hwnd) {
                 // cancel animation
                 // set all flags
-                self.is_cancel = !self.is_cancel;
-                self.in_progress = false;
+                ANIMATION_MANAGER.lock().end(self.hwnd);
                 return Ok(());
             }
 
@@ -499,7 +484,7 @@ impl Animation {
             }
         }
 
-        self.in_progress = false;
+        ANIMATION_MANAGER.lock().end(self.hwnd);
 
         // limit progress to 1.0 if animation took longer
         if progress > 1.0 {
