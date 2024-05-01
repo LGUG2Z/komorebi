@@ -454,6 +454,10 @@ impl Animation {
         duration: Duration,
         mut f: impl FnMut(f64) -> Result<()>,
     ) -> Result<()> {
+        if ANIMATION_MANAGER.lock().in_progress(self.hwnd) {
+            self.cancel();
+        }
+
         ANIMATION_MANAGER.lock().start(self.hwnd);
 
         // set target frame time to match 240 fps (my max refresh rate of monitor)
