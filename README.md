@@ -84,6 +84,19 @@ using `scoop`, `winget` or building from source.
 
 [![Watch the quickstart walkthrough video](https://img.youtube.com/vi/H9-_c1egQ4g/hqdefault.jpg)](https://www.youtube.com/watch?v=H9-_c1egQ4g)
 
+# Comparison With Fancy Zones
+
+Community member [Olge](https://www.youtube.com/@polle5555) has created an
+excellent video which compares the default window management features of
+Windows 11, Fancy Zones and komorebi.
+
+If you are not familiar with tiling window managers or if you are looking at
+komorebi and wondering "how is this different from Fancy Zones? 🤔", this short
+video will answer the majority of your questions.
+
+[![Watch the comparison video](https://img.youtube.com/vi/0LCbS_gm0RA/hqdefault.jpg)](https://www.youtube.com/watch?v=0LCbS_gm0RA)
+
+
 # Demonstrations
 
 [@haxibami](https://github.com/haxibami) showing _komorebi_ running on Windows
