@@ -101,7 +101,7 @@ monocle.
 +-------+-----+
 ```
 
-### RightMainVerticalStack
+#### RightMainVerticalStack
 
 ```
 +-----+-------+
