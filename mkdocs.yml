@@ -41,6 +41,8 @@ theme:
     - toc.follow
 markdown_extensions:
   - admonition
+  - pymdownx.highlight
+  - pymdownx.superfences
 plugins:
   - macros
   - search
