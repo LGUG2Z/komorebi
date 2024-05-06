@@ -1,0 +1,106 @@
+# Troubleshooting
+
+## Komorebi is unresponsive when the display wakes from sleep
+
+This can happen in rare cases when your monitor state is not preserved after it
+wakes from sleep.
+
+### Problem
+
+Your hotkeys in _whkd_ work, but it feels as if _komorebi_ knows nothing about
+the previous state (you can't control previous windows, although newly launched ones
+can be manipulated as normal).
+
+### Solution
+
+Some monitors, such as the Samsung G8/G9 (LED, Neo, OLED) have an _adaptive
+sync_ or _variable refresh rate_ setting within the actual monitor OSD that can
+disrupt how the device is persisted in the _komorebi_ state following suspension.
+
+To fix this, please try to disable _Adaptive Sync_ or any other _VRR_ branded
+alias by referring to the manufacturer's documentation.
+
+!!! warning
+
+    Disabling VRR within Windows (e.g. _Nvidia Control Panel_) may work and can indeed 
+    change the configuration you see within your monitor's OSD, but some monitors 
+    will re-enable the setting regardless following suspension.
+
+### Reproducing
+
+Ensure _komorebi_ is in an operational state by executing `komorebic start` as
+normal.
+
+If _komorebi_ is already unresponsive, then please restart _komorebi_ first by
+running `komorebic stop` and `komorebic start`.
+
+1. **`komorebic state`**
+
+    ```json
+    {
+      "monitors": {
+        "elements": [
+          {
+            "id": 65537,
+            "name": "DISPLAY1",
+            "device": "SAM71AA",
+            "device_id": "SAM71AA-5&a1a3e88&0&UID24834",
+            "size": {
+              "left": 0,
+              "top": 0,
+              "right": 5120,
+              "bottom": 1440
+            }
+          }
+        ]
+      }
+    }
+    ```
+
+    This appears to be fine -- _komorebi_ is aware of the device and associated
+    window handles.  
+
+2. **Let your display go to sleep.**
+
+    Simply turning the monitor off is not enough to reproduce the problem; you must
+    let Windows turn off the display itself.
+
+    To avoid waiting an eternity:
+
+    - _Control Panel_ -> _Hardware and Sound_ -> _Power Options_ -> _Edit Plan
+      Settings_
+
+      _Turn off the display: 1 minute_
+
+    Allow a minute for the display to reset, then once it actually shuts off
+    allow for any additional time as prompted by your monitor for the cycle to
+    complete.
+
+3. **Wake your display again** by pressing any key.
+
+    _komorebi_ should now be unresponsive.
+
+4. **`komorebic state`**
+
+    Don't stop _komorebi_ just yet. 
+    
+    Since it's unresponsive, you can open another shell instead to execute the above command.
+
+    ```json
+    {
+      "monitors": {
+        "elements": [
+          {
+            "id": 65537,
+            "name": "DISPLAY1",
+            "device": null,
+            "device_id": null,
+          }
+        ]
+      }
+    }
+    ```
+
+    We can see the _komorebi_ state is no longer associated with the previous
+    device: `null`, suggesting an issue when the display resumes from a suspended
+    state.
