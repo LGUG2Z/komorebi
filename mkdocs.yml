@@ -39,6 +39,8 @@ theme:
     - search.share
     - search.suggest
     - toc.follow
+markdown_extensions:
+  - admonition
 plugins:
   - macros
   - search
