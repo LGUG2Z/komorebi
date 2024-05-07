@@ -1205,6 +1205,7 @@ impl WindowManager {
         let monitor = self
             .focused_monitor_mut()
             .ok_or_else(|| anyhow!("there is no monitor"))?;
+
         let workspace = monitor
             .focused_workspace_mut()
             .ok_or_else(|| anyhow!("there is no workspace"))?;
@@ -1225,6 +1226,11 @@ impl WindowManager {
             .ok_or_else(|| anyhow!("there is no monitor"))?;
 
         target_monitor.add_container(container, workspace_idx)?;
+
+        if let Some(workspace_idx) = workspace_idx {
+            target_monitor.focus_workspace(workspace_idx)?;
+        }
+
         target_monitor.load_focused_workspace(mouse_follows_focus)?;
         target_monitor.update_focused_workspace(offset)?;
 
