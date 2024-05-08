@@ -284,27 +284,31 @@ impl WindowManager {
                     }
                 }
             }
-            WindowManagerEvent::Show(_, window) | WindowManagerEvent::Manage(window) => {
-                let mut switch_to = None;
-                for (i, monitors) in self.monitors().iter().enumerate() {
-                    for (j, workspace) in monitors.workspaces().iter().enumerate() {
-                        if workspace.contains_window(window.hwnd) {
-                            switch_to = Some((i, j));
+            WindowManagerEvent::Show(_, window)
+            | WindowManagerEvent::Manage(window)
+            | WindowManagerEvent::Uncloak(_, window) => {
+                if !matches!(event, WindowManagerEvent::Uncloak(_, _)) {
+                    let mut switch_to = None;
+                    for (i, monitors) in self.monitors().iter().enumerate() {
+                        for (j, workspace) in monitors.workspaces().iter().enumerate() {
+                            if workspace.contains_window(window.hwnd) {
+                                switch_to = Some((i, j));
+                            }
                         }
                     }
-                }
 
-                if let Some((known_monitor_idx, known_workspace_idx)) = switch_to {
-                    if self.focused_monitor_idx() != known_monitor_idx
-                        || self
-                            .focused_monitor()
-                            .ok_or_else(|| anyhow!("there is no monitor"))?
-                            .focused_workspace_idx()
-                            != known_workspace_idx
-                    {
-                        self.focus_monitor(known_monitor_idx)?;
-                        self.focus_workspace(known_workspace_idx)?;
-                        return Ok(());
+                    if let Some((known_monitor_idx, known_workspace_idx)) = switch_to {
+                        if self.focused_monitor_idx() != known_monitor_idx
+                            || self
+                                .focused_monitor()
+                                .ok_or_else(|| anyhow!("there is no monitor"))?
+                                .focused_workspace_idx()
+                                != known_workspace_idx
+                        {
+                            self.focus_monitor(known_monitor_idx)?;
+                            self.focus_workspace(known_workspace_idx)?;
+                            return Ok(());
+                        }
                     }
                 }
 
@@ -583,8 +587,7 @@ impl WindowManager {
             }
             WindowManagerEvent::DisplayChange(..)
             | WindowManagerEvent::MouseCapture(..)
-            | WindowManagerEvent::Cloak(..)
-            | WindowManagerEvent::Uncloak(..) => {}
+            | WindowManagerEvent::Cloak(..) => {}
         };
 
         if !self.focused_workspace()?.tile() {
