@@ -1,36 +1,21 @@
 use std::collections::VecDeque;
-use std::sync::atomic::Ordering;
 use widestring::U16CStr;
 
 use windows::Win32::Foundation::BOOL;
-use windows::Win32::Foundation::COLORREF;
 use windows::Win32::Foundation::HWND;
 use windows::Win32::Foundation::LPARAM;
 use windows::Win32::Foundation::LRESULT;
 use windows::Win32::Foundation::RECT;
 use windows::Win32::Foundation::WPARAM;
-use windows::Win32::Graphics::Gdi::BeginPaint;
-use windows::Win32::Graphics::Gdi::CreatePen;
-use windows::Win32::Graphics::Gdi::EndPaint;
-use windows::Win32::Graphics::Gdi::Rectangle;
-use windows::Win32::Graphics::Gdi::RoundRect;
-use windows::Win32::Graphics::Gdi::SelectObject;
-use windows::Win32::Graphics::Gdi::ValidateRect;
 use windows::Win32::Graphics::Gdi::HDC;
 use windows::Win32::Graphics::Gdi::HMONITOR;
-use windows::Win32::Graphics::Gdi::PAINTSTRUCT;
-use windows::Win32::Graphics::Gdi::PS_INSIDEFRAME;
-use windows::Win32::Graphics::Gdi::PS_SOLID;
 use windows::Win32::UI::Accessibility::HWINEVENTHOOK;
 use windows::Win32::UI::WindowsAndMessaging::DefWindowProcW;
-use windows::Win32::UI::WindowsAndMessaging::PostQuitMessage;
 use windows::Win32::UI::WindowsAndMessaging::DBT_DEVNODES_CHANGED;
 use windows::Win32::UI::WindowsAndMessaging::SPI_ICONVERTICALSPACING;
 use windows::Win32::UI::WindowsAndMessaging::SPI_SETWORKAREA;
-use windows::Win32::UI::WindowsAndMessaging::WM_DESTROY;
 use windows::Win32::UI::WindowsAndMessaging::WM_DEVICECHANGE;
 use windows::Win32::UI::WindowsAndMessaging::WM_DISPLAYCHANGE;
-use windows::Win32::UI::WindowsAndMessaging::WM_PAINT;
 use windows::Win32::UI::WindowsAndMessaging::WM_SETTINGCHANGE;
 
 use crate::container::Container;
@@ -42,15 +27,8 @@ use crate::window_manager_event::WindowManagerEvent;
 use crate::windows_api::WindowsApi;
 use crate::winevent::WinEvent;
 use crate::winevent_listener;
-use crate::ACTIVE_WINDOW_BORDER_STYLE;
-use crate::BORDER_COLOUR_CURRENT;
-use crate::BORDER_RECT;
-use crate::BORDER_WIDTH;
 use crate::DISPLAY_INDEX_PREFERENCES;
 use crate::MONITOR_INDEX_PREFERENCES;
-use crate::TRANSPARENCY_COLOUR;
-use crate::WINDOWS_11;
-use komorebi_core::ActiveWindowBorderStyle;
 
 pub extern "system" fn valid_display_monitors(
     hmonitor: HMONITOR,
@@ -202,62 +180,6 @@ pub extern "system" fn win_event_hook(
     winevent_listener::event_tx()
         .send(event_type)
         .expect("could not send message on winevent_listener::event_tx");
-}
-
-pub extern "system" fn border_window(
-    window: HWND,
-    message: u32,
-    wparam: WPARAM,
-    lparam: LPARAM,
-) -> LRESULT {
-    unsafe {
-        match message {
-            WM_PAINT => {
-                let border_rect = *BORDER_RECT.lock();
-                let mut ps = PAINTSTRUCT::default();
-                let hdc = BeginPaint(window, &mut ps);
-                let hpen = CreatePen(
-                    PS_SOLID | PS_INSIDEFRAME,
-                    BORDER_WIDTH.load(Ordering::SeqCst),
-                    COLORREF(BORDER_COLOUR_CURRENT.load(Ordering::SeqCst)),
-                );
-                let hbrush = WindowsApi::create_solid_brush(TRANSPARENCY_COLOUR);
-
-                SelectObject(hdc, hpen);
-                SelectObject(hdc, hbrush);
-                // TODO(raggi): this is approximately the correct curvature for
-                // the top left of a Windows 11 window (DWMWCP_DEFAULT), but
-                // often the bottom right has a different shape. Furthermore if
-                // the window was made with DWMWCP_ROUNDSMALL then this is the
-                // wrong size.  In the future we should read the DWM properties
-                // of windows and attempt to match appropriately.
-                match *ACTIVE_WINDOW_BORDER_STYLE.lock() {
-                    ActiveWindowBorderStyle::System => {
-                        if *WINDOWS_11 {
-                            RoundRect(hdc, 0, 0, border_rect.right, border_rect.bottom, 20, 20);
-                        } else {
-                            Rectangle(hdc, 0, 0, border_rect.right, border_rect.bottom);
-                        }
-                    }
-                    ActiveWindowBorderStyle::Rounded => {
-                        RoundRect(hdc, 0, 0, border_rect.right, border_rect.bottom, 20, 20);
-                    }
-                    ActiveWindowBorderStyle::Square => {
-                        Rectangle(hdc, 0, 0, border_rect.right, border_rect.bottom);
-                    }
-                }
-                EndPaint(window, &ps);
-                ValidateRect(window, None);
-
-                LRESULT(0)
-            }
-            WM_DESTROY => {
-                PostQuitMessage(0);
-                LRESULT(0)
-            }
-            _ => DefWindowProcW(window, message, wparam, lparam),
-        }
-    }
 }
 
 pub extern "system" fn hidden_window(

@@ -218,6 +218,7 @@ pub enum WindowKind {
     Single,
     Stack,
     Monocle,
+    Unfocused,
 }
 
 #[derive(

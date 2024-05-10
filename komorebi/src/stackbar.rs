@@ -61,7 +61,6 @@ use crate::STACKBAR_TAB_BACKGROUND_COLOUR;
 use crate::STACKBAR_TAB_HEIGHT;
 use crate::STACKBAR_TAB_WIDTH;
 use crate::STACKBAR_UNFOCUSED_TEXT_COLOUR;
-use crate::TRANSPARENCY_COLOUR;
 use crate::WINDOWS_BY_BAR_HWNDS;
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
@@ -129,7 +128,7 @@ impl Stackbar {
             lpfnWndProc: Some(Self::window_proc),
             hInstance: h_module.into(),
             lpszClassName: class_name,
-            hbrBackground: WindowsApi::create_solid_brush(TRANSPARENCY_COLOUR),
+            hbrBackground: WindowsApi::create_solid_brush(0),
             ..Default::default()
         };
 
@@ -157,7 +156,7 @@ impl Stackbar {
                     None,
                 );
 
-                SetLayeredWindowAttributes(hwnd, COLORREF(TRANSPARENCY_COLOUR), 0, LWA_COLORKEY)?;
+                SetLayeredWindowAttributes(hwnd, COLORREF(0), 0, LWA_COLORKEY)?;
                 hwnd_sender.send(hwnd)?;
 
                 let mut msg = MSG::default();

@@ -39,7 +39,8 @@ use komorebi_core::Rect;
 use komorebi_core::Sizing;
 use komorebi_core::WindowContainerBehaviour;
 
-use crate::border::Border;
+use crate::border_manager;
+use crate::border_manager::STYLE;
 use crate::container::Container;
 use crate::current_virtual_desktop;
 use crate::load_configuration;
@@ -55,14 +56,6 @@ use crate::ActiveWindowBorderColours;
 use crate::Colour;
 use crate::Rgb;
 use crate::WorkspaceRule;
-use crate::ACTIVE_WINDOW_BORDER_STYLE;
-use crate::BORDER_COLOUR_MONOCLE;
-use crate::BORDER_COLOUR_SINGLE;
-use crate::BORDER_COLOUR_STACK;
-use crate::BORDER_ENABLED;
-use crate::BORDER_HWND;
-use crate::BORDER_OFFSET;
-use crate::BORDER_WIDTH;
 use crate::CUSTOM_FFM;
 use crate::DATA_DIR;
 use crate::DISPLAY_INDEX_PREFERENCES;
@@ -153,15 +146,24 @@ pub struct GlobalState {
 impl Default for GlobalState {
     fn default() -> Self {
         Self {
-            active_window_border_enabled: BORDER_ENABLED.load(Ordering::SeqCst),
+            active_window_border_enabled: border_manager::BORDER_ENABLED.load(Ordering::SeqCst),
             active_window_border_colours: ActiveWindowBorderColours {
-                single: Colour::Rgb(Rgb::from(BORDER_COLOUR_SINGLE.load(Ordering::SeqCst))),
-                stack: Colour::Rgb(Rgb::from(BORDER_COLOUR_STACK.load(Ordering::SeqCst))),
-                monocle: Colour::Rgb(Rgb::from(BORDER_COLOUR_MONOCLE.load(Ordering::SeqCst))),
+                single: Option::from(Colour::Rgb(Rgb::from(
+                    border_manager::FOCUSED.load(Ordering::SeqCst),
+                ))),
+                stack: Option::from(Colour::Rgb(Rgb::from(
+                    border_manager::STACK.load(Ordering::SeqCst),
+                ))),
+                monocle: Option::from(Colour::Rgb(Rgb::from(
+                    border_manager::MONOCLE.load(Ordering::SeqCst),
+                ))),
+                unfocused: Option::from(Colour::Rgb(Rgb::from(
+                    border_manager::UNFOCUSED.load(Ordering::SeqCst),
+                ))),
             },
-            active_window_border_style: *ACTIVE_WINDOW_BORDER_STYLE.lock(),
-            border_offset: BORDER_OFFSET.load(Ordering::SeqCst),
-            border_width: BORDER_WIDTH.load(Ordering::SeqCst),
+            active_window_border_style: *STYLE.lock(),
+            border_offset: border_manager::BORDER_OFFSET.load(Ordering::SeqCst),
+            border_width: border_manager::BORDER_WIDTH.load(Ordering::SeqCst),
             stackbar_mode: *STACKBAR_MODE.lock(),
             stackbar_focused_text_colour: Colour::Rgb(Rgb::from(
                 STACKBAR_FOCUSED_TEXT_COLOUR.load(Ordering::SeqCst),
@@ -284,28 +286,6 @@ impl WindowManager {
         tracing::info!("initialising");
         WindowsApi::load_monitor_information(&mut self.monitors)?;
         WindowsApi::load_workspace_information(&mut self.monitors)
-    }
-
-    #[tracing::instrument(skip(self))]
-    pub fn show_border(&self) -> Result<()> {
-        if self.focused_container().is_ok() {
-            let foreground = WindowsApi::foreground_window()?;
-            let foreground_window = Window { hwnd: foreground };
-
-            let border = Border::from(BORDER_HWND.load(Ordering::SeqCst));
-            border.set_position(foreground_window, true)?;
-            WindowsApi::invalidate_border_rect()?;
-        }
-
-        Ok(())
-    }
-
-    #[tracing::instrument(skip(self))]
-    pub fn hide_border(&self) -> Result<()> {
-        let focused = self.focused_window()?;
-        let border = Border::from(BORDER_HWND.load(Ordering::SeqCst));
-        border.hide()?;
-        focused.focus(false)
     }
 
     #[tracing::instrument]

@@ -14,7 +14,6 @@ use windows::Win32::UI::WindowsAndMessaging::WNDCLASSW;
 use crate::windows_callbacks;
 use crate::WindowsApi;
 use crate::HIDDEN_HWND;
-use crate::TRANSPARENCY_COLOUR;
 
 #[derive(Debug, Clone, Copy)]
 pub struct Hidden {
@@ -36,7 +35,7 @@ impl Hidden {
         let name: Vec<u16> = format!("{name}\0").encode_utf16().collect();
         let instance = WindowsApi::module_handle_w()?;
         let class_name = PCWSTR(name.as_ptr());
-        let brush = WindowsApi::create_solid_brush(TRANSPARENCY_COLOUR);
+        let brush = WindowsApi::create_solid_brush(0);
         let window_class = WNDCLASSW {
             hInstance: instance.into(),
             lpszClassName: class_name,

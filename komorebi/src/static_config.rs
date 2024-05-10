@@ -1,4 +1,7 @@
-use crate::border::Border;
+use crate::border_manager;
+use crate::border_manager::ZOrder;
+use crate::border_manager::STYLE;
+use crate::border_manager::Z_ORDER;
 use crate::colour::Colour;
 use crate::current_virtual_desktop;
 use crate::monitor::Monitor;
@@ -7,15 +10,6 @@ use crate::window_manager::WindowManager;
 use crate::window_manager_event::WindowManagerEvent;
 use crate::windows_api::WindowsApi;
 use crate::workspace::Workspace;
-use crate::ACTIVE_WINDOW_BORDER_STYLE;
-use crate::BORDER_COLOUR_CURRENT;
-use crate::BORDER_COLOUR_MONOCLE;
-use crate::BORDER_COLOUR_SINGLE;
-use crate::BORDER_COLOUR_STACK;
-use crate::BORDER_ENABLED;
-use crate::BORDER_HWND;
-use crate::BORDER_OFFSET;
-use crate::BORDER_WIDTH;
 use crate::DATA_DIR;
 use crate::DEFAULT_CONTAINER_PADDING;
 use crate::DEFAULT_WORKSPACE_PADDING;
@@ -77,11 +71,13 @@ use uds_windows::UnixStream;
 #[derive(Debug, Serialize, Deserialize, JsonSchema)]
 pub struct ActiveWindowBorderColours {
     /// Border colour when the container contains a single window
-    pub single: Colour,
+    pub single: Option<Colour>,
     /// Border colour when the container contains multiple windows
-    pub stack: Colour,
+    pub stack: Option<Colour>,
     /// Border colour when the container is in monocle mode
-    pub monocle: Colour,
+    pub monocle: Option<Colour>,
+    /// Border colour when the container is unfocused
+    pub unfocused: Option<Colour>,
 }
 
 #[derive(Debug, Serialize, Deserialize, JsonSchema)]
@@ -265,6 +261,9 @@ pub struct StaticConfig {
     /// Active window border style (default: System)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub active_window_border_style: Option<ActiveWindowBorderStyle>,
+    /// Active window border z-order (default: System)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub active_window_border_z_order: Option<ZOrder>,
     /// Global default workspace padding (default: 10)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub default_workspace_padding: Option<i32>,
@@ -384,21 +383,16 @@ impl From<&WindowManager> for StaticConfig {
             }
         }
 
-        let border_colours = if BORDER_COLOUR_SINGLE.load(Ordering::SeqCst) == 0 {
+        let border_colours = if border_manager::FOCUSED.load(Ordering::SeqCst) == 0 {
             None
         } else {
             Option::from(ActiveWindowBorderColours {
-                single: Colour::from(BORDER_COLOUR_SINGLE.load(Ordering::SeqCst)),
-                stack: Colour::from(if BORDER_COLOUR_STACK.load(Ordering::SeqCst) == 0 {
-                    BORDER_COLOUR_SINGLE.load(Ordering::SeqCst)
-                } else {
-                    BORDER_COLOUR_STACK.load(Ordering::SeqCst)
-                }),
-                monocle: Colour::from(if BORDER_COLOUR_MONOCLE.load(Ordering::SeqCst) == 0 {
-                    BORDER_COLOUR_SINGLE.load(Ordering::SeqCst)
-                } else {
-                    BORDER_COLOUR_MONOCLE.load(Ordering::SeqCst)
-                }),
+                single: Option::from(Colour::from(border_manager::FOCUSED.load(Ordering::SeqCst))),
+                stack: Option::from(Colour::from(border_manager::STACK.load(Ordering::SeqCst))),
+                monocle: Option::from(Colour::from(border_manager::MONOCLE.load(Ordering::SeqCst))),
+                unfocused: Option::from(Colour::from(
+                    border_manager::UNFOCUSED.load(Ordering::SeqCst),
+                )),
             })
         };
 
@@ -413,11 +407,14 @@ impl From<&WindowManager> for StaticConfig {
             focus_follows_mouse: value.focus_follows_mouse,
             mouse_follows_focus: Option::from(value.mouse_follows_focus),
             app_specific_configuration_path: None,
-            border_width: Option::from(BORDER_WIDTH.load(Ordering::SeqCst)),
-            border_offset: Option::from(BORDER_OFFSET.load(Ordering::SeqCst)),
-            active_window_border: Option::from(BORDER_ENABLED.load(Ordering::SeqCst)),
+            border_width: Option::from(border_manager::BORDER_WIDTH.load(Ordering::SeqCst)),
+            border_offset: Option::from(border_manager::BORDER_OFFSET.load(Ordering::SeqCst)),
+            active_window_border: Option::from(
+                border_manager::BORDER_ENABLED.load(Ordering::SeqCst),
+            ),
             active_window_border_colours: border_colours,
-            active_window_border_style: Option::from(*ACTIVE_WINDOW_BORDER_STYLE.lock()),
+            active_window_border_style: Option::from(*STYLE.lock()),
+            active_window_border_z_order: Option::from(*Z_ORDER.lock()),
             default_workspace_padding: Option::from(
                 DEFAULT_WORKSPACE_PADDING.load(Ordering::SeqCst),
             ),
@@ -466,26 +463,33 @@ impl StaticConfig {
             DEFAULT_WORKSPACE_PADDING.store(workspace, Ordering::SeqCst);
         }
 
-        self.border_width.map_or_else(
-            || {
-                BORDER_WIDTH.store(8, Ordering::SeqCst);
-            },
-            |width| {
-                BORDER_WIDTH.store(width, Ordering::SeqCst);
-            },
-        );
+        border_manager::BORDER_WIDTH.store(self.border_width.unwrap_or(8), Ordering::SeqCst);
+        border_manager::BORDER_OFFSET.store(self.border_offset.unwrap_or(-1), Ordering::SeqCst);
 
-        BORDER_OFFSET.store(self.border_offset.unwrap_or(-1), Ordering::SeqCst);
+        if let Some(enabled) = &self.active_window_border {
+            border_manager::BORDER_ENABLED.store(*enabled, Ordering::SeqCst);
+        }
 
         if let Some(colours) = &self.active_window_border_colours {
-            BORDER_COLOUR_SINGLE.store(u32::from(colours.single), Ordering::SeqCst);
-            BORDER_COLOUR_CURRENT.store(u32::from(colours.single), Ordering::SeqCst);
-            BORDER_COLOUR_STACK.store(u32::from(colours.stack), Ordering::SeqCst);
-            BORDER_COLOUR_MONOCLE.store(u32::from(colours.monocle), Ordering::SeqCst);
+            if let Some(single) = colours.single {
+                border_manager::FOCUSED.store(u32::from(single), Ordering::SeqCst);
+            }
+
+            if let Some(stack) = colours.stack {
+                border_manager::STACK.store(u32::from(stack), Ordering::SeqCst);
+            }
+
+            if let Some(monocle) = colours.monocle {
+                border_manager::MONOCLE.store(u32::from(monocle), Ordering::SeqCst);
+            }
+
+            if let Some(unfocused) = colours.unfocused {
+                border_manager::UNFOCUSED.store(u32::from(unfocused), Ordering::SeqCst);
+            }
         }
 
         let active_window_border_style = self.active_window_border_style.unwrap_or_default();
-        *ACTIVE_WINDOW_BORDER_STYLE.lock() = active_window_border_style;
+        *STYLE.lock() = active_window_border_style;
 
         let mut float_identifiers = FLOAT_IDENTIFIERS.lock();
         let mut regex_identifiers = REGEX_IDENTIFIERS.lock();
@@ -718,12 +722,7 @@ impl StaticConfig {
         }
 
         if value.active_window_border == Some(true) {
-            if BORDER_HWND.load(Ordering::SeqCst) == 0 {
-                Border::create("komorebi-border-window")?;
-            }
-
-            BORDER_ENABLED.store(true, Ordering::SeqCst);
-            wm.show_border()?;
+            border_manager::BORDER_ENABLED.store(true, Ordering::SeqCst);
         }
 
         Ok(())
@@ -777,16 +776,8 @@ impl StaticConfig {
             }
         }
 
-        if value.active_window_border == Some(true) {
-            if BORDER_HWND.load(Ordering::SeqCst) == 0 {
-                Border::create("komorebi-border-window")?;
-            }
-
-            BORDER_ENABLED.store(true, Ordering::SeqCst);
-            wm.show_border()?;
-        } else {
-            BORDER_ENABLED.store(false, Ordering::SeqCst);
-            wm.hide_border()?;
+        if let Some(enabled) = value.active_window_border {
+            border_manager::BORDER_ENABLED.store(enabled, Ordering::SeqCst);
         }
 
         if let Some(val) = value.window_container_behaviour {

@@ -18,6 +18,8 @@ dirs = "5"
 color-eyre = "0.6"
 serde_json = { package = "serde_json_lenient", version = "0.1" }
 sysinfo = "0.30"
+serde = { version = "1", features = ["derive"] }
+uds_windows = "1"
 
 [workspace.dependencies.windows]
 version = "0.54"
