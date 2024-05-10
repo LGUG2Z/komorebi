@@ -472,6 +472,8 @@
       
         
       
+        
+      
     
     
     <li class="md-nav__item md-nav__item--nested">
@@ -531,6 +533,26 @@
   
   <span class="md-ellipsis">
     Example configurations
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../troubleshooting.html" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Troubleshooting
   </span>
   
 
@@ -4048,16 +4070,16 @@ persists regardless of whether focus-follows-mouse is enabled or disabled at
 any given time via <code>komorebic</code>'s configuration commands.</p>
 <p>If the <code>komorebi</code> process has been started with the <code>--ffm</code> flag, you can
 enable focus follows mouse behaviour in the <code>komorebi.json</code> configuration file.</p>
-<pre><code class="language-json">{
-  &quot;focus_follows_mouse&quot;: &quot;Komorebi&quot;
-}
-</code></pre>
+<div class="highlight"><pre><span></span><code><span class="p">{</span>
+<span class="w">  </span><span class="nt">&quot;focus_follows_mouse&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Komorebi&quot;</span>
+<span class="p">}</span>
+</code></pre></div>
 <p>When calling any of the <code>komorebic</code> commands related to focus-follows-mouse
 functionality, the <code>windows</code> implementation will be chosen as the default
 implementation. You can optionally specify the <code>komorebi</code> implementation by
 passing it as an argument to the <code>--implementation</code> flag:</p>
-<pre><code class="language-powershell">komorebic.exe toggle-focus-follows-mouse --implementation komorebi
-</code></pre>
+<div class="highlight"><pre><span></span><code><span class="n">komorebic</span><span class="p">.</span><span class="n">exe</span> <span class="n">toggle-focus-follows-mouse</span> <span class="p">-</span><span class="n">-implementation</span> <span class="n">komorebi</span>
+</code></pre></div>
 
 
 

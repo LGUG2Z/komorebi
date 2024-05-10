@@ -472,6 +472,8 @@
       
         
       
+        
+      
     
     
     <li class="md-nav__item md-nav__item--nested">
@@ -531,6 +533,26 @@
   
   <span class="md-ellipsis">
     Example configurations
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../troubleshooting.html" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Troubleshooting
   </span>
   
 
@@ -4038,29 +4060,28 @@
 <p>If you would like to add a visual border around the currently focused window,
 ensure the following options are defined in the <code>komorebi.json</code> configuration
 file.</p>
-<pre><code class="language-json">{
-  &quot;active_window_border&quot;: true,
-  &quot;active_window_border_style&quot;: &quot;Rounded&quot;,
-  &quot;active_window_border_colours&quot;: {
-    &quot;single&quot;: {
-      &quot;r&quot;: 66,
-      &quot;g&quot;: 165,
-      &quot;b&quot;: 245
-    },
-    &quot;stack&quot;: {
-      &quot;r&quot;: 256,
-      &quot;g&quot;: 165,
-      &quot;b&quot;: 66
-    },
-    &quot;monocle&quot;: {
-      &quot;r&quot;: 255,
-      &quot;g&quot;: 51,
-      &quot;b&quot;: 153
-    }
-  },
-}
-
-</code></pre>
+<div class="highlight"><pre><span></span><code><span class="p">{</span>
+<span class="w">  </span><span class="nt">&quot;active_window_border&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;active_window_border_style&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Rounded&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;active_window_border_colours&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nt">&quot;single&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">      </span><span class="nt">&quot;r&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">66</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">&quot;g&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">165</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">&quot;b&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">245</span>
+<span class="w">    </span><span class="p">},</span>
+<span class="w">    </span><span class="nt">&quot;stack&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">      </span><span class="nt">&quot;r&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">256</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">&quot;g&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">165</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">&quot;b&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">66</span>
+<span class="w">    </span><span class="p">},</span>
+<span class="w">    </span><span class="nt">&quot;monocle&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">      </span><span class="nt">&quot;r&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">255</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">&quot;g&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">51</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">&quot;b&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">153</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">  </span><span class="p">},</span>
+<span class="p">}</span>
+</code></pre></div>
 <p>It is important to note that the active window border will only apply to
 windows managed by <code>komorebi</code>.</p>
 <p>This feature is not considered stable, and you may encounter visual artifacts

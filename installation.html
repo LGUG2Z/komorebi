@@ -474,6 +474,8 @@
       
         
       
+        
+      
     
     
     <li class="md-nav__item md-nav__item--active md-nav__item--nested">
@@ -647,6 +649,26 @@
   
   <span class="md-ellipsis">
     Example configurations
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="troubleshooting.html" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Troubleshooting
   </span>
   
 
@@ -4254,8 +4276,8 @@ it from <a href="https://github.com/LGUG2Z/komorebi">source</a> if you would pre
 <p>It highly recommended that you enable support for long paths in Windows by
 running the following command in an Administrator Terminal before installing
 <code>komorebi</code>.</p>
-<pre><code class="language-powershell">Set-ItemProperty 'HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem' -Name 'LongPathsEnabled' -Value 1
-</code></pre>
+<div class="highlight"><pre><span></span><code><span class="nb">Set-ItemProperty</span> <span class="s1">&#39;HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem&#39;</span> <span class="n">-Name</span> <span class="s1">&#39;LongPathsEnabled&#39;</span> <span class="n">-Value</span> <span class="n">1</span>
+</code></pre></div>
 <h2 id="scoop">Scoop</h2>
 <p>Make sure you have installed <a href="https://scoop.sh"><code>scoop</code></a> and verified that
 installed binaries are available in your <code>$PATH</code> before proceeding.</p>
@@ -4265,11 +4287,11 @@ correctly configured by your package manager and <strong>should not</strong> be 
 bugs or issues either on the <code>komorebi</code> GitHub repository or Discord server.</p>
 <h3 id="install-komorebi-and-whkd">Install komorebi and whkd</h3>
 <p>First add the extras bucket</p>
-<pre><code class="language-powershell">scoop bucket add extras
-</code></pre>
+<div class="highlight"><pre><span></span><code><span class="n">scoop</span> <span class="n">bucket</span> <span class="n">add</span> <span class="n">extras</span>
+</code></pre></div>
 <p>Then install the <code>komorebi</code> and <code>whkd</code> packages using <code>scoop install</code></p>
-<pre><code class="language-powershell">scoop install komorebi whkd
-</code></pre>
+<div class="highlight"><pre><span></span><code><span class="n">scoop</span> <span class="n">install</span> <span class="n">komorebi</span> <span class="n">whkd</span>
+</code></pre></div>
 <p>Once komorebi is installed, proceed to get the <a href="example-configurations.html">example
 configurations</a>.</p>
 <h2 id="winget">WinGet</h2>
@@ -4283,9 +4305,9 @@ correctly configured by your package manager and <strong>should not</strong> be 
 bugs or issues either on the <code>komorebi</code> GitHub repository or Discord server.</p>
 <h3 id="install-komorebi-and-whkd_1">Install komorebi and whkd</h3>
 <p>Install the <code>komorebi</code> and <code>whkd</code> packages using <code>winget install</code></p>
-<pre><code class="language-powershell">winget install LGUG2Z.komorebi
-winget install LGUG2Z.whkd
-</code></pre>
+<div class="highlight"><pre><span></span><code><span class="n">winget</span> <span class="n">install</span> <span class="n">LGUG2Z</span><span class="p">.</span><span class="n">komorebi</span>
+<span class="n">winget</span> <span class="n">install</span> <span class="n">LGUG2Z</span><span class="p">.</span><span class="n">whkd</span>
+</code></pre></div>
 <p>Once komorebi is installed, proceed to get the <a href="example-configurations.html">example
 configurations</a>.</p>
 <h2 id="building-from-source">Building from source</h2>
@@ -4293,10 +4315,10 @@ configurations</a>.</p>
 compiler toolchain, and the Visual Studio <a href="https://rust-lang.github.io/rustup/installation/windows-msvc.html">Visual Studio
 prerequisites</a>.</p>
 <p>Clone the git repository, enter the directory, and build the following binaries:</p>
-<pre><code class="language-powershell">cargo +stable install --path komorebi --locked
-cargo +stable install --path komorebic --locked
-cargo +stable install --path komorebic-no-console --locked
-</code></pre>
+<div class="highlight"><pre><span></span><code><span class="n">cargo</span> <span class="p">+</span><span class="n">stable</span> <span class="n">install</span> <span class="p">-</span><span class="n">-path</span> <span class="n">komorebi</span> <span class="p">-</span><span class="n">-locked</span>
+<span class="n">cargo</span> <span class="p">+</span><span class="n">stable</span> <span class="n">install</span> <span class="p">-</span><span class="n">-path</span> <span class="n">komorebic</span> <span class="p">-</span><span class="n">-locked</span>
+<span class="n">cargo</span> <span class="p">+</span><span class="n">stable</span> <span class="n">install</span> <span class="p">-</span><span class="n">-path</span> <span class="n">komorebic-no-console</span> <span class="p">-</span><span class="n">-locked</span>
+</code></pre></div>
 <p>If the binaries have been built and added to your <code>$PATH</code> correctly, you should
 see some output when running <code>komorebi --help</code> and <code>komorebic --help</code></p>
 <h3 id="offline">Offline</h3>

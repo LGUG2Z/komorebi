@@ -472,6 +472,8 @@
       
         
       
+        
+      
     
     
     <li class="md-nav__item md-nav__item--nested">
@@ -531,6 +533,26 @@
   
   <span class="md-ellipsis">
     Example configurations
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../troubleshooting.html" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Troubleshooting
   </span>
   
 
@@ -4045,19 +4067,19 @@ Generator</a> to
 interactively define a custom layout, and then copy the generated JSON content.</p>
 <p>Custom layouts can be loaded on the current workspace or configured for a
 specific workspace in the <code>komorebi.json</code> configuration file.</p>
-<pre><code class="language-json">{
-  &quot;monitors&quot;: [
-    {
-      &quot;workspaces&quot;: [
-        {
-          &quot;name&quot;: &quot;personal&quot;,
-          &quot;custom_layout&quot;: &quot;C:/Users/LGUG2Z/my-custom-layout.json&quot;
-        },
-      ]
-    }
-  ]
-}
-</code></pre>
+<div class="highlight"><pre><span></span><code><span class="p">{</span>
+<span class="w">  </span><span class="nt">&quot;monitors&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">      </span><span class="nt">&quot;workspaces&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+<span class="w">        </span><span class="p">{</span>
+<span class="w">          </span><span class="nt">&quot;name&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;personal&quot;</span><span class="p">,</span>
+<span class="w">          </span><span class="nt">&quot;custom_layout&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;C:/Users/LGUG2Z/my-custom-layout.json&quot;</span>
+<span class="w">        </span><span class="p">},</span>
+<span class="w">      </span><span class="p">]</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">  </span><span class="p">]</span>
+<span class="p">}</span>
+</code></pre></div>
 <p>The fundamental building block of a custom <em>komorebi</em> layout is the Column.</p>
 <p>Columns come in three variants:</p>
 <ul>
@@ -4081,13 +4103,13 @@ custom layout, the windows will begin to be arranged according to the
 constraints set on the Primary and Secondary columns of the layout.</p>
 <p>Here is an example custom layout that can be used as a starting point for your
 own:</p>
-<pre><code class="language-yaml">- column: Secondary
-  configuration: !Horizontal 2 # max number of rows
-- column: Primary
-  configuration: !WidthPercentage 50 # percentage of screen
-- column: Tertiary
-  configuration: Horizontal
-</code></pre>
+<div class="highlight"><pre><span></span><code><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">column</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Secondary</span>
+<span class="w">  </span><span class="nt">configuration</span><span class="p">:</span><span class="w"> </span><span class="kt">!Horizontal</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">2</span><span class="w"> </span><span class="c1"># max number of rows</span>
+<span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">column</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Primary</span>
+<span class="w">  </span><span class="nt">configuration</span><span class="p">:</span><span class="w"> </span><span class="kt">!WidthPercentage</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">50</span><span class="w"> </span><span class="c1"># percentage of screen</span>
+<span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">column</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Tertiary</span>
+<span class="w">  </span><span class="nt">configuration</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Horizontal</span>
+</code></pre></div>
 <!-- TODO: Record a new video -->
 
 <p><a href="https://www.youtube.com/watch?v=SgmBHKEOcQ4"><img alt="Watch the tutorial video" src="https://img.youtube.com/vi/SgmBHKEOcQ4/hqdefault.jpg" /></a></p>

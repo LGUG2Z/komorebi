@@ -14,7 +14,7 @@
         <link rel="prev" href="installation.html">
       
       
-        <link rel="next" href="common-workflows/komorebi-config-home.html">
+        <link rel="next" href="troubleshooting.html">
       
       
       <link rel="icon" href="assets/images/favicon.png">
@@ -474,6 +474,8 @@
       
         
       
+        
+      
     
     
     <li class="md-nav__item md-nav__item--active md-nav__item--nested">
@@ -717,6 +719,26 @@
   
 </nav>
       
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="troubleshooting.html" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Troubleshooting
+  </span>
+  
+
+      </a>
     </li>
   
 
@@ -4366,76 +4388,76 @@ are provided and updated whenever appropriate.</p>
 <code>komorebi</code> and <code>whkd</code>. Pay attention to the output of the command to see where
 the example files have been downloaded. For most new users this will be in the
 <code>$Env:USERPROFILE</code> directory.</p>
-<pre><code class="language-powershell">komorebic quickstart
-</code></pre>
+<div class="highlight"><pre><span></span><code><span class="n">komorebic</span> <span class="n">quickstart</span>
+</code></pre></div>
 <p>With the example configurations downloaded, you can now start <code>komorebi</code> and `whkd.</p>
-<pre><code class="language-powershell">komorebic start --whkd
-</code></pre>
+<div class="highlight"><pre><span></span><code><span class="n">komorebic</span> <span class="nb">start </span><span class="p">-</span><span class="n">-whkd</span>
+</code></pre></div>
 <h2 id="komorebijson">komorebi.json</h2>
 <p>The example window manager configuration sets some sane defaults and provides
 five preconfigured workspaces on the primary monitor each with a different
 layout.</p>
-<pre><code class="language-json">{
-  &quot;$schema&quot;: &quot;https://raw.githubusercontent.com/LGUG2Z/komorebi/v0.1.25/schema.json&quot;,
-  &quot;app_specific_configuration_path&quot;: &quot;$Env:USERPROFILE/applications.yaml&quot;,
-  &quot;window_hiding_behaviour&quot;: &quot;Cloak&quot;,
-  &quot;cross_monitor_move_behaviour&quot;: &quot;Insert&quot;,
-  &quot;default_workspace_padding&quot;: 20,
-  &quot;default_container_padding&quot;: 20,
-  &quot;border_width&quot;: 8,
-  &quot;border_offset&quot;: -1,
-  &quot;active_window_border&quot;: false,
-  &quot;active_window_border_colours&quot;: {
-    &quot;single&quot;: &quot;#42a5f5&quot;,
-    &quot;stack&quot;: &quot;#00a542&quot;,
-    &quot;monocle&quot;: &quot;#ff3399&quot;
-  },
-  &quot;stackbar&quot;: {
-    &quot;height&quot;: 40,
-    &quot;mode&quot;: &quot;Never&quot;,
-    &quot;tabs&quot;: {
-      &quot;width&quot;: 300,
-      &quot;focused_text&quot;: &quot;#00a542&quot;,
-      &quot;unfocused_text&quot;: &quot;#b3b3b3&quot;,
-      &quot;background&quot;: &quot;#141414&quot;
-    }
-  },
-  &quot;monitors&quot;: [
-    {
-      &quot;workspaces&quot;: [
-        {
-          &quot;name&quot;: &quot;I&quot;,
-          &quot;layout&quot;: &quot;BSP&quot;
-        },
-        {
-          &quot;name&quot;: &quot;II&quot;,
-          &quot;layout&quot;: &quot;VerticalStack&quot;
-        },
-        {
-          &quot;name&quot;: &quot;III&quot;,
-          &quot;layout&quot;: &quot;HorizontalStack&quot;
-        },
-        {
-          &quot;name&quot;: &quot;IV&quot;,
-          &quot;layout&quot;: &quot;UltrawideVerticalStack&quot;
-        },
-        {
-          &quot;name&quot;: &quot;V&quot;,
-          &quot;layout&quot;: &quot;Rows&quot;
-        },
-        {
-          &quot;name&quot;: &quot;VI&quot;,
-          &quot;layout&quot;: &quot;Grid&quot;
-        },
-        {
-          &quot;name&quot;: &quot;VII&quot;,
-          &quot;layout&quot;: &quot;RightMainVerticalStack&quot;
-        }
-      ]
-    }
-  ]
-}
-</code></pre>
+<div class="highlight"><pre><span></span><code><span class="p">{</span>
+<span class="w">  </span><span class="nt">&quot;$schema&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;https://raw.githubusercontent.com/LGUG2Z/komorebi/v0.1.25/schema.json&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;app_specific_configuration_path&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;$Env:USERPROFILE/applications.yaml&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;window_hiding_behaviour&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Cloak&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;cross_monitor_move_behaviour&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Insert&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;default_workspace_padding&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">20</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;default_container_padding&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">20</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;border_width&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">8</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;border_offset&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">-1</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;active_window_border&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">false</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;active_window_border_colours&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nt">&quot;single&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;#42a5f5&quot;</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">&quot;stack&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;#00a542&quot;</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">&quot;monocle&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;#ff3399&quot;</span>
+<span class="w">  </span><span class="p">},</span>
+<span class="w">  </span><span class="nt">&quot;stackbar&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nt">&quot;height&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">40</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">&quot;mode&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Never&quot;</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">&quot;tabs&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">      </span><span class="nt">&quot;width&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">300</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">&quot;focused_text&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;#00a542&quot;</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">&quot;unfocused_text&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;#b3b3b3&quot;</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">&quot;background&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;#141414&quot;</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">  </span><span class="p">},</span>
+<span class="w">  </span><span class="nt">&quot;monitors&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">      </span><span class="nt">&quot;workspaces&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+<span class="w">        </span><span class="p">{</span>
+<span class="w">          </span><span class="nt">&quot;name&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;I&quot;</span><span class="p">,</span>
+<span class="w">          </span><span class="nt">&quot;layout&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;BSP&quot;</span>
+<span class="w">        </span><span class="p">},</span>
+<span class="w">        </span><span class="p">{</span>
+<span class="w">          </span><span class="nt">&quot;name&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;II&quot;</span><span class="p">,</span>
+<span class="w">          </span><span class="nt">&quot;layout&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;VerticalStack&quot;</span>
+<span class="w">        </span><span class="p">},</span>
+<span class="w">        </span><span class="p">{</span>
+<span class="w">          </span><span class="nt">&quot;name&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;III&quot;</span><span class="p">,</span>
+<span class="w">          </span><span class="nt">&quot;layout&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;HorizontalStack&quot;</span>
+<span class="w">        </span><span class="p">},</span>
+<span class="w">        </span><span class="p">{</span>
+<span class="w">          </span><span class="nt">&quot;name&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;IV&quot;</span><span class="p">,</span>
+<span class="w">          </span><span class="nt">&quot;layout&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;UltrawideVerticalStack&quot;</span>
+<span class="w">        </span><span class="p">},</span>
+<span class="w">        </span><span class="p">{</span>
+<span class="w">          </span><span class="nt">&quot;name&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;V&quot;</span><span class="p">,</span>
+<span class="w">          </span><span class="nt">&quot;layout&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Rows&quot;</span>
+<span class="w">        </span><span class="p">},</span>
+<span class="w">        </span><span class="p">{</span>
+<span class="w">          </span><span class="nt">&quot;name&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;VI&quot;</span><span class="p">,</span>
+<span class="w">          </span><span class="nt">&quot;layout&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Grid&quot;</span>
+<span class="w">        </span><span class="p">},</span>
+<span class="w">        </span><span class="p">{</span>
+<span class="w">          </span><span class="nt">&quot;name&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;VII&quot;</span><span class="p">,</span>
+<span class="w">          </span><span class="nt">&quot;layout&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;RightMainVerticalStack&quot;</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">      </span><span class="p">]</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">  </span><span class="p">]</span>
+<span class="p">}</span>
+</code></pre></div>
 <h3 id="application-specific-configuration">Application-specific configuration</h3>
 <p>There is a <a href="https://github.com/LGUG2Z/komorebi-application-specific-configuration">community-maintained
 repository</a>
@@ -4473,61 +4495,61 @@ windows, or a window that is in monocole mode.</p>
 monocle.</p>
 <h3 id="layouts">Layouts</h3>
 <h4 id="bsp">BSP</h4>
-<pre><code>+-------+-----+
+<div class="highlight"><pre><span></span><code>+-------+-----+
 |       |     |
 |       +--+--+
 |       |  |--|
 +-------+--+--+
-</code></pre>
+</code></pre></div>
 <h4 id="vertical-stack">Vertical Stack</h4>
-<pre><code>+-------+-----+
+<div class="highlight"><pre><span></span><code>+-------+-----+
 |       |     |
 |       +-----+
 |       |     |
 +-------+-----+
-</code></pre>
+</code></pre></div>
 <h4 id="rightmainverticalstack">RightMainVerticalStack</h4>
-<pre><code>+-----+-------+
+<div class="highlight"><pre><span></span><code>+-----+-------+
 |     |       |
 +-----+       |
 |     |       |
 +-----+-------+
-</code></pre>
+</code></pre></div>
 <h4 id="horizontal-stack">Horizontal Stack</h4>
-<pre><code>+------+------+
+<div class="highlight"><pre><span></span><code>+------+------+
 |             |
 |------+------+
 |      |      |
 +------+------+
-</code></pre>
+</code></pre></div>
 <h4 id="columns">Columns</h4>
-<pre><code>+--+--+--+--+
+<div class="highlight"><pre><span></span><code>+--+--+--+--+
 |  |  |  |  |
 |  |  |  |  |
 |  |  |  |  |
 +--+--+--+--+
-</code></pre>
+</code></pre></div>
 <h4 id="rows">Rows</h4>
 <p>If you have a vertical monitor, I recommend using this layout.</p>
-<pre><code>+-----------+
+<div class="highlight"><pre><span></span><code>+-----------+
 |-----------|
 |-----------|
 |-----------|
 +-----------+
-</code></pre>
+</code></pre></div>
 <h4 id="ultrawide-vertical-stack">Ultrawide Vertical Stack</h4>
 <p>If you have an ultrawide monitor, I recommend using this layout.</p>
-<pre><code>+-----+-----------+-----+
+<div class="highlight"><pre><span></span><code>+-----+-----------+-----+
 |     |           |     |
 |     |           +-----+
 |     |           |     |
 |     |           +-----+
 |     |           |     |
 +-----+-----------+-----+
-</code></pre>
+</code></pre></div>
 <h3 id="grid">Grid</h3>
 <p>If you like the <code>grid</code> layout in <a href="https://github.com/leftwm/leftwm-layouts">LeftWM</a> this is almost exactly the same!</p>
-<pre><code>+-----+-----+   +---+---+---+   +---+---+---+   +---+---+---+
+<div class="highlight"><pre><span></span><code>+-----+-----+   +---+---+---+   +---+---+---+   +---+---+---+
 |     |     |   |   |   |   |   |   |   |   |   |   |   |   |
 |     |     |   |   |   |   |   |   |   |   |   |   |   +---+
 +-----+-----+   |   +---+---+   +---+---+---+   +---+---|   |
@@ -4535,7 +4557,7 @@ monocle.</p>
 |     |     |   |   |   |   |   |   |   |   |   |   |   |   |
 +-----+-----+   +---+---+---+   +---+---+---+   +---+---+---+
   4 windows       5 windows       6 windows       7 windows
-</code></pre>
+</code></pre></div>
 <h2 id="whkdrc">whkdrc</h2>
 <p><code>whkd</code> is a fairly basic piece of software with a simple configuration format:
 key bindings go to the left of the colon, and shell commands go to the right of the
@@ -4544,7 +4566,7 @@ colon. By default, the <code>whkdrc</code> file should be located in the <code>$
 on hotkey bindings that include the <code>Windows</code> key. If this is important to you,
 I recommend using <a href="https://autohotkey.com">AutoHotKey</a> to set up your key
 bindings for <code>komorebic</code> commands instead.</p>
-<pre><code>.shell powershell
+<div class="highlight"><pre><span></span><code>.shell powershell
 
 # Reload whkd configuration
 # alt + o                 : taskkill /f /im whkd.exe &amp;&amp; start /b whkd # if shell is cmd
@@ -4553,8 +4575,8 @@ alt + shift + o         : komorebic reload-configuration
 
 # App shortcuts - these require shell to be pwsh / powershell
 # The apps will be focused if open, or launched if not open
-# alt + f                 : if ($wshell.AppActivate('Firefox') -eq $False) { start firefox }
-# alt + b                 : if ($wshell.AppActivate('Chrome') -eq $False) { start chrome }
+# alt + f                 : if ($wshell.AppActivate(&#39;Firefox&#39;) -eq $False) { start firefox }
+# alt + b                 : if ($wshell.AppActivate(&#39;Chrome&#39;) -eq $False) { start chrome }
 
 # Focus windows
 alt + h                 : komorebic focus left
@@ -4607,7 +4629,7 @@ alt + 3                 : komorebic focus-workspace 2
 alt + shift + 1         : komorebic move-to-workspace 0
 alt + shift + 2         : komorebic move-to-workspace 1
 alt + shift + 3         : komorebic move-to-workspace 2
-</code></pre>
+</code></pre></div>
 <h3 id="setting-shell">Setting .shell</h3>
 <p>There is one special directive at the top of the file, <code>.shell</code> which can be
 set to either <code>powershell</code>, <code>pwsh</code> or <code>cmd</code>. Which one you use will depend on
@@ -4681,13 +4703,13 @@ the sample configuration above.</p>
         
         
           
-          <a href="common-workflows/komorebi-config-home.html" class="md-footer__link md-footer__link--next" aria-label="Next: KOMOREBI_CONFIG_HOME" rel="next">
+          <a href="troubleshooting.html" class="md-footer__link md-footer__link--next" aria-label="Next: Troubleshooting" rel="next">
             <div class="md-footer__title">
               <span class="md-footer__direction">
                 Next
               </span>
               <div class="md-ellipsis">
-                KOMOREBI_CONFIG_HOME
+                Troubleshooting
               </div>
             </div>
             <div class="md-footer__button md-icon">

@@ -526,6 +526,8 @@
       
         
       
+        
+      
     
     
     <li class="md-nav__item md-nav__item--nested">
@@ -585,6 +587,26 @@
   
   <span class="md-ellipsis">
     Example configurations
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="troubleshooting.html" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Troubleshooting
   </span>
   
 
@@ -4108,9 +4130,9 @@ messages it receives on a dedicated socket.</p>
 <a href="https://github.com/LGUG2Z/whkd">whkd</a>) is needed in order to translate keyboard and mouse events to <em>komorebic</em> commands.</p>
 <p>This architecture, popularised by <a href="https://github.com/baskerville/bspwm"><em>bspwm</em></a> on Linux and
 <a href="https://github.com/koekeishiya/yabai"><em>yabai</em></a> on macOS, is outlined as follows:</p>
-<pre><code>          PROCESS                SOCKET
+<div class="highlight"><pre><span></span><code>          PROCESS                SOCKET
 whkd/ahk  --------&gt;  komorebic  &lt;------&gt;  komorebi
-</code></pre>
+</code></pre></div>
 <h2 id="data-model">Data Model</h2>
 <p><em>komorebi</em> holds a list of physical monitors.</p>
 <p>A monitor is just a rectangle of the available work area which contains one or more virtual workspaces.</p>
