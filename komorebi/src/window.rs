@@ -14,7 +14,6 @@ use komorebi_core::config_generation::MatchingRule;
 use komorebi_core::config_generation::MatchingStrategy;
 use regex::Regex;
 use schemars::JsonSchema;
-use serde::ser::Error;
 use serde::ser::SerializeStruct;
 use serde::Deserialize;
 use serde::Serialize;
@@ -97,24 +96,23 @@ impl Serialize for Window {
             "title",
             &self
                 .title()
-                .map_err(|_| S::Error::custom("could not get window title"))?,
+                .unwrap_or_else(|_| String::from("could not get window title")),
         )?;
         state.serialize_field(
             "exe",
             &self
                 .exe()
-                .map_err(|_| S::Error::custom("could not get window exe"))?,
+                .unwrap_or_else(|_| String::from("could not get window exe")),
         )?;
         state.serialize_field(
             "class",
             &self
                 .class()
-                .map_err(|_| S::Error::custom("could not get window class"))?,
+                .unwrap_or_else(|_| String::from("could not get window class")),
         )?;
         state.serialize_field(
             "rect",
-            &WindowsApi::window_rect(self.hwnd())
-                .map_err(|_| S::Error::custom("could not get window rect"))?,
+            &WindowsApi::window_rect(self.hwnd()).unwrap_or_default(),
         )?;
         state.end()
     }

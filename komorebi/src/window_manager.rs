@@ -566,7 +566,7 @@ impl WindowManager {
         target_workspace_idx: usize,
         to_move: &mut Vec<EnforceWorkspaceRuleOp>,
     ) -> () {
-        tracing::info!(
+        tracing::trace!(
             "{} should be on monitor {}, workspace {}",
             window_title,
             target_monitor_idx,
