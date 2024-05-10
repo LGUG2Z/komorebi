@@ -65,7 +65,7 @@ pub struct Rgb {
 }
 
 impl Rgb {
-    pub fn new(r: u32, g: u32, b: u32) -> Self {
+    pub const fn new(r: u32, g: u32, b: u32) -> Self {
         Self { r, g, b }
     }
 }

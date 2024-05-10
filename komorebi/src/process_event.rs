@@ -11,7 +11,9 @@ use komorebi_core::Rect;
 use komorebi_core::Sizing;
 use komorebi_core::WindowContainerBehaviour;
 
-use crate::border::Border;
+use crate::border_manager;
+use crate::border_manager::BORDER_OFFSET;
+use crate::border_manager::BORDER_WIDTH;
 use crate::current_virtual_desktop;
 use crate::notify_subscribers;
 use crate::window::should_act;
@@ -19,17 +21,9 @@ use crate::window::RuleDebug;
 use crate::window_manager::WindowManager;
 use crate::window_manager_event::WindowManagerEvent;
 use crate::windows_api::WindowsApi;
+use crate::winevent::WinEvent;
 use crate::Notification;
 use crate::NotificationEvent;
-use crate::BORDER_COLOUR_CURRENT;
-use crate::BORDER_COLOUR_MONOCLE;
-use crate::BORDER_COLOUR_SINGLE;
-use crate::BORDER_COLOUR_STACK;
-use crate::BORDER_ENABLED;
-use crate::BORDER_HIDDEN;
-use crate::BORDER_HWND;
-use crate::BORDER_OFFSET;
-use crate::BORDER_WIDTH;
 use crate::DATA_DIR;
 use crate::HIDDEN_HWNDS;
 use crate::REGEX_IDENTIFIERS;
@@ -70,28 +64,6 @@ impl WindowManager {
         let mut rule_debug = RuleDebug::default();
 
         let should_manage = event.window().should_manage(Some(event), &mut rule_debug)?;
-
-        // Hide or reposition the window based on whether the target is managed.
-        if BORDER_ENABLED.load(Ordering::SeqCst) {
-            if let WindowManagerEvent::FocusChange(_, window) = event {
-                let border_window = Border::from(BORDER_HWND.load(Ordering::SeqCst));
-
-                if should_manage {
-                    border_window.set_position(window, true)?;
-                } else {
-                    let mut stackbar = false;
-                    if let Ok(class) = window.class() {
-                        if class == "komorebi_stackbar" {
-                            stackbar = true;
-                        }
-                    }
-
-                    if !stackbar {
-                        border_window.hide()?;
-                    }
-                }
-            }
-        }
 
         // All event handlers below this point should only be processed if the event is
         // related to a window that should be managed by the WindowManager.
@@ -598,104 +570,9 @@ impl WindowManager {
             | WindowManagerEvent::Cloak(..) => {}
         };
 
-        if !self.focused_workspace()?.tile() {
-            let border = Border::from(BORDER_HWND.load(Ordering::SeqCst));
-            border.hide()?;
-            BORDER_HIDDEN.store(true, Ordering::SeqCst);
-        }
-
-        if *self.focused_workspace()?.tile() && BORDER_ENABLED.load(Ordering::SeqCst) {
-            match event {
-                WindowManagerEvent::MoveResizeStart(_, _) => {
-                    let border = Border::from(BORDER_HWND.load(Ordering::SeqCst));
-                    border.hide()?;
-                    BORDER_HIDDEN.store(true, Ordering::SeqCst);
-                }
-                WindowManagerEvent::MoveResizeEnd(_, window)
-                | WindowManagerEvent::Show(_, window)
-                | WindowManagerEvent::FocusChange(_, window)
-                | WindowManagerEvent::Hide(_, window)
-                | WindowManagerEvent::Uncloak(_, window)
-                | WindowManagerEvent::Minimize(_, window) => {
-                    let border = Border::from(BORDER_HWND.load(Ordering::SeqCst));
-                    let mut target_window = None;
-                    let mut target_window_is_monocle = false;
-                    if self
-                        .focused_workspace()?
-                        .floating_windows()
-                        .iter()
-                        .any(|w| w.hwnd == window.hwnd)
-                    {
-                        target_window = Option::from(window);
-                        WindowsApi::raise_window(border.hwnd())?;
-                    };
-
-                    if let Some(monocle_container) = self.focused_workspace()?.monocle_container() {
-                        if let Some(window) = monocle_container.focused_window() {
-                            target_window = Option::from(*window);
-                            target_window_is_monocle = true;
-                        }
-                    }
-
-                    if target_window.is_none() {
-                        match self.focused_container() {
-                            // if there is no focused container, the desktop is empty
-                            Err(..) => {
-                                WindowsApi::hide_border_window(border.hwnd())?;
-                            }
-                            Ok(container) => {
-                                if !(matches!(event, WindowManagerEvent::Minimize(_, _))
-                                    && container.windows().len() == 1)
-                                {
-                                    let container_size = self.focused_container()?.windows().len();
-                                    target_window = Option::from(*self.focused_window()?);
-
-                                    if target_window_is_monocle {
-                                        BORDER_COLOUR_CURRENT.store(
-                                            BORDER_COLOUR_MONOCLE.load(Ordering::SeqCst),
-                                            Ordering::SeqCst,
-                                        );
-                                    } else if container_size > 1 {
-                                        BORDER_COLOUR_CURRENT.store(
-                                            BORDER_COLOUR_STACK.load(Ordering::SeqCst),
-                                            Ordering::SeqCst,
-                                        );
-                                    } else {
-                                        BORDER_COLOUR_CURRENT.store(
-                                            BORDER_COLOUR_SINGLE.load(Ordering::SeqCst),
-                                            Ordering::SeqCst,
-                                        );
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    if let Some(target_window) = target_window {
-                        let activate = BORDER_HIDDEN.load(Ordering::SeqCst);
-
-                        WindowsApi::invalidate_border_rect()?;
-                        border.set_position(target_window, activate)?;
-
-                        if activate {
-                            BORDER_HIDDEN.store(false, Ordering::SeqCst);
-                        }
-                    }
-                }
-                _ => {}
-            }
-        }
-
         // If we unmanaged a window, it shouldn't be immediately hidden behind managed windows
         if let WindowManagerEvent::Unmanage(window) = event {
             window.center(&self.focused_monitor_work_area()?)?;
-        }
-
-        // If there are no more windows on the workspace, we shouldn't show the border window
-        if self.focused_workspace()?.containers().is_empty() {
-            let border = Border::from(BORDER_HWND.load(Ordering::SeqCst));
-            border.hide()?;
-            BORDER_HIDDEN.store(true, Ordering::SeqCst);
         }
 
         tracing::trace!("updating list of known hwnds");
@@ -718,10 +595,21 @@ impl WindowManager {
             .open(hwnd_json)?;
 
         serde_json::to_writer_pretty(&file, &known_hwnds)?;
-        notify_subscribers(&serde_json::to_string(&Notification {
+
+        let notification = Notification {
             event: NotificationEvent::WindowManager(event),
             state: self.as_ref().into(),
-        })?)?;
+        };
+
+        // Avoid unnecessary updates, this fires every single time you interact
+        // with something on JetBrains IDEs
+        if !matches!(
+            event,
+            WindowManagerEvent::Show(WinEvent::ObjectNameChange, _)
+        ) {
+            notify_subscribers(&serde_json::to_string(&notification)?)?;
+            border_manager::event_tx().send(border_manager::Notification)?;
+        }
 
         tracing::info!("processed: {}", event.window().to_string());
         Ok(())

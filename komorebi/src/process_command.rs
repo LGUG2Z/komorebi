@@ -13,7 +13,6 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use color_eyre::eyre::anyhow;
-use color_eyre::eyre::bail;
 use color_eyre::Result;
 use miow::pipe::connect;
 use net2::TcpStreamExt;
@@ -39,7 +38,8 @@ use komorebi_core::StateQuery;
 use komorebi_core::WindowContainerBehaviour;
 use komorebi_core::WindowKind;
 
-use crate::border::Border;
+use crate::border_manager;
+use crate::border_manager::STYLE;
 use crate::colour::Rgb;
 use crate::current_virtual_desktop;
 use crate::notify_subscribers;
@@ -52,16 +52,6 @@ use crate::windows_api::WindowsApi;
 use crate::GlobalState;
 use crate::Notification;
 use crate::NotificationEvent;
-use crate::ACTIVE_WINDOW_BORDER_STYLE;
-use crate::BORDER_COLOUR_CURRENT;
-use crate::BORDER_COLOUR_MONOCLE;
-use crate::BORDER_COLOUR_SINGLE;
-use crate::BORDER_COLOUR_STACK;
-use crate::BORDER_ENABLED;
-use crate::BORDER_HIDDEN;
-use crate::BORDER_HWND;
-use crate::BORDER_OFFSET;
-use crate::BORDER_WIDTH;
 use crate::CUSTOM_FFM;
 use crate::DATA_DIR;
 use crate::DISPLAY_INDEX_PREFERENCES;
@@ -174,21 +164,6 @@ impl WindowManager {
                 }
             }
         }
-
-        match message {
-            SocketMessage::CycleFocusMonitor(_)
-            | SocketMessage::CycleFocusWorkspace(_)
-            | SocketMessage::FocusMonitorNumber(_)
-            | SocketMessage::FocusMonitorWorkspaceNumber(_, _)
-            | SocketMessage::FocusWorkspaceNumber(_) => {
-                if self.focused_workspace()?.visible_windows().is_empty() {
-                    let border = Border::from(BORDER_HWND.load(Ordering::SeqCst));
-                    border.hide()?;
-                    BORDER_HIDDEN.store(true, Ordering::SeqCst);
-                }
-            }
-            _ => {}
-        };
 
         match message {
             SocketMessage::CycleFocusWorkspace(_) | SocketMessage::FocusWorkspaceNumber(_) => {
@@ -517,7 +492,10 @@ impl WindowManager {
                 self.focus_monitor(monitor_idx)?;
                 self.update_focused_workspace(self.mouse_follows_focus, true)?;
             }
-            SocketMessage::Retile => self.retile_all(false)?,
+            SocketMessage::Retile => {
+                border_manager::destroy_all_borders()?;
+                self.retile_all(false)?
+            }
             SocketMessage::FlipLayout(layout_flip) => self.flip_layout(layout_flip)?,
             SocketMessage::ChangeLayout(layout) => self.change_workspace_layout_default(layout)?,
             SocketMessage::CycleLayout(direction) => self.cycle_layout(direction)?,
@@ -640,10 +618,6 @@ impl WindowManager {
                 );
 
                 self.focus_workspace(workspace_idx)?;
-
-                if BORDER_ENABLED.load(Ordering::SeqCst) {
-                    self.show_border()?;
-                };
             }
             SocketMessage::FocusLastWorkspace => {
                 // This is to ensure that even on an empty workspace on a secondary monitor, the
@@ -667,10 +641,6 @@ impl WindowManager {
                 self.focused_monitor_mut()
                     .ok_or_else(|| anyhow!("there is no monitor"))?
                     .set_last_focused_workspace(Option::from(idx));
-
-                if BORDER_ENABLED.load(Ordering::SeqCst) {
-                    self.show_border()?;
-                };
             }
             SocketMessage::FocusWorkspaceNumber(workspace_idx) => {
                 // This is to ensure that even on an empty workspace on a secondary monitor, the
@@ -681,10 +651,6 @@ impl WindowManager {
                 }
 
                 self.focus_workspace(workspace_idx)?;
-
-                if BORDER_ENABLED.load(Ordering::SeqCst) {
-                    self.show_border()?;
-                };
             }
             SocketMessage::FocusWorkspaceNumbers(workspace_idx) => {
                 // This is to ensure that even on an empty workspace on a secondary monitor, the
@@ -704,10 +670,6 @@ impl WindowManager {
                 }
 
                 self.focus_workspace(workspace_idx)?;
-
-                if BORDER_ENABLED.load(Ordering::SeqCst) {
-                    self.show_border()?;
-                };
             }
             SocketMessage::FocusMonitorWorkspaceNumber(monitor_idx, workspace_idx) => {
                 self.focus_monitor(monitor_idx)?;
@@ -720,10 +682,6 @@ impl WindowManager {
                     self.focus_monitor(monitor_idx)?;
                     self.focus_workspace(workspace_idx)?;
                 }
-
-                if BORDER_ENABLED.load(Ordering::SeqCst) {
-                    self.show_border()?;
-                };
             }
             SocketMessage::Stop => {
                 tracing::info!(
@@ -1238,47 +1196,31 @@ impl WindowManager {
                 self.unmanaged_window_operation_behaviour = behaviour;
             }
             SocketMessage::ActiveWindowBorder(enable) => {
-                if enable {
-                    if BORDER_HWND.load(Ordering::SeqCst) == 0 {
-                        Border::create("komorebi-border-window")?;
-                    }
-
-                    BORDER_ENABLED.store(true, Ordering::SeqCst);
-                    self.show_border()?;
-                } else {
-                    BORDER_ENABLED.store(false, Ordering::SeqCst);
-                    self.hide_border()?;
-                }
+                border_manager::BORDER_ENABLED.store(enable, Ordering::SeqCst);
             }
-            SocketMessage::ActiveWindowBorderColour(kind, r, g, b) => {
-                match kind {
-                    WindowKind::Single => {
-                        BORDER_COLOUR_SINGLE.store(Rgb::new(r, g, b).into(), Ordering::SeqCst);
-                        BORDER_COLOUR_CURRENT.store(Rgb::new(r, g, b).into(), Ordering::SeqCst);
-                    }
-                    WindowKind::Stack => {
-                        BORDER_COLOUR_STACK.store(Rgb::new(r, g, b).into(), Ordering::SeqCst);
-                    }
-                    WindowKind::Monocle => {
-                        BORDER_COLOUR_MONOCLE.store(Rgb::new(r, g, b).into(), Ordering::SeqCst);
-                    }
+            SocketMessage::ActiveWindowBorderColour(kind, r, g, b) => match kind {
+                WindowKind::Single => {
+                    border_manager::FOCUSED.store(Rgb::new(r, g, b).into(), Ordering::SeqCst);
                 }
-
-                WindowsApi::invalidate_border_rect()?;
-            }
+                WindowKind::Stack => {
+                    border_manager::STACK.store(Rgb::new(r, g, b).into(), Ordering::SeqCst);
+                }
+                WindowKind::Monocle => {
+                    border_manager::MONOCLE.store(Rgb::new(r, g, b).into(), Ordering::SeqCst);
+                }
+                WindowKind::Unfocused => {
+                    border_manager::UNFOCUSED.store(Rgb::new(r, g, b).into(), Ordering::SeqCst);
+                }
+            },
             SocketMessage::ActiveWindowBorderStyle(style) => {
-                let mut active_window_border_style = ACTIVE_WINDOW_BORDER_STYLE.lock();
+                let mut active_window_border_style = STYLE.lock();
                 *active_window_border_style = style;
-
-                WindowsApi::invalidate_border_rect()?;
             }
             SocketMessage::BorderWidth(width) => {
-                BORDER_WIDTH.store(width, Ordering::SeqCst);
-                WindowsApi::invalidate_border_rect()?;
+                border_manager::BORDER_WIDTH.store(width, Ordering::SeqCst);
             }
             SocketMessage::BorderOffset(offset) => {
-                BORDER_OFFSET.store(offset, Ordering::SeqCst);
-                WindowsApi::invalidate_border_rect()?;
+                border_manager::BORDER_OFFSET.store(offset, Ordering::SeqCst);
             }
             SocketMessage::StackbarMode(mode) => {
                 let mut stackbar_mode = STACKBAR_MODE.lock();
@@ -1370,154 +1312,13 @@ impl WindowManager {
             | SocketMessage::IdentifyBorderOverflowApplication(_, _) => {}
         };
 
-        match message {
-            SocketMessage::ToggleMonocle => {
-                let current = BORDER_COLOUR_CURRENT.load(Ordering::SeqCst);
-                let monocle = BORDER_COLOUR_MONOCLE.load(Ordering::SeqCst);
-
-                if monocle != 0 {
-                    if current == monocle {
-                        BORDER_COLOUR_CURRENT.store(
-                            BORDER_COLOUR_SINGLE.load(Ordering::SeqCst),
-                            Ordering::SeqCst,
-                        );
-                    } else {
-                        BORDER_COLOUR_CURRENT.store(
-                            BORDER_COLOUR_MONOCLE.load(Ordering::SeqCst),
-                            Ordering::SeqCst,
-                        );
-                    }
-                }
-            }
-            SocketMessage::StackWindow(_) => {
-                let stack = BORDER_COLOUR_STACK.load(Ordering::SeqCst);
-                if stack != 0 {
-                    BORDER_COLOUR_CURRENT
-                        .store(BORDER_COLOUR_STACK.load(Ordering::SeqCst), Ordering::SeqCst);
-                }
-            }
-            SocketMessage::UnstackWindow => {
-                BORDER_COLOUR_CURRENT.store(
-                    BORDER_COLOUR_SINGLE.load(Ordering::SeqCst),
-                    Ordering::SeqCst,
-                );
-            }
-            _ => {}
-        }
-
-        match message {
-            SocketMessage::ChangeLayout(_)
-            | SocketMessage::CycleLayout(_)
-            | SocketMessage::ChangeLayoutCustom(_)
-            | SocketMessage::FlipLayout(_)
-            | SocketMessage::ManageFocusedWindow
-            | SocketMessage::MoveWorkspaceToMonitorNumber(_)
-            | SocketMessage::MoveContainerToMonitorNumber(_)
-            | SocketMessage::MoveContainerToWorkspaceNumber(_)
-            | SocketMessage::MoveContainerToMonitorWorkspaceNumber(_, _)
-            | SocketMessage::MoveContainerToNamedWorkspace(_)
-            | SocketMessage::ResizeWindowEdge(_, _)
-            | SocketMessage::ResizeWindowAxis(_, _)
-            | SocketMessage::ToggleFloat
-            | SocketMessage::ToggleMonocle
-            | SocketMessage::ToggleMaximize
-            | SocketMessage::Promote
-            | SocketMessage::PromoteFocus
-            | SocketMessage::StackWindow(_)
-            | SocketMessage::UnstackWindow
-            | SocketMessage::Retile
-            // Adding this one so that changes can be seen instantly after
-            // modifying the active window border offset
-            | SocketMessage::BorderOffset(_)
-            // Adding this one because sometimes EVENT_SYSTEM_FOREGROUND isn't
-            // getting sent on FocusWindow, meaning the border won't be set
-            // when processing events
-            | SocketMessage::FocusWindow(_)
-            | SocketMessage::InvisibleBorders(_)
-            | SocketMessage::WorkAreaOffset(_)
-            | SocketMessage::CycleMoveWindow(_)
-            | SocketMessage::MoveWindow(_)
-            | SocketMessage::CycleFocusMonitor(_)
-            | SocketMessage::CycleFocusWorkspace(_)
-            | SocketMessage::FocusMonitorNumber(_)
-            | SocketMessage::FocusMonitorWorkspaceNumber(_, _)
-            | SocketMessage::FocusWorkspaceNumber(_) => {
-                // The foreground window might be de-activating if we've just
-                // set it as a result of our own actions, so wait until the new
-                // one returns. This particularly happens when switching monitors.
-                //
-                // TODO(raggi): re-evaluate this branch. I checked the
-                // suggestion from the comment above, that we don't get
-                // EVENT_SYSTEM_FOREGROUND, but if I print out trace events I
-                // see that we do.
-                // XXX(raggi) We drop FocusChange events though for windows that
-                // we're not managing, so that's one of the ways that the border
-                // window gets stuck. We should stop overloading `should_manage`
-                // as an event filter, and separately filter events that we want
-                // to handle, and windows that we want to handle, as some events
-                // must be handled even if we're not managing the target window.
-                let mut attempts = 0;
-                let foreground = loop {
-                    match WindowsApi::foreground_window() {
-                        Ok(foreground) => break foreground,
-                        Err(_) => {
-                            std::thread::sleep(std::time::Duration::from_millis(10));
-                            attempts+=1;
-                            if attempts == 10 {
-                                bail!("failed to get foreground window after 100ms")
-                            }
-                        }
-                    };
-                };
-                let foreground_window = Window { hwnd: foreground };
-
-                let monocle = BORDER_COLOUR_MONOCLE.load(Ordering::SeqCst);
-                if monocle != 0 && self.focused_workspace()?.monocle_container().is_some() {
-                    BORDER_COLOUR_CURRENT.store(
-                        monocle,
-                        Ordering::SeqCst,
-                    );
-                }
-
-                // it is not acceptable to fail here; we need to be able to send the event to
-                // subscribers
-                if self.focused_container().is_ok() {
-                    let stack = BORDER_COLOUR_STACK.load(Ordering::SeqCst);
-                    if stack != 0 && self.focused_container()?.windows().len() > 1 {
-                        BORDER_COLOUR_CURRENT
-                            .store(stack, Ordering::SeqCst);
-                    }
-                }
-
-                let border = Border::from(BORDER_HWND.load(Ordering::SeqCst));
-                border.set_position(foreground_window, false)?;
-            }
-            SocketMessage::TogglePause => {
-                let is_paused = self.is_paused;
-                let border = Border::from(BORDER_HWND.load(Ordering::SeqCst));
-
-                if is_paused {
-                    border.hide()?;
-                } else {
-                    let focused = self.focused_window()?;
-                    border.set_position(*focused, true)?;
-                    focused.focus(false)?;
-                }
-            }
-            SocketMessage::ToggleTiling | SocketMessage::WorkspaceTiling(..) => {
-                let tiling_enabled = *self.focused_workspace_mut()?.tile();
-                let border = Border::from(BORDER_HWND.load(Ordering::SeqCst));
-
-                if tiling_enabled {
-                    let focused = self.focused_window()?;
-                    border.set_position(*focused, true)?;
-                    focused.focus(false)?;
-                } else {
-                    border.hide()?;
-                }
-            }
-            _ => {}
+        let notification = Notification {
+            event: NotificationEvent::Socket(message.clone()),
+            state: self.as_ref().into(),
         };
+
+        notify_subscribers(&serde_json::to_string(&notification)?)?;
+        border_manager::event_tx().send(border_manager::Notification)?;
 
         tracing::info!("processed");
         Ok(())
@@ -1594,10 +1395,6 @@ pub fn read_commands_uds(wm: &Arc<Mutex<WindowManager>>, mut stream: UnixStream)
         }
 
         wm.process_command(message.clone(), &mut stream)?;
-        notify_subscribers(&serde_json::to_string(&Notification {
-            event: NotificationEvent::Socket(message.clone()),
-            state: wm.as_ref().into(),
-        })?)?;
     }
 
     Ok(())
@@ -1644,10 +1441,6 @@ pub fn read_commands_tcp(
                 }
 
                 wm.process_command(message.clone(), &mut *stream)?;
-                notify_subscribers(&serde_json::to_string(&Notification {
-                    event: NotificationEvent::Socket(message.clone()),
-                    state: wm.as_ref().into(),
-                })?)?;
             }
         }
     }

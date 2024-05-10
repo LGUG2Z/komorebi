@@ -20,14 +20,14 @@ use komorebi_core::Layout;
 use komorebi_core::OperationDirection;
 use komorebi_core::Rect;
 
+use crate::border_manager::BORDER_OFFSET;
+use crate::border_manager::BORDER_WIDTH;
 use crate::container::Container;
 use crate::ring::Ring;
 use crate::static_config::WorkspaceConfig;
 use crate::window::Window;
 use crate::window::WindowDetails;
 use crate::windows_api::WindowsApi;
-use crate::BORDER_OFFSET;
-use crate::BORDER_WIDTH;
 use crate::DEFAULT_CONTAINER_PADDING;
 use crate::DEFAULT_WORKSPACE_PADDING;
 use crate::INITIAL_CONFIGURATION_LOADED;
