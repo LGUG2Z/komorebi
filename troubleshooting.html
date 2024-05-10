@@ -596,6 +596,13 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#autohotkey-executable-not-found" class="md-nav__link">
+    AutoHotKey executable not found
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#komorebi-is-unresponsive-when-the-display-wakes-from-sleep" class="md-nav__link">
     Komorebi is unresponsive when the display wakes from sleep
   </a>
@@ -4098,6 +4105,13 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#autohotkey-executable-not-found" class="md-nav__link">
+    AutoHotKey executable not found
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#komorebi-is-unresponsive-when-the-display-wakes-from-sleep" class="md-nav__link">
     Komorebi is unresponsive when the display wakes from sleep
   </a>
@@ -4163,6 +4177,18 @@
 
 
 <h1 id="troubleshooting">Troubleshooting</h1>
+<h2 id="autohotkey-executable-not-found">AutoHotKey executable not found</h2>
+<p>If you try to start komorebi with AHK using <code>komorebic start --ahk</code>, and you have
+not installed AHK using <code>scoop</code>, you'll probably receive an error:</p>
+<div class="highlight"><pre><span></span><code>Error: could not find autohotkey, please make sure it is installed before using the --ahk flag
+</code></pre></div>
+<p>Depending on how AHK is installed the executable on your system may have a
+different name. In order to account for this, you may set the <code>KOMOREBI_AHK_EXE</code>
+environment variable in your
+<a href="https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_profiles?view=powershell-7.4">PowerShell profile</a>
+to match the name of the executable as it is found on your system.</p>
+<p>After setting <code>KOMOREBI_AHK_EXE</code> make sure to either reload your PowerShell
+profile or open a new terminal tab.</p>
 <h2 id="komorebi-is-unresponsive-when-the-display-wakes-from-sleep">Komorebi is unresponsive when the display wakes from sleep</h2>
 <p>This can happen in rare cases when your monitor state is not preserved after it
 wakes from sleep.</p>
@@ -4178,8 +4204,8 @@ disrupt how the device is persisted in the <em>komorebi</em> state following sus
 alias by referring to the manufacturer's documentation.</p>
 <div class="admonition warning">
 <p class="admonition-title">Warning</p>
-<p>Disabling VRR within Windows (e.g. <em>Nvidia Control Panel</em>) may work and can indeed 
-change the configuration you see within your monitor's OSD, but some monitors 
+<p>Disabling VRR within Windows (e.g. <em>Nvidia Control Panel</em>) may work and can indeed
+change the configuration you see within your monitor's OSD, but some monitors
 will re-enable the setting regardless following suspension.</p>
 </div>
 <h3 id="reproducing">Reproducing</h3>
@@ -4188,8 +4214,8 @@ normal.</p>
 <p>If <em>komorebi</em> is already unresponsive, then please restart <em>komorebi</em> first by
 running <code>komorebic stop</code> and <code>komorebic start</code>.</p>
 <ol>
-<li>
-<p><strong><code>komorebic state</code></strong></p>
+<li><strong><code>komorebic state</code></strong></li>
+</ol>
 <div class="highlight"><pre><span></span><code><span class="p">{</span>
 <span class="w">  </span><span class="nt">&quot;monitors&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="nt">&quot;elements&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
@@ -4210,29 +4236,31 @@ running <code>komorebic stop</code> and <code>komorebic start</code>.</p>
 <span class="p">}</span>
 </code></pre></div>
 <p>This appears to be fine -- <em>komorebi</em> is aware of the device and associated
-window handles.  </p>
-</li>
-<li>
-<p><strong>Let your display go to sleep.</strong></p>
+   window handles.</p>
+<ol>
+<li><strong>Let your display go to sleep.</strong></li>
+</ol>
 <p>Simply turning the monitor off is not enough to reproduce the problem; you must
-let Windows turn off the display itself.</p>
+   let Windows turn off the display itself.</p>
 <p>To avoid waiting an eternity:</p>
 <ul>
-<li><em>Control Panel</em> -&gt; <em>Hardware and Sound</em> -&gt; <em>Power Options</em> -&gt; <em>Edit Plan
-  Settings</em></li>
-</ul>
+<li>
+<p><em>Control Panel</em> -&gt; <em>Hardware and Sound</em> -&gt; <em>Power Options</em> -&gt; <em>Edit Plan
+     Settings</em></p>
 <p><em>Turn off the display: 1 minute</em></p>
+</li>
+</ul>
 <p>Allow a minute for the display to reset, then once it actually shuts off
-allow for any additional time as prompted by your monitor for the cycle to
-complete.</p>
-</li>
-<li>
-<p><strong>Wake your display again</strong> by pressing any key.</p>
+   allow for any additional time as prompted by your monitor for the cycle to
+   complete.</p>
+<ol>
+<li><strong>Wake your display again</strong> by pressing any key.</li>
+</ol>
 <p><em>komorebi</em> should now be unresponsive.</p>
-</li>
-<li>
-<p><strong><code>komorebic state</code></strong></p>
-<p>Don't stop <em>komorebi</em> just yet. </p>
+<ol>
+<li><strong><code>komorebic state</code></strong></li>
+</ol>
+<p>Don't stop <em>komorebi</em> just yet.</p>
 <p>Since it's unresponsive, you can open another shell instead to execute the above command.</p>
 <div class="highlight"><pre><span></span><code><span class="p">{</span>
 <span class="w">  </span><span class="nt">&quot;monitors&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
@@ -4241,17 +4269,15 @@ complete.</p>
 <span class="w">        </span><span class="nt">&quot;id&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">65537</span><span class="p">,</span>
 <span class="w">        </span><span class="nt">&quot;name&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;DISPLAY1&quot;</span><span class="p">,</span>
 <span class="w">        </span><span class="nt">&quot;device&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">null</span><span class="p">,</span>
-<span class="w">        </span><span class="nt">&quot;device_id&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">null</span><span class="p">,</span>
+<span class="w">        </span><span class="nt">&quot;device_id&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">null</span>
 <span class="w">      </span><span class="p">}</span>
 <span class="w">    </span><span class="p">]</span>
 <span class="w">  </span><span class="p">}</span>
 <span class="p">}</span>
 </code></pre></div>
 <p>We can see the <em>komorebi</em> state is no longer associated with the previous
-device: <code>null</code>, suggesting an issue when the display resumes from a suspended
-state.</p>
-</li>
-</ol>
+   device: <code>null</code>, suggesting an issue when the display resumes from a suspended
+   state.</p>
 
 
 
