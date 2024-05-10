@@ -7,6 +7,7 @@ use crate::window_manager::WindowManager;
 use crate::window_manager_event::WindowManagerEvent;
 use crate::windows_api::WindowsApi;
 use crate::workspace::Workspace;
+use crate::Rgb;
 use crate::ACTIVE_WINDOW_BORDER_STYLE;
 use crate::BORDER_COLOUR_CURRENT;
 use crate::BORDER_COLOUR_MONOCLE;
@@ -475,13 +476,36 @@ impl StaticConfig {
             },
         );
 
+        komoborders_client::send_message(&komoborders_client::SocketMessage::Width(
+            self.border_width.unwrap_or(8),
+        ))?;
+
         BORDER_OFFSET.store(self.border_offset.unwrap_or(-1), Ordering::SeqCst);
+
+        komoborders_client::send_message(&komoborders_client::SocketMessage::Width(
+            self.border_offset.unwrap_or(-1),
+        ))?;
 
         if let Some(colours) = &self.active_window_border_colours {
             BORDER_COLOUR_SINGLE.store(u32::from(colours.single), Ordering::SeqCst);
             BORDER_COLOUR_CURRENT.store(u32::from(colours.single), Ordering::SeqCst);
             BORDER_COLOUR_STACK.store(u32::from(colours.stack), Ordering::SeqCst);
             BORDER_COLOUR_MONOCLE.store(u32::from(colours.monocle), Ordering::SeqCst);
+
+            let single: Rgb = u32::from(colours.single).into();
+            komoborders_client::send_message(&komoborders_client::SocketMessage::FocusedColour(
+                single.r, single.g, single.b,
+            ))?;
+
+            let stack: Rgb = u32::from(colours.stack).into();
+            komoborders_client::send_message(&komoborders_client::SocketMessage::StackColour(
+                stack.r, stack.g, stack.b,
+            ))?;
+
+            let monocle: Rgb = u32::from(colours.monocle).into();
+            komoborders_client::send_message(&komoborders_client::SocketMessage::MonocleColour(
+                monocle.r, monocle.g, monocle.b,
+            ))?;
         }
 
         let active_window_border_style = self.active_window_border_style.unwrap_or_default();

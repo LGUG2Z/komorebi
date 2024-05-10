@@ -124,6 +124,7 @@ use windows::Win32::UI::WindowsAndMessaging::SYSTEM_PARAMETERS_INFO_ACTION;
 use windows::Win32::UI::WindowsAndMessaging::SYSTEM_PARAMETERS_INFO_UPDATE_FLAGS;
 use windows::Win32::UI::WindowsAndMessaging::WINDOW_LONG_PTR_INDEX;
 use windows::Win32::UI::WindowsAndMessaging::WM_CLOSE;
+use windows::Win32::UI::WindowsAndMessaging::WM_DESTROY;
 use windows::Win32::UI::WindowsAndMessaging::WNDCLASSW;
 use windows::Win32::UI::WindowsAndMessaging::WNDENUMPROC;
 use windows::Win32::UI::WindowsAndMessaging::WS_DISABLED;
@@ -414,7 +415,8 @@ impl WindowsApi {
         // top of other pop-up dialogs such as a file picker dialog from
         // Firefox. When adjusting this in the future, it's important to check
         // those dialog cases.
-        Self::set_window_pos(hwnd, layout, HWND_TOP, flags.bits())
+        // TODO: Make the HWND_X flag configurable
+        Self::set_window_pos(hwnd, layout, HWND_BOTTOM, flags.bits())
     }
 
     pub fn hide_border_window(hwnd: HWND) -> Result<()> {
@@ -422,6 +424,11 @@ impl WindowsApi {
 
         let position = HWND_BOTTOM;
         Self::set_window_pos(hwnd, &Rect::default(), position, flags.bits())
+    }
+
+    pub fn set_border_pos(hwnd: HWND, layout: &Rect, position: HWND) -> Result<()> {
+        let flags = { SetWindowPosition::SHOW_WINDOW | SetWindowPosition::NO_ACTIVATE };
+        Self::set_window_pos(hwnd, layout, position, flags.bits())
     }
 
     /// set_window_pos calls SetWindowPos without any accounting for Window decorations.
@@ -456,6 +463,13 @@ impl WindowsApi {
 
     pub fn close_window(hwnd: HWND) -> Result<()> {
         match Self::post_message(hwnd, WM_CLOSE, WPARAM(0), LPARAM(0)) {
+            Ok(()) => Ok(()),
+            Err(_) => Err(anyhow!("could not close window")),
+        }
+    }
+
+    pub fn destroy_window(hwnd: HWND) -> Result<()> {
+        match Self::post_message(hwnd, WM_DESTROY, WPARAM(0), LPARAM(0)) {
             Ok(()) => Ok(()),
             Err(_) => Err(anyhow!("could not close window")),
         }

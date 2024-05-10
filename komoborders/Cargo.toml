@@ -1,0 +1,19 @@
+[package]
+name = "komoborders"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+komorebi-client = { path = "../komorebi-client" }
+komoborders-client = { path = "../komoborders-client" }
+komorebi = { path = "../komorebi" }
+serde_json = "1"
+color-eyre = "0.6"
+windows = { workspace = true }
+lazy_static = "1"
+parking_lot = "0.12"
+uds_windows = { workspace = true }
+serde = { workspace = true }
+dirs = { workspace = true }

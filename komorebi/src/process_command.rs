@@ -1255,12 +1255,21 @@ impl WindowManager {
                     WindowKind::Single => {
                         BORDER_COLOUR_SINGLE.store(Rgb::new(r, g, b).into(), Ordering::SeqCst);
                         BORDER_COLOUR_CURRENT.store(Rgb::new(r, g, b).into(), Ordering::SeqCst);
+                        komoborders_client::send_message(
+                            &komoborders_client::SocketMessage::FocusedColour(r, g, b),
+                        )?;
                     }
                     WindowKind::Stack => {
                         BORDER_COLOUR_STACK.store(Rgb::new(r, g, b).into(), Ordering::SeqCst);
+                        komoborders_client::send_message(
+                            &komoborders_client::SocketMessage::StackColour(r, g, b),
+                        )?;
                     }
                     WindowKind::Monocle => {
                         BORDER_COLOUR_MONOCLE.store(Rgb::new(r, g, b).into(), Ordering::SeqCst);
+                        komoborders_client::send_message(
+                            &komoborders_client::SocketMessage::MonocleColour(r, g, b),
+                        )?;
                     }
                 }
 
@@ -1275,10 +1284,14 @@ impl WindowManager {
             SocketMessage::BorderWidth(width) => {
                 BORDER_WIDTH.store(width, Ordering::SeqCst);
                 WindowsApi::invalidate_border_rect()?;
+                komoborders_client::send_message(&komoborders_client::SocketMessage::Width(width))?;
             }
             SocketMessage::BorderOffset(offset) => {
                 BORDER_OFFSET.store(offset, Ordering::SeqCst);
                 WindowsApi::invalidate_border_rect()?;
+                komoborders_client::send_message(&komoborders_client::SocketMessage::Offset(
+                    offset,
+                ))?;
             }
             SocketMessage::StackbarMode(mode) => {
                 let mut stackbar_mode = STACKBAR_MODE.lock();

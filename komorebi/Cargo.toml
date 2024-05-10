@@ -12,6 +12,7 @@ edition = "2021"
 
 [dependencies]
 komorebi-core = { path = "../komorebi-core" }
+komoborders-client = { path = "../komoborders-client" }
 
 bitflags = { version = "2", features = ["serde"] }
 clap = { version = "4", features = ["derive"] }

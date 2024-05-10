@@ -797,6 +797,33 @@ dependencies = [
 ]
 
 [[package]]
+name = "komoborders"
+version = "0.1.0"
+dependencies = [
+ "color-eyre",
+ "dirs",
+ "komoborders-client",
+ "komorebi",
+ "komorebi-client",
+ "lazy_static",
+ "parking_lot",
+ "serde",
+ "serde_json",
+ "uds_windows",
+ "windows 0.54.0",
+]
+
+[[package]]
+name = "komoborders-client"
+version = "0.1.0"
+dependencies = [
+ "dirs",
+ "serde",
+ "serde_json_lenient",
+ "uds_windows",
+]
+
+[[package]]
 name = "komorebi"
 version = "0.1.26-dev.0"
 dependencies = [
@@ -810,6 +837,7 @@ dependencies = [
  "getset",
  "hex_color",
  "hotwatch",
+ "komoborders-client",
  "komorebi-core",
  "lazy_static",
  "miow",
