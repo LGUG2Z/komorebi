@@ -22,6 +22,7 @@ use crate::window_manager::WindowManager;
 use crate::window_manager_event::WindowManagerEvent;
 use crate::windows_api::WindowsApi;
 use crate::winevent::WinEvent;
+use crate::workspace_reconciliator;
 use crate::Notification;
 use crate::NotificationEvent;
 use crate::DATA_DIR;
@@ -259,74 +260,70 @@ impl WindowManager {
             WindowManagerEvent::Show(_, window)
             | WindowManagerEvent::Manage(window)
             | WindowManagerEvent::Uncloak(_, window) => {
-                let mut switch_to = None;
+                let focused_monitor_idx = self.focused_monitor_idx();
+                let focused_workspace_idx =
+                    self.focused_workspace_idx_for_monitor_idx(focused_monitor_idx)?;
+
+                let focused_pair = (focused_monitor_idx, focused_workspace_idx);
+
+                let mut needs_reconciliation = false;
+
                 for (i, monitors) in self.monitors().iter().enumerate() {
                     for (j, workspace) in monitors.workspaces().iter().enumerate() {
                         if workspace.contains_window(window.hwnd) {
-                            switch_to = Some((i, j));
+                            if focused_pair != (i, j) {
+                                workspace_reconciliator::event_tx().send(
+                                    workspace_reconciliator::Notification {
+                                        monitor_idx: i,
+                                        workspace_idx: j,
+                                    },
+                                )?;
+
+                                needs_reconciliation = true;
+                            }
                         }
                     }
                 }
 
-                match switch_to {
-                    Some((known_monitor_idx, known_workspace_idx)) => {
-                        if !matches!(event, WindowManagerEvent::Uncloak(_, _)) {
-                            if self.focused_monitor_idx() != known_monitor_idx
-                                || self
-                                    .focused_monitor()
-                                    .ok_or_else(|| anyhow!("there is no monitor"))?
-                                    .focused_workspace_idx()
-                                    != known_workspace_idx
-                            {
-                                self.focus_monitor(known_monitor_idx)?;
-                                self.focus_workspace(known_workspace_idx)?;
-                            }
-                        }
-                    }
-                    None => {
-                        // There are some applications such as Firefox where, if they are focused when a
-                        // workspace switch takes place, it will fire an additional Show event, which will
-                        // result in them being associated with both the original workspace and the workspace
-                        // being switched to. This loop is to try to ensure that we don't end up with
-                        // duplicates across multiple workspaces, as it results in ghost layout tiles.
-                        let mut proceed = true;
+                // There are some applications such as Firefox where, if they are focused when a
+                // workspace switch takes place, it will fire an additional Show event, which will
+                // result in them being associated with both the original workspace and the workspace
+                // being switched to. This loop is to try to ensure that we don't end up with
+                // duplicates across multiple workspaces, as it results in ghost layout tiles.
+                let mut proceed = true;
 
-                        for (i, monitor) in self.monitors().iter().enumerate() {
-                            for (j, workspace) in monitor.workspaces().iter().enumerate() {
-                                if workspace.container_for_window(window.hwnd).is_some()
-                                    && i != self.focused_monitor_idx()
-                                    && j != monitor.focused_workspace_idx()
-                                {
-                                    tracing::debug!(
+                for (i, monitor) in self.monitors().iter().enumerate() {
+                    for (j, workspace) in monitor.workspaces().iter().enumerate() {
+                        if workspace.container_for_window(window.hwnd).is_some()
+                            && i != self.focused_monitor_idx()
+                            && j != monitor.focused_workspace_idx()
+                        {
+                            tracing::debug!(
                                 "ignoring show event for window already associated with another workspace"
                             );
 
-                                    window.hide();
-                                    proceed = false;
-                                }
-                            }
+                            window.hide();
+                            proceed = false;
                         }
+                    }
+                }
 
-                        if proceed {
-                            let behaviour = self.window_container_behaviour;
-                            let workspace = self.focused_workspace_mut()?;
+                if proceed {
+                    let behaviour = self.window_container_behaviour;
+                    let workspace = self.focused_workspace_mut()?;
 
-                            if !workspace.contains_window(window.hwnd) && switch_to.is_none() {
-                                match behaviour {
-                                    WindowContainerBehaviour::Create => {
-                                        workspace.new_container_for_window(window);
-                                        self.update_focused_workspace(false, false)?;
-                                    }
-                                    WindowContainerBehaviour::Append => {
-                                        workspace
-                                            .focused_container_mut()
-                                            .ok_or_else(|| {
-                                                anyhow!("there is no focused container")
-                                            })?
-                                            .add_window(window);
-                                        self.update_focused_workspace(true, false)?;
-                                    }
-                                }
+                    if !workspace.contains_window(window.hwnd) && !needs_reconciliation {
+                        match behaviour {
+                            WindowContainerBehaviour::Create => {
+                                workspace.new_container_for_window(window);
+                                self.update_focused_workspace(false, false)?;
+                            }
+                            WindowContainerBehaviour::Append => {
+                                workspace
+                                    .focused_container_mut()
+                                    .ok_or_else(|| anyhow!("there is no focused container"))?
+                                    .add_window(window);
+                                self.update_focused_workspace(true, false)?;
                             }
                         }
                     }

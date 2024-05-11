@@ -34,6 +34,7 @@ use komorebi::static_config::StaticConfig;
 use komorebi::window_manager::WindowManager;
 use komorebi::windows_api::WindowsApi;
 use komorebi::winevent_listener;
+use komorebi::workspace_reconciliator;
 use komorebi::CUSTOM_FFM;
 use komorebi::DATA_DIR;
 use komorebi::HOME_DIR;
@@ -255,6 +256,7 @@ fn main() -> Result<()> {
     }
 
     border_manager::listen_for_notifications(wm.clone());
+    workspace_reconciliator::listen_for_notifications(wm.clone());
 
     let (ctrlc_sender, ctrlc_receiver) = crossbeam_channel::bounded(1);
     ctrlc::set_handler(move || {
