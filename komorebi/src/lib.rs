@@ -21,6 +21,7 @@ pub mod windows_callbacks;
 pub mod winevent;
 pub mod winevent_listener;
 pub mod workspace;
+pub mod workspace_reconciliator;
 
 use lazy_static::lazy_static;
 use std::collections::HashMap;
