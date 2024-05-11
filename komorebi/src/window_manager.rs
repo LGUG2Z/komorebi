@@ -1366,6 +1366,8 @@ impl WindowManager {
                             anyhow!("could not remove container at given origin index")
                         })?;
 
+                    self.focused_workspace_mut()?.focus_previous_container();
+
                     // focus the target monitor
                     self.focus_monitor(target_monitor_idx)?;
 

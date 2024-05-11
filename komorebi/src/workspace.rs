@@ -1376,7 +1376,7 @@ impl Workspace {
         vec
     }
 
-    fn focus_previous_container(&mut self) {
+    pub fn focus_previous_container(&mut self) {
         let focused_idx = self.focused_container_idx();
 
         if focused_idx != 0 {
