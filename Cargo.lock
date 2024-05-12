@@ -834,6 +834,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7655c9839580ee829dfacba1d1278c2b7883e50a277ff7541299489d6bdfdc45"
 
 [[package]]
+name = "itertools"
+version = "0.12.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ba291022dbbd398a455acf126c1e341954079855bc60dfdda641363bd6922569"
+dependencies = [
+ "either",
+]
+
+[[package]]
 name = "itoa"
 version = "1.0.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -882,6 +891,7 @@ dependencies = [
  "uds_windows",
  "which",
  "widestring",
+ "win32-display-data",
  "windows 0.54.0",
  "windows-implement",
  "windows-interface",
@@ -2464,6 +2474,16 @@ name = "widestring"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7219d36b6eac893fa81e84ebe06485e7dcbb616177469b142df14f1f4deb1311"
+
+[[package]]
+name = "win32-display-data"
+version = "0.1.0"
+source = "git+https://github.com/LGUG2Z/win32-display-data#2c47b9f1ca1f359ba2481d0b6ea8667ccd9d075c"
+dependencies = [
+ "itertools",
+ "thiserror",
+ "windows 0.54.0",
+]
 
 [[package]]
 name = "winapi"

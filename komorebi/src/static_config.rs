@@ -5,6 +5,7 @@ use crate::border_manager::Z_ORDER;
 use crate::colour::Colour;
 use crate::current_virtual_desktop;
 use crate::monitor::Monitor;
+use crate::monitor_reconciliator;
 use crate::ring::Ring;
 use crate::window_manager::WindowManager;
 use crate::window_manager_event::WindowManagerEvent;
@@ -82,7 +83,7 @@ pub struct BorderColours {
     pub unfocused: Option<Colour>,
 }
 
-#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct WorkspaceConfig {
     /// Name
     pub name: String,
@@ -196,7 +197,7 @@ impl From<&Workspace> for WorkspaceConfig {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct MonitorConfig {
     /// Workspace configurations
     pub workspaces: Vec<WorkspaceConfig>,
@@ -648,7 +649,6 @@ impl StaticConfig {
 
         let mut wm = WindowManager {
             monitors: Ring::default(),
-            monitor_cache: HashMap::new(),
             incoming_events: incoming,
             command_listener: listener,
             is_paused: false,
@@ -706,6 +706,13 @@ impl StaticConfig {
 
         if let Some(monitors) = value.monitors {
             for (i, monitor) in monitors.iter().enumerate() {
+                {
+                    let display_index_preferences = DISPLAY_INDEX_PREFERENCES.lock();
+                    if let Some(device_id) = display_index_preferences.get(&i) {
+                        monitor_reconciliator::insert_in_monitor_cache(device_id, monitor.clone());
+                    }
+                }
+
                 if let Some(m) = wm.monitors_mut().get_mut(i) {
                     m.ensure_workspace_count(monitor.workspaces.len());
                     m.set_work_area_offset(monitor.work_area_offset);

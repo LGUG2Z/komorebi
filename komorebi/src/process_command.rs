@@ -774,13 +774,10 @@ impl WindowManager {
             SocketMessage::VisibleWindows => {
                 let mut monitor_visible_windows = HashMap::new();
 
-                for (index, monitor) in self.monitors().iter().enumerate() {
+                for monitor in self.monitors() {
                     if let Some(ws) = monitor.focused_workspace() {
                         monitor_visible_windows.insert(
-                            monitor
-                                .device_id()
-                                .clone()
-                                .unwrap_or_else(|| format!("{index}")),
+                            monitor.device_id().clone(),
                             ws.visible_window_details().clone(),
                         );
                     }
