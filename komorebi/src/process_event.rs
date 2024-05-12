@@ -74,7 +74,7 @@ impl WindowManager {
 
         // All event handlers below this point should only be processed if the event is
         // related to a window that should be managed by the WindowManager.
-        if !should_manage && !matches!(event, WindowManagerEvent::DisplayChange(_)) {
+        if !should_manage {
             return Ok(());
         }
 
@@ -94,31 +94,29 @@ impl WindowManager {
         match event {
             WindowManagerEvent::FocusChange(_, window)
             | WindowManagerEvent::Show(_, window)
-            | WindowManagerEvent::DisplayChange(window)
             | WindowManagerEvent::MoveResizeEnd(_, window) => {
-                self.reconcile_monitors()?;
-
-                let monitor_idx = self.monitor_idx_from_window(window)
-                    .ok_or_else(|| anyhow!("there is no monitor associated with this window, it may have already been destroyed"))?;
-
-                // This is a hidden window apparently associated with COM support mechanisms (based
-                // on a post from http://www.databaseteam.org/1-ms-sql-server/a5bb344836fb889c.htm)
-                //
-                // The hidden window, OLEChannelWnd, associated with this class (spawned by
-                // explorer.exe), after some debugging, is observed to always be tied to the primary
-                // display monitor, or (usually) monitor 0 in the WindowManager state.
-                //
-                // Due to this, at least one user in the Discord has witnessed behaviour where, when
-                // a MonitorPoll event is triggered by OLEChannelWnd, the focused monitor index gets
-                // set repeatedly to 0, regardless of where the current foreground window is actually
-                // located.
-                //
-                // This check ensures that we only update the focused monitor when the window
-                // triggering monitor reconciliation is known to not be tied to a specific monitor.
-                if window.class()? != "OleMainThreadWndClass"
-                    && self.focused_monitor_idx() != monitor_idx
-                {
-                    self.focus_monitor(monitor_idx)?;
+                if let Some(monitor_idx) = self.monitor_idx_from_window(window) {
+                    // This is a hidden window apparently associated with COM support mechanisms (based
+                    // on a post from http://www.databaseteam.org/1-ms-sql-server/a5bb344836fb889c.htm)
+                    //
+                    // The hidden window, OLEChannelWnd, associated with this class (spawned by
+                    // explorer.exe), after some debugging, is observed to always be tied to the primary
+                    // display monitor, or (usually) monitor 0 in the WindowManager state.
+                    //
+                    // Due to this, at least one user in the Discord has witnessed behaviour where, when
+                    // a MonitorPoll event is triggered by OLEChannelWnd, the focused monitor index gets
+                    // set repeatedly to 0, regardless of where the current foreground window is actually
+                    // located.
+                    //
+                    // This check ensures that we only update the focused monitor when the window
+                    // triggering monitor reconciliation is known to not be tied to a specific monitor.
+                    if let Ok(class) = window.class() {
+                        if class != "OleMainThreadWndClass"
+                            && self.focused_monitor_idx() != monitor_idx
+                        {
+                            self.focus_monitor(monitor_idx)?;
+                        }
+                    }
                 }
             }
             _ => {}
@@ -606,9 +604,7 @@ impl WindowManager {
             WindowManagerEvent::ForceUpdate(_) => {
                 self.update_focused_workspace(false, true)?;
             }
-            WindowManagerEvent::DisplayChange(..)
-            | WindowManagerEvent::MouseCapture(..)
-            | WindowManagerEvent::Cloak(..) => {}
+            WindowManagerEvent::MouseCapture(..) | WindowManagerEvent::Cloak(..) => {}
         };
 
         // If we unmanaged a window, it shouldn't be immediately hidden behind managed windows

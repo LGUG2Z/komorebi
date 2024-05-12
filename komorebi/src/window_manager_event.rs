@@ -27,7 +27,6 @@ pub enum WindowManagerEvent {
     Manage(Window),
     Unmanage(Window),
     Raise(Window),
-    DisplayChange(Window),
     ForceUpdate(Window),
 }
 
@@ -76,9 +75,6 @@ impl Display for WindowManagerEvent {
             Self::Raise(window) => {
                 write!(f, "Raise (Window: {window})")
             }
-            Self::DisplayChange(window) => {
-                write!(f, "DisplayChange (Window: {window})")
-            }
             Self::ForceUpdate(window) => {
                 write!(f, "ForceUpdate (Window: {window})")
             }
@@ -101,7 +97,6 @@ impl WindowManagerEvent {
             | Self::MouseCapture(_, window)
             | Self::Raise(window)
             | Self::Manage(window)
-            | Self::DisplayChange(window)
             | Self::Unmanage(window)
             | Self::ForceUpdate(window) => window,
         }

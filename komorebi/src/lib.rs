@@ -4,8 +4,8 @@ pub mod com;
 pub mod ring;
 pub mod colour;
 pub mod container;
-pub mod hidden;
 pub mod monitor;
+pub mod monitor_reconciliator;
 pub mod process_command;
 pub mod process_event;
 pub mod process_movement;
@@ -33,13 +33,11 @@ use std::path::PathBuf;
 use std::process::Command;
 use std::sync::atomic::AtomicBool;
 use std::sync::atomic::AtomicI32;
-use std::sync::atomic::AtomicIsize;
 use std::sync::atomic::AtomicU32;
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
 
 pub use colour::*;
-pub use hidden::*;
 pub use process_command::*;
 pub use process_event::*;
 pub use stackbar::*;
@@ -216,8 +214,6 @@ pub static CUSTOM_FFM: AtomicBool = AtomicBool::new(false);
 pub static SESSION_ID: AtomicU32 = AtomicU32::new(0);
 
 pub static REMOVE_TITLEBARS: AtomicBool = AtomicBool::new(false);
-
-pub static HIDDEN_HWND: AtomicIsize = AtomicIsize::new(0);
 
 pub static STACKBAR_FOCUSED_TEXT_COLOUR: AtomicU32 = AtomicU32::new(16777215); // white
 pub static STACKBAR_UNFOCUSED_TEXT_COLOUR: AtomicU32 = AtomicU32::new(11776947); // gray text
