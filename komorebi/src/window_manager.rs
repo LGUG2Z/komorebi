@@ -1273,6 +1273,11 @@ impl WindowManager {
 
         let workspace = self.focused_workspace()?;
 
+        // Do not proceed if we have a monocle container or maximized window
+        if workspace.monocle_container().is_some() || workspace.maximized_window().is_some() {
+            return Ok(());
+        }
+
         tracing::info!("focusing container");
 
         let new_idx = workspace.new_idx_for_direction(direction);
