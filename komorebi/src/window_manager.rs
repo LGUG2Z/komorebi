@@ -2317,6 +2317,13 @@ impl WindowManager {
         None
     }
 
+    pub fn focused_workspace_idx(&self) -> Result<usize> {
+        Ok(self
+            .focused_monitor()
+            .ok_or_else(|| anyhow!("there is no monitor"))?
+            .focused_workspace_idx())
+    }
+
     pub fn focused_workspace(&self) -> Result<&Workspace> {
         self.focused_monitor()
             .ok_or_else(|| anyhow!("there is no monitor"))?
