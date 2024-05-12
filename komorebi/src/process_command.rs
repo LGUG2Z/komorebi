@@ -650,7 +650,9 @@ impl WindowManager {
                     self.focus_monitor(monitor_idx)?;
                 }
 
-                self.focus_workspace(workspace_idx)?;
+                if self.focused_workspace_idx().unwrap_or_default() != workspace_idx {
+                    self.focus_workspace(workspace_idx)?;
+                }
             }
             SocketMessage::FocusWorkspaceNumbers(workspace_idx) => {
                 // This is to ensure that even on an empty workspace on a secondary monitor, the
@@ -672,8 +674,15 @@ impl WindowManager {
                 self.focus_workspace(workspace_idx)?;
             }
             SocketMessage::FocusMonitorWorkspaceNumber(monitor_idx, workspace_idx) => {
-                self.focus_monitor(monitor_idx)?;
-                self.focus_workspace(workspace_idx)?;
+                let focused_monitor_idx = self.focused_monitor_idx();
+                let focused_workspace_idx = self.focused_workspace_idx().unwrap_or_default();
+
+                let focused_pair = (focused_monitor_idx, focused_workspace_idx);
+
+                if focused_pair != (monitor_idx, workspace_idx) {
+                    self.focus_monitor(monitor_idx)?;
+                    self.focus_workspace(workspace_idx)?;
+                }
             }
             SocketMessage::FocusNamedWorkspace(ref name) => {
                 if let Some((monitor_idx, workspace_idx)) =
