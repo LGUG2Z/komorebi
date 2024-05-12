@@ -19,6 +19,7 @@ use std::sync::atomic::Ordering;
 use std::sync::mpsc;
 use std::time::Duration;
 use windows::core::PCWSTR;
+use windows::Win32::Foundation::BOOL;
 use windows::Win32::Foundation::COLORREF;
 use windows::Win32::Foundation::HWND;
 use windows::Win32::Foundation::LPARAM;
@@ -47,8 +48,26 @@ use windows::Win32::UI::WindowsAndMessaging::WM_DESTROY;
 use windows::Win32::UI::WindowsAndMessaging::WM_PAINT;
 use windows::Win32::UI::WindowsAndMessaging::WNDCLASSW;
 
+pub extern "system" fn border_hwnds(hwnd: HWND, lparam: LPARAM) -> BOOL {
+    let hwnds = unsafe { &mut *(lparam.0 as *mut Vec<isize>) };
+
+    if let Ok(class) = WindowsApi::real_window_class_w(hwnd) {
+        if class.starts_with("komoborder") {
+            hwnds.push(hwnd.0);
+        }
+    }
+
+    true.into()
+}
+
 pub struct Border {
     pub hwnd: isize,
+}
+
+impl From<isize> for Border {
+    fn from(value: isize) -> Self {
+        Self { hwnd: value }
+    }
 }
 
 impl Border {
