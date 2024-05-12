@@ -283,6 +283,8 @@ pub enum MoveBehaviour {
     Swap,
     /// Insert the window container into the focused workspace on the adjacent monitor
     Insert,
+    /// Do nothing if trying to move a window container in the direction of an adjacent monitor
+    NoOp,
 }
 
 #[derive(

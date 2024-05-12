@@ -1187,6 +1187,7 @@ impl WindowManager {
                     MoveBehaviour::Insert => {
                         self.cross_monitor_move_behaviour = MoveBehaviour::Swap;
                     }
+                    _ => {}
                 }
             }
             SocketMessage::CrossMonitorMoveBehaviour(behaviour) => {

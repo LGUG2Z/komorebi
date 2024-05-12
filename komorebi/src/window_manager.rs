@@ -1338,6 +1338,11 @@ impl WindowManager {
             // If there is nowhere to move on the current workspace, try to move it onto the monitor
             // in that direction if there is one
             None => {
+                // Don't do anything if the user has set the MoveBehaviour to NoOp
+                if matches!(self.cross_monitor_move_behaviour, MoveBehaviour::NoOp) {
+                    return Ok(());
+                }
+
                 let target_monitor_idx = self
                     .monitor_idx_in_direction(direction)
                     .ok_or_else(|| anyhow!("there is no container or monitor in this direction"))?;
