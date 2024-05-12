@@ -22,6 +22,7 @@ use crate::Rect;
 use crate::Rgb;
 use crate::WindowManager;
 use crate::WindowsApi;
+use border::border_hwnds;
 use border::Border;
 use komorebi_core::WindowKind;
 
@@ -76,6 +77,17 @@ pub fn destroy_all_borders() -> color_eyre::Result<()> {
     RECT_STATE.lock().clear();
     BORDERS_MONITORS.lock().clear();
     FOCUS_STATE.lock().clear();
+
+    let mut remaining_hwnds = vec![];
+
+    WindowsApi::enum_windows(
+        Some(border_hwnds),
+        &mut remaining_hwnds as *mut Vec<isize> as isize,
+    )?;
+
+    for hwnd in remaining_hwnds {
+        Border::from(hwnd).destroy()?;
+    }
 
     Ok(())
 }
