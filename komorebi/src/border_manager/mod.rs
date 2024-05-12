@@ -206,11 +206,9 @@ pub fn listen_for_notifications(wm: Arc<Mutex<WindowManager>>) {
 
                     let mut to_remove = vec![];
                     for (id, border) in borders.iter() {
-                        if borders_monitors.get(id).copied().unwrap_or_default() == monitor_idx {
-                            if !container_ids.contains(id) {
-                                border.destroy()?;
-                                to_remove.push(id.clone());
-                            }
+                        if borders_monitors.get(id).copied().unwrap_or_default() == monitor_idx && !container_ids.contains(id) {
+                            border.destroy()?;
+                            to_remove.push(id.clone());
                         }
                     }
 
@@ -268,12 +266,10 @@ pub fn listen_for_notifications(wm: Arc<Mutex<WindowManager>>) {
                                     || monitor_idx != focused_monitor_idx
                                 {
                                     WindowKind::Unfocused
+                                } else if c.windows().len() > 1 {
+                                    WindowKind::Stack
                                 } else {
-                                    if c.windows().len() > 1 {
-                                        WindowKind::Stack
-                                    } else {
-                                        WindowKind::Single
-                                    }
+                                    WindowKind::Single
                                 },
                             );
                         }
@@ -302,9 +298,9 @@ pub enum ZOrder {
     TopMost,
 }
 
-impl Into<isize> for ZOrder {
-    fn into(self) -> isize {
-        match self {
+impl From<ZOrder> for isize {
+    fn from(val: ZOrder) -> Self {
+        match val {
             ZOrder::Top => 0,
             ZOrder::NoTopMost => -2,
             ZOrder::Bottom => 1,

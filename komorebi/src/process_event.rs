@@ -270,17 +270,15 @@ impl WindowManager {
 
                 for (i, monitors) in self.monitors().iter().enumerate() {
                     for (j, workspace) in monitors.workspaces().iter().enumerate() {
-                        if workspace.contains_window(window.hwnd) {
-                            if focused_pair != (i, j) {
-                                workspace_reconciliator::event_tx().send(
-                                    workspace_reconciliator::Notification {
-                                        monitor_idx: i,
-                                        workspace_idx: j,
-                                    },
-                                )?;
+                        if workspace.contains_window(window.hwnd) && focused_pair != (i, j) {
+                            workspace_reconciliator::event_tx().send(
+                                workspace_reconciliator::Notification {
+                                    monitor_idx: i,
+                                    workspace_idx: j,
+                                },
+                            )?;
 
-                                needs_reconciliation = true;
-                            }
+                            needs_reconciliation = true;
                         }
                     }
                 }

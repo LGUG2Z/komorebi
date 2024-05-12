@@ -26,7 +26,7 @@ pub trait Arrangement {
 }
 
 impl Arrangement for DefaultLayout {
-    #[allow(clippy::too_many_lines)]
+    #[allow(clippy::too_many_lines, clippy::cognitive_complexity)]
     fn calculate(
         &self,
         area: &Rect,
@@ -58,12 +58,13 @@ impl Arrangement for DefaultLayout {
                         layout.right += adjustment.right;
                     });
 
-                match layout_flip {
-                    Some(Axis::Horizontal | Axis::HorizontalAndVertical) => match len {
-                        2.. => columns_reverse(&mut layouts),
-                        _ => {}
-                    },
-                    _ => {}
+                if matches!(
+                    layout_flip,
+                    Some(Axis::Horizontal | Axis::HorizontalAndVertical)
+                ) {
+                    if let 2.. = len {
+                        columns_reverse(&mut layouts);
+                    }
                 }
 
                 layouts
@@ -82,12 +83,13 @@ impl Arrangement for DefaultLayout {
                         layout.right += adjustment.right;
                     });
 
-                match layout_flip {
-                    Some(Axis::Vertical | Axis::HorizontalAndVertical) => match len {
-                        2.. => rows_reverse(&mut layouts),
-                        _ => {}
-                    },
-                    _ => {}
+                if matches!(
+                    layout_flip,
+                    Some(Axis::Vertical | Axis::HorizontalAndVertical)
+                ) {
+                    if let 2.. = len {
+                        rows_reverse(&mut layouts);
+                    }
                 }
 
                 layouts
@@ -135,28 +137,28 @@ impl Arrangement for DefaultLayout {
                         layout.right += adjustment.right;
                     });
 
-                match layout_flip {
-                    Some(Axis::Horizontal | Axis::HorizontalAndVertical) => match len {
-                        2.. => {
-                            let (primary, rest) = layouts.split_at_mut(1);
-                            let primary = &mut primary[0];
+                if matches!(
+                    layout_flip,
+                    Some(Axis::Horizontal | Axis::HorizontalAndVertical)
+                ) {
+                    if let 2.. = len {
+                        let (primary, rest) = layouts.split_at_mut(1);
+                        let primary = &mut primary[0];
 
-                            for rect in rest.iter_mut() {
-                                rect.left = primary.left;
-                            }
-                            primary.left = rest[0].left + rest[0].right;
+                        for rect in rest.iter_mut() {
+                            rect.left = primary.left;
                         }
-                        _ => {}
-                    },
-                    _ => {}
+                        primary.left = rest[0].left + rest[0].right;
+                    }
                 }
 
-                match layout_flip {
-                    Some(Axis::Vertical | Axis::HorizontalAndVertical) => match len {
-                        3.. => rows_reverse(&mut layouts[1..]),
-                        _ => {}
-                    },
-                    _ => {}
+                if matches!(
+                    layout_flip,
+                    Some(Axis::Vertical | Axis::HorizontalAndVertical)
+                ) {
+                    if let 3.. = len {
+                        rows_reverse(&mut layouts[1..]);
+                    }
                 }
 
                 layouts
@@ -207,28 +209,28 @@ impl Arrangement for DefaultLayout {
                         layout.right += adjustment.right;
                     });
 
-                match layout_flip {
-                    Some(Axis::Horizontal | Axis::HorizontalAndVertical) => match len {
-                        2.. => {
-                            let (primary, rest) = layouts.split_at_mut(1);
-                            let primary = &mut primary[0];
+                if matches!(
+                    layout_flip,
+                    Some(Axis::Horizontal | Axis::HorizontalAndVertical)
+                ) {
+                    if let 2.. = len {
+                        let (primary, rest) = layouts.split_at_mut(1);
+                        let primary = &mut primary[0];
 
-                            primary.left = rest[0].left;
-                            for rect in rest.iter_mut() {
-                                rect.left = primary.left + primary.right;
-                            }
+                        primary.left = rest[0].left;
+                        for rect in rest.iter_mut() {
+                            rect.left = primary.left + primary.right;
                         }
-                        _ => {}
-                    },
-                    _ => {}
+                    }
                 }
 
-                match layout_flip {
-                    Some(Axis::Vertical | Axis::HorizontalAndVertical) => match len {
-                        3.. => rows_reverse(&mut layouts[1..]),
-                        _ => {}
-                    },
-                    _ => {}
+                if matches!(
+                    layout_flip,
+                    Some(Axis::Vertical | Axis::HorizontalAndVertical)
+                ) {
+                    if let 3.. = len {
+                        rows_reverse(&mut layouts[1..]);
+                    }
                 }
 
                 layouts
@@ -276,28 +278,28 @@ impl Arrangement for DefaultLayout {
                         layout.right += adjustment.right;
                     });
 
-                match layout_flip {
-                    Some(Axis::Vertical | Axis::HorizontalAndVertical) => match len {
-                        2.. => {
-                            let (primary, rest) = layouts.split_at_mut(1);
-                            let primary = &mut primary[0];
+                if matches!(
+                    layout_flip,
+                    Some(Axis::Vertical | Axis::HorizontalAndVertical)
+                ) {
+                    if let 2.. = len {
+                        let (primary, rest) = layouts.split_at_mut(1);
+                        let primary = &mut primary[0];
 
-                            for rect in rest.iter_mut() {
-                                rect.top = primary.top;
-                            }
-                            primary.top = rest[0].top + rest[0].bottom;
+                        for rect in rest.iter_mut() {
+                            rect.top = primary.top;
                         }
-                        _ => {}
-                    },
-                    _ => {}
+                        primary.top = rest[0].top + rest[0].bottom;
+                    }
                 }
 
-                match layout_flip {
-                    Some(Axis::Horizontal | Axis::HorizontalAndVertical) => match len {
-                        3.. => columns_reverse(&mut layouts[1..]),
-                        _ => {}
-                    },
-                    _ => {}
+                if matches!(
+                    layout_flip,
+                    Some(Axis::Horizontal | Axis::HorizontalAndVertical)
+                ) {
+                    if let 3.. = len {
+                        columns_reverse(&mut layouts[1..]);
+                    }
                 }
 
                 layouts
@@ -374,8 +376,11 @@ impl Arrangement for DefaultLayout {
                         layout.right += adjustment.right;
                     });
 
-                match layout_flip {
-                    Some(Axis::Horizontal | Axis::HorizontalAndVertical) => match len {
+                if matches!(
+                    layout_flip,
+                    Some(Axis::Horizontal | Axis::HorizontalAndVertical)
+                ) {
+                    match len {
                         2 => {
                             let (primary, secondary) = layouts.split_at_mut(1);
                             let primary = &mut primary[0];
@@ -397,20 +402,20 @@ impl Arrangement for DefaultLayout {
                             secondary.left = primary.left + primary.right;
                         }
                         _ => {}
-                    },
-                    _ => {}
+                    }
                 }
 
-                match layout_flip {
-                    Some(Axis::Vertical | Axis::HorizontalAndVertical) => match len {
-                        4.. => rows_reverse(&mut layouts[2..]),
-                        _ => {}
-                    },
-                    _ => {}
+                if matches!(
+                    layout_flip,
+                    Some(Axis::Vertical | Axis::HorizontalAndVertical)
+                ) {
+                    if let 4.. = len {
+                        rows_reverse(&mut layouts[2..]);
+                    }
                 }
 
                 layouts
-            },
+            }
             #[allow(
                 clippy::cast_precision_loss,
                 clippy::cast_possible_truncation,
