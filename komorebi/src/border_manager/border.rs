@@ -132,8 +132,10 @@ impl Border {
             rects.insert(self.hwnd, rect);
         }
 
-        // Update the position of the border
-        WindowsApi::set_border_pos(self.hwnd(), &rect, HWND((*Z_ORDER.lock()).into()))?;
+        // Update the position of the border if required
+        if !WindowsApi::window_rect(self.hwnd())?.eq(&rect) {
+            WindowsApi::set_border_pos(self.hwnd(), &rect, HWND((*Z_ORDER.lock()).into()))?;
+        }
 
         // Invalidate the rect to trigger the callback to update colours etc.
         self.invalidate();

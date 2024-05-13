@@ -139,6 +139,10 @@ impl Window {
     }
 
     pub fn set_position(&self, layout: &Rect, top: bool) -> Result<()> {
+        if WindowsApi::window_rect(self.hwnd())?.eq(layout) {
+            return Ok(());
+        }
+
         let rect = *layout;
         WindowsApi::position_window(self.hwnd(), &rect, top)
     }
