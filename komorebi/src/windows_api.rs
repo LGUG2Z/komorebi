@@ -121,7 +121,6 @@ use windows::Win32::UI::WindowsAndMessaging::SYSTEM_PARAMETERS_INFO_ACTION;
 use windows::Win32::UI::WindowsAndMessaging::SYSTEM_PARAMETERS_INFO_UPDATE_FLAGS;
 use windows::Win32::UI::WindowsAndMessaging::WINDOW_LONG_PTR_INDEX;
 use windows::Win32::UI::WindowsAndMessaging::WM_CLOSE;
-use windows::Win32::UI::WindowsAndMessaging::WM_DESTROY;
 use windows::Win32::UI::WindowsAndMessaging::WNDCLASSW;
 use windows::Win32::UI::WindowsAndMessaging::WNDENUMPROC;
 use windows::Win32::UI::WindowsAndMessaging::WS_DISABLED;
@@ -428,13 +427,6 @@ impl WindowsApi {
 
     pub fn close_window(hwnd: HWND) -> Result<()> {
         match Self::post_message(hwnd, WM_CLOSE, WPARAM(0), LPARAM(0)) {
-            Ok(()) => Ok(()),
-            Err(_) => Err(anyhow!("could not close window")),
-        }
-    }
-
-    pub fn destroy_window(hwnd: HWND) -> Result<()> {
-        match Self::post_message(hwnd, WM_DESTROY, WPARAM(0), LPARAM(0)) {
             Ok(()) => Ok(()),
             Err(_) => Err(anyhow!("could not close window")),
         }
