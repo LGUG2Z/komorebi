@@ -201,6 +201,9 @@ pub struct MonitorConfig {
     /// Monitor-specific work area offset (default: None)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub work_area_offset: Option<Rect>,
+    /// Single window work area offset (default: None)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub single_window_work_area_offset: Option<Rect>,
 }
 
 impl From<&Monitor> for MonitorConfig {
@@ -213,6 +216,7 @@ impl From<&Monitor> for MonitorConfig {
         Self {
             workspaces,
             work_area_offset: value.work_area_offset(),
+            single_window_work_area_offset: value.single_window_work_area_offset(),
         }
     }
 }
@@ -694,6 +698,7 @@ impl StaticConfig {
                 if let Some(m) = wm.monitors_mut().get_mut(i) {
                     m.ensure_workspace_count(monitor.workspaces.len());
                     m.set_work_area_offset(monitor.work_area_offset);
+                    m.set_single_window_work_area_offset(monitor.single_window_work_area_offset);
 
                     for (j, ws) in m.workspaces_mut().iter_mut().enumerate() {
                         ws.load_static_config(
@@ -749,6 +754,7 @@ impl StaticConfig {
                 if let Some(m) = wm.monitors_mut().get_mut(i) {
                     m.ensure_workspace_count(monitor.workspaces.len());
                     m.set_work_area_offset(monitor.work_area_offset);
+                    m.set_single_window_work_area_offset(monitor.single_window_work_area_offset);
 
                     for (j, ws) in m.workspaces_mut().iter_mut().enumerate() {
                         ws.load_static_config(

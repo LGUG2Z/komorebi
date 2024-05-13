@@ -36,6 +36,8 @@ pub struct Monitor {
     work_area_size: Rect,
     #[getset(get_copy = "pub", set = "pub")]
     work_area_offset: Option<Rect>,
+    #[getset(get_copy = "pub", set = "pub")]
+    single_window_work_area_offset: Option<Rect>,
     workspaces: Ring<Workspace>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[getset(get_copy = "pub", set = "pub")]
@@ -58,6 +60,7 @@ pub fn new(id: isize, size: Rect, work_area_size: Rect, name: String) -> Monitor
         size,
         work_area_size,
         work_area_offset: None,
+        single_window_work_area_offset: None,
         workspaces,
         last_focused_workspace: None,
         workspace_names: HashMap::default(),
@@ -194,6 +197,7 @@ impl Monitor {
 
     pub fn update_focused_workspace(&mut self, offset: Option<Rect>) -> Result<()> {
         let work_area = *self.work_area_size();
+        let single_window_work_area_offset = self.single_window_work_area_offset();
         let offset = if self.work_area_offset().is_some() {
             self.work_area_offset()
         } else {
@@ -202,7 +206,7 @@ impl Monitor {
 
         self.focused_workspace_mut()
             .ok_or_else(|| anyhow!("there is no workspace"))?
-            .update(&work_area, offset)?;
+            .update(&work_area, offset, single_window_work_area_offset)?;
 
         Ok(())
     }
