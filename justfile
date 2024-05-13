@@ -28,7 +28,6 @@ install:
     just install-target komorebi
 
 run:
-    just install-target komorebic
     cargo +stable run --bin komorebi --locked
 
 warn $RUST_LOG="warn":
@@ -44,7 +43,6 @@ trace $RUST_LOG="trace":
     just run
 
 deadlock $RUST_LOG="trace":
-    just install-komorebic
     cargo +stable run --bin komorebi --locked --features deadlock_detection
 
 docgen:

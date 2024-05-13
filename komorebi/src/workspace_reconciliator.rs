@@ -1,16 +1,27 @@
 #![deny(clippy::unwrap_used, clippy::expect_used)]
 
+use crate::border_manager;
 use crate::WindowManager;
 use crossbeam_channel::Receiver;
 use crossbeam_channel::Sender;
+use crossbeam_utils::atomic::AtomicCell;
+use lazy_static::lazy_static;
 use parking_lot::Mutex;
 use std::sync::Arc;
 use std::sync::OnceLock;
+use std::time::Duration;
+use std::time::Instant;
 
 #[derive(Copy, Clone)]
 pub struct Notification {
     pub monitor_idx: usize,
     pub workspace_idx: usize,
+}
+
+pub static ALT_TAB_HWND: AtomicCell<Option<isize>> = AtomicCell::new(None);
+
+lazy_static! {
+    pub static ref ALT_TAB_HWND_INSTANT: Arc<Mutex<Instant>> = Arc::new(Mutex::new(Instant::now()));
 }
 
 static CHANNEL: OnceLock<(Sender<Notification>, Receiver<Notification>)> = OnceLock::new();
@@ -34,7 +45,11 @@ pub fn listen_for_notifications(wm: Arc<Mutex<WindowManager>>) {
                 tracing::warn!("restarting finished thread");
             }
             Err(error) => {
-                tracing::warn!("restarting failed thread: {}", error);
+                if cfg!(debug_assertions) {
+                    tracing::error!("restarting failed thread: {:?}", error)
+                } else {
+                    tracing::error!("restarting failed thread: {}", error)
+                }
             }
         }
     });
@@ -43,9 +58,11 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
     tracing::info!("listening");
 
     let receiver = event_rx();
+    let arc = wm.clone();
 
     for notification in receiver {
         tracing::info!("running reconciliation");
+
         let mut wm = wm.lock();
         let focused_monitor_idx = wm.focused_monitor_idx();
         let focused_workspace_idx =
@@ -61,6 +78,36 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
             if let Some(monitor) = wm.focused_monitor_mut() {
                 monitor.focus_workspace(notification.workspace_idx)?;
                 monitor.load_focused_workspace(mouse_follows_focus)?;
+            }
+
+            // Drop our lock on the window manager state here to not slow down updates
+            drop(wm);
+
+            // Check if there was an alt-tab across workspaces in the last second
+            if let Some(hwnd) = ALT_TAB_HWND.load() {
+                if ALT_TAB_HWND_INSTANT
+                    .lock()
+                    .elapsed()
+                    .lt(&Duration::from_secs(1))
+                {
+                    // Sleep for 100 millis to let other events pass
+                    std::thread::sleep(Duration::from_millis(100));
+                    tracing::info!("focusing alt-tabbed window");
+
+                    // Take a new lock on the wm and try to focus the container with
+                    // the recorded HWND from the alt-tab
+                    let mut wm = arc.lock();
+                    if let Ok(workspace) = wm.focused_workspace_mut() {
+                        // Regardless of if this fails, we need to get past this part
+                        // to unblock the border manager below
+                        let _ = workspace.focus_container_by_window(hwnd);
+                    }
+
+                    // Unblock the border manager
+                    ALT_TAB_HWND.store(None);
+                    // Send a notification to the border manager to update the borders
+                    border_manager::event_tx().send(border_manager::Notification)?;
+                }
             }
         }
     }

@@ -152,6 +152,26 @@ pub extern "system" fn enum_window(hwnd: HWND, lparam: LPARAM) -> BOOL {
     true.into()
 }
 
+pub extern "system" fn alt_tab_windows(hwnd: HWND, lparam: LPARAM) -> BOOL {
+    let windows = unsafe { &mut *(lparam.0 as *mut Vec<Window>) };
+
+    let is_visible = WindowsApi::is_window_visible(hwnd);
+    let is_window = WindowsApi::is_window(hwnd);
+    let is_minimized = WindowsApi::is_iconic(hwnd);
+
+    if is_visible && is_window && !is_minimized {
+        let window = Window { hwnd: hwnd.0 };
+
+        if let Ok(should_manage) = window.should_manage(None, &mut RuleDebug::default()) {
+            if should_manage {
+                windows.push(window);
+            }
+        }
+    }
+
+    true.into()
+}
+
 pub extern "system" fn win_event_hook(
     _h_win_event_hook: HWINEVENTHOOK,
     event: u32,

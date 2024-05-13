@@ -1,6 +1,8 @@
 use std::fs::OpenOptions;
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
+use std::time::Duration;
+use std::time::Instant;
 
 use color_eyre::eyre::anyhow;
 use color_eyre::Result;
@@ -23,6 +25,8 @@ use crate::window_manager_event::WindowManagerEvent;
 use crate::windows_api::WindowsApi;
 use crate::winevent::WinEvent;
 use crate::workspace_reconciliator;
+use crate::workspace_reconciliator::ALT_TAB_HWND;
+use crate::workspace_reconciliator::ALT_TAB_HWND_INSTANT;
 use crate::Notification;
 use crate::NotificationEvent;
 use crate::DATA_DIR;
@@ -271,6 +275,24 @@ impl WindowManager {
                 for (i, monitors) in self.monitors().iter().enumerate() {
                     for (j, workspace) in monitors.workspaces().iter().enumerate() {
                         if workspace.contains_window(window.hwnd) && focused_pair != (i, j) {
+                            // At this point we know we are going to send a notification to the workspace reconciliator
+                            // So we get the topmost window returned by EnumWindows, which is almost always the window
+                            // that has been selected by alt-tab
+                            if let Ok(alt_tab_windows) = WindowsApi::alt_tab_windows() {
+                                if let Some(first) =
+                                    alt_tab_windows.iter().find(|w| w.title().is_ok())
+                                {
+                                    // If our record of this HWND hasn't been updated in over a minute
+                                    let mut instant = ALT_TAB_HWND_INSTANT.lock();
+                                    if instant.elapsed().gt(&Duration::from_secs(1)) {
+                                        // Update our record with the HWND we just found
+                                        ALT_TAB_HWND.store(Some(first.hwnd));
+                                        // Update the timestamp of our record
+                                        *instant = Instant::now();
+                                    }
+                                }
+                            }
+
                             workspace_reconciliator::event_tx().send(
                                 workspace_reconciliator::Notification {
                                     monitor_idx: i,

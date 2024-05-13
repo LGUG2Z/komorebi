@@ -139,6 +139,7 @@ use crate::monitor::Monitor;
 use crate::ring::Ring;
 use crate::set_window_position::SetWindowPosition;
 use crate::windows_callbacks;
+use crate::Window;
 
 pub enum WindowsResult<T, E> {
     Err(E),
@@ -491,6 +492,16 @@ impl WindowsApi {
     #[allow(dead_code)]
     pub fn next_window(hwnd: HWND) -> Result<isize> {
         unsafe { GetWindow(hwnd, GW_HWNDNEXT) }.process()
+    }
+
+    pub fn alt_tab_windows() -> Result<Vec<Window>> {
+        let mut hwnds = vec![];
+        Self::enum_windows(
+            Some(windows_callbacks::alt_tab_windows),
+            &mut hwnds as *mut Vec<Window> as isize,
+        )?;
+
+        Ok(hwnds)
     }
 
     #[allow(dead_code)]
