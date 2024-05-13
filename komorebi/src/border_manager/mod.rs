@@ -1,3 +1,5 @@
+#![deny(clippy::unwrap_used, clippy::expect_used)]
+
 mod border;
 
 use crossbeam_channel::Receiver;
@@ -9,6 +11,7 @@ use parking_lot::Mutex;
 use schemars::JsonSchema;
 use serde::Deserialize;
 use serde::Serialize;
+use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::sync::atomic::AtomicBool;
 use std::sync::atomic::AtomicI32;
@@ -69,6 +72,11 @@ pub fn event_rx() -> Receiver<Notification> {
 
 pub fn destroy_all_borders() -> color_eyre::Result<()> {
     let mut borders = BORDER_STATE.lock();
+    tracing::info!(
+        "purging known borders: {:?}",
+        borders.iter().map(|b| b.1.hwnd).collect::<Vec<_>>()
+    );
+
     for (_, border) in borders.iter() {
         border.destroy()?;
     }
@@ -85,128 +93,64 @@ pub fn destroy_all_borders() -> color_eyre::Result<()> {
         &mut remaining_hwnds as *mut Vec<isize> as isize,
     )?;
 
-    for hwnd in remaining_hwnds {
-        Border::from(hwnd).destroy()?;
+    if !remaining_hwnds.is_empty() {
+        tracing::info!("purging unknown borders: {:?}", remaining_hwnds);
+
+        for hwnd in remaining_hwnds {
+            Border::from(hwnd).destroy()?;
+        }
     }
 
     Ok(())
 }
 
 pub fn listen_for_notifications(wm: Arc<Mutex<WindowManager>>) {
+    std::thread::spawn(move || loop {
+        match handle_notifications(wm.clone()) {
+            Ok(()) => {
+                tracing::warn!("restarting finished thread");
+            }
+            Err(error) => {
+                tracing::warn!("restarting failed thread: {}", error);
+            }
+        }
+    });
+}
+
+pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result<()> {
     tracing::info!("listening");
+
     let receiver = event_rx();
 
-    std::thread::spawn(move || -> color_eyre::Result<()> {
-        'receiver: for _ in receiver {
-            let mut borders = BORDER_STATE.lock();
-            let mut borders_monitors = BORDERS_MONITORS.lock();
+    'receiver: for _ in receiver {
+        let mut borders = BORDER_STATE.lock();
+        let mut borders_monitors = BORDERS_MONITORS.lock();
 
-            // Check the wm state every time we receive a notification
-            let state = wm.lock();
+        // Check the wm state every time we receive a notification
+        let state = wm.lock();
 
-            if !BORDER_ENABLED.load_consume() || state.is_paused {
-                if !borders.is_empty() {
-                    for (_, border) in borders.iter() {
-                        border.destroy()?;
-                    }
-
-                    borders.clear();
+        if !BORDER_ENABLED.load_consume() || state.is_paused {
+            if !borders.is_empty() {
+                for (_, border) in borders.iter() {
+                    border.destroy()?;
                 }
 
-                continue 'receiver;
+                borders.clear();
             }
 
-            let focused_monitor_idx = state.focused_monitor_idx();
+            continue 'receiver;
+        }
 
-            for (monitor_idx, m) in state.monitors.elements().iter().enumerate() {
-                // Only operate on the focused workspace of each monitor
-                if let Some(ws) = m.focused_workspace() {
-                    // Workspaces with tiling disabled don't have borders
-                    if !ws.tile() {
-                        let mut to_remove = vec![];
-                        for (id, border) in borders.iter() {
-                            if borders_monitors.get(id).copied().unwrap_or_default() == monitor_idx
-                            {
-                                border.destroy()?;
-                                to_remove.push(id.clone());
-                            }
-                        }
+        let focused_monitor_idx = state.focused_monitor_idx();
 
-                        for id in &to_remove {
-                            borders.remove(id);
-                        }
-
-                        continue 'receiver;
-                    }
-
-                    // Handle the monocle container separately
-                    if let Some(monocle) = ws.monocle_container() {
-                        let mut to_remove = vec![];
-                        for (id, border) in borders.iter() {
-                            if borders_monitors.get(id).copied().unwrap_or_default() == monitor_idx
-                            {
-                                border.destroy()?;
-                                to_remove.push(id.clone());
-                            }
-                        }
-
-                        for id in &to_remove {
-                            borders.remove(id);
-                        }
-
-                        let border = borders.entry(monocle.id().clone()).or_insert_with(|| {
-                            Border::create(monocle.id()).expect("border creation failed")
-                        });
-
-                        borders_monitors.insert(monocle.id().clone(), monitor_idx);
-
-                        {
-                            let mut focus_state = FOCUS_STATE.lock();
-                            focus_state.insert(border.hwnd, WindowKind::Monocle);
-                        }
-
-                        let rect = WindowsApi::window_rect(
-                            monocle
-                                .focused_window()
-                                .expect("monocle container has no focused window")
-                                .hwnd(),
-                        )?;
-
-                        border.update(&rect)?;
-                        continue 'receiver;
-                    }
-
-                    let is_maximized = WindowsApi::is_zoomed(HWND(
-                        WindowsApi::foreground_window().unwrap_or_default(),
-                    ));
-
-                    if is_maximized {
-                        let mut to_remove = vec![];
-                        for (id, border) in borders.iter() {
-                            if borders_monitors.get(id).copied().unwrap_or_default() == monitor_idx
-                            {
-                                border.destroy()?;
-                                to_remove.push(id.clone());
-                            }
-                        }
-
-                        for id in &to_remove {
-                            borders.remove(id);
-                        }
-
-                        continue 'receiver;
-                    }
-
-                    // Destroy any borders not associated with the focused workspace
-                    let container_ids = ws
-                        .containers()
-                        .iter()
-                        .map(|c| c.id().clone())
-                        .collect::<Vec<_>>();
-
+        for (monitor_idx, m) in state.monitors.elements().iter().enumerate() {
+            // Only operate on the focused workspace of each monitor
+            if let Some(ws) = m.focused_workspace() {
+                // Workspaces with tiling disabled don't have borders
+                if !ws.tile() {
                     let mut to_remove = vec![];
                     for (id, border) in borders.iter() {
-                        if borders_monitors.get(id).copied().unwrap_or_default() == monitor_idx && !container_ids.contains(id) {
+                        if borders_monitors.get(id).copied().unwrap_or_default() == monitor_idx {
                             border.destroy()?;
                             to_remove.push(id.clone());
                         }
@@ -216,78 +160,169 @@ pub fn listen_for_notifications(wm: Arc<Mutex<WindowManager>>) {
                         borders.remove(id);
                     }
 
-                    for (idx, c) in ws.containers().iter().enumerate() {
-                        // Update border when moving or resizing with mouse
-                        if state.pending_move_op.is_some() && idx == ws.focused_container_idx() {
-                            let restore_z_order = *Z_ORDER.lock();
-                            *Z_ORDER.lock() = ZOrder::TopMost;
+                    continue 'receiver;
+                }
 
-                            let mut rect = WindowsApi::window_rect(
-                                c.focused_window()
-                                    .expect("container has no focused window")
-                                    .hwnd(),
-                            )?;
+                // Handle the monocle container separately
+                if let Some(monocle) = ws.monocle_container() {
+                    let mut to_remove = vec![];
+                    for (id, border) in borders.iter() {
+                        if borders_monitors.get(id).copied().unwrap_or_default() == monitor_idx {
+                            border.destroy()?;
+                            to_remove.push(id.clone());
+                        }
+                    }
 
-                            while WindowsApi::lbutton_is_pressed() {
-                                let border = borders.entry(c.id().clone()).or_insert_with(|| {
-                                    Border::create(c.id()).expect("border creation failed")
-                                });
+                    for id in &to_remove {
+                        borders.remove(id);
+                    }
 
-                                let new_rect = WindowsApi::window_rect(
-                                    c.focused_window()
-                                        .expect("container has no focused window")
-                                        .hwnd(),
-                                )?;
-
-                                if rect != new_rect {
-                                    rect = new_rect;
-                                    border.update(&rect)?;
-                                }
+                    let border = match borders.entry(monocle.id().clone()) {
+                        Entry::Occupied(entry) => entry.into_mut(),
+                        Entry::Vacant(entry) => {
+                            if let Ok(border) = Border::create(monocle.id()) {
+                                entry.insert(border)
+                            } else {
+                                continue 'receiver;
                             }
-
-                            *Z_ORDER.lock() = restore_z_order;
-
-                            continue 'receiver;
                         }
+                    };
 
-                        // Get the border entry for this container from the map or create one
-                        let border = borders.entry(c.id().clone()).or_insert_with(|| {
-                            Border::create(c.id()).expect("border creation failed")
-                        });
+                    borders_monitors.insert(monocle.id().clone(), monitor_idx);
 
-                        borders_monitors.insert(c.id().clone(), monitor_idx);
+                    {
+                        let mut focus_state = FOCUS_STATE.lock();
+                        focus_state.insert(border.hwnd, WindowKind::Monocle);
+                    }
 
-                        // Update the focused state for all containers on this workspace
-                        {
-                            let mut focus_state = FOCUS_STATE.lock();
-                            focus_state.insert(
-                                border.hwnd,
-                                if idx != ws.focused_container_idx()
-                                    || monitor_idx != focused_monitor_idx
-                                {
-                                    WindowKind::Unfocused
-                                } else if c.windows().len() > 1 {
-                                    WindowKind::Stack
-                                } else {
-                                    WindowKind::Single
-                                },
-                            );
+                    let rect = WindowsApi::window_rect(
+                        monocle.focused_window().copied().unwrap_or_default().hwnd(),
+                    )?;
+
+                    border.update(&rect)?;
+                    continue 'receiver;
+                }
+
+                let is_maximized = WindowsApi::is_zoomed(HWND(
+                    WindowsApi::foreground_window().unwrap_or_default(),
+                ));
+
+                if is_maximized {
+                    let mut to_remove = vec![];
+                    for (id, border) in borders.iter() {
+                        if borders_monitors.get(id).copied().unwrap_or_default() == monitor_idx {
+                            border.destroy()?;
+                            to_remove.push(id.clone());
                         }
+                    }
 
-                        let rect = WindowsApi::window_rect(
-                            c.focused_window()
-                                .expect("container has no focused window")
-                                .hwnd(),
+                    for id in &to_remove {
+                        borders.remove(id);
+                    }
+
+                    continue 'receiver;
+                }
+
+                // Destroy any borders not associated with the focused workspace
+                let container_ids = ws
+                    .containers()
+                    .iter()
+                    .map(|c| c.id().clone())
+                    .collect::<Vec<_>>();
+
+                let mut to_remove = vec![];
+                for (id, border) in borders.iter() {
+                    if borders_monitors.get(id).copied().unwrap_or_default() == monitor_idx
+                        && !container_ids.contains(id)
+                    {
+                        border.destroy()?;
+                        to_remove.push(id.clone());
+                    }
+                }
+
+                for id in &to_remove {
+                    borders.remove(id);
+                }
+
+                for (idx, c) in ws.containers().iter().enumerate() {
+                    // Update border when moving or resizing with mouse
+                    if state.pending_move_op.is_some() && idx == ws.focused_container_idx() {
+                        let restore_z_order = *Z_ORDER.lock();
+                        *Z_ORDER.lock() = ZOrder::TopMost;
+
+                        let mut rect = WindowsApi::window_rect(
+                            c.focused_window().copied().unwrap_or_default().hwnd(),
                         )?;
 
-                        border.update(&rect)?;
+                        while WindowsApi::lbutton_is_pressed() {
+                            let border = match borders.entry(c.id().clone()) {
+                                Entry::Occupied(entry) => entry.into_mut(),
+                                Entry::Vacant(entry) => {
+                                    if let Ok(border) = Border::create(c.id()) {
+                                        entry.insert(border)
+                                    } else {
+                                        continue 'receiver;
+                                    }
+                                }
+                            };
+
+                            let new_rect = WindowsApi::window_rect(
+                                c.focused_window().copied().unwrap_or_default().hwnd(),
+                            )?;
+
+                            if rect != new_rect {
+                                rect = new_rect;
+                                border.update(&rect)?;
+                            }
+                        }
+
+                        *Z_ORDER.lock() = restore_z_order;
+
+                        continue 'receiver;
                     }
+
+                    // Get the border entry for this container from the map or create one
+                    let border = match borders.entry(c.id().clone()) {
+                        Entry::Occupied(entry) => entry.into_mut(),
+                        Entry::Vacant(entry) => {
+                            if let Ok(border) = Border::create(c.id()) {
+                                entry.insert(border)
+                            } else {
+                                continue 'receiver;
+                            }
+                        }
+                    };
+
+                    borders_monitors.insert(c.id().clone(), monitor_idx);
+
+                    // Update the focused state for all containers on this workspace
+                    {
+                        let mut focus_state = FOCUS_STATE.lock();
+                        focus_state.insert(
+                            border.hwnd,
+                            if idx != ws.focused_container_idx()
+                                || monitor_idx != focused_monitor_idx
+                            {
+                                WindowKind::Unfocused
+                            } else if c.windows().len() > 1 {
+                                WindowKind::Stack
+                            } else {
+                                WindowKind::Single
+                            },
+                        );
+                    }
+
+                    let rect = WindowsApi::window_rect(
+                        c.focused_window().copied().unwrap_or_default().hwnd(),
+                    )?;
+
+                    border.update(&rect)?;
                 }
             }
         }
+    }
 
-        Ok(())
-    });
+    Ok(())
 }
 
 #[derive(Debug, Copy, Clone, Serialize, Deserialize, JsonSchema)]
