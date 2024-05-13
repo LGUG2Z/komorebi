@@ -18,8 +18,11 @@ use std::sync::atomic::AtomicI32;
 use std::sync::atomic::AtomicU32;
 use std::sync::Arc;
 use std::sync::OnceLock;
+use std::time::Duration;
+use std::time::Instant;
 use windows::Win32::Foundation::HWND;
 
+use crate::workspace_reconciliator::ALT_TAB_HWND;
 use crate::Colour;
 use crate::Rect;
 use crate::Rgb;
@@ -121,23 +124,37 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
     tracing::info!("listening");
 
     let receiver = event_rx();
+    let mut instant: Option<Instant> = None;
+    event_tx().send(Notification)?;
 
     'receiver: for _ in receiver {
+        if let Some(instant) = instant {
+            if instant.elapsed().lt(&Duration::from_millis(50)) {
+                continue 'receiver;
+            }
+        }
+
+        instant = Some(Instant::now());
+
         let mut borders = BORDER_STATE.lock();
         let mut borders_monitors = BORDERS_MONITORS.lock();
 
         // Check the wm state every time we receive a notification
         let state = wm.lock();
 
-        if !BORDER_ENABLED.load_consume() || state.is_paused {
-            if !borders.is_empty() {
-                for (_, border) in borders.iter() {
-                    border.destroy()?;
-                }
-
-                borders.clear();
+        // If borders are disabled
+        if !BORDER_ENABLED.load_consume()
+           // Or if the wm is paused
+            || state.is_paused
+            // Or if we are handling an alt-tab across workspaces
+            || ALT_TAB_HWND.load().is_some()
+        {
+            // Destroy the borders we know about
+            for (_, border) in borders.iter() {
+                border.destroy()?;
             }
 
+            borders.clear();
             continue 'receiver;
         }
 
