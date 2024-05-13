@@ -38,7 +38,7 @@ use crate::PERMAIGNORE_CLASSES;
 use crate::REGEX_IDENTIFIERS;
 use crate::WSL2_UI_PROCESSES;
 
-#[derive(Debug, Clone, Copy, Deserialize, JsonSchema)]
+#[derive(Debug, Default, Clone, Copy, Deserialize, JsonSchema)]
 pub struct Window {
     pub hwnd: isize,
 }

@@ -60,6 +60,7 @@ pub extern "system" fn border_hwnds(hwnd: HWND, lparam: LPARAM) -> BOOL {
     true.into()
 }
 
+#[derive(Debug)]
 pub struct Border {
     pub hwnd: isize,
 }
@@ -116,7 +117,7 @@ impl Border {
     }
 
     pub fn destroy(&self) -> color_eyre::Result<()> {
-        WindowsApi::destroy_window(self.hwnd())
+        WindowsApi::close_window(self.hwnd())
     }
 
     pub fn update(&self, rect: &Rect) -> color_eyre::Result<()> {
