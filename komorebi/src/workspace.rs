@@ -245,9 +245,9 @@ impl Workspace {
 
         if self.containers().len() == 1 {
             adjusted_work_area = single_window_work_area_offset.map_or_else(
-                || *work_area,
+                || adjusted_work_area,
                 |offset| {
-                    let mut with_offset = *work_area;
+                    let mut with_offset = adjusted_work_area;
                     with_offset.left += offset.left;
                     with_offset.top += offset.top;
                     with_offset.right -= offset.right;
