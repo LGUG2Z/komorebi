@@ -713,7 +713,11 @@ impl WindowManager {
 
         for monitor in self.monitors_mut() {
             let work_area = *monitor.work_area_size();
-            let single_window_work_area_offset = monitor.single_window_work_area_offset();
+            let window_based_work_area_offset = (
+                monitor.window_based_work_area_offset_limit(),
+                monitor.window_based_work_area_offset(),
+            );
+
             let offset = if monitor.work_area_offset().is_some() {
                 monitor.work_area_offset()
             } else {
@@ -731,7 +735,7 @@ impl WindowManager {
                 }
             }
 
-            workspace.update(&work_area, offset, single_window_work_area_offset)?;
+            workspace.update(&work_area, offset, window_based_work_area_offset)?;
         }
 
         Ok(())
@@ -1944,7 +1948,11 @@ impl WindowManager {
             .ok_or_else(|| anyhow!("there is no monitor"))?;
 
         let work_area = *monitor.work_area_size();
-        let single_window_work_area_offset = monitor.single_window_work_area_offset();
+        let window_based_work_area_offset = (
+            monitor.window_based_work_area_offset_limit(),
+            monitor.window_based_work_area_offset(),
+        );
+
         let focused_workspace_idx = monitor.focused_workspace_idx();
         let offset = if monitor.work_area_offset().is_some() {
             monitor.work_area_offset()
@@ -1964,7 +1972,7 @@ impl WindowManager {
 
         // If this is the focused workspace on a non-focused screen, let's update it
         if focused_monitor_idx != monitor_idx && focused_workspace_idx == workspace_idx {
-            workspace.update(&work_area, offset, single_window_work_area_offset)?;
+            workspace.update(&work_area, offset, window_based_work_area_offset)?;
             Ok(())
         } else {
             Ok(self.update_focused_workspace(false, false)?)
@@ -1993,7 +2001,11 @@ impl WindowManager {
             .ok_or_else(|| anyhow!("there is no monitor"))?;
 
         let work_area = *monitor.work_area_size();
-        let single_window_work_area_offset = monitor.single_window_work_area_offset();
+        let window_based_work_area_offset = (
+            monitor.window_based_work_area_offset_limit(),
+            monitor.window_based_work_area_offset(),
+        );
+
         let focused_workspace_idx = monitor.focused_workspace_idx();
         let offset = if monitor.work_area_offset().is_some() {
             monitor.work_area_offset()
@@ -2015,7 +2027,7 @@ impl WindowManager {
 
         // If this is the focused workspace on a non-focused screen, let's update it
         if focused_monitor_idx != monitor_idx && focused_workspace_idx == workspace_idx {
-            workspace.update(&work_area, offset, single_window_work_area_offset)?;
+            workspace.update(&work_area, offset, window_based_work_area_offset)?;
             Ok(())
         } else {
             Ok(self.update_focused_workspace(false, false)?)
@@ -2039,7 +2051,11 @@ impl WindowManager {
             .ok_or_else(|| anyhow!("there is no monitor"))?;
 
         let work_area = *monitor.work_area_size();
-        let single_window_work_area_offset = monitor.single_window_work_area_offset();
+        let window_based_work_area_offset = (
+            monitor.window_based_work_area_offset_limit(),
+            monitor.window_based_work_area_offset(),
+        );
+
         let focused_workspace_idx = monitor.focused_workspace_idx();
         let offset = if monitor.work_area_offset().is_some() {
             monitor.work_area_offset()
@@ -2057,7 +2073,7 @@ impl WindowManager {
 
         // If this is the focused workspace on a non-focused screen, let's update it
         if focused_monitor_idx != monitor_idx && focused_workspace_idx == workspace_idx {
-            workspace.update(&work_area, offset, single_window_work_area_offset)?;
+            workspace.update(&work_area, offset, window_based_work_area_offset)?;
             Ok(())
         } else {
             Ok(self.update_focused_workspace(false, false)?)
@@ -2082,7 +2098,11 @@ impl WindowManager {
             .ok_or_else(|| anyhow!("there is no monitor"))?;
 
         let work_area = *monitor.work_area_size();
-        let single_window_work_area_offset = monitor.single_window_work_area_offset();
+        let window_based_work_area_offset = (
+            monitor.window_based_work_area_offset_limit(),
+            monitor.window_based_work_area_offset(),
+        );
+
         let focused_workspace_idx = monitor.focused_workspace_idx();
         let offset = if monitor.work_area_offset().is_some() {
             monitor.work_area_offset()
@@ -2099,7 +2119,7 @@ impl WindowManager {
 
         // If this is the focused workspace on a non-focused screen, let's update it
         if focused_monitor_idx != monitor_idx && focused_workspace_idx == workspace_idx {
-            workspace.update(&work_area, offset, single_window_work_area_offset)?;
+            workspace.update(&work_area, offset, window_based_work_area_offset)?;
             Ok(())
         } else {
             Ok(self.update_focused_workspace(false, false)?)
@@ -2127,7 +2147,11 @@ impl WindowManager {
             .ok_or_else(|| anyhow!("there is no monitor"))?;
 
         let work_area = *monitor.work_area_size();
-        let single_window_work_area_offset = monitor.single_window_work_area_offset();
+        let window_based_work_area_offset = (
+            monitor.window_based_work_area_offset_limit(),
+            monitor.window_based_work_area_offset(),
+        );
+
         let focused_workspace_idx = monitor.focused_workspace_idx();
         let offset = if monitor.work_area_offset().is_some() {
             monitor.work_area_offset()
@@ -2145,7 +2169,7 @@ impl WindowManager {
 
         // If this is the focused workspace on a non-focused screen, let's update it
         if focused_monitor_idx != monitor_idx && focused_workspace_idx == workspace_idx {
-            workspace.update(&work_area, offset, single_window_work_area_offset)?;
+            workspace.update(&work_area, offset, window_based_work_area_offset)?;
             Ok(())
         } else {
             Ok(self.update_focused_workspace(false, false)?)

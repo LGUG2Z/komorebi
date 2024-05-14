@@ -223,11 +223,14 @@ impl Workspace {
         &mut self,
         work_area: &Rect,
         work_area_offset: Option<Rect>,
-        single_window_work_area_offset: Option<Rect>,
+        window_based_work_area_offset: (isize, Option<Rect>),
     ) -> Result<()> {
         if !INITIAL_CONFIGURATION_LOADED.load(Ordering::SeqCst) {
             return Ok(());
         }
+
+        let (window_based_work_area_offset_limit, window_based_work_area_offset) =
+            window_based_work_area_offset;
 
         let container_padding = self.container_padding();
         let mut adjusted_work_area = work_area_offset.map_or_else(
@@ -243,8 +246,8 @@ impl Workspace {
             },
         );
 
-        if self.containers().len() == 1 {
-            adjusted_work_area = single_window_work_area_offset.map_or_else(
+        if self.containers().len() <= window_based_work_area_offset_limit as usize {
+            adjusted_work_area = window_based_work_area_offset.map_or_else(
                 || adjusted_work_area,
                 |offset| {
                     let mut with_offset = adjusted_work_area;
