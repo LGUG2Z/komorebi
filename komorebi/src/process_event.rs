@@ -23,7 +23,6 @@ use crate::window::RuleDebug;
 use crate::window_manager::WindowManager;
 use crate::window_manager_event::WindowManagerEvent;
 use crate::windows_api::WindowsApi;
-use crate::winevent::WinEvent;
 use crate::workspace_reconciliator;
 use crate::workspace_reconciliator::ALT_TAB_HWND;
 use crate::workspace_reconciliator::ALT_TAB_HWND_INSTANT;
@@ -623,15 +622,8 @@ impl WindowManager {
             state: self.as_ref().into(),
         };
 
-        // Avoid unnecessary updates, this fires every single time you interact
-        // with something on JetBrains IDEs
-        if !matches!(
-            event,
-            WindowManagerEvent::Show(WinEvent::ObjectNameChange, _)
-        ) {
-            notify_subscribers(&serde_json::to_string(&notification)?)?;
-            border_manager::event_tx().send(border_manager::Notification)?;
-        }
+        notify_subscribers(&serde_json::to_string(&notification)?)?;
+        border_manager::event_tx().send(border_manager::Notification)?;
 
         tracing::info!("processed: {}", event.window().to_string());
         Ok(())
