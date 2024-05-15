@@ -160,6 +160,7 @@ gen_enum_subcommand_args! {
     CycleMoveToMonitor: CycleDirection,
     CycleMonitor: CycleDirection,
     CycleWorkspace: CycleDirection,
+    CycleMoveWorkspaceToMonitor: CycleDirection,
     Stack: OperationDirection,
     CycleStack: CycleDirection,
     FlipLayout: Axis,
@@ -955,6 +956,9 @@ enum SubCommand {
     /// Move the focused workspace to the specified monitor
     #[clap(arg_required_else_help = true)]
     MoveWorkspaceToMonitor(MoveWorkspaceToMonitor),
+    /// Move the focused workspace monitor in the given cycle direction
+    #[clap(arg_required_else_help = true)]
+    CycleMoveWorkspaceToMonitor(CycleMoveWorkspaceToMonitor),
     /// Swap focused monitor workspaces with specified monitor
     #[clap(arg_required_else_help = true)]
     SwapWorkspacesWithMonitor(SwapWorkspacesWithMonitor),
@@ -1582,6 +1586,11 @@ fn main() -> Result<()> {
         }
         SubCommand::MoveWorkspaceToMonitor(arg) => {
             send_message(&SocketMessage::MoveWorkspaceToMonitorNumber(arg.target).as_bytes()?)?;
+        }
+        SubCommand::CycleMoveWorkspaceToMonitor(arg) => {
+            send_message(
+                &SocketMessage::CycleMoveWorkspaceToMonitor(arg.cycle_direction).as_bytes()?,
+            )?;
         }
         SubCommand::SwapWorkspacesWithMonitor(arg) => {
             send_message(&SocketMessage::SwapWorkspacesToMonitorNumber(arg.target).as_bytes()?)?;

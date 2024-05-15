@@ -59,6 +59,7 @@ pub enum SocketMessage {
     SendContainerToMonitorWorkspaceNumber(usize, usize),
     MoveContainerToMonitorWorkspaceNumber(usize, usize),
     SendContainerToNamedWorkspace(String),
+    CycleMoveWorkspaceToMonitor(CycleDirection),
     MoveWorkspaceToMonitorNumber(usize),
     SwapWorkspacesToMonitorNumber(usize),
     ForceFocus,

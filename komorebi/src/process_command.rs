@@ -465,6 +465,15 @@ impl WindowManager {
             SocketMessage::MoveWorkspaceToMonitorNumber(monitor_idx) => {
                 self.move_workspace_to_monitor(monitor_idx)?;
             }
+            SocketMessage::CycleMoveWorkspaceToMonitor(direction) => {
+                let monitor_idx = direction.next_idx(
+                    self.focused_monitor_idx(),
+                    NonZeroUsize::new(self.monitors().len())
+                        .ok_or_else(|| anyhow!("there must be at least one monitor"))?,
+                );
+
+                self.move_workspace_to_monitor(monitor_idx)?;
+            }
             SocketMessage::TogglePause => {
                 if self.is_paused {
                     tracing::info!("resuming");
