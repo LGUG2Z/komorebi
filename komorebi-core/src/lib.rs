@@ -89,6 +89,8 @@ pub enum SocketMessage {
     EnsureWorkspaces(usize, usize),
     EnsureNamedWorkspaces(usize, Vec<String>),
     NewWorkspace,
+    ToggleTaskbar,
+    Taskbar(bool),
     ToggleTiling,
     Stop,
     TogglePause,

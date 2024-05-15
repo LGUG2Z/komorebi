@@ -7,7 +7,9 @@ use color_eyre::eyre::anyhow;
 use color_eyre::eyre::Error;
 use color_eyre::Result;
 use widestring::U16CStr;
+use windows::core::s;
 use windows::core::Result as WindowsCrateResult;
+use windows::core::PCSTR;
 use windows::core::PCWSTR;
 use windows::core::PWSTR;
 use windows::Win32::Foundation::CloseHandle;
@@ -70,6 +72,8 @@ use windows::Win32::UI::WindowsAndMessaging::AllowSetForegroundWindow;
 use windows::Win32::UI::WindowsAndMessaging::BringWindowToTop;
 use windows::Win32::UI::WindowsAndMessaging::CreateWindowExW;
 use windows::Win32::UI::WindowsAndMessaging::EnumWindows;
+use windows::Win32::UI::WindowsAndMessaging::FindWindowA;
+use windows::Win32::UI::WindowsAndMessaging::FindWindowExA;
 use windows::Win32::UI::WindowsAndMessaging::GetCursorPos;
 use windows::Win32::UI::WindowsAndMessaging::GetDesktopWindow;
 use windows::Win32::UI::WindowsAndMessaging::GetForegroundWindow;
@@ -116,6 +120,7 @@ use windows::Win32::UI::WindowsAndMessaging::SW_HIDE;
 use windows::Win32::UI::WindowsAndMessaging::SW_MAXIMIZE;
 use windows::Win32::UI::WindowsAndMessaging::SW_MINIMIZE;
 use windows::Win32::UI::WindowsAndMessaging::SW_NORMAL;
+use windows::Win32::UI::WindowsAndMessaging::SW_SHOW;
 use windows::Win32::UI::WindowsAndMessaging::SW_SHOWNOACTIVATE;
 use windows::Win32::UI::WindowsAndMessaging::SYSTEM_PARAMETERS_INFO_ACTION;
 use windows::Win32::UI::WindowsAndMessaging::SYSTEM_PARAMETERS_INFO_UPDATE_FLAGS;
@@ -593,6 +598,29 @@ impl WindowsApi {
 
     pub fn center_cursor_in_rect(rect: &Rect) -> Result<()> {
         Self::set_cursor_pos(rect.left + (rect.right / 2), rect.top + (rect.bottom / 2))
+    }
+
+    pub fn get_taskbar_handles() -> (HWND, HWND) {
+        let taskbar = unsafe { FindWindowA(s!("Shell_TrayWnd"), PCSTR::null()) };
+        let startmenu = unsafe { FindWindowExA(taskbar, HWND { 0: 0 }, s!("Button"), s!("Start")) };
+        (HWND(taskbar.0), HWND(startmenu.0))
+    }
+
+    pub fn is_taskbar_hidden(taskbar_hwnd: HWND) -> bool {
+        unsafe { IsWindowVisible(taskbar_hwnd) }.as_bool()
+    }
+
+    pub fn hide_taskbar(taskbar_hwnds: (HWND, HWND), hide: bool) {
+        unsafe {
+            if hide {
+                // 0 hides the taskbar and 5 enables visibility
+                ShowWindow(taskbar_hwnds.0, SW_HIDE);
+                ShowWindow(taskbar_hwnds.1, SW_HIDE);
+            } else {
+                ShowWindow(taskbar_hwnds.0, SW_SHOW);
+                ShowWindow(taskbar_hwnds.1, SW_SHOW);
+            }
+        }
     }
 
     pub fn window_thread_process_id(hwnd: HWND) -> (u32, u32) {
