@@ -16,12 +16,6 @@ fmt:
 install-target target:
     cargo +stable install --path {{ target }} --locked
 
-prepare:
-    komorebic ahk-asc '~/.config/komorebi/applications.yaml'
-    komorebic pwsh-asc '~/.config/komorebi/applications.yaml'
-    cat '~/.config/komorebi/komorebi.generated.ps1' >komorebi.generated.ps1
-    cat '~/.config/komorebi/komorebi.generated.ahk' >komorebi.generated.ahk
-
 install:
     just install-target komorebic
     just install-target komorebic-no-console

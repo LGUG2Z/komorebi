@@ -1,9 +1,9 @@
-# active-window-border
+# border
 
 ```
-Enable or disable the active window border
+Enable or disable borders
 
-Usage: komorebic.exe active-window-border <BOOLEAN_STATE>
+Usage: komorebic.exe border <BOOLEAN_STATE>
 
 Arguments:
   <BOOLEAN_STATE>

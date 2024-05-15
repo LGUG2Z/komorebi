@@ -42,8 +42,8 @@ use komorebi_core::config_generation::IdWithIdentifier;
 use komorebi_core::config_generation::MatchingRule;
 use komorebi_core::config_generation::MatchingStrategy;
 use komorebi_core::resolve_home_path;
-use komorebi_core::ActiveWindowBorderStyle;
 use komorebi_core::ApplicationIdentifier;
+use komorebi_core::BorderStyle;
 use komorebi_core::DefaultLayout;
 use komorebi_core::FocusFollowsMouseImplementation;
 use komorebi_core::HidingBehaviour;
@@ -69,7 +69,7 @@ use uds_windows::UnixListener;
 use uds_windows::UnixStream;
 
 #[derive(Debug, Serialize, Deserialize, JsonSchema)]
-pub struct ActiveWindowBorderColours {
+pub struct BorderColours {
     /// Border colour when the container contains a single window
     pub single: Option<Colour>,
     /// Border colour when the container contains multiple windows
@@ -262,16 +262,19 @@ pub struct StaticConfig {
     pub border_offset: Option<i32>,
     /// Display an active window border (default: false)
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub active_window_border: Option<bool>,
+    #[serde(alias = "active_window_border")]
+    pub border: Option<bool>,
     /// Active window border colours for different container types
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub active_window_border_colours: Option<ActiveWindowBorderColours>,
+    #[serde(alias = "active_window_border_colours")]
+    pub border_colours: Option<BorderColours>,
     /// Active window border style (default: System)
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub active_window_border_style: Option<ActiveWindowBorderStyle>,
+    #[serde(alias = "active_window_border_style")]
+    pub border_style: Option<BorderStyle>,
     /// Active window border z-order (default: System)
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub active_window_border_z_order: Option<ZOrder>,
+    pub border_z_order: Option<ZOrder>,
     /// Global default workspace padding (default: 10)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub default_workspace_padding: Option<i32>,
@@ -394,7 +397,7 @@ impl From<&WindowManager> for StaticConfig {
         let border_colours = if border_manager::FOCUSED.load(Ordering::SeqCst) == 0 {
             None
         } else {
-            Option::from(ActiveWindowBorderColours {
+            Option::from(BorderColours {
                 single: Option::from(Colour::from(border_manager::FOCUSED.load(Ordering::SeqCst))),
                 stack: Option::from(Colour::from(border_manager::STACK.load(Ordering::SeqCst))),
                 monocle: Option::from(Colour::from(border_manager::MONOCLE.load(Ordering::SeqCst))),
@@ -417,12 +420,10 @@ impl From<&WindowManager> for StaticConfig {
             app_specific_configuration_path: None,
             border_width: Option::from(border_manager::BORDER_WIDTH.load(Ordering::SeqCst)),
             border_offset: Option::from(border_manager::BORDER_OFFSET.load(Ordering::SeqCst)),
-            active_window_border: Option::from(
-                border_manager::BORDER_ENABLED.load(Ordering::SeqCst),
-            ),
-            active_window_border_colours: border_colours,
-            active_window_border_style: Option::from(*STYLE.lock()),
-            active_window_border_z_order: Option::from(*Z_ORDER.lock()),
+            border: Option::from(border_manager::BORDER_ENABLED.load(Ordering::SeqCst)),
+            border_colours,
+            border_style: Option::from(*STYLE.lock()),
+            border_z_order: Option::from(*Z_ORDER.lock()),
             default_workspace_padding: Option::from(
                 DEFAULT_WORKSPACE_PADDING.load(Ordering::SeqCst),
             ),
@@ -474,11 +475,11 @@ impl StaticConfig {
         border_manager::BORDER_WIDTH.store(self.border_width.unwrap_or(8), Ordering::SeqCst);
         border_manager::BORDER_OFFSET.store(self.border_offset.unwrap_or(-1), Ordering::SeqCst);
 
-        if let Some(enabled) = &self.active_window_border {
+        if let Some(enabled) = &self.border {
             border_manager::BORDER_ENABLED.store(*enabled, Ordering::SeqCst);
         }
 
-        if let Some(colours) = &self.active_window_border_colours {
+        if let Some(colours) = &self.border_colours {
             if let Some(single) = colours.single {
                 border_manager::FOCUSED.store(u32::from(single), Ordering::SeqCst);
             }
@@ -496,8 +497,8 @@ impl StaticConfig {
             }
         }
 
-        let active_window_border_style = self.active_window_border_style.unwrap_or_default();
-        *STYLE.lock() = active_window_border_style;
+        let border_style = self.border_style.unwrap_or_default();
+        *STYLE.lock() = border_style;
 
         let mut float_identifiers = FLOAT_IDENTIFIERS.lock();
         let mut regex_identifiers = REGEX_IDENTIFIERS.lock();
@@ -733,7 +734,7 @@ impl StaticConfig {
             }
         }
 
-        if value.active_window_border == Some(true) {
+        if value.border == Some(true) {
             border_manager::BORDER_ENABLED.store(true, Ordering::SeqCst);
         }
 
@@ -792,7 +793,7 @@ impl StaticConfig {
             }
         }
 
-        if let Some(enabled) = value.active_window_border {
+        if let Some(enabled) = value.border {
             border_manager::BORDER_ENABLED.store(enabled, Ordering::SeqCst);
         }
 

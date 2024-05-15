@@ -5,7 +5,7 @@ mod border;
 use crossbeam_channel::Receiver;
 use crossbeam_channel::Sender;
 use crossbeam_utils::atomic::AtomicConsume;
-use komorebi_core::ActiveWindowBorderStyle;
+use komorebi_core::BorderStyle;
 use lazy_static::lazy_static;
 use parking_lot::Mutex;
 use schemars::JsonSchema;
@@ -39,8 +39,7 @@ pub static BORDER_ENABLED: AtomicBool = AtomicBool::new(true);
 
 lazy_static! {
     pub static ref Z_ORDER: Arc<Mutex<ZOrder>> = Arc::new(Mutex::new(ZOrder::Bottom));
-    pub static ref STYLE: Arc<Mutex<ActiveWindowBorderStyle>> =
-        Arc::new(Mutex::new(ActiveWindowBorderStyle::System));
+    pub static ref STYLE: Arc<Mutex<BorderStyle>> = Arc::new(Mutex::new(BorderStyle::System));
     pub static ref FOCUSED: AtomicU32 =
         AtomicU32::new(u32::from(Colour::Rgb(Rgb::new(66, 165, 245))));
     pub static ref UNFOCUSED: AtomicU32 =

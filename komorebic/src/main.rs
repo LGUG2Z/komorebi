@@ -651,13 +651,13 @@ struct FocusFollowsMouse {
 }
 
 #[derive(Parser, AhkFunction)]
-struct ActiveWindowBorder {
+struct Border {
     #[clap(value_enum)]
     boolean_state: BooleanState,
 }
 
 #[derive(Parser, AhkFunction)]
-struct ActiveWindowBorderColour {
+struct BorderColour {
     #[clap(value_enum, short, long, default_value = "single")]
     window_kind: WindowKind,
     /// Red
@@ -669,14 +669,14 @@ struct ActiveWindowBorderColour {
 }
 
 #[derive(Parser, AhkFunction)]
-struct ActiveWindowBorderWidth {
-    /// Desired width of the active window border
+struct BorderWidth {
+    /// Desired width of the window border
     width: i32,
 }
 
 #[derive(Parser, AhkFunction)]
-struct ActiveWindowBorderOffset {
-    /// Desired offset of the active window border
+struct BorderOffset {
+    /// Desired offset of the window border
     offset: i32,
 }
 
@@ -1141,18 +1141,22 @@ enum SubCommand {
     #[clap(hide = true)]
     #[clap(alias = "identify-border-overflow")]
     IdentifyBorderOverflowApplication(IdentifyBorderOverflowApplication),
-    /// Enable or disable the active window border
+    /// Enable or disable borders
     #[clap(arg_required_else_help = true)]
-    ActiveWindowBorder(ActiveWindowBorder),
-    /// Set the colour for the active window border
+    #[clap(alias = "active-window-border")]
+    Border(Border),
+    /// Set the colour for a window border kind
     #[clap(arg_required_else_help = true)]
-    ActiveWindowBorderColour(ActiveWindowBorderColour),
-    /// Set the width for the active window border
+    #[clap(alias = "active-window-border-colour")]
+    BorderColour(BorderColour),
+    /// Set the border width
     #[clap(arg_required_else_help = true)]
-    ActiveWindowBorderWidth(ActiveWindowBorderWidth),
-    /// Set the offset for the active window border
+    #[clap(alias = "active-window-border-width")]
+    BorderWidth(BorderWidth),
+    /// Set the border offset
     #[clap(arg_required_else_help = true)]
-    ActiveWindowBorderOffset(ActiveWindowBorderOffset),
+    #[clap(alias = "active-window-border-offset")]
+    BorderOffset(BorderOffset),
     /// Enable or disable focus follows mouse for the operating system
     #[clap(arg_required_else_help = true)]
     FocusFollowsMouse(FocusFollowsMouse),
@@ -1930,6 +1934,7 @@ if (!(Get-Process whkd -ErrorAction SilentlyContinue))
                 "* Subscribe to https://youtube.com/@LGUG2Z - Live dev videos and feature previews"
             );
             println!("* Join the Discord https://discord.gg/mGkn66PHkx - Chat, ask questions, share your desktops");
+            println!("* Read the docs https://lgug2z.github.io/komorebi - Quickly search through all komorebic commands");
         }
         SubCommand::Stop(arg) => {
             if arg.whkd {
@@ -2212,19 +2217,18 @@ Stop-Process -Name:komorebi -ErrorAction SilentlyContinue
         SubCommand::MouseFollowsFocus(arg) => {
             send_message(&SocketMessage::MouseFollowsFocus(arg.boolean_state.into()).as_bytes()?)?;
         }
-        SubCommand::ActiveWindowBorder(arg) => {
-            send_message(&SocketMessage::ActiveWindowBorder(arg.boolean_state.into()).as_bytes()?)?;
+        SubCommand::Border(arg) => {
+            send_message(&SocketMessage::Border(arg.boolean_state.into()).as_bytes()?)?;
         }
-        SubCommand::ActiveWindowBorderColour(arg) => {
+        SubCommand::BorderColour(arg) => {
             send_message(
-                &SocketMessage::ActiveWindowBorderColour(arg.window_kind, arg.r, arg.g, arg.b)
-                    .as_bytes()?,
+                &SocketMessage::BorderColour(arg.window_kind, arg.r, arg.g, arg.b).as_bytes()?,
             )?;
         }
-        SubCommand::ActiveWindowBorderWidth(arg) => {
+        SubCommand::BorderWidth(arg) => {
             send_message(&SocketMessage::BorderWidth(arg.width).as_bytes()?)?;
         }
-        SubCommand::ActiveWindowBorderOffset(arg) => {
+        SubCommand::BorderOffset(arg) => {
             send_message(&SocketMessage::BorderOffset(arg.offset).as_bytes()?)?;
         }
         SubCommand::ResizeDelta(arg) => {

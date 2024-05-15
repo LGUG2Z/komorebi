@@ -130,9 +130,12 @@ pub enum SocketMessage {
     WatchConfiguration(bool),
     CompleteConfiguration,
     AltFocusHack(bool),
-    ActiveWindowBorder(bool),
-    ActiveWindowBorderColour(WindowKind, u32, u32, u32),
-    ActiveWindowBorderStyle(ActiveWindowBorderStyle),
+    #[serde(alias = "ActiveWindowBorder")]
+    Border(bool),
+    #[serde(alias = "ActiveWindowBorderColour")]
+    BorderColour(WindowKind, u32, u32, u32),
+    #[serde(alias = "ActiveWindowBorderStyle")]
+    BorderStyle(BorderStyle),
     BorderWidth(i32),
     BorderOffset(i32),
     InvisibleBorders(Rect),
@@ -201,7 +204,7 @@ pub enum StackbarMode {
 #[derive(
     Default, Copy, Clone, Debug, Eq, PartialEq, Display, Serialize, Deserialize, JsonSchema,
 )]
-pub enum ActiveWindowBorderStyle {
+pub enum BorderStyle {
     #[default]
     /// Use the system border style
     System,

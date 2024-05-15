@@ -1205,10 +1205,10 @@ impl WindowManager {
             SocketMessage::UnmanagedWindowOperationBehaviour(behaviour) => {
                 self.unmanaged_window_operation_behaviour = behaviour;
             }
-            SocketMessage::ActiveWindowBorder(enable) => {
+            SocketMessage::Border(enable) => {
                 border_manager::BORDER_ENABLED.store(enable, Ordering::SeqCst);
             }
-            SocketMessage::ActiveWindowBorderColour(kind, r, g, b) => match kind {
+            SocketMessage::BorderColour(kind, r, g, b) => match kind {
                 WindowKind::Single => {
                     border_manager::FOCUSED.store(Rgb::new(r, g, b).into(), Ordering::SeqCst);
                 }
@@ -1222,9 +1222,9 @@ impl WindowManager {
                     border_manager::UNFOCUSED.store(Rgb::new(r, g, b).into(), Ordering::SeqCst);
                 }
             },
-            SocketMessage::ActiveWindowBorderStyle(style) => {
-                let mut active_window_border_style = STYLE.lock();
-                *active_window_border_style = style;
+            SocketMessage::BorderStyle(style) => {
+                let mut border_style = STYLE.lock();
+                *border_style = style;
             }
             SocketMessage::BorderWidth(width) => {
                 border_manager::BORDER_WIDTH.store(width, Ordering::SeqCst);

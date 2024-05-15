@@ -10,6 +10,7 @@ Arguments:
           Possible values:
           - swap:   Swap the window container with the window container at the edge of the adjacent monitor
           - insert: Insert the window container into the focused workspace on the adjacent monitor
+          - no-op:  Do nothing if trying to move a window container in the direction of an adjacent monitor
 
 Options:
   -h, --help

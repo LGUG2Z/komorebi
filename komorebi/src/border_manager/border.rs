@@ -12,7 +12,7 @@ use crate::border_manager::Z_ORDER;
 use crate::WindowsApi;
 use crate::WINDOWS_11;
 
-use komorebi_core::ActiveWindowBorderStyle;
+use komorebi_core::BorderStyle;
 use komorebi_core::Rect;
 
 use std::sync::atomic::Ordering;
@@ -195,17 +195,17 @@ impl Border {
                         // wrong size.  In the future we should read the DWM properties
                         // of windows and attempt to match appropriately.
                         match *STYLE.lock() {
-                            ActiveWindowBorderStyle::System => {
+                            BorderStyle::System => {
                                 if *WINDOWS_11 {
                                     RoundRect(hdc, 0, 0, rect.right, rect.bottom, 20, 20);
                                 } else {
                                     Rectangle(hdc, 0, 0, rect.right, rect.bottom);
                                 }
                             }
-                            ActiveWindowBorderStyle::Rounded => {
+                            BorderStyle::Rounded => {
                                 RoundRect(hdc, 0, 0, rect.right, rect.bottom, 20, 20);
                             }
-                            ActiveWindowBorderStyle::Square => {
+                            BorderStyle::Square => {
                                 Rectangle(hdc, 0, 0, rect.right, rect.bottom);
                             }
                         }

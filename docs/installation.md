@@ -30,10 +30,10 @@ to manipulate the window manager, you use
 [WinGet](https://winget.run/pkg/LGUG2Z/komorebi), and you may also built
 it from [source](https://github.com/LGUG2Z/komorebi) if you would prefer.
 
- - [Scoop](#scoop)
- - [WinGet](#winget)
- - [Building from source](#building-from-source)
- - [Offline](#offline)
+- [Scoop](#scoop)
+- [WinGet](#winget)
+- [Building from source](#building-from-source)
+- [Offline](#offline)
 
 ## Long path support
 
@@ -44,6 +44,12 @@ running the following command in an Administrator Terminal before installing
 ```powershell
 Set-ItemProperty 'HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem' -Name 'LongPathsEnabled' -Value 1
 ```
+
+## Disabling Unnecessary System Animations
+
+It is highly recommended that you enable the "Turn off all unnecessary animations (when possible)" option in
+"Control Panel > Ease of Access > Ease of Access Centre / Make the computer easier to see" for the best performance with
+komorebi.
 
 ## Scoop
 

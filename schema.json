@@ -4,18 +4,17 @@
   "description": "The `komorebi.json` static configuration file reference for `v0.1.25`",
   "type": "object",
   "properties": {
-    "active_window_border": {
+    "app_specific_configuration_path": {
+      "description": "Path to applications.yaml from komorebi-application-specific-configurations (default: None)",
+      "type": "string"
+    },
+    "border": {
       "description": "Display an active window border (default: false)",
       "type": "boolean"
     },
-    "active_window_border_colours": {
+    "border_colours": {
       "description": "Active window border colours for different container types",
       "type": "object",
-      "required": [
-        "monocle",
-        "single",
-        "stack"
-      ],
       "properties": {
         "monocle": {
           "description": "Border colour when the container is in monocle mode",
@@ -130,38 +129,46 @@
               "type": "string"
             }
           ]
+        },
+        "unfocused": {
+          "description": "Border colour when the container is unfocused",
+          "anyOf": [
+            {
+              "description": "Colour represented as RGB",
+              "type": "object",
+              "required": [
+                "b",
+                "g",
+                "r"
+              ],
+              "properties": {
+                "b": {
+                  "description": "Blue",
+                  "type": "integer",
+                  "format": "uint32",
+                  "minimum": 0.0
+                },
+                "g": {
+                  "description": "Green",
+                  "type": "integer",
+                  "format": "uint32",
+                  "minimum": 0.0
+                },
+                "r": {
+                  "description": "Red",
+                  "type": "integer",
+                  "format": "uint32",
+                  "minimum": 0.0
+                }
+              }
+            },
+            {
+              "description": "Colour represented as Hex",
+              "type": "string"
+            }
+          ]
         }
       }
-    },
-    "active_window_border_style": {
-      "description": "Active window border style (default: System)",
-      "oneOf": [
-        {
-          "description": "Use the system border style",
-          "type": "string",
-          "enum": [
-            "System"
-          ]
-        },
-        {
-          "description": "Use the Windows 11-style rounded borders",
-          "type": "string",
-          "enum": [
-            "Rounded"
-          ]
-        },
-        {
-          "description": "Use the Windows 10-style square borders",
-          "type": "string",
-          "enum": [
-            "Square"
-          ]
-        }
-      ]
-    },
-    "app_specific_configuration_path": {
-      "description": "Path to applications.yaml from komorebi-application-specific-configurations (default: None)",
-      "type": "string"
     },
     "border_offset": {
       "description": "Offset of the window border (default: -1)",
@@ -251,10 +258,46 @@
         ]
       }
     },
+    "border_style": {
+      "description": "Active window border style (default: System)",
+      "oneOf": [
+        {
+          "description": "Use the system border style",
+          "type": "string",
+          "enum": [
+            "System"
+          ]
+        },
+        {
+          "description": "Use the Windows 11-style rounded borders",
+          "type": "string",
+          "enum": [
+            "Rounded"
+          ]
+        },
+        {
+          "description": "Use the Windows 10-style square borders",
+          "type": "string",
+          "enum": [
+            "Square"
+          ]
+        }
+      ]
+    },
     "border_width": {
       "description": "Width of the window border (default: 8)",
       "type": "integer",
       "format": "int32"
+    },
+    "border_z_order": {
+      "description": "Active window border z-order (default: System)",
+      "type": "string",
+      "enum": [
+        "Top",
+        "NoTopMost",
+        "Bottom",
+        "TopMost"
+      ]
     },
     "cross_monitor_move_behaviour": {
       "description": "Determine what happens when a window is moved across a monitor boundary (default: Swap)",
@@ -271,6 +314,13 @@
           "type": "string",
           "enum": [
             "Insert"
+          ]
+        },
+        {
+          "description": "Do nothing if trying to move a window container in the direction of an adjacent monitor",
+          "type": "string",
+          "enum": [
+            "NoOp"
           ]
         }
       ]
@@ -668,6 +718,43 @@
           "workspaces"
         ],
         "properties": {
+          "window_based_work_area_offset": {
+            "description": "Window based work area offset (default: None)",
+            "type": "object",
+            "required": [
+              "bottom",
+              "left",
+              "right",
+              "top"
+            ],
+            "properties": {
+              "bottom": {
+                "description": "The bottom point in a Win32 Rect",
+                "type": "integer",
+                "format": "int32"
+              },
+              "left": {
+                "description": "The left point in a Win32 Rect",
+                "type": "integer",
+                "format": "int32"
+              },
+              "right": {
+                "description": "The right point in a Win32 Rect",
+                "type": "integer",
+                "format": "int32"
+              },
+              "top": {
+                "description": "The top point in a Win32 Rect",
+                "type": "integer",
+                "format": "int32"
+              }
+            }
+          },
+          "window_based_work_area_offset_limit": {
+            "description": "Open window limit after which the window based work area offset will no longer be applied (default: 1)",
+            "type": "integer",
+            "format": "int"
+          },
           "work_area_offset": {
             "description": "Monitor-specific work area offset (default: None)",
             "type": "object",

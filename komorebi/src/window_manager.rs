@@ -24,9 +24,9 @@ use uds_windows::UnixListener;
 
 use komorebi_core::config_generation::MatchingRule;
 use komorebi_core::custom_layout::CustomLayout;
-use komorebi_core::ActiveWindowBorderStyle;
 use komorebi_core::Arrangement;
 use komorebi_core::Axis;
+use komorebi_core::BorderStyle;
 use komorebi_core::CycleDirection;
 use komorebi_core::DefaultLayout;
 use komorebi_core::FocusFollowsMouseImplementation;
@@ -52,7 +52,7 @@ use crate::window_manager_event::WindowManagerEvent;
 use crate::windows_api::WindowsApi;
 use crate::winevent_listener;
 use crate::workspace::Workspace;
-use crate::ActiveWindowBorderColours;
+use crate::BorderColours;
 use crate::Colour;
 use crate::Rgb;
 use crate::WorkspaceRule;
@@ -117,9 +117,9 @@ pub struct State {
 #[allow(clippy::struct_excessive_bools)]
 #[derive(Debug, Serialize, Deserialize, JsonSchema)]
 pub struct GlobalState {
-    pub active_window_border_enabled: bool,
-    pub active_window_border_colours: ActiveWindowBorderColours,
-    pub active_window_border_style: ActiveWindowBorderStyle,
+    pub border_enabled: bool,
+    pub border_colours: BorderColours,
+    pub border_style: BorderStyle,
     pub border_offset: i32,
     pub border_width: i32,
     pub stackbar_mode: StackbarMode,
@@ -146,8 +146,8 @@ pub struct GlobalState {
 impl Default for GlobalState {
     fn default() -> Self {
         Self {
-            active_window_border_enabled: border_manager::BORDER_ENABLED.load(Ordering::SeqCst),
-            active_window_border_colours: ActiveWindowBorderColours {
+            border_enabled: border_manager::BORDER_ENABLED.load(Ordering::SeqCst),
+            border_colours: BorderColours {
                 single: Option::from(Colour::Rgb(Rgb::from(
                     border_manager::FOCUSED.load(Ordering::SeqCst),
                 ))),
@@ -161,7 +161,7 @@ impl Default for GlobalState {
                     border_manager::UNFOCUSED.load(Ordering::SeqCst),
                 ))),
             },
-            active_window_border_style: *STYLE.lock(),
+            border_style: *STYLE.lock(),
             border_offset: border_manager::BORDER_OFFSET.load(Ordering::SeqCst),
             border_width: border_manager::BORDER_WIDTH.load(Ordering::SeqCst),
             stackbar_mode: *STACKBAR_MODE.lock(),
