@@ -78,23 +78,34 @@ use crate::WORKSPACE_RULES;
 
 #[tracing::instrument]
 pub fn listen_for_commands(wm: Arc<Mutex<WindowManager>>) {
-    let listener = wm
-        .lock()
-        .command_listener
-        .try_clone()
-        .expect("could not clone unix listener");
+    std::thread::spawn(move || loop {
+        let listener = wm
+            .lock()
+            .command_listener
+            .try_clone()
+            .expect("could not clone unix listener");
 
-    std::thread::spawn(move || {
         tracing::info!("listening on komorebi.sock");
+
+        // client is unique for every komorebic command
         for client in listener.incoming() {
             match client {
                 Ok(stream) => match read_commands_uds(&wm, stream) {
                     Ok(()) => {}
-                    Err(error) => tracing::error!("{}", error),
+                    Err(error) => {
+                        if cfg!(debug_assertions) {
+                            tracing::error!("{:?}", error)
+                        } else {
+                            tracing::error!("{}", error)
+                        }
+                    }
                 },
                 Err(error) => {
-                    tracing::error!("{}", error);
-                    break;
+                    if cfg!(debug_assertions) {
+                        tracing::error!("{:?}", error)
+                    } else {
+                        tracing::error!("{}", error)
+                    }
                 }
             }
         }

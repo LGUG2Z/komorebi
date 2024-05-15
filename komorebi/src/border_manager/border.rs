@@ -17,7 +17,6 @@ use komorebi_core::Rect;
 
 use std::sync::atomic::Ordering;
 use std::sync::mpsc;
-use std::time::Duration;
 use windows::core::PCWSTR;
 use windows::Win32::Foundation::BOOL;
 use windows::Win32::Foundation::COLORREF;
@@ -104,7 +103,6 @@ impl Border {
                 while GetMessageW(&mut message, HWND(hwnd), 0, 0).into() {
                     TranslateMessage(&message);
                     DispatchMessageW(&message);
-                    std::thread::sleep(Duration::from_millis(10));
                 }
             }
 

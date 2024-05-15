@@ -35,20 +35,17 @@ use crate::TRAY_AND_MULTI_WINDOW_IDENTIFIERS;
 
 #[tracing::instrument]
 pub fn listen_for_events(wm: Arc<Mutex<WindowManager>>) {
-    let receiver = wm.lock().incoming_events.clone();
-
-    std::thread::spawn(move || {
+    std::thread::spawn(move || loop {
         tracing::info!("listening");
-        loop {
-            if let Ok(event) = receiver.recv() {
-                match wm.lock().process_event(event) {
-                    Ok(()) => {}
-                    Err(error) => {
-                        if cfg!(debug_assertions) {
-                            tracing::error!("{:?}", error)
-                        } else {
-                            tracing::error!("{}", error)
-                        }
+        let receiver = wm.lock().incoming_events.clone();
+        for event in receiver {
+            match wm.lock().process_event(event) {
+                Ok(()) => {}
+                Err(error) => {
+                    if cfg!(debug_assertions) {
+                        tracing::error!("{:?}", error)
+                    } else {
+                        tracing::error!("{}", error)
                     }
                 }
             }
