@@ -178,6 +178,14 @@ impl WindowManager {
 
                     already_moved_window_handles.remove(&window.hwnd);
                 }
+
+                if let Some(aot) = self.always_on_top.as_mut() {
+                    if aot.contains(&window.hwnd) {
+                        let idx = aot.iter().position(|x| *x == window.hwnd).unwrap();
+                        aot.remove(idx);
+                    }
+
+                }
             }
             WindowManagerEvent::Minimize(_, window) => {
                 let mut hide = false;

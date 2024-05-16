@@ -97,7 +97,7 @@ pub struct WindowManager {
     pub has_pending_raise_op: bool,
     pub pending_move_op: Option<(usize, usize, usize)>,
     pub already_moved_window_handles: Arc<Mutex<HashSet<isize>>>,
-    pub always_on_display: Option<Vec<isize>>,
+    pub always_on_top: Option<Vec<isize>>,
 
 }
 
@@ -280,7 +280,7 @@ impl WindowManager {
             has_pending_raise_op: false,
             pending_move_op: None,
             already_moved_window_handles: Arc::new(Mutex::new(HashSet::new())),
-            always_on_display: None,
+            always_on_top: None,
         })
     }
 
@@ -1177,7 +1177,7 @@ impl WindowManager {
     }
 
     #[tracing::instrument(skip(self))]
-    pub fn send_always_on_display(&mut self, monitor_idx: Option<usize>, workspace_idx: Option<usize>, follows: Option<bool>) -> Result<()> {
+    pub fn send_always_on_top(&mut self, monitor_idx: Option<usize>, workspace_idx: Option<usize>, follows: Option<bool>) -> Result<()> {
         let mut contains_always_on_top = false;
         let last_window = if let Ok(window) = self.focused_window(){
             window.hwnd
@@ -1185,10 +1185,36 @@ impl WindowManager {
         } else {
             return Ok(())
         };
+        if let Some(_aot) = self.always_on_top.as_ref() {
 
+        } else {
+            return Ok(())
+        }
+        let flw = if let Some(follow) = follows {
+            if follow {
+                true
+            } else {
+                return  Ok(())
+            }
+        } else {
+            false
+        };
 
-        for windows in self.always_on_display.clone(){
-            for window in windows {
+        let aot = self.always_on_top.clone();
+
+        let contains_always_on_display_bool = self.contains_always_on_top();
+
+        let windows_vec = self.focused_container().unwrap().windows().into_iter().map(|w| w.hwnd).collect::<Vec<_>>();
+
+        aot.ok_or_else(|| anyhow!("there is no always on Top windows"))?.iter().filter(|&&window| {
+            let mut is_window = false;
+            if contains_always_on_display_bool && flw {
+                    if windows_vec.contains(&&window) {
+                        is_window = true;
+                    }
+            }
+        !is_window})
+            .try_for_each(|&window| {
                 if let Some(monitor_idx) = monitor_idx {
                     if self
                         .monitors()
@@ -1210,28 +1236,7 @@ impl WindowManager {
                             .ok_or_else(|| anyhow!("there is no monitor at this index"))?.add_container(con, workspace_idx)?;
                     }
                 } else {
-
-                    if let Some(follow) = follows {
-                        if follow {
-                            let mut is_window = false;
-                            if self.contains_always_on_display() {
-                                self.focused_container()?.windows().iter().for_each(|w| {
-                                    if w.hwnd == window {
-                                        is_window = true;
-                                    }
-                                });
-                            }
-                            if is_window {
-                                continue;
-                            }
-
-                        } else {
-                            return Ok(())
-                        }
-                    }
-
                     if self.focused_workspace().unwrap().contains_managed_window(window) {
-
                         let idx = self.focused_workspace().unwrap().container_idx_for_window(window);
                         let con = self.focused_workspace_mut().unwrap().remove_container_by_idx(idx.unwrap()).ok_or_else(|| anyhow!("there is no container at this index"))?;
 
@@ -1241,14 +1246,12 @@ impl WindowManager {
                         contains_always_on_top = true;
 
                         //self.update_focused_workspace(mff, false).unwrap()
-
                     }
-
                 }
 
-            }
+                Ok::<(), color_eyre::eyre::Error>(())
 
-        }
+        })?;
 
         if contains_always_on_top && self.focused_workspace()?.containers().len() != 0 && self.focused_workspace()?.contains_managed_window(last_window)  {
             self.focused_workspace_mut()?.focus_container_by_window(last_window)?;
@@ -1257,9 +1260,9 @@ impl WindowManager {
 
     }
 
-    pub fn contains_always_on_display(&self) -> bool {
+    pub fn contains_always_on_top(&self) -> bool {
 
-        if let Some(aot) = self.always_on_display.as_ref() {
+        if let Some(aot) = self.always_on_top.as_ref() {
             self.focused_container().unwrap().windows().iter().any(|w| aot.contains(&w.hwnd))
         } else { false
 
@@ -1269,22 +1272,25 @@ impl WindowManager {
     }
 
 
-    pub fn toggle_always_on_top(&mut self) {
+    pub fn toggle_always_on_top(&mut self) -> Result<()> {
 
-        for window in self.focused_container().unwrap().windows().clone() {
+        let focused_con = self.focused_container().unwrap().clone();
 
-            if let Some(always_on_display) = self.always_on_display.as_mut() {
+        focused_con.windows().iter().try_for_each(|window| {
 
-                if always_on_display.contains(&window.hwnd) {
-                    let idx = always_on_display.iter().position(|x| *x == window.hwnd).unwrap();
-                    always_on_display.remove(idx);
+            if let Some(always_on_top) = self.always_on_top.as_mut() {
+
+                if always_on_top.contains(&window.hwnd) {
+                    let idx = always_on_top.iter().position(|x| *x == window.hwnd).unwrap();
+                    always_on_top.remove(idx);
                 } else {
-                    always_on_display.push(window.hwnd.clone())
+                    always_on_top.push(window.hwnd.clone())
                 }
             } else {
-                self.always_on_display = Some(vec![window.hwnd.clone()])
+                self.always_on_top = Some(vec![window.hwnd.clone()])
             }
-        }
+        Ok::<(), color_eyre::eyre::Error>(())})?;
+        Ok(())
     }
 
 
@@ -1297,7 +1303,7 @@ impl WindowManager {
     ) -> Result<()> {
         self.handle_unmanaged_window_behaviour()?;
 
-        self.send_always_on_display(Some(monitor_idx),workspace_idx, Some(follow))?;
+        self.send_always_on_top(Some(monitor_idx), workspace_idx, Some(follow))?;
 
         tracing::info!("moving container");
 
@@ -1349,7 +1355,7 @@ impl WindowManager {
 
         tracing::info!("moving container");
 
-        self.send_always_on_display(None, Some(idx), Some(follow))?;
+        self.send_always_on_top(None, Some(idx), Some(follow))?;
 
 
         let mouse_follows_focus = self.mouse_follows_focus;
@@ -2428,7 +2434,7 @@ impl WindowManager {
     #[tracing::instrument(skip(self))]
     pub fn focus_monitor(&mut self, idx: usize) -> Result<()> {
         tracing::info!("focusing monitor");
-        self.send_always_on_display(Some(idx), None, None)?;
+        self.send_always_on_top(Some(idx), None, None)?;
 
 
         if self.monitors().get(idx).is_some() {
@@ -2513,7 +2519,7 @@ impl WindowManager {
     pub fn focus_workspace(&mut self, idx: usize) -> Result<()> {
         tracing::info!("focusing workspace");
 
-        self.send_always_on_display(None, Some(idx), None)?;
+        self.send_always_on_top(None, Some(idx), None)?;
 
         let mouse_follows_focus = self.mouse_follows_focus;
         let monitor = self
