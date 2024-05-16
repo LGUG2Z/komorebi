@@ -1558,8 +1558,11 @@ impl WindowManager {
             })?;
 
             let adjusted_new_index = if new_idx > current_container_idx
-                && !matches!(workspace.layout(), Layout::Default(DefaultLayout::Grid))
-            {
+                && !matches!(
+                    workspace.layout(),
+                    Layout::Default(DefaultLayout::Grid)
+                        | Layout::Default(DefaultLayout::UltrawideVerticalStack)
+                ) {
                 new_idx - 1
             } else {
                 new_idx
