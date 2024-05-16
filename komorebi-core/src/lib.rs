@@ -71,6 +71,7 @@ pub enum SocketMessage {
     ToggleFloat,
     ToggleMonocle,
     ToggleMaximize,
+    ToggleAlwaysOnTop,
     ToggleWindowContainerBehaviour,
     WindowHidingBehaviour(HidingBehaviour),
     ToggleCrossMonitorMoveBehaviour,

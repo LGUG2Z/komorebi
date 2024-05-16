@@ -650,7 +650,7 @@ impl Workspace {
         None
     }
 
-    fn container_idx_for_window(&self, hwnd: isize) -> Option<usize> {
+    pub(crate) fn container_idx_for_window(&self, hwnd: isize) -> Option<usize> {
         let mut idx = None;
         for (i, x) in self.containers().iter().enumerate() {
             if x.contains_window(hwnd) {

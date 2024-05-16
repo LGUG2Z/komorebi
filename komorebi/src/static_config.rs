@@ -664,6 +664,7 @@ impl StaticConfig {
             has_pending_raise_op: false,
             pending_move_op: None,
             already_moved_window_handles: Arc::new(Mutex::new(HashSet::new())),
+            always_on_display: None,
         };
 
         match value.focus_follows_mouse {

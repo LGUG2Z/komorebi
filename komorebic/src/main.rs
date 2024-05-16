@@ -1084,6 +1084,8 @@ enum SubCommand {
     ToggleMonocle,
     /// Toggle native maximization for the focused window
     ToggleMaximize,
+    /// Toggle Always on top mode for the focused window
+    ToggleAlwaysOnTop,
     /// Restore all hidden windows (debugging command)
     RestoreWindows,
     /// Force komorebi to manage the focused window
@@ -1690,6 +1692,9 @@ fn main() -> Result<()> {
         }
         SubCommand::ToggleMaximize => {
             send_message(&SocketMessage::ToggleMaximize.as_bytes()?)?;
+        }
+        SubCommand::ToggleAlwaysOnTop => {
+            send_message(&SocketMessage::ToggleAlwaysOnTop.as_bytes()?)?;
         }
         SubCommand::WorkspaceLayout(arg) => {
             send_message(
