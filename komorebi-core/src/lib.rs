@@ -142,6 +142,7 @@ pub enum SocketMessage {
     BorderOffset(i32),
     InvisibleBorders(Rect),
     StackbarMode(StackbarMode),
+    StackbarLabel(StackbarLabel),
     StackbarFocusedTextColour(u32, u32, u32),
     StackbarUnfocusedTextColour(u32, u32, u32),
     StackbarBackgroundColour(u32, u32, u32),
@@ -201,6 +202,15 @@ pub enum StackbarMode {
     Always,
     Never,
     OnStack,
+}
+
+#[derive(
+    Debug, Copy, Default, Clone, Eq, PartialEq, Display, Serialize, Deserialize, JsonSchema,
+)]
+pub enum StackbarLabel {
+    #[default]
+    Process,
+    Title,
 }
 
 #[derive(

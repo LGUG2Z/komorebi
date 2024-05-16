@@ -22,6 +22,7 @@ use crate::MONITOR_INDEX_PREFERENCES;
 use crate::OBJECT_NAME_CHANGE_ON_LAUNCH;
 use crate::REGEX_IDENTIFIERS;
 use crate::STACKBAR_FOCUSED_TEXT_COLOUR;
+use crate::STACKBAR_LABEL;
 use crate::STACKBAR_MODE;
 use crate::STACKBAR_TAB_BACKGROUND_COLOUR;
 use crate::STACKBAR_TAB_HEIGHT;
@@ -29,6 +30,7 @@ use crate::STACKBAR_TAB_WIDTH;
 use crate::STACKBAR_UNFOCUSED_TEXT_COLOUR;
 use crate::TRAY_AND_MULTI_WINDOW_IDENTIFIERS;
 use crate::WORKSPACE_RULES;
+use komorebi_core::StackbarLabel;
 use komorebi_core::StackbarMode;
 
 use color_eyre::Result;
@@ -330,11 +332,12 @@ pub struct TabsConfig {
     /// Tab background colour
     background: Option<Colour>,
 }
-
 #[derive(Debug, Serialize, Deserialize, JsonSchema)]
 pub struct StackbarConfig {
     /// Stackbar height
     pub height: Option<i32>,
+    /// Stackbar height
+    pub label: Option<StackbarLabel>,
     /// Stackbar mode
     pub mode: Option<StackbarMode>,
     /// Stackbar tab configuration options
@@ -540,9 +543,12 @@ impl StaticConfig {
                 STACKBAR_TAB_HEIGHT.store(*height, Ordering::SeqCst);
             }
 
+            if let Some(label) = &stackbar.label {
+                STACKBAR_LABEL.store(*label);
+            }
+
             if let Some(mode) = &stackbar.mode {
-                let mut stackbar_mode = STACKBAR_MODE.lock();
-                *stackbar_mode = *mode;
+                STACKBAR_MODE.store(*mode);
             }
 
             if let Some(tabs) = &stackbar.tabs {
@@ -747,7 +753,7 @@ impl StaticConfig {
 
         value.apply_globals()?;
 
-        let stackbar_mode = *STACKBAR_MODE.lock();
+        let stackbar_mode = STACKBAR_MODE.load();
 
         for m in wm.monitors_mut() {
             for w in m.workspaces_mut() {
