@@ -1185,7 +1185,10 @@ impl WindowManager {
         } else {
             return Ok(())
         };
-        if let Some(_aot) = self.always_on_top.as_ref() {
+        if let Some(aot) = self.always_on_top.as_ref() {
+            if aot.len() == 0 {
+                return Ok(())
+            }
 
         } else {
             return Ok(())
