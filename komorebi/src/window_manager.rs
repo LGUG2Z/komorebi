@@ -20,6 +20,7 @@ use regex::Regex;
 use schemars::JsonSchema;
 use serde::Deserialize;
 use serde::Serialize;
+use tracing::info;
 use uds_windows::UnixListener;
 
 use komorebi_core::config_generation::MatchingRule;
@@ -1183,7 +1184,11 @@ impl WindowManager {
             window.hwnd
 
         } else {
-            return Ok(())
+            if self.focused_workspace()?.floating_windows().len() > 0 {
+                self.focused_workspace()?.floating_windows()[0].hwnd
+            }else {
+                return Ok(())
+            }
         };
         if let Some(aot) = self.always_on_top.as_ref() {
             if aot.len() == 0 {
@@ -1197,7 +1202,7 @@ impl WindowManager {
             if follow {
                 true
             } else {
-                return  Ok(())
+                return  Err(anyhow!("cannot send an always on top window"))?
             }
         } else {
             false
@@ -1206,11 +1211,22 @@ impl WindowManager {
         let aot = self.always_on_top.clone();
 
         let contains_always_on_display_bool =  if let Some(aot) = self.always_on_top.as_ref() {
-            self.focused_container().unwrap().windows().iter().any(|w| aot.contains(&w.hwnd))
-        } else { false
+            if let Ok(fc) = self.focused_container() {
+                fc.windows().iter().any(|w| aot.contains(&w.hwnd))
+            } else {
+                false
+            }
+        }
+            else { false
         };
 
-        let windows_vec = self.focused_container().unwrap().windows().into_iter().map(|w| w.hwnd).collect::<Vec<_>>();
+        let windows_vec = if let Ok(fc) = self.focused_container() {
+            fc.windows().into_iter().map(|w| w.hwnd).collect::<Vec<_>>()
+
+        } else {
+            vec![]
+        };
+
 
         aot.ok_or_else(|| anyhow!("there is no always on Top windows"))?.iter().filter(|&&window| {
             let mut is_window = false;
@@ -1247,11 +1263,20 @@ impl WindowManager {
                         let con = self.focused_workspace_mut().unwrap().remove_container_by_idx(idx.unwrap()).ok_or_else(|| anyhow!("there is no container at this index"))?;
 
 
-                        self.focused_monitor_mut().unwrap().add_container(con, workspace_idx)?;
+                        self.focused_monitor_mut().ok_or_else(|| anyhow!("there is no focused monitor"))?.add_container(con, workspace_idx)?;
 
                         contains_always_on_top = true;
 
                         //self.update_focused_workspace(mff, false).unwrap()
+                    } else if self.focused_workspace()?.floating_windows().iter().any(|w| w.hwnd == window) {
+                        info!("window is floating");
+                        let idx = self.focused_workspace_mut()?.floating_windows().iter().position(|x| x.hwnd == window).unwrap();
+                        let float_window = self.focused_workspace_mut()?.floating_windows_mut().remove(idx);
+                        self.focused_monitor_mut().ok_or_else(|| anyhow!("there is no focused workspace"))?
+                            .workspaces_mut()
+                            .get_mut(workspace_idx.unwrap())
+                            .ok_or_else(|| anyhow!("there is no workspace at this index"))?
+                            .floating_windows_mut().push(float_window);
                     }
                 }
 
