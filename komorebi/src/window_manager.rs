@@ -1282,6 +1282,9 @@ impl WindowManager {
 
         let new_idx = workspace.new_idx_for_direction(direction);
 
+        // TODO: clean this up, this is awful
+        let mut cross_monitor_monocle = false;
+
         // if there is no container in that direction for this workspace
         match new_idx {
             None => {
@@ -1297,6 +1300,8 @@ impl WindowManager {
                             WindowsApi::center_cursor_in_rect(&WindowsApi::window_rect(
                                 window.hwnd(),
                             )?)?;
+
+                            cross_monitor_monocle = true;
                         }
                     }
                 }
@@ -1314,13 +1319,15 @@ impl WindowManager {
         // With this piece of code, we check if we have changed focus to a container stack with
         // a stackbar, and if we have, we run a quick update to make sure the focused text colour
         // has been applied
-        if let Ok(focused_window) = self.focused_window_mut() {
-            let focused_window_hwnd = focused_window.hwnd;
-            focused_window.focus(self.mouse_follows_focus)?;
+        if !cross_monitor_monocle {
+            if let Ok(focused_window) = self.focused_window_mut() {
+                let focused_window_hwnd = focused_window.hwnd;
+                focused_window.focus(self.mouse_follows_focus)?;
 
-            let focused_container = self.focused_container()?;
-            if let Some(stackbar) = focused_container.stackbar() {
-                stackbar.update(focused_container.windows(), focused_window_hwnd)?;
+                let focused_container = self.focused_container()?;
+                if let Some(stackbar) = focused_container.stackbar() {
+                    stackbar.update(focused_container.windows(), focused_window_hwnd)?;
+                }
             }
         }
 
@@ -1741,7 +1748,17 @@ impl WindowManager {
         tracing::info!("enabling monocle");
 
         let workspace = self.focused_workspace_mut()?;
-        workspace.new_monocle_container()
+        workspace.new_monocle_container()?;
+
+        if let Some(monocle) = workspace.monocle_container_mut() {
+            monocle.set_stackbar_mode(StackbarMode::Never);
+        }
+
+        for container in workspace.containers_mut() {
+            container.set_stackbar_mode(StackbarMode::Never);
+        }
+
+        Ok(())
     }
 
     #[tracing::instrument(skip(self))]
@@ -1749,6 +1766,15 @@ impl WindowManager {
         tracing::info!("disabling monocle");
 
         let workspace = self.focused_workspace_mut()?;
+
+        if let Some(monocle) = workspace.monocle_container_mut() {
+            monocle.set_stackbar_mode(STACKBAR_MODE.load());
+        }
+
+        for container in workspace.containers_mut() {
+            container.set_stackbar_mode(STACKBAR_MODE.load());
+        }
+
         workspace.reintegrate_monocle_container()
     }
 
