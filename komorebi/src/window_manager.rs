@@ -167,7 +167,7 @@ impl Default for GlobalState {
             border_style: *STYLE.lock(),
             border_offset: border_manager::BORDER_OFFSET.load(Ordering::SeqCst),
             border_width: border_manager::BORDER_WIDTH.load(Ordering::SeqCst),
-            stackbar_mode: *STACKBAR_MODE.lock(),
+            stackbar_mode: STACKBAR_MODE.load(),
             stackbar_focused_text_colour: Colour::Rgb(Rgb::from(
                 STACKBAR_FOCUSED_TEXT_COLOUR.load(Ordering::SeqCst),
             )),
@@ -1435,6 +1435,16 @@ impl WindowManager {
                     .ok_or_else(|| anyhow!("there is no container or monitor in this direction"))?;
 
                 self.focus_monitor(monitor_idx)?;
+
+                if let Ok(focused_workspace) = self.focused_workspace() {
+                    if let Some(monocle) = focused_workspace.monocle_container() {
+                        if let Some(window) = monocle.focused_window() {
+                            WindowsApi::center_cursor_in_rect(&WindowsApi::window_rect(
+                                window.hwnd(),
+                            )?)?;
+                        }
+                    }
+                }
             }
             Some(idx) => {
                 let workspace = self.focused_workspace_mut()?;
@@ -1449,13 +1459,14 @@ impl WindowManager {
         // With this piece of code, we check if we have changed focus to a container stack with
         // a stackbar, and if we have, we run a quick update to make sure the focused text colour
         // has been applied
-        let focused_window = self.focused_window_mut()?;
-        let focused_window_hwnd = focused_window.hwnd;
-        focused_window.focus(self.mouse_follows_focus)?;
+        if let Ok(focused_window) = self.focused_window_mut() {
+            let focused_window_hwnd = focused_window.hwnd;
+            focused_window.focus(self.mouse_follows_focus)?;
 
-        let focused_container = self.focused_container()?;
-        if let Some(stackbar) = focused_container.stackbar() {
-            stackbar.update(focused_container.windows(), focused_window_hwnd)?;
+            let focused_container = self.focused_container()?;
+            if let Some(stackbar) = focused_container.stackbar() {
+                stackbar.update(focused_container.windows(), focused_window_hwnd)?;
+            }
         }
 
         Ok(())
@@ -1506,7 +1517,19 @@ impl WindowManager {
                     // focus the target monitor
                     self.focus_monitor(target_monitor_idx)?;
 
-                    // get the focused workspace on the target monitor
+                    // unset monocle container on target workspace if there is one
+                    let mut target_workspace_has_monocle = false;
+                    if let Ok(target_workspace) = self.focused_workspace() {
+                        if target_workspace.monocle_container().is_some() {
+                            target_workspace_has_monocle = true;
+                        }
+                    }
+
+                    if target_workspace_has_monocle {
+                        self.toggle_monocle()?;
+                    }
+
+                    // get a mutable ref to the focused workspace on the target monitor
                     let target_workspace = self.focused_workspace_mut()?;
 
                     // insert the origin container into the focused workspace on the target monitor
@@ -1703,8 +1726,11 @@ impl WindowManager {
             })?;
 
             let adjusted_new_index = if new_idx > current_container_idx
-                && !matches!(workspace.layout(), Layout::Default(DefaultLayout::Grid))
-            {
+                && !matches!(
+                    workspace.layout(),
+                    Layout::Default(DefaultLayout::Grid)
+                        | Layout::Default(DefaultLayout::UltrawideVerticalStack)
+                ) {
                 new_idx - 1
             } else {
                 new_idx

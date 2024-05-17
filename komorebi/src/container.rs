@@ -30,7 +30,7 @@ impl Default for Container {
         Self {
             id: nanoid!(),
             windows: Ring::default(),
-            stackbar: match *STACKBAR_MODE.lock() {
+            stackbar: match STACKBAR_MODE.load() {
                 StackbarMode::Always => Stackbar::create().ok(),
                 StackbarMode::Never | StackbarMode::OnStack => None,
             },
@@ -124,7 +124,7 @@ impl Container {
     pub fn remove_window_by_idx(&mut self, idx: usize) -> Option<Window> {
         let window = self.windows_mut().remove(idx);
 
-        if matches!(*STACKBAR_MODE.lock(), StackbarMode::OnStack) && self.windows().len() <= 1 {
+        if matches!(STACKBAR_MODE.load(), StackbarMode::OnStack) && self.windows().len() <= 1 {
             if let Some(stackbar) = &self.stackbar {
                 let _ = WindowsApi::close_window(stackbar.hwnd());
                 self.stackbar = None;
@@ -146,7 +146,7 @@ impl Container {
     pub fn add_window(&mut self, window: Window) {
         self.windows_mut().push_back(window);
 
-        if matches!(*STACKBAR_MODE.lock(), StackbarMode::OnStack)
+        if matches!(STACKBAR_MODE.load(), StackbarMode::OnStack)
             && self.windows().len() > 1
             && self.stackbar.is_none()
         {

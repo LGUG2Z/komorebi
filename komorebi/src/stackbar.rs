@@ -55,8 +55,10 @@ use komorebi_core::Rect;
 
 use crate::window::Window;
 use crate::windows_api::WindowsApi;
+use crate::StackbarLabel;
 use crate::DEFAULT_CONTAINER_PADDING;
 use crate::STACKBAR_FOCUSED_TEXT_COLOUR;
+use crate::STACKBAR_LABEL;
 use crate::STACKBAR_TAB_BACKGROUND_COLOUR;
 use crate::STACKBAR_TAB_HEIGHT;
 use crate::STACKBAR_TAB_WIDTH;
@@ -229,9 +231,15 @@ impl Stackbar {
 
                 WindowsApi::round_rect(hdc, &tab_box, 8);
 
-                let exe = window.exe()?;
-                let exe_trimmed = exe.trim_end_matches(".exe");
-                let mut tab_title: Vec<u16> = exe_trimmed.encode_utf16().collect();
+                let label = match STACKBAR_LABEL.load() {
+                    StackbarLabel::Process => {
+                        let exe = window.exe()?;
+                        exe.trim_end_matches(".exe").to_string()
+                    }
+                    StackbarLabel::Title => window.title()?,
+                };
+
+                let mut tab_title: Vec<u16> = label.encode_utf16().collect();
 
                 tab_box.left_padding(10);
                 tab_box.right_padding(10);

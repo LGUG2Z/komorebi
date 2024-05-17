@@ -159,7 +159,7 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
 
         let focused_monitor_idx = state.focused_monitor_idx();
 
-        for (monitor_idx, m) in state.monitors.elements().iter().enumerate() {
+        'monitors: for (monitor_idx, m) in state.monitors.elements().iter().enumerate() {
             // Only operate on the focused workspace of each monitor
             if let Some(ws) = m.focused_workspace() {
                 // Workspaces with tiling disabled don't have borders
@@ -208,7 +208,14 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
 
                     {
                         let mut focus_state = FOCUS_STATE.lock();
-                        focus_state.insert(border.hwnd, WindowKind::Monocle);
+                        focus_state.insert(
+                            border.hwnd,
+                            if monitor_idx != focused_monitor_idx {
+                                WindowKind::Unfocused
+                            } else {
+                                WindowKind::Monocle
+                            },
+                        );
                     }
 
                     let rect = WindowsApi::window_rect(
@@ -216,7 +223,7 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                     )?;
 
                     border.update(&rect)?;
-                    continue 'receiver;
+                    continue 'monitors;
                 }
 
                 let is_maximized = WindowsApi::is_zoomed(HWND(
@@ -236,7 +243,7 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                         borders.remove(id);
                     }
 
-                    continue 'receiver;
+                    continue 'monitors;
                 }
 
                 // Destroy any borders not associated with the focused workspace

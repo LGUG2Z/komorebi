@@ -65,6 +65,7 @@ use crate::NO_TITLEBAR;
 use crate::OBJECT_NAME_CHANGE_ON_LAUNCH;
 use crate::REMOVE_TITLEBARS;
 use crate::STACKBAR_FOCUSED_TEXT_COLOUR;
+use crate::STACKBAR_LABEL;
 use crate::STACKBAR_MODE;
 use crate::STACKBAR_TAB_BACKGROUND_COLOUR;
 use crate::STACKBAR_TAB_HEIGHT;
@@ -1247,8 +1248,7 @@ impl WindowManager {
                 border_manager::BORDER_OFFSET.store(offset, Ordering::SeqCst);
             }
             SocketMessage::StackbarMode(mode) => {
-                let mut stackbar_mode = STACKBAR_MODE.lock();
-                *stackbar_mode = mode;
+                STACKBAR_MODE.store(mode);
 
                 for m in self.monitors_mut() {
                     for w in m.workspaces_mut() {
@@ -1257,6 +1257,9 @@ impl WindowManager {
                         }
                     }
                 }
+            }
+            SocketMessage::StackbarLabel(label) => {
+                STACKBAR_LABEL.store(label);
             }
             SocketMessage::StackbarFocusedTextColour(r, g, b) => {
                 let rgb = Rgb::new(r, g, b);

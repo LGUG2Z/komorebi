@@ -51,6 +51,7 @@ pub use windows_api::WindowsApi;
 pub use windows_api::*;
 
 use color_eyre::Result;
+use crossbeam_utils::atomic::AtomicCell;
 use komorebi_core::config_generation::IdWithIdentifier;
 use komorebi_core::config_generation::MatchingRule;
 use komorebi_core::config_generation::MatchingStrategy;
@@ -58,6 +59,7 @@ use komorebi_core::ApplicationIdentifier;
 use komorebi_core::HidingBehaviour;
 use komorebi_core::Rect;
 use komorebi_core::SocketMessage;
+use komorebi_core::StackbarLabel;
 use komorebi_core::StackbarMode;
 use os_info::Version;
 use parking_lot::Mutex;
@@ -201,7 +203,6 @@ lazy_static! {
     // eg. Windows Terminal, IntelliJ IDEA, Firefox
     static ref NO_TITLEBAR: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(vec![]));
 
-    static ref STACKBAR_MODE: Arc<Mutex<StackbarMode >> = Arc::new(Mutex::new(StackbarMode::Never));
     static ref WINDOWS_BY_BAR_HWNDS: Arc<Mutex<HashMap<isize, VecDeque<isize>>>> =
         Arc::new(Mutex::new(HashMap::new()));
 
@@ -223,6 +224,8 @@ pub static STACKBAR_UNFOCUSED_TEXT_COLOUR: AtomicU32 = AtomicU32::new(11776947);
 pub static STACKBAR_TAB_BACKGROUND_COLOUR: AtomicU32 = AtomicU32::new(3355443); // gray
 pub static STACKBAR_TAB_HEIGHT: AtomicI32 = AtomicI32::new(40);
 pub static STACKBAR_TAB_WIDTH: AtomicI32 = AtomicI32::new(200);
+pub static STACKBAR_LABEL: AtomicCell<StackbarLabel> = AtomicCell::new(StackbarLabel::Process);
+pub static STACKBAR_MODE: AtomicCell<StackbarMode> = AtomicCell::new(StackbarMode::Never);
 
 #[must_use]
 pub fn current_virtual_desktop() -> Option<Vec<u8>> {
