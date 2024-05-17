@@ -1,6 +1,7 @@
 #![warn(clippy::all, clippy::nursery, clippy::pedantic)]
 #![allow(clippy::missing_errors_doc)]
 
+use chrono::Local;
 use std::fs::File;
 use std::fs::OpenOptions;
 use std::io::BufRead;
@@ -1490,7 +1491,8 @@ fn main() -> Result<()> {
             println!("\n#Include komorebic.lib.ahk");
         }
         SubCommand::Log => {
-            let color_log = std::env::temp_dir().join("komorebi.log");
+            let timestamp = Local::now().format("%Y-%m-%d").to_string();
+            let color_log = std::env::temp_dir().join(format!("komorebi.log.{timestamp}"));
             let file = TailedFile::new(File::open(color_log)?);
             let locked = file.lock();
             #[allow(clippy::significant_drop_in_scrutinee, clippy::lines_filter_map_ok)]
