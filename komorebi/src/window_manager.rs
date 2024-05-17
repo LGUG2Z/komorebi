@@ -1205,7 +1205,10 @@ impl WindowManager {
 
         let aot = self.always_on_top.clone();
 
-        let contains_always_on_display_bool = self.contains_always_on_top();
+        let contains_always_on_display_bool =  if let Some(aot) = self.always_on_top.as_ref() {
+            self.focused_container().unwrap().windows().iter().any(|w| aot.contains(&w.hwnd))
+        } else { false
+        };
 
         let windows_vec = self.focused_container().unwrap().windows().into_iter().map(|w| w.hwnd).collect::<Vec<_>>();
 
@@ -1262,18 +1265,6 @@ impl WindowManager {
         Ok(())
 
     }
-
-    pub fn contains_always_on_top(&self) -> bool {
-
-        if let Some(aot) = self.always_on_top.as_ref() {
-            self.focused_container().unwrap().windows().iter().any(|w| aot.contains(&w.hwnd))
-        } else { false
-
-        }
-
-
-    }
-
 
     pub fn toggle_always_on_top(&mut self) -> Result<()> {
 
