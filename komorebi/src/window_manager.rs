@@ -1269,7 +1269,6 @@ impl WindowManager {
 
                         //self.update_focused_workspace(mff, false).unwrap()
                     } else if self.focused_workspace()?.floating_windows().iter().any(|w| w.hwnd == window) {
-                        info!("window is floating");
                         let idx = self.focused_workspace_mut()?.floating_windows().iter().position(|x| x.hwnd == window).unwrap();
                         let float_window = self.focused_workspace_mut()?.floating_windows_mut().remove(idx);
                         self.focused_monitor_mut().ok_or_else(|| anyhow!("there is no focused workspace"))?
