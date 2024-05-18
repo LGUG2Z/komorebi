@@ -1297,6 +1297,7 @@ impl WindowManager {
                 if let Ok(focused_workspace) = self.focused_workspace() {
                     if let Some(monocle) = focused_workspace.monocle_container() {
                         if let Some(window) = monocle.focused_window() {
+                            window.focus(self.mouse_follows_focus)?;
                             WindowsApi::center_cursor_in_rect(&WindowsApi::window_rect(
                                 window.hwnd(),
                             )?)?;
@@ -1756,6 +1757,7 @@ impl WindowManager {
 
         for container in workspace.containers_mut() {
             container.set_stackbar_mode(StackbarMode::Never);
+            container.hide(None);
         }
 
         Ok(())
@@ -1773,6 +1775,7 @@ impl WindowManager {
 
         for container in workspace.containers_mut() {
             container.set_stackbar_mode(STACKBAR_MODE.load());
+            container.restore();
         }
 
         workspace.reintegrate_monocle_container()

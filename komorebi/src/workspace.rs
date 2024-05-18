@@ -179,6 +179,14 @@ impl Workspace {
     }
 
     pub fn restore(&mut self, mouse_follows_focus: bool) -> Result<()> {
+        if let Some(container) = self.monocle_container_mut() {
+            if let Some(window) = container.focused_window() {
+                container.restore();
+                window.focus(mouse_follows_focus)?;
+                return Ok(());
+            }
+        }
+
         let idx = self.focused_container_idx();
         let mut to_focus = None;
 
@@ -193,10 +201,6 @@ impl Workspace {
         }
 
         for container in self.containers_mut() {
-            container.restore();
-        }
-
-        if let Some(container) = self.monocle_container_mut() {
             container.restore();
         }
 
