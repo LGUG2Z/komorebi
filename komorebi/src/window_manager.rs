@@ -46,6 +46,12 @@ use crate::current_virtual_desktop;
 use crate::load_configuration;
 use crate::monitor::Monitor;
 use crate::ring::Ring;
+use crate::stackbar_manager::STACKBAR_FOCUSED_TEXT_COLOUR;
+use crate::stackbar_manager::STACKBAR_MODE;
+use crate::stackbar_manager::STACKBAR_TAB_BACKGROUND_COLOUR;
+use crate::stackbar_manager::STACKBAR_TAB_HEIGHT;
+use crate::stackbar_manager::STACKBAR_TAB_WIDTH;
+use crate::stackbar_manager::STACKBAR_UNFOCUSED_TEXT_COLOUR;
 use crate::static_config::StaticConfig;
 use crate::window::Window;
 use crate::window_manager_event::WindowManagerEvent;
@@ -68,12 +74,6 @@ use crate::MONITOR_INDEX_PREFERENCES;
 use crate::NO_TITLEBAR;
 use crate::OBJECT_NAME_CHANGE_ON_LAUNCH;
 use crate::REMOVE_TITLEBARS;
-use crate::STACKBAR_FOCUSED_TEXT_COLOUR;
-use crate::STACKBAR_MODE;
-use crate::STACKBAR_TAB_BACKGROUND_COLOUR;
-use crate::STACKBAR_TAB_HEIGHT;
-use crate::STACKBAR_TAB_WIDTH;
-use crate::STACKBAR_UNFOCUSED_TEXT_COLOUR;
 use crate::TRAY_AND_MULTI_WINDOW_IDENTIFIERS;
 use crate::WORKSPACE_RULES;
 use komorebi_core::StackbarMode;
@@ -1131,7 +1131,6 @@ impl WindowManager {
 
         let new_idx = workspace.new_idx_for_direction(direction);
 
-        // TODO: clean this up, this is awful
         let mut cross_monitor_monocle = false;
 
         // if there is no container in that direction for this workspace
@@ -1162,22 +1161,9 @@ impl WindowManager {
             }
         }
 
-        // When switching workspaces and landing focus on a window that is not stack, but a stack
-        // exists, and there is a stackbar visible, when changing focus to that container stack,
-        // the focused text colour will not be applied until the stack has been cycled at least once
-        //
-        // With this piece of code, we check if we have changed focus to a container stack with
-        // a stackbar, and if we have, we run a quick update to make sure the focused text colour
-        // has been applied
         if !cross_monitor_monocle {
             if let Ok(focused_window) = self.focused_window_mut() {
-                let focused_window_hwnd = focused_window.hwnd;
                 focused_window.focus(self.mouse_follows_focus)?;
-
-                let focused_container = self.focused_container()?;
-                if let Some(stackbar) = focused_container.stackbar() {
-                    stackbar.update(focused_container.windows(), focused_window_hwnd)?;
-                }
             }
         }
 
@@ -1580,16 +1566,6 @@ impl WindowManager {
 
         self.update_focused_workspace(true, true)?;
 
-        // TODO: fix this ugly hack to restore stackbar after monocle is toggled off
-        let workspace = self.focused_workspace()?;
-        if workspace.monocle_container().is_none() {
-            if let Some(container) = workspace.focused_container() {
-                if container.stackbar().is_some() {
-                    self.retile_all(true)?;
-                };
-            }
-        };
-
         Ok(())
     }
 
@@ -1600,12 +1576,7 @@ impl WindowManager {
         let workspace = self.focused_workspace_mut()?;
         workspace.new_monocle_container()?;
 
-        if let Some(monocle) = workspace.monocle_container_mut() {
-            monocle.set_stackbar_mode(StackbarMode::Never);
-        }
-
         for container in workspace.containers_mut() {
-            container.set_stackbar_mode(StackbarMode::Never);
             container.hide(None);
         }
 
@@ -1618,12 +1589,7 @@ impl WindowManager {
 
         let workspace = self.focused_workspace_mut()?;
 
-        if let Some(monocle) = workspace.monocle_container_mut() {
-            monocle.set_stackbar_mode(STACKBAR_MODE.load());
-        }
-
         for container in workspace.containers_mut() {
-            container.set_stackbar_mode(STACKBAR_MODE.load());
             container.restore();
         }
 

@@ -30,6 +30,7 @@ use komorebi::process_command::listen_for_commands;
 use komorebi::process_command::listen_for_commands_tcp;
 use komorebi::process_event::listen_for_events;
 use komorebi::process_movement::listen_for_movements;
+use komorebi::stackbar_manager;
 use komorebi::static_config::StaticConfig;
 use komorebi::window_manager::WindowManager;
 use komorebi::windows_api::WindowsApi;
@@ -254,6 +255,7 @@ fn main() -> Result<()> {
     }
 
     border_manager::listen_for_notifications(wm.clone());
+    stackbar_manager::listen_for_notifications(wm.clone());
     workspace_reconciliator::listen_for_notifications(wm.clone());
     monitor_reconciliator::listen_for_notifications(wm.clone())?;
 

@@ -43,6 +43,7 @@ use crate::border_manager::STYLE;
 use crate::colour::Rgb;
 use crate::current_virtual_desktop;
 use crate::notify_subscribers;
+use crate::stackbar_manager;
 use crate::static_config::StaticConfig;
 use crate::window::RuleDebug;
 use crate::window::Window;
@@ -64,18 +65,18 @@ use crate::MONITOR_INDEX_PREFERENCES;
 use crate::NO_TITLEBAR;
 use crate::OBJECT_NAME_CHANGE_ON_LAUNCH;
 use crate::REMOVE_TITLEBARS;
-use crate::STACKBAR_FOCUSED_TEXT_COLOUR;
-use crate::STACKBAR_LABEL;
-use crate::STACKBAR_MODE;
-use crate::STACKBAR_TAB_BACKGROUND_COLOUR;
-use crate::STACKBAR_TAB_HEIGHT;
-use crate::STACKBAR_TAB_WIDTH;
-use crate::STACKBAR_UNFOCUSED_TEXT_COLOUR;
 use crate::SUBSCRIPTION_PIPES;
 use crate::SUBSCRIPTION_SOCKETS;
 use crate::TCP_CONNECTIONS;
 use crate::TRAY_AND_MULTI_WINDOW_IDENTIFIERS;
 use crate::WORKSPACE_RULES;
+use stackbar_manager::STACKBAR_FOCUSED_TEXT_COLOUR;
+use stackbar_manager::STACKBAR_LABEL;
+use stackbar_manager::STACKBAR_MODE;
+use stackbar_manager::STACKBAR_TAB_BACKGROUND_COLOUR;
+use stackbar_manager::STACKBAR_TAB_HEIGHT;
+use stackbar_manager::STACKBAR_TAB_WIDTH;
+use stackbar_manager::STACKBAR_UNFOCUSED_TEXT_COLOUR;
 
 #[tracing::instrument]
 pub fn listen_for_commands(wm: Arc<Mutex<WindowManager>>) {
@@ -1245,14 +1246,6 @@ impl WindowManager {
             }
             SocketMessage::StackbarMode(mode) => {
                 STACKBAR_MODE.store(mode);
-
-                for m in self.monitors_mut() {
-                    for w in m.workspaces_mut() {
-                        for c in w.containers_mut() {
-                            c.set_stackbar_mode(mode);
-                        }
-                    }
-                }
             }
             SocketMessage::StackbarLabel(label) => {
                 STACKBAR_LABEL.store(label);
@@ -1342,6 +1335,7 @@ impl WindowManager {
 
         notify_subscribers(&serde_json::to_string(&notification)?)?;
         border_manager::event_tx().send(border_manager::Notification)?;
+        stackbar_manager::event_tx().send(stackbar_manager::Notification)?;
 
         tracing::info!("processed");
         Ok(())
