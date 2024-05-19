@@ -334,8 +334,10 @@ impl WindowManager {
                 if proceed {
                     let behaviour = self.window_container_behaviour;
                     let workspace = self.focused_workspace_mut()?;
+                    let workspace_contains_window = workspace.contains_window(window.hwnd);
+                    let workspace_has_monocle_container = workspace.monocle_container().is_some();
 
-                    if !workspace.contains_window(window.hwnd) && !needs_reconciliation {
+                    if !workspace_contains_window && !needs_reconciliation {
                         match behaviour {
                             WindowContainerBehaviour::Create => {
                                 workspace.new_container_for_window(window);
@@ -349,6 +351,11 @@ impl WindowManager {
                                 self.update_focused_workspace(true, false)?;
                             }
                         }
+                    }
+
+                    if workspace_contains_window && workspace_has_monocle_container {
+                        self.toggle_monocle()?;
+                        window.focus(self.mouse_follows_focus)?;
                     }
                 }
             }
