@@ -48,5 +48,7 @@ windows-interface = { workspace = true }
 winput = "0.2"
 winreg = "0.52"
 
+win32-display-data = { git = "https://github.com/LGUG2Z/win32-display-data" }
+
 [features]
 deadlock_detection = []

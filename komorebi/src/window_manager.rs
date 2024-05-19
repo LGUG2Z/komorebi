@@ -82,7 +82,6 @@ use komorebi_core::StackbarMode;
 #[derive(Debug)]
 pub struct WindowManager {
     pub monitors: Ring<Monitor>,
-    pub monitor_cache: HashMap<usize, Monitor>,
     pub incoming_events: Receiver<WindowManagerEvent>,
     pub command_listener: UnixListener,
     pub is_paused: bool,
@@ -265,7 +264,6 @@ impl WindowManager {
 
         Ok(Self {
             monitors: Ring::default(),
-            monitor_cache: HashMap::new(),
             incoming_events: incoming,
             command_listener: listener,
             is_paused: false,
@@ -387,155 +385,6 @@ impl WindowManager {
         }
 
         None
-    }
-
-    #[tracing::instrument(skip(self))]
-    pub fn reconcile_monitors(&mut self) -> Result<()> {
-        if self.pending_move_op.is_some() {
-            return Ok(());
-        }
-
-        let valid_hmonitors = WindowsApi::valid_hmonitors()?;
-        let mut valid_names = vec![];
-        let before_count = self.monitors().len();
-
-        for monitor in self.monitors_mut() {
-            for (valid_name, valid_id) in &valid_hmonitors {
-                let actual_name = monitor.name().clone();
-                if actual_name == *valid_name {
-                    monitor.set_id(*valid_id);
-                    valid_names.push(actual_name);
-                }
-            }
-        }
-
-        let mut orphaned_containers = vec![];
-        let mut invalid_indices = vec![];
-
-        for (i, invalid) in self
-            .monitors()
-            .iter()
-            .enumerate()
-            .filter(|(_, m)| !valid_names.contains(m.name()))
-        {
-            invalid_indices.push(i);
-            for workspace in invalid.workspaces() {
-                for container in workspace.containers() {
-                    // Save the orphaned containers from an invalid monitor
-                    // (which has most likely been disconnected)
-                    orphaned_containers.push(container.clone());
-                }
-            }
-        }
-
-        for i in invalid_indices {
-            if let Some(monitor) = self.monitors().get(i) {
-                self.monitor_cache.insert(i, monitor.clone());
-            }
-        }
-
-        // Remove any invalid monitors from our state
-        self.monitors_mut()
-            .retain(|m| valid_names.contains(m.name()));
-
-        let after_count = self.monitors().len();
-
-        if let Some(primary) = self.monitors_mut().front_mut() {
-            if let Some(focused_ws) = primary.focused_workspace_mut() {
-                let focused_container_idx = focused_ws.focused_container_idx();
-
-                // Put the orphaned containers somewhere visible
-                for container in orphaned_containers {
-                    focused_ws.add_container(container);
-                }
-
-                // Gotta reset the focus or the movement will feel "off"
-                if before_count != after_count {
-                    focused_ws.focus_container(focused_container_idx);
-                }
-            }
-        }
-
-        let offset = self.work_area_offset;
-
-        for monitor in self.monitors_mut() {
-            // If we have lost a monitor, update everything to filter out any jank
-            let mut should_update = before_count != after_count;
-
-            let reference = WindowsApi::monitor(monitor.id())?;
-            if reference.work_area_size() != monitor.work_area_size() {
-                monitor.set_work_area_size(Rect {
-                    left: reference.work_area_size().left,
-                    top: reference.work_area_size().top,
-                    right: reference.work_area_size().right,
-                    bottom: reference.work_area_size().bottom,
-                });
-
-                should_update = true;
-            }
-
-            if reference.size() != monitor.size() {
-                monitor.set_size(Rect {
-                    left: reference.size().left,
-                    top: reference.size().top,
-                    right: reference.size().right,
-                    bottom: reference.size().bottom,
-                });
-
-                should_update = true;
-            }
-
-            if should_update {
-                monitor.update_focused_workspace(offset)?;
-            }
-        }
-
-        #[allow(clippy::needless_collect)]
-        let old_sizes = self
-            .monitors()
-            .iter()
-            .map(Monitor::size)
-            .copied()
-            .collect::<Vec<_>>();
-
-        // Check for and add any new monitors that may have been plugged in
-        WindowsApi::load_monitor_information(&mut self.monitors)?;
-
-        let mut check_cache = vec![];
-
-        for (i, m) in self.monitors().iter().enumerate() {
-            if !old_sizes.contains(m.size()) {
-                check_cache.push(i);
-            }
-        }
-
-        for i in check_cache {
-            if let Some(cached) = self.monitor_cache.get(&i).cloned() {
-                if let Some(monitor) = self.monitors_mut().get_mut(i) {
-                    for (w_idx, workspace) in monitor.workspaces_mut().iter_mut().enumerate() {
-                        if let Some(cached_workspace) = cached.workspaces().get(w_idx) {
-                            workspace.set_layout(cached_workspace.layout().clone());
-                            workspace.set_layout_rules(cached_workspace.layout_rules().clone());
-                            workspace.set_layout_flip(cached_workspace.layout_flip());
-                            workspace.set_workspace_padding(cached_workspace.workspace_padding());
-                            workspace.set_container_padding(cached_workspace.container_padding());
-                        }
-                    }
-                }
-            }
-        }
-
-        let final_count = self.monitors().len();
-        if after_count != final_count {
-            self.retile_all(true)?;
-            // Second retile to fix DPI/resolution related jank when a window
-            // moves between monitors with different resolutions - this doesn't
-            // really get seen by the user since the screens are flickering anyway
-            // as a result of the display connections / disconnections
-            self.retile_all(true)?;
-        }
-
-        Ok(())
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -1426,6 +1275,9 @@ impl WindowManager {
 
         let new_idx = workspace.new_idx_for_direction(direction);
 
+        // TODO: clean this up, this is awful
+        let mut cross_monitor_monocle = false;
+
         // if there is no container in that direction for this workspace
         match new_idx {
             None => {
@@ -1438,9 +1290,12 @@ impl WindowManager {
                 if let Ok(focused_workspace) = self.focused_workspace() {
                     if let Some(monocle) = focused_workspace.monocle_container() {
                         if let Some(window) = monocle.focused_window() {
+                            window.focus(self.mouse_follows_focus)?;
                             WindowsApi::center_cursor_in_rect(&WindowsApi::window_rect(
                                 window.hwnd(),
                             )?)?;
+
+                            cross_monitor_monocle = true;
                         }
                     }
                 }
@@ -1458,13 +1313,15 @@ impl WindowManager {
         // With this piece of code, we check if we have changed focus to a container stack with
         // a stackbar, and if we have, we run a quick update to make sure the focused text colour
         // has been applied
-        if let Ok(focused_window) = self.focused_window_mut() {
-            let focused_window_hwnd = focused_window.hwnd;
-            focused_window.focus(self.mouse_follows_focus)?;
+        if !cross_monitor_monocle {
+            if let Ok(focused_window) = self.focused_window_mut() {
+                let focused_window_hwnd = focused_window.hwnd;
+                focused_window.focus(self.mouse_follows_focus)?;
 
-            let focused_container = self.focused_container()?;
-            if let Some(stackbar) = focused_container.stackbar() {
-                stackbar.update(focused_container.windows(), focused_window_hwnd)?;
+                let focused_container = self.focused_container()?;
+                if let Some(stackbar) = focused_container.stackbar() {
+                    stackbar.update(focused_container.windows(), focused_window_hwnd)?;
+                }
             }
         }
 
@@ -1885,7 +1742,18 @@ impl WindowManager {
         tracing::info!("enabling monocle");
 
         let workspace = self.focused_workspace_mut()?;
-        workspace.new_monocle_container()
+        workspace.new_monocle_container()?;
+
+        if let Some(monocle) = workspace.monocle_container_mut() {
+            monocle.set_stackbar_mode(StackbarMode::Never);
+        }
+
+        for container in workspace.containers_mut() {
+            container.set_stackbar_mode(StackbarMode::Never);
+            container.hide(None);
+        }
+
+        Ok(())
     }
 
     #[tracing::instrument(skip(self))]
@@ -1893,6 +1761,16 @@ impl WindowManager {
         tracing::info!("disabling monocle");
 
         let workspace = self.focused_workspace_mut()?;
+
+        if let Some(monocle) = workspace.monocle_container_mut() {
+            monocle.set_stackbar_mode(STACKBAR_MODE.load());
+        }
+
+        for container in workspace.containers_mut() {
+            container.set_stackbar_mode(STACKBAR_MODE.load());
+            container.restore();
+        }
+
         workspace.reintegrate_monocle_container()
     }
 
@@ -2499,15 +2377,37 @@ impl WindowManager {
             }
         }
 
+        // our hmonitor might be stale, so if we didn't return above, try querying via the latest
+        // info taken from win32_display_data and update our hmonitor while we're at it
+        if let Ok(latest) = WindowsApi::monitor(hmonitor) {
+            for (i, monitor) in self.monitors_mut().iter_mut().enumerate() {
+                if monitor.device_id() == latest.device_id() {
+                    monitor.set_id(latest.id());
+                    return Option::from(i);
+                }
+            }
+        }
+
         None
     }
 
-    pub fn monitor_idx_from_current_pos(&self) -> Option<usize> {
+    pub fn monitor_idx_from_current_pos(&mut self) -> Option<usize> {
         let hmonitor = WindowsApi::monitor_from_point(WindowsApi::cursor_pos().ok()?);
 
         for (i, monitor) in self.monitors().iter().enumerate() {
             if monitor.id() == hmonitor {
                 return Option::from(i);
+            }
+        }
+
+        // our hmonitor might be stale, so if we didn't return above, try querying via the latest
+        // info taken from win32_display_data and update our hmonitor while we're at it
+        if let Ok(latest) = WindowsApi::monitor(hmonitor) {
+            for (i, monitor) in self.monitors_mut().iter_mut().enumerate() {
+                if monitor.device_id() == latest.device_id() {
+                    monitor.set_id(latest.id());
+                    return Option::from(i);
+                }
             }
         }
 

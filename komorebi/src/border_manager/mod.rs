@@ -181,18 +181,6 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
 
                 // Handle the monocle container separately
                 if let Some(monocle) = ws.monocle_container() {
-                    let mut to_remove = vec![];
-                    for (id, border) in borders.iter() {
-                        if borders_monitors.get(id).copied().unwrap_or_default() == monitor_idx {
-                            border.destroy()?;
-                            to_remove.push(id.clone());
-                        }
-                    }
-
-                    for id in &to_remove {
-                        borders.remove(id);
-                    }
-
                     let border = match borders.entry(monocle.id().clone()) {
                         Entry::Occupied(entry) => entry.into_mut(),
                         Entry::Vacant(entry) => {
@@ -223,6 +211,21 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                     )?;
 
                     border.update(&rect)?;
+
+                    let border_hwnd = border.hwnd;
+                    let mut to_remove = vec![];
+                    for (id, b) in borders.iter() {
+                        if borders_monitors.get(id).copied().unwrap_or_default() == monitor_idx
+                            && border_hwnd != b.hwnd
+                        {
+                            b.destroy()?;
+                            to_remove.push(id.clone());
+                        }
+                    }
+
+                    for id in &to_remove {
+                        borders.remove(id);
+                    }
                     continue 'monitors;
                 }
 

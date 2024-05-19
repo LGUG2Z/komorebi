@@ -67,7 +67,7 @@ use crate::WINDOWS_BY_BAR_HWNDS;
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
 pub struct Stackbar {
-    pub(crate) hwnd: isize,
+    pub hwnd: isize,
 }
 
 impl Stackbar {

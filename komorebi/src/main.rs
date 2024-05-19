@@ -24,8 +24,8 @@ use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::EnvFilter;
 
 use komorebi::border_manager;
-use komorebi::hidden::Hidden;
 use komorebi::load_configuration;
+use komorebi::monitor_reconciliator;
 use komorebi::process_command::listen_for_commands;
 use komorebi::process_command::listen_for_commands_tcp;
 use komorebi::process_event::listen_for_events;
@@ -188,8 +188,6 @@ fn main() -> Result<()> {
     #[cfg(feature = "deadlock_detection")]
     detect_deadlocks();
 
-    Hidden::create("komorebi-hidden")?;
-
     let static_config = opts.config.map_or_else(
         || {
             let komorebi_json = HOME_DIR.join("komorebi.json");
@@ -257,6 +255,7 @@ fn main() -> Result<()> {
 
     border_manager::listen_for_notifications(wm.clone());
     workspace_reconciliator::listen_for_notifications(wm.clone());
+    monitor_reconciliator::listen_for_notifications(wm.clone())?;
 
     let (ctrlc_sender, ctrlc_receiver) = crossbeam_channel::bounded(1);
     ctrlc::set_handler(move || {

@@ -16,6 +16,7 @@ komorebi-core = { path = "../komorebi-core" }
 komorebi-client = { path = "../komorebi-client" }
 
 clap = { version = "4", features = ["derive", "wrap_help"] }
+chrono = "0.4"
 color-eyre = { workspace = true }
 dirs = { workspace = true }
 dunce = { workspace = true }

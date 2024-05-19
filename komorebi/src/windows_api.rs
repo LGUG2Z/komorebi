@@ -4,9 +4,9 @@ use std::ffi::c_void;
 use std::mem::size_of;
 
 use color_eyre::eyre::anyhow;
+use color_eyre::eyre::bail;
 use color_eyre::eyre::Error;
 use color_eyre::Result;
-use widestring::U16CStr;
 use windows::core::Result as WindowsCrateResult;
 use windows::core::PCWSTR;
 use windows::core::PWSTR;
@@ -30,14 +30,12 @@ use windows::Win32::Graphics::Dwm::DWM_CLOAKED_APP;
 use windows::Win32::Graphics::Dwm::DWM_CLOAKED_INHERITED;
 use windows::Win32::Graphics::Dwm::DWM_CLOAKED_SHELL;
 use windows::Win32::Graphics::Gdi::CreateSolidBrush;
-use windows::Win32::Graphics::Gdi::EnumDisplayDevicesW;
 use windows::Win32::Graphics::Gdi::EnumDisplayMonitors;
 use windows::Win32::Graphics::Gdi::GetMonitorInfoW;
 use windows::Win32::Graphics::Gdi::MonitorFromPoint;
 use windows::Win32::Graphics::Gdi::MonitorFromWindow;
 use windows::Win32::Graphics::Gdi::Rectangle;
 use windows::Win32::Graphics::Gdi::RoundRect;
-use windows::Win32::Graphics::Gdi::DISPLAY_DEVICEW;
 use windows::Win32::Graphics::Gdi::HBRUSH;
 use windows::Win32::Graphics::Gdi::HDC;
 use windows::Win32::Graphics::Gdi::HMONITOR;
@@ -46,6 +44,7 @@ use windows::Win32::Graphics::Gdi::MONITORINFOEXW;
 use windows::Win32::Graphics::Gdi::MONITOR_DEFAULTTONEAREST;
 use windows::Win32::System::LibraryLoader::GetModuleHandleW;
 use windows::Win32::System::RemoteDesktop::ProcessIdToSessionId;
+use windows::Win32::System::RemoteDesktop::WTSRegisterSessionNotification;
 use windows::Win32::System::Threading::GetCurrentProcessId;
 use windows::Win32::System::Threading::OpenProcess;
 use windows::Win32::System::Threading::QueryFullProcessImageNameW;
@@ -95,7 +94,6 @@ use windows::Win32::UI::WindowsAndMessaging::ShowWindow;
 use windows::Win32::UI::WindowsAndMessaging::SystemParametersInfoW;
 use windows::Win32::UI::WindowsAndMessaging::WindowFromPoint;
 use windows::Win32::UI::WindowsAndMessaging::CW_USEDEFAULT;
-use windows::Win32::UI::WindowsAndMessaging::EDD_GET_DEVICE_INTERFACE_NAME;
 use windows::Win32::UI::WindowsAndMessaging::GWL_EXSTYLE;
 use windows::Win32::UI::WindowsAndMessaging::GWL_STYLE;
 use windows::Win32::UI::WindowsAndMessaging::GW_HWNDNEXT;
@@ -140,6 +138,8 @@ use crate::ring::Ring;
 use crate::set_window_position::SetWindowPosition;
 use crate::windows_callbacks;
 use crate::Window;
+use crate::DISPLAY_INDEX_PREFERENCES;
+use crate::MONITOR_INDEX_PREFERENCES;
 
 pub enum WindowsResult<T, E> {
     Err(E),
@@ -220,58 +220,74 @@ impl WindowsApi {
     }
 
     pub fn valid_hmonitors() -> Result<Vec<(String, isize)>> {
-        let mut monitors: Vec<(String, isize)> = vec![];
-        let monitors_ref: &mut Vec<(String, isize)> = monitors.as_mut();
-        Self::enum_display_monitors(
-            Some(windows_callbacks::valid_display_monitors),
-            monitors_ref as *mut Vec<(String, isize)> as isize,
-        )?;
+        Ok(win32_display_data::connected_displays()
+            .flatten()
+            .map(|d| {
+                let name = d.device_name.trim_start_matches(r"\\.\").to_string();
+                let name = name.split('\\').collect::<Vec<_>>()[0].to_string();
 
-        Ok(monitors)
+                (name, d.hmonitor)
+            })
+            .collect::<Vec<_>>())
     }
 
     pub fn load_monitor_information(monitors: &mut Ring<Monitor>) -> Result<()> {
-        Self::enum_display_monitors(
-            Some(windows_callbacks::enum_display_monitor),
-            monitors as *mut Ring<Monitor> as isize,
-        )?;
+        'read: for display in win32_display_data::connected_displays().flatten() {
+            let path = display.device_path.clone();
+            let mut split: Vec<_> = path.split('#').collect();
+            split.remove(0);
+            split.remove(split.len() - 1);
+            let device = split[0].to_string();
+            let device_id = split.join("-");
 
-        Ok(())
-    }
+            let name = display.device_name.trim_start_matches(r"\\.\").to_string();
+            let name = name.split('\\').collect::<Vec<_>>()[0].to_string();
 
-    pub fn enum_display_devices(
-        index: u32,
-        lp_device: Option<*const u16>,
-    ) -> Result<DISPLAY_DEVICEW> {
-        #[allow(clippy::option_if_let_else)]
-        let lp_device = match lp_device {
-            None => PCWSTR::null(),
-            Some(lp_device) => PCWSTR(lp_device),
-        };
+            for monitor in monitors.elements() {
+                if device_id.eq(monitor.device_id()) {
+                    continue 'read;
+                }
+            }
 
-        let mut display_device = DISPLAY_DEVICEW {
-            cb: u32::try_from(std::mem::size_of::<DISPLAY_DEVICEW>())?,
-            ..Default::default()
-        };
+            let m = monitor::new(
+                display.hmonitor,
+                display.size.into(),
+                display.work_area_size.into(),
+                name,
+                device,
+                device_id,
+            );
 
-        match unsafe {
-            EnumDisplayDevicesW(
-                lp_device,
-                index,
-                std::ptr::addr_of_mut!(display_device),
-                EDD_GET_DEVICE_INTERFACE_NAME,
-            )
-        }
-        .ok()
-        {
-            Ok(()) => {}
-            Err(error) => {
-                tracing::error!("enum_display_devices: {}", error);
-                return Err(error.into());
+            let mut index_preference = None;
+            let monitor_index_preferences = MONITOR_INDEX_PREFERENCES.lock();
+            for (index, monitor_size) in &*monitor_index_preferences {
+                if m.size() == monitor_size {
+                    index_preference = Option::from(index);
+                }
+            }
+
+            let display_index_preferences = DISPLAY_INDEX_PREFERENCES.lock();
+            for (index, id) in &*display_index_preferences {
+                if id.eq(m.device_id()) {
+                    index_preference = Option::from(index);
+                }
+            }
+
+            if monitors.elements().is_empty() {
+                monitors.elements_mut().push_back(m);
+            } else if let Some(preference) = index_preference {
+                let current_len = monitors.elements().len();
+                if *preference > current_len {
+                    monitors.elements_mut().reserve(1);
+                }
+
+                monitors.elements_mut().insert(*preference, m);
+            } else {
+                monitors.elements_mut().push_back(m);
             }
         }
 
-        Ok(display_device)
+        Ok(())
     }
 
     pub fn enum_windows(callback: WNDENUMPROC, callback_data_address: isize) -> Result<()> {
@@ -775,20 +791,32 @@ impl WindowsApi {
     }
 
     pub fn monitor(hmonitor: isize) -> Result<Monitor> {
-        let ex_info = Self::monitor_info_w(HMONITOR(hmonitor))?;
-        let name = U16CStr::from_slice_truncate(&ex_info.szDevice)
-            .expect("monitor name was not a valid u16 c string")
-            .to_ustring()
-            .to_string_lossy()
-            .trim_start_matches(r"\\.\")
-            .to_string();
+        for display in win32_display_data::connected_displays().flatten() {
+            if display.hmonitor == hmonitor {
+                let path = display.device_path;
+                let mut split: Vec<_> = path.split('#').collect();
+                split.remove(0);
+                split.remove(split.len() - 1);
+                let device = split[0].to_string();
+                let device_id = split.join("-");
 
-        Ok(monitor::new(
-            hmonitor,
-            ex_info.monitorInfo.rcMonitor.into(),
-            ex_info.monitorInfo.rcWork.into(),
-            name,
-        ))
+                let name = display.device_name.trim_start_matches(r"\\.\").to_string();
+                let name = name.split('\\').collect::<Vec<_>>()[0].to_string();
+
+                let monitor = monitor::new(
+                    hmonitor,
+                    display.size.into(),
+                    display.work_area_size.into(),
+                    name,
+                    device,
+                    device_id,
+                );
+
+                return Ok(monitor);
+            }
+        }
+
+        bail!("could not find device_id for hmonitor: {hmonitor}");
     }
 
     pub fn set_process_dpi_awareness_context() -> Result<()> {
@@ -1030,5 +1058,9 @@ impl WindowsApi {
         unsafe {
             SendInput(&inputs, std::mem::size_of::<INPUT>() as i32)
         }
+    }
+
+    pub fn wts_register_session_notification(hwnd: isize) -> Result<()> {
+        unsafe { WTSRegisterSessionNotification(HWND(hwnd), 1) }.process()
     }
 }
