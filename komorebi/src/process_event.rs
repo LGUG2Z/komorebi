@@ -353,9 +353,11 @@ impl WindowManager {
                         }
                     }
 
-                    if workspace_contains_window && workspace_has_monocle_container {
-                        self.toggle_monocle()?;
-                        window.focus(self.mouse_follows_focus)?;
+                    if matches!(event, WindowManagerEvent::Uncloak(_, _)) {
+                        if workspace_contains_window && workspace_has_monocle_container {
+                            self.toggle_monocle()?;
+                            window.focus(self.mouse_follows_focus)?;
+                        }
                     }
                 }
             }
