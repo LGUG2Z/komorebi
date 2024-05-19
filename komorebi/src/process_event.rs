@@ -334,8 +334,10 @@ impl WindowManager {
                 if proceed {
                     let behaviour = self.window_container_behaviour;
                     let workspace = self.focused_workspace_mut()?;
+                    let workspace_contains_window = workspace.contains_window(window.hwnd);
+                    let monocle_container = workspace.monocle_container().clone();
 
-                    if !workspace.contains_window(window.hwnd) && !needs_reconciliation {
+                    if !workspace_contains_window && !needs_reconciliation {
                         match behaviour {
                             WindowContainerBehaviour::Create => {
                                 workspace.new_container_for_window(window);
@@ -348,6 +350,21 @@ impl WindowManager {
                                     .add_window(window);
                                 self.update_focused_workspace(true, false)?;
                             }
+                        }
+                    }
+
+                    if workspace_contains_window {
+                        let mut monocle_window_event = false;
+                        if let Some(ref monocle) = monocle_container {
+                            if let Some(monocle_window) = monocle.focused_window() {
+                                if monocle_window.hwnd == window.hwnd {
+                                    monocle_window_event = true;
+                                }
+                            }
+                        }
+
+                        if !monocle_window_event && monocle_container.is_some() {
+                            window.hide();
                         }
                     }
                 }
