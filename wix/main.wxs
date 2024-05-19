@@ -95,6 +95,9 @@
             <Component Id='binary2' Guid='*'>
               <File Id='exe2' Name='komorebic-no-console.exe' DiskId='1' Source='$(var.CargoTargetBinDir)\komorebic-no-console.exe' KeyPath='yes' />
             </Component>
+            <Component Id='binary3' Guid='*'>
+              <File Id='exe3' Name='komorebi-gui.exe' DiskId='1' Source='$(var.CargoTargetBinDir)\komorebi-gui.exe' KeyPath='yes' />
+            </Component>
           </Directory>
         </Directory>
       </Directory>
@@ -112,6 +115,8 @@
       <ComponentRef Id='binary1' />
 
       <ComponentRef Id='binary2' />
+
+      <ComponentRef Id='binary3' />
 
       <Feature Id='Environment' Title='PATH Environment Variable' Description='Add the install location of the [ProductName] executable to the PATH system environment variable. This allows the [ProductName] executable to be called from any location.' Level='1' Absent='allow'>
         <ComponentRef Id='Path' />
