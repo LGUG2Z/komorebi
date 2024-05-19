@@ -196,6 +196,7 @@ impl WindowManager {
             }
             SocketMessage::MoveWindow(direction) => {
                 self.move_container_in_direction(direction)?;
+                border_manager::event_tx().send(border_manager::Notification::Move)?;
             }
             SocketMessage::CycleFocusWindow(direction) => {
                 self.focus_container_in_cycle_direction(direction)?;
@@ -1334,7 +1335,7 @@ impl WindowManager {
         };
 
         notify_subscribers(&serde_json::to_string(&notification)?)?;
-        border_manager::event_tx().send(border_manager::Notification)?;
+        border_manager::event_tx().send(border_manager::Notification::Default)?;
         stackbar_manager::event_tx().send(stackbar_manager::Notification)?;
 
         tracing::info!("processed");

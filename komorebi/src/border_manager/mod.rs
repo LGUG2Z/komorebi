@@ -6,6 +6,7 @@ use crossbeam_channel::Receiver;
 use crossbeam_channel::Sender;
 use crossbeam_utils::atomic::AtomicConsume;
 use komorebi_core::BorderStyle;
+use komorebi_core::StackbarMode;
 use lazy_static::lazy_static;
 use parking_lot::Mutex;
 use schemars::JsonSchema;
@@ -22,6 +23,8 @@ use std::time::Duration;
 use std::time::Instant;
 use windows::Win32::Foundation::HWND;
 
+use crate::stackbar_manager;
+use crate::stackbar_manager::STACKBAR_MODE;
 use crate::workspace_reconciliator::ALT_TAB_HWND;
 use crate::Colour;
 use crate::Rect;
@@ -56,7 +59,10 @@ lazy_static! {
     static ref FOCUS_STATE: Mutex<HashMap<isize, WindowKind>> = Mutex::new(HashMap::new());
 }
 
-pub struct Notification;
+pub enum Notification {
+    Default,
+    Move,
+}
 
 static CHANNEL: OnceLock<(Sender<Notification>, Receiver<Notification>)> = OnceLock::new();
 
@@ -124,9 +130,9 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
 
     let receiver = event_rx();
     let mut instant: Option<Instant> = None;
-    event_tx().send(Notification)?;
+    event_tx().send(Notification::Default)?;
 
-    'receiver: for _ in receiver {
+    'receiver: for notification in receiver {
         if let Some(instant) = instant {
             if instant.elapsed().lt(&Duration::from_millis(50)) {
                 continue 'receiver;
@@ -268,6 +274,40 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
 
                 for id in &to_remove {
                     borders.remove(id);
+                }
+
+                let workspace_has_stack = {
+                    let mut should = false;
+                    for c in ws.containers() {
+                        if stackbar_manager::should_have_stackbar(c.windows().len()) {
+                            should = true;
+                        }
+                    }
+
+                    should
+                };
+
+                let stackbar_mode = STACKBAR_MODE.load();
+                let workspace_has_stackbar = matches!(stackbar_mode, StackbarMode::Always)
+                    || workspace_has_stack && matches!(stackbar_mode, StackbarMode::OnStack);
+
+                if matches!(notification, Notification::Move) && workspace_has_stackbar {
+                    let focus_state = FOCUS_STATE.lock();
+
+                    let mut to_remove = vec![];
+                    for (id, border) in borders.iter() {
+                        if borders_monitors.get(id).copied().unwrap_or_default() == monitor_idx
+                            && container_ids.contains(id)
+                            && matches!(focus_state.get(&border.hwnd), Some(&WindowKind::Unfocused))
+                        {
+                            border.destroy()?;
+                            to_remove.push(id.clone());
+                        }
+                    }
+
+                    for id in &to_remove {
+                        borders.remove(id);
+                    }
                 }
 
                 for (idx, c) in ws.containers().iter().enumerate() {

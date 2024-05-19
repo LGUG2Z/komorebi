@@ -620,7 +620,7 @@ impl WindowManager {
         };
 
         notify_subscribers(&serde_json::to_string(&notification)?)?;
-        border_manager::event_tx().send(border_manager::Notification)?;
+        border_manager::event_tx().send(border_manager::Notification::Default)?;
         stackbar_manager::event_tx().send(stackbar_manager::Notification)?;
 
         tracing::info!("processed: {}", event.window().to_string());
