@@ -1047,17 +1047,24 @@ impl WindowManager {
         } else {
             return Ok(())
         }
+
+        let aot = self.always_on_top.clone();
+
         let flw = if let Some(follow) = follows {
             if follow {
                 true
             } else {
-                return  Err(anyhow!("cannot send an always on top window"))?
+                if self.focused_container()?.windows().iter().any(|w| aot.as_ref().unwrap().contains(&w.hwnd)) {
+
+                    return  Err(anyhow!("cannot send an always on top window"))?;
+                } else {
+                    false
+                }
             }
         } else {
             false
         };
 
-        let aot = self.always_on_top.clone();
 
         let contains_always_on_display_bool =  if let Some(aot) = self.always_on_top.as_ref() {
             if let Ok(fc) = self.focused_container() {
