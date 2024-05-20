@@ -20,7 +20,6 @@ use regex::Regex;
 use schemars::JsonSchema;
 use serde::Deserialize;
 use serde::Serialize;
-use tracing::info;
 use uds_windows::UnixListener;
 
 use komorebi_core::config_generation::MatchingRule;
