@@ -1062,7 +1062,7 @@ impl WindowManager {
 
                     return  Err(anyhow!("cannot send an always on top window"))?;
                 } else {
-                    false
+                    return Ok(());
                 }
             }
         } else {
