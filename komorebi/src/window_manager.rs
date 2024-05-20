@@ -1043,54 +1043,41 @@ impl WindowManager {
                 return Ok(())
             }
         };
-        if let Some(aot) = self.always_on_top.as_ref() {
-            if aot.len() == 0 {
-                return Ok(())
-            }
-
-        } else {
-            return Ok(())
-        }
-
         let aot = self.always_on_top.clone();
+        let mut windows_vec = vec![];
 
-        let flw = if let Some(follow) = follows {
-            if follow {
-                true
-            } else {
-                if self.focused_container()?.windows().iter().any(|w| aot.as_ref().unwrap().contains(&w.hwnd)) {
+        let flw_contains =
 
-                    return  Err(anyhow!("cannot send an always on top window"))?;
-                } else {
-                    return Ok(());
+            if let Some(aot) = self.always_on_top.as_ref() {
+                if aot.len() == 0 {
+                    return Ok(())
                 }
-            }
-        } else {
-            false
-        };
-
-
-        let contains_always_on_display_bool =  if let Some(aot) = self.always_on_top.as_ref() {
-            if let Ok(fc) = self.focused_container() {
-                fc.windows().iter().any(|w| aot.contains(&w.hwnd))
+                if let Some(flw) = follows {
+                    if let Ok(fc) = self.focused_container() {
+                        let contains = fc.windows().iter().any(|w| aot.contains(&w.hwnd));
+                        if flw && contains {
+                            windows_vec = fc.windows().into_iter().map(|w| w.hwnd).collect::<Vec<_>>();
+                            true
+                        } else if !flw && !contains {
+                            return Ok(())
+                        } else if !flw && contains {
+                            Err(anyhow!("cannot send an always on top window"))?
+                        } else {
+                            false
+                        }
+                    } else {
+                        false
+                    }
+                } else {
+                    false
+                }
             } else {
-                false
-            }
-        }
-            else { false
-        };
-
-        let windows_vec = if let Ok(fc) = self.focused_container() {
-            fc.windows().into_iter().map(|w| w.hwnd).collect::<Vec<_>>()
-
-        } else {
-            vec![]
-        };
-
+                return Ok(())
+            };
 
         aot.ok_or_else(|| anyhow!("there is no always on Top windows"))?.iter().filter(|&&window| {
             let mut is_window = false;
-            if contains_always_on_display_bool && flw {
+            if flw_contains {
                     if windows_vec.contains(&&window) {
                         is_window = true;
                     }
