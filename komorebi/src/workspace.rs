@@ -660,6 +660,10 @@ impl Workspace {
                     self.set_monocle_container_restore_idx(None);
                 }
 
+                for c in self.containers() {
+                    c.restore();
+                }
+
                 return Ok(());
             }
         }
