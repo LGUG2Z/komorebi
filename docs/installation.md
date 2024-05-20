@@ -114,6 +114,7 @@ Clone the git repository, enter the directory, and build the following binaries:
 cargo +stable install --path komorebi --locked
 cargo +stable install --path komorebic --locked
 cargo +stable install --path komorebic-no-console --locked
+cargo +stable install --path komorebi-gui --locked
 ```
 
 If the binaries have been built and added to your `$PATH` correctly, you should

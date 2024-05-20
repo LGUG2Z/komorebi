@@ -24,6 +24,8 @@ use crate::border_manager::BORDER_OFFSET;
 use crate::border_manager::BORDER_WIDTH;
 use crate::container::Container;
 use crate::ring::Ring;
+use crate::stackbar_manager;
+use crate::stackbar_manager::STACKBAR_TAB_HEIGHT;
 use crate::static_config::WorkspaceConfig;
 use crate::window::Window;
 use crate::window::WindowDetails;
@@ -33,7 +35,6 @@ use crate::DEFAULT_WORKSPACE_PADDING;
 use crate::INITIAL_CONFIGURATION_LOADED;
 use crate::NO_TITLEBAR;
 use crate::REMOVE_TITLEBARS;
-use crate::STACKBAR_TAB_HEIGHT;
 
 #[allow(clippy::struct_field_names)]
 #[derive(
@@ -304,7 +305,7 @@ impl Workspace {
             } else if let Some(window) = self.maximized_window_mut() {
                 window.maximize();
             } else if !self.containers().is_empty() {
-                let layouts = self.layout().as_boxed_arrangement().calculate(
+                let mut layouts = self.layout().as_boxed_arrangement().calculate(
                     &adjusted_work_area,
                     NonZeroUsize::new(self.containers().len()).ok_or_else(|| {
                         anyhow!(
@@ -319,24 +320,14 @@ impl Workspace {
                 let should_remove_titlebars = REMOVE_TITLEBARS.load(Ordering::SeqCst);
                 let no_titlebar = NO_TITLEBAR.lock().clone();
 
-                let focused_hwnd = self
-                    .focused_container()
-                    .ok_or_else(|| anyhow!("couldn't find a focused container"))?
-                    .focused_window()
-                    .ok_or_else(|| anyhow!("couldn't find a focused window"))?
-                    .hwnd;
-
                 let container_padding = self.container_padding().unwrap_or(0);
                 let containers = self.containers_mut();
 
                 for (i, container) in containers.iter_mut().enumerate() {
-                    container.renew_stackbar();
-
-                    let container_windows = container.windows().clone();
-                    let container_stackbar = container.stackbar().clone();
+                    let window_count = container.windows().len();
 
                     if let (Some(window), Some(layout)) =
-                        (container.focused_window_mut(), layouts.get(i))
+                        (container.focused_window_mut(), layouts.get_mut(i))
                     {
                         if should_remove_titlebars && no_titlebar.contains(&window.exe()?) {
                             window.remove_title_bar()?;
@@ -350,33 +341,23 @@ impl Workspace {
                             WindowsApi::restore_window(window.hwnd());
                         }
 
-                        let mut rect = *layout;
                         {
                             let border_offset = BORDER_OFFSET.load(Ordering::SeqCst);
-                            rect.add_padding(border_offset);
+                            layout.add_padding(border_offset);
 
                             let width = BORDER_WIDTH.load(Ordering::SeqCst);
-                            rect.add_padding(width);
+                            layout.add_padding(width);
                         }
 
-                        if let Some(stackbar) = container_stackbar {
-                            if stackbar
-                                .set_position(
-                                    &stackbar.get_position_from_container_layout(layout),
-                                    false,
-                                )
-                                .is_ok()
-                            {
-                                stackbar.update(&container_windows, focused_hwnd)?;
-                                let tab_height = STACKBAR_TAB_HEIGHT.load(Ordering::SeqCst);
-                                let total_height = tab_height + container_padding;
+                        if stackbar_manager::should_have_stackbar(window_count) {
+                            let tab_height = STACKBAR_TAB_HEIGHT.load(Ordering::SeqCst);
+                            let total_height = tab_height + container_padding;
 
-                                rect.top += total_height;
-                                rect.bottom -= total_height;
-                            }
+                            layout.top += total_height;
+                            layout.bottom -= total_height;
                         }
 
-                        window.set_position(&rect, false)?;
+                        window.set_position(&layout, false)?;
                     }
                 }
 
@@ -405,16 +386,9 @@ impl Workspace {
         let containers = self.containers_mut();
 
         for container in containers.iter_mut() {
-            let container_windows = container.windows().clone();
-            let container_topbar = container.stackbar().clone();
-
             if let Some(idx) = container.idx_for_window(hwnd) {
                 container.focus_window(idx);
                 container.restore();
-            }
-
-            if let Some(stackbar) = container_topbar {
-                stackbar.update(&container_windows, hwnd)?;
             }
         }
         Ok(())
