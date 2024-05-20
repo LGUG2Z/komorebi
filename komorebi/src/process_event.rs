@@ -11,7 +11,6 @@ use parking_lot::Mutex;
 use komorebi_core::OperationDirection;
 use komorebi_core::Rect;
 use komorebi_core::Sizing;
-use komorebi_core::StackbarLabel;
 use komorebi_core::WindowContainerBehaviour;
 
 use crate::border_manager;
@@ -19,12 +18,12 @@ use crate::border_manager::BORDER_OFFSET;
 use crate::border_manager::BORDER_WIDTH;
 use crate::current_virtual_desktop;
 use crate::notify_subscribers;
+use crate::stackbar_manager;
 use crate::window::should_act;
 use crate::window::RuleDebug;
 use crate::window_manager::WindowManager;
 use crate::window_manager_event::WindowManagerEvent;
 use crate::windows_api::WindowsApi;
-use crate::winevent::WinEvent;
 use crate::workspace_reconciliator;
 use crate::workspace_reconciliator::ALT_TAB_HWND;
 use crate::workspace_reconciliator::ALT_TAB_HWND_INSTANT;
@@ -33,7 +32,6 @@ use crate::NotificationEvent;
 use crate::DATA_DIR;
 use crate::HIDDEN_HWNDS;
 use crate::REGEX_IDENTIFIERS;
-use crate::STACKBAR_LABEL;
 use crate::TRAY_AND_MULTI_WINDOW_IDENTIFIERS;
 
 #[tracing::instrument]
@@ -277,23 +275,6 @@ impl WindowManager {
             WindowManagerEvent::Show(_, window)
             | WindowManagerEvent::Manage(window)
             | WindowManagerEvent::Uncloak(_, window) => {
-                if matches!(
-                    event,
-                    WindowManagerEvent::Show(WinEvent::ObjectNameChange, _)
-                ) {
-                    if matches!(STACKBAR_LABEL.load(), StackbarLabel::Title) {
-                        for m in self.monitors() {
-                            for ws in m.workspaces() {
-                                if let Some(container) = ws.container_for_window(window.hwnd) {
-                                    if let Some(stackbar) = container.stackbar() {
-                                        stackbar.update(container.windows(), window.hwnd)?;
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-
                 let focused_monitor_idx = self.focused_monitor_idx();
                 let focused_workspace_idx =
                     self.focused_workspace_idx_for_monitor_idx(focused_monitor_idx)?;
@@ -361,8 +342,10 @@ impl WindowManager {
                 if proceed {
                     let behaviour = self.window_container_behaviour;
                     let workspace = self.focused_workspace_mut()?;
+                    let workspace_contains_window = workspace.contains_window(window.hwnd);
+                    let monocle_container = workspace.monocle_container().clone();
 
-                    if !workspace.contains_window(window.hwnd) && !needs_reconciliation {
+                    if !workspace_contains_window && !needs_reconciliation {
                         match behaviour {
                             WindowContainerBehaviour::Create => {
                                 workspace.new_container_for_window(window);
@@ -375,6 +358,21 @@ impl WindowManager {
                                     .add_window(window);
                                 self.update_focused_workspace(true, false)?;
                             }
+                        }
+                    }
+
+                    if workspace_contains_window {
+                        let mut monocle_window_event = false;
+                        if let Some(ref monocle) = monocle_container {
+                            if let Some(monocle_window) = monocle.focused_window() {
+                                if monocle_window.hwnd == window.hwnd {
+                                    monocle_window_event = true;
+                                }
+                            }
+                        }
+
+                        if !monocle_window_event && monocle_container.is_some() {
+                            window.hide();
                         }
                     }
                 }
@@ -469,10 +467,7 @@ impl WindowManager {
 
                     // If we have moved across the monitors, use that override, otherwise determine
                     // if a move has taken place by ruling out a resize
-                    let right_bottom_constant = ((BORDER_WIDTH.load(Ordering::SeqCst)
-                        + BORDER_OFFSET.load(Ordering::SeqCst))
-                        * 2)
-                    .abs();
+                    let right_bottom_constant = 0;
 
                     let is_move = moved_across_monitors
                         || resize.right.abs() == right_bottom_constant
@@ -648,6 +643,7 @@ impl WindowManager {
 
         notify_subscribers(&serde_json::to_string(&notification)?)?;
         border_manager::event_tx().send(border_manager::Notification)?;
+        stackbar_manager::event_tx().send(stackbar_manager::Notification)?;
 
         tracing::info!("processed: {}", event.window().to_string());
         Ok(())

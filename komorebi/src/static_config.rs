@@ -7,6 +7,13 @@ use crate::current_virtual_desktop;
 use crate::monitor::Monitor;
 use crate::monitor_reconciliator;
 use crate::ring::Ring;
+use crate::stackbar_manager::STACKBAR_FOCUSED_TEXT_COLOUR;
+use crate::stackbar_manager::STACKBAR_LABEL;
+use crate::stackbar_manager::STACKBAR_MODE;
+use crate::stackbar_manager::STACKBAR_TAB_BACKGROUND_COLOUR;
+use crate::stackbar_manager::STACKBAR_TAB_HEIGHT;
+use crate::stackbar_manager::STACKBAR_TAB_WIDTH;
+use crate::stackbar_manager::STACKBAR_UNFOCUSED_TEXT_COLOUR;
 use crate::window_manager::WindowManager;
 use crate::window_manager_event::WindowManagerEvent;
 use crate::windows_api::WindowsApi;
@@ -22,13 +29,6 @@ use crate::MANAGE_IDENTIFIERS;
 use crate::MONITOR_INDEX_PREFERENCES;
 use crate::OBJECT_NAME_CHANGE_ON_LAUNCH;
 use crate::REGEX_IDENTIFIERS;
-use crate::STACKBAR_FOCUSED_TEXT_COLOUR;
-use crate::STACKBAR_LABEL;
-use crate::STACKBAR_MODE;
-use crate::STACKBAR_TAB_BACKGROUND_COLOUR;
-use crate::STACKBAR_TAB_HEIGHT;
-use crate::STACKBAR_TAB_WIDTH;
-use crate::STACKBAR_UNFOCUSED_TEXT_COLOUR;
 use crate::TRAY_AND_MULTI_WINDOW_IDENTIFIERS;
 use crate::WORKSPACE_RULES;
 use komorebi_core::StackbarLabel;
@@ -229,7 +229,7 @@ impl From<&Monitor> for MonitorConfig {
 }
 
 #[derive(Debug, Serialize, Deserialize, JsonSchema)]
-/// The `komorebi.json` static configuration file reference for `v0.1.25`
+/// The `komorebi.json` static configuration file reference for `v0.1.26`
 pub struct StaticConfig {
     /// DEPRECATED from v0.1.22: no longer required
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -760,16 +760,6 @@ impl StaticConfig {
         let mut value: Self = serde_json::from_str(&content)?;
 
         value.apply_globals()?;
-
-        let stackbar_mode = STACKBAR_MODE.load();
-
-        for m in wm.monitors_mut() {
-            for w in m.workspaces_mut() {
-                for c in w.containers_mut() {
-                    c.set_stackbar_mode(stackbar_mode);
-                }
-            }
-        }
 
         if let Some(monitors) = value.monitors {
             for (i, monitor) in monitors.iter().enumerate() {

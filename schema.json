@@ -1039,6 +1039,14 @@
           "type": "integer",
           "format": "int32"
         },
+        "label": {
+          "description": "Stackbar height",
+          "type": "string",
+          "enum": [
+            "Process",
+            "Title"
+          ]
+        },
         "mode": {
           "description": "Stackbar mode",
           "type": "string",

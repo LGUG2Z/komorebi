@@ -29,6 +29,7 @@ pub use komorebi_core::Layout;
 pub use komorebi_core::OperationDirection;
 pub use komorebi_core::Rect;
 pub use komorebi_core::SocketMessage;
+pub use komorebi_core::StackbarLabel;
 pub use komorebi_core::StackbarMode;
 pub use komorebi_core::WindowKind;
 

@@ -80,6 +80,7 @@ nav:
       - cli/whkdrc.md
       - cli/state.md
       - cli/global-state.md
+      - cli/gui.md
       - cli/visible-windows.md
       - cli/query.md
       - cli/subscribe-socket.md
@@ -124,6 +125,7 @@ nav:
       - cli/cycle-monitor.md
       - cli/cycle-workspace.md
       - cli/move-workspace-to-monitor.md
+      - cli/cycle-move-workspace-to-monitor.md
       - cli/swap-workspaces-with-monitor.md
       - cli/new-workspace.md
       - cli/resize-delta.md
@@ -140,6 +142,7 @@ nav:
       - cli/flip-layout.md
       - cli/promote.md
       - cli/promote-focus.md
+      - cli/promote-window.md
       - cli/retile.md
       - cli/monitor-index-preference.md
       - cli/display-index-preference.md

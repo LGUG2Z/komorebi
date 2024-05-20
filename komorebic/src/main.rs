@@ -828,6 +828,8 @@ enum SubCommand {
     State,
     /// Show a JSON representation of the current global state
     GlobalState,
+    /// Launch the komorebi-gui debugging tool
+    Gui,
     /// Show a JSON representation of visible windows
     VisibleWindows,
     /// Query the current window manager state
@@ -2134,6 +2136,9 @@ Stop-Process -Name:komorebi -ErrorAction SilentlyContinue
         }
         SubCommand::GlobalState => {
             print_query(&SocketMessage::GlobalState.as_bytes()?);
+        }
+        SubCommand::Gui => {
+            Command::new("komorebi-gui").spawn()?;
         }
         SubCommand::VisibleWindows => {
             print_query(&SocketMessage::VisibleWindows.as_bytes()?);

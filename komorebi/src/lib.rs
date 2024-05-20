@@ -10,7 +10,7 @@ pub mod process_command;
 pub mod process_event;
 pub mod process_movement;
 pub mod set_window_position;
-pub mod stackbar;
+pub mod stackbar_manager;
 pub mod static_config;
 pub mod styles;
 pub mod window;
@@ -40,7 +40,6 @@ use std::sync::Arc;
 pub use colour::*;
 pub use process_command::*;
 pub use process_event::*;
-pub use stackbar::*;
 pub use static_config::*;
 pub use window::*;
 pub use window_manager::*;
@@ -49,7 +48,6 @@ pub use windows_api::WindowsApi;
 pub use windows_api::*;
 
 use color_eyre::Result;
-use crossbeam_utils::atomic::AtomicCell;
 use komorebi_core::config_generation::IdWithIdentifier;
 use komorebi_core::config_generation::MatchingRule;
 use komorebi_core::config_generation::MatchingStrategy;
@@ -57,8 +55,6 @@ use komorebi_core::ApplicationIdentifier;
 use komorebi_core::HidingBehaviour;
 use komorebi_core::Rect;
 use komorebi_core::SocketMessage;
-use komorebi_core::StackbarLabel;
-use komorebi_core::StackbarMode;
 use os_info::Version;
 use parking_lot::Mutex;
 use regex::Regex;
@@ -214,14 +210,6 @@ pub static CUSTOM_FFM: AtomicBool = AtomicBool::new(false);
 pub static SESSION_ID: AtomicU32 = AtomicU32::new(0);
 
 pub static REMOVE_TITLEBARS: AtomicBool = AtomicBool::new(false);
-
-pub static STACKBAR_FOCUSED_TEXT_COLOUR: AtomicU32 = AtomicU32::new(16777215); // white
-pub static STACKBAR_UNFOCUSED_TEXT_COLOUR: AtomicU32 = AtomicU32::new(11776947); // gray text
-pub static STACKBAR_TAB_BACKGROUND_COLOUR: AtomicU32 = AtomicU32::new(3355443); // gray
-pub static STACKBAR_TAB_HEIGHT: AtomicI32 = AtomicI32::new(40);
-pub static STACKBAR_TAB_WIDTH: AtomicI32 = AtomicI32::new(200);
-pub static STACKBAR_LABEL: AtomicCell<StackbarLabel> = AtomicCell::new(StackbarLabel::Process);
-pub static STACKBAR_MODE: AtomicCell<StackbarMode> = AtomicCell::new(StackbarMode::Never);
 
 #[must_use]
 pub fn current_virtual_desktop() -> Option<Vec<u8>> {

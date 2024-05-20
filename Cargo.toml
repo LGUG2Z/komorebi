@@ -6,6 +6,7 @@ members = [
     "komorebi",
     "komorebi-client",
     "komorebi-core",
+    "komorebi-gui",
     "komorebic",
     "komorebic-no-console",
 ]

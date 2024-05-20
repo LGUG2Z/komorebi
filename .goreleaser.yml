@@ -35,6 +35,15 @@ builds:
       post:
         - mkdir -p dist/windows_amd64
         - cp ".\target\x86_64-pc-windows-msvc\release\komorebic-no-console.exe" ".\dist\komorebic-no-console_windows_amd64_v1\komorebic-no-console.exe"
+  - id: komorebi-gui
+    main: dummy.go
+    goos: [ "windows" ]
+    goarch: [ "amd64" ]
+    binary: komorebi-gui
+    hooks:
+      post:
+        - mkdir -p dist/windows_amd64
+        - cp ".\target\x86_64-pc-windows-msvc\release\komorebi-gui.exe" ".\dist\komorebi-gui_windows_amd64_v1\komorebi-gui.exe"
 
 archives:
   - name_template: "{{ .ProjectName }}-{{ .Version }}-x86_64-pc-windows-msvc"
