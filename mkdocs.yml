@@ -57,6 +57,7 @@ nav:
       - Troubleshooting: troubleshooting.md
   - Common workflows:
       - common-workflows/komorebi-config-home.md
+      - common-workflows/autohotkey.md
       - common-workflows/borders.md
       - common-workflows/stackbar.md
       - common-workflows/remove-gaps.md
@@ -67,7 +68,6 @@ nav:
       - common-workflows/mouse-follows-focus.md
       - common-workflows/custom-layouts.md
       - common-workflows/dynamic-layout-switching.md
-      - common-workflows/autohotkey.md
   - Release notes:
       - release/v0-1-22.md
   - Configuration reference: https://komorebi.lgug2z.com/schema
