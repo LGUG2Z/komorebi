@@ -4152,77 +4152,77 @@ addressed by the advanced functionality of AHK, and so they are assumed to be
 able to craft their own configuration files.</p>
 <p>If you would like to try out AHK, here is a simple sample configuration which
 largely matches the <code>whkdrc</code> sample configuration.</p>
-<div class="highlight"><pre><span></span><code>#Requires AutoHotkey v2.0.2
-#SingleInstance Force
+<div class="highlight"><pre><span></span><code><span class="n">#Requires</span> <span class="n">AutoHotkey</span> <span class="n">v2</span><span class="o">.</span><span class="mf">0.2</span>
+<span class="nb">#SingleInstance</span> <span class="n">Force</span>
 
-Komorebic(cmd) {
-    RunWait(format(&quot;komorebic.exe {}&quot;, cmd), , &quot;Hide&quot;)
-}
+<span class="n">Komorebic</span><span class="p">(</span><span class="n">cmd</span><span class="p">)</span> <span class="p">{</span>
+    <span class="nb">RunWait</span><span class="p">(</span><span class="n">format</span><span class="p">(</span><span class="s">&quot;komorebic.exe {}&quot;</span><span class="p">,</span> <span class="n">cmd</span><span class="p">),</span> <span class="p">,</span> <span class="s">&quot;Hide&quot;</span><span class="p">)</span>
+<span class="p">}</span>
 
-!q::Komorebic(&quot;close&quot;)
-!m::Komorebic(&quot;minimize&quot;)
+<span class="nl">!q::</span><span class="n">Komorebic</span><span class="p">(</span><span class="s">&quot;close&quot;</span><span class="p">)</span>
+<span class="o">!</span><span class="n">m</span><span class="o">::</span><span class="n">Komorebic</span><span class="p">(</span><span class="s">&quot;minimize&quot;</span><span class="p">)</span>
 
-; Focus windows
-!h::Komorebic(&quot;focus left&quot;)
-!j::Komorebic(&quot;focus down&quot;)
-!k::Komorebic(&quot;focus up&quot;)
-!l::Komorebic(&quot;focus right&quot;)
+<span class="c1">; Focus windows</span>
+<span class="o">!</span><span class="n">h</span><span class="o">::</span><span class="n">Komorebic</span><span class="p">(</span><span class="s">&quot;focus left&quot;</span><span class="p">)</span>
+<span class="o">!</span><span class="n">j</span><span class="o">::</span><span class="n">Komorebic</span><span class="p">(</span><span class="s">&quot;focus down&quot;</span><span class="p">)</span>
+<span class="o">!</span><span class="n">k</span><span class="o">::</span><span class="n">Komorebic</span><span class="p">(</span><span class="s">&quot;focus up&quot;</span><span class="p">)</span>
+<span class="o">!</span><span class="n">l</span><span class="o">::</span><span class="n">Komorebic</span><span class="p">(</span><span class="s">&quot;focus right&quot;</span><span class="p">)</span>
 
-!+[::Komorebic(&quot;cycle-focus previous&quot;)
-!+]::Komorebic(&quot;cycle-focus next&quot;)
+<span class="nl">!+[::</span><span class="n">Komorebic</span><span class="p">(</span><span class="s">&quot;cycle-focus previous&quot;</span><span class="p">)</span>
+<span class="o">!+</span><span class="p">]</span><span class="o">::</span><span class="n">Komorebic</span><span class="p">(</span><span class="s">&quot;cycle-focus next&quot;</span><span class="p">)</span>
 
-; Move windows
-!+h::Komorebic(&quot;move left&quot;)
-!+j::Komorebic(&quot;move down&quot;)
-!+k::Komorebic(&quot;move up&quot;)
-!+l::Komorebic(&quot;move right&quot;)
+<span class="c1">; Move windows</span>
+<span class="o">!+</span><span class="n">h</span><span class="o">::</span><span class="n">Komorebic</span><span class="p">(</span><span class="s">&quot;move left&quot;</span><span class="p">)</span>
+<span class="o">!+</span><span class="n">j</span><span class="o">::</span><span class="n">Komorebic</span><span class="p">(</span><span class="s">&quot;move down&quot;</span><span class="p">)</span>
+<span class="o">!+</span><span class="n">k</span><span class="o">::</span><span class="n">Komorebic</span><span class="p">(</span><span class="s">&quot;move up&quot;</span><span class="p">)</span>
+<span class="o">!+</span><span class="n">l</span><span class="o">::</span><span class="n">Komorebic</span><span class="p">(</span><span class="s">&quot;move right&quot;</span><span class="p">)</span>
 
-; Stack windows
-!Left::Komorebic(&quot;stack left&quot;)
-!Down::Komorebic(&quot;stack down&quot;)
-!Up::Komorebic(&quot;stack up&quot;)
-!Right::Komorebic(&quot;stack right&quot;)
-!;::Komorebic(&quot;unstack&quot;)
-![::Komorebic(&quot;cycle-stack previous&quot;)
-!]::Komorebic(&quot;cycle-stack next&quot;)
+<span class="c1">; Stack windows</span>
+<span class="o">!</span><span class="n">Left</span><span class="o">::</span><span class="n">Komorebic</span><span class="p">(</span><span class="s">&quot;stack left&quot;</span><span class="p">)</span>
+<span class="o">!</span><span class="n">Down</span><span class="o">::</span><span class="n">Komorebic</span><span class="p">(</span><span class="s">&quot;stack down&quot;</span><span class="p">)</span>
+<span class="o">!</span><span class="n">Up</span><span class="o">::</span><span class="n">Komorebic</span><span class="p">(</span><span class="s">&quot;stack up&quot;</span><span class="p">)</span>
+<span class="o">!</span><span class="n">Right</span><span class="o">::</span><span class="n">Komorebic</span><span class="p">(</span><span class="s">&quot;stack right&quot;</span><span class="p">)</span>
+<span class="o">!</span><span class="p">;</span><span class="o">::</span><span class="n">Komorebic</span><span class="p">(</span><span class="s">&quot;unstack&quot;</span><span class="p">)</span>
+<span class="o">!</span><span class="p">[</span><span class="o">::</span><span class="n">Komorebic</span><span class="p">(</span><span class="s">&quot;cycle-stack previous&quot;</span><span class="p">)</span>
+<span class="o">!</span><span class="p">]</span><span class="o">::</span><span class="n">Komorebic</span><span class="p">(</span><span class="s">&quot;cycle-stack next&quot;</span><span class="p">)</span>
 
-; Resize
-!=::Komorebic(&quot;resize-axis horizontal increase&quot;)
-!-::Komorebic(&quot;resize-axis horizontal decrease&quot;)
-!+=::Komorebic(&quot;resize-axis vertical increase&quot;)
-!+_::Komorebic(&quot;resize-axis vertical decrease&quot;)
+<span class="c1">; Resize</span>
+<span class="o">!=::</span><span class="n">Komorebic</span><span class="p">(</span><span class="s">&quot;resize-axis horizontal increase&quot;</span><span class="p">)</span>
+<span class="o">!-::</span><span class="n">Komorebic</span><span class="p">(</span><span class="s">&quot;resize-axis horizontal decrease&quot;</span><span class="p">)</span>
+<span class="o">!+=::</span><span class="n">Komorebic</span><span class="p">(</span><span class="s">&quot;resize-axis vertical increase&quot;</span><span class="p">)</span>
+<span class="o">!+</span><span class="n">_</span><span class="o">::</span><span class="n">Komorebic</span><span class="p">(</span><span class="s">&quot;resize-axis vertical decrease&quot;</span><span class="p">)</span>
 
-; Manipulate windows
-!t::Komorebic(&quot;toggle-float&quot;)
-!f::Komorebic(&quot;toggle-monocle&quot;)
+<span class="c1">; Manipulate windows</span>
+<span class="o">!</span><span class="n">t</span><span class="o">::</span><span class="n">Komorebic</span><span class="p">(</span><span class="s">&quot;toggle-float&quot;</span><span class="p">)</span>
+<span class="o">!</span><span class="n">f</span><span class="o">::</span><span class="n">Komorebic</span><span class="p">(</span><span class="s">&quot;toggle-monocle&quot;</span><span class="p">)</span>
 
-; Window manager options
-!+r::Komorebic(&quot;retile&quot;)
-!p::Komorebic(&quot;toggle-pause&quot;)
+<span class="c1">; Window manager options</span>
+<span class="o">!+</span><span class="n">r</span><span class="o">::</span><span class="n">Komorebic</span><span class="p">(</span><span class="s">&quot;retile&quot;</span><span class="p">)</span>
+<span class="o">!</span><span class="n">p</span><span class="o">::</span><span class="n">Komorebic</span><span class="p">(</span><span class="s">&quot;toggle-pause&quot;</span><span class="p">)</span>
 
-; Layouts
-!x::Komorebic(&quot;flip-layout horizontal&quot;)
-!y::Komorebic(&quot;flip-layout vertical&quot;)
+<span class="c1">; Layouts</span>
+<span class="o">!</span><span class="n">x</span><span class="o">::</span><span class="n">Komorebic</span><span class="p">(</span><span class="s">&quot;flip-layout horizontal&quot;</span><span class="p">)</span>
+<span class="o">!</span><span class="n">y</span><span class="o">::</span><span class="n">Komorebic</span><span class="p">(</span><span class="s">&quot;flip-layout vertical&quot;</span><span class="p">)</span>
 
-; Workspaces
-!1::Komorebic(&quot;focus-workspace 0&quot;)
-!2::Komorebic(&quot;focus-workspace 1&quot;)
-!3::Komorebic(&quot;focus-workspace 2&quot;)
-!4::Komorebic(&quot;focus-workspace 3&quot;)
-!5::Komorebic(&quot;focus-workspace 4&quot;)
-!6::Komorebic(&quot;focus-workspace 5&quot;)
-!7::Komorebic(&quot;focus-workspace 6&quot;)
-!8::Komorebic(&quot;focus-workspace 7&quot;)
+<span class="c1">; Workspaces</span>
+<span class="o">!</span><span class="mi">1</span><span class="o">::</span><span class="n">Komorebic</span><span class="p">(</span><span class="s">&quot;focus-workspace 0&quot;</span><span class="p">)</span>
+<span class="o">!</span><span class="mi">2</span><span class="o">::</span><span class="n">Komorebic</span><span class="p">(</span><span class="s">&quot;focus-workspace 1&quot;</span><span class="p">)</span>
+<span class="o">!</span><span class="mi">3</span><span class="o">::</span><span class="n">Komorebic</span><span class="p">(</span><span class="s">&quot;focus-workspace 2&quot;</span><span class="p">)</span>
+<span class="o">!</span><span class="mi">4</span><span class="o">::</span><span class="n">Komorebic</span><span class="p">(</span><span class="s">&quot;focus-workspace 3&quot;</span><span class="p">)</span>
+<span class="o">!</span><span class="mi">5</span><span class="o">::</span><span class="n">Komorebic</span><span class="p">(</span><span class="s">&quot;focus-workspace 4&quot;</span><span class="p">)</span>
+<span class="o">!</span><span class="mi">6</span><span class="o">::</span><span class="n">Komorebic</span><span class="p">(</span><span class="s">&quot;focus-workspace 5&quot;</span><span class="p">)</span>
+<span class="o">!</span><span class="mi">7</span><span class="o">::</span><span class="n">Komorebic</span><span class="p">(</span><span class="s">&quot;focus-workspace 6&quot;</span><span class="p">)</span>
+<span class="o">!</span><span class="mi">8</span><span class="o">::</span><span class="n">Komorebic</span><span class="p">(</span><span class="s">&quot;focus-workspace 7&quot;</span><span class="p">)</span>
 
-; Move windows across workspaces
-!+1::Komorebic(&quot;move-to-workspace 0&quot;)
-!+2::Komorebic(&quot;move-to-workspace 1&quot;)
-!+3::Komorebic(&quot;move-to-workspace 2&quot;)
-!+4::Komorebic(&quot;move-to-workspace 3&quot;)
-!+5::Komorebic(&quot;move-to-workspace 4&quot;)
-!+6::Komorebic(&quot;move-to-workspace 5&quot;)
-!+7::Komorebic(&quot;move-to-workspace 6&quot;)
-!+8::Komorebic(&quot;move-to-workspace 7&quot;)
+<span class="c1">; Move windows across workspaces</span>
+<span class="o">!+</span><span class="mi">1</span><span class="o">::</span><span class="n">Komorebic</span><span class="p">(</span><span class="s">&quot;move-to-workspace 0&quot;</span><span class="p">)</span>
+<span class="o">!+</span><span class="mi">2</span><span class="o">::</span><span class="n">Komorebic</span><span class="p">(</span><span class="s">&quot;move-to-workspace 1&quot;</span><span class="p">)</span>
+<span class="o">!+</span><span class="mi">3</span><span class="o">::</span><span class="n">Komorebic</span><span class="p">(</span><span class="s">&quot;move-to-workspace 2&quot;</span><span class="p">)</span>
+<span class="o">!+</span><span class="mi">4</span><span class="o">::</span><span class="n">Komorebic</span><span class="p">(</span><span class="s">&quot;move-to-workspace 3&quot;</span><span class="p">)</span>
+<span class="o">!+</span><span class="mi">5</span><span class="o">::</span><span class="n">Komorebic</span><span class="p">(</span><span class="s">&quot;move-to-workspace 4&quot;</span><span class="p">)</span>
+<span class="o">!+</span><span class="mi">6</span><span class="o">::</span><span class="n">Komorebic</span><span class="p">(</span><span class="s">&quot;move-to-workspace 5&quot;</span><span class="p">)</span>
+<span class="o">!+</span><span class="mi">7</span><span class="o">::</span><span class="n">Komorebic</span><span class="p">(</span><span class="s">&quot;move-to-workspace 6&quot;</span><span class="p">)</span>
+<span class="o">!+</span><span class="mi">8</span><span class="o">::</span><span class="n">Komorebic</span><span class="p">(</span><span class="s">&quot;move-to-workspace 7&quot;</span><span class="p">)</span>
 </code></pre></div>
 <p>By default, the <code>komorebi.ahk</code> file should be located in the <code>$Env:USERPROFILE</code>
 directory, however, if <code>$Env:KOMOREBI_CONFIG_HOME</code> is set, it should be located
