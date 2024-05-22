@@ -5,17 +5,18 @@
   "cross_monitor_move_behaviour": "Insert",
   "default_workspace_padding": 20,
   "default_container_padding": 20,
+  "border": true,
   "border_width": 8,
   "border_offset": -1,
-  "active_window_border": false,
-  "active_window_border_colours": {
+  "border_colours": {
     "single": "#42a5f5",
     "stack": "#00a542",
-    "monocle": "#ff3399"
+    "monocle": "#ff3399",
+    "unfocused": "#808080"
   },
   "stackbar": {
     "height": 40,
-    "mode": "Never",
+    "mode": "OnStack",
     "tabs": {
       "width": 300,
       "focused_text": "#00a542",

@@ -781,6 +781,8 @@
       
         
       
+        
+      
     
     
     <li class="md-nav__item md-nav__item--nested">
@@ -835,11 +837,11 @@
   
   
     <li class="md-nav__item">
-      <a href="common-workflows/active-window-border.html" class="md-nav__link">
+      <a href="common-workflows/borders.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
-    Active Window Border
+    Borders
   </span>
   
 
@@ -1029,6 +1031,26 @@
 
               
             
+              
+                
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="common-workflows/autohotkey.html" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Macro Rendering Error
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -1127,6 +1149,12 @@
   
     
     
+      
+        
+      
+        
+      
+        
       
         
       
@@ -1581,6 +1609,26 @@
   
   <span class="md-ellipsis">
     global-state
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="cli/gui.html" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    gui
   </span>
   
 
@@ -2476,6 +2524,26 @@
   
   
     <li class="md-nav__item">
+      <a href="cli/cycle-move-workspace-to-monitor.html" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    cycle-move-workspace-to-monitor
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+    <li class="md-nav__item">
       <a href="cli/swap-workspaces-with-monitor.html" class="md-nav__link">
         
   
@@ -2781,6 +2849,26 @@
   
   <span class="md-ellipsis">
     promote-focus
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="cli/promote-window.html" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    promote-window
   </span>
   
 
@@ -3776,11 +3864,11 @@
   
   
     <li class="md-nav__item">
-      <a href="cli/active-window-border.html" class="md-nav__link">
+      <a href="cli/border.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
-    active-window-border
+    border
   </span>
   
 
@@ -3796,11 +3884,11 @@
   
   
     <li class="md-nav__item">
-      <a href="cli/active-window-border-colour.html" class="md-nav__link">
+      <a href="cli/border-colour.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
-    active-window-border-colour
+    border-colour
   </span>
   
 
@@ -3816,11 +3904,11 @@
   
   
     <li class="md-nav__item">
-      <a href="cli/active-window-border-width.html" class="md-nav__link">
+      <a href="cli/border-width.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
-    active-window-border-width
+    border-width
   </span>
   
 
@@ -3836,11 +3924,11 @@
   
   
     <li class="md-nav__item">
-      <a href="cli/active-window-border-offset.html" class="md-nav__link">
+      <a href="cli/border-offset.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
-    active-window-border-offset
+    border-offset
   </span>
   
 
@@ -4404,17 +4492,18 @@ layout.</p>
 <span class="w">  </span><span class="nt">&quot;cross_monitor_move_behaviour&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Insert&quot;</span><span class="p">,</span>
 <span class="w">  </span><span class="nt">&quot;default_workspace_padding&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">20</span><span class="p">,</span>
 <span class="w">  </span><span class="nt">&quot;default_container_padding&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">20</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;border&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="p">,</span>
 <span class="w">  </span><span class="nt">&quot;border_width&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">8</span><span class="p">,</span>
 <span class="w">  </span><span class="nt">&quot;border_offset&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">-1</span><span class="p">,</span>
-<span class="w">  </span><span class="nt">&quot;active_window_border&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">false</span><span class="p">,</span>
-<span class="w">  </span><span class="nt">&quot;active_window_border_colours&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="nt">&quot;border_colours&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="nt">&quot;single&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;#42a5f5&quot;</span><span class="p">,</span>
 <span class="w">    </span><span class="nt">&quot;stack&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;#00a542&quot;</span><span class="p">,</span>
-<span class="w">    </span><span class="nt">&quot;monocle&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;#ff3399&quot;</span>
+<span class="w">    </span><span class="nt">&quot;monocle&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;#ff3399&quot;</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">&quot;unfocused&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;#808080&quot;</span>
 <span class="w">  </span><span class="p">},</span>
 <span class="w">  </span><span class="nt">&quot;stackbar&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="nt">&quot;height&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">40</span><span class="p">,</span>
-<span class="w">    </span><span class="nt">&quot;mode&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Never&quot;</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">&quot;mode&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;OnStack&quot;</span><span class="p">,</span>
 <span class="w">    </span><span class="nt">&quot;tabs&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
 <span class="w">      </span><span class="nt">&quot;width&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">300</span><span class="p">,</span>
 <span class="w">      </span><span class="nt">&quot;focused_text&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;#00a542&quot;</span><span class="p">,</span>
@@ -4578,6 +4667,9 @@ alt + shift + o         : komorebic reload-configuration
 # alt + f                 : if ($wshell.AppActivate(&#39;Firefox&#39;) -eq $False) { start firefox }
 # alt + b                 : if ($wshell.AppActivate(&#39;Chrome&#39;) -eq $False) { start chrome }
 
+alt + q                 : komorebic close
+alt + m                 : komorebic minimize
+
 # Focus windows
 alt + h                 : komorebic focus left
 alt + j                 : komorebic focus down
@@ -4624,11 +4716,21 @@ alt + y                 : komorebic flip-layout vertical
 alt + 1                 : komorebic focus-workspace 0
 alt + 2                 : komorebic focus-workspace 1
 alt + 3                 : komorebic focus-workspace 2
+alt + 4                 : komorebic focus-workspace 3
+alt + 5                 : komorebic focus-workspace 4
+alt + 6                 : komorebic focus-workspace 5
+alt + 7                 : komorebic focus-workspace 6
+alt + 8                 : komorebic focus-workspace 7
 
 # Move windows across workspaces
 alt + shift + 1         : komorebic move-to-workspace 0
 alt + shift + 2         : komorebic move-to-workspace 1
 alt + shift + 3         : komorebic move-to-workspace 2
+alt + shift + 4         : komorebic move-to-workspace 3
+alt + shift + 5         : komorebic move-to-workspace 4
+alt + shift + 6         : komorebic move-to-workspace 5
+alt + shift + 7         : komorebic move-to-workspace 6
+alt + shift + 8         : komorebic move-to-workspace 7
 </code></pre></div>
 <h3 id="setting-shell">Setting .shell</h3>
 <p>There is one special directive at the top of the file, <code>.shell</code> which can be

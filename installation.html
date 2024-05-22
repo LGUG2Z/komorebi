@@ -570,6 +570,13 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#disabling-unnecessary-system-animations" class="md-nav__link">
+    Disabling Unnecessary System Animations
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#scoop" class="md-nav__link">
     Scoop
   </a>
@@ -715,6 +722,8 @@
       
         
       
+        
+      
     
     
     <li class="md-nav__item md-nav__item--nested">
@@ -769,11 +778,11 @@
   
   
     <li class="md-nav__item">
-      <a href="common-workflows/active-window-border.html" class="md-nav__link">
+      <a href="common-workflows/borders.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
-    Active Window Border
+    Borders
   </span>
   
 
@@ -963,6 +972,26 @@
 
               
             
+              
+                
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="common-workflows/autohotkey.html" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Macro Rendering Error
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -1061,6 +1090,12 @@
   
     
     
+      
+        
+      
+        
+      
+        
       
         
       
@@ -1515,6 +1550,26 @@
   
   <span class="md-ellipsis">
     global-state
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="cli/gui.html" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    gui
   </span>
   
 
@@ -2410,6 +2465,26 @@
   
   
     <li class="md-nav__item">
+      <a href="cli/cycle-move-workspace-to-monitor.html" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    cycle-move-workspace-to-monitor
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+    <li class="md-nav__item">
       <a href="cli/swap-workspaces-with-monitor.html" class="md-nav__link">
         
   
@@ -2715,6 +2790,26 @@
   
   <span class="md-ellipsis">
     promote-focus
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="cli/promote-window.html" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    promote-window
   </span>
   
 
@@ -3710,11 +3805,11 @@
   
   
     <li class="md-nav__item">
-      <a href="cli/active-window-border.html" class="md-nav__link">
+      <a href="cli/border.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
-    active-window-border
+    border
   </span>
   
 
@@ -3730,11 +3825,11 @@
   
   
     <li class="md-nav__item">
-      <a href="cli/active-window-border-colour.html" class="md-nav__link">
+      <a href="cli/border-colour.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
-    active-window-border-colour
+    border-colour
   </span>
   
 
@@ -3750,11 +3845,11 @@
   
   
     <li class="md-nav__item">
-      <a href="cli/active-window-border-width.html" class="md-nav__link">
+      <a href="cli/border-width.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
-    active-window-border-width
+    border-width
   </span>
   
 
@@ -3770,11 +3865,11 @@
   
   
     <li class="md-nav__item">
-      <a href="cli/active-window-border-offset.html" class="md-nav__link">
+      <a href="cli/border-offset.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
-    active-window-border-offset
+    border-offset
   </span>
   
 
@@ -4152,6 +4247,13 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#disabling-unnecessary-system-animations" class="md-nav__link">
+    Disabling Unnecessary System Animations
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#scoop" class="md-nav__link">
     Scoop
   </a>
@@ -4278,6 +4380,10 @@ running the following command in an Administrator Terminal before installing
 <code>komorebi</code>.</p>
 <div class="highlight"><pre><span></span><code><span class="nb">Set-ItemProperty</span> <span class="s1">&#39;HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem&#39;</span> <span class="n">-Name</span> <span class="s1">&#39;LongPathsEnabled&#39;</span> <span class="n">-Value</span> <span class="n">1</span>
 </code></pre></div>
+<h2 id="disabling-unnecessary-system-animations">Disabling Unnecessary System Animations</h2>
+<p>It is highly recommended that you enable the "Turn off all unnecessary animations (when possible)" option in
+"Control Panel &gt; Ease of Access &gt; Ease of Access Centre / Make the computer easier to see" for the best performance with
+komorebi.</p>
 <h2 id="scoop">Scoop</h2>
 <p>Make sure you have installed <a href="https://scoop.sh"><code>scoop</code></a> and verified that
 installed binaries are available in your <code>$PATH</code> before proceeding.</p>
@@ -4318,6 +4424,7 @@ prerequisites</a>.</p>
 <div class="highlight"><pre><span></span><code><span class="n">cargo</span> <span class="p">+</span><span class="n">stable</span> <span class="n">install</span> <span class="p">-</span><span class="n">-path</span> <span class="n">komorebi</span> <span class="p">-</span><span class="n">-locked</span>
 <span class="n">cargo</span> <span class="p">+</span><span class="n">stable</span> <span class="n">install</span> <span class="p">-</span><span class="n">-path</span> <span class="n">komorebic</span> <span class="p">-</span><span class="n">-locked</span>
 <span class="n">cargo</span> <span class="p">+</span><span class="n">stable</span> <span class="n">install</span> <span class="p">-</span><span class="n">-path</span> <span class="n">komorebic-no-console</span> <span class="p">-</span><span class="n">-locked</span>
+<span class="n">cargo</span> <span class="p">+</span><span class="n">stable</span> <span class="n">install</span> <span class="p">-</span><span class="n">-path</span> <span class="n">komorebi-gui</span> <span class="p">-</span><span class="n">-locked</span>
 </code></pre></div>
 <p>If the binaries have been built and added to your <code>$PATH</code> correctly, you should
 see some output when running <code>komorebi --help</code> and <code>komorebic --help</code></p>
