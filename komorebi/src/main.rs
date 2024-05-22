@@ -30,6 +30,7 @@ use komorebi::process_command::listen_for_commands;
 use komorebi::process_command::listen_for_commands_tcp;
 use komorebi::process_event::listen_for_events;
 use komorebi::process_movement::listen_for_movements;
+use komorebi::reaper;
 use komorebi::stackbar_manager;
 use komorebi::static_config::StaticConfig;
 use komorebi::window_manager::WindowManager;
@@ -258,6 +259,7 @@ fn main() -> Result<()> {
     stackbar_manager::listen_for_notifications(wm.clone());
     workspace_reconciliator::listen_for_notifications(wm.clone());
     monitor_reconciliator::listen_for_notifications(wm.clone())?;
+    reaper::watch_for_orphans(wm.clone());
 
     let (ctrlc_sender, ctrlc_receiver) = crossbeam_channel::bounded(1);
     ctrlc::set_handler(move || {

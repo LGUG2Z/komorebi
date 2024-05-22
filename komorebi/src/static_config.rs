@@ -322,6 +322,48 @@ pub struct StaticConfig {
     pub stackbar: Option<StackbarConfig>,
 }
 
+impl StaticConfig {
+    pub fn aliases(raw: &str) {
+        let mut map = HashMap::new();
+        map.insert("border", ["active_window_border"]);
+        map.insert("border_width", ["active_window_border_width"]);
+        map.insert("border_offset", ["active_window_border_offset"]);
+        map.insert("border_colours", ["active_window_border_colours"]);
+        map.insert("border_style", ["active_window_border_style"]);
+
+        let mut display = false;
+
+        for (_, aliases) in &map {
+            for a in aliases {
+                if raw.contains(a) {
+                    display = true;
+                }
+            }
+        }
+
+        if display {
+            println!("\nYour configuration file contains some options that have been renamed or deprecated:\n");
+            for (canonical, aliases) in map {
+                for alias in aliases {
+                    if raw.contains(alias) {
+                        println!(r#""{alias}" is now "{canonical}""#);
+                    }
+                }
+            }
+        }
+    }
+
+    pub fn deprecated(raw: &str) {
+        let deprecated = ["invisible_borders"];
+
+        for option in deprecated {
+            if raw.contains(option) {
+                println!(r#""{option}" is deprecated and can be removed"#);
+            }
+        }
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize, JsonSchema)]
 pub struct TabsConfig {
     /// Width of a stackbar tab

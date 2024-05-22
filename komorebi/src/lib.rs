@@ -9,6 +9,7 @@ pub mod monitor_reconciliator;
 pub mod process_command;
 pub mod process_event;
 pub mod process_movement;
+pub mod reaper;
 pub mod set_window_position;
 pub mod stackbar_manager;
 pub mod static_config;

@@ -136,6 +136,27 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                     continue 'receiver;
                 }
 
+                // Destroy any stackbars not associated with the focused workspace
+                let container_ids = ws
+                    .containers()
+                    .iter()
+                    .map(|c| c.id().clone())
+                    .collect::<Vec<_>>();
+
+                let mut to_remove = vec![];
+                for (id, stackbar) in stackbars.iter() {
+                    if stackbars_monitors.get(id).copied().unwrap_or_default() == monitor_idx
+                        && !container_ids.contains(id)
+                    {
+                        stackbar.destroy()?;
+                        to_remove.push(id.clone());
+                    }
+                }
+
+                for id in &to_remove {
+                    stackbars.remove(id);
+                }
+
                 let container_padding = ws
                     .container_padding()
                     .unwrap_or_else(|| DEFAULT_CONTAINER_PADDING.load_consume());

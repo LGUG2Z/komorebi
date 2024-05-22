@@ -357,7 +357,7 @@ impl Workspace {
                             layout.bottom -= total_height;
                         }
 
-                        window.set_position(&layout, false)?;
+                        window.set_position(layout, false)?;
                     }
                 }
 

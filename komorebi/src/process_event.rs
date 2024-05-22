@@ -24,6 +24,7 @@ use crate::window::RuleDebug;
 use crate::window_manager::WindowManager;
 use crate::window_manager_event::WindowManagerEvent;
 use crate::windows_api::WindowsApi;
+use crate::winevent::WinEvent;
 use crate::workspace_reconciliator;
 use crate::workspace_reconciliator::ALT_TAB_HWND;
 use crate::workspace_reconciliator::ALT_TAB_HWND_INSTANT;
@@ -120,36 +121,10 @@ impl WindowManager {
             _ => {}
         }
 
-        let offset = self.work_area_offset;
-
-        for (i, monitor) in self.monitors_mut().iter_mut().enumerate() {
-            let work_area = *monitor.work_area_size();
-            let window_based_work_area_offset = (
-                monitor.window_based_work_area_offset_limit(),
-                monitor.window_based_work_area_offset(),
-            );
-
-            let offset = if monitor.work_area_offset().is_some() {
-                monitor.work_area_offset()
-            } else {
-                offset
-            };
-
-            for (j, workspace) in monitor.workspaces_mut().iter_mut().enumerate() {
+        for monitor in self.monitors_mut() {
+            for workspace in monitor.workspaces_mut() {
                 if let WindowManagerEvent::FocusChange(_, window) = event {
                     let _ = workspace.focus_changed(window.hwnd);
-                }
-
-                let reaped_orphans = workspace.reap_orphans()?;
-                if reaped_orphans.0 > 0 || reaped_orphans.1 > 0 {
-                    workspace.update(&work_area, offset, window_based_work_area_offset)?;
-                    tracing::info!(
-                        "reaped {} orphan window(s) and {} orphaned container(s) on monitor: {}, workspace: {}",
-                        reaped_orphans.0,
-                        reaped_orphans.1,
-                        i,
-                        j
-                    );
                 }
             }
         }
@@ -604,10 +579,9 @@ impl WindowManager {
                     }
                 }
             }
-            WindowManagerEvent::ForceUpdate(_) => {
-                self.update_focused_workspace(false, true)?;
-            }
-            WindowManagerEvent::MouseCapture(..) | WindowManagerEvent::Cloak(..) => {}
+            WindowManagerEvent::MouseCapture(..)
+            | WindowManagerEvent::Cloak(..)
+            | WindowManagerEvent::TitleUpdate(..) => {}
         };
 
         // If we unmanaged a window, it shouldn't be immediately hidden behind managed windows
@@ -645,7 +619,16 @@ impl WindowManager {
         border_manager::event_tx().send(border_manager::Notification)?;
         stackbar_manager::event_tx().send(stackbar_manager::Notification)?;
 
-        tracing::info!("processed: {}", event.window().to_string());
+        // Too many spammy OBJECT_NAMECHANGE events from JetBrains IDEs
+        if !matches!(
+            event,
+            WindowManagerEvent::Show(WinEvent::ObjectNameChange, _)
+        ) {
+            tracing::info!("processed: {}", event.window().to_string());
+        } else {
+            tracing::trace!("processed: {}", event.window().to_string());
+        }
+
         Ok(())
     }
 }

@@ -41,6 +41,7 @@ use windows::Win32::UI::WindowsAndMessaging::SW_RESTORE;
 
 use derive_ahk::AhkFunction;
 use derive_ahk::AhkLibrary;
+use komorebi_client::StaticConfig;
 use komorebi_core::config_generation::ApplicationConfigurationGenerator;
 use komorebi_core::ApplicationIdentifier;
 use komorebi_core::Axis;
@@ -1959,6 +1960,25 @@ if (!(Get-Process whkd -ErrorAction SilentlyContinue))
             );
             println!("* Join the Discord https://discord.gg/mGkn66PHkx - Chat, ask questions, share your desktops");
             println!("* Read the docs https://lgug2z.github.io/komorebi - Quickly search through all komorebic commands");
+
+            let static_config = arg.config.map_or_else(
+                || {
+                    let komorebi_json = HOME_DIR.join("komorebi.json");
+                    if komorebi_json.is_file() {
+                        Option::from(komorebi_json)
+                    } else {
+                        None
+                    }
+                },
+                Option::from,
+            );
+
+            if let Some(config) = static_config {
+                let path = resolve_home_path(config)?;
+                let raw = std::fs::read_to_string(path)?;
+                StaticConfig::aliases(&raw);
+                StaticConfig::deprecated(&raw);
+            }
         }
         SubCommand::Stop(arg) => {
             if arg.whkd {
