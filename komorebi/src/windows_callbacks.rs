@@ -80,8 +80,19 @@ pub extern "system" fn win_event_hook(
         Ok(event) => event,
         Err(_) => return,
     };
+
     let event_type = match WindowManagerEvent::from_win_event(winevent, window) {
-        None => return,
+        None => {
+            tracing::trace!(
+                "Unhandled WinEvent: {winevent} (hwnd: {}, exe: {}, title: {}, class: {})",
+                window.hwnd,
+                window.exe().unwrap_or_default(),
+                window.title().unwrap_or_default(),
+                window.class().unwrap_or_default()
+            );
+
+            return;
+        }
         Some(event) => event,
     };
 

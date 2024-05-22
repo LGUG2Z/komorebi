@@ -571,10 +571,9 @@ impl WindowManager {
                     }
                 }
             }
-            WindowManagerEvent::ForceUpdate(_) => {
-                self.update_focused_workspace(false, true)?;
-            }
-            WindowManagerEvent::MouseCapture(..) | WindowManagerEvent::Cloak(..) => {}
+            WindowManagerEvent::MouseCapture(..)
+            | WindowManagerEvent::Cloak(..)
+            | WindowManagerEvent::TitleUpdate(..) => {}
         };
 
         // If we unmanaged a window, it shouldn't be immediately hidden behind managed windows
