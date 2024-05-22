@@ -1051,6 +1051,7 @@ impl WindowManager {
                 if aot.len() == 0 {
                     return Ok(())
                 }
+                self.check_aot_windows()?;
                 if let Some(flw) = follows {
                     if let Ok(fc) = self.focused_container() {
                         let contains = fc.windows().iter().any(|w| aot.contains(&w.hwnd));
@@ -1136,7 +1137,33 @@ impl WindowManager {
 
     }
 
+
+    pub fn check_aot_windows(&mut self) -> Result<()> {
+        let mut not_contains = vec![];
+        for (i, hwnd) in self.always_on_top.as_ref().unwrap().iter().enumerate() {
+            let mut not_contains_bool = true;
+            for monitor in self.monitors.elements().iter() {
+                for workspace in monitor.workspaces() {
+                    if workspace.contains_managed_window(*hwnd) {
+                        not_contains_bool = false;
+                        break;
+                    }
+                }
+            }
+
+            if not_contains_bool {
+                not_contains.push(i);
+            }
+        }
+        not_contains.iter().for_each(|&i| {
+            self.always_on_top.as_mut().unwrap().remove(i);
+        });
+        Ok(())
+    }
+
     pub fn toggle_always_on_top(&mut self) -> Result<()> {
+
+        self.check_aot_windows()?;
 
         let focused_con = self.focused_container().unwrap().clone();
 
