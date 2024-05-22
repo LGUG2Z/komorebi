@@ -215,8 +215,18 @@ impl WindowManager {
                 WindowsApi::center_cursor_in_rect(&focused_window_rect)?;
                 WindowsApi::left_click();
             }
-            SocketMessage::Close => self.focused_window()?.close()?,
-            SocketMessage::Minimize => self.focused_window()?.minimize(),
+            SocketMessage::Close => {
+                Window {
+                    hwnd: WindowsApi::foreground_window()?,
+                }
+                .close()?;
+            }
+            SocketMessage::Minimize => {
+                Window {
+                    hwnd: WindowsApi::foreground_window()?,
+                }
+                .minimize();
+            }
             SocketMessage::ToggleFloat => self.toggle_float()?,
             SocketMessage::ToggleMonocle => self.toggle_monocle()?,
             SocketMessage::ToggleMaximize => self.toggle_maximize()?,
