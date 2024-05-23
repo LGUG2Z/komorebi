@@ -636,6 +636,13 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#uninstallation" class="md-nav__link">
+    Uninstallation
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -4313,6 +4320,13 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#uninstallation" class="md-nav__link">
+    Uninstallation
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -4434,6 +4448,18 @@ and <a href="https://github.com/LGUG2Z/whkd/releases">whkd</a> MSI installers on
 an offline machine to install.</p>
 <p>Once installed, proceed to get the <a href="example-configurations.html">example configurations</a> (none of the commands for
 first-time set up and running komorebi require an internet connection).</p>
+<h2 id="uninstallation">Uninstallation</h2>
+<p>Before uninstalling, first run <code>komorebic stop --whkd</code> to make sure that both
+the <code>komorebi</code> and <code>whkd</code> processes have been stopped.</p>
+<p>Then, depending on whether you installed with Scoop or WinGet, run <code>scoop
+uninstall komorebi whkd</code> or <code>winget uninstall LGUG2Z.komorebi LGUG2Z.whkd</code>.</p>
+<p>Finally, you can run the following commands in a PowerShell prompt to clean up
+files created by the <code>quickstart</code> command and any other runtime files:</p>
+<div class="highlight"><pre><span></span><code><span class="nb">rm </span><span class="nv">$Env:USERPROFILE</span><span class="p">\</span><span class="n">komorebi</span><span class="p">.</span><span class="n">json</span>
+<span class="nb">rm </span><span class="nv">$Env:USERPROFILE</span><span class="p">\</span><span class="n">applications</span><span class="p">.</span><span class="n">json</span>
+<span class="nb">rm </span><span class="nv">$Env:USERPROFILE</span><span class="p">\.</span><span class="n">config</span><span class="p">\</span><span class="n">whkdrc</span>
+<span class="nb">rm </span><span class="n">-r</span> <span class="n">-Force</span> <span class="nv">$Env:LOCALAPPDATA</span><span class="p">\</span><span class="n">komorebi</span>
+</code></pre></div>
 
 
 
