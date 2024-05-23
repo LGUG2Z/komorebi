@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "StaticConfig",
-  "description": "The `komorebi.json` static configuration file reference for `v0.1.25`",
+  "description": "The `komorebi.json` static configuration file reference for `v0.1.26`",
   "type": "object",
   "properties": {
     "app_specific_configuration_path": {

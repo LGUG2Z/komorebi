@@ -1,4 +1,4 @@
-# Dynamically Layout Switching
+# Dynamic Layout Switching
 
 With `komorebi` it is possible to define rules to automatically change the
 layout on a specified workspace when a threshold of window containers is met.

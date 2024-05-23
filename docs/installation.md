@@ -45,7 +45,7 @@ running the following command in an Administrator Terminal before installing
 Set-ItemProperty 'HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem' -Name 'LongPathsEnabled' -Value 1
 ```
 
-## Disabling Unnecessary System Animations
+## Disabling unnecessary system animations
 
 It is highly recommended that you enable the "Turn off all unnecessary animations (when possible)" option in
 "Control Panel > Ease of Access > Ease of Access Centre / Make the computer easier to see" for the best performance with
@@ -128,3 +128,21 @@ an offline machine to install.
 
 Once installed, proceed to get the [example configurations](example-configurations.md) (none of the commands for
 first-time set up and running komorebi require an internet connection).
+
+## Uninstallation
+
+Before uninstalling, first run `komorebic stop --whkd` to make sure that both
+the `komorebi` and `whkd` processes have been stopped.
+
+Then, depending on whether you installed with Scoop or WinGet, run `scoop
+uninstall komorebi whkd` or `winget uninstall LGUG2Z.komorebi LGUG2Z.whkd`.
+
+Finally, you can run the following commands in a PowerShell prompt to clean up
+files created by the `quickstart` command and any other runtime files:
+
+```powershell
+rm $Env:USERPROFILE\komorebi.json
+rm $Env:USERPROFILE\applications.yaml
+rm $Env:USERPROFILE\.config\whkdrc
+rm -r -Force $Env:LOCALAPPDATA\komorebi
+```
