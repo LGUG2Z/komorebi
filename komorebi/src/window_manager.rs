@@ -1051,7 +1051,6 @@ impl WindowManager {
                 if aot.len() == 0 {
                     return Ok(())
                 }
-                self.check_aot_windows()?;
                 if let Some(flw) = follows {
                     if let Ok(fc) = self.focused_container() {
                         let contains = fc.windows().iter().any(|w| aot.contains(&w.hwnd));
@@ -1074,6 +1073,8 @@ impl WindowManager {
             } else {
                 return Ok(())
             };
+        self.check_aot_windows()?;
+
 
         aot.ok_or_else(|| anyhow!("there is no always on Top windows"))?.iter().filter(|&&window| {
             let mut is_window = false;
