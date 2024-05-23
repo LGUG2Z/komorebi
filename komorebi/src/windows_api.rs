@@ -277,7 +277,7 @@ impl WindowsApi {
                 monitors.elements_mut().push_back(m);
             } else if let Some(preference) = index_preference {
                 let current_len = monitors.elements().len();
-                if *preference > current_len {
+                while *preference > current_len {
                     monitors.elements_mut().reserve(1);
                 }
 
