@@ -1,5 +1,5 @@
 #![warn(clippy::all, clippy::nursery, clippy::pedantic)]
-#![allow(clippy::missing_errors_doc, clippy::use_self)]
+#![allow(clippy::missing_errors_doc, clippy::use_self, clippy::doc_markdown)]
 
 use std::path::Path;
 use std::path::PathBuf;

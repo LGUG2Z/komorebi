@@ -1,5 +1,5 @@
 #![warn(clippy::all, clippy::nursery, clippy::pedantic)]
-#![allow(clippy::missing_errors_doc)]
+#![allow(clippy::missing_errors_doc, clippy::doc_markdown)]
 
 use chrono::Local;
 use std::fs::File;
@@ -102,6 +102,7 @@ lazy_static! {
     };
 }
 
+#[allow(dead_code)]
 trait AhkLibrary {
     fn generate_ahk_library() -> String;
 }

@@ -333,7 +333,7 @@ impl StaticConfig {
 
         let mut display = false;
 
-        for (_, aliases) in &map {
+        for aliases in map.values() {
             for a in aliases {
                 if raw.contains(a) {
                     display = true;
@@ -493,7 +493,11 @@ impl From<&WindowManager> for StaticConfig {
 }
 
 impl StaticConfig {
-    #[allow(clippy::cognitive_complexity, clippy::too_many_lines)]
+    #[allow(
+        clippy::cognitive_complexity,
+        clippy::too_many_lines,
+        clippy::assigning_clones
+    )]
     fn apply_globals(&mut self) -> Result<()> {
         if let Some(monitor_index_preferences) = &self.monitor_index_preferences {
             let mut preferences = MONITOR_INDEX_PREFERENCES.lock();

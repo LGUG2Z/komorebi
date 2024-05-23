@@ -1,3 +1,5 @@
+#![allow(clippy::assigning_clones)]
+
 use eframe::egui;
 use eframe::egui::color_picker::Alpha;
 use eframe::egui::Color32;
