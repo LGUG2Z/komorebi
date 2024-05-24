@@ -43,6 +43,8 @@ pub enum SocketMessage {
     CycleFocusWindow(CycleDirection),
     CycleMoveWindow(CycleDirection),
     StackWindow(OperationDirection),
+    StackAll,
+    UnstackAll,
     ResizeWindowEdge(OperationDirection, Sizing),
     ResizeWindowAxis(Axis, Sizing),
     UnstackWindow,

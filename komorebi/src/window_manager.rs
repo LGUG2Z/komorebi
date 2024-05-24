@@ -1407,6 +1407,67 @@ impl WindowManager {
     }
 
     #[tracing::instrument(skip(self))]
+    pub fn stack_all(&mut self) -> Result<()> {
+        self.handle_unmanaged_window_behaviour()?;
+        tracing::info!("stacking all windows on workspace");
+
+        let workspace = self.focused_workspace_mut()?;
+
+        let mut focused_hwnd = None;
+        if let Some(container) = workspace.focused_container() {
+            if let Some(window) = container.focused_window() {
+                focused_hwnd = Some(window.hwnd);
+            }
+        }
+
+        workspace.focus_container(workspace.containers().len() - 1);
+        while workspace.focused_container_idx() > 0 {
+            workspace.move_window_to_container(0)?;
+            workspace.focus_container(workspace.containers().len() - 1);
+        }
+
+        if let Some(hwnd) = focused_hwnd {
+            workspace.focus_container_by_window(hwnd)?;
+        }
+
+        self.update_focused_workspace(self.mouse_follows_focus, true)
+    }
+
+    #[tracing::instrument(skip(self))]
+    pub fn unstack_all(&mut self) -> Result<()> {
+        self.handle_unmanaged_window_behaviour()?;
+        tracing::info!("unstacking all windows in container");
+
+        let workspace = self.focused_workspace_mut()?;
+
+        let mut focused_hwnd = None;
+        if let Some(container) = workspace.focused_container() {
+            if let Some(window) = container.focused_window() {
+                focused_hwnd = Some(window.hwnd);
+            }
+        }
+
+        let initial_focused_container_index = workspace.focused_container_idx();
+        let mut focused_container = workspace.focused_container().cloned();
+
+        while let Some(focused) = &focused_container {
+            if focused.windows().len() > 1 {
+                workspace.new_container_for_focused_window()?;
+                workspace.focus_container(initial_focused_container_index);
+                focused_container = workspace.focused_container().cloned();
+            } else {
+                focused_container = None;
+            }
+        }
+
+        if let Some(hwnd) = focused_hwnd {
+            workspace.focus_container_by_window(hwnd)?;
+        }
+
+        self.update_focused_workspace(self.mouse_follows_focus, true)
+    }
+
+    #[tracing::instrument(skip(self))]
     pub fn add_window_to_container(&mut self, direction: OperationDirection) -> Result<()> {
         self.handle_unmanaged_window_behaviour()?;
 

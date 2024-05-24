@@ -876,6 +876,10 @@ enum SubCommand {
     /// Stack the focused window in the specified direction
     #[clap(arg_required_else_help = true)]
     Stack(Stack),
+    /// Stack all windows on the focused workspace
+    StackAll,
+    /// Unstack all windows in the focused container
+    UnstackAll,
     /// Resize the focused window in the specified direction
     #[clap(arg_required_else_help = true)]
     #[clap(alias = "resize")]
@@ -2016,8 +2020,14 @@ Stop-Process -Name:komorebi -ErrorAction SilentlyContinue
         SubCommand::Stack(arg) => {
             send_message(&SocketMessage::StackWindow(arg.operation_direction).as_bytes()?)?;
         }
+        SubCommand::StackAll => {
+            send_message(&SocketMessage::StackAll.as_bytes()?)?;
+        }
         SubCommand::Unstack => {
             send_message(&SocketMessage::UnstackWindow.as_bytes()?)?;
+        }
+        SubCommand::UnstackAll => {
+            send_message(&SocketMessage::UnstackAll.as_bytes()?)?;
         }
         SubCommand::CycleStack(arg) => {
             send_message(&SocketMessage::CycleStack(arg.cycle_direction).as_bytes()?)?;
