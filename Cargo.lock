@@ -1117,15 +1117,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "derive-ahk"
-version = "0.1.1"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 1.0.109",
-]
-
-[[package]]
 name = "digest"
 version = "0.10.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2400,11 +2391,9 @@ dependencies = [
  "chrono",
  "clap",
  "color-eyre",
- "derive-ahk",
  "dirs",
  "dunce",
  "fs-tail",
- "heck 0.5.0",
  "komorebi-client",
  "komorebi-core",
  "lazy_static",

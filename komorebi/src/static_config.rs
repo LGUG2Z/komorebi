@@ -493,20 +493,16 @@ impl From<&WindowManager> for StaticConfig {
 }
 
 impl StaticConfig {
-    #[allow(
-        clippy::cognitive_complexity,
-        clippy::too_many_lines,
-        clippy::assigning_clones
-    )]
+    #[allow(clippy::cognitive_complexity, clippy::too_many_lines)]
     fn apply_globals(&mut self) -> Result<()> {
         if let Some(monitor_index_preferences) = &self.monitor_index_preferences {
             let mut preferences = MONITOR_INDEX_PREFERENCES.lock();
-            *preferences = monitor_index_preferences.clone();
+            preferences.clone_from(monitor_index_preferences);
         }
 
         if let Some(display_index_preferences) = &self.display_index_preferences {
             let mut preferences = DISPLAY_INDEX_PREFERENCES.lock();
-            *preferences = display_index_preferences.clone();
+            preferences.clone_from(display_index_preferences);
         }
 
         if let Some(behaviour) = self.window_hiding_behaviour {

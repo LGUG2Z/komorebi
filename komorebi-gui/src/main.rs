@@ -1,4 +1,4 @@
-#![allow(clippy::assigning_clones)]
+#![warn(clippy::all)]
 
 use eframe::egui;
 use eframe::egui::color_picker::Alpha;
@@ -715,7 +715,7 @@ impl eframe::App for KomorebiGui {
                                                     .text_edit_singleline(workspace_name)
                                                     .lost_focus()
                                                 {
-                                                    workspace.name = workspace_name.clone();
+                                                    workspace.name.clone_from(workspace_name);
                                                     komorebi_client::send_message(
                                                         &SocketMessage::WorkspaceName(
                                                             monitor_idx,

@@ -1,4 +1,4 @@
-#![warn(clippy::all, clippy::nursery, clippy::pedantic)]
+#![warn(clippy::all)]
 #![allow(clippy::missing_errors_doc)]
 
 pub use komorebi::colour::Colour;
