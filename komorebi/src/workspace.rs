@@ -397,6 +397,28 @@ impl Workspace {
     pub fn reap_orphans(&mut self) -> Result<(usize, usize)> {
         let mut hwnds = vec![];
         let mut floating_hwnds = vec![];
+        let mut remove_monocle = false;
+        let mut remove_maximized = false;
+
+        if let Some(monocle) = &self.monocle_container {
+            let window_count = monocle.windows().len();
+            let mut orphan_count = 0;
+            for window in monocle.windows() {
+                if !window.is_window() {
+                    hwnds.push(window.hwnd);
+                    orphan_count += 1;
+                }
+            }
+
+            remove_monocle = orphan_count == window_count;
+        }
+
+        if let Some(window) = &self.maximized_window {
+            if !window.is_window() {
+                hwnds.push(window.hwnd);
+                remove_maximized = true;
+            }
+        }
 
         for window in self.visible_windows_mut().into_iter().flatten() {
             if !window.is_window() {
@@ -430,6 +452,14 @@ impl Workspace {
 
         self.containers_mut()
             .retain(|c| !container_ids.contains(c.id()));
+
+        if remove_monocle {
+            self.set_monocle_container(None);
+        }
+
+        if remove_maximized {
+            self.set_maximized_window(None);
+        }
 
         Ok((hwnds.len() + floating_hwnds.len(), container_ids.len()))
     }
