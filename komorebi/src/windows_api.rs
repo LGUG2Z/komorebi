@@ -220,7 +220,7 @@ impl WindowsApi {
     }
 
     pub fn valid_hmonitors() -> Result<Vec<(String, isize)>> {
-        Ok(win32_display_data::connected_displays()
+        Ok(win32_display_data::connected_displays_all()
             .flatten()
             .map(|d| {
                 let name = d.device_name.trim_start_matches(r"\\.\").to_string();
@@ -232,7 +232,7 @@ impl WindowsApi {
     }
 
     pub fn load_monitor_information(monitors: &mut Ring<Monitor>) -> Result<()> {
-        'read: for display in win32_display_data::connected_displays().flatten() {
+        'read: for display in win32_display_data::connected_displays_all().flatten() {
             let path = display.device_path.clone();
             let mut split: Vec<_> = path.split('#').collect();
             split.remove(0);
@@ -790,7 +790,7 @@ impl WindowsApi {
     }
 
     pub fn monitor(hmonitor: isize) -> Result<Monitor> {
-        for display in win32_display_data::connected_displays().flatten() {
+        for display in win32_display_data::connected_displays_all().flatten() {
             if display.hmonitor == hmonitor {
                 let path = display.device_path;
                 let mut split: Vec<_> = path.split('#').collect();
