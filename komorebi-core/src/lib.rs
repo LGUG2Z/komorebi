@@ -1,5 +1,5 @@
-#![warn(clippy::all, clippy::nursery, clippy::pedantic)]
-#![allow(clippy::missing_errors_doc, clippy::use_self)]
+#![warn(clippy::all)]
+#![allow(clippy::missing_errors_doc, clippy::use_self, clippy::doc_markdown)]
 
 use std::path::Path;
 use std::path::PathBuf;
@@ -43,6 +43,8 @@ pub enum SocketMessage {
     CycleFocusWindow(CycleDirection),
     CycleMoveWindow(CycleDirection),
     StackWindow(OperationDirection),
+    StackAll,
+    UnstackAll,
     ResizeWindowEdge(OperationDirection, Sizing),
     ResizeWindowAxis(Axis, Sizing),
     UnstackWindow,

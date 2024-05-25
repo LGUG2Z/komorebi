@@ -1,9 +1,10 @@
-#![warn(clippy::all, clippy::nursery, clippy::pedantic)]
+#![warn(clippy::all)]
 #![allow(
     clippy::missing_errors_doc,
     clippy::redundant_pub_crate,
     clippy::significant_drop_tightening,
-    clippy::significant_drop_in_scrutinee
+    clippy::significant_drop_in_scrutinee,
+    clippy::doc_markdown
 )]
 
 use std::path::PathBuf;

@@ -1,6 +1,6 @@
 [package]
 name = "komorebi"
-version = "0.1.26"
+version = "0.1.27-dev.0"
 authors = ["Jade Iqbal <jadeiqbal@fastmail.com>"]
 description = "A tiling window manager for Windows"
 categories = ["tiling-window-manager", "windows"]
@@ -48,7 +48,7 @@ windows-interface = { workspace = true }
 winput = "0.2"
 winreg = "0.52"
 
-win32-display-data = { git = "https://github.com/LGUG2Z/win32-display-data" }
+win32-display-data = { git = "https://github.com/LGUG2Z/win32-display-data", rev = "2a0f7166da154880a1750b91829b1186d9c6a00c" }
 
 [features]
 deadlock_detection = []

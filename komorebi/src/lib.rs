@@ -1,3 +1,5 @@
+#![warn(clippy::all)]
+
 pub mod border_manager;
 pub mod com;
 #[macro_use]

@@ -1,4 +1,4 @@
-# AutoHotKey
+# AutoHotkey
 
 If you would like to use Autohotkey, please make sure you have AutoHotKey v2
 installed.
@@ -10,8 +10,8 @@ able to craft their own configuration files.
 If you would like to try out AHK, here is a simple sample configuration which
 largely matches the `whkdrc` sample configuration.
 
-```
-{% include "../komorebi.ahk" %}
+```autohotkey
+{% include "./komorebi.ahk.txt" %}
 ```
 
 By default, the `komorebi.ahk` file should be located in the `$Env:USERPROFILE`

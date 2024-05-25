@@ -57,7 +57,7 @@ pub fn insert_in_monitor_cache(device_id: &str, config: MonitorConfig) {
 }
 
 pub fn attached_display_devices() -> color_eyre::Result<Vec<Monitor>> {
-    Ok(win32_display_data::connected_displays()
+    Ok(win32_display_data::connected_displays_all()
         .flatten()
         .map(|display| {
             let path = display.device_path;
