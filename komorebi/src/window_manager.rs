@@ -1668,7 +1668,15 @@ impl WindowManager {
                 new_idx
             };
 
-            workspace.move_window_to_container(adjusted_new_index)?;
+            if let Some(current) = workspace.focused_container() {
+                if current.windows().len() > 1 {
+                    workspace.focus_container(adjusted_new_index);
+                    workspace.move_window_to_container(current_container_idx)?;
+                } else {
+                    workspace.move_window_to_container(adjusted_new_index)?;
+                }
+            }
+
             self.update_focused_workspace(self.mouse_follows_focus, false)?;
         }
 
