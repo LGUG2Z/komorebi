@@ -1895,7 +1895,7 @@ if (!(Get-Process whkd -ErrorAction SilentlyContinue))
 
                 let script = format!(
                     r#"
-  Start-Process '{ahk}' '{config}' -WindowStyle hidden
+  Start-Process '{ahk}' -ArgumentList '{config}' -WindowStyle hidden
                 "#,
                     config = config_ahk.display()
                 );
