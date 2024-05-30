@@ -1227,14 +1227,14 @@ impl WindowManager {
 
         target_monitor.add_container(container, workspace_idx)?;
 
-        if let Some(workspace_idx) = workspace_idx {
-            target_monitor.focus_workspace(workspace_idx)?;
-        }
-
-        target_monitor.load_focused_workspace(mouse_follows_focus)?;
-        target_monitor.update_focused_workspace(offset)?;
-
         if follow {
+            if let Some(workspace_idx) = workspace_idx {
+                target_monitor.focus_workspace(workspace_idx)?;
+            }
+
+            target_monitor.load_focused_workspace(mouse_follows_focus)?;
+            target_monitor.update_focused_workspace(offset)?;
+
             self.focus_monitor(monitor_idx)?;
         }
 

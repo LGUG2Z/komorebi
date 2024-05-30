@@ -7,7 +7,6 @@ use std::fmt::Write as _;
 use std::time::Duration;
 
 use color_eyre::eyre;
-use color_eyre::eyre::anyhow;
 use color_eyre::Result;
 use komorebi_core::config_generation::IdWithIdentifier;
 use komorebi_core::config_generation::MatchingRule;
@@ -270,12 +269,12 @@ impl Window {
 
     pub fn style(self) -> Result<WindowStyle> {
         let bits = u32::try_from(WindowsApi::gwl_style(self.hwnd())?)?;
-        WindowStyle::from_bits(bits).ok_or_else(|| anyhow!("there is no gwl style"))
+        Ok(WindowStyle::from_bits_truncate(bits))
     }
 
     pub fn ex_style(self) -> Result<ExtendedWindowStyle> {
         let bits = u32::try_from(WindowsApi::gwl_ex_style(self.hwnd())?)?;
-        ExtendedWindowStyle::from_bits(bits).ok_or_else(|| anyhow!("there is no gwl style"))
+        Ok(ExtendedWindowStyle::from_bits_truncate(bits))
     }
 
     pub fn title(self) -> Result<String> {

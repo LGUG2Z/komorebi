@@ -27,6 +27,7 @@ use windows::Win32::Foundation::LRESULT;
 use windows::Win32::Foundation::WPARAM;
 use windows::Win32::Graphics::Gdi::BeginPaint;
 use windows::Win32::Graphics::Gdi::CreatePen;
+use windows::Win32::Graphics::Gdi::DeleteObject;
 use windows::Win32::Graphics::Gdi::EndPaint;
 use windows::Win32::Graphics::Gdi::InvalidateRect;
 use windows::Win32::Graphics::Gdi::Rectangle;
@@ -210,6 +211,8 @@ impl Border {
                             }
                         }
                         EndPaint(window, &ps);
+                        DeleteObject(hpen);
+                        DeleteObject(hbrush);
                         ValidateRect(window, None);
                     }
 
