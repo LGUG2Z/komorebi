@@ -1,11 +1,11 @@
 # Getting started
 
-`komorebi` is a tiling window manager for Windows that is comprised comprised
-of two main binaries, `komorebi.exe`, which contains the window manager itself,
+`komorebi` is a tiling window manager for Windows that is comprised of two 
+main binaries, `komorebi.exe`, which contains the window manager itself,
 and `komorebic.exe`, which is the main way to send commands to the tiling
 window manager.
 
-It is important to note that neither `komorebi.exe` or `komorebic.exe` handle
+It is important to note that neither `komorebi.exe` nor `komorebic.exe` handle
 key bindings, because `komorebi` is a tiling window manager and not a hotkey
 daemon.
 
@@ -27,7 +27,7 @@ to manipulate the window manager, you use
 
 `komorebi` is available pre-built to install via
 [Scoop](https://scoop.sh/#/apps?q=komorebi) and
-[WinGet](https://winget.run/pkg/LGUG2Z/komorebi), and you may also built
+[WinGet](https://winget.run/pkg/LGUG2Z/komorebi), and you may also build
 it from [source](https://github.com/LGUG2Z/komorebi) if you would prefer.
 
 - [Scoop](#scoop)
@@ -37,7 +37,7 @@ it from [source](https://github.com/LGUG2Z/komorebi) if you would prefer.
 
 ## Long path support
 
-It highly recommended that you enable support for long paths in Windows by
+It is highly recommended that you enable support for long paths in Windows by
 running the following command in an Administrator Terminal before installing
 `komorebi`.
 
