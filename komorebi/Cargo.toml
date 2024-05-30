@@ -28,7 +28,7 @@ miow = "0.6"
 nanoid = "0.4"
 net2 = "0.2"
 os_info = "3.8"
-parking_lot = { version = "0.12", features = ["deadlock_detection"] }
+parking_lot = { version = "0.12" }
 paste = "1"
 regex = "1"
 schemars = "0.8"
