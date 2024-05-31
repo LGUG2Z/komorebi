@@ -8,6 +8,7 @@ use std::time::Duration;
 
 use color_eyre::eyre;
 use color_eyre::Result;
+use crossbeam_utils::atomic::AtomicConsume;
 use komorebi_core::config_generation::IdWithIdentifier;
 use komorebi_core::config_generation::MatchingRule;
 use komorebi_core::config_generation::MatchingStrategy;
@@ -25,6 +26,7 @@ use komorebi_core::Rect;
 
 use crate::styles::ExtendedWindowStyle;
 use crate::styles::WindowStyle;
+use crate::transparency_manager;
 use crate::window_manager_event::WindowManagerEvent;
 use crate::windows_api::WindowsApi;
 use crate::FLOAT_IDENTIFIERS;
@@ -40,6 +42,12 @@ use crate::WSL2_UI_PROCESSES;
 #[derive(Debug, Default, Clone, Copy, Deserialize, JsonSchema)]
 pub struct Window {
     pub hwnd: isize,
+}
+
+impl From<isize> for Window {
+    fn from(value: isize) -> Self {
+        Self { hwnd: value }
+    }
 }
 
 #[allow(clippy::module_name_repetitions)]
@@ -249,7 +257,10 @@ impl Window {
         let mut ex_style = self.ex_style()?;
         ex_style.insert(ExtendedWindowStyle::LAYERED);
         self.update_ex_style(&ex_style)?;
-        WindowsApi::set_transparent(self.hwnd())
+        WindowsApi::set_transparent(
+            self.hwnd(),
+            transparency_manager::TRANSPARENCY_ALPHA.load_consume(),
+        )
     }
 
     pub fn opaque(self) -> Result<()> {
@@ -374,7 +385,7 @@ impl Window {
                     if let (Ok(style), Ok(ex_style)) = (&self.style(), &self.ex_style()) {
                         debug.window_style = Some(*style);
                         debug.extended_window_style = Some(*ex_style);
-                        let eligible = window_is_eligible(&title, &exe_name, &class, &path, style, ex_style, event, debug);
+                        let eligible = window_is_eligible(self.hwnd, &title, &exe_name, &class, &path, style, ex_style, event, debug);
                         debug.should_manage = eligible;
                         return Ok(eligible);
                     }
@@ -394,6 +405,7 @@ pub struct RuleDebug {
     pub has_title: bool,
     pub is_cloaked: bool,
     pub allow_cloaked: bool,
+    pub allow_layered_transparency: bool,
     pub window_style: Option<WindowStyle>,
     pub extended_window_style: Option<ExtendedWindowStyle>,
     pub title: Option<String>,
@@ -410,6 +422,7 @@ pub struct RuleDebug {
 
 #[allow(clippy::too_many_arguments)]
 fn window_is_eligible(
+    hwnd: isize,
     title: &String,
     exe_name: &String,
     class: &String,
@@ -464,7 +477,7 @@ fn window_is_eligible(
     }
 
     let layered_whitelist = LAYERED_WHITELIST.lock();
-    let allow_layered = if let Some(rule) = should_act(
+    let mut allow_layered = if let Some(rule) = should_act(
         title,
         exe_name,
         class,
@@ -478,8 +491,14 @@ fn window_is_eligible(
         false
     };
 
-    // TODO: might need this for transparency
-    // let allow_layered = true;
+    let known_layered_hwnds = transparency_manager::known_hwnds();
+
+    allow_layered = if known_layered_hwnds.contains(&hwnd) {
+        debug.allow_layered_transparency = true;
+        true
+    } else {
+        allow_layered
+    };
 
     let allow_wsl2_gui = {
         let wsl2_ui_processes = WSL2_UI_PROCESSES.lock();

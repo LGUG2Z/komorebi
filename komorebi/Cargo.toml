@@ -18,7 +18,7 @@ clap = { version = "4", features = ["derive"] }
 color-eyre = { workspace = true }
 crossbeam-channel = "0.5"
 crossbeam-utils = "0.8"
-ctrlc = "3"
+ctrlc = { version = "3", features = ["termination"] }
 dirs = { workspace = true }
 getset = "0.1"
 hex_color = { version = "3", features = ["serde"] }

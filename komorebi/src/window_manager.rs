@@ -55,6 +55,7 @@ use crate::stackbar_manager::STACKBAR_TAB_HEIGHT;
 use crate::stackbar_manager::STACKBAR_TAB_WIDTH;
 use crate::stackbar_manager::STACKBAR_UNFOCUSED_TEXT_COLOUR;
 use crate::static_config::StaticConfig;
+use crate::transparency_manager;
 use crate::window::Window;
 use crate::window_manager_event::WindowManagerEvent;
 use crate::windows_api::WindowsApi;
@@ -907,6 +908,7 @@ impl WindowManager {
         tracing::info!("restoring all hidden windows");
 
         let no_titlebar = NO_TITLEBAR.lock();
+        let known_transparent_hwnds = transparency_manager::known_hwnds();
 
         for monitor in self.monitors_mut() {
             for workspace in monitor.workspaces_mut() {
@@ -914,6 +916,10 @@ impl WindowManager {
                     for window in containers.windows_mut() {
                         if no_titlebar.contains(&window.exe()?) {
                             window.add_title_bar()?;
+                        }
+
+                        if known_transparent_hwnds.contains(&window.hwnd) {
+                            window.opaque()?;
                         }
 
                         window.restore();

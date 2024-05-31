@@ -45,6 +45,7 @@ use crate::current_virtual_desktop;
 use crate::notify_subscribers;
 use crate::stackbar_manager;
 use crate::static_config::StaticConfig;
+use crate::transparency_manager;
 use crate::window::RuleDebug;
 use crate::window::Window;
 use crate::window_manager;
@@ -1256,6 +1257,12 @@ impl WindowManager {
             SocketMessage::BorderOffset(offset) => {
                 border_manager::BORDER_OFFSET.store(offset, Ordering::SeqCst);
             }
+            SocketMessage::Transparency(enable) => {
+                transparency_manager::TRANSPARENCY_ENABLED.store(enable, Ordering::SeqCst);
+            }
+            SocketMessage::TransparencyAlpha(alpha) => {
+                transparency_manager::TRANSPARENCY_ALPHA.store(alpha, Ordering::SeqCst);
+            }
             SocketMessage::StackbarMode(mode) => {
                 STACKBAR_MODE.store(mode);
             }
@@ -1347,6 +1354,7 @@ impl WindowManager {
 
         notify_subscribers(&serde_json::to_string(&notification)?)?;
         border_manager::event_tx().send(border_manager::Notification)?;
+        transparency_manager::event_tx().send(transparency_manager::Notification)?;
         stackbar_manager::event_tx().send(stackbar_manager::Notification)?;
 
         tracing::info!("processed");

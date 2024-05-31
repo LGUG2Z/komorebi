@@ -650,6 +650,18 @@ struct Border {
 }
 
 #[derive(Parser)]
+struct Transparency {
+    #[clap(value_enum)]
+    boolean_state: BooleanState,
+}
+
+#[derive(Parser)]
+struct TransparencyAlpha {
+    /// Alpha
+    alpha: u8,
+}
+
+#[derive(Parser)]
 struct BorderColour {
     #[clap(value_enum, short, long, default_value = "single")]
     window_kind: WindowKind,
@@ -1161,6 +1173,12 @@ enum SubCommand {
     #[clap(arg_required_else_help = true)]
     #[clap(alias = "active-window-border-offset")]
     BorderOffset(BorderOffset),
+    /// Enable or disable transparency for unfocused windows
+    #[clap(arg_required_else_help = true)]
+    Transparency(Transparency),
+    /// Set the alpha value for unfocused window transparency
+    #[clap(arg_required_else_help = true)]
+    TransparencyAlpha(TransparencyAlpha),
     /// Enable or disable focus follows mouse for the operating system
     #[clap(arg_required_else_help = true)]
     FocusFollowsMouse(FocusFollowsMouse),
@@ -2241,6 +2259,12 @@ Stop-Process -Name:komorebi -ErrorAction SilentlyContinue
         SubCommand::BorderOffset(arg) => {
             send_message(&SocketMessage::BorderOffset(arg.offset).as_bytes()?)?;
         }
+        SubCommand::Transparency(arg) => {
+            send_message(&SocketMessage::Transparency(arg.boolean_state.into()).as_bytes()?)?;
+        }
+        SubCommand::TransparencyAlpha(arg) => {
+            send_message(&SocketMessage::TransparencyAlpha(arg.alpha).as_bytes()?)?;
+        }
         SubCommand::ResizeDelta(arg) => {
             send_message(&SocketMessage::ResizeDelta(arg.pixels).as_bytes()?)?;
         }
@@ -2383,6 +2407,11 @@ fn show_window(hwnd: HWND, command: SHOW_WINDOW_CMD) {
     unsafe { ShowWindow(hwnd, command) };
 }
 
+fn remove_transparency(hwnd: HWND) {
+    let _ = komorebi_client::Window::from(hwnd.0).opaque();
+}
+
 fn restore_window(hwnd: HWND) {
     show_window(hwnd, SW_RESTORE);
+    remove_transparency(hwnd);
 }

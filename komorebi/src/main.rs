@@ -34,6 +34,7 @@ use komorebi::process_movement::listen_for_movements;
 use komorebi::reaper;
 use komorebi::stackbar_manager;
 use komorebi::static_config::StaticConfig;
+use komorebi::transparency_manager;
 use komorebi::window_manager::WindowManager;
 use komorebi::windows_api::WindowsApi;
 use komorebi::winevent_listener;
@@ -258,6 +259,7 @@ fn main() -> Result<()> {
 
     border_manager::listen_for_notifications(wm.clone());
     stackbar_manager::listen_for_notifications(wm.clone());
+    transparency_manager::listen_for_notifications(wm.clone());
     workspace_reconciliator::listen_for_notifications(wm.clone());
     monitor_reconciliator::listen_for_notifications(wm.clone())?;
     reaper::watch_for_orphans(wm.clone());

@@ -14,6 +14,7 @@ use crate::stackbar_manager::STACKBAR_TAB_BACKGROUND_COLOUR;
 use crate::stackbar_manager::STACKBAR_TAB_HEIGHT;
 use crate::stackbar_manager::STACKBAR_TAB_WIDTH;
 use crate::stackbar_manager::STACKBAR_UNFOCUSED_TEXT_COLOUR;
+use crate::transparency_manager;
 use crate::window_manager::WindowManager;
 use crate::window_manager_event::WindowManagerEvent;
 use crate::windows_api::WindowsApi;
@@ -278,6 +279,12 @@ pub struct StaticConfig {
     /// Active window border z-order (default: System)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub border_z_order: Option<ZOrder>,
+    /// Add transparency to unfocused windows (default: false)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub transparency: Option<bool>,
+    /// Alpha value for unfocused window transparency [[0-255]] (default: 200)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub transparency_alpha: Option<u8>,
     /// Global default workspace padding (default: 10)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub default_workspace_padding: Option<i32>,
@@ -468,6 +475,12 @@ impl From<&WindowManager> for StaticConfig {
             border_offset: Option::from(border_manager::BORDER_OFFSET.load(Ordering::SeqCst)),
             border: Option::from(border_manager::BORDER_ENABLED.load(Ordering::SeqCst)),
             border_colours,
+            transparency: Option::from(
+                transparency_manager::TRANSPARENCY_ENABLED.load(Ordering::SeqCst),
+            ),
+            transparency_alpha: Option::from(
+                transparency_manager::TRANSPARENCY_ALPHA.load(Ordering::SeqCst),
+            ),
             border_style: Option::from(*STYLE.lock()),
             border_z_order: Option::from(*Z_ORDER.lock()),
             default_workspace_padding: Option::from(
@@ -545,6 +558,11 @@ impl StaticConfig {
 
         let border_style = self.border_style.unwrap_or_default();
         *STYLE.lock() = border_style;
+
+        transparency_manager::TRANSPARENCY_ENABLED
+            .store(self.transparency.unwrap_or(false), Ordering::SeqCst);
+        transparency_manager::TRANSPARENCY_ALPHA
+            .store(self.transparency_alpha.unwrap_or(200), Ordering::SeqCst);
 
         let mut float_identifiers = FLOAT_IDENTIFIERS.lock();
         let mut regex_identifiers = REGEX_IDENTIFIERS.lock();

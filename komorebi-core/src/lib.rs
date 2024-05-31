@@ -142,6 +142,8 @@ pub enum SocketMessage {
     BorderStyle(BorderStyle),
     BorderWidth(i32),
     BorderOffset(i32),
+    Transparency(bool),
+    TransparencyAlpha(u8),
     InvisibleBorders(Rect),
     StackbarMode(StackbarMode),
     StackbarLabel(StackbarLabel),
