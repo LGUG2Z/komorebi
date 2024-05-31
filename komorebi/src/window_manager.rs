@@ -1242,6 +1242,7 @@ impl WindowManager {
 
             target_monitor.load_focused_workspace(mouse_follows_focus)?;
             target_monitor.update_focused_workspace(offset)?;
+        }
 
           
         // this second one is for DPI changes when the target is another monitor
