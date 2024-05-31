@@ -1199,6 +1199,14 @@ impl WindowManager {
 
         tracing::info!("moving container");
 
+        let focused_monitor_idx = self.focused_monitor_idx();
+
+        if focused_monitor_idx == monitor_idx {
+            if let Some(workspace_idx) = workspace_idx {
+                return self.move_container_to_workspace(workspace_idx, follow);
+            }
+        }
+
         let offset = self.work_area_offset;
         let mouse_follows_focus = self.mouse_follows_focus;
 
@@ -1235,6 +1243,13 @@ impl WindowManager {
             target_monitor.load_focused_workspace(mouse_follows_focus)?;
             target_monitor.update_focused_workspace(offset)?;
 
+          
+        // this second one is for DPI changes when the target is another monitor
+        // if we don't do this the layout on the other monitor could look funny
+        // until it is interacted with again
+        target_monitor.update_focused_workspace(offset)?;
+
+        if follow {
             self.focus_monitor(monitor_idx)?;
         }
 

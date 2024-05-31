@@ -90,9 +90,13 @@ impl Direction for DefaultLayout {
         idx: usize,
         count: usize,
     ) -> bool {
+        if count < 2 {
+            return false;
+        }
+
         match op_direction {
             OperationDirection::Up => match self {
-                Self::BSP => count > 2 && idx != 0 && idx != 1,
+                Self::BSP => idx != 0 && idx != 1,
                 Self::Columns => false,
                 Self::Rows | Self::HorizontalStack => idx != 0,
                 Self::VerticalStack | Self::RightMainVerticalStack => idx != 0 && idx != 1,
@@ -100,7 +104,7 @@ impl Direction for DefaultLayout {
                 Self::Grid => !is_grid_edge(op_direction, idx, count),
             },
             OperationDirection::Down => match self {
-                Self::BSP => count > 2 && idx != count - 1 && idx % 2 != 0,
+                Self::BSP => idx != count - 1 && idx % 2 != 0,
                 Self::Columns => false,
                 Self::Rows => idx != count - 1,
                 Self::VerticalStack | Self::RightMainVerticalStack => idx != 0 && idx != count - 1,
@@ -109,23 +113,22 @@ impl Direction for DefaultLayout {
                 Self::Grid => !is_grid_edge(op_direction, idx, count),
             },
             OperationDirection::Left => match self {
-                Self::BSP => count > 1 && idx != 0,
+                Self::BSP => idx != 0,
                 Self::Columns | Self::VerticalStack => idx != 0,
                 Self::RightMainVerticalStack => idx == 0,
                 Self::Rows => false,
                 Self::HorizontalStack => idx != 0 && idx != 1,
-                Self::UltrawideVerticalStack => count > 1 && idx != 1,
+                Self::UltrawideVerticalStack => idx != 1,
                 Self::Grid => !is_grid_edge(op_direction, idx, count),
             },
             OperationDirection::Right => match self {
-                Self::BSP => count > 1 && idx % 2 == 0 && idx != count - 1,
+                Self::BSP => idx % 2 == 0 && idx != count - 1,
                 Self::Columns => idx != count - 1,
                 Self::Rows => false,
                 Self::VerticalStack => idx == 0,
                 Self::RightMainVerticalStack => idx != 0,
                 Self::HorizontalStack => idx != 0 && idx != count - 1,
                 Self::UltrawideVerticalStack => match count {
-                    0 | 1 => false,
                     2 => idx != 0,
                     _ => idx < 2,
                 },
