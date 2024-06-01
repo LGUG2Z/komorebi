@@ -336,7 +336,13 @@
       "format": "int32"
     },
     "display_index_preferences": {
-      "description": "Set display index preferences",
+      "description": "Set display index preferences.  You can find the id with `komorebic state | findstr -I -N device_id`.",
+      "examples": [{
+        "display_index_preferences": {
+          "0":"<display_id>",
+          "1":"<display_id>"
+        }
+      }],
       "type": "object",
       "additionalProperties": {
         "type": "string"
