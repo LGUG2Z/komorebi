@@ -834,6 +834,9 @@ enum SubCommand {
     Gui,
     /// Show a JSON representation of visible windows
     VisibleWindows,
+    /// Show information about connected monitors
+    #[clap(alias = "monitor-info")]
+    MonitorInformation,
     /// Query the current window manager state
     #[clap(arg_required_else_help = true)]
     Query(Query),
@@ -2143,6 +2146,9 @@ Stop-Process -Name:komorebi -ErrorAction SilentlyContinue
         }
         SubCommand::VisibleWindows => {
             print_query(&SocketMessage::VisibleWindows.as_bytes()?);
+        }
+        SubCommand::MonitorInformation => {
+            print_query(&SocketMessage::MonitorInformation.as_bytes()?);
         }
         SubCommand::Query(arg) => {
             print_query(&SocketMessage::Query(arg.state_query).as_bytes()?);

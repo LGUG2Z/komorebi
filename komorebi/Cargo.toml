@@ -42,13 +42,12 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 uds_windows = "1"
 which = "6"
 widestring = "1"
+win32-display-data = { workspace = true }
 windows = { workspace = true }
 windows-implement = { workspace = true }
 windows-interface = { workspace = true }
 winput = "0.2"
 winreg = "0.52"
-
-win32-display-data = { git = "https://github.com/LGUG2Z/win32-display-data", rev = "2a0f7166da154880a1750b91829b1186d9c6a00c" }
 
 [features]
 deadlock_detection = ["parking_lot/deadlock_detection"]

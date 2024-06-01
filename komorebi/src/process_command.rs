@@ -797,15 +797,22 @@ impl WindowManager {
                     }
                 }
 
-                let visible_windows_state =
-                    match serde_json::to_string_pretty(&monitor_visible_windows) {
-                        Ok(state) => state,
-                        Err(error) => error.to_string(),
-                    };
+                let visible_windows_state = serde_json::to_string_pretty(&monitor_visible_windows)
+                    .unwrap_or_else(|error| error.to_string());
 
                 reply.write_all(visible_windows_state.as_bytes())?;
             }
+            SocketMessage::MonitorInformation => {
+                let mut monitors = HashMap::new();
+                for monitor in self.monitors() {
+                    monitors.insert(monitor.device_id(), monitor.size());
+                }
 
+                let monitors_state = serde_json::to_string_pretty(&monitors)
+                    .unwrap_or_else(|error| error.to_string());
+
+                reply.write_all(monitors_state.as_bytes())?;
+            }
             SocketMessage::Query(query) => {
                 let response = match query {
                     StateQuery::FocusedMonitorIndex => self.focused_monitor_idx(),

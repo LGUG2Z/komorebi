@@ -11,15 +11,16 @@ members = [
 ]
 
 [workspace.dependencies]
-windows-interface = { version = "0.53" }
-windows-implement = { version = "0.53" }
-dunce = "1"
-dirs = "5"
 color-eyre = "0.6"
-serde_json = { package = "serde_json_lenient", version = "0.1" }
-sysinfo = "0.30"
+dirs = "5"
+dunce = "1"
 serde = { version = "1", features = ["derive"] }
+serde_json = { package = "serde_json_lenient", version = "0.2" }
+sysinfo = "0.30"
 uds_windows = "1"
+win32-display-data = { git = "https://github.com/LGUG2Z/win32-display-data", rev = "2a0f7166da154880a1750b91829b1186d9c6a00c" }
+windows-implement = { version = "0.53" }
+windows-interface = { version = "0.53" }
 
 [workspace.dependencies.windows]
 version = "0.54"

@@ -168,6 +168,7 @@ pub enum SocketMessage {
     State,
     GlobalState,
     VisibleWindows,
+    MonitorInformation,
     Query(StateQuery),
     FocusFollowsMouse(FocusFollowsMouseImplementation, bool),
     ToggleFocusFollowsMouse(FocusFollowsMouseImplementation),
