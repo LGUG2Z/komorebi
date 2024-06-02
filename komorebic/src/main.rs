@@ -1309,7 +1309,12 @@ fn main() -> Result<()> {
             std::fs::create_dir_all(&config_dir)?;
             std::fs::create_dir_all(data_dir)?;
 
-            let komorebi_json = include_str!("../../docs/komorebi.example.json");
+            let mut komorebi_json = include_str!("../../docs/komorebi.example.json").to_string();
+            if std::env::var("KOMOREBI_CONFIG_HOME").is_ok() {
+                komorebi_json =
+                    komorebi_json.replace("Env:USERPROFILE", "Env:KOMOREBI_CONFIG_HOME");
+            }
+
             std::fs::write(HOME_DIR.join("komorebi.json"), komorebi_json)?;
 
             let applications_yaml = include_str!("../applications.yaml");
