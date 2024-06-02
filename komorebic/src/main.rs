@@ -1302,11 +1302,10 @@ fn main() -> Result<()> {
             }
         }
         SubCommand::Quickstart => {
-            let home_dir = dirs::home_dir().expect("could not find home dir");
-            let config_dir = home_dir.join(".config");
             let local_appdata_dir = data_local_dir().expect("could not find localdata dir");
             let data_dir = local_appdata_dir.join("komorebi");
-            std::fs::create_dir_all(&config_dir)?;
+            std::fs::create_dir_all(&*WHKD_CONFIG_DIR)?;
+            std::fs::create_dir_all(&*HOME_DIR)?;
             std::fs::create_dir_all(data_dir)?;
 
             let mut komorebi_json = include_str!("../../docs/komorebi.example.json").to_string();
@@ -1321,7 +1320,7 @@ fn main() -> Result<()> {
             std::fs::write(HOME_DIR.join("applications.yaml"), applications_yaml)?;
 
             let whkdrc = include_str!("../../docs/whkdrc.sample");
-            std::fs::write(config_dir.join("whkdrc"), whkdrc)?;
+            std::fs::write(WHKD_CONFIG_DIR.join("whkdrc"), whkdrc)?;
 
             println!("Example ~/komorebi.json, ~/.config/whkdrc and latest ~/applications.yaml files downloaded");
             println!("You can now run komorebic start --whkd");
