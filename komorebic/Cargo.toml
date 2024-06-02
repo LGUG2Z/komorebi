@@ -32,6 +32,7 @@ sysinfo = { workspace = true }
 thiserror = "1"
 uds_windows = "1"
 which = "6"
+win32-display-data = { workspace = true }
 windows = { workspace = true }
 
 [build-dependencies]

@@ -19,6 +19,7 @@ use crate::border_manager::BORDER_WIDTH;
 use crate::current_virtual_desktop;
 use crate::notify_subscribers;
 use crate::stackbar_manager;
+use crate::transparency_manager;
 use crate::window::should_act;
 use crate::window::RuleDebug;
 use crate::window_manager::WindowManager;
@@ -617,6 +618,7 @@ impl WindowManager {
 
         notify_subscribers(&serde_json::to_string(&notification)?)?;
         border_manager::event_tx().send(border_manager::Notification)?;
+        transparency_manager::event_tx().send(transparency_manager::Notification)?;
         stackbar_manager::event_tx().send(stackbar_manager::Notification)?;
 
         // Too many spammy OBJECT_NAMECHANGE events from JetBrains IDEs

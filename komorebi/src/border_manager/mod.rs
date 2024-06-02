@@ -176,7 +176,7 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                         borders.remove(id);
                     }
 
-                    continue 'receiver;
+                    continue 'monitors;
                 }
 
                 // Handle the monocle container separately
@@ -187,7 +187,7 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                             if let Ok(border) = Border::create(monocle.id()) {
                                 entry.insert(border)
                             } else {
-                                continue 'receiver;
+                                continue 'monitors;
                             }
                         }
                     };
@@ -287,7 +287,7 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                                     if let Ok(border) = Border::create(c.id()) {
                                         entry.insert(border)
                                     } else {
-                                        continue 'receiver;
+                                        continue 'monitors;
                                     }
                                 }
                             };
@@ -304,7 +304,7 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
 
                         *Z_ORDER.lock() = restore_z_order;
 
-                        continue 'receiver;
+                        continue 'monitors;
                     }
 
                     // Get the border entry for this container from the map or create one
@@ -314,7 +314,7 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                             if let Ok(border) = Border::create(c.id()) {
                                 entry.insert(border)
                             } else {
-                                continue 'receiver;
+                                continue 'monitors;
                             }
                         }
                     };

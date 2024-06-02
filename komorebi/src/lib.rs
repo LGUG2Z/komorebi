@@ -16,6 +16,7 @@ pub mod set_window_position;
 pub mod stackbar_manager;
 pub mod static_config;
 pub mod styles;
+pub mod transparency_manager;
 pub mod window;
 pub mod window_manager;
 pub mod window_manager_event;

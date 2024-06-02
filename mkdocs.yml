@@ -68,6 +68,7 @@ nav:
       - common-workflows/mouse-follows-focus.md
       - common-workflows/custom-layouts.md
       - common-workflows/dynamic-layout-switching.md
+      - common-workflows/set-display-index.md
   - Release notes:
       - release/v0-1-22.md
   - Configuration reference: https://komorebi.lgug2z.com/schema

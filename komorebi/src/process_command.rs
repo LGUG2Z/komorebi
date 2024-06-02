@@ -45,6 +45,7 @@ use crate::current_virtual_desktop;
 use crate::notify_subscribers;
 use crate::stackbar_manager;
 use crate::static_config::StaticConfig;
+use crate::transparency_manager;
 use crate::window::RuleDebug;
 use crate::window::Window;
 use crate::window_manager;
@@ -797,15 +798,22 @@ impl WindowManager {
                     }
                 }
 
-                let visible_windows_state =
-                    match serde_json::to_string_pretty(&monitor_visible_windows) {
-                        Ok(state) => state,
-                        Err(error) => error.to_string(),
-                    };
+                let visible_windows_state = serde_json::to_string_pretty(&monitor_visible_windows)
+                    .unwrap_or_else(|error| error.to_string());
 
                 reply.write_all(visible_windows_state.as_bytes())?;
             }
+            SocketMessage::MonitorInformation => {
+                let mut monitors = HashMap::new();
+                for monitor in self.monitors() {
+                    monitors.insert(monitor.device_id(), monitor.size());
+                }
 
+                let monitors_state = serde_json::to_string_pretty(&monitors)
+                    .unwrap_or_else(|error| error.to_string());
+
+                reply.write_all(monitors_state.as_bytes())?;
+            }
             SocketMessage::Query(query) => {
                 let response = match query {
                     StateQuery::FocusedMonitorIndex => self.focused_monitor_idx(),
@@ -1257,6 +1265,12 @@ impl WindowManager {
             SocketMessage::BorderOffset(offset) => {
                 border_manager::BORDER_OFFSET.store(offset, Ordering::SeqCst);
             }
+            SocketMessage::Transparency(enable) => {
+                transparency_manager::TRANSPARENCY_ENABLED.store(enable, Ordering::SeqCst);
+            }
+            SocketMessage::TransparencyAlpha(alpha) => {
+                transparency_manager::TRANSPARENCY_ALPHA.store(alpha, Ordering::SeqCst);
+            }
             SocketMessage::StackbarMode(mode) => {
                 STACKBAR_MODE.store(mode);
             }
@@ -1348,6 +1362,7 @@ impl WindowManager {
 
         notify_subscribers(&serde_json::to_string(&notification)?)?;
         border_manager::event_tx().send(border_manager::Notification)?;
+        transparency_manager::event_tx().send(transparency_manager::Notification)?;
         stackbar_manager::event_tx().send(stackbar_manager::Notification)?;
 
         tracing::info!("processed");

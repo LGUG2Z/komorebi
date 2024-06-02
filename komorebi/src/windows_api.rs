@@ -979,11 +979,10 @@ impl WindowsApi {
         .process()
     }
 
-    pub fn set_transparent(hwnd: HWND) -> Result<()> {
+    pub fn set_transparent(hwnd: HWND, alpha: u8) -> Result<()> {
         unsafe {
             #[allow(clippy::cast_sign_loss)]
-            // TODO: alpha should be configurable
-            SetLayeredWindowAttributes(hwnd, COLORREF(-1i32 as u32), 150, LWA_ALPHA)?;
+            SetLayeredWindowAttributes(hwnd, COLORREF(-1i32 as u32), alpha, LWA_ALPHA)?;
         }
 
         Ok(())
