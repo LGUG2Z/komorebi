@@ -4,9 +4,6 @@ use crossbeam_channel::Receiver;
 use crossbeam_channel::Sender;
 use crossbeam_utils::atomic::AtomicConsume;
 use parking_lot::Mutex;
-use schemars::JsonSchema;
-use serde::Deserialize;
-use serde::Serialize;
 use std::sync::atomic::AtomicBool;
 use std::sync::atomic::AtomicU8;
 use std::sync::Arc;
@@ -66,7 +63,9 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
         let known_hwnds = KNOWN_HWNDS.get_or_init(|| Mutex::new(Vec::new()));
         if !TRANSPARENCY_ENABLED.load_consume() {
             for hwnd in known_hwnds.lock().iter() {
-                Window::from(*hwnd).opaque()?;
+                if let Err(error) = Window::from(*hwnd).opaque() {
+                    tracing::error!("failed to make window {hwnd} opaque: {error}")
+                }
             }
 
             continue 'receiver;
@@ -87,7 +86,10 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                 // Workspaces with tiling disabled don't have transparent windows
                 if !ws.tile() || workspace_idx != focused_workspace_idx {
                     for window in ws.visible_windows().iter().flatten() {
-                        window.opaque()?;
+                        if let Err(error) = window.opaque() {
+                            let hwnd = window.hwnd;
+                            tracing::error!("failed to make window {hwnd} opaque: {error}")
+                        }
                     }
 
                     continue 'workspaces;
@@ -96,7 +98,10 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                 // Monocle container is never transparent
                 if let Some(monocle) = ws.monocle_container() {
                     if let Some(window) = monocle.focused_window() {
-                        window.opaque()?;
+                        if let Err(error) = window.opaque() {
+                            let hwnd = window.hwnd;
+                            tracing::error!("failed to make monocle window {hwnd} opaque: {error}")
+                        }
                     }
 
                     continue 'monitors;
@@ -106,10 +111,11 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                 let is_maximized = WindowsApi::is_zoomed(HWND(foreground_hwnd));
 
                 if is_maximized {
-                    Window {
-                        hwnd: foreground_hwnd,
+                    if let Err(error) = Window::from(foreground_hwnd).opaque() {
+                        let hwnd = foreground_hwnd;
+                        tracing::error!("failed to make maximized window {hwnd} opaque: {error}")
                     }
-                    .opaque()?;
+
                     continue 'monitors;
                 }
 
@@ -118,14 +124,27 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
 
                     // If the window is not focused on the current workspace, or isn't on the focused monitor
                     // make it transparent
+                    #[allow(clippy::collapsible_else_if)]
                     if idx != ws.focused_container_idx() || monitor_idx != focused_monitor_idx {
                         let unfocused_window = c.focused_window().copied().unwrap_or_default();
-                        unfocused_window.transparent()?;
-
-                        known_hwnds.lock().push(unfocused_window.hwnd);
+                        match unfocused_window.transparent() {
+                            Err(error) => {
+                                let hwnd = foreground_hwnd;
+                                tracing::error!(
+                                    "failed to make unfocused window {hwnd} transparent: {error}"
+                                )
+                            }
+                            Ok(..) => {
+                                known_hwnds.lock().push(unfocused_window.hwnd);
+                            }
+                        }
                     // Otherwise, make it opaque
                     } else {
-                        c.focused_window().copied().unwrap_or_default().opaque()?;
+                        if let Err(error) = c.focused_window().copied().unwrap_or_default().opaque()
+                        {
+                            let hwnd = foreground_hwnd;
+                            tracing::error!("failed to make focused window {hwnd} opaque: {error}")
+                        }
                     };
                 }
             }
@@ -133,23 +152,4 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
     }
 
     Ok(())
-}
-
-#[derive(Debug, Copy, Clone, Serialize, Deserialize, JsonSchema)]
-pub enum ZOrder {
-    Top,
-    NoTopMost,
-    Bottom,
-    TopMost,
-}
-
-impl From<ZOrder> for isize {
-    fn from(val: ZOrder) -> Self {
-        match val {
-            ZOrder::Top => 0,
-            ZOrder::NoTopMost => -2,
-            ZOrder::Bottom => 1,
-            ZOrder::TopMost => -1,
-        }
-    }
 }
