@@ -219,16 +219,10 @@ impl WindowManager {
                 WindowsApi::left_click();
             }
             SocketMessage::Close => {
-                Window {
-                    hwnd: WindowsApi::foreground_window()?,
-                }
-                .close()?;
+                Window::from(WindowsApi::foreground_window()?).close()?;
             }
             SocketMessage::Minimize => {
-                Window {
-                    hwnd: WindowsApi::foreground_window()?,
-                }
-                .minimize();
+                Window::from(WindowsApi::foreground_window()?).minimize();
             }
             SocketMessage::ToggleFloat => self.toggle_float()?,
             SocketMessage::ToggleMonocle => self.toggle_monocle()?,
@@ -1342,7 +1336,7 @@ impl WindowManager {
                 self.update_focused_workspace(false, false)?;
             }
             SocketMessage::DebugWindow(hwnd) => {
-                let window = Window { hwnd };
+                let window = Window::from(hwnd);
                 let mut rule_debug = RuleDebug::default();
                 let _ = window.should_manage(None, &mut rule_debug);
                 let schema = serde_json::to_string_pretty(&rule_debug)?;

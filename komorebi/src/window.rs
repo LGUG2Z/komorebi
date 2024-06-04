@@ -50,6 +50,12 @@ impl From<isize> for Window {
     }
 }
 
+impl From<HWND> for Window {
+    fn from(value: HWND) -> Self {
+        Self { hwnd: value.0 }
+    }
+}
+
 #[allow(clippy::module_name_repetitions)]
 #[derive(Debug, Clone, Serialize, JsonSchema)]
 pub struct WindowDetails {
