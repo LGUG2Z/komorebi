@@ -18,8 +18,6 @@ use std::sync::atomic::AtomicI32;
 use std::sync::atomic::AtomicU32;
 use std::sync::Arc;
 use std::sync::OnceLock;
-use std::time::Duration;
-use std::time::Instant;
 use windows::Win32::Foundation::HWND;
 
 use crate::workspace_reconciliator::ALT_TAB_HWND;
@@ -123,18 +121,9 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
     tracing::info!("listening");
 
     let receiver = event_rx();
-    let mut instant: Option<Instant> = None;
     event_tx().send(Notification)?;
 
     'receiver: for _ in receiver {
-        if let Some(instant) = instant {
-            if instant.elapsed().lt(&Duration::from_millis(50)) {
-                continue 'receiver;
-            }
-        }
-
-        instant = Some(Instant::now());
-
         let mut borders = BORDER_STATE.lock();
         let mut borders_monitors = BORDERS_MONITORS.lock();
 

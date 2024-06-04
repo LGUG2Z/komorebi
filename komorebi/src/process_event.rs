@@ -6,6 +6,7 @@ use std::time::Instant;
 
 use color_eyre::eyre::anyhow;
 use color_eyre::Result;
+use crossbeam_utils::atomic::AtomicConsume;
 use parking_lot::Mutex;
 
 use komorebi_core::OperationDirection;
@@ -75,7 +76,32 @@ impl WindowManager {
         // All event handlers below this point should only be processed if the event is
         // related to a window that should be managed by the WindowManager.
         if !should_manage {
-            return Ok(());
+            let mut transparency_override = false;
+
+            if transparency_manager::TRANSPARENCY_ENABLED.load_consume() {
+                for m in self.monitors() {
+                    for w in m.workspaces() {
+                        let event_hwnd = event.window().hwnd;
+
+                        let visible_hwnds = w
+                            .visible_windows()
+                            .iter()
+                            .flatten()
+                            .map(|w| w.hwnd)
+                            .collect::<Vec<_>>();
+
+                        if w.contains_managed_window(event_hwnd)
+                            && !visible_hwnds.contains(&event_hwnd)
+                        {
+                            transparency_override = true;
+                        }
+                    }
+                }
+            }
+
+            if !transparency_override {
+                return Ok(());
+            }
         }
 
         if let Some(virtual_desktop_id) = &self.virtual_desktop_id {
