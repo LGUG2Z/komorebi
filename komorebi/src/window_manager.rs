@@ -1070,6 +1070,12 @@ impl WindowManager {
             .remove_focused_container()
             .ok_or_else(|| anyhow!("there is no container"))?;
 
+        let container_hwnds = container
+            .windows()
+            .iter()
+            .map(|w| w.hwnd)
+            .collect::<Vec<_>>();
+
         monitor.update_focused_workspace(offset)?;
 
         let target_monitor = self
@@ -1081,6 +1087,14 @@ impl WindowManager {
 
         if let Some(workspace_idx) = workspace_idx {
             target_monitor.focus_workspace(workspace_idx)?;
+        }
+
+        if let Some(workspace) = target_monitor.focused_workspace() {
+            if !*workspace.tile() {
+                for hwnd in container_hwnds {
+                    Window::from(hwnd).center(target_monitor.work_area_size())?;
+                }
+            }
         }
 
         target_monitor.load_focused_workspace(mouse_follows_focus)?;
