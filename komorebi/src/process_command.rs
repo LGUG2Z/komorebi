@@ -202,6 +202,9 @@ impl WindowManager {
             SocketMessage::FocusWindow(direction) => {
                 self.focus_container_in_direction(direction)?;
             }
+            SocketMessage::FocusExe(ref exe) => {
+                self.focus_window_from_exe(exe)?;
+            }
             SocketMessage::MoveWindow(direction) => {
                 self.move_container_in_direction(direction)?;
             }

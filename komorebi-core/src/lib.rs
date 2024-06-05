@@ -45,6 +45,7 @@ pub enum SocketMessage {
     StackWindow(OperationDirection),
     StackAll,
     UnstackAll,
+    FocusExe(String),
     ResizeWindowEdge(OperationDirection, Sizing),
     ResizeWindowAxis(Axis, Sizing),
     UnstackWindow,

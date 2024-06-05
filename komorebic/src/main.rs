@@ -716,6 +716,11 @@ struct Stop {
 }
 
 #[derive(Parser)]
+struct Exe {
+    /// executable name
+    exe: String,
+}
+#[derive(Parser)]
 struct SaveResize {
     /// File to which the resize layout dimensions should be saved
     path: PathBuf,
@@ -873,6 +878,9 @@ enum SubCommand {
     /// Change focus to the window in the specified direction
     #[clap(arg_required_else_help = true)]
     Focus(Focus),
+    /// Change focus to the window with the specified executable
+    #[clap(arg_required_else_help = true)]
+    FocusExe(Exe),
     /// Move the focused window in the specified direction
     #[clap(arg_required_else_help = true)]
     Move(Move),
@@ -1494,6 +1502,9 @@ fn main() -> Result<()> {
         }
         SubCommand::Focus(arg) => {
             send_message(&SocketMessage::FocusWindow(arg.operation_direction).as_bytes()?)?;
+        }
+        SubCommand::FocusExe(arg) => {
+            send_message(&SocketMessage::FocusExe(arg.exe).as_bytes()?)?;
         }
         SubCommand::ForceFocus => {
             send_message(&SocketMessage::ForceFocus.as_bytes()?)?;

@@ -1031,6 +1031,43 @@ impl WindowManager {
         self.update_focused_workspace(mouse_follows_focus, true)
     }
 
+
+    #[tracing::instrument(skip(self))]
+    pub fn focus_window_from_exe(&mut self, exe: &String) -> Result<()> {
+
+        let mut monitor_idx = 0;
+        let mut workspace_idx = 0;
+        let mut hwnd_from_exe: isize = 0;
+        let mut bool = false;
+
+        'outer: for (i, m ) in self.monitors.elements().iter().enumerate(){
+            for (j, w) in m.workspaces().iter().enumerate() {
+                if let Some(hwnd) = w.hwnd_from_exe(&exe) {
+                    monitor_idx = i;
+                    workspace_idx = j;
+                    hwnd_from_exe = hwnd;
+                    bool = true;
+                    break 'outer;
+                }
+            }
+        }
+
+        if bool {
+            self.focus_monitor(monitor_idx)?;
+            self.monitors_mut().get_mut(monitor_idx)
+                .ok_or_else(|| anyhow!("there is no monitor"))?.focus_workspace(workspace_idx)?;
+            self.monitors_mut().get_mut(monitor_idx)
+                .ok_or_else(|| anyhow!("there is no monitor"))?
+                .workspaces_mut().get_mut(workspace_idx)
+                .ok_or_else(|| anyhow!("there is no workspace"))?
+                .focus_container_by_window(hwnd_from_exe)?;
+            self.update_focused_workspace_by_monitor_idx(monitor_idx)?;
+        } else {
+
+        }
+        Ok(())
+    }
+
     #[tracing::instrument(skip(self))]
     pub fn send_always_on_top(&mut self, monitor_idx: Option<usize>, workspace_idx: Option<usize>, follows: Option<bool>) -> Result<()> {
         let mut contains_always_on_top = false;
