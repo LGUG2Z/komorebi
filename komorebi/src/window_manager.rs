@@ -1063,7 +1063,7 @@ impl WindowManager {
                 .focus_container_by_window(hwnd_from_exe)?;
             self.update_focused_workspace_by_monitor_idx(monitor_idx)?;
         } else {
-
+            Err(anyhow!("there is no window with that exe"))?
         }
         Ok(())
     }
