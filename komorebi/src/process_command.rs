@@ -81,26 +81,33 @@ use stackbar_manager::STACKBAR_UNFOCUSED_TEXT_COLOUR;
 
 #[tracing::instrument]
 pub fn listen_for_commands(wm: Arc<Mutex<WindowManager>>) {
-    let listener = wm
-        .lock()
-        .command_listener
-        .try_clone()
-        .expect("could not clone unix listener");
+    std::thread::spawn(move || loop {
+        let wm = wm.clone();
 
-    std::thread::spawn(move || {
-        tracing::info!("listening on komorebi.sock");
-        for client in listener.incoming() {
-            match client {
-                Ok(stream) => match read_commands_uds(&wm, stream) {
-                    Ok(()) => {}
-                    Err(error) => tracing::error!("{}", error),
-                },
-                Err(error) => {
-                    tracing::error!("{}", error);
-                    break;
+        let _ = std::thread::spawn(move || {
+            let listener = wm
+                .lock()
+                .command_listener
+                .try_clone()
+                .expect("could not clone unix listener");
+
+            tracing::info!("listening on komorebi.sock");
+            for client in listener.incoming() {
+                match client {
+                    Ok(stream) => match read_commands_uds(&wm, stream) {
+                        Ok(()) => {}
+                        Err(error) => tracing::error!("{}", error),
+                    },
+                    Err(error) => {
+                        tracing::error!("{}", error);
+                        break;
+                    }
                 }
             }
-        }
+        })
+        .join();
+
+        tracing::error!("restarting failed thread");
     });
 }
 
