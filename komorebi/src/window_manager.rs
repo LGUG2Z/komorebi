@@ -1039,6 +1039,8 @@ impl WindowManager {
         let mut workspace_idx = 0;
         let mut hwnd_from_exe: isize = 0;
         let mut bool = false;
+        let mouse_follows_focus = self.mouse_follows_focus;
+        let offset = self.work_area_offset;
 
         'outer: for (i, m ) in self.monitors.elements().iter().enumerate(){
             for (j, w) in m.workspaces().iter().enumerate() {
@@ -1053,14 +1055,16 @@ impl WindowManager {
         }
 
         if bool {
+
+            let target_monitor = self.monitors_mut().get_mut(monitor_idx)
+                .ok_or_else(|| anyhow!("there is no monitor"))?;
             self.focus_monitor(monitor_idx)?;
-            self.monitors_mut().get_mut(monitor_idx)
-                .ok_or_else(|| anyhow!("there is no monitor"))?.focus_workspace(workspace_idx)?;
-            self.monitors_mut().get_mut(monitor_idx)
-                .ok_or_else(|| anyhow!("there is no monitor"))?
-                .workspaces_mut().get_mut(workspace_idx)
+            target_monitor.focus_workspace(workspace_idx)?;
+            target_monitor.workspaces_mut().get_mut(workspace_idx)
                 .ok_or_else(|| anyhow!("there is no workspace"))?
                 .focus_container_by_window(hwnd_from_exe)?;
+            target_monitor.load_focused_workspace(mouse_follows_focus)?;
+            target_monitor.update_focused_workspace(offset)?;
             self.update_focused_workspace(self.mouse_follows_focus, true)?;
         } else {
             Err(anyhow!("there is no window with that exe"))?
