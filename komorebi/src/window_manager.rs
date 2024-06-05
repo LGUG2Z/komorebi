@@ -1061,7 +1061,7 @@ impl WindowManager {
                 .workspaces_mut().get_mut(workspace_idx)
                 .ok_or_else(|| anyhow!("there is no workspace"))?
                 .focus_container_by_window(hwnd_from_exe)?;
-            self.update_focused_workspace_by_monitor_idx(monitor_idx)?;
+            self.update_focused_workspace(self.mouse_follows_focus, true)?;
         } else {
             Err(anyhow!("there is no window with that exe"))?
         }
