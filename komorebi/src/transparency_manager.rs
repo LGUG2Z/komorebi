@@ -126,24 +126,42 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                     // make it transparent
                     #[allow(clippy::collapsible_else_if)]
                     if idx != ws.focused_container_idx() || monitor_idx != focused_monitor_idx {
-                        let unfocused_window = c.focused_window().copied().unwrap_or_default();
-                        match unfocused_window.transparent() {
-                            Err(error) => {
-                                let hwnd = foreground_hwnd;
-                                tracing::error!(
+                        let focused_window_idx = c.focused_window_idx();
+                        for (window_idx, window) in c.windows().iter().enumerate() {
+                            if window_idx == focused_window_idx {
+                                match window.transparent() {
+                                    Err(error) => {
+                                        let hwnd = foreground_hwnd;
+                                        tracing::error!(
                                     "failed to make unfocused window {hwnd} transparent: {error}"
                                 )
-                            }
-                            Ok(..) => {
-                                known_hwnds.lock().push(unfocused_window.hwnd);
+                                    }
+                                    Ok(..) => {
+                                        known_hwnds.lock().push(window.hwnd);
+                                    }
+                                }
+                            } else {
+                                // just in case, this is useful when people are clicking around
+                                // on unfocused stackbar tabs
+                                known_hwnds.lock().push(window.hwnd);
                             }
                         }
                     // Otherwise, make it opaque
                     } else {
-                        if let Err(error) = c.focused_window().copied().unwrap_or_default().opaque()
-                        {
-                            let hwnd = foreground_hwnd;
-                            tracing::error!("failed to make focused window {hwnd} opaque: {error}")
+                        let focused_window_idx = c.focused_window_idx();
+                        for (window_idx, window) in c.windows().iter().enumerate() {
+                            if window_idx != focused_window_idx {
+                                known_hwnds.lock().push(window.hwnd);
+                            } else {
+                                if let Err(error) =
+                                    c.focused_window().copied().unwrap_or_default().opaque()
+                                {
+                                    let hwnd = foreground_hwnd;
+                                    tracing::error!(
+                                        "failed to make focused window {hwnd} opaque: {error}"
+                                    )
+                                }
+                            }
                         }
                     };
                 }

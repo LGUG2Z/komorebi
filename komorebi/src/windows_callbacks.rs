@@ -22,7 +22,7 @@ pub extern "system" fn enum_window(hwnd: HWND, lparam: LPARAM) -> BOOL {
     let is_maximized = WindowsApi::is_zoomed(hwnd);
 
     if is_visible && is_window && !is_minimized {
-        let window = Window { hwnd: hwnd.0 };
+        let window = Window::from(hwnd);
 
         if let Ok(should_manage) = window.should_manage(None, &mut RuleDebug::default()) {
             if should_manage {
@@ -48,7 +48,7 @@ pub extern "system" fn alt_tab_windows(hwnd: HWND, lparam: LPARAM) -> BOOL {
     let is_minimized = WindowsApi::is_iconic(hwnd);
 
     if is_visible && is_window && !is_minimized {
-        let window = Window { hwnd: hwnd.0 };
+        let window = Window::from(hwnd);
 
         if let Ok(should_manage) = window.should_manage(None, &mut RuleDebug::default()) {
             if should_manage {
@@ -74,7 +74,7 @@ pub extern "system" fn win_event_hook(
         return;
     }
 
-    let window = Window { hwnd: hwnd.0 };
+    let window = Window::from(hwnd);
 
     let winevent = match WinEvent::try_from(event) {
         Ok(event) => event,

@@ -81,26 +81,33 @@ use stackbar_manager::STACKBAR_UNFOCUSED_TEXT_COLOUR;
 
 #[tracing::instrument]
 pub fn listen_for_commands(wm: Arc<Mutex<WindowManager>>) {
-    let listener = wm
-        .lock()
-        .command_listener
-        .try_clone()
-        .expect("could not clone unix listener");
+    std::thread::spawn(move || loop {
+        let wm = wm.clone();
 
-    std::thread::spawn(move || {
-        tracing::info!("listening on komorebi.sock");
-        for client in listener.incoming() {
-            match client {
-                Ok(stream) => match read_commands_uds(&wm, stream) {
-                    Ok(()) => {}
-                    Err(error) => tracing::error!("{}", error),
-                },
-                Err(error) => {
-                    tracing::error!("{}", error);
-                    break;
+        let _ = std::thread::spawn(move || {
+            let listener = wm
+                .lock()
+                .command_listener
+                .try_clone()
+                .expect("could not clone unix listener");
+
+            tracing::info!("listening on komorebi.sock");
+            for client in listener.incoming() {
+                match client {
+                    Ok(stream) => match read_commands_uds(&wm, stream) {
+                        Ok(()) => {}
+                        Err(error) => tracing::error!("{}", error),
+                    },
+                    Err(error) => {
+                        tracing::error!("{}", error);
+                        break;
+                    }
                 }
             }
-        }
+        })
+        .join();
+
+        tracing::error!("restarting failed thread");
     });
 }
 
@@ -219,16 +226,10 @@ impl WindowManager {
                 WindowsApi::left_click();
             }
             SocketMessage::Close => {
-                Window {
-                    hwnd: WindowsApi::foreground_window()?,
-                }
-                .close()?;
+                Window::from(WindowsApi::foreground_window()?).close()?;
             }
             SocketMessage::Minimize => {
-                Window {
-                    hwnd: WindowsApi::foreground_window()?,
-                }
-                .minimize();
+                Window::from(WindowsApi::foreground_window()?).minimize();
             }
             SocketMessage::ToggleFloat => self.toggle_float()?,
             SocketMessage::ToggleMonocle => self.toggle_monocle()?,
@@ -1343,7 +1344,7 @@ impl WindowManager {
                 self.update_focused_workspace(false, false)?;
             }
             SocketMessage::DebugWindow(hwnd) => {
-                let window = Window { hwnd };
+                let window = Window::from(hwnd);
                 let mut rule_debug = RuleDebug::default();
                 let _ = window.should_manage(None, &mut rule_debug);
                 let schema = serde_json::to_string_pretty(&rule_debug)?;
