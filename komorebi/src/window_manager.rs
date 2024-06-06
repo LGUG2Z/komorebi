@@ -1056,9 +1056,9 @@ impl WindowManager {
 
         if bool {
 
+            self.focus_monitor(monitor_idx)?;
             let target_monitor = self.monitors_mut().get_mut(monitor_idx)
                 .ok_or_else(|| anyhow!("there is no monitor"))?;
-            self.focus_monitor(monitor_idx)?;
             target_monitor.focus_workspace(workspace_idx)?;
             target_monitor.workspaces_mut().get_mut(workspace_idx)
                 .ok_or_else(|| anyhow!("there is no workspace"))?
