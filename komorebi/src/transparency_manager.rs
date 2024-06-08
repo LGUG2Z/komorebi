@@ -29,7 +29,7 @@ pub fn known_hwnds() -> Vec<isize> {
 }
 
 pub fn channel() -> &'static (Sender<Notification>, Receiver<Notification>) {
-    CHANNEL.get_or_init(crossbeam_channel::unbounded)
+    CHANNEL.get_or_init(|| crossbeam_channel::bounded(5))
 }
 
 pub fn event_tx() -> Sender<Notification> {

@@ -59,7 +59,7 @@ pub struct Notification;
 static CHANNEL: OnceLock<(Sender<Notification>, Receiver<Notification>)> = OnceLock::new();
 
 pub fn channel() -> &'static (Sender<Notification>, Receiver<Notification>) {
-    CHANNEL.get_or_init(crossbeam_channel::unbounded)
+    CHANNEL.get_or_init(|| crossbeam_channel::bounded(5))
 }
 
 pub fn event_tx() -> Sender<Notification> {
@@ -129,11 +129,16 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
 
         // Check the wm state every time we receive a notification
         let state = wm.lock();
+        let is_paused = state.is_paused;
+        let focused_monitor_idx = state.focused_monitor_idx();
+        let monitors = state.monitors.elements().clone();
+        let pending_move_op = state.pending_move_op.clone();
+        drop(state);
 
         // If borders are disabled
         if !BORDER_ENABLED.load_consume()
            // Or if the wm is paused
-            || state.is_paused
+            || is_paused
             // Or if we are handling an alt-tab across workspaces
             || ALT_TAB_HWND.load().is_some()
         {
@@ -146,9 +151,7 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
             continue 'receiver;
         }
 
-        let focused_monitor_idx = state.focused_monitor_idx();
-
-        'monitors: for (monitor_idx, m) in state.monitors.elements().iter().enumerate() {
+        'monitors: for (monitor_idx, m) in monitors.iter().enumerate() {
             // Only operate on the focused workspace of each monitor
             if let Some(ws) = m.focused_workspace() {
                 // Workspaces with tiling disabled don't have borders
@@ -215,6 +218,7 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                     for id in &to_remove {
                         borders.remove(id);
                     }
+
                     continue 'monitors;
                 }
 
@@ -261,7 +265,7 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
 
                 for (idx, c) in ws.containers().iter().enumerate() {
                     // Update border when moving or resizing with mouse
-                    if state.pending_move_op.is_some() && idx == ws.focused_container_idx() {
+                    if pending_move_op.is_some() && idx == ws.focused_container_idx() {
                         let restore_z_order = *Z_ORDER.lock();
                         *Z_ORDER.lock() = ZOrder::TopMost;
 
