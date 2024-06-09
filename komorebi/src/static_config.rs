@@ -481,8 +481,8 @@ impl From<&WindowManager> for StaticConfig {
             transparency_alpha: Option::from(
                 transparency_manager::TRANSPARENCY_ALPHA.load(Ordering::SeqCst),
             ),
-            border_style: Option::from(*STYLE.lock()),
-            border_z_order: Option::from(*Z_ORDER.lock()),
+            border_style: Option::from(STYLE.load()),
+            border_z_order: Option::from(Z_ORDER.load()),
             default_workspace_padding: Option::from(
                 DEFAULT_WORKSPACE_PADDING.load(Ordering::SeqCst),
             ),
@@ -556,8 +556,7 @@ impl StaticConfig {
             }
         }
 
-        let border_style = self.border_style.unwrap_or_default();
-        *STYLE.lock() = border_style;
+        STYLE.store(self.border_style.unwrap_or_default());
 
         transparency_manager::TRANSPARENCY_ENABLED
             .store(self.transparency.unwrap_or(false), Ordering::SeqCst);

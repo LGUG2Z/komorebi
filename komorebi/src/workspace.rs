@@ -38,7 +38,16 @@ use crate::REMOVE_TITLEBARS;
 
 #[allow(clippy::struct_field_names)]
 #[derive(
-    Debug, Clone, Serialize, Deserialize, Getters, CopyGetters, MutGetters, Setters, JsonSchema,
+    Debug,
+    Clone,
+    Serialize,
+    Deserialize,
+    Getters,
+    CopyGetters,
+    MutGetters,
+    Setters,
+    JsonSchema,
+    PartialEq,
 )]
 pub struct Workspace {
     #[getset(get = "pub", set = "pub")]

@@ -7,7 +7,7 @@ use crate::CustomLayout;
 use crate::DefaultLayout;
 use crate::Direction;
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, PartialEq)]
 pub enum Layout {
     Default(DefaultLayout),
     Custom(CustomLayout),
