@@ -14,7 +14,7 @@ use serde::Serialize;
 
 use crate::Rect;
 
-#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq)]
 pub struct CustomLayout(Vec<Column>);
 
 impl Deref for CustomLayout {
@@ -250,7 +250,7 @@ impl CustomLayout {
     }
 }
 
-#[derive(Clone, Copy, Debug, Serialize, Deserialize, JsonSchema)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, JsonSchema, PartialEq)]
 #[serde(tag = "column", content = "configuration")]
 pub enum Column {
     Primary(Option<ColumnWidth>),
@@ -258,18 +258,18 @@ pub enum Column {
     Tertiary(ColumnSplit),
 }
 
-#[derive(Clone, Copy, Debug, Serialize, Deserialize, JsonSchema)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, JsonSchema, PartialEq)]
 pub enum ColumnWidth {
     WidthPercentage(f32),
 }
 
-#[derive(Clone, Copy, Debug, Serialize, Deserialize, JsonSchema)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, JsonSchema, PartialEq)]
 pub enum ColumnSplit {
     Horizontal,
     Vertical,
 }
 
-#[derive(Clone, Copy, Debug, Serialize, Deserialize, JsonSchema)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, JsonSchema, PartialEq)]
 pub enum ColumnSplitWithCapacity {
     Horizontal(usize),
     Vertical(usize),

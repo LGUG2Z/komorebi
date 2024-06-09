@@ -21,6 +21,7 @@ use std::sync::Arc;
 use std::sync::OnceLock;
 use windows::Win32::Foundation::HWND;
 
+use crate::ring::Ring;
 use crate::workspace_reconciliator::ALT_TAB_HWND;
 use crate::Colour;
 use crate::Rgb;
@@ -121,17 +122,24 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
     let receiver = event_rx();
     event_tx().send(Notification)?;
 
-    'receiver: for _ in receiver {
-        let mut borders = BORDER_STATE.lock();
-        let mut borders_monitors = BORDERS_MONITORS.lock();
+    let mut latest_snapshot = Ring::default();
 
+    'receiver: for _ in receiver {
         // Check the wm state every time we receive a notification
         let state = wm.lock();
         let is_paused = state.is_paused;
         let focused_monitor_idx = state.focused_monitor_idx();
-        let monitors = state.monitors.elements().clone();
+        let monitors = state.monitors.clone();
         let pending_move_op = state.pending_move_op;
         drop(state);
+
+        if monitors == latest_snapshot {
+            tracing::trace!("monitor state matches latest snapshot, skipping notification");
+            continue 'receiver;
+        }
+
+        let mut borders = BORDER_STATE.lock();
+        let mut borders_monitors = BORDERS_MONITORS.lock();
 
         // If borders are disabled
         if !BORDER_ENABLED.load_consume()
@@ -149,7 +157,7 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
             continue 'receiver;
         }
 
-        'monitors: for (monitor_idx, m) in monitors.iter().enumerate() {
+        'monitors: for (monitor_idx, m) in monitors.elements().iter().enumerate() {
             // Only operate on the focused workspace of each monitor
             if let Some(ws) = m.focused_workspace() {
                 // Workspaces with tiling disabled don't have borders
@@ -337,6 +345,8 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                 }
             }
         }
+
+        latest_snapshot = monitors;
     }
 
     Ok(())
