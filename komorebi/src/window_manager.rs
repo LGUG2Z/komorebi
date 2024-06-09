@@ -164,7 +164,7 @@ impl Default for GlobalState {
                     border_manager::UNFOCUSED.load(Ordering::SeqCst),
                 ))),
             },
-            border_style: *STYLE.lock(),
+            border_style: STYLE.load(),
             border_offset: border_manager::BORDER_OFFSET.load(Ordering::SeqCst),
             border_width: border_manager::BORDER_WIDTH.load(Ordering::SeqCst),
             stackbar_mode: STACKBAR_MODE.load(),

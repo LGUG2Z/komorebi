@@ -198,7 +198,7 @@ impl Stackbar {
                     bottom: height,
                 };
 
-                match *STYLE.lock() {
+                match STYLE.load() {
                     BorderStyle::System => {
                         if *WINDOWS_11 {
                             RoundRect(hdc, rect.left, rect.top, rect.right, rect.bottom, 20, 20);

@@ -4,7 +4,6 @@ use crate::border_manager::BORDER_WIDTH;
 use crate::border_manager::FOCUSED;
 use crate::border_manager::FOCUS_STATE;
 use crate::border_manager::MONOCLE;
-use crate::border_manager::RECT_STATE;
 use crate::border_manager::STACK;
 use crate::border_manager::STYLE;
 use crate::border_manager::UNFOCUSED;
@@ -127,15 +126,9 @@ impl Border {
         rect.add_margin(BORDER_WIDTH.load(Ordering::SeqCst));
         rect.add_padding(-BORDER_OFFSET.load(Ordering::SeqCst));
 
-        // Store the border rect so that it can be used by the callback
-        {
-            let mut rects = RECT_STATE.lock();
-            rects.insert(self.hwnd, rect);
-        }
-
         // Update the position of the border if required
         if !WindowsApi::window_rect(self.hwnd())?.eq(&rect) {
-            WindowsApi::set_border_pos(self.hwnd(), &rect, HWND((*Z_ORDER.lock()).into()))?;
+            WindowsApi::set_border_pos(self.hwnd(), &rect, HWND((Z_ORDER.load()).into()))?;
         }
 
         // Invalidate the rect to trigger the callback to update colours etc.
@@ -157,10 +150,8 @@ impl Border {
         unsafe {
             match message {
                 WM_PAINT => {
-                    let rects = RECT_STATE.lock();
-
-                    // With the rect that we stored in Self::update
-                    if let Some(rect) = rects.get(&window.0).copied() {
+                    // With the rect that we set in Self::update
+                    if let Ok(rect) = WindowsApi::window_rect(window) {
                         // Grab the focus kind for this border
                         let focus_kind = {
                             FOCUS_STATE
@@ -195,7 +186,7 @@ impl Border {
                         // the window was made with DWMWCP_ROUNDSMALL then this is the
                         // wrong size.  In the future we should read the DWM properties
                         // of windows and attempt to match appropriately.
-                        match *STYLE.lock() {
+                        match STYLE.load() {
                             BorderStyle::System => {
                                 if *WINDOWS_11 {
                                     RoundRect(hdc, 0, 0, rect.right, rect.bottom, 20, 20);

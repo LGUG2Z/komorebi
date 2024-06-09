@@ -1256,8 +1256,7 @@ impl WindowManager {
                 }
             },
             SocketMessage::BorderStyle(style) => {
-                let mut border_style = STYLE.lock();
-                *border_style = style;
+                STYLE.store(style);
             }
             SocketMessage::BorderWidth(width) => {
                 border_manager::BORDER_WIDTH.store(width, Ordering::SeqCst);

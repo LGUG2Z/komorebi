@@ -4,6 +4,7 @@ mod border;
 
 use crossbeam_channel::Receiver;
 use crossbeam_channel::Sender;
+use crossbeam_utils::atomic::AtomicCell;
 use crossbeam_utils::atomic::AtomicConsume;
 use komorebi_core::BorderStyle;
 use lazy_static::lazy_static;
@@ -22,7 +23,6 @@ use windows::Win32::Foundation::HWND;
 
 use crate::workspace_reconciliator::ALT_TAB_HWND;
 use crate::Colour;
-use crate::Rect;
 use crate::Rgb;
 use crate::WindowManager;
 use crate::WindowsApi;
@@ -36,8 +36,8 @@ pub static BORDER_OFFSET: AtomicI32 = AtomicI32::new(-1);
 pub static BORDER_ENABLED: AtomicBool = AtomicBool::new(true);
 
 lazy_static! {
-    pub static ref Z_ORDER: Arc<Mutex<ZOrder>> = Arc::new(Mutex::new(ZOrder::Bottom));
-    pub static ref STYLE: Arc<Mutex<BorderStyle>> = Arc::new(Mutex::new(BorderStyle::System));
+    pub static ref Z_ORDER: AtomicCell<ZOrder> = AtomicCell::new(ZOrder::Bottom);
+    pub static ref STYLE: AtomicCell<BorderStyle> = AtomicCell::new(BorderStyle::System);
     pub static ref FOCUSED: AtomicU32 =
         AtomicU32::new(u32::from(Colour::Rgb(Rgb::new(66, 165, 245))));
     pub static ref UNFOCUSED: AtomicU32 =
@@ -50,7 +50,6 @@ lazy_static! {
 lazy_static! {
     static ref BORDERS_MONITORS: Mutex<HashMap<String, usize>> = Mutex::new(HashMap::new());
     static ref BORDER_STATE: Mutex<HashMap<String, Border>> = Mutex::new(HashMap::new());
-    static ref RECT_STATE: Mutex<HashMap<isize, Rect>> = Mutex::new(HashMap::new());
     static ref FOCUS_STATE: Mutex<HashMap<isize, WindowKind>> = Mutex::new(HashMap::new());
 }
 
@@ -82,7 +81,6 @@ pub fn destroy_all_borders() -> color_eyre::Result<()> {
     }
 
     borders.clear();
-    RECT_STATE.lock().clear();
     BORDERS_MONITORS.lock().clear();
     FOCUS_STATE.lock().clear();
 
@@ -132,7 +130,7 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
         let is_paused = state.is_paused;
         let focused_monitor_idx = state.focused_monitor_idx();
         let monitors = state.monitors.elements().clone();
-        let pending_move_op = state.pending_move_op.clone();
+        let pending_move_op = state.pending_move_op;
         drop(state);
 
         // If borders are disabled
@@ -266,8 +264,8 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                 for (idx, c) in ws.containers().iter().enumerate() {
                     // Update border when moving or resizing with mouse
                     if pending_move_op.is_some() && idx == ws.focused_container_idx() {
-                        let restore_z_order = *Z_ORDER.lock();
-                        *Z_ORDER.lock() = ZOrder::TopMost;
+                        let restore_z_order = Z_ORDER.load();
+                        Z_ORDER.store(ZOrder::TopMost);
 
                         let mut rect = WindowsApi::window_rect(
                             c.focused_window().copied().unwrap_or_default().hwnd(),
@@ -295,7 +293,7 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                             }
                         }
 
-                        *Z_ORDER.lock() = restore_z_order;
+                        Z_ORDER.store(restore_z_order);
 
                         continue 'monitors;
                     }
