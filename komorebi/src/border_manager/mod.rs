@@ -122,7 +122,9 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
     let receiver = event_rx();
     event_tx().send(Notification)?;
 
-    let mut latest_snapshot = Ring::default();
+    let mut previous_snapshot = Ring::default();
+    let mut previous_pending_move_op = None;
+    let mut previous_is_paused = false;
 
     'receiver: for _ in receiver {
         // Check the wm state every time we receive a notification
@@ -133,7 +135,33 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
         let pending_move_op = state.pending_move_op;
         drop(state);
 
-        if monitors == latest_snapshot {
+        let mut should_process_notification = true;
+
+        if monitors == previous_snapshot
+            // handle the window dragging edge case
+            && pending_move_op == previous_pending_move_op
+        {
+            should_process_notification = false;
+        }
+
+        // handle the pause edge case
+        if is_paused && !previous_is_paused {
+            should_process_notification = true;
+        }
+
+        // handle the unpause edge case
+        if previous_is_paused && !is_paused {
+            should_process_notification = true;
+        }
+
+        // handle the retile edge case
+        if !should_process_notification {
+            if BORDER_STATE.lock().is_empty() {
+                should_process_notification = true;
+            }
+        }
+
+        if !should_process_notification {
             tracing::trace!("monitor state matches latest snapshot, skipping notification");
             continue 'receiver;
         }
@@ -154,6 +182,8 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
             }
 
             borders.clear();
+
+            previous_is_paused = is_paused;
             continue 'receiver;
         }
 
@@ -346,7 +376,9 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
             }
         }
 
-        latest_snapshot = monitors;
+        previous_snapshot = monitors;
+        previous_pending_move_op = pending_move_op;
+        previous_is_paused = is_paused;
     }
 
     Ok(())
