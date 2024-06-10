@@ -1146,7 +1146,7 @@ impl WindowManager {
                 .ok_or_else(|| anyhow!("there is no monitor"))?;
 
             target_monitor.workspaces_mut().push_back(workspace);
-            target_monitor.focus_workspace(target_monitor.workspaces().len() - 1)?;
+            target_monitor.focus_workspace(target_monitor.workspaces().len().saturating_sub(1))?;
             target_monitor.load_focused_workspace(mouse_follows_focus)?;
         }
 
@@ -1281,10 +1281,9 @@ impl WindowManager {
                         let origin_workspace =
                             self.focused_workspace_for_monitor_idx_mut(origin_monitor_idx)?;
 
-                        if origin_workspace.focused_container_idx() != 0 {
-                            origin_workspace
-                                .focus_container(origin_workspace.focused_container_idx() - 1);
-                        }
+                        origin_workspace.focus_container(
+                            origin_workspace.focused_container_idx().saturating_sub(1),
+                        );
                     }
                 }
 
@@ -1449,10 +1448,10 @@ impl WindowManager {
             }
         }
 
-        workspace.focus_container(workspace.containers().len() - 1);
+        workspace.focus_container(workspace.containers().len().saturating_sub(1));
         while workspace.focused_container_idx() > 0 {
             workspace.move_window_to_container(0)?;
-            workspace.focus_container(workspace.containers().len() - 1);
+            workspace.focus_container(workspace.containers().len().saturating_sub(1));
         }
 
         if let Some(hwnd) = focused_hwnd {
@@ -1527,7 +1526,7 @@ impl WindowManager {
                     Layout::Default(DefaultLayout::Grid)
                         | Layout::Default(DefaultLayout::UltrawideVerticalStack)
                 ) {
-                new_idx - 1
+                new_idx.saturating_sub(1)
             } else {
                 new_idx
             };
