@@ -32,7 +32,6 @@ use windows::Win32::Graphics::Gdi::InvalidateRect;
 use windows::Win32::Graphics::Gdi::Rectangle;
 use windows::Win32::Graphics::Gdi::RoundRect;
 use windows::Win32::Graphics::Gdi::SelectObject;
-use windows::Win32::Graphics::Gdi::ValidateRect;
 use windows::Win32::Graphics::Gdi::PAINTSTRUCT;
 use windows::Win32::Graphics::Gdi::PS_INSIDEFRAME;
 use windows::Win32::Graphics::Gdi::PS_SOLID;
@@ -120,7 +119,7 @@ impl Border {
         WindowsApi::close_window(self.hwnd())
     }
 
-    pub fn update(&self, rect: &Rect) -> color_eyre::Result<()> {
+    pub fn update(&self, rect: &Rect, mut should_invalidate: bool) -> color_eyre::Result<()> {
         // Make adjustments to the border
         let mut rect = *rect;
         rect.add_margin(BORDER_WIDTH.load(Ordering::SeqCst));
@@ -129,10 +128,13 @@ impl Border {
         // Update the position of the border if required
         if !WindowsApi::window_rect(self.hwnd())?.eq(&rect) {
             WindowsApi::set_border_pos(self.hwnd(), &rect, HWND((Z_ORDER.load()).into()))?;
+            should_invalidate = true;
         }
 
         // Invalidate the rect to trigger the callback to update colours etc.
-        self.invalidate();
+        if should_invalidate {
+            self.invalidate();
+        }
 
         Ok(())
     }
@@ -150,63 +152,68 @@ impl Border {
         unsafe {
             match message {
                 WM_PAINT => {
+                    let mut ps = PAINTSTRUCT::default();
+                    let hdc = BeginPaint(window, &mut ps);
+
                     // With the rect that we set in Self::update
-                    if let Ok(rect) = WindowsApi::window_rect(window) {
-                        // Grab the focus kind for this border
-                        let focus_kind = {
-                            FOCUS_STATE
-                                .lock()
-                                .get(&window.0)
-                                .copied()
-                                .unwrap_or(WindowKind::Unfocused)
-                        };
+                    match WindowsApi::window_rect(window) {
+                        Ok(rect) => {
+                            // Grab the focus kind for this border
+                            let focus_kind = {
+                                FOCUS_STATE
+                                    .lock()
+                                    .get(&window.0)
+                                    .copied()
+                                    .unwrap_or(WindowKind::Unfocused)
+                            };
 
-                        // Set up the brush to draw the border
-                        let mut ps = PAINTSTRUCT::default();
-                        let hdc = BeginPaint(window, &mut ps);
-                        let hpen = CreatePen(
-                            PS_SOLID | PS_INSIDEFRAME,
-                            BORDER_WIDTH.load(Ordering::SeqCst),
-                            COLORREF(match focus_kind {
-                                WindowKind::Unfocused => UNFOCUSED.load(Ordering::SeqCst),
-                                WindowKind::Single => FOCUSED.load(Ordering::SeqCst),
-                                WindowKind::Stack => STACK.load(Ordering::SeqCst),
-                                WindowKind::Monocle => MONOCLE.load(Ordering::SeqCst),
-                            }),
-                        );
+                            // Set up the brush to draw the border
+                            let hpen = CreatePen(
+                                PS_SOLID | PS_INSIDEFRAME,
+                                BORDER_WIDTH.load(Ordering::SeqCst),
+                                COLORREF(match focus_kind {
+                                    WindowKind::Unfocused => UNFOCUSED.load(Ordering::SeqCst),
+                                    WindowKind::Single => FOCUSED.load(Ordering::SeqCst),
+                                    WindowKind::Stack => STACK.load(Ordering::SeqCst),
+                                    WindowKind::Monocle => MONOCLE.load(Ordering::SeqCst),
+                                }),
+                            );
 
-                        let hbrush = WindowsApi::create_solid_brush(0);
+                            let hbrush = WindowsApi::create_solid_brush(0);
 
-                        // Draw the border
-                        SelectObject(hdc, hpen);
-                        SelectObject(hdc, hbrush);
-                        // TODO(raggi): this is approximately the correct curvature for
-                        // the top left of a Windows 11 window (DWMWCP_DEFAULT), but
-                        // often the bottom right has a different shape. Furthermore if
-                        // the window was made with DWMWCP_ROUNDSMALL then this is the
-                        // wrong size.  In the future we should read the DWM properties
-                        // of windows and attempt to match appropriately.
-                        match STYLE.load() {
-                            BorderStyle::System => {
-                                if *WINDOWS_11 {
+                            // Draw the border
+                            SelectObject(hdc, hpen);
+                            SelectObject(hdc, hbrush);
+                            // TODO(raggi): this is approximately the correct curvature for
+                            // the top left of a Windows 11 window (DWMWCP_DEFAULT), but
+                            // often the bottom right has a different shape. Furthermore if
+                            // the window was made with DWMWCP_ROUNDSMALL then this is the
+                            // wrong size.  In the future we should read the DWM properties
+                            // of windows and attempt to match appropriately.
+                            match STYLE.load() {
+                                BorderStyle::System => {
+                                    if *WINDOWS_11 {
+                                        RoundRect(hdc, 0, 0, rect.right, rect.bottom, 20, 20);
+                                    } else {
+                                        Rectangle(hdc, 0, 0, rect.right, rect.bottom);
+                                    }
+                                }
+                                BorderStyle::Rounded => {
                                     RoundRect(hdc, 0, 0, rect.right, rect.bottom, 20, 20);
-                                } else {
+                                }
+                                BorderStyle::Square => {
                                     Rectangle(hdc, 0, 0, rect.right, rect.bottom);
                                 }
                             }
-                            BorderStyle::Rounded => {
-                                RoundRect(hdc, 0, 0, rect.right, rect.bottom, 20, 20);
-                            }
-                            BorderStyle::Square => {
-                                Rectangle(hdc, 0, 0, rect.right, rect.bottom);
-                            }
+                            DeleteObject(hpen);
+                            DeleteObject(hbrush);
                         }
-                        EndPaint(window, &ps);
-                        DeleteObject(hpen);
-                        DeleteObject(hbrush);
-                        ValidateRect(window, None);
+                        Err(error) => {
+                            tracing::error!("could not get border rect: {}", error.to_string())
+                        }
                     }
 
+                    EndPaint(window, &ps);
                     LRESULT(0)
                 }
                 WM_DESTROY => {

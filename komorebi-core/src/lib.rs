@@ -234,7 +234,16 @@ pub enum BorderStyle {
 }
 
 #[derive(
-    Copy, Clone, Debug, Serialize, Deserialize, Display, EnumString, ValueEnum, JsonSchema,
+    Copy,
+    Clone,
+    Debug,
+    Serialize,
+    Deserialize,
+    Display,
+    EnumString,
+    ValueEnum,
+    JsonSchema,
+    PartialEq,
 )]
 pub enum WindowKind {
     Single,

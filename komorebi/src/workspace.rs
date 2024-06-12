@@ -802,7 +802,7 @@ impl Workspace {
             self.resize_dimensions_mut().remove(focused_idx);
 
             if focused_idx < target_container_idx {
-                target_container_idx - 1
+                target_container_idx.saturating_sub(1)
             } else {
                 target_container_idx
             }
@@ -924,8 +924,8 @@ impl Workspace {
                 self.containers_mut().remove(focused_idx);
                 self.resize_dimensions_mut().remove(focused_idx);
 
-                if focused_idx == self.containers().len() && focused_idx != 0 {
-                    self.focus_container(focused_idx - 1);
+                if focused_idx == self.containers().len() {
+                    self.focus_container(focused_idx.saturating_sub(1));
                 }
             } else {
                 container.load_focused_window();
@@ -1333,7 +1333,8 @@ impl Workspace {
             .ok_or_else(|| anyhow!("there is no monocle container"))?;
 
         let window = *window;
-        if !self.containers().is_empty() && restore_idx > self.containers().len() - 1 {
+        if !self.containers().is_empty() && restore_idx > self.containers().len().saturating_sub(1)
+        {
             self.containers_mut()
                 .resize(restore_idx, Container::default());
         }
@@ -1422,13 +1423,10 @@ impl Workspace {
 
     pub fn focus_previous_container(&mut self) {
         let focused_idx = self.focused_container_idx();
-
-        if focused_idx != 0 {
-            self.focus_container(focused_idx - 1);
-        }
+        self.focus_container(focused_idx.saturating_sub(1));
     }
 
     fn focus_last_container(&mut self) {
-        self.focus_container(self.containers().len() - 1);
+        self.focus_container(self.containers().len().saturating_sub(1));
     }
 }
