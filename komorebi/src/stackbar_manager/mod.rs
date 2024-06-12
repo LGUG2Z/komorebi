@@ -40,7 +40,7 @@ pub struct Notification;
 static CHANNEL: OnceLock<(Sender<Notification>, Receiver<Notification>)> = OnceLock::new();
 
 pub fn channel() -> &'static (Sender<Notification>, Receiver<Notification>) {
-    CHANNEL.get_or_init(|| crossbeam_channel::bounded(5))
+    CHANNEL.get_or_init(|| crossbeam_channel::bounded(20))
 }
 
 pub fn event_tx() -> Sender<Notification> {
