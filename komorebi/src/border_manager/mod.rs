@@ -155,10 +155,8 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
         }
 
         // handle the retile edge case
-        if !should_process_notification {
-            if BORDER_STATE.lock().is_empty() {
-                should_process_notification = true;
-            }
+        if !should_process_notification && BORDER_STATE.lock().is_empty() {
+            should_process_notification = true;
         }
 
         if !should_process_notification {
