@@ -119,7 +119,7 @@ impl Border {
         WindowsApi::close_window(self.hwnd())
     }
 
-    pub fn update(&self, rect: &Rect) -> color_eyre::Result<()> {
+    pub fn update(&self, rect: &Rect, mut should_invalidate: bool) -> color_eyre::Result<()> {
         // Make adjustments to the border
         let mut rect = *rect;
         rect.add_margin(BORDER_WIDTH.load(Ordering::SeqCst));
@@ -128,10 +128,13 @@ impl Border {
         // Update the position of the border if required
         if !WindowsApi::window_rect(self.hwnd())?.eq(&rect) {
             WindowsApi::set_border_pos(self.hwnd(), &rect, HWND((Z_ORDER.load()).into()))?;
+            should_invalidate = true;
         }
 
         // Invalidate the rect to trigger the callback to update colours etc.
-        self.invalidate();
+        if should_invalidate {
+            self.invalidate();
+        }
 
         Ok(())
     }

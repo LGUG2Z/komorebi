@@ -236,7 +236,7 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                         monocle.focused_window().copied().unwrap_or_default().hwnd(),
                     )?;
 
-                    border.update(&rect)?;
+                    border.update(&rect, true)?;
 
                     let border_hwnd = border.hwnd;
                     let mut to_remove = vec![];
@@ -325,7 +325,7 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
 
                             if rect != new_rect {
                                 rect = new_rect;
-                                border.update(&rect)?;
+                                border.update(&rect, true)?;
                             }
                         }
 
@@ -348,28 +348,35 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
 
                     borders_monitors.insert(c.id().clone(), monitor_idx);
 
+                    #[allow(unused_assignments)]
+                    let mut last_focus_state = None;
+
+                    let new_focus_state = if idx != ws.focused_container_idx()
+                        || monitor_idx != focused_monitor_idx
+                    {
+                        WindowKind::Unfocused
+                    } else if c.windows().len() > 1 {
+                        WindowKind::Stack
+                    } else {
+                        WindowKind::Single
+                    };
+
                     // Update the focused state for all containers on this workspace
                     {
                         let mut focus_state = FOCUS_STATE.lock();
-                        focus_state.insert(
-                            border.hwnd,
-                            if idx != ws.focused_container_idx()
-                                || monitor_idx != focused_monitor_idx
-                            {
-                                WindowKind::Unfocused
-                            } else if c.windows().len() > 1 {
-                                WindowKind::Stack
-                            } else {
-                                WindowKind::Single
-                            },
-                        );
+                        last_focus_state = focus_state.insert(border.hwnd, new_focus_state);
                     }
 
                     let rect = WindowsApi::window_rect(
                         c.focused_window().copied().unwrap_or_default().hwnd(),
                     )?;
 
-                    border.update(&rect)?;
+                    let should_invalidate = match last_focus_state {
+                        None => true,
+                        Some(last_focus_state) => last_focus_state != new_focus_state,
+                    };
+
+                    border.update(&rect, should_invalidate)?;
                 }
             }
         }
