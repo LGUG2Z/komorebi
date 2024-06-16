@@ -1184,13 +1184,16 @@ impl WindowManager {
 
     pub fn check_aot_windows(&mut self) -> Result<()> {
         let mut not_contains = vec![];
-        for (i, hwnd) in self.always_on_top.as_ref().unwrap().iter().enumerate() {
+        if self.always_on_top.is_none() {
+            return Ok(())
+        }
+        for (i, hwnd) in self.always_on_top.as_ref().ok_or_else(|| anyhow!("there is no always on top windows"))?.iter().enumerate() {
             let mut not_contains_bool = true;
-            for monitor in self.monitors.elements().iter() {
-                for workspace in monitor.workspaces() {
+            'monitor: for monitor in self.monitors.elements().iter() {
+                for workspace in monitor.workspaces().iter() {
                     if workspace.contains_managed_window(*hwnd) {
                         not_contains_bool = false;
-                        break;
+                        break 'monitor;
                     }
                 }
             }
@@ -1237,8 +1240,6 @@ impl WindowManager {
         follow: bool,
     ) -> Result<()> {
         self.handle_unmanaged_window_behaviour()?;
-
-        self.send_always_on_top(Some(monitor_idx), workspace_idx, Some(follow))?;
 
         tracing::info!("moving container");
 
@@ -1323,7 +1324,6 @@ impl WindowManager {
 
         tracing::info!("moving container");
 
-        self.send_always_on_top(None, Some(idx), Some(follow))?;
 
 
         let mouse_follows_focus = self.mouse_follows_focus;
@@ -2496,7 +2496,6 @@ impl WindowManager {
     #[tracing::instrument(skip(self))]
     pub fn focus_monitor(&mut self, idx: usize) -> Result<()> {
         tracing::info!("focusing monitor");
-        self.send_always_on_top(Some(idx), None, None)?;
 
 
         if self.monitors().get(idx).is_some() {
@@ -2603,7 +2602,6 @@ impl WindowManager {
     pub fn focus_workspace(&mut self, idx: usize) -> Result<()> {
         tracing::info!("focusing workspace");
 
-        self.send_always_on_top(None, Some(idx), None)?;
 
         let mouse_follows_focus = self.mouse_follows_focus;
         let monitor = self
