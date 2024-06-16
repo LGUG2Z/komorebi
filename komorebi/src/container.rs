@@ -104,11 +104,7 @@ impl Container {
 
     pub fn remove_window_by_idx(&mut self, idx: usize) -> Option<Window> {
         let window = self.windows_mut().remove(idx);
-
-        if idx != 0 {
-            self.focus_window(idx - 1);
-        };
-
+        self.focus_window(idx.saturating_sub(1));
         window
     }
 
@@ -119,7 +115,7 @@ impl Container {
 
     pub fn add_window(&mut self, window: Window) {
         self.windows_mut().push_back(window);
-        self.focus_window(self.windows().len() - 1);
+        self.focus_window(self.windows().len().saturating_sub(1));
     }
 
     #[tracing::instrument(skip(self))]

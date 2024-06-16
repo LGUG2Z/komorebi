@@ -127,7 +127,7 @@ impl Monitor {
         if idx == 0 {
             self.workspaces_mut().push_back(Workspace::default());
         } else {
-            self.focus_workspace(idx - 1).ok()?;
+            self.focus_workspace(idx.saturating_sub(1)).ok()?;
         };
 
         None
