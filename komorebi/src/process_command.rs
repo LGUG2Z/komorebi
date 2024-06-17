@@ -200,6 +200,7 @@ impl WindowManager {
                 self.promote_container_to_front()?
             }
             SocketMessage::DisplayMonitorWorkspaceNumber(monitor_idx, workspace_idx) => {
+                self.send_always_on_top(Option::from(monitor_idx), Option::from(workspace_idx), None)?;
                 self.display_monitor_workspace(monitor_idx, workspace_idx)?;
             }
             SocketMessage::FocusWindow(direction) => {
