@@ -1056,10 +1056,14 @@ impl WindowManager {
 
         if bool {
 
-            self.focus_monitor(monitor_idx)?;
-            let target_monitor = self.monitors_mut().get_mut(monitor_idx)
-                .ok_or_else(|| anyhow!("there is no monitor"))?;
-            target_monitor.focus_workspace(workspace_idx)?;
+            if self.focused_monitor_idx() != monitor_idx {
+                self.focus_monitor(monitor_idx)?;
+
+            }
+            if self.focused_workspace_idx()? != workspace_idx {
+                self.focused_monitor_mut().ok_or_else(|| anyhow!("there is no monitor"))?.focus_workspace(workspace_idx)?;
+            }
+            let target_monitor = self.focused_monitor_mut().ok_or_else(|| anyhow!("there is no monitor"))?;
             target_monitor.workspaces_mut().get_mut(workspace_idx)
                 .ok_or_else(|| anyhow!("there is no workspace"))?
                 .focus_container_by_window(hwnd_from_exe)?;
@@ -1069,6 +1073,22 @@ impl WindowManager {
         } else {
             Err(anyhow!("there is no window with that exe"))?
         }
+        Ok(())
+    }
+
+    #[tracing::instrument(skip(self))]
+    pub fn display_monitor_workspace(&mut self, monitor_idx: usize, workspace_idx: usize) -> Result<()> {
+
+        let monitor = self.monitors_mut()
+            .get_mut(monitor_idx)
+            .ok_or_else(|| anyhow!("There is no monitor"))?;
+
+        monitor.focus_workspace(workspace_idx)?;
+        monitor.load_focused_workspace(false)?;
+
+        let focused_workspace_idx = self.focused_workspace_idx()?;
+        self.focus_workspace(focused_workspace_idx)?;
+
         Ok(())
     }
 

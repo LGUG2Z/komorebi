@@ -720,6 +720,14 @@ struct Exe {
     /// executable name
     exe: String,
 }
+
+#[derive(Parser)]
+struct DisplayMonitorWorkspace {
+    /// Monitor index (zero-indexed)
+    monitor: usize,
+    /// Workspace index on the specified monitor (zero-indexed)
+    workspace: usize,
+}
 #[derive(Parser)]
 struct SaveResize {
     /// File to which the resize layout dimensions should be saved
@@ -875,6 +883,9 @@ enum SubCommand {
     #[clap(arg_required_else_help = true)]
     #[clap(alias = "load")]
     LoadResize(LoadResize),
+    /// Display the workspace index at monitor index
+    #[clap(arg_required_else_help = true)]
+    DisplayMonitorWorkspace(DisplayMonitorWorkspace),
     /// Change focus to the window in the specified direction
     #[clap(arg_required_else_help = true)]
     Focus(Focus),
@@ -1499,6 +1510,9 @@ fn main() -> Result<()> {
             for line in locked.lines().flatten() {
                 println!("{line}");
             }
+        }
+        SubCommand::DisplayMonitorWorkspace(arg) => {
+            send_message(&SocketMessage::DisplayMonitorWorkspaceNumber(arg.monitor, arg.workspace).as_bytes()?)?;
         }
         SubCommand::Focus(arg) => {
             send_message(&SocketMessage::FocusWindow(arg.operation_direction).as_bytes()?)?;

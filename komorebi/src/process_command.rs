@@ -199,6 +199,9 @@ impl WindowManager {
                 self.focus_container_in_direction(direction)?;
                 self.promote_container_to_front()?
             }
+            SocketMessage::DisplayMonitorWorkspaceNumber(monitor_idx, workspace_idx) => {
+                self.display_monitor_workspace(monitor_idx, workspace_idx)?;
+            }
             SocketMessage::FocusWindow(direction) => {
                 self.focus_container_in_direction(direction)?;
             }
@@ -717,9 +720,14 @@ impl WindowManager {
 
                 let focused_monitor_idx = self.focused_monitor_idx();
 
+                for i in 0..self.monitors.elements().len() {
+                    if i != focused_monitor_idx {
+                        self.send_always_on_top(Option::from(i), Option::from(workspace_idx), None)?;
+                    }
+                }
+
                 for (i, monitor) in self.monitors_mut().iter_mut().enumerate() {
                     if i != focused_monitor_idx {
-                        //self.send_always_on_top(Option::from(i), Some(workspace_idx), None)?;
                         monitor.focus_workspace(workspace_idx)?;
                         monitor.load_focused_workspace(false)?;
                     }
