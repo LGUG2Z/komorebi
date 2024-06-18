@@ -617,10 +617,39 @@ impl WindowManager {
         let mut hwnd = None;
 
         let workspace = self.focused_workspace()?;
+        // first check the focused workspace
         if let Some(container_idx) = workspace.container_idx_from_current_point() {
             if let Some(container) = workspace.containers().get(container_idx) {
                 if let Some(window) = container.focused_window() {
                     hwnd = Some(window.hwnd);
+                }
+            }
+        }
+
+        // then check all workspaces
+        if hwnd.is_none() {
+            for monitor in self.monitors() {
+                for ws in monitor.workspaces() {
+                    if let Some(container_idx) = ws.container_idx_from_current_point() {
+                        if let Some(container) = ws.containers().get(container_idx) {
+                            if let Some(window) = container.focused_window() {
+                                hwnd = Some(window.hwnd);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // finally try matching the other way using a hwnd returned from the cursor pos
+        if hwnd.is_none() {
+            let cursor_pos_hwnd = WindowsApi::window_at_cursor_pos()?;
+
+            for monitor in self.monitors() {
+                for ws in monitor.workspaces() {
+                    if ws.container_for_window(cursor_pos_hwnd).is_some() {
+                        hwnd = Some(cursor_pos_hwnd);
+                    }
                 }
             }
         }
