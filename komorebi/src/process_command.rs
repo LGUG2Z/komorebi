@@ -1360,9 +1360,9 @@ impl WindowManager {
         };
 
         notify_subscribers(&serde_json::to_string(&notification)?)?;
-        border_manager::event_tx().send(border_manager::Notification)?;
-        transparency_manager::event_tx().send(transparency_manager::Notification)?;
-        stackbar_manager::event_tx().send(stackbar_manager::Notification)?;
+        border_manager::send_notification();
+        transparency_manager::send_notification();
+        stackbar_manager::send_notification();
 
         tracing::info!("processed");
         Ok(())

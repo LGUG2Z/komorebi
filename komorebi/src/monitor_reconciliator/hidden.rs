@@ -103,7 +103,7 @@ impl Hidden {
                             tracing::debug!(
                                 "WM_POWERBROADCAST event received - resume from suspend"
                             );
-                            let _ = monitor_reconciliator::event_tx().send(
+                            monitor_reconciliator::send_notification(
                                 monitor_reconciliator::Notification::ResumingFromSuspendedState,
                             );
                             LRESULT(0)
@@ -113,8 +113,9 @@ impl Hidden {
                             tracing::debug!(
                                 "WM_POWERBROADCAST event received - entering suspended state"
                             );
-                            let _ = monitor_reconciliator::event_tx()
-                                .send(monitor_reconciliator::Notification::EnteringSuspendedState);
+                            monitor_reconciliator::send_notification(
+                                monitor_reconciliator::Notification::EnteringSuspendedState,
+                            );
                             LRESULT(0)
                         }
                         _ => LRESULT(0),
@@ -125,14 +126,16 @@ impl Hidden {
                         WTS_SESSION_LOCK => {
                             tracing::debug!("WM_WTSSESSION_CHANGE event received with WTS_SESSION_LOCK - screen locked");
 
-                            let _ = monitor_reconciliator::event_tx()
-                                .send(monitor_reconciliator::Notification::SessionLocked);
+                            monitor_reconciliator::send_notification(
+                                monitor_reconciliator::Notification::SessionLocked,
+                            );
                         }
                         WTS_SESSION_UNLOCK => {
                             tracing::debug!("WM_WTSSESSION_CHANGE event received with WTS_SESSION_UNLOCK - screen unlocked");
 
-                            let _ = monitor_reconciliator::event_tx()
-                                .send(monitor_reconciliator::Notification::SessionUnlocked);
+                            monitor_reconciliator::send_notification(
+                                monitor_reconciliator::Notification::SessionUnlocked,
+                            );
                         }
                         _ => {}
                     }
@@ -151,8 +154,9 @@ impl Hidden {
                         "WM_DISPLAYCHANGE event received with wparam: {}- work area or display resolution changed", wparam.0
                     );
 
-                    let _ = monitor_reconciliator::event_tx()
-                        .send(monitor_reconciliator::Notification::ResolutionScalingChanged);
+                    monitor_reconciliator::send_notification(
+                        monitor_reconciliator::Notification::ResolutionScalingChanged,
+                    );
                     LRESULT(0)
                 }
                 // Unfortunately this is the event sent with ButteryTaskbar which I use a lot
@@ -164,8 +168,9 @@ impl Hidden {
                                 "WM_SETTINGCHANGE event received with SPI_SETWORKAREA - work area changed (probably butterytaskbar or something similar)"
                             );
 
-                        let _ = monitor_reconciliator::event_tx()
-                            .send(monitor_reconciliator::Notification::WorkAreaChanged);
+                        monitor_reconciliator::send_notification(
+                            monitor_reconciliator::Notification::WorkAreaChanged,
+                        );
                     }
                     LRESULT(0)
                 }
@@ -177,8 +182,9 @@ impl Hidden {
                         tracing::debug!(
                                 "WM_DEVICECHANGE event received with DBT_DEVNODES_CHANGED - display added or removed"
                             );
-                        let _ = monitor_reconciliator::event_tx()
-                            .send(monitor_reconciliator::Notification::DisplayConnectionChange);
+                        monitor_reconciliator::send_notification(
+                            monitor_reconciliator::Notification::DisplayConnectionChange,
+                        );
                     }
 
                     LRESULT(0)

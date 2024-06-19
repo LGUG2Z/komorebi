@@ -40,12 +40,18 @@ pub fn channel() -> &'static (Sender<Notification>, Receiver<Notification>) {
     CHANNEL.get_or_init(|| crossbeam_channel::bounded(1))
 }
 
-pub fn event_tx() -> Sender<Notification> {
+fn event_tx() -> Sender<Notification> {
     channel().0.clone()
 }
 
-pub fn event_rx() -> Receiver<Notification> {
+fn event_rx() -> Receiver<Notification> {
     channel().1.clone()
+}
+
+pub fn send_notification(notification: Notification) {
+    if event_tx().try_send(notification).is_err() {
+        tracing::warn!("channel is full; dropping notification")
+    }
 }
 
 pub fn insert_in_monitor_cache(device_id: &str, config: MonitorConfig) {
@@ -160,7 +166,7 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                     if should_update {
                         tracing::info!("updated work area for {}", monitor.device_id());
                         monitor.update_focused_workspace(offset)?;
-                        border_manager::event_tx().send(border_manager::Notification)?;
+                        border_manager::send_notification();
                     } else {
                         tracing::debug!(
                             "work areas match, reconciliation not required for {}",
@@ -207,7 +213,7 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                         );
 
                         monitor.update_focused_workspace(offset)?;
-                        border_manager::event_tx().send(border_manager::Notification)?;
+                        border_manager::send_notification();
                     } else {
                         tracing::debug!(
                             "resolutions match, reconciliation not required for {}",
@@ -394,7 +400,7 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                     // Second retile to fix DPI/resolution related jank
                     wm.retile_all(true)?;
                     // Border updates to fix DPI/resolution related jank
-                    border_manager::event_tx().send(border_manager::Notification)?;
+                    border_manager::send_notification();
                 }
             }
         }

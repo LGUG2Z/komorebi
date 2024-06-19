@@ -32,12 +32,18 @@ pub fn channel() -> &'static (Sender<Notification>, Receiver<Notification>) {
     CHANNEL.get_or_init(|| crossbeam_channel::bounded(20))
 }
 
-pub fn event_tx() -> Sender<Notification> {
+fn event_tx() -> Sender<Notification> {
     channel().0.clone()
 }
 
-pub fn event_rx() -> Receiver<Notification> {
+fn event_rx() -> Receiver<Notification> {
     channel().1.clone()
+}
+
+pub fn send_notification() {
+    if event_tx().try_send(Notification).is_err() {
+        tracing::warn!("channel is full; dropping notification")
+    }
 }
 
 pub fn listen_for_notifications(wm: Arc<Mutex<WindowManager>>) {
