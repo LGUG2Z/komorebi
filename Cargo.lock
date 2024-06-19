@@ -794,6 +794,7 @@ dependencies = [
  "iana-time-zone",
  "js-sys",
  "num-traits",
+ "serde",
  "wasm-bindgen",
  "windows-targets 0.52.5",
 ]
@@ -2304,6 +2305,7 @@ name = "komorebi"
 version = "0.1.27-dev.0"
 dependencies = [
  "bitflags 2.5.0",
+ "chrono",
  "clap",
  "color-eyre",
  "crossbeam-channel",
@@ -3734,6 +3736,7 @@ version = "0.8.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "09c024468a378b7e36765cd36702b7a90cc3cba11654f6685c8f233408e89e92"
 dependencies = [
+ "chrono",
  "dyn-clone",
  "schemars_derive",
  "serde",

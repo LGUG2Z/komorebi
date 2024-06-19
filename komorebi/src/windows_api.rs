@@ -1061,4 +1061,8 @@ impl WindowsApi {
     pub fn wts_register_session_notification(hwnd: isize) -> Result<()> {
         unsafe { WTSRegisterSessionNotification(HWND(hwnd), 1) }.process()
     }
+
+    pub fn tick_count() -> u64 {
+        unsafe { windows::Win32::System::SystemInformation::GetTickCount64() }
+    }
 }

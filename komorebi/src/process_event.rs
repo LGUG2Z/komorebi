@@ -1,3 +1,5 @@
+use chrono::DateTime;
+use chrono::Utc;
 use std::fs::OpenOptions;
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
@@ -70,6 +72,13 @@ impl WindowManager {
             return Ok(());
         }
 
+        let now: DateTime<Utc> = Utc::now();
+        let difference = now - event.timestamp();
+        if difference > chrono::Duration::seconds(2) {
+            tracing::warn!("ignoring event more than two seconds old: {}", event);
+            return Ok(());
+        }
+
         let mut rule_debug = RuleDebug::default();
 
         let should_manage = event.window().should_manage(Some(event), &mut rule_debug)?;
@@ -119,9 +128,9 @@ impl WindowManager {
 
         // Make sure we have the most recently focused monitor from any event
         match event {
-            WindowManagerEvent::FocusChange(_, window)
-            | WindowManagerEvent::Show(_, window)
-            | WindowManagerEvent::MoveResizeEnd(_, window) => {
+            WindowManagerEvent::FocusChange(_, window, _)
+            | WindowManagerEvent::Show(_, window, _)
+            | WindowManagerEvent::MoveResizeEnd(_, window, _) => {
                 if let Some(monitor_idx) = self.monitor_idx_from_window(window) {
                     // This is a hidden window apparently associated with COM support mechanisms (based
                     // on a post from http://www.databaseteam.org/1-ms-sql-server/a5bb344836fb889c.htm)
@@ -151,7 +160,7 @@ impl WindowManager {
 
         for monitor in self.monitors_mut() {
             for workspace in monitor.workspaces_mut() {
-                if let WindowManagerEvent::FocusChange(_, window) = event {
+                if let WindowManagerEvent::FocusChange(_, window, _) = event {
                     let _ = workspace.focus_changed(window.hwnd);
                 }
             }
@@ -167,11 +176,11 @@ impl WindowManager {
         }
 
         match event {
-            WindowManagerEvent::Raise(window) => {
+            WindowManagerEvent::Raise(window, _) => {
                 window.focus(false)?;
                 self.has_pending_raise_op = false;
             }
-            WindowManagerEvent::Destroy(_, window) | WindowManagerEvent::Unmanage(window) => {
+            WindowManagerEvent::Destroy(_, window, _) | WindowManagerEvent::Unmanage(window, _) => {
                 if self.focused_workspace()?.contains_window(window.hwnd) {
                     self.focused_workspace_mut()?.remove_window(window.hwnd)?;
                     self.update_focused_workspace(false, false)?;
@@ -181,7 +190,7 @@ impl WindowManager {
                     already_moved_window_handles.remove(&window.hwnd);
                 }
             }
-            WindowManagerEvent::Minimize(_, window) => {
+            WindowManagerEvent::Minimize(_, window, _) => {
                 let mut hide = false;
 
                 {
@@ -196,7 +205,7 @@ impl WindowManager {
                     self.update_focused_workspace(false, false)?;
                 }
             }
-            WindowManagerEvent::Hide(_, window) => {
+            WindowManagerEvent::Hide(_, window, _) => {
                 let mut hide = false;
                 // Some major applications unfortunately send the HIDE signal when they are being
                 // minimized or destroyed. Applications that close to the tray also do the same,
@@ -242,7 +251,7 @@ impl WindowManager {
 
                 already_moved_window_handles.remove(&window.hwnd);
             }
-            WindowManagerEvent::FocusChange(_, window) => {
+            WindowManagerEvent::FocusChange(_, window, _) => {
                 self.update_focused_workspace(self.mouse_follows_focus, false)?;
 
                 let workspace = self.focused_workspace_mut()?;
@@ -267,9 +276,9 @@ impl WindowManager {
                     }
                 }
             }
-            WindowManagerEvent::Show(_, window)
-            | WindowManagerEvent::Manage(window)
-            | WindowManagerEvent::Uncloak(_, window) => {
+            WindowManagerEvent::Show(_, window, _)
+            | WindowManagerEvent::Manage(window, _)
+            | WindowManagerEvent::Uncloak(_, window, _) => {
                 let focused_monitor_idx = self.focused_monitor_idx();
                 let focused_workspace_idx =
                     self.focused_workspace_idx_for_monitor_idx(focused_monitor_idx)?;
@@ -366,7 +375,7 @@ impl WindowManager {
                     }
                 }
             }
-            WindowManagerEvent::MoveResizeStart(_, window) => {
+            WindowManagerEvent::MoveResizeStart(_, window, _) => {
                 if *self.focused_workspace()?.tile() {
                     let monitor_idx = self.focused_monitor_idx();
                     let workspace_idx = self
@@ -386,7 +395,7 @@ impl WindowManager {
                         Option::from((monitor_idx, workspace_idx, container_idx));
                 }
             }
-            WindowManagerEvent::MoveResizeEnd(_, window) => {
+            WindowManagerEvent::MoveResizeEnd(_, window, _) => {
                 // We need this because if the event ends on a different monitor,
                 // that monitor will already have been focused and updated in the state
                 let pending = self.pending_move_op;
@@ -599,7 +608,7 @@ impl WindowManager {
         };
 
         // If we unmanaged a window, it shouldn't be immediately hidden behind managed windows
-        if let WindowManagerEvent::Unmanage(window) = event {
+        if let WindowManagerEvent::Unmanage(window, _) = event {
             window.center(&self.focused_monitor_work_area()?)?;
         }
 
@@ -637,7 +646,7 @@ impl WindowManager {
         // Too many spammy OBJECT_NAMECHANGE events from JetBrains IDEs
         if !matches!(
             event,
-            WindowManagerEvent::Show(WinEvent::ObjectNameChange, _)
+            WindowManagerEvent::Show(WinEvent::ObjectNameChange, _, _)
         ) {
             tracing::info!("processed: {}", event.window().to_string());
         } else {

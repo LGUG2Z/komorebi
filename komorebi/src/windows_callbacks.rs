@@ -1,4 +1,9 @@
+use chrono::TimeZone;
+use chrono::Utc;
 use std::collections::VecDeque;
+use std::ops::Sub;
+use std::time::Duration;
+use std::time::UNIX_EPOCH;
 
 use windows::Win32::Foundation::BOOL;
 use windows::Win32::Foundation::HWND;
@@ -67,12 +72,24 @@ pub extern "system" fn win_event_hook(
     id_object: i32,
     _id_child: i32,
     _id_event_thread: u32,
-    _dwms_event_time: u32,
+    dwms_event_time: u32,
 ) {
     // OBJID_WINDOW
     if id_object != 0 {
         return;
     }
+
+    let millis_since_boot = WindowsApi::tick_count();
+    let system_time_now = std::time::SystemTime::now();
+
+    let boot_time = system_time_now
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .sub(Duration::from_millis(millis_since_boot))
+        .as_secs();
+
+    let boot_time_utc = Utc.timestamp_opt(boot_time as i64, 0).unwrap();
+    let timestamp = boot_time_utc + Duration::from_millis(dwms_event_time as u64);
 
     let window = Window::from(hwnd);
 
@@ -81,7 +98,7 @@ pub extern "system" fn win_event_hook(
         Err(_) => return,
     };
 
-    let event_type = match WindowManagerEvent::from_win_event(winevent, window) {
+    let event_type = match WindowManagerEvent::from_win_event(winevent, window, timestamp) {
         None => {
             tracing::trace!(
                 "Unhandled WinEvent: {winevent} (hwnd: {}, exe: {}, title: {}, class: {})",

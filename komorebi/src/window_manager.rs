@@ -1,3 +1,4 @@
+use chrono::Utc;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::collections::VecDeque;
@@ -598,14 +599,14 @@ impl WindowManager {
     #[tracing::instrument(skip(self))]
     pub fn manage_focused_window(&mut self) -> Result<()> {
         let hwnd = WindowsApi::foreground_window()?;
-        let event = WindowManagerEvent::Manage(Window::from(hwnd));
+        let event = WindowManagerEvent::Manage(Window::from(hwnd), Utc::now());
         Ok(winevent_listener::event_tx().send(event)?)
     }
 
     #[tracing::instrument(skip(self))]
     pub fn unmanage_focused_window(&mut self) -> Result<()> {
         let hwnd = WindowsApi::foreground_window()?;
-        let event = WindowManagerEvent::Unmanage(Window::from(hwnd));
+        let event = WindowManagerEvent::Unmanage(Window::from(hwnd), Utc::now());
         Ok(winevent_listener::event_tx().send(event)?)
     }
 
@@ -662,7 +663,7 @@ impl WindowManager {
                 return Ok(());
             }
 
-            let event = WindowManagerEvent::Raise(Window::from(hwnd));
+            let event = WindowManagerEvent::Raise(Window::from(hwnd), Utc::now());
             self.has_pending_raise_op = true;
             winevent_listener::event_tx().send(event)?;
         } else {

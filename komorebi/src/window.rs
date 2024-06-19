@@ -367,7 +367,7 @@ impl Window {
         if let Some(event) = event {
             if matches!(
                 event,
-                WindowManagerEvent::Hide(_, _) | WindowManagerEvent::Cloak(_, _)
+                WindowManagerEvent::Hide(_, _, _) | WindowManagerEvent::Cloak(_, _, _)
             ) {
                 allow_cloaked = true;
             }
