@@ -98,13 +98,19 @@ impl Border {
             let hwnd = WindowsApi::create_border_window(PCWSTR(name.as_ptr()), h_module)?;
             hwnd_sender.send(hwnd)?;
 
-            let mut message = MSG::default();
-            unsafe {
-                while GetMessageW(&mut message, HWND(hwnd), 0, 0).into() {
-                    TranslateMessage(&message);
-                    DispatchMessageW(&message);
-                    std::thread::sleep(Duration::from_millis(10));
+            let mut msg: MSG = MSG::default();
+
+            loop {
+                unsafe {
+                    if !GetMessageW(&mut msg, HWND::default(), 0, 0).as_bool() {
+                        tracing::debug!("border window event processing thread shutdown");
+                        break;
+                    };
+                    TranslateMessage(&msg);
+                    DispatchMessageW(&msg);
                 }
+
+                std::thread::sleep(Duration::from_millis(10))
             }
 
             Ok(())

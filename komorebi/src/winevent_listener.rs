@@ -1,4 +1,5 @@
 use std::sync::OnceLock;
+use std::time::Duration;
 
 use crossbeam_channel::Receiver;
 use crossbeam_channel::Sender;
@@ -34,16 +35,19 @@ pub fn start() {
                 )
             };
 
+            let mut msg: MSG = MSG::default();
+
             loop {
-                let mut msg: MSG = MSG::default();
                 unsafe {
                     if !GetMessageW(&mut msg, HWND(0), 0, 0).as_bool() {
-                        tracing::info!("windows event processing shutdown");
+                        tracing::debug!("windows event processing thread shutdown");
                         break;
                     };
                     TranslateMessage(&msg);
                     DispatchMessageW(&msg);
                 }
+
+                std::thread::sleep(Duration::from_millis(10))
             }
         })
     });
