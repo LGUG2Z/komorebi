@@ -45,7 +45,8 @@ pub fn listen_for_events(wm: Arc<Mutex<WindowManager>>) {
         tracing::info!("listening");
         loop {
             if let Ok(event) = receiver.recv() {
-                match wm.lock().process_event(event) {
+                let mut guard = wm.lock();
+                match guard.process_event(event) {
                     Ok(()) => {}
                     Err(error) => {
                         if cfg!(debug_assertions) {
@@ -306,13 +307,7 @@ impl WindowManager {
                                 }
                             }
 
-                            workspace_reconciliator::event_tx().send(
-                                workspace_reconciliator::Notification {
-                                    monitor_idx: i,
-                                    workspace_idx: j,
-                                },
-                            )?;
-
+                            workspace_reconciliator::send_notification(i, j);
                             needs_reconciliation = true;
                         }
                     }
@@ -643,9 +638,9 @@ impl WindowManager {
         };
 
         notify_subscribers(&serde_json::to_string(&notification)?)?;
-        border_manager::event_tx().send(border_manager::Notification)?;
-        transparency_manager::event_tx().send(transparency_manager::Notification)?;
-        stackbar_manager::event_tx().send(stackbar_manager::Notification)?;
+        border_manager::send_notification();
+        transparency_manager::send_notification();
+        stackbar_manager::send_notification();
 
         // Too many spammy OBJECT_NAMECHANGE events from JetBrains IDEs
         if !matches!(

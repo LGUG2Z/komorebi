@@ -30,12 +30,24 @@ pub fn channel() -> &'static (Sender<Notification>, Receiver<Notification>) {
     CHANNEL.get_or_init(|| crossbeam_channel::bounded(1))
 }
 
-pub fn event_tx() -> Sender<Notification> {
+fn event_tx() -> Sender<Notification> {
     channel().0.clone()
 }
 
-pub fn event_rx() -> Receiver<Notification> {
+fn event_rx() -> Receiver<Notification> {
     channel().1.clone()
+}
+
+pub fn send_notification(monitor_idx: usize, workspace_idx: usize) {
+    if event_tx()
+        .try_send(Notification {
+            monitor_idx,
+            workspace_idx,
+        })
+        .is_err()
+    {
+        tracing::warn!("channel is full; dropping notification")
+    }
 }
 
 pub fn listen_for_notifications(wm: Arc<Mutex<WindowManager>>) {
@@ -106,7 +118,7 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                     // Unblock the border manager
                     ALT_TAB_HWND.store(None);
                     // Send a notification to the border manager to update the borders
-                    border_manager::event_tx().send(border_manager::Notification)?;
+                    border_manager::send_notification();
                 }
             }
         }
