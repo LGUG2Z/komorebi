@@ -83,6 +83,7 @@ nav:
       - cli/global-state.md
       - cli/gui.md
       - cli/visible-windows.md
+      - cli/monitor-information.md
       - cli/query.md
       - cli/subscribe-socket.md
       - cli/unsubscribe-socket.md
@@ -101,6 +102,8 @@ nav:
       - cli/cycle-focus.md
       - cli/cycle-move.md
       - cli/stack.md
+      - cli/stack-all.md
+      - cli/unstack-all.md
       - cli/resize-edge.md
       - cli/resize-axis.md
       - cli/unstack.md
@@ -197,11 +200,12 @@ nav:
       - cli/border-colour.md
       - cli/border-width.md
       - cli/border-offset.md
+      - cli/transparency.md
+      - cli/transparency-alpha.md
       - cli/focus-follows-mouse.md
       - cli/toggle-focus-follows-mouse.md
       - cli/mouse-follows-focus.md
       - cli/toggle-mouse-follows-focus.md
-      - cli/ahk-library.md
       - cli/ahk-app-specific-configuration.md
       - cli/pwsh-app-specific-configuration.md
       - cli/format-app-specific-configuration.md

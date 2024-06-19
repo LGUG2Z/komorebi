@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "StaticConfig",
-  "description": "The `komorebi.json` static configuration file reference for `v0.1.26`",
+  "description": "The `komorebi.json` static configuration file reference for `v0.1.27`",
   "type": "object",
   "properties": {
     "app_specific_configuration_path": {
@@ -1182,6 +1182,16 @@
           }
         }
       }
+    },
+    "transparency": {
+      "description": "Add transparency to unfocused windows (default: false)",
+      "type": "boolean"
+    },
+    "transparency_alpha": {
+      "description": "Alpha value for unfocused window transparency [[0-255]] (default: 200)",
+      "type": "integer",
+      "format": "uint8",
+      "minimum": 0.0
     },
     "tray_and_multi_window_applications": {
       "description": "Identify tray and multi-window applications",

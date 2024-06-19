@@ -1,4 +1,5 @@
 use std::sync::mpsc;
+use std::time::Duration;
 
 use windows::core::PCWSTR;
 use windows::Win32::Foundation::HWND;
@@ -68,13 +69,19 @@ impl Hidden {
             let hwnd = WindowsApi::create_hidden_window(PCWSTR(name.as_ptr()), h_module)?;
             hwnd_sender.send(hwnd)?;
 
-            let mut message = MSG::default();
+            let mut msg: MSG = MSG::default();
 
-            unsafe {
-                while GetMessageW(&mut message, HWND(hwnd), 0, 0).into() {
-                    TranslateMessage(&message);
-                    DispatchMessageW(&message);
+            loop {
+                unsafe {
+                    if !GetMessageW(&mut msg, HWND::default(), 0, 0).as_bool() {
+                        tracing::debug!("hidden window event processing thread shutdown");
+                        break;
+                    };
+                    TranslateMessage(&msg);
+                    DispatchMessageW(&msg);
                 }
+
+                std::thread::sleep(Duration::from_millis(10))
             }
 
             Ok(())

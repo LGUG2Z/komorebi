@@ -120,11 +120,17 @@ impl Stackbar {
                 SetLayeredWindowAttributes(hwnd, COLORREF(0), 0, LWA_COLORKEY)?;
                 hwnd_sender.send(hwnd)?;
 
-                let mut msg = MSG::default();
-                while GetMessageW(&mut msg, hwnd, 0, 0).into() {
+                let mut msg: MSG = MSG::default();
+
+                loop {
+                    if !GetMessageW(&mut msg, HWND::default(), 0, 0).as_bool() {
+                        tracing::debug!("stackbar window event processing thread shutdown");
+                        break;
+                    };
                     TranslateMessage(&msg);
                     DispatchMessageW(&msg);
-                    std::thread::sleep(Duration::from_millis(10));
+
+                    std::thread::sleep(Duration::from_millis(10))
                 }
             }
 
