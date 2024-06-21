@@ -1,12 +1,9 @@
+use crate::border_manager::window_kind_colour;
 use crate::border_manager::WindowKind;
 use crate::border_manager::BORDER_OFFSET;
 use crate::border_manager::BORDER_WIDTH;
-use crate::border_manager::FOCUSED;
 use crate::border_manager::FOCUS_STATE;
-use crate::border_manager::MONOCLE;
-use crate::border_manager::STACK;
 use crate::border_manager::STYLE;
-use crate::border_manager::UNFOCUSED;
 use crate::border_manager::Z_ORDER;
 use crate::WindowsApi;
 use crate::WINDOWS_11;
@@ -165,7 +162,7 @@ impl Border {
                     match WindowsApi::window_rect(window) {
                         Ok(rect) => {
                             // Grab the focus kind for this border
-                            let focus_kind = {
+                            let window_kind = {
                                 FOCUS_STATE
                                     .lock()
                                     .get(&window.0)
@@ -177,12 +174,7 @@ impl Border {
                             let hpen = CreatePen(
                                 PS_SOLID | PS_INSIDEFRAME,
                                 BORDER_WIDTH.load(Ordering::SeqCst),
-                                COLORREF(match focus_kind {
-                                    WindowKind::Unfocused => UNFOCUSED.load(Ordering::SeqCst),
-                                    WindowKind::Single => FOCUSED.load(Ordering::SeqCst),
-                                    WindowKind::Stack => STACK.load(Ordering::SeqCst),
-                                    WindowKind::Monocle => MONOCLE.load(Ordering::SeqCst),
-                                }),
+                                COLORREF(window_kind_colour(window_kind)),
                             );
 
                             let hbrush = WindowsApi::create_solid_brush(0);

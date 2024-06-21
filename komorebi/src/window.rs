@@ -275,6 +275,14 @@ impl Window {
         self.update_ex_style(&ex_style)
     }
 
+    pub fn set_accent(self, colour: u32) -> Result<()> {
+        WindowsApi::set_window_accent(self.hwnd, Some(colour))
+    }
+
+    pub fn remove_accent(self) -> Result<()> {
+        WindowsApi::set_window_accent(self.hwnd, None)
+    }
+
     #[allow(dead_code)]
     pub fn update_style(self, style: &WindowStyle) -> Result<()> {
         WindowsApi::update_style(self.hwnd(), isize::try_from(style.bits())?)

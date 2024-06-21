@@ -21,7 +21,9 @@ use windows::Win32::Foundation::POINT;
 use windows::Win32::Foundation::WPARAM;
 use windows::Win32::Graphics::Dwm::DwmGetWindowAttribute;
 use windows::Win32::Graphics::Dwm::DwmSetWindowAttribute;
+use windows::Win32::Graphics::Dwm::DWMWA_BORDER_COLOR;
 use windows::Win32::Graphics::Dwm::DWMWA_CLOAKED;
+use windows::Win32::Graphics::Dwm::DWMWA_COLOR_NONE;
 use windows::Win32::Graphics::Dwm::DWMWA_EXTENDED_FRAME_BOUNDS;
 use windows::Win32::Graphics::Dwm::DWMWA_WINDOW_CORNER_PREFERENCE;
 use windows::Win32::Graphics::Dwm::DWMWCP_ROUND;
@@ -949,6 +951,19 @@ impl WindowsApi {
                 HWND(hwnd),
                 DWMWA_WINDOW_CORNER_PREFERENCE,
                 std::ptr::addr_of!(round).cast(),
+                4,
+            )
+        }
+        .process()
+    }
+
+    pub fn set_window_accent(hwnd: isize, color: Option<u32>) -> Result<()> {
+        let col_ref = COLORREF(color.unwrap_or(DWMWA_COLOR_NONE));
+        unsafe {
+            DwmSetWindowAttribute(
+                HWND(hwnd),
+                DWMWA_BORDER_COLOR,
+                std::ptr::addr_of!(col_ref).cast(),
                 4,
             )
         }
