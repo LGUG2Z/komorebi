@@ -142,6 +142,7 @@ pub enum SocketMessage {
     BorderStyle(BorderStyle),
     BorderWidth(i32),
     BorderOffset(i32),
+    BorderImplementation(BorderImplementation),
     Transparency(bool),
     TransparencyAlpha(u8),
     InvisibleBorders(Rect),
@@ -219,7 +220,17 @@ pub enum StackbarLabel {
 }
 
 #[derive(
-    Default, Copy, Clone, Debug, Eq, PartialEq, Display, Serialize, Deserialize, JsonSchema,
+    Default,
+    Copy,
+    Clone,
+    Debug,
+    Eq,
+    PartialEq,
+    Display,
+    Serialize,
+    Deserialize,
+    JsonSchema,
+    ValueEnum,
 )]
 pub enum BorderStyle {
     #[default]
@@ -229,6 +240,27 @@ pub enum BorderStyle {
     Rounded,
     /// Use the Windows 10-style square borders
     Square,
+}
+
+#[derive(
+    Default,
+    Copy,
+    Clone,
+    Debug,
+    Eq,
+    PartialEq,
+    Display,
+    Serialize,
+    Deserialize,
+    JsonSchema,
+    ValueEnum,
+)]
+pub enum BorderImplementation {
+    #[default]
+    /// Use the adjustable komorebi border implementation
+    Komorebi,
+    /// Use the thin Windows accent border implementation
+    Windows,
 }
 
 #[derive(

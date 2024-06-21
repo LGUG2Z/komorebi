@@ -684,6 +684,19 @@ struct BorderOffset {
     /// Desired offset of the window border
     offset: i32,
 }
+#[derive(Parser)]
+struct BorderStyle {
+    /// Desired border style
+    #[clap(value_enum)]
+    style: komorebi_core::BorderStyle,
+}
+
+#[derive(Parser)]
+struct BorderImplementation {
+    /// Desired border implementation
+    #[clap(value_enum)]
+    style: komorebi_core::BorderImplementation,
+}
 
 #[derive(Parser)]
 #[allow(clippy::struct_excessive_bools)]
@@ -1176,6 +1189,12 @@ enum SubCommand {
     #[clap(arg_required_else_help = true)]
     #[clap(alias = "active-window-border-offset")]
     BorderOffset(BorderOffset),
+    /// Set the border style
+    #[clap(arg_required_else_help = true)]
+    BorderStyle(BorderStyle),
+    /// Set the border implementation
+    #[clap(arg_required_else_help = true)]
+    BorderImplementation(BorderImplementation),
     /// Enable or disable transparency for unfocused windows
     #[clap(arg_required_else_help = true)]
     Transparency(Transparency),
@@ -2268,6 +2287,12 @@ Stop-Process -Name:komorebi -ErrorAction SilentlyContinue
         }
         SubCommand::BorderOffset(arg) => {
             send_message(&SocketMessage::BorderOffset(arg.offset).as_bytes()?)?;
+        }
+        SubCommand::BorderStyle(arg) => {
+            send_message(&SocketMessage::BorderStyle(arg.style).as_bytes()?)?;
+        }
+        SubCommand::BorderImplementation(arg) => {
+            send_message(&SocketMessage::BorderImplementation(arg.style).as_bytes()?)?;
         }
         SubCommand::Transparency(arg) => {
             send_message(&SocketMessage::Transparency(arg.boolean_state.into()).as_bytes()?)?;

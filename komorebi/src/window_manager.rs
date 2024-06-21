@@ -947,7 +947,26 @@ impl WindowManager {
                             window.opaque()?;
                         }
 
+                        window.remove_accent()?;
+
                         window.restore();
+                    }
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    #[tracing::instrument(skip(self))]
+    pub fn remove_all_accents(&mut self) -> Result<()> {
+        tracing::info!("removing all window accents");
+
+        for monitor in self.monitors_mut() {
+            for workspace in monitor.workspaces_mut() {
+                for containers in workspace.containers_mut() {
+                    for window in containers.windows_mut() {
+                        window.remove_accent()?;
                     }
                 }
             }

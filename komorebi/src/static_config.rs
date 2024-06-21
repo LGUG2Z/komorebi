@@ -1,5 +1,6 @@
 use crate::border_manager;
 use crate::border_manager::ZOrder;
+use crate::border_manager::IMPLEMENTATION;
 use crate::border_manager::STYLE;
 use crate::border_manager::Z_ORDER;
 use crate::colour::Colour;
@@ -32,6 +33,7 @@ use crate::OBJECT_NAME_CHANGE_ON_LAUNCH;
 use crate::REGEX_IDENTIFIERS;
 use crate::TRAY_AND_MULTI_WINDOW_IDENTIFIERS;
 use crate::WORKSPACE_RULES;
+use komorebi_core::BorderImplementation;
 use komorebi_core::StackbarLabel;
 use komorebi_core::StackbarMode;
 
@@ -279,6 +281,9 @@ pub struct StaticConfig {
     /// Active window border z-order (default: System)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub border_z_order: Option<ZOrder>,
+    /// Display an active window border (default: false)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub border_implementation: Option<BorderImplementation>,
     /// Add transparency to unfocused windows (default: false)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub transparency: Option<bool>,
@@ -483,6 +488,7 @@ impl From<&WindowManager> for StaticConfig {
             ),
             border_style: Option::from(STYLE.load()),
             border_z_order: Option::from(Z_ORDER.load()),
+            border_implementation: Option::from(IMPLEMENTATION.load()),
             default_workspace_padding: Option::from(
                 DEFAULT_WORKSPACE_PADDING.load(Ordering::SeqCst),
             ),
@@ -557,6 +563,17 @@ impl StaticConfig {
         }
 
         STYLE.store(self.border_style.unwrap_or_default());
+        IMPLEMENTATION.store(self.border_implementation.unwrap_or_default());
+        match IMPLEMENTATION.load() {
+            BorderImplementation::Komorebi => {
+                border_manager::destroy_all_borders()?;
+            }
+            BorderImplementation::Windows => {
+                // TODO: figure out how to call wm.remove_all_accents here
+            }
+        }
+
+        border_manager::send_notification();
 
         transparency_manager::TRANSPARENCY_ENABLED
             .store(self.transparency.unwrap_or(false), Ordering::SeqCst);

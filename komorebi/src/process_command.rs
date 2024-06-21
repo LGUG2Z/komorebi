@@ -27,6 +27,7 @@ use komorebi_core::config_generation::MatchingRule;
 use komorebi_core::config_generation::MatchingStrategy;
 use komorebi_core::ApplicationIdentifier;
 use komorebi_core::Axis;
+use komorebi_core::BorderImplementation;
 use komorebi_core::FocusFollowsMouseImplementation;
 use komorebi_core::Layout;
 use komorebi_core::MoveBehaviour;
@@ -39,6 +40,7 @@ use komorebi_core::WindowContainerBehaviour;
 use komorebi_core::WindowKind;
 
 use crate::border_manager;
+use crate::border_manager::IMPLEMENTATION;
 use crate::border_manager::STYLE;
 use crate::colour::Rgb;
 use crate::current_virtual_desktop;
@@ -1240,6 +1242,19 @@ impl WindowManager {
             }
             SocketMessage::Border(enable) => {
                 border_manager::BORDER_ENABLED.store(enable, Ordering::SeqCst);
+            }
+            SocketMessage::BorderImplementation(implementation) => {
+                IMPLEMENTATION.store(implementation);
+                match IMPLEMENTATION.load() {
+                    BorderImplementation::Komorebi => {
+                        self.remove_all_accents()?;
+                    }
+                    BorderImplementation::Windows => {
+                        border_manager::destroy_all_borders()?;
+                    }
+                }
+
+                border_manager::send_notification();
             }
             SocketMessage::BorderColour(kind, r, g, b) => match kind {
                 WindowKind::Single => {
