@@ -60,7 +60,7 @@ channel](https://www.youtube.com/channel/UCeai3-do-9O4MNy9_xjO6mg) where I post
 _komorebi_ development videos. If you would like to be notified of upcoming
 videos please subscribe and turn on notifications.
 
-_komorebi_ is a free and open-source project, and one that encourages you to
+_komorebi_ is a free and source-available project, and one that encourages you to
 make charitable donations if you find the software to be useful and have the
 financial means.
 
@@ -98,6 +98,13 @@ video will answer the majority of your questions.
 
 
 # Demonstrations
+
+[@amnweb](https://github.com/amnweb) showing _komorebi_ `v0.1.28-dev.0` running on Windows 11 with window borders,
+unfocused window transparency and animations enabled, using a custom status bar integrated using
+_komorebi_'s [Window Manager Event Subscriptions](https://github.com/LGUG2Z/komorebi?tab=readme-ov-file#window-manager-event-subscriptions).
+
+https://github.com/LGUG2Z/komorebi/assets/13164844/21be8dc4-fa76-4f70-9b37-1d316f4b40c2
+
 
 [@haxibami](https://github.com/haxibami) showing _komorebi_ running on Windows
 11 with a terminal emulator, a web browser and a code editor. The original
