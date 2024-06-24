@@ -100,6 +100,7 @@ pub struct WindowManager {
     pub pending_move_op: Option<(usize, usize, usize)>,
     pub already_moved_window_handles: Arc<Mutex<HashSet<isize>>>,
     pub always_on_top: Option<Vec<isize>>,
+    pub last_focused_monitor: Option<usize>,
 
 }
 
@@ -284,6 +285,7 @@ impl WindowManager {
             pending_move_op: None,
             already_moved_window_handles: Arc::new(Mutex::new(HashSet::new())),
             always_on_top: None,
+            last_focused_monitor: None,
         })
     }
 
