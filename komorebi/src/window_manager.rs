@@ -967,10 +967,16 @@ impl WindowManager {
     pub fn remove_all_accents(&mut self) -> Result<()> {
         tracing::info!("removing all window accents");
 
-        for monitor in self.monitors_mut() {
-            for workspace in monitor.workspaces_mut() {
-                for containers in workspace.containers_mut() {
-                    for window in containers.windows_mut() {
+        for monitor in self.monitors() {
+            for workspace in monitor.workspaces() {
+                if let Some(monocle) = workspace.monocle_container() {
+                    for window in monocle.windows() {
+                        window.remove_accent()?
+                    }
+                }
+
+                for containers in workspace.containers() {
+                    for window in containers.windows() {
                         window.remove_accent()?;
                     }
                 }
