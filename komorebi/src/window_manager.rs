@@ -1087,7 +1087,7 @@ impl WindowManager {
 
 
     #[tracing::instrument(skip(self))]
-    pub fn focus_window_from_exe(&mut self, exe: &String) -> Result<()> {
+    pub fn focus_window_from_exe(&mut self, exe: &Option<String>, hwnd: Option<isize>) -> Result<()> {
 
         let mut monitor_idx = 0;
         let mut workspace_idx = 0;
@@ -1098,12 +1098,25 @@ impl WindowManager {
 
         'outer: for (i, m ) in self.monitors.elements().iter().enumerate(){
             for (j, w) in m.workspaces().iter().enumerate() {
-                if let Some(hwnd) = w.hwnd_from_exe(&exe) {
-                    monitor_idx = i;
-                    workspace_idx = j;
-                    hwnd_from_exe = hwnd;
-                    bool = true;
-                    break 'outer;
+                if let Some(hwnd) = hwnd {
+                    if w.contains_managed_window(hwnd) {
+                        monitor_idx = i;
+                        workspace_idx = j;
+                        hwnd_from_exe = hwnd;
+                        bool = true;
+                        break 'outer;
+                    }
+                }
+                if let Some(exe) = exe {
+                    if let Some(hwndexe) = w.hwnd_from_exe(&exe) {
+                        monitor_idx = i;
+                        workspace_idx = j;
+                        hwnd_from_exe = hwndexe;
+                        bool = true;
+                        if !hwnd.is_some() {
+                            break 'outer;
+                        }
+                    }
                 }
             }
         }

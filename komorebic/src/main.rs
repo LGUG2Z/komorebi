@@ -731,7 +731,10 @@ struct Stop {
 #[derive(Parser)]
 struct Exe {
     /// executable name
-    exe: String,
+    exe: Option<String>,
+    /// hwnd handle of the window
+    hwnd: Option<isize>,
+
 }
 
 #[derive(Parser)]
@@ -1537,7 +1540,7 @@ fn main() -> Result<()> {
             send_message(&SocketMessage::FocusWindow(arg.operation_direction).as_bytes()?)?;
         }
         SubCommand::FocusExe(arg) => {
-            send_message(&SocketMessage::FocusExe(arg.exe).as_bytes()?)?;
+            send_message(&SocketMessage::FocusExe(arg.exe,arg.hwnd).as_bytes()?)?;
         }
         SubCommand::ForceFocus => {
             send_message(&SocketMessage::ForceFocus.as_bytes()?)?;
