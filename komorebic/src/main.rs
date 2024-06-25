@@ -731,8 +731,10 @@ struct Stop {
 #[derive(Parser)]
 struct Exe {
     /// executable name
+    #[clap(short, long)]
     exe: Option<String>,
     /// hwnd handle of the window
+    #[clap(long)]
     hwnd: Option<isize>,
 
 }
