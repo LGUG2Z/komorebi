@@ -354,6 +354,8 @@ impl WindowManager {
                                     .ok_or_else(|| anyhow!("there is no focused container"))?
                                     .add_window(window);
                                 self.update_focused_workspace(true, false)?;
+
+                                stackbar_manager::send_notification();
                             }
                         }
                     }
@@ -554,6 +556,8 @@ impl WindowManager {
                                             )?;
                                         }
                                     }
+
+                                    stackbar_manager::send_notification();
                                 }
                             }
                         }

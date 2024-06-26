@@ -116,6 +116,13 @@ impl Container {
     pub fn add_window(&mut self, window: Window) {
         self.windows_mut().push_back(window);
         self.focus_window(self.windows().len().saturating_sub(1));
+        let focused_window_idx = self.focused_window_idx();
+
+        for (i, window) in self.windows().iter().enumerate() {
+            if i != focused_window_idx {
+                window.hide();
+            }
+        }
     }
 
     #[tracing::instrument(skip(self))]
