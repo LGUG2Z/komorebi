@@ -303,6 +303,24 @@ impl WindowManager {
         StaticConfig::reload(pathbuf, self)
     }
 
+    pub fn window_container_behaviour(
+        &self,
+        monitor_idx: usize,
+        workspace_idx: usize,
+    ) -> WindowContainerBehaviour {
+        if let Some(monitor) = self.monitors().get(monitor_idx) {
+            if let Some(workspace) = monitor.workspaces().get(workspace_idx) {
+                return if workspace.containers().is_empty() {
+                    WindowContainerBehaviour::Create
+                } else {
+                    self.window_container_behaviour
+                };
+            }
+        }
+
+        WindowContainerBehaviour::Create
+    }
+
     #[tracing::instrument(skip(self))]
     pub fn watch_configuration(&mut self, enable: bool) -> Result<()> {
         let config_pwsh = HOME_DIR.join("komorebi.ps1");

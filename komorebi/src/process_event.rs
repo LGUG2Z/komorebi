@@ -329,7 +329,8 @@ impl WindowManager {
                 }
 
                 if proceed {
-                    let behaviour = self.window_container_behaviour;
+                    let behaviour =
+                        self.window_container_behaviour(focused_monitor_idx, focused_workspace_idx);
                     let workspace = self.focused_workspace_mut()?;
                     let workspace_contains_window = workspace.contains_window(window.hwnd);
                     let monocle_container = workspace.monocle_container().clone();
@@ -399,10 +400,12 @@ impl WindowManager {
                     .monitor_idx_from_current_pos()
                     .ok_or_else(|| anyhow!("cannot get monitor idx from current position"))?;
 
-                let new_window_behaviour = self.window_container_behaviour;
+                let focused_monitor_idx = self.focused_monitor_idx();
+                let focused_workspace_idx = self.focused_workspace_idx().unwrap_or_default();
+                let window_container_behaviour =
+                    self.window_container_behaviour(focused_monitor_idx, focused_workspace_idx);
 
                 let workspace = self.focused_workspace_mut()?;
-
                 let focused_container_idx = workspace.focused_container_idx();
                 let new_position = WindowsApi::window_rect(window.hwnd())?;
                 let old_position = *workspace
@@ -519,7 +522,7 @@ impl WindowManager {
                             // Here we handle a simple move on the same monitor which is treated as
                             // a container swap
                         } else {
-                            match new_window_behaviour {
+                            match window_container_behaviour {
                                 WindowContainerBehaviour::Create => {
                                     match workspace.container_idx_from_current_point() {
                                         Some(target_idx) => {

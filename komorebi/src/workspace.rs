@@ -748,6 +748,9 @@ impl Workspace {
             self.focus_previous_container();
         } else {
             container.load_focused_window();
+            if let Some(window) = container.focused_window() {
+                window.focus(false)?;
+            }
         }
 
         Ok(())
