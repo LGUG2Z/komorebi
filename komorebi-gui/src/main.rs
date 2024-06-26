@@ -218,7 +218,7 @@ extern "system" fn enum_window(
     lparam: windows::Win32::Foundation::LPARAM,
 ) -> windows::Win32::Foundation::BOOL {
     let windows = unsafe { &mut *(lparam.0 as *mut Vec<Window>) };
-    let window = Window { hwnd: hwnd.0 };
+    let window = Window::from(hwnd.0);
 
     if window.is_window()
         && !window.is_miminized()
@@ -246,9 +246,7 @@ impl eframe::App for KomorebiGui {
                 ui.set_width(ctx.screen_rect().width());
                 ui.collapsing("Debugging", |ui| {
                     ui.collapsing("Window Rules", |ui| {
-                        let window = Window {
-                            hwnd: self.debug_hwnd,
-                        };
+                        let window = Window::from(self.debug_hwnd);
 
                         let label = if let (Ok(title), Ok(exe)) = (window.title(), window.exe()) {
                             format!("{title} ({exe})")
