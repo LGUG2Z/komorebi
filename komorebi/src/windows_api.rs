@@ -433,17 +433,14 @@ impl WindowsApi {
     }
 
     pub fn move_window(hwnd: HWND, layout: &Rect, repaint: bool) -> Result<()> {
-        unsafe {
-            MoveWindow(
-                hwnd,
-                layout.left,
-                layout.top,
-                layout.right,
-                layout.bottom,
-                repaint,
-            )
-        }
-        .process()
+        let shadow_rect = Self::shadow_rect(hwnd).unwrap_or_default();
+        let rect = Rect {
+            left: layout.left + shadow_rect.left,
+            top: layout.top + shadow_rect.top,
+            right: layout.right + shadow_rect.right,
+            bottom: layout.bottom + shadow_rect.bottom,
+        };
+        unsafe { MoveWindow(hwnd, rect.left, rect.top, rect.right, rect.bottom, repaint) }.process()
     }
 
     pub fn show_window(hwnd: HWND, command: SHOW_WINDOW_CMD) {
