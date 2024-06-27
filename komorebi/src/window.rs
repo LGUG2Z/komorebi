@@ -169,53 +169,45 @@ impl Window {
         let hwnd = self.hwnd();
         let curr_rect = WindowsApi::window_rect(hwnd).unwrap();
 
-        if curr_rect.left == layout.left
-            && curr_rect.top == layout.top
-            && curr_rect.bottom == layout.bottom
-            && curr_rect.right == layout.right
-        {
-            WindowsApi::position_window(hwnd, layout, top)
-        } else {
-            let target_rect = *layout;
-            let duration = Duration::from_millis(ANIMATION_DURATION.load(Ordering::SeqCst));
-            let mut animation = self.animation;
+        let target_rect = *layout;
+        let duration = Duration::from_millis(ANIMATION_DURATION.load(Ordering::SeqCst));
+        let mut animation = self.animation;
 
-            border_manager::BORDER_TEMPORARILY_DISABLED.store(true, Ordering::SeqCst);
-            border_manager::send_notification();
+        border_manager::BORDER_TEMPORARILY_DISABLED.store(true, Ordering::SeqCst);
+        border_manager::send_notification();
 
-            stackbar_manager::STACKBAR_TEMPORARILY_DISABLED.store(true, Ordering::SeqCst);
-            stackbar_manager::send_notification();
+        stackbar_manager::STACKBAR_TEMPORARILY_DISABLED.store(true, Ordering::SeqCst);
+        stackbar_manager::send_notification();
 
-            std::thread::spawn(move || {
-                animation.animate(duration, |progress: f64| {
-                    let new_rect = Animation::lerp_rect(&curr_rect, &target_rect, progress);
+        std::thread::spawn(move || {
+            animation.animate(duration, |progress: f64| {
+                let new_rect = Animation::lerp_rect(&curr_rect, &target_rect, progress);
 
-                    if progress < 1.0 {
-                        // using MoveWindow because it runs faster than SetWindowPos
-                        // so animation have more fps and feel smoother
-                        WindowsApi::move_window(hwnd, &new_rect, true)?;
-                        WindowsApi::invalidate_rect(hwnd, None, false);
-                    } else {
-                        WindowsApi::position_window(hwnd, &new_rect, top)?;
+                if progress == 1.0 {
+                    WindowsApi::position_window(hwnd, &new_rect, top)?;
 
-                        if ANIMATIONS_IN_PROGRESS.load(Ordering::Acquire) == 0 {
-                            border_manager::BORDER_TEMPORARILY_DISABLED
-                                .store(false, Ordering::SeqCst);
-                            stackbar_manager::STACKBAR_TEMPORARILY_DISABLED
-                                .store(false, Ordering::SeqCst);
+                    if ANIMATIONS_IN_PROGRESS.load(Ordering::Acquire) == 0 {
+                        border_manager::BORDER_TEMPORARILY_DISABLED.store(false, Ordering::SeqCst);
+                        stackbar_manager::STACKBAR_TEMPORARILY_DISABLED
+                            .store(false, Ordering::SeqCst);
 
-                            border_manager::send_notification();
-                            stackbar_manager::send_notification();
-                            transparency_manager::send_notification();
-                        }
+                        border_manager::send_notification();
+                        stackbar_manager::send_notification();
+                        transparency_manager::send_notification();
                     }
+                } else {
+                    // using MoveWindow because it runs faster than SetWindowPos
+                    // so animation have more fps and feel smoother
+                    WindowsApi::move_window(hwnd, &new_rect, false)?;
+                    // WindowsApi::position_window(hwnd, &new_rect, top)?;
+                    WindowsApi::invalidate_rect(hwnd, None, false);
+                }
 
-                    Ok(())
-                })
-            });
+                Ok(())
+            })
+        });
 
-            Ok(())
-        }
+        Ok(())
     }
 
     pub fn set_position(&self, layout: &Rect, top: bool) -> Result<()> {
@@ -223,11 +215,10 @@ impl Window {
             return Ok(());
         }
 
-        let rect = *layout;
         if ANIMATION_ENABLED.load(Ordering::SeqCst) {
-            self.animate_position(&rect, top)
+            self.animate_position(layout, top)
         } else {
-            WindowsApi::position_window(self.hwnd(), &rect, top)
+            WindowsApi::position_window(self.hwnd(), layout, top)
         }
     }
 
