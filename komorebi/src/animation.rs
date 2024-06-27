@@ -437,17 +437,19 @@ impl Animation {
     }
 
     #[allow(clippy::cast_possible_truncation)]
-    pub fn lerp(x: i32, new_x: i32, t: f64) -> i32 {
+    pub fn lerp(start: i32, end: i32, t: f64) -> i32 {
         let time = apply_ease_func(t);
-        f64::from(new_x - x).mul_add(time, f64::from(x)) as i32
+        f64::from(end - start)
+            .mul_add(time, f64::from(start))
+            .round() as i32
     }
 
-    pub fn lerp_rect(original_rect: &Rect, new_rect: &Rect, t: f64) -> Rect {
+    pub fn lerp_rect(start_rect: &Rect, end_rect: &Rect, t: f64) -> Rect {
         Rect {
-            left: Self::lerp(original_rect.left, new_rect.left, t),
-            top: Self::lerp(original_rect.top, new_rect.top, t),
-            right: Self::lerp(original_rect.right, new_rect.right, t),
-            bottom: Self::lerp(original_rect.bottom, new_rect.bottom, t),
+            left: Self::lerp(start_rect.left, end_rect.left, t),
+            top: Self::lerp(start_rect.top, end_rect.top, t),
+            right: Self::lerp(start_rect.right, end_rect.right, t),
+            bottom: Self::lerp(start_rect.bottom, end_rect.bottom, t),
         }
     }
 
@@ -455,7 +457,7 @@ impl Animation {
     pub fn animate(
         &mut self,
         duration: Duration,
-        mut f: impl FnMut(f64) -> Result<()>,
+        mut render_callback: impl FnMut(f64) -> Result<()>,
     ) -> Result<()> {
         if ANIMATION_MANAGER.lock().in_progress(self.hwnd) {
             self.cancel();
@@ -477,14 +479,14 @@ impl Animation {
                 return Ok(());
             }
 
-            let tick_start = Instant::now();
+            let frame_start = Instant::now();
             // calculate progress
             progress = animation_start.elapsed().as_millis() as f64 / duration.as_millis() as f64;
-            f(progress).ok();
+            render_callback(progress).ok();
 
             // sleep until next frame
-            while tick_start.elapsed() < target_frame_time {
-                std::thread::sleep(target_frame_time - tick_start.elapsed());
+            if frame_start.elapsed() < target_frame_time {
+                std::thread::sleep(target_frame_time - frame_start.elapsed());
             }
         }
 
@@ -496,6 +498,6 @@ impl Animation {
         }
 
         // process animation for 1.0 to set target position
-        f(progress)
+        render_callback(progress)
     }
 }
