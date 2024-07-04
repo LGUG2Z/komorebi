@@ -114,6 +114,9 @@ pub struct WorkspaceConfig {
     /// Permanent workspace application rules
     #[serde(skip_serializing_if = "Option::is_none")]
     pub workspace_rules: Option<Vec<IdWithIdentifier>>,
+    /// Apply this monitor's window-based work area offset (default: true)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub apply_window_based_work_area_offset: Option<bool>,
 }
 
 impl From<&Workspace> for WorkspaceConfig {
@@ -196,6 +199,7 @@ impl From<&Workspace> for WorkspaceConfig {
             workspace_padding,
             initial_workspace_rules: initial_ws_rules,
             workspace_rules: ws_rules,
+            apply_window_based_work_area_offset: Some(value.apply_window_based_work_area_offset()),
         }
     }
 }
