@@ -356,7 +356,7 @@ pub enum HidingBehaviour {
     Hide,
     /// Use the SW_MINIMIZE flag to hide windows when switching workspaces (has issues with frequent workspace switching)
     Minimize,
-    /// Use the undocumented SetCloak Win32 function to hide windows when switching workspaces (has foregrounding issues)
+    /// Use the undocumented SetCloak Win32 function to hide windows when switching workspaces
     Cloak,
 }
 
