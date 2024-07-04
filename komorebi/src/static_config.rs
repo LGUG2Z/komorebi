@@ -16,6 +16,7 @@ use crate::stackbar_manager::STACKBAR_TAB_HEIGHT;
 use crate::stackbar_manager::STACKBAR_TAB_WIDTH;
 use crate::stackbar_manager::STACKBAR_UNFOCUSED_TEXT_COLOUR;
 use crate::transparency_manager;
+use crate::window;
 use crate::window_manager::WindowManager;
 use crate::window_manager_event::WindowManagerEvent;
 use crate::windows_api::WindowsApi;
@@ -241,6 +242,12 @@ pub struct StaticConfig {
     /// DEPRECATED from v0.1.22: no longer required
     #[serde(skip_serializing_if = "Option::is_none")]
     pub invisible_borders: Option<Rect>,
+    /// DISCOURAGED: Minimum width for a window to be eligible for tiling
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub minimum_window_width: Option<i32>,
+    /// DISCOURAGED: Minimum height for a window to be eligible for tiling
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub minimum_window_height: Option<i32>,
     /// Delta to resize windows by (default 50)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub resize_delta: Option<i32>,
@@ -489,6 +496,8 @@ impl From<&WindowManager> for StaticConfig {
             unmanaged_window_operation_behaviour: Option::from(
                 value.unmanaged_window_operation_behaviour,
             ),
+            minimum_window_height: Some(window::MINIMUM_HEIGHT.load(Ordering::SeqCst)),
+            minimum_window_width: Some(window::MINIMUM_WIDTH.load(Ordering::SeqCst)),
             focus_follows_mouse: value.focus_follows_mouse,
             mouse_follows_focus: Option::from(value.mouse_follows_focus),
             app_specific_configuration_path: None,
@@ -543,6 +552,14 @@ impl StaticConfig {
         if let Some(behaviour) = self.window_hiding_behaviour {
             let mut window_hiding_behaviour = HIDING_BEHAVIOUR.lock();
             *window_hiding_behaviour = behaviour;
+        }
+
+        if let Some(height) = self.minimum_window_height {
+            window::MINIMUM_HEIGHT.store(height, Ordering::SeqCst);
+        }
+
+        if let Some(width) = self.minimum_window_width {
+            window::MINIMUM_WIDTH.store(width, Ordering::SeqCst);
         }
 
         if let Some(container) = self.default_container_padding {
