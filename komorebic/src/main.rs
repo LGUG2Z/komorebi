@@ -99,6 +99,8 @@ lazy_static! {
     };
 }
 
+shadow_rs::shadow!(build);
+
 #[derive(thiserror::Error, Debug, miette::Diagnostic)]
 #[error("{message}")]
 #[diagnostic(code(komorebi::configuration), help("try fixing this syntax error"))]
@@ -815,7 +817,7 @@ struct EnableAutostart {
 }
 
 #[derive(Parser)]
-#[clap(author, about, version)]
+#[clap(author, about, version = build::CLAP_LONG_VERSION)]
 struct Opts {
     #[clap(subcommand)]
     subcmd: SubCommand,

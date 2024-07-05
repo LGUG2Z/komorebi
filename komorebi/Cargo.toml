@@ -48,6 +48,10 @@ windows-implement = { workspace = true }
 windows-interface = { workspace = true }
 winput = "0.2"
 winreg = "0.52"
+shadow-rs = { workspace = true }
+
+[build-dependencies]
+shadow-rs = { workspace = true }
 
 [features]
 deadlock_detection = ["parking_lot/deadlock_detection"]

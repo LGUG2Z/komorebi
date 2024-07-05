@@ -34,6 +34,8 @@ uds_windows = "1"
 which = "6"
 win32-display-data = { workspace = true }
 windows = { workspace = true }
+shadow-rs = { workspace = true }
 
 [build-dependencies]
 reqwest = { version = "0.12", features = ["blocking"] }
+shadow-rs = { workspace = true }

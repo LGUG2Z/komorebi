@@ -5,4 +5,6 @@ fn main() {
     ).unwrap().text().unwrap();
         std::fs::write("applications.yaml", applications_yaml).unwrap();
     }
+
+    shadow_rs::new().unwrap();
 }
