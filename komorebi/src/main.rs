@@ -45,6 +45,8 @@ use komorebi::HOME_DIR;
 use komorebi::INITIAL_CONFIGURATION_LOADED;
 use komorebi::SESSION_ID;
 
+shadow_rs::shadow!(build);
+
 fn setup() -> Result<(WorkerGuard, WorkerGuard)> {
     if std::env::var("RUST_LIB_BACKTRACE").is_err() {
         std::env::set_var("RUST_LIB_BACKTRACE", "1");
@@ -132,7 +134,7 @@ fn detect_deadlocks() {
 }
 
 #[derive(Parser)]
-#[clap(author, about, version)]
+#[clap(author, about, version = build::CLAP_LONG_VERSION)]
 struct Opts {
     /// Allow the use of komorebi's custom focus-follows-mouse implementation
     #[clap(short, long = "ffm")]

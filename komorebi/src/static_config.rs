@@ -16,6 +16,7 @@ use crate::stackbar_manager::STACKBAR_TAB_HEIGHT;
 use crate::stackbar_manager::STACKBAR_TAB_WIDTH;
 use crate::stackbar_manager::STACKBAR_UNFOCUSED_TEXT_COLOUR;
 use crate::transparency_manager;
+use crate::window;
 use crate::window_manager::WindowManager;
 use crate::window_manager_event::WindowManagerEvent;
 use crate::windows_api::WindowsApi;
@@ -114,6 +115,9 @@ pub struct WorkspaceConfig {
     /// Permanent workspace application rules
     #[serde(skip_serializing_if = "Option::is_none")]
     pub workspace_rules: Option<Vec<IdWithIdentifier>>,
+    /// Apply this monitor's window-based work area offset (default: true)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub apply_window_based_work_area_offset: Option<bool>,
 }
 
 impl From<&Workspace> for WorkspaceConfig {
@@ -196,6 +200,7 @@ impl From<&Workspace> for WorkspaceConfig {
             workspace_padding,
             initial_workspace_rules: initial_ws_rules,
             workspace_rules: ws_rules,
+            apply_window_based_work_area_offset: Some(value.apply_window_based_work_area_offset()),
         }
     }
 }
@@ -237,6 +242,12 @@ pub struct StaticConfig {
     /// DEPRECATED from v0.1.22: no longer required
     #[serde(skip_serializing_if = "Option::is_none")]
     pub invisible_borders: Option<Rect>,
+    /// DISCOURAGED: Minimum width for a window to be eligible for tiling
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub minimum_window_width: Option<i32>,
+    /// DISCOURAGED: Minimum height for a window to be eligible for tiling
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub minimum_window_height: Option<i32>,
     /// Delta to resize windows by (default 50)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub resize_delta: Option<i32>,
@@ -299,7 +310,7 @@ pub struct StaticConfig {
     /// Monitor and workspace configurations
     #[serde(skip_serializing_if = "Option::is_none")]
     pub monitors: Option<Vec<MonitorConfig>>,
-    /// Which Windows signal to use when hiding windows (default: minimize)
+    /// Which Windows signal to use when hiding windows (default: Cloak)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub window_hiding_behaviour: Option<HidingBehaviour>,
     /// Global work area (space used for tiling) offset (default: None)
@@ -366,11 +377,23 @@ impl StaticConfig {
     }
 
     pub fn deprecated(raw: &str) {
-        let deprecated = ["invisible_borders"];
+        let deprecated_options = ["invisible_borders"];
+        let deprecated_variants = vec![
+            ("Hide", "window_hiding_behaviour", "Cloak"),
+            ("Minimize", "window_hiding_behaviour", "Cloak"),
+        ];
 
-        for option in deprecated {
+        for option in deprecated_options {
             if raw.contains(option) {
                 println!(r#""{option}" is deprecated and can be removed"#);
+            }
+        }
+
+        for (variant, option, recommended) in deprecated_variants {
+            if raw.contains(option) && raw.contains(variant) {
+                println!(
+                    r#"The "{variant}" option for "{option}" is deprecated and can be removed or replaced with "{recommended}""#
+                );
             }
         }
     }
@@ -473,6 +496,8 @@ impl From<&WindowManager> for StaticConfig {
             unmanaged_window_operation_behaviour: Option::from(
                 value.unmanaged_window_operation_behaviour,
             ),
+            minimum_window_height: Some(window::MINIMUM_HEIGHT.load(Ordering::SeqCst)),
+            minimum_window_width: Some(window::MINIMUM_WIDTH.load(Ordering::SeqCst)),
             focus_follows_mouse: value.focus_follows_mouse,
             mouse_follows_focus: Option::from(value.mouse_follows_focus),
             app_specific_configuration_path: None,
@@ -527,6 +552,14 @@ impl StaticConfig {
         if let Some(behaviour) = self.window_hiding_behaviour {
             let mut window_hiding_behaviour = HIDING_BEHAVIOUR.lock();
             *window_hiding_behaviour = behaviour;
+        }
+
+        if let Some(height) = self.minimum_window_height {
+            window::MINIMUM_HEIGHT.store(height, Ordering::SeqCst);
+        }
+
+        if let Some(width) = self.minimum_window_width {
+            window::MINIMUM_WIDTH.store(width, Ordering::SeqCst);
         }
 
         if let Some(container) = self.default_container_padding {

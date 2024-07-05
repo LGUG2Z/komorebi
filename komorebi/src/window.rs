@@ -4,6 +4,8 @@ use std::convert::TryFrom;
 use std::fmt::Display;
 use std::fmt::Formatter;
 use std::fmt::Write as _;
+use std::sync::atomic::AtomicI32;
+use std::sync::atomic::Ordering;
 use std::time::Duration;
 
 use color_eyre::eyre;
@@ -38,6 +40,9 @@ use crate::NO_TITLEBAR;
 use crate::PERMAIGNORE_CLASSES;
 use crate::REGEX_IDENTIFIERS;
 use crate::WSL2_UI_PROCESSES;
+
+pub static MINIMUM_WIDTH: AtomicI32 = AtomicI32::new(0);
+pub static MINIMUM_HEIGHT: AtomicI32 = AtomicI32::new(0);
 
 #[derive(Debug, Default, Clone, Copy, Deserialize, JsonSchema, PartialEq)]
 pub struct Window {
@@ -360,6 +365,20 @@ impl Window {
 
         debug.is_window = true;
 
+        let rect = WindowsApi::window_rect(self.hwnd()).unwrap_or_default();
+
+        if rect.right < MINIMUM_WIDTH.load(Ordering::SeqCst) {
+            return Ok(false);
+        }
+
+        debug.has_minimum_width = true;
+
+        if rect.bottom < MINIMUM_HEIGHT.load(Ordering::SeqCst) {
+            return Ok(false);
+        }
+
+        debug.has_minimum_height = true;
+
         if self.title().is_err() {
             return Ok(false);
         }
@@ -416,6 +435,8 @@ impl Window {
 pub struct RuleDebug {
     pub should_manage: bool,
     pub is_window: bool,
+    pub has_minimum_width: bool,
+    pub has_minimum_height: bool,
     pub has_title: bool,
     pub is_cloaked: bool,
     pub allow_cloaked: bool,

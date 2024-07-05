@@ -14,14 +14,16 @@ on:
     tags:
       - v*
   schedule:
-    - cron: "30 0 * * 1" # Every Monday at half past midnight UTC
+    - cron: "30 0 * * 0" # Every day at 00:30 UTC
 
 jobs:
   build:
     name: Build
     runs-on: windows-latest
+    permissions: write-all
     env:
       RUSTFLAGS: -Ctarget-feature=+crt-static
+      GH_TOKEN: ${{ github.token }}
     strategy:
       fail-fast: false
       matrix:
@@ -96,15 +98,36 @@ jobs:
             target/${{ matrix.target }}/release/komorebi-gui.exe
             target/${{ matrix.target }}/release/komorebi.pdb
             target/${{ matrix.target }}/release/komorebic.pdb
-            target/${{ matrix.target }}/release/komorebi-gui.pdb
+            target/${{ matrix.target }}/release/komorebi_gui.pdb
             target/wix/komorebi-*.msi
           retention-days: 7
       - name: Check GoReleaser
         uses: goreleaser/goreleaser-action@v3
+        env:
+          GORELEASER_CURRENT_TAG: v0.1.28
         with:
           version: latest
           args: build --skip=validate --clean
-
+      - name: Prepare nightly artifacts
+        if: ${{ github.ref == 'refs/heads/master' && github.event_name == 'schedule' }}
+        run: |
+          Compress-Archive .\target\${{ matrix.target }}\release\*.exe komorebi-nightly-x86_64-pc-windows-msvc.zip
+          Copy-Item ./target/wix/*.msi -Destination ./komorebi-nightly-x86_64.msi
+          echo "$((Get-FileHash komorebi-nightly-x86_64-pc-windows-msvc.zip).Hash.ToLower())  komorebi-nightly-x86_64-pc-windows-msvc.zip" >checksums.txt
+      - name: Update nightly
+        if: ${{ github.ref == 'refs/heads/master' && github.event_name == 'schedule' }}
+        shell: bash
+        run: |
+          gh release delete nightly --yes || true
+          git push origin :nightly || true
+          gh release create nightly \
+            --target $GITHUB_SHA \
+            --prerelease \
+            --title "komorebi nightly (${GITHUB_SHA})" \
+            --notes "This nightly release of komorebi corresponds to [this commit](https://github.com/LGUG2Z/komorebi/commit/${GITHUB_SHA})." \
+            komorebi-nightly-x86_64-pc-windows-msvc.zip \
+            komorebi-nightly-x86_64.msi \
+            checksums.txt
       # Release
       - name: Generate changelog
         if: startsWith(github.ref, 'refs/tags/v')
