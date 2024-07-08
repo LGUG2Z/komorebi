@@ -34,7 +34,7 @@ fn main() {
     let _ = eframe::run_native(
         "komorebi-gui",
         native_options,
-        Box::new(|cc| Box::new(KomorebiGui::new(cc))),
+        Box::new(|cc| Ok(Box::new(KomorebiGui::new(cc)))),
     );
 }
 
