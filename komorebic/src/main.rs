@@ -632,6 +632,20 @@ struct NamedWorkspaceRule {
 }
 
 #[derive(Parser)]
+struct ClearWorkspaceRules {
+    /// Monitor index (zero-indexed)
+    monitor: usize,
+    /// Workspace index on the specified monitor (zero-indexed)
+    workspace: usize,
+}
+
+#[derive(Parser)]
+struct ClearNamedWorkspaceRules {
+    /// Name of a workspace
+    workspace: String,
+}
+
+#[derive(Parser)]
 struct ToggleFocusFollowsMouse {
     #[clap(value_enum, short, long, default_value = "windows")]
     implementation: FocusFollowsMouseImplementation,
@@ -1157,6 +1171,14 @@ enum SubCommand {
     /// Add a rule to associate an application with a named workspace
     #[clap(arg_required_else_help = true)]
     NamedWorkspaceRule(NamedWorkspaceRule),
+    /// Remove all application association rules for a workspace by monitor and workspace index
+    #[clap(arg_required_else_help = true)]
+    ClearWorkspaceRules(ClearWorkspaceRules),
+    /// Remove all application association rules for a named workspace
+    #[clap(arg_required_else_help = true)]
+    ClearNamedWorkspaceRules(ClearNamedWorkspaceRules),
+    /// Remove all application association rules for all workspaces
+    ClearAllWorkspaceRules,
     /// Identify an application that sends EVENT_OBJECT_NAMECHANGE on launch
     #[clap(arg_required_else_help = true)]
     IdentifyObjectNameChangeApplication(IdentifyObjectNameChangeApplication),
@@ -2062,6 +2084,17 @@ Stop-Process -Name:komorebi -ErrorAction SilentlyContinue
                 &SocketMessage::NamedWorkspaceRule(arg.identifier, arg.id, arg.workspace)
                     .as_bytes()?,
             )?;
+        }
+        SubCommand::ClearWorkspaceRules(arg) => {
+            send_message(
+                &SocketMessage::ClearWorkspaceRules(arg.monitor, arg.workspace).as_bytes()?,
+            )?;
+        }
+        SubCommand::ClearNamedWorkspaceRules(arg) => {
+            send_message(&SocketMessage::ClearNamedWorkspaceRules(arg.workspace).as_bytes()?)?;
+        }
+        SubCommand::ClearAllWorkspaceRules => {
+            send_message(&SocketMessage::ClearAllWorkspaceRules.as_bytes()?)?;
         }
         SubCommand::Stack(arg) => {
             send_message(&SocketMessage::StackWindow(arg.operation_direction).as_bytes()?)?;

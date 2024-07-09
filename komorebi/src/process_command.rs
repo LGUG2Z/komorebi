@@ -277,6 +277,40 @@ impl WindowManager {
                     self.handle_definitive_workspace_rules(id, monitor_idx, workspace_idx)?;
                 }
             }
+            SocketMessage::ClearWorkspaceRules(monitor_idx, workspace_idx) => {
+                let mut workspace_rules = WORKSPACE_RULES.lock();
+                let mut to_remove = vec![];
+                for (id, (m_idx, w_idx, _)) in workspace_rules.iter() {
+                    if monitor_idx == *m_idx && workspace_idx == *w_idx {
+                        to_remove.push(id.clone());
+                    }
+                }
+
+                for rule in to_remove {
+                    workspace_rules.remove(&rule);
+                }
+            }
+            SocketMessage::ClearNamedWorkspaceRules(ref workspace) => {
+                if let Some((monitor_idx, workspace_idx)) =
+                    self.monitor_workspace_index_by_name(workspace)
+                {
+                    let mut workspace_rules = WORKSPACE_RULES.lock();
+                    let mut to_remove = vec![];
+                    for (id, (m_idx, w_idx, _)) in workspace_rules.iter() {
+                        if monitor_idx == *m_idx && workspace_idx == *w_idx {
+                            to_remove.push(id.clone());
+                        }
+                    }
+
+                    for rule in to_remove {
+                        workspace_rules.remove(&rule);
+                    }
+                }
+            }
+            SocketMessage::ClearAllWorkspaceRules => {
+                let mut workspace_rules = WORKSPACE_RULES.lock();
+                workspace_rules.clear();
+            }
             SocketMessage::ManageRule(identifier, ref id) => {
                 let mut manage_identifiers = MANAGE_IDENTIFIERS.lock();
 
