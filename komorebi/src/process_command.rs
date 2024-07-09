@@ -72,6 +72,7 @@ use crate::SUBSCRIPTION_PIPES;
 use crate::SUBSCRIPTION_SOCKETS;
 use crate::TCP_CONNECTIONS;
 use crate::TRAY_AND_MULTI_WINDOW_IDENTIFIERS;
+use crate::WINDOWS_11;
 use crate::WORKSPACE_RULES;
 use stackbar_manager::STACKBAR_FOCUSED_TEXT_COLOUR;
 use stackbar_manager::STACKBAR_LABEL;
@@ -1281,17 +1282,23 @@ impl WindowManager {
                 border_manager::BORDER_ENABLED.store(enable, Ordering::SeqCst);
             }
             SocketMessage::BorderImplementation(implementation) => {
-                IMPLEMENTATION.store(implementation);
-                match IMPLEMENTATION.load() {
-                    BorderImplementation::Komorebi => {
-                        self.remove_all_accents()?;
+                if !*WINDOWS_11 && matches!(implementation, BorderImplementation::Windows) {
+                    tracing::error!(
+                        "BorderImplementation::Windows is only supported on Windows 11 and above"
+                    );
+                } else {
+                    IMPLEMENTATION.store(implementation);
+                    match IMPLEMENTATION.load() {
+                        BorderImplementation::Komorebi => {
+                            self.remove_all_accents()?;
+                        }
+                        BorderImplementation::Windows => {
+                            border_manager::destroy_all_borders()?;
+                        }
                     }
-                    BorderImplementation::Windows => {
-                        border_manager::destroy_all_borders()?;
-                    }
-                }
 
-                border_manager::send_notification();
+                    border_manager::send_notification();
+                }
             }
             SocketMessage::BorderColour(kind, r, g, b) => match kind {
                 WindowKind::Single => {
