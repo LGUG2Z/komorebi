@@ -531,6 +531,23 @@ impl WindowManager {
 
         // Parse the operation and remove any windows that are not placed according to their rules
         for op in &to_move {
+            let mut test: bool = false;
+            'outer: for (i, m) in self.monitors().iter().enumerate() {
+                for (j, w) in m.workspaces().iter().enumerate() {
+                    if focused_workspace_idx != j && focused_monitor_idx != i {
+                        if w.contains_managed_window(op.hwnd) {
+                            test = true;
+                            break 'outer;
+                        }
+                    }
+                }
+            }
+
+            if !test {
+                Window::from(op.hwnd).hide();
+                should_update_focused_workspace = true;
+            }
+
             let origin_workspace = self
                 .monitors_mut()
                 .get_mut(op.origin_monitor_idx)
