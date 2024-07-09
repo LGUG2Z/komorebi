@@ -33,6 +33,7 @@ use crate::MONITOR_INDEX_PREFERENCES;
 use crate::OBJECT_NAME_CHANGE_ON_LAUNCH;
 use crate::REGEX_IDENTIFIERS;
 use crate::TRAY_AND_MULTI_WINDOW_IDENTIFIERS;
+use crate::WINDOWS_11;
 use crate::WORKSPACE_RULES;
 use komorebi_core::BorderImplementation;
 use komorebi_core::StackbarLabel;
@@ -596,17 +597,29 @@ impl StaticConfig {
         }
 
         STYLE.store(self.border_style.unwrap_or_default());
-        IMPLEMENTATION.store(self.border_implementation.unwrap_or_default());
-        match IMPLEMENTATION.load() {
-            BorderImplementation::Komorebi => {
-                border_manager::destroy_all_borders()?;
-            }
-            BorderImplementation::Windows => {
-                // TODO: figure out how to call wm.remove_all_accents here
-            }
-        }
 
-        border_manager::send_notification();
+        if !*WINDOWS_11
+            && matches!(
+                self.border_implementation.unwrap_or_default(),
+                BorderImplementation::Windows
+            )
+        {
+            tracing::error!(
+                "BorderImplementation::Windows is only supported on Windows 11 and above"
+            );
+        } else {
+            IMPLEMENTATION.store(self.border_implementation.unwrap_or_default());
+            match IMPLEMENTATION.load() {
+                BorderImplementation::Komorebi => {
+                    border_manager::destroy_all_borders()?;
+                }
+                BorderImplementation::Windows => {
+                    // TODO: figure out how to call wm.remove_all_accents here
+                }
+            }
+
+            border_manager::send_notification();
+        }
 
         transparency_manager::TRANSPARENCY_ENABLED
             .store(self.transparency.unwrap_or(false), Ordering::SeqCst);
