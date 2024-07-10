@@ -439,6 +439,8 @@ impl From<&WindowManager> for StaticConfig {
         }
 
         let mut to_remove = vec![];
+        let mut to_add_initial = vec![];
+        let mut to_add_persistent = vec![];
 
         let workspace_rules = WORKSPACE_RULES.lock();
         for (m_idx, m) in monitors.iter().enumerate() {
@@ -455,6 +457,12 @@ impl From<&WindowManager> for StaticConfig {
                     }
                 }
 
+                for (identifier, (monitor_idx, workspace_idx, initial)) in &*workspace_rules {
+                    if *initial && (*monitor_idx == m_idx && *workspace_idx == w_idx) {
+                        to_add_initial.push((m_idx, w_idx, identifier.clone()));
+                    }
+                }
+
                 if let Some(rules) = &w.workspace_rules {
                     for wsr in rules {
                         for (identifier, (monitor_idx, workspace_idx, _)) in &*workspace_rules {
@@ -466,18 +474,54 @@ impl From<&WindowManager> for StaticConfig {
                         }
                     }
                 }
+
+                for (identifier, (monitor_idx, workspace_idx, initial)) in &*workspace_rules {
+                    if !*initial && (*monitor_idx == m_idx && *workspace_idx == w_idx) {
+                        to_add_persistent.push((m_idx, w_idx, identifier.clone()));
+                    }
+                }
             }
         }
 
         for (m_idx, w_idx, id) in to_remove {
             if let Some(monitor) = monitors.get_mut(m_idx) {
                 if let Some(workspace) = monitor.workspaces.get_mut(w_idx) {
+                    if workspace.workspace_rules.is_none() {
+                        workspace.workspace_rules = Some(vec![]);
+                    }
+
                     if let Some(rules) = &mut workspace.workspace_rules {
                         rules.retain(|r| r.id != id);
+                        for (monitor_idx, workspace_idx, id) in &to_add_persistent {
+                            if m_idx == *monitor_idx && w_idx == *workspace_idx {
+                                rules.push(IdWithIdentifier {
+                                    kind: ApplicationIdentifier::Exe,
+                                    id: id.clone(),
+                                    matching_strategy: None,
+                                })
+                            }
+                        }
+
+                        rules.dedup();
+                    }
+
+                    if workspace.initial_workspace_rules.is_none() {
+                        workspace.workspace_rules = Some(vec![]);
                     }
 
                     if let Some(rules) = &mut workspace.initial_workspace_rules {
                         rules.retain(|r| r.id != id);
+                        for (monitor_idx, workspace_idx, id) in &to_add_initial {
+                            if m_idx == *monitor_idx && w_idx == *workspace_idx {
+                                rules.push(IdWithIdentifier {
+                                    kind: ApplicationIdentifier::Exe,
+                                    id: id.clone(),
+                                    matching_strategy: None,
+                                })
+                            }
+                        }
+
+                        rules.dedup();
                     }
                 }
             }
