@@ -21,6 +21,7 @@ use std::sync::Arc;
 use std::sync::OnceLock;
 use windows::Win32::Foundation::HWND;
 
+pub static STACKBAR_FONT_SIZE: AtomicI32 = AtomicI32::new(0); // 0 will produce the system default
 pub static STACKBAR_FOCUSED_TEXT_COLOUR: AtomicU32 = AtomicU32::new(16777215); // white
 pub static STACKBAR_UNFOCUSED_TEXT_COLOUR: AtomicU32 = AtomicU32::new(11776947); // gray text
 pub static STACKBAR_TAB_BACKGROUND_COLOUR: AtomicU32 = AtomicU32::new(3355443); // gray
@@ -31,6 +32,7 @@ pub static STACKBAR_MODE: AtomicCell<StackbarMode> = AtomicCell::new(StackbarMod
 
 lazy_static! {
     pub static ref STACKBAR_STATE: Mutex<HashMap<String, Stackbar>> = Mutex::new(HashMap::new());
+    pub static ref STACKBAR_FONT_FAMILY: Mutex<Option<String>> = Mutex::new(None);
     static ref STACKBARS_MONITORS: Mutex<HashMap<String, usize>> = Mutex::new(HashMap::new());
     static ref STACKBARS_CONTAINERS: Mutex<HashMap<isize, Container>> = Mutex::new(HashMap::new());
 }

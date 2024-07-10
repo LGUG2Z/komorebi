@@ -9,6 +9,8 @@ use crate::monitor::Monitor;
 use crate::monitor_reconciliator;
 use crate::ring::Ring;
 use crate::stackbar_manager::STACKBAR_FOCUSED_TEXT_COLOUR;
+use crate::stackbar_manager::STACKBAR_FONT_FAMILY;
+use crate::stackbar_manager::STACKBAR_FONT_SIZE;
 use crate::stackbar_manager::STACKBAR_LABEL;
 use crate::stackbar_manager::STACKBAR_MODE;
 use crate::stackbar_manager::STACKBAR_TAB_BACKGROUND_COLOUR;
@@ -410,7 +412,12 @@ pub struct TabsConfig {
     unfocused_text: Option<Colour>,
     /// Tab background colour
     background: Option<Colour>,
+    /// Font family
+    font_family: Option<String>,
+    /// Font size
+    font_size: Option<i32>,
 }
+
 #[derive(Debug, Serialize, Deserialize, JsonSchema)]
 pub struct StackbarConfig {
     /// Stackbar height
@@ -674,6 +681,7 @@ impl StaticConfig {
                 STACKBAR_MODE.store(*mode);
             }
 
+            #[allow(clippy::assigning_clones)]
             if let Some(tabs) = &stackbar.tabs {
                 if let Some(background) = &tabs.background {
                     STACKBAR_TAB_BACKGROUND_COLOUR.store((*background).into(), Ordering::SeqCst);
@@ -690,6 +698,9 @@ impl StaticConfig {
                 if let Some(width) = &tabs.width {
                     STACKBAR_TAB_WIDTH.store(*width, Ordering::SeqCst);
                 }
+
+                STACKBAR_FONT_SIZE.store(tabs.font_size.unwrap_or(0), Ordering::SeqCst);
+                *STACKBAR_FONT_FAMILY.lock() = tabs.font_family.clone();
             }
         }
 

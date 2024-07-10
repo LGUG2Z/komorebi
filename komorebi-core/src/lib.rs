@@ -153,6 +153,8 @@ pub enum SocketMessage {
     StackbarBackgroundColour(u32, u32, u32),
     StackbarHeight(i32),
     StackbarTabWidth(i32),
+    StackbarFontSize(i32),
+    StackbarFontFamily(Option<String>),
     WorkAreaOffset(Rect),
     MonitorWorkAreaOffset(usize, Rect),
     ResizeDelta(i32),

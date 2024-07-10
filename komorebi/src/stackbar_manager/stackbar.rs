@@ -4,6 +4,8 @@ use crate::border_manager::STYLE;
 use crate::container::Container;
 use crate::stackbar_manager::STACKBARS_CONTAINERS;
 use crate::stackbar_manager::STACKBAR_FOCUSED_TEXT_COLOUR;
+use crate::stackbar_manager::STACKBAR_FONT_FAMILY;
+use crate::stackbar_manager::STACKBAR_FONT_SIZE;
 use crate::stackbar_manager::STACKBAR_LABEL;
 use crate::stackbar_manager::STACKBAR_TAB_BACKGROUND_COLOUR;
 use crate::stackbar_manager::STACKBAR_TAB_HEIGHT;
@@ -16,6 +18,8 @@ use crossbeam_utils::atomic::AtomicConsume;
 use komorebi_core::BorderStyle;
 use komorebi_core::Rect;
 use komorebi_core::StackbarLabel;
+use std::os::windows::ffi::OsStrExt;
+use std::sync::atomic::Ordering;
 use std::sync::mpsc;
 use std::time::Duration;
 use windows::core::PCWSTR;
@@ -30,6 +34,7 @@ use windows::Win32::Graphics::Gdi::CreateSolidBrush;
 use windows::Win32::Graphics::Gdi::DeleteObject;
 use windows::Win32::Graphics::Gdi::DrawTextW;
 use windows::Win32::Graphics::Gdi::GetDC;
+use windows::Win32::Graphics::Gdi::GetDeviceCaps;
 use windows::Win32::Graphics::Gdi::Rectangle;
 use windows::Win32::Graphics::Gdi::ReleaseDC;
 use windows::Win32::Graphics::Gdi::RoundRect;
@@ -43,8 +48,10 @@ use windows::Win32::Graphics::Gdi::DT_VCENTER;
 use windows::Win32::Graphics::Gdi::FONT_QUALITY;
 use windows::Win32::Graphics::Gdi::FW_BOLD;
 use windows::Win32::Graphics::Gdi::LOGFONTW;
+use windows::Win32::Graphics::Gdi::LOGPIXELSY;
 use windows::Win32::Graphics::Gdi::PROOF_QUALITY;
 use windows::Win32::Graphics::Gdi::PS_SOLID;
+use windows::Win32::System::WindowsProgramming::MulDiv;
 use windows::Win32::UI::WindowsAndMessaging::CreateWindowExW;
 use windows::Win32::UI::WindowsAndMessaging::DefWindowProcW;
 use windows::Win32::UI::WindowsAndMessaging::DispatchMessageW;
@@ -181,11 +188,29 @@ impl Stackbar {
             SelectObject(hdc, hbrush);
             SetBkColor(hdc, COLORREF(background));
 
-            let hfont = CreateFontIndirectW(&LOGFONTW {
+            let mut logfont = LOGFONTW {
                 lfWeight: FW_BOLD.0 as i32,
                 lfQuality: FONT_QUALITY(PROOF_QUALITY.0),
+                lfFaceName: [0; 32],
                 ..Default::default()
-            });
+            };
+
+            if let Some(font_name) = &*STACKBAR_FONT_FAMILY.lock() {
+                let font = wide_string(font_name);
+                for (i, &c) in font.iter().enumerate() {
+                    logfont.lfFaceName[i] = c;
+                }
+            }
+
+            let logical_height = -MulDiv(
+                STACKBAR_FONT_SIZE.load(Ordering::SeqCst),
+                72,
+                GetDeviceCaps(hdc, LOGPIXELSY),
+            );
+
+            logfont.lfHeight = logical_height;
+
+            let hfont = CreateFontIndirectW(&logfont);
 
             SelectObject(hdc, hfont);
 
@@ -335,4 +360,11 @@ impl Stackbar {
             }
         }
     }
+}
+
+fn wide_string(s: &str) -> Vec<u16> {
+    std::ffi::OsStr::new(s)
+        .encode_wide()
+        .chain(std::iter::once(0))
+        .collect()
 }

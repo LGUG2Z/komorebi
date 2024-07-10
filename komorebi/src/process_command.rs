@@ -46,6 +46,8 @@ use crate::colour::Rgb;
 use crate::current_virtual_desktop;
 use crate::notify_subscribers;
 use crate::stackbar_manager;
+use crate::stackbar_manager::STACKBAR_FONT_FAMILY;
+use crate::stackbar_manager::STACKBAR_FONT_SIZE;
 use crate::static_config::StaticConfig;
 use crate::transparency_manager;
 use crate::window::RuleDebug;
@@ -1349,6 +1351,13 @@ impl WindowManager {
             }
             SocketMessage::StackbarTabWidth(width) => {
                 STACKBAR_TAB_WIDTH.store(width, Ordering::SeqCst);
+            }
+            SocketMessage::StackbarFontSize(size) => {
+                STACKBAR_FONT_SIZE.store(size, Ordering::SeqCst);
+            }
+            #[allow(clippy::assigning_clones)]
+            SocketMessage::StackbarFontFamily(ref font_family) => {
+                *STACKBAR_FONT_FAMILY.lock() = font_family.clone();
             }
             SocketMessage::ApplicationSpecificConfigurationSchema => {
                 let asc = schema_for!(Vec<ApplicationConfiguration>);
