@@ -50,7 +50,8 @@
             },
             {
               "description": "Colour represented as Hex",
-              "type": "string"
+              "type": "string",
+              "format": "color-hex"
             }
           ]
         },
@@ -88,7 +89,8 @@
             },
             {
               "description": "Colour represented as Hex",
-              "type": "string"
+              "type": "string",
+              "format": "color-hex"
             }
           ]
         },
@@ -126,7 +128,8 @@
             },
             {
               "description": "Colour represented as Hex",
-              "type": "string"
+              "type": "string",
+              "format": "color-hex"
             }
           ]
         },
@@ -164,7 +167,8 @@
             },
             {
               "description": "Colour represented as Hex",
-              "type": "string"
+              "type": "string",
+              "format": "color-hex"
             }
           ]
         }
@@ -1094,7 +1098,8 @@
                 },
                 {
                   "description": "Colour represented as Hex",
-                  "type": "string"
+                  "type": "string",
+                  "format": "color-hex"
                 }
               ]
             },
@@ -1132,7 +1137,8 @@
                 },
                 {
                   "description": "Colour represented as Hex",
-                  "type": "string"
+                  "type": "string",
+                  "format": "color-hex"
                 }
               ]
             },
@@ -1170,7 +1176,8 @@
                 },
                 {
                   "description": "Colour represented as Hex",
-                  "type": "string"
+                  "type": "string",
+                  "format": "color-hex"
                 }
               ]
             },
