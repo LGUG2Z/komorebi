@@ -15,12 +15,15 @@ use lazy_static::lazy_static;
 use parking_lot::Mutex;
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
+use std::sync::atomic::AtomicBool;
 use std::sync::atomic::AtomicI32;
 use std::sync::atomic::AtomicU32;
+use std::sync::atomic::Ordering;
 use std::sync::Arc;
 use std::sync::OnceLock;
 use windows::Win32::Foundation::HWND;
 
+pub static STACKBAR_FONT_SIZE: AtomicI32 = AtomicI32::new(0); // 0 will produce the system default
 pub static STACKBAR_FOCUSED_TEXT_COLOUR: AtomicU32 = AtomicU32::new(16777215); // white
 pub static STACKBAR_UNFOCUSED_TEXT_COLOUR: AtomicU32 = AtomicU32::new(11776947); // gray text
 pub static STACKBAR_TAB_BACKGROUND_COLOUR: AtomicU32 = AtomicU32::new(3355443); // gray
@@ -29,8 +32,11 @@ pub static STACKBAR_TAB_WIDTH: AtomicI32 = AtomicI32::new(200);
 pub static STACKBAR_LABEL: AtomicCell<StackbarLabel> = AtomicCell::new(StackbarLabel::Process);
 pub static STACKBAR_MODE: AtomicCell<StackbarMode> = AtomicCell::new(StackbarMode::OnStack);
 
+pub static STACKBAR_TEMPORARILY_DISABLED: AtomicBool = AtomicBool::new(false);
+
 lazy_static! {
     pub static ref STACKBAR_STATE: Mutex<HashMap<String, Stackbar>> = Mutex::new(HashMap::new());
+    pub static ref STACKBAR_FONT_FAMILY: Mutex<Option<String>> = Mutex::new(None);
     static ref STACKBARS_MONITORS: Mutex<HashMap<String, usize>> = Mutex::new(HashMap::new());
     static ref STACKBARS_CONTAINERS: Mutex<HashMap<isize, Container>> = Mutex::new(HashMap::new());
 }
@@ -91,7 +97,9 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
         let mut state = wm.lock();
 
         // If stackbars are disabled
-        if matches!(STACKBAR_MODE.load(), StackbarMode::Never) {
+        if matches!(STACKBAR_MODE.load(), StackbarMode::Never)
+            || STACKBAR_TEMPORARILY_DISABLED.load(Ordering::SeqCst)
+        {
             for (_, stackbar) in stackbars.iter() {
                 stackbar.destroy()?;
             }

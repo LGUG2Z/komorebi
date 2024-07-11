@@ -614,7 +614,7 @@ impl WindowManager {
         };
 
         // If we unmanaged a window, it shouldn't be immediately hidden behind managed windows
-        if let WindowManagerEvent::Unmanage(window) = event {
+        if let WindowManagerEvent::Unmanage(mut window) = event {
             window.center(&self.focused_monitor_work_area()?)?;
         }
 

@@ -46,6 +46,8 @@ use crate::colour::Rgb;
 use crate::current_virtual_desktop;
 use crate::notify_subscribers;
 use crate::stackbar_manager;
+use crate::stackbar_manager::STACKBAR_FONT_FAMILY;
+use crate::stackbar_manager::STACKBAR_FONT_SIZE;
 use crate::static_config::StaticConfig;
 use crate::transparency_manager;
 use crate::window::RuleDebug;
@@ -56,6 +58,10 @@ use crate::windows_api::WindowsApi;
 use crate::GlobalState;
 use crate::Notification;
 use crate::NotificationEvent;
+use crate::ANIMATION_DURATION;
+use crate::ANIMATION_ENABLED;
+use crate::ANIMATION_FPS;
+use crate::ANIMATION_STYLE;
 use crate::CUSTOM_FFM;
 use crate::DATA_DIR;
 use crate::DISPLAY_INDEX_PREFERENCES;
@@ -583,6 +589,7 @@ impl WindowManager {
                 self.update_focused_workspace(self.mouse_follows_focus, true)?;
             }
             SocketMessage::Retile => {
+                border_manager::BORDER_TEMPORARILY_DISABLED.store(false, Ordering::SeqCst);
                 border_manager::destroy_all_borders()?;
                 self.retile_all(false)?
             }
@@ -1357,6 +1364,18 @@ impl WindowManager {
             SocketMessage::BorderOffset(offset) => {
                 border_manager::BORDER_OFFSET.store(offset, Ordering::SeqCst);
             }
+            SocketMessage::Animation(enable) => {
+                ANIMATION_ENABLED.store(enable, Ordering::SeqCst);
+            }
+            SocketMessage::AnimationDuration(duration) => {
+                ANIMATION_DURATION.store(duration, Ordering::SeqCst);
+            }
+            SocketMessage::AnimationFps(fps) => {
+                ANIMATION_FPS.store(fps, Ordering::SeqCst);
+            }
+            SocketMessage::AnimationStyle(style) => {
+                *ANIMATION_STYLE.lock() = style;
+            }
             SocketMessage::Transparency(enable) => {
                 transparency_manager::TRANSPARENCY_ENABLED.store(enable, Ordering::SeqCst);
             }
@@ -1386,6 +1405,13 @@ impl WindowManager {
             }
             SocketMessage::StackbarTabWidth(width) => {
                 STACKBAR_TAB_WIDTH.store(width, Ordering::SeqCst);
+            }
+            SocketMessage::StackbarFontSize(size) => {
+                STACKBAR_FONT_SIZE.store(size, Ordering::SeqCst);
+            }
+            #[allow(clippy::assigning_clones)]
+            SocketMessage::StackbarFontFamily(ref font_family) => {
+                *STACKBAR_FONT_FAMILY.lock() = font_family.clone();
             }
             SocketMessage::ApplicationSpecificConfigurationSchema => {
                 let asc = schema_for!(Vec<ApplicationConfiguration>);
