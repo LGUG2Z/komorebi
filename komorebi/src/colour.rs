@@ -39,6 +39,7 @@ impl JsonSchema for Hex {
     fn json_schema(_: &mut SchemaGenerator) -> Schema {
         SchemaObject {
             instance_type: Some(InstanceType::String.into()),
+            format: Some("color-hex".to_string()),
             ..Default::default()
         }
         .into()

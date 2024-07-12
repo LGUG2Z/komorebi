@@ -1,5 +1,6 @@
 use crate::border_manager;
 use crate::com::SetCloak;
+use crate::focus_manager;
 use crate::stackbar_manager;
 use crate::ANIMATIONS_IN_PROGRESS;
 use crate::ANIMATION_DURATION;
@@ -189,6 +190,9 @@ impl Window {
 
                 if progress == 1.0 {
                     WindowsApi::position_window(hwnd, &new_rect, top)?;
+                    if WindowsApi::foreground_window().unwrap_or_default() == hwnd.0 {
+                        focus_manager::send_notification(hwnd.0)
+                    }
 
                     if ANIMATIONS_IN_PROGRESS.load(Ordering::Acquire) == 0 {
                         border_manager::BORDER_TEMPORARILY_DISABLED.store(false, Ordering::SeqCst);
