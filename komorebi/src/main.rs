@@ -25,6 +25,7 @@ use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::EnvFilter;
 
 use komorebi::border_manager;
+use komorebi::focus_manager;
 use komorebi::load_configuration;
 use komorebi::monitor_reconciliator;
 use komorebi::process_command::listen_for_commands;
@@ -265,6 +266,7 @@ fn main() -> Result<()> {
     workspace_reconciliator::listen_for_notifications(wm.clone());
     monitor_reconciliator::listen_for_notifications(wm.clone())?;
     reaper::watch_for_orphans(wm.clone());
+    focus_manager::listen_for_notifications(wm.clone());
 
     let (ctrlc_sender, ctrlc_receiver) = crossbeam_channel::bounded(1);
     ctrlc::set_handler(move || {

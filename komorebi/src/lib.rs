@@ -8,6 +8,7 @@ pub mod com;
 pub mod ring;
 pub mod colour;
 pub mod container;
+pub mod focus_manager;
 pub mod monitor;
 pub mod monitor_reconciliator;
 pub mod process_command;
