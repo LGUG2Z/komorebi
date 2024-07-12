@@ -228,6 +228,7 @@ pub static SESSION_ID: AtomicU32 = AtomicU32::new(0);
 
 pub static REMOVE_TITLEBARS: AtomicBool = AtomicBool::new(false);
 pub static ANIMATION_ENABLED: AtomicBool = AtomicBool::new(false);
+pub static ANIMATION_TEMPORARY_DISABLED: AtomicBool = AtomicBool::new(false);
 pub static ANIMATION_DURATION: AtomicU64 = AtomicU64::new(250);
 
 #[must_use]
