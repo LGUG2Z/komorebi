@@ -65,7 +65,7 @@ use crate::BorderColours;
 use crate::Colour;
 use crate::Rgb;
 use crate::WorkspaceRule;
-use crate::ANIMATION_ENABLED;
+use crate::ANIMATION_TEMPORARY_DISABLED;
 use crate::CUSTOM_FFM;
 use crate::DATA_DIR;
 use crate::DISPLAY_INDEX_PREFERENCES;
@@ -1363,7 +1363,7 @@ impl WindowManager {
         follow: bool,
     ) -> Result<()> {
         self.handle_unmanaged_window_behaviour()?;
-        let animation = ANIMATION_ENABLED.swap(false, Ordering::SeqCst);
+        ANIMATION_TEMPORARY_DISABLED.store(true, Ordering::SeqCst);
 
         tracing::info!("moving container");
 
@@ -1409,13 +1409,8 @@ impl WindowManager {
 
         target_monitor.add_container(container, workspace_idx)?;
 
-        if follow {
-            if let Some(workspace_idx) = workspace_idx {
-                target_monitor.focus_workspace(workspace_idx)?;
-            }
-
-            target_monitor.load_focused_workspace(mouse_follows_focus)?;
-            target_monitor.update_focused_workspace(offset)?;
+        if let Some(workspace_idx) = workspace_idx {
+            target_monitor.focus_workspace(workspace_idx)?;
         }
 
         if let Some(workspace) = target_monitor.focused_workspace() {
@@ -1429,7 +1424,6 @@ impl WindowManager {
         target_monitor.load_focused_workspace(mouse_follows_focus)?;
         target_monitor.update_focused_workspace(offset)?;
 
-          
         // this second one is for DPI changes when the target is another monitor
         // if we don't do this the layout on the other monitor could look funny
         // until it is interacted with again
@@ -1441,7 +1435,7 @@ impl WindowManager {
 
         self.update_focused_workspace(self.mouse_follows_focus, true)?;
 
-        ANIMATION_ENABLED.store(animation, Ordering::SeqCst);
+        ANIMATION_TEMPORARY_DISABLED.store(false, Ordering::SeqCst);
 
         Ok(())
     }
@@ -1449,11 +1443,9 @@ impl WindowManager {
     #[tracing::instrument(skip(self))]
     pub fn move_container_to_workspace(&mut self, idx: usize, follow: bool) -> Result<()> {
         self.handle_unmanaged_window_behaviour()?;
-        let animation = ANIMATION_ENABLED.swap(false, Ordering::SeqCst);
+        ANIMATION_TEMPORARY_DISABLED.store(true, Ordering::SeqCst);
 
         tracing::info!("moving container");
-
-
 
         let mouse_follows_focus = self.mouse_follows_focus;
         let monitor = self
@@ -1465,7 +1457,7 @@ impl WindowManager {
 
         self.update_focused_workspace(mouse_follows_focus, true)?;
 
-        ANIMATION_ENABLED.store(animation, Ordering::SeqCst);
+        ANIMATION_TEMPORARY_DISABLED.store(false, Ordering::SeqCst);
 
         Ok(())
     }
@@ -1570,10 +1562,11 @@ impl WindowManager {
         let origin_monitor_idx = self.focused_monitor_idx();
         let target_container_idx = workspace.new_idx_for_direction(direction);
 
-        let animation = if target_container_idx.is_none() {
-            Some(ANIMATION_ENABLED.swap(false, Ordering::SeqCst))
+        let animation_temporarily_disabled = if target_container_idx.is_none() {
+            ANIMATION_TEMPORARY_DISABLED.store(true, Ordering::SeqCst);
+            true
         } else {
-            None
+            false
         };
 
         match target_container_idx {
@@ -1702,8 +1695,8 @@ impl WindowManager {
 
         self.update_focused_workspace(self.mouse_follows_focus, true)?;
 
-        if let Some(animation) = animation {
-            ANIMATION_ENABLED.store(animation, Ordering::SeqCst);
+        if animation_temporarily_disabled {
+            ANIMATION_TEMPORARY_DISABLED.store(false, Ordering::SeqCst);
         }
 
         Ok(())
@@ -2641,7 +2634,6 @@ impl WindowManager {
     pub fn focus_monitor(&mut self, idx: usize) -> Result<()> {
         tracing::info!("focusing monitor");
 
-
         if self.monitors().get(idx).is_some() {
             self.monitors.focus(idx);
         } else {
@@ -2745,7 +2737,6 @@ impl WindowManager {
     #[tracing::instrument(skip(self))]
     pub fn focus_workspace(&mut self, idx: usize) -> Result<()> {
         tracing::info!("focusing workspace");
-
 
         let mouse_follows_focus = self.mouse_follows_focus;
         let monitor = self
