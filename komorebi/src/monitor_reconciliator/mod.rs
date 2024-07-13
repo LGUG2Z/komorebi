@@ -67,11 +67,17 @@ pub fn attached_display_devices() -> color_eyre::Result<Vec<Monitor>> {
         .flatten()
         .map(|display| {
             let path = display.device_path;
-            let mut split: Vec<_> = path.split('#').collect();
-            split.remove(0);
-            split.remove(split.len() - 1);
-            let device = split[0].to_string();
-            let device_id = split.join("-");
+
+            let (device, device_id) = if path.is_empty() {
+                (String::from("UNKNOWN"), String::from("UNKNOWN"))
+            } else {
+                let mut split: Vec<_> = path.split('#').collect();
+                split.remove(0);
+                split.remove(split.len() - 1);
+                let device = split[0].to_string();
+                let device_id = split.join("-");
+                (device, device_id)
+            };
 
             let name = display.device_name.trim_start_matches(r"\\.\").to_string();
             let name = name.split('\\').collect::<Vec<_>>()[0].to_string();
