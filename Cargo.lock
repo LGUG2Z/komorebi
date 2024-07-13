@@ -5098,7 +5098,7 @@ checksum = "7219d36b6eac893fa81e84ebe06485e7dcbb616177469b142df14f1f4deb1311"
 [[package]]
 name = "win32-display-data"
 version = "0.1.0"
-source = "git+https://github.com/LGUG2Z/win32-display-data?rev=2a0f7166da154880a1750b91829b1186d9c6a00c#2a0f7166da154880a1750b91829b1186d9c6a00c"
+source = "git+https://github.com/LGUG2Z/win32-display-data?rev=32a45cebf132c3d651ee22c0c40033a6b7edc945#32a45cebf132c3d651ee22c0c40033a6b7edc945"
 dependencies = [
  "itertools",
  "thiserror",
