@@ -57,6 +57,7 @@ nav:
       - Troubleshooting: troubleshooting.md
   - Common workflows:
       - common-workflows/komorebi-config-home.md
+      - common-workflows/animations.md
       - common-workflows/autohotkey.md
       - common-workflows/borders.md
       - common-workflows/stackbar.md
@@ -191,6 +192,9 @@ nav:
       - cli/initial-named-workspace-rule.md
       - cli/workspace-rule.md
       - cli/named-workspace-rule.md
+      - cli/clear-workspace-rules.md
+      - cli/clear-named-workspace-rules.md
+      - cli/clear-all-workspace-rules.md
       - cli/identify-object-name-change-application.md
       - cli/identify-tray-application.md
       - cli/identify-layered-application.md
@@ -200,6 +204,8 @@ nav:
       - cli/border-colour.md
       - cli/border-width.md
       - cli/border-offset.md
+      - cli/border-style.md
+      - cli/border-implementation.md
       - cli/transparency.md
       - cli/transparency-alpha.md
       - cli/focus-follows-mouse.md

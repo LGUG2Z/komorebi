@@ -10,7 +10,7 @@ Arguments:
           Possible values:
           - hide:     Use the SW_HIDE flag to hide windows when switching workspaces (has issues with Electron apps)
           - minimize: Use the SW_MINIMIZE flag to hide windows when switching workspaces (has issues with frequent workspace switching)
-          - cloak:    Use the undocumented SetCloak Win32 function to hide windows when switching workspaces (has foregrounding issues)
+          - cloak:    Use the undocumented SetCloak Win32 function to hide windows when switching workspaces
 
 Options:
   -h, --help

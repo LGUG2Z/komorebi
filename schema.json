@@ -1,9 +1,70 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "StaticConfig",
-  "description": "The `komorebi.json` static configuration file reference for `v0.1.27`",
+  "description": "The `komorebi.json` static configuration file reference for `v0.1.28`",
   "type": "object",
   "properties": {
+    "animation": {
+      "description": "Animations configuration options",
+      "type": "object",
+      "required": [
+        "enabled"
+      ],
+      "properties": {
+        "duration": {
+          "description": "Set the animation duration in ms (default: 250)",
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0.0
+        },
+        "enabled": {
+          "description": "Enable or disable animations (default: false)",
+          "type": "boolean"
+        },
+        "fps": {
+          "description": "Set the animation FPS (default: 60)",
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0.0
+        },
+        "style": {
+          "description": "Set the animation style (default: Linear)",
+          "type": "string",
+          "enum": [
+            "Linear",
+            "EaseInSine",
+            "EaseOutSine",
+            "EaseInOutSine",
+            "EaseInQuad",
+            "EaseOutQuad",
+            "EaseInOutQuad",
+            "EaseInCubic",
+            "EaseInOutCubic",
+            "EaseInQuart",
+            "EaseOutQuart",
+            "EaseInOutQuart",
+            "EaseInQuint",
+            "EaseOutQuint",
+            "EaseInOutQuint",
+            "EaseInExpo",
+            "EaseOutExpo",
+            "EaseInOutExpo",
+            "EaseInCirc",
+            "EaseOutCirc",
+            "EaseInOutCirc",
+            "EaseInBack",
+            "EaseOutBack",
+            "EaseInOutBack",
+            "EaseInElastic",
+            "EaseOutElastic",
+            "EaseInOutElastic",
+            "EaseInBounce",
+            "EaseOutBounce",
+            "EaseInOutBounce"
+          ]
+        }
+      }
+    },
     "app_specific_configuration_path": {
       "description": "Path to applications.yaml from komorebi-application-specific-configurations (default: None)",
       "type": "string"
@@ -50,7 +111,8 @@
             },
             {
               "description": "Colour represented as Hex",
-              "type": "string"
+              "type": "string",
+              "format": "color-hex"
             }
           ]
         },
@@ -88,7 +150,8 @@
             },
             {
               "description": "Colour represented as Hex",
-              "type": "string"
+              "type": "string",
+              "format": "color-hex"
             }
           ]
         },
@@ -126,7 +189,8 @@
             },
             {
               "description": "Colour represented as Hex",
-              "type": "string"
+              "type": "string",
+              "format": "color-hex"
             }
           ]
         },
@@ -164,11 +228,31 @@
             },
             {
               "description": "Colour represented as Hex",
-              "type": "string"
+              "type": "string",
+              "format": "color-hex"
             }
           ]
         }
       }
+    },
+    "border_implementation": {
+      "description": "Display an active window border (default: false)",
+      "oneOf": [
+        {
+          "description": "Use the adjustable komorebi border implementation",
+          "type": "string",
+          "enum": [
+            "Komorebi"
+          ]
+        },
+        {
+          "description": "Use the thin Windows accent border implementation",
+          "type": "string",
+          "enum": [
+            "Windows"
+          ]
+        }
+      ]
     },
     "border_offset": {
       "description": "Offset of the window border (default: -1)",
@@ -674,6 +758,16 @@
         ]
       }
     },
+    "minimum_window_height": {
+      "description": "DISCOURAGED: Minimum height for a window to be eligible for tiling",
+      "type": "integer",
+      "format": "int32"
+    },
+    "minimum_window_width": {
+      "description": "DISCOURAGED: Minimum width for a window to be eligible for tiling",
+      "type": "integer",
+      "format": "int32"
+    },
     "monitor_index_preferences": {
       "description": "Set monitor index preferences",
       "type": "object",
@@ -796,6 +890,10 @@
                 "name"
               ],
               "properties": {
+                "apply_window_based_work_area_offset": {
+                  "description": "Apply this monitor's window-based work area offset (default: true)",
+                  "type": "boolean"
+                },
                 "container_padding": {
                   "description": "Container padding (default: global)",
                   "type": "integer",
@@ -1094,7 +1192,8 @@
                 },
                 {
                   "description": "Colour represented as Hex",
-                  "type": "string"
+                  "type": "string",
+                  "format": "color-hex"
                 }
               ]
             },
@@ -1132,9 +1231,19 @@
                 },
                 {
                   "description": "Colour represented as Hex",
-                  "type": "string"
+                  "type": "string",
+                  "format": "color-hex"
                 }
               ]
+            },
+            "font_family": {
+              "description": "Font family",
+              "type": "string"
+            },
+            "font_size": {
+              "description": "Font size",
+              "type": "integer",
+              "format": "int32"
             },
             "unfocused_text": {
               "description": "Unfocused tab text colour",
@@ -1170,7 +1279,8 @@
                 },
                 {
                   "description": "Colour represented as Hex",
-                  "type": "string"
+                  "type": "string",
+                  "format": "color-hex"
                 }
               ]
             },
@@ -1315,7 +1425,7 @@
       ]
     },
     "window_hiding_behaviour": {
-      "description": "Which Windows signal to use when hiding windows (default: minimize)",
+      "description": "Which Windows signal to use when hiding windows (default: Cloak)",
       "oneOf": [
         {
           "description": "Use the SW_HIDE flag to hide windows when switching workspaces (has issues with Electron apps)",
@@ -1332,7 +1442,7 @@
           ]
         },
         {
-          "description": "Use the undocumented SetCloak Win32 function to hide windows when switching workspaces (has foregrounding issues)",
+          "description": "Use the undocumented SetCloak Win32 function to hide windows when switching workspaces",
           "type": "string",
           "enum": [
             "Cloak"
