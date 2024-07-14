@@ -55,6 +55,7 @@ pub static MINIMUM_HEIGHT: AtomicI32 = AtomicI32::new(0);
 #[derive(Debug, Default, Clone, Copy, Deserialize, JsonSchema, PartialEq)]
 pub struct Window {
     pub hwnd: isize,
+    #[serde(skip)]
     animation: Animation,
 }
 

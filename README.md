@@ -99,7 +99,7 @@ video will answer the majority of your questions.
 
 # Demonstrations
 
-[@amnweb](https://github.com/amnweb) showing _komorebi_ `v0.1.28-dev.0` running on Windows 11 with window borders,
+[@amnweb](https://github.com/amnweb) showing _komorebi_ `v0.1.28` running on Windows 11 with window borders,
 unfocused window transparency and animations enabled, using a custom status bar integrated using
 _komorebi_'s [Window Manager Event Subscriptions](https://github.com/LGUG2Z/komorebi?tab=readme-ov-file#window-manager-event-subscriptions).
 
