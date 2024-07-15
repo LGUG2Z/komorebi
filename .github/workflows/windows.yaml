@@ -134,6 +134,7 @@ jobs:
         shell: bash
         run: |
           if ! type kokai >/dev/null; then cargo install --locked kokai --force; fi
+          git tag -d nightly
           kokai release --no-emoji --add-links github:commits,issues --ref "$(git tag --points-at HEAD)" >"CHANGELOG.md"
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v3
