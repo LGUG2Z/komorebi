@@ -134,7 +134,7 @@ use windows::Win32::UI::WindowsAndMessaging::WS_EX_TOPMOST;
 use windows::Win32::UI::WindowsAndMessaging::WS_POPUP;
 use windows::Win32::UI::WindowsAndMessaging::WS_SYSMENU;
 
-use komorebi_core::Rect;
+use crate::core::Rect;
 
 use crate::container::Container;
 use crate::monitor;

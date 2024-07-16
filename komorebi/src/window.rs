@@ -15,12 +15,12 @@ use std::sync::atomic::AtomicI32;
 use std::sync::atomic::Ordering;
 use std::time::Duration;
 
+use crate::core::config_generation::IdWithIdentifier;
+use crate::core::config_generation::MatchingRule;
+use crate::core::config_generation::MatchingStrategy;
 use color_eyre::eyre;
 use color_eyre::Result;
 use crossbeam_utils::atomic::AtomicConsume;
-use komorebi_core::config_generation::IdWithIdentifier;
-use komorebi_core::config_generation::MatchingRule;
-use komorebi_core::config_generation::MatchingStrategy;
 use regex::Regex;
 use schemars::JsonSchema;
 use serde::ser::SerializeStruct;
@@ -29,9 +29,9 @@ use serde::Serialize;
 use serde::Serializer;
 use windows::Win32::Foundation::HWND;
 
-use komorebi_core::ApplicationIdentifier;
-use komorebi_core::HidingBehaviour;
-use komorebi_core::Rect;
+use crate::core::ApplicationIdentifier;
+use crate::core::HidingBehaviour;
+use crate::core::Rect;
 
 use crate::animation::Animation;
 use crate::styles::ExtendedWindowStyle;

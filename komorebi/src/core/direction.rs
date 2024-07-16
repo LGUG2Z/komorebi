@@ -1,9 +1,9 @@
-use crate::custom_layout::Column;
-use crate::custom_layout::ColumnSplit;
-use crate::custom_layout::ColumnSplitWithCapacity;
-use crate::custom_layout::CustomLayout;
-use crate::DefaultLayout;
-use crate::OperationDirection;
+use super::custom_layout::Column;
+use super::custom_layout::ColumnSplit;
+use super::custom_layout::ColumnSplitWithCapacity;
+use super::custom_layout::CustomLayout;
+use super::DefaultLayout;
+use super::OperationDirection;
 
 pub trait Direction {
     fn index_in_direction(

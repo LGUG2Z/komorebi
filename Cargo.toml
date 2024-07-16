@@ -4,7 +4,6 @@ resolver = "2"
 members = [
     "komorebi",
     "komorebi-client",
-    "komorebi-core",
     "komorebi-gui",
     "komorebic",
     "komorebic-no-console",
@@ -16,6 +15,7 @@ dirs = "5"
 dunce = "1"
 serde = { version = "1", features = ["derive"] }
 serde_json = { package = "serde_json_lenient", version = "0.2" }
+serde_yaml = "0.9"
 sysinfo = "0.30"
 uds_windows = "1"
 win32-display-data = { git = "https://github.com/LGUG2Z/win32-display-data", rev = "32a45cebf132c3d651ee22c0c40033a6b7edc945" }

@@ -9,10 +9,10 @@ use color_eyre::Result;
 use crossbeam_utils::atomic::AtomicConsume;
 use parking_lot::Mutex;
 
-use komorebi_core::OperationDirection;
-use komorebi_core::Rect;
-use komorebi_core::Sizing;
-use komorebi_core::WindowContainerBehaviour;
+use crate::core::OperationDirection;
+use crate::core::Rect;
+use crate::core::Sizing;
+use crate::core::WindowContainerBehaviour;
 
 use crate::border_manager;
 use crate::border_manager::BORDER_OFFSET;

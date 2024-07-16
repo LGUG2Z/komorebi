@@ -2,12 +2,12 @@
 
 mod border;
 
+use crate::core::BorderImplementation;
+use crate::core::BorderStyle;
 use crossbeam_channel::Receiver;
 use crossbeam_channel::Sender;
 use crossbeam_utils::atomic::AtomicCell;
 use crossbeam_utils::atomic::AtomicConsume;
-use komorebi_core::BorderImplementation;
-use komorebi_core::BorderStyle;
 use lazy_static::lazy_static;
 use parking_lot::Mutex;
 use schemars::JsonSchema;
@@ -23,6 +23,7 @@ use std::sync::Arc;
 use std::sync::OnceLock;
 use windows::Win32::Foundation::HWND;
 
+use crate::core::WindowKind;
 use crate::ring::Ring;
 use crate::workspace_reconciliator::ALT_TAB_HWND;
 use crate::Colour;
@@ -31,7 +32,6 @@ use crate::WindowManager;
 use crate::WindowsApi;
 use border::border_hwnds;
 use border::Border;
-use komorebi_core::WindowKind;
 
 pub static BORDER_WIDTH: AtomicI32 = AtomicI32::new(8);
 pub static BORDER_OFFSET: AtomicI32 = AtomicI32::new(-1);

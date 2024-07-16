@@ -1,6 +1,8 @@
 mod stackbar;
 
 use crate::container::Container;
+use crate::core::StackbarLabel;
+use crate::core::StackbarMode;
 use crate::stackbar_manager::stackbar::Stackbar;
 use crate::WindowManager;
 use crate::WindowsApi;
@@ -9,8 +11,6 @@ use crossbeam_channel::Receiver;
 use crossbeam_channel::Sender;
 use crossbeam_utils::atomic::AtomicCell;
 use crossbeam_utils::atomic::AtomicConsume;
-use komorebi_core::StackbarLabel;
-use komorebi_core::StackbarMode;
 use lazy_static::lazy_static;
 use parking_lot::Mutex;
 use std::collections::hash_map::Entry;

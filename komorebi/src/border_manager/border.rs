@@ -8,8 +8,8 @@ use crate::border_manager::Z_ORDER;
 use crate::WindowsApi;
 use crate::WINDOWS_11;
 
-use komorebi_core::BorderStyle;
-use komorebi_core::Rect;
+use crate::core::BorderStyle;
+use crate::core::Rect;
 
 use std::sync::atomic::Ordering;
 use std::sync::mpsc;

@@ -279,7 +279,7 @@ If the named pipe exists, `komorebi` will start pushing JSON data of successfull
 
 You may then filter on the `type` key to listen to the events that you are interested in. For a full list of possible
 notification types, refer to the enum variants of `WindowManagerEvent` in `komorebi` and `SocketMessage`
-in `komorebi-core`.
+in `komorebi::core`.
 
 Below is an example of how you can subscribe to and filter on events using a named pipe in `nodejs`.
 
@@ -414,7 +414,7 @@ A TCP listener can optionally be exposed on a port of your choosing with the `--
 provided to `komorebi` or `komorebic start`, no TCP listener will be created.
 
 Once created, your client may send
-any [SocketMessage](https://github.com/LGUG2Z/komorebi/blob/master/komorebi-core/src/lib.rs#L37) to `komorebi` in the
+any [SocketMessage](https://github.com/LGUG2Z/komorebi/blob/master/komorebi/src/core/mod.rs#L37) to `komorebi` in the
 same way that `komorebic` would.
 
 This can be used if you would like to create your own alternative to `komorebic` which incorporates scripting and

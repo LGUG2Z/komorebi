@@ -7,6 +7,5 @@ edition = "2021"
 
 [dependencies]
 komorebi = { path = "../komorebi" }
-komorebi-core = { path = "../komorebi-core" }
 uds_windows = "1"
 serde_json = { workspace = true }

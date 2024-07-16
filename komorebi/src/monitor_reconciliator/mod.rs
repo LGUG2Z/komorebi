@@ -1,6 +1,7 @@
 #![deny(clippy::unwrap_used, clippy::expect_used)]
 
 use crate::border_manager;
+use crate::core::Rect;
 use crate::monitor;
 use crate::monitor::Monitor;
 use crate::monitor_reconciliator::hidden::Hidden;
@@ -10,7 +11,6 @@ use crate::WindowsApi;
 use crossbeam_channel::Receiver;
 use crossbeam_channel::Sender;
 use crossbeam_utils::atomic::AtomicConsume;
-use komorebi_core::Rect;
 use parking_lot::Mutex;
 use std::collections::HashMap;
 use std::sync::atomic::AtomicBool;

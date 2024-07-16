@@ -742,13 +742,12 @@ dependencies = [
 
 [[package]]
 name = "cc"
-version = "1.1.4"
+version = "1.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9711f33475c22aab363b05564a17d7b789bf3dfec5ebabb586adee56f0e271b5"
+checksum = "324c74f2155653c90b04f25b2a47a8a631360cb908f92a772695f430c7e31052"
 dependencies = [
  "jobserver",
  "libc",
- "once_cell",
 ]
 
 [[package]]
@@ -2325,10 +2324,10 @@ dependencies = [
  "crossbeam-utils",
  "ctrlc",
  "dirs",
+ "dunce",
  "getset",
  "hex_color",
  "hotwatch",
- "komorebi-core",
  "lazy_static",
  "miow",
  "nanoid",
@@ -2340,6 +2339,7 @@ dependencies = [
  "schemars",
  "serde",
  "serde_json_lenient",
+ "serde_yaml",
  "shadow-rs",
  "strum",
  "sysinfo",
@@ -2362,25 +2362,8 @@ name = "komorebi-client"
 version = "0.1.29"
 dependencies = [
  "komorebi",
- "komorebi-core",
  "serde_json_lenient",
  "uds_windows",
-]
-
-[[package]]
-name = "komorebi-core"
-version = "0.1.28"
-dependencies = [
- "clap",
- "color-eyre",
- "dirs",
- "dunce",
- "schemars",
- "serde",
- "serde_json_lenient",
- "serde_yaml",
- "strum",
- "windows 0.54.0",
 ]
 
 [[package]]
@@ -2406,7 +2389,6 @@ dependencies = [
  "dunce",
  "fs-tail",
  "komorebi-client",
- "komorebi-core",
  "lazy_static",
  "miette",
  "paste",
@@ -3216,7 +3198,7 @@ dependencies = [
  "cfg-if 1.0.0",
  "libc",
  "petgraph",
- "redox_syscall 0.5.2",
+ "redox_syscall 0.5.3",
  "smallvec",
  "thread-id",
  "windows-targets 0.52.6",
@@ -3533,9 +3515,9 @@ dependencies = [
 
 [[package]]
 name = "redox_syscall"
-version = "0.5.2"
+version = "0.5.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c82cf8cff14456045f55ec4241383baeff27af886adb72ffb2162f99911de0fd"
+checksum = "2a908a6e00f1fdd0dfd9c0eb08ce85126f6d8bbda50017e74bc4a4b7d4a926a4"
 dependencies = [
  "bitflags 2.6.0",
 ]
