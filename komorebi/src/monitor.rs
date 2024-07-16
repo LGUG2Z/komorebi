@@ -12,7 +12,7 @@ use schemars::JsonSchema;
 use serde::Deserialize;
 use serde::Serialize;
 
-use komorebi_core::Rect;
+use crate::core::Rect;
 
 use crate::container::Container;
 use crate::ring::Ring;

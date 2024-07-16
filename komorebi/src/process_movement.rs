@@ -5,7 +5,7 @@ use winput::message_loop;
 use winput::message_loop::Event;
 use winput::Action;
 
-use komorebi_core::FocusFollowsMouseImplementation;
+use crate::core::FocusFollowsMouseImplementation;
 
 use crate::window_manager::WindowManager;
 

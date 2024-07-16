@@ -134,7 +134,7 @@ use windows::Win32::UI::WindowsAndMessaging::WS_EX_TOPMOST;
 use windows::Win32::UI::WindowsAndMessaging::WS_POPUP;
 use windows::Win32::UI::WindowsAndMessaging::WS_SYSMENU;
 
-use komorebi_core::Rect;
+use crate::core::Rect;
 
 use crate::container::Container;
 use crate::monitor;
@@ -239,11 +239,17 @@ impl WindowsApi {
     pub fn load_monitor_information(monitors: &mut Ring<Monitor>) -> Result<()> {
         'read: for display in win32_display_data::connected_displays_all().flatten() {
             let path = display.device_path.clone();
-            let mut split: Vec<_> = path.split('#').collect();
-            split.remove(0);
-            split.remove(split.len() - 1);
-            let device = split[0].to_string();
-            let device_id = split.join("-");
+
+            let (device, device_id) = if path.is_empty() {
+                (String::from("UNKNOWN"), String::from("UNKNOWN"))
+            } else {
+                let mut split: Vec<_> = path.split('#').collect();
+                split.remove(0);
+                split.remove(split.len() - 1);
+                let device = split[0].to_string();
+                let device_id = split.join("-");
+                (device, device_id)
+            };
 
             let name = display.device_name.trim_start_matches(r"\\.\").to_string();
             let name = name.split('\\').collect::<Vec<_>>()[0].to_string();
@@ -809,11 +815,17 @@ impl WindowsApi {
         for display in win32_display_data::connected_displays_all().flatten() {
             if display.hmonitor == hmonitor {
                 let path = display.device_path;
-                let mut split: Vec<_> = path.split('#').collect();
-                split.remove(0);
-                split.remove(split.len() - 1);
-                let device = split[0].to_string();
-                let device_id = split.join("-");
+
+                let (device, device_id) = if path.is_empty() {
+                    (String::from("UNKNOWN"), String::from("UNKNOWN"))
+                } else {
+                    let mut split: Vec<_> = path.split('#').collect();
+                    split.remove(0);
+                    split.remove(split.len() - 1);
+                    let device = split[0].to_string();
+                    let device_id = split.join("-");
+                    (device, device_id)
+                };
 
                 let name = display.device_name.trim_start_matches(r"\\.\").to_string();
                 let name = name.split('\\').collect::<Vec<_>>()[0].to_string();

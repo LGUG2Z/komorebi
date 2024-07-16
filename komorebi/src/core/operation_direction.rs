@@ -7,8 +7,8 @@ use serde::Serialize;
 use strum::Display;
 use strum::EnumString;
 
-use crate::direction::Direction;
-use crate::Axis;
+use super::direction::Direction;
+use super::Axis;
 
 #[derive(
     Clone, Copy, Debug, Serialize, Deserialize, Display, EnumString, ValueEnum, JsonSchema,

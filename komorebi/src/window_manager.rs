@@ -22,27 +22,28 @@ use serde::Deserialize;
 use serde::Serialize;
 use uds_windows::UnixListener;
 
-use komorebi_core::config_generation::MatchingRule;
-use komorebi_core::custom_layout::CustomLayout;
-use komorebi_core::Arrangement;
-use komorebi_core::Axis;
-use komorebi_core::BorderStyle;
-use komorebi_core::CycleDirection;
-use komorebi_core::DefaultLayout;
-use komorebi_core::FocusFollowsMouseImplementation;
-use komorebi_core::HidingBehaviour;
-use komorebi_core::Layout;
-use komorebi_core::MoveBehaviour;
-use komorebi_core::OperationBehaviour;
-use komorebi_core::OperationDirection;
-use komorebi_core::Rect;
-use komorebi_core::Sizing;
-use komorebi_core::StackbarLabel;
-use komorebi_core::WindowContainerBehaviour;
+use crate::core::config_generation::MatchingRule;
+use crate::core::custom_layout::CustomLayout;
+use crate::core::Arrangement;
+use crate::core::Axis;
+use crate::core::BorderStyle;
+use crate::core::CycleDirection;
+use crate::core::DefaultLayout;
+use crate::core::FocusFollowsMouseImplementation;
+use crate::core::HidingBehaviour;
+use crate::core::Layout;
+use crate::core::MoveBehaviour;
+use crate::core::OperationBehaviour;
+use crate::core::OperationDirection;
+use crate::core::Rect;
+use crate::core::Sizing;
+use crate::core::StackbarLabel;
+use crate::core::WindowContainerBehaviour;
 
 use crate::border_manager;
 use crate::border_manager::STYLE;
 use crate::container::Container;
+use crate::core::StackbarMode;
 use crate::current_virtual_desktop;
 use crate::load_configuration;
 use crate::monitor::Monitor;
@@ -65,7 +66,7 @@ use crate::BorderColours;
 use crate::Colour;
 use crate::Rgb;
 use crate::WorkspaceRule;
-use crate::ANIMATION_TEMPORARY_DISABLED;
+use crate::ANIMATION_TEMPORARILY_DISABLED;
 use crate::CUSTOM_FFM;
 use crate::DATA_DIR;
 use crate::DISPLAY_INDEX_PREFERENCES;
@@ -80,7 +81,6 @@ use crate::OBJECT_NAME_CHANGE_ON_LAUNCH;
 use crate::REMOVE_TITLEBARS;
 use crate::TRAY_AND_MULTI_WINDOW_IDENTIFIERS;
 use crate::WORKSPACE_RULES;
-use komorebi_core::StackbarMode;
 
 #[derive(Debug)]
 pub struct WindowManager {
@@ -1363,7 +1363,7 @@ impl WindowManager {
         follow: bool,
     ) -> Result<()> {
         self.handle_unmanaged_window_behaviour()?;
-        ANIMATION_TEMPORARY_DISABLED.store(true, Ordering::SeqCst);
+        ANIMATION_TEMPORARILY_DISABLED.store(true, Ordering::SeqCst);
 
         tracing::info!("moving container");
 
@@ -1435,7 +1435,7 @@ impl WindowManager {
 
         self.update_focused_workspace(self.mouse_follows_focus, true)?;
 
-        ANIMATION_TEMPORARY_DISABLED.store(false, Ordering::SeqCst);
+        ANIMATION_TEMPORARILY_DISABLED.store(false, Ordering::SeqCst);
 
         Ok(())
     }
@@ -1443,7 +1443,7 @@ impl WindowManager {
     #[tracing::instrument(skip(self))]
     pub fn move_container_to_workspace(&mut self, idx: usize, follow: bool) -> Result<()> {
         self.handle_unmanaged_window_behaviour()?;
-        ANIMATION_TEMPORARY_DISABLED.store(true, Ordering::SeqCst);
+        ANIMATION_TEMPORARILY_DISABLED.store(true, Ordering::SeqCst);
 
         tracing::info!("moving container");
 
@@ -1457,7 +1457,7 @@ impl WindowManager {
 
         self.update_focused_workspace(mouse_follows_focus, true)?;
 
-        ANIMATION_TEMPORARY_DISABLED.store(false, Ordering::SeqCst);
+        ANIMATION_TEMPORARILY_DISABLED.store(false, Ordering::SeqCst);
 
         Ok(())
     }
@@ -1563,7 +1563,7 @@ impl WindowManager {
         let target_container_idx = workspace.new_idx_for_direction(direction);
 
         let animation_temporarily_disabled = if target_container_idx.is_none() {
-            ANIMATION_TEMPORARY_DISABLED.store(true, Ordering::SeqCst);
+            ANIMATION_TEMPORARILY_DISABLED.store(true, Ordering::SeqCst);
             true
         } else {
             false
@@ -1696,7 +1696,7 @@ impl WindowManager {
         self.update_focused_workspace(self.mouse_follows_focus, true)?;
 
         if animation_temporarily_disabled {
-            ANIMATION_TEMPORARY_DISABLED.store(false, Ordering::SeqCst);
+            ANIMATION_TEMPORARILY_DISABLED.store(false, Ordering::SeqCst);
         }
 
         Ok(())

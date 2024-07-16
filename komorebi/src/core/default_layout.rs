@@ -5,9 +5,9 @@ use serde::Serialize;
 use strum::Display;
 use strum::EnumString;
 
-use crate::OperationDirection;
-use crate::Rect;
-use crate::Sizing;
+use super::OperationDirection;
+use super::Rect;
+use super::Sizing;
 
 #[derive(
     Clone,

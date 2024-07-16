@@ -2,10 +2,10 @@ use schemars::JsonSchema;
 use serde::Deserialize;
 use serde::Serialize;
 
-use crate::Arrangement;
-use crate::CustomLayout;
-use crate::DefaultLayout;
-use crate::Direction;
+use super::Arrangement;
+use super::CustomLayout;
+use super::DefaultLayout;
+use super::Direction;
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, PartialEq)]
 pub enum Layout {

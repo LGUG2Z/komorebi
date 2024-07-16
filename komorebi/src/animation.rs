@@ -1,6 +1,6 @@
+use crate::core::AnimationStyle;
+use crate::core::Rect;
 use color_eyre::Result;
-use komorebi_core::AnimationStyle;
-use komorebi_core::Rect;
 
 use schemars::JsonSchema;
 

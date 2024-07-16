@@ -8,6 +8,7 @@ pub mod com;
 pub mod ring;
 pub mod colour;
 pub mod container;
+pub mod core;
 pub mod focus_manager;
 pub mod monitor;
 pub mod monitor_reconciliator;
@@ -48,6 +49,7 @@ use std::sync::Arc;
 pub use animation::*;
 pub use animation_manager::*;
 pub use colour::*;
+pub use core::*;
 pub use process_command::*;
 pub use process_event::*;
 pub use static_config::*;
@@ -57,15 +59,10 @@ pub use window_manager_event::*;
 pub use windows_api::WindowsApi;
 pub use windows_api::*;
 
+use crate::core::config_generation::IdWithIdentifier;
+use crate::core::config_generation::MatchingRule;
+use crate::core::config_generation::MatchingStrategy;
 use color_eyre::Result;
-use komorebi_core::config_generation::IdWithIdentifier;
-use komorebi_core::config_generation::MatchingRule;
-use komorebi_core::config_generation::MatchingStrategy;
-use komorebi_core::AnimationStyle;
-use komorebi_core::ApplicationIdentifier;
-use komorebi_core::HidingBehaviour;
-use komorebi_core::Rect;
-use komorebi_core::SocketMessage;
 use os_info::Version;
 use parking_lot::Mutex;
 use regex::Regex;
@@ -228,7 +225,7 @@ pub static SESSION_ID: AtomicU32 = AtomicU32::new(0);
 
 pub static REMOVE_TITLEBARS: AtomicBool = AtomicBool::new(false);
 pub static ANIMATION_ENABLED: AtomicBool = AtomicBool::new(false);
-pub static ANIMATION_TEMPORARY_DISABLED: AtomicBool = AtomicBool::new(false);
+pub static ANIMATION_TEMPORARILY_DISABLED: AtomicBool = AtomicBool::new(false);
 pub static ANIMATION_DURATION: AtomicU64 = AtomicU64::new(250);
 
 #[must_use]

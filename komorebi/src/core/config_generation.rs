@@ -6,7 +6,7 @@ use serde::Serialize;
 use strum::Display;
 use strum::EnumString;
 
-use crate::ApplicationIdentifier;
+use super::ApplicationIdentifier;
 
 #[derive(
     Clone, Copy, Debug, Serialize, Deserialize, Display, EnumString, ValueEnum, JsonSchema,

@@ -9,10 +9,10 @@ use color_eyre::Result;
 use crossbeam_utils::atomic::AtomicConsume;
 use parking_lot::Mutex;
 
-use komorebi_core::OperationDirection;
-use komorebi_core::Rect;
-use komorebi_core::Sizing;
-use komorebi_core::WindowContainerBehaviour;
+use crate::core::OperationDirection;
+use crate::core::Rect;
+use crate::core::Sizing;
+use crate::core::WindowContainerBehaviour;
 
 use crate::border_manager;
 use crate::border_manager::BORDER_OFFSET;
@@ -32,6 +32,7 @@ use crate::workspace_reconciliator::ALT_TAB_HWND;
 use crate::workspace_reconciliator::ALT_TAB_HWND_INSTANT;
 use crate::Notification;
 use crate::NotificationEvent;
+use crate::ANIMATION_TEMPORARILY_DISABLED;
 use crate::DATA_DIR;
 use crate::HIDDEN_HWNDS;
 use crate::REGEX_IDENTIFIERS;
@@ -485,6 +486,8 @@ impl WindowManager {
                                 origin_container_idx,
                             )) = pending
                             {
+                                ANIMATION_TEMPORARILY_DISABLED.store(true, Ordering::SeqCst);
+
                                 let target_workspace_idx = self
                                     .monitors()
                                     .get(target_monitor_idx)
@@ -526,6 +529,8 @@ impl WindowManager {
                                 self.focus_monitor(target_monitor_idx)?;
                                 self.focus_workspace(target_workspace_idx)?;
                                 self.update_focused_workspace(false, false)?;
+
+                                ANIMATION_TEMPORARILY_DISABLED.store(false, Ordering::SeqCst);
                             }
                             // Here we handle a simple move on the same monitor which is treated as
                             // a container swap

@@ -7,12 +7,12 @@ use serde::Serialize;
 use strum::Display;
 use strum::EnumString;
 
-use crate::custom_layout::Column;
-use crate::custom_layout::ColumnSplit;
-use crate::custom_layout::ColumnSplitWithCapacity;
-use crate::CustomLayout;
-use crate::DefaultLayout;
-use crate::Rect;
+use super::custom_layout::Column;
+use super::custom_layout::ColumnSplit;
+use super::custom_layout::ColumnSplitWithCapacity;
+use super::CustomLayout;
+use super::DefaultLayout;
+use super::Rect;
 
 pub trait Arrangement {
     fn calculate(

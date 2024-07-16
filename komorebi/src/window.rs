@@ -5,7 +5,7 @@ use crate::stackbar_manager;
 use crate::ANIMATIONS_IN_PROGRESS;
 use crate::ANIMATION_DURATION;
 use crate::ANIMATION_ENABLED;
-use crate::ANIMATION_TEMPORARY_DISABLED;
+use crate::ANIMATION_TEMPORARILY_DISABLED;
 use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::fmt::Display;
@@ -15,12 +15,12 @@ use std::sync::atomic::AtomicI32;
 use std::sync::atomic::Ordering;
 use std::time::Duration;
 
+use crate::core::config_generation::IdWithIdentifier;
+use crate::core::config_generation::MatchingRule;
+use crate::core::config_generation::MatchingStrategy;
 use color_eyre::eyre;
 use color_eyre::Result;
 use crossbeam_utils::atomic::AtomicConsume;
-use komorebi_core::config_generation::IdWithIdentifier;
-use komorebi_core::config_generation::MatchingRule;
-use komorebi_core::config_generation::MatchingStrategy;
 use regex::Regex;
 use schemars::JsonSchema;
 use serde::ser::SerializeStruct;
@@ -29,9 +29,9 @@ use serde::Serialize;
 use serde::Serializer;
 use windows::Win32::Foundation::HWND;
 
-use komorebi_core::ApplicationIdentifier;
-use komorebi_core::HidingBehaviour;
-use komorebi_core::Rect;
+use crate::core::ApplicationIdentifier;
+use crate::core::HidingBehaviour;
+use crate::core::Rect;
 
 use crate::animation::Animation;
 use crate::styles::ExtendedWindowStyle;
@@ -55,6 +55,7 @@ pub static MINIMUM_HEIGHT: AtomicI32 = AtomicI32::new(0);
 #[derive(Debug, Default, Clone, Copy, Deserialize, JsonSchema, PartialEq)]
 pub struct Window {
     pub hwnd: isize,
+    #[serde(skip)]
     animation: Animation,
 }
 
@@ -225,7 +226,7 @@ impl Window {
         }
 
         if ANIMATION_ENABLED.load(Ordering::SeqCst)
-            && !ANIMATION_TEMPORARY_DISABLED.load(Ordering::SeqCst)
+            && !ANIMATION_TEMPORARILY_DISABLED.load(Ordering::SeqCst)
         {
             self.animate_position(layout, top)
         } else {
