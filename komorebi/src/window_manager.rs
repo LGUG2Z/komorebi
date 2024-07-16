@@ -66,7 +66,7 @@ use crate::BorderColours;
 use crate::Colour;
 use crate::Rgb;
 use crate::WorkspaceRule;
-use crate::ANIMATION_TEMPORARY_DISABLED;
+use crate::ANIMATION_TEMPORARILY_DISABLED;
 use crate::CUSTOM_FFM;
 use crate::DATA_DIR;
 use crate::DISPLAY_INDEX_PREFERENCES;
@@ -1109,7 +1109,7 @@ impl WindowManager {
         follow: bool,
     ) -> Result<()> {
         self.handle_unmanaged_window_behaviour()?;
-        ANIMATION_TEMPORARY_DISABLED.store(true, Ordering::SeqCst);
+        ANIMATION_TEMPORARILY_DISABLED.store(true, Ordering::SeqCst);
 
         tracing::info!("moving container");
 
@@ -1181,7 +1181,7 @@ impl WindowManager {
 
         self.update_focused_workspace(self.mouse_follows_focus, true)?;
 
-        ANIMATION_TEMPORARY_DISABLED.store(false, Ordering::SeqCst);
+        ANIMATION_TEMPORARILY_DISABLED.store(false, Ordering::SeqCst);
 
         Ok(())
     }
@@ -1189,7 +1189,7 @@ impl WindowManager {
     #[tracing::instrument(skip(self))]
     pub fn move_container_to_workspace(&mut self, idx: usize, follow: bool) -> Result<()> {
         self.handle_unmanaged_window_behaviour()?;
-        ANIMATION_TEMPORARY_DISABLED.store(true, Ordering::SeqCst);
+        ANIMATION_TEMPORARILY_DISABLED.store(true, Ordering::SeqCst);
 
         tracing::info!("moving container");
 
@@ -1203,7 +1203,7 @@ impl WindowManager {
 
         self.update_focused_workspace(mouse_follows_focus, true)?;
 
-        ANIMATION_TEMPORARY_DISABLED.store(false, Ordering::SeqCst);
+        ANIMATION_TEMPORARILY_DISABLED.store(false, Ordering::SeqCst);
 
         Ok(())
     }
@@ -1309,7 +1309,7 @@ impl WindowManager {
         let target_container_idx = workspace.new_idx_for_direction(direction);
 
         let animation_temporarily_disabled = if target_container_idx.is_none() {
-            ANIMATION_TEMPORARY_DISABLED.store(true, Ordering::SeqCst);
+            ANIMATION_TEMPORARILY_DISABLED.store(true, Ordering::SeqCst);
             true
         } else {
             false
@@ -1442,7 +1442,7 @@ impl WindowManager {
         self.update_focused_workspace(self.mouse_follows_focus, true)?;
 
         if animation_temporarily_disabled {
-            ANIMATION_TEMPORARY_DISABLED.store(false, Ordering::SeqCst);
+            ANIMATION_TEMPORARILY_DISABLED.store(false, Ordering::SeqCst);
         }
 
         Ok(())

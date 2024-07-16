@@ -5,7 +5,7 @@ use crate::stackbar_manager;
 use crate::ANIMATIONS_IN_PROGRESS;
 use crate::ANIMATION_DURATION;
 use crate::ANIMATION_ENABLED;
-use crate::ANIMATION_TEMPORARY_DISABLED;
+use crate::ANIMATION_TEMPORARILY_DISABLED;
 use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::fmt::Display;
@@ -226,7 +226,7 @@ impl Window {
         }
 
         if ANIMATION_ENABLED.load(Ordering::SeqCst)
-            && !ANIMATION_TEMPORARY_DISABLED.load(Ordering::SeqCst)
+            && !ANIMATION_TEMPORARILY_DISABLED.load(Ordering::SeqCst)
         {
             self.animate_position(layout, top)
         } else {
