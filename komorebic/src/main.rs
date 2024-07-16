@@ -1574,13 +1574,13 @@ fn main() -> Result<()> {
             }
         }
         SubCommand::DisplayMonitorWorkspace(arg) => {
-            send_message(&SocketMessage::DisplayMonitorWorkspaceNumber(arg.monitor, arg.workspace).as_bytes()?)?;
+            send_message(&SocketMessage::DisplayMonitorWorkspaceNumber(arg.monitor, arg.workspace))?;
         }
         SubCommand::Focus(arg) => {
             send_message(&SocketMessage::FocusWindow(arg.operation_direction))?;
         }
         SubCommand::FocusExe(arg) => {
-            send_message(&SocketMessage::FocusExe(arg.exe,arg.hwnd).as_bytes()?)?;
+            send_message(&SocketMessage::FocusExe(arg.exe,arg.hwnd))?;
         }
         SubCommand::ForceFocus => {
             send_message(&SocketMessage::ForceFocus)?;
@@ -1763,7 +1763,7 @@ fn main() -> Result<()> {
             send_message(&SocketMessage::ToggleMaximize)?;
         }
         SubCommand::ToggleAlwaysOnTop => {
-            send_message(&SocketMessage::ToggleAlwaysOnTop.as_bytes()?)?;
+            send_message(&SocketMessage::ToggleAlwaysOnTop)?;
         }
         SubCommand::WorkspaceLayout(arg) => {
             send_message(&SocketMessage::WorkspaceLayout(
