@@ -2316,7 +2316,7 @@ checksum = "e2db585e1d738fc771bf08a151420d3ed193d9d895a36df7f6f8a9456b911ddc"
 
 [[package]]
 name = "komorebi"
-version = "0.1.28"
+version = "0.1.29"
 dependencies = [
  "bitflags 2.6.0",
  "clap",
@@ -2359,7 +2359,7 @@ dependencies = [
 
 [[package]]
 name = "komorebi-client"
-version = "0.1.28"
+version = "0.1.29"
 dependencies = [
  "komorebi",
  "komorebi-core",
@@ -2385,7 +2385,7 @@ dependencies = [
 
 [[package]]
 name = "komorebi-gui"
-version = "0.1.28"
+version = "0.1.29"
 dependencies = [
  "eframe",
  "egui_extras",
@@ -2397,7 +2397,7 @@ dependencies = [
 
 [[package]]
 name = "komorebic"
-version = "0.1.28"
+version = "0.1.29"
 dependencies = [
  "chrono",
  "clap",
@@ -2426,7 +2426,7 @@ dependencies = [
 
 [[package]]
 name = "komorebic-no-console"
-version = "0.1.28"
+version = "0.1.29"
 
 [[package]]
 name = "kqueue"
