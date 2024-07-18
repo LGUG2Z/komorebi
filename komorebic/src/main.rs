@@ -1249,6 +1249,8 @@ enum SubCommand {
     /// Set the alpha value for unfocused window transparency
     #[clap(arg_required_else_help = true)]
     TransparencyAlpha(TransparencyAlpha),
+    /// Toggle transparency for unfocused windows
+    ToggleTransparency,
     /// Enable or disable the window move animation
     #[clap(arg_required_else_help = true)]
     Animation(Animation),
@@ -2327,6 +2329,9 @@ Stop-Process -Name:komorebi -ErrorAction SilentlyContinue
         }
         SubCommand::TransparencyAlpha(arg) => {
             send_message(&SocketMessage::TransparencyAlpha(arg.alpha))?;
+        }
+        SubCommand::ToggleTransparency => {
+            send_message(&SocketMessage::ToggleTransparency)?;
         }
         SubCommand::Animation(arg) => {
             send_message(&SocketMessage::Animation(arg.boolean_state.into()))?;

@@ -150,6 +150,7 @@ pub enum SocketMessage {
     BorderOffset(i32),
     BorderImplementation(BorderImplementation),
     Transparency(bool),
+    ToggleTransparency,
     TransparencyAlpha(u8),
     InvisibleBorders(Rect),
     StackbarMode(StackbarMode),
