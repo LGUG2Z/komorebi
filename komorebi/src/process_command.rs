@@ -1376,6 +1376,10 @@ impl WindowManager {
             SocketMessage::AnimationStyle(style) => {
                 *ANIMATION_STYLE.lock() = style;
             }
+            SocketMessage::ToggleTransparency => {
+                let current = transparency_manager::TRANSPARENCY_ENABLED.load(Ordering::SeqCst);
+                transparency_manager::TRANSPARENCY_ENABLED.store(!current, Ordering::SeqCst);
+            }
             SocketMessage::Transparency(enable) => {
                 transparency_manager::TRANSPARENCY_ENABLED.store(enable, Ordering::SeqCst);
             }
