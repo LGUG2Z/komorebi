@@ -59,7 +59,7 @@ impl AnimationManager {
             let cancelled_count = animation_state.cancelled_count;
             animation_state.cancelled_count -= 1;
 
-            return cancelled_count;
+            cancelled_count
         } else {
             0
         }

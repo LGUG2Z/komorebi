@@ -440,7 +440,7 @@ impl Animation {
 
         let latest_cancel_idx = ANIMATION_MANAGER.lock().end_cancel(self.hwnd);
 
-        return latest_cancel_idx == cancel_idx;
+        latest_cancel_idx == cancel_idx
     }
 
     #[allow(clippy::cast_possible_truncation)]
