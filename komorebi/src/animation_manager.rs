@@ -8,7 +8,7 @@ pub static ANIMATIONS_IN_PROGRESS: AtomicUsize = AtomicUsize::new(0);
 #[derive(Debug, Clone, Copy)]
 struct AnimationState {
     pub in_progress: bool,
-    pub is_cancelled: bool,
+    pub cancelled_count: usize,
 }
 
 #[derive(Debug)]
@@ -31,7 +31,7 @@ impl AnimationManager {
 
     pub fn is_cancelled(&self, hwnd: isize) -> bool {
         if let Some(animation_state) = self.animations.get(&hwnd) {
-            animation_state.is_cancelled
+            animation_state.cancelled_count > 0
         } else {
             false
         }
@@ -45,9 +45,29 @@ impl AnimationManager {
         }
     }
 
+    pub fn init_cancel(&mut self, hwnd: isize) -> usize {
+        if let Some(animation_state) = self.animations.get_mut(&hwnd) {
+            animation_state.cancelled_count += 1;
+            animation_state.cancelled_count
+        } else {
+            0
+        }
+    }
+
+    pub fn end_cancel(&mut self, hwnd: isize) -> usize {
+        if let Some(animation_state) = self.animations.get_mut(&hwnd) {
+            let cancelled_count = animation_state.cancelled_count;
+            animation_state.cancelled_count -= 1;
+
+            return cancelled_count;
+        } else {
+            0
+        }
+    }
+
     pub fn cancel(&mut self, hwnd: isize) {
         if let Some(animation_state) = self.animations.get_mut(&hwnd) {
-            animation_state.is_cancelled = true;
+            animation_state.in_progress = false;
         }
     }
 
@@ -55,7 +75,7 @@ impl AnimationManager {
         if let Entry::Vacant(e) = self.animations.entry(hwnd) {
             e.insert(AnimationState {
                 in_progress: true,
-                is_cancelled: false,
+                cancelled_count: 0,
             });
 
             ANIMATIONS_IN_PROGRESS.store(self.animations.len(), Ordering::Release);
@@ -70,10 +90,11 @@ impl AnimationManager {
     pub fn end(&mut self, hwnd: isize) {
         if let Some(animation_state) = self.animations.get_mut(&hwnd) {
             animation_state.in_progress = false;
-            animation_state.is_cancelled = false;
 
-            self.animations.remove(&hwnd);
-            ANIMATIONS_IN_PROGRESS.store(self.animations.len(), Ordering::Release);
+            if animation_state.cancelled_count == 0 {
+                self.animations.remove(&hwnd);
+                ANIMATIONS_IN_PROGRESS.store(self.animations.len(), Ordering::Release);
+            }
         }
     }
 }
