@@ -172,11 +172,10 @@ impl Window {
         )
     }
 
-    pub fn animate_position(&self, layout: &Rect, top: bool) -> Result<()> {
+    pub fn animate_position(&self, start_rect: &Rect, target_rect: &Rect, top: bool) -> Result<()> {
         let hwnd = self.hwnd();
-        let curr_rect = WindowsApi::window_rect(hwnd).unwrap();
-
-        let target_rect = *layout;
+        let start_rect = *start_rect;
+        let target_rect = *target_rect;
         let duration = Duration::from_millis(ANIMATION_DURATION.load(Ordering::SeqCst));
         let mut animation = self.animation;
 
@@ -188,7 +187,7 @@ impl Window {
 
         std::thread::spawn(move || {
             animation.animate(duration, |progress: f64| {
-                let new_rect = Animation::lerp_rect(&curr_rect, &target_rect, progress);
+                let new_rect = Animation::lerp_rect(&start_rect, &target_rect, progress);
 
                 if progress == 1.0 {
                     WindowsApi::position_window(hwnd, &new_rect, top)?;
@@ -209,7 +208,6 @@ impl Window {
                     // using MoveWindow because it runs faster than SetWindowPos
                     // so animation have more fps and feel smoother
                     WindowsApi::move_window(hwnd, &new_rect, false)?;
-                    // WindowsApi::position_window(hwnd, &new_rect, top)?;
                     WindowsApi::invalidate_rect(hwnd, None, false);
                 }
 
@@ -221,14 +219,16 @@ impl Window {
     }
 
     pub fn set_position(&self, layout: &Rect, top: bool) -> Result<()> {
-        if WindowsApi::window_rect(self.hwnd())?.eq(layout) {
+        let window_rect = WindowsApi::window_rect(self.hwnd())?;
+
+        if window_rect.eq(layout) {
             return Ok(());
         }
 
         if ANIMATION_ENABLED.load(Ordering::SeqCst)
             && !ANIMATION_TEMPORARILY_DISABLED.load(Ordering::SeqCst)
         {
-            self.animate_position(layout, top)
+            self.animate_position(&window_rect, layout, top)
         } else {
             WindowsApi::position_window(self.hwnd(), layout, top)
         }
