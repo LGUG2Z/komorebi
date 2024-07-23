@@ -8,7 +8,7 @@ pub static ANIMATIONS_IN_PROGRESS: AtomicUsize = AtomicUsize::new(0);
 #[derive(Debug, Clone, Copy)]
 struct AnimationState {
     pub in_progress: bool,
-    pub cancelled_count: usize,
+    pub cancel_idx_counter: usize,
 }
 
 #[derive(Debug)]
@@ -31,7 +31,7 @@ impl AnimationManager {
 
     pub fn is_cancelled(&self, hwnd: isize) -> bool {
         if let Some(animation_state) = self.animations.get(&hwnd) {
-            animation_state.cancelled_count > 0
+            animation_state.cancel_idx_counter > 0
         } else {
             false
         }
@@ -47,19 +47,16 @@ impl AnimationManager {
 
     pub fn init_cancel(&mut self, hwnd: isize) -> usize {
         if let Some(animation_state) = self.animations.get_mut(&hwnd) {
-            animation_state.cancelled_count += 1;
-            animation_state.cancelled_count
+            animation_state.cancel_idx_counter += 1;
+            animation_state.cancel_idx_counter
         } else {
             0
         }
     }
 
-    pub fn end_cancel(&mut self, hwnd: isize) -> usize {
+    pub fn latest_cancel_idx(&mut self, hwnd: isize) -> usize {
         if let Some(animation_state) = self.animations.get_mut(&hwnd) {
-            let cancelled_count = animation_state.cancelled_count;
-            animation_state.cancelled_count -= 1;
-
-            cancelled_count
+            animation_state.cancel_idx_counter
         } else {
             0
         }
@@ -75,7 +72,7 @@ impl AnimationManager {
         if let Entry::Vacant(e) = self.animations.entry(hwnd) {
             e.insert(AnimationState {
                 in_progress: true,
-                cancelled_count: 0,
+                cancel_idx_counter: 0,
             });
 
             ANIMATIONS_IN_PROGRESS.store(self.animations.len(), Ordering::Release);
@@ -91,7 +88,7 @@ impl AnimationManager {
         if let Some(animation_state) = self.animations.get_mut(&hwnd) {
             animation_state.in_progress = false;
 
-            if animation_state.cancelled_count == 0 {
+            if animation_state.cancel_idx_counter == 0 {
                 self.animations.remove(&hwnd);
                 ANIMATIONS_IN_PROGRESS.store(self.animations.len(), Ordering::Release);
             }
