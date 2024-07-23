@@ -32,7 +32,6 @@ use crate::workspace_reconciliator::ALT_TAB_HWND;
 use crate::workspace_reconciliator::ALT_TAB_HWND_INSTANT;
 use crate::Notification;
 use crate::NotificationEvent;
-use crate::ANIMATION_TEMPORARILY_DISABLED;
 use crate::DATA_DIR;
 use crate::HIDDEN_HWNDS;
 use crate::REGEX_IDENTIFIERS;
@@ -478,8 +477,6 @@ impl WindowManager {
                                 origin_container_idx,
                             )) = pending
                             {
-                                ANIMATION_TEMPORARILY_DISABLED.store(true, Ordering::SeqCst);
-
                                 let target_workspace_idx = self
                                     .monitors()
                                     .get(target_monitor_idx)
@@ -521,8 +518,6 @@ impl WindowManager {
                                 self.focus_monitor(target_monitor_idx)?;
                                 self.focus_workspace(target_workspace_idx)?;
                                 self.update_focused_workspace(false, false)?;
-
-                                ANIMATION_TEMPORARILY_DISABLED.store(false, Ordering::SeqCst);
                             }
                             // Here we handle a simple move on the same monitor which is treated as
                             // a container swap
