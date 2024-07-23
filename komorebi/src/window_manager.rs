@@ -66,7 +66,6 @@ use crate::BorderColours;
 use crate::Colour;
 use crate::Rgb;
 use crate::WorkspaceRule;
-use crate::ANIMATION_TEMPORARILY_DISABLED;
 use crate::CUSTOM_FFM;
 use crate::DATA_DIR;
 use crate::DISPLAY_INDEX_PREFERENCES;
@@ -1109,7 +1108,6 @@ impl WindowManager {
         follow: bool,
     ) -> Result<()> {
         self.handle_unmanaged_window_behaviour()?;
-        ANIMATION_TEMPORARILY_DISABLED.store(true, Ordering::SeqCst);
 
         tracing::info!("moving container");
 
@@ -1181,15 +1179,12 @@ impl WindowManager {
 
         self.update_focused_workspace(self.mouse_follows_focus, true)?;
 
-        ANIMATION_TEMPORARILY_DISABLED.store(false, Ordering::SeqCst);
-
         Ok(())
     }
 
     #[tracing::instrument(skip(self))]
     pub fn move_container_to_workspace(&mut self, idx: usize, follow: bool) -> Result<()> {
         self.handle_unmanaged_window_behaviour()?;
-        ANIMATION_TEMPORARILY_DISABLED.store(true, Ordering::SeqCst);
 
         tracing::info!("moving container");
 
@@ -1202,8 +1197,6 @@ impl WindowManager {
         monitor.load_focused_workspace(mouse_follows_focus)?;
 
         self.update_focused_workspace(mouse_follows_focus, true)?;
-
-        ANIMATION_TEMPORARILY_DISABLED.store(false, Ordering::SeqCst);
 
         Ok(())
     }
@@ -1307,13 +1300,6 @@ impl WindowManager {
         let origin_container_idx = workspace.focused_container_idx();
         let origin_monitor_idx = self.focused_monitor_idx();
         let target_container_idx = workspace.new_idx_for_direction(direction);
-
-        let animation_temporarily_disabled = if target_container_idx.is_none() {
-            ANIMATION_TEMPORARILY_DISABLED.store(true, Ordering::SeqCst);
-            true
-        } else {
-            false
-        };
 
         match target_container_idx {
             // If there is nowhere to move on the current workspace, try to move it onto the monitor
@@ -1440,10 +1426,6 @@ impl WindowManager {
         }
 
         self.update_focused_workspace(self.mouse_follows_focus, true)?;
-
-        if animation_temporarily_disabled {
-            ANIMATION_TEMPORARILY_DISABLED.store(false, Ordering::SeqCst);
-        }
 
         Ok(())
     }
