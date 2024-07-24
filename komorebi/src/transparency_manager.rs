@@ -111,13 +111,11 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                                     "failed to make monocle window {hwnd} opaque: {error}"
                                 )
                             }
-                        } else {
-                            if let Err(error) = window.transparent() {
-                                let hwnd = window.hwnd;
-                                tracing::error!(
-                                    "failed to make monocle window {hwnd} transparent: {error}"
-                                )
-                            }
+                        } else if let Err(error) = window.transparent() {
+                            let hwnd = window.hwnd;
+                            tracing::error!(
+                                "failed to make monocle window {hwnd} transparent: {error}"
+                            )
                         }
                     }
 

@@ -267,7 +267,8 @@ impl Workspace {
             },
         );
 
-        if self.containers().len() <= window_based_work_area_offset_limit as usize
+        if (self.containers().len() <= window_based_work_area_offset_limit as usize
+            || self.monocle_container().is_some() && window_based_work_area_offset_limit > 0)
             && self.apply_window_based_work_area_offset
         {
             adjusted_work_area = window_based_work_area_offset.map_or_else(
