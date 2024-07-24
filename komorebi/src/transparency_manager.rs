@@ -104,9 +104,20 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                 // Monocle container is never transparent
                 if let Some(monocle) = ws.monocle_container() {
                     if let Some(window) = monocle.focused_window() {
-                        if let Err(error) = window.opaque() {
-                            let hwnd = window.hwnd;
-                            tracing::error!("failed to make monocle window {hwnd} opaque: {error}")
+                        if monitor_idx == focused_monitor_idx {
+                            if let Err(error) = window.opaque() {
+                                let hwnd = window.hwnd;
+                                tracing::error!(
+                                    "failed to make monocle window {hwnd} opaque: {error}"
+                                )
+                            }
+                        } else {
+                            if let Err(error) = window.transparent() {
+                                let hwnd = window.hwnd;
+                                tracing::error!(
+                                    "failed to make monocle window {hwnd} transparent: {error}"
+                                )
+                            }
                         }
                     }
 
