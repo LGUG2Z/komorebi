@@ -1,0 +1,16 @@
+[package]
+name = "komorebi-bar"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+komorebi-client = { path = "../komorebi-client" }
+
+anyhow = "1"
+chrono = "0.4"
+eframe = "0.28"
+serde_json = "1"
+sysinfo = "0.30"
+crossbeam-channel = "0.5"
