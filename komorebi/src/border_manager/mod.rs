@@ -43,7 +43,7 @@ lazy_static! {
     pub static ref Z_ORDER: AtomicCell<ZOrder> = AtomicCell::new(ZOrder::Bottom);
     pub static ref STYLE: AtomicCell<BorderStyle> = AtomicCell::new(BorderStyle::System);
     pub static ref IMPLEMENTATION: AtomicCell<BorderImplementation> =
-        AtomicCell::new(BorderImplementation::Windows);
+        AtomicCell::new(BorderImplementation::Komorebi);
     pub static ref FOCUSED: AtomicU32 =
         AtomicU32::new(u32::from(Colour::Rgb(Rgb::new(66, 165, 245))));
     pub static ref UNFOCUSED: AtomicU32 =
