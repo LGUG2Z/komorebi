@@ -1,0 +1,116 @@
+use crate::widget::BarWidget;
+use crate::WIDGET_SPACING;
+use eframe::egui::text::LayoutJob;
+use eframe::egui::Context;
+use eframe::egui::FontId;
+use eframe::egui::Label;
+use eframe::egui::Sense;
+use eframe::egui::TextFormat;
+use eframe::egui::TextStyle;
+use eframe::egui::Ui;
+use schemars::JsonSchema;
+use serde::Deserialize;
+use serde::Serialize;
+use windows::Media::Control::GlobalSystemMediaTransportControlsSessionManager;
+
+#[derive(Copy, Clone, Debug, Serialize, Deserialize, JsonSchema)]
+pub struct MediaConfig {
+    /// Enable the Media widget
+    pub enable: bool,
+}
+
+impl From<MediaConfig> for Media {
+    fn from(value: MediaConfig) -> Self {
+        Self::new(value.enable)
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct Media {
+    pub enable: bool,
+    pub session_manager: GlobalSystemMediaTransportControlsSessionManager,
+}
+
+impl Media {
+    pub fn new(enable: bool) -> Self {
+        Self {
+            enable,
+            session_manager: GlobalSystemMediaTransportControlsSessionManager::RequestAsync()
+                .unwrap()
+                .get()
+                .unwrap(),
+        }
+    }
+
+    pub fn toggle(&self) {
+        if let Ok(session) = self.session_manager.GetCurrentSession() {
+            if let Ok(op) = session.TryTogglePlayPauseAsync() {
+                op.get().unwrap_or_default();
+            }
+        }
+    }
+
+    fn output(&mut self) -> String {
+        if let Ok(session) = self.session_manager.GetCurrentSession() {
+            if let Ok(operation) = session.TryGetMediaPropertiesAsync() {
+                if let Ok(properties) = operation.get() {
+                    if let (Ok(artist), Ok(title)) = (properties.Artist(), properties.Title()) {
+                        if artist.is_empty() {
+                            return format!("{title}");
+                        }
+
+                        if title.is_empty() {
+                            return format!("{artist}");
+                        }
+
+                        return format!("{artist} - {title}");
+                    }
+                }
+            }
+        }
+
+        String::new()
+    }
+}
+
+impl BarWidget for Media {
+    fn render(&mut self, ctx: &Context, ui: &mut Ui) {
+        if self.enable {
+            let output = self.output();
+            if !output.is_empty() {
+                let font_id = ctx
+                    .style()
+                    .text_styles
+                    .get(&TextStyle::Body)
+                    .cloned()
+                    .unwrap_or_else(FontId::default);
+
+                let mut layout_job = LayoutJob::simple(
+                    egui_phosphor::regular::HEADPHONES.to_string(),
+                    font_id.clone(),
+                    ctx.style().visuals.selection.stroke.color,
+                    100.0,
+                );
+
+                layout_job.append(
+                    &output,
+                    10.0,
+                    TextFormat::simple(font_id, ctx.style().visuals.text_color()),
+                );
+
+                if ui
+                    .add(
+                        Label::new(layout_job)
+                            .selectable(false)
+                            .sense(Sense::click()),
+                    )
+                    .clicked()
+                {
+                    self.toggle();
+                }
+
+                ui.add_space(WIDGET_SPACING);
+            }
+        }
+    }
+}

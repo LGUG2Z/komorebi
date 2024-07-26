@@ -44,6 +44,15 @@ builds:
       post:
         - mkdir -p dist/windows_amd64
         - cp ".\target\x86_64-pc-windows-msvc\release\komorebi-gui.exe" ".\dist\komorebi-gui_windows_amd64_v1\komorebi-gui.exe"
+  - id: komorebi-bar
+    main: dummy.go
+    goos: [ "windows" ]
+    goarch: [ "amd64" ]
+    binary: komorebi-bar
+    hooks:
+      post:
+        - mkdir -p dist/windows_amd64
+        - cp ".\target\x86_64-pc-windows-msvc\release\komorebi-bar.exe" ".\dist\komorebi-bar_windows_amd64_v1\komorebi-bar.exe"
 
 archives:
   - name_template: "{{ .ProjectName }}-{{ .Version }}-x86_64-pc-windows-msvc"
