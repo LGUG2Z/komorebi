@@ -300,7 +300,7 @@ pub struct StaticConfig {
     /// Active window border z-order (default: System)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub border_z_order: Option<ZOrder>,
-    /// Display an active window border (default: false)
+    /// Active window border implementation (default: Komorebi)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub border_implementation: Option<BorderImplementation>,
     /// Add transparency to unfocused windows (default: false)

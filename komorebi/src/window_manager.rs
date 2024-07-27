@@ -26,6 +26,7 @@ use crate::core::config_generation::MatchingRule;
 use crate::core::custom_layout::CustomLayout;
 use crate::core::Arrangement;
 use crate::core::Axis;
+use crate::core::BorderImplementation;
 use crate::core::BorderStyle;
 use crate::core::CycleDirection;
 use crate::core::DefaultLayout;
@@ -973,6 +974,7 @@ impl WindowManager {
 
         let no_titlebar = NO_TITLEBAR.lock();
         let known_transparent_hwnds = transparency_manager::known_hwnds();
+        let border_implementation = border_manager::IMPLEMENTATION.load();
 
         for monitor in self.monitors_mut() {
             for workspace in monitor.workspaces_mut() {
@@ -986,7 +988,9 @@ impl WindowManager {
                             window.opaque()?;
                         }
 
-                        window.remove_accent()?;
+                        if matches!(border_implementation, BorderImplementation::Windows) {
+                            window.remove_accent()?;
+                        }
 
                         window.restore();
                     }
