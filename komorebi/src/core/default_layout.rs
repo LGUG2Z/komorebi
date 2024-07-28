@@ -164,14 +164,14 @@ impl DefaultLayout {
     #[must_use]
     pub const fn cycle_previous(self) -> Self {
         match self {
-            Self::BSP => Self::UltrawideVerticalStack,
+            Self::RightMainVerticalStack => Self::Grid,
+            Self::Grid => Self::UltrawideVerticalStack,
             Self::UltrawideVerticalStack => Self::HorizontalStack,
             Self::HorizontalStack => Self::VerticalStack,
             Self::VerticalStack => Self::Rows,
             Self::Rows => Self::Columns,
-            Self::Columns => Self::Grid,
-            Self::Grid => Self::RightMainVerticalStack,
-            Self::RightMainVerticalStack => Self::BSP,
+            Self::Columns => Self::BSP,
+            Self::BSP => Self::RightMainVerticalStack,
         }
     }
 }
