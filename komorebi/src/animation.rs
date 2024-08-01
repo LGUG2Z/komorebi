@@ -440,6 +440,8 @@ impl Animation {
 
         let latest_cancel_idx = ANIMATION_MANAGER.lock().latest_cancel_idx(self.hwnd);
 
+        ANIMATION_MANAGER.lock().end_cancel(self.hwnd);
+
         latest_cancel_idx == cancel_idx
     }
 

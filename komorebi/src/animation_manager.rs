@@ -9,6 +9,7 @@ pub static ANIMATIONS_IN_PROGRESS: AtomicUsize = AtomicUsize::new(0);
 struct AnimationState {
     pub in_progress: bool,
     pub cancel_idx_counter: usize,
+    pub pending_cancel_count: usize,
 }
 
 #[derive(Debug)]
@@ -31,7 +32,7 @@ impl AnimationManager {
 
     pub fn is_cancelled(&self, hwnd: isize) -> bool {
         if let Some(animation_state) = self.animations.get(&hwnd) {
-            animation_state.cancel_idx_counter > 0
+            animation_state.pending_cancel_count > 0
         } else {
             false
         }
@@ -47,7 +48,10 @@ impl AnimationManager {
 
     pub fn init_cancel(&mut self, hwnd: isize) -> usize {
         if let Some(animation_state) = self.animations.get_mut(&hwnd) {
+            animation_state.pending_cancel_count += 1;
             animation_state.cancel_idx_counter += 1;
+
+            // return cancel idx
             animation_state.cancel_idx_counter
         } else {
             0
@@ -62,6 +66,12 @@ impl AnimationManager {
         }
     }
 
+    pub fn end_cancel(&mut self, hwnd: isize) {
+        if let Some(animation_state) = self.animations.get_mut(&hwnd) {
+            animation_state.pending_cancel_count -= 1;
+        }
+    }
+
     pub fn cancel(&mut self, hwnd: isize) {
         if let Some(animation_state) = self.animations.get_mut(&hwnd) {
             animation_state.in_progress = false;
@@ -73,6 +83,7 @@ impl AnimationManager {
             e.insert(AnimationState {
                 in_progress: true,
                 cancel_idx_counter: 0,
+                pending_cancel_count: 0,
             });
 
             ANIMATIONS_IN_PROGRESS.store(self.animations.len(), Ordering::Release);
