@@ -190,6 +190,7 @@ gen_target_subcommand_args! {
     FocusWorkspaces,
     MoveWorkspaceToMonitor,
     SwapWorkspacesWithMonitor,
+    FocusStackWindow,
 }
 
 macro_rules! gen_named_target_subcommand_args {
@@ -944,6 +945,14 @@ enum SubCommand {
     /// Stack the focused window in the specified direction
     #[clap(arg_required_else_help = true)]
     Stack(Stack),
+    /// Unstack the focused window
+    Unstack,
+    /// Cycle the focused stack in the specified cycle direction
+    #[clap(arg_required_else_help = true)]
+    CycleStack(CycleStack),
+    /// Focus the specified window index in the focused stack
+    #[clap(arg_required_else_help = true)]
+    FocusStackWindow(FocusStackWindow),
     /// Stack all windows on the focused workspace
     StackAll,
     /// Unstack all windows in the focused container
@@ -955,11 +964,6 @@ enum SubCommand {
     /// Resize the focused window or primary column along the specified axis
     #[clap(arg_required_else_help = true)]
     ResizeAxis(ResizeAxis),
-    /// Unstack the focused window
-    Unstack,
-    /// Cycle the focused stack in the specified cycle direction
-    #[clap(arg_required_else_help = true)]
-    CycleStack(CycleStack),
     /// Move the focused window to the specified monitor
     #[clap(arg_required_else_help = true)]
     MoveToMonitor(MoveToMonitor),
@@ -2102,6 +2106,9 @@ Stop-Process -Name:komorebi -ErrorAction SilentlyContinue
         }
         SubCommand::UnstackAll => {
             send_message(&SocketMessage::UnstackAll)?;
+        }
+        SubCommand::FocusStackWindow(arg) => {
+            send_message(&SocketMessage::FocusStackWindow(arg.target))?;
         }
         SubCommand::CycleStack(arg) => {
             send_message(&SocketMessage::CycleStack(arg.cycle_direction))?;
