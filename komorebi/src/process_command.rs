@@ -235,6 +235,10 @@ impl WindowManager {
                 self.cycle_container_window_in_direction(direction)?;
                 self.focused_window()?.focus(self.mouse_follows_focus)?;
             }
+            SocketMessage::FocusStackWindow(idx) => {
+                self.focus_container_window(idx)?;
+                self.focused_window()?.focus(self.mouse_follows_focus)?;
+            }
             SocketMessage::ForceFocus => {
                 let focused_window = self.focused_window()?;
                 let focused_window_rect = WindowsApi::window_rect(focused_window.hwnd())?;

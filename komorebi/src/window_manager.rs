@@ -1789,6 +1789,31 @@ impl WindowManager {
     }
 
     #[tracing::instrument(skip(self))]
+    pub fn focus_container_window(&mut self, idx: usize) -> Result<()> {
+        self.handle_unmanaged_window_behaviour()?;
+
+        tracing::info!("focusing container window at index {idx}");
+
+        let container = self.focused_container_mut()?;
+
+        let len = NonZeroUsize::new(container.windows().len())
+            .ok_or_else(|| anyhow!("there must be at least one window in a container"))?;
+
+        if len.get() == 1 {
+            bail!("there is only one window in this container");
+        }
+
+        if container.windows().get(idx).is_none() {
+            bail!("there is no window in this container at index {idx}");
+        }
+
+        container.focus_window(idx);
+        container.load_focused_window();
+
+        self.update_focused_workspace(self.mouse_follows_focus, true)
+    }
+
+    #[tracing::instrument(skip(self))]
     pub fn stack_all(&mut self) -> Result<()> {
         self.handle_unmanaged_window_behaviour()?;
         tracing::info!("stacking all windows on workspace");
