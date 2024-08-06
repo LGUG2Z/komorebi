@@ -151,7 +151,10 @@ impl WindowManagerEvent {
                 )
                 .is_some();
 
-                if should_trigger_show {
+                // should not trigger show on minimized windows, for example when firefox sends
+                // this message due to youtube autoplay changing the window title
+                // https://github.com/LGUG2Z/komorebi/issues/941
+                if should_trigger_show && !window.is_miminized() {
                     Option::from(Self::Show(winevent, window))
                 } else {
                     Option::from(Self::TitleUpdate(winevent, window))
