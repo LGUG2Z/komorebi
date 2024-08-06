@@ -586,14 +586,19 @@ impl WindowManager {
                             ops.push(resize_op!(resize.top, >, OperationDirection::Up));
                         }
 
+                        // TODO: Determine if this is still needed
                         let top_left_constant = BORDER_WIDTH.load(Ordering::SeqCst)
                             + BORDER_OFFSET.load(Ordering::SeqCst);
 
-                        if resize.right != 0 && resize.left == top_left_constant {
+                        if resize.right != 0
+                            && (resize.left == top_left_constant || resize.left == 0)
+                        {
                             ops.push(resize_op!(resize.right, <, OperationDirection::Right));
                         }
 
-                        if resize.bottom != 0 && resize.top == top_left_constant {
+                        if resize.bottom != 0
+                            && (resize.top == top_left_constant || resize.top == 0)
+                        {
                             ops.push(resize_op!(resize.bottom, <, OperationDirection::Down));
                         }
 
