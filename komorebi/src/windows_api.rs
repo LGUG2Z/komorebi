@@ -376,7 +376,7 @@ impl WindowsApi {
 
         // If the request is to place the window on top, then HWND_TOP will take
         // effect, otherwise pass NO_Z_ORDER that will cause set_window_pos to
-        // ignore the z-order paramter.
+        // ignore the z-order parameter.
         if !top {
             flags |= SetWindowPosition::NO_Z_ORDER;
         }
@@ -394,7 +394,7 @@ impl WindowsApi {
         // z-order reordering. Programs will use TOPMOST themselves to do things
         // such as making sure that their tool windows or dialog pop-ups are
         // above their main window. If any such windows are unmanaged, they must
-        // still remian topmost, so we set HWND_TOP here, which will cause the
+        // still remain topmost, so we set HWND_TOP here, which will cause the
         // managed window to come to the front, but if the managed window has a
         // child that is TOPMOST it will still be rendered above, in the proper
         // order expected by the application. It's also important to understand
@@ -450,7 +450,7 @@ impl WindowsApi {
     }
 
     pub fn show_window(hwnd: HWND, command: SHOW_WINDOW_CMD) {
-        // BOOL is returned but does not signify whether or not the operation was succesful
+        // BOOL is returned but does not signify whether or not the operation was successful
         // https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-showwindow
         unsafe { ShowWindow(hwnd, command) };
     }
