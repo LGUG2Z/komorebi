@@ -16,7 +16,7 @@ the example files have been downloaded. For most new users this will be in the
 komorebic quickstart
 ```
 
-With the example configurations downloaded, you can now start `komorebi` and `whkd.
+With the example configurations downloaded, you can now start `komorebi` and `whkd`.
 
 ```powershell
 komorebic start --whkd
