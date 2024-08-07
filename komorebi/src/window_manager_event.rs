@@ -102,6 +102,48 @@ impl WindowManagerEvent {
         }
     }
 
+    pub const fn hwnd(self) -> isize {
+        self.window().hwnd
+    }
+
+    pub const fn title(self) -> &'static str {
+        match self {
+            WindowManagerEvent::Destroy(_, _) => "Destroy",
+            WindowManagerEvent::FocusChange(_, _) => "FocusChange",
+            WindowManagerEvent::Hide(_, _) => "Hide",
+            WindowManagerEvent::Cloak(_, _) => "Cloak",
+            WindowManagerEvent::Minimize(_, _) => "Minimize",
+            WindowManagerEvent::Show(_, _) => "Show",
+            WindowManagerEvent::Uncloak(_, _) => "Uncloak",
+            WindowManagerEvent::MoveResizeStart(_, _) => "MoveResizeStart",
+            WindowManagerEvent::MoveResizeEnd(_, _) => "MoveResizeEnd",
+            WindowManagerEvent::MouseCapture(_, _) => "MouseCapture",
+            WindowManagerEvent::Manage(_) => "Manage",
+            WindowManagerEvent::Unmanage(_) => "Unmanage",
+            WindowManagerEvent::Raise(_) => "Raise",
+            WindowManagerEvent::TitleUpdate(_, _) => "TitleUpdate",
+        }
+    }
+
+    pub fn winevent(self) -> Option<String> {
+        match self {
+            WindowManagerEvent::Destroy(event, _)
+            | WindowManagerEvent::FocusChange(event, _)
+            | WindowManagerEvent::Hide(event, _)
+            | WindowManagerEvent::Cloak(event, _)
+            | WindowManagerEvent::Minimize(event, _)
+            | WindowManagerEvent::Show(event, _)
+            | WindowManagerEvent::Uncloak(event, _)
+            | WindowManagerEvent::MoveResizeStart(event, _)
+            | WindowManagerEvent::MoveResizeEnd(event, _)
+            | WindowManagerEvent::MouseCapture(event, _)
+            | WindowManagerEvent::TitleUpdate(event, _) => Some(event.to_string()),
+            WindowManagerEvent::Manage(_)
+            | WindowManagerEvent::Unmanage(_)
+            | WindowManagerEvent::Raise(_) => None,
+        }
+    }
+
     pub fn from_win_event(winevent: WinEvent, window: Window) -> Option<Self> {
         match winevent {
             WinEvent::ObjectDestroy => Option::from(Self::Destroy(winevent, window)),
@@ -151,7 +193,10 @@ impl WindowManagerEvent {
                 )
                 .is_some();
 
-                if should_trigger_show {
+                // should not trigger show on minimized windows, for example when firefox sends
+                // this message due to youtube autoplay changing the window title
+                // https://github.com/LGUG2Z/komorebi/issues/941
+                if should_trigger_show && !window.is_miminized() {
                     Option::from(Self::Show(winevent, window))
                 } else {
                     Option::from(Self::TitleUpdate(winevent, window))

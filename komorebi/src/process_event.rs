@@ -64,7 +64,7 @@ pub fn listen_for_events(wm: Arc<Mutex<WindowManager>>) {
 
 impl WindowManager {
     #[allow(clippy::too_many_lines, clippy::cognitive_complexity)]
-    #[tracing::instrument(skip(self))]
+    #[tracing::instrument(skip(self, event), fields(event = event.title(), winevent = event.winevent(), hwnd = event.hwnd()))]
     pub fn process_event(&mut self, event: WindowManagerEvent) -> Result<()> {
         if self.is_paused {
             tracing::trace!("ignoring while paused");
@@ -594,14 +594,19 @@ impl WindowManager {
                             ops.push(resize_op!(resize.top, >, OperationDirection::Up));
                         }
 
+                        // TODO: Determine if this is still needed
                         let top_left_constant = BORDER_WIDTH.load(Ordering::SeqCst)
                             + BORDER_OFFSET.load(Ordering::SeqCst);
 
-                        if resize.right != 0 && resize.left == top_left_constant {
+                        if resize.right != 0
+                            && (resize.left == top_left_constant || resize.left == 0)
+                        {
                             ops.push(resize_op!(resize.right, <, OperationDirection::Right));
                         }
 
-                        if resize.bottom != 0 && resize.top == top_left_constant {
+                        if resize.bottom != 0
+                            && (resize.top == top_left_constant || resize.top == 0)
+                        {
                             ops.push(resize_op!(resize.bottom, <, OperationDirection::Down));
                         }
 
