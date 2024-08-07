@@ -64,7 +64,7 @@ pub fn listen_for_events(wm: Arc<Mutex<WindowManager>>) {
 
 impl WindowManager {
     #[allow(clippy::too_many_lines, clippy::cognitive_complexity)]
-    #[tracing::instrument(skip(self))]
+    #[tracing::instrument(skip(self, event), fields(event = event.title(), winevent = event.winevent(), hwnd = event.hwnd()))]
     pub fn process_event(&mut self, event: WindowManagerEvent) -> Result<()> {
         if self.is_paused {
             tracing::trace!("ignoring while paused");
