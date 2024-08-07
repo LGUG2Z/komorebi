@@ -209,7 +209,7 @@ If you use IntelliJ, you should enable the following settings to ensure that cod
 the IDE for completions and navigation:
 
 - Set `Expand declarative macros`
-  to `Use new engine` under "Settings > Langauges & Frameworks > Rust"
+  to `Use new engine` under "Settings > Languages & Frameworks > Rust"
 - Enable the following experimental features:
   - `org.rust.cargo.evaluate.build.scripts`
   - `org.rust.macros.proc`

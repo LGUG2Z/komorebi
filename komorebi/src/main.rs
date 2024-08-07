@@ -97,7 +97,7 @@ fn setup() -> Result<(WorkerGuard, WorkerGuard)> {
                 // On nightly Rust, where the `PanicInfo` type also exposes a
                 // `message()` method returning just the message, we could record
                 // just the message instead of the entire `fmt::Display`
-                // implementation, avoiding the duplciated location
+                // implementation, avoiding the duplicated location
                 tracing::error!(
                     message = %panic,
                     panic.file = location.file(),

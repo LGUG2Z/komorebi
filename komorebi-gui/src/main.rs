@@ -221,7 +221,7 @@ extern "system" fn enum_window(
     let window = Window::from(hwnd.0);
 
     if window.is_window()
-        && !window.is_miminized()
+        && !window.is_minimized()
         && window.is_visible()
         && window.title().is_ok()
         && window.exe().is_ok()

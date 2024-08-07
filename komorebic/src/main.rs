@@ -2489,7 +2489,7 @@ Stop-Process -Name:komorebi -ErrorAction SilentlyContinue
 }
 
 fn show_window(hwnd: HWND, command: SHOW_WINDOW_CMD) {
-    // BOOL is returned but does not signify whether or not the operation was succesful
+    // BOOL is returned but does not signify whether or not the operation was successful
     // https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-showwindow
     unsafe { ShowWindow(hwnd, command) };
 }

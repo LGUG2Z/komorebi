@@ -1031,7 +1031,7 @@ impl WindowManager {
 
     #[tracing::instrument(skip(self))]
     pub fn swap_monitor_workspaces(&mut self, first_idx: usize, second_idx: usize) -> Result<()> {
-        tracing::info!("swaping monitors");
+        tracing::info!("swapping monitors");
         if first_idx == second_idx {
             return Ok(());
         }

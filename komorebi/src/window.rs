@@ -238,7 +238,7 @@ impl Window {
         WindowsApi::is_zoomed(self.hwnd())
     }
 
-    pub fn is_miminized(self) -> bool {
+    pub fn is_minimized(self) -> bool {
         WindowsApi::is_iconic(self.hwnd())
     }
 
