@@ -15,44 +15,93 @@ use eframe::egui::CursorIcon;
 use eframe::egui::Layout;
 use eframe::egui::ViewportBuilder;
 use eframe::egui::Visuals;
+use eframe::emath::Pos2;
+use eframe::emath::Vec2;
 use komorebi_client::SocketMessage;
 use std::io::BufRead;
 use std::io::BufReader;
 use std::process::Command;
+use std::sync::Arc;
 use std::time::Duration;
 use time::Time;
 
-fn main() -> eframe::Result<()> {
-    let native_options = eframe::NativeOptions {
-        viewport: ViewportBuilder::default()
-            .with_decorations(false)
-            // TODO: expose via config
-            .with_transparent(true)
-            // TODO: expose via config
-            .with_position([0.0, 0.0])
-            // TODO: expose via config
-            .with_inner_size([5120.0, 20.0]),
-        ..Default::default()
-    };
+#[derive(Copy, Clone, Debug)]
+pub struct Position {
+    x: f32,
+    y: f32,
+}
 
-    komorebi_client::send_message(&SocketMessage::MonitorWorkAreaOffset(
-        0,
-        komorebi_client::Rect {
+impl Into<Vec2> for Position {
+    fn into(self) -> Vec2 {
+        Vec2 {
+            x: self.x,
+            y: self.y,
+        }
+    }
+}
+
+impl Into<Pos2> for Position {
+    fn into(self) -> Pos2 {
+        Pos2 {
+            x: self.x,
+            y: self.y,
+        }
+    }
+}
+
+#[derive(Copy, Clone, Debug)]
+pub struct Config {
+    inner_size: Position,
+    position: Position,
+    outer_margin: Position,
+    transparent: bool,
+    monitor_index: usize,
+    monitor_work_area_offset: Option<komorebi_client::Rect>,
+}
+
+fn main() -> eframe::Result<()> {
+    let config = Config {
+        inner_size: Position { x: 5120.0, y: 20.0 },
+        position: Position { x: 0.0, y: 0.0 },
+        outer_margin: Position { x: 10.0, y: 10.0 },
+        transparent: false,
+        monitor_index: 0,
+        monitor_work_area_offset: Some(komorebi_client::Rect {
             left: 0,
             top: 40,
             right: 0,
             bottom: 40,
-        },
-    ))
-    .unwrap();
+        }),
+    };
+
+    // TODO: ensure that config.monitor_index represents a valid komorebi monitor index
+
+    let native_options = eframe::NativeOptions {
+        viewport: ViewportBuilder::default()
+            .with_decorations(false)
+            .with_transparent(config.transparent)
+            .with_position(config.position)
+            .with_inner_size(config.inner_size),
+        ..Default::default()
+    };
+
+    if let Some(rect) = &config.monitor_work_area_offset {
+        komorebi_client::send_message(&SocketMessage::MonitorWorkAreaOffset(
+            config.monitor_index,
+            *rect,
+        ))
+        .unwrap();
+    }
 
     let (tx_gui, rx_gui) = crossbeam_channel::unbounded();
+    let config_arc = Arc::new(config);
 
     eframe::run_native(
         "komorebi-bar",
         native_options,
         Box::new(|cc| {
             let frame = cc.egui_ctx.clone();
+
             std::thread::spawn(move || {
                 let listener = komorebi_client::subscribe("komorebi-bar").unwrap();
 
@@ -87,12 +136,13 @@ fn main() -> eframe::Result<()> {
                 }
             });
 
-            Ok(Box::new(Komobar::new(cc, rx_gui)))
+            Ok(Box::new(Komobar::new(cc, rx_gui, config_arc)))
         }),
     )
 }
 
 struct Komobar {
+    config: Config,
     state_receiver: Receiver<komorebi_client::Notification>,
     selected_workspace: String,
     workspaces: Vec<String>,
@@ -103,13 +153,18 @@ struct Komobar {
 }
 
 impl Komobar {
-    fn new(_cc: &eframe::CreationContext<'_>, rx: Receiver<komorebi_client::Notification>) -> Self {
+    fn new(
+        _cc: &eframe::CreationContext<'_>,
+        rx: Receiver<komorebi_client::Notification>,
+        config: Arc<Config>,
+    ) -> Self {
         // Customize egui here with cc.egui_ctx.set_fonts and cc.egui_ctx.set_visuals.
         // Restore app state using cc.storage (requires the "persistence" feature).
         // Use the cc.gl (a glow::Context) to create graphics shaders and buffers that you can use
         // for e.g. egui::PaintCallback.
 
         Self {
+            config: *config.as_ref(),
             state_receiver: rx,
             selected_workspace: String::new(),
             workspaces: vec![],
@@ -126,8 +181,7 @@ impl Komobar {
         if let Ok(notification) = self.state_receiver.try_recv() {
             self.workspaces = {
                 let mut workspaces = vec![];
-                // TODO: komobar only operates on the 0th monitor (for now)
-                let monitor = &notification.state.monitors.elements()[0];
+                let monitor = &notification.state.monitors.elements()[self.config.monitor_index];
                 let focused_workspace_idx = monitor.focused_workspace_idx();
                 self.selected_workspace = monitor.workspaces()[focused_workspace_idx]
                     .name()
@@ -159,7 +213,10 @@ impl eframe::App for Komobar {
             .frame(
                 egui::Frame::none()
                     // TODO: make this configurable
-                    .outer_margin(egui::Margin::symmetric(10.0, 10.0)),
+                    .outer_margin(egui::Margin::symmetric(
+                        self.config.outer_margin.x,
+                        self.config.outer_margin.y,
+                    )),
             )
             .show(ctx, |ui| {
                 ui.horizontal(|ui| {
