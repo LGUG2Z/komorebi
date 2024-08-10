@@ -18,8 +18,8 @@ use eframe::egui::Visuals;
 use eframe::emath::Pos2;
 use eframe::emath::Vec2;
 use komorebi_client::SocketMessage;
-use std::io::BufRead;
 use std::io::BufReader;
+use std::io::Read;
 use std::process::Command;
 use std::sync::Arc;
 use std::time::Duration;
@@ -101,6 +101,7 @@ fn main() -> eframe::Result<()> {
         native_options,
         Box::new(|cc| {
             let frame = cc.egui_ctx.clone();
+            let config_cl = config_arc.clone();
 
             std::thread::spawn(move || {
                 let listener = komorebi_client::subscribe("komorebi-bar").unwrap();
@@ -108,19 +109,12 @@ fn main() -> eframe::Result<()> {
                 for client in listener.incoming() {
                     match client {
                         Ok(subscription) => {
-                            let reader = BufReader::new(subscription);
+                            let mut buffer = Vec::new();
+                            let mut reader = BufReader::new(subscription);
 
-                            for line in reader.lines().flatten() {
-                                if let Ok(notification) =
-                                    serde_json::from_str::<komorebi_client::Notification>(&line)
-                                {
-                                    tx_gui.send(notification).unwrap();
-                                    frame.request_repaint();
-                                }
-                            }
-                        }
-                        Err(error) => {
-                            if error.raw_os_error().expect("could not get raw os error") == 109 {
+                            // this is when we know a shutdown has been sent
+                            if matches!(reader.read_to_end(&mut buffer), Ok(0)) {
+                                // keep trying to reconnect to komorebi
                                 while komorebi_client::send_message(
                                     &SocketMessage::AddSubscriberSocket(String::from(
                                         "komorebi-bar",
@@ -128,9 +122,35 @@ fn main() -> eframe::Result<()> {
                                 )
                                 .is_err()
                                 {
-                                    std::thread::sleep(Duration::from_secs(5));
+                                    std::thread::sleep(Duration::from_secs(1));
+                                }
+
+                                // here we have reconnected
+                                if let Some(rect) = &config_cl.monitor_work_area_offset {
+                                    while komorebi_client::send_message(
+                                        &SocketMessage::MonitorWorkAreaOffset(
+                                            config_cl.monitor_index,
+                                            *rect,
+                                        ),
+                                    )
+                                    .is_err()
+                                    {
+                                        std::thread::sleep(Duration::from_secs(1));
+                                    }
                                 }
                             }
+
+                            if let Ok(notification) =
+                                serde_json::from_str::<komorebi_client::Notification>(
+                                    &String::from_utf8(buffer).unwrap(),
+                                )
+                            {
+                                tx_gui.send(notification).unwrap();
+                                frame.request_repaint();
+                            }
+                        }
+                        Err(error) => {
+                            dbg!(error);
                         }
                     }
                 }
