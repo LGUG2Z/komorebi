@@ -57,16 +57,10 @@ const KOMOREBI: &str = "komorebi.sock";
 
 pub fn send_message(message: &SocketMessage) -> std::io::Result<()> {
     let socket = DATA_DIR.join(KOMOREBI);
-    let mut connected = false;
-    while !connected {
-        if let Ok(mut stream) = UnixStream::connect(&socket) {
-            connected = true;
-            stream.write_all(serde_json::to_string(message)?.as_bytes())?;
-        }
-    }
-
-    Ok(())
+    let mut stream = UnixStream::connect(socket)?;
+    stream.write_all(serde_json::to_string(message)?.as_bytes())
 }
+
 pub fn send_query(message: &SocketMessage) -> std::io::Result<String> {
     let socket = DATA_DIR.join(KOMOREBI);
 

@@ -163,7 +163,7 @@ lazy_static! {
     ]));
     static ref SUBSCRIPTION_PIPES: Arc<Mutex<HashMap<String, File>>> =
         Arc::new(Mutex::new(HashMap::new()));
-    static ref SUBSCRIPTION_SOCKETS: Arc<Mutex<HashMap<String, PathBuf>>> =
+    pub static ref SUBSCRIPTION_SOCKETS: Arc<Mutex<HashMap<String, PathBuf>>> =
         Arc::new(Mutex::new(HashMap::new()));
     static ref TCP_CONNECTIONS: Arc<Mutex<HashMap<String, TcpStream>>> =
         Arc::new(Mutex::new(HashMap::new()));
