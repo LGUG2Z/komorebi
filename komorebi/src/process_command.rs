@@ -4,6 +4,7 @@ use std::fs::OpenOptions;
 use std::io::BufRead;
 use std::io::BufReader;
 use std::io::Read;
+use std::net::Shutdown;
 use std::net::TcpListener;
 use std::net::TcpStream;
 use std::num::NonZeroUsize;
@@ -778,6 +779,16 @@ impl WindowManager {
                 if WindowsApi::focus_follows_mouse()? {
                     WindowsApi::disable_focus_follows_mouse()?;
                 }
+
+                let sockets = SUBSCRIPTION_SOCKETS.lock();
+                for path in (*sockets).values() {
+                    if let Ok(stream) = UnixStream::connect(path) {
+                        stream.shutdown(Shutdown::Both)?;
+                    }
+                }
+
+                let socket = DATA_DIR.join("komorebi.sock");
+                let _ = std::fs::remove_file(socket);
 
                 std::process::exit(0)
             }

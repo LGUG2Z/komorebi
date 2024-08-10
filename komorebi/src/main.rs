@@ -7,6 +7,7 @@
     clippy::doc_markdown
 )]
 
+use std::net::Shutdown;
 use std::path::PathBuf;
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
@@ -23,6 +24,7 @@ use sysinfo::Process;
 use tracing_appender::non_blocking::WorkerGuard;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::EnvFilter;
+use uds_windows::UnixStream;
 
 use komorebi::border_manager;
 use komorebi::focus_manager;
@@ -286,6 +288,16 @@ fn main() -> Result<()> {
     if WindowsApi::focus_follows_mouse()? {
         WindowsApi::disable_focus_follows_mouse()?;
     }
+
+    let sockets = komorebi::SUBSCRIPTION_SOCKETS.lock();
+    for path in (*sockets).values() {
+        if let Ok(stream) = UnixStream::connect(path) {
+            stream.shutdown(Shutdown::Both)?;
+        }
+    }
+
+    let socket = DATA_DIR.join("komorebi.sock");
+    let _ = std::fs::remove_file(socket);
 
     std::process::exit(130);
 }
