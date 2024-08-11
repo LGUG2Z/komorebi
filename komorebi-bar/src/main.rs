@@ -5,8 +5,12 @@ mod time;
 mod widget;
 
 use crate::date::Date;
+use crate::date::DateFormat;
 use crate::memory::Memory;
+use crate::memory::MemoryConfig;
 use crate::storage::Storage;
+use crate::storage::StorageConfig;
+use crate::time::TimeFormat;
 use crate::widget::BarWidget;
 use crossbeam_channel::Receiver;
 use eframe::egui;
@@ -31,20 +35,20 @@ pub struct Position {
     y: f32,
 }
 
-impl Into<Vec2> for Position {
-    fn into(self) -> Vec2 {
-        Vec2 {
-            x: self.x,
-            y: self.y,
+impl From<Position> for Vec2 {
+    fn from(value: Position) -> Self {
+        Self {
+            x: value.x,
+            y: value.y,
         }
     }
 }
 
-impl Into<Pos2> for Position {
-    fn into(self) -> Pos2 {
-        Pos2 {
-            x: self.x,
-            y: self.y,
+impl From<Position> for Pos2 {
+    fn from(value: Position) -> Self {
+        Self {
+            x: value.x,
+            y: value.y,
         }
     }
 }
@@ -57,6 +61,10 @@ pub struct Config {
     transparent: bool,
     monitor_index: usize,
     monitor_work_area_offset: Option<komorebi_client::Rect>,
+    time: Time,
+    date: Date,
+    storage: StorageConfig,
+    memory: MemoryConfig,
 }
 
 fn main() -> eframe::Result<()> {
@@ -72,6 +80,10 @@ fn main() -> eframe::Result<()> {
             right: 0,
             bottom: 40,
         }),
+        time: Time::new(true, TimeFormat::TwentyFourHour),
+        date: Date::new(true, DateFormat::DayDateMonthYear),
+        storage: StorageConfig { enable: true },
+        memory: MemoryConfig { enable: true },
     };
 
     // TODO: ensure that config.monitor_index represents a valid komorebi monitor index
@@ -165,6 +177,8 @@ struct Komobar {
     config: Config,
     state_receiver: Receiver<komorebi_client::Notification>,
     selected_workspace: String,
+    focused_window_title: String,
+    workspace_layout: String,
     workspaces: Vec<String>,
     time: Time,
     date: Date,
@@ -184,14 +198,16 @@ impl Komobar {
         // for e.g. egui::PaintCallback.
 
         Self {
-            config: *config.as_ref(),
+            config: *config,
             state_receiver: rx,
             selected_workspace: String::new(),
+            focused_window_title: String::new(),
+            workspace_layout: String::new(),
             workspaces: vec![],
-            time: Time::default(),
-            date: Date::default(),
-            memory: Memory::default(),
-            storage: Storage::default(),
+            time: config.time,
+            date: config.date,
+            memory: Memory::from(config.memory),
+            storage: Storage::from(config.storage),
         }
     }
 }
@@ -199,20 +215,32 @@ impl Komobar {
 impl Komobar {
     fn handle_komorebi_notification(&mut self) {
         if let Ok(notification) = self.state_receiver.try_recv() {
-            self.workspaces = {
-                let mut workspaces = vec![];
-                let monitor = &notification.state.monitors.elements()[self.config.monitor_index];
-                let focused_workspace_idx = monitor.focused_workspace_idx();
-                self.selected_workspace = monitor.workspaces()[focused_workspace_idx]
-                    .name()
-                    .to_owned()
-                    .unwrap_or_else(|| format!("{}", focused_workspace_idx + 1));
+            let monitor = &notification.state.monitors.elements()[self.config.monitor_index];
+            let focused_workspace_idx = monitor.focused_workspace_idx();
 
-                for (i, ws) in monitor.workspaces().iter().enumerate() {
-                    workspaces.push(ws.name().to_owned().unwrap_or_else(|| format!("{}", i + 1)));
+            let mut workspaces = vec![];
+            self.selected_workspace = monitor.workspaces()[focused_workspace_idx]
+                .name()
+                .to_owned()
+                .unwrap_or_else(|| format!("{}", focused_workspace_idx + 1));
+
+            for (i, ws) in monitor.workspaces().iter().enumerate() {
+                workspaces.push(ws.name().to_owned().unwrap_or_else(|| format!("{}", i + 1)));
+            }
+
+            self.workspaces = workspaces;
+            self.workspace_layout = match monitor.workspaces()[focused_workspace_idx].layout() {
+                komorebi_client::Layout::Default(layout) => layout.to_string(),
+                komorebi_client::Layout::Custom(_) => String::from("Custom"),
+            };
+
+            if let Some(container) = monitor.workspaces()[focused_workspace_idx].focused_container()
+            {
+                if let Some(window) = container.focused_window() {
+                    if let Ok(title) = window.title() {
+                        self.focused_window_title.clone_from(&title);
+                    }
                 }
-
-                workspaces
             }
         }
     }
@@ -267,77 +295,90 @@ impl eframe::App for Komobar {
                                 komorebi_client::send_message(&SocketMessage::Retile).unwrap();
                             }
                         }
+
+                        ui.label(&self.workspace_layout);
+
+                        ui.add_space(10.0);
+
+                        ui.label(&self.focused_window_title);
+
+                        ui.add_space(10.0);
                     });
 
                     // TODO: make the order configurable
-                    // TODO: make each widget optional??
                     ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                        for time in self.time.output() {
-                            ctx.request_repaint();
-                            if ui
-                                .label(format!("🕐 {}", time))
-                                .on_hover_cursor(CursorIcon::default())
-                                .clicked()
-                            {
-                                // TODO: make default format configurable
-                                self.time.format.toggle()
+                        if self.time.enable {
+                            for time in self.time.output() {
+                                ctx.request_repaint();
+                                if ui
+                                    .label(format!("🕐 {}", time))
+                                    .on_hover_cursor(CursorIcon::default())
+                                    .clicked()
+                                {
+                                    self.time.format.toggle()
+                                }
                             }
+
+                            // TODO: make spacing configurable
+                            ui.add_space(10.0);
                         }
 
-                        // TODO: make spacing configurable
-                        ui.add_space(10.0);
-
-                        for date in self.date.output() {
-                            if ui
-                                .label(format!("📅 {}", date))
-                                .on_hover_cursor(CursorIcon::default())
-                                .clicked()
-                            {
-                                // TODO: make default format configurable
-                                self.date.format.next()
-                            };
-                        }
-
-                        // TODO: make spacing configurable
-                        ui.add_space(10.0);
-
-                        for ram in self.memory.output() {
-                            if ui
-                                // TODO: make label configurable??
-                                .label(format!("🐏 {}", ram))
-                                .on_hover_cursor(CursorIcon::default())
-                                .clicked()
-                            {
-                                if let Err(error) =
-                                    Command::new("cmd.exe").args(["/C", "taskmgr.exe"]).output()
+                        if self.date.enable {
+                            for date in self.date.output() {
+                                if ui
+                                    .label(format!("📅 {}", date))
+                                    .on_hover_cursor(CursorIcon::default())
+                                    .clicked()
                                 {
-                                    eprintln!("{}", error)
-                                }
-                            };
+                                    self.date.format.next()
+                                };
+                            }
+
+                            // TODO: make spacing configurable
+                            ui.add_space(10.0);
                         }
 
-                        ui.add_space(10.0);
-
-                        for disk in self.storage.output() {
-                            if ui
-                                // TODO: Make emoji configurable??
-                                .label(format!("🖴 {}", disk))
-                                .on_hover_cursor(CursorIcon::default())
-                                .clicked()
-                            {
-                                if let Err(error) = Command::new("cmd.exe")
-                                    .args([
-                                        "/C",
-                                        "explorer.exe",
-                                        disk.split(' ').collect::<Vec<&str>>()[0],
-                                    ])
-                                    .output()
+                        if self.memory.enable {
+                            for ram in self.memory.output() {
+                                if ui
+                                    // TODO: make label configurable??
+                                    .label(format!("🐏 {}", ram))
+                                    .on_hover_cursor(CursorIcon::default())
+                                    .clicked()
                                 {
-                                    eprintln!("{}", error)
-                                }
-                            };
+                                    if let Err(error) =
+                                        Command::new("cmd.exe").args(["/C", "taskmgr.exe"]).output()
+                                    {
+                                        eprintln!("{}", error)
+                                    }
+                                };
+                            }
 
                             ui.add_space(10.0);
+                        }
+
+                        if self.storage.enable {
+                            for disk in self.storage.output() {
+                                if ui
+                                    // TODO: Make emoji configurable??
+                                    .label(format!("🖴 {}", disk))
+                                    .on_hover_cursor(CursorIcon::default())
+                                    .clicked()
+                                {
+                                    if let Err(error) = Command::new("cmd.exe")
+                                        .args([
+                                            "/C",
+                                            "explorer.exe",
+                                            disk.split(' ').collect::<Vec<&str>>()[0],
+                                        ])
+                                        .output()
+                                    {
+                                        eprintln!("{}", error)
+                                    }
+                                };
+
+                                ui.add_space(10.0);
+                            }
                         }
                     })
                 })

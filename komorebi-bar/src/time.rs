@@ -1,5 +1,6 @@
 use crate::widget::BarWidget;
 
+#[derive(Copy, Clone, Debug)]
 pub enum TimeFormat {
     TwelveHour,
     TwentyFourHour,
@@ -21,15 +22,15 @@ impl TimeFormat {
     }
 }
 
+#[derive(Copy, Clone, Debug)]
 pub struct Time {
+    pub enable: bool,
     pub format: TimeFormat,
 }
 
-impl Default for Time {
-    fn default() -> Self {
-        Self {
-            format: TimeFormat::TwelveHour,
-        }
+impl Time {
+    pub fn new(enable: bool, format: TimeFormat) -> Self {
+        Self { enable, format }
     }
 }
 

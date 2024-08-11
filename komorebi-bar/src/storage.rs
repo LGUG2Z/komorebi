@@ -1,16 +1,23 @@
 use crate::widget::BarWidget;
 use sysinfo::Disks;
 
-pub struct Storage {
-    disks: Disks,
+#[derive(Copy, Clone, Debug)]
+pub struct StorageConfig {
+    pub enable: bool,
 }
 
-impl Default for Storage {
-    fn default() -> Self {
+impl From<StorageConfig> for Storage {
+    fn from(value: StorageConfig) -> Self {
         Self {
+            enable: value.enable,
             disks: Disks::new_with_refreshed_list(),
         }
     }
+}
+
+pub struct Storage {
+    pub enable: bool,
+    disks: Disks,
 }
 
 impl BarWidget for Storage {

@@ -1,5 +1,6 @@
 use crate::widget::BarWidget;
 
+#[derive(Copy, Clone, Debug)]
 pub enum DateFormat {
     MonthDateYear,
     YearMonthDate,
@@ -27,15 +28,15 @@ impl DateFormat {
     }
 }
 
+#[derive(Copy, Clone, Debug)]
 pub struct Date {
+    pub enable: bool,
     pub format: DateFormat,
 }
 
-impl Default for Date {
-    fn default() -> Self {
-        Self {
-            format: DateFormat::MonthDateYear,
-        }
+impl Date {
+    pub fn new(enable: bool, format: DateFormat) -> Self {
+        Self { enable, format }
     }
 }
 
