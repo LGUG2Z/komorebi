@@ -1,4 +1,5 @@
 mod date;
+mod media;
 mod memory;
 mod storage;
 mod time;
@@ -6,6 +7,8 @@ mod widget;
 
 use crate::date::Date;
 use crate::date::DateFormat;
+use crate::media::Media;
+use crate::media::MediaConfig;
 use crate::memory::Memory;
 use crate::memory::MemoryConfig;
 use crate::storage::Storage;
@@ -15,12 +18,14 @@ use crate::widget::BarWidget;
 use crossbeam_channel::Receiver;
 use eframe::egui;
 use eframe::egui::Align;
-use eframe::egui::CursorIcon;
+use eframe::egui::Label;
 use eframe::egui::Layout;
+use eframe::egui::Sense;
 use eframe::egui::ViewportBuilder;
 use eframe::egui::Visuals;
 use eframe::emath::Pos2;
 use eframe::emath::Vec2;
+use komorebi_client::CycleDirection;
 use komorebi_client::SocketMessage;
 use std::io::BufReader;
 use std::io::Read;
@@ -65,6 +70,7 @@ pub struct Config {
     date: Date,
     storage: StorageConfig,
     memory: MemoryConfig,
+    media: MediaConfig,
 }
 
 fn main() -> eframe::Result<()> {
@@ -84,6 +90,7 @@ fn main() -> eframe::Result<()> {
         date: Date::new(true, DateFormat::DayDateMonthYear),
         storage: StorageConfig { enable: true },
         memory: MemoryConfig { enable: true },
+        media: MediaConfig { enable: true },
     };
 
     // TODO: ensure that config.monitor_index represents a valid komorebi monitor index
@@ -178,12 +185,13 @@ struct Komobar {
     state_receiver: Receiver<komorebi_client::Notification>,
     selected_workspace: String,
     focused_window_title: String,
-    workspace_layout: String,
+    layout: String,
     workspaces: Vec<String>,
     time: Time,
     date: Date,
     memory: Memory,
     storage: Storage,
+    media: Media,
 }
 
 impl Komobar {
@@ -202,12 +210,13 @@ impl Komobar {
             state_receiver: rx,
             selected_workspace: String::new(),
             focused_window_title: String::new(),
-            workspace_layout: String::new(),
+            layout: String::new(),
             workspaces: vec![],
             time: config.time,
             date: config.date,
             memory: Memory::from(config.memory),
             storage: Storage::from(config.storage),
+            media: Media::from(config.media),
         }
     }
 }
@@ -229,7 +238,7 @@ impl Komobar {
             }
 
             self.workspaces = workspaces;
-            self.workspace_layout = match monitor.workspaces()[focused_workspace_idx].layout() {
+            self.layout = match monitor.workspaces()[focused_workspace_idx].layout() {
                 komorebi_client::Layout::Default(layout) => layout.to_string(),
                 komorebi_client::Layout::Custom(_) => String::from("Custom"),
             };
@@ -240,6 +249,23 @@ impl Komobar {
                     if let Ok(title) = window.title() {
                         self.focused_window_title.clone_from(&title);
                     }
+                }
+            } else {
+                self.focused_window_title.clear();
+            }
+
+            if let Some(container) = monitor.workspaces()[focused_workspace_idx].monocle_container()
+            {
+                if let Some(window) = container.focused_window() {
+                    if let Ok(title) = window.title() {
+                        self.focused_window_title.clone_from(&title);
+                    }
+                }
+            }
+
+            if let Some(window) = monitor.workspaces()[focused_workspace_idx].maximized_window() {
+                if let Ok(title) = window.title() {
+                    self.focused_window_title.clone_from(&title);
                 }
             }
         }
@@ -296,11 +322,23 @@ impl eframe::App for Komobar {
                             }
                         }
 
-                        ui.label(&self.workspace_layout);
+                        if ui
+                            .add(
+                                Label::new(&self.layout)
+                                    .selectable(false)
+                                    .sense(Sense::click()),
+                            )
+                            .clicked()
+                        {
+                            komorebi_client::send_message(&SocketMessage::CycleLayout(
+                                CycleDirection::Next,
+                            ))
+                            .unwrap();
+                        }
 
                         ui.add_space(10.0);
 
-                        ui.label(&self.focused_window_title);
+                        ui.add(Label::new(&self.focused_window_title).selectable(false));
 
                         ui.add_space(10.0);
                     });
@@ -311,8 +349,11 @@ impl eframe::App for Komobar {
                             for time in self.time.output() {
                                 ctx.request_repaint();
                                 if ui
-                                    .label(format!("🕐 {}", time))
-                                    .on_hover_cursor(CursorIcon::default())
+                                    .add(
+                                        Label::new(format!("🕐 {}", time))
+                                            .selectable(false)
+                                            .sense(Sense::click()),
+                                    )
                                     .clicked()
                                 {
                                     self.time.format.toggle()
@@ -326,12 +367,15 @@ impl eframe::App for Komobar {
                         if self.date.enable {
                             for date in self.date.output() {
                                 if ui
-                                    .label(format!("📅 {}", date))
-                                    .on_hover_cursor(CursorIcon::default())
+                                    .add(
+                                        Label::new(format!("📅 {}", date))
+                                            .selectable(false)
+                                            .sense(Sense::click()),
+                                    )
                                     .clicked()
                                 {
                                     self.date.format.next()
-                                };
+                                }
                             }
 
                             // TODO: make spacing configurable
@@ -341,9 +385,11 @@ impl eframe::App for Komobar {
                         if self.memory.enable {
                             for ram in self.memory.output() {
                                 if ui
-                                    // TODO: make label configurable??
-                                    .label(format!("🐏 {}", ram))
-                                    .on_hover_cursor(CursorIcon::default())
+                                    .add(
+                                        Label::new(format!("🐏 {}", ram))
+                                            .selectable(false)
+                                            .sense(Sense::click()),
+                                    )
                                     .clicked()
                                 {
                                     if let Err(error) =
@@ -351,7 +397,7 @@ impl eframe::App for Komobar {
                                     {
                                         eprintln!("{}", error)
                                     }
-                                };
+                                }
                             }
 
                             ui.add_space(10.0);
@@ -360,9 +406,11 @@ impl eframe::App for Komobar {
                         if self.storage.enable {
                             for disk in self.storage.output() {
                                 if ui
-                                    // TODO: Make emoji configurable??
-                                    .label(format!("🖴 {}", disk))
-                                    .on_hover_cursor(CursorIcon::default())
+                                    .add(
+                                        Label::new(format!("🖴 {}", disk))
+                                            .selectable(false)
+                                            .sense(Sense::click()),
+                                    )
                                     .clicked()
                                 {
                                     if let Err(error) = Command::new("cmd.exe")
@@ -375,7 +423,24 @@ impl eframe::App for Komobar {
                                     {
                                         eprintln!("{}", error)
                                     }
-                                };
+                                }
+
+                                ui.add_space(10.0);
+                            }
+                        }
+
+                        if self.media.enable {
+                            for media in self.media.output() {
+                                if ui
+                                    .add(
+                                        Label::new(format!("🎧 {media}"))
+                                            .selectable(false)
+                                            .sense(Sense::click()),
+                                    )
+                                    .clicked()
+                                {
+                                    self.media.toggle();
+                                }
 
                                 ui.add_space(10.0);
                             }

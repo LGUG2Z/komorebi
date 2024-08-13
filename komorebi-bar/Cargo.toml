@@ -14,3 +14,4 @@ eframe = "0.28"
 serde_json = "1"
 sysinfo = "0.30"
 crossbeam-channel = "0.5"
+windows = { workspace = true }

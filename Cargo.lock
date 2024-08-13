@@ -2374,6 +2374,7 @@ dependencies = [
  "komorebi-client",
  "serde_json",
  "sysinfo",
+ "windows 0.54.0",
 ]
 
 [[package]]

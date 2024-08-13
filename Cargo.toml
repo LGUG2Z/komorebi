@@ -43,5 +43,7 @@ features = [
     "Win32_UI_Shell_Common",
     "Win32_UI_WindowsAndMessaging",
     "Win32_System_SystemServices",
-    "Win32_System_WindowsProgramming"
+    "Win32_System_WindowsProgramming",
+    "Media",
+    "Media_Control"
 ]
