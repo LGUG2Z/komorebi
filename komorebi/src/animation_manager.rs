@@ -99,7 +99,7 @@ impl AnimationManager {
         if let Some(animation_state) = self.animations.get_mut(&hwnd) {
             animation_state.in_progress = false;
 
-            if animation_state.cancel_idx_counter == 0 {
+            if animation_state.pending_cancel_count == 0 {
                 self.animations.remove(&hwnd);
                 ANIMATIONS_IN_PROGRESS.store(self.animations.len(), Ordering::Release);
             }
