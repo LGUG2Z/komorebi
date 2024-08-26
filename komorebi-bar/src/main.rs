@@ -100,6 +100,7 @@ fn main() -> eframe::Result<()> {
             .with_decorations(false)
             .with_transparent(config.transparent)
             .with_position(config.position)
+            .with_taskbar(false)
             .with_inner_size(config.inner_size),
         ..Default::default()
     };
@@ -119,9 +120,15 @@ fn main() -> eframe::Result<()> {
         "komorebi-bar",
         native_options,
         Box::new(|cc| {
-            let frame = cc.egui_ctx.clone();
             let config_cl = config_arc.clone();
 
+            let ctx_repainter = cc.egui_ctx.clone();
+            std::thread::spawn(move || loop {
+                std::thread::sleep(Duration::from_secs(1));
+                ctx_repainter.request_repaint();
+            });
+
+            let ctx_komorebi = cc.egui_ctx.clone();
             std::thread::spawn(move || {
                 let listener = komorebi_client::subscribe("komorebi-bar").unwrap();
 
@@ -165,7 +172,7 @@ fn main() -> eframe::Result<()> {
                                 )
                             {
                                 tx_gui.send(notification).unwrap();
-                                frame.request_repaint();
+                                ctx_komorebi.request_repaint();
                             }
                         }
                         Err(error) => {
@@ -347,7 +354,6 @@ impl eframe::App for Komobar {
                     ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
                         if self.time.enable {
                             for time in self.time.output() {
-                                ctx.request_repaint();
                                 if ui
                                     .add(
                                         Label::new(format!("🕐 {}", time))
@@ -393,7 +399,7 @@ impl eframe::App for Komobar {
                                     .clicked()
                                 {
                                     if let Err(error) =
-                                        Command::new("cmd.exe").args(["/C", "taskmgr.exe"]).output()
+                                        Command::new("cmd.exe").args(["/C", "taskmgr.exe"]).spawn()
                                     {
                                         eprintln!("{}", error)
                                     }
@@ -419,7 +425,7 @@ impl eframe::App for Komobar {
                                             "explorer.exe",
                                             disk.split(' ').collect::<Vec<&str>>()[0],
                                         ])
-                                        .output()
+                                        .spawn()
                                     {
                                         eprintln!("{}", error)
                                     }
