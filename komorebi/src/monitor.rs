@@ -17,6 +17,7 @@ use crate::core::Rect;
 use crate::container::Container;
 use crate::ring::Ring;
 use crate::workspace::Workspace;
+use crate::OperationDirection;
 
 #[derive(
     Debug,
@@ -114,7 +115,7 @@ impl Monitor {
                 .ok_or_else(|| anyhow!("there is no workspace"))?
         };
 
-        workspace.add_container(container);
+        workspace.add_container_to_back(container);
 
         Ok(())
     }
@@ -149,6 +150,7 @@ impl Monitor {
         &mut self,
         target_workspace_idx: usize,
         follow: bool,
+        direction: Option<OperationDirection>,
     ) -> Result<()> {
         let workspace = self
             .focused_workspace_mut()
@@ -173,7 +175,11 @@ impl Monitor {
             Some(workspace) => workspace,
         };
 
-        target_workspace.add_container(container);
+        if matches!(direction, Some(OperationDirection::Right)) {
+            target_workspace.add_container_to_front(container);
+        } else {
+            target_workspace.add_container_to_back(container);
+        }
 
         if follow {
             self.focus_workspace(target_workspace_idx)?;

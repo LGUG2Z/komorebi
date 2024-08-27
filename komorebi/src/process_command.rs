@@ -441,7 +441,7 @@ impl WindowManager {
                 self.adjust_workspace_padding(sizing, adjustment)?;
             }
             SocketMessage::MoveContainerToWorkspaceNumber(workspace_idx) => {
-                self.move_container_to_workspace(workspace_idx, true)?;
+                self.move_container_to_workspace(workspace_idx, true, None)?;
             }
             SocketMessage::CycleMoveContainerToWorkspace(direction) => {
                 let focused_monitor = self
@@ -457,7 +457,7 @@ impl WindowManager {
                         .ok_or_else(|| anyhow!("there must be at least one workspace"))?,
                 );
 
-                self.move_container_to_workspace(workspace_idx, true)?;
+                self.move_container_to_workspace(workspace_idx, true, None)?;
             }
             SocketMessage::MoveContainerToMonitorNumber(monitor_idx) => {
                 self.move_container_to_monitor(monitor_idx, None, true)?;
@@ -475,7 +475,7 @@ impl WindowManager {
                 self.move_container_to_monitor(monitor_idx, None, true)?;
             }
             SocketMessage::SendContainerToWorkspaceNumber(workspace_idx) => {
-                self.move_container_to_workspace(workspace_idx, false)?;
+                self.move_container_to_workspace(workspace_idx, false, None)?;
             }
             SocketMessage::CycleSendContainerToWorkspace(direction) => {
                 let focused_monitor = self
@@ -491,7 +491,7 @@ impl WindowManager {
                         .ok_or_else(|| anyhow!("there must be at least one workspace"))?,
                 );
 
-                self.move_container_to_workspace(workspace_idx, false)?;
+                self.move_container_to_workspace(workspace_idx, false, None)?;
             }
             SocketMessage::SendContainerToMonitorNumber(monitor_idx) => {
                 self.move_container_to_monitor(monitor_idx, None, false)?;
