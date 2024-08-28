@@ -365,6 +365,16 @@ pub enum MoveBehaviour {
 }
 
 #[derive(
+    Clone, Copy, Debug, Serialize, Deserialize, Display, EnumString, ValueEnum, JsonSchema,
+)]
+pub enum CrossBoundaryBehaviour {
+    /// Attempt to perform actions across a workspace boundary
+    Workspace,
+    /// Attempt to perform actions across a monitor boundary
+    Monitor,
+}
+
+#[derive(
     Copy, Clone, Debug, Serialize, Deserialize, Display, EnumString, ValueEnum, JsonSchema,
 )]
 pub enum HidingBehaviour {

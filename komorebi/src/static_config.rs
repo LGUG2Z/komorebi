@@ -26,6 +26,7 @@ use crate::window_manager::WindowManager;
 use crate::window_manager_event::WindowManagerEvent;
 use crate::windows_api::WindowsApi;
 use crate::workspace::Workspace;
+use crate::CrossBoundaryBehaviour;
 use crate::ANIMATION_DURATION;
 use crate::ANIMATION_ENABLED;
 use crate::ANIMATION_FPS;
@@ -265,6 +266,9 @@ pub struct StaticConfig {
     /// Determine what happens when a window is moved across a monitor boundary (default: Swap)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub cross_monitor_move_behaviour: Option<MoveBehaviour>,
+    /// Determine what happens when an action is called on a window at a monitor boundary (default: Monitor)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cross_boundary_behaviour: Option<CrossBoundaryBehaviour>,
     /// Determine what happens when commands are sent while an unmanaged window is in the foreground (default: Op)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub unmanaged_window_operation_behaviour: Option<OperationBehaviour>,
@@ -565,6 +569,7 @@ impl From<&WindowManager> for StaticConfig {
             resize_delta: Option::from(value.resize_delta),
             window_container_behaviour: Option::from(value.window_container_behaviour),
             cross_monitor_move_behaviour: Option::from(value.cross_monitor_move_behaviour),
+            cross_boundary_behaviour: Option::from(value.cross_boundary_behaviour),
             unmanaged_window_operation_behaviour: Option::from(
                 value.unmanaged_window_operation_behaviour,
             ),
@@ -866,6 +871,9 @@ impl StaticConfig {
             cross_monitor_move_behaviour: value
                 .cross_monitor_move_behaviour
                 .unwrap_or(MoveBehaviour::Swap),
+            cross_boundary_behaviour: value
+                .cross_boundary_behaviour
+                .unwrap_or(CrossBoundaryBehaviour::Monitor),
             unmanaged_window_operation_behaviour: value
                 .unmanaged_window_operation_behaviour
                 .unwrap_or(OperationBehaviour::Op),

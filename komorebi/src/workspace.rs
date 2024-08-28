@@ -656,9 +656,14 @@ impl Workspace {
         Ok(())
     }
 
-    pub fn add_container(&mut self, container: Container) {
+    pub fn add_container_to_back(&mut self, container: Container) {
         self.containers_mut().push_back(container);
         self.focus_last_container();
+    }
+
+    pub fn add_container_to_front(&mut self, container: Container) {
+        self.containers_mut().push_front(container);
+        self.focus_first_container();
     }
 
     pub fn insert_container_at_idx(&mut self, idx: usize, container: Container) {
@@ -1441,5 +1446,9 @@ impl Workspace {
 
     fn focus_last_container(&mut self) {
         self.focus_container(self.containers().len().saturating_sub(1));
+    }
+
+    fn focus_first_container(&mut self) {
+        self.focus_container(0);
     }
 }
