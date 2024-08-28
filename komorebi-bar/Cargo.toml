@@ -11,7 +11,9 @@ komorebi-client = { path = "../komorebi-client" }
 anyhow = "1"
 chrono = "0.4"
 eframe = "0.28"
+netdev = "0.30"
 serde_json = "1"
-sysinfo = "0.30"
+starship-battery = "0.9"
+sysinfo = "0.31"
 crossbeam-channel = "0.5"
 windows = { workspace = true }

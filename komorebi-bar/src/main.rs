@@ -1,16 +1,23 @@
+mod battery;
 mod date;
 mod media;
 mod memory;
+mod network;
 mod storage;
 mod time;
 mod widget;
 
+use crate::battery::Battery;
+use crate::battery::BatteryConfig;
+use crate::battery::BatteryState;
 use crate::date::Date;
 use crate::date::DateFormat;
 use crate::media::Media;
 use crate::media::MediaConfig;
 use crate::memory::Memory;
 use crate::memory::MemoryConfig;
+use crate::network::Network;
+use crate::network::NetworkConfig;
 use crate::storage::Storage;
 use crate::storage::StorageConfig;
 use crate::time::TimeFormat;
@@ -71,6 +78,8 @@ pub struct Config {
     storage: StorageConfig,
     memory: MemoryConfig,
     media: MediaConfig,
+    battery: BatteryConfig,
+    network: NetworkConfig,
 }
 
 fn main() -> eframe::Result<()> {
@@ -91,6 +100,11 @@ fn main() -> eframe::Result<()> {
         storage: StorageConfig { enable: true },
         memory: MemoryConfig { enable: true },
         media: MediaConfig { enable: true },
+        battery: BatteryConfig { enable: true },
+        network: NetworkConfig {
+            enable: true,
+            show_data: true,
+        },
     };
 
     // TODO: ensure that config.monitor_index represents a valid komorebi monitor index
@@ -199,6 +213,8 @@ struct Komobar {
     memory: Memory,
     storage: Storage,
     media: Media,
+    battery: Battery,
+    network: Network,
 }
 
 impl Komobar {
@@ -224,6 +240,8 @@ impl Komobar {
             memory: Memory::from(config.memory),
             storage: Storage::from(config.storage),
             media: Media::from(config.media),
+            battery: Battery::from(config.battery),
+            network: Network::from(config.network),
         }
     }
 }
@@ -352,6 +370,26 @@ impl eframe::App for Komobar {
 
                     // TODO: make the order configurable
                     ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+                        if self.battery.enable {
+                            let battery_output = self.battery.output();
+                            if !battery_output.is_empty() {
+                                for battery in battery_output {
+                                    let emoji = match self.battery.state {
+                                        BatteryState::Charging => "⚡️",
+                                        BatteryState::Discharging => "🔋",
+                                    };
+
+                                    ui.add(
+                                        Label::new(format!("{emoji} {battery}"))
+                                            .selectable(false)
+                                            .sense(Sense::click()),
+                                    );
+                                }
+
+                                ui.add_space(10.0);
+                            }
+                        }
+
                         if self.time.enable {
                             for time in self.time.output() {
                                 if ui
@@ -386,6 +424,53 @@ impl eframe::App for Komobar {
 
                             // TODO: make spacing configurable
                             ui.add_space(10.0);
+                        }
+
+                        if self.network.enable {
+                            let network_output = self.network.output();
+
+                            if !network_output.is_empty() {
+                                match network_output.len() {
+                                    1 => {
+                                        if ui
+                                            .add(
+                                                Label::new(format!("📶 {}", network_output[0]))
+                                                    .selectable(false)
+                                                    .sense(Sense::click()),
+                                            )
+                                            .clicked()
+                                        {
+                                            if let Err(error) =
+                                                Command::new("cmd.exe").args(["/C", "ncpa"]).spawn()
+                                            {
+                                                eprintln!("{}", error)
+                                            }
+                                        }
+                                    }
+                                    2 => {
+                                        if ui
+                                            .add(
+                                                Label::new(format!(
+                                                    "📶 {} - {}",
+                                                    network_output[0], network_output[1]
+                                                ))
+                                                .selectable(false)
+                                                .sense(Sense::click()),
+                                            )
+                                            .clicked()
+                                        {
+                                            if let Err(error) =
+                                                Command::new("cmd.exe").args(["/C", "ncpa"]).spawn()
+                                            {
+                                                eprintln!("{}", error)
+                                            }
+                                        };
+                                    }
+                                    _ => {}
+                                }
+
+                                ui.add_space(10.0);
+                            }
                         }
 
                         if self.memory.enable {
