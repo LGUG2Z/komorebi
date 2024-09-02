@@ -17,3 +17,4 @@ starship-battery = "0.9"
 sysinfo = "0.31"
 crossbeam-channel = "0.5"
 windows = { workspace = true }
+font-loader = "0.11"

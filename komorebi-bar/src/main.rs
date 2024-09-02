@@ -32,10 +32,13 @@ use eframe::egui::ViewportBuilder;
 use eframe::egui::Visuals;
 use eframe::emath::Pos2;
 use eframe::emath::Vec2;
+use font_loader::system_fonts;
+use font_loader::system_fonts::FontPropertyBuilder;
 use komorebi_client::CycleDirection;
 use komorebi_client::SocketMessage;
 use std::io::BufReader;
 use std::io::Read;
+use std::ops::Deref;
 use std::process::Command;
 use std::sync::Arc;
 use std::time::Duration;
@@ -65,7 +68,7 @@ impl From<Position> for Pos2 {
     }
 }
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Clone, Debug)]
 pub struct Config {
     inner_size: Position,
     position: Position,
@@ -73,6 +76,7 @@ pub struct Config {
     transparent: bool,
     monitor_index: usize,
     monitor_work_area_offset: Option<komorebi_client::Rect>,
+    font_family: Option<String>,
     time: Time,
     date: Date,
     storage: StorageConfig,
@@ -89,6 +93,7 @@ fn main() -> eframe::Result<()> {
         outer_margin: Position { x: 10.0, y: 10.0 },
         transparent: false,
         monitor_index: 0,
+        font_family: Some(String::from("JetBrains Mono")),
         monitor_work_area_offset: Some(komorebi_client::Rect {
             left: 0,
             top: 40,
@@ -217,19 +222,53 @@ struct Komobar {
     network: Network,
 }
 
+fn add_custom_font(ctx: &egui::Context, name: &str) {
+    let mut fonts = egui::FontDefinitions::default();
+
+    let property = FontPropertyBuilder::new().family(name).build();
+
+    if let Some((font, _)) = system_fonts::get(&property) {
+        // Install my own font (maybe supporting non-latin characters).
+        // .ttf and .otf files supported.
+        fonts
+            .font_data
+            .insert(name.to_owned(), egui::FontData::from_owned(font));
+
+        // Put my font first (highest priority) for proportional text:
+        fonts
+            .families
+            .entry(egui::FontFamily::Proportional)
+            .or_default()
+            .insert(0, name.to_owned());
+
+        // Put my font as last fallback for monospace:
+        fonts
+            .families
+            .entry(egui::FontFamily::Monospace)
+            .or_default()
+            .push(name.to_owned());
+
+        // Tell egui to use these fonts:
+        ctx.set_fonts(fonts);
+    }
+}
 impl Komobar {
     fn new(
-        _cc: &eframe::CreationContext<'_>,
+        cc: &eframe::CreationContext<'_>,
         rx: Receiver<komorebi_client::Notification>,
         config: Arc<Config>,
     ) -> Self {
+        if let Some(font_family) = &config.font_family {
+            add_custom_font(&cc.egui_ctx, font_family);
+        }
+
         // Customize egui here with cc.egui_ctx.set_fonts and cc.egui_ctx.set_visuals.
         // Restore app state using cc.storage (requires the "persistence" feature).
         // Use the cc.gl (a glow::Context) to create graphics shaders and buffers that you can use
         // for e.g. egui::PaintCallback.
 
         Self {
-            config: *config,
+            config: config.deref().clone(),
             state_receiver: rx,
             selected_workspace: String::new(),
             focused_window_title: String::new(),
