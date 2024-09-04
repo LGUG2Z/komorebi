@@ -333,8 +333,8 @@ impl WindowManager {
                 }
 
                 if proceed {
-                    let behaviour =
-                        self.window_container_behaviour(focused_monitor_idx, focused_workspace_idx);
+                    let mut behaviour =
+                        self.window_management_behaviour(focused_monitor_idx, focused_workspace_idx);
                     let workspace = self.focused_workspace_mut()?;
                     let workspace_contains_window = workspace.contains_window(window.hwnd);
                     let monocle_container = workspace.monocle_container().clone();
@@ -360,11 +360,13 @@ impl WindowManager {
                             }
                         }
 
-                        if should_float && !matches!(event, WindowManagerEvent::Manage(_)) {
+                        behaviour.float_override = behaviour.float_override || (should_float && !matches!(event, WindowManagerEvent::Manage(_)));
+
+                        if behaviour.float_override {
                             workspace.floating_windows_mut().push(window);
-                            self.update_focused_workspace(false, true)?;
+                            self.update_focused_workspace(false, false)?;
                         } else {
-                            match behaviour {
+                            match behaviour.current_behaviour {
                                 WindowContainerBehaviour::Create => {
                                     workspace.new_container_for_window(window);
                                     self.update_focused_workspace(false, false)?;
@@ -375,7 +377,6 @@ impl WindowManager {
                                         .ok_or_else(|| anyhow!("there is no focused container"))?
                                         .add_window(window);
                                     self.update_focused_workspace(true, false)?;
-
                                     stackbar_manager::send_notification();
                                 }
                             }
@@ -431,8 +432,8 @@ impl WindowManager {
 
                 let focused_monitor_idx = self.focused_monitor_idx();
                 let focused_workspace_idx = self.focused_workspace_idx().unwrap_or_default();
-                let window_container_behaviour =
-                    self.window_container_behaviour(focused_monitor_idx, focused_workspace_idx);
+                let window_management_behaviour =
+                    self.window_management_behaviour(focused_monitor_idx, focused_workspace_idx);
 
                 let workspace = self.focused_workspace_mut()?;
                 let focused_container_idx = workspace.focused_container_idx();
@@ -550,8 +551,11 @@ impl WindowManager {
                             }
                             // Here we handle a simple move on the same monitor which is treated as
                             // a container swap
+                        } else if window_management_behaviour.float_override {
+                            workspace.floating_windows_mut().push(window);
+                            self.update_focused_workspace(false, false)?;
                         } else {
-                            match window_container_behaviour {
+                            match window_management_behaviour.current_behaviour {
                                 WindowContainerBehaviour::Create => {
                                     match workspace.container_idx_from_current_point() {
                                         Some(target_idx) => {

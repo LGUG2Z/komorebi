@@ -30,6 +30,7 @@ use crate::static_config::WorkspaceConfig;
 use crate::window::Window;
 use crate::window::WindowDetails;
 use crate::windows_api::WindowsApi;
+use crate::WindowContainerBehaviour;
 use crate::DEFAULT_CONTAINER_PADDING;
 use crate::DEFAULT_WORKSPACE_PADDING;
 use crate::INITIAL_CONFIGURATION_LOADED;
@@ -83,6 +84,10 @@ pub struct Workspace {
     tile: bool,
     #[getset(get_copy = "pub", set = "pub")]
     apply_window_based_work_area_offset: bool,
+    #[getset(get = "pub", get_mut = "pub", set = "pub")]
+    window_container_behaviour: Option<WindowContainerBehaviour>,
+    #[getset(get = "pub", get_mut = "pub", set = "pub")]
+    float_override: Option<bool>,
 }
 
 impl_ring_elements!(Workspace, Container);
@@ -106,6 +111,8 @@ impl Default for Workspace {
             resize_dimensions: vec![],
             tile: true,
             apply_window_based_work_area_offset: true,
+            window_container_behaviour: None,
+            float_override: None,
         }
     }
 }
@@ -162,6 +169,14 @@ impl Workspace {
             config.apply_window_based_work_area_offset.unwrap_or(true),
         );
 
+        if config.window_container_behaviour.is_some() {
+            self.set_window_container_behaviour(config.window_container_behaviour);
+        }
+
+        if config.float_override.is_some() {
+            self.set_float_override(config.float_override);
+        }
+
         Ok(())
     }
 
@@ -214,10 +229,6 @@ impl Workspace {
                 }
             }
 
-            container.restore();
-        }
-
-        for container in self.containers_mut() {
             container.restore();
         }
 

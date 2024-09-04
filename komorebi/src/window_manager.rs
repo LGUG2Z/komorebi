@@ -39,6 +39,7 @@ use crate::core::Rect;
 use crate::core::Sizing;
 use crate::core::StackbarLabel;
 use crate::core::WindowContainerBehaviour;
+use crate::core::WindowManagementBehaviour;
 
 use crate::border_manager;
 use crate::border_manager::STYLE;
@@ -92,7 +93,7 @@ pub struct WindowManager {
     pub is_paused: bool,
     pub work_area_offset: Option<Rect>,
     pub resize_delta: i32,
-    pub window_container_behaviour: WindowContainerBehaviour,
+    pub window_management_behaviour: WindowManagementBehaviour,
     pub cross_monitor_move_behaviour: MoveBehaviour,
     pub cross_boundary_behaviour: CrossBoundaryBehaviour,
     pub unmanaged_window_operation_behaviour: OperationBehaviour,
@@ -112,6 +113,7 @@ pub struct State {
     pub is_paused: bool,
     pub resize_delta: i32,
     pub new_window_behaviour: WindowContainerBehaviour,
+    pub float_override: bool,
     pub cross_monitor_move_behaviour: MoveBehaviour,
     pub unmanaged_window_operation_behaviour: OperationBehaviour,
     pub work_area_offset: Option<Rect>,
@@ -215,7 +217,8 @@ impl From<&WindowManager> for State {
             is_paused: wm.is_paused,
             work_area_offset: wm.work_area_offset,
             resize_delta: wm.resize_delta,
-            new_window_behaviour: wm.window_container_behaviour,
+            new_window_behaviour: wm.window_management_behaviour.current_behaviour,
+            float_override: wm.window_management_behaviour.float_override,
             cross_monitor_move_behaviour: wm.cross_monitor_move_behaviour,
             focus_follows_mouse: wm.focus_follows_mouse,
             mouse_follows_focus: wm.mouse_follows_focus,
@@ -275,7 +278,7 @@ impl WindowManager {
             is_paused: false,
             virtual_desktop_id: current_virtual_desktop(),
             work_area_offset: None,
-            window_container_behaviour: WindowContainerBehaviour::Create,
+            window_management_behaviour: WindowManagementBehaviour::default(),
             cross_monitor_move_behaviour: MoveBehaviour::Swap,
             cross_boundary_behaviour: CrossBoundaryBehaviour::Workspace,
             unmanaged_window_operation_behaviour: OperationBehaviour::Op,
@@ -308,22 +311,44 @@ impl WindowManager {
         StaticConfig::reload(pathbuf, self)
     }
 
-    pub fn window_container_behaviour(
+    pub fn window_management_behaviour(
         &self,
         monitor_idx: usize,
         workspace_idx: usize,
-    ) -> WindowContainerBehaviour {
+    ) -> WindowManagementBehaviour {
         if let Some(monitor) = self.monitors().get(monitor_idx) {
             if let Some(workspace) = monitor.workspaces().get(workspace_idx) {
-                return if workspace.containers().is_empty() {
+                let current_behaviour = if let Some(behaviour) = workspace.window_container_behaviour() {
+                    if workspace.containers().is_empty() && matches!(behaviour, WindowContainerBehaviour::Append) {
+                        // You can't append to an empty workspace
+                        WindowContainerBehaviour::Create
+                    } else {
+                        *behaviour
+                    }
+                } else if workspace.containers().is_empty() && matches!(self.window_management_behaviour.current_behaviour, WindowContainerBehaviour::Append) {
+                    // You can't append to an empty workspace
                     WindowContainerBehaviour::Create
                 } else {
-                    self.window_container_behaviour
+                    self.window_management_behaviour.current_behaviour
+                };
+
+                let float_override = if let Some(float_override) = workspace.float_override() {
+                    *float_override
+                } else {
+                    self.window_management_behaviour.float_override
+                };
+
+                return WindowManagementBehaviour {
+                    current_behaviour,
+                    float_override
                 };
             }
         }
 
-        WindowContainerBehaviour::Create
+        WindowManagementBehaviour {
+            current_behaviour: WindowContainerBehaviour::Create,
+            float_override: self.window_management_behaviour.float_override,
+        }
     }
 
     #[tracing::instrument(skip(self))]
@@ -846,6 +871,8 @@ impl WindowManager {
                     && self.focused_workspace()?.maximized_window().is_none()
                     // and we don't have a monocle container
                     && self.focused_workspace()?.monocle_container().is_none()
+                    // and we don't have any floating windows that should show on top
+                    && self.focused_workspace()?.floating_windows().is_empty()
                 {
                     if let Ok(window) = self.focused_window_mut() {
                         if trigger_focus {
