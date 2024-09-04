@@ -1294,18 +1294,38 @@ impl WindowManager {
             SocketMessage::ResizeDelta(delta) => {
                 self.resize_delta = delta;
             }
-            SocketMessage::ToggleWindowContainerBehaviour => {
-                match self.window_container_behaviour {
-                    WindowContainerBehaviour::Create => {
-                        self.window_container_behaviour = WindowContainerBehaviour::Append;
+            SocketMessage::CycleWindowContainerBehaviour(direction) => {
+                match direction {
+                    crate::CycleDirection::Next => {
+                        match self.window_container_behaviour {
+                            WindowContainerBehaviour::Create => {
+                                self.window_container_behaviour = WindowContainerBehaviour::Append;
+                            }
+                            WindowContainerBehaviour::Append => {
+                                self.window_container_behaviour = WindowContainerBehaviour::Float;
+                            }
+                            WindowContainerBehaviour::Float => {
+                                self.window_container_behaviour = WindowContainerBehaviour::Create;
+                            }
+                        }
                     }
-                    WindowContainerBehaviour::Append => {
-                        self.window_container_behaviour = WindowContainerBehaviour::Float;
-                    }
-                    WindowContainerBehaviour::Float => {
-                        self.window_container_behaviour = WindowContainerBehaviour::Create;
+                    _ => {
+                        match self.window_container_behaviour {
+                            WindowContainerBehaviour::Create => {
+                                self.window_container_behaviour = WindowContainerBehaviour::Float;
+                            }
+                            WindowContainerBehaviour::Append => {
+                                self.window_container_behaviour = WindowContainerBehaviour::Create;
+                            }
+                            WindowContainerBehaviour::Float => {
+                                self.window_container_behaviour = WindowContainerBehaviour::Append;
+                            }
+                        }
                     }
                 }
+            }
+            SocketMessage::WindowContainerBehaviour(behaviour) => {
+                self.window_container_behaviour = behaviour;
             }
             SocketMessage::WindowHidingBehaviour(behaviour) => {
                 let mut hiding_behaviour = HIDING_BEHAVIOUR.lock();
@@ -1483,6 +1503,7 @@ impl WindowManager {
             }
             // Deprecated commands
             SocketMessage::AltFocusHack(_)
+            | SocketMessage::ToggleWindowContainerBehaviour
             | SocketMessage::IdentifyBorderOverflowApplication(_, _) => {}
         };
 

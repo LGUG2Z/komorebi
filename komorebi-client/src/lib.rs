@@ -18,6 +18,7 @@ pub use komorebi::core::CycleDirection;
 pub use komorebi::core::DefaultLayout;
 pub use komorebi::core::Direction;
 pub use komorebi::core::FocusFollowsMouseImplementation;
+pub use komorebi::core::WindowContainerBehaviour;
 pub use komorebi::core::HidingBehaviour;
 pub use komorebi::core::Layout;
 pub use komorebi::core::MoveBehaviour;

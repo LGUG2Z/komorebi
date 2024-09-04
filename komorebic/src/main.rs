@@ -48,6 +48,7 @@ use komorebi_client::Axis;
 use komorebi_client::CycleDirection;
 use komorebi_client::DefaultLayout;
 use komorebi_client::FocusFollowsMouseImplementation;
+use komorebi_client::WindowContainerBehaviour;
 use komorebi_client::HidingBehaviour;
 use komorebi_client::MoveBehaviour;
 use komorebi_client::OperationBehaviour;
@@ -166,6 +167,8 @@ gen_enum_subcommand_args! {
     WatchConfiguration: BooleanState,
     MouseFollowsFocus: BooleanState,
     Query: StateQuery,
+    CycleWindowContainerBehaviour: CycleDirection,
+    NewWindowContainerBehaviour: WindowContainerBehaviour,
     WindowHidingBehaviour: HidingBehaviour,
     CrossMonitorMoveBehaviour: MoveBehaviour,
     UnmanagedWindowOperationBehaviour: OperationBehaviour,
@@ -1164,8 +1167,16 @@ enum SubCommand {
     /// Set the workspace name for the specified workspace
     #[clap(arg_required_else_help = true)]
     WorkspaceName(WorkspaceName),
+    /// DEPRECATED since v0.1.29
     /// Toggle the behaviour for new windows (stacking or dynamic tiling)
+    #[clap(hide = true)]
     ToggleWindowContainerBehaviour,
+    /// Set the window_container_behaviour when a new window is opened/shown/uncloaked
+    #[clap(arg_required_else_help = true)]
+    WindowContainerBehaviour(NewWindowContainerBehaviour),
+    /// Cycles between dynamic tiling, stacking and floating behaviour for new windows
+    #[clap(arg_required_else_help = true)]
+    CycleWindowContainerBehaviour(CycleWindowContainerBehaviour),
     /// Toggle window tiling on the focused workspace
     TogglePause,
     /// Toggle window tiling on the focused workspace
@@ -2439,8 +2450,15 @@ Stop-Process -Name:komorebi -ErrorAction SilentlyContinue
         SubCommand::ResizeDelta(arg) => {
             send_message(&SocketMessage::ResizeDelta(arg.pixels))?;
         }
+        // Deprecated
         SubCommand::ToggleWindowContainerBehaviour => {
-            send_message(&SocketMessage::ToggleWindowContainerBehaviour)?;
+            println!("Command deprecated - use new commands 'cycle-window-container-behaviour' or 'window-container-behaviour'");
+        }
+        SubCommand::WindowContainerBehaviour(arg) => {
+            send_message(&SocketMessage::WindowContainerBehaviour(arg.window_container_behaviour))?;
+        }
+        SubCommand::CycleWindowContainerBehaviour(arg) => {
+            send_message(&SocketMessage::CycleWindowContainerBehaviour(arg.cycle_direction))?;
         }
         SubCommand::WindowHidingBehaviour(arg) => {
             send_message(&SocketMessage::WindowHidingBehaviour(arg.hiding_behaviour))?;
