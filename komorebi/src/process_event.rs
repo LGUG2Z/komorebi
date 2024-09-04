@@ -350,6 +350,10 @@ impl WindowManager {
 
                                 stackbar_manager::send_notification();
                             }
+                            WindowContainerBehaviour::Float => {
+                                workspace.floating_windows_mut().push(window);
+                                self.update_focused_workspace(false, true)?;
+                            }
                         }
                     }
 
@@ -553,6 +557,10 @@ impl WindowManager {
                                     }
 
                                     stackbar_manager::send_notification();
+                                }
+                                WindowContainerBehaviour::Float => {
+                                    workspace.floating_windows_mut().push(window);
+                                    self.update_focused_workspace(false, true)?;
                                 }
                             }
                         }

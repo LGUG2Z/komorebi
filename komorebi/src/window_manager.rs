@@ -314,7 +314,8 @@ impl WindowManager {
     ) -> WindowContainerBehaviour {
         if let Some(monitor) = self.monitors().get(monitor_idx) {
             if let Some(workspace) = monitor.workspaces().get(workspace_idx) {
-                return if workspace.containers().is_empty() {
+                return if workspace.containers().is_empty() && matches!(self.window_container_behaviour, WindowContainerBehaviour::Append) {
+                    // You can't append to an empty workspace
                     WindowContainerBehaviour::Create
                 } else {
                     self.window_container_behaviour

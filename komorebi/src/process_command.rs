@@ -1300,6 +1300,9 @@ impl WindowManager {
                         self.window_container_behaviour = WindowContainerBehaviour::Append;
                     }
                     WindowContainerBehaviour::Append => {
+                        self.window_container_behaviour = WindowContainerBehaviour::Float;
+                    }
+                    WindowContainerBehaviour::Float => {
                         self.window_container_behaviour = WindowContainerBehaviour::Create;
                     }
                 }

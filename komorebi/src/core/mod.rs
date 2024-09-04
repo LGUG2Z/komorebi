@@ -348,6 +348,8 @@ pub enum WindowContainerBehaviour {
     Create,
     /// Append new windows to the focused window container
     Append,
+    /// Open new windows as floating windows that can be later toggled to tiled
+    Float,
 }
 
 #[derive(
