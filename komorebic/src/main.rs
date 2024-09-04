@@ -1167,6 +1167,16 @@ enum SubCommand {
     WorkspaceName(WorkspaceName),
     /// Toggle the behaviour for new windows (stacking or dynamic tiling)
     ToggleWindowContainerBehaviour,
+    /// Enable or disable float override, which makes it so every new window opens in floating mode
+    ToggleFloatOverride,
+    /// Toggle the behaviour for new windows (stacking or dynamic tiling) for currently focused
+    /// workspace. If there was no behaviour set for the workspace previously it takes the opposite
+    /// of the global value.
+    ToggleWorkspaceWindowContainerBehaviour,
+    /// Enable or disable float override, which makes it so every new window opens in floating
+    /// mode, for the currently focused workspace. If there was no override value set for the
+    /// workspace previously it takes the opposite of the global value.
+    ToggleWorkspaceFloatOverride,
     /// Toggle window tiling on the focused workspace
     TogglePause,
     /// Toggle window tiling on the focused workspace
@@ -2469,6 +2479,15 @@ Stop-Process -Name:komorebi -ErrorAction SilentlyContinue
         }
         SubCommand::ToggleWindowContainerBehaviour => {
             send_message(&SocketMessage::ToggleWindowContainerBehaviour)?;
+        }
+        SubCommand::ToggleFloatOverride => {
+            send_message(&SocketMessage::ToggleFloatOverride)?;
+        }
+        SubCommand::ToggleWorkspaceWindowContainerBehaviour => {
+            send_message(&SocketMessage::ToggleWorkspaceWindowContainerBehaviour)?;
+        }
+        SubCommand::ToggleWorkspaceFloatOverride => {
+            send_message(&SocketMessage::ToggleWorkspaceFloatOverride)?;
         }
         SubCommand::WindowHidingBehaviour(arg) => {
             send_message(&SocketMessage::WindowHidingBehaviour(arg.hiding_behaviour))?;
