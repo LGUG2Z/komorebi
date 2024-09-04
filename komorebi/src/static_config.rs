@@ -68,6 +68,7 @@ use crate::core::OperationBehaviour;
 use crate::core::Rect;
 use crate::core::SocketMessage;
 use crate::core::WindowContainerBehaviour;
+use crate::core::WindowManagementBehaviour;
 use color_eyre::Result;
 use crossbeam_channel::Receiver;
 use hotwatch::EventKind;
@@ -235,6 +236,10 @@ pub struct StaticConfig {
     /// Determine what happens when a new window is opened (default: Create)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub window_container_behaviour: Option<WindowContainerBehaviour>,
+    /// Enable or disable float override, which makes it so every new window opens in floating mode
+    /// (default: false)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub float_override: Option<bool>,
     /// Determine what happens when a window is moved across a monitor boundary (default: Swap)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub cross_monitor_move_behaviour: Option<MoveBehaviour>,
@@ -520,7 +525,8 @@ impl From<&WindowManager> for StaticConfig {
         Self {
             invisible_borders: None,
             resize_delta: Option::from(value.resize_delta),
-            window_container_behaviour: Option::from(value.window_container_behaviour),
+            window_container_behaviour: Option::from(value.window_management_behaviour.current_behaviour),
+            float_override: Option::from(value.window_management_behaviour.float_override),
             cross_monitor_move_behaviour: Option::from(value.cross_monitor_move_behaviour),
             cross_boundary_behaviour: Option::from(value.cross_boundary_behaviour),
             unmanaged_window_operation_behaviour: Option::from(
@@ -1031,9 +1037,10 @@ impl StaticConfig {
             is_paused: false,
             virtual_desktop_id: current_virtual_desktop(),
             work_area_offset: value.global_work_area_offset,
-            window_container_behaviour: value
-                .window_container_behaviour
-                .unwrap_or(WindowContainerBehaviour::Create),
+            window_management_behaviour: WindowManagementBehaviour {
+                current_behaviour: value.window_container_behaviour.unwrap_or(WindowContainerBehaviour::Create),
+                float_override: value.float_override.unwrap_or_default(),
+            },
             cross_monitor_move_behaviour: value
                 .cross_monitor_move_behaviour
                 .unwrap_or(MoveBehaviour::Swap),
@@ -1208,7 +1215,11 @@ impl StaticConfig {
         }
 
         if let Some(val) = value.window_container_behaviour {
-            wm.window_container_behaviour = val;
+            wm.window_management_behaviour.current_behaviour = val;
+        }
+
+        if let Some(val) = value.float_override {
+            wm.window_management_behaviour.float_override = val;
         }
 
         if let Some(val) = value.cross_monitor_move_behaviour {

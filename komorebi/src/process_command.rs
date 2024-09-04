@@ -1346,12 +1346,12 @@ impl WindowManager {
                 self.resize_delta = delta;
             }
             SocketMessage::ToggleWindowContainerBehaviour => {
-                match self.window_container_behaviour {
+                match self.window_management_behaviour.current_behaviour {
                     WindowContainerBehaviour::Create => {
-                        self.window_container_behaviour = WindowContainerBehaviour::Append;
+                        self.window_management_behaviour.current_behaviour = WindowContainerBehaviour::Append;
                     }
                     WindowContainerBehaviour::Append => {
-                        self.window_container_behaviour = WindowContainerBehaviour::Create;
+                        self.window_management_behaviour.current_behaviour = WindowContainerBehaviour::Create;
                     }
                 }
             }
