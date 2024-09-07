@@ -9,8 +9,8 @@ mod widget;
 
 use crate::battery::Battery;
 use crate::battery::BatteryConfig;
-use crate::battery::BatteryState;
 use crate::date::Date;
+use crate::date::DateConfig;
 use crate::date::DateFormat;
 use crate::media::Media;
 use crate::media::MediaConfig;
@@ -20,6 +20,7 @@ use crate::network::Network;
 use crate::network::NetworkConfig;
 use crate::storage::Storage;
 use crate::storage::StorageConfig;
+use crate::time::TimeConfig;
 use crate::time::TimeFormat;
 use crate::widget::BarWidget;
 use crossbeam_channel::Receiver;
@@ -39,7 +40,6 @@ use komorebi_client::SocketMessage;
 use std::io::BufReader;
 use std::io::Read;
 use std::ops::Deref;
-use std::process::Command;
 use std::sync::Arc;
 use std::time::Duration;
 use time::Time;
@@ -77,8 +77,8 @@ pub struct Config {
     monitor_index: usize,
     monitor_work_area_offset: Option<komorebi_client::Rect>,
     font_family: Option<String>,
-    time: Time,
-    date: Date,
+    time: TimeConfig,
+    date: DateConfig,
     storage: StorageConfig,
     memory: MemoryConfig,
     media: MediaConfig,
@@ -100,8 +100,14 @@ fn main() -> eframe::Result<()> {
             right: 0,
             bottom: 40,
         }),
-        time: Time::new(true, TimeFormat::TwentyFourHour),
-        date: Date::new(true, DateFormat::DayDateMonthYear),
+        time: TimeConfig {
+            enable: true,
+            format: TimeFormat::TwentyFourHour,
+        },
+        date: DateConfig {
+            enable: true,
+            format: DateFormat::DayDateMonthYear,
+        },
         storage: StorageConfig { enable: true },
         memory: MemoryConfig { enable: true },
         media: MediaConfig { enable: true },
@@ -213,13 +219,7 @@ struct Komobar {
     focused_window_title: String,
     layout: String,
     workspaces: Vec<String>,
-    time: Time,
-    date: Date,
-    memory: Memory,
-    storage: Storage,
-    media: Media,
-    battery: Battery,
-    network: Network,
+    right_widgets: Vec<Box<dyn BarWidget>>,
 }
 
 fn add_custom_font(ctx: &egui::Context, name: &str) {
@@ -267,6 +267,18 @@ impl Komobar {
         // Use the cc.gl (a glow::Context) to create graphics shaders and buffers that you can use
         // for e.g. egui::PaintCallback.
 
+        let mut right_widgets: Vec<Box<dyn BarWidget>> = vec![
+            Box::new(Media::from(config.media)),
+            Box::new(Storage::from(config.storage)),
+            Box::new(Memory::from(config.memory)),
+            Box::new(Network::from(config.network)),
+            Box::new(Date::from(config.date)),
+            Box::new(Time::from(config.time)),
+            Box::new(Battery::from(config.battery)),
+        ];
+
+        right_widgets.reverse();
+
         Self {
             config: config.deref().clone(),
             state_receiver: rx,
@@ -274,13 +286,7 @@ impl Komobar {
             focused_window_title: String::new(),
             layout: String::new(),
             workspaces: vec![],
-            time: config.time,
-            date: config.date,
-            memory: Memory::from(config.memory),
-            storage: Storage::from(config.storage),
-            media: Media::from(config.media),
-            battery: Battery::from(config.battery),
-            network: Network::from(config.network),
+            right_widgets,
         }
     }
 }
@@ -409,171 +415,8 @@ impl eframe::App for Komobar {
 
                     // TODO: make the order configurable
                     ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                        if self.battery.enable {
-                            let battery_output = self.battery.output();
-                            if !battery_output.is_empty() {
-                                for battery in battery_output {
-                                    let emoji = match self.battery.state {
-                                        BatteryState::Charging => "⚡️",
-                                        BatteryState::Discharging => "🔋",
-                                    };
-
-                                    ui.add(
-                                        Label::new(format!("{emoji} {battery}"))
-                                            .selectable(false)
-                                            .sense(Sense::click()),
-                                    );
-                                }
-
-                                ui.add_space(10.0);
-                            }
-                        }
-
-                        if self.time.enable {
-                            for time in self.time.output() {
-                                if ui
-                                    .add(
-                                        Label::new(format!("🕐 {}", time))
-                                            .selectable(false)
-                                            .sense(Sense::click()),
-                                    )
-                                    .clicked()
-                                {
-                                    self.time.format.toggle()
-                                }
-                            }
-
-                            // TODO: make spacing configurable
-                            ui.add_space(10.0);
-                        }
-
-                        if self.date.enable {
-                            for date in self.date.output() {
-                                if ui
-                                    .add(
-                                        Label::new(format!("📅 {}", date))
-                                            .selectable(false)
-                                            .sense(Sense::click()),
-                                    )
-                                    .clicked()
-                                {
-                                    self.date.format.next()
-                                }
-                            }
-
-                            // TODO: make spacing configurable
-                            ui.add_space(10.0);
-                        }
-
-                        if self.network.enable {
-                            let network_output = self.network.output();
-
-                            if !network_output.is_empty() {
-                                match network_output.len() {
-                                    1 => {
-                                        if ui
-                                            .add(
-                                                Label::new(format!("📶 {}", network_output[0]))
-                                                    .selectable(false)
-                                                    .sense(Sense::click()),
-                                            )
-                                            .clicked()
-                                        {
-                                            if let Err(error) =
-                                                Command::new("cmd.exe").args(["/C", "ncpa"]).spawn()
-                                            {
-                                                eprintln!("{}", error)
-                                            }
-                                        }
-                                    }
-                                    2 => {
-                                        if ui
-                                            .add(
-                                                Label::new(format!(
-                                                    "📶 {} - {}",
-                                                    network_output[0], network_output[1]
-                                                ))
-                                                .selectable(false)
-                                                .sense(Sense::click()),
-                                            )
-                                            .clicked()
-                                        {
-                                            if let Err(error) =
-                                                Command::new("cmd.exe").args(["/C", "ncpa"]).spawn()
-                                            {
-                                                eprintln!("{}", error)
-                                            }
-                                        };
-                                    }
-                                    _ => {}
-                                }
-
-                                ui.add_space(10.0);
-                            }
-                        }
-
-                        if self.memory.enable {
-                            for ram in self.memory.output() {
-                                if ui
-                                    .add(
-                                        Label::new(format!("🐏 {}", ram))
-                                            .selectable(false)
-                                            .sense(Sense::click()),
-                                    )
-                                    .clicked()
-                                {
-                                    if let Err(error) =
-                                        Command::new("cmd.exe").args(["/C", "taskmgr.exe"]).spawn()
-                                    {
-                                        eprintln!("{}", error)
-                                    }
-                                }
-                            }
-
-                            ui.add_space(10.0);
-                        }
-
-                        if self.storage.enable {
-                            for disk in self.storage.output() {
-                                if ui
-                                    .add(
-                                        Label::new(format!("🖴 {}", disk))
-                                            .selectable(false)
-                                            .sense(Sense::click()),
-                                    )
-                                    .clicked()
-                                {
-                                    if let Err(error) = Command::new("cmd.exe")
-                                        .args([
-                                            "/C",
-                                            "explorer.exe",
-                                            disk.split(' ').collect::<Vec<&str>>()[0],
-                                        ])
-                                        .spawn()
-                                    {
-                                        eprintln!("{}", error)
-                                    }
-                                }
-
-                                ui.add_space(10.0);
-                            }
-                        }
-
-                        if self.media.enable {
-                            for media in self.media.output() {
-                                if ui
-                                    .add(
-                                        Label::new(format!("🎧 {media}"))
-                                            .selectable(false)
-                                            .sense(Sense::click()),
-                                    )
-                                    .clicked()
-                                {
-                                    self.media.toggle();
-                                }
-
-                                ui.add_space(10.0);
-                            }
+                        for w in &mut self.right_widgets {
+                            w.render(ui);
                         }
                     })
                 })

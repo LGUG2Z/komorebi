@@ -1,4 +1,7 @@
 use crate::widget::BarWidget;
+use eframe::egui::Label;
+use eframe::egui::Sense;
+use eframe::egui::Ui;
 use windows::Media::Control::GlobalSystemMediaTransportControlsSessionManager;
 
 #[derive(Copy, Clone, Debug)]
@@ -59,5 +62,24 @@ impl BarWidget for Media {
         }
 
         vec![]
+    }
+
+    fn render(&mut self, ui: &mut Ui) {
+        if self.enable {
+            for output in self.output() {
+                if ui
+                    .add(
+                        Label::new(format!("🎧 {output}"))
+                            .selectable(false)
+                            .sense(Sense::click()),
+                    )
+                    .clicked()
+                {
+                    self.toggle();
+                }
+
+                ui.add_space(10.0);
+            }
+        }
     }
 }

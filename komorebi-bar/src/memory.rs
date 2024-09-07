@@ -1,4 +1,8 @@
 use crate::widget::BarWidget;
+use eframe::egui::Label;
+use eframe::egui::Sense;
+use eframe::egui::Ui;
+use std::process::Command;
 use std::time::Duration;
 use std::time::Instant;
 use sysinfo::RefreshKind;
@@ -41,5 +45,27 @@ impl BarWidget for Memory {
         let used = self.system.used_memory();
         let total = self.system.total_memory();
         vec![format!("RAM: {}%", (used * 100) / total)]
+    }
+
+    fn render(&mut self, ui: &mut Ui) {
+        if self.enable {
+            for output in self.output() {
+                if ui
+                    .add(
+                        Label::new(format!("🐏 {}", output))
+                            .selectable(false)
+                            .sense(Sense::click()),
+                    )
+                    .clicked()
+                {
+                    if let Err(error) = Command::new("cmd.exe").args(["/C", "taskmgr.exe"]).spawn()
+                    {
+                        eprintln!("{}", error)
+                    }
+                }
+            }
+
+            ui.add_space(10.0);
+        }
     }
 }

@@ -1,4 +1,8 @@
 use crate::widget::BarWidget;
+use eframe::egui::Label;
+use eframe::egui::Sense;
+use eframe::egui::Ui;
+use std::process::Command;
 use std::time::Duration;
 use std::time::Instant;
 use sysinfo::Disks;
@@ -51,5 +55,33 @@ impl BarWidget for Storage {
         disks.reverse();
 
         disks
+    }
+
+    fn render(&mut self, ui: &mut Ui) {
+        if self.enable {
+            for output in self.output() {
+                if ui
+                    .add(
+                        Label::new(format!("🖴 {}", output))
+                            .selectable(false)
+                            .sense(Sense::click()),
+                    )
+                    .clicked()
+                {
+                    if let Err(error) = Command::new("cmd.exe")
+                        .args([
+                            "/C",
+                            "explorer.exe",
+                            output.split(' ').collect::<Vec<&str>>()[0],
+                        ])
+                        .spawn()
+                    {
+                        eprintln!("{}", error)
+                    }
+                }
+
+                ui.add_space(10.0);
+            }
+        }
     }
 }

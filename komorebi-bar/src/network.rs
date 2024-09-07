@@ -1,4 +1,8 @@
 use crate::widget::BarWidget;
+use eframe::egui::Label;
+use eframe::egui::Sense;
+use eframe::egui::Ui;
+use std::process::Command;
 use std::time::Duration;
 use std::time::Instant;
 use sysinfo::Networks;
@@ -83,5 +87,49 @@ impl BarWidget for Network {
         }
 
         outputs
+    }
+
+    fn render(&mut self, ui: &mut Ui) {
+        if self.enable {
+            let output = self.output();
+
+            if !output.is_empty() {
+                match output.len() {
+                    1 => {
+                        if ui
+                            .add(
+                                Label::new(format!("📶 {}", output[0]))
+                                    .selectable(false)
+                                    .sense(Sense::click()),
+                            )
+                            .clicked()
+                        {
+                            if let Err(error) = Command::new("cmd.exe").args(["/C", "ncpa"]).spawn()
+                            {
+                                eprintln!("{}", error)
+                            }
+                        }
+                    }
+                    2 => {
+                        if ui
+                            .add(
+                                Label::new(format!("📶 {} - {}", output[0], output[1]))
+                                    .selectable(false)
+                                    .sense(Sense::click()),
+                            )
+                            .clicked()
+                        {
+                            if let Err(error) = Command::new("cmd.exe").args(["/C", "ncpa"]).spawn()
+                            {
+                                eprintln!("{}", error)
+                            }
+                        };
+                    }
+                    _ => {}
+                }
+
+                ui.add_space(10.0);
+            }
+        }
     }
 }

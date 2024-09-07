@@ -1,4 +1,22 @@
 use crate::widget::BarWidget;
+use eframe::egui::Label;
+use eframe::egui::Sense;
+use eframe::egui::Ui;
+
+#[derive(Copy, Clone, Debug)]
+pub struct DateConfig {
+    pub enable: bool,
+    pub format: DateFormat,
+}
+
+impl From<DateConfig> for Date {
+    fn from(value: DateConfig) -> Self {
+        Self {
+            enable: value.enable,
+            format: value.format,
+        }
+    }
+}
 
 #[derive(Copy, Clone, Debug)]
 pub enum DateFormat {
@@ -34,16 +52,30 @@ pub struct Date {
     pub format: DateFormat,
 }
 
-impl Date {
-    pub fn new(enable: bool, format: DateFormat) -> Self {
-        Self { enable, format }
-    }
-}
-
 impl BarWidget for Date {
     fn output(&mut self) -> Vec<String> {
         vec![chrono::Local::now()
             .format(&self.format.fmt_string())
             .to_string()]
+    }
+
+    fn render(&mut self, ui: &mut Ui) {
+        if self.enable {
+            for output in self.output() {
+                if ui
+                    .add(
+                        Label::new(format!("📅 {}", output))
+                            .selectable(false)
+                            .sense(Sense::click()),
+                    )
+                    .clicked()
+                {
+                    self.format.next()
+                }
+            }
+
+            // TODO: make spacing configurable
+            ui.add_space(10.0);
+        }
     }
 }

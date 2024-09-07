@@ -1,4 +1,7 @@
 use crate::widget::BarWidget;
+use eframe::egui::Label;
+use eframe::egui::Sense;
+use eframe::egui::Ui;
 use starship_battery::units::ratio::percent;
 use starship_battery::Manager;
 use starship_battery::State;
@@ -77,5 +80,27 @@ impl BarWidget for Battery {
         }
 
         outputs
+    }
+
+    fn render(&mut self, ui: &mut Ui) {
+        if self.enable {
+            let output = self.output();
+            if !output.is_empty() {
+                for battery in output {
+                    let emoji = match self.state {
+                        BatteryState::Charging => "⚡️",
+                        BatteryState::Discharging => "🔋",
+                    };
+
+                    ui.add(
+                        Label::new(format!("{emoji} {battery}"))
+                            .selectable(false)
+                            .sense(Sense::click()),
+                    );
+                }
+
+                ui.add_space(10.0);
+            }
+        }
     }
 }
