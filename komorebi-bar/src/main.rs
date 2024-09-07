@@ -26,15 +26,19 @@ use crate::widget::BarWidget;
 use crossbeam_channel::Receiver;
 use eframe::egui;
 use eframe::egui::Align;
+use eframe::egui::ColorImage;
+use eframe::egui::Context;
 use eframe::egui::Label;
 use eframe::egui::Layout;
 use eframe::egui::Sense;
+use eframe::egui::TextureHandle;
 use eframe::egui::ViewportBuilder;
 use eframe::egui::Visuals;
 use eframe::emath::Pos2;
 use eframe::emath::Vec2;
 use font_loader::system_fonts;
 use font_loader::system_fonts::FontPropertyBuilder;
+use image::RgbaImage;
 use komorebi_client::CycleDirection;
 use komorebi_client::SocketMessage;
 use std::io::BufReader;
@@ -217,6 +221,8 @@ struct Komobar {
     state_receiver: Receiver<komorebi_client::Notification>,
     selected_workspace: String,
     focused_window_title: String,
+    focused_window_pid: Option<u32>,
+    focused_window_icon: Option<RgbaImage>,
     layout: String,
     workspaces: Vec<String>,
     right_widgets: Vec<Box<dyn BarWidget>>,
@@ -284,11 +290,19 @@ impl Komobar {
             state_receiver: rx,
             selected_workspace: String::new(),
             focused_window_title: String::new(),
+            focused_window_pid: None,
+            focused_window_icon: None,
             layout: String::new(),
             workspaces: vec![],
             right_widgets,
         }
     }
+}
+fn img_to_texture(ctx: &Context, rgba_image: &RgbaImage) -> TextureHandle {
+    let size = [rgba_image.width() as usize, rgba_image.height() as usize];
+    let pixels = rgba_image.as_flat_samples();
+    let color_image = ColorImage::from_rgba_unmultiplied(size, pixels.as_slice());
+    ctx.load_texture("icon", color_image, egui::TextureOptions::default())
 }
 
 impl Komobar {
@@ -318,10 +332,14 @@ impl Komobar {
                 if let Some(window) = container.focused_window() {
                     if let Ok(title) = window.title() {
                         self.focused_window_title.clone_from(&title);
+                        self.focused_window_pid = Some(window.process_id());
+                        let img = windows_icons::get_icon_by_process_id(window.process_id());
+                        self.focused_window_icon = Some(img);
                     }
                 }
             } else {
                 self.focused_window_title.clear();
+                self.focused_window_icon = None;
             }
 
             if let Some(container) = monitor.workspaces()[focused_workspace_idx].monocle_container()
@@ -407,6 +425,14 @@ impl eframe::App for Komobar {
                         }
 
                         ui.add_space(10.0);
+
+                        if let Some(img) = &self.focused_window_icon {
+                            ui.add(
+                                egui::Image::from(&img_to_texture(ctx, img))
+                                    .maintain_aspect_ratio(true)
+                                    .max_height(15.0),
+                            );
+                        }
 
                         ui.add(Label::new(&self.focused_window_title).selectable(false));
 

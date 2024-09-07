@@ -10,11 +10,13 @@ komorebi-client = { path = "../komorebi-client" }
 
 anyhow = "1"
 chrono = "0.4"
+crossbeam-channel = "0.5"
 eframe = "0.28"
+font-loader = "0.11"
+image = "0.25"
 netdev = "0.30"
 serde_json = "1"
-starship-battery = "0.9"
+starship-battery = "0.10"
 sysinfo = "0.31"
-crossbeam-channel = "0.5"
 windows = { workspace = true }
-font-loader = "0.11"
+windows-icons = "0.1"
