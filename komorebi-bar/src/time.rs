@@ -61,7 +61,7 @@ impl BarWidget for Time {
             for output in self.output() {
                 if ui
                     .add(
-                        Label::new(format!("🕐 {}", output))
+                        Label::new(format!("{} {}", egui_phosphor::regular::CLOCK, output))
                             .selectable(false)
                             .sense(Sense::click()),
                     )

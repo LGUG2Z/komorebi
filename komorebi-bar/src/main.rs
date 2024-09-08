@@ -139,7 +139,7 @@ fn main() -> eframe::Result<()> {
                 enable: true,
                 hide_empty_workspaces: true,
             },
-            layout: KomorebiLayoutConfig { enable: false },
+            layout: KomorebiLayoutConfig { enable: true },
             focused_window: KomorebiFocusedWindowConfig {
                 enable: true,
                 show_icon: true,
@@ -325,8 +325,9 @@ impl KomorebiNotificationState {
     }
 }
 
-fn add_custom_font(ctx: &egui::Context, name: &str) {
+fn add_custom_font(ctx: &Context, name: &str) {
     let mut fonts = egui::FontDefinitions::default();
+    egui_phosphor::add_to_fonts(&mut fonts, egui_phosphor::Variant::Regular);
 
     let property = FontPropertyBuilder::new().family(name).build();
 
@@ -430,14 +431,10 @@ impl eframe::App for Komobar {
             .handle_notification(self.rx_gui.clone());
 
         egui::CentralPanel::default()
-            .frame(
-                egui::Frame::none()
-                    // TODO: make this configurable
-                    .outer_margin(egui::Margin::symmetric(
-                        self.config.outer_margin.x,
-                        self.config.outer_margin.y,
-                    )),
-            )
+            .frame(egui::Frame::none().outer_margin(egui::Margin::symmetric(
+                self.config.outer_margin.x,
+                self.config.outer_margin.y,
+            )))
             .show(ctx, |ui| {
                 ui.horizontal_centered(|ui| {
                     ui.with_layout(Layout::left_to_right(Align::Center), |ui| {
@@ -446,7 +443,6 @@ impl eframe::App for Komobar {
                         }
                     });
 
-                    // TODO: make the order configurable
                     ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
                         for w in &mut self.right_widgets {
                             w.render(ctx, ui);

@@ -65,9 +65,13 @@ impl BarWidget for Storage {
             for output in self.output() {
                 if ui
                     .add(
-                        Label::new(format!("🖴 {}", output))
-                            .selectable(false)
-                            .sense(Sense::click()),
+                        Label::new(format!(
+                            "{} {}",
+                            egui_phosphor::regular::HARD_DRIVES,
+                            output
+                        ))
+                        .selectable(false)
+                        .sense(Sense::click()),
                     )
                     .clicked()
                 {

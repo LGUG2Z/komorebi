@@ -70,7 +70,7 @@ impl BarWidget for Media {
             for output in self.output() {
                 if ui
                     .add(
-                        Label::new(format!("🎧 {output}"))
+                        Label::new(format!("{} {output}", egui_phosphor::regular::HEADPHONES))
                             .selectable(false)
                             .sense(Sense::click()),
                     )

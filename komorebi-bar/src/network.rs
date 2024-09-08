@@ -101,9 +101,13 @@ impl BarWidget for Network {
                     1 => {
                         if ui
                             .add(
-                                Label::new(format!("📶 {}", output[0]))
-                                    .selectable(false)
-                                    .sense(Sense::click()),
+                                Label::new(format!(
+                                    "{} {}",
+                                    egui_phosphor::regular::WIFI_HIGH,
+                                    output[0]
+                                ))
+                                .selectable(false)
+                                .sense(Sense::click()),
                             )
                             .clicked()
                         {
@@ -116,9 +120,14 @@ impl BarWidget for Network {
                     2 => {
                         if ui
                             .add(
-                                Label::new(format!("📶 {} - {}", output[0], output[1]))
-                                    .selectable(false)
-                                    .sense(Sense::click()),
+                                Label::new(format!(
+                                    "{} {} - {}",
+                                    egui_phosphor::regular::WIFI_HIGH,
+                                    output[0],
+                                    output[1]
+                                ))
+                                .selectable(false)
+                                .sense(Sense::click()),
                             )
                             .clicked()
                         {

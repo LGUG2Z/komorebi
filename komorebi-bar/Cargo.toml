@@ -21,3 +21,4 @@ starship-battery = "0.10"
 sysinfo = "0.31"
 windows = { workspace = true }
 windows-icons = "0.1"
+egui-phosphor = "0.6.0"

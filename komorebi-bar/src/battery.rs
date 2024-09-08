@@ -91,8 +91,8 @@ impl BarWidget for Battery {
             if !output.is_empty() {
                 for battery in output {
                     let emoji = match self.state {
-                        BatteryState::Charging => "⚡️",
-                        BatteryState::Discharging => "🔋",
+                        BatteryState::Charging => egui_phosphor::regular::BATTERY_CHARGING,
+                        BatteryState::Discharging => egui_phosphor::regular::BATTERY_FULL,
                     };
 
                     ui.add(

@@ -55,7 +55,7 @@ impl BarWidget for Memory {
             for output in self.output() {
                 if ui
                     .add(
-                        Label::new(format!("🐏 {}", output))
+                        Label::new(format!("{} {}", egui_phosphor::regular::MEMORY, output))
                             .selectable(false)
                             .sense(Sense::click()),
                     )

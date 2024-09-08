@@ -67,9 +67,13 @@ impl BarWidget for Date {
             for output in self.output() {
                 if ui
                     .add(
-                        Label::new(format!("📅 {}", output))
-                            .selectable(false)
-                            .sense(Sense::click()),
+                        Label::new(format!(
+                            "{} {}",
+                            egui_phosphor::regular::CALENDAR_DOTS,
+                            output
+                        ))
+                        .selectable(false)
+                        .sense(Sense::click()),
                     )
                     .clicked()
                 {
