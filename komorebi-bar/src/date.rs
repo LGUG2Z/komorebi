@@ -1,4 +1,5 @@
 use crate::widget::BarWidget;
+use eframe::egui::Context;
 use eframe::egui::Label;
 use eframe::egui::Sense;
 use eframe::egui::Ui;
@@ -52,14 +53,16 @@ pub struct Date {
     pub format: DateFormat,
 }
 
-impl BarWidget for Date {
+impl Date {
     fn output(&mut self) -> Vec<String> {
         vec![chrono::Local::now()
             .format(&self.format.fmt_string())
             .to_string()]
     }
+}
 
-    fn render(&mut self, ui: &mut Ui) {
+impl BarWidget for Date {
+    fn render(&mut self, _ctx: &Context, ui: &mut Ui) {
         if self.enable {
             for output in self.output() {
                 if ui

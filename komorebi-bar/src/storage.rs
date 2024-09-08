@@ -1,4 +1,5 @@
 use crate::widget::BarWidget;
+use eframe::egui::Context;
 use eframe::egui::Label;
 use eframe::egui::Sense;
 use eframe::egui::Ui;
@@ -28,7 +29,7 @@ pub struct Storage {
     last_updated: Instant,
 }
 
-impl BarWidget for Storage {
+impl Storage {
     fn output(&mut self) -> Vec<String> {
         let now = Instant::now();
         if now.duration_since(self.last_updated) > Duration::from_secs(10) {
@@ -56,8 +57,10 @@ impl BarWidget for Storage {
 
         disks
     }
+}
 
-    fn render(&mut self, ui: &mut Ui) {
+impl BarWidget for Storage {
+    fn render(&mut self, _ctx: &Context, ui: &mut Ui) {
         if self.enable {
             for output in self.output() {
                 if ui

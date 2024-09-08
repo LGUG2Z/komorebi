@@ -1,4 +1,5 @@
 use crate::widget::BarWidget;
+use eframe::egui::Context;
 use eframe::egui::Label;
 use eframe::egui::Sense;
 use eframe::egui::Ui;
@@ -39,9 +40,7 @@ impl Media {
             }
         }
     }
-}
 
-impl BarWidget for Media {
     fn output(&mut self) -> Vec<String> {
         if let Ok(session) = self.session_manager.GetCurrentSession() {
             if let Ok(operation) = session.TryGetMediaPropertiesAsync() {
@@ -63,8 +62,10 @@ impl BarWidget for Media {
 
         vec![]
     }
+}
 
-    fn render(&mut self, ui: &mut Ui) {
+impl BarWidget for Media {
+    fn render(&mut self, _ctx: &Context, ui: &mut Ui) {
         if self.enable {
             for output in self.output() {
                 if ui

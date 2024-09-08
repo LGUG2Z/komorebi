@@ -1,6 +1,6 @@
+use eframe::egui::Context;
 use eframe::egui::Ui;
 
 pub trait BarWidget {
-    fn output(&mut self) -> Vec<String>;
-    fn render(&mut self, ui: &mut Ui);
+    fn render(&mut self, ctx: &Context, ui: &mut Ui);
 }

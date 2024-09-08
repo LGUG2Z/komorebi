@@ -1,4 +1,5 @@
 use crate::widget::BarWidget;
+use eframe::egui::Context;
 use eframe::egui::Label;
 use eframe::egui::Sense;
 use eframe::egui::Ui;
@@ -55,7 +56,7 @@ pub struct Network {
     last_updated: Instant,
 }
 
-impl BarWidget for Network {
+impl Network {
     fn output(&mut self) -> Vec<String> {
         let mut outputs = self.last_state.clone();
 
@@ -88,8 +89,10 @@ impl BarWidget for Network {
 
         outputs
     }
+}
 
-    fn render(&mut self, ui: &mut Ui) {
+impl BarWidget for Network {
+    fn render(&mut self, _ctx: &Context, ui: &mut Ui) {
         if self.enable {
             let output = self.output();
 

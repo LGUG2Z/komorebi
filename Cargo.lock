@@ -817,6 +817,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "catppuccin-egui"
+version = "5.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b812fd8e72d65e1afefd7c96ca4c919fe4dc34d470aed2cf459acbcb1cd8f64e"
+dependencies = [
+ "egui",
+]
+
+[[package]]
 name = "cc"
 version = "1.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2644,6 +2653,7 @@ name = "komorebi-bar"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "catppuccin-egui",
  "chrono",
  "crossbeam-channel",
  "eframe",

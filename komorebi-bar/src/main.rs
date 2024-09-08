@@ -1,5 +1,6 @@
 mod battery;
 mod date;
+mod komorebi;
 mod media;
 mod memory;
 mod network;
@@ -12,6 +13,11 @@ use crate::battery::BatteryConfig;
 use crate::date::Date;
 use crate::date::DateConfig;
 use crate::date::DateFormat;
+use crate::komorebi::Komorebi;
+use crate::komorebi::KomorebiConfig;
+use crate::komorebi::KomorebiFocusedWindowConfig;
+use crate::komorebi::KomorebiLayoutConfig;
+use crate::komorebi::KomorebiWorkspacesConfig;
 use crate::media::Media;
 use crate::media::MediaConfig;
 use crate::memory::Memory;
@@ -28,22 +34,20 @@ use eframe::egui;
 use eframe::egui::Align;
 use eframe::egui::ColorImage;
 use eframe::egui::Context;
-use eframe::egui::Label;
 use eframe::egui::Layout;
-use eframe::egui::Sense;
 use eframe::egui::TextureHandle;
 use eframe::egui::ViewportBuilder;
-use eframe::egui::Visuals;
 use eframe::emath::Pos2;
 use eframe::emath::Vec2;
 use font_loader::system_fonts;
 use font_loader::system_fonts::FontPropertyBuilder;
 use image::RgbaImage;
-use komorebi_client::CycleDirection;
 use komorebi_client::SocketMessage;
+use std::cell::RefCell;
 use std::io::BufReader;
 use std::io::Read;
 use std::ops::Deref;
+use std::rc::Rc;
 use std::sync::Arc;
 use std::time::Duration;
 use time::Time;
@@ -77,7 +81,6 @@ pub struct Config {
     inner_size: Position,
     position: Position,
     outer_margin: Position,
-    transparent: bool,
     monitor_index: usize,
     monitor_work_area_offset: Option<komorebi_client::Rect>,
     font_family: Option<String>,
@@ -88,6 +91,16 @@ pub struct Config {
     media: MediaConfig,
     battery: BatteryConfig,
     network: NetworkConfig,
+    komorebi: KomorebiConfig,
+    theme: Theme,
+}
+
+#[derive(Copy, Clone, Debug)]
+pub enum Theme {
+    Default,
+    CatppuccinFrappe,
+    CatppuccinMacchiato,
+    CatppuccinMocha,
 }
 
 fn main() -> eframe::Result<()> {
@@ -95,7 +108,6 @@ fn main() -> eframe::Result<()> {
         inner_size: Position { x: 5120.0, y: 20.0 },
         position: Position { x: 0.0, y: 0.0 },
         outer_margin: Position { x: 10.0, y: 10.0 },
-        transparent: false,
         monitor_index: 0,
         font_family: Some(String::from("JetBrains Mono")),
         monitor_work_area_offset: Some(komorebi_client::Rect {
@@ -120,6 +132,20 @@ fn main() -> eframe::Result<()> {
             enable: true,
             show_data: true,
         },
+        komorebi: KomorebiConfig {
+            enable: true,
+            monitor_index: 0,
+            workspaces: KomorebiWorkspacesConfig {
+                enable: true,
+                hide_empty_workspaces: true,
+            },
+            layout: KomorebiLayoutConfig { enable: false },
+            focused_window: KomorebiFocusedWindowConfig {
+                enable: true,
+                show_icon: true,
+            },
+        },
+        theme: Theme::CatppuccinMacchiato,
     };
 
     // TODO: ensure that config.monitor_index represents a valid komorebi monitor index
@@ -127,7 +153,7 @@ fn main() -> eframe::Result<()> {
     let native_options = eframe::NativeOptions {
         viewport: ViewportBuilder::default()
             .with_decorations(false)
-            .with_transparent(config.transparent)
+            // .with_transparent(config.transparent)
             .with_position(config.position)
             .with_taskbar(false)
             .with_inner_size(config.inner_size),
@@ -218,14 +244,85 @@ fn main() -> eframe::Result<()> {
 
 struct Komobar {
     config: Config,
-    state_receiver: Receiver<komorebi_client::Notification>,
+    komorebi_notification_state: Rc<RefCell<KomorebiNotificationState>>,
+    left_widgets: Vec<Box<dyn BarWidget>>,
+    right_widgets: Vec<Box<dyn BarWidget>>,
+    rx_gui: Receiver<komorebi_client::Notification>,
+}
+
+#[derive(Clone, Debug)]
+struct KomorebiNotificationState {
+    monitor_index: usize,
+    workspaces: Vec<String>,
     selected_workspace: String,
     focused_window_title: String,
     focused_window_pid: Option<u32>,
     focused_window_icon: Option<RgbaImage>,
     layout: String,
-    workspaces: Vec<String>,
-    right_widgets: Vec<Box<dyn BarWidget>>,
+    hide_empty_workspaces: bool,
+}
+
+impl KomorebiNotificationState {
+    fn handle_notification(&mut self, rx_gui: Receiver<komorebi_client::Notification>) {
+        if let Ok(notification) = rx_gui.try_recv() {
+            let monitor = &notification.state.monitors.elements()[self.monitor_index];
+            let focused_workspace_idx = monitor.focused_workspace_idx();
+
+            let mut workspaces = vec![];
+            self.selected_workspace = monitor.workspaces()[focused_workspace_idx]
+                .name()
+                .to_owned()
+                .unwrap_or_else(|| format!("{}", focused_workspace_idx + 1));
+
+            for (i, ws) in monitor.workspaces().iter().enumerate() {
+                let should_add = if self.hide_empty_workspaces {
+                    focused_workspace_idx == i || !ws.containers().is_empty()
+                } else {
+                    true
+                };
+
+                if should_add {
+                    workspaces.push(ws.name().to_owned().unwrap_or_else(|| format!("{}", i + 1)));
+                }
+            }
+
+            self.workspaces = workspaces;
+            self.layout = match monitor.workspaces()[focused_workspace_idx].layout() {
+                komorebi_client::Layout::Default(layout) => layout.to_string(),
+                komorebi_client::Layout::Custom(_) => String::from("Custom"),
+            };
+
+            if let Some(container) = monitor.workspaces()[focused_workspace_idx].focused_container()
+            {
+                if let Some(window) = container.focused_window() {
+                    if let Ok(title) = window.title() {
+                        self.focused_window_title.clone_from(&title);
+                        self.focused_window_pid = Some(window.process_id());
+                        let img = windows_icons::get_icon_by_process_id(window.process_id());
+                        self.focused_window_icon = Some(img);
+                    }
+                }
+            } else {
+                self.focused_window_title.clear();
+                self.focused_window_icon = None;
+            }
+
+            if let Some(container) = monitor.workspaces()[focused_workspace_idx].monocle_container()
+            {
+                if let Some(window) = container.focused_window() {
+                    if let Ok(title) = window.title() {
+                        self.focused_window_title.clone_from(&title);
+                    }
+                }
+            }
+
+            if let Some(window) = monitor.workspaces()[focused_workspace_idx].maximized_window() {
+                if let Ok(title) = window.title() {
+                    self.focused_window_title.clone_from(&title);
+                }
+            }
+        }
+    }
 }
 
 fn add_custom_font(ctx: &egui::Context, name: &str) {
@@ -268,10 +365,27 @@ impl Komobar {
             add_custom_font(&cc.egui_ctx, font_family);
         }
 
+        match config.theme {
+            Theme::Default => {}
+            Theme::CatppuccinFrappe => {
+                catppuccin_egui::set_theme(&cc.egui_ctx, catppuccin_egui::FRAPPE);
+            }
+            Theme::CatppuccinMacchiato => {
+                catppuccin_egui::set_theme(&cc.egui_ctx, catppuccin_egui::MACCHIATO);
+            }
+            Theme::CatppuccinMocha => {
+                catppuccin_egui::set_theme(&cc.egui_ctx, catppuccin_egui::MOCHA);
+            }
+        }
+
         // Customize egui here with cc.egui_ctx.set_fonts and cc.egui_ctx.set_visuals.
         // Restore app state using cc.storage (requires the "persistence" feature).
         // Use the cc.gl (a glow::Context) to create graphics shaders and buffers that you can use
         // for e.g. egui::PaintCallback.
+        let komorebi_workspaces = Komorebi::from(config.komorebi);
+        let komorebi_notification_state = komorebi_workspaces.komorebi_notification_state.clone();
+
+        let left_widgets: Vec<Box<dyn BarWidget>> = vec![Box::new(komorebi_workspaces.clone())];
 
         let mut right_widgets: Vec<Box<dyn BarWidget>> = vec![
             Box::new(Media::from(config.media)),
@@ -287,14 +401,10 @@ impl Komobar {
 
         Self {
             config: config.deref().clone(),
-            state_receiver: rx,
-            selected_workspace: String::new(),
-            focused_window_title: String::new(),
-            focused_window_pid: None,
-            focused_window_icon: None,
-            layout: String::new(),
-            workspaces: vec![],
+            komorebi_notification_state,
+            left_widgets,
             right_widgets,
+            rx_gui: rx,
         }
     }
 }
@@ -305,71 +415,19 @@ fn img_to_texture(ctx: &Context, rgba_image: &RgbaImage) -> TextureHandle {
     ctx.load_texture("icon", color_image, egui::TextureOptions::default())
 }
 
-impl Komobar {
-    fn handle_komorebi_notification(&mut self) {
-        if let Ok(notification) = self.state_receiver.try_recv() {
-            let monitor = &notification.state.monitors.elements()[self.config.monitor_index];
-            let focused_workspace_idx = monitor.focused_workspace_idx();
-
-            let mut workspaces = vec![];
-            self.selected_workspace = monitor.workspaces()[focused_workspace_idx]
-                .name()
-                .to_owned()
-                .unwrap_or_else(|| format!("{}", focused_workspace_idx + 1));
-
-            for (i, ws) in monitor.workspaces().iter().enumerate() {
-                workspaces.push(ws.name().to_owned().unwrap_or_else(|| format!("{}", i + 1)));
-            }
-
-            self.workspaces = workspaces;
-            self.layout = match monitor.workspaces()[focused_workspace_idx].layout() {
-                komorebi_client::Layout::Default(layout) => layout.to_string(),
-                komorebi_client::Layout::Custom(_) => String::from("Custom"),
-            };
-
-            if let Some(container) = monitor.workspaces()[focused_workspace_idx].focused_container()
-            {
-                if let Some(window) = container.focused_window() {
-                    if let Ok(title) = window.title() {
-                        self.focused_window_title.clone_from(&title);
-                        self.focused_window_pid = Some(window.process_id());
-                        let img = windows_icons::get_icon_by_process_id(window.process_id());
-                        self.focused_window_icon = Some(img);
-                    }
-                }
-            } else {
-                self.focused_window_title.clear();
-                self.focused_window_icon = None;
-            }
-
-            if let Some(container) = monitor.workspaces()[focused_workspace_idx].monocle_container()
-            {
-                if let Some(window) = container.focused_window() {
-                    if let Ok(title) = window.title() {
-                        self.focused_window_title.clone_from(&title);
-                    }
-                }
-            }
-
-            if let Some(window) = monitor.workspaces()[focused_workspace_idx].maximized_window() {
-                if let Ok(title) = window.title() {
-                    self.focused_window_title.clone_from(&title);
-                }
-            }
-        }
-    }
-}
-
 impl eframe::App for Komobar {
     // TODO: I think this is needed for transparency??
-    fn clear_color(&self, _visuals: &Visuals) -> [f32; 4] {
-        let mut background = egui::Color32::from_gray(18).to_normalized_gamma_f32();
-        background[3] = 0.9;
-        background
-    }
+    // fn clear_color(&self, _visuals: &Visuals) -> [f32; 4] {
+    // egui::Rgba::TRANSPARENT.to_array()
+    // let mut background = Color32::from_gray(18).to_normalized_gamma_f32();
+    // background[3] = 0.9;
+    // background
+    // }
 
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        self.handle_komorebi_notification();
+    fn update(&mut self, ctx: &Context, _frame: &mut eframe::Frame) {
+        self.komorebi_notification_state
+            .borrow_mut()
+            .handle_notification(self.rx_gui.clone());
 
         egui::CentralPanel::default()
             .frame(
@@ -381,68 +439,17 @@ impl eframe::App for Komobar {
                     )),
             )
             .show(ctx, |ui| {
-                ui.horizontal(|ui| {
+                ui.horizontal_centered(|ui| {
                     ui.with_layout(Layout::left_to_right(Align::Center), |ui| {
-                        // TODO: maybe this should be a widget??
-                        for (i, ws) in self.workspaces.iter().enumerate() {
-                            if ui
-                                .add(egui::SelectableLabel::new(
-                                    self.selected_workspace.eq(ws),
-                                    ws.to_string(),
-                                ))
-                                .clicked()
-                            {
-                                self.selected_workspace = ws.to_string();
-                                komorebi_client::send_message(&SocketMessage::MouseFollowsFocus(
-                                    false,
-                                ))
-                                .unwrap();
-                                komorebi_client::send_message(
-                                    &SocketMessage::FocusWorkspaceNumber(i),
-                                )
-                                .unwrap();
-                                // TODO: store MFF value from state and restore that here instead of "true"
-                                komorebi_client::send_message(&SocketMessage::MouseFollowsFocus(
-                                    true,
-                                ))
-                                .unwrap();
-                                komorebi_client::send_message(&SocketMessage::Retile).unwrap();
-                            }
+                        for w in &mut self.left_widgets {
+                            w.render(ctx, ui);
                         }
-
-                        if ui
-                            .add(
-                                Label::new(&self.layout)
-                                    .selectable(false)
-                                    .sense(Sense::click()),
-                            )
-                            .clicked()
-                        {
-                            komorebi_client::send_message(&SocketMessage::CycleLayout(
-                                CycleDirection::Next,
-                            ))
-                            .unwrap();
-                        }
-
-                        ui.add_space(10.0);
-
-                        if let Some(img) = &self.focused_window_icon {
-                            ui.add(
-                                egui::Image::from(&img_to_texture(ctx, img))
-                                    .maintain_aspect_ratio(true)
-                                    .max_height(15.0),
-                            );
-                        }
-
-                        ui.add(Label::new(&self.focused_window_title).selectable(false));
-
-                        ui.add_space(10.0);
                     });
 
                     // TODO: make the order configurable
                     ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
                         for w in &mut self.right_widgets {
-                            w.render(ui);
+                            w.render(ctx, ui);
                         }
                     })
                 })

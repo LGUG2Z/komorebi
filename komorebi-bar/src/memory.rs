@@ -1,4 +1,5 @@
 use crate::widget::BarWidget;
+use eframe::egui::Context;
 use eframe::egui::Label;
 use eframe::egui::Sense;
 use eframe::egui::Ui;
@@ -34,7 +35,7 @@ impl From<MemoryConfig> for Memory {
     }
 }
 
-impl BarWidget for Memory {
+impl Memory {
     fn output(&mut self) -> Vec<String> {
         let now = Instant::now();
         if now.duration_since(self.last_updated) > Duration::from_secs(10) {
@@ -46,8 +47,10 @@ impl BarWidget for Memory {
         let total = self.system.total_memory();
         vec![format!("RAM: {}%", (used * 100) / total)]
     }
+}
 
-    fn render(&mut self, ui: &mut Ui) {
+impl BarWidget for Memory {
+    fn render(&mut self, _ctx: &Context, ui: &mut Ui) {
         if self.enable {
             for output in self.output() {
                 if ui
