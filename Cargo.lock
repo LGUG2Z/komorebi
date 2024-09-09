@@ -2686,6 +2686,7 @@ dependencies = [
  "eframe",
  "egui-phosphor",
  "font-loader",
+ "hotwatch",
  "image",
  "komorebi-client",
  "netdev",
@@ -2695,6 +2696,9 @@ dependencies = [
  "serde_yaml 0.8.26",
  "starship-battery",
  "sysinfo 0.31.3",
+ "tracing",
+ "tracing-appender",
+ "tracing-subscriber",
  "windows 0.54.0",
  "windows-icons",
 ]

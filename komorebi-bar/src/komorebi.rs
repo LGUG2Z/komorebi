@@ -163,6 +163,10 @@ pub struct KomorebiNotificationState {
 }
 
 impl KomorebiNotificationState {
+    pub fn update_from_config(&mut self, config: &Self) {
+        self.hide_empty_workspaces = config.hide_empty_workspaces;
+    }
+
     pub fn handle_notification(
         &mut self,
         monitor_index: usize,

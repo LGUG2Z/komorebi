@@ -14,47 +14,56 @@ use eframe::egui::FontFamily;
 use eframe::egui::Frame;
 use eframe::egui::Layout;
 use eframe::egui::Margin;
+use eframe::egui::Style;
 use font_loader::system_fonts;
 use font_loader::system_fonts::FontPropertyBuilder;
 use std::cell::RefCell;
-use std::ops::Deref;
 use std::rc::Rc;
 use std::sync::Arc;
 
 pub struct Komobar {
-    pub config: KomobarConfig,
+    pub config: Arc<KomobarConfig>,
     pub komorebi_notification_state: Option<Rc<RefCell<KomorebiNotificationState>>>,
     pub left_widgets: Vec<Box<dyn BarWidget>>,
     pub right_widgets: Vec<Box<dyn BarWidget>>,
     pub rx_gui: Receiver<komorebi_client::Notification>,
+    pub rx_config: Receiver<KomobarConfig>,
 }
 
 impl Komobar {
-    pub fn new(
-        cc: &eframe::CreationContext<'_>,
-        rx_gui: Receiver<komorebi_client::Notification>,
-        config: Arc<KomobarConfig>,
-    ) -> Self {
+    pub fn apply_config(
+        &mut self,
+        ctx: &Context,
+        config: &KomobarConfig,
+        previous_notification_state: Option<Rc<RefCell<KomorebiNotificationState>>>,
+    ) {
         if let Some(font_family) = &config.font_family {
-            Self::add_custom_font(&cc.egui_ctx, font_family);
+            tracing::info!("attempting to add custom font family: {font_family}");
+            Self::add_custom_font(ctx, font_family);
         }
 
         match config.theme {
             Some(Theme::CatppuccinFrappe) => {
-                catppuccin_egui::set_theme(&cc.egui_ctx, catppuccin_egui::FRAPPE);
+                catppuccin_egui::set_theme(ctx, catppuccin_egui::FRAPPE);
+                tracing::info!("theme updated: Catppuccin Frappe");
             }
             Some(Theme::CatppuccinMacchiato) => {
-                catppuccin_egui::set_theme(&cc.egui_ctx, catppuccin_egui::MACCHIATO);
+                catppuccin_egui::set_theme(ctx, catppuccin_egui::MACCHIATO);
+                tracing::info!("theme updated: Catppuccin Macchiato");
             }
             Some(Theme::CatppuccinMocha) => {
-                catppuccin_egui::set_theme(&cc.egui_ctx, catppuccin_egui::MOCHA);
+                catppuccin_egui::set_theme(ctx, catppuccin_egui::MOCHA);
+                tracing::info!("theme updated: Catppuccin Mocha");
             }
-            Some(Theme::Default) | None => {}
+            Some(Theme::Default) | None => {
+                ctx.set_style(Style::default());
+                tracing::info!("theme updated: Egui Default");
+            }
         }
 
         let mut komorebi_widget = None;
         let mut komorebi_widget_idx = None;
-        let mut komorebi_notification_state = None;
+        let mut komorebi_notification_state = previous_notification_state;
         let mut side = None;
 
         for (idx, widget_config) in config.left_widgets.iter().enumerate() {
@@ -85,9 +94,22 @@ impl Komobar {
             .map(|config| config.as_boxed_bar_widget())
             .collect::<Vec<Box<dyn BarWidget>>>();
 
-        if let (Some(idx), Some(widget), Some(side)) = (komorebi_widget_idx, komorebi_widget, side)
+        if let (Some(idx), Some(mut widget), Some(side)) =
+            (komorebi_widget_idx, komorebi_widget, side)
         {
-            komorebi_notification_state = Some(widget.komorebi_notification_state.clone());
+            match komorebi_notification_state {
+                None => {
+                    komorebi_notification_state = Some(widget.komorebi_notification_state.clone());
+                }
+                Some(ref previous) => {
+                    previous
+                        .borrow_mut()
+                        .update_from_config(&widget.komorebi_notification_state.borrow());
+
+                    widget.komorebi_notification_state = previous.clone();
+                }
+            }
+
             let boxed: Box<dyn BarWidget> = Box::new(widget);
             match side {
                 Side::Left => left_widgets[idx] = boxed,
@@ -97,13 +119,31 @@ impl Komobar {
 
         right_widgets.reverse();
 
-        Self {
-            config: config.deref().clone(),
-            komorebi_notification_state,
-            left_widgets,
-            right_widgets,
+        self.left_widgets = left_widgets;
+        self.right_widgets = right_widgets;
+
+        tracing::info!("widget configuration options applied");
+
+        self.komorebi_notification_state = komorebi_notification_state;
+    }
+    pub fn new(
+        cc: &eframe::CreationContext<'_>,
+        rx_gui: Receiver<komorebi_client::Notification>,
+        rx_config: Receiver<KomobarConfig>,
+        config: Arc<KomobarConfig>,
+    ) -> Self {
+        let mut komobar = Self {
+            config: config.clone(),
+            komorebi_notification_state: None,
+            left_widgets: vec![],
+            right_widgets: vec![],
             rx_gui,
-        }
+            rx_config,
+        };
+
+        komobar.apply_config(&cc.egui_ctx, &config, None);
+
+        komobar
     }
 
     fn add_custom_font(ctx: &Context, name: &str) {
@@ -144,6 +184,14 @@ impl eframe::App for Komobar {
     // }
 
     fn update(&mut self, ctx: &Context, _frame: &mut eframe::Frame) {
+        if let Ok(updated_config) = self.rx_config.try_recv() {
+            self.apply_config(
+                ctx,
+                &updated_config,
+                self.komorebi_notification_state.clone(),
+            );
+        }
+
         if let Some(komorebi_notification_state) = &self.komorebi_notification_state {
             komorebi_notification_state
                 .borrow_mut()
