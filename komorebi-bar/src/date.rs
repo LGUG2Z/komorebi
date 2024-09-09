@@ -1,12 +1,18 @@
 use crate::widget::BarWidget;
+use crate::WIDGET_SPACING;
 use eframe::egui::Context;
 use eframe::egui::Label;
 use eframe::egui::Sense;
 use eframe::egui::Ui;
+use schemars::JsonSchema;
+use serde::Deserialize;
+use serde::Serialize;
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 pub struct DateConfig {
+    /// Enable the Date widget
     pub enable: bool,
+    /// Set the Date format
     pub format: DateFormat,
 }
 
@@ -19,12 +25,18 @@ impl From<DateConfig> for Date {
     }
 }
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 pub enum DateFormat {
+    /// Month/Date/Year format (09/08/24)
     MonthDateYear,
+    /// Year-Month-Date format (2024-09-08)
     YearMonthDate,
+    /// Date-Month-Year format (8-Sep-2024)
     DateMonthYear,
+    /// Day Date Month Year format (8 September 2024)
     DayDateMonthYear,
+    /// Custom format (https://docs.rs/chrono/latest/chrono/format/strftime/index.html)
+    Custom(String),
 }
 
 impl DateFormat {
@@ -34,6 +46,7 @@ impl DateFormat {
             DateFormat::YearMonthDate => *self = Self::DateMonthYear,
             DateFormat::DateMonthYear => *self = Self::DayDateMonthYear,
             DateFormat::DayDateMonthYear => *self = Self::MonthDateYear,
+            _ => {}
         };
     }
 
@@ -43,11 +56,12 @@ impl DateFormat {
             DateFormat::YearMonthDate => String::from("%F"),
             DateFormat::DateMonthYear => String::from("%v"),
             DateFormat::DayDateMonthYear => String::from("%A %e %B %Y"),
+            DateFormat::Custom(custom) => custom.to_string(),
         }
     }
 }
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Clone, Debug)]
 pub struct Date {
     pub enable: bool,
     pub format: DateFormat,
@@ -82,7 +96,7 @@ impl BarWidget for Date {
             }
 
             // TODO: make spacing configurable
-            ui.add_space(10.0);
+            ui.add_space(WIDGET_SPACING);
         }
     }
 }

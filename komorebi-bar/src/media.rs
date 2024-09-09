@@ -1,12 +1,17 @@
 use crate::widget::BarWidget;
+use crate::WIDGET_SPACING;
 use eframe::egui::Context;
 use eframe::egui::Label;
 use eframe::egui::Sense;
 use eframe::egui::Ui;
+use schemars::JsonSchema;
+use serde::Deserialize;
+use serde::Serialize;
 use windows::Media::Control::GlobalSystemMediaTransportControlsSessionManager;
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Serialize, Deserialize, JsonSchema)]
 pub struct MediaConfig {
+    /// Enable the Media widget
     pub enable: bool,
 }
 
@@ -79,7 +84,7 @@ impl BarWidget for Media {
                     self.toggle();
                 }
 
-                ui.add_space(10.0);
+                ui.add_space(WIDGET_SPACING);
             }
         }
     }

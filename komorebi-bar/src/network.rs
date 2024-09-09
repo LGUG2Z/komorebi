@@ -1,16 +1,22 @@
 use crate::widget::BarWidget;
+use crate::WIDGET_SPACING;
 use eframe::egui::Context;
 use eframe::egui::Label;
 use eframe::egui::Sense;
 use eframe::egui::Ui;
+use schemars::JsonSchema;
+use serde::Deserialize;
+use serde::Serialize;
 use std::process::Command;
 use std::time::Duration;
 use std::time::Instant;
 use sysinfo::Networks;
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Serialize, Deserialize, JsonSchema)]
 pub struct NetworkConfig {
+    /// Enable the Network widget
     pub enable: bool,
+    /// Show network transfer data
     pub show_data: bool,
 }
 
@@ -140,7 +146,7 @@ impl BarWidget for Network {
                     _ => {}
                 }
 
-                ui.add_space(10.0);
+                ui.add_space(WIDGET_SPACING);
             }
         }
     }

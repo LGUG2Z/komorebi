@@ -8,17 +8,22 @@ edition = "2021"
 [dependencies]
 komorebi-client = { path = "../komorebi-client" }
 
-anyhow = "1"
 catppuccin-egui = { version = "5.1", default-features = false, features = ["egui28"] }
 chrono = "0.4"
+color-eyre = "0.6"
 crossbeam-channel = "0.5"
+dirs = { workspace = true }
 eframe = "0.28"
+egui-phosphor = "0.6.0"
 font-loader = "0.11"
 image = "0.25"
 netdev = "0.30"
-serde_json = "1"
+schemars = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+serde_yaml = "0.8"
 starship-battery = "0.10"
 sysinfo = "0.31"
 windows = { workspace = true }
 windows-icons = "0.1"
-egui-phosphor = "0.6.0"
+clap = { version = "4", features = ["derive", "wrap_help"] }

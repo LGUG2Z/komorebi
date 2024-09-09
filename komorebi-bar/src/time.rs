@@ -1,12 +1,18 @@
 use crate::widget::BarWidget;
+use crate::WIDGET_SPACING;
 use eframe::egui::Context;
 use eframe::egui::Label;
 use eframe::egui::Sense;
 use eframe::egui::Ui;
+use schemars::JsonSchema;
+use serde::Deserialize;
+use serde::Serialize;
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 pub struct TimeConfig {
+    /// Enable the Time widget
     pub enable: bool,
+    /// Set the Time format
     pub format: TimeFormat,
 }
 
@@ -19,10 +25,14 @@ impl From<TimeConfig> for Time {
     }
 }
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 pub enum TimeFormat {
+    /// Twelve-hour format (with seconds)
     TwelveHour,
+    /// Twenty-four-hour format (with seconds)
     TwentyFourHour,
+    /// Custom format (https://docs.rs/chrono/latest/chrono/format/strftime/index.html)
+    Custom(String),
 }
 
 impl TimeFormat {
@@ -30,6 +40,7 @@ impl TimeFormat {
         match self {
             TimeFormat::TwelveHour => *self = TimeFormat::TwentyFourHour,
             TimeFormat::TwentyFourHour => *self = TimeFormat::TwelveHour,
+            _ => {}
         };
     }
 
@@ -37,11 +48,12 @@ impl TimeFormat {
         match self {
             TimeFormat::TwelveHour => String::from("%l:%M:%S %p"),
             TimeFormat::TwentyFourHour => String::from("%T"),
+            TimeFormat::Custom(format) => format.to_string(),
         }
     }
 }
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Clone, Debug)]
 pub struct Time {
     pub enable: bool,
     pub format: TimeFormat,
@@ -72,7 +84,7 @@ impl BarWidget for Time {
             }
 
             // TODO: make spacing configurable
-            ui.add_space(10.0);
+            ui.add_space(WIDGET_SPACING);
         }
     }
 }

@@ -1,0 +1,788 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "KomobarConfig",
+  "type": "object",
+  "required": [
+    "left_widgets",
+    "monitor",
+    "right_widgets",
+    "theme"
+  ],
+  "properties": {
+    "font_family": {
+      "description": "Font family",
+      "type": "string"
+    },
+    "frame": {
+      "description": "Frame options (see: https://docs.rs/egui/latest/egui/containers/struct.Frame.html)",
+      "type": "object",
+      "required": [
+        "outer_margin"
+      ],
+      "properties": {
+        "outer_margin": {
+          "description": "Margin outside the painted frame",
+          "type": "object",
+          "required": [
+            "x",
+            "y"
+          ],
+          "properties": {
+            "x": {
+              "description": "X coordinate",
+              "type": "number",
+              "format": "float"
+            },
+            "y": {
+              "description": "Y coordinate",
+              "type": "number",
+              "format": "float"
+            }
+          }
+        }
+      }
+    },
+    "left_widgets": {
+      "description": "Left side widgets (ordered left-to-right)",
+      "type": "array",
+      "items": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "Battery"
+            ],
+            "properties": {
+              "Battery": {
+                "type": "object",
+                "required": [
+                  "enable"
+                ],
+                "properties": {
+                  "enable": {
+                    "description": "Enable the Battery widget",
+                    "type": "boolean"
+                  }
+                }
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
+              "Date"
+            ],
+            "properties": {
+              "Date": {
+                "type": "object",
+                "required": [
+                  "enable",
+                  "format"
+                ],
+                "properties": {
+                  "enable": {
+                    "description": "Enable the Date widget",
+                    "type": "boolean"
+                  },
+                  "format": {
+                    "description": "Set the Date format",
+                    "oneOf": [
+                      {
+                        "description": "Month/Date/Year format (09/08/24)",
+                        "type": "string",
+                        "enum": [
+                          "MonthDateYear"
+                        ]
+                      },
+                      {
+                        "description": "Year-Month-Date format (2024-09-08)",
+                        "type": "string",
+                        "enum": [
+                          "YearMonthDate"
+                        ]
+                      },
+                      {
+                        "description": "Date-Month-Year format (8-Sep-2024)",
+                        "type": "string",
+                        "enum": [
+                          "DateMonthYear"
+                        ]
+                      },
+                      {
+                        "description": "Day Date Month Year format (8 September 2024)",
+                        "type": "string",
+                        "enum": [
+                          "DayDateMonthYear"
+                        ]
+                      },
+                      {
+                        "description": "Custom format (https://docs.rs/chrono/latest/chrono/format/strftime/index.html)",
+                        "type": "object",
+                        "required": [
+                          "Custom"
+                        ],
+                        "properties": {
+                          "Custom": {
+                            "type": "string"
+                          }
+                        },
+                        "additionalProperties": false
+                      }
+                    ]
+                  }
+                }
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
+              "Komorebi"
+            ],
+            "properties": {
+              "Komorebi": {
+                "type": "object",
+                "required": [
+                  "focused_window",
+                  "layout",
+                  "workspaces"
+                ],
+                "properties": {
+                  "focused_window": {
+                    "description": "Configure the Focused Window widget",
+                    "type": "object",
+                    "required": [
+                      "enable",
+                      "show_icon"
+                    ],
+                    "properties": {
+                      "enable": {
+                        "description": "Enable the Komorebi Focused Window widget",
+                        "type": "boolean"
+                      },
+                      "show_icon": {
+                        "description": "Show the icon of the currently focused window",
+                        "type": "boolean"
+                      }
+                    }
+                  },
+                  "layout": {
+                    "description": "Configure the Layout widget",
+                    "type": "object",
+                    "required": [
+                      "enable"
+                    ],
+                    "properties": {
+                      "enable": {
+                        "description": "Enable the Komorebi Layout widget",
+                        "type": "boolean"
+                      }
+                    }
+                  },
+                  "workspaces": {
+                    "description": "Configure the Workspaces widget",
+                    "type": "object",
+                    "required": [
+                      "enable",
+                      "hide_empty_workspaces"
+                    ],
+                    "properties": {
+                      "enable": {
+                        "description": "Enable the Komorebi Workspaces widget",
+                        "type": "boolean"
+                      },
+                      "hide_empty_workspaces": {
+                        "description": "Hide workspaces without any windows",
+                        "type": "boolean"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
+              "Media"
+            ],
+            "properties": {
+              "Media": {
+                "type": "object",
+                "required": [
+                  "enable"
+                ],
+                "properties": {
+                  "enable": {
+                    "description": "Enable the Media widget",
+                    "type": "boolean"
+                  }
+                }
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
+              "Memory"
+            ],
+            "properties": {
+              "Memory": {
+                "type": "object",
+                "required": [
+                  "enable"
+                ],
+                "properties": {
+                  "enable": {
+                    "description": "Enable the Memory widget",
+                    "type": "boolean"
+                  }
+                }
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
+              "Network"
+            ],
+            "properties": {
+              "Network": {
+                "type": "object",
+                "required": [
+                  "enable",
+                  "show_data"
+                ],
+                "properties": {
+                  "enable": {
+                    "description": "Enable the Network widget",
+                    "type": "boolean"
+                  },
+                  "show_data": {
+                    "description": "Show network transfer data",
+                    "type": "boolean"
+                  }
+                }
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
+              "Storage"
+            ],
+            "properties": {
+              "Storage": {
+                "type": "object",
+                "required": [
+                  "enable"
+                ],
+                "properties": {
+                  "enable": {
+                    "description": "Enable the Storage widget",
+                    "type": "boolean"
+                  }
+                }
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
+              "Time"
+            ],
+            "properties": {
+              "Time": {
+                "type": "object",
+                "required": [
+                  "enable",
+                  "format"
+                ],
+                "properties": {
+                  "enable": {
+                    "description": "Enable the Time widget",
+                    "type": "boolean"
+                  },
+                  "format": {
+                    "description": "Set the Time format",
+                    "oneOf": [
+                      {
+                        "description": "Twelve-hour format (with seconds)",
+                        "type": "string",
+                        "enum": [
+                          "TwelveHour"
+                        ]
+                      },
+                      {
+                        "description": "Twenty-four-hour format (with seconds)",
+                        "type": "string",
+                        "enum": [
+                          "TwentyFourHour"
+                        ]
+                      },
+                      {
+                        "description": "Custom format (https://docs.rs/chrono/latest/chrono/format/strftime/index.html)",
+                        "type": "object",
+                        "required": [
+                          "Custom"
+                        ],
+                        "properties": {
+                          "Custom": {
+                            "type": "string"
+                          }
+                        },
+                        "additionalProperties": false
+                      }
+                    ]
+                  }
+                }
+              }
+            },
+            "additionalProperties": false
+          }
+        ]
+      }
+    },
+    "monitor": {
+      "description": "Monitor options",
+      "type": "object",
+      "required": [
+        "index"
+      ],
+      "properties": {
+        "index": {
+          "description": "Komorebi monitor index of the monitor on which to render the bar",
+          "type": "integer",
+          "format": "uint",
+          "minimum": 0.0
+        },
+        "work_area_offset": {
+          "description": "Automatically apply a work area offset for this monitor to accommodate the bar",
+          "type": "object",
+          "required": [
+            "bottom",
+            "left",
+            "right",
+            "top"
+          ],
+          "properties": {
+            "bottom": {
+              "description": "The bottom point in a Win32 Rect",
+              "type": "integer",
+              "format": "int32"
+            },
+            "left": {
+              "description": "The left point in a Win32 Rect",
+              "type": "integer",
+              "format": "int32"
+            },
+            "right": {
+              "description": "The right point in a Win32 Rect",
+              "type": "integer",
+              "format": "int32"
+            },
+            "top": {
+              "description": "The top point in a Win32 Rect",
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        }
+      }
+    },
+    "right_widgets": {
+      "description": "Right side widgets (ordered left-to-right)",
+      "type": "array",
+      "items": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "Battery"
+            ],
+            "properties": {
+              "Battery": {
+                "type": "object",
+                "required": [
+                  "enable"
+                ],
+                "properties": {
+                  "enable": {
+                    "description": "Enable the Battery widget",
+                    "type": "boolean"
+                  }
+                }
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
+              "Date"
+            ],
+            "properties": {
+              "Date": {
+                "type": "object",
+                "required": [
+                  "enable",
+                  "format"
+                ],
+                "properties": {
+                  "enable": {
+                    "description": "Enable the Date widget",
+                    "type": "boolean"
+                  },
+                  "format": {
+                    "description": "Set the Date format",
+                    "oneOf": [
+                      {
+                        "description": "Month/Date/Year format (09/08/24)",
+                        "type": "string",
+                        "enum": [
+                          "MonthDateYear"
+                        ]
+                      },
+                      {
+                        "description": "Year-Month-Date format (2024-09-08)",
+                        "type": "string",
+                        "enum": [
+                          "YearMonthDate"
+                        ]
+                      },
+                      {
+                        "description": "Date-Month-Year format (8-Sep-2024)",
+                        "type": "string",
+                        "enum": [
+                          "DateMonthYear"
+                        ]
+                      },
+                      {
+                        "description": "Day Date Month Year format (8 September 2024)",
+                        "type": "string",
+                        "enum": [
+                          "DayDateMonthYear"
+                        ]
+                      },
+                      {
+                        "description": "Custom format (https://docs.rs/chrono/latest/chrono/format/strftime/index.html)",
+                        "type": "object",
+                        "required": [
+                          "Custom"
+                        ],
+                        "properties": {
+                          "Custom": {
+                            "type": "string"
+                          }
+                        },
+                        "additionalProperties": false
+                      }
+                    ]
+                  }
+                }
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
+              "Komorebi"
+            ],
+            "properties": {
+              "Komorebi": {
+                "type": "object",
+                "required": [
+                  "focused_window",
+                  "layout",
+                  "workspaces"
+                ],
+                "properties": {
+                  "focused_window": {
+                    "description": "Configure the Focused Window widget",
+                    "type": "object",
+                    "required": [
+                      "enable",
+                      "show_icon"
+                    ],
+                    "properties": {
+                      "enable": {
+                        "description": "Enable the Komorebi Focused Window widget",
+                        "type": "boolean"
+                      },
+                      "show_icon": {
+                        "description": "Show the icon of the currently focused window",
+                        "type": "boolean"
+                      }
+                    }
+                  },
+                  "layout": {
+                    "description": "Configure the Layout widget",
+                    "type": "object",
+                    "required": [
+                      "enable"
+                    ],
+                    "properties": {
+                      "enable": {
+                        "description": "Enable the Komorebi Layout widget",
+                        "type": "boolean"
+                      }
+                    }
+                  },
+                  "workspaces": {
+                    "description": "Configure the Workspaces widget",
+                    "type": "object",
+                    "required": [
+                      "enable",
+                      "hide_empty_workspaces"
+                    ],
+                    "properties": {
+                      "enable": {
+                        "description": "Enable the Komorebi Workspaces widget",
+                        "type": "boolean"
+                      },
+                      "hide_empty_workspaces": {
+                        "description": "Hide workspaces without any windows",
+                        "type": "boolean"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
+              "Media"
+            ],
+            "properties": {
+              "Media": {
+                "type": "object",
+                "required": [
+                  "enable"
+                ],
+                "properties": {
+                  "enable": {
+                    "description": "Enable the Media widget",
+                    "type": "boolean"
+                  }
+                }
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
+              "Memory"
+            ],
+            "properties": {
+              "Memory": {
+                "type": "object",
+                "required": [
+                  "enable"
+                ],
+                "properties": {
+                  "enable": {
+                    "description": "Enable the Memory widget",
+                    "type": "boolean"
+                  }
+                }
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
+              "Network"
+            ],
+            "properties": {
+              "Network": {
+                "type": "object",
+                "required": [
+                  "enable",
+                  "show_data"
+                ],
+                "properties": {
+                  "enable": {
+                    "description": "Enable the Network widget",
+                    "type": "boolean"
+                  },
+                  "show_data": {
+                    "description": "Show network transfer data",
+                    "type": "boolean"
+                  }
+                }
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
+              "Storage"
+            ],
+            "properties": {
+              "Storage": {
+                "type": "object",
+                "required": [
+                  "enable"
+                ],
+                "properties": {
+                  "enable": {
+                    "description": "Enable the Storage widget",
+                    "type": "boolean"
+                  }
+                }
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
+              "Time"
+            ],
+            "properties": {
+              "Time": {
+                "type": "object",
+                "required": [
+                  "enable",
+                  "format"
+                ],
+                "properties": {
+                  "enable": {
+                    "description": "Enable the Time widget",
+                    "type": "boolean"
+                  },
+                  "format": {
+                    "description": "Set the Time format",
+                    "oneOf": [
+                      {
+                        "description": "Twelve-hour format (with seconds)",
+                        "type": "string",
+                        "enum": [
+                          "TwelveHour"
+                        ]
+                      },
+                      {
+                        "description": "Twenty-four-hour format (with seconds)",
+                        "type": "string",
+                        "enum": [
+                          "TwentyFourHour"
+                        ]
+                      },
+                      {
+                        "description": "Custom format (https://docs.rs/chrono/latest/chrono/format/strftime/index.html)",
+                        "type": "object",
+                        "required": [
+                          "Custom"
+                        ],
+                        "properties": {
+                          "Custom": {
+                            "type": "string"
+                          }
+                        },
+                        "additionalProperties": false
+                      }
+                    ]
+                  }
+                }
+              }
+            },
+            "additionalProperties": false
+          }
+        ]
+      }
+    },
+    "theme": {
+      "description": "Theme",
+      "oneOf": [
+        {
+          "description": "Default egui theme",
+          "type": "string",
+          "enum": [
+            "Default"
+          ]
+        },
+        {
+          "description": "Catpuccin Frappe",
+          "type": "string",
+          "enum": [
+            "CatppuccinFrappe"
+          ]
+        },
+        {
+          "description": "Catpuccin Macchiato",
+          "type": "string",
+          "enum": [
+            "CatppuccinMacchiato"
+          ]
+        },
+        {
+          "description": "Catpuccin Mocha",
+          "type": "string",
+          "enum": [
+            "CatppuccinMocha"
+          ]
+        }
+      ]
+    },
+    "viewport": {
+      "description": "Viewport options (see: https://docs.rs/egui/latest/egui/viewport/struct.ViewportBuilder.html)",
+      "type": "object",
+      "properties": {
+        "inner_size": {
+          "description": "The desired size of the bar from the starting position (usually monitor width x desired height)",
+          "type": "object",
+          "required": [
+            "x",
+            "y"
+          ],
+          "properties": {
+            "x": {
+              "description": "X coordinate",
+              "type": "number",
+              "format": "float"
+            },
+            "y": {
+              "description": "Y coordinate",
+              "type": "number",
+              "format": "float"
+            }
+          }
+        },
+        "position": {
+          "description": "The desired starting position of the bar (0,0 = top left of the screen)",
+          "type": "object",
+          "required": [
+            "x",
+            "y"
+          ],
+          "properties": {
+            "x": {
+              "description": "X coordinate",
+              "type": "number",
+              "format": "float"
+            },
+            "y": {
+              "description": "Y coordinate",
+              "type": "number",
+              "format": "float"
+            }
+          }
+        }
+      }
+    }
+  }
+}

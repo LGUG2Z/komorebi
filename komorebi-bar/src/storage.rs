@@ -1,15 +1,20 @@
 use crate::widget::BarWidget;
+use crate::WIDGET_SPACING;
 use eframe::egui::Context;
 use eframe::egui::Label;
 use eframe::egui::Sense;
 use eframe::egui::Ui;
+use schemars::JsonSchema;
+use serde::Deserialize;
+use serde::Serialize;
 use std::process::Command;
 use std::time::Duration;
 use std::time::Instant;
 use sysinfo::Disks;
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Serialize, Deserialize, JsonSchema)]
 pub struct StorageConfig {
+    /// Enable the Storage widget
     pub enable: bool,
 }
 
@@ -87,7 +92,7 @@ impl BarWidget for Storage {
                     }
                 }
 
-                ui.add_space(10.0);
+                ui.add_space(WIDGET_SPACING);
             }
         }
     }
