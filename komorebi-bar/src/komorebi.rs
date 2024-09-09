@@ -200,7 +200,18 @@ impl KomorebiNotificationState {
                 komorebi_client::Layout::Custom(_) => String::from("Custom"),
             };
 
-            if let Some(container) = monitor.workspaces()[focused_workspace_idx].focused_container()
+            if let Some(container) = monitor.workspaces()[focused_workspace_idx].monocle_container()
+            {
+                if let Some(window) = container.focused_window() {
+                    if let Ok(title) = window.title() {
+                        self.focused_window_title.clone_from(&title);
+                        self.focused_window_pid = Some(window.process_id());
+                        let img = windows_icons::get_icon_by_process_id(window.process_id());
+                        self.focused_window_icon = Some(img);
+                    }
+                }
+            } else if let Some(container) =
+                monitor.workspaces()[focused_workspace_idx].focused_container()
             {
                 if let Some(window) = container.focused_window() {
                     if let Ok(title) = window.title() {
