@@ -17,6 +17,8 @@ use sysinfo::System;
 pub struct MemoryConfig {
     /// Enable the Memory widget
     pub enable: bool,
+    /// Data refresh interval (default: 10 seconds)
+    pub data_refresh_interval: Option<u64>,
 }
 
 impl From<MemoryConfig> for Memory {
@@ -29,6 +31,7 @@ impl From<MemoryConfig> for Memory {
         Self {
             enable: value.enable,
             system,
+            data_refresh_interval: value.data_refresh_interval.unwrap_or(10),
             last_updated: Instant::now(),
         }
     }
@@ -37,13 +40,14 @@ impl From<MemoryConfig> for Memory {
 pub struct Memory {
     pub enable: bool,
     system: System,
+    data_refresh_interval: u64,
     last_updated: Instant,
 }
 
 impl Memory {
     fn output(&mut self) -> Vec<String> {
         let now = Instant::now();
-        if now.duration_since(self.last_updated) > Duration::from_secs(10) {
+        if now.duration_since(self.last_updated) > Duration::from_secs(self.data_refresh_interval) {
             self.system.refresh_memory();
             self.last_updated = now;
         }

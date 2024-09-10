@@ -5,8 +5,7 @@
   "required": [
     "left_widgets",
     "monitor",
-    "right_widgets",
-    "theme"
+    "right_widgets"
   ],
   "properties": {
     "font_family": {
@@ -59,6 +58,12 @@
                   "enable"
                 ],
                 "properties": {
+                  "data_refresh_interval": {
+                    "description": "Data refresh interval (default: 10 seconds)",
+                    "type": "integer",
+                    "format": "uint64",
+                    "minimum": 0.0
+                  },
                   "enable": {
                     "description": "Enable the Battery widget",
                     "type": "boolean"
@@ -237,6 +242,12 @@
                   "enable"
                 ],
                 "properties": {
+                  "data_refresh_interval": {
+                    "description": "Data refresh interval (default: 10 seconds)",
+                    "type": "integer",
+                    "format": "uint64",
+                    "minimum": 0.0
+                  },
                   "enable": {
                     "description": "Enable the Memory widget",
                     "type": "boolean"
@@ -259,6 +270,12 @@
                   "show_data"
                 ],
                 "properties": {
+                  "data_refresh_interval": {
+                    "description": "Data refresh interval (default: 10 seconds)",
+                    "type": "integer",
+                    "format": "uint64",
+                    "minimum": 0.0
+                  },
                   "enable": {
                     "description": "Enable the Network widget",
                     "type": "boolean"
@@ -284,6 +301,12 @@
                   "enable"
                 ],
                 "properties": {
+                  "data_refresh_interval": {
+                    "description": "Data refresh interval (default: 10 seconds)",
+                    "type": "integer",
+                    "format": "uint64",
+                    "minimum": 0.0
+                  },
                   "enable": {
                     "description": "Enable the Storage widget",
                     "type": "boolean"
@@ -414,6 +437,12 @@
                   "enable"
                 ],
                 "properties": {
+                  "data_refresh_interval": {
+                    "description": "Data refresh interval (default: 10 seconds)",
+                    "type": "integer",
+                    "format": "uint64",
+                    "minimum": 0.0
+                  },
                   "enable": {
                     "description": "Enable the Battery widget",
                     "type": "boolean"
@@ -592,6 +621,12 @@
                   "enable"
                 ],
                 "properties": {
+                  "data_refresh_interval": {
+                    "description": "Data refresh interval (default: 10 seconds)",
+                    "type": "integer",
+                    "format": "uint64",
+                    "minimum": 0.0
+                  },
                   "enable": {
                     "description": "Enable the Memory widget",
                     "type": "boolean"
@@ -614,6 +649,12 @@
                   "show_data"
                 ],
                 "properties": {
+                  "data_refresh_interval": {
+                    "description": "Data refresh interval (default: 10 seconds)",
+                    "type": "integer",
+                    "format": "uint64",
+                    "minimum": 0.0
+                  },
                   "enable": {
                     "description": "Enable the Network widget",
                     "type": "boolean"
@@ -639,6 +680,12 @@
                   "enable"
                 ],
                 "properties": {
+                  "data_refresh_interval": {
+                    "description": "Data refresh interval (default: 10 seconds)",
+                    "type": "integer",
+                    "format": "uint64",
+                    "minimum": 0.0
+                  },
                   "enable": {
                     "description": "Enable the Storage widget",
                     "type": "boolean"

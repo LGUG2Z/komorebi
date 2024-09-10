@@ -16,6 +16,8 @@ use sysinfo::Disks;
 pub struct StorageConfig {
     /// Enable the Storage widget
     pub enable: bool,
+    /// Data refresh interval (default: 10 seconds)
+    pub data_refresh_interval: Option<u64>,
 }
 
 impl From<StorageConfig> for Storage {
@@ -23,6 +25,7 @@ impl From<StorageConfig> for Storage {
         Self {
             enable: value.enable,
             disks: Disks::new_with_refreshed_list(),
+            data_refresh_interval: value.data_refresh_interval.unwrap_or(10),
             last_updated: Instant::now(),
         }
     }
@@ -31,13 +34,14 @@ impl From<StorageConfig> for Storage {
 pub struct Storage {
     pub enable: bool,
     disks: Disks,
+    data_refresh_interval: u64,
     last_updated: Instant,
 }
 
 impl Storage {
     fn output(&mut self) -> Vec<String> {
         let now = Instant::now();
-        if now.duration_since(self.last_updated) > Duration::from_secs(10) {
+        if now.duration_since(self.last_updated) > Duration::from_secs(self.data_refresh_interval) {
             self.disks.refresh();
             self.last_updated = now;
         }

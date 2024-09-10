@@ -18,6 +18,8 @@ pub struct NetworkConfig {
     pub enable: bool,
     /// Show network transfer data
     pub show_data: bool,
+    /// Data refresh interval (default: 10 seconds)
+    pub data_refresh_interval: Option<u64>,
 }
 
 impl From<NetworkConfig> for Network {
@@ -48,6 +50,7 @@ impl From<NetworkConfig> for Network {
             enable: value.enable,
             last_state,
             networks,
+            data_refresh_interval: value.data_refresh_interval.unwrap_or(10),
             show_data: value.show_data,
             last_updated: Instant::now(),
         }
@@ -58,6 +61,7 @@ pub struct Network {
     pub enable: bool,
     pub show_data: bool,
     networks: Networks,
+    data_refresh_interval: u64,
     last_state: Vec<String>,
     last_updated: Instant,
 }
@@ -67,7 +71,7 @@ impl Network {
         let mut outputs = self.last_state.clone();
 
         let now = Instant::now();
-        if now.duration_since(self.last_updated) > Duration::from_secs(10) {
+        if now.duration_since(self.last_updated) > Duration::from_secs(self.data_refresh_interval) {
             outputs.clear();
 
             if let Ok(interface) = netdev::get_default_interface() {

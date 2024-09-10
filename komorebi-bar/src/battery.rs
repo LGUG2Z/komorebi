@@ -17,6 +17,8 @@ use std::time::Instant;
 pub struct BatteryConfig {
     /// Enable the Battery widget
     pub enable: bool,
+    /// Data refresh interval (default: 10 seconds)
+    pub data_refresh_interval: Option<u64>,
 }
 
 impl From<BatteryConfig> for Battery {
@@ -41,6 +43,7 @@ impl From<BatteryConfig> for Battery {
             enable: value.enable,
             manager,
             last_state,
+            data_refresh_interval: value.data_refresh_interval.unwrap_or(10),
             state: state.unwrap_or(BatteryState::Discharging),
             last_updated: Instant::now(),
         }
@@ -56,6 +59,7 @@ pub struct Battery {
     pub enable: bool,
     manager: Manager,
     pub state: BatteryState,
+    data_refresh_interval: u64,
     last_state: Vec<String>,
     last_updated: Instant,
 }
@@ -65,7 +69,7 @@ impl Battery {
         let mut outputs = self.last_state.clone();
 
         let now = Instant::now();
-        if now.duration_since(self.last_updated) > Duration::from_secs(10) {
+        if now.duration_since(self.last_updated) > Duration::from_secs(self.data_refresh_interval) {
             outputs.clear();
 
             if let Ok(mut batteries) = self.manager.batteries() {
