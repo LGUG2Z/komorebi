@@ -15,6 +15,7 @@ use crate::config::KomobarConfig;
 use crate::config::Position;
 use clap::Parser;
 use eframe::egui::ViewportBuilder;
+use font_loader::system_fonts;
 use hotwatch::EventKind;
 use hotwatch::Hotwatch;
 use komorebi_client::SocketMessage;
@@ -34,6 +35,9 @@ struct Opts {
     /// Print the JSON schema of the configuration file and exit
     #[clap(long)]
     schema: bool,
+    /// Print a list of fonts available on this system and exit
+    #[clap(long)]
+    fonts: bool,
     /// Path to a JSON or YAML configuration file
     #[clap(short, long)]
     config: Option<PathBuf>,
@@ -54,6 +58,14 @@ fn main() -> color_eyre::Result<()> {
         let schema = serde_json::to_string_pretty(&socket_message)?;
 
         println!("{schema}");
+        std::process::exit(0);
+    }
+
+    if opts.fonts {
+        for font in system_fonts::query_all() {
+            println!("{font}");
+        }
+
         std::process::exit(0);
     }
 
