@@ -31,3 +31,6 @@ tracing-appender = "0.2"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 windows = { workspace = true }
 windows-icons = "0.1"
+num = "0.4.3"
+num-derive = "0.4.2"
+num-traits = "0.2.19"
