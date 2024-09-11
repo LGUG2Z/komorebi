@@ -11,6 +11,8 @@ use std::process::Command;
 use std::time::Duration;
 use std::time::Instant;
 use sysinfo::Networks;
+use std::fmt;
+use num_derive::FromPrimitive;
 
 #[derive(Copy, Clone, Debug, Serialize, Deserialize, JsonSchema)]
 pub struct NetworkConfig {
@@ -43,11 +45,11 @@ impl From<NetworkConfig> for Network {
                     for (interface_name, data) in &networks_total_data_transmitted {
                         if friendly_name.eq(interface_name) {
                             last_state_data.push(format!(
-                                "{} {:.0} MB / {} {:.0} MB",
-                                egui_phosphor::regular::ARROW_CIRCLE_DOWN,
-                                (data.total_received() as f32) / 1024.0 / 1024.0,
-                                egui_phosphor::regular::ARROW_CIRCLE_UP,
-                                (data.total_transmitted() as f32) / 1024.0 / 1024.0,
+                                "{} {} / {} {}",
+                                egui_phosphor::regular::ARROW_FAT_DOWN,
+                                to_pretty_bytes(data.total_received(), 1),
+                                egui_phosphor::regular::ARROW_FAT_UP,
+                                to_pretty_bytes(data.total_transmitted(), 1),
                             ))
                         }
                     }
@@ -58,11 +60,11 @@ impl From<NetworkConfig> for Network {
                     for (interface_name, data) in &networks_network_activity {
                         if friendly_name.eq(interface_name) {
                             last_state_transmitted.push(format!(
-                                "{} {:.1} KB/s / {} {:.1} KB/s",
-                                egui_phosphor::regular::ARROW_CIRCLE_DOWN,
-                                (data.received() as f32) / 1024.0 / 1.0,
-                                egui_phosphor::regular::ARROW_CIRCLE_UP,
-                                (data.transmitted() as f32) / 1024.0 / 1.0,
+                                "{} {: >10}/s {} {: >10}/s",
+                                egui_phosphor::regular::ARROW_FAT_DOWN,
+                                to_pretty_bytes(data.received(), 1),
+                                egui_phosphor::regular::ARROW_FAT_UP,
+                                to_pretty_bytes(data.transmitted(), 1),
                             ))
                         }
                     }
@@ -126,15 +128,11 @@ impl Network {
                         for (interface_name, data) in &self.networks_network_activity {
                             if friendly_name.eq(interface_name) {
                                 outputs.push(format!(
-                                    "{} {:.1} KB/s / {} {:.1} KB/s",
-                                    egui_phosphor::regular::ARROW_CIRCLE_DOWN,
-                                    (data.received() as f32)
-                                        / 1024.0
-                                        / self.data_refresh_interval as f32,
-                                    egui_phosphor::regular::ARROW_CIRCLE_UP,
-                                    (data.transmitted() as f32)
-                                        / 1024.0
-                                        / self.data_refresh_interval as f32,
+                                    "{} {: >10}/s {} {: >10}/s",
+                                    egui_phosphor::regular::ARROW_FAT_DOWN,
+                                    to_pretty_bytes(data.received(), self.data_refresh_interval),
+                                    egui_phosphor::regular::ARROW_FAT_UP,
+                                    to_pretty_bytes(data.transmitted(), self.data_refresh_interval),
                                 ))
                             }
                         }
@@ -167,11 +165,11 @@ impl Network {
                         for (interface_name, data) in &self.networks_total_data_transmitted {
                             if friendly_name.eq(interface_name) {
                                 outputs.push(format!(
-                                    "{} {:.0} MB / {} {:.0} MB",
-                                    egui_phosphor::regular::ARROW_CIRCLE_DOWN,
-                                    (data.total_received() as f32) / 1024.0 / 1024.0,
-                                    egui_phosphor::regular::ARROW_CIRCLE_UP,
-                                    (data.total_transmitted() as f32) / 1024.0 / 1024.0,
+                                    "{} {} / {} {}",
+                                    egui_phosphor::regular::ARROW_FAT_DOWN,
+                                    to_pretty_bytes(data.total_received(), 1),
+                                    egui_phosphor::regular::ARROW_FAT_UP,
+                                    to_pretty_bytes(data.total_transmitted(), 1),
                                 ))
                             }
                         }
@@ -228,5 +226,43 @@ impl BarWidget for Network {
 
             ui.add_space(WIDGET_SPACING);
         }
+    }
+}
+
+#[derive(Debug, FromPrimitive)]
+enum DataUnit {
+    B = 0,
+    K = 1,
+    M = 2,
+    G = 3,
+    T = 4,
+    P = 5,
+    E = 6,
+    Z = 7,
+    Y = 8,
+}
+
+impl fmt::Display for DataUnit {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{:?}", self)
+    }
+}
+
+fn to_pretty_bytes(input_in_bytes: u64, timespan_in_s: u64) -> String {
+    let input = input_in_bytes as f32 / timespan_in_s as f32;
+    let mut magnitude = input.log(1024 as f32) as u32;
+
+    // let the base unit be KiB
+    if magnitude < 1 {
+        magnitude = 1;
+    }
+
+    let base: Option<DataUnit> = num::FromPrimitive::from_u32(magnitude);
+    let result = input as f32 / ((1 as u64) << (magnitude * 10)) as f32;
+    
+    match base {
+        Some(DataUnit::B) => format!("{result:.1} B"),
+        Some(unit) => format!("{result:.1} {unit}iB"),
+        None => format!("Unknown data unit"),
     }
 }
