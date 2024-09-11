@@ -267,7 +267,8 @@
                 "type": "object",
                 "required": [
                   "enable",
-                  "show_data"
+                  "show_network_activity",
+                  "show_total_data_transmitted"
                 ],
                 "properties": {
                   "data_refresh_interval": {
@@ -280,8 +281,12 @@
                     "description": "Enable the Network widget",
                     "type": "boolean"
                   },
-                  "show_data": {
-                    "description": "Show network transfer data",
+                  "show_network_activity": {
+                    "description": "Show network activity",
+                    "type": "boolean"
+                  },
+                  "show_total_data_transmitted": {
+                    "description": "Show total data transmitted",
                     "type": "boolean"
                   }
                 }
@@ -646,7 +651,8 @@
                 "type": "object",
                 "required": [
                   "enable",
-                  "show_data"
+                  "show_network_activity",
+                  "show_total_data_transmitted"
                 ],
                 "properties": {
                   "data_refresh_interval": {
@@ -659,8 +665,12 @@
                     "description": "Enable the Network widget",
                     "type": "boolean"
                   },
-                  "show_data": {
-                    "description": "Show network transfer data",
+                  "show_network_activity": {
+                    "description": "Show network activity",
+                    "type": "boolean"
+                  },
+                  "show_total_data_transmitted": {
+                    "description": "Show total data transmitted",
                     "type": "boolean"
                   }
                 }
