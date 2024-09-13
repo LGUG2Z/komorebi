@@ -1,3 +1,4 @@
+use crate::config::Catppuccin;
 use crate::config::KomobarConfig;
 use crate::config::Theme;
 use crate::komorebi::Komorebi;
@@ -7,6 +8,7 @@ use crate::widget::WidgetConfig;
 use crossbeam_channel::Receiver;
 use eframe::egui::Align;
 use eframe::egui::CentralPanel;
+use eframe::egui::Color32;
 use eframe::egui::Context;
 use eframe::egui::FontData;
 use eframe::egui::FontDefinitions;
@@ -28,6 +30,7 @@ pub struct Komobar {
     pub right_widgets: Vec<Box<dyn BarWidget>>,
     pub rx_gui: Receiver<komorebi_client::Notification>,
     pub rx_config: Receiver<KomobarConfig>,
+    pub bg_color: Color32,
 }
 
 impl Komobar {
@@ -43,22 +46,34 @@ impl Komobar {
         }
 
         match config.theme {
-            Some(Theme::CatppuccinFrappe) => {
-                catppuccin_egui::set_theme(ctx, catppuccin_egui::FRAPPE);
-                tracing::info!("theme updated: Catppuccin Frappe");
-            }
-            Some(Theme::CatppuccinMacchiato) => {
-                catppuccin_egui::set_theme(ctx, catppuccin_egui::MACCHIATO);
-                tracing::info!("theme updated: Catppuccin Macchiato");
-            }
-            Some(Theme::CatppuccinMocha) => {
-                catppuccin_egui::set_theme(ctx, catppuccin_egui::MOCHA);
-                tracing::info!("theme updated: Catppuccin Mocha");
-            }
-            Some(Theme::Default) | None => {
+            None => {
                 ctx.set_style(Style::default());
-                tracing::info!("theme updated: Egui Default");
+                self.bg_color = Style::default().visuals.panel_fill;
             }
+            Some(theme) => match theme {
+                Theme::Catppuccin { name: catppuccin } => match catppuccin {
+                    Catppuccin::Frappe => {
+                        catppuccin_egui::set_theme(ctx, catppuccin_egui::FRAPPE);
+                        self.bg_color = catppuccin_egui::FRAPPE.base;
+                    }
+                    Catppuccin::Latte => {
+                        catppuccin_egui::set_theme(ctx, catppuccin_egui::LATTE);
+                        self.bg_color = catppuccin_egui::LATTE.base;
+                    }
+                    Catppuccin::Macchiato => {
+                        catppuccin_egui::set_theme(ctx, catppuccin_egui::MACCHIATO);
+                        self.bg_color = catppuccin_egui::MACCHIATO.base;
+                    }
+                    Catppuccin::Mocha => {
+                        catppuccin_egui::set_theme(ctx, catppuccin_egui::MOCHA);
+                        self.bg_color = catppuccin_egui::MOCHA.base;
+                    }
+                },
+                Theme::Base16 { name: base16 } => {
+                    ctx.set_style(base16.style());
+                    self.bg_color = base16.background();
+                }
+            },
         }
 
         let mut komorebi_widget = None;
@@ -139,6 +154,7 @@ impl Komobar {
             right_widgets: vec![],
             rx_gui,
             rx_config,
+            bg_color: Style::default().visuals.panel_fill,
         };
 
         komobar.apply_config(&cc.egui_ctx, &config, None);
@@ -199,12 +215,14 @@ impl eframe::App for Komobar {
         }
 
         let frame = if let Some(frame) = &self.config.frame {
-            Frame::none().outer_margin(Margin::symmetric(
-                frame.outer_margin.x,
-                frame.outer_margin.y,
-            ))
-        } else {
             Frame::none()
+                .inner_margin(Margin::symmetric(
+                    frame.inner_margin.x,
+                    frame.inner_margin.y,
+                ))
+                .fill(self.bg_color)
+        } else {
+            Frame::none().fill(self.bg_color)
         };
 
         CentralPanel::default().frame(frame).show(ctx, |ui| {

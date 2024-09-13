@@ -184,13 +184,14 @@ fn main() -> color_eyre::Result<()> {
 
     hotwatch.watch(config_path, move |event| match event.kind {
         EventKind::Modify(_) | EventKind::Remove(_) => {
-            let updated = KomobarConfig::read(&config_path_cl).unwrap();
-            tx_config.send(updated).unwrap();
+            if let Ok(updated) = KomobarConfig::read(&config_path_cl) {
+                tx_config.send(updated).unwrap();
 
-            tracing::info!(
-                "configuration file updated: {}",
-                config_path_cl.as_path().to_string_lossy()
-            );
+                tracing::info!(
+                    "configuration file updated: {}",
+                    config_path_cl.as_path().to_string_lossy()
+                );
+            }
         }
         _ => {}
     })?;

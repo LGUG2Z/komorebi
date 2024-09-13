@@ -597,6 +597,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "base16-egui-themes"
+version = "0.1.0"
+source = "git+https://github.com/LGUG2Z/base16-egui-themes#b4afb9aa0104b6100d6be52b9fb2abb349a5de1e"
+dependencies = [
+ "egui",
+ "schemars",
+ "serde",
+]
+
+[[package]]
 name = "base64"
 version = "0.22.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2677,6 +2687,7 @@ dependencies = [
 name = "komorebi-bar"
 version = "0.1.0"
 dependencies = [
+ "base16-egui-themes",
  "catppuccin-egui",
  "chrono",
  "clap",

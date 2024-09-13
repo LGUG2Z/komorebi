@@ -1,4 +1,5 @@
 use crate::widget::WidgetConfig;
+use base16_egui_themes::Base16;
 use eframe::egui::Pos2;
 use eframe::egui::TextBuffer;
 use eframe::egui::Vec2;
@@ -36,8 +37,8 @@ pub struct ViewportConfig {
 
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 pub struct FrameConfig {
-    /// Margin outside the painted frame
-    pub outer_margin: Position,
+    /// Margin inside the painted frame
+    pub inner_margin: Position,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
@@ -59,7 +60,7 @@ impl KomobarConfig {
 
         if value.frame.is_none() {
             value.frame = Some(FrameConfig {
-                outer_margin: Position { x: 10.0, y: 10.0 },
+                inner_margin: Position { x: 10.0, y: 10.0 },
             });
         }
 
@@ -94,13 +95,18 @@ impl From<Position> for Pos2 {
 }
 
 #[derive(Copy, Clone, Debug, Serialize, Deserialize, JsonSchema)]
+#[serde(tag = "type")]
 pub enum Theme {
-    /// Default egui theme
-    Default,
-    /// Catpuccin Frappe
-    CatppuccinFrappe,
-    /// Catpuccin Macchiato
-    CatppuccinMacchiato,
-    /// Catpuccin Mocha
-    CatppuccinMocha,
+    /// A theme from catppuccin-egui
+    Catppuccin { name: Catppuccin },
+    /// A theme from base16-egui-themes
+    Base16 { name: Base16 },
+}
+
+#[derive(Copy, Clone, Debug, Serialize, Deserialize, JsonSchema)]
+pub enum Catppuccin {
+    Frappe,
+    Latte,
+    Macchiato,
+    Mocha,
 }
