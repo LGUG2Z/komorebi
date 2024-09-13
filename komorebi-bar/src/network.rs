@@ -4,15 +4,15 @@ use eframe::egui::Context;
 use eframe::egui::Label;
 use eframe::egui::Sense;
 use eframe::egui::Ui;
+use num_derive::FromPrimitive;
 use schemars::JsonSchema;
 use serde::Deserialize;
 use serde::Serialize;
+use std::fmt;
 use std::process::Command;
 use std::time::Duration;
 use std::time::Instant;
 use sysinfo::Networks;
-use std::fmt;
-use num_derive::FromPrimitive;
 
 #[derive(Copy, Clone, Debug, Serialize, Deserialize, JsonSchema)]
 pub struct NetworkConfig {
@@ -22,6 +22,8 @@ pub struct NetworkConfig {
     pub show_total_data_transmitted: bool,
     /// Show network activity
     pub show_network_activity: bool,
+    /// Characters to reserve for network activity data
+    pub network_activity_fill_characters: Option<usize>,
     /// Data refresh interval (default: 10 seconds)
     pub data_refresh_interval: Option<u64>,
 }
@@ -60,11 +62,12 @@ impl From<NetworkConfig> for Network {
                     for (interface_name, data) in &networks_network_activity {
                         if friendly_name.eq(interface_name) {
                             last_state_transmitted.push(format!(
-                                "{} {: >10}/s {} {: >10}/s",
+                                "{} {: >width$}/s {} {: >width$}/s",
                                 egui_phosphor::regular::ARROW_FAT_DOWN,
                                 to_pretty_bytes(data.received(), 1),
                                 egui_phosphor::regular::ARROW_FAT_UP,
                                 to_pretty_bytes(data.transmitted(), 1),
+                                width = value.network_activity_fill_characters.unwrap_or_default(),
                             ))
                         }
                     }
@@ -80,6 +83,9 @@ impl From<NetworkConfig> for Network {
             data_refresh_interval: value.data_refresh_interval.unwrap_or(10),
             show_total_data_transmitted: value.show_total_data_transmitted,
             show_network_activity: value.show_network_activity,
+            network_activity_fill_characters: value
+                .network_activity_fill_characters
+                .unwrap_or_default(),
             last_state_total_data_transmitted: last_state_data,
             last_state_network_activity: last_state_transmitted,
             last_updated_total_data_transmitted: Instant::now(),
@@ -100,6 +106,7 @@ pub struct Network {
     last_state_network_activity: Vec<String>,
     last_updated_total_data_transmitted: Instant,
     last_updated_network_activity: Instant,
+    network_activity_fill_characters: usize,
 }
 
 impl Network {
@@ -128,11 +135,12 @@ impl Network {
                         for (interface_name, data) in &self.networks_network_activity {
                             if friendly_name.eq(interface_name) {
                                 outputs.push(format!(
-                                    "{} {: >10}/s {} {: >10}/s",
+                                    "{} {: >width$}/s {} {: >width$}/s",
                                     egui_phosphor::regular::ARROW_FAT_DOWN,
                                     to_pretty_bytes(data.received(), self.data_refresh_interval),
                                     egui_phosphor::regular::ARROW_FAT_UP,
                                     to_pretty_bytes(data.transmitted(), self.data_refresh_interval),
+                                    width = self.network_activity_fill_characters,
                                 ))
                             }
                         }
@@ -250,7 +258,7 @@ impl fmt::Display for DataUnit {
 
 fn to_pretty_bytes(input_in_bytes: u64, timespan_in_s: u64) -> String {
     let input = input_in_bytes as f32 / timespan_in_s as f32;
-    let mut magnitude = input.log(1024 as f32) as u32;
+    let mut magnitude = input.log(1024f32) as u32;
 
     // let the base unit be KiB
     if magnitude < 1 {
@@ -258,11 +266,11 @@ fn to_pretty_bytes(input_in_bytes: u64, timespan_in_s: u64) -> String {
     }
 
     let base: Option<DataUnit> = num::FromPrimitive::from_u32(magnitude);
-    let result = input as f32 / ((1 as u64) << (magnitude * 10)) as f32;
-    
+    let result = input / ((1u64) << (magnitude * 10)) as f32;
+
     match base {
         Some(DataUnit::B) => format!("{result:.1} B"),
         Some(unit) => format!("{result:.1} {unit}iB"),
-        None => format!("Unknown data unit"),
+        None => String::from("Unknown data unit"),
     }
 }

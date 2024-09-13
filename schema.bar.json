@@ -281,6 +281,12 @@
                     "description": "Enable the Network widget",
                     "type": "boolean"
                   },
+                  "network_activity_fill_characters": {
+                    "description": "Characters to reserve for network activity data",
+                    "type": "integer",
+                    "format": "uint",
+                    "minimum": 0.0
+                  },
                   "show_network_activity": {
                     "description": "Show network activity",
                     "type": "boolean"
@@ -664,6 +670,12 @@
                   "enable": {
                     "description": "Enable the Network widget",
                     "type": "boolean"
+                  },
+                  "network_activity_fill_characters": {
+                    "description": "Characters to reserve for network activity data",
+                    "type": "integer",
+                    "format": "uint",
+                    "minimum": 0.0
                   },
                   "show_network_activity": {
                     "description": "Show network activity",

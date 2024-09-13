@@ -20,6 +20,9 @@ font-loader = "0.11"
 hotwatch = "0.5"
 image = "0.25"
 netdev = "0.30"
+num = "0.4.3"
+num-derive = "0.4.2"
+num-traits = "0.2.19"
 schemars = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
@@ -31,6 +34,3 @@ tracing-appender = "0.2"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 windows = { workspace = true }
 windows-icons = "0.1"
-num = "0.4.3"
-num-derive = "0.4.2"
-num-traits = "0.2.19"
