@@ -95,6 +95,7 @@ jobs:
             target/${{ matrix.target }}/release/komorebi.exe
             target/${{ matrix.target }}/release/komorebic.exe
             target/${{ matrix.target }}/release/komorebic-no-console.exe
+            target/${{ matrix.target }}/release/komorebi-bar.exe
             target/${{ matrix.target }}/release/komorebi-gui.exe
             target/${{ matrix.target }}/release/komorebi.pdb
             target/${{ matrix.target }}/release/komorebic.pdb

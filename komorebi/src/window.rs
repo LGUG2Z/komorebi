@@ -393,6 +393,11 @@ impl Window {
         exe
     }
 
+    pub fn process_id(self) -> u32 {
+        let (process_id, _) = WindowsApi::window_thread_process_id(self.hwnd());
+        process_id
+    }
+
     pub fn class(self) -> Result<String> {
         WindowsApi::real_window_class_w(self.hwnd())
     }

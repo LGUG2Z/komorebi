@@ -1,0 +1,37 @@
+[package]
+name = "komorebi-bar"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+komorebi-client = { path = "../komorebi-client" }
+
+base16-egui-themes = { git = "https://github.com/LGUG2Z/base16-egui-themes", rev = "a2c48f45782c5604bf5482d3873021a9fe45ea1a" }
+catppuccin-egui = { version = "5.1", default-features = false, features = ["egui28"] }
+chrono = "0.4"
+clap = { version = "4", features = ["derive", "wrap_help"] }
+color-eyre = "0.6"
+crossbeam-channel = "0.5"
+dirs = { workspace = true }
+eframe = "0.28"
+egui-phosphor = "0.6.0"
+font-loader = "0.11"
+hotwatch = "0.5"
+image = "0.25"
+netdev = "0.30"
+num = "0.4.3"
+num-derive = "0.4.2"
+num-traits = "0.2.19"
+schemars = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+serde_yaml = "0.8"
+starship-battery = "0.10"
+sysinfo = "0.31"
+tracing = "0.1"
+tracing-appender = "0.2"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+windows = { workspace = true }
+windows-icons = "0.1"
