@@ -8,7 +8,7 @@ edition = "2021"
 [dependencies]
 komorebi-client = { path = "../komorebi-client" }
 
-base16-egui-themes = { git = "https://github.com/LGUG2Z/base16-egui-themes" }
+base16-egui-themes = { git = "https://github.com/LGUG2Z/base16-egui-themes", rev = "a2c48f45782c5604bf5482d3873021a9fe45ea1a" }
 catppuccin-egui = { version = "5.1", default-features = false, features = ["egui28"] }
 chrono = "0.4"
 clap = { version = "4", features = ["derive", "wrap_help"] }
