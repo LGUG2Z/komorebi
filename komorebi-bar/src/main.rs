@@ -183,8 +183,8 @@ fn main() -> color_eyre::Result<()> {
     let config_path_cl = config_path.clone();
 
     hotwatch.watch(config_path, move |event| match event.kind {
-        EventKind::Modify(_) | EventKind::Remove(_) => {
-            if let Ok(updated) = KomobarConfig::read(&config_path_cl) {
+        EventKind::Modify(_) | EventKind::Remove(_) => match KomobarConfig::read(&config_path_cl) {
+            Ok(updated) => {
                 tx_config.send(updated).unwrap();
 
                 tracing::info!(
@@ -192,7 +192,10 @@ fn main() -> color_eyre::Result<()> {
                     config_path_cl.as_path().to_string_lossy()
                 );
             }
-        }
+            Err(error) => {
+                tracing::error!("{error}");
+            }
+        },
         _ => {}
     })?;
 

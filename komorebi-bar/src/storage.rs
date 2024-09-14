@@ -1,8 +1,12 @@
 use crate::widget::BarWidget;
 use crate::WIDGET_SPACING;
+use eframe::egui::text::LayoutJob;
 use eframe::egui::Context;
+use eframe::egui::FontId;
 use eframe::egui::Label;
 use eframe::egui::Sense;
+use eframe::egui::TextFormat;
+use eframe::egui::TextStyle;
 use eframe::egui::Ui;
 use schemars::JsonSchema;
 use serde::Deserialize;
@@ -69,18 +73,34 @@ impl Storage {
 }
 
 impl BarWidget for Storage {
-    fn render(&mut self, _ctx: &Context, ui: &mut Ui) {
+    fn render(&mut self, ctx: &Context, ui: &mut Ui) {
         if self.enable {
+            let font_id = ctx
+                .style()
+                .text_styles
+                .get(&TextStyle::Body)
+                .cloned()
+                .unwrap_or_else(FontId::default);
+
             for output in self.output() {
+                let mut layout_job = LayoutJob::simple(
+                    egui_phosphor::regular::HARD_DRIVES.to_string(),
+                    font_id.clone(),
+                    ctx.style().visuals.selection.stroke.color,
+                    100.0,
+                );
+
+                layout_job.append(
+                    &output,
+                    10.0,
+                    TextFormat::simple(font_id.clone(), ctx.style().visuals.text_color()),
+                );
+
                 if ui
                     .add(
-                        Label::new(format!(
-                            "{} {}",
-                            egui_phosphor::regular::HARD_DRIVES,
-                            output
-                        ))
-                        .selectable(false)
-                        .sense(Sense::click()),
+                        Label::new(layout_job)
+                            .selectable(false)
+                            .sense(Sense::click()),
                     )
                     .clicked()
                 {

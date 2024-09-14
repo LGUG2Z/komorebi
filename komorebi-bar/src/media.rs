@@ -1,8 +1,12 @@
 use crate::widget::BarWidget;
 use crate::WIDGET_SPACING;
+use eframe::egui::text::LayoutJob;
 use eframe::egui::Context;
+use eframe::egui::FontId;
 use eframe::egui::Label;
 use eframe::egui::Sense;
+use eframe::egui::TextFormat;
+use eframe::egui::TextStyle;
 use eframe::egui::Ui;
 use schemars::JsonSchema;
 use serde::Deserialize;
@@ -46,36 +50,57 @@ impl Media {
         }
     }
 
-    fn output(&mut self) -> Vec<String> {
+    fn output(&mut self) -> String {
         if let Ok(session) = self.session_manager.GetCurrentSession() {
             if let Ok(operation) = session.TryGetMediaPropertiesAsync() {
                 if let Ok(properties) = operation.get() {
                     if let (Ok(artist), Ok(title)) = (properties.Artist(), properties.Title()) {
                         if artist.is_empty() {
-                            return vec![format!("{title}")];
+                            return format!("{title}");
                         }
 
                         if title.is_empty() {
-                            return vec![format!("{artist}")];
+                            return format!("{artist}");
                         }
 
-                        return vec![format!("{artist} - {title}")];
+                        return format!("{artist} - {title}");
                     }
                 }
             }
         }
 
-        vec![]
+        String::new()
     }
 }
 
 impl BarWidget for Media {
-    fn render(&mut self, _ctx: &Context, ui: &mut Ui) {
+    fn render(&mut self, ctx: &Context, ui: &mut Ui) {
         if self.enable {
-            for output in self.output() {
+            let output = self.output();
+            if !output.is_empty() {
+                let font_id = ctx
+                    .style()
+                    .text_styles
+                    .get(&TextStyle::Body)
+                    .cloned()
+                    .unwrap_or_else(FontId::default);
+
+                let mut layout_job = LayoutJob::simple(
+                    egui_phosphor::regular::HEADPHONES.to_string(),
+                    font_id.clone(),
+                    ctx.style().visuals.selection.stroke.color,
+                    100.0,
+                );
+
+                layout_job.append(
+                    &output,
+                    10.0,
+                    TextFormat::simple(font_id, ctx.style().visuals.text_color()),
+                );
+
                 if ui
                     .add(
-                        Label::new(format!("{} {output}", egui_phosphor::regular::HEADPHONES))
+                        Label::new(layout_job)
                             .selectable(false)
                             .sense(Sense::click()),
                     )
