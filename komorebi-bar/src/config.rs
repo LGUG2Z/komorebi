@@ -98,9 +98,36 @@ impl From<Position> for Pos2 {
 #[serde(tag = "type")]
 pub enum Theme {
     /// A theme from catppuccin-egui
-    Catppuccin { name: Catppuccin },
+    Catppuccin {
+        name: Catppuccin,
+        accent: Option<CatppuccinValue>,
+    },
     /// A theme from base16-egui-themes
-    Base16 { name: Base16 },
+    Base16 {
+        name: Base16,
+        accent: Option<Base16Value>,
+    },
+}
+
+#[derive(Copy, Clone, Debug, Default, Serialize, Deserialize, JsonSchema)]
+pub enum Base16Value {
+    Base00,
+    Base01,
+    Base02,
+    Base03,
+    Base04,
+    Base05,
+    #[default]
+    Base06,
+    Base07,
+    Base08,
+    Base09,
+    Base0A,
+    Base0B,
+    Base0C,
+    Base0D,
+    Base0E,
+    Base0F,
 }
 
 #[derive(Copy, Clone, Debug, Serialize, Deserialize, JsonSchema)]
@@ -109,4 +136,35 @@ pub enum Catppuccin {
     Latte,
     Macchiato,
     Mocha,
+}
+
+#[derive(Copy, Clone, Debug, Default, Serialize, Deserialize, JsonSchema)]
+pub enum CatppuccinValue {
+    Rosewater,
+    Flamingo,
+    Pink,
+    Mauve,
+    Red,
+    Maroon,
+    Peach,
+    Yellow,
+    Green,
+    Teal,
+    Sky,
+    Sapphire,
+    Blue,
+    Lavender,
+    #[default]
+    Text,
+    Subtext1,
+    Subtext0,
+    Overlay2,
+    Overlay1,
+    Overlay0,
+    Surface2,
+    Surface1,
+    Surface0,
+    Base,
+    Mantle,
+    Crust,
 }

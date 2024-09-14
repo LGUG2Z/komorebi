@@ -785,6 +785,37 @@
             "type"
           ],
           "properties": {
+            "accent": {
+              "type": "string",
+              "enum": [
+                "Rosewater",
+                "Flamingo",
+                "Pink",
+                "Mauve",
+                "Red",
+                "Maroon",
+                "Peach",
+                "Yellow",
+                "Green",
+                "Teal",
+                "Sky",
+                "Sapphire",
+                "Blue",
+                "Lavender",
+                "Text",
+                "Subtext1",
+                "Subtext0",
+                "Overlay2",
+                "Overlay1",
+                "Overlay0",
+                "Surface2",
+                "Surface1",
+                "Surface0",
+                "Base",
+                "Mantle",
+                "Crust"
+              ]
+            },
             "name": {
               "type": "string",
               "enum": [
@@ -810,6 +841,27 @@
             "type"
           ],
           "properties": {
+            "accent": {
+              "type": "string",
+              "enum": [
+                "Base00",
+                "Base01",
+                "Base02",
+                "Base03",
+                "Base04",
+                "Base05",
+                "Base06",
+                "Base07",
+                "Base08",
+                "Base09",
+                "Base0A",
+                "Base0B",
+                "Base0C",
+                "Base0D",
+                "Base0E",
+                "Base0F"
+              ]
+            },
             "name": {
               "type": "string",
               "enum": [

@@ -599,7 +599,7 @@ dependencies = [
 [[package]]
 name = "base16-egui-themes"
 version = "0.1.0"
-source = "git+https://github.com/LGUG2Z/base16-egui-themes#b4afb9aa0104b6100d6be52b9fb2abb349a5de1e"
+source = "git+https://github.com/LGUG2Z/base16-egui-themes#0dc75d5b136c479703290cac5285a2428958a075"
 dependencies = [
  "egui",
  "schemars",
