@@ -11,6 +11,8 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+komorebi-themes = { path = "../komorebi-themes" }
+
 bitflags = { version = "2", features = ["serde"] }
 clap = { version = "4", features = ["derive"] }
 color-eyre = { workspace = true }

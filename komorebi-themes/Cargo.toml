@@ -1,0 +1,11 @@
+[package]
+name = "komorebi-themes"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+base16-egui-themes = { git = "https://github.com/LGUG2Z/base16-egui-themes", rev = "a2c48f45782c5604bf5482d3873021a9fe45ea1a" }
+catppuccin-egui = { version = "5.1", default-features = false, features = ["egui28"] }
+egui = "0.28"
+serde = { workspace = true }
+schemars = { workspace = true }
