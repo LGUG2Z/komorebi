@@ -86,7 +86,7 @@ impl Battery {
                         _ => {}
                     }
 
-                    output = format!("{percentage}%");
+                    output = format!("{percentage:.0}%");
                 }
             }
 
