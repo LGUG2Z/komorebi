@@ -1,5 +1,4 @@
 use crate::widget::WidgetConfig;
-use base16_egui_themes::Base16;
 use eframe::egui::Pos2;
 use eframe::egui::TextBuffer;
 use eframe::egui::Vec2;
@@ -20,7 +19,7 @@ pub struct KomobarConfig {
     /// Font family
     pub font_family: Option<String>,
     /// Theme
-    pub theme: Option<Theme>,
+    pub theme: Option<KomobarTheme>,
     /// Left side widgets (ordered left-to-right)
     pub left_widgets: Vec<WidgetConfig>,
     /// Right side widgets (ordered left-to-right)
@@ -96,75 +95,15 @@ impl From<Position> for Pos2 {
 
 #[derive(Copy, Clone, Debug, Serialize, Deserialize, JsonSchema)]
 #[serde(tag = "type")]
-pub enum Theme {
+pub enum KomobarTheme {
     /// A theme from catppuccin-egui
     Catppuccin {
-        name: Catppuccin,
-        accent: Option<CatppuccinValue>,
+        name: komorebi_themes::Catppuccin,
+        accent: Option<komorebi_themes::CatppuccinValue>,
     },
     /// A theme from base16-egui-themes
     Base16 {
-        name: Base16,
-        accent: Option<Base16Value>,
+        name: komorebi_themes::Base16,
+        accent: Option<komorebi_themes::Base16Value>,
     },
-}
-
-#[derive(Copy, Clone, Debug, Default, Serialize, Deserialize, JsonSchema)]
-pub enum Base16Value {
-    Base00,
-    Base01,
-    Base02,
-    Base03,
-    Base04,
-    Base05,
-    #[default]
-    Base06,
-    Base07,
-    Base08,
-    Base09,
-    Base0A,
-    Base0B,
-    Base0C,
-    Base0D,
-    Base0E,
-    Base0F,
-}
-
-#[derive(Copy, Clone, Debug, Serialize, Deserialize, JsonSchema)]
-pub enum Catppuccin {
-    Frappe,
-    Latte,
-    Macchiato,
-    Mocha,
-}
-
-#[derive(Copy, Clone, Debug, Default, Serialize, Deserialize, JsonSchema)]
-pub enum CatppuccinValue {
-    Rosewater,
-    Flamingo,
-    Pink,
-    Mauve,
-    Red,
-    Maroon,
-    Peach,
-    Yellow,
-    Green,
-    Teal,
-    Sky,
-    Sapphire,
-    Blue,
-    Lavender,
-    #[default]
-    Text,
-    Subtext1,
-    Subtext0,
-    Overlay2,
-    Overlay1,
-    Overlay0,
-    Surface2,
-    Surface1,
-    Surface0,
-    Base,
-    Mantle,
-    Crust,
 }

@@ -2654,6 +2654,7 @@ dependencies = [
  "getset",
  "hex_color",
  "hotwatch",
+ "komorebi-themes",
  "lazy_static",
  "miow",
  "nanoid",
@@ -2687,8 +2688,6 @@ dependencies = [
 name = "komorebi-bar"
 version = "0.1.0"
 dependencies = [
- "base16-egui-themes",
- "catppuccin-egui",
  "chrono",
  "clap",
  "color-eyre",
@@ -2700,6 +2699,7 @@ dependencies = [
  "hotwatch",
  "image",
  "komorebi-client",
+ "komorebi-themes",
  "netdev",
  "num",
  "num-derive",
@@ -2736,6 +2736,17 @@ dependencies = [
  "random_word",
  "serde_json",
  "windows 0.54.0",
+]
+
+[[package]]
+name = "komorebi-themes"
+version = "0.1.0"
+dependencies = [
+ "base16-egui-themes",
+ "catppuccin-egui",
+ "egui",
+ "schemars",
+ "serde",
 ]
 
 [[package]]
