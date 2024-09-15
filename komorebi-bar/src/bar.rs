@@ -21,6 +21,7 @@ use font_loader::system_fonts::FontPropertyBuilder;
 use komorebi_themes::catppuccin_egui;
 use komorebi_themes::Catppuccin;
 use std::cell::RefCell;
+use std::path::PathBuf;
 use std::rc::Rc;
 use std::sync::Arc;
 
@@ -31,7 +32,89 @@ pub struct Komobar {
     pub right_widgets: Vec<Box<dyn BarWidget>>,
     pub rx_gui: Receiver<komorebi_client::Notification>,
     pub rx_config: Receiver<KomobarConfig>,
-    pub bg_color: Color32,
+    pub bg_color: Rc<RefCell<Color32>>,
+}
+
+pub fn apply_theme(ctx: &Context, theme: KomobarTheme, bg_color: Rc<RefCell<Color32>>) {
+    match theme {
+        KomobarTheme::Catppuccin {
+            name: catppuccin,
+            accent: catppuccin_value,
+        } => match catppuccin {
+            Catppuccin::Frappe => {
+                catppuccin_egui::set_theme(ctx, catppuccin_egui::FRAPPE);
+                let catppuccin_value = catppuccin_value.unwrap_or_default();
+                let accent = catppuccin_value.color32(catppuccin.as_theme());
+
+                ctx.style_mut(|style| {
+                    style.visuals.selection.stroke.color = accent;
+                    style.visuals.widgets.hovered.fg_stroke.color = accent;
+                    style.visuals.widgets.active.fg_stroke.color = accent;
+                    style.visuals.override_text_color = None;
+                });
+
+                bg_color.replace(catppuccin_egui::FRAPPE.base);
+            }
+            Catppuccin::Latte => {
+                catppuccin_egui::set_theme(ctx, catppuccin_egui::LATTE);
+                let catppuccin_value = catppuccin_value.unwrap_or_default();
+                let accent = catppuccin_value.color32(catppuccin.as_theme());
+
+                ctx.style_mut(|style| {
+                    style.visuals.selection.stroke.color = accent;
+                    style.visuals.widgets.hovered.fg_stroke.color = accent;
+                    style.visuals.widgets.active.fg_stroke.color = accent;
+                    style.visuals.override_text_color = None;
+                });
+
+                bg_color.replace(catppuccin_egui::LATTE.base);
+            }
+            Catppuccin::Macchiato => {
+                catppuccin_egui::set_theme(ctx, catppuccin_egui::MACCHIATO);
+                let catppuccin_value = catppuccin_value.unwrap_or_default();
+                let accent = catppuccin_value.color32(catppuccin.as_theme());
+
+                ctx.style_mut(|style| {
+                    style.visuals.selection.stroke.color = accent;
+                    style.visuals.widgets.hovered.fg_stroke.color = accent;
+                    style.visuals.widgets.active.fg_stroke.color = accent;
+                    style.visuals.override_text_color = None;
+                });
+
+                bg_color.replace(catppuccin_egui::MACCHIATO.base);
+            }
+            Catppuccin::Mocha => {
+                catppuccin_egui::set_theme(ctx, catppuccin_egui::MOCHA);
+                let catppuccin_value = catppuccin_value.unwrap_or_default();
+                let accent = catppuccin_value.color32(catppuccin.as_theme());
+
+                ctx.style_mut(|style| {
+                    style.visuals.selection.stroke.color = accent;
+                    style.visuals.widgets.hovered.fg_stroke.color = accent;
+                    style.visuals.widgets.active.fg_stroke.color = accent;
+                    style.visuals.override_text_color = None;
+                });
+
+                bg_color.replace(catppuccin_egui::MOCHA.base);
+            }
+        },
+        KomobarTheme::Base16 {
+            name: base16,
+            accent: base16_value,
+        } => {
+            ctx.set_style(base16.style());
+            let base16_value = base16_value.unwrap_or_default();
+            let accent = base16_value.color32(base16);
+
+            ctx.style_mut(|style| {
+                style.visuals.selection.stroke.color = accent;
+                style.visuals.widgets.hovered.fg_stroke.color = accent;
+                style.visuals.widgets.active.fg_stroke.color = accent;
+            });
+
+            bg_color.replace(base16.background());
+        }
+    }
 }
 
 impl Komobar {
@@ -47,89 +130,36 @@ impl Komobar {
         }
 
         match config.theme {
-            None => {
-                ctx.set_style(Style::default());
-                self.bg_color = Style::default().visuals.panel_fill;
+            Some(theme) => {
+                apply_theme(ctx, theme, self.bg_color.clone());
             }
-            Some(theme) => match theme {
-                KomobarTheme::Catppuccin {
-                    name: catppuccin,
-                    accent: catppuccin_value,
-                } => match catppuccin {
-                    Catppuccin::Frappe => {
-                        catppuccin_egui::set_theme(ctx, catppuccin_egui::FRAPPE);
-                        let catppuccin_value = catppuccin_value.unwrap_or_default();
-                        let accent = catppuccin_value.color32(catppuccin.as_theme());
+            None => {
+                let home_dir: PathBuf = std::env::var("KOMOREBI_CONFIG_HOME").map_or_else(
+                    |_| dirs::home_dir().expect("there is no home directory"),
+                    |home_path| {
+                        let home = PathBuf::from(&home_path);
 
-                        ctx.style_mut(|style| {
-                            style.visuals.selection.stroke.color = accent;
-                            style.visuals.widgets.hovered.fg_stroke.color = accent;
-                            style.visuals.widgets.active.fg_stroke.color = accent;
-                            style.visuals.override_text_color = None;
-                        });
+                        if home.as_path().is_dir() {
+                            home
+                        } else {
+                            panic!("$Env:KOMOREBI_CONFIG_HOME is set to '{home_path}', which is not a valid directory");
+                        }
+                    },
+                );
 
-                        self.bg_color = catppuccin_egui::FRAPPE.base;
+                let config = home_dir.join("komorebi.json");
+                match komorebi_client::StaticConfig::read(&config) {
+                    Ok(config) => {
+                        if let Some(theme) = config.theme {
+                            apply_theme(ctx, KomobarTheme::from(theme), self.bg_color.clone());
+                        }
                     }
-                    Catppuccin::Latte => {
-                        catppuccin_egui::set_theme(ctx, catppuccin_egui::LATTE);
-                        let catppuccin_value = catppuccin_value.unwrap_or_default();
-                        let accent = catppuccin_value.color32(catppuccin.as_theme());
-
-                        ctx.style_mut(|style| {
-                            style.visuals.selection.stroke.color = accent;
-                            style.visuals.widgets.hovered.fg_stroke.color = accent;
-                            style.visuals.widgets.active.fg_stroke.color = accent;
-                            style.visuals.override_text_color = None;
-                        });
-
-                        self.bg_color = catppuccin_egui::LATTE.base;
+                    Err(_) => {
+                        ctx.set_style(Style::default());
+                        self.bg_color.replace(Style::default().visuals.panel_fill);
                     }
-                    Catppuccin::Macchiato => {
-                        catppuccin_egui::set_theme(ctx, catppuccin_egui::MACCHIATO);
-                        let catppuccin_value = catppuccin_value.unwrap_or_default();
-                        let accent = catppuccin_value.color32(catppuccin.as_theme());
-
-                        ctx.style_mut(|style| {
-                            style.visuals.selection.stroke.color = accent;
-                            style.visuals.widgets.hovered.fg_stroke.color = accent;
-                            style.visuals.widgets.active.fg_stroke.color = accent;
-                            style.visuals.override_text_color = None;
-                        });
-
-                        self.bg_color = catppuccin_egui::MACCHIATO.base;
-                    }
-                    Catppuccin::Mocha => {
-                        catppuccin_egui::set_theme(ctx, catppuccin_egui::MOCHA);
-                        let catppuccin_value = catppuccin_value.unwrap_or_default();
-                        let accent = catppuccin_value.color32(catppuccin.as_theme());
-
-                        ctx.style_mut(|style| {
-                            style.visuals.selection.stroke.color = accent;
-                            style.visuals.widgets.hovered.fg_stroke.color = accent;
-                            style.visuals.widgets.active.fg_stroke.color = accent;
-                            style.visuals.override_text_color = None;
-                        });
-
-                        self.bg_color = catppuccin_egui::MOCHA.base;
-                    }
-                },
-                KomobarTheme::Base16 {
-                    name: base16,
-                    accent: base16_value,
-                } => {
-                    ctx.set_style(base16.style());
-                    let base16_value = base16_value.unwrap_or_default();
-                    let accent = base16_value.color32(base16);
-
-                    ctx.style_mut(|style| {
-                        style.visuals.selection.stroke.color = accent;
-                        style.visuals.widgets.hovered.fg_stroke.color = accent;
-                        style.visuals.widgets.active.fg_stroke.color = accent;
-                    });
-
-                    self.bg_color = base16.background();
                 }
-            },
+            }
         }
 
         let mut komorebi_widget = None;
@@ -210,7 +240,7 @@ impl Komobar {
             right_widgets: vec![],
             rx_gui,
             rx_config,
-            bg_color: Style::default().visuals.panel_fill,
+            bg_color: Rc::new(RefCell::new(Style::default().visuals.panel_fill)),
         };
 
         komobar.apply_config(&cc.egui_ctx, &config, None);
@@ -267,7 +297,12 @@ impl eframe::App for Komobar {
         if let Some(komorebi_notification_state) = &self.komorebi_notification_state {
             komorebi_notification_state
                 .borrow_mut()
-                .handle_notification(self.config.monitor.index, self.rx_gui.clone());
+                .handle_notification(
+                    ctx,
+                    self.config.monitor.index,
+                    self.rx_gui.clone(),
+                    self.bg_color.clone(),
+                );
         }
 
         let frame = if let Some(frame) = &self.config.frame {
@@ -276,9 +311,9 @@ impl eframe::App for Komobar {
                     frame.inner_margin.x,
                     frame.inner_margin.y,
                 ))
-                .fill(self.bg_color)
+                .fill(*self.bg_color.borrow())
         } else {
-            Frame::none().fill(self.bg_color)
+            Frame::none().fill(*self.bg_color.borrow())
         };
 
         CentralPanel::default().frame(frame).show(ctx, |ui| {

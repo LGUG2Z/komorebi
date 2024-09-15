@@ -2,6 +2,7 @@ use crate::widget::WidgetConfig;
 use eframe::egui::Pos2;
 use eframe::egui::TextBuffer;
 use eframe::egui::Vec2;
+use komorebi_client::KomorebiTheme;
 use komorebi_client::Rect;
 use schemars::JsonSchema;
 use serde::Deserialize;
@@ -106,4 +107,23 @@ pub enum KomobarTheme {
         name: komorebi_themes::Base16,
         accent: Option<komorebi_themes::Base16Value>,
     },
+}
+
+impl From<KomorebiTheme> for KomobarTheme {
+    fn from(value: KomorebiTheme) -> Self {
+        match value {
+            KomorebiTheme::Catppuccin {
+                name, bar_accent, ..
+            } => Self::Catppuccin {
+                name,
+                accent: bar_accent,
+            },
+            KomorebiTheme::Base16 {
+                name, bar_accent, ..
+            } => Self::Base16 {
+                name,
+                accent: bar_accent,
+            },
+        }
+    }
 }

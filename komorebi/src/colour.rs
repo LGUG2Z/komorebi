@@ -1,4 +1,5 @@
 use hex_color::HexColor;
+use komorebi_themes::Color32;
 use schemars::gen::SchemaGenerator;
 use schemars::schema::InstanceType;
 use schemars::schema::Schema;
@@ -25,6 +26,16 @@ impl From<Rgb> for Colour {
 impl From<u32> for Colour {
     fn from(value: u32) -> Self {
         Self::Rgb(Rgb::from(value))
+    }
+}
+
+impl From<Color32> for Colour {
+    fn from(value: Color32) -> Self {
+        Colour::Rgb(Rgb::new(
+            value.r() as u32,
+            value.g() as u32,
+            value.b() as u32,
+        ))
     }
 }
 

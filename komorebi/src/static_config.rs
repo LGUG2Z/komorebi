@@ -27,7 +27,6 @@ use crate::window_manager_event::WindowManagerEvent;
 use crate::windows_api::WindowsApi;
 use crate::workspace::Workspace;
 use crate::CrossBoundaryBehaviour;
-use crate::Rgb;
 use crate::ANIMATION_DURATION;
 use crate::ANIMATION_ENABLED;
 use crate::ANIMATION_FPS;
@@ -396,6 +395,8 @@ pub enum KomorebiTheme {
         stackbar_unfocused_text: Option<komorebi_themes::CatppuccinValue>,
         /// Stackbar tab background colour (default: Base)
         stackbar_background: Option<komorebi_themes::CatppuccinValue>,
+        /// Komorebi status bar accent (default: Blue)
+        bar_accent: Option<komorebi_themes::CatppuccinValue>,
     },
     /// A theme from base16-egui-themes
     Base16 {
@@ -415,6 +416,8 @@ pub enum KomorebiTheme {
         stackbar_unfocused_text: Option<komorebi_themes::Base16Value>,
         /// Stackbar tab background colour (default: Base01)
         stackbar_background: Option<komorebi_themes::Base16Value>,
+        /// Komorebi status bar accent (default: Base0D)
+        bar_accent: Option<komorebi_themes::Base16Value>,
     },
 }
 
@@ -848,6 +851,7 @@ impl StaticConfig {
                     stackbar_focused_text,
                     stackbar_unfocused_text,
                     stackbar_background,
+                    ..
                 } => {
                     let single_border = single_border
                         .unwrap_or(komorebi_themes::CatppuccinValue::Blue)
@@ -896,6 +900,7 @@ impl StaticConfig {
                     stackbar_focused_text,
                     stackbar_unfocused_text,
                     stackbar_background,
+                    ..
                 } => {
                     let single_border = single_border
                         .unwrap_or(komorebi_themes::Base16Value::Base0D)
@@ -937,66 +942,25 @@ impl StaticConfig {
                 }
             };
 
-            border_manager::FOCUSED.store(
-                u32::from(Colour::Rgb(Rgb::new(
-                    single_border.r() as u32,
-                    single_border.g() as u32,
-                    single_border.b() as u32,
-                ))),
-                Ordering::SeqCst,
-            );
-
-            border_manager::MONOCLE.store(
-                u32::from(Colour::Rgb(Rgb::new(
-                    monocle_border.r() as u32,
-                    monocle_border.g() as u32,
-                    monocle_border.b() as u32,
-                ))),
-                Ordering::SeqCst,
-            );
-
-            border_manager::STACK.store(
-                u32::from(Colour::Rgb(Rgb::new(
-                    stack_border.r() as u32,
-                    stack_border.g() as u32,
-                    stack_border.b() as u32,
-                ))),
-                Ordering::SeqCst,
-            );
-
-            border_manager::UNFOCUSED.store(
-                u32::from(Colour::Rgb(Rgb::new(
-                    unfocused_border.r() as u32,
-                    unfocused_border.g() as u32,
-                    unfocused_border.b() as u32,
-                ))),
-                Ordering::SeqCst,
-            );
+            border_manager::FOCUSED.store(u32::from(Colour::from(single_border)), Ordering::SeqCst);
+            border_manager::MONOCLE
+                .store(u32::from(Colour::from(monocle_border)), Ordering::SeqCst);
+            border_manager::STACK.store(u32::from(Colour::from(stack_border)), Ordering::SeqCst);
+            border_manager::UNFOCUSED
+                .store(u32::from(Colour::from(unfocused_border)), Ordering::SeqCst);
 
             STACKBAR_TAB_BACKGROUND_COLOUR.store(
-                u32::from(Colour::Rgb(Rgb::new(
-                    stackbar_background.r() as u32,
-                    stackbar_background.g() as u32,
-                    stackbar_background.b() as u32,
-                ))),
+                u32::from(Colour::from(stackbar_background)),
                 Ordering::SeqCst,
             );
 
             STACKBAR_FOCUSED_TEXT_COLOUR.store(
-                u32::from(Colour::Rgb(Rgb::new(
-                    stackbar_focused_text.r() as u32,
-                    stackbar_focused_text.g() as u32,
-                    stackbar_focused_text.b() as u32,
-                ))),
+                u32::from(Colour::from(stackbar_focused_text)),
                 Ordering::SeqCst,
             );
 
             STACKBAR_UNFOCUSED_TEXT_COLOUR.store(
-                u32::from(Colour::Rgb(Rgb::new(
-                    stackbar_unfocused_text.r() as u32,
-                    stackbar_unfocused_text.g() as u32,
-                    stackbar_unfocused_text.b() as u32,
-                ))),
+                u32::from(Colour::from(stackbar_unfocused_text)),
                 Ordering::SeqCst,
             );
         }
@@ -1051,6 +1015,12 @@ impl StaticConfig {
         }
 
         Ok(())
+    }
+
+    pub fn read(path: &PathBuf) -> Result<Self> {
+        let content = std::fs::read_to_string(path)?;
+        let value: Self = serde_json::from_str(&content)?;
+        Ok(value)
     }
 
     #[allow(clippy::too_many_lines)]

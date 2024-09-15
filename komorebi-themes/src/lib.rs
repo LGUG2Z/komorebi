@@ -1,13 +1,13 @@
 #![warn(clippy::all)]
 #![allow(clippy::missing_errors_doc)]
 
-pub use base16_egui_themes::Base16;
 use schemars::JsonSchema;
 use serde::Deserialize;
 use serde::Serialize;
 
+pub use base16_egui_themes::Base16;
 pub use catppuccin_egui;
-use egui::Color32;
+pub use egui::Color32;
 
 #[derive(Copy, Clone, Debug, Serialize, Deserialize, JsonSchema)]
 #[serde(tag = "type")]
