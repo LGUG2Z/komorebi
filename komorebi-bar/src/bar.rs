@@ -16,6 +16,8 @@ use eframe::egui::Frame;
 use eframe::egui::Layout;
 use eframe::egui::Margin;
 use eframe::egui::Style;
+use eframe::egui::Vec2;
+use eframe::egui::ViewportCommand;
 use font_loader::system_fonts;
 use font_loader::system_fonts::FontPropertyBuilder;
 use komorebi_themes::catppuccin_egui;
@@ -33,6 +35,7 @@ pub struct Komobar {
     pub rx_gui: Receiver<komorebi_client::Notification>,
     pub rx_config: Receiver<KomobarConfig>,
     pub bg_color: Rc<RefCell<Color32>>,
+    pub scale_factor: f32,
 }
 
 pub fn apply_theme(ctx: &Context, theme: KomobarTheme, bg_color: Rc<RefCell<Color32>>) {
@@ -127,6 +130,17 @@ impl Komobar {
         if let Some(font_family) = &config.font_family {
             tracing::info!("attempting to add custom font family: {font_family}");
             Self::add_custom_font(ctx, font_family);
+        }
+
+        if let Some(viewport) = &config.viewport {
+            if let Some(inner_size) = viewport.inner_size {
+                let mut vec2 = Vec2::new(inner_size.x, inner_size.y * 2.0);
+                if self.scale_factor != 1.0 {
+                    vec2 = Vec2::new(inner_size.x / self.scale_factor, inner_size.y * 2.0);
+                }
+
+                ctx.send_viewport_cmd(ViewportCommand::InnerSize(vec2));
+            }
         }
 
         match config.theme {
@@ -241,6 +255,7 @@ impl Komobar {
             rx_gui,
             rx_config,
             bg_color: Rc::new(RefCell::new(Style::default().visuals.panel_fill)),
+            scale_factor: cc.egui_ctx.native_pixels_per_point().unwrap_or(1.0),
         };
 
         komobar.apply_config(&cc.egui_ctx, &config, None);
@@ -286,6 +301,15 @@ impl eframe::App for Komobar {
     // }
 
     fn update(&mut self, ctx: &Context, _frame: &mut eframe::Frame) {
+        if self.scale_factor != ctx.native_pixels_per_point().unwrap_or(1.0) {
+            self.scale_factor = ctx.native_pixels_per_point().unwrap_or(1.0);
+            self.apply_config(
+                ctx,
+                &self.config.clone(),
+                self.komorebi_notification_state.clone(),
+            );
+        }
+
         if let Ok(updated_config) = self.rx_config.try_recv() {
             self.apply_config(
                 ctx,
