@@ -1,6 +1,9 @@
+use crate::bar::apply_theme;
+use crate::config::KomobarTheme;
 use crate::widget::BarWidget;
 use crate::WIDGET_SPACING;
 use crossbeam_channel::Receiver;
+use eframe::egui::Color32;
 use eframe::egui::ColorImage;
 use eframe::egui::Context;
 use eframe::egui::Image;
@@ -12,6 +15,7 @@ use eframe::egui::TextureOptions;
 use eframe::egui::Ui;
 use image::RgbaImage;
 use komorebi_client::CycleDirection;
+use komorebi_client::NotificationEvent;
 use komorebi_client::SocketMessage;
 use schemars::JsonSchema;
 use serde::Deserialize;
@@ -169,10 +173,23 @@ impl KomorebiNotificationState {
 
     pub fn handle_notification(
         &mut self,
+        ctx: &Context,
         monitor_index: usize,
         rx_gui: Receiver<komorebi_client::Notification>,
+        bg_color: Rc<RefCell<Color32>>,
     ) {
         if let Ok(notification) = rx_gui.try_recv() {
+            if let NotificationEvent::Socket(SocketMessage::ReloadStaticConfiguration(path)) =
+                notification.event
+            {
+                if let Ok(config) = komorebi_client::StaticConfig::read(&path) {
+                    if let Some(theme) = config.theme {
+                        apply_theme(ctx, KomobarTheme::from(theme), bg_color);
+                        tracing::info!("applied theme from updated komorebi.json");
+                    }
+                }
+            }
+
             let monitor = &notification.state.monitors.elements()[monitor_index];
             let focused_workspace_idx = monitor.focused_workspace_idx();
 

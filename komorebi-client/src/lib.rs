@@ -36,6 +36,7 @@ pub use komorebi::window_manager_event::WindowManagerEvent;
 pub use komorebi::workspace::Workspace;
 pub use komorebi::BorderColours;
 pub use komorebi::GlobalState;
+pub use komorebi::KomorebiTheme;
 pub use komorebi::Notification;
 pub use komorebi::NotificationEvent;
 pub use komorebi::RuleDebug;
