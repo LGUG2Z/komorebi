@@ -1213,6 +1213,10 @@ impl StaticConfig {
             wm.cross_monitor_move_behaviour = val;
         }
 
+        if let Some(val) = value.cross_boundary_behaviour {
+            wm.cross_boundary_behaviour = val;
+        }
+
         if let Some(val) = value.unmanaged_window_operation_behaviour {
             wm.unmanaged_window_operation_behaviour = val;
         }
