@@ -6115,8 +6115,7 @@ dependencies = [
 [[package]]
 name = "windows-icons"
 version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e8bbc62fa6f23804699b9559429f6f1eb761d215184e011cd365041d202e0b2e"
+source = "git+https://github.com/LGUG2Z/windows-icons?rev=c70022b9d4badca863bd56862984a8582a4e5a15#c70022b9d4badca863bd56862984a8582a4e5a15"
 dependencies = [
  "base64",
  "image",
