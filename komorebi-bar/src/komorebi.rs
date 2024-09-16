@@ -223,8 +223,13 @@ impl KomorebiNotificationState {
                     if let Ok(title) = window.title() {
                         self.focused_window_title.clone_from(&title);
                         self.focused_window_pid = Some(window.process_id());
-                        let img = windows_icons::get_icon_by_process_id(window.process_id());
-                        self.focused_window_icon = Some(img);
+                        if let Some(img) =
+                            windows_icons::get_icon_by_process_id(window.process_id())
+                        {
+                            self.focused_window_icon = Some(img);
+                        } else {
+                            self.focused_window_icon = None;
+                        }
                     }
                 }
             } else if let Some(container) =
@@ -234,8 +239,13 @@ impl KomorebiNotificationState {
                     if let Ok(title) = window.title() {
                         self.focused_window_title.clone_from(&title);
                         self.focused_window_pid = Some(window.process_id());
-                        let img = windows_icons::get_icon_by_process_id(window.process_id());
-                        self.focused_window_icon = Some(img);
+                        if let Some(img) =
+                            windows_icons::get_icon_by_process_id(window.process_id())
+                        {
+                            self.focused_window_icon = Some(img);
+                        } else {
+                            self.focused_window_icon = None;
+                        }
                     }
                 }
             } else {
