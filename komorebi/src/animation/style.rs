@@ -1,4 +1,3 @@
-use super::ANIMATION_STYLE;
 use crate::core::AnimationStyle;
 
 use std::f64::consts::PI;
@@ -356,9 +355,7 @@ impl Ease for EaseInOutBounce {
     }
 }
 
-pub fn apply_ease_func(t: f64) -> f64 {
-    let style = *ANIMATION_STYLE.lock();
-
+pub fn apply_ease_func(t: f64, style: AnimationStyle) -> f64 {
     match style {
         AnimationStyle::Linear => Linear::evaluate(t),
         AnimationStyle::EaseInSine => EaseInSine::evaluate(t),

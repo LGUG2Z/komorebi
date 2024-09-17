@@ -1,6 +1,7 @@
 use crate::animation::ANIMATIONS_IN_PROGRESS;
 use crate::animation::ANIMATION_DURATION;
 use crate::animation::ANIMATION_ENABLED;
+use crate::animation::ANIMATION_STYLE;
 use crate::border_manager;
 use crate::com::SetCloak;
 use crate::focus_manager;
@@ -203,8 +204,9 @@ impl Window {
     pub fn animate_position(&self, start_rect: &Rect, target_rect: &Rect, top: bool) -> Result<()> {
         let start_rect = *start_rect;
         let target_rect = *target_rect;
-        let duration = Duration::from_millis(ANIMATION_DURATION.load(Ordering::SeqCst));
         let mut animation = self.animation;
+        let duration = Duration::from_millis(ANIMATION_DURATION.load(Ordering::SeqCst));
+        let style = *ANIMATION_STYLE.lock();
 
         border_manager::BORDER_TEMPORARILY_DISABLED.store(true, Ordering::SeqCst);
         border_manager::send_notification(Some(self.hwnd));
@@ -216,7 +218,7 @@ impl Window {
 
         std::thread::spawn(move || {
             animation.animate(duration, |progress: f64| {
-                let new_rect = Animation::lerp_rect(&start_rect, &target_rect, progress);
+                let new_rect = Animation::lerp_rect(&start_rect, &target_rect, progress, style);
 
                 if progress == 1.0 {
                     WindowsApi::position_window(hwnd, &new_rect, top)?;
