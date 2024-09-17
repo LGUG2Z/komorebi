@@ -13,6 +13,7 @@ use super::style::apply_ease_func;
 use super::ANIMATION_DURATION;
 use super::ANIMATION_FPS;
 use super::ANIMATION_MANAGER;
+use crate::AnimationStyle;
 
 #[derive(Debug, Default, Clone, Copy, Serialize, Deserialize, JsonSchema, PartialEq)]
 pub struct Animation {
@@ -53,19 +54,19 @@ impl Animation {
     }
 
     #[allow(clippy::cast_possible_truncation)]
-    pub fn lerp(start: i32, end: i32, t: f64) -> i32 {
-        let time = apply_ease_func(t);
+    pub fn lerp(start: i32, end: i32, t: f64, style: AnimationStyle) -> i32 {
+        let time = apply_ease_func(t, style);
         f64::from(end - start)
             .mul_add(time, f64::from(start))
             .round() as i32
     }
 
-    pub fn lerp_rect(start_rect: &Rect, end_rect: &Rect, t: f64) -> Rect {
+    pub fn lerp_rect(start_rect: &Rect, end_rect: &Rect, t: f64, style: AnimationStyle) -> Rect {
         Rect {
-            left: Self::lerp(start_rect.left, end_rect.left, t),
-            top: Self::lerp(start_rect.top, end_rect.top, t),
-            right: Self::lerp(start_rect.right, end_rect.right, t),
-            bottom: Self::lerp(start_rect.bottom, end_rect.bottom, t),
+            left: Self::lerp(start_rect.left, end_rect.left, t, style),
+            top: Self::lerp(start_rect.top, end_rect.top, t, style),
+            right: Self::lerp(start_rect.right, end_rect.right, t, style),
+            bottom: Self::lerp(start_rect.bottom, end_rect.bottom, t, style),
         }
     }
 
