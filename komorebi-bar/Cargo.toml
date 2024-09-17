@@ -33,4 +33,4 @@ tracing = "0.1"
 tracing-appender = "0.2"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 windows = { workspace = true }
-windows-icons = "0.1"
+windows-icons = { git = "https://github.com/LGUG2Z/windows-icons", rev = "c70022b9d4badca863bd56862984a8582a4e5a15" }
