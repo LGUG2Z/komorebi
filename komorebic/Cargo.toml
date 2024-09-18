@@ -34,6 +34,7 @@ which = "6"
 win32-display-data = { workspace = true }
 windows = { workspace = true }
 shadow-rs = { workspace = true }
+schemars = { workspace = true }
 
 [build-dependencies]
 reqwest = { version = "0.12", features = ["blocking"] }

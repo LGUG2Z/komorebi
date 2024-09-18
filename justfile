@@ -45,4 +45,6 @@ docgen:
 
 schemagen:
     komorebic static-config-schema > schema.json
+    komorebic application-specific-configuration-schema > schema.asc.json
+    komorebi-bar --schema > schema.bar.json
     generate-schema-doc .\schema.json --config template_name=js_offline --config minify=false .\static-config-docs\

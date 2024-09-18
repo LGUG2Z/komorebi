@@ -2766,6 +2766,7 @@ dependencies = [
  "paste",
  "powershell_script",
  "reqwest",
+ "schemars",
  "serde",
  "serde_json_lenient",
  "serde_yaml 0.9.34+deprecated",

@@ -19,7 +19,7 @@
             "null"
           ],
           "items": {
-            "$ref": "#/definitions/IdWithIdentifierAndComment"
+            "$ref": "#/definitions/MatchingRule"
           }
         },
         "identifier": {
@@ -53,9 +53,9 @@
       "enum": [
         "object_name_change",
         "layered",
-        "border_overflow",
         "tray_and_multi_window",
-        "force"
+        "force",
+        "border_overflow"
       ]
     },
     "IdWithIdentifier": {
@@ -83,36 +83,18 @@
         }
       }
     },
-    "IdWithIdentifierAndComment": {
-      "type": "object",
-      "required": [
-        "id",
-        "kind"
-      ],
-      "properties": {
-        "comment": {
-          "type": [
-            "string",
-            "null"
-          ]
+    "MatchingRule": {
+      "anyOf": [
+        {
+          "$ref": "#/definitions/IdWithIdentifier"
         },
-        "id": {
-          "type": "string"
-        },
-        "kind": {
-          "$ref": "#/definitions/ApplicationIdentifier"
-        },
-        "matching_strategy": {
-          "anyOf": [
-            {
-              "$ref": "#/definitions/MatchingStrategy"
-            },
-            {
-              "type": "null"
-            }
-          ]
+        {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/IdWithIdentifier"
+          }
         }
-      }
+      ]
     },
     "MatchingStrategy": {
       "type": "string",
@@ -122,7 +104,11 @@
         "StartsWith",
         "EndsWith",
         "Contains",
-        "Regex"
+        "Regex",
+        "DoesNotEndWith",
+        "DoesNotStartWith",
+        "DoesNotEqual",
+        "DoesNotContain"
       ]
     }
   }
