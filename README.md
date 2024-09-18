@@ -191,7 +191,8 @@ required.
 
 ## License
 
-`komorebi` is licensed under the [PolyForm Strict 1.0.0
+`komorebi` is licensed under the [Komorebi 1.0.0 license](./LICENSE.md), which
+is a fork of the [PolyForm Strict 1.0.0
 license](https://polyformproject.org/licenses/strict/1.0.0). On a high level
 this means that you are free to do whatever you want with `komorebi` other than
 redistribution, or distribution of new works (ie. hard-forks) based on the
