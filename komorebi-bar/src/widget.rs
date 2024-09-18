@@ -41,7 +41,7 @@ impl WidgetConfig {
         match self {
             WidgetConfig::Battery(config) => Box::new(Battery::from(*config)),
             WidgetConfig::Date(config) => Box::new(Date::from(config.clone())),
-            WidgetConfig::Komorebi(config) => Box::new(Komorebi::from(*config)),
+            WidgetConfig::Komorebi(config) => Box::new(Komorebi::from(config)),
             WidgetConfig::Media(config) => Box::new(Media::from(*config)),
             WidgetConfig::Memory(config) => Box::new(Memory::from(*config)),
             WidgetConfig::Network(config) => Box::new(Network::from(*config)),

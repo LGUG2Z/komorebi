@@ -56,6 +56,7 @@ use crate::window::Window;
 use crate::window_manager;
 use crate::window_manager::WindowManager;
 use crate::windows_api::WindowsApi;
+use crate::winevent_listener;
 use crate::GlobalState;
 use crate::Notification;
 use crate::NotificationEvent;
@@ -1096,6 +1097,33 @@ impl WindowManager {
             }
             SocketMessage::ReloadConfiguration => {
                 Self::reload_configuration();
+            }
+            SocketMessage::ReplaceConfiguration(ref config) => {
+                // Check that this is a valid static config file first
+                if StaticConfig::read(config).is_ok() {
+                    // Clear workspace rules; these will need to be replaced
+                    WORKSPACE_RULES.lock().clear();
+                    // Pause so that restored windows come to the foreground from all workspaces
+                    self.is_paused = true;
+                    // Bring all windows to the foreground
+                    self.restore_all_windows()?;
+
+                    // Create a new wm from the config path
+                    let mut wm = StaticConfig::preload(
+                        config,
+                        winevent_listener::event_rx(),
+                        self.command_listener.try_clone().ok(),
+                    )?;
+
+                    // Initialize the new wm
+                    wm.init()?;
+
+                    // This is equivalent to StaticConfig::postload for this use case
+                    StaticConfig::reload(config, &mut wm)?;
+
+                    // Set self to the new wm instance
+                    *self = wm;
+                }
             }
             SocketMessage::ReloadStaticConfiguration(ref pathbuf) => {
                 self.reload_static_configuration(pathbuf)?;

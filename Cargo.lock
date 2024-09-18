@@ -2693,6 +2693,7 @@ dependencies = [
  "color-eyre",
  "crossbeam-channel",
  "dirs",
+ "dunce",
  "eframe",
  "egui-phosphor",
  "font-loader",
