@@ -53,23 +53,6 @@ impl Animation {
         latest_cancel_idx == cancel_idx
     }
 
-    #[allow(clippy::cast_possible_truncation)]
-    pub fn lerp(start: i32, end: i32, t: f64, style: AnimationStyle) -> i32 {
-        let time = apply_ease_func(t, style);
-        f64::from(end - start)
-            .mul_add(time, f64::from(start))
-            .round() as i32
-    }
-
-    pub fn lerp_rect(start_rect: &Rect, end_rect: &Rect, t: f64, style: AnimationStyle) -> Rect {
-        Rect {
-            left: Self::lerp(start_rect.left, end_rect.left, t, style),
-            top: Self::lerp(start_rect.top, end_rect.top, t, style),
-            right: Self::lerp(start_rect.right, end_rect.right, t, style),
-            bottom: Self::lerp(start_rect.bottom, end_rect.bottom, t, style),
-        }
-    }
-
     #[allow(clippy::cast_precision_loss)]
     pub fn animate(
         &mut self,
