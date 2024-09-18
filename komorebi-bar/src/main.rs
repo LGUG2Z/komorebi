@@ -132,16 +132,16 @@ fn main() -> color_eyre::Result<()> {
 
     let config_path = config_path.unwrap();
 
+    let state = serde_json::from_str::<komorebi_client::State>(
+        &komorebi_client::send_query(&SocketMessage::State).unwrap(),
+    )?;
+
     let mut viewport_builder = ViewportBuilder::default()
         .with_decorations(false)
         // .with_transparent(config.transparent)
         .with_taskbar(false)
         .with_position(Position { x: 0.0, y: 0.0 })
         .with_inner_size({
-            let state = serde_json::from_str::<komorebi_client::State>(
-                &komorebi_client::send_query(&SocketMessage::State).unwrap(),
-            )?;
-
             Position {
                 x: state.monitors.elements()[config.monitor.index].size().right as f32,
                 y: 20.0,

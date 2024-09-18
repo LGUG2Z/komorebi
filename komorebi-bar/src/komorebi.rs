@@ -66,6 +66,7 @@ impl From<KomorebiConfig> for Komorebi {
                 layout: String::new(),
                 workspaces: vec![],
                 hide_empty_workspaces: value.workspaces.hide_empty_workspaces,
+                mouse_follows_focus: true,
             })),
             workspaces: value.workspaces,
             layout: value.layout,
@@ -101,8 +102,12 @@ impl BarWidget for Komorebi {
                     komorebi_client::send_message(&SocketMessage::MouseFollowsFocus(false))
                         .unwrap();
                     komorebi_client::send_message(&SocketMessage::FocusWorkspaceNumber(i)).unwrap();
-                    // TODO: store MFF value from state and restore that here instead of "true"
-                    komorebi_client::send_message(&SocketMessage::MouseFollowsFocus(true)).unwrap();
+                    komorebi_client::send_message(&SocketMessage::MouseFollowsFocus(
+                        self.komorebi_notification_state
+                            .borrow()
+                            .mouse_follows_focus,
+                    ))
+                    .unwrap();
                     komorebi_client::send_message(&SocketMessage::Retile).unwrap();
                 }
             }
@@ -164,6 +169,7 @@ pub struct KomorebiNotificationState {
     pub focused_window_icon: Option<RgbaImage>,
     pub layout: String,
     pub hide_empty_workspaces: bool,
+    pub mouse_follows_focus: bool,
 }
 
 impl KomorebiNotificationState {
@@ -189,6 +195,8 @@ impl KomorebiNotificationState {
                     }
                 }
             }
+
+            self.mouse_follows_focus = notification.state.mouse_follows_focus;
 
             let monitor = &notification.state.monitors.elements()[monitor_index];
             let focused_workspace_idx = monitor.focused_workspace_idx();
