@@ -859,6 +859,9 @@ struct EnableAutostart {
     /// Enable autostart of ahk
     #[clap(long)]
     ahk: bool,
+    /// Enable autostart of komorebi-bar
+    #[clap(long)]
+    bar: bool,
 }
 
 #[derive(Parser)]
@@ -1431,6 +1434,10 @@ fn main() -> Result<()> {
                 arguments.push_str(" --ffm");
             }
 
+            if args.bar {
+                arguments.push_str(" --bar");
+            }
+
             if args.whkd {
                 arguments.push_str(" --whkd");
             } else if args.ahk {
@@ -1444,6 +1451,10 @@ fn main() -> Result<()> {
                 .env("TARGET_PATH", komorebic_exe.as_os_str())
                 .env("TARGET_ARGS", arguments)
                 .output()?;
+
+            println!("NOTE: If your komorebi.json file contains a reference to $Env:KOMOREBI_CONFIG_HOME,");
+            println!("you need to add this to System Properties > Environment Variables > User Variables");
+            println!("in order for the autostart command to work properly");
         }
         SubCommand::DisableAutostart => {
             let startup_dir = startup_dir()?;
