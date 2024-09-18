@@ -14,6 +14,7 @@ use crate::bar::Komobar;
 use crate::config::KomobarConfig;
 use crate::config::Position;
 use clap::Parser;
+use color_eyre::eyre::OptionExt;
 use eframe::egui::ViewportBuilder;
 use font_loader::system_fonts;
 use hotwatch::EventKind;
@@ -130,11 +131,11 @@ fn main() -> color_eyre::Result<()> {
         }
     };
 
-    let config_path = config_path.unwrap();
+    let config_path = config_path.ok_or_eyre("config path not found")?;
 
-    let state = serde_json::from_str::<komorebi_client::State>(
-        &komorebi_client::send_query(&SocketMessage::State).unwrap(),
-    )?;
+    let state = serde_json::from_str::<komorebi_client::State>(&komorebi_client::send_query(
+        &SocketMessage::State,
+    )?)?;
 
     let mut viewport_builder = ViewportBuilder::default()
         .with_decorations(false)
@@ -185,12 +186,14 @@ fn main() -> color_eyre::Result<()> {
     hotwatch.watch(config_path, move |event| match event.kind {
         EventKind::Modify(_) | EventKind::Remove(_) => match KomobarConfig::read(&config_path_cl) {
             Ok(updated) => {
-                tx_config.send(updated).unwrap();
-
                 tracing::info!(
                     "configuration file updated: {}",
                     config_path_cl.as_path().to_string_lossy()
                 );
+
+                if let Err(error) = tx_config.send(updated) {
+                    tracing::error!("could not send configuration update to gui: {error}")
+                }
             }
             Err(error) => {
                 tracing::error!("{error}");
@@ -216,7 +219,9 @@ fn main() -> color_eyre::Result<()> {
 
             let ctx_komorebi = cc.egui_ctx.clone();
             std::thread::spawn(move || {
-                let listener = komorebi_client::subscribe("komorebi-bar").unwrap();
+                let listener = komorebi_client::subscribe("komorebi-bar")
+                    .expect("could not subscribe to komorebi notifications");
+
                 tracing::info!("subscribed to komorebi notifications: \"komorebi-bar\"");
 
                 for client in listener.incoming() {
@@ -256,14 +261,27 @@ fn main() -> color_eyre::Result<()> {
                                 }
                             }
 
-                            if let Ok(notification) =
-                                serde_json::from_str::<komorebi_client::Notification>(
-                                    &String::from_utf8(buffer).unwrap(),
-                                )
-                            {
-                                tracing::debug!("received notification from komorebi");
-                                tx_gui.send(notification).unwrap();
-                                ctx_komorebi.request_repaint();
+                            match String::from_utf8(buffer) {
+                                Ok(notification_string) => {
+                                    if let Ok(notification) =
+                                        serde_json::from_str::<komorebi_client::Notification>(
+                                            &notification_string,
+                                        )
+                                    {
+                                        tracing::debug!("received notification from komorebi");
+
+                                        if let Err(error) = tx_gui.send(notification) {
+                                            tracing::error!("could not send komorebi notification update to gui: {error}")
+                                        }
+
+                                        ctx_komorebi.request_repaint();
+                                    }
+                                }
+                                Err(error) => {
+                                    tracing::error!(
+                                        "komorebi notification string was invalid utf8: {error}"
+                                    )
+                                }
                             }
                         }
                         Err(error) => {
