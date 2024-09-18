@@ -133,6 +133,7 @@ pub enum SocketMessage {
     ClearNamedWorkspaceLayoutRules(String),
     // Configuration
     ReloadConfiguration,
+    ReplaceConfiguration(PathBuf),
     ReloadStaticConfiguration(PathBuf),
     WatchConfiguration(bool),
     CompleteConfiguration,

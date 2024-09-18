@@ -150,11 +150,30 @@
               "Komorebi": {
                 "type": "object",
                 "required": [
-                  "focused_window",
-                  "layout",
                   "workspaces"
                 ],
                 "properties": {
+                  "configuration_switcher": {
+                    "description": "Configure the Configuration Switcher widget",
+                    "type": "object",
+                    "required": [
+                      "configurations",
+                      "enable"
+                    ],
+                    "properties": {
+                      "configurations": {
+                        "description": "A map of display friendly name => path to configuration.json",
+                        "type": "object",
+                        "additionalProperties": {
+                          "type": "string"
+                        }
+                      },
+                      "enable": {
+                        "description": "Enable the Komorebi Configurations widget",
+                        "type": "boolean"
+                      }
+                    }
+                  },
                   "focused_window": {
                     "description": "Configure the Focused Window widget",
                     "type": "object",
@@ -540,11 +559,30 @@
               "Komorebi": {
                 "type": "object",
                 "required": [
-                  "focused_window",
-                  "layout",
                   "workspaces"
                 ],
                 "properties": {
+                  "configuration_switcher": {
+                    "description": "Configure the Configuration Switcher widget",
+                    "type": "object",
+                    "required": [
+                      "configurations",
+                      "enable"
+                    ],
+                    "properties": {
+                      "configurations": {
+                        "description": "A map of display friendly name => path to configuration.json",
+                        "type": "object",
+                        "additionalProperties": {
+                          "type": "string"
+                        }
+                      },
+                      "enable": {
+                        "description": "Enable the Komorebi Configurations widget",
+                        "type": "boolean"
+                      }
+                    }
+                  },
                   "focused_window": {
                     "description": "Configure the Focused Window widget",
                     "type": "object",

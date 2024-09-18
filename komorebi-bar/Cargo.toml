@@ -14,6 +14,7 @@ clap = { version = "4", features = ["derive", "wrap_help"] }
 color-eyre = "0.6"
 crossbeam-channel = "0.5"
 dirs = { workspace = true }
+dunce = "1"
 eframe = "0.28"
 egui-phosphor = "0.6.0"
 font-loader = "0.11"

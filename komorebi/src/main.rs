@@ -220,6 +220,7 @@ fn main() -> Result<()> {
         Arc::new(Mutex::new(StaticConfig::preload(
             config,
             winevent_listener::event_rx(),
+            None,
         )?))
     } else {
         Arc::new(Mutex::new(WindowManager::new(

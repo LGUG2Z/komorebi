@@ -862,6 +862,12 @@ struct EnableAutostart {
 }
 
 #[derive(Parser)]
+struct ReplaceConfiguration {
+    /// Static configuration file which should be used
+    path: PathBuf,
+}
+
+#[derive(Parser)]
 #[clap(author, about, version = build::CLAP_LONG_VERSION)]
 struct Opts {
     #[clap(subcommand)]
@@ -1168,12 +1174,15 @@ enum SubCommand {
     Manage,
     /// Unmanage a window that was forcibly managed
     Unmanage,
-    /// Reload ~/komorebi.ahk (if it exists)
+    /// Replace the configuration of a running instance of komorebi from a static configuration file
+    #[clap(arg_required_else_help = true)]
+    ReplaceConfiguration(ReplaceConfiguration),
+    /// Reload legacy komorebi.ahk or komorebi.ps1 configurations (if they exist)
     ReloadConfiguration,
-    /// Enable or disable watching of ~/komorebi.ahk (if it exists)
+    /// Enable or disable watching of legacy komorebi.ahk or komorebi.ps1 configurations (if they exist)
     #[clap(arg_required_else_help = true)]
     WatchConfiguration(WatchConfiguration),
-    /// Signal that the final configuration option has been sent
+    /// For legacy komorebi.ahk or komorebi.ps1 configurations, signal that the final configuration option has been sent
     CompleteConfiguration,
     /// DEPRECATED since v0.1.22
     #[clap(arg_required_else_help = true)]
@@ -1518,7 +1527,7 @@ fn main() -> Result<()> {
                 // Check that this file adheres to the schema static config schema as the last step,
                 // so that more basic errors above can be shown to the error before schema-specific
                 // errors
-                let _ = serde_json::from_str::<komorebi_client::StaticConfig>(&config_source)?;
+                let _ = serde_json::from_str::<StaticConfig>(&config_source)?;
 
                 if config_whkd.exists() {
                     println!("Found {}; key bindings will be loaded from here when whkd is started, and you can start it automatically using the --whkd flag\n", config_whkd.to_string_lossy());
@@ -2282,6 +2291,9 @@ Stop-Process -Name:komorebi -ErrorAction SilentlyContinue
                 arg.implementation,
                 arg.boolean_state.into(),
             ))?;
+        }
+        SubCommand::ReplaceConfiguration(arg) => {
+            send_message(&SocketMessage::ReplaceConfiguration(arg.path))?;
         }
         SubCommand::ReloadConfiguration => {
             send_message(&SocketMessage::ReloadConfiguration)?;
