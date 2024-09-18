@@ -1,3 +1,4 @@
+use crate::animation::lerp::Lerp;
 use crate::animation::ANIMATIONS_IN_PROGRESS;
 use crate::animation::ANIMATION_DURATION;
 use crate::animation::ANIMATION_ENABLED;
@@ -218,7 +219,7 @@ impl Window {
 
         std::thread::spawn(move || {
             animation.animate(duration, |progress: f64| {
-                let new_rect = Animation::lerp_rect(&start_rect, &target_rect, progress, style);
+                let new_rect = start_rect.lerp(target_rect, progress, style);
 
                 if progress == 1.0 {
                     WindowsApi::position_window(hwnd, &new_rect, top)?;
