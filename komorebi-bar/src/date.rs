@@ -117,7 +117,6 @@ impl BarWidget for Date {
                 }
             }
 
-            // TODO: make spacing configurable
             ui.add_space(WIDGET_SPACING);
         }
     }

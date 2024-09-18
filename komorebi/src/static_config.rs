@@ -375,7 +375,7 @@ pub struct AnimationsConfig {
     fps: Option<u64>,
 }
 #[derive(Copy, Clone, Debug, Serialize, Deserialize, JsonSchema)]
-#[serde(tag = "type")]
+#[serde(tag = "palette")]
 pub enum KomorebiTheme {
     /// A theme from catppuccin-egui
     Catppuccin {
@@ -1027,25 +1027,31 @@ impl StaticConfig {
     pub fn preload(
         path: &PathBuf,
         incoming: Receiver<WindowManagerEvent>,
+        unix_listener: Option<UnixListener>,
     ) -> Result<WindowManager> {
         let content = std::fs::read_to_string(path)?;
         let mut value: Self = serde_json::from_str(&content)?;
         value.apply_globals()?;
 
-        let socket = DATA_DIR.join("komorebi.sock");
+        let listener = match unix_listener {
+            Some(listener) => listener,
+            None => {
+                let socket = DATA_DIR.join("komorebi.sock");
 
-        match std::fs::remove_file(&socket) {
-            Ok(()) => {}
-            Err(error) => match error.kind() {
-                // Doing this because ::exists() doesn't work reliably on Windows via IntelliJ
-                ErrorKind::NotFound => {}
-                _ => {
-                    return Err(error.into());
-                }
-            },
+                match std::fs::remove_file(&socket) {
+                    Ok(()) => {}
+                    Err(error) => match error.kind() {
+                        // Doing this because ::exists() doesn't work reliably on Windows via IntelliJ
+                        ErrorKind::NotFound => {}
+                        _ => {
+                            return Err(error.into());
+                        }
+                    },
+                };
+
+                UnixListener::bind(&socket)?
+            }
         };
-
-        let listener = UnixListener::bind(&socket)?;
 
         let mut wm = WindowManager {
             monitors: Ring::default(),

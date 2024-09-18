@@ -1,6 +1,6 @@
 # Getting started
 
-`komorebi` is a tiling window manager for Windows that is comprised of two 
+`komorebi` is a tiling window manager for Windows that is comprised of two
 main binaries, `komorebi.exe`, which contains the window manager itself,
 and `komorebic.exe`, which is the main way to send commands to the tiling
 window manager.
@@ -22,6 +22,10 @@ If using hotkey combinations with the `Windows` key is important to you, I
 suggest that once you are familiar with the main `komorebic.exe` commands used
 to manipulate the window manager, you use
 [AutoHotKey](https://www.autohotkey.com/) to handle your key bindings.
+
+`komorebi` also includes `komorebi-bar.exe`, a simple and reliable status bar which
+is deeply integrated with the tiling window manager, and can be customized with
+various widgets and themes.
 
 ## Installation
 
@@ -115,6 +119,7 @@ cargo +stable install --path komorebi --locked
 cargo +stable install --path komorebic --locked
 cargo +stable install --path komorebic-no-console --locked
 cargo +stable install --path komorebi-gui --locked
+cargo +stable install --path komorebi-bar --locked
 ```
 
 If the binaries have been built and added to your `$PATH` correctly, you should
@@ -131,8 +136,8 @@ first-time set up and running komorebi require an internet connection).
 
 ## Uninstallation
 
-Before uninstalling, first run `komorebic stop --whkd` to make sure that both
-the `komorebi` and `whkd` processes have been stopped.
+Before uninstalling, first run `komorebic stop --whkd --bar` to make sure that
+the `komorebi`, `komorebi-bar` and `whkd` processes have been stopped.
 
 Then, depending on whether you installed with Scoop or WinGet, run `scoop
 uninstall komorebi whkd` or `winget uninstall LGUG2Z.komorebi LGUG2Z.whkd`.

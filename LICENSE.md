@@ -1,6 +1,6 @@
-# PolyForm Strict License 1.0.0
+# Komorebi License
 
-<https://polyformproject.org/licenses/strict/1.0.0>
+Version 1.0.0
 
 ## Acceptance
 
@@ -13,18 +13,20 @@ your licenses.
 The licensor grants you a copyright license for the software
 to do everything you might do with the software that would
 otherwise infringe the licensor's copyright in it for any
-permitted purpose, other than distributing the software or
-making changes or new works based on the software.
+permitted purpose. However, you may only make changes according
+to the [Changes License](#changes-license), and you may not
+distribute the software or new works based on the software.
+
+## Changes License
+
+The licensor grants you an additional copyright license to
+make changes for any permitted purpose.
 
 ## Patent License
 
 The licensor grants you a patent license for the software that
 covers patent claims the licensor can license, or becomes able
 to license, that you would infringe by using the software.
-
-## Noncommercial Purposes
-
-Any noncommercial purpose is a permitted purpose.
 
 ## Personal Uses
 
@@ -33,15 +35,6 @@ the benefit of public knowledge, personal study, private
 entertainment, hobby projects, amateur pursuits, or religious
 observance, without any anticipated commercial application,
 is use for a permitted purpose.
-
-## Noncommercial Organizations
-
-Use by any charitable organization, educational institution,
-public research organization, public safety or health
-organization, environmental protection organization,
-or government institution is use for a permitted purpose
-regardless of the source of funding or obligations resulting
-from the funding.
 
 ## Fair Use
 

@@ -108,7 +108,6 @@ impl BarWidget for Time {
                 }
             }
 
-            // TODO: make spacing configurable
             ui.add_space(WIDGET_SPACING);
         }
     }

@@ -14,6 +14,7 @@ clap = { version = "4", features = ["derive", "wrap_help"] }
 color-eyre = "0.6"
 crossbeam-channel = "0.5"
 dirs = { workspace = true }
+dunce = "1"
 eframe = "0.28"
 egui-phosphor = "0.6.0"
 font-loader = "0.11"
@@ -33,4 +34,4 @@ tracing = "0.1"
 tracing-appender = "0.2"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 windows = { workspace = true }
-windows-icons = { git = "https://github.com/LGUG2Z/windows-icons", rev = "c70022b9d4badca863bd56862984a8582a4e5a15" }
+windows-icons = { git = "https://github.com/LGUG2Z/windows-icons", rev = "d67cc9920aa9b4883393e411fb4fa2ddd4c498b5" }

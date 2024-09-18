@@ -16,16 +16,17 @@ the example files have been downloaded. For most new users this will be in the
 komorebic quickstart
 ```
 
-With the example configurations downloaded, you can now start `komorebi` and `whkd.
+With the example configurations downloaded, you can now start `komorebi`,
+`komorebi-bar` and `whkd`.
 
 ```powershell
-komorebic start --whkd
+komorebic start --whkd --bar
 ```
 
 ## komorebi.json
 
 The example window manager configuration sets some sane defaults and provides
-five preconfigured workspaces on the primary monitor each with a different
+seven preconfigured workspaces on the primary monitor each with a different
 layout.
 
 ```json
@@ -213,3 +214,24 @@ reference.
 If you want to use one of those key codes, put them into lower case and remove
 the `VK_` prefix. For example, the keycode `VK_OEM_PLUS` becomes `oem_plus` in
 the sample configuration above.
+
+## komorebi.bar.json
+
+The example status bar configuration sets some sane defaults and provides
+a number of pre-configured widgets on the primary monitor.
+
+```json
+{% include "./komorebi.bar.example.json" %}
+```
+
+### Themes
+
+Themes can be set in either `komorebi.json` or `komorebi.bar.json`. If set
+in `komorebi.json`, the theme will be applied to both komorebi's borders and
+stackbars as well as the status bar.
+
+If set in `komorebi.bar.json`, the theme will only be applied to the status bar.
+
+All [Catppuccin palette variants](https://catppuccin.com/)
+and [most Base16 palette variants](https://tinted-theming.github.io/base16-gallery/)
+are available as themes.

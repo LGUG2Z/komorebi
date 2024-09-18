@@ -183,7 +183,7 @@ impl Komobar {
 
         for (idx, widget_config) in config.left_widgets.iter().enumerate() {
             if let WidgetConfig::Komorebi(config) = widget_config {
-                komorebi_widget = Some(Komorebi::from(*config));
+                komorebi_widget = Some(Komorebi::from(config));
                 komorebi_widget_idx = Some(idx);
                 side = Some(Side::Left);
             }
@@ -191,7 +191,7 @@ impl Komobar {
 
         for (idx, widget_config) in config.right_widgets.iter().enumerate() {
             if let WidgetConfig::Komorebi(config) = widget_config {
-                komorebi_widget = Some(Komorebi::from(*config));
+                komorebi_widget = Some(Komorebi::from(config));
                 komorebi_widget_idx = Some(idx);
                 side = Some(Side::Right);
             }
