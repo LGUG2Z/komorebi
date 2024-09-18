@@ -782,7 +782,7 @@
           "type": "object",
           "required": [
             "name",
-            "type"
+            "palette"
           ],
           "properties": {
             "accent": {
@@ -825,7 +825,7 @@
                 "Mocha"
               ]
             },
-            "type": {
+            "palette": {
               "type": "string",
               "enum": [
                 "Catppuccin"
@@ -838,7 +838,7 @@
           "type": "object",
           "required": [
             "name",
-            "type"
+            "palette"
           ],
           "properties": {
             "accent": {
@@ -1136,7 +1136,7 @@
                 "Zenburn"
               ]
             },
-            "type": {
+            "palette": {
               "type": "string",
               "enum": [
                 "Base16"

@@ -8,20 +8,17 @@
   "border": true,
   "border_width": 8,
   "border_offset": -1,
-  "border_colours": {
-    "single": "#42a5f5",
-    "stack": "#00a542",
-    "monocle": "#ff3399",
-    "unfocused": "#808080"
+  "theme": {
+    "palette": "Base16",
+    "name": "Ashes",
+    "unfocused_border": "Base03",
+    "bar_accent": "Base0D"
   },
   "stackbar": {
     "height": 40,
     "mode": "OnStack",
     "tabs": {
-      "width": 300,
-      "focused_text": "#00a542",
-      "unfocused_text": "#b3b3b3",
-      "background": "#141414"
+      "width": 300
     }
   },
   "monitors": [

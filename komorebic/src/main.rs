@@ -760,6 +760,9 @@ struct Start {
     /// Start autohotkey configuration file
     #[clap(long)]
     ahk: bool,
+    /// Start komorebi-bar in a background process
+    #[clap(long)]
+    bar: bool,
 }
 
 #[derive(Parser)]
@@ -767,6 +770,9 @@ struct Stop {
     /// Stop whkd if it is running as a background process
     #[clap(long)]
     whkd: bool,
+    /// Stop komorebi-bar if it is running as a background process
+    #[clap(long)]
+    bar: bool,
 }
 
 #[derive(Parser)]
@@ -877,6 +883,9 @@ enum SubCommand {
     /// Show the path to komorebi.json
     #[clap(alias = "config")]
     Configuration,
+    #[clap(alias = "bar-config")]
+    #[clap(alias = "bconfig")]
+    BarConfiguration,
     /// Show the path to whkdrc
     #[clap(alias = "whkd")]
     Whkdrc,
@@ -1372,12 +1381,16 @@ fn main() -> Result<()> {
             std::fs::create_dir_all(data_dir)?;
 
             let mut komorebi_json = include_str!("../../docs/komorebi.example.json").to_string();
+            let komorebi_bar_json =
+                include_str!("../../docs/komorebi.bar.example.json").to_string();
+
             if std::env::var("KOMOREBI_CONFIG_HOME").is_ok() {
                 komorebi_json =
                     komorebi_json.replace("Env:USERPROFILE", "Env:KOMOREBI_CONFIG_HOME");
             }
 
             std::fs::write(HOME_DIR.join("komorebi.json"), komorebi_json)?;
+            std::fs::write(HOME_DIR.join("komorebi.bar.json"), komorebi_bar_json)?;
 
             let applications_yaml = include_str!("../applications.yaml");
             std::fs::write(HOME_DIR.join("applications.yaml"), applications_yaml)?;
@@ -1385,7 +1398,7 @@ fn main() -> Result<()> {
             let whkdrc = include_str!("../../docs/whkdrc.sample");
             std::fs::write(WHKD_CONFIG_DIR.join("whkdrc"), whkdrc)?;
 
-            println!("Example ~/komorebi.json, ~/.config/whkdrc and latest ~/applications.yaml files downloaded");
+            println!("Example komorebi.json, komorebi.bar.json, whkdrc and latest applications.yaml files created");
             println!("You can now run komorebic start --whkd");
         }
         SubCommand::EnableAutostart(args) => {
@@ -1531,6 +1544,13 @@ fn main() -> Result<()> {
         }
         SubCommand::Configuration => {
             let static_config = HOME_DIR.join("komorebi.json");
+
+            if static_config.exists() {
+                println!("{}", static_config.display());
+            }
+        }
+        SubCommand::BarConfiguration => {
+            let static_config = HOME_DIR.join("komorebi.bar.json");
 
             if static_config.exists() {
                 println!("{}", static_config.display());
@@ -1975,6 +1995,23 @@ if (!(Get-Process whkd -ErrorAction SilentlyContinue))
                 }
             }
 
+            if arg.bar {
+                let script = r"
+if (!(Get-Process komorebi-bar -ErrorAction SilentlyContinue))
+{
+  Start-Process komorebi-bar -WindowStyle hidden
+}
+                ";
+                match powershell_script::run(script) {
+                    Ok(_) => {
+                        println!("{script}");
+                    }
+                    Err(error) => {
+                        println!("Error: {error}");
+                    }
+                }
+            }
+
             println!("\nThank you for using komorebi!\n");
             println!("* Become a sponsor https://github.com/sponsors/LGUG2Z - Even $1/month makes a big difference");
             println!(
@@ -2006,6 +2043,20 @@ if (!(Get-Process whkd -ErrorAction SilentlyContinue))
             if arg.whkd {
                 let script = r"
 Stop-Process -Name:whkd -ErrorAction SilentlyContinue
+                ";
+                match powershell_script::run(script) {
+                    Ok(_) => {
+                        println!("{script}");
+                    }
+                    Err(error) => {
+                        println!("Error: {error}");
+                    }
+                }
+            }
+
+            if arg.bar {
+                let script = r"
+Stop-Process -Name:komorebi-bar -ErrorAction SilentlyContinue
                 ";
                 match powershell_script::run(script) {
                     Ok(_) => {

@@ -95,7 +95,7 @@ impl From<Position> for Pos2 {
 }
 
 #[derive(Copy, Clone, Debug, Serialize, Deserialize, JsonSchema)]
-#[serde(tag = "type")]
+#[serde(tag = "palette")]
 pub enum KomobarTheme {
     /// A theme from catppuccin-egui
     Catppuccin {

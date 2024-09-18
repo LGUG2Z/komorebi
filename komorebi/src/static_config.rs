@@ -375,7 +375,7 @@ pub struct AnimationsConfig {
     fps: Option<u64>,
 }
 #[derive(Copy, Clone, Debug, Serialize, Deserialize, JsonSchema)]
-#[serde(tag = "type")]
+#[serde(tag = "palette")]
 pub enum KomorebiTheme {
     /// A theme from catppuccin-egui
     Catppuccin {
