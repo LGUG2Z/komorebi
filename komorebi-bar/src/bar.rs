@@ -12,10 +12,12 @@ use eframe::egui::Context;
 use eframe::egui::FontData;
 use eframe::egui::FontDefinitions;
 use eframe::egui::FontFamily;
+use eframe::egui::FontId;
 use eframe::egui::Frame;
 use eframe::egui::Layout;
 use eframe::egui::Margin;
 use eframe::egui::Style;
+use eframe::egui::TextStyle;
 use eframe::egui::Vec2;
 use eframe::egui::ViewportCommand;
 use font_loader::system_fonts;
@@ -176,6 +178,11 @@ impl Komobar {
             }
         }
 
+        if let Some(font_size) = &config.font_size {
+            tracing::info!("attempting to set custom font size: {font_size}");
+            Self::set_font_size(ctx, *font_size);
+        }
+
         let mut komorebi_widget = None;
         let mut komorebi_widget_idx = None;
         let mut komorebi_notification_state = previous_notification_state;
@@ -261,6 +268,31 @@ impl Komobar {
         komobar.apply_config(&cc.egui_ctx, &config, None);
 
         komobar
+    }
+
+    fn set_font_size(ctx: &Context, font_size: f32) {
+        ctx.style_mut(|style| {
+            style.text_styles = [
+                (TextStyle::Small, FontId::new(9.0, FontFamily::Proportional)),
+                (
+                    TextStyle::Body,
+                    FontId::new(font_size, FontFamily::Proportional),
+                ),
+                (
+                    TextStyle::Button,
+                    FontId::new(font_size, FontFamily::Proportional),
+                ),
+                (
+                    TextStyle::Heading,
+                    FontId::new(18.0, FontFamily::Proportional),
+                ),
+                (
+                    TextStyle::Monospace,
+                    FontId::new(font_size, FontFamily::Monospace),
+                ),
+            ]
+            .into();
+        });
     }
 
     fn add_custom_font(ctx: &Context, name: &str) {

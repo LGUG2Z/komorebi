@@ -25,12 +25,16 @@ use fs_tail::TailedFile;
 use komorebi_client::resolve_home_path;
 use komorebi_client::send_message;
 use komorebi_client::send_query;
+use komorebi_client::ApplicationConfiguration;
+use komorebi_client::Notification;
 use lazy_static::lazy_static;
 use miette::NamedSource;
 use miette::Report;
 use miette::SourceOffset;
 use miette::SourceSpan;
 use paste::paste;
+use schemars::gen::SchemaSettings;
+use schemars::schema_for;
 use which::which;
 use windows::Win32::Foundation::HWND;
 use windows::Win32::UI::WindowsAndMessaging::ShowWindow;
@@ -877,6 +881,15 @@ struct EnableAutostart {
     /// Enable autostart of ahk
     #[clap(long)]
     ahk: bool,
+    /// Enable autostart of komorebi-bar
+    #[clap(long)]
+    bar: bool,
+}
+
+#[derive(Parser)]
+struct ReplaceConfiguration {
+    /// Static configuration JSON file from which the configuration should be loaded
+    path: PathBuf,
 }
 
 #[derive(Parser)]
@@ -1457,6 +1470,10 @@ fn main() -> Result<()> {
                 arguments.push_str(" --ffm");
             }
 
+            if args.bar {
+                arguments.push_str(" --bar");
+            }
+
             if args.whkd {
                 arguments.push_str(" --whkd");
             } else if args.ahk {
@@ -1470,6 +1487,10 @@ fn main() -> Result<()> {
                 .env("TARGET_PATH", komorebic_exe.as_os_str())
                 .env("TARGET_ARGS", arguments)
                 .output()?;
+
+            println!("NOTE: If your komorebi.json file contains a reference to $Env:KOMOREBI_CONFIG_HOME,");
+            println!("you need to add this to System Properties > Environment Variables > User Variables");
+            println!("in order for the autostart command to work properly");
         }
         SubCommand::DisableAutostart => {
             let startup_dir = startup_dir()?;
@@ -2563,16 +2584,31 @@ Stop-Process -Name:komorebi -ErrorAction SilentlyContinue
             );
         }
         SubCommand::ApplicationSpecificConfigurationSchema => {
-            print_query(&SocketMessage::ApplicationSpecificConfigurationSchema);
+            let asc = schema_for!(Vec<ApplicationConfiguration>);
+            let schema = serde_json::to_string_pretty(&asc)?;
+            println!("{schema}");
         }
         SubCommand::NotificationSchema => {
-            print_query(&SocketMessage::NotificationSchema);
+            let notification = schema_for!(Notification);
+            let schema = serde_json::to_string_pretty(&notification)?;
+            println!("{schema}");
         }
         SubCommand::SocketSchema => {
-            print_query(&SocketMessage::SocketSchema);
+            let socket_message = schema_for!(SocketMessage);
+            let schema = serde_json::to_string_pretty(&socket_message)?;
+            println!("{schema}");
         }
         SubCommand::StaticConfigSchema => {
-            print_query(&SocketMessage::StaticConfigSchema);
+            let settings = SchemaSettings::default().with(|s| {
+                s.option_nullable = false;
+                s.option_add_null_type = false;
+                s.inline_subschemas = true;
+            });
+
+            let gen = settings.into_generator();
+            let socket_message = gen.into_root_schema_for::<StaticConfig>();
+            let schema = serde_json::to_string_pretty(&socket_message)?;
+            println!("{schema}");
         }
         SubCommand::GenerateStaticConfig => {
             print_query(&SocketMessage::GenerateStaticConfig);
