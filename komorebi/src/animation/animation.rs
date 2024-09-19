@@ -1,4 +1,3 @@
-use crate::core::Rect;
 use color_eyre::Result;
 
 use schemars::JsonSchema;
@@ -9,11 +8,9 @@ use std::sync::atomic::Ordering;
 use std::time::Duration;
 use std::time::Instant;
 
-use super::style::apply_ease_func;
 use super::ANIMATION_DURATION;
 use super::ANIMATION_FPS;
 use super::ANIMATION_MANAGER;
-use crate::AnimationStyle;
 
 #[derive(Debug, Default, Clone, Copy, Serialize, Deserialize, JsonSchema, PartialEq)]
 pub struct Animation {
