@@ -888,12 +888,6 @@ struct EnableAutostart {
 
 #[derive(Parser)]
 struct ReplaceConfiguration {
-    /// Static configuration JSON file from which the configuration should be loaded
-    path: PathBuf,
-}
-
-#[derive(Parser)]
-struct ReplaceConfiguration {
     /// Static configuration file which should be used
     path: PathBuf,
 }
