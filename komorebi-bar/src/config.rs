@@ -19,6 +19,8 @@ pub struct KomobarConfig {
     pub monitor: MonitorConfig,
     /// Font family
     pub font_family: Option<String>,
+    /// Font size (default: 12.5)
+    pub font_size: Option<f32>,
     /// Theme
     pub theme: Option<KomobarTheme>,
     /// Left side widgets (ordered left-to-right)

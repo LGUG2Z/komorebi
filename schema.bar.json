@@ -12,6 +12,11 @@
       "description": "Font family",
       "type": "string"
     },
+    "font_size": {
+      "description": "Font size (default: 12.5)",
+      "type": "number",
+      "format": "float"
+    },
     "frame": {
       "description": "Frame options (see: https://docs.rs/egui/latest/egui/containers/struct.Frame.html)",
       "type": "object",
