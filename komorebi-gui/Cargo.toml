@@ -6,9 +6,10 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-egui_extras = { version = "0.28" }
-eframe = "0.28"
 komorebi-client = { path = "../komorebi-client" }
-serde_json = "1"
+
+eframe = { workspace = true }
+egui_extras = { workspace = true }
 random_word = { version = "0.4.3", features = ["en"] }
+serde_json = { workspace = true }
 windows = { workspace = true }

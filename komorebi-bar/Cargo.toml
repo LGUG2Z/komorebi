@@ -9,16 +9,16 @@ edition = "2021"
 komorebi-client = { path = "../komorebi-client" }
 komorebi-themes = { path = "../komorebi-themes" }
 
-chrono = "0.4"
-clap = { version = "4", features = ["derive", "wrap_help"] }
-color-eyre = "0.6"
-crossbeam-channel = "0.5"
+chrono = { workspace = true }
+clap = { workspace = true }
+color-eyre = { workspace = true }
+crossbeam-channel = { workspace = true }
 dirs = { workspace = true }
-dunce = "1"
-eframe = "0.28"
+dunce = { workspace = true }
+eframe = { workspace = true }
 egui-phosphor = "0.6.0"
 font-loader = "0.11"
-hotwatch = "0.5"
+hotwatch = { workspace = true }
 image = "0.25"
 netdev = "0.30"
 num = "0.4.3"
@@ -29,9 +29,9 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 serde_yaml = "0.8"
 starship-battery = "0.10"
-sysinfo = "0.31"
-tracing = "0.1"
-tracing-appender = "0.2"
-tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+sysinfo = { workspace = true }
+tracing = { workspace = true }
+tracing-appender = { workspace = true }
+tracing-subscriber = { workspace = true }
 windows = { workspace = true }
 windows-icons = { git = "https://github.com/LGUG2Z/windows-icons", rev = "d67cc9920aa9b4883393e411fb4fa2ddd4c498b5" }

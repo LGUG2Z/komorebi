@@ -7,7 +7,7 @@ use serde::Serialize;
 
 pub use base16_egui_themes::Base16;
 pub use catppuccin_egui;
-pub use egui::Color32;
+pub use eframe::egui::Color32;
 
 #[derive(Copy, Clone, Debug, Serialize, Deserialize, JsonSchema)]
 #[serde(tag = "type")]

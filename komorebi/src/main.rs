@@ -21,6 +21,7 @@ use crossbeam_utils::Backoff;
 use parking_lot::deadlock;
 use parking_lot::Mutex;
 use sysinfo::Process;
+use sysinfo::ProcessesToUpdate;
 use tracing_appender::non_blocking::WorkerGuard;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::EnvFilter;
@@ -167,9 +168,9 @@ fn main() -> Result<()> {
     SESSION_ID.store(session_id, Ordering::SeqCst);
 
     let mut system = sysinfo::System::new_all();
-    system.refresh_processes();
+    system.refresh_processes(ProcessesToUpdate::All);
 
-    let matched_procs: Vec<&Process> = system.processes_by_name("komorebi.exe").collect();
+    let matched_procs: Vec<&Process> = system.processes_by_name("komorebi.exe".as_ref()).collect();
 
     if matched_procs.len() > 1 {
         let mut len = matched_procs.len();

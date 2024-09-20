@@ -2702,7 +2702,7 @@ dependencies = [
  "serde_yaml 0.9.34+deprecated",
  "shadow-rs",
  "strum",
- "sysinfo 0.30.13",
+ "sysinfo",
  "tracing",
  "tracing-appender",
  "tracing-subscriber",
@@ -2743,7 +2743,7 @@ dependencies = [
  "serde_json_lenient",
  "serde_yaml 0.8.26",
  "starship-battery",
- "sysinfo 0.31.4",
+ "sysinfo",
  "tracing",
  "tracing-appender",
  "tracing-subscriber",
@@ -2768,7 +2768,7 @@ dependencies = [
  "egui_extras",
  "komorebi-client",
  "random_word",
- "serde_json",
+ "serde_json_lenient",
  "windows 0.54.0",
 ]
 
@@ -2778,7 +2778,7 @@ version = "0.1.29"
 dependencies = [
  "base16-egui-themes",
  "catppuccin-egui",
- "egui",
+ "eframe",
  "schemars",
  "serde",
 ]
@@ -2804,7 +2804,7 @@ dependencies = [
  "serde_json_lenient",
  "serde_yaml 0.9.34+deprecated",
  "shadow-rs",
- "sysinfo 0.30.13",
+ "sysinfo",
  "thiserror",
  "uds_windows",
  "which",
@@ -4735,9 +4735,9 @@ dependencies = [
 
 [[package]]
 name = "shadow-rs"
-version = "0.34.0"
+version = "0.35.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "69fe0bac8a8752586a618a1c80d01d8ca5d40fce4f6077fbc851e48dcbdb90df"
+checksum = "fca0e9bdc073d7173ba993fb7886477af5df75588b57afcb4b96f21911ab0bfa"
 dependencies = [
  "const_format",
  "git2",
@@ -5037,21 +5037,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a7065abeca94b6a8a577f9bd45aa0867a2238b74e8eb67cf10d492bc39351394"
 dependencies = [
  "futures-core",
-]
-
-[[package]]
-name = "sysinfo"
-version = "0.30.13"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0a5b4ddaee55fb2bea2bf0e5000747e5f5c0de765e5a5ff87f4cd106439f4bb3"
-dependencies = [
- "cfg-if 1.0.0",
- "core-foundation-sys",
- "libc",
- "ntapi",
- "once_cell",
- "rayon",
- "windows 0.52.0",
 ]
 
 [[package]]
@@ -5590,15 +5575,15 @@ checksum = "f6ccf251212114b54433ec949fd6a7841275f9ada20dddd2f29e9ceea4501493"
 
 [[package]]
 name = "unicode-width"
-version = "0.1.13"
+version = "0.1.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0336d538f7abc86d282a4189614dfaa90810dfc2c6f6427eaf88e16311dd225d"
+checksum = "7dd6e30e90baa6f72411720665d41d89b9a3d039dc45b8faea1ddd07f617f6af"
 
 [[package]]
 name = "unicode-xid"
-version = "0.2.5"
+version = "0.2.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "229730647fbc343e3a80e463c1db7f78f3855d3f3739bee0dda773c9a037c90a"
+checksum = "ebc1c04c71510c7f702b52b7c350734c9ff1295c464a03335b00bb84fc54f853"
 
 [[package]]
 name = "unsafe-libyaml"

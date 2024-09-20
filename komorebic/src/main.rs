@@ -35,6 +35,7 @@ use miette::SourceSpan;
 use paste::paste;
 use schemars::gen::SchemaSettings;
 use schemars::schema_for;
+use sysinfo::ProcessesToUpdate;
 use which::which;
 use windows::Win32::Foundation::HWND;
 use windows::Win32::UI::WindowsAndMessaging::ShowWindow;
@@ -1953,9 +1954,13 @@ fn main() -> Result<()> {
                 std::thread::sleep(Duration::from_secs(3));
 
                 let mut system = sysinfo::System::new_all();
-                system.refresh_processes();
+                system.refresh_processes(ProcessesToUpdate::All);
 
-                if system.processes_by_name("komorebi.exe").next().is_some() {
+                if system
+                    .processes_by_name("komorebi.exe".as_ref())
+                    .next()
+                    .is_some()
+                {
                     println!("Started!");
                     running = true;
                 } else {
@@ -2094,9 +2099,9 @@ Stop-Process -Name:komorebi-bar -ErrorAction SilentlyContinue
 
             send_message(&SocketMessage::Stop)?;
             let mut system = sysinfo::System::new_all();
-            system.refresh_processes();
+            system.refresh_processes(ProcessesToUpdate::All);
 
-            if system.processes_by_name("komorebi.exe").count() >= 1 {
+            if system.processes_by_name("komorebi.exe".as_ref()).count() >= 1 {
                 println!("komorebi is still running, attempting to force-quit");
 
                 let script = r"
