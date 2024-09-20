@@ -13,28 +13,28 @@ edition = "2021"
 [dependencies]
 komorebi-client = { path = "../komorebi-client" }
 
-clap = { version = "4", features = ["derive", "wrap_help"] }
-chrono = "0.4"
+chrono = { workspace = true }
+clap = { workspace = true }
 color-eyre = { workspace = true }
 dirs = { workspace = true }
 dunce = { workspace = true }
 fs-tail = "0.1"
-lazy_static = "1"
+lazy_static = { workspace = true }
 miette = { version = "7", features = ["fancy"] }
-paste = "1"
+paste = { workspace = true }
 powershell_script = "1.0"
 reqwest = { version = "0.12", features = ["blocking"] }
-serde = { version = "1", features = ["derive"] }
+schemars = { workspace = true }
+serde = { workspace = true }
 serde_json = { workspace = true }
 serde_yaml = "0.9"
+shadow-rs = { workspace = true }
 sysinfo = { workspace = true }
 thiserror = "1"
-uds_windows = "1"
-which = "6"
+uds_windows = { workspace = true }
+which = { workspace = true }
 win32-display-data = { workspace = true }
 windows = { workspace = true }
-shadow-rs = { workspace = true }
-schemars = { workspace = true }
 
 [build-dependencies]
 reqwest = { version = "0.12", features = ["blocking"] }

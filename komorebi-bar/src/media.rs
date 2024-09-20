@@ -102,7 +102,8 @@ impl BarWidget for Media {
                     .add(
                         Label::new(layout_job)
                             .selectable(false)
-                            .sense(Sense::click()),
+                            .sense(Sense::click())
+                            .truncate(),
                     )
                     .clicked()
                 {

@@ -22,8 +22,11 @@ use eframe::egui::Vec2;
 use eframe::egui::ViewportCommand;
 use font_loader::system_fonts;
 use font_loader::system_fonts::FontPropertyBuilder;
+use komorebi_client::KomorebiTheme;
 use komorebi_themes::catppuccin_egui;
+use komorebi_themes::Base16Value;
 use komorebi_themes::Catppuccin;
+use komorebi_themes::CatppuccinValue;
 use std::cell::RefCell;
 use std::path::PathBuf;
 use std::rc::Rc;
@@ -168,6 +171,21 @@ impl Komobar {
                     Ok(config) => {
                         if let Some(theme) = config.theme {
                             apply_theme(ctx, KomobarTheme::from(theme), self.bg_color.clone());
+
+                            let stack_accent = match theme {
+                                KomorebiTheme::Catppuccin {
+                                    name, stack_border, ..
+                                } => stack_border
+                                    .unwrap_or(CatppuccinValue::Green)
+                                    .color32(name.as_theme()),
+                                KomorebiTheme::Base16 {
+                                    name, stack_border, ..
+                                } => stack_border.unwrap_or(Base16Value::Base0B).color32(name),
+                            };
+
+                            if let Some(state) = &self.komorebi_notification_state {
+                                state.borrow_mut().stack_accent = Some(stack_accent);
+                            }
                         }
                     }
                     Err(_) => {
