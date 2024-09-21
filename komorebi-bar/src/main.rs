@@ -8,6 +8,7 @@ mod memory;
 mod network;
 mod storage;
 mod time;
+mod ui;
 mod widget;
 
 use crate::bar::Komobar;
@@ -24,11 +25,13 @@ use schemars::gen::SchemaSettings;
 use std::io::BufReader;
 use std::io::Read;
 use std::path::PathBuf;
+use std::sync::atomic::AtomicI32;
 use std::sync::Arc;
 use std::time::Duration;
 use tracing_subscriber::EnvFilter;
 
 pub static WIDGET_SPACING: f32 = 10.0;
+pub static MAX_LABEL_WIDTH: AtomicI32 = AtomicI32::new(400);
 
 #[derive(Parser)]
 #[clap(author, about, version)]

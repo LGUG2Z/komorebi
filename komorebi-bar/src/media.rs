@@ -1,4 +1,6 @@
+use crate::ui::CustomUi;
 use crate::widget::BarWidget;
+use crate::MAX_LABEL_WIDTH;
 use crate::WIDGET_SPACING;
 use eframe::egui::text::LayoutJob;
 use eframe::egui::Context;
@@ -8,9 +10,11 @@ use eframe::egui::Sense;
 use eframe::egui::TextFormat;
 use eframe::egui::TextStyle;
 use eframe::egui::Ui;
+use eframe::egui::Vec2;
 use schemars::JsonSchema;
 use serde::Deserialize;
 use serde::Serialize;
+use std::sync::atomic::Ordering;
 use windows::Media::Control::GlobalSystemMediaTransportControlsSessionManager;
 
 #[derive(Copy, Clone, Debug, Serialize, Deserialize, JsonSchema)]
@@ -98,8 +102,15 @@ impl BarWidget for Media {
                     TextFormat::simple(font_id, ctx.style().visuals.text_color()),
                 );
 
-                if ui
-                    .add(
+                let available_height = ui.available_height();
+                let mut custom_ui = CustomUi(ui);
+
+                if custom_ui
+                    .add_sized_left_to_right(
+                        Vec2::new(
+                            MAX_LABEL_WIDTH.load(Ordering::SeqCst) as f32,
+                            available_height,
+                        ),
                         Label::new(layout_job)
                             .selectable(false)
                             .sense(Sense::click())
