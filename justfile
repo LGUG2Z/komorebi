@@ -19,6 +19,8 @@ install-target target:
 install:
     just install-target komorebic
     just install-target komorebic-no-console
+    just install-target komorebi-gui
+    just install-target komorebi-bar
     just install-target komorebi
 
 run:

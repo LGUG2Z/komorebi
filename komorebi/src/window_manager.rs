@@ -1678,12 +1678,28 @@ impl WindowManager {
                     // get a mutable ref to the focused workspace on the target monitor
                     let target_workspace = self.focused_workspace_mut()?;
 
-                    // insert the origin container into the focused workspace on the target monitor
-                    // at the position where the currently focused container on that workspace is
-                    target_workspace.insert_container_at_idx(
-                        target_workspace.focused_container_idx(),
-                        origin_container,
-                    );
+                    match direction {
+                        OperationDirection::Left => {
+                            // insert the origin container into the focused workspace on the target monitor
+                            // at the back if we are moving across a boundary to the left (back = right side
+                            // of the target)
+                            target_workspace.add_container_to_back(origin_container);
+                        }
+                        OperationDirection::Right => {
+                            // insert the origin container into the focused workspace on the target monitor
+                            // at the front if we are moving across a boundary to the right (front = left side
+                            // of the target)
+                            target_workspace.add_container_to_front(origin_container);
+                        }
+                        OperationDirection::Up | OperationDirection::Down => {
+                            // insert the origin container into the focused workspace on the target monitor
+                            // at the position where the currently focused container on that workspace is
+                            target_workspace.insert_container_at_idx(
+                                target_workspace.focused_container_idx(),
+                                origin_container,
+                            );
+                        }
+                    };
 
                     // if there is only one container on the target workspace after the insertion
                     // it means that there won't be one swapped back, so we have to decrement the
