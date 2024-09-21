@@ -1,6 +1,8 @@
 use crate::bar::apply_theme;
 use crate::config::KomobarTheme;
+use crate::ui::CustomUi;
 use crate::widget::BarWidget;
+use crate::MAX_LABEL_WIDTH;
 use crate::WIDGET_SPACING;
 use crossbeam_channel::Receiver;
 use eframe::egui::text::LayoutJob;
@@ -16,6 +18,7 @@ use eframe::egui::TextStyle;
 use eframe::egui::TextureHandle;
 use eframe::egui::TextureOptions;
 use eframe::egui::Ui;
+use eframe::egui::Vec2;
 use image::RgbaImage;
 use komorebi_client::CycleDirection;
 use komorebi_client::NotificationEvent;
@@ -28,6 +31,7 @@ use std::cell::RefCell;
 use std::collections::BTreeMap;
 use std::path::PathBuf;
 use std::rc::Rc;
+use std::sync::atomic::Ordering;
 
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 pub struct KomorebiConfig {
@@ -295,36 +299,70 @@ impl BarWidget for Komorebi {
                         );
 
                         if titles.len() > 1 {
-                            ui.add(Label::new(layout_job).selectable(false));
+                            let available_height = ui.available_height();
+                            let mut custom_ui = CustomUi(ui);
+                            custom_ui.add_sized_left_to_right(
+                                Vec2::new(
+                                    MAX_LABEL_WIDTH.load(Ordering::SeqCst) as f32,
+                                    available_height,
+                                ),
+                                Label::new(layout_job).selectable(false).truncate(),
+                            );
                         } else {
-                            ui.add(Label::new(title).selectable(false));
-                        }
-                    } else if ui
-                        .add(Label::new(title).selectable(false).sense(Sense::click()))
-                        .clicked()
-                    {
-                        if komorebi_client::send_message(&SocketMessage::MouseFollowsFocus(false))
-                            .is_err()
-                        {
-                            tracing::error!(
-                                "could not send message to komorebi: MouseFollowsFocus"
+                            let available_height = ui.available_height();
+                            let mut custom_ui = CustomUi(ui);
+                            custom_ui.add_sized_left_to_right(
+                                Vec2::new(
+                                    MAX_LABEL_WIDTH.load(Ordering::SeqCst) as f32,
+                                    available_height,
+                                ),
+                                Label::new(title).selectable(false).truncate(),
                             );
                         }
+                    } else {
+                        let available_height = ui.available_height();
+                        let mut custom_ui = CustomUi(ui);
 
-                        if komorebi_client::send_message(&SocketMessage::FocusStackWindow(i))
+                        if custom_ui
+                            .add_sized_left_to_right(
+                                Vec2::new(
+                                    MAX_LABEL_WIDTH.load(Ordering::SeqCst) as f32,
+                                    available_height,
+                                ),
+                                Label::new(title)
+                                    .selectable(false)
+                                    .sense(Sense::click())
+                                    .truncate(),
+                            )
+                            .clicked()
+                        {
+                            if komorebi_client::send_message(&SocketMessage::MouseFollowsFocus(
+                                false,
+                            ))
                             .is_err()
-                        {
-                            tracing::error!("could not send message to komorebi: FocusStackWindow");
-                        }
+                            {
+                                tracing::error!(
+                                    "could not send message to komorebi: MouseFollowsFocus"
+                                );
+                            }
 
-                        if komorebi_client::send_message(&SocketMessage::MouseFollowsFocus(
-                            komorebi_notification_state.mouse_follows_focus,
-                        ))
-                        .is_err()
-                        {
-                            tracing::error!(
-                                "could not send message to komorebi: MouseFollowsFocus"
-                            );
+                            if komorebi_client::send_message(&SocketMessage::FocusStackWindow(i))
+                                .is_err()
+                            {
+                                tracing::error!(
+                                    "could not send message to komorebi: FocusStackWindow"
+                                );
+                            }
+
+                            if komorebi_client::send_message(&SocketMessage::MouseFollowsFocus(
+                                komorebi_notification_state.mouse_follows_focus,
+                            ))
+                            .is_err()
+                            {
+                                tracing::error!(
+                                    "could not send message to komorebi: MouseFollowsFocus"
+                                );
+                            }
                         }
                     }
 

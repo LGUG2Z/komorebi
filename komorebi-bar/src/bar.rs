@@ -4,6 +4,7 @@ use crate::komorebi::Komorebi;
 use crate::komorebi::KomorebiNotificationState;
 use crate::widget::BarWidget;
 use crate::widget::WidgetConfig;
+use crate::MAX_LABEL_WIDTH;
 use crossbeam_channel::Receiver;
 use eframe::egui::Align;
 use eframe::egui::CentralPanel;
@@ -30,6 +31,7 @@ use komorebi_themes::CatppuccinValue;
 use std::cell::RefCell;
 use std::path::PathBuf;
 use std::rc::Rc;
+use std::sync::atomic::Ordering;
 use std::sync::Arc;
 
 pub struct Komobar {
@@ -132,6 +134,11 @@ impl Komobar {
         config: &KomobarConfig,
         previous_notification_state: Option<Rc<RefCell<KomorebiNotificationState>>>,
     ) {
+        MAX_LABEL_WIDTH.store(
+            config.max_label_width.unwrap_or(400.0) as i32,
+            Ordering::SeqCst,
+        );
+
         if let Some(font_family) = &config.font_family {
             tracing::info!("attempting to add custom font family: {font_family}");
             Self::add_custom_font(ctx, font_family);
