@@ -408,6 +408,11 @@
         ]
       }
     },
+    "max_label_width": {
+      "description": "Max label width before text truncation (default: 400.0)",
+      "type": "number",
+      "format": "float"
+    },
     "monitor": {
       "description": "Monitor options",
       "type": "object",
