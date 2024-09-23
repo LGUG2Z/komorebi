@@ -29,6 +29,8 @@ use serde::Deserialize;
 use serde::Serialize;
 use std::cell::RefCell;
 use std::collections::BTreeMap;
+use std::fmt::Display;
+use std::fmt::Formatter;
 use std::path::PathBuf;
 use std::rc::Rc;
 use std::sync::atomic::Ordering;
@@ -101,7 +103,7 @@ impl From<&KomorebiConfig> for Komorebi {
         Self {
             komorebi_notification_state: Rc::new(RefCell::new(KomorebiNotificationState {
                 selected_workspace: String::new(),
-                layout: String::new(),
+                layout: KomorebiLayout::Default(komorebi_client::DefaultLayout::BSP),
                 workspaces: vec![],
                 hide_empty_workspaces: value.workspaces.hide_empty_workspaces,
                 mouse_follows_focus: true,
@@ -186,17 +188,35 @@ impl BarWidget for Komorebi {
             if layout.enable {
                 if ui
                     .add(
-                        Label::new(&komorebi_notification_state.layout)
+                        Label::new(komorebi_notification_state.layout.to_string())
                             .selectable(false)
                             .sense(Sense::click()),
                     )
                     .clicked()
-                    && komorebi_client::send_message(&SocketMessage::CycleLayout(
-                        CycleDirection::Next,
-                    ))
-                    .is_err()
                 {
-                    tracing::error!("could not send message to komorebi: CycleLayout");
+                    match komorebi_notification_state.layout {
+                        KomorebiLayout::Default(_) => {
+                            if komorebi_client::send_message(&SocketMessage::CycleLayout(
+                                CycleDirection::Next,
+                            ))
+                            .is_err()
+                            {
+                                tracing::error!("could not send message to komorebi: CycleLayout");
+                            }
+                        }
+                        KomorebiLayout::Floating => {
+                            if komorebi_client::send_message(&SocketMessage::ToggleTiling).is_err()
+                            {
+                                tracing::error!("could not send message to komorebi: ToggleTiling");
+                            }
+                        }
+                        KomorebiLayout::Paused => {
+                            if komorebi_client::send_message(&SocketMessage::TogglePause).is_err() {
+                                tracing::error!("could not send message to komorebi: TogglePause");
+                            }
+                        }
+                        KomorebiLayout::Custom => {}
+                    }
                 }
 
                 ui.add_space(WIDGET_SPACING);
@@ -387,11 +407,30 @@ pub struct KomorebiNotificationState {
     pub workspaces: Vec<String>,
     pub selected_workspace: String,
     pub focused_container_information: (Vec<String>, Vec<Option<RgbaImage>>, usize),
-    pub layout: String,
+    pub layout: KomorebiLayout,
     pub hide_empty_workspaces: bool,
     pub mouse_follows_focus: bool,
     pub work_area_offset: Option<Rect>,
     pub stack_accent: Option<Color32>,
+}
+
+#[derive(Copy, Clone, Debug)]
+pub enum KomorebiLayout {
+    Default(komorebi_client::DefaultLayout),
+    Floating,
+    Paused,
+    Custom,
+}
+
+impl Display for KomorebiLayout {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            KomorebiLayout::Default(layout) => write!(f, "{layout}"),
+            KomorebiLayout::Floating => write!(f, "Floating"),
+            KomorebiLayout::Paused => write!(f, "Paused"),
+            KomorebiLayout::Custom => write!(f, "Custom"),
+        }
+    }
 }
 
 impl KomorebiNotificationState {
@@ -446,9 +485,17 @@ impl KomorebiNotificationState {
 
             self.workspaces = workspaces;
             self.layout = match monitor.workspaces()[focused_workspace_idx].layout() {
-                komorebi_client::Layout::Default(layout) => layout.to_string(),
-                komorebi_client::Layout::Custom(_) => String::from("Custom"),
+                komorebi_client::Layout::Default(layout) => KomorebiLayout::Default(*layout),
+                komorebi_client::Layout::Custom(_) => KomorebiLayout::Custom,
             };
+
+            if !*monitor.workspaces()[focused_workspace_idx].tile() {
+                self.layout = KomorebiLayout::Floating;
+            }
+
+            if notification.state.is_paused {
+                self.layout = KomorebiLayout::Paused;
+            }
 
             if let Some(container) = monitor.workspaces()[focused_workspace_idx].monocle_container()
             {
