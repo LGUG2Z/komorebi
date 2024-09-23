@@ -1513,6 +1513,7 @@ impl WindowManager {
 
         let mut cross_monitor_monocle = false;
 
+        // this is for when we are scrolling across workspaces like PaperWM
         if new_idx.is_none()
             && matches!(
                 self.cross_boundary_behaviour,
@@ -1543,6 +1544,22 @@ impl WindowManager {
 
             self.focus_workspace(next_idx)?;
 
+            if let Ok(focused_workspace) = self.focused_workspace_mut() {
+                if focused_workspace.monocle_container().is_none() {
+                    match direction {
+                        OperationDirection::Left => {
+                            focused_workspace.focus_container(
+                                focused_workspace.containers().len().saturating_sub(1),
+                            );
+                        }
+                        OperationDirection::Right => {
+                            focused_workspace.focus_container(0);
+                        }
+                        _ => {}
+                    };
+                }
+            }
+
             return Ok(());
         }
 
@@ -1554,17 +1571,30 @@ impl WindowManager {
                     .ok_or_else(|| anyhow!("there is no container or monitor in this direction"))?;
 
                 self.focus_monitor(monitor_idx)?;
+                let mouse_follows_focus = self.mouse_follows_focus;
 
-                if let Ok(focused_workspace) = self.focused_workspace() {
+                if let Ok(focused_workspace) = self.focused_workspace_mut() {
                     if let Some(monocle) = focused_workspace.monocle_container() {
                         if let Some(window) = monocle.focused_window() {
-                            window.focus(self.mouse_follows_focus)?;
+                            window.focus(mouse_follows_focus)?;
                             WindowsApi::center_cursor_in_rect(&WindowsApi::window_rect(
                                 window.hwnd(),
                             )?)?;
 
                             cross_monitor_monocle = true;
                         }
+                    } else {
+                        match direction {
+                            OperationDirection::Left => {
+                                focused_workspace.focus_container(
+                                    focused_workspace.containers().len().saturating_sub(1),
+                                );
+                            }
+                            OperationDirection::Right => {
+                                focused_workspace.focus_container(0);
+                            }
+                            _ => {}
+                        };
                     }
                 }
             }
@@ -1602,6 +1632,7 @@ impl WindowManager {
         let origin_monitor_idx = self.focused_monitor_idx();
         let target_container_idx = workspace.new_idx_for_direction(direction);
 
+        // this is for when we are scrolling across workspaces like PaperWM
         if target_container_idx.is_none()
             && matches!(
                 self.cross_boundary_behaviour,
@@ -1630,6 +1661,8 @@ impl WindowManager {
                 _ => workspace_idx,
             };
 
+            // passing the direction here is how we handle whether to insert at the front
+            // or the back of the container vecdeque in the target workspace
             self.move_container_to_workspace(next_idx, true, Some(direction))?;
             self.update_focused_workspace(self.mouse_follows_focus, true)?;
 

@@ -13,7 +13,8 @@ impl CustomUi<'_> {
         max_size: impl Into<Vec2>,
         widget: impl Widget,
     ) -> Response {
-        let layout = Layout::left_to_right(Align::Center);
+        let layout =
+            Layout::from_main_dir_and_cross_align(self.0.layout().main_dir(), Align::Center);
         self.0
             .allocate_ui_with_layout(max_size.into(), layout, |ui| ui.add(widget))
             .inner
