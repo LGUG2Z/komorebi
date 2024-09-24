@@ -76,7 +76,7 @@ impl WindowManager {
 
         // All event handlers below this point should only be processed if the event is
         // related to a window that should be managed by the WindowManager.
-        if !should_manage {
+        if !should_manage && rule_debug.matches_float_identifier.is_none() {
             let mut transparency_override = false;
 
             if transparency_manager::TRANSPARENCY_ENABLED.load_consume() {
@@ -95,8 +95,10 @@ impl WindowManager {
                             && !visible_hwnds.contains(&event_hwnd)
                         {
                             transparency_override = true;
+                            break;
                         }
                     }
+                    if transparency_override { break; }
                 }
             }
 
@@ -104,6 +106,7 @@ impl WindowManager {
                 return Ok(());
             }
         }
+        let manage_as_float = !should_manage && rule_debug.matches_float_identifier.is_some();
 
         if let Some(virtual_desktop_id) = &self.virtual_desktop_id {
             if let Some(id) = current_virtual_desktop() {
@@ -329,8 +332,11 @@ impl WindowManager {
                 }
 
                 if proceed {
-                    let behaviour =
-                        self.window_container_behaviour(focused_monitor_idx, focused_workspace_idx);
+                    let behaviour = if manage_as_float {
+                        WindowContainerBehaviour::Float
+                    } else {
+                        self.window_container_behaviour(focused_monitor_idx, focused_workspace_idx)
+                    };
                     let workspace = self.focused_workspace_mut()?;
                     let workspace_contains_window = workspace.contains_window(window.hwnd);
                     let monocle_container = workspace.monocle_container().clone();
