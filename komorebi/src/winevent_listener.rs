@@ -43,7 +43,8 @@ pub fn start() {
                         tracing::debug!("windows event processing thread shutdown");
                         break;
                     };
-                    TranslateMessage(&msg);
+                    // TODO: error handling
+                    let _ = TranslateMessage(&msg);
                     DispatchMessageW(&msg);
                 }
 

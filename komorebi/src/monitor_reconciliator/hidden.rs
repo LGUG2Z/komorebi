@@ -77,7 +77,8 @@ impl Hidden {
                         tracing::debug!("hidden window event processing thread shutdown");
                         break;
                     };
-                    TranslateMessage(&msg);
+                    // TODO: error handling
+                    let _ = TranslateMessage(&msg);
                     DispatchMessageW(&msg);
                 }
 

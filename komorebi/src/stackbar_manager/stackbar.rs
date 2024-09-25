@@ -134,7 +134,8 @@ impl Stackbar {
                         tracing::debug!("stackbar window event processing thread shutdown");
                         break;
                     };
-                    TranslateMessage(&msg);
+                    // TODO: error handling
+                    let _ = TranslateMessage(&msg);
                     DispatchMessageW(&msg);
 
                     std::thread::sleep(Duration::from_millis(10))
@@ -232,16 +233,29 @@ impl Stackbar {
                 match STYLE.load() {
                     BorderStyle::System => {
                         if *WINDOWS_11 {
-                            RoundRect(hdc, rect.left, rect.top, rect.right, rect.bottom, 20, 20);
+                            // TODO: error handling
+                            let _ = RoundRect(
+                                hdc,
+                                rect.left,
+                                rect.top,
+                                rect.right,
+                                rect.bottom,
+                                20,
+                                20,
+                            );
                         } else {
-                            Rectangle(hdc, rect.left, rect.top, rect.right, rect.bottom);
+                            // TODO: error handling
+                            let _ = Rectangle(hdc, rect.left, rect.top, rect.right, rect.bottom);
                         }
                     }
                     BorderStyle::Rounded => {
-                        RoundRect(hdc, rect.left, rect.top, rect.right, rect.bottom, 20, 20);
+                        // TODO: error handling
+                        let _ =
+                            RoundRect(hdc, rect.left, rect.top, rect.right, rect.bottom, 20, 20);
                     }
                     BorderStyle::Square => {
-                        Rectangle(hdc, rect.left, rect.top, rect.right, rect.bottom);
+                        // TODO: error handling
+                        let _ = Rectangle(hdc, rect.left, rect.top, rect.right, rect.bottom);
                     }
                 }
 
@@ -267,9 +281,12 @@ impl Stackbar {
             }
 
             ReleaseDC(self.hwnd(), hdc);
-            DeleteObject(hpen);
-            DeleteObject(hbrush);
-            DeleteObject(hfont);
+            // TODO: error handling
+            let _ = DeleteObject(hpen);
+            // TODO: error handling
+            let _ = DeleteObject(hbrush);
+            // TODO: error handling
+            let _ = DeleteObject(hfont);
         }
 
         Ok(())

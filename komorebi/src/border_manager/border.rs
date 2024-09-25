@@ -103,7 +103,8 @@ impl Border {
                         tracing::debug!("border window event processing thread shutdown");
                         break;
                     };
-                    TranslateMessage(&msg);
+                    // TODO: error handling
+                    let _ = TranslateMessage(&msg);
                     DispatchMessageW(&msg);
                 }
 
@@ -191,27 +192,35 @@ impl Border {
                             match STYLE.load() {
                                 BorderStyle::System => {
                                     if *WINDOWS_11 {
-                                        RoundRect(hdc, 0, 0, rect.right, rect.bottom, 20, 20);
+                                        // TODO: error handling
+                                        let _ =
+                                            RoundRect(hdc, 0, 0, rect.right, rect.bottom, 20, 20);
                                     } else {
-                                        Rectangle(hdc, 0, 0, rect.right, rect.bottom);
+                                        // TODO: error handling
+                                        let _ = Rectangle(hdc, 0, 0, rect.right, rect.bottom);
                                     }
                                 }
                                 BorderStyle::Rounded => {
-                                    RoundRect(hdc, 0, 0, rect.right, rect.bottom, 20, 20);
+                                    // TODO: error handling
+                                    let _ = RoundRect(hdc, 0, 0, rect.right, rect.bottom, 20, 20);
                                 }
                                 BorderStyle::Square => {
-                                    Rectangle(hdc, 0, 0, rect.right, rect.bottom);
+                                    // TODO: error handling
+                                    let _ = Rectangle(hdc, 0, 0, rect.right, rect.bottom);
                                 }
                             }
-                            DeleteObject(hpen);
-                            DeleteObject(hbrush);
+                            // TODO: error handling
+                            let _ = DeleteObject(hpen);
+                            // TODO: error handling
+                            let _ = DeleteObject(hbrush);
                         }
                         Err(error) => {
                             tracing::error!("could not get border rect: {}", error.to_string())
                         }
                     }
 
-                    EndPaint(window, &ps);
+                    // TODO: error handling
+                    let _ = EndPaint(window, &ps);
                     LRESULT(0)
                 }
                 WM_DESTROY => {
