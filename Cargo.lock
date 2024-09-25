@@ -2709,7 +2709,7 @@ dependencies = [
  "which",
  "widestring",
  "win32-display-data",
- "windows 0.57.0",
+ "windows 0.58.0",
  "windows-core 0.57.0",
  "windows-implement 0.57.0",
  "windows-interface 0.57.0",
@@ -2747,7 +2747,7 @@ dependencies = [
  "tracing",
  "tracing-appender",
  "tracing-subscriber",
- "windows 0.57.0",
+ "windows 0.58.0",
  "windows-icons",
 ]
 
@@ -2769,7 +2769,7 @@ dependencies = [
  "komorebi-client",
  "random_word",
  "serde_json_lenient",
- "windows 0.57.0",
+ "windows 0.58.0",
 ]
 
 [[package]]
@@ -2809,7 +2809,7 @@ dependencies = [
  "uds_windows",
  "which",
  "win32-display-data",
- "windows 0.57.0",
+ "windows 0.58.0",
 ]
 
 [[package]]
@@ -2900,7 +2900,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4979f22fdb869068da03c9f7528f8297c6fd2606bc3a4affe42e6a823fdb8da4"
 dependencies = [
  "cfg-if 1.0.0",
- "windows-targets 0.52.6",
+ "windows-targets 0.48.5",
 ]
 
 [[package]]
