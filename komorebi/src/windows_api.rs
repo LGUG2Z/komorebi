@@ -456,7 +456,10 @@ impl WindowsApi {
     pub fn show_window(hwnd: HWND, command: SHOW_WINDOW_CMD) {
         // BOOL is returned but does not signify whether or not the operation was succesful
         // https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-showwindow
-        unsafe { ShowWindow(hwnd, command) };
+        // TODO: error handling
+        unsafe {
+            let _ = ShowWindow(hwnd, command);
+        };
     }
 
     pub fn minimize_window(hwnd: HWND) {
@@ -597,7 +600,8 @@ impl WindowsApi {
 
     pub fn round_rect(hdc: HDC, rect: &Rect, border_radius: i32) {
         unsafe {
-            RoundRect(
+            // TODO: error handling
+            let _ = RoundRect(
                 hdc,
                 rect.left,
                 rect.top,
@@ -610,7 +614,8 @@ impl WindowsApi {
     }
     pub fn rectangle(hdc: HDC, rect: &Rect) {
         unsafe {
-            Rectangle(hdc, rect.left, rect.top, rect.right, rect.bottom);
+            // TODO: error handling
+            let _ = Rectangle(hdc, rect.left, rect.top, rect.right, rect.bottom);
         }
     }
     fn set_cursor_pos(x: i32, y: i32) -> Result<()> {

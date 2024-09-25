@@ -10,13 +10,13 @@ use interfaces::IServiceProvider;
 
 use std::ffi::c_void;
 
-use windows::core::Interface;
 use windows::Win32::Foundation::HWND;
 use windows::Win32::System::Com::CoCreateInstance;
 use windows::Win32::System::Com::CoInitializeEx;
 use windows::Win32::System::Com::CoUninitialize;
 use windows::Win32::System::Com::CLSCTX_ALL;
 use windows::Win32::System::Com::COINIT_APARTMENTTHREADED;
+use windows_core::Interface;
 
 struct ComInit();
 
