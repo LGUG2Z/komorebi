@@ -668,6 +668,7 @@ impl Workspace {
 
     pub fn insert_container_at_idx(&mut self, idx: usize, container: Container) {
         self.containers_mut().insert(idx, container);
+        self.focus_container(idx);
     }
 
     pub fn remove_container_by_idx(&mut self, idx: usize) -> Option<Container> {

@@ -17,6 +17,8 @@ use crate::core::Rect;
 use crate::container::Container;
 use crate::ring::Ring;
 use crate::workspace::Workspace;
+use crate::DefaultLayout;
+use crate::Layout;
 use crate::OperationDirection;
 
 #[derive(
@@ -191,10 +193,52 @@ impl Monitor {
             Some(workspace) => workspace,
         };
 
-        if matches!(direction, Some(OperationDirection::Right)) {
-            target_workspace.add_container_to_front(container);
-        } else {
-            target_workspace.add_container_to_back(container);
+        match direction {
+            Some(OperationDirection::Left) => match target_workspace.layout() {
+                Layout::Default(layout) => match layout {
+                    DefaultLayout::RightMainVerticalStack => {
+                        target_workspace.add_container_to_front(container);
+                    }
+                    DefaultLayout::UltrawideVerticalStack => {
+                        if target_workspace.containers().len() == 1 {
+                            target_workspace.insert_container_at_idx(0, container);
+                        } else {
+                            target_workspace.add_container_to_back(container);
+                        }
+                    }
+                    _ => {
+                        target_workspace.add_container_to_back(container);
+                    }
+                },
+                Layout::Custom(_) => {
+                    target_workspace.add_container_to_back(container);
+                }
+            },
+            Some(OperationDirection::Right) => match target_workspace.layout() {
+                Layout::Default(layout) => {
+                    let target_index = layout.leftmost_index(target_workspace.containers().len());
+
+                    match layout {
+                        DefaultLayout::RightMainVerticalStack
+                        | DefaultLayout::UltrawideVerticalStack => {
+                            if target_workspace.containers().len() == 1 {
+                                target_workspace.add_container_to_back(container);
+                            } else {
+                                target_workspace.insert_container_at_idx(target_index, container);
+                            }
+                        }
+                        _ => {
+                            target_workspace.insert_container_at_idx(target_index, container);
+                        }
+                    }
+                }
+                Layout::Custom(_) => {
+                    target_workspace.add_container_to_front(container);
+                }
+            },
+            _ => {
+                target_workspace.add_container_to_back(container);
+            }
         }
 
         if follow {

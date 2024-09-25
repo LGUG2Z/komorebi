@@ -35,6 +35,37 @@ pub enum DefaultLayout {
 }
 
 impl DefaultLayout {
+    pub fn leftmost_index(&self, len: usize) -> usize {
+        match self {
+            Self::UltrawideVerticalStack | Self::RightMainVerticalStack => match len {
+                n if n > 1 => 1,
+                _ => 0,
+            },
+            DefaultLayout::BSP
+            | DefaultLayout::Columns
+            | DefaultLayout::Rows
+            | DefaultLayout::VerticalStack
+            | DefaultLayout::HorizontalStack
+            | DefaultLayout::Grid => 0,
+        }
+    }
+
+    pub fn rightmost_index(&self, len: usize) -> usize {
+        match self {
+            DefaultLayout::BSP
+            | DefaultLayout::Columns
+            | DefaultLayout::Rows
+            | DefaultLayout::VerticalStack
+            | DefaultLayout::HorizontalStack
+            | DefaultLayout::Grid => len.saturating_sub(1),
+            DefaultLayout::UltrawideVerticalStack => match len {
+                2 => 0,
+                _ => len.saturating_sub(1),
+            },
+            DefaultLayout::RightMainVerticalStack => 0,
+        }
+    }
+
     #[must_use]
     #[allow(clippy::cast_precision_loss, clippy::only_used_in_recursion)]
     pub fn resize(

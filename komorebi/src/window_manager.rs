@@ -1547,14 +1547,28 @@ impl WindowManager {
             if let Ok(focused_workspace) = self.focused_workspace_mut() {
                 if focused_workspace.monocle_container().is_none() {
                     match direction {
-                        OperationDirection::Left => {
-                            focused_workspace.focus_container(
-                                focused_workspace.containers().len().saturating_sub(1),
-                            );
-                        }
-                        OperationDirection::Right => {
-                            focused_workspace.focus_container(0);
-                        }
+                        OperationDirection::Left => match focused_workspace.layout() {
+                            Layout::Default(layout) => {
+                                let target_index =
+                                    layout.rightmost_index(focused_workspace.containers().len());
+                                focused_workspace.focus_container(target_index);
+                            }
+                            Layout::Custom(_) => {
+                                focused_workspace.focus_container(
+                                    focused_workspace.containers().len().saturating_sub(1),
+                                );
+                            }
+                        },
+                        OperationDirection::Right => match focused_workspace.layout() {
+                            Layout::Default(layout) => {
+                                let target_index =
+                                    layout.leftmost_index(focused_workspace.containers().len());
+                                focused_workspace.focus_container(target_index);
+                            }
+                            Layout::Custom(_) => {
+                                focused_workspace.focus_container(0);
+                            }
+                        },
                         _ => {}
                     };
                 }
@@ -1585,14 +1599,28 @@ impl WindowManager {
                         }
                     } else {
                         match direction {
-                            OperationDirection::Left => {
-                                focused_workspace.focus_container(
-                                    focused_workspace.containers().len().saturating_sub(1),
-                                );
-                            }
-                            OperationDirection::Right => {
-                                focused_workspace.focus_container(0);
-                            }
+                            OperationDirection::Left => match focused_workspace.layout() {
+                                Layout::Default(layout) => {
+                                    let target_index = layout
+                                        .rightmost_index(focused_workspace.containers().len());
+                                    focused_workspace.focus_container(target_index);
+                                }
+                                Layout::Custom(_) => {
+                                    focused_workspace.focus_container(
+                                        focused_workspace.containers().len().saturating_sub(1),
+                                    );
+                                }
+                            },
+                            OperationDirection::Right => match focused_workspace.layout() {
+                                Layout::Default(layout) => {
+                                    let target_index =
+                                        layout.leftmost_index(focused_workspace.containers().len());
+                                    focused_workspace.focus_container(target_index);
+                                }
+                                Layout::Custom(_) => {
+                                    focused_workspace.focus_container(0);
+                                }
+                            },
                             _ => {}
                         };
                     }
@@ -1714,15 +1742,65 @@ impl WindowManager {
                     match direction {
                         OperationDirection::Left => {
                             // insert the origin container into the focused workspace on the target monitor
-                            // at the back if we are moving across a boundary to the left (back = right side
-                            // of the target)
-                            target_workspace.add_container_to_back(origin_container);
+                            // at the back (or rightmost position) if we are moving across a boundary to
+                            // the left (back = right side of the target)
+                            match target_workspace.layout() {
+                                Layout::Default(layout) => match layout {
+                                    DefaultLayout::RightMainVerticalStack => {
+                                        target_workspace.add_container_to_front(origin_container);
+                                    }
+                                    DefaultLayout::UltrawideVerticalStack => {
+                                        if target_workspace.containers().len() == 1 {
+                                            target_workspace
+                                                .insert_container_at_idx(0, origin_container);
+                                        } else {
+                                            target_workspace
+                                                .add_container_to_back(origin_container);
+                                        }
+                                    }
+                                    _ => {
+                                        target_workspace.add_container_to_back(origin_container);
+                                    }
+                                },
+                                Layout::Custom(_) => {
+                                    target_workspace.add_container_to_back(origin_container);
+                                }
+                            }
                         }
                         OperationDirection::Right => {
                             // insert the origin container into the focused workspace on the target monitor
-                            // at the front if we are moving across a boundary to the right (front = left side
-                            // of the target)
-                            target_workspace.add_container_to_front(origin_container);
+                            // at the front (or leftmost position) if we are moving across a boundary to the
+                            // right (front = left side of the target)
+                            match target_workspace.layout() {
+                                Layout::Default(layout) => {
+                                    let target_index =
+                                        layout.leftmost_index(target_workspace.containers().len());
+
+                                    match layout {
+                                        DefaultLayout::RightMainVerticalStack
+                                        | DefaultLayout::UltrawideVerticalStack => {
+                                            if target_workspace.containers().len() == 1 {
+                                                target_workspace
+                                                    .add_container_to_back(origin_container);
+                                            } else {
+                                                target_workspace.insert_container_at_idx(
+                                                    target_index,
+                                                    origin_container,
+                                                );
+                                            }
+                                        }
+                                        _ => {
+                                            target_workspace.insert_container_at_idx(
+                                                target_index,
+                                                origin_container,
+                                            );
+                                        }
+                                    }
+                                }
+                                Layout::Custom(_) => {
+                                    target_workspace.add_container_to_front(origin_container);
+                                }
+                            }
                         }
                         OperationDirection::Up | OperationDirection::Down => {
                             // insert the origin container into the focused workspace on the target monitor
