@@ -77,7 +77,7 @@ pub extern "C" fn SetCloak(hwnd: HWND, cloak_type: u32, flags: i32) {
             if view_collection.get_view_for_hwnd(hwnd, &mut view).is_err() {
                 tracing::error!(
                     "could not get view for hwnd {} due to os error: {}",
-                    hwnd.0,
+                    hwnd.0 as isize,
                     std::io::Error::last_os_error()
                 );
             }
@@ -85,14 +85,14 @@ pub extern "C" fn SetCloak(hwnd: HWND, cloak_type: u32, flags: i32) {
 
         view.map_or_else(
             || {
-                tracing::error!("no view was found for {}", hwnd.0,);
+                tracing::error!("no view was found for {}", hwnd.0 as isize);
             },
             |view| {
                 unsafe {
                     if view.set_cloak(cloak_type, flags).is_err() {
                         tracing::error!(
                             "could not change the cloaking status for hwnd {} due to os error: {}",
-                            hwnd.0,
+                            hwnd.0 as isize,
                             std::io::Error::last_os_error()
                         );
                     }

@@ -218,7 +218,7 @@ extern "system" fn enum_window(
     lparam: windows::Win32::Foundation::LPARAM,
 ) -> windows::Win32::Foundation::BOOL {
     let windows = unsafe { &mut *(lparam.0 as *mut Vec<Window>) };
-    let window = Window::from(hwnd.0);
+    let window = Window::from(hwnd.0 as isize);
 
     if window.is_window()
         && !window.is_miminized()

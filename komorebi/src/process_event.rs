@@ -391,7 +391,7 @@ impl WindowManager {
                         .ok_or_else(|| anyhow!("there is no workspace with this idx"))?
                         .focused_container_idx();
 
-                    WindowsApi::bring_window_to_top(window.hwnd())?;
+                    WindowsApi::bring_window_to_top(window.hwnd)?;
 
                     self.pending_move_op =
                         Option::from((monitor_idx, workspace_idx, container_idx));
@@ -415,7 +415,7 @@ impl WindowManager {
 
                 let workspace = self.focused_workspace_mut()?;
                 let focused_container_idx = workspace.focused_container_idx();
-                let new_position = WindowsApi::window_rect(window.hwnd())?;
+                let new_position = WindowsApi::window_rect(window.hwnd)?;
                 let old_position = *workspace
                     .latest_layout()
                     .get(focused_container_idx)

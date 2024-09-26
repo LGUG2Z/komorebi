@@ -28,6 +28,7 @@ use windows::Win32::UI::WindowsAndMessaging::WTS_SESSION_LOCK;
 use windows::Win32::UI::WindowsAndMessaging::WTS_SESSION_UNLOCK;
 
 use crate::monitor_reconciliator;
+use crate::windows_api;
 use crate::WindowsApi;
 
 // This is a hidden window specifically spawned to listen to system-wide events related to monitors
@@ -44,7 +45,7 @@ impl From<isize> for Hidden {
 
 impl Hidden {
     pub const fn hwnd(self) -> HWND {
-        HWND(self.hwnd)
+        HWND(windows_api::as_ptr!(self.hwnd))
     }
 
     pub fn create(name: &str) -> color_eyre::Result<Self> {
@@ -65,8 +66,9 @@ impl Hidden {
 
         let (hwnd_sender, hwnd_receiver) = mpsc::channel();
 
+        let instance = h_module.0 as isize;
         std::thread::spawn(move || -> color_eyre::Result<()> {
-            let hwnd = WindowsApi::create_hidden_window(PCWSTR(name.as_ptr()), h_module)?;
+            let hwnd = WindowsApi::create_hidden_window(PCWSTR(name.as_ptr()), instance)?;
             hwnd_sender.send(hwnd)?;
 
             let mut msg: MSG = MSG::default();

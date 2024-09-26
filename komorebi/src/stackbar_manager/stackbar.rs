@@ -14,6 +14,7 @@ use crate::stackbar_manager::STACKBAR_TAB_BACKGROUND_COLOUR;
 use crate::stackbar_manager::STACKBAR_TAB_HEIGHT;
 use crate::stackbar_manager::STACKBAR_TAB_WIDTH;
 use crate::stackbar_manager::STACKBAR_UNFOCUSED_TEXT_COLOUR;
+use crate::windows_api;
 use crate::WindowsApi;
 use crate::DEFAULT_CONTAINER_PADDING;
 use crate::WINDOWS_11;
@@ -24,6 +25,7 @@ use std::sync::mpsc;
 use std::time::Duration;
 use windows::core::PCWSTR;
 use windows::Win32::Foundation::COLORREF;
+use windows::Win32::Foundation::HINSTANCE;
 use windows::Win32::Foundation::HWND;
 use windows::Win32::Foundation::LPARAM;
 use windows::Win32::Foundation::LRESULT;
@@ -84,7 +86,7 @@ impl From<isize> for Stackbar {
 
 impl Stackbar {
     pub const fn hwnd(&self) -> HWND {
-        HWND(self.hwnd)
+        HWND(windows_api::as_ptr!(self.hwnd))
     }
 
     pub fn create(id: &str) -> color_eyre::Result<Self> {
@@ -107,6 +109,7 @@ impl Stackbar {
         let (hwnd_sender, hwnd_receiver) = mpsc::channel();
 
         let name_cl = name.clone();
+        let instance = h_module.0 as isize;
         std::thread::spawn(move || -> color_eyre::Result<()> {
             unsafe {
                 let hwnd = CreateWindowExW(
@@ -120,12 +123,12 @@ impl Stackbar {
                     0,
                     None,
                     None,
-                    h_module,
+                    HINSTANCE(windows_api::as_ptr!(instance)),
                     None,
-                );
+                )?;
 
                 SetLayeredWindowAttributes(hwnd, COLORREF(0), 0, LWA_COLORKEY)?;
-                hwnd_sender.send(hwnd)?;
+                hwnd_sender.send(hwnd.0 as isize)?;
 
                 let mut msg: MSG = MSG::default();
 
@@ -146,12 +149,12 @@ impl Stackbar {
         });
 
         Ok(Self {
-            hwnd: hwnd_receiver.recv()?.0,
+            hwnd: hwnd_receiver.recv()?,
         })
     }
 
     pub fn destroy(&self) -> color_eyre::Result<()> {
-        WindowsApi::close_window(self.hwnd())
+        WindowsApi::close_window(self.hwnd)
     }
 
     pub fn update(
@@ -177,7 +180,7 @@ impl Stackbar {
         layout.top -= workspace_specific_offset + STACKBAR_TAB_HEIGHT.load_consume();
         layout.left -= workspace_specific_offset;
 
-        WindowsApi::position_window(self.hwnd(), &layout, false)?;
+        WindowsApi::position_window(self.hwnd, &layout, false)?;
 
         unsafe {
             let hdc = GetDC(self.hwnd());
@@ -309,7 +312,7 @@ impl Stackbar {
             match msg {
                 WM_LBUTTONDOWN => {
                     let stackbars_containers = STACKBARS_CONTAINERS.lock();
-                    if let Some(container) = stackbars_containers.get(&hwnd.0) {
+                    if let Some(container) = stackbars_containers.get(&(hwnd.0 as isize)) {
                         let x = l_param.0 as i32 & 0xFFFF;
                         let y = (l_param.0 as i32 >> 16) & 0xFFFF;
 
@@ -319,11 +322,7 @@ impl Stackbar {
 
                         let focused_window_idx = container.focused_window_idx();
                         let focused_window_rect = WindowsApi::window_rect(
-                            container
-                                .focused_window()
-                                .cloned()
-                                .unwrap_or_default()
-                                .hwnd(),
+                            container.focused_window().cloned().unwrap_or_default().hwnd,
                         )
                         .unwrap_or_default();
 

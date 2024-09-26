@@ -8,7 +8,6 @@ use std::sync::atomic::AtomicBool;
 use std::sync::atomic::AtomicU8;
 use std::sync::Arc;
 use std::sync::OnceLock;
-use windows::Win32::Foundation::HWND;
 
 use crate::Window;
 use crate::WindowManager;
@@ -123,7 +122,7 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                 }
 
                 let foreground_hwnd = WindowsApi::foreground_window().unwrap_or_default();
-                let is_maximized = WindowsApi::is_zoomed(HWND(foreground_hwnd));
+                let is_maximized = WindowsApi::is_zoomed(foreground_hwnd);
 
                 if is_maximized {
                     if let Err(error) = Window::from(foreground_hwnd).opaque() {

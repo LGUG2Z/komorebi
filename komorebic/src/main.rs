@@ -2153,7 +2153,7 @@ Stop-Process -Name:komorebi -ErrorAction SilentlyContinue
                         let hwnds: Vec<isize> = serde_json::from_reader(reader)?;
 
                         for hwnd in hwnds {
-                            restore_window(HWND(hwnd));
+                            restore_window(hwnd);
                         }
                     }
                     Err(error) => {
@@ -2332,7 +2332,7 @@ Stop-Process -Name:komorebi -ErrorAction SilentlyContinue
             let hwnds: Vec<isize> = serde_json::from_reader(reader)?;
 
             for hwnd in hwnds {
-                restore_window(HWND(hwnd));
+                restore_window(hwnd);
             }
         }
         SubCommand::ResizeEdge(resize) => {
@@ -2630,11 +2630,11 @@ fn show_window(hwnd: HWND, command: SHOW_WINDOW_CMD) {
     };
 }
 
-fn remove_transparency(hwnd: HWND) {
-    let _ = komorebi_client::Window::from(hwnd.0).opaque();
+fn remove_transparency(hwnd: isize) {
+    let _ = komorebi_client::Window::from(hwnd).opaque();
 }
 
-fn restore_window(hwnd: HWND) {
-    show_window(hwnd, SW_RESTORE);
+fn restore_window(hwnd: isize) {
+    show_window(HWND(hwnd as *mut core::ffi::c_void), SW_RESTORE);
     remove_transparency(hwnd);
 }

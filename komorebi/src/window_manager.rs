@@ -839,7 +839,7 @@ impl WindowManager {
                 let rect = self.focused_monitor_size()?;
                 WindowsApi::center_cursor_in_rect(&rect)?;
 
-                match WindowsApi::raise_and_focus_window(desktop_window.hwnd()) {
+                match WindowsApi::raise_and_focus_window(desktop_window.hwnd) {
                     Ok(()) => {}
                     Err(error) => {
                         tracing::warn!("{} {}:{}", error, file!(), line!());
@@ -1592,7 +1592,7 @@ impl WindowManager {
                         if let Some(window) = monocle.focused_window() {
                             window.focus(mouse_follows_focus)?;
                             WindowsApi::center_cursor_in_rect(&WindowsApi::window_rect(
-                                window.hwnd(),
+                                window.hwnd,
                             )?)?;
 
                             cross_monitor_monocle = true;
@@ -2859,7 +2859,7 @@ impl WindowManager {
     }
 
     pub fn monitor_idx_from_window(&mut self, window: Window) -> Option<usize> {
-        let hmonitor = WindowsApi::monitor_from_window(window.hwnd());
+        let hmonitor = WindowsApi::monitor_from_window(window.hwnd);
 
         for (i, monitor) in self.monitors().iter().enumerate() {
             if monitor.id() == hmonitor {

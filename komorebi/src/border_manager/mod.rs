@@ -4,6 +4,15 @@ mod border;
 
 use crate::core::BorderImplementation;
 use crate::core::BorderStyle;
+use crate::core::WindowKind;
+use crate::ring::Ring;
+use crate::workspace_reconciliator::ALT_TAB_HWND;
+use crate::Colour;
+use crate::Rgb;
+use crate::WindowManager;
+use crate::WindowsApi;
+use border::border_hwnds;
+use border::Border;
 use crossbeam_channel::Receiver;
 use crossbeam_channel::Sender;
 use crossbeam_utils::atomic::AtomicCell;
@@ -21,17 +30,6 @@ use std::sync::atomic::AtomicU32;
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
 use std::sync::OnceLock;
-use windows::Win32::Foundation::HWND;
-
-use crate::core::WindowKind;
-use crate::ring::Ring;
-use crate::workspace_reconciliator::ALT_TAB_HWND;
-use crate::Colour;
-use crate::Rgb;
-use crate::WindowManager;
-use crate::WindowsApi;
-use border::border_hwnds;
-use border::Border;
 
 pub static BORDER_WIDTH: AtomicI32 = AtomicI32::new(8);
 pub static BORDER_OFFSET: AtomicI32 = AtomicI32::new(-1);
@@ -300,7 +298,7 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                             }
 
                             let rect = WindowsApi::window_rect(
-                                monocle.focused_window().copied().unwrap_or_default().hwnd(),
+                                monocle.focused_window().copied().unwrap_or_default().hwnd,
                             )?;
 
                             border.update(&rect, true)?;
@@ -324,9 +322,9 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                             continue 'monitors;
                         }
 
-                        let is_maximized = WindowsApi::is_zoomed(HWND(
+                        let is_maximized = WindowsApi::is_zoomed(
                             WindowsApi::foreground_window().unwrap_or_default(),
-                        ));
+                        );
 
                         if is_maximized {
                             let mut to_remove = vec![];
@@ -374,7 +372,7 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                                 Z_ORDER.store(ZOrder::TopMost);
 
                                 let mut rect = WindowsApi::window_rect(
-                                    c.focused_window().copied().unwrap_or_default().hwnd(),
+                                    c.focused_window().copied().unwrap_or_default().hwnd,
                                 )?;
 
                                 while WindowsApi::lbutton_is_pressed() {
@@ -390,7 +388,7 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                                     };
 
                                     let new_rect = WindowsApi::window_rect(
-                                        c.focused_window().copied().unwrap_or_default().hwnd(),
+                                        c.focused_window().copied().unwrap_or_default().hwnd,
                                     )?;
 
                                     if rect != new_rect {
@@ -438,7 +436,7 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                             }
 
                             let rect = WindowsApi::window_rect(
-                                c.focused_window().copied().unwrap_or_default().hwnd(),
+                                c.focused_window().copied().unwrap_or_default().hwnd,
                             )?;
 
                             let should_invalidate = match last_focus_state {

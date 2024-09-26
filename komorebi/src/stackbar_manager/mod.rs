@@ -21,7 +21,6 @@ use std::sync::atomic::AtomicU32;
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
 use std::sync::OnceLock;
-use windows::Win32::Foundation::HWND;
 
 pub static STACKBAR_FONT_SIZE: AtomicI32 = AtomicI32::new(0); // 0 will produce the system default
 pub static STACKBAR_FOCUSED_TEXT_COLOUR: AtomicU32 = AtomicU32::new(16777215); // white
@@ -128,9 +127,8 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                     continue 'receiver;
                 }
 
-                let is_maximized = WindowsApi::is_zoomed(HWND(
-                    WindowsApi::foreground_window().unwrap_or_default(),
-                ));
+                let is_maximized =
+                    WindowsApi::is_zoomed(WindowsApi::foreground_window().unwrap_or_default());
 
                 // Handle the monocle container separately
                 if ws.monocle_container().is_some() || is_maximized {
@@ -207,11 +205,7 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                     stackbars_monitors.insert(container.id().clone(), monitor_idx);
 
                     let rect = WindowsApi::window_rect(
-                        container
-                            .focused_window()
-                            .copied()
-                            .unwrap_or_default()
-                            .hwnd(),
+                        container.focused_window().copied().unwrap_or_default().hwnd,
                     )?;
 
                     stackbar.update(container_padding, container, &rect)?;
