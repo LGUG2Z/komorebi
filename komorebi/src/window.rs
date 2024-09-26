@@ -2,6 +2,7 @@ use crate::border_manager;
 use crate::com::SetCloak;
 use crate::focus_manager;
 use crate::stackbar_manager;
+use crate::windows_api;
 use crate::ANIMATIONS_IN_PROGRESS;
 use crate::ANIMATION_DURATION;
 use crate::ANIMATION_ENABLED;
@@ -70,8 +71,8 @@ impl From<isize> for Window {
 impl From<HWND> for Window {
     fn from(value: HWND) -> Self {
         Self {
-            hwnd: value.0,
-            animation: Animation::new(value.0),
+            hwnd: value.0 as isize,
+            animation: Animation::new(value.0 as isize),
         }
     }
 }
@@ -145,7 +146,7 @@ impl Serialize for Window {
         )?;
         state.serialize_field(
             "rect",
-            &WindowsApi::window_rect(self.hwnd()).unwrap_or_default(),
+            &WindowsApi::window_rect(self.hwnd).unwrap_or_default(),
         )?;
         state.end()
     }
@@ -153,7 +154,7 @@ impl Serialize for Window {
 
 impl Window {
     pub const fn hwnd(self) -> HWND {
-        HWND(self.hwnd)
+        HWND(windows_api::as_ptr!(self.hwnd))
     }
 
     pub fn center(&mut self, work_area: &Rect) -> Result<()> {
@@ -172,7 +173,6 @@ impl Window {
     }
 
     pub fn animate_position(&self, start_rect: &Rect, target_rect: &Rect, top: bool) -> Result<()> {
-        let hwnd = self.hwnd();
         let start_rect = *start_rect;
         let target_rect = *target_rect;
         let duration = Duration::from_millis(ANIMATION_DURATION.load(Ordering::SeqCst));
@@ -184,14 +184,16 @@ impl Window {
         stackbar_manager::STACKBAR_TEMPORARILY_DISABLED.store(true, Ordering::SeqCst);
         stackbar_manager::send_notification();
 
+        let hwnd = self.hwnd;
+
         std::thread::spawn(move || {
             animation.animate(duration, |progress: f64| {
                 let new_rect = Animation::lerp_rect(&start_rect, &target_rect, progress);
 
                 if progress == 1.0 {
                     WindowsApi::position_window(hwnd, &new_rect, top)?;
-                    if WindowsApi::foreground_window().unwrap_or_default() == hwnd.0 {
-                        focus_manager::send_notification(hwnd.0)
+                    if WindowsApi::foreground_window().unwrap_or_default() == hwnd {
+                        focus_manager::send_notification(hwnd)
                     }
 
                     if ANIMATIONS_IN_PROGRESS.load(Ordering::Acquire) == 0 {
@@ -218,7 +220,7 @@ impl Window {
     }
 
     pub fn set_position(&self, layout: &Rect, top: bool) -> Result<()> {
-        let window_rect = WindowsApi::window_rect(self.hwnd())?;
+        let window_rect = WindowsApi::window_rect(self.hwnd)?;
 
         if window_rect.eq(layout) {
             return Ok(());
@@ -227,20 +229,20 @@ impl Window {
         if ANIMATION_ENABLED.load(Ordering::SeqCst) {
             self.animate_position(&window_rect, layout, top)
         } else {
-            WindowsApi::position_window(self.hwnd(), layout, top)
+            WindowsApi::position_window(self.hwnd, layout, top)
         }
     }
 
     pub fn is_maximized(self) -> bool {
-        WindowsApi::is_zoomed(self.hwnd())
+        WindowsApi::is_zoomed(self.hwnd)
     }
 
     pub fn is_miminized(self) -> bool {
-        WindowsApi::is_iconic(self.hwnd())
+        WindowsApi::is_iconic(self.hwnd)
     }
 
     pub fn is_visible(self) -> bool {
-        WindowsApi::is_window_visible(self.hwnd())
+        WindowsApi::is_window_visible(self.hwnd)
     }
 
     pub fn hide(self) {
@@ -251,8 +253,8 @@ impl Window {
 
         let hiding_behaviour = HIDING_BEHAVIOUR.lock();
         match *hiding_behaviour {
-            HidingBehaviour::Hide => WindowsApi::hide_window(self.hwnd()),
-            HidingBehaviour::Minimize => WindowsApi::minimize_window(self.hwnd()),
+            HidingBehaviour::Hide => WindowsApi::hide_window(self.hwnd),
+            HidingBehaviour::Minimize => WindowsApi::minimize_window(self.hwnd),
             HidingBehaviour::Cloak => SetCloak(self.hwnd(), 1, 2),
         }
     }
@@ -269,18 +271,18 @@ impl Window {
         let hiding_behaviour = HIDING_BEHAVIOUR.lock();
         match *hiding_behaviour {
             HidingBehaviour::Hide | HidingBehaviour::Minimize => {
-                WindowsApi::restore_window(self.hwnd());
+                WindowsApi::restore_window(self.hwnd);
             }
             HidingBehaviour::Cloak => SetCloak(self.hwnd(), 1, 0),
         }
     }
 
     pub fn minimize(self) {
-        WindowsApi::minimize_window(self.hwnd());
+        WindowsApi::minimize_window(self.hwnd);
     }
 
     pub fn close(self) -> Result<()> {
-        WindowsApi::close_window(self.hwnd())
+        WindowsApi::close_window(self.hwnd)
     }
 
     pub fn maximize(self) {
@@ -292,7 +294,7 @@ impl Window {
             programmatically_hidden_hwnds.remove(idx);
         }
 
-        WindowsApi::maximize_window(self.hwnd());
+        WindowsApi::maximize_window(self.hwnd);
     }
 
     pub fn unmaximize(self) {
@@ -304,27 +306,27 @@ impl Window {
             programmatically_hidden_hwnds.remove(idx);
         }
 
-        WindowsApi::unmaximize_window(self.hwnd());
+        WindowsApi::unmaximize_window(self.hwnd);
     }
 
     pub fn focus(self, mouse_follows_focus: bool) -> Result<()> {
         // If the target window is already focused, do nothing.
         if let Ok(ihwnd) = WindowsApi::foreground_window() {
-            if HWND(ihwnd) == self.hwnd() {
+            if ihwnd == self.hwnd {
                 // Center cursor in Window
                 if mouse_follows_focus {
-                    WindowsApi::center_cursor_in_rect(&WindowsApi::window_rect(self.hwnd())?)?;
+                    WindowsApi::center_cursor_in_rect(&WindowsApi::window_rect(self.hwnd)?)?;
                 }
 
                 return Ok(());
             }
         }
 
-        WindowsApi::raise_and_focus_window(self.hwnd())?;
+        WindowsApi::raise_and_focus_window(self.hwnd)?;
 
         // Center cursor in Window
         if mouse_follows_focus {
-            WindowsApi::center_cursor_in_rect(&WindowsApi::window_rect(self.hwnd())?)?;
+            WindowsApi::center_cursor_in_rect(&WindowsApi::window_rect(self.hwnd)?)?;
         }
 
         Ok(())
@@ -335,7 +337,7 @@ impl Window {
         ex_style.insert(ExtendedWindowStyle::LAYERED);
         self.update_ex_style(&ex_style)?;
         WindowsApi::set_transparent(
-            self.hwnd(),
+            self.hwnd,
             transparency_manager::TRANSPARENCY_ALPHA.load_consume(),
         )
     }
@@ -356,29 +358,29 @@ impl Window {
 
     #[allow(dead_code)]
     pub fn update_style(self, style: &WindowStyle) -> Result<()> {
-        WindowsApi::update_style(self.hwnd(), isize::try_from(style.bits())?)
+        WindowsApi::update_style(self.hwnd, isize::try_from(style.bits())?)
     }
 
     pub fn update_ex_style(self, style: &ExtendedWindowStyle) -> Result<()> {
-        WindowsApi::update_ex_style(self.hwnd(), isize::try_from(style.bits())?)
+        WindowsApi::update_ex_style(self.hwnd, isize::try_from(style.bits())?)
     }
 
     pub fn style(self) -> Result<WindowStyle> {
-        let bits = u32::try_from(WindowsApi::gwl_style(self.hwnd())?)?;
+        let bits = u32::try_from(WindowsApi::gwl_style(self.hwnd)?)?;
         Ok(WindowStyle::from_bits_truncate(bits))
     }
 
     pub fn ex_style(self) -> Result<ExtendedWindowStyle> {
-        let bits = u32::try_from(WindowsApi::gwl_ex_style(self.hwnd())?)?;
+        let bits = u32::try_from(WindowsApi::gwl_ex_style(self.hwnd)?)?;
         Ok(ExtendedWindowStyle::from_bits_truncate(bits))
     }
 
     pub fn title(self) -> Result<String> {
-        WindowsApi::window_text_w(self.hwnd())
+        WindowsApi::window_text_w(self.hwnd)
     }
 
     pub fn path(self) -> Result<String> {
-        let (process_id, _) = WindowsApi::window_thread_process_id(self.hwnd());
+        let (process_id, _) = WindowsApi::window_thread_process_id(self.hwnd);
         let handle = WindowsApi::process_handle(process_id)?;
         let path = WindowsApi::exe_path(handle);
         WindowsApi::close_process(handle)?;
@@ -386,7 +388,7 @@ impl Window {
     }
 
     pub fn exe(self) -> Result<String> {
-        let (process_id, _) = WindowsApi::window_thread_process_id(self.hwnd());
+        let (process_id, _) = WindowsApi::window_thread_process_id(self.hwnd);
         let handle = WindowsApi::process_handle(process_id)?;
         let exe = WindowsApi::exe(handle);
         WindowsApi::close_process(handle)?;
@@ -394,20 +396,20 @@ impl Window {
     }
 
     pub fn process_id(self) -> u32 {
-        let (process_id, _) = WindowsApi::window_thread_process_id(self.hwnd());
+        let (process_id, _) = WindowsApi::window_thread_process_id(self.hwnd);
         process_id
     }
 
     pub fn class(self) -> Result<String> {
-        WindowsApi::real_window_class_w(self.hwnd())
+        WindowsApi::real_window_class_w(self.hwnd)
     }
 
     pub fn is_cloaked(self) -> Result<bool> {
-        WindowsApi::is_window_cloaked(self.hwnd())
+        WindowsApi::is_window_cloaked(self.hwnd)
     }
 
     pub fn is_window(self) -> bool {
-        WindowsApi::is_window(self.hwnd())
+        WindowsApi::is_window(self.hwnd)
     }
 
     pub fn remove_title_bar(self) -> Result<()> {
@@ -436,7 +438,7 @@ impl Window {
 
         debug.is_window = true;
 
-        let rect = WindowsApi::window_rect(self.hwnd()).unwrap_or_default();
+        let rect = WindowsApi::window_rect(self.hwnd).unwrap_or_default();
 
         if rect.right < MINIMUM_WIDTH.load(Ordering::SeqCst) {
             return Ok(false);

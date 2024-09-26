@@ -5,6 +5,7 @@ use crate::border_manager::BORDER_WIDTH;
 use crate::border_manager::FOCUS_STATE;
 use crate::border_manager::STYLE;
 use crate::border_manager::Z_ORDER;
+use crate::windows_api;
 use crate::WindowsApi;
 use crate::WINDOWS_11;
 
@@ -46,10 +47,11 @@ use windows::Win32::UI::WindowsAndMessaging::WNDCLASSW;
 
 pub extern "system" fn border_hwnds(hwnd: HWND, lparam: LPARAM) -> BOOL {
     let hwnds = unsafe { &mut *(lparam.0 as *mut Vec<isize>) };
+    let hwnd = hwnd.0 as isize;
 
     if let Ok(class) = WindowsApi::real_window_class_w(hwnd) {
         if class.starts_with("komoborder") {
-            hwnds.push(hwnd.0);
+            hwnds.push(hwnd);
         }
     }
 
@@ -69,7 +71,7 @@ impl From<isize> for Border {
 
 impl Border {
     pub const fn hwnd(&self) -> HWND {
-        HWND(self.hwnd)
+        HWND(windows_api::as_ptr!(self.hwnd))
     }
 
     pub fn create(id: &str) -> color_eyre::Result<Self> {
@@ -91,8 +93,9 @@ impl Border {
 
         let (hwnd_sender, hwnd_receiver) = mpsc::channel();
 
+        let instance = h_module.0 as isize;
         std::thread::spawn(move || -> color_eyre::Result<()> {
-            let hwnd = WindowsApi::create_border_window(PCWSTR(name.as_ptr()), h_module)?;
+            let hwnd = WindowsApi::create_border_window(PCWSTR(name.as_ptr()), instance)?;
             hwnd_sender.send(hwnd)?;
 
             let mut msg: MSG = MSG::default();
@@ -120,7 +123,7 @@ impl Border {
     }
 
     pub fn destroy(&self) -> color_eyre::Result<()> {
-        WindowsApi::close_window(self.hwnd())
+        WindowsApi::close_window(self.hwnd)
     }
 
     pub fn update(&self, rect: &Rect, mut should_invalidate: bool) -> color_eyre::Result<()> {
@@ -130,8 +133,8 @@ impl Border {
         rect.add_padding(-BORDER_OFFSET.load(Ordering::SeqCst));
 
         // Update the position of the border if required
-        if !WindowsApi::window_rect(self.hwnd())?.eq(&rect) {
-            WindowsApi::set_border_pos(self.hwnd(), &rect, HWND((Z_ORDER.load()).into()))?;
+        if !WindowsApi::window_rect(self.hwnd)?.eq(&rect) {
+            WindowsApi::set_border_pos(self.hwnd, &rect, Z_ORDER.load().into())?;
             should_invalidate = true;
         }
 
@@ -160,13 +163,13 @@ impl Border {
                     let hdc = BeginPaint(window, &mut ps);
 
                     // With the rect that we set in Self::update
-                    match WindowsApi::window_rect(window) {
+                    match WindowsApi::window_rect(window.0 as isize) {
                         Ok(rect) => {
                             // Grab the focus kind for this border
                             let window_kind = {
                                 FOCUS_STATE
                                     .lock()
-                                    .get(&window.0)
+                                    .get(&(window.0 as isize))
                                     .copied()
                                     .unwrap_or(WindowKind::Unfocused)
                             };
