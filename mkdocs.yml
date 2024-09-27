@@ -79,6 +79,7 @@ nav:
       - cli/stop.md
       - cli/check.md
       - cli/configuration.md
+      - cli/bar-configuration.md
       - cli/whkdrc.md
       - cli/state.md
       - cli/global-state.md
@@ -103,12 +104,13 @@ nav:
       - cli/cycle-focus.md
       - cli/cycle-move.md
       - cli/stack.md
+      - cli/unstack.md
+      - cli/cycle-stack.md
+      - cli/focus-stack-window.md
       - cli/stack-all.md
       - cli/unstack-all.md
       - cli/resize-edge.md
       - cli/resize-axis.md
-      - cli/unstack.md
-      - cli/cycle-stack.md
       - cli/move-to-monitor.md
       - cli/cycle-move-to-monitor.md
       - cli/move-to-workspace.md
@@ -179,6 +181,7 @@ nav:
       - cli/restore-windows.md
       - cli/manage.md
       - cli/unmanage.md
+      - cli/replace-configuration.md
       - cli/reload-configuration.md
       - cli/watch-configuration.md
       - cli/complete-configuration.md
@@ -208,6 +211,11 @@ nav:
       - cli/border-implementation.md
       - cli/transparency.md
       - cli/transparency-alpha.md
+      - cli/toggle-transparency.md
+      - cli/animation.md
+      - cli/animation-duration.md
+      - cli/animation-fps.md
+      - cli/animation-style.md
       - cli/focus-follows-mouse.md
       - cli/toggle-focus-follows-mouse.md
       - cli/mouse-follows-focus.md

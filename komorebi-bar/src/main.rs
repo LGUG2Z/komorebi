@@ -15,7 +15,6 @@ use crate::bar::Komobar;
 use crate::config::KomobarConfig;
 use crate::config::Position;
 use clap::Parser;
-use color_eyre::eyre::OptionExt;
 use eframe::egui::ViewportBuilder;
 use font_loader::system_fonts;
 use hotwatch::EventKind;
@@ -45,6 +44,9 @@ struct Opts {
     /// Path to a JSON or YAML configuration file
     #[clap(short, long)]
     config: Option<PathBuf>,
+    /// Write an example komorebi.bar.json to disk
+    #[clap(long)]
+    quickstart: bool,
 }
 
 fn main() -> color_eyre::Result<()> {
@@ -102,28 +104,43 @@ fn main() -> color_eyre::Result<()> {
         },
     );
 
+    if opts.quickstart {
+        let komorebi_bar_json = include_str!("../../docs/komorebi.bar.example.json").to_string();
+        std::fs::write(home_dir.join("komorebi.bar.json"), komorebi_bar_json)?;
+        println!(
+            "Example komorebi.bar.json file written to {}",
+            home_dir.as_path().display()
+        );
+
+        std::process::exit(0);
+    }
+
+    let default_config_path = home_dir.join("komorebi.bar.json");
+
     let config_path = opts.config.map_or_else(
         || {
-            let mut config = home_dir.join("komorebi.bar.json");
-            if !config.is_file() {
-                config.pop();
-                config.push("komorebi.bar.yaml");
-            }
-
-            if !config.is_file() {
+            if !default_config_path.is_file() {
                 None
             } else {
-                Some(config)
+                Some(default_config_path.clone())
             }
         },
         Option::from,
     );
 
     let config = match config_path {
-        None => panic!(
-            "no komorebi.bar.json or komorebi.bar.yaml found in {}",
-            home_dir.as_path().to_string_lossy()
-        ),
+        None => {
+            let komorebi_bar_json =
+                include_str!("../../docs/komorebi.bar.example.json").to_string();
+
+            std::fs::write(&default_config_path, komorebi_bar_json)?;
+            tracing::info!(
+                "created example configuration file: {}",
+                default_config_path.as_path().display()
+            );
+
+            KomobarConfig::read(&default_config_path)?
+        }
         Some(ref config) => {
             tracing::info!(
                 "found configuration file: {}",
@@ -134,7 +151,7 @@ fn main() -> color_eyre::Result<()> {
         }
     };
 
-    let config_path = config_path.ok_or_eyre("config path not found")?;
+    let config_path = config_path.unwrap_or(default_config_path);
 
     let state = serde_json::from_str::<komorebi_client::State>(&komorebi_client::send_query(
         &SocketMessage::State,

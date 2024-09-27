@@ -1,7 +1,7 @@
 # reload-configuration
 
 ```
-Reload ~/komorebi.ahk (if it exists)
+Reload legacy komorebi.ahk or komorebi.ps1 configurations (if they exist)
 
 Usage: komorebic.exe reload-configuration
 
