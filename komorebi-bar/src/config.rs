@@ -57,7 +57,6 @@ impl KomobarConfig {
     pub fn read(path: &PathBuf) -> color_eyre::Result<Self> {
         let content = std::fs::read_to_string(path)?;
         let mut value: Self = match path.extension().unwrap().to_string_lossy().as_str() {
-            "yaml" => serde_yaml::from_str(&content)?,
             "json" => serde_json::from_str(&content)?,
             _ => panic!("unsupported format"),
         };

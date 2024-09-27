@@ -27,7 +27,6 @@ num-traits = "0.2.19"
 schemars = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
-serde_yaml = "0.8"
 starship-battery = "0.10"
 sysinfo = { workspace = true }
 tracing = { workspace = true }
