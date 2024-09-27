@@ -10,6 +10,7 @@ use serde::Serialize;
 use std::path::PathBuf;
 
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
+/// The `komorebi.bar.json` configuration file reference for `v0.1.29`
 pub struct KomobarConfig {
     /// Viewport options (see: https://docs.rs/egui/latest/egui/viewport/struct.ViewportBuilder.html)
     pub viewport: Option<ViewportConfig>,
