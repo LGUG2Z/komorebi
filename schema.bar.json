@@ -1,6 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "KomobarConfig",
+  "description": "The `komorebi.bar.json` configuration file reference for `v0.1.29`",
   "type": "object",
   "required": [
     "left_widgets",
