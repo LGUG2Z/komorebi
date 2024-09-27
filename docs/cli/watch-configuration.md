@@ -1,7 +1,7 @@
 # watch-configuration
 
 ```
-Enable or disable watching of ~/komorebi.ahk (if it exists)
+Enable or disable watching of legacy komorebi.ahk or komorebi.ps1 configurations (if they exist)
 
 Usage: komorebic.exe watch-configuration <BOOLEAN_STATE>
 

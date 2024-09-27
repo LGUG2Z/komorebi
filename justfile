@@ -42,7 +42,7 @@ deadlock $RUST_LOG="trace":
     cargo +stable run --bin komorebi --locked --features deadlock_detection
 
 docgen:
-    komorebic docgen
+    cargo run --package komorebic -- docgen
     Get-ChildItem -Path "docs/cli" -Recurse -File | ForEach-Object { (Get-Content $_.FullName) -replace 'Usage: ', 'Usage: komorebic.exe ' | Set-Content $_.FullName }
 
 schemagen:

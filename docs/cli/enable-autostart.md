@@ -18,6 +18,9 @@ Options:
       --ahk
           Enable autostart of ahk
 
+      --bar
+          Enable autostart of komorebi-bar
+
   -h, --help
           Print help
 

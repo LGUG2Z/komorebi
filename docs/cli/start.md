@@ -24,6 +24,9 @@ Options:
       --ahk
           Start autohotkey configuration file
 
+      --bar
+          Start komorebi-bar in a background process
+
   -h, --help
           Print help
 

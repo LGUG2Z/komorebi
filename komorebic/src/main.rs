@@ -897,6 +897,7 @@ enum SubCommand {
     /// Show the path to komorebi.json
     #[clap(alias = "config")]
     Configuration,
+    /// Show the path to komorebi.bar.json
     #[clap(alias = "bar-config")]
     #[clap(alias = "bconfig")]
     BarConfiguration,
@@ -1281,16 +1282,16 @@ enum SubCommand {
     TransparencyAlpha(TransparencyAlpha),
     /// Toggle transparency for unfocused windows
     ToggleTransparency,
-    /// Enable or disable the window move animation
+    /// Enable or disable movement animations
     #[clap(arg_required_else_help = true)]
     Animation(Animation),
-    /// Set the duration for the window move animation in ms
+    /// Set the duration for movement animations in ms
     #[clap(arg_required_else_help = true)]
     AnimationDuration(AnimationDuration),
-    /// Set the frames per second for the window move animation
+    /// Set the frames per second for movement animations
     #[clap(arg_required_else_help = true)]
     AnimationFps(AnimationFps),
-    /// Set the ease function for the window move animation
+    /// Set the ease function for movement animations
     #[clap(arg_required_else_help = true)]
     AnimationStyle(AnimationStyle),
     /// Enable or disable focus follows mouse for the operating system
