@@ -50,3 +50,5 @@ schemagen:
     cargo run --package komorebic -- application-specific-configuration-schema > schema.asc.json
     cargo run --package komorebi-bar -- --schema > schema.bar.json
     generate-schema-doc .\schema.json --config template_name=js_offline --config minify=false .\static-config-docs\
+    generate-schema-doc .\schema.bar.json --config template_name=js_offline --config minify=false .\bar-config-docs\
+    mv .\bar-config-docs\schema.bar.html .\bar-config-docs\schema.html

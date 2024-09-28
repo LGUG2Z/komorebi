@@ -105,7 +105,7 @@ jobs:
       - name: Check GoReleaser
         uses: goreleaser/goreleaser-action@v3
         env:
-          GORELEASER_CURRENT_TAG: v0.1.28
+          GORELEASER_CURRENT_TAG: v0.1.29
         with:
           version: latest
           args: build --skip=validate --clean

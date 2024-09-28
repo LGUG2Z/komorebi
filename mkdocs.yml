@@ -73,6 +73,7 @@ nav:
   - Release notes:
       - release/v0-1-22.md
   - Configuration reference: https://komorebi.lgug2z.com/schema
+  - Bar reference: https://komorebi-bar.lgug2z.com/schema
   - CLI reference:
       - cli/quickstart.md
       - cli/start.md

@@ -1,6 +1,6 @@
 [package]
 name = "komorebi-bar"
-version = "0.1.29"
+version = "0.1.30"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -20,7 +20,7 @@ egui-phosphor = "0.6.0"
 font-loader = "0.11"
 hotwatch = { workspace = true }
 image = "0.25"
-netdev = "0.30"
+netdev = "0.31"
 num = "0.4.3"
 num-derive = "0.4.2"
 num-traits = "0.2.19"
