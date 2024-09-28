@@ -1,4 +1,6 @@
 use crate::animation::lerp::Lerp;
+use crate::animation::prefix::new_animation_key;
+use crate::animation::prefix::AnimationPrefix;
 use crate::animation::ANIMATION_DURATION;
 use crate::animation::ANIMATION_ENABLED;
 use crate::animation::ANIMATION_MANAGER;
@@ -212,7 +214,7 @@ impl Window {
 
         std::thread::spawn(move || {
             Animation::animate(
-                format!("window_move:{}", hwnd).as_str(),
+                new_animation_key(AnimationPrefix::WindowMove, hwnd.to_string()).as_str(),
                 duration,
                 |progress: f64| {
                     let new_rect = start_rect.lerp(target_rect, progress, style);
