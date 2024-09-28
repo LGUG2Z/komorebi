@@ -56,11 +56,11 @@ impl Animation {
 
     #[allow(clippy::cast_precision_loss)]
     pub fn animate(
-        animation_key: String,
-        duration: Duration,
         render_dispatcher: (impl RenderDispatcher + Send + 'static),
+        duration: Duration,
     ) -> Result<()> {
         std::thread::spawn(move || {
+            let animation_key = render_dispatcher.get_animation_key();
             if ANIMATION_MANAGER.lock().in_progress(animation_key.as_str()) {
                 let should_animate = Self::cancel(animation_key.as_str());
 
