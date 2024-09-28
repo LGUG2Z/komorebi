@@ -42,6 +42,7 @@ use crate::MANAGE_IDENTIFIERS;
 use crate::MONITOR_INDEX_PREFERENCES;
 use crate::OBJECT_NAME_CHANGE_ON_LAUNCH;
 use crate::REGEX_IDENTIFIERS;
+use crate::TRANSPARENCY_BLACKLIST;
 use crate::TRAY_AND_MULTI_WINDOW_IDENTIFIERS;
 use crate::WINDOWS_11;
 use crate::WORKSPACE_RULES;
@@ -313,6 +314,9 @@ pub struct StaticConfig {
     /// Alpha value for unfocused window transparency [[0-255]] (default: 200)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub transparency_alpha: Option<u8>,
+    /// Individual window transparency ignore rules
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub transparency_ignore_rules: Option<Vec<MatchingRule>>,
     /// Global default workspace padding (default: 10)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub default_workspace_padding: Option<i32>,
@@ -637,6 +641,7 @@ impl From<&WindowManager> for StaticConfig {
             transparency_alpha: Option::from(
                 transparency_manager::TRANSPARENCY_ALPHA.load(Ordering::SeqCst),
             ),
+            transparency_ignore_rules: None,
             border_style: Option::from(STYLE.load()),
             border_z_order: Option::from(Z_ORDER.load()),
             border_implementation: Option::from(IMPLEMENTATION.load()),
@@ -767,6 +772,7 @@ impl StaticConfig {
         let mut tray_and_multi_window_identifiers = TRAY_AND_MULTI_WINDOW_IDENTIFIERS.lock();
         let mut object_name_change_identifiers = OBJECT_NAME_CHANGE_ON_LAUNCH.lock();
         let mut layered_identifiers = LAYERED_WHITELIST.lock();
+        let mut transparency_blacklist = TRANSPARENCY_BLACKLIST.lock();
 
         if let Some(rules) = &mut self.float_rules {
             populate_rules(rules, &mut float_identifiers, &mut regex_identifiers)?;
@@ -794,6 +800,10 @@ impl StaticConfig {
                 &mut tray_and_multi_window_identifiers,
                 &mut regex_identifiers,
             )?;
+        }
+
+        if let Some(rules) = &mut self.transparency_ignore_rules {
+            populate_rules(rules, &mut transparency_blacklist, &mut regex_identifiers)?;
         }
 
         if let Some(stackbar) = &self.stackbar {

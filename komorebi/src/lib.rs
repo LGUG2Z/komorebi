@@ -130,6 +130,7 @@ lazy_static! {
             matching_strategy: Option::from(MatchingStrategy::Equals),
         }),
     ]));
+    static ref TRANSPARENCY_BLACKLIST: Arc<Mutex<Vec<MatchingRule>>> = Arc::new(Mutex::new(Vec::new()));
     static ref MONITOR_INDEX_PREFERENCES: Arc<Mutex<HashMap<usize, Rect>>> =
         Arc::new(Mutex::new(HashMap::new()));
     static ref DISPLAY_INDEX_PREFERENCES: Arc<Mutex<HashMap<usize, String>>> =
