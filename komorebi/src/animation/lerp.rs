@@ -24,6 +24,12 @@ impl Lerp for f64 {
     }
 }
 
+impl Lerp for u8 {
+    fn lerp(self, end: u8, time: f64, style: AnimationStyle) -> u8 {
+        (self as f64).lerp(end as f64, time, style) as u8
+    }
+}
+
 impl Lerp for Rect {
     fn lerp(self, end: Rect, time: f64, style: AnimationStyle) -> Rect {
         Rect {

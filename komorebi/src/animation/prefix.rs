@@ -10,6 +10,7 @@ use strum::EnumString;
 )]
 pub enum AnimationPrefix {
     WindowMove,
+    WindowTransparency,
 }
 
 pub fn new_animation_key(prefix: AnimationPrefix, key: String) -> String {
