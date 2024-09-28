@@ -12,6 +12,7 @@ pub mod animation;
 pub use animation::Animation;
 pub mod animation_manager;
 pub mod lerp;
+pub mod prefix;
 pub mod style;
 
 lazy_static! {
