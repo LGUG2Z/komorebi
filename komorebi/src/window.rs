@@ -167,7 +167,6 @@ struct WindowMoveRenderDispatcher {
 
 impl WindowMoveRenderDispatcher {
     pub fn new(
-        prefix: AnimationPrefix,
         hwnd: isize,
         start_rect: Rect,
         target_rect: Rect,
@@ -175,7 +174,7 @@ impl WindowMoveRenderDispatcher {
         style: AnimationStyle,
     ) -> Self {
         Self {
-            prefix,
+            prefix: AnimationPrefix::WindowMove,
             hwnd,
             start_rect,
             target_rect,
@@ -220,6 +219,71 @@ impl RenderDispatcher for WindowMoveRenderDispatcher {
             border_manager::send_notification(Some(self.hwnd));
             stackbar_manager::send_notification();
             transparency_manager::send_notification();
+        }
+
+        Ok(())
+    }
+}
+
+struct WindowTransparencyRenderDispatcher {
+    prefix: AnimationPrefix,
+    hwnd: isize,
+    start_opacity: u8,
+    target_opacity: u8,
+    style: AnimationStyle,
+    is_opaque: bool,
+    is_transparent: bool,
+}
+
+impl WindowTransparencyRenderDispatcher {
+    pub fn new(
+        hwnd: isize,
+        is_opaque: bool,
+        is_transparent: bool,
+        start_opacity: u8,
+        target_opacity: u8,
+        style: AnimationStyle,
+    ) -> Self {
+        Self {
+            prefix: AnimationPrefix::WindowTransparency,
+            hwnd,
+            start_opacity,
+            target_opacity,
+            style,
+            is_opaque,
+            is_transparent,
+        }
+    }
+}
+
+impl RenderDispatcher for WindowTransparencyRenderDispatcher {
+    fn pre_render(&self) -> Result<()> {
+        //transparent
+        if self.is_transparent {
+            let window = Window::from(self.hwnd);
+            let mut ex_style = window.ex_style()?;
+            ex_style.insert(ExtendedWindowStyle::LAYERED);
+            window.update_ex_style(&ex_style)?;
+        }
+
+        Ok(())
+    }
+
+    fn render(&self, progress: f64) -> Result<()> {
+        WindowsApi::set_transparent(
+            self.hwnd,
+            self.start_opacity
+                .lerp(self.target_opacity, progress, self.style),
+        )
+    }
+
+    fn post_render(&self) -> Result<()> {
+        //opaque
+        if self.is_opaque {
+            let window = Window::from(self.hwnd);
+            let mut ex_style = window.ex_style()?;
+            ex_style.remove(ExtendedWindowStyle::LAYERED);
+            window.update_ex_style(&ex_style)?;
         }
 
         Ok(())
@@ -282,17 +346,11 @@ impl Window {
             let duration = Duration::from_millis(ANIMATION_DURATION.load(Ordering::SeqCst));
             let style = *ANIMATION_STYLE.lock();
 
-            let render_dispatcher = WindowMoveRenderDispatcher::new(
-                AnimationPrefix::WindowMove,
-                self.hwnd,
-                window_rect,
-                *layout,
-                top,
-                style,
-            );
+            let render_dispatcher =
+                WindowMoveRenderDispatcher::new(self.hwnd, window_rect, *layout, top, style);
 
             Animation::animate(
-                new_animation_key(AnimationPrefix::WindowMove, self.hwnd.to_string()),
+                new_animation_key(render_dispatcher.prefix, self.hwnd.to_string()),
                 duration,
                 render_dispatcher,
             )
@@ -404,19 +462,60 @@ impl Window {
     }
 
     pub fn transparent(self) -> Result<()> {
-        let mut ex_style = self.ex_style()?;
-        ex_style.insert(ExtendedWindowStyle::LAYERED);
-        self.update_ex_style(&ex_style)?;
-        WindowsApi::set_transparent(
-            self.hwnd,
-            transparency_manager::TRANSPARENCY_ALPHA.load_consume(),
-        )
+        if ANIMATION_ENABLED.load(Ordering::SeqCst) {
+            let duration = Duration::from_millis(ANIMATION_DURATION.load(Ordering::SeqCst));
+            let style = *ANIMATION_STYLE.lock();
+
+            let render_dispatcher = WindowTransparencyRenderDispatcher::new(
+                self.hwnd,
+                false,
+                true,
+                WindowsApi::get_transparent(self.hwnd).unwrap_or(255),
+                transparency_manager::TRANSPARENCY_ALPHA.load_consume(),
+                style,
+            );
+
+            Animation::animate(
+                new_animation_key(render_dispatcher.prefix, self.hwnd.to_string()),
+                duration,
+                render_dispatcher,
+            )
+        } else {
+            let mut ex_style = self.ex_style()?;
+            ex_style.insert(ExtendedWindowStyle::LAYERED);
+            self.update_ex_style(&ex_style)?;
+            WindowsApi::set_transparent(
+                self.hwnd,
+                transparency_manager::TRANSPARENCY_ALPHA.load_consume(),
+            )
+        }
     }
 
     pub fn opaque(self) -> Result<()> {
-        let mut ex_style = self.ex_style()?;
-        ex_style.remove(ExtendedWindowStyle::LAYERED);
-        self.update_ex_style(&ex_style)
+        if ANIMATION_ENABLED.load(Ordering::SeqCst) {
+            let duration = Duration::from_millis(ANIMATION_DURATION.load(Ordering::SeqCst));
+            let style = *ANIMATION_STYLE.lock();
+
+            let render_dispatcher = WindowTransparencyRenderDispatcher::new(
+                self.hwnd,
+                true,
+                false,
+                WindowsApi::get_transparent(self.hwnd)
+                    .unwrap_or(transparency_manager::TRANSPARENCY_ALPHA.load_consume()),
+                255,
+                style,
+            );
+
+            Animation::animate(
+                new_animation_key(render_dispatcher.prefix, self.hwnd.to_string()),
+                duration,
+                render_dispatcher,
+            )
+        } else {
+            let mut ex_style = self.ex_style()?;
+            ex_style.remove(ExtendedWindowStyle::LAYERED);
+            self.update_ex_style(&ex_style)
+        }
     }
 
     pub fn set_accent(self, colour: u32) -> Result<()> {

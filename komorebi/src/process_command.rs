@@ -22,6 +22,7 @@ use schemars::gen::SchemaSettings;
 use schemars::schema_for;
 use uds_windows::UnixStream;
 
+use crate::animation::Animation;
 use crate::core::config_generation::ApplicationConfiguration;
 use crate::core::config_generation::IdWithIdentifier;
 use crate::core::config_generation::MatchingRule;
@@ -876,7 +877,10 @@ impl WindowManager {
                 tracing::info!(
                     "received stop command, restoring all hidden windows and terminating process"
                 );
+
+                ANIMATION_ENABLED.store(false, Ordering::SeqCst);
                 self.restore_all_windows()?;
+                Animation::wait_for_all_animations();
 
                 if WindowsApi::focus_follows_mouse()? {
                     WindowsApi::disable_focus_follows_mouse()?;

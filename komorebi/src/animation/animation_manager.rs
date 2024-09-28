@@ -108,4 +108,8 @@ impl AnimationManager {
             .filter(|key| key.starts_with(animation_key_prefix.to_string().as_str()))
             .count()
     }
+
+    pub fn count(&self) -> usize {
+        self.animations.len()
+    }
 }

@@ -17,6 +17,21 @@ use super::ANIMATION_MANAGER;
 pub struct Animation;
 
 impl Animation {
+    pub fn wait_for_all_animations() {
+        let max_duration = Duration::from_secs(20);
+        let spent_duration = Instant::now();
+
+        while ANIMATION_MANAGER.lock().count() > 0 {
+            if spent_duration.elapsed() >= max_duration {
+                break;
+            }
+
+            std::thread::sleep(Duration::from_millis(
+                ANIMATION_DURATION.load(Ordering::SeqCst),
+            ));
+        }
+    }
+
     /// Returns true if the animation needs to continue
     pub fn cancel(animation_key: &str) -> bool {
         // should be more than 0
@@ -29,9 +44,7 @@ impl Animation {
                 ANIMATION_MANAGER.lock().end(animation_key);
             }
 
-            std::thread::sleep(Duration::from_millis(
-                ANIMATION_DURATION.load(Ordering::SeqCst) / 2,
-            ));
+            std::thread::sleep(Duration::from_millis(250 / 2));
         }
 
         let latest_cancel_idx = ANIMATION_MANAGER.lock().latest_cancel_idx(animation_key);
