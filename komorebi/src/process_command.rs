@@ -1395,7 +1395,7 @@ impl WindowManager {
                         }
                     }
 
-                    border_manager::send_notification();
+                    border_manager::send_notification(None);
                 }
             }
             SocketMessage::BorderColour(kind, r, g, b) => match kind {
@@ -1410,6 +1410,9 @@ impl WindowManager {
                 }
                 WindowKind::Unfocused => {
                     border_manager::UNFOCUSED.store(Rgb::new(r, g, b).into(), Ordering::SeqCst);
+                }
+                WindowKind::Floating => {
+                    border_manager::FLOATING.store(Rgb::new(r, g, b).into(), Ordering::SeqCst);
                 }
             },
             SocketMessage::BorderStyle(style) => {
@@ -1540,7 +1543,7 @@ impl WindowManager {
         };
 
         notify_subscribers(&serde_json::to_string(&notification)?)?;
-        border_manager::send_notification();
+        border_manager::send_notification(None);
         transparency_manager::send_notification();
         stackbar_manager::send_notification();
 

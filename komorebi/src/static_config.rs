@@ -35,6 +35,7 @@ use crate::DATA_DIR;
 use crate::DEFAULT_CONTAINER_PADDING;
 use crate::DEFAULT_WORKSPACE_PADDING;
 use crate::DISPLAY_INDEX_PREFERENCES;
+use crate::FLOATING_APPLICATIONS;
 use crate::FLOAT_IDENTIFIERS;
 use crate::HIDING_BEHAVIOUR;
 use crate::LAYERED_WHITELIST;
@@ -304,10 +305,14 @@ pub struct StaticConfig {
     pub global_work_area_offset: Option<Rect>,
     /// Individual window floating rules
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub float_rules: Option<Vec<MatchingRule>>,
+    #[serde(alias = "float_rules")]
+    pub ignore_rules: Option<Vec<MatchingRule>>,
     /// Individual window force-manage rules
     #[serde(skip_serializing_if = "Option::is_none")]
     pub manage_rules: Option<Vec<MatchingRule>>,
+    /// Identify applications which should be managed as floating windows
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub floating_applications: Option<Vec<MatchingRule>>,
     /// Identify border overflow applications
     #[serde(skip_serializing_if = "Option::is_none")]
     pub border_overflow_applications: Option<Vec<MatchingRule>>,
@@ -371,6 +376,8 @@ pub enum KomorebiTheme {
         stack_border: Option<komorebi_themes::CatppuccinValue>,
         /// Border colour when the container is in monocle mode (default: Pink)
         monocle_border: Option<komorebi_themes::CatppuccinValue>,
+        /// Border colour when the window is floating (default: Yellow)
+        floating_border: Option<komorebi_themes::CatppuccinValue>,
         /// Border colour when the container is unfocused (default: Base)
         unfocused_border: Option<komorebi_themes::CatppuccinValue>,
         /// Stackbar focused tab text colour (default: Green)
@@ -392,6 +399,8 @@ pub enum KomorebiTheme {
         stack_border: Option<komorebi_themes::Base16Value>,
         /// Border colour when the container is in monocle mode (default: Base0F)
         monocle_border: Option<komorebi_themes::Base16Value>,
+        /// Border colour when the window is floating (default: Base09)
+        floating_border: Option<komorebi_themes::Base16Value>,
         /// Border colour when the container is unfocused (default: Base01)
         unfocused_border: Option<komorebi_themes::Base16Value>,
         /// Stackbar focused tab text colour (default: Base0B)
@@ -545,7 +554,8 @@ impl From<&WindowManager> for StaticConfig {
             monitors: Option::from(monitors),
             window_hiding_behaviour: Option::from(*HIDING_BEHAVIOUR.lock()),
             global_work_area_offset: value.work_area_offset,
-            float_rules: None,
+            ignore_rules: None,
+            floating_applications: None,
             manage_rules: None,
             border_overflow_applications: None,
             tray_and_multi_window_applications: None,
@@ -654,7 +664,7 @@ impl StaticConfig {
                 }
             }
 
-            border_manager::send_notification();
+            border_manager::send_notification(None);
         }
 
         transparency_manager::TRANSPARENCY_ENABLED
@@ -670,9 +680,14 @@ impl StaticConfig {
         let mut layered_identifiers = LAYERED_WHITELIST.lock();
         let mut transparency_blacklist = TRANSPARENCY_BLACKLIST.lock();
         let mut slow_application_identifiers = SLOW_APPLICATION_IDENTIFIERS.lock();
+        let mut floating_applications = FLOATING_APPLICATIONS.lock();
 
-        if let Some(rules) = &mut self.float_rules {
+        if let Some(rules) = &mut self.ignore_rules {
             populate_rules(rules, &mut float_identifiers, &mut regex_identifiers)?;
+        }
+
+        if let Some(rules) = &mut self.floating_applications {
+            populate_rules(rules, &mut floating_applications, &mut regex_identifiers)?;
         }
 
         if let Some(rules) = &mut self.manage_rules {
@@ -752,6 +767,7 @@ impl StaticConfig {
                 single_border,
                 stack_border,
                 monocle_border,
+                floating_border,
                 unfocused_border,
                 stackbar_focused_text,
                 stackbar_unfocused_text,
@@ -762,6 +778,7 @@ impl StaticConfig {
                     single_border,
                     stack_border,
                     monocle_border,
+                    floating_border,
                     unfocused_border,
                     stackbar_focused_text,
                     stackbar_unfocused_text,
@@ -778,6 +795,10 @@ impl StaticConfig {
 
                     let monocle_border = monocle_border
                         .unwrap_or(komorebi_themes::CatppuccinValue::Pink)
+                        .color32(name.as_theme());
+
+                    let floating_border = floating_border
+                        .unwrap_or(komorebi_themes::CatppuccinValue::Yellow)
                         .color32(name.as_theme());
 
                     let unfocused_border = unfocused_border
@@ -800,6 +821,7 @@ impl StaticConfig {
                         single_border,
                         stack_border,
                         monocle_border,
+                        floating_border,
                         unfocused_border,
                         stackbar_focused_text,
                         stackbar_unfocused_text,
@@ -811,6 +833,7 @@ impl StaticConfig {
                     single_border,
                     stack_border,
                     monocle_border,
+                    floating_border,
                     unfocused_border,
                     stackbar_focused_text,
                     stackbar_unfocused_text,
@@ -833,6 +856,10 @@ impl StaticConfig {
                         .unwrap_or(komorebi_themes::Base16Value::Base01)
                         .color32(*name);
 
+                    let floating_border = floating_border
+                        .unwrap_or(komorebi_themes::Base16Value::Base09)
+                        .color32(*name);
+
                     let stackbar_focused_text = stackbar_focused_text
                         .unwrap_or(komorebi_themes::Base16Value::Base0B)
                         .color32(*name);
@@ -849,6 +876,7 @@ impl StaticConfig {
                         single_border,
                         stack_border,
                         monocle_border,
+                        floating_border,
                         unfocused_border,
                         stackbar_focused_text,
                         stackbar_unfocused_text,
@@ -861,6 +889,8 @@ impl StaticConfig {
             border_manager::MONOCLE
                 .store(u32::from(Colour::from(monocle_border)), Ordering::SeqCst);
             border_manager::STACK.store(u32::from(Colour::from(stack_border)), Ordering::SeqCst);
+            border_manager::FLOATING
+                .store(u32::from(Colour::from(floating_border)), Ordering::SeqCst);
             border_manager::UNFOCUSED
                 .store(u32::from(Colour::from(unfocused_border)), Ordering::SeqCst);
 

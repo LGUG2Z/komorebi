@@ -181,7 +181,7 @@ impl Window {
         let mut animation = self.animation;
 
         border_manager::BORDER_TEMPORARILY_DISABLED.store(true, Ordering::SeqCst);
-        border_manager::send_notification();
+        border_manager::send_notification(Some(self.hwnd));
 
         stackbar_manager::STACKBAR_TEMPORARILY_DISABLED.store(true, Ordering::SeqCst);
         stackbar_manager::send_notification();
@@ -203,7 +203,7 @@ impl Window {
                         stackbar_manager::STACKBAR_TEMPORARILY_DISABLED
                             .store(false, Ordering::SeqCst);
 
-                        border_manager::send_notification();
+                        border_manager::send_notification(Some(hwnd));
                         stackbar_manager::send_notification();
                         transparency_manager::send_notification();
                     }

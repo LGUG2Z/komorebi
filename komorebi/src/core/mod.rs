@@ -294,6 +294,7 @@ pub enum WindowKind {
     Stack,
     Monocle,
     Unfocused,
+    Floating,
 }
 
 #[derive(
