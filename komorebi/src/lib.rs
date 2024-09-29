@@ -139,7 +139,7 @@ lazy_static! {
     static ref REGEX_IDENTIFIERS: Arc<Mutex<HashMap<String, Regex>>> =
         Arc::new(Mutex::new(HashMap::new()));
     static ref MANAGE_IDENTIFIERS: Arc<Mutex<Vec<MatchingRule>>> = Arc::new(Mutex::new(vec![]));
-    static ref FLOAT_IDENTIFIERS: Arc<Mutex<Vec<MatchingRule>>> = Arc::new(Mutex::new(vec![
+    static ref IGNORE_IDENTIFIERS: Arc<Mutex<Vec<MatchingRule>>> = Arc::new(Mutex::new(vec![
         // mstsc.exe creates these on Windows 11 when a WSL process is launched
         // https://github.com/LGUG2Z/komorebi/issues/74
         MatchingRule::Simple(IdWithIdentifier {
@@ -158,6 +158,7 @@ lazy_static! {
             matching_strategy: Option::from(MatchingStrategy::Equals),
         })
     ]));
+    static ref FLOATING_APPLICATIONS: Arc<Mutex<Vec<MatchingRule>>> = Arc::new(Mutex::new(Vec::new()));
     static ref PERMAIGNORE_CLASSES: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(vec![
         "Chrome_RenderWidgetHostHWND".to_string(),
     ]));
@@ -224,7 +225,6 @@ lazy_static! {
 
     static ref WINDOWS_BY_BAR_HWNDS: Arc<Mutex<HashMap<isize, VecDeque<isize>>>> =
         Arc::new(Mutex::new(HashMap::new()));
-
 }
 
 pub static DEFAULT_WORKSPACE_PADDING: AtomicI32 = AtomicI32::new(10);

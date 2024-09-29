@@ -174,7 +174,8 @@ pub enum SocketMessage {
     ClearWorkspaceRules(usize, usize),
     ClearNamedWorkspaceRules(String),
     ClearAllWorkspaceRules,
-    FloatRule(ApplicationIdentifier, String),
+    #[serde(alias = "FloatRule")]
+    IgnoreRule(ApplicationIdentifier, String),
     ManageRule(ApplicationIdentifier, String),
     IdentifyObjectNameChangeApplication(ApplicationIdentifier, String),
     IdentifyTrayApplication(ApplicationIdentifier, String),
@@ -294,6 +295,7 @@ pub enum WindowKind {
     Stack,
     Monocle,
     Unfocused,
+    Floating,
 }
 
 #[derive(
