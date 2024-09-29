@@ -583,7 +583,7 @@ macro_rules! gen_application_target_subcommand_args {
 }
 
 gen_application_target_subcommand_args! {
-    FloatRule,
+    IgnoreRule,
     ManageRule,
     IdentifyTrayApplication,
     IdentifyLayeredApplication,
@@ -1208,9 +1208,10 @@ enum SubCommand {
     /// Set the operation behaviour when the focused window is not managed
     #[clap(arg_required_else_help = true)]
     UnmanagedWindowOperationBehaviour(UnmanagedWindowOperationBehaviour),
-    /// Add a rule to always float the specified application
+    /// Add a rule to ignore the specified application
     #[clap(arg_required_else_help = true)]
-    FloatRule(FloatRule),
+    #[clap(alias = "float-rule")]
+    IgnoreRule(IgnoreRule),
     /// Add a rule to always manage the specified application
     #[clap(arg_required_else_help = true)]
     ManageRule(ManageRule),
@@ -2128,8 +2129,8 @@ Stop-Process -Name:komorebi -ErrorAction SilentlyContinue
                 }
             }
         }
-        SubCommand::FloatRule(arg) => {
-            send_message(&SocketMessage::FloatRule(arg.identifier, arg.id))?;
+        SubCommand::IgnoreRule(arg) => {
+            send_message(&SocketMessage::IgnoreRule(arg.identifier, arg.id))?;
         }
         SubCommand::ManageRule(arg) => {
             send_message(&SocketMessage::ManageRule(arg.identifier, arg.id))?;

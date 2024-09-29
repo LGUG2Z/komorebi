@@ -71,9 +71,9 @@ use crate::Rgb;
 use crate::CUSTOM_FFM;
 use crate::DATA_DIR;
 use crate::DISPLAY_INDEX_PREFERENCES;
-use crate::FLOAT_IDENTIFIERS;
 use crate::HIDING_BEHAVIOUR;
 use crate::HOME_DIR;
+use crate::IGNORE_IDENTIFIERS;
 use crate::LAYERED_WHITELIST;
 use crate::MANAGE_IDENTIFIERS;
 use crate::MONITOR_INDEX_PREFERENCES;
@@ -136,7 +136,8 @@ pub struct GlobalState {
     pub stackbar_tab_width: i32,
     pub stackbar_height: i32,
     pub remove_titlebars: bool,
-    pub float_identifiers: Vec<MatchingRule>,
+    #[serde(alias = "float_identifiers")]
+    pub ignore_identifiers: Vec<MatchingRule>,
     pub manage_identifiers: Vec<MatchingRule>,
     pub layered_whitelist: Vec<MatchingRule>,
     pub tray_and_multi_window_identifiers: Vec<MatchingRule>,
@@ -185,7 +186,7 @@ impl Default for GlobalState {
             stackbar_tab_width: STACKBAR_TAB_WIDTH.load(Ordering::SeqCst),
             stackbar_height: STACKBAR_TAB_HEIGHT.load(Ordering::SeqCst),
             remove_titlebars: REMOVE_TITLEBARS.load(Ordering::SeqCst),
-            float_identifiers: FLOAT_IDENTIFIERS.lock().clone(),
+            ignore_identifiers: IGNORE_IDENTIFIERS.lock().clone(),
             manage_identifiers: MANAGE_IDENTIFIERS.lock().clone(),
             layered_whitelist: LAYERED_WHITELIST.lock().clone(),
             tray_and_multi_window_identifiers: TRAY_AND_MULTI_WINDOW_IDENTIFIERS.lock().clone(),

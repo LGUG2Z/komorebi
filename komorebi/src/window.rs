@@ -39,9 +39,9 @@ use crate::styles::WindowStyle;
 use crate::transparency_manager;
 use crate::window_manager_event::WindowManagerEvent;
 use crate::windows_api::WindowsApi;
-use crate::FLOAT_IDENTIFIERS;
 use crate::HIDDEN_HWNDS;
 use crate::HIDING_BEHAVIOUR;
+use crate::IGNORE_IDENTIFIERS;
 use crate::LAYERED_WHITELIST;
 use crate::MANAGE_IDENTIFIERS;
 use crate::NO_TITLEBAR;
@@ -561,13 +561,13 @@ fn window_is_eligible(
 
     let regex_identifiers = REGEX_IDENTIFIERS.lock();
 
-    let float_identifiers = FLOAT_IDENTIFIERS.lock();
+    let ignore_identifiers = IGNORE_IDENTIFIERS.lock();
     let should_float = if let Some(rule) = should_act(
         title,
         exe_name,
         class,
         path,
-        &float_identifiers,
+        &ignore_identifiers,
         &regex_identifiers,
     ) {
         debug.matches_float_identifier = Some(rule);
