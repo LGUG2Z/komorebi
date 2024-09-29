@@ -373,16 +373,20 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                         }
 
                         // Destroy any borders not associated with the focused workspace
-                        let container_ids = ws
+                        let mut container_and_floating_window_ids = ws
                             .containers()
                             .iter()
                             .map(|c| c.id().clone())
                             .collect::<Vec<_>>();
 
+                        for w in ws.floating_windows() {
+                            container_and_floating_window_ids.push(w.hwnd.to_string());
+                        }
+
                         let mut to_remove = vec![];
                         for (id, border) in borders.iter() {
                             if borders_monitors.get(id).copied().unwrap_or_default() == monitor_idx
-                                && !container_ids.contains(id)
+                                && !container_and_floating_window_ids.contains(id)
                             {
                                 border.destroy()?;
                                 to_remove.push(id.clone());
