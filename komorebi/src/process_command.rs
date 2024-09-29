@@ -68,8 +68,8 @@ use crate::ANIMATION_STYLE;
 use crate::CUSTOM_FFM;
 use crate::DATA_DIR;
 use crate::DISPLAY_INDEX_PREFERENCES;
-use crate::FLOAT_IDENTIFIERS;
 use crate::HIDING_BEHAVIOUR;
+use crate::IGNORE_IDENTIFIERS;
 use crate::INITIAL_CONFIGURATION_LOADED;
 use crate::LAYERED_WHITELIST;
 use crate::MANAGE_IDENTIFIERS;
@@ -394,20 +394,20 @@ impl WindowManager {
                     }));
                 }
             }
-            SocketMessage::FloatRule(identifier, ref id) => {
-                let mut float_identifiers = FLOAT_IDENTIFIERS.lock();
+            SocketMessage::IgnoreRule(identifier, ref id) => {
+                let mut ignore_identifiers = IGNORE_IDENTIFIERS.lock();
 
                 let mut should_push = true;
-                for f in &*float_identifiers {
-                    if let MatchingRule::Simple(f) = f {
-                        if f.id.eq(id) {
+                for i in &*ignore_identifiers {
+                    if let MatchingRule::Simple(i) = i {
+                        if i.id.eq(id) {
                             should_push = false;
                         }
                     }
                 }
 
                 if should_push {
-                    float_identifiers.push(MatchingRule::Simple(IdWithIdentifier {
+                    ignore_identifiers.push(MatchingRule::Simple(IdWithIdentifier {
                         kind: identifier,
                         id: id.clone(),
                         matching_strategy: Option::from(MatchingStrategy::Legacy),

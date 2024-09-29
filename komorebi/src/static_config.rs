@@ -36,8 +36,8 @@ use crate::DEFAULT_CONTAINER_PADDING;
 use crate::DEFAULT_WORKSPACE_PADDING;
 use crate::DISPLAY_INDEX_PREFERENCES;
 use crate::FLOATING_APPLICATIONS;
-use crate::FLOAT_IDENTIFIERS;
 use crate::HIDING_BEHAVIOUR;
+use crate::IGNORE_IDENTIFIERS;
 use crate::LAYERED_WHITELIST;
 use crate::MANAGE_IDENTIFIERS;
 use crate::MONITOR_INDEX_PREFERENCES;
@@ -672,7 +672,7 @@ impl StaticConfig {
         transparency_manager::TRANSPARENCY_ALPHA
             .store(self.transparency_alpha.unwrap_or(200), Ordering::SeqCst);
 
-        let mut float_identifiers = FLOAT_IDENTIFIERS.lock();
+        let mut ignore_identifiers = IGNORE_IDENTIFIERS.lock();
         let mut regex_identifiers = REGEX_IDENTIFIERS.lock();
         let mut manage_identifiers = MANAGE_IDENTIFIERS.lock();
         let mut tray_and_multi_window_identifiers = TRAY_AND_MULTI_WINDOW_IDENTIFIERS.lock();
@@ -683,7 +683,7 @@ impl StaticConfig {
         let mut floating_applications = FLOATING_APPLICATIONS.lock();
 
         if let Some(rules) = &mut self.ignore_rules {
-            populate_rules(rules, &mut float_identifiers, &mut regex_identifiers)?;
+            populate_rules(rules, &mut ignore_identifiers, &mut regex_identifiers)?;
         }
 
         if let Some(rules) = &mut self.floating_applications {
@@ -916,8 +916,8 @@ impl StaticConfig {
             let asc = ApplicationConfigurationGenerator::load(&content)?;
 
             for mut entry in asc {
-                if let Some(rules) = &mut entry.float_identifiers {
-                    populate_rules(rules, &mut float_identifiers, &mut regex_identifiers)?;
+                if let Some(rules) = &mut entry.ignore_identifiers {
+                    populate_rules(rules, &mut ignore_identifiers, &mut regex_identifiers)?;
                 }
 
                 if let Some(ref options) = entry.options {
