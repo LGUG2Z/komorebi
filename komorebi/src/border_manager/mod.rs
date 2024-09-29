@@ -398,8 +398,14 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                         }
 
                         for (idx, c) in ws.containers().iter().enumerate() {
+                            let hwnd = c.focused_window().copied().unwrap_or_default().hwnd;
+                            let notification_hwnd = notification.0.unwrap_or_default();
+
                             // Update border when moving or resizing with mouse
-                            if pending_move_op.is_some() && idx == ws.focused_container_idx() {
+                            if pending_move_op.is_some()
+                                && idx == ws.focused_container_idx()
+                                && hwnd == notification_hwnd
+                            {
                                 let restore_z_order = Z_ORDER.load();
                                 Z_ORDER.store(ZOrder::TopMost);
 
@@ -484,6 +490,39 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                             Z_ORDER.store(ZOrder::TopMost);
 
                             'windows: for window in ws.floating_windows() {
+                                let hwnd = window.hwnd;
+                                let notification_hwnd = notification.0.unwrap_or_default();
+
+                                if pending_move_op.is_some() && hwnd == notification_hwnd {
+                                    let mut rect = WindowsApi::window_rect(hwnd)?;
+
+                                    while WindowsApi::lbutton_is_pressed() {
+                                        let border = match borders.entry(hwnd.to_string()) {
+                                            Entry::Occupied(entry) => entry.into_mut(),
+                                            Entry::Vacant(entry) => {
+                                                if let Ok(border) =
+                                                    Border::create(&hwnd.to_string())
+                                                {
+                                                    entry.insert(border)
+                                                } else {
+                                                    continue 'monitors;
+                                                }
+                                            }
+                                        };
+
+                                        let new_rect = WindowsApi::window_rect(hwnd)?;
+
+                                        if rect != new_rect {
+                                            rect = new_rect;
+                                            border.update(&rect, true)?;
+                                        }
+                                    }
+
+                                    Z_ORDER.store(restore_z_order);
+
+                                    continue 'monitors;
+                                }
+
                                 let border = match borders.entry(window.hwnd.to_string()) {
                                     Entry::Occupied(entry) => entry.into_mut(),
                                     Entry::Vacant(entry) => {
