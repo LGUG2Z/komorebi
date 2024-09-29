@@ -221,18 +221,19 @@ impl Workspace {
             container.restore();
         }
 
-        for window in self.floating_windows() {
-            window.restore();
-        }
-
         if let Some(container) = self.focused_container_mut() {
             container.focus_window(container.focused_window_idx());
         }
 
+        for window in self.floating_windows() {
+            window.restore();
+        }
+
         // Do this here to make sure that an error doesn't stop the restoration of other windows
-        // Maximised windows should always be drawn at the top of the Z order
+        // Maximised windows and floating windows should always be drawn at the top of the Z order
+        // when switching to a workspace
         if let Some(window) = to_focus {
-            if self.maximized_window().is_none() {
+            if self.maximized_window().is_none() && self.floating_windows().is_empty() {
                 window.focus(mouse_follows_focus)?;
             }
         }
@@ -390,26 +391,6 @@ impl Workspace {
         let container_count = self.containers().len();
         self.resize_dimensions_mut().resize(container_count, None);
 
-        Ok(())
-    }
-
-    // focus_changed performs updates in response to the fact that a focus
-    // change event has occurred. The focus change is assumed to be valid, and
-    // should not result in a new  focus change - the intent here is to update
-    // focus-reactive elements, such as the stackbar.
-    pub fn focus_changed(&mut self, hwnd: isize) -> Result<()> {
-        if !self.tile() {
-            return Ok(());
-        }
-
-        let containers = self.containers_mut();
-
-        for container in containers.iter_mut() {
-            if let Some(idx) = container.idx_for_window(hwnd) {
-                container.focus_window(idx);
-                container.restore();
-            }
-        }
         Ok(())
     }
 
