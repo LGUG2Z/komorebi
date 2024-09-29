@@ -150,14 +150,6 @@ impl WindowManager {
             _ => {}
         }
 
-        for monitor in self.monitors_mut() {
-            for workspace in monitor.workspaces_mut() {
-                if let WindowManagerEvent::FocusChange(_, window) = event {
-                    let _ = workspace.focus_changed(window.hwnd);
-                }
-            }
-        }
-
         self.enforce_workspace_rules()?;
 
         if matches!(event, WindowManagerEvent::MouseCapture(..)) {
@@ -247,24 +239,31 @@ impl WindowManager {
                 self.update_focused_workspace(self.mouse_follows_focus, false)?;
 
                 let workspace = self.focused_workspace_mut()?;
-                if !workspace
+                let floating_window_idx = workspace
                     .floating_windows()
                     .iter()
-                    .any(|w| w.hwnd == window.hwnd)
-                {
-                    if let Some(w) = workspace.maximized_window() {
-                        if w.hwnd == window.hwnd {
-                            return Ok(());
+                    .position(|w| w.hwnd == window.hwnd);
+
+                match floating_window_idx {
+                    None => {
+                        if let Some(w) = workspace.maximized_window() {
+                            if w.hwnd == window.hwnd {
+                                return Ok(());
+                            }
+                        }
+
+                        if let Some(monocle) = workspace.monocle_container() {
+                            if let Some(window) = monocle.focused_window() {
+                                window.focus(false)?;
+                            }
+                        } else {
+                            workspace.focus_container_by_window(window.hwnd)?;
                         }
                     }
-
-                    if let Some(monocle) = workspace.monocle_container() {
-                        if let Some(window) = monocle.focused_window() {
+                    Some(idx) => {
+                        if let Some(window) = workspace.floating_windows().get(idx) {
                             window.focus(false)?;
                         }
-                    } else {
-                        self.focused_workspace_mut()?
-                            .focus_container_by_window(window.hwnd)?;
                     }
                 }
             }
