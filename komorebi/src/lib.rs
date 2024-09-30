@@ -62,6 +62,7 @@ pub use windows_api::*;
 use crate::core::config_generation::IdWithIdentifier;
 use crate::core::config_generation::MatchingRule;
 use crate::core::config_generation::MatchingStrategy;
+use crate::core::config_generation::WorkspaceMatchingRule;
 use color_eyre::Result;
 use os_info::Version;
 use parking_lot::Mutex;
@@ -73,8 +74,6 @@ use uds_windows::UnixStream;
 use which::which;
 use winreg::enums::HKEY_CURRENT_USER;
 use winreg::RegKey;
-
-type WorkspaceRule = (usize, usize, bool);
 
 lazy_static! {
     static ref HIDDEN_HWNDS: Arc<Mutex<Vec<isize>>> = Arc::new(Mutex::new(vec![]));
@@ -135,8 +134,8 @@ lazy_static! {
         Arc::new(Mutex::new(HashMap::new()));
     static ref DISPLAY_INDEX_PREFERENCES: Arc<Mutex<HashMap<usize, String>>> =
         Arc::new(Mutex::new(HashMap::new()));
-    static ref WORKSPACE_RULES: Arc<Mutex<HashMap<String, WorkspaceRule>>> =
-        Arc::new(Mutex::new(HashMap::new()));
+    static ref WORKSPACE_MATCHING_RULES: Arc<Mutex<Vec<WorkspaceMatchingRule>>> =
+        Arc::new(Mutex::new(Vec::new()));
     static ref REGEX_IDENTIFIERS: Arc<Mutex<HashMap<String, Regex>>> =
         Arc::new(Mutex::new(HashMap::new()));
     static ref MANAGE_IDENTIFIERS: Arc<Mutex<Vec<MatchingRule>>> = Arc::new(Mutex::new(vec![]));

@@ -44,6 +44,7 @@ use crate::border_manager;
 use crate::border_manager::IMPLEMENTATION;
 use crate::border_manager::STYLE;
 use crate::colour::Rgb;
+use crate::config_generation::WorkspaceMatchingRule;
 use crate::current_virtual_desktop;
 use crate::notify_subscribers;
 use crate::stackbar_manager;
@@ -81,7 +82,7 @@ use crate::SUBSCRIPTION_SOCKETS;
 use crate::TCP_CONNECTIONS;
 use crate::TRAY_AND_MULTI_WINDOW_IDENTIFIERS;
 use crate::WINDOWS_11;
-use crate::WORKSPACE_RULES;
+use crate::WORKSPACE_MATCHING_RULES;
 use stackbar_manager::STACKBAR_FOCUSED_TEXT_COLOUR;
 use stackbar_manager::STACKBAR_LABEL;
 use stackbar_manager::STACKBAR_MODE;
@@ -269,58 +270,101 @@ impl WindowManager {
                     self.set_workspace_padding(monitor_idx, workspace_idx, size)?;
                 }
             }
-            SocketMessage::InitialWorkspaceRule(_, ref id, monitor_idx, workspace_idx) => {
-                self.handle_initial_workspace_rules(id, monitor_idx, workspace_idx)?;
-            }
-            SocketMessage::InitialNamedWorkspaceRule(_, ref id, ref workspace) => {
-                if let Some((monitor_idx, workspace_idx)) =
-                    self.monitor_workspace_index_by_name(workspace)
-                {
-                    self.handle_initial_workspace_rules(id, monitor_idx, workspace_idx)?;
+            SocketMessage::InitialWorkspaceRule(identifier, ref id, monitor_idx, workspace_idx) => {
+                let mut workspace_rules = WORKSPACE_MATCHING_RULES.lock();
+                let workspace_matching_rule = WorkspaceMatchingRule {
+                    monitor_index: monitor_idx,
+                    workspace_index: workspace_idx,
+                    matching_rule: MatchingRule::Simple(IdWithIdentifier {
+                        kind: identifier,
+                        id: id.to_string(),
+                        matching_strategy: Some(MatchingStrategy::Legacy),
+                    }),
+                    initial_only: true,
+                };
+
+                if !workspace_rules.contains(&workspace_matching_rule) {
+                    workspace_rules.push(workspace_matching_rule);
                 }
             }
-            SocketMessage::WorkspaceRule(_, ref id, monitor_idx, workspace_idx) => {
-                self.handle_definitive_workspace_rules(id, monitor_idx, workspace_idx)?;
-            }
-            SocketMessage::NamedWorkspaceRule(_, ref id, ref workspace) => {
+            SocketMessage::InitialNamedWorkspaceRule(identifier, ref id, ref workspace) => {
                 if let Some((monitor_idx, workspace_idx)) =
                     self.monitor_workspace_index_by_name(workspace)
                 {
-                    self.handle_definitive_workspace_rules(id, monitor_idx, workspace_idx)?;
+                    let mut workspace_rules = WORKSPACE_MATCHING_RULES.lock();
+                    let workspace_matching_rule = WorkspaceMatchingRule {
+                        monitor_index: monitor_idx,
+                        workspace_index: workspace_idx,
+                        matching_rule: MatchingRule::Simple(IdWithIdentifier {
+                            kind: identifier,
+                            id: id.to_string(),
+                            matching_strategy: Some(MatchingStrategy::Legacy),
+                        }),
+                        initial_only: true,
+                    };
+
+                    if !workspace_rules.contains(&workspace_matching_rule) {
+                        workspace_rules.push(workspace_matching_rule);
+                    }
+                }
+            }
+            SocketMessage::WorkspaceRule(identifier, ref id, monitor_idx, workspace_idx) => {
+                let mut workspace_rules = WORKSPACE_MATCHING_RULES.lock();
+                let workspace_matching_rule = WorkspaceMatchingRule {
+                    monitor_index: monitor_idx,
+                    workspace_index: workspace_idx,
+                    matching_rule: MatchingRule::Simple(IdWithIdentifier {
+                        kind: identifier,
+                        id: id.to_string(),
+                        matching_strategy: Some(MatchingStrategy::Legacy),
+                    }),
+                    initial_only: false,
+                };
+
+                if !workspace_rules.contains(&workspace_matching_rule) {
+                    workspace_rules.push(workspace_matching_rule);
+                }
+            }
+            SocketMessage::NamedWorkspaceRule(identifier, ref id, ref workspace) => {
+                if let Some((monitor_idx, workspace_idx)) =
+                    self.monitor_workspace_index_by_name(workspace)
+                {
+                    let mut workspace_rules = WORKSPACE_MATCHING_RULES.lock();
+                    let workspace_matching_rule = WorkspaceMatchingRule {
+                        monitor_index: monitor_idx,
+                        workspace_index: workspace_idx,
+                        matching_rule: MatchingRule::Simple(IdWithIdentifier {
+                            kind: identifier,
+                            id: id.to_string(),
+                            matching_strategy: Some(MatchingStrategy::Legacy),
+                        }),
+                        initial_only: false,
+                    };
+
+                    if !workspace_rules.contains(&workspace_matching_rule) {
+                        workspace_rules.push(workspace_matching_rule);
+                    }
                 }
             }
             SocketMessage::ClearWorkspaceRules(monitor_idx, workspace_idx) => {
-                let mut workspace_rules = WORKSPACE_RULES.lock();
-                let mut to_remove = vec![];
-                for (id, (m_idx, w_idx, _)) in workspace_rules.iter() {
-                    if monitor_idx == *m_idx && workspace_idx == *w_idx {
-                        to_remove.push(id.clone());
-                    }
-                }
+                let mut workspace_rules = WORKSPACE_MATCHING_RULES.lock();
 
-                for rule in to_remove {
-                    workspace_rules.remove(&rule);
-                }
+                workspace_rules.retain(|r| {
+                    r.monitor_index != monitor_idx && r.workspace_index != workspace_idx
+                });
             }
             SocketMessage::ClearNamedWorkspaceRules(ref workspace) => {
                 if let Some((monitor_idx, workspace_idx)) =
                     self.monitor_workspace_index_by_name(workspace)
                 {
-                    let mut workspace_rules = WORKSPACE_RULES.lock();
-                    let mut to_remove = vec![];
-                    for (id, (m_idx, w_idx, _)) in workspace_rules.iter() {
-                        if monitor_idx == *m_idx && workspace_idx == *w_idx {
-                            to_remove.push(id.clone());
-                        }
-                    }
-
-                    for rule in to_remove {
-                        workspace_rules.remove(&rule);
-                    }
+                    let mut workspace_rules = WORKSPACE_MATCHING_RULES.lock();
+                    workspace_rules.retain(|r| {
+                        r.monitor_index != monitor_idx && r.workspace_index != workspace_idx
+                    });
                 }
             }
             SocketMessage::ClearAllWorkspaceRules => {
-                let mut workspace_rules = WORKSPACE_RULES.lock();
+                let mut workspace_rules = WORKSPACE_MATCHING_RULES.lock();
                 workspace_rules.clear();
             }
             SocketMessage::ManageRule(identifier, ref id) => {
@@ -1102,7 +1146,7 @@ impl WindowManager {
                 // Check that this is a valid static config file first
                 if StaticConfig::read(config).is_ok() {
                     // Clear workspace rules; these will need to be replaced
-                    WORKSPACE_RULES.lock().clear();
+                    WORKSPACE_MATCHING_RULES.lock().clear();
                     // Pause so that restored windows come to the foreground from all workspaces
                     self.is_paused = true;
                     // Bring all windows to the foreground
@@ -1494,51 +1538,6 @@ impl WindowManager {
         stackbar_manager::send_notification();
 
         tracing::info!("processed");
-        Ok(())
-    }
-
-    #[tracing::instrument(skip(self), level = "debug")]
-    fn handle_initial_workspace_rules(
-        &mut self,
-        id: &String,
-        monitor_idx: usize,
-        workspace_idx: usize,
-    ) -> Result<()> {
-        self.handle_workspace_rules(id, monitor_idx, workspace_idx, true)?;
-
-        Ok(())
-    }
-
-    #[tracing::instrument(skip(self), level = "debug")]
-    fn handle_definitive_workspace_rules(
-        &mut self,
-        id: &String,
-        monitor_idx: usize,
-        workspace_idx: usize,
-    ) -> Result<()> {
-        self.handle_workspace_rules(id, monitor_idx, workspace_idx, false)?;
-
-        Ok(())
-    }
-
-    #[tracing::instrument(skip(self), level = "debug")]
-    pub fn handle_workspace_rules(
-        &mut self,
-        id: &String,
-        monitor_idx: usize,
-        workspace_idx: usize,
-        initial_workspace_rule: bool,
-    ) -> Result<()> {
-        {
-            let mut workspace_rules = WORKSPACE_RULES.lock();
-            workspace_rules.insert(
-                id.to_string(),
-                (monitor_idx, workspace_idx, initial_workspace_rule),
-            );
-        }
-
-        self.enforce_workspace_rules()?;
-
         Ok(())
     }
 }
