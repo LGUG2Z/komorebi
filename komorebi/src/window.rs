@@ -356,13 +356,24 @@ impl Window {
         WindowsApi::set_window_accent(self.hwnd, None)
     }
 
-    #[allow(dead_code)]
+    #[cfg(target_pointer_width = "64")]
     pub fn update_style(self, style: &WindowStyle) -> Result<()> {
         WindowsApi::update_style(self.hwnd, isize::try_from(style.bits())?)
     }
 
+    #[cfg(target_pointer_width = "32")]
+    pub fn update_style(self, style: &WindowStyle) -> Result<()> {
+        WindowsApi::update_style(self.hwnd, i32::try_from(style.bits())?)
+    }
+
+    #[cfg(target_pointer_width = "64")]
     pub fn update_ex_style(self, style: &ExtendedWindowStyle) -> Result<()> {
         WindowsApi::update_ex_style(self.hwnd, isize::try_from(style.bits())?)
+    }
+
+    #[cfg(target_pointer_width = "32")]
+    pub fn update_ex_style(self, style: &ExtendedWindowStyle) -> Result<()> {
+        WindowsApi::update_ex_style(self.hwnd, i32::try_from(style.bits())?)
     }
 
     pub fn style(self) -> Result<WindowStyle> {
