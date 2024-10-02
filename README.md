@@ -82,7 +82,7 @@ A [detailed installation and quickstart
 guide](https://lgug2z.github.io/komorebi/installation.html) is available which shows how to get started
 using `scoop`, `winget` or building from source.
 
-[![Watch the quickstart walkthrough video](https://img.youtube.com/vi/H9-_c1egQ4g/hqdefault.jpg)](https://www.youtube.com/watch?v=H9-_c1egQ4g)
+[![Watch the quickstart walkthrough video](https://img.youtube.com/vi/MMZUAtHbTYY/hqdefault.jpg)](https://www.youtube.com/watch?v=MMZUAtHbTYY)
 
 # Comparison With Fancy Zones
 
