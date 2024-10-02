@@ -532,7 +532,7 @@ pub struct RuleDebug {
     pub class: Option<String>,
     pub path: Option<String>,
     pub matches_permaignore_class: Option<String>,
-    pub matches_float_identifier: Option<MatchingRule>,
+    pub matches_ignore_identifier: Option<MatchingRule>,
     pub matches_managed_override: Option<MatchingRule>,
     pub matches_layered_whitelist: Option<MatchingRule>,
     pub matches_wsl2_gui: Option<String>,
@@ -570,7 +570,7 @@ fn window_is_eligible(
         &ignore_identifiers,
         &regex_identifiers,
     ) {
-        debug.matches_float_identifier = Some(rule);
+        debug.matches_ignore_identifier = Some(rule);
         true
     } else {
         false

@@ -102,6 +102,10 @@ impl WindowManager {
             }
 
             if !transparency_override {
+                if rule_debug.matches_ignore_identifier.is_some() {
+                    border_manager::send_notification(Option::from(event.hwnd()));
+                }
+
                 return Ok(());
             }
         }
