@@ -165,6 +165,13 @@ lazy_static! {
         "X410.exe".to_string(),
         "vcxsrv.exe".to_string(),
     ]));
+    static ref SLOW_APPLICATION_IDENTIFIERS: Arc<Mutex<Vec<MatchingRule>>> = Arc::new(Mutex::new(vec![
+        MatchingRule::Simple(IdWithIdentifier {
+            kind: ApplicationIdentifier::Exe,
+            id: String::from("firefox.exe"),
+            matching_strategy: Option::from(MatchingStrategy::Equals),
+        }),
+    ]));
     static ref SUBSCRIPTION_PIPES: Arc<Mutex<HashMap<String, File>>> =
         Arc::new(Mutex::new(HashMap::new()));
     pub static ref SUBSCRIPTION_SOCKETS: Arc<Mutex<HashMap<String, PathBuf>>> =
@@ -230,6 +237,8 @@ pub static SESSION_ID: AtomicU32 = AtomicU32::new(0);
 pub static REMOVE_TITLEBARS: AtomicBool = AtomicBool::new(false);
 pub static ANIMATION_ENABLED: AtomicBool = AtomicBool::new(false);
 pub static ANIMATION_DURATION: AtomicU64 = AtomicU64::new(250);
+
+pub static SLOW_APPLICATION_COMPENSATION_TIME: AtomicU64 = AtomicU64::new(20);
 
 #[must_use]
 pub fn current_virtual_desktop() -> Option<Vec<u8>> {

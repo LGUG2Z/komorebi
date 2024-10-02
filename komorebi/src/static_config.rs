@@ -42,6 +42,8 @@ use crate::MANAGE_IDENTIFIERS;
 use crate::MONITOR_INDEX_PREFERENCES;
 use crate::OBJECT_NAME_CHANGE_ON_LAUNCH;
 use crate::REGEX_IDENTIFIERS;
+use crate::SLOW_APPLICATION_COMPENSATION_TIME;
+use crate::SLOW_APPLICATION_IDENTIFIERS;
 use crate::TRANSPARENCY_BLACKLIST;
 use crate::TRAY_AND_MULTI_WINDOW_IDENTIFIERS;
 use crate::WINDOWS_11;
@@ -333,6 +335,12 @@ pub struct StaticConfig {
     /// Theme configuration options
     #[serde(skip_serializing_if = "Option::is_none")]
     pub theme: Option<KomorebiTheme>,
+    /// Identify applications which are slow to send initial event notifications
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub slow_application_identifiers: Option<Vec<MatchingRule>>,
+    /// How long to wait when compensating for slow applications, in milliseconds (default: 20)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub slow_application_compensation_time: Option<u64>,
 }
 
 #[derive(Debug, Serialize, Deserialize, JsonSchema)]
@@ -544,6 +552,10 @@ impl From<&WindowManager> for StaticConfig {
             stackbar: None,
             animation: None,
             theme: None,
+            slow_application_compensation_time: Option::from(
+                SLOW_APPLICATION_COMPENSATION_TIME.load(Ordering::SeqCst),
+            ),
+            slow_application_identifiers: Option::from(SLOW_APPLICATION_IDENTIFIERS.lock().clone()),
         }
     }
 }
@@ -652,6 +664,7 @@ impl StaticConfig {
         let mut object_name_change_identifiers = OBJECT_NAME_CHANGE_ON_LAUNCH.lock();
         let mut layered_identifiers = LAYERED_WHITELIST.lock();
         let mut transparency_blacklist = TRANSPARENCY_BLACKLIST.lock();
+        let mut slow_application_identifiers = SLOW_APPLICATION_IDENTIFIERS.lock();
 
         if let Some(rules) = &mut self.float_rules {
             populate_rules(rules, &mut float_identifiers, &mut regex_identifiers)?;
@@ -683,6 +696,14 @@ impl StaticConfig {
 
         if let Some(rules) = &mut self.transparency_ignore_rules {
             populate_rules(rules, &mut transparency_blacklist, &mut regex_identifiers)?;
+        }
+
+        if let Some(rules) = &mut self.slow_application_identifiers {
+            populate_rules(
+                rules,
+                &mut slow_application_identifiers,
+                &mut regex_identifiers,
+            )?;
         }
 
         if let Some(stackbar) = &self.stackbar {
