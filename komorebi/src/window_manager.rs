@@ -825,28 +825,37 @@ impl WindowManager {
                     }
                 }
             }
-        }
+        } else {
+            if self.focused_workspace()?.containers().is_empty() {
+                let desktop_window = Window::from(WindowsApi::desktop_window()?);
 
-        // if we passed false for follow_focus and there is a container on the workspace
-        if !follow_focus && self.focused_container_mut().is_ok() {
-            // and we have a stack with >1 windows
-            if self.focused_container_mut()?.windows().len() > 1
-                // and we don't have a maxed window 
-                && self.focused_workspace()?.maximized_window().is_none()
-                // and we don't have a monocle container
-                && self.focused_workspace()?.monocle_container().is_none()
-            {
-                if let Ok(window) = self.focused_window_mut() {
-                    if trigger_focus {
-                        window.focus(self.mouse_follows_focus)?;
+                match WindowsApi::raise_and_focus_window(desktop_window.hwnd) {
+                    Ok(()) => {}
+                    Err(error) => {
+                        tracing::warn!("{} {}:{}", error, file!(), line!());
                     }
                 }
             }
-        }
 
-        // This is to correctly restore and focus when switching to a workspace which
-        // contains a managed maximized window
-        if !follow_focus {
+            // if we passed false for follow_focus and there is a container on the workspace
+            if self.focused_container_mut().is_ok() {
+                // and we have a stack with >1 windows
+                if self.focused_container_mut()?.windows().len() > 1
+                    // and we don't have a maxed window
+                    && self.focused_workspace()?.maximized_window().is_none()
+                    // and we don't have a monocle container
+                    && self.focused_workspace()?.monocle_container().is_none()
+                {
+                    if let Ok(window) = self.focused_window_mut() {
+                        if trigger_focus {
+                            window.focus(self.mouse_follows_focus)?;
+                        }
+                    }
+                }
+            }
+
+            // This is to correctly restore and focus when switching to a workspace which
+            // contains a managed maximized window
             if let Some(window) = self.focused_workspace()?.maximized_window() {
                 window.restore();
                 if trigger_focus {
