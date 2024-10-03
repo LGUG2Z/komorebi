@@ -968,6 +968,14 @@ impl WindowManager {
 
         for monitor in self.monitors_mut() {
             for workspace in monitor.workspaces_mut() {
+                if let Some(monocle) = workspace.monocle_container() {
+                    for window in monocle.windows() {
+                        if matches!(border_implementation, BorderImplementation::Windows) {
+                            window.remove_accent()?;
+                        }
+                    }
+                }
+
                 for containers in workspace.containers_mut() {
                     for window in containers.windows_mut() {
                         if no_titlebar.contains(&window.exe()?) {
