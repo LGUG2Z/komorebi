@@ -703,7 +703,7 @@ impl WindowsApi {
         }
     }
 
-    #[allow(dead_code)]
+    #[cfg(target_pointer_width = "64")]
     fn set_window_long_ptr_w(
         hwnd: HWND,
         index: WINDOW_LONG_PTR_INDEX,
@@ -715,14 +715,39 @@ impl WindowsApi {
         .map(|_| {})
     }
 
+    #[cfg(target_pointer_width = "32")]
+    fn set_window_long_ptr_w(
+        hwnd: HWND,
+        index: WINDOW_LONG_PTR_INDEX,
+        new_value: i32,
+    ) -> Result<()> {
+        Result::from(WindowsResult::from(unsafe {
+            SetWindowLongPtrW(hwnd, index, new_value)
+        }))
+        .map(|_| {})
+    }
+
+    #[cfg(target_pointer_width = "64")]
     pub fn gwl_style(hwnd: isize) -> Result<isize> {
         Self::window_long_ptr_w(HWND(as_ptr!(hwnd)), GWL_STYLE)
     }
 
+    #[cfg(target_pointer_width = "32")]
+    pub fn gwl_style(hwnd: isize) -> Result<i32> {
+        Self::window_long_ptr_w(HWND(as_ptr!(hwnd)), GWL_STYLE)
+    }
+
+    #[cfg(target_pointer_width = "64")]
     pub fn gwl_ex_style(hwnd: isize) -> Result<isize> {
         Self::window_long_ptr_w(HWND(as_ptr!(hwnd)), GWL_EXSTYLE)
     }
 
+    #[cfg(target_pointer_width = "32")]
+    pub fn gwl_ex_style(hwnd: isize) -> Result<i32> {
+        Self::window_long_ptr_w(HWND(as_ptr!(hwnd)), GWL_EXSTYLE)
+    }
+
+    #[cfg(target_pointer_width = "64")]
     fn window_long_ptr_w(hwnd: HWND, index: WINDOW_LONG_PTR_INDEX) -> Result<isize> {
         // Can return 0, which does not always mean that an error has occurred
         // https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getwindowlongptrw
@@ -731,13 +756,32 @@ impl WindowsApi {
         }))
     }
 
-    #[allow(dead_code)]
+    #[cfg(target_pointer_width = "32")]
+    fn window_long_ptr_w(hwnd: HWND, index: WINDOW_LONG_PTR_INDEX) -> Result<i32> {
+        // Can return 0, which does not always mean that an error has occurred
+        // https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getwindowlongptrw
+        Result::from(WindowsResult::from(unsafe {
+            GetWindowLongPtrW(hwnd, index)
+        }))
+    }
+
+    #[cfg(target_pointer_width = "64")]
     pub fn update_style(hwnd: isize, new_value: isize) -> Result<()> {
         Self::set_window_long_ptr_w(HWND(as_ptr!(hwnd)), GWL_STYLE, new_value)
     }
 
-    #[allow(dead_code)]
+    #[cfg(target_pointer_width = "32")]
+    pub fn update_style(hwnd: isize, new_value: i32) -> Result<()> {
+        Self::set_window_long_ptr_w(HWND(as_ptr!(hwnd)), GWL_STYLE, new_value)
+    }
+
+    #[cfg(target_pointer_width = "64")]
     pub fn update_ex_style(hwnd: isize, new_value: isize) -> Result<()> {
+        Self::set_window_long_ptr_w(HWND(as_ptr!(hwnd)), GWL_EXSTYLE, new_value)
+    }
+
+    #[cfg(target_pointer_width = "32")]
+    pub fn update_ex_style(hwnd: isize, new_value: i32) -> Result<()> {
         Self::set_window_long_ptr_w(HWND(as_ptr!(hwnd)), GWL_EXSTYLE, new_value)
     }
 

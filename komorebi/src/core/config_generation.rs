@@ -60,6 +60,14 @@ pub enum MatchingRule {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct WorkspaceMatchingRule {
+    pub monitor_index: usize,
+    pub workspace_index: usize,
+    pub matching_rule: MatchingRule,
+    pub initial_only: bool,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, JsonSchema)]
 pub struct IdWithIdentifier {
     pub kind: ApplicationIdentifier,
     pub id: String,

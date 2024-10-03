@@ -6,6 +6,8 @@ use crate::windows_api;
 use crate::ANIMATIONS_IN_PROGRESS;
 use crate::ANIMATION_DURATION;
 use crate::ANIMATION_ENABLED;
+use crate::SLOW_APPLICATION_COMPENSATION_TIME;
+use crate::SLOW_APPLICATION_IDENTIFIERS;
 use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::fmt::Display;
@@ -356,13 +358,24 @@ impl Window {
         WindowsApi::set_window_accent(self.hwnd, None)
     }
 
-    #[allow(dead_code)]
+    #[cfg(target_pointer_width = "64")]
     pub fn update_style(self, style: &WindowStyle) -> Result<()> {
         WindowsApi::update_style(self.hwnd, isize::try_from(style.bits())?)
     }
 
+    #[cfg(target_pointer_width = "32")]
+    pub fn update_style(self, style: &WindowStyle) -> Result<()> {
+        WindowsApi::update_style(self.hwnd, i32::try_from(style.bits())?)
+    }
+
+    #[cfg(target_pointer_width = "64")]
     pub fn update_ex_style(self, style: &ExtendedWindowStyle) -> Result<()> {
         WindowsApi::update_ex_style(self.hwnd, isize::try_from(style.bits())?)
+    }
+
+    #[cfg(target_pointer_width = "32")]
+    pub fn update_ex_style(self, style: &ExtendedWindowStyle) -> Result<()> {
+        WindowsApi::update_ex_style(self.hwnd, i32::try_from(style.bits())?)
     }
 
     pub fn style(self) -> Result<WindowStyle> {
@@ -623,8 +636,23 @@ fn window_is_eligible(
         titlebars_removed.contains(exe_name)
     };
 
-    if exe_name.contains("firefox") {
-        std::thread::sleep(Duration::from_millis(10));
+    {
+        let slow_application_identifiers = SLOW_APPLICATION_IDENTIFIERS.lock();
+        let should_sleep = should_act(
+            title,
+            exe_name,
+            class,
+            path,
+            &slow_application_identifiers,
+            &regex_identifiers,
+        )
+        .is_some();
+
+        if should_sleep {
+            std::thread::sleep(Duration::from_millis(
+                SLOW_APPLICATION_COMPENSATION_TIME.load(Ordering::SeqCst),
+            ));
+        }
     }
 
     if (allow_wsl2_gui || allow_titlebar_removed || style.contains(WindowStyle::CAPTION) && ex_style.contains(ExtendedWindowStyle::WINDOWEDGE))

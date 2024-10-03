@@ -42,20 +42,21 @@ use crate::MANAGE_IDENTIFIERS;
 use crate::MONITOR_INDEX_PREFERENCES;
 use crate::OBJECT_NAME_CHANGE_ON_LAUNCH;
 use crate::REGEX_IDENTIFIERS;
+use crate::SLOW_APPLICATION_COMPENSATION_TIME;
+use crate::SLOW_APPLICATION_IDENTIFIERS;
 use crate::TRANSPARENCY_BLACKLIST;
 use crate::TRAY_AND_MULTI_WINDOW_IDENTIFIERS;
 use crate::WINDOWS_11;
-use crate::WORKSPACE_RULES;
+use crate::WORKSPACE_MATCHING_RULES;
 
+use crate::config_generation::WorkspaceMatchingRule;
 use crate::core::config_generation::ApplicationConfiguration;
 use crate::core::config_generation::ApplicationConfigurationGenerator;
 use crate::core::config_generation::ApplicationOptions;
-use crate::core::config_generation::IdWithIdentifier;
 use crate::core::config_generation::MatchingRule;
 use crate::core::config_generation::MatchingStrategy;
 use crate::core::resolve_home_path;
 use crate::core::AnimationStyle;
-use crate::core::ApplicationIdentifier;
 use crate::core::BorderStyle;
 use crate::core::DefaultLayout;
 use crate::core::FocusFollowsMouseImplementation;
@@ -121,10 +122,10 @@ pub struct WorkspaceConfig {
     pub workspace_padding: Option<i32>,
     /// Initial workspace application rules
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub initial_workspace_rules: Option<Vec<IdWithIdentifier>>,
+    pub initial_workspace_rules: Option<Vec<MatchingRule>>,
     /// Permanent workspace application rules
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub workspace_rules: Option<Vec<IdWithIdentifier>>,
+    pub workspace_rules: Option<Vec<MatchingRule>>,
     /// Apply this monitor's window-based work area offset (default: true)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub apply_window_based_work_area_offset: Option<bool>,
@@ -141,37 +142,6 @@ impl From<&Workspace> for WorkspaceConfig {
                 Layout::Custom(_) => {}
             }
         }
-
-        let workspace_rules = WORKSPACE_RULES.lock();
-        let mut initial_ws_rules = vec![];
-        let mut ws_rules = vec![];
-
-        for (identifier, (_, _, is_initial)) in &*workspace_rules {
-            if identifier.ends_with("exe") {
-                let rule = IdWithIdentifier {
-                    kind: ApplicationIdentifier::Exe,
-                    id: identifier.clone(),
-                    matching_strategy: None,
-                };
-
-                if *is_initial {
-                    initial_ws_rules.push(rule);
-                } else {
-                    ws_rules.push(rule);
-                }
-            }
-        }
-
-        let initial_ws_rules = if initial_ws_rules.is_empty() {
-            None
-        } else {
-            Option::from(initial_ws_rules)
-        };
-        let ws_rules = if ws_rules.is_empty() {
-            None
-        } else {
-            Option::from(ws_rules)
-        };
 
         let default_container_padding = DEFAULT_CONTAINER_PADDING.load(Ordering::SeqCst);
         let default_workspace_padding = DEFAULT_WORKSPACE_PADDING.load(Ordering::SeqCst);
@@ -208,8 +178,8 @@ impl From<&Workspace> for WorkspaceConfig {
             custom_layout_rules: None,
             container_padding,
             workspace_padding,
-            initial_workspace_rules: initial_ws_rules,
-            workspace_rules: ws_rules,
+            initial_workspace_rules: None,
+            workspace_rules: None,
             apply_window_based_work_area_offset: Some(value.apply_window_based_work_area_offset()),
         }
     }
@@ -365,6 +335,12 @@ pub struct StaticConfig {
     /// Theme configuration options
     #[serde(skip_serializing_if = "Option::is_none")]
     pub theme: Option<KomorebiTheme>,
+    /// Identify applications which are slow to send initial event notifications
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub slow_application_identifiers: Option<Vec<MatchingRule>>,
+    /// How long to wait when compensating for slow applications, in milliseconds (default: 20)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub slow_application_compensation_time: Option<u64>,
 }
 
 #[derive(Debug, Serialize, Deserialize, JsonSchema)]
@@ -515,95 +491,6 @@ impl From<&WindowManager> for StaticConfig {
             monitors.push(MonitorConfig::from(m));
         }
 
-        let mut to_remove = vec![];
-        let mut to_add_initial = vec![];
-        let mut to_add_persistent = vec![];
-
-        let workspace_rules = WORKSPACE_RULES.lock();
-        for (m_idx, m) in monitors.iter().enumerate() {
-            for (w_idx, w) in m.workspaces.iter().enumerate() {
-                if let Some(rules) = &w.initial_workspace_rules {
-                    for iwsr in rules {
-                        for (identifier, (monitor_idx, workspace_idx, _)) in &*workspace_rules {
-                            if iwsr.id.eq(identifier)
-                                && (*monitor_idx != m_idx || *workspace_idx != w_idx)
-                            {
-                                to_remove.push((m_idx, w_idx, iwsr.id.clone()));
-                            }
-                        }
-                    }
-                }
-
-                for (identifier, (monitor_idx, workspace_idx, initial)) in &*workspace_rules {
-                    if *initial && (*monitor_idx == m_idx && *workspace_idx == w_idx) {
-                        to_add_initial.push((m_idx, w_idx, identifier.clone()));
-                    }
-                }
-
-                if let Some(rules) = &w.workspace_rules {
-                    for wsr in rules {
-                        for (identifier, (monitor_idx, workspace_idx, _)) in &*workspace_rules {
-                            if wsr.id.eq(identifier)
-                                && (*monitor_idx != m_idx || *workspace_idx != w_idx)
-                            {
-                                to_remove.push((m_idx, w_idx, wsr.id.clone()));
-                            }
-                        }
-                    }
-                }
-
-                for (identifier, (monitor_idx, workspace_idx, initial)) in &*workspace_rules {
-                    if !*initial && (*monitor_idx == m_idx && *workspace_idx == w_idx) {
-                        to_add_persistent.push((m_idx, w_idx, identifier.clone()));
-                    }
-                }
-            }
-        }
-
-        for (m_idx, w_idx, id) in to_remove {
-            if let Some(monitor) = monitors.get_mut(m_idx) {
-                if let Some(workspace) = monitor.workspaces.get_mut(w_idx) {
-                    if workspace.workspace_rules.is_none() {
-                        workspace.workspace_rules = Some(vec![]);
-                    }
-
-                    if let Some(rules) = &mut workspace.workspace_rules {
-                        rules.retain(|r| r.id != id);
-                        for (monitor_idx, workspace_idx, id) in &to_add_persistent {
-                            if m_idx == *monitor_idx && w_idx == *workspace_idx {
-                                rules.push(IdWithIdentifier {
-                                    kind: ApplicationIdentifier::Exe,
-                                    id: id.clone(),
-                                    matching_strategy: None,
-                                })
-                            }
-                        }
-
-                        rules.dedup();
-                    }
-
-                    if workspace.initial_workspace_rules.is_none() {
-                        workspace.workspace_rules = Some(vec![]);
-                    }
-
-                    if let Some(rules) = &mut workspace.initial_workspace_rules {
-                        rules.retain(|r| r.id != id);
-                        for (monitor_idx, workspace_idx, id) in &to_add_initial {
-                            if m_idx == *monitor_idx && w_idx == *workspace_idx {
-                                rules.push(IdWithIdentifier {
-                                    kind: ApplicationIdentifier::Exe,
-                                    id: id.clone(),
-                                    matching_strategy: None,
-                                })
-                            }
-                        }
-
-                        rules.dedup();
-                    }
-                }
-            }
-        }
-
         let border_colours = if border_manager::FOCUSED.load(Ordering::SeqCst) == 0 {
             None
         } else {
@@ -665,6 +552,10 @@ impl From<&WindowManager> for StaticConfig {
             stackbar: None,
             animation: None,
             theme: None,
+            slow_application_compensation_time: Option::from(
+                SLOW_APPLICATION_COMPENSATION_TIME.load(Ordering::SeqCst),
+            ),
+            slow_application_identifiers: Option::from(SLOW_APPLICATION_IDENTIFIERS.lock().clone()),
         }
     }
 }
@@ -773,6 +664,7 @@ impl StaticConfig {
         let mut object_name_change_identifiers = OBJECT_NAME_CHANGE_ON_LAUNCH.lock();
         let mut layered_identifiers = LAYERED_WHITELIST.lock();
         let mut transparency_blacklist = TRANSPARENCY_BLACKLIST.lock();
+        let mut slow_application_identifiers = SLOW_APPLICATION_IDENTIFIERS.lock();
 
         if let Some(rules) = &mut self.float_rules {
             populate_rules(rules, &mut float_identifiers, &mut regex_identifiers)?;
@@ -804,6 +696,14 @@ impl StaticConfig {
 
         if let Some(rules) = &mut self.transparency_ignore_rules {
             populate_rules(rules, &mut transparency_blacklist, &mut regex_identifiers)?;
+        }
+
+        if let Some(rules) = &mut self.slow_application_identifiers {
+            populate_rules(
+                rules,
+                &mut slow_application_identifiers,
+                &mut regex_identifiers,
+            )?;
         }
 
         if let Some(stackbar) = &self.stackbar {
@@ -1151,21 +1051,34 @@ impl StaticConfig {
                     }
                 }
 
+                let mut workspace_matching_rules = WORKSPACE_MATCHING_RULES.lock();
                 for (j, ws) in monitor.workspaces.iter().enumerate() {
                     if let Some(rules) = &ws.workspace_rules {
                         for r in rules {
-                            wm.handle_workspace_rules(&r.id, i, j, false)?;
+                            workspace_matching_rules.push(WorkspaceMatchingRule {
+                                monitor_index: i,
+                                workspace_index: j,
+                                matching_rule: r.clone(),
+                                initial_only: false,
+                            });
                         }
                     }
 
                     if let Some(rules) = &ws.initial_workspace_rules {
                         for r in rules {
-                            wm.handle_workspace_rules(&r.id, i, j, true)?;
+                            workspace_matching_rules.push(WorkspaceMatchingRule {
+                                monitor_index: i,
+                                workspace_index: j,
+                                matching_rule: r.clone(),
+                                initial_only: true,
+                            });
                         }
                     }
                 }
             }
         }
+
+        wm.enforce_workspace_rules()?;
 
         if value.border == Some(true) {
             border_manager::BORDER_ENABLED.store(true, Ordering::SeqCst);
@@ -1202,21 +1115,35 @@ impl StaticConfig {
                     }
                 }
 
+                let mut workspace_matching_rules = WORKSPACE_MATCHING_RULES.lock();
+                workspace_matching_rules.clear();
                 for (j, ws) in monitor.workspaces.iter().enumerate() {
                     if let Some(rules) = &ws.workspace_rules {
                         for r in rules {
-                            wm.handle_workspace_rules(&r.id, i, j, false)?;
+                            workspace_matching_rules.push(WorkspaceMatchingRule {
+                                monitor_index: i,
+                                workspace_index: j,
+                                matching_rule: r.clone(),
+                                initial_only: false,
+                            });
                         }
                     }
 
                     if let Some(rules) = &ws.initial_workspace_rules {
                         for r in rules {
-                            wm.handle_workspace_rules(&r.id, i, j, true)?;
+                            workspace_matching_rules.push(WorkspaceMatchingRule {
+                                monitor_index: i,
+                                workspace_index: j,
+                                matching_rule: r.clone(),
+                                initial_only: true,
+                            });
                         }
                     }
                 }
             }
         }
+
+        wm.enforce_workspace_rules()?;
 
         if let Some(enabled) = value.border {
             border_manager::BORDER_ENABLED.store(enabled, Ordering::SeqCst);
