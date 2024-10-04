@@ -9,6 +9,7 @@ edition = "2021"
 komorebi-client = { path = "../komorebi-client" }
 komorebi-themes = { path = "../komorebi-themes" }
 
+atomic_float = "1"
 chrono = { workspace = true }
 clap = { workspace = true }
 color-eyre = { workspace = true }

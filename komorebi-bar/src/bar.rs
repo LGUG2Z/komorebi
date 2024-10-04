@@ -4,6 +4,7 @@ use crate::komorebi::Komorebi;
 use crate::komorebi::KomorebiNotificationState;
 use crate::widget::BarWidget;
 use crate::widget::WidgetConfig;
+use crate::DPI;
 use crate::MAX_LABEL_WIDTH;
 use crossbeam_channel::Receiver;
 use eframe::egui::Align;
@@ -17,6 +18,7 @@ use eframe::egui::FontId;
 use eframe::egui::Frame;
 use eframe::egui::Layout;
 use eframe::egui::Margin;
+use eframe::egui::Pos2;
 use eframe::egui::Style;
 use eframe::egui::TextStyle;
 use eframe::egui::Vec2;
@@ -145,12 +147,14 @@ impl Komobar {
         }
 
         if let Some(viewport) = &config.viewport {
-            if let Some(inner_size) = viewport.inner_size {
-                let mut vec2 = Vec2::new(inner_size.x, inner_size.y * 2.0);
-                if self.scale_factor != 1.0 {
-                    vec2 = Vec2::new(inner_size.x / self.scale_factor, inner_size.y * 2.0);
-                }
+            let dpi = DPI.load(Ordering::SeqCst);
+            if let Some(position) = viewport.position {
+                let pos2 = Pos2::new(position.x / dpi, position.y / dpi);
+                ctx.send_viewport_cmd(ViewportCommand::OuterPosition(pos2));
+            }
 
+            if let Some(position) = viewport.inner_size {
+                let vec2 = Vec2::new(position.x / dpi, position.y / dpi);
                 ctx.send_viewport_cmd(ViewportCommand::InnerSize(vec2));
             }
         }

@@ -14,7 +14,9 @@ mod widget;
 use crate::bar::Komobar;
 use crate::config::KomobarConfig;
 use crate::config::Position;
+use atomic_float::AtomicF32;
 use clap::Parser;
+use color_eyre::eyre::bail;
 use eframe::egui::ViewportBuilder;
 use font_loader::system_fonts;
 use hotwatch::EventKind;
@@ -25,12 +27,16 @@ use std::io::BufReader;
 use std::io::Read;
 use std::path::PathBuf;
 use std::sync::atomic::AtomicI32;
+use std::sync::atomic::Ordering;
 use std::sync::Arc;
 use std::time::Duration;
 use tracing_subscriber::EnvFilter;
+use windows::Win32::UI::HiDpi::SetProcessDpiAwarenessContext;
+use windows::Win32::UI::HiDpi::DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2;
 
 pub static WIDGET_SPACING: f32 = 10.0;
 pub static MAX_LABEL_WIDTH: AtomicI32 = AtomicI32::new(400);
+pub static DPI: AtomicF32 = AtomicF32::new(1.0);
 
 #[derive(Parser)]
 #[clap(author, about, version)]
@@ -49,7 +55,39 @@ struct Opts {
     quickstart: bool,
 }
 
+macro_rules! as_ptr {
+    ($value:expr) => {
+        $value as *mut core::ffi::c_void
+    };
+}
+
+pub fn dpi_for_monitor(hmonitor: isize) -> color_eyre::Result<f32> {
+    use windows::Win32::Graphics::Gdi::HMONITOR;
+    use windows::Win32::UI::HiDpi::GetDpiForMonitor;
+    use windows::Win32::UI::HiDpi::MDT_EFFECTIVE_DPI;
+
+    let mut dpi_x = u32::default();
+    let mut dpi_y = u32::default();
+
+    unsafe {
+        match GetDpiForMonitor(
+            HMONITOR(as_ptr!(hmonitor)),
+            MDT_EFFECTIVE_DPI,
+            std::ptr::addr_of_mut!(dpi_x),
+            std::ptr::addr_of_mut!(dpi_y),
+        ) {
+            Ok(_) => {}
+            Err(error) => bail!(error),
+        }
+    }
+
+    #[allow(clippy::cast_precision_loss)]
+    Ok(dpi_y as f32 / 96.0)
+}
+
 fn main() -> color_eyre::Result<()> {
+    unsafe { SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2) }?;
+
     let opts: Opts = Opts::parse();
 
     if opts.schema {
@@ -157,30 +195,39 @@ fn main() -> color_eyre::Result<()> {
         &SocketMessage::State,
     )?)?;
 
+    let dpi = dpi_for_monitor(state.monitors.elements()[config.monitor.index].id())?;
+    DPI.store(dpi, Ordering::SeqCst);
+
     let mut viewport_builder = ViewportBuilder::default()
         .with_decorations(false)
         // .with_transparent(config.transparent)
         .with_taskbar(false)
         .with_position(Position {
-            x: state.monitors.elements()[config.monitor.index].size().left as f32,
-            y: state.monitors.elements()[config.monitor.index].size().top as f32,
+            x: state.monitors.elements()[config.monitor.index].size().left as f32 / dpi,
+            y: state.monitors.elements()[config.monitor.index].size().top as f32 / dpi,
         })
         .with_inner_size({
             Position {
-                x: state.monitors.elements()[config.monitor.index].size().right as f32,
-                y: 20.0,
+                x: state.monitors.elements()[config.monitor.index].size().right as f32 / dpi,
+                y: 50.0 / dpi,
             }
         });
 
     if let Some(viewport) = &config.viewport {
-        if let Some(position) = &viewport.position {
+        if let Some(mut position) = &viewport.position {
+            position.x /= dpi;
+            position.y /= dpi;
+
             let b = viewport_builder.clone();
-            viewport_builder = b.with_position(*position);
+            viewport_builder = b.with_position(position);
         }
 
-        if let Some(inner_size) = &viewport.inner_size {
+        if let Some(mut inner_size) = &viewport.inner_size {
+            inner_size.x /= dpi;
+            inner_size.y /= dpi;
+
             let b = viewport_builder.clone();
-            viewport_builder = b.with_inner_size(*inner_size);
+            viewport_builder = b.with_inner_size(inner_size);
         }
     }
 
