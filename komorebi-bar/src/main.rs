@@ -161,7 +161,10 @@ fn main() -> color_eyre::Result<()> {
         .with_decorations(false)
         // .with_transparent(config.transparent)
         .with_taskbar(false)
-        .with_position(Position { x: 0.0, y: 0.0 })
+        .with_position(Position {
+            x: state.monitors.elements()[config.monitor.index].size().left as f32,
+            y: state.monitors.elements()[config.monitor.index].size().top as f32,
+        })
         .with_inner_size({
             Position {
                 x: state.monitors.elements()[config.monitor.index].size().right as f32,
@@ -239,10 +242,12 @@ fn main() -> color_eyre::Result<()> {
 
             let ctx_komorebi = cc.egui_ctx.clone();
             std::thread::spawn(move || {
-                let listener = komorebi_client::subscribe("komorebi-bar")
+                let subscriber_name = format!("komorebi-bar-{}", random_word::gen(random_word::Lang::En));
+
+                let listener = komorebi_client::subscribe(&subscriber_name)
                     .expect("could not subscribe to komorebi notifications");
 
-                tracing::info!("subscribed to komorebi notifications: \"komorebi-bar\"");
+                tracing::info!("subscribed to komorebi notifications: \"{}\"", subscriber_name);
 
                 for client in listener.incoming() {
                     match client {
@@ -256,9 +261,7 @@ fn main() -> color_eyre::Result<()> {
 
                                 // keep trying to reconnect to komorebi
                                 while komorebi_client::send_message(
-                                    &SocketMessage::AddSubscriberSocket(String::from(
-                                        "komorebi-bar",
-                                    )),
+                                    &SocketMessage::AddSubscriberSocket(subscriber_name.clone()),
                                 )
                                 .is_err()
                                 {
