@@ -2087,6 +2087,18 @@ if (!(Get-Process komorebi-bar -ErrorAction SilentlyContinue))
             println!("* Join the Discord https://discord.gg/mGkn66PHkx - Chat, ask questions, share your desktops");
             println!("* Read the docs https://lgug2z.github.io/komorebi - Quickly search through all komorebic commands");
 
+            let static_config = arg.config.clone().map_or_else(
+                || {
+                    let bar_json = HOME_DIR.join("komorebi.bar.json");
+                    if bar_json.is_file() {
+                        Option::from(bar_json)
+                    } else {
+                        None
+                    }
+                },
+                Option::from,
+            );
+
             let bar_config = arg.config.map_or_else(
                 || {
                     let bar_json = HOME_DIR.join("komorebi.bar.json");
@@ -2099,12 +2111,18 @@ if (!(Get-Process komorebi-bar -ErrorAction SilentlyContinue))
                 Option::from,
             );
 
-            if let Some(config) = &static_config {
+            if let Some(config) = static_config {
                 let path = resolve_home_path(config)?;
                 let raw = std::fs::read_to_string(path)?;
                 StaticConfig::aliases(&raw);
                 StaticConfig::deprecated(&raw);
                 StaticConfig::end_of_life(&raw);
+            }
+
+            if bar_config.is_some() {
+                let output = Command::new("komorebi-bar.exe").arg("--aliases").output()?;
+                let stdout = String::from_utf8(output.stdout)?;
+                println!("{stdout}");
             }
 
             if bar_config.is_some() {
