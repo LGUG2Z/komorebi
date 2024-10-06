@@ -2025,31 +2025,6 @@ if (!(Get-Process whkd -ErrorAction SilentlyContinue))
                 }
             }
 
-            if arg.bar {
-                let script = r"
-if (!(Get-Process komorebi-bar -ErrorAction SilentlyContinue))
-{
-  Start-Process komorebi-bar -WindowStyle hidden
-}
-                ";
-                match powershell_script::run(script) {
-                    Ok(_) => {
-                        println!("{script}");
-                    }
-                    Err(error) => {
-                        println!("Error: {error}");
-                    }
-                }
-            }
-
-            println!("\nThank you for using komorebi!\n");
-            println!("* Become a sponsor https://github.com/sponsors/LGUG2Z - Even $1/month makes a big difference");
-            println!(
-                "* Subscribe to https://youtube.com/@LGUG2Z - Live dev videos and feature previews"
-            );
-            println!("* Join the Discord https://discord.gg/mGkn66PHkx - Chat, ask questions, share your desktops");
-            println!("* Read the docs https://lgug2z.github.io/komorebi - Quickly search through all komorebic commands");
-
             let static_config = arg.config.clone().map_or_else(
                 || {
                     let komorebi_json = HOME_DIR.join("komorebi.json");
@@ -2061,6 +2036,68 @@ if (!(Get-Process komorebi-bar -ErrorAction SilentlyContinue))
                 },
                 Option::from,
             );
+
+            if arg.bar {
+                if let Some(config) = &static_config {
+                    let mut config = StaticConfig::read(config)?;
+                    if let Some(display_bar_configurations) = &mut config.bar_configurations {
+                        for config_file_path in &mut *display_bar_configurations {
+                            let mut normalized = config_file_path
+                                .to_string_lossy()
+                                .to_string()
+                                .replace(
+                                    "$Env:USERPROFILE",
+                                    &dirs::home_dir().unwrap().to_string_lossy(),
+                                )
+                                .replace('"', "")
+                                .replace('\\', "/");
+
+                            if let Ok(komorebi_config_home) = std::env::var("KOMOREBI_CONFIG_HOME")
+                            {
+                                normalized = normalized
+                                    .replace("$Env:KOMOREBI_CONFIG_HOME", &komorebi_config_home)
+                                    .replace('"', "")
+                                    .replace('\\', "/");
+                            }
+
+                            let script = r"Start-Process 'komorebi-bar' '--config CONFIGFILE' -WindowStyle hidden"
+                            .replace("CONFIGFILE", &normalized);
+
+                            match powershell_script::run(&script) {
+                                Ok(_) => {
+                                    println!("{script}");
+                                }
+                                Err(error) => {
+                                    println!("Error: {error}");
+                                }
+                            }
+                        }
+                    } else {
+                        let script = r"
+if (!(Get-Process komorebi-bar -ErrorAction SilentlyContinue))
+{
+  Start-Process komorebi-bar -WindowStyle hidden
+}
+                ";
+                        match powershell_script::run(script) {
+                            Ok(_) => {
+                                println!("{script}");
+                            }
+                            Err(error) => {
+                                println!("Error: {error}");
+                            }
+                        }
+                    }
+                }
+            }
+
+            println!("\nThank you for using komorebi!\n");
+            println!("* Become a sponsor https://github.com/sponsors/LGUG2Z - Even $1/month makes a big difference");
+            println!(
+                "* Subscribe to https://youtube.com/@LGUG2Z - Live dev videos and feature previews"
+            );
+            println!("* Join the Discord https://discord.gg/mGkn66PHkx - Chat, ask questions, share your desktops");
+            println!("* Read the docs https://lgug2z.github.io/komorebi - Quickly search through all komorebic commands");
 
             let bar_config = arg.config.map_or_else(
                 || {
@@ -2074,7 +2111,7 @@ if (!(Get-Process komorebi-bar -ErrorAction SilentlyContinue))
                 Option::from,
             );
 
-            if let Some(config) = static_config {
+            if let Some(config) = &static_config {
                 let path = resolve_home_path(config)?;
                 let raw = std::fs::read_to_string(path)?;
                 StaticConfig::aliases(&raw);
