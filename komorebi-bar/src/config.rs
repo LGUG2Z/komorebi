@@ -7,13 +7,15 @@ use komorebi_client::Rect;
 use schemars::JsonSchema;
 use serde::Deserialize;
 use serde::Serialize;
+use std::collections::HashMap;
 use std::path::PathBuf;
 
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 /// The `komorebi.bar.json` configuration file reference for `v0.1.30`
 pub struct KomobarConfig {
-    /// Viewport options (see: https://docs.rs/egui/latest/egui/viewport/struct.ViewportBuilder.html)
-    pub viewport: Option<ViewportConfig>,
+    /// Bar positioning options
+    #[serde(alias = "viewport")]
+    pub position: Option<PositionConfig>,
     /// Frame options (see: https://docs.rs/egui/latest/egui/containers/struct.Frame.html)
     pub frame: Option<FrameConfig>,
     /// Monitor options
@@ -32,12 +34,43 @@ pub struct KomobarConfig {
     pub right_widgets: Vec<WidgetConfig>,
 }
 
+impl KomobarConfig {
+    pub fn aliases(raw: &str) {
+        let mut map = HashMap::new();
+        map.insert("position", ["viewport"]);
+        map.insert("end", ["inner_frame"]);
+
+        let mut display = false;
+
+        for aliases in map.values() {
+            for a in aliases {
+                if raw.contains(a) {
+                    display = true;
+                }
+            }
+        }
+
+        if display {
+            println!("\nYour bar configuration file contains some options that have been renamed or deprecated:\n");
+            for (canonical, aliases) in map {
+                for alias in aliases {
+                    if raw.contains(alias) {
+                        println!(r#""{alias}" is now "{canonical}""#);
+                    }
+                }
+            }
+        }
+    }
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
-pub struct ViewportConfig {
+pub struct PositionConfig {
     /// The desired starting position of the bar (0,0 = top left of the screen)
-    pub position: Option<Position>,
+    #[serde(alias = "position")]
+    pub start: Option<Position>,
     /// The desired size of the bar from the starting position (usually monitor width x desired height)
-    pub inner_size: Option<Position>,
+    #[serde(alias = "inner_size")]
+    pub end: Option<Position>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]

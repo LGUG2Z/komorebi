@@ -1,11 +1,17 @@
 use crate::config::KomobarConfig;
 use crate::config::KomobarTheme;
+use crate::config::Position;
+use crate::config::PositionConfig;
 use crate::komorebi::Komorebi;
 use crate::komorebi::KomorebiNotificationState;
+use crate::process_hwnd;
 use crate::widget::BarWidget;
 use crate::widget::WidgetConfig;
-use crate::DPI;
+use crate::BAR_HEIGHT;
 use crate::MAX_LABEL_WIDTH;
+use crate::MONITOR_LEFT;
+use crate::MONITOR_RIGHT;
+use crate::MONITOR_TOP;
 use crossbeam_channel::Receiver;
 use eframe::egui::Align;
 use eframe::egui::CentralPanel;
@@ -18,11 +24,8 @@ use eframe::egui::FontId;
 use eframe::egui::Frame;
 use eframe::egui::Layout;
 use eframe::egui::Margin;
-use eframe::egui::Pos2;
 use eframe::egui::Style;
 use eframe::egui::TextStyle;
-use eframe::egui::Vec2;
-use eframe::egui::ViewportCommand;
 use font_loader::system_fonts;
 use font_loader::system_fonts::FontPropertyBuilder;
 use komorebi_client::KomorebiTheme;
@@ -146,16 +149,43 @@ impl Komobar {
             Self::add_custom_font(ctx, font_family);
         }
 
-        if let Some(viewport) = &config.viewport {
-            let dpi = DPI.load(Ordering::SeqCst);
-            if let Some(position) = viewport.position {
-                let pos2 = Pos2::new(position.x / dpi, position.y / dpi);
-                ctx.send_viewport_cmd(ViewportCommand::OuterPosition(pos2));
-            }
+        let position = config.position.clone().unwrap_or(PositionConfig {
+            start: Some(Position {
+                x: MONITOR_LEFT.load(Ordering::SeqCst) as f32,
+                y: MONITOR_TOP.load(Ordering::SeqCst) as f32,
+            }),
+            end: Some(Position {
+                x: MONITOR_RIGHT.load(Ordering::SeqCst) as f32,
+                y: BAR_HEIGHT,
+            }),
+        });
 
-            if let Some(position) = viewport.inner_size {
-                let vec2 = Vec2::new(position.x / dpi, position.y / dpi);
-                ctx.send_viewport_cmd(ViewportCommand::InnerSize(vec2));
+        if let Some(hwnd) = process_hwnd() {
+            let start = position.start.unwrap_or(Position {
+                x: MONITOR_LEFT.load(Ordering::SeqCst) as f32,
+                y: MONITOR_TOP.load(Ordering::SeqCst) as f32,
+            });
+
+            let end = position.end.unwrap_or(Position {
+                x: MONITOR_RIGHT.load(Ordering::SeqCst) as f32,
+                y: BAR_HEIGHT,
+            });
+
+            let rect = komorebi_client::Rect {
+                left: start.x as i32,
+                top: start.y as i32,
+                right: end.x as i32,
+                bottom: end.y as i32,
+            };
+
+            let window = komorebi_client::Window::from(hwnd);
+            match window.set_position(&rect, false) {
+                Ok(_) => {
+                    tracing::info!("updated bar position");
+                }
+                Err(error) => {
+                    tracing::error!("{}", error.to_string())
+                }
             }
         }
 
@@ -294,6 +324,8 @@ impl Komobar {
             scale_factor: cc.egui_ctx.native_pixels_per_point().unwrap_or(1.0),
         };
 
+        komobar.apply_config(&cc.egui_ctx, &config, None);
+        // needs a double apply the first time for some reason
         komobar.apply_config(&cc.egui_ctx, &config, None);
 
         komobar
