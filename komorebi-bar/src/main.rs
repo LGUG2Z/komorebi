@@ -14,9 +14,8 @@ mod widget;
 use crate::bar::Komobar;
 use crate::config::KomobarConfig;
 use crate::config::Position;
-use atomic_float::AtomicF32;
+use crate::config::PositionConfig;
 use clap::Parser;
-use color_eyre::eyre::bail;
 use eframe::egui::ViewportBuilder;
 use font_loader::system_fonts;
 use hotwatch::EventKind;
@@ -31,12 +30,23 @@ use std::sync::atomic::Ordering;
 use std::sync::Arc;
 use std::time::Duration;
 use tracing_subscriber::EnvFilter;
+use windows::Win32::Foundation::BOOL;
+use windows::Win32::Foundation::HWND;
+use windows::Win32::Foundation::LPARAM;
+use windows::Win32::System::Threading::GetCurrentProcessId;
+use windows::Win32::System::Threading::GetCurrentThreadId;
 use windows::Win32::UI::HiDpi::SetProcessDpiAwarenessContext;
 use windows::Win32::UI::HiDpi::DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2;
+use windows::Win32::UI::WindowsAndMessaging::EnumThreadWindows;
+use windows::Win32::UI::WindowsAndMessaging::GetWindowThreadProcessId;
 
 pub static WIDGET_SPACING: f32 = 10.0;
+
 pub static MAX_LABEL_WIDTH: AtomicI32 = AtomicI32::new(400);
-pub static DPI: AtomicF32 = AtomicF32::new(1.0);
+pub static MONITOR_LEFT: AtomicI32 = AtomicI32::new(0);
+pub static MONITOR_TOP: AtomicI32 = AtomicI32::new(0);
+pub static MONITOR_RIGHT: AtomicI32 = AtomicI32::new(0);
+pub static BAR_HEIGHT: f32 = 50.0;
 
 #[derive(Parser)]
 #[clap(author, about, version)]
@@ -53,36 +63,41 @@ struct Opts {
     /// Write an example komorebi.bar.json to disk
     #[clap(long)]
     quickstart: bool,
+    /// Print a list of aliases that can be renamed to canonical variants
+    #[clap(long)]
+    #[clap(hide = true)]
+    aliases: bool,
 }
 
-macro_rules! as_ptr {
-    ($value:expr) => {
-        $value as *mut core::ffi::c_void
-    };
-}
-
-pub fn dpi_for_monitor(hmonitor: isize) -> color_eyre::Result<f32> {
-    use windows::Win32::Graphics::Gdi::HMONITOR;
-    use windows::Win32::UI::HiDpi::GetDpiForMonitor;
-    use windows::Win32::UI::HiDpi::MDT_EFFECTIVE_DPI;
-
-    let mut dpi_x = u32::default();
-    let mut dpi_y = u32::default();
-
+extern "system" fn enum_window(hwnd: HWND, lparam: LPARAM) -> BOOL {
     unsafe {
-        match GetDpiForMonitor(
-            HMONITOR(as_ptr!(hmonitor)),
-            MDT_EFFECTIVE_DPI,
-            std::ptr::addr_of_mut!(dpi_x),
-            std::ptr::addr_of_mut!(dpi_y),
-        ) {
-            Ok(_) => {}
-            Err(error) => bail!(error),
+        let mut process_id = 0;
+        GetWindowThreadProcessId(hwnd, Some(&mut process_id));
+
+        if process_id == GetCurrentProcessId() {
+            *(lparam.0 as *mut HWND) = hwnd;
+            BOOL::from(false) // Stop enumeration
+        } else {
+            BOOL::from(true) // Continue enumeration
         }
     }
+}
 
-    #[allow(clippy::cast_precision_loss)]
-    Ok(dpi_y as f32 / 96.0)
+fn process_hwnd() -> Option<isize> {
+    unsafe {
+        let mut hwnd = HWND::default();
+        let _ = EnumThreadWindows(
+            GetCurrentThreadId(),
+            Some(enum_window),
+            LPARAM(&mut hwnd as *mut HWND as isize),
+        );
+
+        if hwnd.0 as isize == 0 {
+            None
+        } else {
+            Some(hwnd.0 as isize)
+        }
+    }
 }
 
 fn main() -> color_eyre::Result<()> {
@@ -166,7 +181,7 @@ fn main() -> color_eyre::Result<()> {
         Option::from,
     );
 
-    let config = match config_path {
+    let mut config = match config_path {
         None => {
             let komorebi_bar_json =
                 include_str!("../../docs/komorebi.bar.example.json").to_string();
@@ -180,10 +195,12 @@ fn main() -> color_eyre::Result<()> {
             KomobarConfig::read(&default_config_path)?
         }
         Some(ref config) => {
-            tracing::info!(
-                "found configuration file: {}",
-                config.as_path().to_string_lossy()
-            );
+            if !opts.aliases {
+                tracing::info!(
+                    "found configuration file: {}",
+                    config.as_path().to_string_lossy()
+                );
+            }
 
             KomobarConfig::read(config)?
         }
@@ -191,45 +208,64 @@ fn main() -> color_eyre::Result<()> {
 
     let config_path = config_path.unwrap_or(default_config_path);
 
+    if opts.aliases {
+        KomobarConfig::aliases(&std::fs::read_to_string(&config_path)?);
+        std::process::exit(0);
+    }
+
     let state = serde_json::from_str::<komorebi_client::State>(&komorebi_client::send_query(
         &SocketMessage::State,
     )?)?;
 
-    let dpi = dpi_for_monitor(state.monitors.elements()[config.monitor.index].id())?;
-    DPI.store(dpi, Ordering::SeqCst);
+    MONITOR_RIGHT.store(
+        state.monitors.elements()[config.monitor.index].size().right,
+        Ordering::SeqCst,
+    );
 
-    let mut viewport_builder = ViewportBuilder::default()
-        .with_decorations(false)
-        // .with_transparent(config.transparent)
-        .with_taskbar(false)
-        .with_position(Position {
-            x: state.monitors.elements()[config.monitor.index].size().left as f32 / dpi,
-            y: state.monitors.elements()[config.monitor.index].size().top as f32 / dpi,
-        })
-        .with_inner_size({
-            Position {
-                x: state.monitors.elements()[config.monitor.index].size().right as f32 / dpi,
-                y: 50.0 / dpi,
-            }
-        });
+    MONITOR_TOP.store(
+        state.monitors.elements()[config.monitor.index].size().top,
+        Ordering::SeqCst,
+    );
 
-    if let Some(viewport) = &config.viewport {
-        if let Some(mut position) = &viewport.position {
-            position.x /= dpi;
-            position.y /= dpi;
+    MONITOR_TOP.store(
+        state.monitors.elements()[config.monitor.index].size().left,
+        Ordering::SeqCst,
+    );
 
-            let b = viewport_builder.clone();
-            viewport_builder = b.with_position(position);
+    match config.position {
+        None => {
+            config.position = Some(PositionConfig {
+                start: Some(Position {
+                    x: state.monitors.elements()[config.monitor.index].size().left as f32,
+                    y: state.monitors.elements()[config.monitor.index].size().top as f32,
+                }),
+                end: Some(Position {
+                    x: state.monitors.elements()[config.monitor.index].size().right as f32,
+                    y: 50.0,
+                }),
+            })
         }
+        Some(ref mut position) => {
+            if position.start.is_none() {
+                position.start = Some(Position {
+                    x: state.monitors.elements()[config.monitor.index].size().left as f32,
+                    y: state.monitors.elements()[config.monitor.index].size().top as f32,
+                });
+            }
 
-        if let Some(mut inner_size) = &viewport.inner_size {
-            inner_size.x /= dpi;
-            inner_size.y /= dpi;
-
-            let b = viewport_builder.clone();
-            viewport_builder = b.with_inner_size(inner_size);
+            if position.end.is_none() {
+                position.end = Some(Position {
+                    x: state.monitors.elements()[config.monitor.index].size().right as f32,
+                    y: 50.0,
+                })
+            }
         }
     }
+
+    let viewport_builder = ViewportBuilder::default()
+        .with_decorations(false)
+        // .with_transparent(config.transparent)
+        .with_taskbar(false);
 
     let native_options = eframe::NativeOptions {
         viewport: viewport_builder,
