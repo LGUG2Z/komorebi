@@ -63,3 +63,6 @@ features = [
     "Media",
     "Media_Control"
 ]
+
+[profile.release]
+lto = true
