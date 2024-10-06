@@ -1,9 +1,7 @@
+use super::ANIMATIONS_IN_PROGRESS;
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
-use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering;
-
-pub static ANIMATIONS_IN_PROGRESS: AtomicUsize = AtomicUsize::new(0);
 
 #[derive(Debug, Clone, Copy)]
 struct AnimationState {
