@@ -2111,7 +2111,7 @@ if (!(Get-Process komorebi-bar -ErrorAction SilentlyContinue))
                 Option::from,
             );
 
-            if let Some(config) = static_config {
+            if let Some(config) = &static_config {
                 let path = resolve_home_path(config)?;
                 let raw = std::fs::read_to_string(path)?;
                 StaticConfig::aliases(&raw);
