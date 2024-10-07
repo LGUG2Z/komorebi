@@ -232,10 +232,6 @@ impl Workspace {
             container.restore();
         }
 
-        for container in self.containers_mut() {
-            container.restore();
-        }
-
         if let Some(container) = self.focused_container_mut() {
             container.focus_window(container.focused_window_idx());
         }
