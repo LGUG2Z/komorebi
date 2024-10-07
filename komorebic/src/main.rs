@@ -2060,19 +2060,68 @@ if (!(Get-Process whkd -ErrorAction SilentlyContinue))
                 }
             }
 
+            let static_config = arg.config.clone().map_or_else(
+                || {
+                    let komorebi_json = HOME_DIR.join("komorebi.json");
+                    if komorebi_json.is_file() {
+                        Option::from(komorebi_json)
+                    } else {
+                        None
+                    }
+                },
+                Option::from,
+            );
+
             if arg.bar {
-                let script = r"
+                if let Some(config) = &static_config {
+                    let mut config = StaticConfig::read(config)?;
+                    if let Some(display_bar_configurations) = &mut config.bar_configurations {
+                        for config_file_path in &mut *display_bar_configurations {
+                            let mut normalized = config_file_path
+                                .to_string_lossy()
+                                .to_string()
+                                .replace(
+                                    "$Env:USERPROFILE",
+                                    &dirs::home_dir().unwrap().to_string_lossy(),
+                                )
+                                .replace('"', "")
+                                .replace('\\', "/");
+
+                            if let Ok(komorebi_config_home) = std::env::var("KOMOREBI_CONFIG_HOME")
+                            {
+                                normalized = normalized
+                                    .replace("$Env:KOMOREBI_CONFIG_HOME", &komorebi_config_home)
+                                    .replace('"', "")
+                                    .replace('\\', "/");
+                            }
+
+                            let script = r"Start-Process 'komorebi-bar' '--config CONFIGFILE' -WindowStyle hidden"
+                            .replace("CONFIGFILE", &normalized);
+
+                            match powershell_script::run(&script) {
+                                Ok(_) => {
+                                    println!("{script}");
+                                }
+                                Err(error) => {
+                                    println!("Error: {error}");
+                                }
+                            }
+                        }
+                    } else {
+                        let script = r"
 if (!(Get-Process komorebi-bar -ErrorAction SilentlyContinue))
 {
   Start-Process komorebi-bar -WindowStyle hidden
 }
                 ";
-                match powershell_script::run(script) {
-                    Ok(_) => {
-                        println!("{script}");
-                    }
-                    Err(error) => {
-                        println!("Error: {error}");
+                        match powershell_script::run(script) {
+                            Ok(_) => {
+                                println!("{script}");
+                            }
+                            Err(error) => {
+                                println!("Error: {error}");
+                            }
+                        }
                     }
                 }
             }
@@ -2085,11 +2134,11 @@ if (!(Get-Process komorebi-bar -ErrorAction SilentlyContinue))
             println!("* Join the Discord https://discord.gg/mGkn66PHkx - Chat, ask questions, share your desktops");
             println!("* Read the docs https://lgug2z.github.io/komorebi - Quickly search through all komorebic commands");
 
-            let static_config = arg.config.map_or_else(
+            let bar_config = arg.config.map_or_else(
                 || {
-                    let komorebi_json = HOME_DIR.join("komorebi.json");
-                    if komorebi_json.is_file() {
-                        Option::from(komorebi_json)
+                    let bar_json = HOME_DIR.join("komorebi.bar.json");
+                    if bar_json.is_file() {
+                        Option::from(bar_json)
                     } else {
                         None
                     }
@@ -2097,11 +2146,17 @@ if (!(Get-Process komorebi-bar -ErrorAction SilentlyContinue))
                 Option::from,
             );
 
-            if let Some(config) = static_config {
+            if let Some(config) = &static_config {
                 let path = resolve_home_path(config)?;
                 let raw = std::fs::read_to_string(path)?;
                 StaticConfig::aliases(&raw);
                 StaticConfig::deprecated(&raw);
+            }
+
+            if bar_config.is_some() {
+                let output = Command::new("komorebi-bar.exe").arg("--aliases").output()?;
+                let stdout = String::from_utf8(output.stdout)?;
+                println!("{stdout}");
             }
         }
         SubCommand::Stop(arg) => {

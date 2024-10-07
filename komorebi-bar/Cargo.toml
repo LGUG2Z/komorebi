@@ -24,6 +24,7 @@ netdev = "0.31"
 num = "0.4.3"
 num-derive = "0.4.2"
 num-traits = "0.2.19"
+random_word = { version = "0.4.3", features = ["en"] }
 schemars = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }

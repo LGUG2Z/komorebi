@@ -239,6 +239,13 @@ impl WindowManager {
                 self.focused_window()?.focus(self.mouse_follows_focus)?;
             }
             SocketMessage::FocusStackWindow(idx) => {
+                // In case you are using this command on a bar on a monitor
+                // different from the currently focused one, you'd want that
+                // monitor to be focused so that the FocusStackWindow happens
+                // on the monitor with the bar you just pressed.
+                if let Some(monitor_idx) = self.monitor_idx_from_current_pos() {
+                    self.focus_monitor(monitor_idx)?;
+                }
                 self.focus_container_window(idx)?;
                 self.focused_window()?.focus(self.mouse_follows_focus)?;
             }

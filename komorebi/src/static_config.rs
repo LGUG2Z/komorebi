@@ -341,6 +341,10 @@ pub struct StaticConfig {
     /// How long to wait when compensating for slow applications, in milliseconds (default: 20)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub slow_application_compensation_time: Option<u64>,
+    /// Komorebi status bar configuration files for multiple instances on different monitors
+    #[serde(skip_serializing_if = "Option::is_none")]
+    // this option is a little special because it is only consumed by komorebic
+    pub bar_configurations: Option<Vec<PathBuf>>,
 }
 
 #[derive(Debug, Serialize, Deserialize, JsonSchema)]
@@ -556,6 +560,7 @@ impl From<&WindowManager> for StaticConfig {
                 SLOW_APPLICATION_COMPENSATION_TIME.load(Ordering::SeqCst),
             ),
             slow_application_identifiers: Option::from(SLOW_APPLICATION_IDENTIFIERS.lock().clone()),
+            bar_configurations: None,
         }
     }
 }
