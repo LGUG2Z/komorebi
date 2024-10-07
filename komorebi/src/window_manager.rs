@@ -871,6 +871,8 @@ impl WindowManager {
                     && self.focused_workspace()?.maximized_window().is_none()
                     // and we don't have a monocle container
                     && self.focused_workspace()?.monocle_container().is_none()
+                    // and we don't have any floating windows that should show on top
+                    && self.focused_workspace()?.floating_windows().is_empty()
                 {
                     if let Ok(window) = self.focused_window_mut() {
                         if trigger_focus {
