@@ -1355,6 +1355,9 @@ impl WindowManager {
                     }
                 }
             }
+            SocketMessage::ToggleFloatOverride => {
+                self.window_management_behaviour.float_override = !self.window_management_behaviour.float_override;
+            }
             SocketMessage::WindowHidingBehaviour(behaviour) => {
                 let mut hiding_behaviour = HIDING_BEHAVIOUR.lock();
                 *hiding_behaviour = behaviour;
