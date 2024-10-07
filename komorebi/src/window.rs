@@ -280,7 +280,10 @@ impl Window {
     }
 
     pub fn minimize(self) {
-        WindowsApi::minimize_window(self.hwnd);
+        let exe = self.exe().unwrap_or_default();
+        if !exe.contains("komorebi-bar") {
+            WindowsApi::minimize_window(self.hwnd);
+        }
     }
 
     pub fn close(self) -> Result<()> {
