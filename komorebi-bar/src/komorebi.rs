@@ -83,14 +83,6 @@ impl From<&KomorebiConfig> for Komorebi {
             if let Some(configuration_switcher) = &value.configuration_switcher {
                 let mut configuration_switcher = configuration_switcher.clone();
                 for (_, location) in configuration_switcher.configurations.iter_mut() {
-                    if let Ok(expanded) = std::env::var("KOMOREBI_CONFIG_HOME") {
-                        *location = location.replace("$Env:KOMOREBI_CONFIG_HOME", &expanded);
-                    }
-
-                    if let Ok(expanded) = std::env::var("USERPROFILE") {
-                        *location = location.replace("$Env:USERPROFILE", &expanded);
-                    }
-
                     *location = dunce::simplified(&PathBuf::from(location.clone()))
                         .to_string_lossy()
                         .to_string();

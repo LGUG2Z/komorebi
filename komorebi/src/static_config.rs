@@ -934,7 +934,34 @@ impl StaticConfig {
 
     pub fn read(path: &PathBuf) -> Result<Self> {
         let content = std::fs::read_to_string(path)?;
-        let value: Self = serde_json::from_str(&content)?;
+        let mut value: Self = serde_json::from_str(&content)?;
+
+        if let Some(path) = &mut value.app_specific_configuration_path {
+            *path = resolve_home_path(&*path)?;
+        }
+
+        if let Some(monitors) = &mut value.monitors {
+            for m in monitors {
+                for w in &mut m.workspaces {
+                    if let Some(path) = &mut w.custom_layout {
+                        *path = resolve_home_path(&*path)?;
+                    }
+
+                    if let Some(map) = &mut w.custom_layout_rules {
+                        for path in map.values_mut() {
+                            *path = resolve_home_path(&*path)?;
+                        }
+                    }
+                }
+            }
+        }
+
+        if let Some(bar_configurations) = &mut value.bar_configurations {
+            for path in bar_configurations {
+                *path = resolve_home_path(&*path)?;
+            }
+        }
+
         Ok(value)
     }
 
@@ -944,8 +971,7 @@ impl StaticConfig {
         incoming: Receiver<WindowManagerEvent>,
         unix_listener: Option<UnixListener>,
     ) -> Result<WindowManager> {
-        let content = std::fs::read_to_string(path)?;
-        let mut value: Self = serde_json::from_str(&content)?;
+        let mut value = Self::read(path)?;
         value.apply_globals()?;
 
         let listener = match unix_listener {
@@ -1024,8 +1050,7 @@ impl StaticConfig {
     }
 
     pub fn postload(path: &PathBuf, wm: &Arc<Mutex<WindowManager>>) -> Result<()> {
-        let content = std::fs::read_to_string(path)?;
-        let value: Self = serde_json::from_str(&content)?;
+        let value = Self::read(path)?;
         let mut wm = wm.lock();
 
         if let Some(monitors) = value.monitors {
@@ -1092,8 +1117,7 @@ impl StaticConfig {
     }
 
     pub fn reload(path: &PathBuf, wm: &mut WindowManager) -> Result<()> {
-        let content = std::fs::read_to_string(path)?;
-        let mut value: Self = serde_json::from_str(&content)?;
+        let mut value = Self::read(path)?;
 
         value.apply_globals()?;
 
