@@ -316,6 +316,13 @@ pub fn notify_subscribers(notification: &str) -> Result<()> {
     for socket in stale_sockets {
         tracing::warn!("removing stale subscription: {socket}");
         sockets.remove(&socket);
+        let socket_path = DATA_DIR.join(socket);
+        if let Err(error) = std::fs::remove_file(&socket_path) {
+            tracing::error!(
+                "could not remove stale subscriber socket file at {}: {error}",
+                socket_path.display()
+            )
+        }
     }
 
     let mut stale_pipes = vec![];
