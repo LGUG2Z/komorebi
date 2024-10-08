@@ -27,7 +27,6 @@ fn main() {
         viewport: ViewportBuilder::default()
             .with_always_on_top()
             .with_inner_size([320.0, 500.0]),
-        follow_system_theme: true,
         ..Default::default()
     };
 
@@ -234,7 +233,8 @@ extern "system" fn enum_window(
 
 fn json_view_ui(ui: &mut egui::Ui, code: &str) {
     let language = "json";
-    let theme = egui_extras::syntax_highlighting::CodeTheme::from_memory(ui.ctx());
+    let theme =
+        egui_extras::syntax_highlighting::CodeTheme::from_memory(ui.ctx(), &ui.ctx().style());
     egui_extras::syntax_highlighting::code_view_ui(ui, &theme, code, language);
 }
 
