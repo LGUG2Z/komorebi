@@ -28,9 +28,9 @@ pub struct CpuConfig {
 impl From<CpuConfig> for Cpu {
     fn from(value: CpuConfig) -> Self {
         let mut system =
-            System::new_with_specifics(RefreshKind::default().without_cpu().without_processes());
+            System::new_with_specifics(RefreshKind::default().without_memory().without_processes());
 
-        system.refresh_memory();
+        system.refresh_cpu_usage();
 
         Self {
             enable: value.enable,
@@ -52,13 +52,12 @@ impl Cpu {
     fn output(&mut self) -> String {
         let now = Instant::now();
         if now.duration_since(self.last_updated) > Duration::from_secs(self.data_refresh_interval) {
-            self.system.refresh_memory();
+            self.system.refresh_cpu_usage();
             self.last_updated = now;
         }
 
-        let used = self.system.used_memory();
-        let total = self.system.total_memory();
-        format!("CPU: {}%", (used * 100) / total)
+        let used = self.system.global_cpu_usage();
+        format!("CPU: {:.0}%", used)
     }
 }
 
@@ -75,7 +74,7 @@ impl BarWidget for Cpu {
                     .unwrap_or_else(FontId::default);
 
                 let mut layout_job = LayoutJob::simple(
-                    egui_phosphor::regular::MEMORY.to_string(),
+                    egui_phosphor::regular::CPU.to_string(),
                     font_id.clone(),
                     ctx.style().visuals.selection.stroke.color,
                     100.0,

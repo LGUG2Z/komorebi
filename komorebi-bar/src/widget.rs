@@ -1,5 +1,7 @@
 use crate::battery::Battery;
 use crate::battery::BatteryConfig;
+use crate::cpu::Cpu;
+use crate::cpu::CpuConfig;
 use crate::date::Date;
 use crate::date::DateConfig;
 use crate::komorebi::Komorebi;
@@ -27,6 +29,7 @@ pub trait BarWidget {
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 pub enum WidgetConfig {
     Battery(BatteryConfig),
+    Cpu(CpuConfig),
     Date(DateConfig),
     Komorebi(KomorebiConfig),
     Media(MediaConfig),
@@ -40,6 +43,7 @@ impl WidgetConfig {
     pub fn as_boxed_bar_widget(&self) -> Box<dyn BarWidget> {
         match self {
             WidgetConfig::Battery(config) => Box::new(Battery::from(*config)),
+            WidgetConfig::Cpu(config) => Box::new(Cpu::from(*config)),
             WidgetConfig::Date(config) => Box::new(Date::from(config.clone())),
             WidgetConfig::Komorebi(config) => Box::new(Komorebi::from(config)),
             WidgetConfig::Media(config) => Box::new(Media::from(*config)),
