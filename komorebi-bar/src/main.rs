@@ -1,4 +1,5 @@
 mod bar;
+mod cpu;
 mod battery;
 mod config;
 mod cpu;
