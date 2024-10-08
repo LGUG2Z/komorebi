@@ -16,15 +16,15 @@ crossbeam-channel = { workspace = true }
 dirs = { workspace = true }
 dunce = { workspace = true }
 eframe = { workspace = true }
-egui-phosphor = "0.6.0"
+egui-phosphor = "0.7"
 font-loader = "0.11"
 hotwatch = { workspace = true }
 image = "0.25"
 netdev = "0.31"
-num = "0.4.3"
-num-derive = "0.4.2"
-num-traits = "0.2.19"
-random_word = { version = "0.4.3", features = ["en"] }
+num = "0.4"
+num-derive = "0.4"
+num-traits = "0.2"
+random_word = { version = "0.4", features = ["en"] }
 schemars = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }

@@ -124,35 +124,39 @@ pub enum CatppuccinValue {
     Crust,
 }
 
+pub fn color32_compat(rgba: [u8; 4]) -> Color32 {
+    Color32::from_rgba_unmultiplied(rgba[0], rgba[1], rgba[2], rgba[3])
+}
+
 impl CatppuccinValue {
     pub fn color32(&self, theme: catppuccin_egui::Theme) -> Color32 {
         match self {
-            CatppuccinValue::Rosewater => theme.rosewater,
-            CatppuccinValue::Flamingo => theme.flamingo,
-            CatppuccinValue::Pink => theme.pink,
-            CatppuccinValue::Mauve => theme.mauve,
-            CatppuccinValue::Red => theme.red,
-            CatppuccinValue::Maroon => theme.maroon,
-            CatppuccinValue::Peach => theme.peach,
-            CatppuccinValue::Yellow => theme.yellow,
-            CatppuccinValue::Green => theme.green,
-            CatppuccinValue::Teal => theme.teal,
-            CatppuccinValue::Sky => theme.sky,
-            CatppuccinValue::Sapphire => theme.sapphire,
-            CatppuccinValue::Blue => theme.blue,
-            CatppuccinValue::Lavender => theme.lavender,
-            CatppuccinValue::Text => theme.text,
-            CatppuccinValue::Subtext1 => theme.subtext1,
-            CatppuccinValue::Subtext0 => theme.subtext0,
-            CatppuccinValue::Overlay2 => theme.overlay2,
-            CatppuccinValue::Overlay1 => theme.overlay1,
-            CatppuccinValue::Overlay0 => theme.overlay0,
-            CatppuccinValue::Surface2 => theme.surface2,
-            CatppuccinValue::Surface1 => theme.surface1,
-            CatppuccinValue::Surface0 => theme.surface0,
-            CatppuccinValue::Base => theme.base,
-            CatppuccinValue::Mantle => theme.mantle,
-            CatppuccinValue::Crust => theme.crust,
+            CatppuccinValue::Rosewater => color32_compat(theme.rosewater.to_srgba_unmultiplied()),
+            CatppuccinValue::Flamingo => color32_compat(theme.flamingo.to_srgba_unmultiplied()),
+            CatppuccinValue::Pink => color32_compat(theme.pink.to_srgba_unmultiplied()),
+            CatppuccinValue::Mauve => color32_compat(theme.mauve.to_srgba_unmultiplied()),
+            CatppuccinValue::Red => color32_compat(theme.red.to_srgba_unmultiplied()),
+            CatppuccinValue::Maroon => color32_compat(theme.maroon.to_srgba_unmultiplied()),
+            CatppuccinValue::Peach => color32_compat(theme.peach.to_srgba_unmultiplied()),
+            CatppuccinValue::Yellow => color32_compat(theme.yellow.to_srgba_unmultiplied()),
+            CatppuccinValue::Green => color32_compat(theme.green.to_srgba_unmultiplied()),
+            CatppuccinValue::Teal => color32_compat(theme.teal.to_srgba_unmultiplied()),
+            CatppuccinValue::Sky => color32_compat(theme.sky.to_srgba_unmultiplied()),
+            CatppuccinValue::Sapphire => color32_compat(theme.sapphire.to_srgba_unmultiplied()),
+            CatppuccinValue::Blue => color32_compat(theme.blue.to_srgba_unmultiplied()),
+            CatppuccinValue::Lavender => color32_compat(theme.lavender.to_srgba_unmultiplied()),
+            CatppuccinValue::Text => color32_compat(theme.text.to_srgba_unmultiplied()),
+            CatppuccinValue::Subtext1 => color32_compat(theme.subtext1.to_srgba_unmultiplied()),
+            CatppuccinValue::Subtext0 => color32_compat(theme.subtext0.to_srgba_unmultiplied()),
+            CatppuccinValue::Overlay2 => color32_compat(theme.overlay2.to_srgba_unmultiplied()),
+            CatppuccinValue::Overlay1 => color32_compat(theme.overlay1.to_srgba_unmultiplied()),
+            CatppuccinValue::Overlay0 => color32_compat(theme.overlay0.to_srgba_unmultiplied()),
+            CatppuccinValue::Surface2 => color32_compat(theme.surface2.to_srgba_unmultiplied()),
+            CatppuccinValue::Surface1 => color32_compat(theme.surface1.to_srgba_unmultiplied()),
+            CatppuccinValue::Surface0 => color32_compat(theme.surface0.to_srgba_unmultiplied()),
+            CatppuccinValue::Base => color32_compat(theme.base.to_srgba_unmultiplied()),
+            CatppuccinValue::Mantle => color32_compat(theme.mantle.to_srgba_unmultiplied()),
+            CatppuccinValue::Crust => color32_compat(theme.crust.to_srgba_unmultiplied()),
         }
     }
 }
