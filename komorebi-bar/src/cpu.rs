@@ -57,7 +57,7 @@ impl Cpu {
         }
 
         let used = self.system.global_cpu_usage();
-        format!("CPU: {:.0}%", used)
+        format!("{:.0}%", used)
     }
 }
 
