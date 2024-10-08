@@ -58,7 +58,7 @@ impl Memory {
 
         let used = self.system.used_memory();
         let total = self.system.total_memory();
-        format!("{}%", (used * 100) / total)
+        format!("MEM: {}%", (used * 100) / total)
     }
 }
 
