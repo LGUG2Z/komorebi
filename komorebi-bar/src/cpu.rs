@@ -74,7 +74,7 @@ impl BarWidget for Cpu {
                     .unwrap_or_else(FontId::default);
 
                 let mut layout_job = LayoutJob::simple(
-                    egui_phosphor::regular::CPU.to_string(),
+                    egui_phosphor::regular::CIRCUITRY.to_string(),
                     font_id.clone(),
                     ctx.style().visuals.selection.stroke.color,
                     100.0,
