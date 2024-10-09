@@ -1,3 +1,4 @@
+use crate::config::LabelPrefix;
 use crate::widget::BarWidget;
 use crate::WIDGET_SPACING;
 use eframe::egui::text::LayoutJob;
@@ -22,6 +23,8 @@ pub struct StorageConfig {
     pub enable: bool,
     /// Data refresh interval (default: 10 seconds)
     pub data_refresh_interval: Option<u64>,
+    /// Display label prefix
+    pub label_prefix: Option<LabelPrefix>,
 }
 
 impl From<StorageConfig> for Storage {
@@ -30,6 +33,7 @@ impl From<StorageConfig> for Storage {
             enable: value.enable,
             disks: Disks::new_with_refreshed_list(),
             data_refresh_interval: value.data_refresh_interval.unwrap_or(10),
+            label_prefix: value.label_prefix.unwrap_or(LabelPrefix::IconAndText),
             last_updated: Instant::now(),
         }
     }
@@ -39,6 +43,7 @@ pub struct Storage {
     pub enable: bool,
     disks: Disks,
     data_refresh_interval: u64,
+    label_prefix: LabelPrefix,
     last_updated: Instant,
 }
 
@@ -57,12 +62,13 @@ impl Storage {
             let total = disk.total_space();
             let available = disk.available_space();
             let used = total - available;
-
-            disks.push(format!(
-                "{} {}%",
-                mount.to_string_lossy(),
-                (used * 100) / total
-            ))
+            
+            disks.push(match self.label_prefix {
+                LabelPrefix::Text | LabelPrefix::IconAndText => {
+                    format!("{} {}%", mount.to_string_lossy(), (used * 100) / total)
+                }
+                LabelPrefix::None | LabelPrefix::Icon => format!("{}%", (used * 100) / total),
+            })
         }
 
         disks.sort();
@@ -84,7 +90,12 @@ impl BarWidget for Storage {
 
             for output in self.output() {
                 let mut layout_job = LayoutJob::simple(
-                    egui_phosphor::regular::HARD_DRIVES.to_string(),
+                    match self.label_prefix {
+                        LabelPrefix::Icon | LabelPrefix::IconAndText => {
+                            egui_phosphor::regular::HARD_DRIVES.to_string()
+                        }
+                        LabelPrefix::None | LabelPrefix::Text => String::new(),
+                    },
                     font_id.clone(),
                     ctx.style().visuals.selection.stroke.color,
                     100.0,
