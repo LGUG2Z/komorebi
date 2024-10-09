@@ -1,3 +1,4 @@
+use crate::config::LabelPrefix;
 use crate::widget::BarWidget;
 use crate::WIDGET_SPACING;
 use eframe::egui::text::LayoutJob;
@@ -23,6 +24,8 @@ pub struct CpuConfig {
     pub enable: bool,
     /// Data refresh interval (default: 10 seconds)
     pub data_refresh_interval: Option<u64>,
+    /// Display label prefix
+    pub label_prefix: Option<LabelPrefix>,
 }
 
 impl From<CpuConfig> for Cpu {
@@ -36,6 +39,7 @@ impl From<CpuConfig> for Cpu {
             enable: value.enable,
             system,
             data_refresh_interval: value.data_refresh_interval.unwrap_or(10),
+            label_prefix: value.label_prefix.unwrap_or(LabelPrefix::IconAndText),
             last_updated: Instant::now(),
         }
     }
@@ -45,6 +49,7 @@ pub struct Cpu {
     pub enable: bool,
     system: System,
     data_refresh_interval: u64,
+    label_prefix: LabelPrefix,
     last_updated: Instant,
 }
 
@@ -57,7 +62,10 @@ impl Cpu {
         }
 
         let used = self.system.global_cpu_usage();
-        format!("CPU: {:.0}%", used)
+        match self.label_prefix {
+            LabelPrefix::Text | LabelPrefix::IconAndText => format!("CPU: {:.0}%", used),
+            LabelPrefix::Icon => format!("{:.0}%", used),
+        }
     }
 }
 
@@ -74,7 +82,12 @@ impl BarWidget for Cpu {
                     .unwrap_or_else(FontId::default);
 
                 let mut layout_job = LayoutJob::simple(
-                    egui_phosphor::regular::CIRCUITRY.to_string(),
+                    match self.label_prefix {
+                        LabelPrefix::Icon | LabelPrefix::IconAndText => {
+                            egui_phosphor::regular::CIRCUITRY.to_string()
+                        }
+                        LabelPrefix::Text => "".to_string(),
+                    },
                     font_id.clone(),
                     ctx.style().visuals.selection.stroke.color,
                     100.0,

@@ -164,3 +164,10 @@ impl From<KomorebiTheme> for KomobarTheme {
         }
     }
 }
+
+#[derive(Copy, Clone, Debug, Serialize, Deserialize, JsonSchema)]
+pub enum LabelPrefix {
+    Icon,
+    Text,
+    IconAndText,
+}
