@@ -1543,26 +1543,15 @@ fn main() -> Result<()> {
 
                 println!("Found komorebi.json; this file can be passed to the start command with the --config flag\n");
 
-                if let Ok(config) = &parsed_config {
-                    if let Some(asc_path) = config.get("app_specific_configuration_path") {
-                        let mut normalized_asc_path = asc_path
-                            .to_string()
-                            .replace(
-                                "$Env:USERPROFILE",
-                                &dirs::home_dir().unwrap().to_string_lossy(),
-                            )
-                            .replace('"', "")
-                            .replace('\\', "/");
-
-                        if let Ok(komorebi_config_home) = std::env::var("KOMOREBI_CONFIG_HOME") {
-                            normalized_asc_path = normalized_asc_path
-                                .replace("$Env:KOMOREBI_CONFIG_HOME", &komorebi_config_home)
-                                .replace('"', "")
-                                .replace('\\', "/");
+                if let Ok(config) = StaticConfig::read(&static_config) {
+                    match config.app_specific_configuration_path {
+                        None => {
+                            println!("Application specific configuration file path has not been set. Try running 'komorebic fetch-asc'\n");
                         }
-
-                        if !Path::exists(Path::new(&normalized_asc_path)) {
-                            println!("Application specific configuration file path '{normalized_asc_path}' does not exist. Try running 'komorebic fetch-asc'\n");
+                        Some(path) => {
+                            if !Path::exists(Path::new(&path)) {
+                                println!("Application specific configuration file path '{}' does not exist. Try running 'komorebic fetch-asc'\n", path.display());
+                            }
                         }
                     }
                 }
@@ -2077,26 +2066,8 @@ if (!(Get-Process whkd -ErrorAction SilentlyContinue))
                     let mut config = StaticConfig::read(config)?;
                     if let Some(display_bar_configurations) = &mut config.bar_configurations {
                         for config_file_path in &mut *display_bar_configurations {
-                            let mut normalized = config_file_path
-                                .to_string_lossy()
-                                .to_string()
-                                .replace(
-                                    "$Env:USERPROFILE",
-                                    &dirs::home_dir().unwrap().to_string_lossy(),
-                                )
-                                .replace('"', "")
-                                .replace('\\', "/");
-
-                            if let Ok(komorebi_config_home) = std::env::var("KOMOREBI_CONFIG_HOME")
-                            {
-                                normalized = normalized
-                                    .replace("$Env:KOMOREBI_CONFIG_HOME", &komorebi_config_home)
-                                    .replace('"', "")
-                                    .replace('\\', "/");
-                            }
-
                             let script = r"Start-Process 'komorebi-bar' '--config CONFIGFILE' -WindowStyle hidden"
-                            .replace("CONFIGFILE", &normalized);
+                            .replace("CONFIGFILE", &config_file_path.to_string_lossy());
 
                             match powershell_script::run(&script) {
                                 Ok(_) => {
