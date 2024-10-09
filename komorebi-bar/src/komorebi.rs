@@ -5,6 +5,7 @@ use crate::widget::BarWidget;
 use crate::MAX_LABEL_WIDTH;
 use crate::WIDGET_SPACING;
 use crossbeam_channel::Receiver;
+use crossbeam_channel::TryRecvError;
 use eframe::egui::text::LayoutJob;
 use eframe::egui::Color32;
 use eframe::egui::ColorImage;
@@ -437,93 +438,105 @@ impl KomorebiNotificationState {
         rx_gui: Receiver<komorebi_client::Notification>,
         bg_color: Rc<RefCell<Color32>>,
     ) {
-        if let Ok(notification) = rx_gui.try_recv() {
-            if let NotificationEvent::Socket(SocketMessage::ReloadStaticConfiguration(path)) =
-                notification.event
-            {
-                if let Ok(config) = komorebi_client::StaticConfig::read(&path) {
-                    if let Some(theme) = config.theme {
-                        apply_theme(ctx, KomobarTheme::from(theme), bg_color);
-                        tracing::info!("applied theme from updated komorebi.json");
+        match rx_gui.try_recv() {
+            Err(error) => match error {
+                TryRecvError::Empty => {}
+                TryRecvError::Disconnected => {
+                    tracing::error!(
+                        "failed to receive komorebi notification on gui thread: {error}"
+                    );
+                }
+            },
+            Ok(notification) => {
+                if let NotificationEvent::Socket(SocketMessage::ReloadStaticConfiguration(path)) =
+                    notification.event
+                {
+                    if let Ok(config) = komorebi_client::StaticConfig::read(&path) {
+                        if let Some(theme) = config.theme {
+                            apply_theme(ctx, KomobarTheme::from(theme), bg_color);
+                            tracing::info!("applied theme from updated komorebi.json");
+                        }
                     }
                 }
-            }
 
-            self.mouse_follows_focus = notification.state.mouse_follows_focus;
+                self.mouse_follows_focus = notification.state.mouse_follows_focus;
 
-            let monitor = &notification.state.monitors.elements()[monitor_index];
-            self.work_area_offset =
-                notification.state.monitors.elements()[monitor_index].work_area_offset();
+                let monitor = &notification.state.monitors.elements()[monitor_index];
+                self.work_area_offset =
+                    notification.state.monitors.elements()[monitor_index].work_area_offset();
 
-            let focused_workspace_idx = monitor.focused_workspace_idx();
+                let focused_workspace_idx = monitor.focused_workspace_idx();
 
-            let mut workspaces = vec![];
-            self.selected_workspace = monitor.workspaces()[focused_workspace_idx]
-                .name()
-                .to_owned()
-                .unwrap_or_else(|| format!("{}", focused_workspace_idx + 1));
+                let mut workspaces = vec![];
+                self.selected_workspace = monitor.workspaces()[focused_workspace_idx]
+                    .name()
+                    .to_owned()
+                    .unwrap_or_else(|| format!("{}", focused_workspace_idx + 1));
 
-            for (i, ws) in monitor.workspaces().iter().enumerate() {
-                let should_add = if self.hide_empty_workspaces {
-                    focused_workspace_idx == i || !ws.containers().is_empty()
-                } else {
-                    true
+                for (i, ws) in monitor.workspaces().iter().enumerate() {
+                    let should_add = if self.hide_empty_workspaces {
+                        focused_workspace_idx == i || !ws.containers().is_empty()
+                    } else {
+                        true
+                    };
+
+                    if should_add {
+                        workspaces
+                            .push(ws.name().to_owned().unwrap_or_else(|| format!("{}", i + 1)));
+                    }
+                }
+
+                self.workspaces = workspaces;
+                self.layout = match monitor.workspaces()[focused_workspace_idx].layout() {
+                    komorebi_client::Layout::Default(layout) => KomorebiLayout::Default(*layout),
+                    komorebi_client::Layout::Custom(_) => KomorebiLayout::Custom,
                 };
 
-                if should_add {
-                    workspaces.push(ws.name().to_owned().unwrap_or_else(|| format!("{}", i + 1)));
+                if !*monitor.workspaces()[focused_workspace_idx].tile() {
+                    self.layout = KomorebiLayout::Floating;
                 }
-            }
 
-            self.workspaces = workspaces;
-            self.layout = match monitor.workspaces()[focused_workspace_idx].layout() {
-                komorebi_client::Layout::Default(layout) => KomorebiLayout::Default(*layout),
-                komorebi_client::Layout::Custom(_) => KomorebiLayout::Custom,
-            };
+                if notification.state.is_paused {
+                    self.layout = KomorebiLayout::Paused;
+                }
 
-            if !*monitor.workspaces()[focused_workspace_idx].tile() {
-                self.layout = KomorebiLayout::Floating;
-            }
-
-            if notification.state.is_paused {
-                self.layout = KomorebiLayout::Paused;
-            }
-
-            if let Some(container) = monitor.workspaces()[focused_workspace_idx].monocle_container()
-            {
-                self.focused_container_information = (
-                    container
-                        .windows()
-                        .iter()
-                        .map(|w| w.title().unwrap_or_default())
-                        .collect::<Vec<_>>(),
-                    container
-                        .windows()
-                        .iter()
-                        .map(|w| windows_icons::get_icon_by_process_id(w.process_id()))
-                        .collect::<Vec<_>>(),
-                    container.focused_window_idx(),
-                );
-            } else if let Some(container) =
-                monitor.workspaces()[focused_workspace_idx].focused_container()
-            {
-                self.focused_container_information = (
-                    container
-                        .windows()
-                        .iter()
-                        .map(|w| w.title().unwrap_or_default())
-                        .collect::<Vec<_>>(),
-                    container
-                        .windows()
-                        .iter()
-                        .map(|w| windows_icons::get_icon_by_process_id(w.process_id()))
-                        .collect::<Vec<_>>(),
-                    container.focused_window_idx(),
-                );
-            } else {
-                self.focused_container_information.0.clear();
-                self.focused_container_information.1.clear();
-                self.focused_container_information.2 = 0;
+                if let Some(container) =
+                    monitor.workspaces()[focused_workspace_idx].monocle_container()
+                {
+                    self.focused_container_information = (
+                        container
+                            .windows()
+                            .iter()
+                            .map(|w| w.title().unwrap_or_default())
+                            .collect::<Vec<_>>(),
+                        container
+                            .windows()
+                            .iter()
+                            .map(|w| windows_icons::get_icon_by_process_id(w.process_id()))
+                            .collect::<Vec<_>>(),
+                        container.focused_window_idx(),
+                    );
+                } else if let Some(container) =
+                    monitor.workspaces()[focused_workspace_idx].focused_container()
+                {
+                    self.focused_container_information = (
+                        container
+                            .windows()
+                            .iter()
+                            .map(|w| w.title().unwrap_or_default())
+                            .collect::<Vec<_>>(),
+                        container
+                            .windows()
+                            .iter()
+                            .map(|w| windows_icons::get_icon_by_process_id(w.process_id()))
+                            .collect::<Vec<_>>(),
+                        container.focused_window_idx(),
+                    );
+                } else {
+                    self.focused_container_information.0.clear();
+                    self.focused_container_information.1.clear();
+                    self.focused_container_information.2 = 0;
+                }
             }
         }
     }

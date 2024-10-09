@@ -1,7 +1,7 @@
 mod bar;
-mod cpu;
 mod battery;
 mod config;
+mod cpu;
 mod date;
 mod komorebi;
 mod media;
@@ -370,18 +370,21 @@ fn main() -> color_eyre::Result<()> {
 
                             match String::from_utf8(buffer) {
                                 Ok(notification_string) => {
-                                    if let Ok(notification) =
-                                        serde_json::from_str::<komorebi_client::Notification>(
-                                            &notification_string,
-                                        )
-                                    {
-                                        tracing::debug!("received notification from komorebi");
+                                    match serde_json::from_str::<komorebi_client::Notification>(
+                                        &notification_string,
+                                    ) {
+                                        Ok(notification) => {
+                                            tracing::debug!("received notification from komorebi");
 
-                                        if let Err(error) = tx_gui.send(notification) {
-                                            tracing::error!("could not send komorebi notification update to gui: {error}")
+                                            if let Err(error) = tx_gui.send(notification) {
+                                                tracing::error!("could not send komorebi notification update to gui thread: {error}")
+                                            }
+
+                                            ctx_komorebi.request_repaint();
                                         }
-
-                                        ctx_komorebi.request_repaint();
+                                        Err(error) => {
+                                            tracing::error!("could not deserialize komorebi notification: {error}");
+                                        }
                                     }
                                 }
                                 Err(error) => {
