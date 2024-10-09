@@ -1,3 +1,4 @@
+use crate::config::LabelPrefix;
 use crate::widget::BarWidget;
 use crate::WIDGET_SPACING;
 use eframe::egui::text::LayoutJob;
@@ -18,6 +19,8 @@ pub struct TimeConfig {
     pub enable: bool,
     /// Set the Time format
     pub format: TimeFormat,
+    /// Display label prefix
+    pub label_prefix: Option<LabelPrefix>,
 }
 
 impl From<TimeConfig> for Time {
@@ -25,6 +28,7 @@ impl From<TimeConfig> for Time {
         Self {
             enable: value.enable,
             format: value.format,
+            label_prefix: value.label_prefix.unwrap_or(LabelPrefix::Icon),
         }
     }
 }
@@ -61,6 +65,7 @@ impl TimeFormat {
 pub struct Time {
     pub enable: bool,
     pub format: TimeFormat,
+    label_prefix: LabelPrefix,
 }
 
 impl Time {
@@ -74,7 +79,7 @@ impl Time {
 impl BarWidget for Time {
     fn render(&mut self, ctx: &Context, ui: &mut Ui) {
         if self.enable {
-            let output = self.output();
+            let mut output = self.output();
             if !output.is_empty() {
                 let font_id = ctx
                     .style()
@@ -84,11 +89,20 @@ impl BarWidget for Time {
                     .unwrap_or_else(FontId::default);
 
                 let mut layout_job = LayoutJob::simple(
-                    egui_phosphor::regular::CLOCK.to_string(),
+                    match self.label_prefix {
+                        LabelPrefix::Icon | LabelPrefix::IconAndText => {
+                            egui_phosphor::regular::CLOCK.to_string()
+                        }
+                        LabelPrefix::None | LabelPrefix::Text => String::new(),
+                    },
                     font_id.clone(),
                     ctx.style().visuals.selection.stroke.color,
                     100.0,
                 );
+
+                if let LabelPrefix::Text | LabelPrefix::IconAndText = self.label_prefix {
+                    output.insert_str(0, "TIME: ");
+                }
 
                 layout_job.append(
                     &output,
