@@ -1,3 +1,4 @@
+use crate::config::LabelPrefix;
 use crate::widget::BarWidget;
 use crate::WIDGET_SPACING;
 use eframe::egui::text::LayoutJob;
@@ -19,6 +20,8 @@ pub struct DateConfig {
     pub enable: bool,
     /// Set the Date format
     pub format: DateFormat,
+    /// Display label prefix
+    pub label_prefix: Option<LabelPrefix>,
 }
 
 impl From<DateConfig> for Date {
@@ -26,6 +29,7 @@ impl From<DateConfig> for Date {
         Self {
             enable: value.enable,
             format: value.format,
+            label_prefix: value.label_prefix.unwrap_or(LabelPrefix::Icon),
         }
     }
 }
@@ -70,6 +74,7 @@ impl DateFormat {
 pub struct Date {
     pub enable: bool,
     pub format: DateFormat,
+    label_prefix: LabelPrefix,
 }
 
 impl Date {
@@ -83,7 +88,7 @@ impl Date {
 impl BarWidget for Date {
     fn render(&mut self, ctx: &Context, ui: &mut Ui) {
         if self.enable {
-            let output = self.output();
+            let mut output = self.output();
             if !output.is_empty() {
                 let font_id = ctx
                     .style()
@@ -93,12 +98,21 @@ impl BarWidget for Date {
                     .unwrap_or_else(FontId::default);
 
                 let mut layout_job = LayoutJob::simple(
-                    egui_phosphor::regular::CALENDAR_DOTS.to_string(),
+                    match self.label_prefix {
+                        LabelPrefix::Icon | LabelPrefix::IconAndText => {
+                            egui_phosphor::regular::CALENDAR_DOTS.to_string()
+                        }
+                        LabelPrefix::None | LabelPrefix::Text => String::new(),
+                    },
                     font_id.clone(),
                     ctx.style().visuals.selection.stroke.color,
                     100.0,
                 );
 
+                if let LabelPrefix::Text | LabelPrefix::IconAndText = self.label_prefix {
+                    output.insert_str(0, "DATE: ");
+                }
+                
                 layout_job.append(
                     &output,
                     10.0,

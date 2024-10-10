@@ -1,3 +1,4 @@
+use crate::config::LabelPrefix;
 use crate::widget::BarWidget;
 use crate::WIDGET_SPACING;
 use eframe::egui::text::LayoutJob;
@@ -23,6 +24,8 @@ pub struct BatteryConfig {
     pub enable: bool,
     /// Data refresh interval (default: 10 seconds)
     pub data_refresh_interval: Option<u64>,
+    /// Display label prefix
+    pub label_prefix: Option<LabelPrefix>,
 }
 
 impl From<BatteryConfig> for Battery {
@@ -30,6 +33,7 @@ impl From<BatteryConfig> for Battery {
         let manager = Manager::new().unwrap();
         let mut last_state = String::new();
         let mut state = None;
+        let prefix = value.label_prefix.unwrap_or(LabelPrefix::Icon);
 
         if let Ok(mut batteries) = manager.batteries() {
             if let Some(Ok(first)) = batteries.nth(0) {
@@ -39,8 +43,13 @@ impl From<BatteryConfig> for Battery {
                     State::Discharging => state = Some(BatteryState::Discharging),
                     _ => {}
                 }
-
-                last_state = format!("{percentage}%");
+                
+                last_state = match prefix {
+                    LabelPrefix::Text | LabelPrefix::IconAndText => {
+                        format!("BAT: {percentage:.0}%")
+                    }
+                    LabelPrefix::None | LabelPrefix::Icon => format!("{percentage:.0}%"),
+                }
             }
         }
 
@@ -49,6 +58,7 @@ impl From<BatteryConfig> for Battery {
             manager,
             last_state,
             data_refresh_interval: value.data_refresh_interval.unwrap_or(10),
+            label_prefix: prefix,
             state: state.unwrap_or(BatteryState::Discharging),
             last_updated: Instant::now(),
         }
@@ -65,6 +75,7 @@ pub struct Battery {
     manager: Manager,
     pub state: BatteryState,
     data_refresh_interval: u64,
+    label_prefix: LabelPrefix,
     last_state: String,
     last_updated: Instant,
 }
@@ -86,7 +97,12 @@ impl Battery {
                         _ => {}
                     }
 
-                    output = format!("{percentage:.0}%");
+                    output = match self.label_prefix {
+                        LabelPrefix::Text | LabelPrefix::IconAndText => {
+                            format!("BAT: {percentage:.0}%")
+                        }
+                        LabelPrefix::None | LabelPrefix::Icon => format!("{percentage:.0}%"),
+                    }
                 }
             }
 
@@ -116,7 +132,10 @@ impl BarWidget for Battery {
                     .unwrap_or_else(FontId::default);
 
                 let mut layout_job = LayoutJob::simple(
-                    emoji.to_string(),
+                    match self.label_prefix {
+                        LabelPrefix::Icon | LabelPrefix::IconAndText => emoji.to_string(),
+                        LabelPrefix::None | LabelPrefix::Text => String::new(),
+                    },
                     font_id.clone(),
                     ctx.style().visuals.selection.stroke.color,
                     100.0,
