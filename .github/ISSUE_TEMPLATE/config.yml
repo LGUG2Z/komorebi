@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Komorebi Documentation
+    url: https://lgug2z.github.io/komorebi/
+    about: Please search the documentation website before opening an issue
+  - name: Komorebi Quickstart Tutorial Video
+    url: https://www.youtube.com/watch?v=MMZUAtHbTYY
+    about: If you are new, please make sure you watch the quickstart tutorial video
