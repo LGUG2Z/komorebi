@@ -1,0 +1,18 @@
+name: Feature request
+description: Suggest an improvement
+labels: [ enhancement ]
+body:
+  - type: textarea
+    validations:
+      required: true
+    attributes:
+      label: Suggestion
+      description: >
+        Please share your suggestion here. Be sure to include all necessary context.
+  - type: textarea
+    validations:
+      required: true
+    attributes:
+      label: Alternatives Considered
+      description: >
+        Please share share alternatives you have considered here.
