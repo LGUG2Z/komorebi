@@ -175,9 +175,25 @@ If you like the `grid` layout in [LeftWM](https://github.com/leftwm/leftwm-layou
 
 ## whkdrc
 
+### configuration
+
+whkd searches for a `whkdrc` configuration file in the following locations in this order:
+   
+| # | location | 
+| ------------- | ------------- |
+| 1 |  `WHKD_CONFIG_HOME/`  
+| 2 |  `KOMOREBI_CONFIG_HOME/` 
+| 3 |   `USERPROFILE/.config/`
+
+The latest being where the sample `whkdrc` is created by default.
+`KOMOREBI_CONFIG_HOME`and `WHKD_CONFIG_HOME` are environment variables who can be set for the user or the system.
+
+### syntax
+
 `whkd` is a fairly basic piece of software with a simple configuration format:
 key bindings go to the left of the colon, and shell commands go to the right of the
-colon. By default, the `whkdrc` file should be located in the `$Env:USERPROFILE/.config/` directory.
+colon. 
+
 
 Please remember that `whkd` does not support overriding Microsoft's limitations
 on hotkey bindings that include the `Windows` key. If this is important to you,
@@ -186,6 +202,20 @@ bindings for `komorebic` commands instead.
 
 ```
 {% include "./whkdrc.sample" %}
+```
+
+### Specify different behaviour depending on the app
+
+It is also possible to change a hotkey behavior depending on which application has focus:
+
+```
+alt + n [
+    # ProcessName as shown by `Get-Process`
+    Firefox       : echo "hello firefox"
+    
+    # Spaces are fine, no quotes required
+    Google Chrome : echo "hello chrome"
+]
 ```
 
 ### Setting .shell
