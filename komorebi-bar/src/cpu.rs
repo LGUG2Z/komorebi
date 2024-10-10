@@ -64,7 +64,7 @@ impl Cpu {
         let used = self.system.global_cpu_usage();
         match self.label_prefix {
             LabelPrefix::Text | LabelPrefix::IconAndText => format!("CPU: {:.0}%", used),
-            LabelPrefix::Icon => format!("{:.0}%", used),
+            LabelPrefix::None | LabelPrefix::Icon => format!("{:.0}%", used),
         }
     }
 }
@@ -86,7 +86,7 @@ impl BarWidget for Cpu {
                         LabelPrefix::Icon | LabelPrefix::IconAndText => {
                             egui_phosphor::regular::CIRCUITRY.to_string()
                         }
-                        LabelPrefix::Text => "".to_string(),
+                        LabelPrefix::None | LabelPrefix::Text => String::new(),
                     },
                     font_id.clone(),
                     ctx.style().visuals.selection.stroke.color,
