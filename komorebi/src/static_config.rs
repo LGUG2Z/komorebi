@@ -131,6 +131,13 @@ pub struct WorkspaceConfig {
     /// Apply this monitor's window-based work area offset (default: true)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub apply_window_based_work_area_offset: Option<bool>,
+    /// Determine what happens when a new window is opened (default: Create)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub window_container_behaviour: Option<WindowContainerBehaviour>,
+    /// Enable or disable float override, which makes it so every new window opens in floating mode
+    /// (default: false)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub float_override: Option<bool>,
 }
 
 impl From<&Workspace> for WorkspaceConfig {
@@ -183,6 +190,8 @@ impl From<&Workspace> for WorkspaceConfig {
             initial_workspace_rules: None,
             workspace_rules: None,
             apply_window_based_work_area_offset: Some(value.apply_window_based_work_area_offset()),
+            window_container_behaviour: *value.window_container_behaviour(),
+            float_override: *value.float_override(),
         }
     }
 }

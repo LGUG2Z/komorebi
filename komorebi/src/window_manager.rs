@@ -318,16 +318,29 @@ impl WindowManager {
     ) -> WindowManagementBehaviour {
         if let Some(monitor) = self.monitors().get(monitor_idx) {
             if let Some(workspace) = monitor.workspaces().get(workspace_idx) {
-                let current_behaviour = if workspace.containers().is_empty() && matches!(self.window_management_behaviour.current_behaviour, WindowContainerBehaviour::Append) {
+                let current_behaviour = if let Some(behaviour) = workspace.window_container_behaviour() {
+                    if workspace.containers().is_empty() && matches!(behaviour, WindowContainerBehaviour::Append) {
+                        // You can't append to an empty workspace
+                        WindowContainerBehaviour::Create
+                    } else {
+                        *behaviour
+                    }
+                } else if workspace.containers().is_empty() && matches!(self.window_management_behaviour.current_behaviour, WindowContainerBehaviour::Append) {
                     // You can't append to an empty workspace
                     WindowContainerBehaviour::Create
                 } else {
                     self.window_management_behaviour.current_behaviour
                 };
 
+                let float_override = if let Some(float_override) = workspace.float_override() {
+                    *float_override
+                } else {
+                    self.window_management_behaviour.float_override
+                };
+
                 return WindowManagementBehaviour {
                     current_behaviour,
-                    float_override: self.window_management_behaviour.float_override,
+                    float_override
                 };
             }
         }
