@@ -167,6 +167,9 @@ impl Default for GlobalState {
                 monocle: Option::from(Colour::Rgb(Rgb::from(
                     border_manager::MONOCLE.load(Ordering::SeqCst),
                 ))),
+                floating: Option::from(Colour::Rgb(Rgb::from(
+                    border_manager::FLOATING.load(Ordering::SeqCst),
+                ))),
                 unfocused: Option::from(Colour::Rgb(Rgb::from(
                     border_manager::UNFOCUSED.load(Ordering::SeqCst),
                 ))),

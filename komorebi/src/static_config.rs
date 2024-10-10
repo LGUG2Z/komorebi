@@ -96,6 +96,8 @@ pub struct BorderColours {
     pub stack: Option<Colour>,
     /// Border colour when the container is in monocle mode
     pub monocle: Option<Colour>,
+    /// Border colour when the container is in floating mode
+    pub floating: Option<Colour>,
     /// Border colour when the container is unfocused
     pub unfocused: Option<Colour>,
 }
@@ -525,6 +527,7 @@ impl From<&WindowManager> for StaticConfig {
                 single: Option::from(Colour::from(border_manager::FOCUSED.load(Ordering::SeqCst))),
                 stack: Option::from(Colour::from(border_manager::STACK.load(Ordering::SeqCst))),
                 monocle: Option::from(Colour::from(border_manager::MONOCLE.load(Ordering::SeqCst))),
+                floating: Option::from(Colour::from(border_manager::FLOATING.load(Ordering::SeqCst))),
                 unfocused: Option::from(Colour::from(
                     border_manager::UNFOCUSED.load(Ordering::SeqCst),
                 )),
@@ -650,6 +653,10 @@ impl StaticConfig {
 
             if let Some(monocle) = colours.monocle {
                 border_manager::MONOCLE.store(u32::from(monocle), Ordering::SeqCst);
+            }
+
+            if let Some(floating) = colours.floating {
+                border_manager::FLOATING.store(u32::from(floating), Ordering::SeqCst);
             }
 
             if let Some(unfocused) = colours.unfocused {
