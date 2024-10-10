@@ -1177,6 +1177,8 @@ impl WindowManager {
             .focused_monitor_mut()
             .ok_or_else(|| anyhow!("there is no monitor"))?;
 
+        let current_area = *monitor.work_area_size();
+
         let workspace = monitor
             .focused_workspace_mut()
             .ok_or_else(|| anyhow!("there is no workspace"))?;
@@ -1185,16 +1187,23 @@ impl WindowManager {
             bail!("cannot move native maximized window to another monitor or workspace");
         }
 
-        let container = workspace
-            .remove_focused_container()
-            .ok_or_else(|| anyhow!("there is no container"))?;
 
-        let container_hwnds = container
-            .windows()
+        let foreground_hwnd = WindowsApi::foreground_window()?;
+        let floating_window_index = workspace
+            .floating_windows()
             .iter()
-            .map(|w| w.hwnd)
-            .collect::<Vec<_>>();
+            .position(|w| w.hwnd == foreground_hwnd);
 
+        let floating_window = floating_window_index.map(|idx| {
+            workspace.floating_windows_mut().remove(idx)
+        });
+        let container = if floating_window_index.is_none() {
+            Some(workspace
+                .remove_focused_container()
+                .ok_or_else(|| anyhow!("there is no container"))?)
+        } else {
+            None
+        };
         monitor.update_focused_workspace(offset)?;
 
         let target_monitor = self
@@ -1202,18 +1211,33 @@ impl WindowManager {
             .get_mut(monitor_idx)
             .ok_or_else(|| anyhow!("there is no monitor"))?;
 
-        target_monitor.add_container(container, workspace_idx)?;
-
         if let Some(workspace_idx) = workspace_idx {
             target_monitor.focus_workspace(workspace_idx)?;
         }
+        let target_workspace = target_monitor.focused_workspace_mut()
+            .ok_or_else(|| anyhow!("there is no focused workspace on target monitor"))?;
 
-        if let Some(workspace) = target_monitor.focused_workspace() {
-            if !*workspace.tile() {
-                for hwnd in container_hwnds {
-                    Window::from(hwnd).center(target_monitor.work_area_size())?;
+        if let Some(window) = floating_window {
+            target_workspace.floating_windows_mut().push(window);
+            Window::from(window.hwnd).move_to_area(&current_area, target_monitor.work_area_size())?;
+        } else if let Some(container) = container {
+            let container_hwnds = container
+                .windows()
+                .iter()
+                .map(|w| w.hwnd)
+                .collect::<Vec<_>>();
+
+            target_monitor.add_container(container, workspace_idx)?;
+
+            if let Some(workspace) = target_monitor.focused_workspace() {
+                if !*workspace.tile() {
+                    for hwnd in container_hwnds {
+                        Window::from(hwnd).move_to_area(&current_area, target_monitor.work_area_size())?;
+                    }
                 }
             }
+        } else {
+            bail!("failed to find a window to move");
         }
 
         target_monitor.load_focused_workspace(mouse_follows_focus)?;
