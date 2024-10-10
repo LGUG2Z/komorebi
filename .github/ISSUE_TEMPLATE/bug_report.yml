@@ -1,0 +1,56 @@
+name: Bug report
+description: File a bug report
+labels: [ bug ]
+title: "[BUG]: "
+body:
+  - type: textarea
+    validations:
+      required: true
+    attributes:
+      label: Summary
+      description: >
+        Please provide a short summary of the bug, along with any information
+        you feel is relevant to replicating the bug.
+        
+        You may include screenshots and videos in this section.
+  - type: textarea
+    validations:
+      required: true
+    attributes:
+      label: Version Information
+      description: >
+        Please provide information about the versions of Windows and komorebi
+        running on your machine.
+        
+        Do not submit a bug if you are not using an official version of Windows
+        such as AtlasOS; only official versions of Windows are supported.
+        
+        ```
+        systeminfo | findstr /B /C:"OS Name" /B /C:"OS Version"
+        ```
+
+        ```
+        komorebic --version
+        ```
+  - type: textarea
+    validations:
+      required: true
+    attributes:
+      label: Komorebi Configuration
+      description: >
+        Please provide your configuration file (komorebi.json or komorebi.bar.json)
+      render: json
+  - type: textarea
+    validations:
+      required: true
+    attributes:
+      label: Hotkey Configuration
+      description: >
+        Please provide your whkdrc or komorebi.ahk hotkey configuration file
+  - type: textarea
+    validations:
+      required: true
+    attributes:
+      label: Output of komorebic check
+      description: >
+        Please provide the output of `komorebic check`

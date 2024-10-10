@@ -1,0 +1,37 @@
+name: Feature request
+description: Suggest a new feature
+labels: [ enhancement ]
+title: "[FEAT]: "
+body:
+  - type: dropdown
+    id: Sponsors
+    attributes:
+      label: Sponsorship Information
+      description: >
+        Feature requests are considered from individuals who are $5+ monthly sponsors to the project.
+
+        Please specify the platform you use to sponsor the project.
+      options:
+        - GitHub Sponsors
+        - Ko-fi
+        - Discord
+        - YouTube
+      default: 0
+    validations:
+      required: true
+  - type: textarea
+    validations:
+      required: true
+    attributes:
+      label: Suggestion
+      description: >
+        Please share your suggestion here. Be sure to include all necessary context.
+
+        If you sponsor on a platform where you use a different username, please specify the username here.
+  - type: textarea
+    validations:
+      required: true
+    attributes:
+      label: Alternatives Considered
+      description: >
+        Please share share alternatives you have considered here.
