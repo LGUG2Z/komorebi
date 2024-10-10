@@ -852,7 +852,7 @@ impl WindowManager {
                 }
             }
         } else {
-            if self.focused_workspace()?.containers().is_empty() {
+            if self.focused_workspace()?.is_empty() {
                 let desktop_window = Window::from(WindowsApi::desktop_window()?);
 
                 match WindowsApi::raise_and_focus_window(desktop_window.hwnd) {
