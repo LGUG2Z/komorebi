@@ -91,6 +91,8 @@ pub enum SocketMessage {
     CycleLayout(CycleDirection),
     ChangeLayoutCustom(PathBuf),
     FlipLayout(Axis),
+    ToggleWorkspaceWindowContainerBehaviour,
+    ToggleWorkspaceFloatOverride,
     // Monitor and Workspace Commands
     MonitorIndexPreference(usize, i32, i32, i32, i32),
     DisplayIndexPreference(usize, String),
