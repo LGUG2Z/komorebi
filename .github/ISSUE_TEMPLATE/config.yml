@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Komorebi Documentation
+    url: https://lgug2z.github.io/komorebi/
+    about: Please search the documentation website before opening an issue
