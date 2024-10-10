@@ -159,6 +159,31 @@ impl Window {
         HWND(windows_api::as_ptr!(self.hwnd))
     }
 
+    pub fn move_to_area(&mut self, current_area: &Rect, target_area: &Rect) -> Result<()> {
+        let current_rect = WindowsApi::window_rect(self.hwnd)?;
+        let x_diff = target_area.left - current_area.left;
+        let y_diff = target_area.top - current_area.top;
+        let x_ratio = f32::abs((target_area.right as f32) / (current_area.right as f32));
+        let y_ratio = f32::abs((target_area.bottom as f32) / (current_area.bottom as f32));
+        let window_relative_x = current_rect.left - current_area.left;
+        let window_relative_y = current_rect.top - current_area.top;
+        let corrected_relative_x = (window_relative_x as f32 * x_ratio) as i32;
+        let corrected_relative_y = (window_relative_y as f32 * y_ratio) as i32;
+        let window_x = current_area.left + corrected_relative_x;
+        let window_y = current_area.top + corrected_relative_y;
+
+        let new_rect = Rect {
+            left: x_diff + window_x,
+            top: y_diff + window_y,
+            right: current_rect.right,
+            bottom: current_rect.bottom,
+        };
+        //TODO: We might need to take into account the differences in DPI for the new_rect, unless
+        //we can use the xy ratios above to the right/bottom (width/height of window) as well?
+
+        self.set_position(&new_rect, true)
+    }
+
     pub fn center(&mut self, work_area: &Rect) -> Result<()> {
         let half_width = work_area.right / 2;
         let half_weight = work_area.bottom / 2;
