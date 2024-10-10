@@ -1,3 +1,4 @@
+use crate::config::LabelPrefix;
 use crate::widget::BarWidget;
 use crate::WIDGET_SPACING;
 use eframe::egui::text::LayoutJob;
@@ -30,6 +31,8 @@ pub struct NetworkConfig {
     pub network_activity_fill_characters: Option<usize>,
     /// Data refresh interval (default: 10 seconds)
     pub data_refresh_interval: Option<u64>,
+    /// Display label prefix
+    pub label_prefix: Option<LabelPrefix>,
 }
 
 impl From<NetworkConfig> for Network {
@@ -42,6 +45,8 @@ impl From<NetworkConfig> for Network {
 
         let mut default_interface = String::new();
 
+        let prefix = value.label_prefix.unwrap_or(LabelPrefix::Icon);
+
         if let Ok(interface) = netdev::get_default_interface() {
             if let Some(friendly_name) = interface.friendly_name {
                 default_interface.clone_from(&friendly_name);
@@ -50,13 +55,32 @@ impl From<NetworkConfig> for Network {
                     networks_total_data_transmitted.refresh();
                     for (interface_name, data) in &networks_total_data_transmitted {
                         if friendly_name.eq(interface_name) {
-                            last_state_data.push(format!(
-                                "{} {} / {} {}",
-                                egui_phosphor::regular::ARROW_FAT_DOWN,
-                                to_pretty_bytes(data.total_received(), 1),
-                                egui_phosphor::regular::ARROW_FAT_UP,
-                                to_pretty_bytes(data.total_transmitted(), 1),
-                            ))
+                            last_state_data.push(match prefix {
+                                LabelPrefix::None => format!(
+                                    "{} | {}",
+                                    to_pretty_bytes(data.total_received(), 1),
+                                    to_pretty_bytes(data.total_transmitted(), 1),
+                                ),
+                                LabelPrefix::Icon => format!(
+                                    "{} {} | {} {}",
+                                    egui_phosphor::regular::ARROW_FAT_DOWN,
+                                    to_pretty_bytes(data.total_received(), 1),
+                                    egui_phosphor::regular::ARROW_FAT_UP,
+                                    to_pretty_bytes(data.total_transmitted(), 1),
+                                ),
+                                LabelPrefix::Text => format!(
+                                    "\u{2211}DOWN: {} | \u{2211}UP: {}",
+                                    to_pretty_bytes(data.total_received(), 1),
+                                    to_pretty_bytes(data.total_transmitted(), 1),
+                                ),
+                                LabelPrefix::IconAndText => format!(
+                                    "{} \u{2211}DOWN: {} | {} \u{2211}UP: {}",
+                                    egui_phosphor::regular::ARROW_FAT_DOWN,
+                                    to_pretty_bytes(data.total_received(), 1),
+                                    egui_phosphor::regular::ARROW_FAT_UP,
+                                    to_pretty_bytes(data.total_transmitted(), 1),
+                                ),
+                            })
                         }
                     }
                 }
@@ -65,14 +89,40 @@ impl From<NetworkConfig> for Network {
                     networks_network_activity.refresh();
                     for (interface_name, data) in &networks_network_activity {
                         if friendly_name.eq(interface_name) {
-                            last_state_transmitted.push(format!(
-                                "{} {: >width$}/s {} {: >width$}/s",
-                                egui_phosphor::regular::ARROW_FAT_DOWN,
-                                to_pretty_bytes(data.received(), 1),
-                                egui_phosphor::regular::ARROW_FAT_UP,
-                                to_pretty_bytes(data.transmitted(), 1),
-                                width = value.network_activity_fill_characters.unwrap_or_default(),
-                            ))
+                            last_state_transmitted.push(match prefix {
+                                LabelPrefix::None => format!(
+                                    "{: >width$}/s | {: >width$}/s",
+                                    to_pretty_bytes(data.received(), 1),
+                                    to_pretty_bytes(data.transmitted(), 1),
+                                    width =
+                                        value.network_activity_fill_characters.unwrap_or_default(),
+                                ),
+                                LabelPrefix::Icon => format!(
+                                    "{} {: >width$}/s | {} {: >width$}/s",
+                                    egui_phosphor::regular::ARROW_FAT_DOWN,
+                                    to_pretty_bytes(data.received(), 1),
+                                    egui_phosphor::regular::ARROW_FAT_UP,
+                                    to_pretty_bytes(data.transmitted(), 1),
+                                    width =
+                                        value.network_activity_fill_characters.unwrap_or_default(),
+                                ),
+                                LabelPrefix::Text => format!(
+                                    "DOWN: {: >width$}/s | UP: {: >width$}/s",
+                                    to_pretty_bytes(data.received(), 1),
+                                    to_pretty_bytes(data.transmitted(), 1),
+                                    width =
+                                        value.network_activity_fill_characters.unwrap_or_default(),
+                                ),
+                                LabelPrefix::IconAndText => format!(
+                                    "{} DOWN: {: >width$}/s | {} UP: {: >width$}/s",
+                                    egui_phosphor::regular::ARROW_FAT_DOWN,
+                                    to_pretty_bytes(data.received(), 1),
+                                    egui_phosphor::regular::ARROW_FAT_UP,
+                                    to_pretty_bytes(data.transmitted(), 1),
+                                    width =
+                                        value.network_activity_fill_characters.unwrap_or_default(),
+                                ),
+                            })
                         }
                     }
                 }
@@ -85,6 +135,7 @@ impl From<NetworkConfig> for Network {
             networks_network_activity,
             default_interface,
             data_refresh_interval: value.data_refresh_interval.unwrap_or(10),
+            label_prefix: prefix,
             show_total_data_transmitted: value.show_total_data_transmitted,
             show_network_activity: value.show_network_activity,
             network_activity_fill_characters: value
@@ -105,6 +156,7 @@ pub struct Network {
     networks_total_data_transmitted: Networks,
     networks_network_activity: Networks,
     data_refresh_interval: u64,
+    label_prefix: LabelPrefix,
     default_interface: String,
     last_state_total_data_transmitted: Vec<String>,
     last_state_network_activity: Vec<String>,
@@ -138,14 +190,62 @@ impl Network {
                         self.networks_network_activity.refresh();
                         for (interface_name, data) in &self.networks_network_activity {
                             if friendly_name.eq(interface_name) {
-                                outputs.push(format!(
-                                    "{} {: >width$}/s {} {: >width$}/s",
-                                    egui_phosphor::regular::ARROW_FAT_DOWN,
-                                    to_pretty_bytes(data.received(), self.data_refresh_interval),
-                                    egui_phosphor::regular::ARROW_FAT_UP,
-                                    to_pretty_bytes(data.transmitted(), self.data_refresh_interval),
-                                    width = self.network_activity_fill_characters,
-                                ))
+                                outputs.push(match self.label_prefix {
+                                    LabelPrefix::None => format!(
+                                        "{: >width$}/s | {: >width$}/s",
+                                        to_pretty_bytes(
+                                            data.received(),
+                                            self.data_refresh_interval
+                                        ),
+                                        to_pretty_bytes(
+                                            data.transmitted(),
+                                            self.data_refresh_interval
+                                        ),
+                                        width = self.network_activity_fill_characters,
+                                    ),
+                                    LabelPrefix::Icon => format!(
+                                        "{} {: >width$}/s | {} {: >width$}/s",
+                                        egui_phosphor::regular::ARROW_FAT_DOWN,
+                                        to_pretty_bytes(
+                                            data.received(),
+                                            self.data_refresh_interval
+                                        ),
+                                        egui_phosphor::regular::ARROW_FAT_UP,
+                                        to_pretty_bytes(
+                                            data.transmitted(),
+                                            self.data_refresh_interval
+                                        ),
+                                        width = self.network_activity_fill_characters,
+                                    ),
+                                    LabelPrefix::Text => format!(
+                                        "DOWN: {: >width$}/s | UP: {: >width$}/s",
+                                        to_pretty_bytes(
+                                            data.received(),
+                                            self.data_refresh_interval
+                                        ),
+                                        to_pretty_bytes(
+                                            data.transmitted(),
+                                            self.data_refresh_interval
+                                        ),
+                                        width = self.network_activity_fill_characters,
+                                    ),
+                                    LabelPrefix::IconAndText => {
+                                        format!(
+                                            "{} DOWN: {: >width$}/s | {} UP: {: >width$}/s",
+                                            egui_phosphor::regular::ARROW_FAT_DOWN,
+                                            to_pretty_bytes(
+                                                data.received(),
+                                                self.data_refresh_interval
+                                            ),
+                                            egui_phosphor::regular::ARROW_FAT_UP,
+                                            to_pretty_bytes(
+                                                data.transmitted(),
+                                                self.data_refresh_interval
+                                            ),
+                                            width = self.network_activity_fill_characters,
+                                        )
+                                    }
+                                })
                             }
                         }
                     }
@@ -176,13 +276,32 @@ impl Network {
 
                         for (interface_name, data) in &self.networks_total_data_transmitted {
                             if friendly_name.eq(interface_name) {
-                                outputs.push(format!(
-                                    "{} {} / {} {}",
-                                    egui_phosphor::regular::ARROW_FAT_DOWN,
-                                    to_pretty_bytes(data.total_received(), 1),
-                                    egui_phosphor::regular::ARROW_FAT_UP,
-                                    to_pretty_bytes(data.total_transmitted(), 1),
-                                ))
+                                outputs.push(match self.label_prefix {
+                                    LabelPrefix::None => format!(
+                                        "{} | {}",
+                                        to_pretty_bytes(data.total_received(), 1),
+                                        to_pretty_bytes(data.total_transmitted(), 1),
+                                    ),
+                                    LabelPrefix::Icon => format!(
+                                        "{} {} | {} {}",
+                                        egui_phosphor::regular::ARROW_FAT_DOWN,
+                                        to_pretty_bytes(data.total_received(), 1),
+                                        egui_phosphor::regular::ARROW_FAT_UP,
+                                        to_pretty_bytes(data.total_transmitted(), 1),
+                                    ),
+                                    LabelPrefix::Text => format!(
+                                        "\u{2211}DOWN: {} | \u{2211}UP: {}",
+                                        to_pretty_bytes(data.total_received(), 1),
+                                        to_pretty_bytes(data.total_transmitted(), 1),
+                                    ),
+                                    LabelPrefix::IconAndText => format!(
+                                        "{} \u{2211}DOWN: {} | {} \u{2211}UP: {}",
+                                        egui_phosphor::regular::ARROW_FAT_DOWN,
+                                        to_pretty_bytes(data.total_received(), 1),
+                                        egui_phosphor::regular::ARROW_FAT_UP,
+                                        to_pretty_bytes(data.total_transmitted(), 1),
+                                    ),
+                                })
                             }
                         }
                     }
@@ -227,11 +346,20 @@ impl BarWidget for Network {
                     .unwrap_or_else(FontId::default);
 
                 let mut layout_job = LayoutJob::simple(
-                    egui_phosphor::regular::WIFI_HIGH.to_string(),
+                    match self.label_prefix {
+                        LabelPrefix::Icon | LabelPrefix::IconAndText => {
+                            egui_phosphor::regular::WIFI_HIGH.to_string()
+                        }
+                        LabelPrefix::None | LabelPrefix::Text => String::new(),
+                    },
                     font_id.clone(),
                     ctx.style().visuals.selection.stroke.color,
                     100.0,
                 );
+
+                if let LabelPrefix::Text | LabelPrefix::IconAndText = self.label_prefix {
+                    self.default_interface.insert_str(0, "NET: ");
+                }
 
                 layout_job.append(
                     &self.default_interface,
