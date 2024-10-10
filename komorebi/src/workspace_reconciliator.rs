@@ -118,7 +118,7 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                     // Unblock the border manager
                     ALT_TAB_HWND.store(None);
                     // Send a notification to the border manager to update the borders
-                    border_manager::send_notification();
+                    border_manager::send_notification(None);
                 }
             }
         }

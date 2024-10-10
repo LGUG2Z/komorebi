@@ -51,7 +51,7 @@ pub fn find_orphans(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result<()> {
                 let reaped_orphans = workspace.reap_orphans()?;
                 if reaped_orphans.0 > 0 || reaped_orphans.1 > 0 {
                     workspace.update(&work_area, offset, window_based_work_area_offset)?;
-                    border_manager::send_notification();
+                    border_manager::send_notification(None);
                     tracing::info!(
                         "reaped {} orphan window(s) and {} orphaned container(s) on monitor: {}, workspace: {}",
                         reaped_orphans.0,

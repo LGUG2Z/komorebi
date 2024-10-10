@@ -20,6 +20,7 @@ use crate::workspace::Workspace;
 use crate::DefaultLayout;
 use crate::Layout;
 use crate::OperationDirection;
+use crate::WindowsApi;
 
 #[derive(
     Debug,
@@ -178,66 +179,90 @@ impl Monitor {
             bail!("cannot move native maximized window to another monitor or workspace");
         }
 
-        let container = workspace
-            .remove_focused_container()
-            .ok_or_else(|| anyhow!("there is no container"))?;
+        let foreground_hwnd = WindowsApi::foreground_window()?;
+        let floating_window_index = workspace
+            .floating_windows()
+            .iter()
+            .position(|w| w.hwnd == foreground_hwnd);
 
-        let workspaces = self.workspaces_mut();
+        if let Some(idx) = floating_window_index {
+            let window = workspace.floating_windows_mut().remove(idx);
 
-        #[allow(clippy::option_if_let_else)]
-        let target_workspace = match workspaces.get_mut(target_workspace_idx) {
-            None => {
-                workspaces.resize(target_workspace_idx + 1, Workspace::default());
-                workspaces.get_mut(target_workspace_idx).unwrap()
-            }
-            Some(workspace) => workspace,
-        };
-
-        match direction {
-            Some(OperationDirection::Left) => match target_workspace.layout() {
-                Layout::Default(layout) => match layout {
-                    DefaultLayout::RightMainVerticalStack => {
-                        target_workspace.add_container_to_front(container);
-                    }
-                    DefaultLayout::UltrawideVerticalStack => {
-                        if target_workspace.containers().len() == 1 {
-                            target_workspace.insert_container_at_idx(0, container);
-                        } else {
-                            target_workspace.add_container_to_back(container);
-                        }
-                    }
-                    _ => {
-                        target_workspace.add_container_to_back(container);
-                    }
-                },
-                Layout::Custom(_) => {
-                    target_workspace.add_container_to_back(container);
+            let workspaces = self.workspaces_mut();
+            #[allow(clippy::option_if_let_else)]
+            let target_workspace = match workspaces.get_mut(target_workspace_idx) {
+                None => {
+                    workspaces.resize(target_workspace_idx + 1, Workspace::default());
+                    workspaces.get_mut(target_workspace_idx).unwrap()
                 }
-            },
-            Some(OperationDirection::Right) => match target_workspace.layout() {
-                Layout::Default(layout) => {
-                    let target_index = layout.leftmost_index(target_workspace.containers().len());
+                Some(workspace) => workspace,
+            };
 
-                    match layout {
-                        DefaultLayout::RightMainVerticalStack
-                        | DefaultLayout::UltrawideVerticalStack => {
+            target_workspace.floating_windows_mut().push(window);
+        } else {
+            let container = workspace
+                .remove_focused_container()
+                .ok_or_else(|| anyhow!("there is no container"))?;
+
+            let workspaces = self.workspaces_mut();
+
+            #[allow(clippy::option_if_let_else)]
+            let target_workspace = match workspaces.get_mut(target_workspace_idx) {
+                None => {
+                    workspaces.resize(target_workspace_idx + 1, Workspace::default());
+                    workspaces.get_mut(target_workspace_idx).unwrap()
+                }
+                Some(workspace) => workspace,
+            };
+
+            match direction {
+                Some(OperationDirection::Left) => match target_workspace.layout() {
+                    Layout::Default(layout) => match layout {
+                        DefaultLayout::RightMainVerticalStack => {
+                            target_workspace.add_container_to_front(container);
+                        }
+                        DefaultLayout::UltrawideVerticalStack => {
                             if target_workspace.containers().len() == 1 {
-                                target_workspace.add_container_to_back(container);
+                                target_workspace.insert_container_at_idx(0, container);
                             } else {
-                                target_workspace.insert_container_at_idx(target_index, container);
+                                target_workspace.add_container_to_back(container);
                             }
                         }
                         _ => {
-                            target_workspace.insert_container_at_idx(target_index, container);
+                            target_workspace.add_container_to_back(container);
+                        }
+                    },
+                    Layout::Custom(_) => {
+                        target_workspace.add_container_to_back(container);
+                    }
+                },
+                Some(OperationDirection::Right) => match target_workspace.layout() {
+                    Layout::Default(layout) => {
+                        let target_index =
+                            layout.leftmost_index(target_workspace.containers().len());
+
+                        match layout {
+                            DefaultLayout::RightMainVerticalStack
+                            | DefaultLayout::UltrawideVerticalStack => {
+                                if target_workspace.containers().len() == 1 {
+                                    target_workspace.add_container_to_back(container);
+                                } else {
+                                    target_workspace
+                                        .insert_container_at_idx(target_index, container);
+                                }
+                            }
+                            _ => {
+                                target_workspace.insert_container_at_idx(target_index, container);
+                            }
                         }
                     }
+                    Layout::Custom(_) => {
+                        target_workspace.add_container_to_front(container);
+                    }
+                },
+                _ => {
+                    target_workspace.add_container_to_back(container);
                 }
-                Layout::Custom(_) => {
-                    target_workspace.add_container_to_front(container);
-                }
-            },
-            _ => {
-                target_workspace.add_container_to_back(container);
             }
         }
 

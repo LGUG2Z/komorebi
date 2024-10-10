@@ -41,9 +41,9 @@ use crate::styles::WindowStyle;
 use crate::transparency_manager;
 use crate::window_manager_event::WindowManagerEvent;
 use crate::windows_api::WindowsApi;
-use crate::FLOAT_IDENTIFIERS;
 use crate::HIDDEN_HWNDS;
 use crate::HIDING_BEHAVIOUR;
+use crate::IGNORE_IDENTIFIERS;
 use crate::LAYERED_WHITELIST;
 use crate::MANAGE_IDENTIFIERS;
 use crate::NO_TITLEBAR;
@@ -159,6 +159,24 @@ impl Window {
         HWND(windows_api::as_ptr!(self.hwnd))
     }
 
+    pub fn move_to_area(&mut self, current_area: &Rect, target_area: &Rect) -> Result<()> {
+        let current_rect = WindowsApi::window_rect(self.hwnd)?;
+        let x_diff = target_area.left - current_area.left;
+        let y_diff = target_area.top - current_area.top;
+        let x_ratio = f32::abs((target_area.right as f32) / (current_area.right as f32));
+        let y_ratio = f32::abs((target_area.bottom as f32) / (current_area.bottom as f32));
+        let new_rect = Rect {
+            left: ((current_rect.left - x_diff) as f32 * x_ratio) as i32,
+            top: ((y_diff + current_rect.top) as f32 * y_ratio) as i32,
+            right: current_rect.right,
+            bottom: current_rect.bottom,
+        };
+        //TODO: We might need to take into account the differences in DPI for the new_rect, unless
+        //we can use the xy ratios above to the right/bottom (width/height of window) as well?
+
+        self.set_position(&new_rect, true)
+    }
+
     pub fn center(&mut self, work_area: &Rect) -> Result<()> {
         let half_width = work_area.right / 2;
         let half_weight = work_area.bottom / 2;
@@ -181,7 +199,7 @@ impl Window {
         let mut animation = self.animation;
 
         border_manager::BORDER_TEMPORARILY_DISABLED.store(true, Ordering::SeqCst);
-        border_manager::send_notification();
+        border_manager::send_notification(Some(self.hwnd));
 
         stackbar_manager::STACKBAR_TEMPORARILY_DISABLED.store(true, Ordering::SeqCst);
         stackbar_manager::send_notification();
@@ -203,7 +221,7 @@ impl Window {
                         stackbar_manager::STACKBAR_TEMPORARILY_DISABLED
                             .store(false, Ordering::SeqCst);
 
-                        border_manager::send_notification();
+                        border_manager::send_notification(Some(hwnd));
                         stackbar_manager::send_notification();
                         transparency_manager::send_notification();
                     }
@@ -537,7 +555,7 @@ pub struct RuleDebug {
     pub class: Option<String>,
     pub path: Option<String>,
     pub matches_permaignore_class: Option<String>,
-    pub matches_float_identifier: Option<MatchingRule>,
+    pub matches_ignore_identifier: Option<MatchingRule>,
     pub matches_managed_override: Option<MatchingRule>,
     pub matches_layered_whitelist: Option<MatchingRule>,
     pub matches_wsl2_gui: Option<String>,
@@ -566,16 +584,16 @@ fn window_is_eligible(
 
     let regex_identifiers = REGEX_IDENTIFIERS.lock();
 
-    let float_identifiers = FLOAT_IDENTIFIERS.lock();
+    let ignore_identifiers = IGNORE_IDENTIFIERS.lock();
     let should_float = if let Some(rule) = should_act(
         title,
         exe_name,
         class,
         path,
-        &float_identifiers,
+        &ignore_identifiers,
         &regex_identifiers,
     ) {
-        debug.matches_float_identifier = Some(rule);
+        debug.matches_ignore_identifier = Some(rule);
         true
     } else {
         false

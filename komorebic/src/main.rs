@@ -583,7 +583,7 @@ macro_rules! gen_application_target_subcommand_args {
 }
 
 gen_application_target_subcommand_args! {
-    FloatRule,
+    IgnoreRule,
     ManageRule,
     IdentifyTrayApplication,
     IdentifyLayeredApplication,
@@ -1167,6 +1167,16 @@ enum SubCommand {
     WorkspaceName(WorkspaceName),
     /// Toggle the behaviour for new windows (stacking or dynamic tiling)
     ToggleWindowContainerBehaviour,
+    /// Enable or disable float override, which makes it so every new window opens in floating mode
+    ToggleFloatOverride,
+    /// Toggle the behaviour for new windows (stacking or dynamic tiling) for currently focused
+    /// workspace. If there was no behaviour set for the workspace previously it takes the opposite
+    /// of the global value.
+    ToggleWorkspaceWindowContainerBehaviour,
+    /// Enable or disable float override, which makes it so every new window opens in floating
+    /// mode, for the currently focused workspace. If there was no override value set for the
+    /// workspace previously it takes the opposite of the global value.
+    ToggleWorkspaceFloatOverride,
     /// Toggle window tiling on the focused workspace
     TogglePause,
     /// Toggle window tiling on the focused workspace
@@ -1208,9 +1218,10 @@ enum SubCommand {
     /// Set the operation behaviour when the focused window is not managed
     #[clap(arg_required_else_help = true)]
     UnmanagedWindowOperationBehaviour(UnmanagedWindowOperationBehaviour),
-    /// Add a rule to always float the specified application
+    /// Add a rule to ignore the specified application
     #[clap(arg_required_else_help = true)]
-    FloatRule(FloatRule),
+    #[clap(alias = "float-rule")]
+    IgnoreRule(IgnoreRule),
     /// Add a rule to always manage the specified application
     #[clap(arg_required_else_help = true)]
     ManageRule(ManageRule),
@@ -2154,8 +2165,8 @@ Stop-Process -Name:komorebi -ErrorAction SilentlyContinue
                 }
             }
         }
-        SubCommand::FloatRule(arg) => {
-            send_message(&SocketMessage::FloatRule(arg.identifier, arg.id))?;
+        SubCommand::IgnoreRule(arg) => {
+            send_message(&SocketMessage::IgnoreRule(arg.identifier, arg.id))?;
         }
         SubCommand::ManageRule(arg) => {
             send_message(&SocketMessage::ManageRule(arg.identifier, arg.id))?;
@@ -2468,6 +2479,15 @@ Stop-Process -Name:komorebi -ErrorAction SilentlyContinue
         }
         SubCommand::ToggleWindowContainerBehaviour => {
             send_message(&SocketMessage::ToggleWindowContainerBehaviour)?;
+        }
+        SubCommand::ToggleFloatOverride => {
+            send_message(&SocketMessage::ToggleFloatOverride)?;
+        }
+        SubCommand::ToggleWorkspaceWindowContainerBehaviour => {
+            send_message(&SocketMessage::ToggleWorkspaceWindowContainerBehaviour)?;
+        }
+        SubCommand::ToggleWorkspaceFloatOverride => {
+            send_message(&SocketMessage::ToggleWorkspaceFloatOverride)?;
         }
         SubCommand::WindowHidingBehaviour(arg) => {
             send_message(&SocketMessage::WindowHidingBehaviour(arg.hiding_behaviour))?;

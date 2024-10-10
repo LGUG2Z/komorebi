@@ -172,7 +172,7 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                     if should_update {
                         tracing::info!("updated work area for {}", monitor.device_id());
                         monitor.update_focused_workspace(offset)?;
-                        border_manager::send_notification();
+                        border_manager::send_notification(None);
                     } else {
                         tracing::debug!(
                             "work areas match, reconciliation not required for {}",
@@ -219,7 +219,7 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                         );
 
                         monitor.update_focused_workspace(offset)?;
-                        border_manager::send_notification();
+                        border_manager::send_notification(None);
                     } else {
                         tracing::debug!(
                             "resolutions match, reconciliation not required for {}",
@@ -406,7 +406,7 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                     // Second retile to fix DPI/resolution related jank
                     wm.retile_all(true)?;
                     // Border updates to fix DPI/resolution related jank
-                    border_manager::send_notification();
+                    border_manager::send_notification(None);
                 }
             }
         }
