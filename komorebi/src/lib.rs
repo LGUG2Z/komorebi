@@ -177,6 +177,8 @@ lazy_static! {
         Arc::new(Mutex::new(HashMap::new()));
     pub static ref SUBSCRIPTION_SOCKETS: Arc<Mutex<HashMap<String, PathBuf>>> =
         Arc::new(Mutex::new(HashMap::new()));
+    pub static ref SUBSCRIPTION_SOCKET_OPTIONS: Arc<Mutex<HashMap<String, SubscribeOptions>>> =
+        Arc::new(Mutex::new(HashMap::new()));
     static ref TCP_CONNECTIONS: Arc<Mutex<HashMap<String, TcpStream>>> =
         Arc::new(Mutex::new(HashMap::new()));
     static ref HIDING_BEHAVIOUR: Arc<Mutex<HidingBehaviour>> =
@@ -297,18 +299,34 @@ pub struct Notification {
     pub state: State,
 }
 
-pub fn notify_subscribers(notification: &str) -> Result<()> {
+pub fn notify_subscribers(notification: Notification, state_has_been_modified: bool) -> Result<()> {
+    let is_subscription_event = matches!(
+        notification.event,
+        NotificationEvent::Socket(SocketMessage::AddSubscriberSocket(_))
+            | NotificationEvent::Socket(SocketMessage::AddSubscriberSocketWithOptions(_, _))
+    );
+
+    let notification = &serde_json::to_string(&notification)?;
     let mut stale_sockets = vec![];
     let mut sockets = SUBSCRIPTION_SOCKETS.lock();
+    let options = SUBSCRIPTION_SOCKET_OPTIONS.lock();
 
     for (socket, path) in &mut *sockets {
-        match UnixStream::connect(path) {
-            Ok(mut stream) => {
-                tracing::debug!("pushed notification to subscriber: {socket}");
-                stream.write_all(notification.as_bytes())?;
-            }
-            Err(_) => {
-                stale_sockets.push(socket.clone());
+        let apply_state_filter = (*options)
+            .get(socket)
+            .copied()
+            .unwrap_or_default()
+            .filter_state_changes;
+
+        if !apply_state_filter || state_has_been_modified || is_subscription_event {
+            match UnixStream::connect(path) {
+                Ok(mut stream) => {
+                    tracing::debug!("pushed notification to subscriber: {socket}");
+                    stream.write_all(notification.as_bytes())?;
+                }
+                Err(_) => {
+                    stale_sockets.push(socket.clone());
+                }
             }
         }
     }
