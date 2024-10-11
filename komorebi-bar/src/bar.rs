@@ -477,7 +477,7 @@ impl eframe::App for Komobar {
                             .outer_margin(Margin::symmetric(0.0, 0.0))
                             .inner_margin(Margin::symmetric(7.0, 2.0))
                             .rounding(Rounding::same(15.0))
-                            .stroke(ui.style().visuals.widgets.noninteractive.bg_stroke)
+                            //.stroke(ui.style().visuals.widgets.noninteractive.bg_stroke)
                             .show(ui, |ui| {
                                 ui.horizontal_centered(|ui| {
                                     for w in &mut self.center_widgets {
