@@ -1546,6 +1546,12 @@ fn main() -> Result<()> {
                 // errors
                 let _ = serde_json::from_str::<StaticConfig>(&config_source)?;
 
+                let path = resolve_home_path(static_config)?;
+                let raw = std::fs::read_to_string(path)?;
+                StaticConfig::aliases(&raw);
+                StaticConfig::deprecated(&raw);
+                StaticConfig::end_of_life(&raw);
+
                 if config_whkd.exists() {
                     println!("Found {}; key bindings will be loaded from here when whkd is started, and you can start it automatically using the --whkd flag\n", config_whkd.to_string_lossy());
                 } else {
@@ -2098,6 +2104,7 @@ if (!(Get-Process komorebi-bar -ErrorAction SilentlyContinue))
                 let raw = std::fs::read_to_string(path)?;
                 StaticConfig::aliases(&raw);
                 StaticConfig::deprecated(&raw);
+                StaticConfig::end_of_life(&raw);
             }
 
             if bar_config.is_some() {

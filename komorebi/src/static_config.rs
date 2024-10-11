@@ -109,13 +109,13 @@ pub struct WorkspaceConfig {
     /// Layout (default: BSP)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub layout: Option<DefaultLayout>,
-    /// Custom Layout (default: None)
+    /// END OF LIFE FEATURE: Custom Layout (default: None)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub custom_layout: Option<PathBuf>,
     /// Layout rules (default: None)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub layout_rules: Option<HashMap<usize, DefaultLayout>>,
-    /// Layout rules (default: None)
+    /// END OF LIFE FEATURE: Custom layout rules (default: None)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub custom_layout_rules: Option<HashMap<usize, PathBuf>>,
     /// Container padding (default: global)
@@ -260,7 +260,7 @@ pub struct StaticConfig {
     /// Determine what happens when commands are sent while an unmanaged window is in the foreground (default: Op)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub unmanaged_window_operation_behaviour: Option<OperationBehaviour>,
-    /// Determine focus follows mouse implementation (default: None)
+    /// END OF LIFE FEATURE: Determine focus follows mouse implementation (default: None)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub focus_follows_mouse: Option<FocusFollowsMouseImplementation>,
     /// Enable or disable mouse follows focus (default: true)
@@ -431,6 +431,26 @@ pub enum KomorebiTheme {
 }
 
 impl StaticConfig {
+    pub fn end_of_life(raw: &str) {
+        let features = vec![
+            "focus_follows_mouse",
+            "custom_layout",
+            "custom_layout_rules",
+        ];
+
+        let mut display = false;
+
+        for feature in features {
+            if raw.contains(feature) {
+                display = true;
+                println!(r#""{feature}" is now end-of-life"#);
+            }
+        }
+
+        if display {
+            println!("\nEnd-of-life features will not receive any further bug fixes or updates; they should not be used\n")
+        }
+    }
     pub fn aliases(raw: &str) {
         let mut map = HashMap::new();
         map.insert("border", ["active_window_border"]);
