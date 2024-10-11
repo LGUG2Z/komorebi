@@ -598,10 +598,10 @@ impl Workspace {
     }
 
     pub fn is_empty(&self) -> bool {
-       self.containers().is_empty()
-           && self.maximized_window().is_none()
-           && self.monocle_container().is_none()
-           && self.floating_windows().is_empty()
+        self.containers().is_empty()
+            && self.maximized_window().is_none()
+            && self.monocle_container().is_none()
+            && self.floating_windows().is_empty()
     }
 
     pub fn contains_window(&self, hwnd: isize) -> bool {

@@ -1348,30 +1348,39 @@ impl WindowManager {
             SocketMessage::ToggleWindowContainerBehaviour => {
                 match self.window_management_behaviour.current_behaviour {
                     WindowContainerBehaviour::Create => {
-                        self.window_management_behaviour.current_behaviour = WindowContainerBehaviour::Append;
+                        self.window_management_behaviour.current_behaviour =
+                            WindowContainerBehaviour::Append;
                     }
                     WindowContainerBehaviour::Append => {
-                        self.window_management_behaviour.current_behaviour = WindowContainerBehaviour::Create;
+                        self.window_management_behaviour.current_behaviour =
+                            WindowContainerBehaviour::Create;
                     }
                 }
             }
             SocketMessage::ToggleFloatOverride => {
-                self.window_management_behaviour.float_override = !self.window_management_behaviour.float_override;
+                self.window_management_behaviour.float_override =
+                    !self.window_management_behaviour.float_override;
             }
             SocketMessage::ToggleWorkspaceWindowContainerBehaviour => {
                 let current_global_behaviour = self.window_management_behaviour.current_behaviour;
-                if let Some(behaviour) = self.focused_workspace_mut()?.window_container_behaviour_mut() {
+                if let Some(behaviour) = self
+                    .focused_workspace_mut()?
+                    .window_container_behaviour_mut()
+                {
                     match behaviour {
-                        WindowContainerBehaviour::Create => *behaviour = WindowContainerBehaviour::Append,
-                        WindowContainerBehaviour::Append => *behaviour = WindowContainerBehaviour::Create,
+                        WindowContainerBehaviour::Create => {
+                            *behaviour = WindowContainerBehaviour::Append
+                        }
+                        WindowContainerBehaviour::Append => {
+                            *behaviour = WindowContainerBehaviour::Create
+                        }
                     }
                 } else {
-                    self.focused_workspace_mut()?.set_window_container_behaviour(
-                        Some(match current_global_behaviour {
+                    self.focused_workspace_mut()?
+                        .set_window_container_behaviour(Some(match current_global_behaviour {
                             WindowContainerBehaviour::Create => WindowContainerBehaviour::Append,
                             WindowContainerBehaviour::Append => WindowContainerBehaviour::Create,
-                        })
-                    );
+                        }));
                 };
             }
             SocketMessage::ToggleWorkspaceFloatOverride => {
@@ -1379,7 +1388,8 @@ impl WindowManager {
                 if let Some(float_override) = self.focused_workspace_mut()?.float_override_mut() {
                     *float_override = !*float_override;
                 } else {
-                    self.focused_workspace_mut()?.set_float_override(Some(!current_global_override));
+                    self.focused_workspace_mut()?
+                        .set_float_override(Some(!current_global_override));
                 };
             }
             SocketMessage::WindowHidingBehaviour(behaviour) => {

@@ -112,7 +112,7 @@ impl BarWidget for Date {
                 if let LabelPrefix::Text | LabelPrefix::IconAndText = self.label_prefix {
                     output.insert_str(0, "DATE: ");
                 }
-                
+
                 layout_job.append(
                     &output,
                     10.0,
