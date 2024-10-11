@@ -321,19 +321,27 @@ impl WindowManager {
     ) -> WindowManagementBehaviour {
         if let Some(monitor) = self.monitors().get(monitor_idx) {
             if let Some(workspace) = monitor.workspaces().get(workspace_idx) {
-                let current_behaviour = if let Some(behaviour) = workspace.window_container_behaviour() {
-                    if workspace.containers().is_empty() && matches!(behaviour, WindowContainerBehaviour::Append) {
+                let current_behaviour =
+                    if let Some(behaviour) = workspace.window_container_behaviour() {
+                        if workspace.containers().is_empty()
+                            && matches!(behaviour, WindowContainerBehaviour::Append)
+                        {
+                            // You can't append to an empty workspace
+                            WindowContainerBehaviour::Create
+                        } else {
+                            *behaviour
+                        }
+                    } else if workspace.containers().is_empty()
+                        && matches!(
+                            self.window_management_behaviour.current_behaviour,
+                            WindowContainerBehaviour::Append
+                        )
+                    {
                         // You can't append to an empty workspace
                         WindowContainerBehaviour::Create
                     } else {
-                        *behaviour
-                    }
-                } else if workspace.containers().is_empty() && matches!(self.window_management_behaviour.current_behaviour, WindowContainerBehaviour::Append) {
-                    // You can't append to an empty workspace
-                    WindowContainerBehaviour::Create
-                } else {
-                    self.window_management_behaviour.current_behaviour
-                };
+                        self.window_management_behaviour.current_behaviour
+                    };
 
                 let float_override = if let Some(float_override) = workspace.float_override() {
                     *float_override
@@ -343,7 +351,7 @@ impl WindowManager {
 
                 return WindowManagementBehaviour {
                     current_behaviour,
-                    float_override
+                    float_override,
                 };
             }
         }
@@ -1190,20 +1198,20 @@ impl WindowManager {
             bail!("cannot move native maximized window to another monitor or workspace");
         }
 
-
         let foreground_hwnd = WindowsApi::foreground_window()?;
         let floating_window_index = workspace
             .floating_windows()
             .iter()
             .position(|w| w.hwnd == foreground_hwnd);
 
-        let floating_window = floating_window_index.map(|idx| {
-            workspace.floating_windows_mut().remove(idx)
-        });
+        let floating_window =
+            floating_window_index.map(|idx| workspace.floating_windows_mut().remove(idx));
         let container = if floating_window_index.is_none() {
-            Some(workspace
-                .remove_focused_container()
-                .ok_or_else(|| anyhow!("there is no container"))?)
+            Some(
+                workspace
+                    .remove_focused_container()
+                    .ok_or_else(|| anyhow!("there is no container"))?,
+            )
         } else {
             None
         };
@@ -1217,12 +1225,14 @@ impl WindowManager {
         if let Some(workspace_idx) = workspace_idx {
             target_monitor.focus_workspace(workspace_idx)?;
         }
-        let target_workspace = target_monitor.focused_workspace_mut()
+        let target_workspace = target_monitor
+            .focused_workspace_mut()
             .ok_or_else(|| anyhow!("there is no focused workspace on target monitor"))?;
 
         if let Some(window) = floating_window {
             target_workspace.floating_windows_mut().push(window);
-            Window::from(window.hwnd).move_to_area(&current_area, target_monitor.work_area_size())?;
+            Window::from(window.hwnd)
+                .move_to_area(&current_area, target_monitor.work_area_size())?;
         } else if let Some(container) = container {
             let container_hwnds = container
                 .windows()
@@ -1235,7 +1245,8 @@ impl WindowManager {
             if let Some(workspace) = target_monitor.focused_workspace() {
                 if !*workspace.tile() {
                     for hwnd in container_hwnds {
-                        Window::from(hwnd).move_to_area(&current_area, target_monitor.work_area_size())?;
+                        Window::from(hwnd)
+                            .move_to_area(&current_area, target_monitor.work_area_size())?;
                     }
                 }
             }

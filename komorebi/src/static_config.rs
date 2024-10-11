@@ -527,7 +527,9 @@ impl From<&WindowManager> for StaticConfig {
                 single: Option::from(Colour::from(border_manager::FOCUSED.load(Ordering::SeqCst))),
                 stack: Option::from(Colour::from(border_manager::STACK.load(Ordering::SeqCst))),
                 monocle: Option::from(Colour::from(border_manager::MONOCLE.load(Ordering::SeqCst))),
-                floating: Option::from(Colour::from(border_manager::FLOATING.load(Ordering::SeqCst))),
+                floating: Option::from(Colour::from(
+                    border_manager::FLOATING.load(Ordering::SeqCst),
+                )),
                 unfocused: Option::from(Colour::from(
                     border_manager::UNFOCUSED.load(Ordering::SeqCst),
                 )),
@@ -537,7 +539,9 @@ impl From<&WindowManager> for StaticConfig {
         Self {
             invisible_borders: None,
             resize_delta: Option::from(value.resize_delta),
-            window_container_behaviour: Option::from(value.window_management_behaviour.current_behaviour),
+            window_container_behaviour: Option::from(
+                value.window_management_behaviour.current_behaviour,
+            ),
             float_override: Option::from(value.window_management_behaviour.float_override),
             cross_monitor_move_behaviour: Option::from(value.cross_monitor_move_behaviour),
             cross_boundary_behaviour: Option::from(value.cross_boundary_behaviour),
@@ -1054,7 +1058,9 @@ impl StaticConfig {
             virtual_desktop_id: current_virtual_desktop(),
             work_area_offset: value.global_work_area_offset,
             window_management_behaviour: WindowManagementBehaviour {
-                current_behaviour: value.window_container_behaviour.unwrap_or(WindowContainerBehaviour::Create),
+                current_behaviour: value
+                    .window_container_behaviour
+                    .unwrap_or(WindowContainerBehaviour::Create),
                 float_override: value.float_override.unwrap_or_default(),
             },
             cross_monitor_move_behaviour: value

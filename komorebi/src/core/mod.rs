@@ -345,9 +345,7 @@ pub enum FocusFollowsMouseImplementation {
     Windows,
 }
 
-#[derive(
-    Clone, Copy, Debug, Default, Serialize, Deserialize, JsonSchema, PartialEq,
-)]
+#[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, JsonSchema, PartialEq)]
 pub struct WindowManagementBehaviour {
     /// The current WindowContainerBehaviour to be used
     pub current_behaviour: WindowContainerBehaviour,
@@ -358,7 +356,17 @@ pub struct WindowManagementBehaviour {
 }
 
 #[derive(
-    Clone, Copy, Debug, Default, Serialize, Deserialize, Display, EnumString, ValueEnum, JsonSchema, PartialEq
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Serialize,
+    Deserialize,
+    Display,
+    EnumString,
+    ValueEnum,
+    JsonSchema,
+    PartialEq,
 )]
 pub enum WindowContainerBehaviour {
     /// Create a new container for each new window

@@ -333,8 +333,8 @@ impl WindowManager {
                 }
 
                 if proceed {
-                    let mut behaviour =
-                        self.window_management_behaviour(focused_monitor_idx, focused_workspace_idx);
+                    let mut behaviour = self
+                        .window_management_behaviour(focused_monitor_idx, focused_workspace_idx);
                     let workspace = self.focused_workspace_mut()?;
                     let workspace_contains_window = workspace.contains_window(window.hwnd);
                     let monocle_container = workspace.monocle_container().clone();
@@ -360,7 +360,8 @@ impl WindowManager {
                             }
                         }
 
-                        behaviour.float_override = behaviour.float_override || (should_float && !matches!(event, WindowManagerEvent::Manage(_)));
+                        behaviour.float_override = behaviour.float_override
+                            || (should_float && !matches!(event, WindowManagerEvent::Manage(_)));
 
                         if behaviour.float_override {
                             workspace.floating_windows_mut().push(window);
