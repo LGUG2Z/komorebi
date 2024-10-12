@@ -62,7 +62,7 @@ impl Storage {
             let total = disk.total_space();
             let available = disk.available_space();
             let used = total - available;
-            
+
             disks.push(match self.label_prefix {
                 LabelPrefix::Text | LabelPrefix::IconAndText => {
                     format!("{} {}%", mount.to_string_lossy(), (used * 100) / total)

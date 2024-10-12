@@ -583,7 +583,7 @@ macro_rules! gen_application_target_subcommand_args {
 }
 
 gen_application_target_subcommand_args! {
-    FloatRule,
+    IgnoreRule,
     ManageRule,
     IdentifyTrayApplication,
     IdentifyLayeredApplication,
@@ -1167,6 +1167,16 @@ enum SubCommand {
     WorkspaceName(WorkspaceName),
     /// Toggle the behaviour for new windows (stacking or dynamic tiling)
     ToggleWindowContainerBehaviour,
+    /// Enable or disable float override, which makes it so every new window opens in floating mode
+    ToggleFloatOverride,
+    /// Toggle the behaviour for new windows (stacking or dynamic tiling) for currently focused
+    /// workspace. If there was no behaviour set for the workspace previously it takes the opposite
+    /// of the global value.
+    ToggleWorkspaceWindowContainerBehaviour,
+    /// Enable or disable float override, which makes it so every new window opens in floating
+    /// mode, for the currently focused workspace. If there was no override value set for the
+    /// workspace previously it takes the opposite of the global value.
+    ToggleWorkspaceFloatOverride,
     /// Toggle window tiling on the focused workspace
     TogglePause,
     /// Toggle window tiling on the focused workspace
@@ -1208,9 +1218,10 @@ enum SubCommand {
     /// Set the operation behaviour when the focused window is not managed
     #[clap(arg_required_else_help = true)]
     UnmanagedWindowOperationBehaviour(UnmanagedWindowOperationBehaviour),
-    /// Add a rule to always float the specified application
+    /// Add a rule to ignore the specified application
     #[clap(arg_required_else_help = true)]
-    FloatRule(FloatRule),
+    #[clap(alias = "float-rule")]
+    IgnoreRule(IgnoreRule),
     /// Add a rule to always manage the specified application
     #[clap(arg_required_else_help = true)]
     ManageRule(ManageRule),
@@ -1534,6 +1545,12 @@ fn main() -> Result<()> {
                 // so that more basic errors above can be shown to the error before schema-specific
                 // errors
                 let _ = serde_json::from_str::<StaticConfig>(&config_source)?;
+
+                let path = resolve_home_path(static_config)?;
+                let raw = std::fs::read_to_string(path)?;
+                StaticConfig::aliases(&raw);
+                StaticConfig::deprecated(&raw);
+                StaticConfig::end_of_life(&raw);
 
                 if config_whkd.exists() {
                     println!("Found {}; key bindings will be loaded from here when whkd is started, and you can start it automatically using the --whkd flag\n", config_whkd.to_string_lossy());
@@ -2087,6 +2104,7 @@ if (!(Get-Process komorebi-bar -ErrorAction SilentlyContinue))
                 let raw = std::fs::read_to_string(path)?;
                 StaticConfig::aliases(&raw);
                 StaticConfig::deprecated(&raw);
+                StaticConfig::end_of_life(&raw);
             }
 
             if bar_config.is_some() {
@@ -2154,8 +2172,8 @@ Stop-Process -Name:komorebi -ErrorAction SilentlyContinue
                 }
             }
         }
-        SubCommand::FloatRule(arg) => {
-            send_message(&SocketMessage::FloatRule(arg.identifier, arg.id))?;
+        SubCommand::IgnoreRule(arg) => {
+            send_message(&SocketMessage::IgnoreRule(arg.identifier, arg.id))?;
         }
         SubCommand::ManageRule(arg) => {
             send_message(&SocketMessage::ManageRule(arg.identifier, arg.id))?;
@@ -2469,6 +2487,15 @@ Stop-Process -Name:komorebi -ErrorAction SilentlyContinue
         SubCommand::ToggleWindowContainerBehaviour => {
             send_message(&SocketMessage::ToggleWindowContainerBehaviour)?;
         }
+        SubCommand::ToggleFloatOverride => {
+            send_message(&SocketMessage::ToggleFloatOverride)?;
+        }
+        SubCommand::ToggleWorkspaceWindowContainerBehaviour => {
+            send_message(&SocketMessage::ToggleWorkspaceWindowContainerBehaviour)?;
+        }
+        SubCommand::ToggleWorkspaceFloatOverride => {
+            send_message(&SocketMessage::ToggleWorkspaceFloatOverride)?;
+        }
         SubCommand::WindowHidingBehaviour(arg) => {
             send_message(&SocketMessage::WindowHidingBehaviour(arg.hiding_behaviour))?;
         }
@@ -2571,7 +2598,7 @@ Stop-Process -Name:komorebi -ErrorAction SilentlyContinue
             println!("Latest version of applications.yaml from https://github.com/LGUG2Z/komorebi-application-specific-configuration downloaded\n");
             println!(
                "You can add this to your komorebi.json static configuration file like this: \n\n\"app_specific_configuration_path\": \"{}\"",
-               output_file.display()
+               output_file.display().to_string().replace("\\", "/")
             );
         }
         SubCommand::ApplicationSpecificConfigurationSchema => {

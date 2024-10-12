@@ -39,6 +39,7 @@ use crate::core::Rect;
 use crate::core::Sizing;
 use crate::core::StackbarLabel;
 use crate::core::WindowContainerBehaviour;
+use crate::core::WindowManagementBehaviour;
 
 use crate::border_manager;
 use crate::border_manager::STYLE;
@@ -71,9 +72,9 @@ use crate::Rgb;
 use crate::CUSTOM_FFM;
 use crate::DATA_DIR;
 use crate::DISPLAY_INDEX_PREFERENCES;
-use crate::FLOAT_IDENTIFIERS;
 use crate::HIDING_BEHAVIOUR;
 use crate::HOME_DIR;
+use crate::IGNORE_IDENTIFIERS;
 use crate::LAYERED_WHITELIST;
 use crate::MANAGE_IDENTIFIERS;
 use crate::MONITOR_INDEX_PREFERENCES;
@@ -92,7 +93,7 @@ pub struct WindowManager {
     pub is_paused: bool,
     pub work_area_offset: Option<Rect>,
     pub resize_delta: i32,
-    pub window_container_behaviour: WindowContainerBehaviour,
+    pub window_management_behaviour: WindowManagementBehaviour,
     pub cross_monitor_move_behaviour: MoveBehaviour,
     pub cross_boundary_behaviour: CrossBoundaryBehaviour,
     pub unmanaged_window_operation_behaviour: OperationBehaviour,
@@ -112,6 +113,7 @@ pub struct State {
     pub is_paused: bool,
     pub resize_delta: i32,
     pub new_window_behaviour: WindowContainerBehaviour,
+    pub float_override: bool,
     pub cross_monitor_move_behaviour: MoveBehaviour,
     pub unmanaged_window_operation_behaviour: OperationBehaviour,
     pub work_area_offset: Option<Rect>,
@@ -136,7 +138,8 @@ pub struct GlobalState {
     pub stackbar_tab_width: i32,
     pub stackbar_height: i32,
     pub remove_titlebars: bool,
-    pub float_identifiers: Vec<MatchingRule>,
+    #[serde(alias = "float_identifiers")]
+    pub ignore_identifiers: Vec<MatchingRule>,
     pub manage_identifiers: Vec<MatchingRule>,
     pub layered_whitelist: Vec<MatchingRule>,
     pub tray_and_multi_window_identifiers: Vec<MatchingRule>,
@@ -164,6 +167,9 @@ impl Default for GlobalState {
                 monocle: Option::from(Colour::Rgb(Rgb::from(
                     border_manager::MONOCLE.load(Ordering::SeqCst),
                 ))),
+                floating: Option::from(Colour::Rgb(Rgb::from(
+                    border_manager::FLOATING.load(Ordering::SeqCst),
+                ))),
                 unfocused: Option::from(Colour::Rgb(Rgb::from(
                     border_manager::UNFOCUSED.load(Ordering::SeqCst),
                 ))),
@@ -185,7 +191,7 @@ impl Default for GlobalState {
             stackbar_tab_width: STACKBAR_TAB_WIDTH.load(Ordering::SeqCst),
             stackbar_height: STACKBAR_TAB_HEIGHT.load(Ordering::SeqCst),
             remove_titlebars: REMOVE_TITLEBARS.load(Ordering::SeqCst),
-            float_identifiers: FLOAT_IDENTIFIERS.lock().clone(),
+            ignore_identifiers: IGNORE_IDENTIFIERS.lock().clone(),
             manage_identifiers: MANAGE_IDENTIFIERS.lock().clone(),
             layered_whitelist: LAYERED_WHITELIST.lock().clone(),
             tray_and_multi_window_identifiers: TRAY_AND_MULTI_WINDOW_IDENTIFIERS.lock().clone(),
@@ -214,7 +220,8 @@ impl From<&WindowManager> for State {
             is_paused: wm.is_paused,
             work_area_offset: wm.work_area_offset,
             resize_delta: wm.resize_delta,
-            new_window_behaviour: wm.window_container_behaviour,
+            new_window_behaviour: wm.window_management_behaviour.current_behaviour,
+            float_override: wm.window_management_behaviour.float_override,
             cross_monitor_move_behaviour: wm.cross_monitor_move_behaviour,
             focus_follows_mouse: wm.focus_follows_mouse,
             mouse_follows_focus: wm.mouse_follows_focus,
@@ -274,7 +281,7 @@ impl WindowManager {
             is_paused: false,
             virtual_desktop_id: current_virtual_desktop(),
             work_area_offset: None,
-            window_container_behaviour: WindowContainerBehaviour::Create,
+            window_management_behaviour: WindowManagementBehaviour::default(),
             cross_monitor_move_behaviour: MoveBehaviour::Swap,
             cross_boundary_behaviour: CrossBoundaryBehaviour::Workspace,
             unmanaged_window_operation_behaviour: OperationBehaviour::Op,
@@ -307,22 +314,52 @@ impl WindowManager {
         StaticConfig::reload(pathbuf, self)
     }
 
-    pub fn window_container_behaviour(
+    pub fn window_management_behaviour(
         &self,
         monitor_idx: usize,
         workspace_idx: usize,
-    ) -> WindowContainerBehaviour {
+    ) -> WindowManagementBehaviour {
         if let Some(monitor) = self.monitors().get(monitor_idx) {
             if let Some(workspace) = monitor.workspaces().get(workspace_idx) {
-                return if workspace.containers().is_empty() {
-                    WindowContainerBehaviour::Create
+                let current_behaviour =
+                    if let Some(behaviour) = workspace.window_container_behaviour() {
+                        if workspace.containers().is_empty()
+                            && matches!(behaviour, WindowContainerBehaviour::Append)
+                        {
+                            // You can't append to an empty workspace
+                            WindowContainerBehaviour::Create
+                        } else {
+                            *behaviour
+                        }
+                    } else if workspace.containers().is_empty()
+                        && matches!(
+                            self.window_management_behaviour.current_behaviour,
+                            WindowContainerBehaviour::Append
+                        )
+                    {
+                        // You can't append to an empty workspace
+                        WindowContainerBehaviour::Create
+                    } else {
+                        self.window_management_behaviour.current_behaviour
+                    };
+
+                let float_override = if let Some(float_override) = workspace.float_override() {
+                    *float_override
                 } else {
-                    self.window_container_behaviour
+                    self.window_management_behaviour.float_override
+                };
+
+                return WindowManagementBehaviour {
+                    current_behaviour,
+                    float_override,
                 };
             }
         }
 
-        WindowContainerBehaviour::Create
+        WindowManagementBehaviour {
+            current_behaviour: WindowContainerBehaviour::Create,
+            float_override: self.window_management_behaviour.float_override,
+        }
     }
 
     #[tracing::instrument(skip(self))]
@@ -826,7 +863,7 @@ impl WindowManager {
                 }
             }
         } else {
-            if self.focused_workspace()?.containers().is_empty() {
+            if self.focused_workspace()?.is_empty() {
                 let desktop_window = Window::from(WindowsApi::desktop_window()?);
 
                 match WindowsApi::raise_and_focus_window(desktop_window.hwnd) {
@@ -845,6 +882,8 @@ impl WindowManager {
                     && self.focused_workspace()?.maximized_window().is_none()
                     // and we don't have a monocle container
                     && self.focused_workspace()?.monocle_container().is_none()
+                    // and we don't have any floating windows that should show on top
+                    && self.focused_workspace()?.floating_windows().is_empty()
                 {
                     if let Ok(window) = self.focused_window_mut() {
                         if trigger_focus {
@@ -1149,6 +1188,8 @@ impl WindowManager {
             .focused_monitor_mut()
             .ok_or_else(|| anyhow!("there is no monitor"))?;
 
+        let current_area = *monitor.work_area_size();
+
         let workspace = monitor
             .focused_workspace_mut()
             .ok_or_else(|| anyhow!("there is no workspace"))?;
@@ -1157,16 +1198,23 @@ impl WindowManager {
             bail!("cannot move native maximized window to another monitor or workspace");
         }
 
-        let container = workspace
-            .remove_focused_container()
-            .ok_or_else(|| anyhow!("there is no container"))?;
-
-        let container_hwnds = container
-            .windows()
+        let foreground_hwnd = WindowsApi::foreground_window()?;
+        let floating_window_index = workspace
+            .floating_windows()
             .iter()
-            .map(|w| w.hwnd)
-            .collect::<Vec<_>>();
+            .position(|w| w.hwnd == foreground_hwnd);
 
+        let floating_window =
+            floating_window_index.map(|idx| workspace.floating_windows_mut().remove(idx));
+        let container = if floating_window_index.is_none() {
+            Some(
+                workspace
+                    .remove_focused_container()
+                    .ok_or_else(|| anyhow!("there is no container"))?,
+            )
+        } else {
+            None
+        };
         monitor.update_focused_workspace(offset)?;
 
         let target_monitor = self
@@ -1174,18 +1222,36 @@ impl WindowManager {
             .get_mut(monitor_idx)
             .ok_or_else(|| anyhow!("there is no monitor"))?;
 
-        target_monitor.add_container(container, workspace_idx)?;
-
         if let Some(workspace_idx) = workspace_idx {
             target_monitor.focus_workspace(workspace_idx)?;
         }
+        let target_workspace = target_monitor
+            .focused_workspace_mut()
+            .ok_or_else(|| anyhow!("there is no focused workspace on target monitor"))?;
 
-        if let Some(workspace) = target_monitor.focused_workspace() {
-            if !*workspace.tile() {
-                for hwnd in container_hwnds {
-                    Window::from(hwnd).center(target_monitor.work_area_size())?;
+        if let Some(window) = floating_window {
+            target_workspace.floating_windows_mut().push(window);
+            Window::from(window.hwnd)
+                .move_to_area(&current_area, target_monitor.work_area_size())?;
+        } else if let Some(container) = container {
+            let container_hwnds = container
+                .windows()
+                .iter()
+                .map(|w| w.hwnd)
+                .collect::<Vec<_>>();
+
+            target_monitor.add_container(container, workspace_idx)?;
+
+            if let Some(workspace) = target_monitor.focused_workspace() {
+                if !*workspace.tile() {
+                    for hwnd in container_hwnds {
+                        Window::from(hwnd)
+                            .move_to_area(&current_area, target_monitor.work_area_size())?;
+                    }
                 }
             }
+        } else {
+            bail!("failed to find a window to move");
         }
 
         target_monitor.load_focused_workspace(mouse_follows_focus)?;

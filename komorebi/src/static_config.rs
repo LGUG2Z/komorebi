@@ -35,8 +35,9 @@ use crate::DATA_DIR;
 use crate::DEFAULT_CONTAINER_PADDING;
 use crate::DEFAULT_WORKSPACE_PADDING;
 use crate::DISPLAY_INDEX_PREFERENCES;
-use crate::FLOAT_IDENTIFIERS;
+use crate::FLOATING_APPLICATIONS;
 use crate::HIDING_BEHAVIOUR;
+use crate::IGNORE_IDENTIFIERS;
 use crate::LAYERED_WHITELIST;
 use crate::MANAGE_IDENTIFIERS;
 use crate::MONITOR_INDEX_PREFERENCES;
@@ -67,6 +68,7 @@ use crate::core::OperationBehaviour;
 use crate::core::Rect;
 use crate::core::SocketMessage;
 use crate::core::WindowContainerBehaviour;
+use crate::core::WindowManagementBehaviour;
 use color_eyre::Result;
 use crossbeam_channel::Receiver;
 use hotwatch::EventKind;
@@ -94,6 +96,8 @@ pub struct BorderColours {
     pub stack: Option<Colour>,
     /// Border colour when the container is in monocle mode
     pub monocle: Option<Colour>,
+    /// Border colour when the container is in floating mode
+    pub floating: Option<Colour>,
     /// Border colour when the container is unfocused
     pub unfocused: Option<Colour>,
 }
@@ -105,13 +109,13 @@ pub struct WorkspaceConfig {
     /// Layout (default: BSP)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub layout: Option<DefaultLayout>,
-    /// Custom Layout (default: None)
+    /// END OF LIFE FEATURE: Custom Layout (default: None)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub custom_layout: Option<PathBuf>,
     /// Layout rules (default: None)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub layout_rules: Option<HashMap<usize, DefaultLayout>>,
-    /// Layout rules (default: None)
+    /// END OF LIFE FEATURE: Custom layout rules (default: None)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub custom_layout_rules: Option<HashMap<usize, PathBuf>>,
     /// Container padding (default: global)
@@ -129,6 +133,13 @@ pub struct WorkspaceConfig {
     /// Apply this monitor's window-based work area offset (default: true)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub apply_window_based_work_area_offset: Option<bool>,
+    /// Determine what happens when a new window is opened (default: Create)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub window_container_behaviour: Option<WindowContainerBehaviour>,
+    /// Enable or disable float override, which makes it so every new window opens in floating mode
+    /// (default: false)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub float_override: Option<bool>,
 }
 
 impl From<&Workspace> for WorkspaceConfig {
@@ -181,6 +192,8 @@ impl From<&Workspace> for WorkspaceConfig {
             initial_workspace_rules: None,
             workspace_rules: None,
             apply_window_based_work_area_offset: Some(value.apply_window_based_work_area_offset()),
+            window_container_behaviour: *value.window_container_behaviour(),
+            float_override: *value.float_override(),
         }
     }
 }
@@ -234,6 +247,10 @@ pub struct StaticConfig {
     /// Determine what happens when a new window is opened (default: Create)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub window_container_behaviour: Option<WindowContainerBehaviour>,
+    /// Enable or disable float override, which makes it so every new window opens in floating mode
+    /// (default: false)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub float_override: Option<bool>,
     /// Determine what happens when a window is moved across a monitor boundary (default: Swap)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub cross_monitor_move_behaviour: Option<MoveBehaviour>,
@@ -243,7 +260,7 @@ pub struct StaticConfig {
     /// Determine what happens when commands are sent while an unmanaged window is in the foreground (default: Op)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub unmanaged_window_operation_behaviour: Option<OperationBehaviour>,
-    /// Determine focus follows mouse implementation (default: None)
+    /// END OF LIFE FEATURE: Determine focus follows mouse implementation (default: None)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub focus_follows_mouse: Option<FocusFollowsMouseImplementation>,
     /// Enable or disable mouse follows focus (default: true)
@@ -304,10 +321,14 @@ pub struct StaticConfig {
     pub global_work_area_offset: Option<Rect>,
     /// Individual window floating rules
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub float_rules: Option<Vec<MatchingRule>>,
+    #[serde(alias = "float_rules")]
+    pub ignore_rules: Option<Vec<MatchingRule>>,
     /// Individual window force-manage rules
     #[serde(skip_serializing_if = "Option::is_none")]
     pub manage_rules: Option<Vec<MatchingRule>>,
+    /// Identify applications which should be managed as floating windows
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub floating_applications: Option<Vec<MatchingRule>>,
     /// Identify border overflow applications
     #[serde(skip_serializing_if = "Option::is_none")]
     pub border_overflow_applications: Option<Vec<MatchingRule>>,
@@ -371,6 +392,8 @@ pub enum KomorebiTheme {
         stack_border: Option<komorebi_themes::CatppuccinValue>,
         /// Border colour when the container is in monocle mode (default: Pink)
         monocle_border: Option<komorebi_themes::CatppuccinValue>,
+        /// Border colour when the window is floating (default: Yellow)
+        floating_border: Option<komorebi_themes::CatppuccinValue>,
         /// Border colour when the container is unfocused (default: Base)
         unfocused_border: Option<komorebi_themes::CatppuccinValue>,
         /// Stackbar focused tab text colour (default: Green)
@@ -392,6 +415,8 @@ pub enum KomorebiTheme {
         stack_border: Option<komorebi_themes::Base16Value>,
         /// Border colour when the container is in monocle mode (default: Base0F)
         monocle_border: Option<komorebi_themes::Base16Value>,
+        /// Border colour when the window is floating (default: Base09)
+        floating_border: Option<komorebi_themes::Base16Value>,
         /// Border colour when the container is unfocused (default: Base01)
         unfocused_border: Option<komorebi_themes::Base16Value>,
         /// Stackbar focused tab text colour (default: Base0B)
@@ -406,6 +431,26 @@ pub enum KomorebiTheme {
 }
 
 impl StaticConfig {
+    pub fn end_of_life(raw: &str) {
+        let features = vec![
+            "focus_follows_mouse",
+            "custom_layout",
+            "custom_layout_rules",
+        ];
+
+        let mut display = false;
+
+        for feature in features {
+            if raw.contains(feature) {
+                display = true;
+                println!(r#""{feature}" is now end-of-life"#);
+            }
+        }
+
+        if display {
+            println!("\nEnd-of-life features will not receive any further bug fixes or updates; they should not be used\n")
+        }
+    }
     pub fn aliases(raw: &str) {
         let mut map = HashMap::new();
         map.insert("border", ["active_window_border"]);
@@ -502,6 +547,9 @@ impl From<&WindowManager> for StaticConfig {
                 single: Option::from(Colour::from(border_manager::FOCUSED.load(Ordering::SeqCst))),
                 stack: Option::from(Colour::from(border_manager::STACK.load(Ordering::SeqCst))),
                 monocle: Option::from(Colour::from(border_manager::MONOCLE.load(Ordering::SeqCst))),
+                floating: Option::from(Colour::from(
+                    border_manager::FLOATING.load(Ordering::SeqCst),
+                )),
                 unfocused: Option::from(Colour::from(
                     border_manager::UNFOCUSED.load(Ordering::SeqCst),
                 )),
@@ -511,7 +559,10 @@ impl From<&WindowManager> for StaticConfig {
         Self {
             invisible_borders: None,
             resize_delta: Option::from(value.resize_delta),
-            window_container_behaviour: Option::from(value.window_container_behaviour),
+            window_container_behaviour: Option::from(
+                value.window_management_behaviour.current_behaviour,
+            ),
+            float_override: Option::from(value.window_management_behaviour.float_override),
             cross_monitor_move_behaviour: Option::from(value.cross_monitor_move_behaviour),
             cross_boundary_behaviour: Option::from(value.cross_boundary_behaviour),
             unmanaged_window_operation_behaviour: Option::from(
@@ -545,7 +596,8 @@ impl From<&WindowManager> for StaticConfig {
             monitors: Option::from(monitors),
             window_hiding_behaviour: Option::from(*HIDING_BEHAVIOUR.lock()),
             global_work_area_offset: value.work_area_offset,
-            float_rules: None,
+            ignore_rules: None,
+            floating_applications: None,
             manage_rules: None,
             border_overflow_applications: None,
             tray_and_multi_window_applications: None,
@@ -627,6 +679,10 @@ impl StaticConfig {
                 border_manager::MONOCLE.store(u32::from(monocle), Ordering::SeqCst);
             }
 
+            if let Some(floating) = colours.floating {
+                border_manager::FLOATING.store(u32::from(floating), Ordering::SeqCst);
+            }
+
             if let Some(unfocused) = colours.unfocused {
                 border_manager::UNFOCUSED.store(u32::from(unfocused), Ordering::SeqCst);
             }
@@ -654,7 +710,7 @@ impl StaticConfig {
                 }
             }
 
-            border_manager::send_notification();
+            border_manager::send_notification(None);
         }
 
         transparency_manager::TRANSPARENCY_ENABLED
@@ -662,7 +718,7 @@ impl StaticConfig {
         transparency_manager::TRANSPARENCY_ALPHA
             .store(self.transparency_alpha.unwrap_or(200), Ordering::SeqCst);
 
-        let mut float_identifiers = FLOAT_IDENTIFIERS.lock();
+        let mut ignore_identifiers = IGNORE_IDENTIFIERS.lock();
         let mut regex_identifiers = REGEX_IDENTIFIERS.lock();
         let mut manage_identifiers = MANAGE_IDENTIFIERS.lock();
         let mut tray_and_multi_window_identifiers = TRAY_AND_MULTI_WINDOW_IDENTIFIERS.lock();
@@ -670,9 +726,14 @@ impl StaticConfig {
         let mut layered_identifiers = LAYERED_WHITELIST.lock();
         let mut transparency_blacklist = TRANSPARENCY_BLACKLIST.lock();
         let mut slow_application_identifiers = SLOW_APPLICATION_IDENTIFIERS.lock();
+        let mut floating_applications = FLOATING_APPLICATIONS.lock();
 
-        if let Some(rules) = &mut self.float_rules {
-            populate_rules(rules, &mut float_identifiers, &mut regex_identifiers)?;
+        if let Some(rules) = &mut self.ignore_rules {
+            populate_rules(rules, &mut ignore_identifiers, &mut regex_identifiers)?;
+        }
+
+        if let Some(rules) = &mut self.floating_applications {
+            populate_rules(rules, &mut floating_applications, &mut regex_identifiers)?;
         }
 
         if let Some(rules) = &mut self.manage_rules {
@@ -752,6 +813,7 @@ impl StaticConfig {
                 single_border,
                 stack_border,
                 monocle_border,
+                floating_border,
                 unfocused_border,
                 stackbar_focused_text,
                 stackbar_unfocused_text,
@@ -762,6 +824,7 @@ impl StaticConfig {
                     single_border,
                     stack_border,
                     monocle_border,
+                    floating_border,
                     unfocused_border,
                     stackbar_focused_text,
                     stackbar_unfocused_text,
@@ -778,6 +841,10 @@ impl StaticConfig {
 
                     let monocle_border = monocle_border
                         .unwrap_or(komorebi_themes::CatppuccinValue::Pink)
+                        .color32(name.as_theme());
+
+                    let floating_border = floating_border
+                        .unwrap_or(komorebi_themes::CatppuccinValue::Yellow)
                         .color32(name.as_theme());
 
                     let unfocused_border = unfocused_border
@@ -800,6 +867,7 @@ impl StaticConfig {
                         single_border,
                         stack_border,
                         monocle_border,
+                        floating_border,
                         unfocused_border,
                         stackbar_focused_text,
                         stackbar_unfocused_text,
@@ -811,6 +879,7 @@ impl StaticConfig {
                     single_border,
                     stack_border,
                     monocle_border,
+                    floating_border,
                     unfocused_border,
                     stackbar_focused_text,
                     stackbar_unfocused_text,
@@ -833,6 +902,10 @@ impl StaticConfig {
                         .unwrap_or(komorebi_themes::Base16Value::Base01)
                         .color32(*name);
 
+                    let floating_border = floating_border
+                        .unwrap_or(komorebi_themes::Base16Value::Base09)
+                        .color32(*name);
+
                     let stackbar_focused_text = stackbar_focused_text
                         .unwrap_or(komorebi_themes::Base16Value::Base0B)
                         .color32(*name);
@@ -849,6 +922,7 @@ impl StaticConfig {
                         single_border,
                         stack_border,
                         monocle_border,
+                        floating_border,
                         unfocused_border,
                         stackbar_focused_text,
                         stackbar_unfocused_text,
@@ -861,6 +935,8 @@ impl StaticConfig {
             border_manager::MONOCLE
                 .store(u32::from(Colour::from(monocle_border)), Ordering::SeqCst);
             border_manager::STACK.store(u32::from(Colour::from(stack_border)), Ordering::SeqCst);
+            border_manager::FLOATING
+                .store(u32::from(Colour::from(floating_border)), Ordering::SeqCst);
             border_manager::UNFOCUSED
                 .store(u32::from(Colour::from(unfocused_border)), Ordering::SeqCst);
 
@@ -886,8 +962,8 @@ impl StaticConfig {
             let asc = ApplicationConfigurationGenerator::load(&content)?;
 
             for mut entry in asc {
-                if let Some(rules) = &mut entry.float_identifiers {
-                    populate_rules(rules, &mut float_identifiers, &mut regex_identifiers)?;
+                if let Some(rules) = &mut entry.ignore_identifiers {
+                    populate_rules(rules, &mut ignore_identifiers, &mut regex_identifiers)?;
                 }
 
                 if let Some(ref options) = entry.options {
@@ -1001,9 +1077,12 @@ impl StaticConfig {
             is_paused: false,
             virtual_desktop_id: current_virtual_desktop(),
             work_area_offset: value.global_work_area_offset,
-            window_container_behaviour: value
-                .window_container_behaviour
-                .unwrap_or(WindowContainerBehaviour::Create),
+            window_management_behaviour: WindowManagementBehaviour {
+                current_behaviour: value
+                    .window_container_behaviour
+                    .unwrap_or(WindowContainerBehaviour::Create),
+                float_override: value.float_override.unwrap_or_default(),
+            },
             cross_monitor_move_behaviour: value
                 .cross_monitor_move_behaviour
                 .unwrap_or(MoveBehaviour::Swap),
@@ -1178,7 +1257,11 @@ impl StaticConfig {
         }
 
         if let Some(val) = value.window_container_behaviour {
-            wm.window_container_behaviour = val;
+            wm.window_management_behaviour.current_behaviour = val;
+        }
+
+        if let Some(val) = value.float_override {
+            wm.window_management_behaviour.float_override = val;
         }
 
         if let Some(val) = value.cross_monitor_move_behaviour {

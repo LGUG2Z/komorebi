@@ -68,8 +68,8 @@ use crate::ANIMATION_STYLE;
 use crate::CUSTOM_FFM;
 use crate::DATA_DIR;
 use crate::DISPLAY_INDEX_PREFERENCES;
-use crate::FLOAT_IDENTIFIERS;
 use crate::HIDING_BEHAVIOUR;
+use crate::IGNORE_IDENTIFIERS;
 use crate::INITIAL_CONFIGURATION_LOADED;
 use crate::LAYERED_WHITELIST;
 use crate::MANAGE_IDENTIFIERS;
@@ -394,20 +394,20 @@ impl WindowManager {
                     }));
                 }
             }
-            SocketMessage::FloatRule(identifier, ref id) => {
-                let mut float_identifiers = FLOAT_IDENTIFIERS.lock();
+            SocketMessage::IgnoreRule(identifier, ref id) => {
+                let mut ignore_identifiers = IGNORE_IDENTIFIERS.lock();
 
                 let mut should_push = true;
-                for f in &*float_identifiers {
-                    if let MatchingRule::Simple(f) = f {
-                        if f.id.eq(id) {
+                for i in &*ignore_identifiers {
+                    if let MatchingRule::Simple(i) = i {
+                        if i.id.eq(id) {
                             should_push = false;
                         }
                     }
                 }
 
                 if should_push {
-                    float_identifiers.push(MatchingRule::Simple(IdWithIdentifier {
+                    ignore_identifiers.push(MatchingRule::Simple(IdWithIdentifier {
                         kind: identifier,
                         id: id.clone(),
                         matching_strategy: Option::from(MatchingStrategy::Legacy),
@@ -1346,14 +1346,51 @@ impl WindowManager {
                 self.resize_delta = delta;
             }
             SocketMessage::ToggleWindowContainerBehaviour => {
-                match self.window_container_behaviour {
+                match self.window_management_behaviour.current_behaviour {
                     WindowContainerBehaviour::Create => {
-                        self.window_container_behaviour = WindowContainerBehaviour::Append;
+                        self.window_management_behaviour.current_behaviour =
+                            WindowContainerBehaviour::Append;
                     }
                     WindowContainerBehaviour::Append => {
-                        self.window_container_behaviour = WindowContainerBehaviour::Create;
+                        self.window_management_behaviour.current_behaviour =
+                            WindowContainerBehaviour::Create;
                     }
                 }
+            }
+            SocketMessage::ToggleFloatOverride => {
+                self.window_management_behaviour.float_override =
+                    !self.window_management_behaviour.float_override;
+            }
+            SocketMessage::ToggleWorkspaceWindowContainerBehaviour => {
+                let current_global_behaviour = self.window_management_behaviour.current_behaviour;
+                if let Some(behaviour) = self
+                    .focused_workspace_mut()?
+                    .window_container_behaviour_mut()
+                {
+                    match behaviour {
+                        WindowContainerBehaviour::Create => {
+                            *behaviour = WindowContainerBehaviour::Append
+                        }
+                        WindowContainerBehaviour::Append => {
+                            *behaviour = WindowContainerBehaviour::Create
+                        }
+                    }
+                } else {
+                    self.focused_workspace_mut()?
+                        .set_window_container_behaviour(Some(match current_global_behaviour {
+                            WindowContainerBehaviour::Create => WindowContainerBehaviour::Append,
+                            WindowContainerBehaviour::Append => WindowContainerBehaviour::Create,
+                        }));
+                };
+            }
+            SocketMessage::ToggleWorkspaceFloatOverride => {
+                let current_global_override = self.window_management_behaviour.float_override;
+                if let Some(float_override) = self.focused_workspace_mut()?.float_override_mut() {
+                    *float_override = !*float_override;
+                } else {
+                    self.focused_workspace_mut()?
+                        .set_float_override(Some(!current_global_override));
+                };
             }
             SocketMessage::WindowHidingBehaviour(behaviour) => {
                 let mut hiding_behaviour = HIDING_BEHAVIOUR.lock();
@@ -1395,7 +1432,7 @@ impl WindowManager {
                         }
                     }
 
-                    border_manager::send_notification();
+                    border_manager::send_notification(None);
                 }
             }
             SocketMessage::BorderColour(kind, r, g, b) => match kind {
@@ -1410,6 +1447,9 @@ impl WindowManager {
                 }
                 WindowKind::Unfocused => {
                     border_manager::UNFOCUSED.store(Rgb::new(r, g, b).into(), Ordering::SeqCst);
+                }
+                WindowKind::Floating => {
+                    border_manager::FLOATING.store(Rgb::new(r, g, b).into(), Ordering::SeqCst);
                 }
             },
             SocketMessage::BorderStyle(style) => {
@@ -1540,7 +1580,7 @@ impl WindowManager {
         };
 
         notify_subscribers(&serde_json::to_string(&notification)?)?;
-        border_manager::send_notification();
+        border_manager::send_notification(None);
         transparency_manager::send_notification();
         stackbar_manager::send_notification();
 

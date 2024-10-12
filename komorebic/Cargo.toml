@@ -39,3 +39,6 @@ windows = { workspace = true }
 [build-dependencies]
 reqwest = { version = "0.12", features = ["blocking"] }
 shadow-rs = { workspace = true }
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(FALSE)'] }

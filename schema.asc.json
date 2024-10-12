@@ -13,7 +13,10 @@
         "name"
       ],
       "properties": {
-        "float_identifiers": {
+        "identifier": {
+          "$ref": "#/definitions/IdWithIdentifier"
+        },
+        "ignore_identifiers": {
           "type": [
             "array",
             "null"
@@ -21,9 +24,6 @@
           "items": {
             "$ref": "#/definitions/MatchingRule"
           }
-        },
-        "identifier": {
-          "$ref": "#/definitions/IdWithIdentifier"
         },
         "name": {
           "type": "string"
