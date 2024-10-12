@@ -9,7 +9,7 @@ use serde::Serialize;
 use crate::ring::Ring;
 use crate::window::Window;
 
-#[derive(Debug, Clone, Serialize, Deserialize, Getters, JsonSchema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Getters, JsonSchema)]
 pub struct Container {
     #[getset(get = "pub")]
     id: String,
@@ -24,12 +24,6 @@ impl Default for Container {
             id: nanoid!(),
             windows: Ring::default(),
         }
-    }
-}
-
-impl PartialEq for Container {
-    fn eq(&self, other: &Self) -> bool {
-        self.id == other.id
     }
 }
 

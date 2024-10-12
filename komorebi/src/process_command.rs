@@ -61,6 +61,7 @@ use crate::winevent_listener;
 use crate::GlobalState;
 use crate::Notification;
 use crate::NotificationEvent;
+use crate::State;
 use crate::ANIMATION_DURATION;
 use crate::ANIMATION_ENABLED;
 use crate::ANIMATION_FPS;
@@ -79,6 +80,7 @@ use crate::OBJECT_NAME_CHANGE_ON_LAUNCH;
 use crate::REMOVE_TITLEBARS;
 use crate::SUBSCRIPTION_PIPES;
 use crate::SUBSCRIPTION_SOCKETS;
+use crate::SUBSCRIPTION_SOCKET_OPTIONS;
 use crate::TCP_CONNECTIONS;
 use crate::TRAY_AND_MULTI_WINDOW_IDENTIFIERS;
 use crate::WINDOWS_11;
@@ -186,6 +188,10 @@ impl WindowManager {
                 }
             }
         }
+
+        #[allow(clippy::useless_asref)]
+        // We don't have From implemented for &mut WindowManager
+        let initial_state = State::from(self.as_ref());
 
         match message {
             SocketMessage::CycleFocusWorkspace(_) | SocketMessage::FocusWorkspaceNumber(_) => {
@@ -1319,6 +1325,14 @@ impl WindowManager {
                 let socket_path = DATA_DIR.join(socket);
                 sockets.insert(socket.clone(), socket_path);
             }
+            SocketMessage::AddSubscriberSocketWithOptions(ref socket, options) => {
+                let mut sockets = SUBSCRIPTION_SOCKETS.lock();
+                let socket_path = DATA_DIR.join(socket);
+                sockets.insert(socket.clone(), socket_path);
+
+                let mut socket_options = SUBSCRIPTION_SOCKET_OPTIONS.lock();
+                socket_options.insert(socket.clone(), options);
+            }
             SocketMessage::RemoveSubscriberSocket(ref socket) => {
                 let mut sockets = SUBSCRIPTION_SOCKETS.lock();
                 sockets.remove(socket);
@@ -1574,12 +1588,14 @@ impl WindowManager {
             | SocketMessage::IdentifyBorderOverflowApplication(_, _) => {}
         };
 
-        let notification = Notification {
-            event: NotificationEvent::Socket(message.clone()),
-            state: self.as_ref().into(),
-        };
+        notify_subscribers(
+            Notification {
+                event: NotificationEvent::Socket(message.clone()),
+                state: self.as_ref().into(),
+            },
+            initial_state.has_been_modified(self.as_ref()),
+        )?;
 
-        notify_subscribers(&serde_json::to_string(&notification)?)?;
         border_manager::send_notification(None);
         transparency_manager::send_notification();
         stackbar_manager::send_notification();

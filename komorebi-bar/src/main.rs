@@ -22,6 +22,7 @@ use font_loader::system_fonts;
 use hotwatch::EventKind;
 use hotwatch::Hotwatch;
 use komorebi_client::SocketMessage;
+use komorebi_client::SubscribeOptions;
 use schemars::gen::SchemaSettings;
 use std::io::BufReader;
 use std::io::Read;
@@ -328,7 +329,9 @@ fn main() -> color_eyre::Result<()> {
             std::thread::spawn(move || {
                 let subscriber_name = format!("komorebi-bar-{}", random_word::gen(random_word::Lang::En));
 
-                let listener = komorebi_client::subscribe(&subscriber_name)
+                let listener = komorebi_client::subscribe_with_options(&subscriber_name, SubscribeOptions {
+                    filter_state_changes: true,
+                })
                     .expect("could not subscribe to komorebi notifications");
 
                 tracing::info!("subscribed to komorebi notifications: \"{}\"", subscriber_name);

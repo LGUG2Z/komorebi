@@ -32,6 +32,7 @@ use crate::workspace_reconciliator::ALT_TAB_HWND;
 use crate::workspace_reconciliator::ALT_TAB_HWND_INSTANT;
 use crate::Notification;
 use crate::NotificationEvent;
+use crate::State;
 use crate::DATA_DIR;
 use crate::FLOATING_APPLICATIONS;
 use crate::HIDDEN_HWNDS;
@@ -121,6 +122,10 @@ impl WindowManager {
                 }
             }
         }
+
+        #[allow(clippy::useless_asref)]
+        // We don't have From implemented for &mut WindowManager
+        let initial_state = State::from(self.as_ref());
 
         // Make sure we have the most recently focused monitor from any event
         match event {
@@ -670,12 +675,14 @@ impl WindowManager {
 
         serde_json::to_writer_pretty(&file, &known_hwnds)?;
 
-        let notification = Notification {
-            event: NotificationEvent::WindowManager(event),
-            state: self.as_ref().into(),
-        };
+        notify_subscribers(
+            Notification {
+                event: NotificationEvent::WindowManager(event),
+                state: self.as_ref().into(),
+            },
+            initial_state.has_been_modified(self.as_ref()),
+        )?;
 
-        notify_subscribers(&serde_json::to_string(&notification)?)?;
         border_manager::send_notification(Some(event.hwnd()));
         transparency_manager::send_notification();
         stackbar_manager::send_notification();
