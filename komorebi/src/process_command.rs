@@ -1619,22 +1619,29 @@ pub fn read_commands_uds(wm: &Arc<Mutex<WindowManager>>, mut stream: UnixStream)
     for line in reader.lines() {
         let message = SocketMessage::from_str(&line?)?;
 
-        let mut wm = wm.lock();
-
-        if wm.is_paused {
-            return match message {
-                SocketMessage::TogglePause
-                | SocketMessage::State
-                | SocketMessage::GlobalState
-                | SocketMessage::Stop => Ok(wm.process_command(message, &mut stream)?),
-                _ => {
-                    tracing::trace!("ignoring while paused");
-                    Ok(())
+        match wm.try_lock_for(Duration::from_secs(1)) {
+            None => {
+                tracing::warn!(
+                    "could not acquire window manager lock, not processing message: {message}"
+                );
+            }
+            Some(mut wm) => {
+                if wm.is_paused {
+                    return match message {
+                        SocketMessage::TogglePause
+                        | SocketMessage::State
+                        | SocketMessage::GlobalState
+                        | SocketMessage::Stop => Ok(wm.process_command(message, &mut stream)?),
+                        _ => {
+                            tracing::trace!("ignoring while paused");
+                            Ok(())
+                        }
+                    };
                 }
-            };
-        }
 
-        wm.process_command(message.clone(), &mut stream)?;
+                wm.process_command(message.clone(), &mut stream)?;
+            }
+        }
     }
 
     Ok(())
