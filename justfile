@@ -13,18 +13,17 @@ fmt:
     prettier --write .github/FUNDING.yml
     prettier --write .github/workflows/windows.yaml
 
+install-targets *targets:
+    "{{ targets }}" -split ' ' | ForEach-Object { just install-target $_ }
+
 install-target target:
     cargo +stable install --path {{ target }} --locked
 
 install:
-    just install-target komorebic
-    just install-target komorebic-no-console
-    just install-target komorebi-gui
-    just install-target komorebi-bar
-    just install-target komorebi
+    just install-targets komorebic komorebic-no-console komorebi komorebi-bar komorebi-gui
 
-run:
-    cargo +stable run --bin komorebi --locked
+run target:
+    cargo +stable run --bin {{ target }} --locked
 
 warn $RUST_LOG="warn":
     just run
