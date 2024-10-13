@@ -44,6 +44,7 @@ pub use komorebi::RuleDebug;
 pub use komorebi::StackbarConfig;
 pub use komorebi::State;
 pub use komorebi::StaticConfig;
+pub use komorebi::SubscribeOptions;
 pub use komorebi::TabsConfig;
 
 use komorebi::DATA_DIR;
@@ -93,6 +94,32 @@ pub fn subscribe(name: &str) -> std::io::Result<UnixListener> {
     let listener = UnixListener::bind(&socket)?;
 
     send_message(&SocketMessage::AddSubscriberSocket(name.to_string()))?;
+
+    Ok(listener)
+}
+
+pub fn subscribe_with_options(
+    name: &str,
+    options: SubscribeOptions,
+) -> std::io::Result<UnixListener> {
+    let socket = DATA_DIR.join(name);
+
+    match std::fs::remove_file(&socket) {
+        Ok(()) => {}
+        Err(error) => match error.kind() {
+            std::io::ErrorKind::NotFound => {}
+            _ => {
+                return Err(error);
+            }
+        },
+    };
+
+    let listener = UnixListener::bind(&socket)?;
+
+    send_message(&SocketMessage::AddSubscriberSocketWithOptions(
+        name.to_string(),
+        options,
+    ))?;
 
     Ok(listener)
 }

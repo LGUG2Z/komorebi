@@ -199,6 +199,7 @@ pub enum SocketMessage {
     RemoveTitleBar(ApplicationIdentifier, String),
     ToggleTitleBars,
     AddSubscriberSocket(String),
+    AddSubscriberSocketWithOptions(String, SubscribeOptions),
     RemoveSubscriberSocket(String),
     AddSubscriberPipe(String),
     RemoveSubscriberPipe(String),
@@ -222,6 +223,12 @@ impl FromStr for SocketMessage {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         serde_json::from_str(s)
     }
+}
+
+#[derive(Default, Debug, Copy, Clone, Eq, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct SubscribeOptions {
+    /// Only emit notifications when the window manager state has changed
+    pub filter_state_changes: bool,
 }
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Display, Serialize, Deserialize, JsonSchema)]
@@ -339,7 +346,16 @@ pub enum ApplicationIdentifier {
 }
 
 #[derive(
-    Copy, Clone, Debug, Serialize, Deserialize, Display, EnumString, ValueEnum, JsonSchema,
+    Copy,
+    Clone,
+    Debug,
+    PartialEq,
+    Serialize,
+    Deserialize,
+    Display,
+    EnumString,
+    ValueEnum,
+    JsonSchema,
 )]
 pub enum FocusFollowsMouseImplementation {
     /// A custom FFM implementation (slightly more CPU-intensive)
@@ -380,7 +396,16 @@ pub enum WindowContainerBehaviour {
 }
 
 #[derive(
-    Clone, Copy, Debug, Serialize, Deserialize, Display, EnumString, ValueEnum, JsonSchema,
+    Clone,
+    Copy,
+    Debug,
+    PartialEq,
+    Serialize,
+    Deserialize,
+    Display,
+    EnumString,
+    ValueEnum,
+    JsonSchema,
 )]
 pub enum MoveBehaviour {
     /// Swap the window container with the window container at the edge of the adjacent monitor
@@ -414,7 +439,16 @@ pub enum HidingBehaviour {
 }
 
 #[derive(
-    Clone, Copy, Debug, Serialize, Deserialize, Display, EnumString, ValueEnum, JsonSchema,
+    Clone,
+    Copy,
+    Debug,
+    PartialEq,
+    Serialize,
+    Deserialize,
+    Display,
+    EnumString,
+    ValueEnum,
+    JsonSchema,
 )]
 pub enum OperationBehaviour {
     /// Process komorebic commands on temporarily unmanaged/floated windows
