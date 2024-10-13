@@ -30,6 +30,7 @@ use crate::static_config::WorkspaceConfig;
 use crate::window::Window;
 use crate::window::WindowDetails;
 use crate::windows_api::WindowsApi;
+use crate::WindowContainerBehaviour;
 use crate::DEFAULT_CONTAINER_PADDING;
 use crate::DEFAULT_WORKSPACE_PADDING;
 use crate::INITIAL_CONFIGURATION_LOADED;
@@ -83,6 +84,10 @@ pub struct Workspace {
     tile: bool,
     #[getset(get_copy = "pub", set = "pub")]
     apply_window_based_work_area_offset: bool,
+    #[getset(get = "pub", get_mut = "pub", set = "pub")]
+    window_container_behaviour: Option<WindowContainerBehaviour>,
+    #[getset(get = "pub", get_mut = "pub", set = "pub")]
+    float_override: Option<bool>,
 }
 
 impl_ring_elements!(Workspace, Container);
@@ -106,6 +111,8 @@ impl Default for Workspace {
             resize_dimensions: vec![],
             tile: true,
             apply_window_based_work_area_offset: true,
+            window_container_behaviour: None,
+            float_override: None,
         }
     }
 }
@@ -162,6 +169,14 @@ impl Workspace {
             config.apply_window_based_work_area_offset.unwrap_or(true),
         );
 
+        if config.window_container_behaviour.is_some() {
+            self.set_window_container_behaviour(config.window_container_behaviour);
+        }
+
+        if config.float_override.is_some() {
+            self.set_float_override(config.float_override);
+        }
+
         Ok(())
     }
 
@@ -217,22 +232,19 @@ impl Workspace {
             container.restore();
         }
 
-        for container in self.containers_mut() {
-            container.restore();
+        if let Some(container) = self.focused_container_mut() {
+            container.focus_window(container.focused_window_idx());
         }
 
         for window in self.floating_windows() {
             window.restore();
         }
 
-        if let Some(container) = self.focused_container_mut() {
-            container.focus_window(container.focused_window_idx());
-        }
-
         // Do this here to make sure that an error doesn't stop the restoration of other windows
-        // Maximised windows should always be drawn at the top of the Z order
+        // Maximised windows and floating windows should always be drawn at the top of the Z order
+        // when switching to a workspace
         if let Some(window) = to_focus {
-            if self.maximized_window().is_none() {
+            if self.maximized_window().is_none() && self.floating_windows().is_empty() {
                 window.focus(mouse_follows_focus)?;
             }
         }
@@ -390,26 +402,6 @@ impl Workspace {
         let container_count = self.containers().len();
         self.resize_dimensions_mut().resize(container_count, None);
 
-        Ok(())
-    }
-
-    // focus_changed performs updates in response to the fact that a focus
-    // change event has occurred. The focus change is assumed to be valid, and
-    // should not result in a new  focus change - the intent here is to update
-    // focus-reactive elements, such as the stackbar.
-    pub fn focus_changed(&mut self, hwnd: isize) -> Result<()> {
-        if !self.tile() {
-            return Ok(());
-        }
-
-        let containers = self.containers_mut();
-
-        for container in containers.iter_mut() {
-            if let Some(idx) = container.idx_for_window(hwnd) {
-                container.focus_window(idx);
-                container.restore();
-            }
-        }
         Ok(())
     }
 
@@ -603,6 +595,13 @@ impl Workspace {
         }
 
         Ok(false)
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.containers().is_empty()
+            && self.maximized_window().is_none()
+            && self.monocle_container().is_none()
+            && self.floating_windows().is_empty()
     }
 
     pub fn contains_window(&self, hwnd: isize) -> bool {

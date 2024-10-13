@@ -80,6 +80,7 @@ pub enum SocketMessage {
     ToggleMaximize,
     ToggleAlwaysOnTop,
     ToggleWindowContainerBehaviour,
+    ToggleFloatOverride,
     WindowHidingBehaviour(HidingBehaviour),
     ToggleCrossMonitorMoveBehaviour,
     CrossMonitorMoveBehaviour(MoveBehaviour),
@@ -93,6 +94,8 @@ pub enum SocketMessage {
     CycleLayout(CycleDirection),
     ChangeLayoutCustom(PathBuf),
     FlipLayout(Axis),
+    ToggleWorkspaceWindowContainerBehaviour,
+    ToggleWorkspaceFloatOverride,
     // Monitor and Workspace Commands
     MonitorIndexPreference(usize, i32, i32, i32, i32),
     DisplayIndexPreference(usize, String),
@@ -177,7 +180,8 @@ pub enum SocketMessage {
     ClearWorkspaceRules(usize, usize),
     ClearNamedWorkspaceRules(String),
     ClearAllWorkspaceRules,
-    FloatRule(ApplicationIdentifier, String),
+    #[serde(alias = "FloatRule")]
+    IgnoreRule(ApplicationIdentifier, String),
     ManageRule(ApplicationIdentifier, String),
     IdentifyObjectNameChangeApplication(ApplicationIdentifier, String),
     IdentifyTrayApplication(ApplicationIdentifier, String),
@@ -297,6 +301,7 @@ pub enum WindowKind {
     Stack,
     Monocle,
     Unfocused,
+    Floating,
 }
 
 #[derive(
@@ -343,11 +348,32 @@ pub enum FocusFollowsMouseImplementation {
     Windows,
 }
 
+#[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, JsonSchema, PartialEq)]
+pub struct WindowManagementBehaviour {
+    /// The current WindowContainerBehaviour to be used
+    pub current_behaviour: WindowContainerBehaviour,
+    /// Override of `current_behaviour` to open new windows as floating windows
+    /// that can be later toggled to tiled, when false it will default to
+    /// `current_behaviour` again.
+    pub float_override: bool,
+}
+
 #[derive(
-    Clone, Copy, Debug, Serialize, Deserialize, Display, EnumString, ValueEnum, JsonSchema,
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Serialize,
+    Deserialize,
+    Display,
+    EnumString,
+    ValueEnum,
+    JsonSchema,
+    PartialEq,
 )]
 pub enum WindowContainerBehaviour {
     /// Create a new container for each new window
+    #[default]
     Create,
     /// Append new windows to the focused window container
     Append,

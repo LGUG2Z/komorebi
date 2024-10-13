@@ -43,7 +43,7 @@ impl From<BatteryConfig> for Battery {
                     State::Discharging => state = Some(BatteryState::Discharging),
                     _ => {}
                 }
-                
+
                 last_state = match prefix {
                     LabelPrefix::Text | LabelPrefix::IconAndText => {
                         format!("BAT: {percentage:.0}%")

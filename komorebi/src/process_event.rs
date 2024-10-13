@@ -33,6 +33,7 @@ use crate::workspace_reconciliator::ALT_TAB_HWND_INSTANT;
 use crate::Notification;
 use crate::NotificationEvent;
 use crate::DATA_DIR;
+use crate::FLOATING_APPLICATIONS;
 use crate::HIDDEN_HWNDS;
 use crate::REGEX_IDENTIFIERS;
 use crate::TRAY_AND_MULTI_WINDOW_IDENTIFIERS;
@@ -101,6 +102,10 @@ impl WindowManager {
             }
 
             if !transparency_override {
+                if rule_debug.matches_ignore_identifier.is_some() {
+                    border_manager::send_notification(Option::from(event.hwnd()));
+                }
+
                 return Ok(());
             }
         }
@@ -147,14 +152,6 @@ impl WindowManager {
                 }
             }
             _ => {}
-        }
-
-        for monitor in self.monitors_mut() {
-            for workspace in monitor.workspaces_mut() {
-                if let WindowManagerEvent::FocusChange(_, window) = event {
-                    let _ = workspace.focus_changed(window.hwnd);
-                }
-            }
         }
 
         self.enforce_workspace_rules()?;
@@ -254,24 +251,31 @@ impl WindowManager {
                 self.update_focused_workspace(self.mouse_follows_focus, false)?;
 
                 let workspace = self.focused_workspace_mut()?;
-                if !workspace
+                let floating_window_idx = workspace
                     .floating_windows()
                     .iter()
-                    .any(|w| w.hwnd == window.hwnd)
-                {
-                    if let Some(w) = workspace.maximized_window() {
-                        if w.hwnd == window.hwnd {
-                            return Ok(());
+                    .position(|w| w.hwnd == window.hwnd);
+
+                match floating_window_idx {
+                    None => {
+                        if let Some(w) = workspace.maximized_window() {
+                            if w.hwnd == window.hwnd {
+                                return Ok(());
+                            }
+                        }
+
+                        if let Some(monocle) = workspace.monocle_container() {
+                            if let Some(window) = monocle.focused_window() {
+                                window.focus(false)?;
+                            }
+                        } else {
+                            workspace.focus_container_by_window(window.hwnd)?;
                         }
                     }
-
-                    if let Some(monocle) = workspace.monocle_container() {
-                        if let Some(window) = monocle.focused_window() {
+                    Some(idx) => {
+                        if let Some(window) = workspace.floating_windows().get(idx) {
                             window.focus(false)?;
                         }
-                    } else {
-                        self.focused_workspace_mut()?
-                            .focus_container_by_window(window.hwnd)?;
                     }
                 }
             }
@@ -337,26 +341,53 @@ impl WindowManager {
                 }
 
                 if proceed {
-                    let behaviour =
-                        self.window_container_behaviour(focused_monitor_idx, focused_workspace_idx);
+                    let mut behaviour = self
+                        .window_management_behaviour(focused_monitor_idx, focused_workspace_idx);
                     let workspace = self.focused_workspace_mut()?;
                     let workspace_contains_window = workspace.contains_window(window.hwnd);
                     let monocle_container = workspace.monocle_container().clone();
 
                     if !workspace_contains_window && !needs_reconciliation {
-                        match behaviour {
-                            WindowContainerBehaviour::Create => {
-                                workspace.new_container_for_window(window);
-                                self.update_focused_workspace(false, false)?;
-                            }
-                            WindowContainerBehaviour::Append => {
-                                workspace
-                                    .focused_container_mut()
-                                    .ok_or_else(|| anyhow!("there is no focused container"))?
-                                    .add_window(window);
-                                self.update_focused_workspace(true, false)?;
+                        let floating_applications = FLOATING_APPLICATIONS.lock();
+                        let regex_identifiers = REGEX_IDENTIFIERS.lock();
+                        let mut should_float = false;
 
-                                stackbar_manager::send_notification();
+                        if !floating_applications.is_empty() {
+                            if let (Ok(title), Ok(exe_name), Ok(class), Ok(path)) =
+                                (window.title(), window.exe(), window.class(), window.path())
+                            {
+                                should_float = should_act(
+                                    &title,
+                                    &exe_name,
+                                    &class,
+                                    &path,
+                                    &floating_applications,
+                                    &regex_identifiers,
+                                )
+                                .is_some();
+                            }
+                        }
+
+                        behaviour.float_override = behaviour.float_override
+                            || (should_float && !matches!(event, WindowManagerEvent::Manage(_)));
+
+                        if behaviour.float_override {
+                            workspace.floating_windows_mut().push(window);
+                            self.update_focused_workspace(false, false)?;
+                        } else {
+                            match behaviour.current_behaviour {
+                                WindowContainerBehaviour::Create => {
+                                    workspace.new_container_for_window(window);
+                                    self.update_focused_workspace(false, false)?;
+                                }
+                                WindowContainerBehaviour::Append => {
+                                    workspace
+                                        .focused_container_mut()
+                                        .ok_or_else(|| anyhow!("there is no focused container"))?
+                                        .add_window(window);
+                                    self.update_focused_workspace(true, false)?;
+                                    stackbar_manager::send_notification();
+                                }
                             }
                         }
                     }
@@ -410,8 +441,8 @@ impl WindowManager {
 
                 let focused_monitor_idx = self.focused_monitor_idx();
                 let focused_workspace_idx = self.focused_workspace_idx().unwrap_or_default();
-                let window_container_behaviour =
-                    self.window_container_behaviour(focused_monitor_idx, focused_workspace_idx);
+                let window_management_behaviour =
+                    self.window_management_behaviour(focused_monitor_idx, focused_workspace_idx);
 
                 let workspace = self.focused_workspace_mut()?;
                 let focused_container_idx = workspace.focused_container_idx();
@@ -529,8 +560,11 @@ impl WindowManager {
                             }
                             // Here we handle a simple move on the same monitor which is treated as
                             // a container swap
+                        } else if window_management_behaviour.float_override {
+                            workspace.floating_windows_mut().push(window);
+                            self.update_focused_workspace(false, false)?;
                         } else {
-                            match window_container_behaviour {
+                            match window_management_behaviour.current_behaviour {
                                 WindowContainerBehaviour::Create => {
                                     match workspace.container_idx_from_current_point() {
                                         Some(target_idx) => {
@@ -650,7 +684,7 @@ impl WindowManager {
         };
 
         notify_subscribers(&serde_json::to_string(&notification)?)?;
-        border_manager::send_notification();
+        border_manager::send_notification(Some(event.hwnd()));
         transparency_manager::send_notification();
         stackbar_manager::send_notification();
 
