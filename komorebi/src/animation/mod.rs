@@ -4,7 +4,6 @@ use crate::core::animation::AnimationStyle;
 use lazy_static::lazy_static;
 use std::sync::atomic::AtomicBool;
 use std::sync::atomic::AtomicU64;
-use std::sync::atomic::AtomicUsize;
 use std::sync::Arc;
 
 use parking_lot::Mutex;
@@ -25,4 +24,3 @@ lazy_static! {
 pub static ANIMATION_ENABLED: AtomicBool = AtomicBool::new(false);
 pub static ANIMATION_DURATION: AtomicU64 = AtomicU64::new(250);
 pub static ANIMATION_FPS: AtomicU64 = AtomicU64::new(60);
-pub static ANIMATIONS_IN_PROGRESS: AtomicUsize = AtomicUsize::new(0);

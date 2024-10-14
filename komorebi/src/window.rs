@@ -1,7 +1,7 @@
 use crate::animation::lerp::Lerp;
-use crate::animation::ANIMATIONS_IN_PROGRESS;
 use crate::animation::ANIMATION_DURATION;
 use crate::animation::ANIMATION_ENABLED;
+use crate::animation::ANIMATION_MANAGER;
 use crate::animation::ANIMATION_STYLE;
 use crate::border_manager;
 use crate::com::SetCloak;
@@ -60,16 +60,11 @@ pub static MINIMUM_HEIGHT: AtomicI32 = AtomicI32::new(0);
 #[derive(Debug, Default, Clone, Copy, Deserialize, JsonSchema, PartialEq)]
 pub struct Window {
     pub hwnd: isize,
-    #[serde(skip)]
-    animation: Animation,
 }
 
 impl From<isize> for Window {
     fn from(value: isize) -> Self {
-        Self {
-            hwnd: value,
-            animation: Animation::new(value),
-        }
+        Self { hwnd: value }
     }
 }
 
@@ -77,7 +72,6 @@ impl From<HWND> for Window {
     fn from(value: HWND) -> Self {
         Self {
             hwnd: value.0 as isize,
-            animation: Animation::new(value.0 as isize),
         }
     }
 }
@@ -205,7 +199,6 @@ impl Window {
     pub fn animate_position(&self, start_rect: &Rect, target_rect: &Rect, top: bool) -> Result<()> {
         let start_rect = *start_rect;
         let target_rect = *target_rect;
-        let mut animation = self.animation;
         let duration = Duration::from_millis(ANIMATION_DURATION.load(Ordering::SeqCst));
         let style = *ANIMATION_STYLE.lock();
 
@@ -218,33 +211,42 @@ impl Window {
         let hwnd = self.hwnd;
 
         std::thread::spawn(move || {
-            animation.animate(duration, |progress: f64| {
-                let new_rect = start_rect.lerp(target_rect, progress, style);
+            Animation::animate(
+                format!("window_move:{}", hwnd).as_str(),
+                duration,
+                |progress: f64| {
+                    let new_rect = start_rect.lerp(target_rect, progress, style);
 
-                if progress == 1.0 {
-                    WindowsApi::position_window(hwnd, &new_rect, top)?;
-                    if WindowsApi::foreground_window().unwrap_or_default() == hwnd {
-                        focus_manager::send_notification(hwnd)
+                    if progress == 1.0 {
+                        WindowsApi::position_window(hwnd, &new_rect, top)?;
+                        if WindowsApi::foreground_window().unwrap_or_default() == hwnd {
+                            focus_manager::send_notification(hwnd)
+                        }
+
+                        if ANIMATION_MANAGER
+                            .lock()
+                            .animations_in_progress("window_move")
+                            == 0
+                        {
+                            border_manager::BORDER_TEMPORARILY_DISABLED
+                                .store(false, Ordering::SeqCst);
+                            stackbar_manager::STACKBAR_TEMPORARILY_DISABLED
+                                .store(false, Ordering::SeqCst);
+
+                            border_manager::send_notification(Some(hwnd));
+                            stackbar_manager::send_notification();
+                            transparency_manager::send_notification();
+                        }
+                    } else {
+                        // using MoveWindow because it runs faster than SetWindowPos
+                        // so animation have more fps and feel smoother
+                        WindowsApi::move_window(hwnd, &new_rect, false)?;
+                        WindowsApi::invalidate_rect(hwnd, None, false);
                     }
 
-                    if ANIMATIONS_IN_PROGRESS.load(Ordering::Acquire) == 0 {
-                        border_manager::BORDER_TEMPORARILY_DISABLED.store(false, Ordering::SeqCst);
-                        stackbar_manager::STACKBAR_TEMPORARILY_DISABLED
-                            .store(false, Ordering::SeqCst);
-
-                        border_manager::send_notification(Some(hwnd));
-                        stackbar_manager::send_notification();
-                        transparency_manager::send_notification();
-                    }
-                } else {
-                    // using MoveWindow because it runs faster than SetWindowPos
-                    // so animation have more fps and feel smoother
-                    WindowsApi::move_window(hwnd, &new_rect, false)?;
-                    WindowsApi::invalidate_rect(hwnd, None, false);
-                }
-
-                Ok(())
-            })
+                    Ok(())
+                },
+            )
         });
 
         Ok(())

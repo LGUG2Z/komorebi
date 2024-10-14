@@ -13,29 +13,23 @@ use super::ANIMATION_FPS;
 use super::ANIMATION_MANAGER;
 
 #[derive(Debug, Default, Clone, Copy, Serialize, Deserialize, JsonSchema, PartialEq)]
-pub struct Animation {
-    pub hwnd: isize,
-}
+pub struct Animation {}
 
 impl Animation {
-    pub fn new(hwnd: isize) -> Self {
-        Self { hwnd }
-    }
-
     /// Returns true if the animation needs to continue
-    pub fn cancel(&mut self) -> bool {
-        if !ANIMATION_MANAGER.lock().in_progress(self.hwnd) {
+    pub fn cancel(animation_key: &str) -> bool {
+        if !ANIMATION_MANAGER.lock().in_progress(animation_key) {
             return true;
         }
 
         // should be more than 0
-        let cancel_idx = ANIMATION_MANAGER.lock().init_cancel(self.hwnd);
+        let cancel_idx = ANIMATION_MANAGER.lock().init_cancel(animation_key);
         let max_duration = Duration::from_secs(1);
         let spent_duration = Instant::now();
 
-        while ANIMATION_MANAGER.lock().in_progress(self.hwnd) {
+        while ANIMATION_MANAGER.lock().in_progress(animation_key) {
             if spent_duration.elapsed() >= max_duration {
-                ANIMATION_MANAGER.lock().end(self.hwnd);
+                ANIMATION_MANAGER.lock().end(animation_key);
             }
 
             std::thread::sleep(Duration::from_millis(
@@ -43,28 +37,28 @@ impl Animation {
             ));
         }
 
-        let latest_cancel_idx = ANIMATION_MANAGER.lock().latest_cancel_idx(self.hwnd);
+        let latest_cancel_idx = ANIMATION_MANAGER.lock().latest_cancel_idx(animation_key);
 
-        ANIMATION_MANAGER.lock().end_cancel(self.hwnd);
+        ANIMATION_MANAGER.lock().end_cancel(animation_key);
 
         latest_cancel_idx == cancel_idx
     }
 
     #[allow(clippy::cast_precision_loss)]
     pub fn animate(
-        &mut self,
+        animation_key: &str,
         duration: Duration,
         mut render_callback: impl FnMut(f64) -> Result<()>,
     ) -> Result<()> {
-        if ANIMATION_MANAGER.lock().in_progress(self.hwnd) {
-            let should_animate = self.cancel();
+        if ANIMATION_MANAGER.lock().in_progress(animation_key) {
+            let should_animate = Self::cancel(animation_key);
 
             if !should_animate {
                 return Ok(());
             }
         }
 
-        ANIMATION_MANAGER.lock().start(self.hwnd);
+        ANIMATION_MANAGER.lock().start(animation_key);
 
         let target_frame_time = Duration::from_millis(1000 / ANIMATION_FPS.load(Ordering::Relaxed));
         let mut progress = 0.0;
@@ -73,9 +67,9 @@ impl Animation {
         // start animation
         while progress < 1.0 {
             // check if animation is cancelled
-            if ANIMATION_MANAGER.lock().is_cancelled(self.hwnd) {
+            if ANIMATION_MANAGER.lock().is_cancelled(animation_key) {
                 // cancel animation
-                ANIMATION_MANAGER.lock().cancel(self.hwnd);
+                ANIMATION_MANAGER.lock().cancel(animation_key);
                 return Ok(());
             }
 
@@ -92,7 +86,7 @@ impl Animation {
             }
         }
 
-        ANIMATION_MANAGER.lock().end(self.hwnd);
+        ANIMATION_MANAGER.lock().end(animation_key);
 
         // limit progress to 1.0 if animation took longer
         if progress > 1.0 {
