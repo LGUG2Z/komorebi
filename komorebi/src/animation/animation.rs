@@ -8,23 +8,20 @@ use std::sync::atomic::Ordering;
 use std::time::Duration;
 use std::time::Instant;
 
+use super::RenderDispatcher;
 use super::ANIMATION_DURATION;
 use super::ANIMATION_FPS;
 use super::ANIMATION_MANAGER;
 
 #[derive(Debug, Default, Clone, Copy, Serialize, Deserialize, JsonSchema, PartialEq)]
-pub struct Animation {}
+pub struct Animation;
 
 impl Animation {
     /// Returns true if the animation needs to continue
     pub fn cancel(animation_key: &str) -> bool {
-        if !ANIMATION_MANAGER.lock().in_progress(animation_key) {
-            return true;
-        }
-
         // should be more than 0
         let cancel_idx = ANIMATION_MANAGER.lock().init_cancel(animation_key);
-        let max_duration = Duration::from_secs(1);
+        let max_duration = Duration::from_secs(5);
         let spent_duration = Instant::now();
 
         while ANIMATION_MANAGER.lock().in_progress(animation_key) {
@@ -46,54 +43,67 @@ impl Animation {
 
     #[allow(clippy::cast_precision_loss)]
     pub fn animate(
-        animation_key: &str,
+        animation_key: String,
         duration: Duration,
-        mut render_callback: impl FnMut(f64) -> Result<()>,
+        render_dispatcher: (impl RenderDispatcher + Send + 'static),
     ) -> Result<()> {
-        if ANIMATION_MANAGER.lock().in_progress(animation_key) {
-            let should_animate = Self::cancel(animation_key);
+        std::thread::spawn(move || {
+            if ANIMATION_MANAGER.lock().in_progress(animation_key.as_str()) {
+                let should_animate = Self::cancel(animation_key.as_str());
 
-            if !should_animate {
-                return Ok(());
-            }
-        }
-
-        ANIMATION_MANAGER.lock().start(animation_key);
-
-        let target_frame_time = Duration::from_millis(1000 / ANIMATION_FPS.load(Ordering::Relaxed));
-        let mut progress = 0.0;
-        let animation_start = Instant::now();
-
-        // start animation
-        while progress < 1.0 {
-            // check if animation is cancelled
-            if ANIMATION_MANAGER.lock().is_cancelled(animation_key) {
-                // cancel animation
-                ANIMATION_MANAGER.lock().cancel(animation_key);
-                return Ok(());
+                if !should_animate {
+                    return Ok(());
+                }
             }
 
-            let frame_start = Instant::now();
-            // calculate progress
-            progress = animation_start.elapsed().as_millis() as f64 / duration.as_millis() as f64;
-            render_callback(progress).ok();
+            render_dispatcher.pre_render()?;
 
-            // sleep until next frame
-            let frame_time_elapsed = frame_start.elapsed();
+            ANIMATION_MANAGER.lock().start(animation_key.as_str());
 
-            if frame_time_elapsed < target_frame_time {
-                std::thread::sleep(target_frame_time - frame_time_elapsed);
+            let target_frame_time =
+                Duration::from_millis(1000 / ANIMATION_FPS.load(Ordering::Relaxed));
+            let mut progress = 0.0;
+            let animation_start = Instant::now();
+
+            // start animation
+            while progress < 1.0 {
+                // check if animation is cancelled
+                if ANIMATION_MANAGER
+                    .lock()
+                    .is_cancelled(animation_key.as_str())
+                {
+                    // cancel animation
+                    ANIMATION_MANAGER.lock().cancel(animation_key.as_str());
+                    return Ok(());
+                }
+
+                let frame_start = Instant::now();
+                // calculate progress
+                progress =
+                    animation_start.elapsed().as_millis() as f64 / duration.as_millis() as f64;
+                render_dispatcher.render(progress).ok();
+
+                // sleep until next frame
+                let frame_time_elapsed = frame_start.elapsed();
+
+                if frame_time_elapsed < target_frame_time {
+                    std::thread::sleep(target_frame_time - frame_time_elapsed);
+                }
             }
-        }
 
-        ANIMATION_MANAGER.lock().end(animation_key);
+            ANIMATION_MANAGER.lock().end(animation_key.as_str());
 
-        // limit progress to 1.0 if animation took longer
-        if progress > 1.0 {
-            progress = 1.0;
-        }
+            // limit progress to 1.0 if animation took longer
+            if progress != 1.0 {
+                progress = 1.0;
 
-        // process animation for 1.0 to set target position
-        render_callback(progress)
+                // process animation for 1.0 to set target position
+                render_dispatcher.render(progress).ok();
+            }
+
+            render_dispatcher.post_render()
+        });
+
+        Ok(())
     }
 }

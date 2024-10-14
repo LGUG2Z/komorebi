@@ -13,7 +13,5 @@ pub enum AnimationPrefix {
 }
 
 pub fn new_animation_key(prefix: AnimationPrefix, key: String) -> String {
-    match prefix {
-        AnimationPrefix::WindowMove => format!("window_move:{}", key),
-    }
+    format!("{}:{}", prefix, key)
 }

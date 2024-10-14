@@ -1,6 +1,8 @@
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 
+use super::prefix::AnimationPrefix;
+
 #[derive(Debug, Clone, Copy)]
 struct AnimationState {
     pub in_progress: bool,
@@ -100,10 +102,10 @@ impl AnimationManager {
         }
     }
 
-    pub fn animations_in_progress(&self, animation_key_prefix: &str) -> usize {
+    pub fn count_in_progress(&self, animation_key_prefix: AnimationPrefix) -> usize {
         self.animations
             .keys()
-            .filter(|key| key.starts_with(animation_key_prefix))
+            .filter(|key| key.starts_with(animation_key_prefix.to_string().as_str()))
             .count()
     }
 }
