@@ -1,11 +1,21 @@
+use crate::animation::lerp::Lerp;
+use crate::animation::prefix::new_animation_key;
+use crate::animation::prefix::AnimationPrefix;
+use crate::animation::AnimationEngine;
+use crate::animation::RenderDispatcher;
+use crate::animation::ANIMATION_DURATION_GLOBAL;
+use crate::animation::ANIMATION_DURATION_PER_ANIMATION;
+use crate::animation::ANIMATION_ENABLED_GLOBAL;
+use crate::animation::ANIMATION_ENABLED_PER_ANIMATION;
+use crate::animation::ANIMATION_MANAGER;
+use crate::animation::ANIMATION_STYLE_GLOBAL;
+use crate::animation::ANIMATION_STYLE_PER_ANIMATION;
 use crate::border_manager;
 use crate::com::SetCloak;
 use crate::focus_manager;
 use crate::stackbar_manager;
 use crate::windows_api;
-use crate::ANIMATIONS_IN_PROGRESS;
-use crate::ANIMATION_DURATION;
-use crate::ANIMATION_ENABLED;
+use crate::AnimationStyle;
 use crate::SLOW_APPLICATION_COMPENSATION_TIME;
 use crate::SLOW_APPLICATION_IDENTIFIERS;
 use std::collections::HashMap;
@@ -35,7 +45,6 @@ use crate::core::ApplicationIdentifier;
 use crate::core::HidingBehaviour;
 use crate::core::Rect;
 
-use crate::animation::Animation;
 use crate::styles::ExtendedWindowStyle;
 use crate::styles::WindowStyle;
 use crate::transparency_manager;
@@ -58,16 +67,11 @@ pub static MINIMUM_HEIGHT: AtomicI32 = AtomicI32::new(0);
 #[derive(Debug, Default, Clone, Copy, Deserialize, JsonSchema, PartialEq)]
 pub struct Window {
     pub hwnd: isize,
-    #[serde(skip)]
-    animation: Animation,
 }
 
 impl From<isize> for Window {
     fn from(value: isize) -> Self {
-        Self {
-            hwnd: value,
-            animation: Animation::new(value),
-        }
+        Self { hwnd: value }
     }
 }
 
@@ -75,7 +79,6 @@ impl From<HWND> for Window {
     fn from(value: HWND) -> Self {
         Self {
             hwnd: value.0 as isize,
-            animation: Animation::new(value.0 as isize),
         }
     }
 }
@@ -155,6 +158,149 @@ impl Serialize for Window {
     }
 }
 
+struct MovementRenderDispatcher {
+    hwnd: isize,
+    start_rect: Rect,
+    target_rect: Rect,
+    top: bool,
+    style: AnimationStyle,
+}
+
+impl MovementRenderDispatcher {
+    const PREFIX: AnimationPrefix = AnimationPrefix::Movement;
+
+    pub fn new(
+        hwnd: isize,
+        start_rect: Rect,
+        target_rect: Rect,
+        top: bool,
+        style: AnimationStyle,
+    ) -> Self {
+        Self {
+            hwnd,
+            start_rect,
+            target_rect,
+            top,
+            style,
+        }
+    }
+}
+
+impl RenderDispatcher for MovementRenderDispatcher {
+    fn get_animation_key(&self) -> String {
+        new_animation_key(MovementRenderDispatcher::PREFIX, self.hwnd.to_string())
+    }
+
+    fn pre_render(&self) -> Result<()> {
+        border_manager::BORDER_TEMPORARILY_DISABLED.store(true, Ordering::SeqCst);
+        border_manager::send_notification(Some(self.hwnd));
+
+        stackbar_manager::STACKBAR_TEMPORARILY_DISABLED.store(true, Ordering::SeqCst);
+        stackbar_manager::send_notification();
+
+        Ok(())
+    }
+
+    fn render(&self, progress: f64) -> Result<()> {
+        let new_rect = self.start_rect.lerp(self.target_rect, progress, self.style);
+
+        // using MoveWindow because it runs faster than SetWindowPos
+        // so animation have more fps and feel smoother
+        WindowsApi::move_window(self.hwnd, &new_rect, false)?;
+        WindowsApi::invalidate_rect(self.hwnd, None, false);
+
+        Ok(())
+    }
+
+    fn post_render(&self) -> Result<()> {
+        WindowsApi::position_window(self.hwnd, &self.target_rect, self.top)?;
+        if ANIMATION_MANAGER
+            .lock()
+            .count_in_progress(MovementRenderDispatcher::PREFIX)
+            == 0
+        {
+            if WindowsApi::foreground_window().unwrap_or_default() == self.hwnd {
+                focus_manager::send_notification(self.hwnd)
+            }
+
+            border_manager::BORDER_TEMPORARILY_DISABLED.store(false, Ordering::SeqCst);
+            stackbar_manager::STACKBAR_TEMPORARILY_DISABLED.store(false, Ordering::SeqCst);
+
+            border_manager::send_notification(Some(self.hwnd));
+            stackbar_manager::send_notification();
+            transparency_manager::send_notification();
+        }
+
+        Ok(())
+    }
+}
+
+struct TransparencyRenderDispatcher {
+    hwnd: isize,
+    start_opacity: u8,
+    target_opacity: u8,
+    style: AnimationStyle,
+    is_opaque: bool,
+}
+
+impl TransparencyRenderDispatcher {
+    const PREFIX: AnimationPrefix = AnimationPrefix::Transparency;
+
+    pub fn new(
+        hwnd: isize,
+        is_opaque: bool,
+        start_opacity: u8,
+        target_opacity: u8,
+        style: AnimationStyle,
+    ) -> Self {
+        Self {
+            hwnd,
+            start_opacity,
+            target_opacity,
+            style,
+            is_opaque,
+        }
+    }
+}
+
+impl RenderDispatcher for TransparencyRenderDispatcher {
+    fn get_animation_key(&self) -> String {
+        new_animation_key(TransparencyRenderDispatcher::PREFIX, self.hwnd.to_string())
+    }
+
+    fn pre_render(&self) -> Result<()> {
+        //transparent
+        if !self.is_opaque {
+            let window = Window::from(self.hwnd);
+            let mut ex_style = window.ex_style()?;
+            ex_style.insert(ExtendedWindowStyle::LAYERED);
+            window.update_ex_style(&ex_style)?;
+        }
+
+        Ok(())
+    }
+
+    fn render(&self, progress: f64) -> Result<()> {
+        WindowsApi::set_transparent(
+            self.hwnd,
+            self.start_opacity
+                .lerp(self.target_opacity, progress, self.style),
+        )
+    }
+
+    fn post_render(&self) -> Result<()> {
+        //opaque
+        if self.is_opaque {
+            let window = Window::from(self.hwnd);
+            let mut ex_style = window.ex_style()?;
+            ex_style.remove(ExtendedWindowStyle::LAYERED);
+            window.update_ex_style(&ex_style)?;
+        }
+
+        Ok(())
+    }
+}
+
 impl Window {
     pub const fn hwnd(self) -> HWND {
         HWND(windows_api::as_ptr!(self.hwnd))
@@ -200,53 +346,6 @@ impl Window {
         )
     }
 
-    pub fn animate_position(&self, start_rect: &Rect, target_rect: &Rect, top: bool) -> Result<()> {
-        let start_rect = *start_rect;
-        let target_rect = *target_rect;
-        let duration = Duration::from_millis(ANIMATION_DURATION.load(Ordering::SeqCst));
-        let mut animation = self.animation;
-
-        border_manager::BORDER_TEMPORARILY_DISABLED.store(true, Ordering::SeqCst);
-        border_manager::send_notification(Some(self.hwnd));
-
-        stackbar_manager::STACKBAR_TEMPORARILY_DISABLED.store(true, Ordering::SeqCst);
-        stackbar_manager::send_notification();
-
-        let hwnd = self.hwnd;
-
-        std::thread::spawn(move || {
-            animation.animate(duration, |progress: f64| {
-                let new_rect = Animation::lerp_rect(&start_rect, &target_rect, progress);
-
-                if progress == 1.0 {
-                    WindowsApi::position_window(hwnd, &new_rect, top)?;
-                    if WindowsApi::foreground_window().unwrap_or_default() == hwnd {
-                        focus_manager::send_notification(hwnd)
-                    }
-
-                    if ANIMATIONS_IN_PROGRESS.load(Ordering::Acquire) == 0 {
-                        border_manager::BORDER_TEMPORARILY_DISABLED.store(false, Ordering::SeqCst);
-                        stackbar_manager::STACKBAR_TEMPORARILY_DISABLED
-                            .store(false, Ordering::SeqCst);
-
-                        border_manager::send_notification(Some(hwnd));
-                        stackbar_manager::send_notification();
-                        transparency_manager::send_notification();
-                    }
-                } else {
-                    // using MoveWindow because it runs faster than SetWindowPos
-                    // so animation have more fps and feel smoother
-                    WindowsApi::move_window(hwnd, &new_rect, false)?;
-                    WindowsApi::invalidate_rect(hwnd, None, false);
-                }
-
-                Ok(())
-            })
-        });
-
-        Ok(())
-    }
-
     pub fn set_position(&self, layout: &Rect, top: bool) -> Result<()> {
         let window_rect = WindowsApi::window_rect(self.hwnd)?;
 
@@ -254,8 +353,27 @@ impl Window {
             return Ok(());
         }
 
-        if ANIMATION_ENABLED.load(Ordering::SeqCst) {
-            self.animate_position(&window_rect, layout, top)
+        let animation_enabled = ANIMATION_ENABLED_PER_ANIMATION.lock();
+        let move_enabled = animation_enabled.get(&MovementRenderDispatcher::PREFIX);
+
+        if move_enabled.is_some_and(|enabled| *enabled)
+            || ANIMATION_ENABLED_GLOBAL.load(Ordering::SeqCst)
+        {
+            let duration = Duration::from_millis(
+                *ANIMATION_DURATION_PER_ANIMATION
+                    .lock()
+                    .get(&MovementRenderDispatcher::PREFIX)
+                    .unwrap_or(&ANIMATION_DURATION_GLOBAL.load(Ordering::SeqCst)),
+            );
+            let style = *ANIMATION_STYLE_PER_ANIMATION
+                .lock()
+                .get(&MovementRenderDispatcher::PREFIX)
+                .unwrap_or(&ANIMATION_STYLE_GLOBAL.lock());
+
+            let render_dispatcher =
+                MovementRenderDispatcher::new(self.hwnd, window_rect, *layout, top, style);
+
+            AnimationEngine::animate(render_dispatcher, duration)
         } else {
             WindowsApi::position_window(self.hwnd, layout, top)
         }
@@ -368,19 +486,76 @@ impl Window {
     }
 
     pub fn transparent(self) -> Result<()> {
-        let mut ex_style = self.ex_style()?;
-        ex_style.insert(ExtendedWindowStyle::LAYERED);
-        self.update_ex_style(&ex_style)?;
-        WindowsApi::set_transparent(
-            self.hwnd,
-            transparency_manager::TRANSPARENCY_ALPHA.load_consume(),
-        )
+        let animation_enabled = ANIMATION_ENABLED_PER_ANIMATION.lock();
+        let transparent_enabled = animation_enabled.get(&TransparencyRenderDispatcher::PREFIX);
+
+        if transparent_enabled.is_some_and(|enabled| *enabled)
+            || ANIMATION_ENABLED_GLOBAL.load(Ordering::SeqCst)
+        {
+            let duration = Duration::from_millis(
+                *ANIMATION_DURATION_PER_ANIMATION
+                    .lock()
+                    .get(&TransparencyRenderDispatcher::PREFIX)
+                    .unwrap_or(&ANIMATION_DURATION_GLOBAL.load(Ordering::SeqCst)),
+            );
+            let style = *ANIMATION_STYLE_PER_ANIMATION
+                .lock()
+                .get(&TransparencyRenderDispatcher::PREFIX)
+                .unwrap_or(&ANIMATION_STYLE_GLOBAL.lock());
+
+            let render_dispatcher = TransparencyRenderDispatcher::new(
+                self.hwnd,
+                false,
+                WindowsApi::get_transparent(self.hwnd).unwrap_or(255),
+                transparency_manager::TRANSPARENCY_ALPHA.load_consume(),
+                style,
+            );
+
+            AnimationEngine::animate(render_dispatcher, duration)
+        } else {
+            let mut ex_style = self.ex_style()?;
+            ex_style.insert(ExtendedWindowStyle::LAYERED);
+            self.update_ex_style(&ex_style)?;
+            WindowsApi::set_transparent(
+                self.hwnd,
+                transparency_manager::TRANSPARENCY_ALPHA.load_consume(),
+            )
+        }
     }
 
     pub fn opaque(self) -> Result<()> {
-        let mut ex_style = self.ex_style()?;
-        ex_style.remove(ExtendedWindowStyle::LAYERED);
-        self.update_ex_style(&ex_style)
+        let animation_enabled = ANIMATION_ENABLED_PER_ANIMATION.lock();
+        let transparent_enabled = animation_enabled.get(&TransparencyRenderDispatcher::PREFIX);
+
+        if transparent_enabled.is_some_and(|enabled| *enabled)
+            || ANIMATION_ENABLED_GLOBAL.load(Ordering::SeqCst)
+        {
+            let duration = Duration::from_millis(
+                *ANIMATION_DURATION_PER_ANIMATION
+                    .lock()
+                    .get(&TransparencyRenderDispatcher::PREFIX)
+                    .unwrap_or(&ANIMATION_DURATION_GLOBAL.load(Ordering::SeqCst)),
+            );
+            let style = *ANIMATION_STYLE_PER_ANIMATION
+                .lock()
+                .get(&TransparencyRenderDispatcher::PREFIX)
+                .unwrap_or(&ANIMATION_STYLE_GLOBAL.lock());
+
+            let render_dispatcher = TransparencyRenderDispatcher::new(
+                self.hwnd,
+                true,
+                WindowsApi::get_transparent(self.hwnd)
+                    .unwrap_or(transparency_manager::TRANSPARENCY_ALPHA.load_consume()),
+                255,
+                style,
+            );
+
+            AnimationEngine::animate(render_dispatcher, duration)
+        } else {
+            let mut ex_style = self.ex_style()?;
+            ex_style.remove(ExtendedWindowStyle::LAYERED);
+            self.update_ex_style(&ex_style)
+        }
     }
 
     pub fn set_accent(self, colour: u32) -> Result<()> {
