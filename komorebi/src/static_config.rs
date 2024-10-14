@@ -442,8 +442,12 @@ impl StaticConfig {
 
         for feature in features {
             if raw.contains(feature) {
-                display = true;
-                println!(r#""{feature}" is now end-of-life"#);
+                if !display {
+                    display = true;
+                    println!("\n\"{feature}\" is now end-of-life");
+                } else {
+                    println!(r#""{feature}" is now end-of-life"#);
+                }
             }
         }
 

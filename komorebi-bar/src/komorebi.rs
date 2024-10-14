@@ -164,7 +164,10 @@ impl BarWidget for Komorebi {
                         proceed = false;
                     }
 
-                    if proceed && komorebi_client::send_message(&SocketMessage::Retile).is_err() {
+                    if proceed
+                        && komorebi_client::send_message(&SocketMessage::RetileWithResizeDimensions)
+                            .is_err()
+                    {
                         tracing::error!("could not send message to komorebi: Retile");
                     }
                 }
