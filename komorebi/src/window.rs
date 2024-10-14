@@ -1,6 +1,8 @@
 use crate::animation::lerp::Lerp;
 use crate::animation::prefix::new_animation_key;
 use crate::animation::prefix::AnimationPrefix;
+use crate::animation::RenderDispatcher;
+// use crate::animation::renderer::Renderer;
 use crate::animation::ANIMATION_DURATION;
 use crate::animation::ANIMATION_ENABLED;
 use crate::animation::ANIMATION_MANAGER;
@@ -10,6 +12,7 @@ use crate::com::SetCloak;
 use crate::focus_manager;
 use crate::stackbar_manager;
 use crate::windows_api;
+use crate::AnimationStyle;
 use crate::SLOW_APPLICATION_COMPENSATION_TIME;
 use crate::SLOW_APPLICATION_IDENTIFIERS;
 use std::collections::HashMap;
@@ -153,6 +156,76 @@ impl Serialize for Window {
     }
 }
 
+struct WindowMoveRenderDispatcher {
+    prefix: AnimationPrefix,
+    hwnd: isize,
+    start_rect: Rect,
+    target_rect: Rect,
+    top: bool,
+    style: AnimationStyle,
+}
+
+impl WindowMoveRenderDispatcher {
+    pub fn new(
+        prefix: AnimationPrefix,
+        hwnd: isize,
+        start_rect: Rect,
+        target_rect: Rect,
+        top: bool,
+        style: AnimationStyle,
+    ) -> Self {
+        Self {
+            prefix,
+            hwnd,
+            start_rect,
+            target_rect,
+            top,
+            style,
+        }
+    }
+}
+
+impl RenderDispatcher for WindowMoveRenderDispatcher {
+    fn pre_render(&self) -> Result<()> {
+        border_manager::BORDER_TEMPORARILY_DISABLED.store(true, Ordering::SeqCst);
+        border_manager::send_notification(Some(self.hwnd));
+
+        stackbar_manager::STACKBAR_TEMPORARILY_DISABLED.store(true, Ordering::SeqCst);
+        stackbar_manager::send_notification();
+
+        Ok(())
+    }
+
+    fn render(&self, progress: f64) -> Result<()> {
+        let new_rect = self.start_rect.lerp(self.target_rect, progress, self.style);
+
+        // using MoveWindow because it runs faster than SetWindowPos
+        // so animation have more fps and feel smoother
+        WindowsApi::move_window(self.hwnd, &new_rect, false)?;
+        WindowsApi::invalidate_rect(self.hwnd, None, false);
+
+        Ok(())
+    }
+
+    fn post_render(&self) -> Result<()> {
+        WindowsApi::position_window(self.hwnd, &self.target_rect, self.top)?;
+        if ANIMATION_MANAGER.lock().count_in_progress(self.prefix) == 0 {
+            if WindowsApi::foreground_window().unwrap_or_default() == self.hwnd {
+                focus_manager::send_notification(self.hwnd)
+            }
+
+            border_manager::BORDER_TEMPORARILY_DISABLED.store(false, Ordering::SeqCst);
+            stackbar_manager::STACKBAR_TEMPORARILY_DISABLED.store(false, Ordering::SeqCst);
+
+            border_manager::send_notification(Some(self.hwnd));
+            stackbar_manager::send_notification();
+            transparency_manager::send_notification();
+        }
+
+        Ok(())
+    }
+}
+
 impl Window {
     pub const fn hwnd(self) -> HWND {
         HWND(windows_api::as_ptr!(self.hwnd))
@@ -198,62 +271,6 @@ impl Window {
         )
     }
 
-    pub fn animate_position(&self, start_rect: &Rect, target_rect: &Rect, top: bool) -> Result<()> {
-        let start_rect = *start_rect;
-        let target_rect = *target_rect;
-        let duration = Duration::from_millis(ANIMATION_DURATION.load(Ordering::SeqCst));
-        let style = *ANIMATION_STYLE.lock();
-
-        border_manager::BORDER_TEMPORARILY_DISABLED.store(true, Ordering::SeqCst);
-        border_manager::send_notification(Some(self.hwnd));
-
-        stackbar_manager::STACKBAR_TEMPORARILY_DISABLED.store(true, Ordering::SeqCst);
-        stackbar_manager::send_notification();
-
-        let hwnd = self.hwnd;
-
-        std::thread::spawn(move || {
-            Animation::animate(
-                new_animation_key(AnimationPrefix::WindowMove, hwnd.to_string()).as_str(),
-                duration,
-                |progress: f64| {
-                    let new_rect = start_rect.lerp(target_rect, progress, style);
-
-                    if progress == 1.0 {
-                        WindowsApi::position_window(hwnd, &new_rect, top)?;
-                        if WindowsApi::foreground_window().unwrap_or_default() == hwnd {
-                            focus_manager::send_notification(hwnd)
-                        }
-
-                        if ANIMATION_MANAGER
-                            .lock()
-                            .animations_in_progress("window_move")
-                            == 0
-                        {
-                            border_manager::BORDER_TEMPORARILY_DISABLED
-                                .store(false, Ordering::SeqCst);
-                            stackbar_manager::STACKBAR_TEMPORARILY_DISABLED
-                                .store(false, Ordering::SeqCst);
-
-                            border_manager::send_notification(Some(hwnd));
-                            stackbar_manager::send_notification();
-                            transparency_manager::send_notification();
-                        }
-                    } else {
-                        // using MoveWindow because it runs faster than SetWindowPos
-                        // so animation have more fps and feel smoother
-                        WindowsApi::move_window(hwnd, &new_rect, false)?;
-                        WindowsApi::invalidate_rect(hwnd, None, false);
-                    }
-
-                    Ok(())
-                },
-            )
-        });
-
-        Ok(())
-    }
-
     pub fn set_position(&self, layout: &Rect, top: bool) -> Result<()> {
         let window_rect = WindowsApi::window_rect(self.hwnd)?;
 
@@ -262,7 +279,23 @@ impl Window {
         }
 
         if ANIMATION_ENABLED.load(Ordering::SeqCst) {
-            self.animate_position(&window_rect, layout, top)
+            let duration = Duration::from_millis(ANIMATION_DURATION.load(Ordering::SeqCst));
+            let style = *ANIMATION_STYLE.lock();
+
+            let render_dispatcher = WindowMoveRenderDispatcher::new(
+                AnimationPrefix::WindowMove,
+                self.hwnd,
+                window_rect,
+                *layout,
+                top,
+                style,
+            );
+
+            Animation::animate(
+                new_animation_key(AnimationPrefix::WindowMove, self.hwnd.to_string()),
+                duration,
+                render_dispatcher,
+            )
         } else {
             WindowsApi::position_window(self.hwnd, layout, top)
         }
