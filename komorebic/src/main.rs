@@ -25,7 +25,7 @@ use fs_tail::TailedFile;
 use komorebi_client::resolve_home_path;
 use komorebi_client::send_message;
 use komorebi_client::send_query;
-use komorebi_client::ApplicationConfiguration;
+use komorebi_client::ApplicationSpecificConfiguration;
 use komorebi_client::Notification;
 use lazy_static::lazy_static;
 use miette::NamedSource;
@@ -845,6 +845,12 @@ struct FormatAppSpecificConfiguration {
 }
 
 #[derive(Parser)]
+struct ConvertAppSpecificConfiguration {
+    /// YAML file from which the application-specific configurations should be loaded
+    path: PathBuf,
+}
+
+#[derive(Parser)]
 struct AltFocusHack {
     #[clap(value_enum)]
     boolean_state: BooleanState,
@@ -1324,7 +1330,11 @@ enum SubCommand {
     #[clap(arg_required_else_help = true)]
     #[clap(alias = "pwsh-asc")]
     PwshAppSpecificConfiguration(PwshAppSpecificConfiguration),
-    /// Format a YAML file for use with the 'ahk-app-specific-configuration' command
+    /// Convert a v1 ASC YAML file to a v2 ASC JSON file
+    #[clap(arg_required_else_help = true)]
+    #[clap(alias = "convert-asc")]
+    ConvertAppSpecificConfiguration(ConvertAppSpecificConfiguration),
+    /// Format a YAML file for use with the 'app-specific-configuration' command
     #[clap(arg_required_else_help = true)]
     #[clap(alias = "fmt-asc")]
     FormatAppSpecificConfiguration(FormatAppSpecificConfiguration),
@@ -2566,6 +2576,14 @@ Stop-Process -Name:komorebi -ErrorAction SilentlyContinue
                 generated_config.display()
             );
         }
+        SubCommand::ConvertAppSpecificConfiguration(arg) => {
+            let file_path = resolve_home_path(arg.path)?;
+            let content = std::fs::read_to_string(&file_path)?;
+            let mut asc = ApplicationConfigurationGenerator::load(&content)?;
+            asc.sort_by(|a, b| a.name.cmp(&b.name));
+            let v2 = ApplicationSpecificConfiguration::from(asc);
+            println!("{}", serde_json::to_string_pretty(&v2)?);
+        }
         SubCommand::FormatAppSpecificConfiguration(arg) => {
             let file_path = resolve_home_path(arg.path)?;
             let content = std::fs::read_to_string(&file_path)?;
@@ -2582,10 +2600,10 @@ Stop-Process -Name:komorebi -ErrorAction SilentlyContinue
             println!("File successfully formatted for PRs to https://github.com/LGUG2Z/komorebi-application-specific-configuration");
         }
         SubCommand::FetchAppSpecificConfiguration => {
-            let content = reqwest::blocking::get("https://raw.githubusercontent.com/LGUG2Z/komorebi-application-specific-configuration/master/applications.yaml")?
+            let content = reqwest::blocking::get("https://raw.githubusercontent.com/LGUG2Z/komorebi-application-specific-configuration/master/applications.json")?
                 .text()?;
 
-            let output_file = HOME_DIR.join("applications.yaml");
+            let output_file = HOME_DIR.join("applications.json");
 
             let mut file = OpenOptions::new()
                 .write(true)
@@ -2602,7 +2620,7 @@ Stop-Process -Name:komorebi -ErrorAction SilentlyContinue
             );
         }
         SubCommand::ApplicationSpecificConfigurationSchema => {
-            let asc = schema_for!(Vec<ApplicationConfiguration>);
+            let asc = schema_for!(ApplicationSpecificConfiguration);
             let schema = serde_json::to_string_pretty(&asc)?;
             println!("{schema}");
         }

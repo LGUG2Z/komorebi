@@ -27,6 +27,7 @@ pub use rect::Rect;
 
 pub mod animation;
 pub mod arrangement;
+pub mod asc;
 pub mod config_generation;
 pub mod custom_layout;
 pub mod cycle_direction;
