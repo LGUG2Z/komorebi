@@ -1,7 +1,5 @@
-use super::ANIMATIONS_IN_PROGRESS;
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
-use std::sync::atomic::Ordering;
 
 #[derive(Debug, Clone, Copy)]
 struct AnimationState {
@@ -12,7 +10,7 @@ struct AnimationState {
 
 #[derive(Debug)]
 pub struct AnimationManager {
-    animations: HashMap<isize, AnimationState>,
+    animations: HashMap<String, AnimationState>,
 }
 
 impl Default for AnimationManager {
@@ -28,24 +26,24 @@ impl AnimationManager {
         }
     }
 
-    pub fn is_cancelled(&self, hwnd: isize) -> bool {
-        if let Some(animation_state) = self.animations.get(&hwnd) {
+    pub fn is_cancelled(&self, animation_key: &str) -> bool {
+        if let Some(animation_state) = self.animations.get(animation_key) {
             animation_state.pending_cancel_count > 0
         } else {
             false
         }
     }
 
-    pub fn in_progress(&self, hwnd: isize) -> bool {
-        if let Some(animation_state) = self.animations.get(&hwnd) {
+    pub fn in_progress(&self, animation_key: &str) -> bool {
+        if let Some(animation_state) = self.animations.get(animation_key) {
             animation_state.in_progress
         } else {
             false
         }
     }
 
-    pub fn init_cancel(&mut self, hwnd: isize) -> usize {
-        if let Some(animation_state) = self.animations.get_mut(&hwnd) {
+    pub fn init_cancel(&mut self, animation_key: &str) -> usize {
+        if let Some(animation_state) = self.animations.get_mut(animation_key) {
             animation_state.pending_cancel_count += 1;
             animation_state.cancel_idx_counter += 1;
 
@@ -56,51 +54,56 @@ impl AnimationManager {
         }
     }
 
-    pub fn latest_cancel_idx(&mut self, hwnd: isize) -> usize {
-        if let Some(animation_state) = self.animations.get_mut(&hwnd) {
+    pub fn latest_cancel_idx(&mut self, animation_key: &str) -> usize {
+        if let Some(animation_state) = self.animations.get_mut(animation_key) {
             animation_state.cancel_idx_counter
         } else {
             0
         }
     }
 
-    pub fn end_cancel(&mut self, hwnd: isize) {
-        if let Some(animation_state) = self.animations.get_mut(&hwnd) {
+    pub fn end_cancel(&mut self, animation_key: &str) {
+        if let Some(animation_state) = self.animations.get_mut(animation_key) {
             animation_state.pending_cancel_count -= 1;
         }
     }
 
-    pub fn cancel(&mut self, hwnd: isize) {
-        if let Some(animation_state) = self.animations.get_mut(&hwnd) {
+    pub fn cancel(&mut self, animation_key: &str) {
+        if let Some(animation_state) = self.animations.get_mut(animation_key) {
             animation_state.in_progress = false;
         }
     }
 
-    pub fn start(&mut self, hwnd: isize) {
-        if let Entry::Vacant(e) = self.animations.entry(hwnd) {
+    pub fn start(&mut self, animation_key: &str) {
+        if let Entry::Vacant(e) = self.animations.entry(animation_key.to_string()) {
             e.insert(AnimationState {
                 in_progress: true,
                 cancel_idx_counter: 0,
                 pending_cancel_count: 0,
             });
 
-            ANIMATIONS_IN_PROGRESS.store(self.animations.len(), Ordering::Release);
             return;
         }
 
-        if let Some(animation_state) = self.animations.get_mut(&hwnd) {
+        if let Some(animation_state) = self.animations.get_mut(animation_key) {
             animation_state.in_progress = true;
         }
     }
 
-    pub fn end(&mut self, hwnd: isize) {
-        if let Some(animation_state) = self.animations.get_mut(&hwnd) {
+    pub fn end(&mut self, animation_key: &str) {
+        if let Some(animation_state) = self.animations.get_mut(animation_key) {
             animation_state.in_progress = false;
 
             if animation_state.pending_cancel_count == 0 {
-                self.animations.remove(&hwnd);
-                ANIMATIONS_IN_PROGRESS.store(self.animations.len(), Ordering::Release);
+                self.animations.remove(animation_key);
             }
         }
+    }
+
+    pub fn animations_in_progress(&self, animation_key_prefix: &str) -> usize {
+        self.animations
+            .keys()
+            .filter(|key| key.starts_with(animation_key_prefix))
+            .count()
     }
 }
