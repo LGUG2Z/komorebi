@@ -1,3 +1,7 @@
+use crate::animation::ANIMATION_DURATION;
+use crate::animation::ANIMATION_ENABLED;
+use crate::animation::ANIMATION_FPS;
+use crate::animation::ANIMATION_STYLE;
 use crate::border_manager;
 use crate::border_manager::ZOrder;
 use crate::border_manager::IMPLEMENTATION;
@@ -28,10 +32,6 @@ use crate::window_manager_event::WindowManagerEvent;
 use crate::windows_api::WindowsApi;
 use crate::workspace::Workspace;
 use crate::CrossBoundaryBehaviour;
-use crate::ANIMATION_DURATION;
-use crate::ANIMATION_ENABLED;
-use crate::ANIMATION_FPS;
-use crate::ANIMATION_STYLE;
 use crate::DATA_DIR;
 use crate::DEFAULT_CONTAINER_PADDING;
 use crate::DEFAULT_WORKSPACE_PADDING;

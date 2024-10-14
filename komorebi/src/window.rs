@@ -1,11 +1,11 @@
+use crate::animation::ANIMATIONS_IN_PROGRESS;
+use crate::animation::ANIMATION_DURATION;
+use crate::animation::ANIMATION_ENABLED;
 use crate::border_manager;
 use crate::com::SetCloak;
 use crate::focus_manager;
 use crate::stackbar_manager;
 use crate::windows_api;
-use crate::ANIMATIONS_IN_PROGRESS;
-use crate::ANIMATION_DURATION;
-use crate::ANIMATION_ENABLED;
 use crate::SLOW_APPLICATION_COMPENSATION_TIME;
 use crate::SLOW_APPLICATION_IDENTIFIERS;
 use std::collections::HashMap;
@@ -35,7 +35,7 @@ use crate::core::ApplicationIdentifier;
 use crate::core::HidingBehaviour;
 use crate::core::Rect;
 
-use crate::animation::Animation;
+use crate::animation::animation::Animation;
 use crate::styles::ExtendedWindowStyle;
 use crate::styles::WindowStyle;
 use crate::transparency_manager;
