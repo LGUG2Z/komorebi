@@ -775,6 +775,9 @@ struct Stop {
     /// Stop whkd if it is running as a background process
     #[clap(long)]
     whkd: bool,
+    /// Stop ahk if it is running as a background process
+    #[clap(long)]
+    ahk: bool,
     /// Stop komorebi-bar if it is running as a background process
     #[clap(long)]
     bar: bool,
@@ -2142,6 +2145,35 @@ Stop-Process -Name:whkd -ErrorAction SilentlyContinue
                 let script = r"
 Stop-Process -Name:komorebi-bar -ErrorAction SilentlyContinue
                 ";
+                match powershell_script::run(script) {
+                    Ok(_) => {
+                        println!("{script}");
+                    }
+                    Err(error) => {
+                        println!("Error: {error}");
+                    }
+                }
+            }
+
+            if arg.ahk {
+                let script = r#"
+if (Get-Command Get-CimInstance -ErrorAction SilentlyContinue) {
+    (Get-CimInstance Win32_Process | Where-Object {
+        ($_.CommandLine -like '*komorebi.ahk"') -and
+        ($_.Name -in @('AutoHotkey.exe', 'AutoHotkey64.exe', 'AutoHotkey32.exe'))
+    } | Select-Object -First 1) | ForEach-Object {
+        Stop-Process -Id $_.ProcessId -ErrorAction SilentlyContinue
+    }
+} else {
+    (Get-WmiObject Win32_Process | Where-Object {
+        ($_.CommandLine -like '*komorebi.ahk"') -and
+        ($_.Name -in @('AutoHotkey.exe', 'AutoHotkey64.exe', 'AutoHotkey32.exe'))
+    } | Select-Object -First 1) | ForEach-Object {
+        Stop-Process -Id $_.ProcessId -ErrorAction SilentlyContinue
+    }
+}
+"#;
+
                 match powershell_script::run(script) {
                     Ok(_) => {
                         println!("{script}");
