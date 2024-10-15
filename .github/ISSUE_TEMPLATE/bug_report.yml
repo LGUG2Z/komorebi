@@ -1,6 +1,6 @@
 name: Bug report
 description: File a bug report
-labels: [ bug ]
+labels: [bug]
 title: "[BUG]: "
 body:
   - type: textarea
@@ -11,7 +11,7 @@ body:
       description: >
         Please provide a short summary of the bug, along with any information
         you feel is relevant to replicating the bug.
-        
+
         You may include screenshots and videos in this section.
   - type: textarea
     validations:
@@ -21,10 +21,10 @@ body:
       description: >
         Please provide information about the versions of Windows and komorebi
         running on your machine.
-        
+
         Do not submit a bug if you are not using an official version of Windows
         such as AtlasOS; only official versions of Windows are supported.
-        
+
         ```
         systeminfo | findstr /B /C:"OS Name" /B /C:"OS Version"
         ```
