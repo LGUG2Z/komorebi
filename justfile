@@ -7,8 +7,9 @@ clean:
 fmt:
     cargo +nightly fmt
     cargo +stable clippy
-    prettier --write README.md
-    prettier --write .goreleaser.yml
+    prettier --write .github/ISSUE_TEMPLATE/bug_report.yml
+    prettier --write .github/ISSUE_TEMPLATE/config.yml
+    prettier --write .github/ISSUE_TEMPLATE/feature_request.yml
     prettier --write .github/dependabot.yml
     prettier --write .github/FUNDING.yml
     prettier --write .github/workflows/windows.yaml
