@@ -1,7 +1,7 @@
 # format-app-specific-configuration
 
 ```
-Format a YAML file for use with the 'ahk-app-specific-configuration' command
+Format a YAML file for use with the 'app-specific-configuration' command
 
 Usage: komorebic.exe format-app-specific-configuration <PATH>
 

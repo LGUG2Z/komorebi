@@ -1,9 +1,9 @@
-# float-rule
+# ignore-rule
 
 ```
-Add a rule to always float the specified application
+Add a rule to ignore the specified application
 
-Usage: komorebic.exe float-rule <IDENTIFIER> <ID>
+Usage: komorebic.exe ignore-rule <IDENTIFIER> <ID>
 
 Arguments:
   <IDENTIFIER>

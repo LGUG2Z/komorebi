@@ -9,6 +9,9 @@ Options:
       --whkd
           Stop whkd if it is running as a background process
 
+      --ahk
+          Stop ahk if it is running as a background process
+
       --bar
           Stop komorebi-bar if it is running as a background process
 
