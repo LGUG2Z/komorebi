@@ -451,15 +451,23 @@ impl KomorebiNotificationState {
                 }
             },
             Ok(notification) => {
-                if let NotificationEvent::Socket(SocketMessage::ReloadStaticConfiguration(path)) =
-                    notification.event
-                {
-                    if let Ok(config) = komorebi_client::StaticConfig::read(&path) {
-                        if let Some(theme) = config.theme {
-                            apply_theme(ctx, KomobarTheme::from(theme), bg_color);
-                            tracing::info!("applied theme from updated komorebi.json");
+                match notification.event {
+                    NotificationEvent::WindowManager(_) => {}
+                    NotificationEvent::Socket(message) => match message {
+                        SocketMessage::ReloadStaticConfiguration(path) => {
+                            if let Ok(config) = komorebi_client::StaticConfig::read(&path) {
+                                if let Some(theme) = config.theme {
+                                    apply_theme(ctx, KomobarTheme::from(theme), bg_color.clone());
+                                    tracing::info!("applied theme from updated komorebi.json");
+                                }
+                            }
                         }
-                    }
+                        SocketMessage::Theme(theme) => {
+                            apply_theme(ctx, KomobarTheme::from(theme), bg_color);
+                            tracing::info!("applied theme from komorebi socket message");
+                        }
+                        _ => {}
+                    },
                 }
 
                 self.mouse_follows_focus = notification.state.mouse_follows_focus;

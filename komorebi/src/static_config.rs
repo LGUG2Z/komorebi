@@ -20,6 +20,7 @@ use crate::stackbar_manager::STACKBAR_TAB_BACKGROUND_COLOUR;
 use crate::stackbar_manager::STACKBAR_TAB_HEIGHT;
 use crate::stackbar_manager::STACKBAR_TAB_WIDTH;
 use crate::stackbar_manager::STACKBAR_UNFOCUSED_TEXT_COLOUR;
+use crate::theme_manager;
 use crate::transparency_manager;
 use crate::window;
 use crate::window_manager::WindowManager;
@@ -386,7 +387,7 @@ pub struct AnimationsConfig {
 pub enum KomorebiTheme {
     /// A theme from catppuccin-egui
     Catppuccin {
-        /// Name of the Catppuccin theme
+        /// Name of the Catppuccin theme (theme previews: https://github.com/catppuccin/catppuccin)
         name: komorebi_themes::Catppuccin,
         /// Border colour when the container contains a single window (default: Blue)
         single_border: Option<komorebi_themes::CatppuccinValue>,
@@ -409,7 +410,7 @@ pub enum KomorebiTheme {
     },
     /// A theme from base16-egui-themes
     Base16 {
-        /// Name of the Base16 theme
+        /// Name of the Base16 theme (theme previews: https://tinted-theming.github.io/base16-gallery)
         name: komorebi_themes::Base16,
         /// Border colour when the container contains a single window (default: Base0D)
         single_border: Option<komorebi_themes::Base16Value>,
@@ -815,151 +816,7 @@ impl StaticConfig {
         }
 
         if let Some(theme) = &self.theme {
-            let (
-                single_border,
-                stack_border,
-                monocle_border,
-                floating_border,
-                unfocused_border,
-                stackbar_focused_text,
-                stackbar_unfocused_text,
-                stackbar_background,
-            ) = match theme {
-                KomorebiTheme::Catppuccin {
-                    name,
-                    single_border,
-                    stack_border,
-                    monocle_border,
-                    floating_border,
-                    unfocused_border,
-                    stackbar_focused_text,
-                    stackbar_unfocused_text,
-                    stackbar_background,
-                    ..
-                } => {
-                    let single_border = single_border
-                        .unwrap_or(komorebi_themes::CatppuccinValue::Blue)
-                        .color32(name.as_theme());
-
-                    let stack_border = stack_border
-                        .unwrap_or(komorebi_themes::CatppuccinValue::Green)
-                        .color32(name.as_theme());
-
-                    let monocle_border = monocle_border
-                        .unwrap_or(komorebi_themes::CatppuccinValue::Pink)
-                        .color32(name.as_theme());
-
-                    let floating_border = floating_border
-                        .unwrap_or(komorebi_themes::CatppuccinValue::Yellow)
-                        .color32(name.as_theme());
-
-                    let unfocused_border = unfocused_border
-                        .unwrap_or(komorebi_themes::CatppuccinValue::Base)
-                        .color32(name.as_theme());
-
-                    let stackbar_focused_text = stackbar_focused_text
-                        .unwrap_or(komorebi_themes::CatppuccinValue::Green)
-                        .color32(name.as_theme());
-
-                    let stackbar_unfocused_text = stackbar_unfocused_text
-                        .unwrap_or(komorebi_themes::CatppuccinValue::Text)
-                        .color32(name.as_theme());
-
-                    let stackbar_background = stackbar_background
-                        .unwrap_or(komorebi_themes::CatppuccinValue::Base)
-                        .color32(name.as_theme());
-
-                    (
-                        single_border,
-                        stack_border,
-                        monocle_border,
-                        floating_border,
-                        unfocused_border,
-                        stackbar_focused_text,
-                        stackbar_unfocused_text,
-                        stackbar_background,
-                    )
-                }
-                KomorebiTheme::Base16 {
-                    name,
-                    single_border,
-                    stack_border,
-                    monocle_border,
-                    floating_border,
-                    unfocused_border,
-                    stackbar_focused_text,
-                    stackbar_unfocused_text,
-                    stackbar_background,
-                    ..
-                } => {
-                    let single_border = single_border
-                        .unwrap_or(komorebi_themes::Base16Value::Base0D)
-                        .color32(*name);
-
-                    let stack_border = stack_border
-                        .unwrap_or(komorebi_themes::Base16Value::Base0B)
-                        .color32(*name);
-
-                    let monocle_border = monocle_border
-                        .unwrap_or(komorebi_themes::Base16Value::Base0F)
-                        .color32(*name);
-
-                    let unfocused_border = unfocused_border
-                        .unwrap_or(komorebi_themes::Base16Value::Base01)
-                        .color32(*name);
-
-                    let floating_border = floating_border
-                        .unwrap_or(komorebi_themes::Base16Value::Base09)
-                        .color32(*name);
-
-                    let stackbar_focused_text = stackbar_focused_text
-                        .unwrap_or(komorebi_themes::Base16Value::Base0B)
-                        .color32(*name);
-
-                    let stackbar_unfocused_text = stackbar_unfocused_text
-                        .unwrap_or(komorebi_themes::Base16Value::Base05)
-                        .color32(*name);
-
-                    let stackbar_background = stackbar_background
-                        .unwrap_or(komorebi_themes::Base16Value::Base01)
-                        .color32(*name);
-
-                    (
-                        single_border,
-                        stack_border,
-                        monocle_border,
-                        floating_border,
-                        unfocused_border,
-                        stackbar_focused_text,
-                        stackbar_unfocused_text,
-                        stackbar_background,
-                    )
-                }
-            };
-
-            border_manager::FOCUSED.store(u32::from(Colour::from(single_border)), Ordering::SeqCst);
-            border_manager::MONOCLE
-                .store(u32::from(Colour::from(monocle_border)), Ordering::SeqCst);
-            border_manager::STACK.store(u32::from(Colour::from(stack_border)), Ordering::SeqCst);
-            border_manager::FLOATING
-                .store(u32::from(Colour::from(floating_border)), Ordering::SeqCst);
-            border_manager::UNFOCUSED
-                .store(u32::from(Colour::from(unfocused_border)), Ordering::SeqCst);
-
-            STACKBAR_TAB_BACKGROUND_COLOUR.store(
-                u32::from(Colour::from(stackbar_background)),
-                Ordering::SeqCst,
-            );
-
-            STACKBAR_FOCUSED_TEXT_COLOUR.store(
-                u32::from(Colour::from(stackbar_focused_text)),
-                Ordering::SeqCst,
-            );
-
-            STACKBAR_UNFOCUSED_TEXT_COLOUR.store(
-                u32::from(Colour::from(stackbar_unfocused_text)),
-                Ordering::SeqCst,
-            );
+            theme_manager::send_notification(*theme);
         }
 
         if let Some(path) = &self.app_specific_configuration_path {

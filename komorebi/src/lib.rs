@@ -20,6 +20,7 @@ pub mod set_window_position;
 pub mod stackbar_manager;
 pub mod static_config;
 pub mod styles;
+pub mod theme_manager;
 pub mod transparency_manager;
 pub mod window;
 pub mod window_manager;
@@ -300,10 +301,12 @@ pub struct Notification {
 }
 
 pub fn notify_subscribers(notification: Notification, state_has_been_modified: bool) -> Result<()> {
-    let is_subscription_event = matches!(
+    let is_override_event = matches!(
         notification.event,
         NotificationEvent::Socket(SocketMessage::AddSubscriberSocket(_))
             | NotificationEvent::Socket(SocketMessage::AddSubscriberSocketWithOptions(_, _))
+            | NotificationEvent::Socket(SocketMessage::Theme(_))
+            | NotificationEvent::Socket(SocketMessage::ReloadStaticConfiguration(_))
     );
 
     let notification = &serde_json::to_string(&notification)?;
@@ -318,7 +321,7 @@ pub fn notify_subscribers(notification: Notification, state_has_been_modified: b
             .unwrap_or_default()
             .filter_state_changes;
 
-        if !apply_state_filter || state_has_been_modified || is_subscription_event {
+        if !apply_state_filter || state_has_been_modified || is_override_event {
             match UnixStream::connect(path) {
                 Ok(mut stream) => {
                     tracing::debug!("pushed notification to subscriber: {socket}");

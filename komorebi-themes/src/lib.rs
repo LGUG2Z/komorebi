@@ -4,10 +4,12 @@
 use schemars::JsonSchema;
 use serde::Deserialize;
 use serde::Serialize;
+use strum::IntoEnumIterator;
 
 pub use base16_egui_themes::Base16;
 pub use catppuccin_egui;
 pub use eframe::egui::Color32;
+use serde_variant::to_variant_name;
 
 #[derive(Copy, Clone, Debug, Serialize, Deserialize, JsonSchema)]
 #[serde(tag = "type")]
@@ -22,6 +24,28 @@ pub enum Theme {
         name: Base16,
         accent: Option<Base16Value>,
     },
+}
+
+impl Theme {
+    pub fn variant_names(&self) -> Vec<String> {
+        match self {
+            Theme::Catppuccin { .. } => {
+                vec![
+                    "Frappe".to_string(),
+                    "Latte".to_string(),
+                    "Macchiato".to_string(),
+                    "Mocha".to_string(),
+                ]
+            }
+            Theme::Base16 { .. } => Base16::iter()
+                .map(|variant| {
+                    to_variant_name(&variant)
+                        .expect("could not convert to variant name")
+                        .to_string()
+                })
+                .collect(),
+        }
+    }
 }
 
 #[derive(Copy, Clone, Debug, Default, Serialize, Deserialize, JsonSchema)]

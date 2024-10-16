@@ -1428,6 +1428,7 @@
               ]
             },
             "name": {
+              "description": "Name of the Catppuccin theme (theme previews: https://github.com/catppuccin/catppuccin)",
               "type": "string",
               "enum": [
                 "Frappe",
@@ -1474,6 +1475,7 @@
               ]
             },
             "name": {
+              "description": "Name of the Base16 theme (theme previews: https://tinted-theming.github.io/base16-gallery)",
               "type": "string",
               "enum": [
                 "3024",
