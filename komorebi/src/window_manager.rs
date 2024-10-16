@@ -468,23 +468,39 @@ impl WindowManager {
         for (idx, monitor) in self.monitors.elements().iter().enumerate() {
             match direction {
                 OperationDirection::Left => {
-                    if monitor.size().left + monitor.size().right == current_monitor_size.left {
+                    if monitor.size().right <= current_monitor_size.left
+                        && monitor.size().top < current_monitor_size.bottom
+                        && monitor.size().bottom > current_monitor_size.top
+                        || monitor.size().left + monitor.size().right == current_monitor_size.left
+                    {
                         return Option::from(idx);
                     }
                 }
                 OperationDirection::Right => {
-                    if current_monitor_size.right + current_monitor_size.left == monitor.size().left
+                    if monitor.size().left >= current_monitor_size.right
+                        && monitor.size().top < current_monitor_size.bottom
+                        && monitor.size().bottom > current_monitor_size.top
+                        || current_monitor_size.right + current_monitor_size.left
+                            == monitor.size().left
                     {
                         return Option::from(idx);
                     }
                 }
                 OperationDirection::Up => {
-                    if monitor.size().top + monitor.size().bottom == current_monitor_size.top {
+                    if monitor.size().bottom <= current_monitor_size.top
+                        && monitor.size().left < current_monitor_size.right
+                        && monitor.size().right > current_monitor_size.left
+                        || monitor.size().top + monitor.size().bottom == current_monitor_size.top
+                    {
                         return Option::from(idx);
                     }
                 }
                 OperationDirection::Down => {
-                    if current_monitor_size.top + current_monitor_size.bottom == monitor.size().top
+                    if monitor.size().top >= current_monitor_size.bottom
+                        && monitor.size().left < current_monitor_size.right
+                        && monitor.size().right > current_monitor_size.left
+                        || current_monitor_size.top + current_monitor_size.bottom
+                            == monitor.size().top
                     {
                         return Option::from(idx);
                     }
