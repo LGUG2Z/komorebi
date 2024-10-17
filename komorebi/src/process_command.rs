@@ -51,6 +51,7 @@ use crate::stackbar_manager;
 use crate::stackbar_manager::STACKBAR_FONT_FAMILY;
 use crate::stackbar_manager::STACKBAR_FONT_SIZE;
 use crate::static_config::StaticConfig;
+use crate::theme_manager;
 use crate::transparency_manager;
 use crate::window::RuleDebug;
 use crate::window::Window;
@@ -1624,6 +1625,9 @@ impl WindowManager {
                 let schema = serde_json::to_string_pretty(&rule_debug)?;
 
                 reply.write_all(schema.as_bytes())?;
+            }
+            SocketMessage::Theme(theme) => {
+                theme_manager::send_notification(theme);
             }
             // Deprecated commands
             SocketMessage::AltFocusHack(_)

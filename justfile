@@ -26,17 +26,17 @@ install:
 run target:
     cargo +stable run --bin {{ target }} --locked
 
-warn $RUST_LOG="warn":
-    just run
+warn target $RUST_LOG="warn":
+    just run {{ target }}
 
-info $RUST_LOG="info":
-    just run
+info target $RUST_LOG="info":
+    just run {{ target }}
 
-debug $RUST_LOG="debug":
-    just run
+debug target $RUST_LOG="debug":
+    just run {{ target }}
 
-trace $RUST_LOG="trace":
-    just run
+trace target $RUST_LOG="trace":
+    just run {{ target }}
 
 deadlock $RUST_LOG="trace":
     cargo +stable run --bin komorebi --locked --features deadlock_detection

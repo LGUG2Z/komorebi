@@ -14,6 +14,7 @@ use serde::Serialize;
 use strum::Display;
 use strum::EnumString;
 
+use crate::KomorebiTheme;
 pub use animation::AnimationStyle;
 pub use arrangement::Arrangement;
 pub use arrangement::Axis;
@@ -146,6 +147,7 @@ pub enum SocketMessage {
     WatchConfiguration(bool),
     CompleteConfiguration,
     AltFocusHack(bool),
+    Theme(KomorebiTheme),
     Animation(bool),
     AnimationDuration(u64),
     AnimationFps(u64),
