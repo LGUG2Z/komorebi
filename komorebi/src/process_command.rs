@@ -22,6 +22,7 @@ use schemars::gen::SchemaSettings;
 use schemars::schema_for;
 use uds_windows::UnixStream;
 
+use crate::animation::Animation;
 use crate::core::config_generation::ApplicationConfiguration;
 use crate::core::config_generation::IdWithIdentifier;
 use crate::core::config_generation::MatchingRule;
@@ -40,6 +41,10 @@ use crate::core::StateQuery;
 use crate::core::WindowContainerBehaviour;
 use crate::core::WindowKind;
 
+use crate::animation::ANIMATION_DURATION;
+use crate::animation::ANIMATION_ENABLED;
+use crate::animation::ANIMATION_FPS;
+use crate::animation::ANIMATION_STYLE;
 use crate::border_manager;
 use crate::border_manager::IMPLEMENTATION;
 use crate::border_manager::STYLE;
@@ -63,10 +68,6 @@ use crate::GlobalState;
 use crate::Notification;
 use crate::NotificationEvent;
 use crate::State;
-use crate::ANIMATION_DURATION;
-use crate::ANIMATION_ENABLED;
-use crate::ANIMATION_FPS;
-use crate::ANIMATION_STYLE;
 use crate::CUSTOM_FFM;
 use crate::DATA_DIR;
 use crate::DISPLAY_INDEX_PREFERENCES;
@@ -838,7 +839,10 @@ impl WindowManager {
                 tracing::info!(
                     "received stop command, restoring all hidden windows and terminating process"
                 );
+
+                ANIMATION_ENABLED.store(false, Ordering::SeqCst);
                 self.restore_all_windows()?;
+                Animation::wait_for_all_animations();
 
                 if WindowsApi::focus_follows_mouse()? {
                     WindowsApi::disable_focus_follows_mouse()?;
