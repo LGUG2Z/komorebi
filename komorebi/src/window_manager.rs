@@ -288,6 +288,7 @@ struct EnforceWorkspaceRuleOp {
     origin_workspace_idx: usize,
     target_monitor_idx: usize,
     target_workspace_idx: usize,
+    floating: bool,
 }
 impl EnforceWorkspaceRuleOp {
     const fn is_origin(&self, monitor_idx: usize, workspace_idx: usize) -> bool {
@@ -505,6 +506,7 @@ impl WindowManager {
         origin_workspace_idx: usize,
         target_monitor_idx: usize,
         target_workspace_idx: usize,
+        floating: bool,
         to_move: &mut Vec<EnforceWorkspaceRuleOp>,
     ) -> () {
         tracing::trace!(
@@ -521,6 +523,7 @@ impl WindowManager {
             origin_workspace_idx,
             target_monitor_idx,
             target_workspace_idx,
+            floating,
         });
     }
 
@@ -576,6 +579,8 @@ impl WindowManager {
                         };
 
                         if matched {
+                            let floating = workspace.floating_windows().contains(window);
+
                             if rule.initial_only {
                                 if !already_moved_window_handles.contains(&window.hwnd) {
                                     already_moved_window_handles.insert(window.hwnd);
@@ -587,6 +592,7 @@ impl WindowManager {
                                         j,
                                         rule.monitor_index,
                                         rule.workspace_index,
+                                        floating,
                                         &mut to_move,
                                     );
                                 }
@@ -598,6 +604,7 @@ impl WindowManager {
                                     j,
                                     rule.monitor_index,
                                     rule.workspace_index,
+                                    floating,
                                     &mut to_move,
                                 );
                             }
@@ -616,17 +623,34 @@ impl WindowManager {
 
         // Parse the operation and remove any windows that are not placed according to their rules
         for op in &to_move {
-            let origin_workspace = self
+            let target_area = *self
+                .monitors_mut()
+                .get_mut(op.target_monitor_idx)
+                .ok_or_else(|| anyhow!("there is no monitor with that index"))?
+                .work_area_size();
+
+            let origin_monitor = self
                 .monitors_mut()
                 .get_mut(op.origin_monitor_idx)
-                .ok_or_else(|| anyhow!("there is no monitor with that index"))?
+                .ok_or_else(|| anyhow!("there is no monitor with that index"))?;
+
+            let origin_area = *origin_monitor.work_area_size();
+
+            let origin_workspace = origin_monitor
                 .workspaces_mut()
                 .get_mut(op.origin_workspace_idx)
                 .ok_or_else(|| anyhow!("there is no workspace with that index"))?;
 
+            let mut window = Window::from(op.hwnd);
+
+            // If it is a floating window move it to the target area
+            if op.floating {
+                window.move_to_area(&origin_area, &target_area)?;
+            }
+
             // Hide the window we are about to remove if it is on the currently focused workspace
             if op.is_origin(focused_monitor_idx, focused_workspace_idx) {
-                Window::from(op.hwnd).hide();
+                window.hide();
                 should_update_focused_workspace = true;
             }
 
@@ -656,7 +680,21 @@ impl WindowManager {
                 .get_mut(op.target_workspace_idx)
                 .ok_or_else(|| anyhow!("there is no workspace with that index"))?;
 
-            target_workspace.new_container_for_window(Window::from(op.hwnd));
+            if op.floating {
+                target_workspace
+                    .floating_windows_mut()
+                    .push(Window::from(op.hwnd));
+            } else {
+                //TODO(alex-ds13): should this take into account the target workspace
+                //`window_container_behaviour`?
+                //In the case above a floating window should always be moved as floating,
+                //because it was set as so either manually by the user or by a
+                //`floating_applications` rule so it should stay that way. But a tiled window
+                //when moving to another workspace by a `workspace_rule` should honor that
+                //workspace `window_container_behaviour` in my opinion! Maybe this should be done
+                //on the `new_container_for_window` function instead.
+                target_workspace.new_container_for_window(Window::from(op.hwnd));
+            }
         }
 
         // Only re-tile the focused workspace if we need to

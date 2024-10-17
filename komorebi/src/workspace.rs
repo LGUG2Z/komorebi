@@ -431,7 +431,7 @@ impl Workspace {
             }
         }
 
-        for window in self.visible_windows_mut().into_iter().flatten() {
+        for window in self.visible_windows().into_iter().flatten() {
             if !window.is_window() {
                 hwnds.push(window.hwnd);
             }
@@ -1409,8 +1409,19 @@ impl Workspace {
 
     pub fn visible_windows(&self) -> Vec<Option<&Window>> {
         let mut vec = vec![];
+
+        vec.push(self.maximized_window().as_ref());
+
+        if let Some(monocle) = self.monocle_container() {
+            vec.push(monocle.focused_window());
+        }
+
         for container in self.containers() {
             vec.push(container.focused_window());
+        }
+
+        for window in self.floating_windows() {
+            vec.push(Some(window));
         }
 
         vec
@@ -1418,6 +1429,20 @@ impl Workspace {
 
     pub fn visible_window_details(&self) -> Vec<WindowDetails> {
         let mut vec: Vec<WindowDetails> = vec![];
+
+        if let Some(maximized) = self.maximized_window() {
+            if let Ok(details) = (*maximized).try_into() {
+                vec.push(details);
+            }
+        }
+
+        if let Some(monocle) = self.monocle_container() {
+            if let Some(focused) = monocle.focused_window() {
+                if let Ok(details) = (*focused).try_into() {
+                    vec.push(details);
+                }
+            }
+        }
 
         for container in self.containers() {
             if let Some(focused) = container.focused_window() {
@@ -1427,13 +1452,10 @@ impl Workspace {
             }
         }
 
-        vec
-    }
-
-    pub fn visible_windows_mut(&mut self) -> Vec<Option<&mut Window>> {
-        let mut vec = vec![];
-        for container in self.containers_mut() {
-            vec.push(container.focused_window_mut());
+        for window in self.floating_windows() {
+            if let Ok(details) = (*window).try_into() {
+                vec.push(details);
+            }
         }
 
         vec
