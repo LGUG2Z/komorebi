@@ -14,6 +14,8 @@ use crate::MONITOR_RIGHT;
 use crate::MONITOR_TOP;
 use crossbeam_channel::Receiver;
 use eframe::egui::Align;
+use eframe::egui::Align2;
+use eframe::egui::Area;
 use eframe::egui::CentralPanel;
 use eframe::egui::Color32;
 use eframe::egui::Context;
@@ -22,6 +24,7 @@ use eframe::egui::FontDefinitions;
 use eframe::egui::FontFamily;
 use eframe::egui::FontId;
 use eframe::egui::Frame;
+use eframe::egui::Id;
 use eframe::egui::Layout;
 use eframe::egui::Margin;
 use eframe::egui::Style;
@@ -43,6 +46,7 @@ pub struct Komobar {
     pub config: Arc<KomobarConfig>,
     pub komorebi_notification_state: Option<Rc<RefCell<KomorebiNotificationState>>>,
     pub left_widgets: Vec<Box<dyn BarWidget>>,
+    pub center_widgets: Vec<Box<dyn BarWidget>>,
     pub right_widgets: Vec<Box<dyn BarWidget>>,
     pub rx_gui: Receiver<komorebi_client::Notification>,
     pub rx_config: Receiver<KomobarConfig>,
@@ -255,6 +259,14 @@ impl Komobar {
             }
         }
 
+        for (idx, widget_config) in config.center_widgets.iter().enumerate() {
+            if let WidgetConfig::Komorebi(config) = widget_config {
+                komorebi_widget = Some(Komorebi::from(config));
+                komorebi_widget_idx = Some(idx);
+                side = Some(Side::Center);
+            }
+        }
+
         for (idx, widget_config) in config.right_widgets.iter().enumerate() {
             if let WidgetConfig::Komorebi(config) = widget_config {
                 komorebi_widget = Some(Komorebi::from(config));
@@ -265,6 +277,12 @@ impl Komobar {
 
         let mut left_widgets = config
             .left_widgets
+            .iter()
+            .map(|config| config.as_boxed_bar_widget())
+            .collect::<Vec<Box<dyn BarWidget>>>();
+
+        let mut center_widgets = config
+            .center_widgets
             .iter()
             .map(|config| config.as_boxed_bar_widget())
             .collect::<Vec<Box<dyn BarWidget>>>();
@@ -294,6 +312,7 @@ impl Komobar {
             let boxed: Box<dyn BarWidget> = Box::new(widget);
             match side {
                 Side::Left => left_widgets[idx] = boxed,
+                Side::Center => center_widgets[idx] = boxed,
                 Side::Right => right_widgets[idx] = boxed,
             }
         }
@@ -301,6 +320,7 @@ impl Komobar {
         right_widgets.reverse();
 
         self.left_widgets = left_widgets;
+        self.center_widgets = center_widgets;
         self.right_widgets = right_widgets;
 
         tracing::info!("widget configuration options applied");
@@ -317,6 +337,7 @@ impl Komobar {
             config: config.clone(),
             komorebi_notification_state: None,
             left_widgets: vec![],
+            center_widgets: vec![],
             right_widgets: vec![],
             rx_gui,
             rx_config,
@@ -445,7 +466,25 @@ impl eframe::App for Komobar {
                     for w in &mut self.right_widgets {
                         w.render(ctx, ui);
                     }
-                })
+                });
+
+                // Floating center panel without borders
+                Area::new(Id::new("center_panel"))
+                    .anchor(Align2::CENTER_CENTER, [0.0, 0.0]) // Align in the center of the window
+                    .show(ctx, |ui| {
+                        Frame::none()
+                            //.outer_margin(Margin::symmetric(0.0, 0.0))
+                            //.inner_margin(Margin::symmetric(7.0, 2.0))
+                            //.rounding(Rounding::same(15.0))
+                            //.stroke(ui.style().visuals.widgets.noninteractive.bg_stroke)
+                            .show(ui, |ui| {
+                                ui.horizontal_centered(|ui| {
+                                    for w in &mut self.center_widgets {
+                                        w.render(ctx, ui);
+                                    }
+                                });
+                            });
+                    })
             })
         });
     }
@@ -454,5 +493,6 @@ impl eframe::App for Komobar {
 #[derive(Copy, Clone)]
 enum Side {
     Left,
+    Center,
     Right,
 }
