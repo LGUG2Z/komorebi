@@ -77,6 +77,7 @@ use windows::Win32::UI::WindowsAndMessaging::EnumWindows;
 use windows::Win32::UI::WindowsAndMessaging::GetCursorPos;
 use windows::Win32::UI::WindowsAndMessaging::GetDesktopWindow;
 use windows::Win32::UI::WindowsAndMessaging::GetForegroundWindow;
+use windows::Win32::UI::WindowsAndMessaging::GetLayeredWindowAttributes;
 use windows::Win32::UI::WindowsAndMessaging::GetTopWindow;
 use windows::Win32::UI::WindowsAndMessaging::GetWindow;
 use windows::Win32::UI::WindowsAndMessaging::GetWindowLongPtrW;
@@ -1125,6 +1126,21 @@ impl WindowsApi {
         }
 
         Ok(())
+    }
+
+    pub fn get_transparent(hwnd: isize) -> Result<u8> {
+        unsafe {
+            let mut alpha: u8 = u8::default();
+            let mut color_ref = COLORREF(-1i32 as u32);
+            let mut flags = LWA_ALPHA;
+            GetLayeredWindowAttributes(
+                HWND(as_ptr!(hwnd)),
+                Some(std::ptr::addr_of_mut!(color_ref)),
+                Some(std::ptr::addr_of_mut!(alpha)),
+                Some(std::ptr::addr_of_mut!(flags)),
+            )?;
+            Ok(alpha)
+        }
     }
 
     pub fn create_hidden_window(name: PCWSTR, instance: isize) -> Result<isize> {

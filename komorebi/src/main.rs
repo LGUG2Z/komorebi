@@ -17,6 +17,8 @@ use std::time::Duration;
 use clap::Parser;
 use color_eyre::Result;
 use crossbeam_utils::Backoff;
+use komorebi::animation::Animation;
+use komorebi::animation::ANIMATION_ENABLED;
 #[cfg(feature = "deadlock_detection")]
 use parking_lot::deadlock;
 use parking_lot::Mutex;
@@ -287,7 +289,9 @@ fn main() -> Result<()> {
 
     tracing::error!("received ctrl-c, restoring all hidden windows and terminating process");
 
+    ANIMATION_ENABLED.store(false, Ordering::SeqCst);
     wm.lock().restore_all_windows()?;
+    Animation::wait_for_all_animations();
 
     if WindowsApi::focus_follows_mouse()? {
         WindowsApi::disable_focus_follows_mouse()?;
