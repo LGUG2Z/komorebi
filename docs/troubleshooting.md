@@ -1,5 +1,15 @@
 # Troubleshooting
 
+## Phantom Tiles
+
+Sometimes you may experience an application which leaves "ghost tiles" on a workspace, where there is space reserved for
+a window but no window visible.
+
+You can ignore these windows by following these steps:
+
+* Run `komorebic visible-windows` to find details about the invisible window
+* Using that information, [create a rule to ignore that window](common-workflows/ignore-windows.md)
+
 ## AutoHotKey executable not found
 
 If you try to start komorebi with AHK using `komorebic start --ahk`, and you have
@@ -85,10 +95,10 @@ running `komorebic stop` and `komorebic start`.
 
    To avoid waiting an eternity:
 
-   - _Control Panel_ -> _Hardware and Sound_ -> _Power Options_ -> _Edit Plan
-     Settings_
+    - _Control Panel_ -> _Hardware and Sound_ -> _Power Options_ -> _Edit Plan
+      Settings_
 
-     _Turn off the display: 1 minute_
+      _Turn off the display: 1 minute_
 
    Allow a minute for the display to reset, then once it actually shuts off
    allow for any additional time as prompted by your monitor for the cycle to
