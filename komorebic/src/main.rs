@@ -785,6 +785,24 @@ struct Stop {
 }
 
 #[derive(Parser)]
+struct Exe {
+    /// executable name
+    #[clap(short, long)]
+    exe: Option<String>,
+    /// hwnd handle of the window
+    #[clap(long)]
+    hwnd: Option<isize>,
+
+}
+
+#[derive(Parser)]
+struct DisplayMonitorWorkspace {
+    /// Monitor index (zero-indexed)
+    monitor: usize,
+    /// Workspace index on the specified monitor (zero-indexed)
+    workspace: usize,
+}
+#[derive(Parser)]
 struct SaveResize {
     /// File to which the resize layout dimensions should be saved
     path: PathBuf,
@@ -882,7 +900,7 @@ struct EnableAutostart {
 
 #[derive(Parser)]
 struct ReplaceConfiguration {
-    /// Static configuration JSON file from which the configuration should be loaded
+    /// Static configuration file which should be used
     path: PathBuf,
 }
 
@@ -959,9 +977,15 @@ enum SubCommand {
     #[clap(arg_required_else_help = true)]
     #[clap(alias = "load")]
     LoadResize(LoadResize),
+    /// Display the workspace index at monitor index
+    #[clap(arg_required_else_help = true)]
+    DisplayMonitorWorkspace(DisplayMonitorWorkspace),
     /// Change focus to the window in the specified direction
     #[clap(arg_required_else_help = true)]
     Focus(Focus),
+    /// Change focus to the window with the specified executable
+    #[clap(arg_required_else_help = true)]
+    FocusExe(Exe),
     /// Move the focused window in the specified direction
     #[clap(arg_required_else_help = true)]
     Move(Move),
@@ -1203,6 +1227,8 @@ enum SubCommand {
     ToggleMonocle,
     /// Toggle native maximization for the focused window
     ToggleMaximize,
+    /// Toggle Always on top mode for the focused window
+    ToggleAlwaysOnTop,
     /// Restore all hidden windows (debugging command)
     RestoreWindows,
     /// Force komorebi to manage the focused window
@@ -1634,8 +1660,14 @@ fn main() -> Result<()> {
                 println!("{line}");
             }
         }
+        SubCommand::DisplayMonitorWorkspace(arg) => {
+            send_message(&SocketMessage::DisplayMonitorWorkspaceNumber(arg.monitor, arg.workspace))?;
+        }
         SubCommand::Focus(arg) => {
             send_message(&SocketMessage::FocusWindow(arg.operation_direction))?;
+        }
+        SubCommand::FocusExe(arg) => {
+            send_message(&SocketMessage::FocusExe(arg.exe,arg.hwnd))?;
         }
         SubCommand::ForceFocus => {
             send_message(&SocketMessage::ForceFocus)?;
@@ -1816,6 +1848,9 @@ fn main() -> Result<()> {
         }
         SubCommand::ToggleMaximize => {
             send_message(&SocketMessage::ToggleMaximize)?;
+        }
+        SubCommand::ToggleAlwaysOnTop => {
+            send_message(&SocketMessage::ToggleAlwaysOnTop)?;
         }
         SubCommand::WorkspaceLayout(arg) => {
             send_message(&SocketMessage::WorkspaceLayout(
