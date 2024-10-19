@@ -331,7 +331,7 @@ impl WindowManager {
 
                 for (i, monitor) in self.monitors().iter().enumerate() {
                     for (j, workspace) in monitor.workspaces().iter().enumerate() {
-                        if workspace.container_for_window(window.hwnd).is_some()
+                        if workspace.contains_window(window.hwnd)
                             && i != self.focused_monitor_idx()
                             && j != monitor.focused_workspace_idx()
                         {
