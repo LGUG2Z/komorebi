@@ -387,6 +387,21 @@ impl WindowManager {
                                 }
                             }
                         }
+
+                        if (self.focused_workspace()?.containers().len() == 1
+                            && self.focused_workspace()?.floating_windows().is_empty())
+                            || (self.focused_workspace()?.containers().is_empty()
+                                && self.focused_workspace()?.floating_windows().len() == 1)
+                        {
+                            // If after adding this window the workspace only contains 1 window, it
+                            // means it was previously empty and we focused the desktop to unfocus
+                            // any previous window from other workspace, so now we need to focus
+                            // this window again. This is needed because sometimes some windows
+                            // first send the `FocusChange` event and only the `Show` event after
+                            // and we will be focusing the desktop on the `FocusChange` event since
+                            // it is still empty.
+                            window.focus(self.mouse_follows_focus)?;
+                        }
                     }
 
                     if workspace_contains_window {
