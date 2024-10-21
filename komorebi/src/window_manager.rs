@@ -1870,7 +1870,12 @@ impl WindowManager {
 
         tracing::info!("cycling container windows");
 
-        let container = self.focused_container_mut()?;
+        let container =
+            if let Some(container) = self.focused_workspace_mut()?.monocle_container_mut() {
+                container
+            } else {
+                self.focused_container_mut()?
+            };
 
         let len = NonZeroUsize::new(container.windows().len())
             .ok_or_else(|| anyhow!("there must be at least one window in a container"))?;
@@ -1894,7 +1899,12 @@ impl WindowManager {
 
         tracing::info!("focusing container window at index {idx}");
 
-        let container = self.focused_container_mut()?;
+        let container =
+            if let Some(container) = self.focused_workspace_mut()?.monocle_container_mut() {
+                container
+            } else {
+                self.focused_container_mut()?
+            };
 
         let len = NonZeroUsize::new(container.windows().len())
             .ok_or_else(|| anyhow!("there must be at least one window in a container"))?;
