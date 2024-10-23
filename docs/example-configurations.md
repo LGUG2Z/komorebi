@@ -62,7 +62,7 @@ using `default_workspace_padding` and `default_container_padding`.
 
 You may have seen videos and screenshots of people using `komorebi` with a
 thick, colourful active window border. You can also enable this by setting
-`active_window_border` to `true`. However, please be warned that this feature
+`border` to `true`. However, please be warned that this feature
 is a crude hack trying to compensate for the insistence of Microsoft Windows
 design teams to make custom borders with widths that are actually visible to
 the user a thing of the past and removing this capability from the Win32 API.
