@@ -162,6 +162,8 @@ If you have an ultrawide monitor, I recommend using this layout.
 
 If you like the `grid` layout in [LeftWM](https://github.com/leftwm/leftwm-layouts) this is almost exactly the same!
 
+The `grid` layout does not support resizing windows tiles.
+
 ```
 +-----+-----+   +---+---+---+   +---+---+---+   +---+---+---+
 |     |     |   |   |   |   |   |   |   |   |   |   |   |   |
