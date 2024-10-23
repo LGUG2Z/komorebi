@@ -104,10 +104,8 @@ jobs:
             --prerelease \
             --title "komorebi nightly (${GITHUB_SHA})" \
             --notes-file CHANGELOG.md
-            komorebi-nightly-x86_64-pc-windows-msvc.zip \
-            komorebi-nightly-x86_64.msi \
-            komorebi-nightly-aarch64-pc-windows-msvc.zip \
-            komorebi-nightly-aarch64.msi \
+            *.zip \
+            *.msi \
             checksums.txt
 
   release-dry-run:
