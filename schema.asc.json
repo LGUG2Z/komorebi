@@ -1,44 +1,11 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "Array_of_ApplicationConfiguration",
-  "type": "array",
-  "items": {
-    "$ref": "#/definitions/ApplicationConfiguration"
+  "title": "ApplicationSpecificConfiguration",
+  "type": "object",
+  "additionalProperties": {
+    "$ref": "#/definitions/AscApplicationRulesOrSchema"
   },
   "definitions": {
-    "ApplicationConfiguration": {
-      "type": "object",
-      "required": [
-        "identifier",
-        "name"
-      ],
-      "properties": {
-        "identifier": {
-          "$ref": "#/definitions/IdWithIdentifier"
-        },
-        "ignore_identifiers": {
-          "type": [
-            "array",
-            "null"
-          ],
-          "items": {
-            "$ref": "#/definitions/MatchingRule"
-          }
-        },
-        "name": {
-          "type": "string"
-        },
-        "options": {
-          "type": [
-            "array",
-            "null"
-          ],
-          "items": {
-            "$ref": "#/definitions/ApplicationOptions"
-          }
-        }
-      }
-    },
     "ApplicationIdentifier": {
       "type": "string",
       "enum": [
@@ -48,14 +15,100 @@
         "Path"
       ]
     },
-    "ApplicationOptions": {
-      "type": "string",
-      "enum": [
-        "object_name_change",
-        "layered",
-        "tray_and_multi_window",
-        "force",
-        "border_overflow"
+    "AscApplicationRules": {
+      "description": "Rules that determine how an application is handled",
+      "type": "object",
+      "properties": {
+        "floating": {
+          "description": "Rules to manage specific windows as floating windows",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "$ref": "#/definitions/MatchingRule"
+          }
+        },
+        "ignore": {
+          "description": "Rules to ignore specific windows",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "$ref": "#/definitions/MatchingRule"
+          }
+        },
+        "layered": {
+          "description": "Rules to identify applications which have the `WS_EX_LAYERED` Extended Window Style",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "$ref": "#/definitions/MatchingRule"
+          }
+        },
+        "manage": {
+          "description": "Rules to forcibly manage specific windows",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "$ref": "#/definitions/MatchingRule"
+          }
+        },
+        "object_name_change": {
+          "description": "Rules to identify applications which send the `EVENT_OBJECT_NAMECHANGE` event on launch",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "$ref": "#/definitions/MatchingRule"
+          }
+        },
+        "slow_application": {
+          "description": "Rules to identify applications which are slow to send initial event notifications",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "$ref": "#/definitions/MatchingRule"
+          }
+        },
+        "transparency_ignore": {
+          "description": "Rules to ignore specific windows from the transparency feature",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "$ref": "#/definitions/MatchingRule"
+          }
+        },
+        "tray_and_multi_window": {
+          "description": "Rules to identify applications which minimize to the tray or have multiple windows",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "$ref": "#/definitions/MatchingRule"
+          }
+        }
+      }
+    },
+    "AscApplicationRulesOrSchema": {
+      "anyOf": [
+        {
+          "$ref": "#/definitions/AscApplicationRules"
+        },
+        {
+          "type": "string"
+        }
       ]
     },
     "IdWithIdentifier": {

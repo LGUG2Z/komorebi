@@ -3,6 +3,14 @@ description: File a bug report
 labels: [ bug ]
 title: "[BUG]: "
 body:
+  - type: markdown
+    attributes:
+      value: |
+        Please **do not** open an issue for applications with invisible windows leaving ghost tiles.
+
+        You can run `komorebic visible-windows` when the ghost tile is present on your workspace to retrieve the invisible window's exe, class name and title, and then use that to [ignore the window](https://lgug2z.github.io/komorebi/common-workflows/ignore-windows.html) responsible for the ghost tile.
+
+        If it is not possible to uniquely identify the invisible window resulting in a ghost tile through a mixture of exe, title and class identifiers , then this is not a bug with komorebi but a bug with the application you are using, and should open an issue with the developer(s) of that application.
   - type: textarea
     validations:
       required: true
@@ -11,7 +19,7 @@ body:
       description: >
         Please provide a short summary of the bug, along with any information
         you feel is relevant to replicating the bug.
-        
+
         You may include screenshots and videos in this section.
   - type: textarea
     validations:
@@ -21,10 +29,10 @@ body:
       description: >
         Please provide information about the versions of Windows and komorebi
         running on your machine.
-        
+
         Do not submit a bug if you are not using an official version of Windows
         such as AtlasOS; only official versions of Windows are supported.
-        
+
         ```
         systeminfo | findstr /B /C:"OS Name" /B /C:"OS Version"
         ```

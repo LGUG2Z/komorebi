@@ -38,6 +38,7 @@ use komorebi::process_movement::listen_for_movements;
 use komorebi::reaper;
 use komorebi::stackbar_manager;
 use komorebi::static_config::StaticConfig;
+use komorebi::theme_manager;
 use komorebi::transparency_manager;
 use komorebi::window_manager::WindowManager;
 use komorebi::windows_api::WindowsApi;
@@ -271,6 +272,7 @@ fn main() -> Result<()> {
     monitor_reconciliator::listen_for_notifications(wm.clone())?;
     reaper::watch_for_orphans(wm.clone());
     focus_manager::listen_for_notifications(wm.clone());
+    theme_manager::listen_for_notifications();
 
     let (ctrlc_sender, ctrlc_receiver) = crossbeam_channel::bounded(1);
     ctrlc::set_handler(move || {

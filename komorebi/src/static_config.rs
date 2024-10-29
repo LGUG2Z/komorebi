@@ -20,6 +20,7 @@ use crate::stackbar_manager::STACKBAR_TAB_BACKGROUND_COLOUR;
 use crate::stackbar_manager::STACKBAR_TAB_HEIGHT;
 use crate::stackbar_manager::STACKBAR_TAB_WIDTH;
 use crate::stackbar_manager::STACKBAR_UNFOCUSED_TEXT_COLOUR;
+use crate::theme_manager;
 use crate::transparency_manager;
 use crate::window;
 use crate::window_manager::WindowManager;
@@ -50,6 +51,8 @@ use crate::TRAY_AND_MULTI_WINDOW_IDENTIFIERS;
 use crate::WINDOWS_11;
 use crate::WORKSPACE_MATCHING_RULES;
 
+use crate::asc::ApplicationSpecificConfiguration;
+use crate::asc::AscApplicationRulesOrSchema;
 use crate::config_generation::WorkspaceMatchingRule;
 use crate::core::config_generation::ApplicationConfiguration;
 use crate::core::config_generation::ApplicationConfigurationGenerator;
@@ -384,7 +387,7 @@ pub struct AnimationsConfig {
 pub enum KomorebiTheme {
     /// A theme from catppuccin-egui
     Catppuccin {
-        /// Name of the Catppuccin theme
+        /// Name of the Catppuccin theme (theme previews: https://github.com/catppuccin/catppuccin)
         name: komorebi_themes::Catppuccin,
         /// Border colour when the container contains a single window (default: Blue)
         single_border: Option<komorebi_themes::CatppuccinValue>,
@@ -407,7 +410,7 @@ pub enum KomorebiTheme {
     },
     /// A theme from base16-egui-themes
     Base16 {
-        /// Name of the Base16 theme
+        /// Name of the Base16 theme (theme previews: https://tinted-theming.github.io/base16-gallery)
         name: komorebi_themes::Base16,
         /// Border colour when the container contains a single window (default: Base0D)
         single_border: Option<komorebi_themes::Base16Value>,
@@ -813,199 +816,144 @@ impl StaticConfig {
         }
 
         if let Some(theme) = &self.theme {
-            let (
-                single_border,
-                stack_border,
-                monocle_border,
-                floating_border,
-                unfocused_border,
-                stackbar_focused_text,
-                stackbar_unfocused_text,
-                stackbar_background,
-            ) = match theme {
-                KomorebiTheme::Catppuccin {
-                    name,
-                    single_border,
-                    stack_border,
-                    monocle_border,
-                    floating_border,
-                    unfocused_border,
-                    stackbar_focused_text,
-                    stackbar_unfocused_text,
-                    stackbar_background,
-                    ..
-                } => {
-                    let single_border = single_border
-                        .unwrap_or(komorebi_themes::CatppuccinValue::Blue)
-                        .color32(name.as_theme());
-
-                    let stack_border = stack_border
-                        .unwrap_or(komorebi_themes::CatppuccinValue::Green)
-                        .color32(name.as_theme());
-
-                    let monocle_border = monocle_border
-                        .unwrap_or(komorebi_themes::CatppuccinValue::Pink)
-                        .color32(name.as_theme());
-
-                    let floating_border = floating_border
-                        .unwrap_or(komorebi_themes::CatppuccinValue::Yellow)
-                        .color32(name.as_theme());
-
-                    let unfocused_border = unfocused_border
-                        .unwrap_or(komorebi_themes::CatppuccinValue::Base)
-                        .color32(name.as_theme());
-
-                    let stackbar_focused_text = stackbar_focused_text
-                        .unwrap_or(komorebi_themes::CatppuccinValue::Green)
-                        .color32(name.as_theme());
-
-                    let stackbar_unfocused_text = stackbar_unfocused_text
-                        .unwrap_or(komorebi_themes::CatppuccinValue::Text)
-                        .color32(name.as_theme());
-
-                    let stackbar_background = stackbar_background
-                        .unwrap_or(komorebi_themes::CatppuccinValue::Base)
-                        .color32(name.as_theme());
-
-                    (
-                        single_border,
-                        stack_border,
-                        monocle_border,
-                        floating_border,
-                        unfocused_border,
-                        stackbar_focused_text,
-                        stackbar_unfocused_text,
-                        stackbar_background,
-                    )
-                }
-                KomorebiTheme::Base16 {
-                    name,
-                    single_border,
-                    stack_border,
-                    monocle_border,
-                    floating_border,
-                    unfocused_border,
-                    stackbar_focused_text,
-                    stackbar_unfocused_text,
-                    stackbar_background,
-                    ..
-                } => {
-                    let single_border = single_border
-                        .unwrap_or(komorebi_themes::Base16Value::Base0D)
-                        .color32(*name);
-
-                    let stack_border = stack_border
-                        .unwrap_or(komorebi_themes::Base16Value::Base0B)
-                        .color32(*name);
-
-                    let monocle_border = monocle_border
-                        .unwrap_or(komorebi_themes::Base16Value::Base0F)
-                        .color32(*name);
-
-                    let unfocused_border = unfocused_border
-                        .unwrap_or(komorebi_themes::Base16Value::Base01)
-                        .color32(*name);
-
-                    let floating_border = floating_border
-                        .unwrap_or(komorebi_themes::Base16Value::Base09)
-                        .color32(*name);
-
-                    let stackbar_focused_text = stackbar_focused_text
-                        .unwrap_or(komorebi_themes::Base16Value::Base0B)
-                        .color32(*name);
-
-                    let stackbar_unfocused_text = stackbar_unfocused_text
-                        .unwrap_or(komorebi_themes::Base16Value::Base05)
-                        .color32(*name);
-
-                    let stackbar_background = stackbar_background
-                        .unwrap_or(komorebi_themes::Base16Value::Base01)
-                        .color32(*name);
-
-                    (
-                        single_border,
-                        stack_border,
-                        monocle_border,
-                        floating_border,
-                        unfocused_border,
-                        stackbar_focused_text,
-                        stackbar_unfocused_text,
-                        stackbar_background,
-                    )
-                }
-            };
-
-            border_manager::FOCUSED.store(u32::from(Colour::from(single_border)), Ordering::SeqCst);
-            border_manager::MONOCLE
-                .store(u32::from(Colour::from(monocle_border)), Ordering::SeqCst);
-            border_manager::STACK.store(u32::from(Colour::from(stack_border)), Ordering::SeqCst);
-            border_manager::FLOATING
-                .store(u32::from(Colour::from(floating_border)), Ordering::SeqCst);
-            border_manager::UNFOCUSED
-                .store(u32::from(Colour::from(unfocused_border)), Ordering::SeqCst);
-
-            STACKBAR_TAB_BACKGROUND_COLOUR.store(
-                u32::from(Colour::from(stackbar_background)),
-                Ordering::SeqCst,
-            );
-
-            STACKBAR_FOCUSED_TEXT_COLOUR.store(
-                u32::from(Colour::from(stackbar_focused_text)),
-                Ordering::SeqCst,
-            );
-
-            STACKBAR_UNFOCUSED_TEXT_COLOUR.store(
-                u32::from(Colour::from(stackbar_unfocused_text)),
-                Ordering::SeqCst,
-            );
+            theme_manager::send_notification(*theme);
         }
 
         if let Some(path) = &self.app_specific_configuration_path {
-            let path = resolve_home_path(path)?;
-            let content = std::fs::read_to_string(path)?;
-            let asc = ApplicationConfigurationGenerator::load(&content)?;
+            match path.extension() {
+                None => {}
+                Some(ext) => match ext.to_string_lossy().to_string().as_str() {
+                    "yaml" => {
+                        tracing::info!("loading applications.yaml from: {}", path.display());
+                        let path = resolve_home_path(path)?;
+                        let content = std::fs::read_to_string(path)?;
+                        let asc = ApplicationConfigurationGenerator::load(&content)?;
 
-            for mut entry in asc {
-                if let Some(rules) = &mut entry.ignore_identifiers {
-                    populate_rules(rules, &mut ignore_identifiers, &mut regex_identifiers)?;
-                }
+                        for mut entry in asc {
+                            if let Some(rules) = &mut entry.ignore_identifiers {
+                                populate_rules(
+                                    rules,
+                                    &mut ignore_identifiers,
+                                    &mut regex_identifiers,
+                                )?;
+                            }
 
-                if let Some(ref options) = entry.options {
-                    let options = options.clone();
-                    for o in options {
-                        match o {
-                            ApplicationOptions::ObjectNameChange => {
-                                populate_option(
-                                    &mut entry,
-                                    &mut object_name_change_identifiers,
-                                    &mut regex_identifiers,
-                                )?;
+                            if let Some(ref options) = entry.options {
+                                let options = options.clone();
+                                for o in options {
+                                    match o {
+                                        ApplicationOptions::ObjectNameChange => {
+                                            populate_option(
+                                                &mut entry,
+                                                &mut object_name_change_identifiers,
+                                                &mut regex_identifiers,
+                                            )?;
+                                        }
+                                        ApplicationOptions::Layered => {
+                                            populate_option(
+                                                &mut entry,
+                                                &mut layered_identifiers,
+                                                &mut regex_identifiers,
+                                            )?;
+                                        }
+                                        ApplicationOptions::TrayAndMultiWindow => {
+                                            populate_option(
+                                                &mut entry,
+                                                &mut tray_and_multi_window_identifiers,
+                                                &mut regex_identifiers,
+                                            )?;
+                                        }
+                                        ApplicationOptions::Force => {
+                                            populate_option(
+                                                &mut entry,
+                                                &mut manage_identifiers,
+                                                &mut regex_identifiers,
+                                            )?;
+                                        }
+                                        ApplicationOptions::BorderOverflow => {} // deprecated
+                                    }
+                                }
                             }
-                            ApplicationOptions::Layered => {
-                                populate_option(
-                                    &mut entry,
-                                    &mut layered_identifiers,
-                                    &mut regex_identifiers,
-                                )?;
-                            }
-                            ApplicationOptions::TrayAndMultiWindow => {
-                                populate_option(
-                                    &mut entry,
-                                    &mut tray_and_multi_window_identifiers,
-                                    &mut regex_identifiers,
-                                )?;
-                            }
-                            ApplicationOptions::Force => {
-                                populate_option(
-                                    &mut entry,
-                                    &mut manage_identifiers,
-                                    &mut regex_identifiers,
-                                )?;
-                            }
-                            ApplicationOptions::BorderOverflow => {} // deprecated
                         }
                     }
-                }
+                    "json" => {
+                        tracing::info!("loading applications.json from: {}", path.display());
+                        let path = resolve_home_path(path)?;
+                        let mut asc = ApplicationSpecificConfiguration::load(&path)?;
+
+                        for entry in asc.values_mut() {
+                            match entry {
+                                AscApplicationRulesOrSchema::Schema(_) => {}
+                                AscApplicationRulesOrSchema::AscApplicationRules(entry) => {
+                                    if let Some(rules) = &mut entry.ignore {
+                                        populate_rules(
+                                            rules,
+                                            &mut ignore_identifiers,
+                                            &mut regex_identifiers,
+                                        )?;
+                                    }
+
+                                    if let Some(rules) = &mut entry.manage {
+                                        populate_rules(
+                                            rules,
+                                            &mut manage_identifiers,
+                                            &mut regex_identifiers,
+                                        )?;
+                                    }
+
+                                    if let Some(rules) = &mut entry.floating {
+                                        populate_rules(
+                                            rules,
+                                            &mut floating_applications,
+                                            &mut regex_identifiers,
+                                        )?;
+                                    }
+
+                                    if let Some(rules) = &mut entry.transparency_ignore {
+                                        populate_rules(
+                                            rules,
+                                            &mut transparency_blacklist,
+                                            &mut regex_identifiers,
+                                        )?;
+                                    }
+
+                                    if let Some(rules) = &mut entry.tray_and_multi_window {
+                                        populate_rules(
+                                            rules,
+                                            &mut tray_and_multi_window_identifiers,
+                                            &mut regex_identifiers,
+                                        )?;
+                                    }
+
+                                    if let Some(rules) = &mut entry.layered {
+                                        populate_rules(
+                                            rules,
+                                            &mut layered_identifiers,
+                                            &mut regex_identifiers,
+                                        )?;
+                                    }
+
+                                    if let Some(rules) = &mut entry.object_name_change {
+                                        populate_rules(
+                                            rules,
+                                            &mut object_name_change_identifiers,
+                                            &mut regex_identifiers,
+                                        )?;
+                                    }
+
+                                    if let Some(rules) = &mut entry.slow_application {
+                                        populate_rules(
+                                            rules,
+                                            &mut slow_application_identifiers,
+                                            &mut regex_identifiers,
+                                        )?;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    _ => {}
+                },
             }
         }
 

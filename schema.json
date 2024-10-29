@@ -579,7 +579,7 @@
       }
     },
     "focus_follows_mouse": {
-      "description": "Determine focus follows mouse implementation (default: None)",
+      "description": "END OF LIFE FEATURE: Determine focus follows mouse implementation (default: None)",
       "oneOf": [
         {
           "description": "A custom FFM implementation (slightly more CPU-intensive)",
@@ -1052,11 +1052,11 @@
                   "format": "int32"
                 },
                 "custom_layout": {
-                  "description": "Custom Layout (default: None)",
+                  "description": "END OF LIFE FEATURE: Custom Layout (default: None)",
                   "type": "string"
                 },
                 "custom_layout_rules": {
-                  "description": "Layout rules (default: None)",
+                  "description": "END OF LIFE FEATURE: Custom layout rules (default: None)",
                   "type": "object",
                   "additionalProperties": {
                     "type": "string"
@@ -1751,7 +1751,7 @@
               ]
             },
             "name": {
-              "description": "Name of the Catppuccin theme",
+              "description": "Name of the Catppuccin theme (theme previews: https://github.com/catppuccin/catppuccin)",
               "type": "string",
               "enum": [
                 "Frappe",
@@ -2035,7 +2035,7 @@
               ]
             },
             "name": {
-              "description": "Name of the Base16 theme",
+              "description": "Name of the Base16 theme (theme previews: https://tinted-theming.github.io/base16-gallery)",
               "type": "string",
               "enum": [
                 "3024",

@@ -138,11 +138,13 @@ impl From<Position> for Pos2 {
 pub enum KomobarTheme {
     /// A theme from catppuccin-egui
     Catppuccin {
+        /// Name of the Catppuccin theme (theme previews: https://github.com/catppuccin/catppuccin)
         name: komorebi_themes::Catppuccin,
         accent: Option<komorebi_themes::CatppuccinValue>,
     },
     /// A theme from base16-egui-themes
     Base16 {
+        /// Name of the Base16 theme (theme previews: https://tinted-theming.github.io/base16-gallery)
         name: komorebi_themes::Base16,
         accent: Option<komorebi_themes::Base16Value>,
     },

@@ -323,7 +323,7 @@ impl WindowManager {
 
                 for (i, monitor) in self.monitors().iter().enumerate() {
                     for (j, workspace) in monitor.workspaces().iter().enumerate() {
-                        if workspace.container_for_window(window.hwnd).is_some()
+                        if workspace.contains_window(window.hwnd)
                             && i != self.focused_monitor_idx()
                             && j != monitor.focused_workspace_idx()
                         {
@@ -386,6 +386,21 @@ impl WindowManager {
                                     stackbar_manager::send_notification();
                                 }
                             }
+                        }
+
+                        if (self.focused_workspace()?.containers().len() == 1
+                            && self.focused_workspace()?.floating_windows().is_empty())
+                            || (self.focused_workspace()?.containers().is_empty()
+                                && self.focused_workspace()?.floating_windows().len() == 1)
+                        {
+                            // If after adding this window the workspace only contains 1 window, it
+                            // means it was previously empty and we focused the desktop to unfocus
+                            // any previous window from other workspace, so now we need to focus
+                            // this window again. This is needed because sometimes some windows
+                            // first send the `FocusChange` event and only the `Show` event after
+                            // and we will be focusing the desktop on the `FocusChange` event since
+                            // it is still empty.
+                            window.focus(self.mouse_follows_focus)?;
                         }
                     }
 

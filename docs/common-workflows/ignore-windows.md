@@ -5,12 +5,12 @@ applications are [already generated for
 you](https://github.com/LGUG2Z/komorebi-application-specific-configuration)
 
 Sometimes you will want a specific application to never be tiled, and instead
-float all the time. You can add rules to enforce this behaviour in the
+be completely ignored. You can add rules to enforce this behaviour in the
 `komorebi.json` configuration file.
 
 ```json
 {
-  "float_rules": [
+  "ignore_rules": [
     {
       "kind": "Title",
       "id": "Media Player",

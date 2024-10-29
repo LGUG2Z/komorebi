@@ -300,14 +300,21 @@ impl WindowsApi {
                 }
             }
 
-            if monitors.elements().is_empty() {
-                monitors.elements_mut().push_back(m);
-            } else if let Some(preference) = index_preference {
-                while *preference > monitors.elements().len() {
+            if let Some(preference) = index_preference {
+                while *preference >= monitors.elements().len() {
                     monitors.elements_mut().push_back(Monitor::placeholder());
                 }
 
-                monitors.elements_mut().insert(*preference, m);
+                let current_name = monitors
+                    .elements_mut()
+                    .get(*preference)
+                    .map_or("", |m| m.name());
+                if current_name == "PLACEHOLDER" {
+                    let _ = monitors.elements_mut().remove(*preference);
+                    monitors.elements_mut().insert(*preference, m);
+                } else {
+                    monitors.elements_mut().insert(*preference, m);
+                }
             } else {
                 monitors.elements_mut().push_back(m);
             }

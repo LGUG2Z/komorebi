@@ -57,6 +57,7 @@ nav:
       - Troubleshooting: troubleshooting.md
   - Common workflows:
       - common-workflows/komorebi-config-home.md
+      - common-workflows/autostart.md
       - common-workflows/animations.md
       - common-workflows/autohotkey.md
       - common-workflows/borders.md
@@ -64,14 +65,12 @@ nav:
       - common-workflows/remove-gaps.md
       - common-workflows/ignore-windows.md
       - common-workflows/force-manage-windows.md
+      - common-workflows/floating-applications.md
       - common-workflows/tray-and-multi-window-applications.md
-      - common-workflows/focus-follows-mouse.md
       - common-workflows/mouse-follows-focus.md
-      - common-workflows/custom-layouts.md
       - common-workflows/dynamic-layout-switching.md
       - common-workflows/set-display-index.md
-  - Release notes:
-      - release/v0-1-22.md
+      - common-workflows/multiple-bar-instances.md
   - Configuration reference: https://komorebi.lgug2z.com/schema
   - Bar reference: https://komorebi-bar.lgug2z.com/schema
   - CLI reference:
@@ -146,7 +145,6 @@ nav:
       - cli/adjust-workspace-padding.md
       - cli/change-layout.md
       - cli/cycle-layout.md
-      - cli/load-custom-layout.md
       - cli/flip-layout.md
       - cli/promote.md
       - cli/promote-focus.md
@@ -162,18 +160,17 @@ nav:
       - cli/named-workspace-padding.md
       - cli/workspace-layout.md
       - cli/named-workspace-layout.md
-      - cli/workspace-custom-layout.md
-      - cli/named-workspace-custom-layout.md
       - cli/workspace-layout-rule.md
       - cli/named-workspace-layout-rule.md
-      - cli/workspace-custom-layout-rule.md
-      - cli/named-workspace-custom-layout-rule.md
       - cli/clear-workspace-layout-rules.md
       - cli/clear-named-workspace-layout-rules.md
       - cli/workspace-tiling.md
       - cli/named-workspace-tiling.md
       - cli/workspace-name.md
       - cli/toggle-window-container-behaviour.md
+      - cli/toggle-float-override.md
+      - cli/toggle-workspace-window-container-behaviour.md
+      - cli/toggle-workspace-float-override.md
       - cli/toggle-pause.md
       - cli/toggle-tiling.md
       - cli/toggle-float.md
@@ -190,7 +187,7 @@ nav:
       - cli/cross-monitor-move-behaviour.md
       - cli/toggle-cross-monitor-move-behaviour.md
       - cli/unmanaged-window-operation-behaviour.md
-      - cli/float-rule.md
+      - cli/ignore-rule.md
       - cli/manage-rule.md
       - cli/initial-workspace-rule.md
       - cli/initial-named-workspace-rule.md
@@ -217,12 +214,11 @@ nav:
       - cli/animation-duration.md
       - cli/animation-fps.md
       - cli/animation-style.md
-      - cli/focus-follows-mouse.md
-      - cli/toggle-focus-follows-mouse.md
       - cli/mouse-follows-focus.md
       - cli/toggle-mouse-follows-focus.md
       - cli/ahk-app-specific-configuration.md
       - cli/pwsh-app-specific-configuration.md
+      - cli/convert-app-specific-configuration.md
       - cli/format-app-specific-configuration.md
       - cli/fetch-app-specific-configuration.md
       - cli/application-specific-configuration-schema.md
