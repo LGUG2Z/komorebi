@@ -102,7 +102,7 @@ pub struct WindowManager {
     pub hotwatch: Hotwatch,
     pub virtual_desktop_id: Option<Vec<u8>>,
     pub has_pending_raise_op: bool,
-    pub pending_move_op: Option<(usize, usize, usize)>,
+    pub pending_move_op: Arc<Option<(usize, usize, usize)>>,
     pub already_moved_window_handles: Arc<Mutex<HashSet<isize>>>,
 }
 
@@ -339,7 +339,7 @@ impl WindowManager {
             mouse_follows_focus: true,
             hotwatch: Hotwatch::new()?,
             has_pending_raise_op: false,
-            pending_move_op: None,
+            pending_move_op: Arc::new(None),
             already_moved_window_handles: Arc::new(Mutex::new(HashSet::new())),
         })
     }
