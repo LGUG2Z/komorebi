@@ -15,6 +15,7 @@ on:
       - v*
   schedule:
     - cron: "30 0 * * 0" # Every day at 00:30 UTC
+  workflow_dispatch:
 
 jobs:
   build:
@@ -67,7 +68,7 @@ jobs:
     needs: build
     runs-on: windows-latest
     permissions: write-all
-    if: ${{ github.ref == 'refs/heads/master' && github.event_name == 'schedule' }}
+    if: ${{ github.ref == 'refs/heads/master' && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' ) }}
     env:
       GH_TOKEN: ${{ github.token }}
     steps:
@@ -103,7 +104,7 @@ jobs:
             --target $GITHUB_SHA \
             --prerelease \
             --title "komorebi nightly (${GITHUB_SHA})" \
-            --notes-file CHANGELOG.md
+            --notes-file CHANGELOG.md \
             komorebi-nightly-x86_64-pc-windows-msvc.zip \
             komorebi-nightly-x86_64.msi \
             komorebi-nightly-aarch64-pc-windows-msvc.zip \
