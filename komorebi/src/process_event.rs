@@ -436,16 +436,17 @@ impl WindowManager {
 
                     WindowsApi::bring_window_to_top(window.hwnd)?;
 
-                    self.pending_move_op =
-                        Option::from((monitor_idx, workspace_idx, container_idx));
+                    let pending_move_op = Arc::make_mut(&mut self.pending_move_op);
+                    *pending_move_op = Option::from((monitor_idx, workspace_idx, container_idx));
                 }
             }
             WindowManagerEvent::MoveResizeEnd(_, window) => {
                 // We need this because if the event ends on a different monitor,
                 // that monitor will already have been focused and updated in the state
-                let pending = self.pending_move_op;
+                let pending = *self.pending_move_op;
                 // Always consume the pending move op whenever this event is handled
-                self.pending_move_op = None;
+                let pending_move_op = Arc::make_mut(&mut self.pending_move_op);
+                *pending_move_op = None;
 
                 let target_monitor_idx = self
                     .monitor_idx_from_current_pos()
