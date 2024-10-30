@@ -88,6 +88,8 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
             let mouse_follows_focus = wm.mouse_follows_focus;
 
             if let Some(monitor) = wm.focused_monitor_mut() {
+                let previous_idx = monitor.focused_workspace_idx();
+                monitor.set_last_focused_workspace(Option::from(previous_idx));
                 monitor.focus_workspace(notification.workspace_idx)?;
                 monitor.load_focused_workspace(mouse_follows_focus)?;
             }
