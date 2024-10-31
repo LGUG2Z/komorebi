@@ -2020,8 +2020,16 @@ impl WindowManager {
                 new_idx
             };
 
+            let mut target_container_is_stack = false;
+
+            if let Some(container) = workspace.containers().get(adjusted_new_index) {
+                if container.windows().len() > 1 {
+                    target_container_is_stack = true;
+                }
+            }
+
             if let Some(current) = workspace.focused_container() {
-                if current.windows().len() > 1 {
+                if current.windows().len() > 1 && !target_container_is_stack {
                     workspace.focus_container(adjusted_new_index);
                     workspace.move_window_to_container(current_container_idx)?;
                 } else {
