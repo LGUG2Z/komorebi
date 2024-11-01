@@ -96,7 +96,6 @@ video will answer the majority of your questions.
 
 [![Watch the comparison video](https://img.youtube.com/vi/0LCbS_gm0RA/hqdefault.jpg)](https://www.youtube.com/watch?v=0LCbS_gm0RA)
 
-
 # Demonstrations
 
 [@amnweb](https://github.com/amnweb) showing _komorebi_ `v0.1.28` running on Windows 11 with window borders,
@@ -104,7 +103,6 @@ unfocused window transparency and animations enabled, using a custom status bar 
 _komorebi_'s [Window Manager Event Subscriptions](https://github.com/LGUG2Z/komorebi?tab=readme-ov-file#window-manager-event-subscriptions).
 
 https://github.com/LGUG2Z/komorebi/assets/13164844/21be8dc4-fa76-4f70-9b37-1d316f4b40c2
-
 
 [@haxibami](https://github.com/haxibami) showing _komorebi_ running on Windows
 11 with a terminal emulator, a web browser and a code editor. The original
@@ -194,12 +192,18 @@ required.
 `komorebi` is licensed under the [Komorebi 1.0.0 license](./LICENSE.md), which
 is a fork of the [PolyForm Strict 1.0.0
 license](https://polyformproject.org/licenses/strict/1.0.0). On a high level
-this means that you are free to do whatever you want with `komorebi` other than
-redistribution, or distribution of new works (ie. hard-forks) based on the
-software.
+this means that you are free to do whatever you want with `komorebi` for
+personal use other than redistribution, or distribution of new works (ie.
+hard-forks) based on the software.
 
 Anyone is free to make their own fork of `komorebi` with changes intended
 either for personal use or for integration back upstream via pull requests.
+
+The [Komorebi 1.0.0 License](./LICENSE.md) does not permit any kind of
+commercial use.
+
+A dedicated license and EULA will be introduced in 2025 for both commercial and
+noncommercial organizations.
 
 Please see [CONTRIBUTING.md](./CONTRIBUTING.md) for more information about how
 code contributions to `komorebi` are licensed.

@@ -1049,7 +1049,7 @@ impl StaticConfig {
             mouse_follows_focus: value.mouse_follows_focus.unwrap_or(true),
             hotwatch: Hotwatch::new()?,
             has_pending_raise_op: false,
-            pending_move_op: None,
+            pending_move_op: Arc::new(None),
             already_moved_window_handles: Arc::new(Mutex::new(HashSet::new())),
             always_on_top: None,
         };
