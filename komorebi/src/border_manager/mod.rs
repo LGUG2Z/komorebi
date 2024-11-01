@@ -89,7 +89,7 @@ pub fn destroy_all_borders() -> color_eyre::Result<()> {
     );
 
     for (_, border) in borders.iter() {
-        border.destroy()?;
+        let _ = border.destroy();
     }
 
     borders.clear();
@@ -107,7 +107,7 @@ pub fn destroy_all_borders() -> color_eyre::Result<()> {
         tracing::info!("purging unknown borders: {:?}", remaining_hwnds);
 
         for hwnd in remaining_hwnds {
-            Border::from(hwnd).destroy()?;
+            let _ = Border::from(hwnd).destroy();
         }
     }
 
