@@ -16,7 +16,7 @@ pub struct KomobarConfig {
     /// Bar positioning options
     #[serde(alias = "viewport")]
     pub position: Option<PositionConfig>,
-    /// Frame options (see: https://docs.rs/egui/latest/egui/containers/struct.Frame.html)
+    /// Frame options (see: https://docs.rs/egui/latest/egui/containers/frame/struct.Frame.html)
     pub frame: Option<FrameConfig>,
     /// Monitor options
     pub monitor: MonitorConfig,
