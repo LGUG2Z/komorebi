@@ -60,6 +60,9 @@ channel](https://www.youtube.com/channel/UCeai3-do-9O4MNy9_xjO6mg) where I post
 _komorebi_ development videos. If you would like to be notified of upcoming
 videos please subscribe and turn on notifications.
 
+There is an [Awesome List](https://github.com/LGUG2Z/awesome-komorebi) which
+showcases the many awesome projects that exist in the _komorebi_ ecosystem.
+
 _komorebi_ is a free and source-available project, and one that encourages you to
 make charitable donations if you find the software to be useful and have the
 financial means.
