@@ -2111,11 +2111,16 @@ if (!(Get-Process komorebi-bar -ErrorAction SilentlyContinue))
             }
 
             println!("\nThank you for using komorebi!\n");
-            println!("* Become a sponsor https://github.com/sponsors/LGUG2Z - Even $1/month makes a big difference");
+            println!("# Sponsorship");
+            println!("* Become a sponsor https://github.com/sponsors/LGUG2Z - $5/month makes a big difference");
+            println!("* Leave a tip https://ko-fi.com/lgug2z - An alternative to GitHub Sponsors");
             println!(
-                "* Subscribe to https://youtube.com/@LGUG2Z - Live dev videos and feature previews"
+                "* Subscribe to https://youtube.com/@LGUG2Z - Development videos, feature previews and release overviews"
             );
+            println!("\n# Community");
             println!("* Join the Discord https://discord.gg/mGkn66PHkx - Chat, ask questions, share your desktops");
+            println!("* Explore the Awesome Komorebi list https://github.com/LGUG2Z/awesome-komorebi - Projects in the komorebi ecosystem");
+            println!("\n# Documentation");
             println!("* Read the docs https://lgug2z.github.io/komorebi - Quickly search through all komorebic commands");
 
             let bar_config = arg.config.map_or_else(
