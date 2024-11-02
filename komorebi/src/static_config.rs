@@ -269,7 +269,7 @@ pub struct StaticConfig {
     /// Enable or disable mouse follows focus (default: true)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub mouse_follows_focus: Option<bool>,
-    /// Path to applications.yaml from komorebi-application-specific-configurations (default: None)
+    /// Path to applications.json from komorebi-application-specific-configurations (default: None)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub app_specific_configuration_path: Option<PathBuf>,
     /// Width of the window border (default: 8)
@@ -465,6 +465,7 @@ impl StaticConfig {
         map.insert("border_offset", ["active_window_border_offset"]);
         map.insert("border_colours", ["active_window_border_colours"]);
         map.insert("border_style", ["active_window_border_style"]);
+        map.insert("applications.json", ["applications.yaml"]);
 
         let mut display = false;
 
