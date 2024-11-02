@@ -147,7 +147,7 @@ files created by the `quickstart` command and any other runtime files:
 
 ```powershell
 rm $Env:USERPROFILE\komorebi.json
-rm $Env:USERPROFILE\applications.yaml
+rm $Env:USERPROFILE\applications.json
 rm $Env:USERPROFILE\.config\whkdrc
 rm -r -Force $Env:LOCALAPPDATA\komorebi
 ```

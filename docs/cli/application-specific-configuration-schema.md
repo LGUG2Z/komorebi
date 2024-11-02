@@ -1,7 +1,7 @@
 # application-specific-configuration-schema
 
 ```
-Generate a JSON Schema for applications.yaml
+Generate a JSON Schema for applications.json
 
 Usage: komorebic.exe application-specific-configuration-schema
 

@@ -1375,11 +1375,12 @@ enum SubCommand {
     /// Format a YAML file for use with the 'app-specific-configuration' command
     #[clap(arg_required_else_help = true)]
     #[clap(alias = "fmt-asc")]
+    #[clap(hide = true)]
     FormatAppSpecificConfiguration(FormatAppSpecificConfiguration),
-    /// Fetch the latest version of applications.yaml from komorebi-application-specific-configuration
+    /// Fetch the latest version of applications.json from komorebi-application-specific-configuration
     #[clap(alias = "fetch-asc")]
     FetchAppSpecificConfiguration,
-    /// Generate a JSON Schema for applications.yaml
+    /// Generate a JSON Schema for applications.json
     #[clap(alias = "asc-schema")]
     ApplicationSpecificConfigurationSchema,
     /// Generate a JSON Schema of subscription notifications
@@ -1444,6 +1445,7 @@ fn main() -> Result<()> {
                 "named-workspace-custom-layout-rule",
                 "focus-follows-mouse",
                 "toggle-focus-follows-mouse",
+                "format-app-specific-configuration",
             ];
 
             for cmd in subcommands {
@@ -1476,13 +1478,13 @@ fn main() -> Result<()> {
             std::fs::write(HOME_DIR.join("komorebi.json"), komorebi_json)?;
             std::fs::write(HOME_DIR.join("komorebi.bar.json"), komorebi_bar_json)?;
 
-            let applications_yaml = include_str!("../applications.yaml");
-            std::fs::write(HOME_DIR.join("applications.yaml"), applications_yaml)?;
+            let applications_json = include_str!("../applications.json");
+            std::fs::write(HOME_DIR.join("applications.json"), applications_json)?;
 
             let whkdrc = include_str!("../../docs/whkdrc.sample");
             std::fs::write(WHKD_CONFIG_DIR.join("whkdrc"), whkdrc)?;
 
-            println!("Example komorebi.json, komorebi.bar.json, whkdrc and latest applications.yaml files created");
+            println!("Example komorebi.json, komorebi.bar.json, whkdrc and latest applications.json files created");
             println!("You can now run komorebic start --whkd --bar");
         }
         SubCommand::EnableAutostart(args) => {
@@ -2144,11 +2146,16 @@ if (!(Get-Process komorebi-bar -ErrorAction SilentlyContinue))
             }
 
             println!("\nThank you for using komorebi!\n");
-            println!("* Become a sponsor https://github.com/sponsors/LGUG2Z - Even $1/month makes a big difference");
+            println!("# Sponsorship");
+            println!("* Become a sponsor https://github.com/sponsors/LGUG2Z - $5/month makes a big difference");
+            println!("* Leave a tip https://ko-fi.com/lgug2z - An alternative to GitHub Sponsors");
             println!(
-                "* Subscribe to https://youtube.com/@LGUG2Z - Live dev videos and feature previews"
+                "* Subscribe to https://youtube.com/@LGUG2Z - Development videos, feature previews and release overviews"
             );
+            println!("\n# Community");
             println!("* Join the Discord https://discord.gg/mGkn66PHkx - Chat, ask questions, share your desktops");
+            println!("* Explore the Awesome Komorebi list https://github.com/LGUG2Z/awesome-komorebi - Projects in the komorebi ecosystem");
+            println!("\n# Documentation");
             println!("* Read the docs https://lgug2z.github.io/komorebi - Quickly search through all komorebic commands");
 
             let bar_config = arg.config.map_or_else(
@@ -2696,7 +2703,7 @@ Stop-Process -Name:komorebi -ErrorAction SilentlyContinue
 
             file.write_all(content.as_bytes())?;
 
-            println!("Latest version of applications.yaml from https://github.com/LGUG2Z/komorebi-application-specific-configuration downloaded\n");
+            println!("Latest version of applications.json from https://github.com/LGUG2Z/komorebi-application-specific-configuration downloaded\n");
             println!(
                "You can add this to your komorebi.json static configuration file like this: \n\n\"app_specific_configuration_path\": \"{}\"",
                output_file.display().to_string().replace("\\", "/")
