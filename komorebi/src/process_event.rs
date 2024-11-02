@@ -228,8 +228,7 @@ impl WindowManager {
                     .is_some();
 
                     if !window.is_window()
-                        || should_act
-                        || !programmatically_hidden_hwnds.contains(&window.hwnd)
+                        || (should_act && !programmatically_hidden_hwnds.contains(&window.hwnd))
                     {
                         hide = true;
                     }
