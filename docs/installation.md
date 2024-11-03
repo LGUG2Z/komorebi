@@ -134,6 +134,26 @@ an offline machine to install.
 Once installed, proceed to get the [example configurations](example-configurations.md) (none of the commands for
 first-time set up and running komorebi require an internet connection).
 
+## Upgrades
+
+Before upgrading, make sure to run `komorebic stop --whkd --bar`. This is to ensure that all the current
+komorebi-related exe files can be replaced without issue.
+
+Then, depending on whether you installed via `scoop` or `winget`, you can run the appropriate command:
+
+```powershell
+# for winget
+winget upgrade LGUG2Z.komorebi
+```
+
+```powershell
+# for scoop
+scoop update komorebi
+```
+
+Once the upgrade is completed you can confirm that you have the latest version by running `komorebic --version`, and
+then start it with `komorebic start --whkd --bar`.
+
 ## Uninstallation
 
 Before uninstalling, first run `komorebic stop --whkd --bar` to make sure that
