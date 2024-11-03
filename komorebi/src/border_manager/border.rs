@@ -3,6 +3,7 @@ use crate::border_manager::WindowKind;
 use crate::border_manager::BORDER_OFFSET;
 use crate::border_manager::BORDER_WIDTH;
 use crate::border_manager::FOCUS_STATE;
+use crate::border_manager::RENDER_TARGETS;
 use crate::border_manager::STYLE;
 use crate::border_manager::Z_ORDER;
 use crate::core::BorderStyle;
@@ -130,9 +131,37 @@ impl Border {
             Ok(())
         });
 
-        Ok(Self {
-            hwnd: hwnd_receiver.recv()?,
-        })
+        let hwnd = hwnd_receiver.recv()?;
+
+        let hwnd_render_target_properties = D2D1_HWND_RENDER_TARGET_PROPERTIES {
+            hwnd: HWND(windows_api::as_ptr!(hwnd)),
+            pixelSize: Default::default(),
+            presentOptions: D2D1_PRESENT_OPTIONS_IMMEDIATELY,
+        };
+
+        let render_target_properties = D2D1_RENDER_TARGET_PROPERTIES {
+            r#type: D2D1_RENDER_TARGET_TYPE_DEFAULT,
+            pixelFormat: D2D1_PIXEL_FORMAT {
+                format: DXGI_FORMAT_UNKNOWN,
+                alphaMode: D2D1_ALPHA_MODE_PREMULTIPLIED,
+            },
+            dpiX: 96.0,
+            dpiY: 96.0,
+            ..Default::default()
+        };
+
+        match unsafe {
+            RENDER_FACTORY
+                .CreateHwndRenderTarget(&render_target_properties, &hwnd_render_target_properties)
+        } {
+            Ok(render_target) => unsafe {
+                render_target.SetAntialiasMode(D2D1_ANTIALIAS_MODE_PER_PRIMITIVE);
+                let mut render_targets = RENDER_TARGETS.lock();
+                render_targets.insert(hwnd, render_target);
+                Ok(Self { hwnd })
+            },
+            Err(error) => Err(error.into()),
+        }
     }
 
     pub fn destroy(&self) -> color_eyre::Result<()> {
@@ -173,29 +202,8 @@ impl Border {
             match message {
                 WM_PAINT => {
                     if let Ok(rect) = WindowsApi::window_rect(window.0 as isize) {
-                        let hwnd_render_target_properties = D2D1_HWND_RENDER_TARGET_PROPERTIES {
-                            hwnd: window,
-                            pixelSize: Default::default(),
-                            presentOptions: D2D1_PRESENT_OPTIONS_IMMEDIATELY,
-                        };
-
-                        let render_target_properties = D2D1_RENDER_TARGET_PROPERTIES {
-                            r#type: D2D1_RENDER_TARGET_TYPE_DEFAULT,
-                            pixelFormat: D2D1_PIXEL_FORMAT {
-                                format: DXGI_FORMAT_UNKNOWN,
-                                alphaMode: D2D1_ALPHA_MODE_PREMULTIPLIED,
-                            },
-                            dpiX: 96.0,
-                            dpiY: 96.0,
-                            ..Default::default()
-                        };
-
-                        if let Ok(render_target) = RENDER_FACTORY.CreateHwndRenderTarget(
-                            &render_target_properties,
-                            &hwnd_render_target_properties,
-                        ) {
-                            render_target.SetAntialiasMode(D2D1_ANTIALIAS_MODE_PER_PRIMITIVE);
-
+                        let render_targets = RENDER_TARGETS.lock();
+                        if let Some(render_target) = render_targets.get(&(window.0 as isize)) {
                             let brush_properties = D2D1_BRUSH_PROPERTIES {
                                 opacity: 1.0,
                                 transform: Matrix3x2::identity(),
