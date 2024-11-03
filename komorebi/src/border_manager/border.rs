@@ -5,34 +5,38 @@ use crate::border_manager::BORDER_WIDTH;
 use crate::border_manager::FOCUS_STATE;
 use crate::border_manager::STYLE;
 use crate::border_manager::Z_ORDER;
+use crate::core::BorderStyle;
+use crate::core::Rect;
 use crate::windows_api;
 use crate::WindowsApi;
 use crate::WINDOWS_11;
-
-use crate::core::BorderStyle;
-use crate::core::Rect;
-
 use std::sync::atomic::Ordering;
 use std::sync::mpsc;
+use std::sync::LazyLock;
 use std::time::Duration;
-use windows::core::PCWSTR;
+use windows::Foundation::Numerics::Matrix3x2;
 use windows::Win32::Foundation::BOOL;
-use windows::Win32::Foundation::COLORREF;
 use windows::Win32::Foundation::HWND;
 use windows::Win32::Foundation::LPARAM;
 use windows::Win32::Foundation::LRESULT;
 use windows::Win32::Foundation::WPARAM;
-use windows::Win32::Graphics::Gdi::BeginPaint;
-use windows::Win32::Graphics::Gdi::CreatePen;
-use windows::Win32::Graphics::Gdi::DeleteObject;
-use windows::Win32::Graphics::Gdi::EndPaint;
+use windows::Win32::Graphics::Direct2D::Common::D2D1_ALPHA_MODE_PREMULTIPLIED;
+use windows::Win32::Graphics::Direct2D::Common::D2D1_COLOR_F;
+use windows::Win32::Graphics::Direct2D::Common::D2D1_PIXEL_FORMAT;
+use windows::Win32::Graphics::Direct2D::Common::D2D_RECT_F;
+use windows::Win32::Graphics::Direct2D::Common::D2D_SIZE_U;
+use windows::Win32::Graphics::Direct2D::D2D1CreateFactory;
+use windows::Win32::Graphics::Direct2D::ID2D1Factory;
+use windows::Win32::Graphics::Direct2D::D2D1_ANTIALIAS_MODE_PER_PRIMITIVE;
+use windows::Win32::Graphics::Direct2D::D2D1_BRUSH_PROPERTIES;
+use windows::Win32::Graphics::Direct2D::D2D1_FACTORY_TYPE_MULTI_THREADED;
+use windows::Win32::Graphics::Direct2D::D2D1_HWND_RENDER_TARGET_PROPERTIES;
+use windows::Win32::Graphics::Direct2D::D2D1_PRESENT_OPTIONS_IMMEDIATELY;
+use windows::Win32::Graphics::Direct2D::D2D1_RENDER_TARGET_PROPERTIES;
+use windows::Win32::Graphics::Direct2D::D2D1_RENDER_TARGET_TYPE_DEFAULT;
+use windows::Win32::Graphics::Direct2D::D2D1_ROUNDED_RECT;
+use windows::Win32::Graphics::Dxgi::Common::DXGI_FORMAT_UNKNOWN;
 use windows::Win32::Graphics::Gdi::InvalidateRect;
-use windows::Win32::Graphics::Gdi::Rectangle;
-use windows::Win32::Graphics::Gdi::RoundRect;
-use windows::Win32::Graphics::Gdi::SelectObject;
-use windows::Win32::Graphics::Gdi::PAINTSTRUCT;
-use windows::Win32::Graphics::Gdi::PS_INSIDEFRAME;
-use windows::Win32::Graphics::Gdi::PS_SOLID;
 use windows::Win32::UI::WindowsAndMessaging::DefWindowProcW;
 use windows::Win32::UI::WindowsAndMessaging::DispatchMessageW;
 use windows::Win32::UI::WindowsAndMessaging::GetMessageW;
@@ -44,6 +48,15 @@ use windows::Win32::UI::WindowsAndMessaging::MSG;
 use windows::Win32::UI::WindowsAndMessaging::WM_DESTROY;
 use windows::Win32::UI::WindowsAndMessaging::WM_PAINT;
 use windows::Win32::UI::WindowsAndMessaging::WNDCLASSW;
+use windows_core::PCWSTR;
+
+#[allow(clippy::expect_used)]
+pub static RENDER_FACTORY: LazyLock<ID2D1Factory> = unsafe {
+    LazyLock::new(|| {
+        D2D1CreateFactory::<ID2D1Factory>(D2D1_FACTORY_TYPE_MULTI_THREADED, None)
+            .expect("creating RENDER_FACTORY failed")
+    })
+};
 
 pub extern "system" fn border_hwnds(hwnd: HWND, lparam: LPARAM) -> BOOL {
     let hwnds = unsafe { &mut *(lparam.0 as *mut Vec<isize>) };
@@ -159,71 +172,124 @@ impl Border {
         unsafe {
             match message {
                 WM_PAINT => {
-                    let mut ps = PAINTSTRUCT::default();
-                    let hdc = BeginPaint(window, &mut ps);
+                    if let Ok(rect) = WindowsApi::window_rect(window.0 as isize) {
+                        let hwnd_render_target_properties = D2D1_HWND_RENDER_TARGET_PROPERTIES {
+                            hwnd: window,
+                            pixelSize: Default::default(),
+                            presentOptions: D2D1_PRESENT_OPTIONS_IMMEDIATELY,
+                        };
 
-                    // With the rect that we set in Self::update
-                    match WindowsApi::window_rect(window.0 as isize) {
-                        Ok(rect) => {
-                            // Grab the focus kind for this border
-                            let window_kind = {
-                                FOCUS_STATE
-                                    .lock()
-                                    .get(&(window.0 as isize))
-                                    .copied()
-                                    .unwrap_or(WindowKind::Unfocused)
+                        let render_target_properties = D2D1_RENDER_TARGET_PROPERTIES {
+                            r#type: D2D1_RENDER_TARGET_TYPE_DEFAULT,
+                            pixelFormat: D2D1_PIXEL_FORMAT {
+                                format: DXGI_FORMAT_UNKNOWN,
+                                alphaMode: D2D1_ALPHA_MODE_PREMULTIPLIED,
+                            },
+                            dpiX: 96.0,
+                            dpiY: 96.0,
+                            ..Default::default()
+                        };
+
+                        if let Ok(render_target) = RENDER_FACTORY.CreateHwndRenderTarget(
+                            &render_target_properties,
+                            &hwnd_render_target_properties,
+                        ) {
+                            render_target.SetAntialiasMode(D2D1_ANTIALIAS_MODE_PER_PRIMITIVE);
+
+                            let brush_properties = D2D1_BRUSH_PROPERTIES {
+                                opacity: 1.0,
+                                transform: Matrix3x2::identity(),
                             };
 
-                            // Set up the brush to draw the border
-                            let hpen = CreatePen(
-                                PS_SOLID | PS_INSIDEFRAME,
-                                BORDER_WIDTH.load(Ordering::SeqCst),
-                                COLORREF(window_kind_colour(window_kind)),
-                            );
+                            let pixel_size = D2D_SIZE_U {
+                                width: rect.right as u32,
+                                height: rect.bottom as u32,
+                            };
 
-                            let hbrush = WindowsApi::create_solid_brush(0);
+                            let border_width = BORDER_WIDTH.load(Ordering::SeqCst);
+                            let border_offset = BORDER_OFFSET.load(Ordering::SeqCst);
 
-                            // Draw the border
-                            SelectObject(hdc, hpen);
-                            SelectObject(hdc, hbrush);
-                            // TODO(raggi): this is approximately the correct curvature for
-                            // the top left of a Windows 11 window (DWMWCP_DEFAULT), but
-                            // often the bottom right has a different shape. Furthermore if
-                            // the window was made with DWMWCP_ROUNDSMALL then this is the
-                            // wrong size.  In the future we should read the DWM properties
-                            // of windows and attempt to match appropriately.
-                            match STYLE.load() {
-                                BorderStyle::System => {
-                                    if *WINDOWS_11 {
-                                        // TODO: error handling
-                                        let _ =
-                                            RoundRect(hdc, 0, 0, rect.right, rect.bottom, 20, 20);
-                                    } else {
-                                        // TODO: error handling
-                                        let _ = Rectangle(hdc, 0, 0, rect.right, rect.bottom);
+                            let rect = D2D_RECT_F {
+                                left: (border_width / 2 - border_offset) as f32,
+                                top: (border_width / 2 - border_offset) as f32,
+                                right: (rect.right - border_width / 2 + border_offset) as f32,
+                                bottom: (rect.bottom - border_width / 2 + border_offset) as f32,
+                            };
+
+                            let _ = render_target.Resize(&pixel_size);
+
+                            // Get window kind and color
+                            let window_kind = FOCUS_STATE
+                                .lock()
+                                .get(&(window.0 as isize))
+                                .copied()
+                                .unwrap_or(WindowKind::Unfocused);
+
+                            let color = window_kind_colour(window_kind);
+                            let color = D2D1_COLOR_F {
+                                r: ((color & 0xFF) as f32) / 255.0,
+                                g: (((color >> 8) & 0xFF) as f32) / 255.0,
+                                b: (((color >> 16) & 0xFF) as f32) / 255.0,
+                                a: 1.0,
+                            };
+
+                            if let Ok(brush) =
+                                render_target.CreateSolidColorBrush(&color, Some(&brush_properties))
+                            {
+                                // Calculate border radius based on style
+                                let style = STYLE.load();
+                                let radius = match style {
+                                    BorderStyle::System => {
+                                        if *WINDOWS_11 {
+                                            10.0
+                                        } else {
+                                            0.0
+                                        }
                                     }
+                                    BorderStyle::Rounded => 10.0,
+                                    BorderStyle::Square => 0.0,
+                                };
+
+                                render_target.BeginDraw();
+                                render_target.Clear(None);
+
+                                match radius {
+                                    0.0 => {
+                                        let rect = D2D_RECT_F {
+                                            left: rect.left,
+                                            top: rect.top,
+                                            right: rect.right,
+                                            bottom: rect.bottom,
+                                        };
+
+                                        render_target.DrawRectangle(
+                                            &rect,
+                                            &brush,
+                                            border_width as f32,
+                                            None,
+                                        );
+                                    }
+                                    10.0 => {
+                                        let rounded_rect = D2D1_ROUNDED_RECT {
+                                            rect,
+                                            radiusX: radius,
+                                            radiusY: radius,
+                                        };
+
+                                        render_target.DrawRoundedRectangle(
+                                            &rounded_rect,
+                                            &brush,
+                                            border_width as f32,
+                                            None,
+                                        );
+                                    }
+                                    _ => unreachable!(),
                                 }
-                                BorderStyle::Rounded => {
-                                    // TODO: error handling
-                                    let _ = RoundRect(hdc, 0, 0, rect.right, rect.bottom, 20, 20);
-                                }
-                                BorderStyle::Square => {
-                                    // TODO: error handling
-                                    let _ = Rectangle(hdc, 0, 0, rect.right, rect.bottom);
-                                }
+
+                                let _ = render_target.EndDraw(None, None);
                             }
-                            // TODO: error handling
-                            let _ = DeleteObject(hpen);
-                            // TODO: error handling
-                            let _ = DeleteObject(hbrush);
-                        }
-                        Err(error) => {
-                            tracing::error!("could not get border rect: {}", error.to_string())
                         }
                     }
-
-                    // TODO: error handling
-                    let _ = EndPaint(window, &ps);
                     LRESULT(0)
                 }
                 WM_DESTROY => {
