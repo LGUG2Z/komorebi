@@ -11,10 +11,10 @@ use crate::core::Rect;
 use crate::windows_api;
 use crate::WindowsApi;
 use crate::WINDOWS_11;
+use std::ops::Deref;
 use std::sync::atomic::Ordering;
 use std::sync::mpsc;
 use std::sync::LazyLock;
-use std::time::Duration;
 use windows::Foundation::Numerics::Matrix3x2;
 use windows::Win32::Foundation::BOOL;
 use windows::Win32::Foundation::HWND;
@@ -37,27 +37,35 @@ use windows::Win32::Graphics::Direct2D::D2D1_RENDER_TARGET_PROPERTIES;
 use windows::Win32::Graphics::Direct2D::D2D1_RENDER_TARGET_TYPE_DEFAULT;
 use windows::Win32::Graphics::Direct2D::D2D1_ROUNDED_RECT;
 use windows::Win32::Graphics::Dxgi::Common::DXGI_FORMAT_UNKNOWN;
+use windows::Win32::Graphics::Gdi::BeginPaint;
+use windows::Win32::Graphics::Gdi::EndPaint;
 use windows::Win32::Graphics::Gdi::InvalidateRect;
+use windows::Win32::Graphics::Gdi::PAINTSTRUCT;
 use windows::Win32::UI::WindowsAndMessaging::DefWindowProcW;
 use windows::Win32::UI::WindowsAndMessaging::DispatchMessageW;
 use windows::Win32::UI::WindowsAndMessaging::GetMessageW;
 use windows::Win32::UI::WindowsAndMessaging::PostQuitMessage;
 use windows::Win32::UI::WindowsAndMessaging::TranslateMessage;
-use windows::Win32::UI::WindowsAndMessaging::CS_HREDRAW;
-use windows::Win32::UI::WindowsAndMessaging::CS_VREDRAW;
 use windows::Win32::UI::WindowsAndMessaging::MSG;
 use windows::Win32::UI::WindowsAndMessaging::WM_DESTROY;
 use windows::Win32::UI::WindowsAndMessaging::WM_PAINT;
+use windows::Win32::UI::WindowsAndMessaging::WM_SIZE;
 use windows::Win32::UI::WindowsAndMessaging::WNDCLASSW;
 use windows_core::PCWSTR;
 
 #[allow(clippy::expect_used)]
-pub static RENDER_FACTORY: LazyLock<ID2D1Factory> = unsafe {
+static RENDER_FACTORY: LazyLock<ID2D1Factory> = unsafe {
     LazyLock::new(|| {
         D2D1CreateFactory::<ID2D1Factory>(D2D1_FACTORY_TYPE_MULTI_THREADED, None)
             .expect("creating RENDER_FACTORY failed")
     })
 };
+
+static BRUSH_PROPERTIES: LazyLock<D2D1_BRUSH_PROPERTIES> =
+    LazyLock::new(|| D2D1_BRUSH_PROPERTIES {
+        opacity: 1.0,
+        transform: Matrix3x2::identity(),
+    });
 
 pub extern "system" fn border_hwnds(hwnd: HWND, lparam: LPARAM) -> BOOL {
     let hwnds = unsafe { &mut *(lparam.0 as *mut Vec<isize>) };
@@ -97,7 +105,6 @@ impl Border {
         let window_class = WNDCLASSW {
             hInstance: h_module.into(),
             lpszClassName: class_name,
-            style: CS_HREDRAW | CS_VREDRAW,
             lpfnWndProc: Some(Self::callback),
             hbrBackground: WindowsApi::create_solid_brush(0),
             ..Default::default()
@@ -124,8 +131,6 @@ impl Border {
                     let _ = TranslateMessage(&msg);
                     DispatchMessageW(&msg);
                 }
-
-                std::thread::sleep(Duration::from_millis(10))
             }
 
             Ok(())
@@ -168,16 +173,17 @@ impl Border {
         WindowsApi::close_window(self.hwnd)
     }
 
-    pub fn update(&self, rect: &Rect, mut should_invalidate: bool) -> color_eyre::Result<()> {
+    pub fn update(&self, rect: &Rect, should_invalidate: bool) -> color_eyre::Result<()> {
         // Make adjustments to the border
         let mut rect = *rect;
-        rect.add_margin(BORDER_WIDTH.load(Ordering::SeqCst));
-        rect.add_padding(-BORDER_OFFSET.load(Ordering::SeqCst));
+        rect.add_margin(BORDER_WIDTH.load(Ordering::Relaxed));
+        rect.add_padding(-BORDER_OFFSET.load(Ordering::Relaxed));
 
         // Update the position of the border if required
+        // This effectively handles WM_MOVE
+        // Also if I remove this no borders render at all lol
         if !WindowsApi::window_rect(self.hwnd)?.eq(&rect) {
             WindowsApi::set_border_pos(self.hwnd, &rect, Z_ORDER.load().into())?;
-            should_invalidate = true;
         }
 
         // Invalidate the rect to trigger the callback to update colours etc.
@@ -200,15 +206,10 @@ impl Border {
     ) -> LRESULT {
         unsafe {
             match message {
-                WM_PAINT => {
+                WM_SIZE | WM_PAINT => {
                     if let Ok(rect) = WindowsApi::window_rect(window.0 as isize) {
                         let render_targets = RENDER_TARGETS.lock();
                         if let Some(render_target) = render_targets.get(&(window.0 as isize)) {
-                            let brush_properties = D2D1_BRUSH_PROPERTIES {
-                                opacity: 1.0,
-                                transform: Matrix3x2::identity(),
-                            };
-
                             let pixel_size = D2D_SIZE_U {
                                 width: rect.right as u32,
                                 height: rect.bottom as u32,
@@ -241,28 +242,42 @@ impl Border {
                                 a: 1.0,
                             };
 
-                            if let Ok(brush) =
-                                render_target.CreateSolidColorBrush(&color, Some(&brush_properties))
+                            if let Ok(brush) = render_target
+                                .CreateSolidColorBrush(&color, Some(BRUSH_PROPERTIES.deref()))
                             {
-                                // Calculate border radius based on style
-                                let style = STYLE.load();
-                                let radius = match style {
-                                    BorderStyle::System => {
-                                        if *WINDOWS_11 {
-                                            10.0
-                                        } else {
-                                            0.0
-                                        }
-                                    }
-                                    BorderStyle::Rounded => 10.0,
-                                    BorderStyle::Square => 0.0,
-                                };
-
                                 render_target.BeginDraw();
                                 render_target.Clear(None);
 
-                                match radius {
-                                    0.0 => {
+                                // Calculate border radius based on style
+                                let style = match STYLE.load() {
+                                    BorderStyle::System => {
+                                        if *WINDOWS_11 {
+                                            BorderStyle::Rounded
+                                        } else {
+                                            BorderStyle::Square
+                                        }
+                                    }
+                                    BorderStyle::Rounded => BorderStyle::Rounded,
+                                    BorderStyle::Square => BorderStyle::Square,
+                                };
+
+                                match style {
+                                    BorderStyle::Rounded => {
+                                        let radius = 8.0 + border_width as f32 / 2.0;
+                                        let rounded_rect = D2D1_ROUNDED_RECT {
+                                            rect,
+                                            radiusX: radius,
+                                            radiusY: radius,
+                                        };
+
+                                        render_target.DrawRoundedRectangle(
+                                            &rounded_rect,
+                                            &brush,
+                                            border_width as f32,
+                                            None,
+                                        );
+                                    }
+                                    BorderStyle::Square => {
                                         let rect = D2D_RECT_F {
                                             left: rect.left,
                                             top: rect.top,
@@ -277,24 +292,15 @@ impl Border {
                                             None,
                                         );
                                     }
-                                    10.0 => {
-                                        let rounded_rect = D2D1_ROUNDED_RECT {
-                                            rect,
-                                            radiusX: radius,
-                                            radiusY: radius,
-                                        };
-
-                                        render_target.DrawRoundedRectangle(
-                                            &rounded_rect,
-                                            &brush,
-                                            border_width as f32,
-                                            None,
-                                        );
-                                    }
-                                    _ => unreachable!(),
+                                    _ => {}
                                 }
 
                                 let _ = render_target.EndDraw(None, None);
+
+                                // If we don't do this we'll get spammed with WM_PAINT according to Raymond Chen
+                                // https://stackoverflow.com/questions/41783234/why-does-my-call-to-d2d1rendertargetdrawtext-result-in-a-wm-paint-being-se#comment70756781_41783234
+                                let _ = BeginPaint(window, &mut PAINTSTRUCT::default());
+                                let _ = EndPaint(window, &PAINTSTRUCT::default());
                             }
                         }
                     }
