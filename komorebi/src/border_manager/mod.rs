@@ -100,6 +100,7 @@ pub fn destroy_all_borders() -> color_eyre::Result<()> {
     borders.clear();
     BORDERS_MONITORS.lock().clear();
     FOCUS_STATE.lock().clear();
+    RENDER_TARGETS.lock().clear();
 
     let mut remaining_hwnds = vec![];
 

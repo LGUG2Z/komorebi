@@ -15,7 +15,6 @@ use std::ops::Deref;
 use std::sync::atomic::Ordering;
 use std::sync::mpsc;
 use std::sync::LazyLock;
-use std::time::Duration;
 use windows::Foundation::Numerics::Matrix3x2;
 use windows::Win32::Foundation::BOOL;
 use windows::Win32::Foundation::FALSE;
@@ -141,8 +140,6 @@ impl Border {
                     let _ = TranslateMessage(&msg);
                     DispatchMessageW(&msg);
                 }
-
-                std::thread::sleep(Duration::from_millis(1))
             }
 
             Ok(())
@@ -201,6 +198,8 @@ impl Border {
     }
 
     pub fn destroy(&self) -> color_eyre::Result<()> {
+        let mut render_targets = RENDER_TARGETS.lock();
+        render_targets.remove(&self.hwnd);
         WindowsApi::close_window(self.hwnd)
     }
 
