@@ -15,11 +15,14 @@ use std::ops::Deref;
 use std::sync::atomic::Ordering;
 use std::sync::mpsc;
 use std::sync::LazyLock;
+use std::time::Duration;
 use windows::Foundation::Numerics::Matrix3x2;
 use windows::Win32::Foundation::BOOL;
+use windows::Win32::Foundation::FALSE;
 use windows::Win32::Foundation::HWND;
 use windows::Win32::Foundation::LPARAM;
 use windows::Win32::Foundation::LRESULT;
+use windows::Win32::Foundation::TRUE;
 use windows::Win32::Foundation::WPARAM;
 use windows::Win32::Graphics::Direct2D::Common::D2D1_ALPHA_MODE_PREMULTIPLIED;
 use windows::Win32::Graphics::Direct2D::Common::D2D1_COLOR_F;
@@ -36,17 +39,24 @@ use windows::Win32::Graphics::Direct2D::D2D1_PRESENT_OPTIONS_IMMEDIATELY;
 use windows::Win32::Graphics::Direct2D::D2D1_RENDER_TARGET_PROPERTIES;
 use windows::Win32::Graphics::Direct2D::D2D1_RENDER_TARGET_TYPE_DEFAULT;
 use windows::Win32::Graphics::Direct2D::D2D1_ROUNDED_RECT;
+use windows::Win32::Graphics::Dwm::DwmEnableBlurBehindWindow;
+use windows::Win32::Graphics::Dwm::DWM_BB_BLURREGION;
+use windows::Win32::Graphics::Dwm::DWM_BB_ENABLE;
+use windows::Win32::Graphics::Dwm::DWM_BLURBEHIND;
 use windows::Win32::Graphics::Dxgi::Common::DXGI_FORMAT_UNKNOWN;
 use windows::Win32::Graphics::Gdi::BeginPaint;
+use windows::Win32::Graphics::Gdi::CreateRectRgn;
 use windows::Win32::Graphics::Gdi::EndPaint;
 use windows::Win32::Graphics::Gdi::InvalidateRect;
 use windows::Win32::Graphics::Gdi::PAINTSTRUCT;
 use windows::Win32::UI::WindowsAndMessaging::DefWindowProcW;
 use windows::Win32::UI::WindowsAndMessaging::DispatchMessageW;
 use windows::Win32::UI::WindowsAndMessaging::GetMessageW;
+use windows::Win32::UI::WindowsAndMessaging::GetSystemMetrics;
 use windows::Win32::UI::WindowsAndMessaging::PostQuitMessage;
 use windows::Win32::UI::WindowsAndMessaging::TranslateMessage;
 use windows::Win32::UI::WindowsAndMessaging::MSG;
+use windows::Win32::UI::WindowsAndMessaging::SM_CXVIRTUALSCREEN;
 use windows::Win32::UI::WindowsAndMessaging::WM_DESTROY;
 use windows::Win32::UI::WindowsAndMessaging::WM_PAINT;
 use windows::Win32::UI::WindowsAndMessaging::WM_SIZE;
@@ -131,12 +141,33 @@ impl Border {
                     let _ = TranslateMessage(&msg);
                     DispatchMessageW(&msg);
                 }
+
+                std::thread::sleep(Duration::from_millis(1))
             }
 
             Ok(())
         });
 
         let hwnd = hwnd_receiver.recv()?;
+        let border = Self { hwnd };
+
+        // I have literally no idea, apparently this is to get rid of the black pixels
+        // around the edges of rounded corners? @lukeyou05 borrowed this from PowerToys
+        unsafe {
+            let pos: i32 = -GetSystemMetrics(SM_CXVIRTUALSCREEN) - 8;
+            let hrgn = CreateRectRgn(pos, 0, pos + 1, 1);
+            let mut bh: DWM_BLURBEHIND = Default::default();
+            if !hrgn.is_invalid() {
+                bh = DWM_BLURBEHIND {
+                    dwFlags: DWM_BB_ENABLE | DWM_BB_BLURREGION,
+                    fEnable: TRUE,
+                    hRgnBlur: hrgn,
+                    fTransitionOnMaximized: FALSE,
+                };
+            }
+
+            let _ = DwmEnableBlurBehindWindow(border.hwnd(), &bh);
+        }
 
         let hwnd_render_target_properties = D2D1_HWND_RENDER_TARGET_PROPERTIES {
             hwnd: HWND(windows_api::as_ptr!(hwnd)),
@@ -163,7 +194,7 @@ impl Border {
                 render_target.SetAntialiasMode(D2D1_ANTIALIAS_MODE_PER_PRIMITIVE);
                 let mut render_targets = RENDER_TARGETS.lock();
                 render_targets.insert(hwnd, render_target);
-                Ok(Self { hwnd })
+                Ok(border)
             },
             Err(error) => Err(error.into()),
         }
