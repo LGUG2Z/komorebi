@@ -458,6 +458,7 @@ impl StaticConfig {
             println!("\nEnd-of-life features will not receive any further bug fixes or updates; they should not be used\n")
         }
     }
+
     pub fn aliases(raw: &str) {
         let mut map = HashMap::new();
         map.insert("border", ["active_window_border"]);
@@ -466,6 +467,7 @@ impl StaticConfig {
         map.insert("border_colours", ["active_window_border_colours"]);
         map.insert("border_style", ["active_window_border_style"]);
         map.insert("applications.json", ["applications.yaml"]);
+        map.insert("ignore_rules", ["float_rules"]);
 
         let mut display = false;
 

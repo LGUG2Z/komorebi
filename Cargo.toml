@@ -38,7 +38,7 @@ windows-implement = { version = "0.58" }
 windows-interface = { version = "0.58" }
 windows-core = { version = "0.58" }
 shadow-rs = "0.35"
-which = "6"
+which = "7"
 
 [workspace.dependencies.windows]
 version = "0.58"
