@@ -2079,7 +2079,7 @@ if (!(Get-Process whkd -ErrorAction SilentlyContinue))
                     let mut config = StaticConfig::read(config)?;
                     if let Some(display_bar_configurations) = &mut config.bar_configurations {
                         for config_file_path in &mut *display_bar_configurations {
-                            let script = r"Start-Process 'komorebi-bar' '--config CONFIGFILE' -WindowStyle hidden"
+                            let script = r#"Start-Process 'komorebi-bar' '--config "CONFIGFILE"' -WindowStyle hidden"#
                             .replace("CONFIGFILE", &config_file_path.to_string_lossy());
 
                             match powershell_script::run(&script) {
