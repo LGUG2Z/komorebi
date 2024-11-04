@@ -1052,6 +1052,8 @@ enum SubCommand {
     /// Focus the specified workspace
     #[clap(arg_required_else_help = true)]
     FocusNamedWorkspace(FocusNamedWorkspace),
+    /// Close the focused workspace (must be empty and unnamed)
+    CloseWorkspace,
     /// Focus the monitor in the given cycle direction
     #[clap(arg_required_else_help = true)]
     CycleMonitor(CycleMonitor),
@@ -2337,6 +2339,9 @@ Stop-Process -Name:komorebi -ErrorAction SilentlyContinue
         }
         SubCommand::FocusNamedWorkspace(arg) => {
             send_message(&SocketMessage::FocusNamedWorkspace(arg.workspace))?;
+        }
+        SubCommand::CloseWorkspace => {
+            send_message(&SocketMessage::CloseWorkspace)?;
         }
         SubCommand::CycleMonitor(arg) => {
             send_message(&SocketMessage::CycleFocusMonitor(arg.cycle_direction))?;
