@@ -166,7 +166,7 @@ jobs:
           fetch-depth: 0
       - shell: bash
         run: |
-          TAG=${{ github.event.release.tag_name }}
+          TAG=${{ github.ref_name }}
           echo "VERSION=${TAG#v}" >> $GITHUB_ENV
       - uses: actions/download-artifact@v4
       - run: |
