@@ -2183,14 +2183,14 @@ Stop-Process -Name:komorebi-bar -ErrorAction SilentlyContinue
 if (Get-Command Get-CimInstance -ErrorAction SilentlyContinue) {
     (Get-CimInstance Win32_Process | Where-Object {
         ($_.CommandLine -like '*komorebi.ahk"') -and
-        ($_.Name -in @('AutoHotkey.exe', 'AutoHotkey64.exe', 'AutoHotkey32.exe'))
+        ($_.Name -in @('AutoHotkey.exe', 'AutoHotkey64.exe', 'AutoHotkey32.exe', 'AutoHotkeyUX.exe'))
     } | Select-Object -First 1) | ForEach-Object {
         Stop-Process -Id $_.ProcessId -ErrorAction SilentlyContinue
     }
 } else {
     (Get-WmiObject Win32_Process | Where-Object {
         ($_.CommandLine -like '*komorebi.ahk"') -and
-        ($_.Name -in @('AutoHotkey.exe', 'AutoHotkey64.exe', 'AutoHotkey32.exe'))
+        ($_.Name -in @('AutoHotkey.exe', 'AutoHotkey64.exe', 'AutoHotkey32.exe', 'AutoHotkeyUX.exe'))
     } | Select-Object -First 1) | ForEach-Object {
         Stop-Process -Id $_.ProcessId -ErrorAction SilentlyContinue
     }
