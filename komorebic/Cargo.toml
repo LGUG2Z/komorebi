@@ -1,11 +1,9 @@
 [package]
 name = "komorebic"
-version = "0.1.30"
-authors = ["Jade Iqbal <jadeiqbal@fastmail.com>"]
+version = "0.1.31"
 description = "The command-line interface for Komorebi, a tiling window manager for Windows"
 categories = ["cli", "tiling-window-manager", "windows"]
 repository = "https://github.com/LGUG2Z/komorebi"
-license = "MIT"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html

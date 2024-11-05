@@ -777,10 +777,7 @@ pub fn should_act_individual(
     let mut should_act = false;
 
     match identifier.matching_strategy {
-        None => {
-            panic!("there is no matching strategy identified for this rule");
-        }
-        Some(MatchingStrategy::Legacy) => match identifier.kind {
+        None | Some(MatchingStrategy::Legacy) => match identifier.kind {
             ApplicationIdentifier::Title => {
                 if title.starts_with(&identifier.id) || title.ends_with(&identifier.id) {
                     should_act = true;

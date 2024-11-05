@@ -233,7 +233,7 @@ impl From<&Monitor> for MonitorConfig {
 }
 
 #[derive(Debug, Serialize, Deserialize, JsonSchema)]
-/// The `komorebi.json` static configuration file reference for `v0.1.30`
+/// The `komorebi.json` static configuration file reference for `v0.1.31`
 pub struct StaticConfig {
     /// DEPRECATED from v0.1.22: no longer required
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -269,7 +269,7 @@ pub struct StaticConfig {
     /// Enable or disable mouse follows focus (default: true)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub mouse_follows_focus: Option<bool>,
-    /// Path to applications.yaml from komorebi-application-specific-configurations (default: None)
+    /// Path to applications.json from komorebi-application-specific-configurations (default: None)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub app_specific_configuration_path: Option<PathBuf>,
     /// Width of the window border (default: 8)
@@ -458,6 +458,7 @@ impl StaticConfig {
             println!("\nEnd-of-life features will not receive any further bug fixes or updates; they should not be used\n")
         }
     }
+
     pub fn aliases(raw: &str) {
         let mut map = HashMap::new();
         map.insert("border", ["active_window_border"]);
@@ -465,6 +466,8 @@ impl StaticConfig {
         map.insert("border_offset", ["active_window_border_offset"]);
         map.insert("border_colours", ["active_window_border_colours"]);
         map.insert("border_style", ["active_window_border_style"]);
+        map.insert("applications.json", ["applications.yaml"]);
+        map.insert("ignore_rules", ["float_rules"]);
 
         let mut display = false;
 
@@ -1049,8 +1052,9 @@ impl StaticConfig {
             mouse_follows_focus: value.mouse_follows_focus.unwrap_or(true),
             hotwatch: Hotwatch::new()?,
             has_pending_raise_op: false,
-            pending_move_op: None,
+            pending_move_op: Arc::new(None),
             already_moved_window_handles: Arc::new(Mutex::new(HashSet::new())),
+            uncloack_to_ignore: 0,
         };
 
         match value.focus_follows_mouse {

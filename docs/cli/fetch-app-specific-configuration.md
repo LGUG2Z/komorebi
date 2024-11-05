@@ -1,7 +1,7 @@
 # fetch-app-specific-configuration
 
 ```
-Fetch the latest version of applications.yaml from komorebi-application-specific-configuration
+Fetch the latest version of applications.json from komorebi-application-specific-configuration
 
 Usage: komorebic.exe fetch-app-specific-configuration
 

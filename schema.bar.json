@@ -19,7 +19,7 @@
       "format": "float"
     },
     "frame": {
-      "description": "Frame options (see: https://docs.rs/egui/latest/egui/containers/struct.Frame.html)",
+      "description": "Frame options (see: https://docs.rs/egui/latest/egui/containers/frame/struct.Frame.html)",
       "type": "object",
       "required": [
         "inner_margin"

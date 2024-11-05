@@ -219,7 +219,6 @@ nav:
       - cli/ahk-app-specific-configuration.md
       - cli/pwsh-app-specific-configuration.md
       - cli/convert-app-specific-configuration.md
-      - cli/format-app-specific-configuration.md
       - cli/fetch-app-specific-configuration.md
       - cli/application-specific-configuration-schema.md
       - cli/notification-schema.md

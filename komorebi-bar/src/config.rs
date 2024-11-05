@@ -11,12 +11,12 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
-/// The `komorebi.bar.json` configuration file reference for `v0.1.30`
+/// The `komorebi.bar.json` configuration file reference for `v0.1.31`
 pub struct KomobarConfig {
     /// Bar positioning options
     #[serde(alias = "viewport")]
     pub position: Option<PositionConfig>,
-    /// Frame options (see: https://docs.rs/egui/latest/egui/containers/struct.Frame.html)
+    /// Frame options (see: https://docs.rs/egui/latest/egui/containers/frame/struct.Frame.html)
     pub frame: Option<FrameConfig>,
     /// Monitor options
     pub monitor: MonitorConfig,

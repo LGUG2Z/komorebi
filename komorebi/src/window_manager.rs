@@ -102,8 +102,9 @@ pub struct WindowManager {
     pub hotwatch: Hotwatch,
     pub virtual_desktop_id: Option<Vec<u8>>,
     pub has_pending_raise_op: bool,
-    pub pending_move_op: Option<(usize, usize, usize)>,
+    pub pending_move_op: Arc<Option<(usize, usize, isize)>>,
     pub already_moved_window_handles: Arc<Mutex<HashSet<isize>>>,
+    pub uncloack_to_ignore: usize,
 }
 
 #[allow(clippy::struct_excessive_bools)]
@@ -339,8 +340,9 @@ impl WindowManager {
             mouse_follows_focus: true,
             hotwatch: Hotwatch::new()?,
             has_pending_raise_op: false,
-            pending_move_op: None,
+            pending_move_op: Arc::new(None),
             already_moved_window_handles: Arc::new(Mutex::new(HashSet::new())),
+            uncloack_to_ignore: 0,
         })
     }
 
@@ -816,6 +818,133 @@ impl WindowManager {
             );
         }
 
+        Ok(())
+    }
+
+    #[tracing::instrument(skip(self))]
+    pub fn transfer_window(
+        &mut self,
+        origin: (usize, usize, isize),
+        target: (usize, usize, usize),
+    ) -> Result<()> {
+        let (origin_monitor_idx, origin_workspace_idx, w_hwnd) = origin;
+        let (target_monitor_idx, target_workspace_idx, target_container_idx) = target;
+
+        let origin_workspace = self
+            .monitors_mut()
+            .get_mut(origin_monitor_idx)
+            .ok_or_else(|| anyhow!("cannot get monitor idx"))?
+            .workspaces_mut()
+            .get_mut(origin_workspace_idx)
+            .ok_or_else(|| anyhow!("cannot get workspace idx"))?;
+
+        let origin_container_idx = origin_workspace
+            .container_for_window(w_hwnd)
+            .and_then(|c| origin_workspace.containers().iter().position(|cc| cc == c));
+
+        if let Some(origin_container_idx) = origin_container_idx {
+            // Moving normal container window
+            self.transfer_container(
+                (
+                    origin_monitor_idx,
+                    origin_workspace_idx,
+                    origin_container_idx,
+                ),
+                (
+                    target_monitor_idx,
+                    target_workspace_idx,
+                    target_container_idx,
+                ),
+            )?;
+        } else if let Some(idx) = origin_workspace
+            .floating_windows()
+            .iter()
+            .position(|w| w.hwnd == w_hwnd)
+        {
+            // Moving floating window
+            // There is no need to physically move the floating window between areas with
+            // `move_to_area` because the user already did that, so we only need to transfer the
+            // window to the target `floating_windows`
+            let floating_window = origin_workspace.floating_windows_mut().remove(idx);
+
+            let target_workspace = self
+                .monitors_mut()
+                .get_mut(target_monitor_idx)
+                .ok_or_else(|| anyhow!("there is no monitor at this idx"))?
+                .focused_workspace_mut()
+                .ok_or_else(|| anyhow!("there is no focused workspace for this monitor"))?;
+
+            target_workspace
+                .floating_windows_mut()
+                .push(floating_window);
+        } else if origin_workspace
+            .monocle_container()
+            .as_ref()
+            .and_then(|monocle| monocle.focused_window().map(|w| w.hwnd == w_hwnd))
+            .unwrap_or_default()
+        {
+            // Moving monocle container
+            if let Some(monocle_idx) = origin_workspace.monocle_container_restore_idx() {
+                let origin_workspace = self
+                    .monitors_mut()
+                    .get_mut(origin_monitor_idx)
+                    .ok_or_else(|| anyhow!("there is no monitor at this idx"))?
+                    .workspaces_mut()
+                    .get_mut(origin_workspace_idx)
+                    .ok_or_else(|| anyhow!("there is no workspace for this monitor"))?;
+                let mut uncloack_amount = 0;
+                for container in origin_workspace.containers_mut() {
+                    container.restore();
+                    uncloack_amount += 1;
+                }
+                origin_workspace.reintegrate_monocle_container()?;
+
+                self.transfer_container(
+                    (origin_monitor_idx, origin_workspace_idx, monocle_idx),
+                    (
+                        target_monitor_idx,
+                        target_workspace_idx,
+                        target_container_idx,
+                    ),
+                )?;
+                // After we restore the origin workspace, some windows that were cloacked
+                // by the monocle might now be uncloacked which would trigger a workspace
+                // reconciliation since the focused monitor would be different from origin.
+                // That workspace reconciliation would focus the window on the origin monitor.
+                // So we need to ignore the uncloak events produced by the origin workspace
+                // restore to avoid that issue.
+                self.uncloack_to_ignore = uncloack_amount;
+            }
+        } else if origin_workspace
+            .maximized_window()
+            .as_ref()
+            .map(|max| max.hwnd == w_hwnd)
+            .unwrap_or_default()
+        {
+            // Moving maximized_window
+            if let Some(maximized_idx) = origin_workspace.maximized_window_restore_idx() {
+                self.focus_monitor(origin_monitor_idx)?;
+                let origin_monitor = self
+                    .focused_monitor_mut()
+                    .ok_or_else(|| anyhow!("there is no origin monitor"))?;
+                origin_monitor.focus_workspace(origin_workspace_idx)?;
+                self.unmaximize_window()?;
+                self.focus_monitor(target_monitor_idx)?;
+                let target_monitor = self
+                    .focused_monitor_mut()
+                    .ok_or_else(|| anyhow!("there is no target monitor"))?;
+                target_monitor.focus_workspace(target_workspace_idx)?;
+
+                self.transfer_container(
+                    (origin_monitor_idx, origin_workspace_idx, maximized_idx),
+                    (
+                        target_monitor_idx,
+                        target_workspace_idx,
+                        target_container_idx,
+                    ),
+                )?;
+            }
+        }
         Ok(())
     }
 
@@ -2020,8 +2149,16 @@ impl WindowManager {
                 new_idx
             };
 
+            let mut target_container_is_stack = false;
+
+            if let Some(container) = workspace.containers().get(adjusted_new_index) {
+                if container.windows().len() > 1 {
+                    target_container_is_stack = true;
+                }
+            }
+
             if let Some(current) = workspace.focused_container() {
-                if current.windows().len() > 1 {
+                if current.windows().len() > 1 && !target_container_is_stack {
                     workspace.focus_container(adjusted_new_index);
                     workspace.move_window_to_container(current_container_idx)?;
                 } else {

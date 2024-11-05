@@ -89,7 +89,7 @@ pub fn destroy_all_borders() -> color_eyre::Result<()> {
     );
 
     for (_, border) in borders.iter() {
-        border.destroy()?;
+        let _ = border.destroy();
     }
 
     borders.clear();
@@ -107,7 +107,7 @@ pub fn destroy_all_borders() -> color_eyre::Result<()> {
         tracing::info!("purging unknown borders: {:?}", remaining_hwnds);
 
         for hwnd in remaining_hwnds {
-            Border::from(hwnd).destroy()?;
+            let _ = Border::from(hwnd).destroy();
         }
     }
 
@@ -157,7 +157,8 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
         let focused_workspace_idx =
             state.monitors.elements()[focused_monitor_idx].focused_workspace_idx();
         let monitors = state.monitors.clone();
-        let pending_move_op = state.pending_move_op;
+        let weak_pending_move_op = Arc::downgrade(&state.pending_move_op);
+        let pending_move_op = *state.pending_move_op;
         let floating_window_hwnds = state.monitors.elements()[focused_monitor_idx].workspaces()
             [focused_workspace_idx]
             .floating_windows()
@@ -413,7 +414,19 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                                     c.focused_window().copied().unwrap_or_default().hwnd,
                                 )?;
 
-                                while WindowsApi::lbutton_is_pressed() {
+                                // We create a new variable to track the actual pending move op so
+                                // that the other variable `pending_move_op` still holds the
+                                // pending move info so that when the move ends we know on the next
+                                // notification that the previous pending move and pending move are
+                                // different (because a move just finished) and still handle the
+                                // notification. If otherwise we updated the pending_move_op here
+                                // directly then the next pending move after finish would be the
+                                // same because we had already updated it here.
+                                let mut sync_pending_move_op =
+                                    weak_pending_move_op.upgrade().and_then(|p| *p);
+                                while sync_pending_move_op.is_some() {
+                                    sync_pending_move_op =
+                                        weak_pending_move_op.upgrade().and_then(|p| *p);
                                     let border = match borders.entry(c.id().clone()) {
                                         Entry::Occupied(entry) => entry.into_mut(),
                                         Entry::Vacant(entry) => {
@@ -496,7 +509,12 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                                 if pending_move_op.is_some() && hwnd == notification_hwnd {
                                     let mut rect = WindowsApi::window_rect(hwnd)?;
 
-                                    while WindowsApi::lbutton_is_pressed() {
+                                    // Check comment above for containers move
+                                    let mut sync_pending_move_op =
+                                        weak_pending_move_op.upgrade().and_then(|p| *p);
+                                    while sync_pending_move_op.is_some() {
+                                        sync_pending_move_op =
+                                            weak_pending_move_op.upgrade().and_then(|p| *p);
                                         let border = match borders.entry(hwnd.to_string()) {
                                             Entry::Occupied(entry) => entry.into_mut(),
                                             Entry::Vacant(entry) => {
