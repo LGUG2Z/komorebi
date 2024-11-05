@@ -295,7 +295,7 @@ in `komorebi::core`.
 Below is an example of how you can subscribe to and filter on events using a named pipe in `nodejs`.
 
 ```javascript
-const pipeName = "\\.\\pipe\\komorebi-js";
+const { exec } = require("child_process");
 const net = require("net");
 
 const pipeName = "\\\\.\\pipe\\komorebi-js";
