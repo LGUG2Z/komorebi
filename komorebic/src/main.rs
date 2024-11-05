@@ -1076,6 +1076,8 @@ enum SubCommand {
     /// Focus the specified workspace
     #[clap(arg_required_else_help = true)]
     FocusNamedWorkspace(FocusNamedWorkspace),
+    /// Close the focused workspace (must be empty and unnamed)
+    CloseWorkspace,
     /// Focus the monitor in the given cycle direction
     #[clap(arg_required_else_help = true)]
     CycleMonitor(CycleMonitor),
@@ -2114,7 +2116,7 @@ if (!(Get-Process whkd -ErrorAction SilentlyContinue))
                     let mut config = StaticConfig::read(config)?;
                     if let Some(display_bar_configurations) = &mut config.bar_configurations {
                         for config_file_path in &mut *display_bar_configurations {
-                            let script = r"Start-Process 'komorebi-bar' '--config CONFIGFILE' -WindowStyle hidden"
+                            let script = r#"Start-Process 'komorebi-bar' '--config "CONFIGFILE"' -WindowStyle hidden"#
                             .replace("CONFIGFILE", &config_file_path.to_string_lossy());
 
                             match powershell_script::run(&script) {
@@ -2218,14 +2220,14 @@ Stop-Process -Name:komorebi-bar -ErrorAction SilentlyContinue
 if (Get-Command Get-CimInstance -ErrorAction SilentlyContinue) {
     (Get-CimInstance Win32_Process | Where-Object {
         ($_.CommandLine -like '*komorebi.ahk"') -and
-        ($_.Name -in @('AutoHotkey.exe', 'AutoHotkey64.exe', 'AutoHotkey32.exe'))
+        ($_.Name -in @('AutoHotkey.exe', 'AutoHotkey64.exe', 'AutoHotkey32.exe', 'AutoHotkeyUX.exe'))
     } | Select-Object -First 1) | ForEach-Object {
         Stop-Process -Id $_.ProcessId -ErrorAction SilentlyContinue
     }
 } else {
     (Get-WmiObject Win32_Process | Where-Object {
         ($_.CommandLine -like '*komorebi.ahk"') -and
-        ($_.Name -in @('AutoHotkey.exe', 'AutoHotkey64.exe', 'AutoHotkey32.exe'))
+        ($_.Name -in @('AutoHotkey.exe', 'AutoHotkey64.exe', 'AutoHotkey32.exe', 'AutoHotkeyUX.exe'))
     } | Select-Object -First 1) | ForEach-Object {
         Stop-Process -Id $_.ProcessId -ErrorAction SilentlyContinue
     }
@@ -2372,6 +2374,9 @@ Stop-Process -Name:komorebi -ErrorAction SilentlyContinue
         }
         SubCommand::FocusNamedWorkspace(arg) => {
             send_message(&SocketMessage::FocusNamedWorkspace(arg.workspace))?;
+        }
+        SubCommand::CloseWorkspace => {
+            send_message(&SocketMessage::CloseWorkspace)?;
         }
         SubCommand::CycleMonitor(arg) => {
             send_message(&SocketMessage::CycleFocusMonitor(arg.cycle_direction))?;

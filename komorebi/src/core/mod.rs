@@ -117,6 +117,7 @@ pub enum SocketMessage {
     CycleFocusWorkspace(CycleDirection),
     FocusMonitorNumber(usize),
     FocusLastWorkspace,
+    CloseWorkspace,
     FocusWorkspaceNumber(usize),
     FocusWorkspaceNumbers(usize),
     FocusMonitorWorkspaceNumber(usize, usize),
