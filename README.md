@@ -25,6 +25,9 @@ Tiling Window Management for Windows.
   <a href="https://www.youtube.com/channel/UCeai3-do-9O4MNy9_xjO6mg?sub_confirmation=1">
     <img alt="YouTube" src="https://img.shields.io/youtube/channel/subscribers/UCeai3-do-9O4MNy9_xjO6mg">
   </a>
+  <a href="https://gurubase.io/g/komorebi">
+    <img alt="Gurubase" src="https://img.shields.io/badge/Gurubase-Ask%20komorebi%20Guru-006BFF">
+  </a>
 </p>
 
 ![screenshot](https://user-images.githubusercontent.com/13164844/184027064-f5a6cec2-2865-4d65-a549-a1f1da589abf.png)
@@ -292,7 +295,7 @@ in `komorebi::core`.
 Below is an example of how you can subscribe to and filter on events using a named pipe in `nodejs`.
 
 ```javascript
-const { exec } = require("child_process");
+const pipeName = "\\.\\pipe\\komorebi-js";
 const net = require("net");
 
 const pipeName = "\\\\.\\pipe\\komorebi-js";
