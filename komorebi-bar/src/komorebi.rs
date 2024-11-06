@@ -123,7 +123,7 @@ pub struct Komorebi {
 }
 
 impl BarWidget for Komorebi {
-    fn render(&mut self, ctx: &Context, ui: &mut Ui, config: RenderConfig) {
+    fn render(&mut self, ctx: &Context, ui: &mut Ui, _config: RenderConfig) {
         let mut komorebi_notification_state = self.komorebi_notification_state.borrow_mut();
 
         if self.workspaces.enable {

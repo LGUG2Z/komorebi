@@ -321,7 +321,7 @@ impl Network {
 }
 
 impl BarWidget for Network {
-    fn render(&mut self, ctx: &Context, ui: &mut Ui, config: RenderConfig) {
+    fn render(&mut self, ctx: &Context, ui: &mut Ui, _config: RenderConfig) {
         if self.show_total_data_transmitted {
             for output in self.total_data_transmitted() {
                 Frame::none()

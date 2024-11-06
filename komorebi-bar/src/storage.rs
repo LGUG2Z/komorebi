@@ -80,7 +80,7 @@ impl Storage {
 }
 
 impl BarWidget for Storage {
-    fn render(&mut self, ctx: &Context, ui: &mut Ui, config: RenderConfig) {
+    fn render(&mut self, ctx: &Context, ui: &mut Ui, _config: RenderConfig) {
         if self.enable {
             let font_id = ctx
                 .style()

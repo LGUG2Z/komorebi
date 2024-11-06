@@ -116,7 +116,7 @@ impl Battery {
 }
 
 impl BarWidget for Battery {
-    fn render(&mut self, ctx: &Context, ui: &mut Ui, config: RenderConfig) {
+    fn render(&mut self, ctx: &Context, ui: &mut Ui, _config: RenderConfig) {
         if self.enable {
             let output = self.output();
             if !output.is_empty() {
