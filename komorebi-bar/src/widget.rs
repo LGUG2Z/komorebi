@@ -36,11 +36,7 @@ pub struct RenderConfig {
 impl RenderConfig {
     pub fn from(config: Arc<KomobarConfig>) -> Self {
         Self { group: 1 }
-    }
-    
-    //fn clone(&self) -> Self {
-    //    Self { group: self.group }
-    //}
+    }    
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
