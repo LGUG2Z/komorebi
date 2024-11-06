@@ -30,13 +30,14 @@ pub trait BarWidget {
 
 #[derive(Clone)]
 pub struct RenderConfig {
+    /// Sets how widgets are grouped
     group: i32,
 }
 
 impl RenderConfig {
     pub fn from(config: Arc<KomobarConfig>) -> Self {
         Self { group: 1 }
-    }    
+    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
