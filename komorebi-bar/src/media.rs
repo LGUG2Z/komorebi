@@ -1,5 +1,6 @@
 use crate::ui::CustomUi;
 use crate::widget::BarWidget;
+use crate::widget::RenderConfig;
 use crate::MAX_LABEL_WIDTH;
 use crate::WIDGET_SPACING;
 use eframe::egui::text::LayoutJob;
@@ -78,7 +79,7 @@ impl Media {
 }
 
 impl BarWidget for Media {
-    fn render(&mut self, ctx: &Context, ui: &mut Ui) {
+    fn render(&mut self, ctx: &Context, ui: &mut Ui, config: RenderConfig) {
         if self.enable {
             let output = self.output();
             if !output.is_empty() {

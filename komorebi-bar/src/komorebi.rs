@@ -2,6 +2,7 @@ use crate::bar::apply_theme;
 use crate::config::KomobarTheme;
 use crate::ui::CustomUi;
 use crate::widget::BarWidget;
+use crate::widget::RenderConfig;
 use crate::MAX_LABEL_WIDTH;
 use crate::WIDGET_SPACING;
 use crossbeam_channel::Receiver;
@@ -122,7 +123,7 @@ pub struct Komorebi {
 }
 
 impl BarWidget for Komorebi {
-    fn render(&mut self, ctx: &Context, ui: &mut Ui) {
+    fn render(&mut self, ctx: &Context, ui: &mut Ui, config: RenderConfig) {
         let mut komorebi_notification_state = self.komorebi_notification_state.borrow_mut();
 
         if self.workspaces.enable {

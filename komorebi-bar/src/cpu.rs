@@ -1,5 +1,6 @@
 use crate::config::LabelPrefix;
 use crate::widget::BarWidget;
+use crate::widget::RenderConfig;
 use crate::WIDGET_SPACING;
 use eframe::egui::text::LayoutJob;
 use eframe::egui::Context;
@@ -70,7 +71,7 @@ impl Cpu {
 }
 
 impl BarWidget for Cpu {
-    fn render(&mut self, ctx: &Context, ui: &mut Ui) {
+    fn render(&mut self, ctx: &Context, ui: &mut Ui, config: RenderConfig) {
         if self.enable {
             let output = self.output();
             if !output.is_empty() {

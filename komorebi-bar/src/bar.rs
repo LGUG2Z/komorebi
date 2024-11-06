@@ -6,6 +6,7 @@ use crate::komorebi::Komorebi;
 use crate::komorebi::KomorebiNotificationState;
 use crate::process_hwnd;
 use crate::widget::BarWidget;
+use crate::widget::RenderConfig;
 use crate::widget::WidgetConfig;
 use crate::BAR_HEIGHT;
 use crate::MAX_LABEL_WIDTH;
@@ -41,6 +42,7 @@ use std::sync::Arc;
 
 pub struct Komobar {
     pub config: Arc<KomobarConfig>,
+    pub render_config: RenderConfig,
     pub komorebi_notification_state: Option<Rc<RefCell<KomorebiNotificationState>>>,
     pub left_widgets: Vec<Box<dyn BarWidget>>,
     pub right_widgets: Vec<Box<dyn BarWidget>>,
@@ -315,6 +317,7 @@ impl Komobar {
     ) -> Self {
         let mut komobar = Self {
             config: config.clone(),
+            render_config: RenderConfig::from(config.clone()),
             komorebi_notification_state: None,
             left_widgets: vec![],
             right_widgets: vec![],
@@ -437,13 +440,13 @@ impl eframe::App for Komobar {
             ui.horizontal_centered(|ui| {
                 ui.with_layout(Layout::left_to_right(Align::Center), |ui| {
                     for w in &mut self.left_widgets {
-                        w.render(ctx, ui);
+                        w.render(ctx, ui, self.render_config.clone());
                     }
                 });
 
                 ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
                     for w in &mut self.right_widgets {
-                        w.render(ctx, ui);
+                        w.render(ctx, ui, self.render_config.clone());
                     }
                 })
             })

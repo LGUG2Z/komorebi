@@ -1,5 +1,6 @@
 use crate::battery::Battery;
 use crate::battery::BatteryConfig;
+use crate::config::KomobarConfig;
 use crate::cpu::Cpu;
 use crate::cpu::CpuConfig;
 use crate::date::Date;
@@ -21,9 +22,25 @@ use eframe::egui::Ui;
 use schemars::JsonSchema;
 use serde::Deserialize;
 use serde::Serialize;
+use std::sync::Arc;
 
 pub trait BarWidget {
-    fn render(&mut self, ctx: &Context, ui: &mut Ui);
+    fn render(&mut self, ctx: &Context, ui: &mut Ui, config: RenderConfig);
+}
+
+#[derive(Clone)]
+pub struct RenderConfig {
+    group: i32,
+}
+
+impl RenderConfig {
+    pub fn from(config: Arc<KomobarConfig>) -> Self {
+        Self { group: 1 }
+    }
+    
+    //fn clone(&self) -> Self {
+    //    Self { group: self.group }
+    //}
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]

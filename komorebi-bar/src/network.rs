@@ -1,10 +1,14 @@
 use crate::config::LabelPrefix;
 use crate::widget::BarWidget;
+use crate::widget::RenderConfig;
 use crate::WIDGET_SPACING;
 use eframe::egui::text::LayoutJob;
 use eframe::egui::Context;
 use eframe::egui::FontId;
+use eframe::egui::Frame;
 use eframe::egui::Label;
+use eframe::egui::Margin;
+use eframe::egui::Rounding;
 use eframe::egui::Sense;
 use eframe::egui::TextFormat;
 use eframe::egui::TextStyle;
@@ -317,10 +321,18 @@ impl Network {
 }
 
 impl BarWidget for Network {
-    fn render(&mut self, ctx: &Context, ui: &mut Ui) {
+    fn render(&mut self, ctx: &Context, ui: &mut Ui, config: RenderConfig) {
         if self.show_total_data_transmitted {
             for output in self.total_data_transmitted() {
-                ui.add(Label::new(output).selectable(false));
+                Frame::none()
+                    //.fill(Color32::from_black_alpha(255u8))
+                    .outer_margin(Margin::symmetric(0.0, 0.0))
+                    .inner_margin(Margin::symmetric(7.0, 2.0))
+                    .rounding(Rounding::same(15.0))
+                    .stroke(ui.style().visuals.widgets.noninteractive.bg_stroke)
+                    .show(ui, |ui| {
+                        ui.add(Label::new(output).selectable(false));
+                    });
             }
 
             ui.add_space(WIDGET_SPACING);
@@ -328,7 +340,15 @@ impl BarWidget for Network {
 
         if self.show_network_activity {
             for output in self.network_activity() {
-                ui.add(Label::new(output).selectable(false));
+                Frame::none()
+                    //.fill(Color32::from_black_alpha(255u8))
+                    .outer_margin(Margin::symmetric(0.0, 0.0))
+                    .inner_margin(Margin::symmetric(7.0, 2.0))
+                    .rounding(Rounding::same(15.0))
+                    .stroke(ui.style().visuals.widgets.noninteractive.bg_stroke)
+                    .show(ui, |ui| {
+                        ui.add(Label::new(output).selectable(false));
+                    });
             }
 
             ui.add_space(WIDGET_SPACING);
@@ -367,18 +387,27 @@ impl BarWidget for Network {
                     TextFormat::simple(font_id, ctx.style().visuals.text_color()),
                 );
 
-                if ui
-                    .add(
-                        Label::new(layout_job)
-                            .selectable(false)
-                            .sense(Sense::click()),
-                    )
-                    .clicked()
-                {
-                    if let Err(error) = Command::new("cmd.exe").args(["/C", "ncpa"]).spawn() {
-                        eprintln!("{}", error)
-                    }
-                }
+                Frame::none()
+                    //.fill(Color32::from_black_alpha(255u8))
+                    .outer_margin(Margin::symmetric(0.0, 0.0))
+                    .inner_margin(Margin::symmetric(7.0, 2.0))
+                    .rounding(Rounding::same(15.0))
+                    .stroke(ui.style().visuals.widgets.noninteractive.bg_stroke)
+                    .show(ui, |ui| {
+                        if ui
+                            .add(
+                                Label::new(layout_job)
+                                    .selectable(false)
+                                    .sense(Sense::click()),
+                            )
+                            .clicked()
+                        {
+                            if let Err(error) = Command::new("cmd.exe").args(["/C", "ncpa"]).spawn()
+                            {
+                                eprintln!("{}", error)
+                            }
+                        }
+                    });
             }
 
             ui.add_space(WIDGET_SPACING);
