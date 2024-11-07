@@ -1,5 +1,6 @@
 use crate::widget::WidgetConfig;
 use eframe::egui::Pos2;
+use eframe::egui::Rounding;
 use eframe::egui::TextBuffer;
 use eframe::egui::Vec2;
 use komorebi_client::KomorebiTheme;
@@ -183,5 +184,38 @@ pub enum LabelPrefix {
 
 #[derive(Copy, Clone, Debug, Serialize, Deserialize, JsonSchema)]
 pub enum Grouping {
-    None
+    /// No grouping is applied
+    None,
+    /// Widgets are grouped individually
+    Widget(GroupingConfig),
+    /// Widgets are grouped on each side
+    Side(GroupingConfig),
+}
+
+#[derive(Copy, Clone, Debug, Serialize, Deserialize, JsonSchema)]
+pub struct GroupingConfig {
+    pub rounding: Option<BorderRadius>,
+}
+
+#[derive(Copy, Clone, Debug, Serialize, Deserialize, JsonSchema)]
+pub struct BorderRadius {
+    /// Radius of the rounding of the North-West (left top) corner.
+    pub nw: f32,
+    /// Radius of the rounding of the North-East (right top) corner.
+    pub ne: f32,
+    /// Radius of the rounding of the South-West (left bottom) corner.
+    pub sw: f32,
+    /// Radius of the rounding of the South-East (right bottom) corner.
+    pub se: f32,
+}
+
+impl From<BorderRadius> for Rounding {
+    fn from(value: BorderRadius) -> Self {
+        Self {
+            nw: value.nw,
+            ne: value.ne,
+            sw: value.sw,
+            se: value.se,
+        }
+    }
 }
