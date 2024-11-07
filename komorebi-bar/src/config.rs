@@ -28,6 +28,8 @@ pub struct KomobarConfig {
     pub max_label_width: Option<f32>,
     /// Theme
     pub theme: Option<KomobarTheme>,
+    /// Visual grouping for widgets
+    pub group: Option<Group>,
     /// Left side widgets (ordered left-to-right)
     pub left_widgets: Vec<WidgetConfig>,
     /// Right side widgets (ordered left-to-right)
@@ -177,4 +179,9 @@ pub enum LabelPrefix {
     Text,
     /// Show an icon and text
     IconAndText,
+}
+
+#[derive(Copy, Clone, Debug, Serialize, Deserialize, JsonSchema)]
+pub enum Group {
+    None
 }

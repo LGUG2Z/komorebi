@@ -1,3 +1,4 @@
+use crate::config::Group;
 use crate::config::KomobarConfig;
 use crate::config::KomobarTheme;
 use crate::config::Position;
@@ -317,7 +318,12 @@ impl Komobar {
     ) -> Self {
         let mut komobar = Self {
             config: config.clone(),
-            render_config: RenderConfig::from(config.clone()),
+            render_config: RenderConfig {
+                _group: match config.group {
+                    None => Group::None,
+                    Some(group) => group,
+                },
+            },
             komorebi_notification_state: None,
             left_widgets: vec![],
             right_widgets: vec![],
@@ -440,13 +446,13 @@ impl eframe::App for Komobar {
             ui.horizontal_centered(|ui| {
                 ui.with_layout(Layout::left_to_right(Align::Center), |ui| {
                     for w in &mut self.left_widgets {
-                        w.render(ctx, ui, self.render_config.clone());
+                        w.render(ctx, ui, self.render_config);
                     }
                 });
 
                 ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
                     for w in &mut self.right_widgets {
-                        w.render(ctx, ui, self.render_config.clone());
+                        w.render(ctx, ui, self.render_config);
                     }
                 })
             })
