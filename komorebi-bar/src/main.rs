@@ -3,6 +3,7 @@ mod battery;
 mod config;
 mod cpu;
 mod date;
+mod group;
 mod komorebi;
 mod media;
 mod memory;

@@ -74,7 +74,7 @@ impl Memory {
 }
 
 impl BarWidget for Memory {
-    fn render(&mut self, ctx: &Context, ui: &mut Ui, _config: RenderConfig) {
+    fn render(&mut self, ctx: &Context, ui: &mut Ui, mut config: RenderConfig) {
         if self.enable {
             let output = self.output();
             if !output.is_empty() {
@@ -103,19 +103,22 @@ impl BarWidget for Memory {
                     TextFormat::simple(font_id, ctx.style().visuals.text_color()),
                 );
 
-                if ui
-                    .add(
-                        Label::new(layout_job)
-                            .selectable(false)
-                            .sense(Sense::click()),
-                    )
-                    .clicked()
-                {
-                    if let Err(error) = Command::new("cmd.exe").args(["/C", "taskmgr.exe"]).spawn()
+                config.grouping.apply_on_widget(ui, |ui| {
+                    if ui
+                        .add(
+                            Label::new(layout_job)
+                                .selectable(false)
+                                .sense(Sense::click()),
+                        )
+                        .clicked()
                     {
-                        eprintln!("{}", error)
+                        if let Err(error) =
+                            Command::new("cmd.exe").args(["/C", "taskmgr.exe"]).spawn()
+                        {
+                            eprintln!("{}", error)
+                        }
                     }
-                }
+                });
             }
 
             ui.add_space(WIDGET_SPACING);

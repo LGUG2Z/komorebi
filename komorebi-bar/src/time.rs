@@ -5,10 +5,7 @@ use crate::WIDGET_SPACING;
 use eframe::egui::text::LayoutJob;
 use eframe::egui::Context;
 use eframe::egui::FontId;
-use eframe::egui::Frame;
 use eframe::egui::Label;
-use eframe::egui::Margin;
-use eframe::egui::Rounding;
 use eframe::egui::Sense;
 use eframe::egui::TextFormat;
 use eframe::egui::TextStyle;
@@ -81,7 +78,7 @@ impl Time {
 }
 
 impl BarWidget for Time {
-    fn render(&mut self, ctx: &Context, ui: &mut Ui, _config: RenderConfig) {
+    fn render(&mut self, ctx: &Context, ui: &mut Ui, mut config: RenderConfig) {
         if self.enable {
             let mut output = self.output();
             if !output.is_empty() {
@@ -114,24 +111,18 @@ impl BarWidget for Time {
                     TextFormat::simple(font_id, ctx.style().visuals.text_color()),
                 );
 
-                Frame::none()
-                    //.fill(Color32::from_black_alpha(255u8))
-                    .outer_margin(Margin::symmetric(0.0, 0.0))
-                    .inner_margin(Margin::symmetric(7.0, 2.0))
-                    .rounding(Rounding::same(15.0))
-                    .stroke(ui.style().visuals.widgets.noninteractive.bg_stroke)
-                    .show(ui, |ui| {
-                        if ui
-                            .add(
-                                Label::new(layout_job)
-                                    .selectable(false)
-                                    .sense(Sense::click()),
-                            )
-                            .clicked()
-                        {
-                            self.format.toggle()
-                        }
-                    });
+                config.grouping.apply_on_widget(ui, |ui| {
+                    if ui
+                        .add(
+                            Label::new(layout_job)
+                                .selectable(false)
+                                .sense(Sense::click()),
+                        )
+                        .clicked()
+                    {
+                        self.format.toggle()
+                    }
+                });
             }
 
             ui.add_space(WIDGET_SPACING);

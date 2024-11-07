@@ -116,7 +116,7 @@ impl Battery {
 }
 
 impl BarWidget for Battery {
-    fn render(&mut self, ctx: &Context, ui: &mut Ui, _config: RenderConfig) {
+    fn render(&mut self, ctx: &Context, ui: &mut Ui, mut config: RenderConfig) {
         if self.enable {
             let output = self.output();
             if !output.is_empty() {
@@ -148,11 +148,13 @@ impl BarWidget for Battery {
                     TextFormat::simple(font_id, ctx.style().visuals.text_color()),
                 );
 
-                ui.add(
-                    Label::new(layout_job)
-                        .selectable(false)
-                        .sense(Sense::click()),
-                );
+                config.grouping.apply_on_widget(ui, |ui| {
+                    ui.add(
+                        Label::new(layout_job)
+                            .selectable(false)
+                            .sense(Sense::click()),
+                    );
+                });
             }
 
             ui.add_space(WIDGET_SPACING);

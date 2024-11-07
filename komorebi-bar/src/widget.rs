@@ -1,10 +1,10 @@
 use crate::battery::Battery;
 use crate::battery::BatteryConfig;
-use crate::config::Grouping;
 use crate::cpu::Cpu;
 use crate::cpu::CpuConfig;
 use crate::date::Date;
 use crate::date::DateConfig;
+use crate::group::Grouping;
 use crate::komorebi::Komorebi;
 use crate::komorebi::KomorebiConfig;
 use crate::media::Media;
@@ -30,7 +30,7 @@ pub trait BarWidget {
 #[derive(Copy, Clone)]
 pub struct RenderConfig {
     /// Sets how widgets are grouped
-    pub _grouping: Grouping,
+    pub grouping: Grouping,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]

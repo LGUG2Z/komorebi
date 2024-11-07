@@ -1,8 +1,10 @@
-use crate::config::Grouping;
 use crate::config::KomobarConfig;
 use crate::config::KomobarTheme;
 use crate::config::Position;
 use crate::config::PositionConfig;
+use crate::group::BorderRadius;
+use crate::group::Grouping;
+use crate::group::GroupingConfig;
 use crate::komorebi::Komorebi;
 use crate::komorebi::KomorebiNotificationState;
 use crate::process_hwnd;
@@ -319,8 +321,16 @@ impl Komobar {
         let mut komobar = Self {
             config: config.clone(),
             render_config: RenderConfig {
-                _grouping: match config.grouping {
-                    None => Grouping::None,
+                grouping: match config.grouping {
+                    // TESTING
+                    None => Grouping::Widget(GroupingConfig {
+                        rounding: Some(BorderRadius {
+                            nw: 15.0,
+                            ne: 15.0,
+                            sw: 15.0,
+                            se: 15.0,
+                        }),
+                    }),
                     Some(grouping) => grouping,
                 },
             },
