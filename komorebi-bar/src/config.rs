@@ -29,7 +29,7 @@ pub struct KomobarConfig {
     /// Theme
     pub theme: Option<KomobarTheme>,
     /// Visual grouping for widgets
-    pub group: Option<Group>,
+    pub grouping: Option<Grouping>,
     /// Left side widgets (ordered left-to-right)
     pub left_widgets: Vec<WidgetConfig>,
     /// Right side widgets (ordered left-to-right)
@@ -182,6 +182,6 @@ pub enum LabelPrefix {
 }
 
 #[derive(Copy, Clone, Debug, Serialize, Deserialize, JsonSchema)]
-pub enum Group {
+pub enum Grouping {
     None
 }

@@ -1,4 +1,4 @@
-use crate::config::Group;
+use crate::config::Grouping;
 use crate::config::KomobarConfig;
 use crate::config::KomobarTheme;
 use crate::config::Position;
@@ -319,9 +319,9 @@ impl Komobar {
         let mut komobar = Self {
             config: config.clone(),
             render_config: RenderConfig {
-                _group: match config.group {
-                    None => Group::None,
-                    Some(group) => group,
+                _grouping: match config.grouping {
+                    None => Grouping::None,
+                    Some(grouping) => grouping,
                 },
             },
             komorebi_notification_state: None,
