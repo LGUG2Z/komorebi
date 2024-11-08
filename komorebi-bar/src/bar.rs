@@ -444,7 +444,7 @@ impl eframe::App for Komobar {
 
         // NOTE: is there a better way?
         let mut render_config = self.render_config.borrow_mut();
-        let render_config_clone = render_config.clone();
+        let render_config_clone = *render_config;
 
         CentralPanel::default().frame(frame).show(ctx, |ui| {
             ui.horizontal_centered(|ui| {
