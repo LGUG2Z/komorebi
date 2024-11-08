@@ -8,7 +8,6 @@ use eframe::egui::Stroke;
 use eframe::egui::Ui;
 use komorebi_client::Colour;
 use komorebi_client::Rect;
-use komorebi_client::Rgb;
 use schemars::JsonSchema;
 use serde::Deserialize;
 use serde::Serialize;
@@ -110,25 +109,12 @@ impl Grouping {
             bottom: rect.bottom as f32,
         }
     }
-
-    // NOTE: this is also in the komorebi_gui. Should be moved to the "komorebi colour"
-    pub fn colour_to_color32(colour: Option<Colour>) -> Color32 {
-        match colour {
-            Some(Colour::Rgb(rgb)) => Color32::from_rgb(rgb.r as u8, rgb.g as u8, rgb.b as u8),
-            Some(Colour::Hex(hex)) => {
-                let rgb = Rgb::from(hex);
-                Color32::from_rgb(rgb.r as u8, rgb.g as u8, rgb.b as u8)
-            }
-            //None => Color32::from_rgb(0, 0, 0),
-            None => Color32::TRANSPARENT,
-        }
-    }
 }
 
 #[derive(Copy, Clone, Debug, Serialize, Deserialize, JsonSchema)]
 pub struct GroupingConfig {
     pub fill: Option<AlphaColour>,
-    pub rounding: Option<BorderRadius>,
+    pub rounding: Option<RoundingConfig>,
     pub outer_margin: Option<Rect>,
     pub inner_margin: Option<Rect>,
     pub stroke: Option<Line>,
@@ -144,30 +130,32 @@ impl From<Line> for Stroke {
     fn from(value: Line) -> Self {
         Self {
             width: value.width,
-            color: Grouping::colour_to_color32(value.color),
+            color: match value.color {
+                Some(color) => color.into(),
+                None => Color32::from_rgb(0, 0, 0),
+            },
         }
     }
 }
 
 #[derive(Copy, Clone, Debug, Serialize, Deserialize, JsonSchema)]
-pub struct BorderRadius {
-    /// Radius of the rounding of the North-West (left top) corner.
-    pub nw: f32,
-    /// Radius of the rounding of the North-East (right top) corner.
-    pub ne: f32,
-    /// Radius of the rounding of the South-West (left bottom) corner.
-    pub sw: f32,
-    /// Radius of the rounding of the South-East (right bottom) corner.
-    pub se: f32,
+pub enum RoundingConfig {
+    /// All 4 corners are the same    
+    Same(f32),
+    /// All 4 corners are custom. Order: NW, NE, SW, SE
+    Individual([f32; 4]),
 }
 
-impl From<BorderRadius> for Rounding {
-    fn from(value: BorderRadius) -> Self {
-        Self {
-            nw: value.nw,
-            ne: value.ne,
-            sw: value.sw,
-            se: value.se,
+impl From<RoundingConfig> for Rounding {
+    fn from(value: RoundingConfig) -> Self {
+        match value {
+            RoundingConfig::Same(value) => Rounding::same(value),
+            RoundingConfig::Individual(values) => Self {
+                nw: values[0],
+                ne: values[1],
+                sw: values[2],
+                se: values[3],
+            },
         }
     }
 }

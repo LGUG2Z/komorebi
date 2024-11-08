@@ -446,7 +446,7 @@ impl eframe::App for Komobar {
         let mut render_config = self.render_config.borrow_mut();
         let render_config_clone = *render_config;
 
-        // prefer the custom background from the config
+        // prefer the custom background from the config over the theme background
         if let Some(bg_color) = render_config.background_color {
             self.bg_color.replace(bg_color);
         };
