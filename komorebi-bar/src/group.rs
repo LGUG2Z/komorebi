@@ -1,3 +1,4 @@
+//use eframe::egui::Color32;
 use eframe::egui::Frame;
 use eframe::egui::InnerResponse;
 use eframe::egui::Margin;
@@ -28,19 +29,47 @@ impl Grouping {
                 inner: add_contents(ui),
                 response: ui.response().clone(),
             },
-            Self::Widget(_config) => {
-                Frame::none()
-                    //.fill(Color32::from_black_alpha(255u8))
-                    .outer_margin(Margin::symmetric(0.0, 0.0))
-                    .inner_margin(Margin::symmetric(7.0, 2.0))
-                    .rounding(Rounding::same(15.0))
-                    .stroke(ui.style().visuals.widgets.noninteractive.bg_stroke)
-                    .show(ui, add_contents)
-            }
+            Self::Widget(config) => Frame::none()
+                //.fill(Color32::from_black_alpha(255u8))
+                .outer_margin(Margin::symmetric(0.0, 0.0))
+                .inner_margin(Margin::symmetric(7.0, 2.0))
+                .rounding(match config.rounding {
+                    None => Rounding::same(15.0),
+                    Some(rounding) => rounding.into(),
+                })
+                .stroke(ui.style().visuals.widgets.noninteractive.bg_stroke)
+                .show(ui, add_contents),
             Self::Side(_config) => InnerResponse {
                 inner: add_contents(ui),
                 response: ui.response().clone(),
             },
+        }
+    }
+
+    pub fn apply_on_side<R>(
+        &mut self,
+        ui: &mut Ui,
+        add_contents: impl FnOnce(&mut Ui) -> R,
+    ) -> InnerResponse<R> {
+        match self {
+            Self::None => InnerResponse {
+                inner: add_contents(ui),
+                response: ui.response().clone(),
+            },
+            Self::Widget(_config) => InnerResponse {
+                inner: add_contents(ui),
+                response: ui.response().clone(),
+            },
+            Self::Side(config) => Frame::none()
+                //.fill(Color32::from_black_alpha(255u8))
+                .outer_margin(Margin::symmetric(0.0, 0.0))
+                .inner_margin(Margin::symmetric(7.0, 2.0))
+                .rounding(match config.rounding {
+                    None => Rounding::same(15.0),
+                    Some(rounding) => rounding.into(),
+                })
+                .stroke(ui.style().visuals.widgets.noninteractive.bg_stroke)
+                .show(ui, add_contents),
         }
     }
 }

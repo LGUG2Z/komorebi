@@ -2,9 +2,7 @@ use crate::config::KomobarConfig;
 use crate::config::KomobarTheme;
 use crate::config::Position;
 use crate::config::PositionConfig;
-use crate::group::BorderRadius;
 use crate::group::Grouping;
-use crate::group::GroupingConfig;
 use crate::komorebi::Komorebi;
 use crate::komorebi::KomorebiNotificationState;
 use crate::process_hwnd;
@@ -45,7 +43,7 @@ use std::sync::Arc;
 
 pub struct Komobar {
     pub config: Arc<KomobarConfig>,
-    pub render_config: RenderConfig,
+    pub render_config: Rc<RefCell<RenderConfig>>,
     pub komorebi_notification_state: Option<Rc<RefCell<KomorebiNotificationState>>>,
     pub left_widgets: Vec<Box<dyn BarWidget>>,
     pub right_widgets: Vec<Box<dyn BarWidget>>,
@@ -320,20 +318,12 @@ impl Komobar {
     ) -> Self {
         let mut komobar = Self {
             config: config.clone(),
-            render_config: RenderConfig {
+            render_config: Rc::new(RefCell::new(RenderConfig {
                 grouping: match config.grouping {
-                    // TESTING
-                    None => Grouping::Widget(GroupingConfig {
-                        rounding: Some(BorderRadius {
-                            nw: 15.0,
-                            ne: 15.0,
-                            sw: 15.0,
-                            se: 15.0,
-                        }),
-                    }),
+                    None => Grouping::None,
                     Some(grouping) => grouping,
                 },
-            },
+            })),
             komorebi_notification_state: None,
             left_widgets: vec![],
             right_widgets: vec![],
@@ -452,18 +442,26 @@ impl eframe::App for Komobar {
             Frame::none().fill(*self.bg_color.borrow())
         };
 
+        // NOTE: is there a better way?
+        let mut render_config = self.render_config.borrow_mut();
+        let render_config_clone = render_config.clone();
+
         CentralPanel::default().frame(frame).show(ctx, |ui| {
             ui.horizontal_centered(|ui| {
                 ui.with_layout(Layout::left_to_right(Align::Center), |ui| {
-                    for w in &mut self.left_widgets {
-                        w.render(ctx, ui, self.render_config);
-                    }
+                    render_config.grouping.apply_on_side(ui, |ui| {
+                        for w in &mut self.left_widgets {
+                            w.render(ctx, ui, render_config_clone);
+                        }
+                    });
                 });
 
                 ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                    for w in &mut self.right_widgets {
-                        w.render(ctx, ui, self.render_config);
-                    }
+                    render_config.grouping.apply_on_side(ui, |ui| {
+                        for w in &mut self.right_widgets {
+                            w.render(ctx, ui, render_config_clone);
+                        }
+                    });
                 })
             })
         });
