@@ -26,8 +26,10 @@ use eframe::egui::FontId;
 use eframe::egui::Frame;
 use eframe::egui::Layout;
 use eframe::egui::Margin;
+use eframe::egui::Rgba;
 use eframe::egui::Style;
 use eframe::egui::TextStyle;
+use eframe::egui::Visuals;
 use font_loader::system_fonts;
 use font_loader::system_fonts::FontPropertyBuilder;
 use komorebi_client::KomorebiTheme;
@@ -320,9 +322,10 @@ impl Komobar {
             config: config.clone(),
             render_config: Rc::new(RefCell::new(RenderConfig {
                 grouping: match config.grouping {
-                    None => Grouping::None,
                     Some(grouping) => grouping,
+                    None => Grouping::None,
                 },
+                background_color: config.background.map(|value| value.into()),
             })),
             komorebi_notification_state: None,
             left_widgets: vec![],
@@ -394,13 +397,10 @@ impl Komobar {
     }
 }
 impl eframe::App for Komobar {
-    // TODO: I think this is needed for transparency??
-    // fn clear_color(&self, _visuals: &Visuals) -> [f32; 4] {
-    // egui::Rgba::TRANSPARENT.to_array()
-    // let mut background = Color32::from_gray(18).to_normalized_gamma_f32();
-    // background[3] = 0.9;
-    // background
-    // }
+    // Needed for transparency
+    fn clear_color(&self, _visuals: &Visuals) -> [f32; 4] {
+        Rgba::TRANSPARENT.to_array()
+    }
 
     fn update(&mut self, ctx: &Context, _frame: &mut eframe::Frame) {
         if self.scale_factor != ctx.native_pixels_per_point().unwrap_or(1.0) {
@@ -445,6 +445,11 @@ impl eframe::App for Komobar {
         // NOTE: is there a better way?
         let mut render_config = self.render_config.borrow_mut();
         let render_config_clone = *render_config;
+
+        // prefer the custom background from the config
+        if let Some(bg_color) = render_config.background_color {
+            self.bg_color.replace(bg_color);
+        };
 
         CentralPanel::default().frame(frame).show(ctx, |ui| {
             ui.horizontal_centered(|ui| {

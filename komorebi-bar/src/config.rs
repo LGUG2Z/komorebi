@@ -1,8 +1,10 @@
 use crate::group::Grouping;
 use crate::widget::WidgetConfig;
+use eframe::egui::Color32;
 use eframe::egui::Pos2;
 use eframe::egui::TextBuffer;
 use eframe::egui::Vec2;
+use komorebi_client::Colour;
 use komorebi_client::KomorebiTheme;
 use komorebi_client::Rect;
 use schemars::JsonSchema;
@@ -29,6 +31,8 @@ pub struct KomobarConfig {
     pub max_label_width: Option<f32>,
     /// Theme
     pub theme: Option<KomobarTheme>,
+    /// Background color
+    pub background: Option<AlphaColour>,
     /// Visual grouping for widgets
     pub grouping: Option<Grouping>,
     /// Left side widgets (ordered left-to-right)
@@ -180,4 +184,27 @@ pub enum LabelPrefix {
     Text,
     /// Show an icon and text
     IconAndText,
+}
+
+#[derive(Copy, Clone, Debug, Serialize, Deserialize, JsonSchema)]
+pub struct AlphaColour {
+    /// Color
+    pub color: Option<Colour>,
+    /// Alpha value for the color transparency [[0-255]] (default: 200)
+    pub transparency_alpha: Option<u8>,
+}
+
+impl From<AlphaColour> for Color32 {
+    fn from(value: AlphaColour) -> Self {
+        let color = match value.color {
+            Some(color) => color.into(),
+            None => Color32::from_rgb(0, 0, 0),
+        };
+
+        if let Some(alpha) = value.transparency_alpha {
+            return Color32::from_rgba_premultiplied(color.r(), color.g(), color.b(), alpha);
+        }
+
+        color
+    }
 }

@@ -267,7 +267,10 @@ fn main() -> color_eyre::Result<()> {
 
     let viewport_builder = ViewportBuilder::default()
         .with_decorations(false)
-        // .with_transparent(config.transparent)
+        .with_transparent(match config.background {
+            None => false,
+            Some(color) => color.transparency_alpha.is_some(),
+        })
         .with_taskbar(false);
 
     let native_options = eframe::NativeOptions {
