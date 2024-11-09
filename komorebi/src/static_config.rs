@@ -1106,12 +1106,9 @@ impl StaticConfig {
                     );
 
                     for (j, ws) in m.workspaces_mut().iter_mut().enumerate() {
-                        ws.load_static_config(
-                            monitor
-                                .workspaces
-                                .get(j)
-                                .expect("no static workspace config"),
-                        )?;
+                        if let Some(workspace_config) = monitor.workspaces.get(j) {
+                            ws.load_static_config(workspace_config)?;
+                        }
                     }
                 }
 
@@ -1169,12 +1166,9 @@ impl StaticConfig {
                     );
 
                     for (j, ws) in m.workspaces_mut().iter_mut().enumerate() {
-                        ws.load_static_config(
-                            monitor
-                                .workspaces
-                                .get(j)
-                                .expect("no static workspace config"),
-                        )?;
+                        if let Some(workspace_config) = monitor.workspaces.get(j) {
+                            ws.load_static_config(workspace_config)?;
+                        }
                     }
                 }
 
