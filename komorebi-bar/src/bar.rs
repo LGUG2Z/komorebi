@@ -326,7 +326,6 @@ impl Komobar {
                     Some(grouping) => grouping,
                     None => Grouping::None,
                 },
-                background_color: config.background.map(|value| value.into()),
             })),
             komorebi_notification_state: None,
             left_widgets: vec![],
@@ -432,25 +431,27 @@ impl eframe::App for Komobar {
                 );
         }
 
+        let theme_color = *self.bg_color.borrow();
+
+        if let Some(background) = self.config.background {
+            self.bg_color
+                .replace(background.to_color32_or(Some(theme_color)));
+        }
+
         let frame = if let Some(frame) = &self.config.frame {
             Frame::none()
                 .inner_margin(Margin::symmetric(
                     frame.inner_margin.x,
                     frame.inner_margin.y,
                 ))
-                .fill(*self.bg_color.borrow())
+                .fill(theme_color)
         } else {
-            Frame::none().fill(*self.bg_color.borrow())
+            Frame::none().fill(theme_color)
         };
 
         // NOTE: is there a better way?
         let mut render_config = self.render_config.borrow_mut();
         let render_config_clone = *render_config;
-
-        // prefer the custom background from the config over the theme background
-        if let Some(bg_color) = render_config.background_color {
-            self.bg_color.replace(bg_color);
-        };
 
         CentralPanel::default().frame(frame).show(ctx, |ui| {
             ui.horizontal_centered(|ui| {

@@ -17,7 +17,6 @@ use crate::storage::Storage;
 use crate::storage::StorageConfig;
 use crate::time::Time;
 use crate::time::TimeConfig;
-use eframe::egui::Color32;
 use eframe::egui::Context;
 use eframe::egui::Ui;
 use schemars::JsonSchema;
@@ -32,7 +31,6 @@ pub trait BarWidget {
 pub struct RenderConfig {
     /// Sets how widgets are grouped
     pub grouping: Grouping,
-    pub background_color: Option<Color32>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]

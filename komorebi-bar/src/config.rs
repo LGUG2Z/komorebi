@@ -194,14 +194,18 @@ pub struct AlphaColour {
     pub transparency_alpha: Option<u8>,
 }
 
-impl From<AlphaColour> for Color32 {
-    fn from(value: AlphaColour) -> Self {
-        let color = match value.color {
+impl AlphaColour {
+    /// Returns an Rgb or Rgba color using the alpha, and default_color or Rgb(0,0,0)
+    pub fn to_color32_or(self, default_color: Option<Color32>) -> Color32 {
+        let color = match self.color {
             Some(color) => color.into(),
-            None => Color32::from_rgb(0, 0, 0),
+            None => match default_color {
+                Some(color) => color,
+                None => Color32::from_rgb(0, 0, 0),
+            },
         };
 
-        if let Some(alpha) = value.transparency_alpha {
+        if let Some(alpha) = self.transparency_alpha {
             return Color32::from_rgba_premultiplied(color.r(), color.g(), color.b(), alpha);
         }
 

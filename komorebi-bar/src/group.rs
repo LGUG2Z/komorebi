@@ -13,6 +13,7 @@ use serde::Deserialize;
 use serde::Serialize;
 
 #[derive(Copy, Clone, Debug, Serialize, Deserialize, JsonSchema)]
+#[serde(tag = "kind")]
 pub enum Grouping {
     /// No grouping is applied
     None,
@@ -31,7 +32,7 @@ impl Grouping {
         match self {
             Self::Widget(config) => Frame::none()
                 .fill(match config.fill {
-                    Some(color) => color.into(),
+                    Some(color) => color.to_color32_or(None),
                     None => Color32::TRANSPARENT,
                 })
                 .outer_margin(match config.outer_margin {
@@ -74,7 +75,7 @@ impl Grouping {
             },
             Self::Side(config) => Frame::none()
                 .fill(match config.fill {
-                    Some(color) => color.into(),
+                    Some(color) => color.to_color32_or(None),
                     None => Color32::TRANSPARENT,
                 })
                 .outer_margin(match config.outer_margin {
@@ -139,6 +140,7 @@ impl From<Line> for Stroke {
 }
 
 #[derive(Copy, Clone, Debug, Serialize, Deserialize, JsonSchema)]
+#[serde(untagged)]
 pub enum RoundingConfig {
     /// All 4 corners are the same    
     Same(f32),
