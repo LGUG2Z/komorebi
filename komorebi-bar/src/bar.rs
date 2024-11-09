@@ -472,18 +472,13 @@ impl eframe::App for Komobar {
                 Area::new(Id::new("center_panel"))
                     .anchor(Align2::CENTER_CENTER, [0.0, 0.0]) // Align in the center of the window
                     .show(ctx, |ui| {
-                        Frame::none()
-                            //.outer_margin(Margin::symmetric(0.0, 0.0))
-                            //.inner_margin(Margin::symmetric(7.0, 2.0))
-                            //.rounding(Rounding::same(15.0))
-                            //.stroke(ui.style().visuals.widgets.noninteractive.bg_stroke)
-                            .show(ui, |ui| {
-                                ui.horizontal_centered(|ui| {
-                                    for w in &mut self.center_widgets {
-                                        w.render(ctx, ui);
-                                    }
-                                });
+                        Frame::none().show(ui, |ui| {
+                            ui.horizontal_centered(|ui| {
+                                for w in &mut self.center_widgets {
+                                    w.render(ctx, ui);
+                                }
                             });
+                        });
                     })
             })
         });
