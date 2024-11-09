@@ -312,6 +312,7 @@ impl Komobar {
 
         self.komorebi_notification_state = komorebi_notification_state;
     }
+
     pub fn new(
         cc: &eframe::CreationContext<'_>,
         rx_gui: Receiver<komorebi_client::Notification>,

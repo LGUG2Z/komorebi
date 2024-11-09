@@ -40,11 +40,11 @@ impl Grouping {
                 })
                 .inner_margin(match config.inner_margin {
                     Some(margin) => Self::rect_to_margin(margin),
-                    None => Margin::symmetric(7.0, 2.0),
+                    None => Margin::symmetric(5.0, 2.0),
                 })
                 .rounding(match config.rounding {
                     Some(rounding) => rounding.into(),
-                    None => Rounding::same(10.0),
+                    None => Rounding::same(5.0),
                 })
                 .stroke(match config.stroke {
                     Some(line) => line.into(),
@@ -83,11 +83,11 @@ impl Grouping {
                 })
                 .inner_margin(match config.inner_margin {
                     Some(margin) => Self::rect_to_margin(margin),
-                    None => Margin::symmetric(7.0, 2.0),
+                    None => Margin::symmetric(5.0, 2.0),
                 })
                 .rounding(match config.rounding {
                     Some(rounding) => rounding.into(),
-                    None => Rounding::same(10.0),
+                    None => Rounding::same(5.0),
                 })
                 .stroke(match config.stroke {
                     Some(line) => line.into(),
