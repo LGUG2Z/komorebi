@@ -9,7 +9,7 @@ use std::time::Duration;
 use std::time::Instant;
 
 use super::RenderDispatcher;
-use super::ANIMATION_DURATION;
+use super::ANIMATION_DURATION_GLOBAL;
 use super::ANIMATION_FPS;
 use super::ANIMATION_MANAGER;
 
@@ -27,7 +27,7 @@ impl AnimationEngine {
             }
 
             std::thread::sleep(Duration::from_millis(
-                ANIMATION_DURATION.load(Ordering::SeqCst),
+                ANIMATION_DURATION_GLOBAL.load(Ordering::SeqCst),
             ));
         }
     }

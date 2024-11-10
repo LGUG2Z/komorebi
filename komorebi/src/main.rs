@@ -18,7 +18,8 @@ use clap::Parser;
 use color_eyre::Result;
 use crossbeam_utils::Backoff;
 use komorebi::animation::AnimationEngine;
-use komorebi::animation::ANIMATION_ENABLED;
+use komorebi::animation::ANIMATION_ENABLED_GLOBAL;
+use komorebi::animation::ANIMATION_ENABLED_PER_ANIMATION;
 #[cfg(feature = "deadlock_detection")]
 use parking_lot::deadlock;
 use parking_lot::Mutex;
@@ -289,7 +290,8 @@ fn main() -> Result<()> {
 
     tracing::error!("received ctrl-c, restoring all hidden windows and terminating process");
 
-    ANIMATION_ENABLED.store(false, Ordering::SeqCst);
+    ANIMATION_ENABLED_PER_ANIMATION.lock().clear();
+    ANIMATION_ENABLED_GLOBAL.store(false, Ordering::SeqCst);
     wm.lock().restore_all_windows()?;
     AnimationEngine::wait_for_all_animations();
 

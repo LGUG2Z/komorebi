@@ -6,8 +6,21 @@ use strum::Display;
 use strum::EnumString;
 
 #[derive(
-    Copy, Clone, Debug, Serialize, Deserialize, Display, EnumString, ValueEnum, JsonSchema,
+    Copy,
+    Clone,
+    Debug,
+    Hash,
+    PartialEq,
+    Eq,
+    Serialize,
+    Deserialize,
+    Display,
+    EnumString,
+    ValueEnum,
+    JsonSchema,
 )]
+#[strum(serialize_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
 pub enum AnimationPrefix {
     WindowMove,
     WindowTransparency,

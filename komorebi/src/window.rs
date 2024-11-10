@@ -3,10 +3,13 @@ use crate::animation::prefix::new_animation_key;
 use crate::animation::prefix::AnimationPrefix;
 use crate::animation::AnimationEngine;
 use crate::animation::RenderDispatcher;
-use crate::animation::ANIMATION_DURATION;
-use crate::animation::ANIMATION_ENABLED;
+use crate::animation::ANIMATION_DURATION_GLOBAL;
+use crate::animation::ANIMATION_DURATION_PER_ANIMATION;
+use crate::animation::ANIMATION_ENABLED_GLOBAL;
+use crate::animation::ANIMATION_ENABLED_PER_ANIMATION;
 use crate::animation::ANIMATION_MANAGER;
-use crate::animation::ANIMATION_STYLE;
+use crate::animation::ANIMATION_STYLE_GLOBAL;
+use crate::animation::ANIMATION_STYLE_PER_ANIMATION;
 use crate::border_manager;
 use crate::com::SetCloak;
 use crate::focus_manager;
@@ -156,7 +159,6 @@ impl Serialize for Window {
 }
 
 struct WindowMoveRenderDispatcher {
-    prefix: AnimationPrefix,
     hwnd: isize,
     start_rect: Rect,
     target_rect: Rect,
@@ -165,6 +167,8 @@ struct WindowMoveRenderDispatcher {
 }
 
 impl WindowMoveRenderDispatcher {
+    const PREFIX: AnimationPrefix = AnimationPrefix::WindowMove;
+
     pub fn new(
         hwnd: isize,
         start_rect: Rect,
@@ -173,7 +177,6 @@ impl WindowMoveRenderDispatcher {
         style: AnimationStyle,
     ) -> Self {
         Self {
-            prefix: AnimationPrefix::WindowMove,
             hwnd,
             start_rect,
             target_rect,
@@ -185,7 +188,7 @@ impl WindowMoveRenderDispatcher {
 
 impl RenderDispatcher for WindowMoveRenderDispatcher {
     fn get_animation_key(&self) -> String {
-        new_animation_key(self.prefix, self.hwnd.to_string())
+        new_animation_key(WindowMoveRenderDispatcher::PREFIX, self.hwnd.to_string())
     }
 
     fn pre_render(&self) -> Result<()> {
@@ -211,7 +214,11 @@ impl RenderDispatcher for WindowMoveRenderDispatcher {
 
     fn post_render(&self) -> Result<()> {
         WindowsApi::position_window(self.hwnd, &self.target_rect, self.top)?;
-        if ANIMATION_MANAGER.lock().count_in_progress(self.prefix) == 0 {
+        if ANIMATION_MANAGER
+            .lock()
+            .count_in_progress(WindowMoveRenderDispatcher::PREFIX)
+            == 0
+        {
             if WindowsApi::foreground_window().unwrap_or_default() == self.hwnd {
                 focus_manager::send_notification(self.hwnd)
             }
@@ -229,7 +236,6 @@ impl RenderDispatcher for WindowMoveRenderDispatcher {
 }
 
 struct WindowTransparencyRenderDispatcher {
-    prefix: AnimationPrefix,
     hwnd: isize,
     start_opacity: u8,
     target_opacity: u8,
@@ -238,6 +244,8 @@ struct WindowTransparencyRenderDispatcher {
 }
 
 impl WindowTransparencyRenderDispatcher {
+    const PREFIX: AnimationPrefix = AnimationPrefix::WindowTransparency;
+
     pub fn new(
         hwnd: isize,
         is_opaque: bool,
@@ -246,7 +254,6 @@ impl WindowTransparencyRenderDispatcher {
         style: AnimationStyle,
     ) -> Self {
         Self {
-            prefix: AnimationPrefix::WindowTransparency,
             hwnd,
             start_opacity,
             target_opacity,
@@ -258,7 +265,10 @@ impl WindowTransparencyRenderDispatcher {
 
 impl RenderDispatcher for WindowTransparencyRenderDispatcher {
     fn get_animation_key(&self) -> String {
-        new_animation_key(self.prefix, self.hwnd.to_string())
+        new_animation_key(
+            WindowTransparencyRenderDispatcher::PREFIX,
+            self.hwnd.to_string(),
+        )
     }
 
     fn pre_render(&self) -> Result<()> {
@@ -346,9 +356,22 @@ impl Window {
             return Ok(());
         }
 
-        if ANIMATION_ENABLED.load(Ordering::SeqCst) {
-            let duration = Duration::from_millis(ANIMATION_DURATION.load(Ordering::SeqCst));
-            let style = *ANIMATION_STYLE.lock();
+        let animation_enabled = ANIMATION_ENABLED_PER_ANIMATION.lock();
+        let move_enabled = animation_enabled.get(&WindowMoveRenderDispatcher::PREFIX);
+
+        if move_enabled.is_some_and(|enabled| *enabled)
+            || ANIMATION_ENABLED_GLOBAL.load(Ordering::SeqCst)
+        {
+            let duration = Duration::from_millis(
+                *ANIMATION_DURATION_PER_ANIMATION
+                    .lock()
+                    .get(&WindowMoveRenderDispatcher::PREFIX)
+                    .unwrap_or(&ANIMATION_DURATION_GLOBAL.load(Ordering::SeqCst)),
+            );
+            let style = *ANIMATION_STYLE_PER_ANIMATION
+                .lock()
+                .get(&WindowMoveRenderDispatcher::PREFIX)
+                .unwrap_or(&ANIMATION_STYLE_GLOBAL.lock());
 
             let render_dispatcher =
                 WindowMoveRenderDispatcher::new(self.hwnd, window_rect, *layout, top, style);
@@ -462,9 +485,23 @@ impl Window {
     }
 
     pub fn transparent(self) -> Result<()> {
-        if ANIMATION_ENABLED.load(Ordering::SeqCst) {
-            let duration = Duration::from_millis(ANIMATION_DURATION.load(Ordering::SeqCst));
-            let style = *ANIMATION_STYLE.lock();
+        let animation_enabled = ANIMATION_ENABLED_PER_ANIMATION.lock();
+        let transparent_enabled =
+            animation_enabled.get(&WindowTransparencyRenderDispatcher::PREFIX);
+
+        if transparent_enabled.is_some_and(|enabled| *enabled)
+            || ANIMATION_ENABLED_GLOBAL.load(Ordering::SeqCst)
+        {
+            let duration = Duration::from_millis(
+                *ANIMATION_DURATION_PER_ANIMATION
+                    .lock()
+                    .get(&WindowTransparencyRenderDispatcher::PREFIX)
+                    .unwrap_or(&ANIMATION_DURATION_GLOBAL.load(Ordering::SeqCst)),
+            );
+            let style = *ANIMATION_STYLE_PER_ANIMATION
+                .lock()
+                .get(&WindowTransparencyRenderDispatcher::PREFIX)
+                .unwrap_or(&ANIMATION_STYLE_GLOBAL.lock());
 
             let render_dispatcher = WindowTransparencyRenderDispatcher::new(
                 self.hwnd,
@@ -487,9 +524,23 @@ impl Window {
     }
 
     pub fn opaque(self) -> Result<()> {
-        if ANIMATION_ENABLED.load(Ordering::SeqCst) {
-            let duration = Duration::from_millis(ANIMATION_DURATION.load(Ordering::SeqCst));
-            let style = *ANIMATION_STYLE.lock();
+        let animation_enabled = ANIMATION_ENABLED_PER_ANIMATION.lock();
+        let transparent_enabled =
+            animation_enabled.get(&WindowTransparencyRenderDispatcher::PREFIX);
+
+        if transparent_enabled.is_some_and(|enabled| *enabled)
+            || ANIMATION_ENABLED_GLOBAL.load(Ordering::SeqCst)
+        {
+            let duration = Duration::from_millis(
+                *ANIMATION_DURATION_PER_ANIMATION
+                    .lock()
+                    .get(&WindowTransparencyRenderDispatcher::PREFIX)
+                    .unwrap_or(&ANIMATION_DURATION_GLOBAL.load(Ordering::SeqCst)),
+            );
+            let style = *ANIMATION_STYLE_PER_ANIMATION
+                .lock()
+                .get(&WindowTransparencyRenderDispatcher::PREFIX)
+                .unwrap_or(&ANIMATION_STYLE_GLOBAL.lock());
 
             let render_dispatcher = WindowTransparencyRenderDispatcher::new(
                 self.hwnd,
