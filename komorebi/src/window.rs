@@ -1,6 +1,7 @@
 use crate::animation::lerp::Lerp;
 use crate::animation::prefix::new_animation_key;
 use crate::animation::prefix::AnimationPrefix;
+use crate::animation::AnimationEngine;
 use crate::animation::RenderDispatcher;
 use crate::animation::ANIMATION_DURATION;
 use crate::animation::ANIMATION_ENABLED;
@@ -41,7 +42,6 @@ use crate::core::ApplicationIdentifier;
 use crate::core::HidingBehaviour;
 use crate::core::Rect;
 
-use crate::animation::animation::Animation;
 use crate::styles::ExtendedWindowStyle;
 use crate::styles::WindowStyle;
 use crate::transparency_manager;
@@ -353,7 +353,7 @@ impl Window {
             let render_dispatcher =
                 WindowMoveRenderDispatcher::new(self.hwnd, window_rect, *layout, top, style);
 
-            Animation::animate(render_dispatcher, duration)
+            AnimationEngine::animate(render_dispatcher, duration)
         } else {
             WindowsApi::position_window(self.hwnd, layout, top)
         }
@@ -474,7 +474,7 @@ impl Window {
                 style,
             );
 
-            Animation::animate(render_dispatcher, duration)
+            AnimationEngine::animate(render_dispatcher, duration)
         } else {
             let mut ex_style = self.ex_style()?;
             ex_style.insert(ExtendedWindowStyle::LAYERED);
@@ -500,7 +500,7 @@ impl Window {
                 style,
             );
 
-            Animation::animate(render_dispatcher, duration)
+            AnimationEngine::animate(render_dispatcher, duration)
         } else {
             let mut ex_style = self.ex_style()?;
             ex_style.remove(ExtendedWindowStyle::LAYERED);

@@ -8,9 +8,9 @@ use std::sync::Arc;
 
 use parking_lot::Mutex;
 
-pub mod animation;
-pub use animation::Animation;
+pub use engine::AnimationEngine;
 pub mod animation_manager;
+pub mod engine;
 pub mod lerp;
 pub mod prefix;
 pub mod render_dispatcher;
