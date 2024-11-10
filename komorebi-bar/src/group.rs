@@ -1,11 +1,14 @@
 use crate::config::AlphaColour;
+use crate::config::Position;
 use eframe::egui::Color32;
 use eframe::egui::Frame;
 use eframe::egui::InnerResponse;
 use eframe::egui::Margin;
 use eframe::egui::Rounding;
+use eframe::egui::Shadow;
 use eframe::egui::Stroke;
 use eframe::egui::Ui;
+use eframe::egui::Vec2;
 use komorebi_client::Colour;
 use komorebi_client::Rect;
 use schemars::JsonSchema;
@@ -50,6 +53,10 @@ impl Grouping {
                 .stroke(match config.stroke {
                     Some(line) => line.into(),
                     None => ui.style().visuals.widgets.noninteractive.bg_stroke,
+                })
+                .shadow(match config.shadow {
+                    Some(shadow) => shadow.into(),
+                    None => Shadow::NONE,
                 })
                 .show(ui, add_contents),
             Self::Side(_config) => InnerResponse {
@@ -119,18 +126,19 @@ pub struct GroupingConfig {
     pub outer_margin: Option<Rect>,
     pub inner_margin: Option<Rect>,
     pub stroke: Option<Line>,
+    pub shadow: Option<BoxShadow>,
 }
 
 #[derive(Copy, Clone, Debug, Serialize, Deserialize, JsonSchema)]
 pub struct Line {
-    pub width: f32,
+    pub width: Option<f32>,
     pub color: Option<Colour>,
 }
 
 impl From<Line> for Stroke {
     fn from(value: Line) -> Self {
         Self {
-            width: value.width,
+            width: value.width.unwrap_or(1.0),
             color: match value.color {
                 Some(color) => color.into(),
                 None => Color32::from_rgb(0, 0, 0),
@@ -157,6 +165,43 @@ impl From<RoundingConfig> for Rounding {
                 ne: values[1],
                 sw: values[2],
                 se: values[3],
+            },
+        }
+    }
+}
+
+#[derive(Copy, Clone, Debug, Serialize, Deserialize, JsonSchema)]
+pub struct BoxShadow {
+    /// Move the shadow by this much.
+    ///
+    /// For instance, a value of `[1.0, 2.0]` will move the shadow 1 point to the right and 2 points down,
+    /// causing a drop-shadow effect.
+    pub offset: Option<Position>,
+
+    /// The width of the blur, i.e. the width of the fuzzy penumbra.
+    ///
+    /// A value of 0.0 means a sharp shadow.
+    pub blur: Option<f32>,
+
+    /// Expand the shadow in all directions by this much.
+    pub spread: Option<f32>,
+
+    /// Color of the opaque center of the shadow.
+    pub color: Option<AlphaColour>,
+}
+
+impl From<BoxShadow> for Shadow {
+    fn from(value: BoxShadow) -> Self {
+        Shadow {
+            offset: match value.offset {
+                Some(offset) => offset.into(),
+                None => Vec2::ZERO,
+            },
+            blur: value.blur.unwrap_or(0.0),
+            spread: value.spread.unwrap_or(0.0),
+            color: match value.color {
+                Some(color) => color.to_color32_or(None),
+                None => Color32::TRANSPARENT,
             },
         }
     }
