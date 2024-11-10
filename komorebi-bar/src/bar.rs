@@ -244,6 +244,13 @@ impl Komobar {
             }
         }
 
+        if let Some(background) = self.config.background {
+            let theme_color = *self.bg_color.borrow();
+
+            self.bg_color
+                .replace(background.to_color32_or(Some(theme_color)));
+        }
+
         if let Some(font_size) = &config.font_size {
             tracing::info!("attempting to set custom font size: {font_size}");
             Self::set_font_size(ctx, *font_size);
@@ -430,22 +437,15 @@ impl eframe::App for Komobar {
                 );
         }
 
-        let theme_color = *self.bg_color.borrow();
-
-        if let Some(background) = self.config.background {
-            self.bg_color
-                .replace(background.to_color32_or(Some(theme_color)));
-        }
-
         let frame = if let Some(frame) = &self.config.frame {
             Frame::none()
                 .inner_margin(Margin::symmetric(
                     frame.inner_margin.x,
                     frame.inner_margin.y,
                 ))
-                .fill(theme_color)
+                .fill(*self.bg_color.borrow())
         } else {
-            Frame::none().fill(theme_color)
+            Frame::none().fill(*self.bg_color.borrow())
         };
 
         // NOTE: is there a better way?
@@ -453,21 +453,26 @@ impl eframe::App for Komobar {
         let render_config_clone = *render_config;
 
         CentralPanel::default().frame(frame).show(ctx, |ui| {
-            ui.horizontal_centered(|ui| {
-                ui.with_layout(Layout::left_to_right(Align::Center), |ui| {
-                    render_config.grouping.apply_on_side(ui, |ui| {
-                        for w in &mut self.left_widgets {
-                            w.render(ctx, ui, render_config_clone);
-                        }
+            // Apply grouping logic for the bar as a whole
+            render_config.grouping.clone().apply_on_bar(ui, |ui| {
+                ui.horizontal_centered(|ui| {
+                    // Left-aligned widgets layout
+                    ui.with_layout(Layout::left_to_right(Align::Center), |ui| {
+                        render_config.grouping.apply_on_side(ui, |ui| {
+                            for w in &mut self.left_widgets {
+                                w.render(ctx, ui, render_config_clone);
+                            }
+                        });
                     });
-                });
 
-                ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                    render_config.grouping.apply_on_side(ui, |ui| {
-                        for w in &mut self.right_widgets {
-                            w.render(ctx, ui, render_config_clone);
-                        }
-                    });
+                    // Right-aligned widgets layout
+                    ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+                        render_config.grouping.apply_on_side(ui, |ui| {
+                            for w in &mut self.right_widgets {
+                                w.render(ctx, ui, render_config_clone);
+                            }
+                        });
+                    })
                 })
             })
         });

@@ -218,7 +218,7 @@ impl AlphaColour {
         };
 
         if let Some(alpha) = self.transparency_alpha {
-            return Color32::from_rgba_premultiplied(color.r(), color.g(), color.b(), alpha);
+            return Color32::from_rgba_unmultiplied(color.r(), color.g(), color.b(), alpha);
         }
 
         color

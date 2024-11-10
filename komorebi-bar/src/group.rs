@@ -20,53 +20,38 @@ use serde::Serialize;
 pub enum Grouping {
     /// No grouping is applied
     None,
-    /// Widgets are grouped individually
-    Widget(GroupingConfig),
+    /// Widgets are grouped on the bar
+    Bar(GroupingConfig),
     /// Widgets are grouped on each side
     Side(GroupingConfig),
+    /// Widgets are grouped individually
+    Widget(GroupingConfig),
 }
 
 impl Grouping {
+    pub fn apply_on_bar<R>(
+        &mut self,
+        ui: &mut Ui,
+        add_contents: impl FnOnce(&mut Ui) -> R,
+    ) -> InnerResponse<R> {
+        match self {
+            Self::Bar(config) => Self::define_frame(ui, config).show(ui, add_contents),
+            Self::Widget(_) => Self::default_response(ui, add_contents),
+            Self::Side(_) => Self::default_response(ui, add_contents),
+            Self::None => Self::default_response(ui, add_contents),
+        }
+    }
+
     pub fn apply_on_widget<R>(
         &mut self,
         ui: &mut Ui,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> InnerResponse<R> {
         match self {
-            Self::Widget(config) => Frame::none()
-                .fill(match config.fill {
-                    Some(color) => color.to_color32_or(None),
-                    None => Color32::TRANSPARENT,
-                })
-                .outer_margin(match config.outer_margin {
-                    Some(margin) => Self::rect_to_margin(margin),
-                    None => Margin::symmetric(0.0, 0.0),
-                })
-                .inner_margin(match config.inner_margin {
-                    Some(margin) => Self::rect_to_margin(margin),
-                    None => Margin::symmetric(5.0, 2.0),
-                })
-                .rounding(match config.rounding {
-                    Some(rounding) => rounding.into(),
-                    None => Rounding::same(5.0),
-                })
-                .stroke(match config.stroke {
-                    Some(line) => line.into(),
-                    None => ui.style().visuals.widgets.noninteractive.bg_stroke,
-                })
-                .shadow(match config.shadow {
-                    Some(shadow) => shadow.into(),
-                    None => Shadow::NONE,
-                })
-                .show(ui, add_contents),
-            Self::Side(_config) => InnerResponse {
-                inner: add_contents(ui),
-                response: ui.response().clone(),
-            },
-            Self::None => InnerResponse {
-                inner: add_contents(ui),
-                response: ui.response().clone(),
-            },
+            Self::Bar(_) => Self::default_response(ui, add_contents),
+            Self::Widget(config) => Self::define_frame(ui, config).show(ui, add_contents),
+            Self::Side(_) => Self::default_response(ui, add_contents),
+            Self::None => Self::default_response(ui, add_contents),
         }
     }
 
@@ -76,36 +61,48 @@ impl Grouping {
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> InnerResponse<R> {
         match self {
-            Self::Widget(_config) => InnerResponse {
-                inner: add_contents(ui),
-                response: ui.response().clone(),
-            },
-            Self::Side(config) => Frame::none()
-                .fill(match config.fill {
-                    Some(color) => color.to_color32_or(None),
-                    None => Color32::TRANSPARENT,
-                })
-                .outer_margin(match config.outer_margin {
-                    Some(margin) => Self::rect_to_margin(margin),
-                    None => Margin::symmetric(0.0, 0.0),
-                })
-                .inner_margin(match config.inner_margin {
-                    Some(margin) => Self::rect_to_margin(margin),
-                    None => Margin::symmetric(5.0, 2.0),
-                })
-                .rounding(match config.rounding {
-                    Some(rounding) => rounding.into(),
-                    None => Rounding::same(5.0),
-                })
-                .stroke(match config.stroke {
-                    Some(line) => line.into(),
-                    None => ui.style().visuals.widgets.noninteractive.bg_stroke,
-                })
-                .show(ui, add_contents),
-            Self::None => InnerResponse {
-                inner: add_contents(ui),
-                response: ui.response().clone(),
-            },
+            Self::Bar(_) => Self::default_response(ui, add_contents),
+            Self::Widget(_) => Self::default_response(ui, add_contents),
+            Self::Side(config) => Self::define_frame(ui, config).show(ui, add_contents),
+            Self::None => Self::default_response(ui, add_contents),
+        }
+    }
+
+    fn define_frame(ui: &mut Ui, config: &mut GroupingConfig) -> Frame {
+        Frame::none()
+            .fill(match config.fill {
+                Some(color) => color.to_color32_or(None),
+                None => Color32::TRANSPARENT,
+            })
+            .outer_margin(match config.outer_margin {
+                Some(margin) => Self::rect_to_margin(margin),
+                None => Margin::symmetric(0.0, 0.0),
+            })
+            .inner_margin(match config.inner_margin {
+                Some(margin) => Self::rect_to_margin(margin),
+                None => Margin::symmetric(5.0, 2.0),
+            })
+            .rounding(match config.rounding {
+                Some(rounding) => rounding.into(),
+                None => Rounding::same(5.0),
+            })
+            .stroke(match config.stroke {
+                Some(line) => line.into(),
+                None => ui.style().visuals.widgets.noninteractive.bg_stroke,
+            })
+            .shadow(match config.shadow {
+                Some(shadow) => shadow.into(),
+                None => Shadow::NONE,
+            })
+    }
+
+    fn default_response<R>(
+        ui: &mut Ui,
+        add_contents: impl FnOnce(&mut Ui) -> R,
+    ) -> InnerResponse<R> {
+        InnerResponse {
+            inner: add_contents(ui),
+            response: ui.response().clone(),
         }
     }
 
