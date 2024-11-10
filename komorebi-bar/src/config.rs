@@ -1,4 +1,5 @@
 use crate::group::Grouping;
+use crate::widget::RenderConfig;
 use crate::widget::WidgetConfig;
 use eframe::egui::Color32;
 use eframe::egui::Pos2;
@@ -66,6 +67,17 @@ impl KomobarConfig {
                     }
                 }
             }
+        }
+    }
+}
+
+impl From<&KomobarConfig> for RenderConfig {
+    fn from(value: &KomobarConfig) -> Self {
+        RenderConfig {
+            grouping: match value.grouping {
+                Some(grouping) => grouping,
+                None => Grouping::None,
+            },
         }
     }
 }
