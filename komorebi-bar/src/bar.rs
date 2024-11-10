@@ -2,6 +2,7 @@ use crate::config::KomobarConfig;
 use crate::config::KomobarTheme;
 use crate::config::Position;
 use crate::config::PositionConfig;
+use crate::group::Grouping;
 use crate::komorebi::Komorebi;
 use crate::komorebi::KomorebiNotificationState;
 use crate::process_hwnd;
@@ -320,11 +321,11 @@ impl Komobar {
         rx_config: Receiver<KomobarConfig>,
         config: Arc<KomobarConfig>,
     ) -> Self {
-        let conf: &KomobarConfig = &config;
-
         let mut komobar = Self {
             config: config.clone(),
-            render_config: Rc::new(RefCell::new(conf.into())),
+            render_config: Rc::new(RefCell::new(RenderConfig {
+                grouping: Grouping::None,
+            })),
             komorebi_notification_state: None,
             left_widgets: vec![],
             right_widgets: vec![],
@@ -334,9 +335,9 @@ impl Komobar {
             scale_factor: cc.egui_ctx.native_pixels_per_point().unwrap_or(1.0),
         };
 
-        komobar.apply_config(&cc.egui_ctx, conf, None);
+        komobar.apply_config(&cc.egui_ctx, &config, None);
         // needs a double apply the first time for some reason
-        komobar.apply_config(&cc.egui_ctx, conf, None);
+        komobar.apply_config(&cc.egui_ctx, &config, None);
 
         komobar
     }
