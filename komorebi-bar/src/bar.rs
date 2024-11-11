@@ -1,3 +1,4 @@
+use crate::config::Color32Ext;
 use crate::config::KomobarConfig;
 use crate::config::KomobarTheme;
 use crate::config::Position;
@@ -9,6 +10,7 @@ use crate::process_hwnd;
 use crate::widget::BarWidget;
 use crate::widget::RenderConfig;
 use crate::widget::WidgetConfig;
+use crate::BACKGROUND_COLOR;
 use crate::BAR_HEIGHT;
 use crate::MAX_LABEL_WIDTH;
 use crate::MONITOR_LEFT;
@@ -194,8 +196,6 @@ impl Komobar {
             }
         }
 
-        self.render_config.replace(config.into());
-
         match config.theme {
             Some(theme) => {
                 apply_theme(ctx, theme, self.bg_color.clone());
@@ -244,12 +244,29 @@ impl Komobar {
             }
         }
 
-        if let Some(background) = self.config.background {
-            let theme_color = *self.bg_color.borrow();
-
-            self.bg_color
-                .replace(background.to_color32_or(Some(theme_color)));
+        // apply rounding to the widgets
+        if let Some(Grouping::Bar(config) | Grouping::Side(config) | Grouping::Widget(config)) =
+            &config.grouping
+        {
+            if let Some(rounding) = config.rounding {
+                ctx.style_mut(|style| {
+                    style.visuals.widgets.noninteractive.rounding = rounding.into();
+                    style.visuals.widgets.inactive.rounding = rounding.into();
+                    style.visuals.widgets.hovered.rounding = rounding.into();
+                    style.visuals.widgets.active.rounding = rounding.into();
+                    style.visuals.widgets.open.rounding = rounding.into();
+                });
+            }
         }
+
+        self.render_config.replace(config.into());
+
+        let theme_color = *self.bg_color.borrow();
+
+        BACKGROUND_COLOR.store(theme_color.to_u32(), Ordering::SeqCst);
+
+        self.bg_color
+            .replace(theme_color.try_apply_alpha(self.config.transparency_alpha));
 
         if let Some(font_size) = &config.font_size {
             tracing::info!("attempting to set custom font size: {font_size}");

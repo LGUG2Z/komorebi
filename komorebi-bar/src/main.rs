@@ -29,6 +29,7 @@ use std::io::BufReader;
 use std::io::Read;
 use std::path::PathBuf;
 use std::sync::atomic::AtomicI32;
+use std::sync::atomic::AtomicU32;
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
 use std::time::Duration;
@@ -45,6 +46,7 @@ use windows::Win32::UI::WindowsAndMessaging::GetWindowThreadProcessId;
 
 pub static WIDGET_SPACING: f32 = 10.0;
 
+pub static BACKGROUND_COLOR: AtomicU32 = AtomicU32::new(0);
 pub static MAX_LABEL_WIDTH: AtomicI32 = AtomicI32::new(400);
 pub static MONITOR_LEFT: AtomicI32 = AtomicI32::new(0);
 pub static MONITOR_TOP: AtomicI32 = AtomicI32::new(0);
@@ -267,10 +269,7 @@ fn main() -> color_eyre::Result<()> {
 
     let viewport_builder = ViewportBuilder::default()
         .with_decorations(false)
-        .with_transparent(match config.background {
-            None => false,
-            Some(color) => color.transparency_alpha.is_some(),
-        })
+        .with_transparent(config.transparency_alpha.is_some())
         .with_taskbar(false);
 
     let native_options = eframe::NativeOptions {

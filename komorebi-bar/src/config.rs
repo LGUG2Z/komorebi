@@ -5,7 +5,6 @@ use eframe::egui::Color32;
 use eframe::egui::Pos2;
 use eframe::egui::TextBuffer;
 use eframe::egui::Vec2;
-use komorebi_client::Colour;
 use komorebi_client::KomorebiTheme;
 use komorebi_client::Rect;
 use schemars::JsonSchema;
@@ -32,8 +31,8 @@ pub struct KomobarConfig {
     pub max_label_width: Option<f32>,
     /// Theme
     pub theme: Option<KomobarTheme>,
-    /// Background color
-    pub background: Option<AlphaColour>,
+    /// Alpha value for the color transparency [[0-255]] (default: 200)
+    pub transparency_alpha: Option<u8>,
     /// Visual grouping for widgets
     pub grouping: Option<Grouping>,
     /// Left side widgets (ordered left-to-right)
@@ -198,29 +197,36 @@ pub enum LabelPrefix {
     IconAndText,
 }
 
-#[derive(Copy, Clone, Debug, Serialize, Deserialize, JsonSchema)]
-pub struct AlphaColour {
-    /// Color
-    pub color: Option<Colour>,
-    /// Alpha value for the color transparency [[0-255]] (default: 200)
-    pub transparency_alpha: Option<u8>,
+pub trait Color32Ext {
+    fn to_u32(&self) -> u32;
+    fn from_u32(color: u32) -> Self;
+    fn try_apply_alpha(self, transparency_alpha: Option<u8>) -> Self;
 }
 
-impl AlphaColour {
-    /// Returns an Rgb or Rgba color using the alpha, and default_color or Rgb(0,0,0)
-    pub fn to_color32_or(self, default_color: Option<Color32>) -> Color32 {
-        let color = match self.color {
-            Some(color) => color.into(),
-            None => match default_color {
-                Some(color) => color,
-                None => Color32::from_rgb(0, 0, 0),
-            },
-        };
+impl Color32Ext for Color32 {
+    /// Converts Color32 to u32 (ARGB format)
+    fn to_u32(&self) -> u32 {
+        ((self.a() as u32) << 24)
+            | ((self.r() as u32) << 16)
+            | ((self.g() as u32) << 8)
+            | (self.b() as u32)
+    }
 
-        if let Some(alpha) = self.transparency_alpha {
-            return Color32::from_rgba_unmultiplied(color.r(), color.g(), color.b(), alpha);
+    /// Converts u32 back to Color32 (ARGB format)
+    fn from_u32(color: u32) -> Self {
+        let a = ((color >> 24) & 0xFF) as u8;
+        let r = ((color >> 16) & 0xFF) as u8;
+        let g = ((color >> 8) & 0xFF) as u8;
+        let b = (color & 0xFF) as u8;
+        Color32::from_rgba_premultiplied(r, g, b, a)
+    }
+
+    /// Tries to apply the alpha value to the Color32
+    fn try_apply_alpha(self, transparency_alpha: Option<u8>) -> Self {
+        if let Some(alpha) = transparency_alpha {
+            return Color32::from_rgba_unmultiplied(self.r(), self.g(), self.b(), alpha);
         }
 
-        color
+        self
     }
 }
