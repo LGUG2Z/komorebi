@@ -357,21 +357,7 @@ impl Workspace {
                 for (i, container) in containers.iter_mut().enumerate() {
                     let window_count = container.windows().len();
 
-                    if let (Some(window), Some(layout)) =
-                        (container.focused_window_mut(), layouts.get_mut(i))
-                    {
-                        if should_remove_titlebars && no_titlebar.contains(&window.exe()?) {
-                            window.remove_title_bar()?;
-                        } else if no_titlebar.contains(&window.exe()?) {
-                            window.add_title_bar()?;
-                        }
-
-                        // If a window has been unmaximized via toggle-maximize, this block
-                        // will make sure that it is unmaximized via restore_window
-                        if window.is_maximized() && !managed_maximized_window {
-                            WindowsApi::restore_window(window.hwnd);
-                        }
-
+                    if let Some(layout) = layouts.get_mut(i) {
                         {
                             let border_offset = BORDER_OFFSET.load(Ordering::SeqCst);
                             layout.add_padding(border_offset);
@@ -388,7 +374,25 @@ impl Workspace {
                             layout.bottom -= total_height;
                         }
 
-                        window.set_position(layout, false)?;
+                        for window in container.windows() {
+                            if container
+                                .focused_window()
+                                .is_some_and(|w| w.hwnd == window.hwnd)
+                            {
+                                if should_remove_titlebars && no_titlebar.contains(&window.exe()?) {
+                                    window.remove_title_bar()?;
+                                } else if no_titlebar.contains(&window.exe()?) {
+                                    window.add_title_bar()?;
+                                }
+
+                                // If a window has been unmaximized via toggle-maximize, this block
+                                // will make sure that it is unmaximized via restore_window
+                                if window.is_maximized() && !managed_maximized_window {
+                                    WindowsApi::restore_window(window.hwnd);
+                                }
+                            }
+                            window.set_position(layout, false)?;
+                        }
                     }
                 }
 
