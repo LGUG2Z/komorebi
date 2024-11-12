@@ -247,6 +247,10 @@ impl WindowManager {
                 self.cycle_container_window_in_direction(direction)?;
                 self.focused_window()?.focus(self.mouse_follows_focus)?;
             }
+            SocketMessage::CycleStackIndex(direction) => {
+                self.cycle_container_window_index_in_direction(direction)?;
+                self.focused_window()?.focus(self.mouse_follows_focus)?;
+            }
             SocketMessage::FocusStackWindow(idx) => {
                 // In case you are using this command on a bar on a monitor
                 // different from the currently focused one, you'd want that
