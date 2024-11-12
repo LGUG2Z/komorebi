@@ -96,7 +96,7 @@ impl Grouping {
             )
             .shadow(match config.style {
                 Some(style) => match style {
-                    // new styles can be added if needed
+                    // new styles can be added if needed here
                     GroupingStyle::Default => Shadow::NONE,
                     GroupingStyle::DefaultWithShadow => Shadow {
                         blur: 4.0,
