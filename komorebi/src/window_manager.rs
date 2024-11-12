@@ -2260,6 +2260,39 @@ impl WindowManager {
     }
 
     #[tracing::instrument(skip(self))]
+    pub fn cycle_container_window_index_in_direction(
+        &mut self,
+        direction: CycleDirection,
+    ) -> Result<()> {
+        self.handle_unmanaged_window_behaviour()?;
+
+        tracing::info!("cycling container window index");
+
+        let container =
+            if let Some(container) = self.focused_workspace_mut()?.monocle_container_mut() {
+                container
+            } else {
+                self.focused_container_mut()?
+            };
+
+        let len = NonZeroUsize::new(container.windows().len())
+            .ok_or_else(|| anyhow!("there must be at least one window in a container"))?;
+
+        if len.get() == 1 {
+            bail!("there is only one window in this container");
+        }
+
+        let current_idx = container.focused_window_idx();
+        let next_idx = direction.next_idx(current_idx, len);
+        container.windows_mut().swap(current_idx, next_idx);
+
+        container.focus_window(next_idx);
+        container.load_focused_window();
+
+        self.update_focused_workspace(self.mouse_follows_focus, true)
+    }
+
+    #[tracing::instrument(skip(self))]
     pub fn focus_container_window(&mut self, idx: usize) -> Result<()> {
         self.handle_unmanaged_window_behaviour()?;
 

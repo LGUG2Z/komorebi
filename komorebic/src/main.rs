@@ -160,6 +160,7 @@ gen_enum_subcommand_args! {
     CycleMoveWorkspaceToMonitor: CycleDirection,
     Stack: OperationDirection,
     CycleStack: CycleDirection,
+    CycleStackIndex: CycleDirection,
     FlipLayout: Axis,
     ChangeLayout: DefaultLayout,
     CycleLayout: CycleDirection,
@@ -1009,6 +1010,9 @@ enum SubCommand {
     /// Cycle the focused stack in the specified cycle direction
     #[clap(arg_required_else_help = true)]
     CycleStack(CycleStack),
+    /// Cycle the index of the focused window in the focused stack in the specified cycle direction
+    #[clap(arg_required_else_help = true)]
+    CycleStackIndex(CycleStackIndex),
     /// Focus the specified window index in the focused stack
     #[clap(arg_required_else_help = true)]
     FocusStackWindow(FocusStackWindow),
@@ -2339,6 +2343,9 @@ Stop-Process -Name:komorebi -ErrorAction SilentlyContinue
         }
         SubCommand::CycleStack(arg) => {
             send_message(&SocketMessage::CycleStack(arg.cycle_direction))?;
+        }
+        SubCommand::CycleStackIndex(arg) => {
+            send_message(&SocketMessage::CycleStackIndex(arg.cycle_direction))?;
         }
         SubCommand::ChangeLayout(arg) => {
             send_message(&SocketMessage::ChangeLayout(arg.default_layout))?;

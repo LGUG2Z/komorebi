@@ -49,6 +49,7 @@ pub enum SocketMessage {
     StackWindow(OperationDirection),
     UnstackWindow,
     CycleStack(CycleDirection),
+    CycleStackIndex(CycleDirection),
     FocusStackWindow(usize),
     StackAll,
     UnstackAll,

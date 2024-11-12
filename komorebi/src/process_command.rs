@@ -109,10 +109,19 @@ pub fn listen_for_commands(wm: Arc<Mutex<WindowManager>>) {
             tracing::info!("listening on komorebi.sock");
             for client in listener.incoming() {
                 match client {
-                    Ok(stream) => match read_commands_uds(&wm, stream) {
-                        Ok(()) => {}
-                        Err(error) => tracing::error!("{}", error),
-                    },
+                    Ok(stream) => {
+                        let wm_clone = wm.clone();
+                        std::thread::spawn(move || {
+                            match stream.set_read_timeout(Some(Duration::from_secs(1))) {
+                                Ok(()) => {}
+                                Err(error) => tracing::error!("{}", error),
+                            }
+                            match read_commands_uds(&wm_clone, stream) {
+                                Ok(()) => {}
+                                Err(error) => tracing::error!("{}", error),
+                            }
+                        });
+                    }
                     Err(error) => {
                         tracing::error!("{}", error);
                         break;
@@ -243,6 +252,10 @@ impl WindowManager {
             SocketMessage::UnstackAll => self.unstack_all()?,
             SocketMessage::CycleStack(direction) => {
                 self.cycle_container_window_in_direction(direction)?;
+                self.focused_window()?.focus(self.mouse_follows_focus)?;
+            }
+            SocketMessage::CycleStackIndex(direction) => {
+                self.cycle_container_window_index_in_direction(direction)?;
                 self.focused_window()?.focus(self.mouse_follows_focus)?;
             }
             SocketMessage::FocusStackWindow(idx) => {
