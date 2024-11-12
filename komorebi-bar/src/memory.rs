@@ -1,4 +1,3 @@
-use crate::bar::Alignment;
 use crate::config::LabelPrefix;
 use crate::widget::BarWidget;
 use crate::widget::RenderConfig;
@@ -74,13 +73,7 @@ impl Memory {
 }
 
 impl BarWidget for Memory {
-    fn render(
-        &mut self,
-        ctx: &Context,
-        ui: &mut Ui,
-        mut config: RenderConfig,
-        alignment: Alignment,
-    ) {
+    fn render(&mut self, ctx: &Context, ui: &mut Ui, mut config: RenderConfig) {
         if self.enable {
             let output = self.output();
             if !output.is_empty() {
@@ -109,7 +102,7 @@ impl BarWidget for Memory {
                     TextFormat::simple(font_id, ctx.style().visuals.text_color()),
                 );
 
-                config.grouping.apply_on_widget(true, alignment, ui, |ui| {
+                config.grouping.apply_on_widget(true, config, ui, |ui| {
                     if ui
                         .add(
                             Label::new(layout_job)

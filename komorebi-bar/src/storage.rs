@@ -1,4 +1,3 @@
-use crate::bar::Alignment;
 use crate::config::LabelPrefix;
 use crate::widget::BarWidget;
 use crate::widget::RenderConfig;
@@ -80,13 +79,7 @@ impl Storage {
 }
 
 impl BarWidget for Storage {
-    fn render(
-        &mut self,
-        ctx: &Context,
-        ui: &mut Ui,
-        mut config: RenderConfig,
-        alignment: Alignment,
-    ) {
+    fn render(&mut self, ctx: &Context, ui: &mut Ui, mut config: RenderConfig) {
         if self.enable {
             let font_id = ctx
                 .style()
@@ -114,7 +107,7 @@ impl BarWidget for Storage {
                     TextFormat::simple(font_id.clone(), ctx.style().visuals.text_color()),
                 );
 
-                config.grouping.apply_on_widget(true, alignment, ui, |ui| {
+                config.grouping.apply_on_widget(true, config, ui, |ui| {
                     if ui
                         .add(
                             Label::new(layout_job)

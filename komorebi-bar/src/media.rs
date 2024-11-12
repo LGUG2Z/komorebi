@@ -1,4 +1,3 @@
-use crate::bar::Alignment;
 use crate::ui::CustomUi;
 use crate::widget::BarWidget;
 use crate::widget::RenderConfig;
@@ -79,13 +78,7 @@ impl Media {
 }
 
 impl BarWidget for Media {
-    fn render(
-        &mut self,
-        ctx: &Context,
-        ui: &mut Ui,
-        mut config: RenderConfig,
-        alignment: Alignment,
-    ) {
+    fn render(&mut self, ctx: &Context, ui: &mut Ui, mut config: RenderConfig) {
         if self.enable {
             let output = self.output();
             if !output.is_empty() {
@@ -109,7 +102,7 @@ impl BarWidget for Media {
                     TextFormat::simple(font_id, ctx.style().visuals.text_color()),
                 );
 
-                config.grouping.apply_on_widget(true, alignment, ui, |ui| {
+                config.grouping.apply_on_widget(true, config, ui, |ui| {
                     let available_height = ui.available_height();
                     let mut custom_ui = CustomUi(ui);
 

@@ -25,13 +25,17 @@ use serde::Deserialize;
 use serde::Serialize;
 
 pub trait BarWidget {
-    fn render(&mut self, ctx: &Context, ui: &mut Ui, config: RenderConfig, alignment: Alignment);
+    fn render(&mut self, ctx: &Context, ui: &mut Ui, config: RenderConfig);
 }
 
 #[derive(Copy, Clone)]
 pub struct RenderConfig {
+    /// Spacing between widgets
+    pub spacing: f32,
     /// Sets how widgets are grouped
     pub grouping: Grouping,
+    /// Alignment of the widgets
+    pub alignment: Option<Alignment>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]

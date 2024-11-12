@@ -44,8 +44,6 @@ use windows::Win32::UI::HiDpi::DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2;
 use windows::Win32::UI::WindowsAndMessaging::EnumThreadWindows;
 use windows::Win32::UI::WindowsAndMessaging::GetWindowThreadProcessId;
 
-pub static WIDGET_SPACING: f32 = 10.0;
-
 pub static BACKGROUND_COLOR: AtomicU32 = AtomicU32::new(0);
 pub static MAX_LABEL_WIDTH: AtomicI32 = AtomicI32::new(400);
 pub static MONITOR_LEFT: AtomicI32 = AtomicI32::new(0);

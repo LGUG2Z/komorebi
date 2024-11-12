@@ -33,6 +33,8 @@ pub struct KomobarConfig {
     pub theme: Option<KomobarTheme>,
     /// Alpha value for the color transparency [[0-255]] (default: 200)
     pub transparency_alpha: Option<u8>,
+    /// Spacing between widgets
+    pub widget_spacing: Option<f32>,
     /// Visual grouping for widgets
     pub grouping: Option<Grouping>,
     /// Left side widgets (ordered left-to-right)
@@ -73,10 +75,9 @@ impl KomobarConfig {
 impl From<&KomobarConfig> for RenderConfig {
     fn from(value: &KomobarConfig) -> Self {
         RenderConfig {
-            grouping: match value.grouping {
-                Some(grouping) => grouping,
-                None => Grouping::None,
-            },
+            spacing: value.widget_spacing.unwrap_or(10.0),
+            grouping: value.grouping.unwrap_or(Grouping::None),
+            alignment: None,
         }
     }
 }

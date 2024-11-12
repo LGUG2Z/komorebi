@@ -349,7 +349,9 @@ impl Komobar {
         let mut komobar = Self {
             config: config.clone(),
             render_config: Rc::new(RefCell::new(RenderConfig {
+                spacing: 0.0,
                 grouping: Grouping::None,
+                alignment: None,
             })),
             komorebi_notification_state: None,
             left_widgets: vec![],
@@ -466,9 +468,7 @@ impl eframe::App for Komobar {
             Frame::none().fill(*self.bg_color.borrow())
         };
 
-        // NOTE: is there a better way?
         let mut render_config = self.render_config.borrow_mut();
-        let render_config_clone = *render_config;
 
         CentralPanel::default().frame(frame).show(ctx, |ui| {
             // Apply grouping logic for the bar as a whole
@@ -476,18 +476,24 @@ impl eframe::App for Komobar {
                 ui.horizontal_centered(|ui| {
                     // Left-aligned widgets layout
                     ui.with_layout(Layout::left_to_right(Align::Center), |ui| {
+                        let mut render_conf = *render_config;
+                        render_conf.alignment = Some(Alignment::Left);
+
                         render_config.grouping.apply_on_alignment(ui, |ui| {
                             for w in &mut self.left_widgets {
-                                w.render(ctx, ui, render_config_clone, Alignment::Left);
+                                w.render(ctx, ui, render_conf);
                             }
                         });
                     });
 
                     // Right-aligned widgets layout
                     ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+                        let mut render_conf = *render_config;
+                        render_conf.alignment = Some(Alignment::Right);
+
                         render_config.grouping.apply_on_alignment(ui, |ui| {
                             for w in &mut self.right_widgets {
-                                w.render(ctx, ui, render_config_clone, Alignment::Right);
+                                w.render(ctx, ui, render_conf);
                             }
                         });
                     })
