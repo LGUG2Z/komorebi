@@ -1,3 +1,4 @@
+use crate::bar::Alignment;
 use crate::config::LabelPrefix;
 use crate::widget::BarWidget;
 use crate::widget::RenderConfig;
@@ -317,10 +318,16 @@ impl Network {
 }
 
 impl BarWidget for Network {
-    fn render(&mut self, ctx: &Context, ui: &mut Ui, mut config: RenderConfig) {
+    fn render(
+        &mut self,
+        ctx: &Context,
+        ui: &mut Ui,
+        mut config: RenderConfig,
+        alignment: Alignment,
+    ) {
         if self.show_total_data_transmitted {
             for output in self.total_data_transmitted() {
-                config.grouping.apply_on_widget(true, ui, |ui| {
+                config.grouping.apply_on_widget(true, alignment, ui, |ui| {
                     ui.add(Label::new(output).selectable(false));
                 });
             }
@@ -328,7 +335,7 @@ impl BarWidget for Network {
 
         if self.show_network_activity {
             for output in self.network_activity() {
-                config.grouping.apply_on_widget(true, ui, |ui| {
+                config.grouping.apply_on_widget(true, alignment, ui, |ui| {
                     ui.add(Label::new(output).selectable(false));
                 });
             }
@@ -367,7 +374,7 @@ impl BarWidget for Network {
                     TextFormat::simple(font_id, ctx.style().visuals.text_color()),
                 );
 
-                config.grouping.apply_on_widget(true, ui, |ui| {
+                config.grouping.apply_on_widget(true, alignment, ui, |ui| {
                     if ui
                         .add(
                             Label::new(layout_job)

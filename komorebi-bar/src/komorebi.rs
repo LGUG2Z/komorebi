@@ -1,4 +1,5 @@
 use crate::bar::apply_theme;
+use crate::bar::Alignment;
 use crate::config::KomobarTheme;
 use crate::ui::CustomUi;
 use crate::widget::BarWidget;
@@ -122,14 +123,20 @@ pub struct Komorebi {
 }
 
 impl BarWidget for Komorebi {
-    fn render(&mut self, ctx: &Context, ui: &mut Ui, mut config: RenderConfig) {
+    fn render(
+        &mut self,
+        ctx: &Context,
+        ui: &mut Ui,
+        mut config: RenderConfig,
+        alignment: Alignment,
+    ) {
         let mut komorebi_notification_state = self.komorebi_notification_state.borrow_mut();
 
         if self.workspaces.enable {
             let mut update = None;
 
             // NOTE: There should always be at least one workspace.
-            config.grouping.apply_on_widget(false, ui, |ui| {
+            config.grouping.apply_on_widget(false, alignment, ui, |ui| {
                 for (i, (ws, should_show)) in
                     komorebi_notification_state.workspaces.iter().enumerate()
                 {
@@ -196,7 +203,7 @@ impl BarWidget for Komorebi {
 
         if let Some(layout) = self.layout {
             if layout.enable {
-                config.grouping.apply_on_widget(true, ui, |ui| {
+                config.grouping.apply_on_widget(true, alignment, ui, |ui| {
                     if ui
                         .add(
                             Label::new(komorebi_notification_state.layout.to_string())
@@ -247,7 +254,7 @@ impl BarWidget for Komorebi {
                 for (name, location) in configuration_switcher.configurations.iter() {
                     let path = PathBuf::from(location);
                     if path.is_file() {
-                        config.grouping.apply_on_widget(true, ui,|ui|{
+                        config.grouping.apply_on_widget(true, alignment, ui,|ui|{
                     if ui
                             .add(Label::new(name).selectable(false).sense(Sense::click()))
                             .clicked()
@@ -305,7 +312,7 @@ impl BarWidget for Komorebi {
                 let titles = &komorebi_notification_state.focused_container_information.0;
 
                 if !titles.is_empty() {
-                    config.grouping.apply_on_widget(true, ui, |ui| {
+                    config.grouping.apply_on_widget(true, alignment, ui, |ui| {
                         let icons = &komorebi_notification_state.focused_container_information.1;
                         let focused_window_idx =
                             komorebi_notification_state.focused_container_information.2;

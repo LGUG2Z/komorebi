@@ -1,3 +1,4 @@
+use crate::bar::Alignment;
 use crate::config::Color32Ext;
 use crate::BACKGROUND_COLOR;
 use crate::WIDGET_SPACING;
@@ -34,7 +35,7 @@ impl Grouping {
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> InnerResponse<R> {
         match self {
-            Self::Bar(config) => Self::define_group(false, ui, add_contents, config),
+            Self::Bar(config) => Self::define_group(false, None, ui, add_contents, config),
             Self::Alignment(_) => Self::no_group(ui, add_contents),
             Self::Widget(_) => Self::no_group(ui, add_contents),
             Self::None => Self::no_group(ui, add_contents),
@@ -48,7 +49,7 @@ impl Grouping {
     ) -> InnerResponse<R> {
         match self {
             Self::Bar(_) => Self::no_group(ui, add_contents),
-            Self::Alignment(config) => Self::define_group(false, ui, add_contents, config),
+            Self::Alignment(config) => Self::define_group(false, None, ui, add_contents, config),
             Self::Widget(_) => Self::no_group(ui, add_contents),
             Self::None => Self::no_group(ui, add_contents),
         }
@@ -57,27 +58,31 @@ impl Grouping {
     pub fn apply_on_widget<R>(
         &mut self,
         use_spacing: bool,
+        alignment: Alignment,
         ui: &mut Ui,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> InnerResponse<R> {
         match self {
-            Self::Bar(_) => Self::widget_group(use_spacing, ui, add_contents),
-            Self::Alignment(_) => Self::widget_group(use_spacing, ui, add_contents),
-            Self::Widget(config) => Self::define_group(use_spacing, ui, add_contents, config),
-            Self::None => Self::widget_group(use_spacing, ui, add_contents),
+            Self::Bar(_) => Self::widget_group(use_spacing, alignment, ui, add_contents),
+            Self::Alignment(_) => Self::widget_group(use_spacing, alignment, ui, add_contents),
+            Self::Widget(config) => {
+                Self::define_group(use_spacing, Some(alignment), ui, add_contents, config)
+            }
+            Self::None => Self::widget_group(use_spacing, alignment, ui, add_contents),
         }
     }
 
     fn define_group<R>(
         use_spacing: bool,
+        alignment: Option<Alignment>,
         ui: &mut Ui,
         add_contents: impl FnOnce(&mut Ui) -> R,
         config: &mut GroupingConfig,
     ) -> InnerResponse<R> {
         Frame::none()
-            .outer_margin(Margin::same(0.0))
+            .outer_margin(Self::widget_outer_margin(alignment))
             .inner_margin(match use_spacing {
-                true => Margin::symmetric(WIDGET_SPACING / 2.0 + 3.0, 3.0),
+                true => Margin::symmetric(5.0 + 3.0, 3.0),
                 false => Margin::symmetric(3.0, 3.0),
             })
             .stroke(ui.style().visuals.widgets.noninteractive.bg_stroke)
@@ -107,12 +112,14 @@ impl Grouping {
 
     fn widget_group<R>(
         use_spacing: bool,
+        alignment: Alignment,
         ui: &mut Ui,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> InnerResponse<R> {
         Frame::none()
+            .outer_margin(Self::widget_outer_margin(Some(alignment)))
             .inner_margin(match use_spacing {
-                true => Margin::symmetric(WIDGET_SPACING / 2.0, 0.0),
+                true => Margin::symmetric(5.0, 0.0),
                 false => Margin::same(0.0),
             })
             .show(ui, add_contents)
@@ -122,6 +129,27 @@ impl Grouping {
         InnerResponse {
             inner: add_contents(ui),
             response: ui.response().clone(),
+        }
+    }
+
+    fn widget_outer_margin(alignment: Option<Alignment>) -> Margin {
+        Margin {
+            left: match alignment {
+                Some(align) => match align {
+                    Alignment::Left => 0.0,
+                    Alignment::Right => WIDGET_SPACING,
+                },
+                None => 0.0,
+            },
+            right: match alignment {
+                Some(align) => match align {
+                    Alignment::Left => WIDGET_SPACING,
+                    Alignment::Right => 0.0,
+                },
+                None => 0.0,
+            },
+            top: 0.0,
+            bottom: 0.0,
         }
     }
 }

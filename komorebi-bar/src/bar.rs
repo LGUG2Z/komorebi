@@ -478,7 +478,7 @@ impl eframe::App for Komobar {
                     ui.with_layout(Layout::left_to_right(Align::Center), |ui| {
                         render_config.grouping.apply_on_alignment(ui, |ui| {
                             for w in &mut self.left_widgets {
-                                w.render(ctx, ui, render_config_clone);
+                                w.render(ctx, ui, render_config_clone, Alignment::Left);
                             }
                         });
                     });
@@ -487,7 +487,7 @@ impl eframe::App for Komobar {
                     ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
                         render_config.grouping.apply_on_alignment(ui, |ui| {
                             for w in &mut self.right_widgets {
-                                w.render(ctx, ui, render_config_clone);
+                                w.render(ctx, ui, render_config_clone, Alignment::Right);
                             }
                         });
                     })
@@ -498,7 +498,7 @@ impl eframe::App for Komobar {
 }
 
 #[derive(Copy, Clone)]
-enum Alignment {
+pub enum Alignment {
     Left,
     Right,
 }

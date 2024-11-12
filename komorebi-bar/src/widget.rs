@@ -1,3 +1,4 @@
+use crate::bar::Alignment;
 use crate::battery::Battery;
 use crate::battery::BatteryConfig;
 use crate::cpu::Cpu;
@@ -24,7 +25,7 @@ use serde::Deserialize;
 use serde::Serialize;
 
 pub trait BarWidget {
-    fn render(&mut self, ctx: &Context, ui: &mut Ui, config: RenderConfig);
+    fn render(&mut self, ctx: &Context, ui: &mut Ui, config: RenderConfig, alignment: Alignment);
 }
 
 #[derive(Copy, Clone)]
