@@ -1,5 +1,6 @@
 use crate::config::Color32Ext;
 use crate::BACKGROUND_COLOR;
+use crate::WIDGET_SPACING;
 use eframe::egui::Color32;
 use eframe::egui::Frame;
 use eframe::egui::InnerResponse;
@@ -18,10 +19,10 @@ use std::sync::atomic::Ordering;
 pub enum Grouping {
     /// No grouping is applied
     None,
-    /// Widgets are grouped on the bar
+    /// Widgets are grouped as a whole
     Bar(GroupingConfig),
-    /// Widgets are grouped on each side
-    Side(GroupingConfig),
+    /// Widgets are grouped by alignment
+    Alignment(GroupingConfig),
     /// Widgets are grouped individually
     Widget(GroupingConfig),
 }
@@ -33,43 +34,52 @@ impl Grouping {
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> InnerResponse<R> {
         match self {
-            Self::Bar(config) => Self::define_frame(ui, config).show(ui, add_contents),
-            Self::Side(_) => Self::default_response(ui, add_contents),
-            Self::Widget(_) => Self::default_response(ui, add_contents),
-            Self::None => Self::default_response(ui, add_contents),
+            Self::Bar(config) => Self::define_group(false, ui, add_contents, config),
+            Self::Alignment(_) => Self::no_group(ui, add_contents),
+            Self::Widget(_) => Self::no_group(ui, add_contents),
+            Self::None => Self::no_group(ui, add_contents),
         }
     }
 
-    pub fn apply_on_side<R>(
+    pub fn apply_on_alignment<R>(
         &mut self,
         ui: &mut Ui,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> InnerResponse<R> {
         match self {
-            Self::Bar(_) => Self::default_response(ui, add_contents),
-            Self::Side(config) => Self::define_frame(ui, config).show(ui, add_contents),
-            Self::Widget(_) => Self::default_response(ui, add_contents),
-            Self::None => Self::default_response(ui, add_contents),
+            Self::Bar(_) => Self::no_group(ui, add_contents),
+            Self::Alignment(config) => Self::define_group(false, ui, add_contents, config),
+            Self::Widget(_) => Self::no_group(ui, add_contents),
+            Self::None => Self::no_group(ui, add_contents),
         }
     }
 
     pub fn apply_on_widget<R>(
         &mut self,
+        use_spacing: bool,
         ui: &mut Ui,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> InnerResponse<R> {
         match self {
-            Self::Bar(_) => Self::default_response(ui, add_contents),
-            Self::Side(_) => Self::default_response(ui, add_contents),
-            Self::Widget(config) => Self::define_frame(ui, config).show(ui, add_contents),
-            Self::None => Self::default_response(ui, add_contents),
+            Self::Bar(_) => Self::widget_group(use_spacing, ui, add_contents),
+            Self::Alignment(_) => Self::widget_group(use_spacing, ui, add_contents),
+            Self::Widget(config) => Self::define_group(use_spacing, ui, add_contents, config),
+            Self::None => Self::widget_group(use_spacing, ui, add_contents),
         }
     }
 
-    fn define_frame(ui: &mut Ui, config: &mut GroupingConfig) -> Frame {
+    fn define_group<R>(
+        use_spacing: bool,
+        ui: &mut Ui,
+        add_contents: impl FnOnce(&mut Ui) -> R,
+        config: &mut GroupingConfig,
+    ) -> InnerResponse<R> {
         Frame::none()
             .outer_margin(Margin::same(0.0))
-            .inner_margin(Margin::symmetric(3.0, 3.0))
+            .inner_margin(match use_spacing {
+                true => Margin::symmetric(WIDGET_SPACING / 2.0 + 3.0, 3.0),
+                false => Margin::symmetric(3.0, 3.0),
+            })
             .stroke(ui.style().visuals.widgets.noninteractive.bg_stroke)
             .rounding(match config.rounding {
                 Some(rounding) => rounding.into(),
@@ -92,12 +102,23 @@ impl Grouping {
                 },
                 None => Shadow::NONE,
             })
+            .show(ui, add_contents)
     }
 
-    fn default_response<R>(
+    fn widget_group<R>(
+        use_spacing: bool,
         ui: &mut Ui,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> InnerResponse<R> {
+        Frame::none()
+            .inner_margin(match use_spacing {
+                true => Margin::symmetric(WIDGET_SPACING / 2.0, 0.0),
+                false => Margin::same(0.0),
+            })
+            .show(ui, add_contents)
+    }
+
+    fn no_group<R>(ui: &mut Ui, add_contents: impl FnOnce(&mut Ui) -> R) -> InnerResponse<R> {
         InnerResponse {
             inner: add_contents(ui),
             response: ui.response().clone(),

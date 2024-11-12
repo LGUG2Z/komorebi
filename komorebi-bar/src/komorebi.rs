@@ -4,7 +4,6 @@ use crate::ui::CustomUi;
 use crate::widget::BarWidget;
 use crate::widget::RenderConfig;
 use crate::MAX_LABEL_WIDTH;
-use crate::WIDGET_SPACING;
 use crossbeam_channel::Receiver;
 use crossbeam_channel::TryRecvError;
 use eframe::egui::text::LayoutJob;
@@ -130,7 +129,7 @@ impl BarWidget for Komorebi {
             let mut update = None;
 
             // NOTE: There should always be at least one workspace.
-            config.grouping.apply_on_widget(ui, |ui| {
+            config.grouping.apply_on_widget(false, ui, |ui| {
                 for (i, (ws, should_show)) in
                     komorebi_notification_state.workspaces.iter().enumerate()
                 {
@@ -193,13 +192,11 @@ impl BarWidget for Komorebi {
             if let Some(update) = update {
                 komorebi_notification_state.selected_workspace = update;
             }
-
-            ui.add_space(WIDGET_SPACING);
         }
 
         if let Some(layout) = self.layout {
             if layout.enable {
-                config.grouping.apply_on_widget(ui, |ui| {
+                config.grouping.apply_on_widget(true, ui, |ui| {
                     if ui
                         .add(
                             Label::new(komorebi_notification_state.layout.to_string())
@@ -242,8 +239,6 @@ impl BarWidget for Komorebi {
                         }
                     }
                 });
-
-                ui.add_space(WIDGET_SPACING);
             }
         }
 
@@ -252,7 +247,7 @@ impl BarWidget for Komorebi {
                 for (name, location) in configuration_switcher.configurations.iter() {
                     let path = PathBuf::from(location);
                     if path.is_file() {
-                        config.grouping.apply_on_widget(ui,|ui|{
+                        config.grouping.apply_on_widget(true, ui,|ui|{
                     if ui
                             .add(Label::new(name).selectable(false).sense(Sense::click()))
                             .clicked()
@@ -302,8 +297,6 @@ impl BarWidget for Komorebi {
                         }});
                     }
                 }
-
-                ui.add_space(WIDGET_SPACING);
             }
         }
 
@@ -312,7 +305,7 @@ impl BarWidget for Komorebi {
                 let titles = &komorebi_notification_state.focused_container_information.0;
 
                 if !titles.is_empty() {
-                    config.grouping.apply_on_widget(ui, |ui| {
+                    config.grouping.apply_on_widget(true, ui, |ui| {
                         let icons = &komorebi_notification_state.focused_container_information.1;
                         let focused_window_idx =
                             komorebi_notification_state.focused_container_information.2;
@@ -418,14 +411,10 @@ impl BarWidget for Komorebi {
                                     }
                                 }
                             }
-
-                            ui.add_space(WIDGET_SPACING);
                         }
                     });
                 }
             }
-
-            ui.add_space(WIDGET_SPACING);
         }
     }
 }

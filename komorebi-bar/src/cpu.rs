@@ -1,7 +1,6 @@
 use crate::config::LabelPrefix;
 use crate::widget::BarWidget;
 use crate::widget::RenderConfig;
-use crate::WIDGET_SPACING;
 use eframe::egui::text::LayoutJob;
 use eframe::egui::Context;
 use eframe::egui::FontId;
@@ -100,7 +99,7 @@ impl BarWidget for Cpu {
                     TextFormat::simple(font_id, ctx.style().visuals.text_color()),
                 );
 
-                config.grouping.apply_on_widget(ui, |ui| {
+                config.grouping.apply_on_widget(true, ui, |ui| {
                     if ui
                         .add(
                             Label::new(layout_job)
@@ -117,8 +116,6 @@ impl BarWidget for Cpu {
                     }
                 });
             }
-
-            ui.add_space(WIDGET_SPACING);
         }
     }
 }

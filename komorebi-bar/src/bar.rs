@@ -245,8 +245,9 @@ impl Komobar {
         }
 
         // apply rounding to the widgets
-        if let Some(Grouping::Bar(config) | Grouping::Side(config) | Grouping::Widget(config)) =
-            &config.grouping
+        if let Some(
+            Grouping::Bar(config) | Grouping::Alignment(config) | Grouping::Widget(config),
+        ) = &config.grouping
         {
             if let Some(rounding) = config.rounding {
                 ctx.style_mut(|style| {
@@ -282,7 +283,7 @@ impl Komobar {
             if let WidgetConfig::Komorebi(config) = widget_config {
                 komorebi_widget = Some(Komorebi::from(config));
                 komorebi_widget_idx = Some(idx);
-                side = Some(Side::Left);
+                side = Some(Alignment::Left);
             }
         }
 
@@ -290,7 +291,7 @@ impl Komobar {
             if let WidgetConfig::Komorebi(config) = widget_config {
                 komorebi_widget = Some(Komorebi::from(config));
                 komorebi_widget_idx = Some(idx);
-                side = Some(Side::Right);
+                side = Some(Alignment::Right);
             }
         }
 
@@ -324,8 +325,8 @@ impl Komobar {
 
             let boxed: Box<dyn BarWidget> = Box::new(widget);
             match side {
-                Side::Left => left_widgets[idx] = boxed,
-                Side::Right => right_widgets[idx] = boxed,
+                Alignment::Left => left_widgets[idx] = boxed,
+                Alignment::Right => right_widgets[idx] = boxed,
             }
         }
 
@@ -475,7 +476,7 @@ impl eframe::App for Komobar {
                 ui.horizontal_centered(|ui| {
                     // Left-aligned widgets layout
                     ui.with_layout(Layout::left_to_right(Align::Center), |ui| {
-                        render_config.grouping.apply_on_side(ui, |ui| {
+                        render_config.grouping.apply_on_alignment(ui, |ui| {
                             for w in &mut self.left_widgets {
                                 w.render(ctx, ui, render_config_clone);
                             }
@@ -484,7 +485,7 @@ impl eframe::App for Komobar {
 
                     // Right-aligned widgets layout
                     ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                        render_config.grouping.apply_on_side(ui, |ui| {
+                        render_config.grouping.apply_on_alignment(ui, |ui| {
                             for w in &mut self.right_widgets {
                                 w.render(ctx, ui, render_config_clone);
                             }
@@ -497,7 +498,7 @@ impl eframe::App for Komobar {
 }
 
 #[derive(Copy, Clone)]
-enum Side {
+enum Alignment {
     Left,
     Right,
 }
