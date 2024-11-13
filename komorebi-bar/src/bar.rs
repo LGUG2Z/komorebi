@@ -352,7 +352,7 @@ impl Komobar {
                 grouping: Grouping::None,
                 background_color: Color32::BLACK,
                 alignment: None,
-                no_spacing: None,
+                no_spacing: false,
             })),
             komorebi_notification_state: None,
             left_widgets: vec![],
@@ -486,7 +486,7 @@ impl eframe::App for Komobar {
                                     w.render(ctx, ui, render_conf);
                                 }
 
-                                render_conf.no_spacing = Some(true);
+                                render_conf.no_spacing = true;
                                 last.render(ctx, ui, render_conf);
                             }
                         });
@@ -503,7 +503,7 @@ impl eframe::App for Komobar {
                                     w.render(ctx, ui, render_conf);
                                 }
 
-                                render_conf.no_spacing = Some(true);
+                                render_conf.no_spacing = true;
                                 last.render(ctx, ui, render_conf);
                             }
                         });

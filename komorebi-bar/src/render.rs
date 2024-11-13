@@ -36,7 +36,7 @@ pub struct RenderConfig {
     /// Alignment of the widgets
     pub alignment: Option<Alignment>,
     /// Remove spacing if true
-    pub no_spacing: Option<bool>,
+    pub no_spacing: bool,
 }
 
 pub trait RenderExt {
@@ -50,7 +50,7 @@ impl RenderExt for &KomobarConfig {
             grouping: self.grouping.unwrap_or(Grouping::None),
             background_color,
             alignment: None,
-            no_spacing: None,
+            no_spacing: false,
         }
     }
 }
@@ -90,7 +90,7 @@ impl RenderConfig {
         // TODO: this should remove the margin on the last widget on the left side and the first widget on the right side
         // This is complex, since the last/first widget can have multiple "sections", like komorebi, network, ...
         // This and the same setting on RenderConfig needs to be combined.
-        //_first_or_last: Option<bool>,
+        //no_spacing: Option<bool>,
         ui: &mut Ui,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> InnerResponse<R> {
@@ -167,7 +167,7 @@ impl RenderConfig {
                 Some(align) => match align {
                     Alignment::Left => 0.0,
                     Alignment::Right => {
-                        if self.no_spacing.is_some_and(|v| v) {
+                        if self.no_spacing {
                             0.0
                         } else {
                             self.spacing
@@ -179,7 +179,7 @@ impl RenderConfig {
             right: match self.alignment {
                 Some(align) => match align {
                     Alignment::Left => {
-                        if self.no_spacing.is_some_and(|v| v) {
+                        if self.no_spacing {
                             0.0
                         } else {
                             self.spacing
