@@ -1,7 +1,5 @@
-use crate::group::Grouping;
-use crate::widget::RenderConfig;
+use crate::render::Grouping;
 use crate::widget::WidgetConfig;
-use eframe::egui::Color32;
 use eframe::egui::Pos2;
 use eframe::egui::TextBuffer;
 use eframe::egui::Vec2;
@@ -33,7 +31,7 @@ pub struct KomobarConfig {
     pub theme: Option<KomobarTheme>,
     /// Alpha value for the color transparency [[0-255]] (default: 200)
     pub transparency_alpha: Option<u8>,
-    /// Spacing between widgets
+    /// Spacing between widgets (default: 10.0)
     pub widget_spacing: Option<f32>,
     /// Visual grouping for widgets
     pub grouping: Option<Grouping>,
@@ -68,16 +66,6 @@ impl KomobarConfig {
                     }
                 }
             }
-        }
-    }
-}
-
-impl From<&KomobarConfig> for RenderConfig {
-    fn from(value: &KomobarConfig) -> Self {
-        RenderConfig {
-            spacing: value.widget_spacing.unwrap_or(10.0),
-            grouping: value.grouping.unwrap_or(Grouping::None),
-            alignment: None,
         }
     }
 }
@@ -196,38 +184,4 @@ pub enum LabelPrefix {
     Text,
     /// Show an icon and text
     IconAndText,
-}
-
-pub trait Color32Ext {
-    fn to_u32(&self) -> u32;
-    fn from_u32(color: u32) -> Self;
-    fn try_apply_alpha(self, transparency_alpha: Option<u8>) -> Self;
-}
-
-impl Color32Ext for Color32 {
-    /// Converts Color32 to u32 (ARGB format)
-    fn to_u32(&self) -> u32 {
-        ((self.a() as u32) << 24)
-            | ((self.r() as u32) << 16)
-            | ((self.g() as u32) << 8)
-            | (self.b() as u32)
-    }
-
-    /// Converts u32 back to Color32 (ARGB format)
-    fn from_u32(color: u32) -> Self {
-        let a = ((color >> 24) & 0xFF) as u8;
-        let r = ((color >> 16) & 0xFF) as u8;
-        let g = ((color >> 8) & 0xFF) as u8;
-        let b = (color & 0xFF) as u8;
-        Color32::from_rgba_premultiplied(r, g, b, a)
-    }
-
-    /// Tries to apply the alpha value to the Color32
-    fn try_apply_alpha(self, transparency_alpha: Option<u8>) -> Self {
-        if let Some(alpha) = transparency_alpha {
-            return Color32::from_rgba_unmultiplied(self.r(), self.g(), self.b(), alpha);
-        }
-
-        self
-    }
 }

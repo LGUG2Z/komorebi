@@ -1,11 +1,9 @@
-use crate::bar::Alignment;
 use crate::battery::Battery;
 use crate::battery::BatteryConfig;
 use crate::cpu::Cpu;
 use crate::cpu::CpuConfig;
 use crate::date::Date;
 use crate::date::DateConfig;
-use crate::group::Grouping;
 use crate::komorebi::Komorebi;
 use crate::komorebi::KomorebiConfig;
 use crate::media::Media;
@@ -14,6 +12,7 @@ use crate::memory::Memory;
 use crate::memory::MemoryConfig;
 use crate::network::Network;
 use crate::network::NetworkConfig;
+use crate::render::RenderConfig;
 use crate::storage::Storage;
 use crate::storage::StorageConfig;
 use crate::time::Time;
@@ -26,16 +25,6 @@ use serde::Serialize;
 
 pub trait BarWidget {
     fn render(&mut self, ctx: &Context, ui: &mut Ui, config: RenderConfig);
-}
-
-#[derive(Copy, Clone)]
-pub struct RenderConfig {
-    /// Spacing between widgets
-    pub spacing: f32,
-    /// Sets how widgets are grouped
-    pub grouping: Grouping,
-    /// Alignment of the widgets
-    pub alignment: Option<Alignment>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]

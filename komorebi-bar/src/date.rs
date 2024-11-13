@@ -1,6 +1,6 @@
 use crate::config::LabelPrefix;
+use crate::render::RenderConfig;
 use crate::widget::BarWidget;
-use crate::widget::RenderConfig;
 use eframe::egui::text::LayoutJob;
 use eframe::egui::Context;
 use eframe::egui::FontId;
@@ -119,7 +119,7 @@ impl BarWidget for Date {
                     TextFormat::simple(font_id, ctx.style().visuals.text_color()),
                 );
 
-                config.grouping.apply_on_widget(true, config, ui, |ui| {
+                config.apply_on_widget(true, ui, |ui| {
                     if ui
                         .add(
                             Label::new(WidgetText::LayoutJob(layout_job.clone()))

@@ -1,16 +1,16 @@
-use crate::config::Color32Ext;
 use crate::config::KomobarConfig;
 use crate::config::KomobarTheme;
 use crate::config::Position;
 use crate::config::PositionConfig;
-use crate::group::Grouping;
 use crate::komorebi::Komorebi;
 use crate::komorebi::KomorebiNotificationState;
 use crate::process_hwnd;
+use crate::render::Color32Ext;
+use crate::render::Grouping;
+use crate::render::RenderConfig;
+use crate::render::RenderExt;
 use crate::widget::BarWidget;
-use crate::widget::RenderConfig;
 use crate::widget::WidgetConfig;
-use crate::BACKGROUND_COLOR;
 use crate::BAR_HEIGHT;
 use crate::MAX_LABEL_WIDTH;
 use crate::MONITOR_LEFT;
@@ -260,11 +260,10 @@ impl Komobar {
             }
         }
 
-        self.render_config.replace(config.into());
-
         let theme_color = *self.bg_color.borrow();
 
-        BACKGROUND_COLOR.store(theme_color.to_u32(), Ordering::SeqCst);
+        self.render_config
+            .replace(config.new_renderconfig(theme_color));
 
         self.bg_color
             .replace(theme_color.try_apply_alpha(self.config.transparency_alpha));
@@ -351,7 +350,9 @@ impl Komobar {
             render_config: Rc::new(RefCell::new(RenderConfig {
                 spacing: 0.0,
                 grouping: Grouping::None,
+                background_color: Color32::BLACK,
                 alignment: None,
+                no_spacing: None,
             })),
             komorebi_notification_state: None,
             left_widgets: vec![],
@@ -472,16 +473,21 @@ impl eframe::App for Komobar {
 
         CentralPanel::default().frame(frame).show(ctx, |ui| {
             // Apply grouping logic for the bar as a whole
-            render_config.grouping.clone().apply_on_bar(ui, |ui| {
+            render_config.clone().apply_on_bar(ui, |ui| {
                 ui.horizontal_centered(|ui| {
                     // Left-aligned widgets layout
                     ui.with_layout(Layout::left_to_right(Align::Center), |ui| {
                         let mut render_conf = *render_config;
                         render_conf.alignment = Some(Alignment::Left);
 
-                        render_config.grouping.apply_on_alignment(ui, |ui| {
-                            for w in &mut self.left_widgets {
-                                w.render(ctx, ui, render_conf);
+                        render_config.apply_on_alignment(ui, |ui| {
+                            if let Some((last, rest)) = self.left_widgets.split_last_mut() {
+                                for w in rest.iter_mut() {
+                                    w.render(ctx, ui, render_conf);
+                                }
+
+                                render_conf.no_spacing = Some(true);
+                                last.render(ctx, ui, render_conf);
                             }
                         });
                     });
@@ -491,9 +497,14 @@ impl eframe::App for Komobar {
                         let mut render_conf = *render_config;
                         render_conf.alignment = Some(Alignment::Right);
 
-                        render_config.grouping.apply_on_alignment(ui, |ui| {
-                            for w in &mut self.right_widgets {
-                                w.render(ctx, ui, render_conf);
+                        render_config.apply_on_alignment(ui, |ui| {
+                            if let Some((last, rest)) = self.right_widgets.split_last_mut() {
+                                for w in rest.iter_mut() {
+                                    w.render(ctx, ui, render_conf);
+                                }
+
+                                render_conf.no_spacing = Some(true);
+                                last.render(ctx, ui, render_conf);
                             }
                         });
                     })

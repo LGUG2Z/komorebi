@@ -1,6 +1,6 @@
+use crate::render::RenderConfig;
 use crate::ui::CustomUi;
 use crate::widget::BarWidget;
-use crate::widget::RenderConfig;
 use crate::MAX_LABEL_WIDTH;
 use eframe::egui::text::LayoutJob;
 use eframe::egui::Context;
@@ -102,7 +102,7 @@ impl BarWidget for Media {
                     TextFormat::simple(font_id, ctx.style().visuals.text_color()),
                 );
 
-                config.grouping.apply_on_widget(true, config, ui, |ui| {
+                config.apply_on_widget(true, ui, |ui| {
                     let available_height = ui.available_height();
                     let mut custom_ui = CustomUi(ui);
 

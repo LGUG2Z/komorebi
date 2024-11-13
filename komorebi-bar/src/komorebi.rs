@@ -1,8 +1,8 @@
 use crate::bar::apply_theme;
 use crate::config::KomobarTheme;
+use crate::render::RenderConfig;
 use crate::ui::CustomUi;
 use crate::widget::BarWidget;
-use crate::widget::RenderConfig;
 use crate::MAX_LABEL_WIDTH;
 use crossbeam_channel::Receiver;
 use crossbeam_channel::TryRecvError;
@@ -129,7 +129,7 @@ impl BarWidget for Komorebi {
             let mut update = None;
 
             // NOTE: There should always be at least one workspace.
-            config.grouping.apply_on_widget(false, config, ui, |ui| {
+            config.apply_on_widget(false, ui, |ui| {
                 for (i, (ws, should_show)) in
                     komorebi_notification_state.workspaces.iter().enumerate()
                 {
@@ -196,7 +196,7 @@ impl BarWidget for Komorebi {
 
         if let Some(layout) = self.layout {
             if layout.enable {
-                config.grouping.apply_on_widget(true, config, ui, |ui| {
+                config.apply_on_widget(true, ui, |ui| {
                     if ui
                         .add(
                             Label::new(komorebi_notification_state.layout.to_string())
@@ -247,7 +247,7 @@ impl BarWidget for Komorebi {
                 for (name, location) in configuration_switcher.configurations.iter() {
                     let path = PathBuf::from(location);
                     if path.is_file() {
-                        config.grouping.apply_on_widget(true, config, ui,|ui|{
+                        config.apply_on_widget(true, ui,|ui|{
                     if ui
                             .add(Label::new(name).selectable(false).sense(Sense::click()))
                             .clicked()
@@ -305,7 +305,7 @@ impl BarWidget for Komorebi {
                 let titles = &komorebi_notification_state.focused_container_information.0;
 
                 if !titles.is_empty() {
-                    config.grouping.apply_on_widget(true, config, ui, |ui| {
+                    config.apply_on_widget(true, ui, |ui| {
                         let icons = &komorebi_notification_state.focused_container_information.1;
                         let focused_window_idx =
                             komorebi_notification_state.focused_container_information.2;
