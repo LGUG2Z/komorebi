@@ -102,7 +102,7 @@ impl BarWidget for Media {
                     TextFormat::simple(font_id, ctx.style().visuals.text_color()),
                 );
 
-                config.apply_on_widget(true, ui, |ui| {
+                config.apply_on_widget(true, true, ui, |ui| {
                     let available_height = ui.available_height();
                     let mut custom_ui = CustomUi(ui);
 

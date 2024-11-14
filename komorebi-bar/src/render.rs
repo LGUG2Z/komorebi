@@ -86,19 +86,20 @@ impl RenderConfig {
 
     pub fn apply_on_widget<R>(
         &mut self,
-        use_spacing: bool,
-        // TODO: this should remove the margin on the last widget on the left side and the first widget on the right side
-        // This is complex, since the last/first widget can have multiple "sections", like komorebi, network, ...
-        // This and the same setting on RenderConfig needs to be combined.
-        //no_spacing: Option<bool>,
+        more_inner_margin: bool,
+        is_last_widget: bool,
         ui: &mut Ui,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> InnerResponse<R> {
+        // since a widget can call this multiple times, it is necessary to know the last time
+        // in order to add widget spacing correctly
+        self.no_spacing = self.no_spacing && is_last_widget;
+
         if let Grouping::Widget(config) = self.grouping {
-            return self.define_group(use_spacing, config, ui, add_contents);
+            return self.define_group(more_inner_margin, config, ui, add_contents);
         }
 
-        self.fallback_widget_group(use_spacing, ui, add_contents)
+        self.fallback_widget_group(more_inner_margin, ui, add_contents)
     }
 
     fn fallback_group<R>(ui: &mut Ui, add_contents: impl FnOnce(&mut Ui) -> R) -> InnerResponse<R> {
@@ -110,13 +111,13 @@ impl RenderConfig {
 
     fn fallback_widget_group<R>(
         &mut self,
-        use_spacing: bool,
+        more_inner_margin: bool,
         ui: &mut Ui,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> InnerResponse<R> {
         Frame::none()
             .outer_margin(self.widget_outer_margin())
-            .inner_margin(match use_spacing {
+            .inner_margin(match more_inner_margin {
                 true => Margin::symmetric(5.0, 0.0),
                 false => Margin::same(0.0),
             })
@@ -125,14 +126,14 @@ impl RenderConfig {
 
     fn define_group<R>(
         &mut self,
-        use_spacing: bool,
+        more_inner_margin: bool,
         config: GroupingConfig,
         ui: &mut Ui,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> InnerResponse<R> {
         Frame::none()
             .outer_margin(self.widget_outer_margin())
-            .inner_margin(match use_spacing {
+            .inner_margin(match more_inner_margin {
                 true => Margin::symmetric(8.0, 3.0),
                 false => Margin::symmetric(3.0, 3.0),
             })

@@ -102,7 +102,7 @@ impl BarWidget for Memory {
                     TextFormat::simple(font_id, ctx.style().visuals.text_color()),
                 );
 
-                config.apply_on_widget(true, ui, |ui| {
+                config.apply_on_widget(true, true, ui, |ui| {
                     if ui
                         .add(
                             Label::new(layout_job)
