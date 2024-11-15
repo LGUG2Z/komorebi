@@ -28,7 +28,7 @@ serde_json = { workspace = true }
 serde_yaml = "0.9"
 shadow-rs = { workspace = true }
 sysinfo = { workspace = true }
-thiserror = "1"
+thiserror = "2"
 uds_windows = { workspace = true }
 which = { workspace = true }
 win32-display-data = { workspace = true }
