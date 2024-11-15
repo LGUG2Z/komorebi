@@ -318,7 +318,7 @@ impl Network {
 
 impl BarWidget for Network {
     fn render(&mut self, ctx: &Context, ui: &mut Ui, mut config: RenderConfig) {
-        let mut enable_widget: [bool; 3] = [
+        let mut add_to_ui: [bool; 3] = [
             self.show_total_data_transmitted,
             self.show_network_activity,
             false,
@@ -328,29 +328,29 @@ impl BarWidget for Network {
             self.default_interface();
 
             if !self.default_interface.is_empty() {
-                enable_widget[2] = true;
+                add_to_ui[2] = true;
             }
         }
 
-        let last_enabled_widget_index = enable_widget.iter().rposition(|&x| x);
+        let last_add_to_ui = add_to_ui.iter().rposition(|&x| x);
 
-        if enable_widget[0] {
+        if add_to_ui[0] {
             for output in self.total_data_transmitted() {
-                config.apply_on_widget(true, last_enabled_widget_index == Some(0), ui, |ui| {
+                config.apply_on_widget(true, last_add_to_ui == Some(0), ui, |ui| {
                     ui.add(Label::new(output).selectable(false));
                 });
             }
         }
 
-        if enable_widget[1] {
+        if add_to_ui[1] {
             for output in self.network_activity() {
-                config.apply_on_widget(true, last_enabled_widget_index == Some(1), ui, |ui| {
+                config.apply_on_widget(true, last_add_to_ui == Some(1), ui, |ui| {
                     ui.add(Label::new(output).selectable(false));
                 });
             }
         }
 
-        if enable_widget[2] {
+        if add_to_ui[2] {
             let font_id = ctx
                 .style()
                 .text_styles
@@ -380,7 +380,7 @@ impl BarWidget for Network {
                 TextFormat::simple(font_id, ctx.style().visuals.text_color()),
             );
 
-            config.apply_on_widget(true, last_enabled_widget_index == Some(2), ui, |ui| {
+            config.apply_on_widget(true, last_add_to_ui == Some(2), ui, |ui| {
                 if ui
                     .add(
                         Label::new(layout_job)

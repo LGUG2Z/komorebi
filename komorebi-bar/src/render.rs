@@ -35,7 +35,11 @@ pub struct RenderConfig {
     pub background_color: Color32,
     /// Alignment of the widgets
     pub alignment: Option<Alignment>,
-    /// Remove spacing if true
+    /// True if this config belongs to the last widget in the alignment
+    pub is_last_in_alignment: bool,
+    /// Add more inner margin when adding a widget group
+    pub more_inner_margin: bool,
+    /// Add no widget spacing
     pub no_spacing: bool,
 }
 
@@ -50,12 +54,26 @@ impl RenderExt for &KomobarConfig {
             grouping: self.grouping.unwrap_or(Grouping::None),
             background_color,
             alignment: None,
+            is_last_in_alignment: false,
+            more_inner_margin: false,
             no_spacing: false,
         }
     }
 }
 
 impl RenderConfig {
+    pub fn new() -> Self {
+        Self {
+            spacing: 0.0,
+            grouping: Grouping::None,
+            background_color: Color32::BLACK,
+            alignment: None,
+            is_last_in_alignment: false,
+            more_inner_margin: false,
+            no_spacing: false,
+        }
+    }
+
     pub fn apply_on_bar<R>(
         &mut self,
         ui: &mut Ui,
@@ -64,7 +82,7 @@ impl RenderConfig {
         self.alignment = None;
 
         if let Grouping::Bar(config) = self.grouping {
-            return self.define_group(false, config, ui, add_contents);
+            return self.define_group(config, ui, add_contents);
         }
 
         Self::fallback_group(ui, add_contents)
@@ -78,7 +96,7 @@ impl RenderConfig {
         self.alignment = None;
 
         if let Grouping::Alignment(config) = self.grouping {
-            return self.define_group(false, config, ui, add_contents);
+            return self.define_group(config, ui, add_contents);
         }
 
         Self::fallback_group(ui, add_contents)
@@ -87,19 +105,20 @@ impl RenderConfig {
     pub fn apply_on_widget<R>(
         &mut self,
         more_inner_margin: bool,
-        is_last_widget: bool,
+        is_last_add_to_ui: bool,
         ui: &mut Ui,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> InnerResponse<R> {
         // since a widget can call this multiple times, it is necessary to know the last time
         // in order to add widget spacing correctly
-        self.no_spacing = self.no_spacing && is_last_widget;
+        self.more_inner_margin = more_inner_margin;
+        self.no_spacing = self.is_last_in_alignment && is_last_add_to_ui;
 
         if let Grouping::Widget(config) = self.grouping {
-            return self.define_group(more_inner_margin, config, ui, add_contents);
+            return self.define_group(config, ui, add_contents);
         }
 
-        self.fallback_widget_group(more_inner_margin, ui, add_contents)
+        self.fallback_widget_group(ui, add_contents)
     }
 
     fn fallback_group<R>(ui: &mut Ui, add_contents: impl FnOnce(&mut Ui) -> R) -> InnerResponse<R> {
@@ -111,13 +130,12 @@ impl RenderConfig {
 
     fn fallback_widget_group<R>(
         &mut self,
-        more_inner_margin: bool,
         ui: &mut Ui,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> InnerResponse<R> {
         Frame::none()
             .outer_margin(self.widget_outer_margin())
-            .inner_margin(match more_inner_margin {
+            .inner_margin(match self.more_inner_margin {
                 true => Margin::symmetric(5.0, 0.0),
                 false => Margin::same(0.0),
             })
@@ -126,14 +144,13 @@ impl RenderConfig {
 
     fn define_group<R>(
         &mut self,
-        more_inner_margin: bool,
         config: GroupingConfig,
         ui: &mut Ui,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> InnerResponse<R> {
         Frame::none()
             .outer_margin(self.widget_outer_margin())
-            .inner_margin(match more_inner_margin {
+            .inner_margin(match self.more_inner_margin {
                 true => Margin::symmetric(8.0, 3.0),
                 false => Margin::symmetric(3.0, 3.0),
             })

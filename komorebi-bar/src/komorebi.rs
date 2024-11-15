@@ -124,30 +124,30 @@ pub struct Komorebi {
 impl BarWidget for Komorebi {
     fn render(&mut self, ctx: &Context, ui: &mut Ui, mut config: RenderConfig) {
         let mut komorebi_notification_state = self.komorebi_notification_state.borrow_mut();
-        let mut enable_widget: [bool; 4] = [self.workspaces.enable, false, false, false];
+        let mut add_to_ui: [bool; 4] = [self.workspaces.enable, false, false, false];
 
         if let Some(layout) = self.layout {
-            enable_widget[1] = layout.enable;
+            add_to_ui[1] = layout.enable;
         }
 
         if let Some(configuration_switcher) = &self.configuration_switcher {
-            enable_widget[2] = configuration_switcher.enable;
+            add_to_ui[2] = configuration_switcher.enable;
         }
 
         if let Some(focused_window) = self.focused_window {
             if focused_window.enable {
                 let titles = &komorebi_notification_state.focused_container_information.0;
-                enable_widget[3] = !titles.is_empty();
+                add_to_ui[3] = !titles.is_empty();
             }
         }
 
-        let last_enabled_widget_index = enable_widget.iter().rposition(|&x| x);
+        let last_add_to_ui = add_to_ui.iter().rposition(|&x| x);
 
-        if enable_widget[0] {
+        if add_to_ui[0] {
             let mut update = None;
 
             // NOTE: There should always be at least one workspace.
-            config.apply_on_widget(false, last_enabled_widget_index == Some(0), ui, |ui| {
+            config.apply_on_widget(false, last_add_to_ui == Some(0), ui, |ui| {
                 for (i, (ws, should_show)) in
                     komorebi_notification_state.workspaces.iter().enumerate()
                 {
@@ -212,8 +212,8 @@ impl BarWidget for Komorebi {
             }
         }
 
-        if enable_widget[1] {
-            config.apply_on_widget(true, last_enabled_widget_index == Some(1), ui, |ui| {
+        if add_to_ui[1] {
+            config.apply_on_widget(true, last_add_to_ui == Some(1), ui, |ui| {
                 if ui
                     .add(
                         Label::new(komorebi_notification_state.layout.to_string())
@@ -249,12 +249,12 @@ impl BarWidget for Komorebi {
             });
         }
 
-        if enable_widget[2] {
+        if add_to_ui[2] {
             let configuration_switcher = self.configuration_switcher.as_ref().unwrap();
             for (name, location) in configuration_switcher.configurations.iter() {
                 let path = PathBuf::from(location);
                 if path.is_file() {
-                    config.apply_on_widget(true, last_enabled_widget_index == Some(2), ui,|ui|{
+                    config.apply_on_widget(true, last_add_to_ui == Some(2), ui,|ui|{
                     if ui
                             .add(Label::new(name).selectable(false).sense(Sense::click()))
                             .clicked()
@@ -306,10 +306,10 @@ impl BarWidget for Komorebi {
             }
         }
 
-        if enable_widget[3] {
+        if add_to_ui[3] {
             let focused_window = self.focused_window.unwrap();
             let titles = &komorebi_notification_state.focused_container_information.0;
-            config.apply_on_widget(true, last_enabled_widget_index == Some(4), ui, |ui| {
+            config.apply_on_widget(true, last_add_to_ui == Some(3), ui, |ui| {
                 let icons = &komorebi_notification_state.focused_container_information.1;
                 let focused_window_idx =
                     komorebi_notification_state.focused_container_information.2;

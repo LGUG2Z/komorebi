@@ -88,7 +88,9 @@ impl BarWidget for Storage {
                 .cloned()
                 .unwrap_or_else(FontId::default);
 
-            for output in self.output() {
+            let last_index = self.output().len() - 1;
+
+            for (index, output) in self.output().iter().enumerate() {
                 let mut layout_job = LayoutJob::simple(
                     match self.label_prefix {
                         LabelPrefix::Icon | LabelPrefix::IconAndText => {
@@ -102,13 +104,12 @@ impl BarWidget for Storage {
                 );
 
                 layout_job.append(
-                    &output,
+                    output,
                     10.0,
                     TextFormat::simple(font_id.clone(), ctx.style().visuals.text_color()),
                 );
 
-                // TODO: WIP
-                config.apply_on_widget(true, false, ui, |ui| {
+                config.apply_on_widget(true, index == last_index, ui, |ui| {
                     if ui
                         .add(
                             Label::new(layout_job)

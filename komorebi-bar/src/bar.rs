@@ -347,13 +347,7 @@ impl Komobar {
     ) -> Self {
         let mut komobar = Self {
             config: config.clone(),
-            render_config: Rc::new(RefCell::new(RenderConfig {
-                spacing: 0.0,
-                grouping: Grouping::None,
-                background_color: Color32::BLACK,
-                alignment: None,
-                no_spacing: false,
-            })),
+            render_config: Rc::new(RefCell::new(RenderConfig::new())),
             komorebi_notification_state: None,
             left_widgets: vec![],
             right_widgets: vec![],
@@ -486,7 +480,7 @@ impl eframe::App for Komobar {
                                     w.render(ctx, ui, render_conf);
                                 }
 
-                                render_conf.no_spacing = true;
+                                render_conf.is_last_in_alignment = true;
                                 last.render(ctx, ui, render_conf);
                             }
                         });
@@ -503,7 +497,7 @@ impl eframe::App for Komobar {
                                     w.render(ctx, ui, render_conf);
                                 }
 
-                                render_conf.no_spacing = true;
+                                render_conf.is_last_in_alignment = true;
                                 last.render(ctx, ui, render_conf);
                             }
                         });
