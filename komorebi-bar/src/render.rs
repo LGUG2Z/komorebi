@@ -105,7 +105,7 @@ impl RenderConfig {
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> InnerResponse<R> {
         self.more_inner_margin = more_inner_margin;
-        let outer_margin = self.widget_outer_margin();
+        let outer_margin = self.widget_outer_margin(ui);
 
         if let Grouping::Widget(config) = self.grouping {
             return self.define_group(Some(outer_margin), config, ui, add_contents);
@@ -143,7 +143,7 @@ impl RenderConfig {
         ui: &mut Ui,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> InnerResponse<R> {
-        Frame::none()
+        Frame::group(ui.style_mut())
             .outer_margin(outer_margin.unwrap_or(Margin::ZERO))
             .inner_margin(match self.more_inner_margin {
                 true => Margin::symmetric(8.0, 3.0),
@@ -173,20 +173,17 @@ impl RenderConfig {
             })
             .show(ui, add_contents)
     }
-
-    fn set_spacing(&mut self) {
-        self.applied_on_widget = true;
-    }
-
-    fn widget_outer_margin(&mut self) -> Margin {
+    
+    fn widget_outer_margin(&mut self, ui: &mut Ui) -> Margin {
         let spacing = if self.applied_on_widget {
-            self.spacing
+            // Remove the default item spacing from the margin
+            self.spacing - ui.spacing().item_spacing.x
         } else {
             0.0
         };
 
         if !self.applied_on_widget {
-            self.set_spacing();
+            self.applied_on_widget = true;
         }
 
         Margin {
@@ -212,14 +209,18 @@ impl RenderConfig {
 
 #[derive(Copy, Clone, Debug, Serialize, Deserialize, JsonSchema)]
 pub struct GroupingConfig {
+    /// Styles for the grouping
     pub style: Option<GroupingStyle>,
+    /// Alpha value for the color transparency [[0-255]] (default: 200)
     pub transparency_alpha: Option<u8>,
+    /// Rounding values for the 4 corners. Can be a single or 4 values.
     pub rounding: Option<RoundingConfig>,
 }
 
 #[derive(Copy, Clone, Debug, Serialize, Deserialize, JsonSchema)]
 pub enum GroupingStyle {
     Default,
+    /// A black shadow is added under the default group
     DefaultWithShadow,
 }
 
