@@ -173,7 +173,7 @@ impl RenderConfig {
             })
             .show(ui, add_contents)
     }
-    
+
     fn widget_outer_margin(&mut self, ui: &mut Ui) -> Margin {
         let spacing = if self.applied_on_widget {
             // Remove the default item spacing from the margin
