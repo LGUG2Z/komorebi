@@ -475,13 +475,8 @@ impl eframe::App for Komobar {
                         render_conf.alignment = Some(Alignment::Left);
 
                         render_config.apply_on_alignment(ui, |ui| {
-                            if let Some((last, rest)) = self.left_widgets.split_last_mut() {
-                                for w in rest.iter_mut() {
-                                    w.render(ctx, ui, render_conf);
-                                }
-
-                                render_conf.is_last_in_alignment = true;
-                                last.render(ctx, ui, render_conf);
+                            for w in &mut self.left_widgets {
+                                w.render(ctx, ui, &mut render_conf);
                             }
                         });
                     });
@@ -492,13 +487,8 @@ impl eframe::App for Komobar {
                         render_conf.alignment = Some(Alignment::Right);
 
                         render_config.apply_on_alignment(ui, |ui| {
-                            if let Some((last, rest)) = self.right_widgets.split_last_mut() {
-                                for w in rest.iter_mut() {
-                                    w.render(ctx, ui, render_conf);
-                                }
-
-                                render_conf.is_last_in_alignment = true;
-                                last.render(ctx, ui, render_conf);
+                            for w in &mut self.right_widgets {
+                                w.render(ctx, ui, &mut render_conf);
                             }
                         });
                     })

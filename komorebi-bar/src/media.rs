@@ -78,7 +78,7 @@ impl Media {
 }
 
 impl BarWidget for Media {
-    fn render(&mut self, ctx: &Context, ui: &mut Ui, mut config: RenderConfig) {
+    fn render(&mut self, ctx: &Context, ui: &mut Ui, config: &mut RenderConfig) {
         if self.enable {
             let output = self.output();
             if !output.is_empty() {
@@ -102,7 +102,7 @@ impl BarWidget for Media {
                     TextFormat::simple(font_id, ctx.style().visuals.text_color()),
                 );
 
-                config.apply_on_widget(true, true, ui, |ui| {
+                config.apply_on_widget(true, ui, |ui| {
                     let available_height = ui.available_height();
                     let mut custom_ui = CustomUi(ui);
 

@@ -79,7 +79,7 @@ impl Storage {
 }
 
 impl BarWidget for Storage {
-    fn render(&mut self, ctx: &Context, ui: &mut Ui, mut config: RenderConfig) {
+    fn render(&mut self, ctx: &Context, ui: &mut Ui, config: &mut RenderConfig) {
         if self.enable {
             let font_id = ctx
                 .style()
@@ -88,9 +88,7 @@ impl BarWidget for Storage {
                 .cloned()
                 .unwrap_or_else(FontId::default);
 
-            let last_index = self.output().len() - 1;
-
-            for (index, output) in self.output().iter().enumerate() {
+            for output in self.output() {
                 let mut layout_job = LayoutJob::simple(
                     match self.label_prefix {
                         LabelPrefix::Icon | LabelPrefix::IconAndText => {
@@ -104,12 +102,12 @@ impl BarWidget for Storage {
                 );
 
                 layout_job.append(
-                    output,
+                    &output,
                     10.0,
                     TextFormat::simple(font_id.clone(), ctx.style().visuals.text_color()),
                 );
 
-                config.apply_on_widget(true, index == last_index, ui, |ui| {
+                config.apply_on_widget(true, ui, |ui| {
                     if ui
                         .add(
                             Label::new(layout_job)

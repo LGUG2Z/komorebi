@@ -317,83 +317,71 @@ impl Network {
 }
 
 impl BarWidget for Network {
-    fn render(&mut self, ctx: &Context, ui: &mut Ui, mut config: RenderConfig) {
-        let mut add_to_ui: [bool; 3] = [
-            self.show_total_data_transmitted,
-            self.show_network_activity,
-            false,
-        ];
+    fn render(&mut self, ctx: &Context, ui: &mut Ui, config: &mut RenderConfig) {
+        if self.show_total_data_transmitted {
+            for output in self.total_data_transmitted() {
+                config.apply_on_widget(true, ui, |ui| {
+                    ui.add(Label::new(output).selectable(false));
+                });
+            }
+        }
+
+        if self.show_network_activity {
+            for output in self.network_activity() {
+                config.apply_on_widget(true, ui, |ui| {
+                    ui.add(Label::new(output).selectable(false));
+                });
+            }
+        }
 
         if self.enable {
             self.default_interface();
 
             if !self.default_interface.is_empty() {
-                add_to_ui[2] = true;
-            }
-        }
+                let font_id = ctx
+                    .style()
+                    .text_styles
+                    .get(&TextStyle::Body)
+                    .cloned()
+                    .unwrap_or_else(FontId::default);
 
-        let last_add_to_ui = add_to_ui.iter().rposition(|&x| x);
+                let mut layout_job = LayoutJob::simple(
+                    match self.label_prefix {
+                        LabelPrefix::Icon | LabelPrefix::IconAndText => {
+                            egui_phosphor::regular::WIFI_HIGH.to_string()
+                        }
+                        LabelPrefix::None | LabelPrefix::Text => String::new(),
+                    },
+                    font_id.clone(),
+                    ctx.style().visuals.selection.stroke.color,
+                    100.0,
+                );
 
-        if add_to_ui[0] {
-            for output in self.total_data_transmitted() {
-                config.apply_on_widget(true, last_add_to_ui == Some(0), ui, |ui| {
-                    ui.add(Label::new(output).selectable(false));
-                });
-            }
-        }
-
-        if add_to_ui[1] {
-            for output in self.network_activity() {
-                config.apply_on_widget(true, last_add_to_ui == Some(1), ui, |ui| {
-                    ui.add(Label::new(output).selectable(false));
-                });
-            }
-        }
-
-        if add_to_ui[2] {
-            let font_id = ctx
-                .style()
-                .text_styles
-                .get(&TextStyle::Body)
-                .cloned()
-                .unwrap_or_else(FontId::default);
-
-            let mut layout_job = LayoutJob::simple(
-                match self.label_prefix {
-                    LabelPrefix::Icon | LabelPrefix::IconAndText => {
-                        egui_phosphor::regular::WIFI_HIGH.to_string()
-                    }
-                    LabelPrefix::None | LabelPrefix::Text => String::new(),
-                },
-                font_id.clone(),
-                ctx.style().visuals.selection.stroke.color,
-                100.0,
-            );
-
-            if let LabelPrefix::Text | LabelPrefix::IconAndText = self.label_prefix {
-                self.default_interface.insert_str(0, "NET: ");
-            }
-
-            layout_job.append(
-                &self.default_interface,
-                10.0,
-                TextFormat::simple(font_id, ctx.style().visuals.text_color()),
-            );
-
-            config.apply_on_widget(true, last_add_to_ui == Some(2), ui, |ui| {
-                if ui
-                    .add(
-                        Label::new(layout_job)
-                            .selectable(false)
-                            .sense(Sense::click()),
-                    )
-                    .clicked()
-                {
-                    if let Err(error) = Command::new("cmd.exe").args(["/C", "ncpa"]).spawn() {
-                        eprintln!("{}", error)
-                    }
+                if let LabelPrefix::Text | LabelPrefix::IconAndText = self.label_prefix {
+                    self.default_interface.insert_str(0, "NET: ");
                 }
-            });
+
+                layout_job.append(
+                    &self.default_interface,
+                    10.0,
+                    TextFormat::simple(font_id, ctx.style().visuals.text_color()),
+                );
+
+                config.apply_on_widget(true, ui, |ui| {
+                    if ui
+                        .add(
+                            Label::new(layout_job)
+                                .selectable(false)
+                                .sense(Sense::click()),
+                        )
+                        .clicked()
+                    {
+                        if let Err(error) = Command::new("cmd.exe").args(["/C", "ncpa"]).spawn() {
+                            eprintln!("{}", error)
+                        }
+                    }
+                });
+            }
         }
     }
 }

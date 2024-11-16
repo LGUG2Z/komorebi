@@ -24,7 +24,7 @@ use serde::Deserialize;
 use serde::Serialize;
 
 pub trait BarWidget {
-    fn render(&mut self, ctx: &Context, ui: &mut Ui, config: RenderConfig);
+    fn render(&mut self, ctx: &Context, ui: &mut Ui, config: &mut RenderConfig);
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
