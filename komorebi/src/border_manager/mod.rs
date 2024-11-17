@@ -1,7 +1,6 @@
 #![deny(clippy::unwrap_used, clippy::expect_used)]
 
 mod border;
-
 use crate::core::BorderImplementation;
 use crate::core::BorderStyle;
 use crate::core::WindowKind;
@@ -30,6 +29,10 @@ use std::sync::atomic::AtomicU32;
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
 use std::sync::OnceLock;
+use windows::Win32::Graphics::Direct2D::ID2D1HwndRenderTarget;
+use windows::Win32::System::Threading::GetCurrentThread;
+use windows::Win32::System::Threading::SetThreadPriority;
+use windows::Win32::System::Threading::THREAD_PRIORITY_TIME_CRITICAL;
 
 pub static BORDER_WIDTH: AtomicI32 = AtomicI32::new(8);
 pub static BORDER_OFFSET: AtomicI32 = AtomicI32::new(-1);
@@ -57,6 +60,8 @@ lazy_static! {
     static ref BORDERS_MONITORS: Mutex<HashMap<String, usize>> = Mutex::new(HashMap::new());
     static ref BORDER_STATE: Mutex<HashMap<String, Border>> = Mutex::new(HashMap::new());
     static ref FOCUS_STATE: Mutex<HashMap<isize, WindowKind>> = Mutex::new(HashMap::new());
+    static ref RENDER_TARGETS: Mutex<HashMap<isize, ID2D1HwndRenderTarget>> =
+        Mutex::new(HashMap::new());
 }
 
 pub struct Notification(pub Option<isize>);
@@ -95,6 +100,7 @@ pub fn destroy_all_borders() -> color_eyre::Result<()> {
     borders.clear();
     BORDERS_MONITORS.lock().clear();
     FOCUS_STATE.lock().clear();
+    RENDER_TARGETS.lock().clear();
 
     let mut remaining_hwnds = vec![];
 
@@ -125,13 +131,22 @@ fn window_kind_colour(focus_kind: WindowKind) -> u32 {
 }
 
 pub fn listen_for_notifications(wm: Arc<Mutex<WindowManager>>) {
-    std::thread::spawn(move || loop {
-        match handle_notifications(wm.clone()) {
-            Ok(()) => {
-                tracing::warn!("restarting finished thread");
+    std::thread::spawn(move || {
+        unsafe {
+            if let Err(error) = SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_TIME_CRITICAL)
+            {
+                tracing::error!("{error}");
             }
-            Err(error) => {
-                tracing::warn!("restarting failed thread: {}", error);
+        }
+
+        loop {
+            match handle_notifications(wm.clone()) {
+                Ok(()) => {
+                    tracing::warn!("restarting finished thread");
+                }
+                Err(error) => {
+                    tracing::warn!("restarting failed thread: {}", error);
+                }
             }
         }
     });
@@ -444,7 +459,7 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
 
                                     if rect != new_rect {
                                         rect = new_rect;
-                                        border.update(&rect, true)?;
+                                        border.update(&rect, false)?;
                                     }
                                 }
 
