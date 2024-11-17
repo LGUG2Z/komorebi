@@ -68,8 +68,9 @@ make charitable donations if you find the software to be useful and have the
 financial means.
 
 I encourage you to make a charitable donation to the [Palestine Children's
-Relief Fund](https://pcrf1.app.neoncrm.com/forms/gaza-recovery) before you
-consider sponsoring me on GitHub.
+Relief Fund](https://pcrf1.app.neoncrm.com/forms/gaza-recovery) or contributing
+to a [Gaza Funds campaign](https://gazafunds.com) before you consider sponsoring
+me on GitHub.
 
 [GitHub Sponsors is enabled for this
 project](https://github.com/sponsors/LGUG2Z). Unfortunately I don't have
