@@ -44,11 +44,15 @@ which = "7"
 version = "0.58"
 features = [
     "implement",
+    "Foundation_Numerics",
     "Win32_System_Com",
     "Win32_UI_Shell_Common", # for IObjectArray
     "Win32_Foundation",
     "Win32_Graphics_Dwm",
     "Win32_Graphics_Gdi",
+    "Win32_Graphics_Direct2D",
+    "Win32_Graphics_Direct2D_Common",
+    "Win32_Graphics_Dxgi_Common",
     "Win32_System_LibraryLoader",
     "Win32_System_RemoteDesktop",
     "Win32_System_Threading",
