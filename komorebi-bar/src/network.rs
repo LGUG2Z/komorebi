@@ -37,130 +37,38 @@ pub struct NetworkConfig {
 
 impl From<NetworkConfig> for Network {
     fn from(value: NetworkConfig) -> Self {
-        let mut last_state_data = vec![];
-        let mut last_state_transmitted = vec![];
-
-        let mut networks_total_data_transmitted = Networks::new_with_refreshed_list();
-        let mut networks_network_activity = Networks::new_with_refreshed_list();
-
-        let mut default_interface = String::new();
-
-        let prefix = value.label_prefix.unwrap_or(LabelPrefix::Icon);
-
-        if let Ok(interface) = netdev::get_default_interface() {
-            if let Some(friendly_name) = interface.friendly_name {
-                default_interface.clone_from(&friendly_name);
-
-                if value.show_total_data_transmitted {
-                    networks_total_data_transmitted.refresh();
-                    for (interface_name, data) in &networks_total_data_transmitted {
-                        if friendly_name.eq(interface_name) {
-                            last_state_data.push(match prefix {
-                                LabelPrefix::None => format!(
-                                    "{} | {}",
-                                    to_pretty_bytes(data.total_received(), 1),
-                                    to_pretty_bytes(data.total_transmitted(), 1),
-                                ),
-                                LabelPrefix::Icon => format!(
-                                    "{} {} | {} {}",
-                                    egui_phosphor::regular::ARROW_FAT_DOWN,
-                                    to_pretty_bytes(data.total_received(), 1),
-                                    egui_phosphor::regular::ARROW_FAT_UP,
-                                    to_pretty_bytes(data.total_transmitted(), 1),
-                                ),
-                                LabelPrefix::Text => format!(
-                                    "\u{2211}DOWN: {} | \u{2211}UP: {}",
-                                    to_pretty_bytes(data.total_received(), 1),
-                                    to_pretty_bytes(data.total_transmitted(), 1),
-                                ),
-                                LabelPrefix::IconAndText => format!(
-                                    "{} \u{2211}DOWN: {} | {} \u{2211}UP: {}",
-                                    egui_phosphor::regular::ARROW_FAT_DOWN,
-                                    to_pretty_bytes(data.total_received(), 1),
-                                    egui_phosphor::regular::ARROW_FAT_UP,
-                                    to_pretty_bytes(data.total_transmitted(), 1),
-                                ),
-                            })
-                        }
-                    }
-                }
-
-                if value.show_network_activity {
-                    networks_network_activity.refresh();
-                    for (interface_name, data) in &networks_network_activity {
-                        if friendly_name.eq(interface_name) {
-                            last_state_transmitted.push(match prefix {
-                                LabelPrefix::None => format!(
-                                    "{: >width$}/s | {: >width$}/s",
-                                    to_pretty_bytes(data.received(), 1),
-                                    to_pretty_bytes(data.transmitted(), 1),
-                                    width =
-                                        value.network_activity_fill_characters.unwrap_or_default(),
-                                ),
-                                LabelPrefix::Icon => format!(
-                                    "{} {: >width$}/s | {} {: >width$}/s",
-                                    egui_phosphor::regular::ARROW_FAT_DOWN,
-                                    to_pretty_bytes(data.received(), 1),
-                                    egui_phosphor::regular::ARROW_FAT_UP,
-                                    to_pretty_bytes(data.transmitted(), 1),
-                                    width =
-                                        value.network_activity_fill_characters.unwrap_or_default(),
-                                ),
-                                LabelPrefix::Text => format!(
-                                    "DOWN: {: >width$}/s | UP: {: >width$}/s",
-                                    to_pretty_bytes(data.received(), 1),
-                                    to_pretty_bytes(data.transmitted(), 1),
-                                    width =
-                                        value.network_activity_fill_characters.unwrap_or_default(),
-                                ),
-                                LabelPrefix::IconAndText => format!(
-                                    "{} DOWN: {: >width$}/s | {} UP: {: >width$}/s",
-                                    egui_phosphor::regular::ARROW_FAT_DOWN,
-                                    to_pretty_bytes(data.received(), 1),
-                                    egui_phosphor::regular::ARROW_FAT_UP,
-                                    to_pretty_bytes(data.transmitted(), 1),
-                                    width =
-                                        value.network_activity_fill_characters.unwrap_or_default(),
-                                ),
-                            })
-                        }
-                    }
-                }
-            }
-        }
+        let data_refresh_interval = value.data_refresh_interval.unwrap_or(10);
 
         Self {
             enable: value.enable,
-            networks_total_data_transmitted,
-            networks_network_activity,
-            default_interface,
-            data_refresh_interval: value.data_refresh_interval.unwrap_or(10),
-            label_prefix: prefix,
-            show_total_data_transmitted: value.show_total_data_transmitted,
-            show_network_activity: value.show_network_activity,
+            networks_network_activity: Networks::new_with_refreshed_list(),
+            default_interface: String::new(),
+            data_refresh_interval,
+            label_prefix: value.label_prefix.unwrap_or(LabelPrefix::Icon),
+            show_total_activity: value.show_total_data_transmitted,
+            show_activity: value.show_network_activity,
             network_activity_fill_characters: value
                 .network_activity_fill_characters
                 .unwrap_or_default(),
-            last_state_total_data_transmitted: last_state_data,
-            last_state_network_activity: last_state_transmitted,
-            last_updated_total_data_transmitted: Instant::now(),
-            last_updated_network_activity: Instant::now(),
+            last_state_total_activity: vec![],
+            last_state_activity: vec![],
+            last_updated_network_activity: Instant::now()
+                .checked_sub(Duration::from_secs(data_refresh_interval))
+                .unwrap(),
         }
     }
 }
 
 pub struct Network {
     pub enable: bool,
-    pub show_total_data_transmitted: bool,
-    pub show_network_activity: bool,
-    networks_total_data_transmitted: Networks,
+    pub show_total_activity: bool,
+    pub show_activity: bool,
     networks_network_activity: Networks,
     data_refresh_interval: u64,
     label_prefix: LabelPrefix,
     default_interface: String,
-    last_state_total_data_transmitted: Vec<String>,
-    last_state_network_activity: Vec<String>,
-    last_updated_total_data_transmitted: Instant,
+    last_state_total_activity: Vec<NetworkReading>,
+    last_state_activity: Vec<NetworkReading>,
     last_updated_network_activity: Instant,
     network_activity_fill_characters: usize,
 }
@@ -174,164 +82,190 @@ impl Network {
         }
     }
 
-    fn network_activity(&mut self) -> Vec<String> {
-        let mut outputs = self.last_state_network_activity.clone();
+    fn network_activity(&mut self) -> (Vec<NetworkReading>, Vec<NetworkReading>) {
+        let mut activity = self.last_state_activity.clone();
+        let mut total_activity = self.last_state_total_activity.clone();
         let now = Instant::now();
 
-        if self.show_network_activity
-            && now.duration_since(self.last_updated_network_activity)
-                > Duration::from_secs(self.data_refresh_interval)
+        if now.duration_since(self.last_updated_network_activity)
+            > Duration::from_secs(self.data_refresh_interval)
         {
-            outputs.clear();
+            activity.clear();
+            total_activity.clear();
 
             if let Ok(interface) = netdev::get_default_interface() {
                 if let Some(friendly_name) = &interface.friendly_name {
-                    if self.show_network_activity {
-                        self.networks_network_activity.refresh();
-                        for (interface_name, data) in &self.networks_network_activity {
-                            if friendly_name.eq(interface_name) {
-                                outputs.push(match self.label_prefix {
-                                    LabelPrefix::None => format!(
-                                        "{: >width$}/s | {: >width$}/s",
-                                        to_pretty_bytes(
-                                            data.received(),
-                                            self.data_refresh_interval
-                                        ),
-                                        to_pretty_bytes(
-                                            data.transmitted(),
-                                            self.data_refresh_interval
-                                        ),
-                                        width = self.network_activity_fill_characters,
+                    self.default_interface.clone_from(friendly_name);
+
+                    self.networks_network_activity.refresh();
+
+                    for (interface_name, data) in &self.networks_network_activity {
+                        if friendly_name.eq(interface_name) {
+                            if self.show_activity {
+                                activity.push(NetworkReading::new(
+                                    NetworkReadingFormat::Speed,
+                                    Self::to_pretty_bytes(
+                                        data.received(),
+                                        self.data_refresh_interval,
                                     ),
-                                    LabelPrefix::Icon => format!(
-                                        "{} {: >width$}/s | {} {: >width$}/s",
-                                        egui_phosphor::regular::ARROW_FAT_DOWN,
-                                        to_pretty_bytes(
-                                            data.received(),
-                                            self.data_refresh_interval
-                                        ),
-                                        egui_phosphor::regular::ARROW_FAT_UP,
-                                        to_pretty_bytes(
-                                            data.transmitted(),
-                                            self.data_refresh_interval
-                                        ),
-                                        width = self.network_activity_fill_characters,
+                                    Self::to_pretty_bytes(
+                                        data.transmitted(),
+                                        self.data_refresh_interval,
                                     ),
-                                    LabelPrefix::Text => format!(
-                                        "DOWN: {: >width$}/s | UP: {: >width$}/s",
-                                        to_pretty_bytes(
-                                            data.received(),
-                                            self.data_refresh_interval
-                                        ),
-                                        to_pretty_bytes(
-                                            data.transmitted(),
-                                            self.data_refresh_interval
-                                        ),
-                                        width = self.network_activity_fill_characters,
-                                    ),
-                                    LabelPrefix::IconAndText => {
-                                        format!(
-                                            "{} DOWN: {: >width$}/s | {} UP: {: >width$}/s",
-                                            egui_phosphor::regular::ARROW_FAT_DOWN,
-                                            to_pretty_bytes(
-                                                data.received(),
-                                                self.data_refresh_interval
-                                            ),
-                                            egui_phosphor::regular::ARROW_FAT_UP,
-                                            to_pretty_bytes(
-                                                data.transmitted(),
-                                                self.data_refresh_interval
-                                            ),
-                                            width = self.network_activity_fill_characters,
-                                        )
-                                    }
-                                })
+                                ));
+                            }
+
+                            if self.show_total_activity {
+                                total_activity.push(NetworkReading::new(
+                                    NetworkReadingFormat::Total,
+                                    Self::to_pretty_bytes(data.total_received(), 1),
+                                    Self::to_pretty_bytes(data.total_transmitted(), 1),
+                                ))
                             }
                         }
                     }
                 }
             }
 
-            self.last_state_network_activity.clone_from(&outputs);
+            self.last_state_activity.clone_from(&activity);
+            self.last_state_total_activity.clone_from(&total_activity);
             self.last_updated_network_activity = now;
         }
 
-        outputs
+        (activity, total_activity)
     }
 
-    fn total_data_transmitted(&mut self) -> Vec<String> {
-        let mut outputs = self.last_state_total_data_transmitted.clone();
-        let now = Instant::now();
+    fn reading_to_label(&self, ctx: &Context, reading: NetworkReading) -> Label {
+        let (text_down, text_up) = match self.label_prefix {
+            LabelPrefix::None | LabelPrefix::Icon => match reading.format {
+                NetworkReadingFormat::Speed => (
+                    format!(
+                        "{: >width$}/s | ",
+                        reading.received_text,
+                        width = self.network_activity_fill_characters
+                    ),
+                    format!(
+                        "{: >width$}/s",
+                        reading.transmitted_text,
+                        width = self.network_activity_fill_characters
+                    ),
+                ),
+                NetworkReadingFormat::Total => (
+                    format!("{} | ", reading.received_text),
+                    reading.transmitted_text,
+                ),
+            },
+            LabelPrefix::Text | LabelPrefix::IconAndText => match reading.format {
+                NetworkReadingFormat::Speed => (
+                    format!(
+                        "DOWN: {: >width$}/s | ",
+                        reading.received_text,
+                        width = self.network_activity_fill_characters
+                    ),
+                    format!(
+                        "UP: {: >width$}/s",
+                        reading.transmitted_text,
+                        width = self.network_activity_fill_characters
+                    ),
+                ),
+                NetworkReadingFormat::Total => (
+                    format!("\u{2211}DOWN: {}/s | ", reading.received_text),
+                    format!("\u{2211}UP: {}/s", reading.transmitted_text),
+                ),
+            },
+        };
 
-        if self.show_total_data_transmitted
-            && now.duration_since(self.last_updated_total_data_transmitted)
-                > Duration::from_secs(self.data_refresh_interval)
-        {
-            outputs.clear();
+        let font_id = ctx
+            .style()
+            .text_styles
+            .get(&TextStyle::Body)
+            .cloned()
+            .unwrap_or_else(FontId::default);
 
-            if let Ok(interface) = netdev::get_default_interface() {
-                if let Some(friendly_name) = &interface.friendly_name {
-                    if self.show_total_data_transmitted {
-                        self.networks_total_data_transmitted.refresh();
+        let icon_format =
+            TextFormat::simple(font_id.clone(), ctx.style().visuals.selection.stroke.color);
+        let text_format = TextFormat::simple(font_id.clone(), ctx.style().visuals.text_color());
 
-                        for (interface_name, data) in &self.networks_total_data_transmitted {
-                            if friendly_name.eq(interface_name) {
-                                outputs.push(match self.label_prefix {
-                                    LabelPrefix::None => format!(
-                                        "{} | {}",
-                                        to_pretty_bytes(data.total_received(), 1),
-                                        to_pretty_bytes(data.total_transmitted(), 1),
-                                    ),
-                                    LabelPrefix::Icon => format!(
-                                        "{} {} | {} {}",
-                                        egui_phosphor::regular::ARROW_FAT_DOWN,
-                                        to_pretty_bytes(data.total_received(), 1),
-                                        egui_phosphor::regular::ARROW_FAT_UP,
-                                        to_pretty_bytes(data.total_transmitted(), 1),
-                                    ),
-                                    LabelPrefix::Text => format!(
-                                        "\u{2211}DOWN: {} | \u{2211}UP: {}",
-                                        to_pretty_bytes(data.total_received(), 1),
-                                        to_pretty_bytes(data.total_transmitted(), 1),
-                                    ),
-                                    LabelPrefix::IconAndText => format!(
-                                        "{} \u{2211}DOWN: {} | {} \u{2211}UP: {}",
-                                        egui_phosphor::regular::ARROW_FAT_DOWN,
-                                        to_pretty_bytes(data.total_received(), 1),
-                                        egui_phosphor::regular::ARROW_FAT_UP,
-                                        to_pretty_bytes(data.total_transmitted(), 1),
-                                    ),
-                                })
-                            }
-                        }
-                    }
+        // icon
+        let mut layout_job = LayoutJob::simple(
+            match self.label_prefix {
+                LabelPrefix::Icon | LabelPrefix::IconAndText => {
+                    egui_phosphor::regular::ARROW_FAT_DOWN.to_string()
                 }
-            }
+                LabelPrefix::None | LabelPrefix::Text => String::new(),
+            },
+            icon_format.font_id.clone(),
+            icon_format.color,
+            100.0,
+        );
 
-            self.last_state_total_data_transmitted.clone_from(&outputs);
-            self.last_updated_total_data_transmitted = now;
+        // text
+        layout_job.append(
+            &text_down,
+            ctx.style().spacing.item_spacing.x,
+            text_format.clone(),
+        );
+
+        // icon
+        layout_job.append(
+            &match self.label_prefix {
+                LabelPrefix::Icon | LabelPrefix::IconAndText => {
+                    egui_phosphor::regular::ARROW_FAT_UP.to_string()
+                }
+                LabelPrefix::None | LabelPrefix::Text => String::new(),
+            },
+            0.0,
+            icon_format.clone(),
+        );
+
+        // text
+        layout_job.append(
+            &text_up,
+            ctx.style().spacing.item_spacing.x,
+            text_format.clone(),
+        );
+
+        Label::new(layout_job).selectable(false)
+    }
+
+    fn to_pretty_bytes(input_in_bytes: u64, timespan_in_s: u64) -> String {
+        let input = input_in_bytes as f32 / timespan_in_s as f32;
+        let mut magnitude = input.log(1024f32) as u32;
+
+        // let the base unit be KiB
+        if magnitude < 1 {
+            magnitude = 1;
         }
 
-        outputs
+        let base: Option<DataUnit> = num::FromPrimitive::from_u32(magnitude);
+        let result = input / ((1u64) << (magnitude * 10)) as f32;
+
+        match base {
+            Some(DataUnit::B) => format!("{result:.1} B"),
+            Some(unit) => format!("{result:.1} {unit}iB"),
+            None => String::from("Unknown data unit"),
+        }
     }
 }
 
 impl BarWidget for Network {
     fn render(&mut self, ctx: &Context, ui: &mut Ui) {
-        if self.show_total_data_transmitted {
-            for output in self.total_data_transmitted() {
-                ui.add(Label::new(output).selectable(false));
+        if self.show_total_activity || self.show_activity {
+            let (activity, total_activity) = self.network_activity();
+
+            if self.show_total_activity {
+                for reading in total_activity {
+                    ui.add(self.reading_to_label(ctx, reading));
+                }
+                ui.add_space(WIDGET_SPACING);
             }
 
-            ui.add_space(WIDGET_SPACING);
-        }
-
-        if self.show_network_activity {
-            for output in self.network_activity() {
-                ui.add(Label::new(output).selectable(false));
+            if self.show_activity {
+                for reading in activity {
+                    ui.add(self.reading_to_label(ctx, reading));
+                }
+                ui.add_space(WIDGET_SPACING);
             }
-
-            ui.add_space(WIDGET_SPACING);
         }
 
         if self.enable {
@@ -386,6 +320,29 @@ impl BarWidget for Network {
     }
 }
 
+#[derive(Clone)]
+enum NetworkReadingFormat {
+    Speed = 0,
+    Total = 1,
+}
+
+#[derive(Clone)]
+struct NetworkReading {
+    pub format: NetworkReadingFormat,
+    pub received_text: String,
+    pub transmitted_text: String,
+}
+
+impl NetworkReading {
+    pub fn new(format: NetworkReadingFormat, received: String, transmitted: String) -> Self {
+        NetworkReading {
+            format,
+            received_text: received,
+            transmitted_text: transmitted,
+        }
+    }
+}
+
 #[derive(Debug, FromPrimitive)]
 enum DataUnit {
     B = 0,
@@ -402,24 +359,5 @@ enum DataUnit {
 impl fmt::Display for DataUnit {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{:?}", self)
-    }
-}
-
-fn to_pretty_bytes(input_in_bytes: u64, timespan_in_s: u64) -> String {
-    let input = input_in_bytes as f32 / timespan_in_s as f32;
-    let mut magnitude = input.log(1024f32) as u32;
-
-    // let the base unit be KiB
-    if magnitude < 1 {
-        magnitude = 1;
-    }
-
-    let base: Option<DataUnit> = num::FromPrimitive::from_u32(magnitude);
-    let result = input / ((1u64) << (magnitude * 10)) as f32;
-
-    match base {
-        Some(DataUnit::B) => format!("{result:.1} B"),
-        Some(unit) => format!("{result:.1} {unit}iB"),
-        None => String::from("Unknown data unit"),
     }
 }
