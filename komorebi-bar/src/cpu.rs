@@ -1,6 +1,6 @@
 use crate::config::LabelPrefix;
+use crate::render::RenderConfig;
 use crate::widget::BarWidget;
-use crate::WIDGET_SPACING;
 use eframe::egui::text::LayoutJob;
 use eframe::egui::Context;
 use eframe::egui::FontId;
@@ -70,7 +70,7 @@ impl Cpu {
 }
 
 impl BarWidget for Cpu {
-    fn render(&mut self, ctx: &Context, ui: &mut Ui) {
+    fn render(&mut self, ctx: &Context, ui: &mut Ui, config: &mut RenderConfig) {
         if self.enable {
             let output = self.output();
             if !output.is_empty() {
@@ -99,22 +99,23 @@ impl BarWidget for Cpu {
                     TextFormat::simple(font_id, ctx.style().visuals.text_color()),
                 );
 
-                if ui
-                    .add(
-                        Label::new(layout_job)
-                            .selectable(false)
-                            .sense(Sense::click()),
-                    )
-                    .clicked()
-                {
-                    if let Err(error) = Command::new("cmd.exe").args(["/C", "taskmgr.exe"]).spawn()
+                config.apply_on_widget(true, ui, |ui| {
+                    if ui
+                        .add(
+                            Label::new(layout_job)
+                                .selectable(false)
+                                .sense(Sense::click()),
+                        )
+                        .clicked()
                     {
-                        eprintln!("{}", error)
+                        if let Err(error) =
+                            Command::new("cmd.exe").args(["/C", "taskmgr.exe"]).spawn()
+                        {
+                            eprintln!("{}", error)
+                        }
                     }
-                }
+                });
             }
-
-            ui.add_space(WIDGET_SPACING);
         }
     }
 }

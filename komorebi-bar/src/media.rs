@@ -1,7 +1,7 @@
+use crate::render::RenderConfig;
 use crate::ui::CustomUi;
 use crate::widget::BarWidget;
 use crate::MAX_LABEL_WIDTH;
-use crate::WIDGET_SPACING;
 use eframe::egui::text::LayoutJob;
 use eframe::egui::Context;
 use eframe::egui::FontId;
@@ -78,7 +78,7 @@ impl Media {
 }
 
 impl BarWidget for Media {
-    fn render(&mut self, ctx: &Context, ui: &mut Ui) {
+    fn render(&mut self, ctx: &Context, ui: &mut Ui, config: &mut RenderConfig) {
         if self.enable {
             let output = self.output();
             if !output.is_empty() {
@@ -102,26 +102,26 @@ impl BarWidget for Media {
                     TextFormat::simple(font_id, ctx.style().visuals.text_color()),
                 );
 
-                let available_height = ui.available_height();
-                let mut custom_ui = CustomUi(ui);
+                config.apply_on_widget(true, ui, |ui| {
+                    let available_height = ui.available_height();
+                    let mut custom_ui = CustomUi(ui);
 
-                if custom_ui
-                    .add_sized_left_to_right(
-                        Vec2::new(
-                            MAX_LABEL_WIDTH.load(Ordering::SeqCst) as f32,
-                            available_height,
-                        ),
-                        Label::new(layout_job)
-                            .selectable(false)
-                            .sense(Sense::click())
-                            .truncate(),
-                    )
-                    .clicked()
-                {
-                    self.toggle();
-                }
-
-                ui.add_space(WIDGET_SPACING);
+                    if custom_ui
+                        .add_sized_left_to_right(
+                            Vec2::new(
+                                MAX_LABEL_WIDTH.load(Ordering::SeqCst) as f32,
+                                available_height,
+                            ),
+                            Label::new(layout_job)
+                                .selectable(false)
+                                .sense(Sense::click())
+                                .truncate(),
+                        )
+                        .clicked()
+                    {
+                        self.toggle();
+                    }
+                });
             }
         }
     }
