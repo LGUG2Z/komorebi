@@ -1,6 +1,6 @@
 use crate::config::LabelPrefix;
+use crate::render::RenderConfig;
 use crate::widget::BarWidget;
-use crate::WIDGET_SPACING;
 use eframe::egui::text::LayoutJob;
 use eframe::egui::Context;
 use eframe::egui::FontId;
@@ -86,7 +86,7 @@ impl Date {
 }
 
 impl BarWidget for Date {
-    fn render(&mut self, ctx: &Context, ui: &mut Ui) {
+    fn render(&mut self, ctx: &Context, ui: &mut Ui, config: &mut RenderConfig) {
         if self.enable {
             let mut output = self.output();
             if !output.is_empty() {
@@ -119,19 +119,19 @@ impl BarWidget for Date {
                     TextFormat::simple(font_id, ctx.style().visuals.text_color()),
                 );
 
-                if ui
-                    .add(
-                        Label::new(WidgetText::LayoutJob(layout_job.clone()))
-                            .selectable(false)
-                            .sense(Sense::click()),
-                    )
-                    .clicked()
-                {
-                    self.format.next()
-                }
+                config.apply_on_widget(true, ui, |ui| {
+                    if ui
+                        .add(
+                            Label::new(WidgetText::LayoutJob(layout_job.clone()))
+                                .selectable(false)
+                                .sense(Sense::click()),
+                        )
+                        .clicked()
+                    {
+                        self.format.next()
+                    }
+                });
             }
-
-            ui.add_space(WIDGET_SPACING);
         }
     }
 }

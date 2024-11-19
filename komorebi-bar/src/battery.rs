@@ -1,6 +1,6 @@
 use crate::config::LabelPrefix;
+use crate::render::RenderConfig;
 use crate::widget::BarWidget;
-use crate::WIDGET_SPACING;
 use eframe::egui::text::LayoutJob;
 use eframe::egui::Context;
 use eframe::egui::FontId;
@@ -115,7 +115,7 @@ impl Battery {
 }
 
 impl BarWidget for Battery {
-    fn render(&mut self, ctx: &Context, ui: &mut Ui) {
+    fn render(&mut self, ctx: &Context, ui: &mut Ui, config: &mut RenderConfig) {
         if self.enable {
             let output = self.output();
             if !output.is_empty() {
@@ -147,14 +147,14 @@ impl BarWidget for Battery {
                     TextFormat::simple(font_id, ctx.style().visuals.text_color()),
                 );
 
-                ui.add(
-                    Label::new(layout_job)
-                        .selectable(false)
-                        .sense(Sense::click()),
-                );
+                config.apply_on_widget(true, ui, |ui| {
+                    ui.add(
+                        Label::new(layout_job)
+                            .selectable(false)
+                            .sense(Sense::click()),
+                    );
+                });
             }
-
-            ui.add_space(WIDGET_SPACING);
         }
     }
 }

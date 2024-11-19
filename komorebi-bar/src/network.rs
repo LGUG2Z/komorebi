@@ -1,6 +1,6 @@
 use crate::config::LabelPrefix;
+use crate::render::RenderConfig;
 use crate::widget::BarWidget;
-use crate::WIDGET_SPACING;
 use eframe::egui::text::LayoutJob;
 use eframe::egui::Context;
 use eframe::egui::FontId;
@@ -317,21 +317,21 @@ impl Network {
 }
 
 impl BarWidget for Network {
-    fn render(&mut self, ctx: &Context, ui: &mut Ui) {
+    fn render(&mut self, ctx: &Context, ui: &mut Ui, config: &mut RenderConfig) {
         if self.show_total_data_transmitted {
             for output in self.total_data_transmitted() {
-                ui.add(Label::new(output).selectable(false));
+                config.apply_on_widget(true, ui, |ui| {
+                    ui.add(Label::new(output).selectable(false));
+                });
             }
-
-            ui.add_space(WIDGET_SPACING);
         }
 
         if self.show_network_activity {
             for output in self.network_activity() {
-                ui.add(Label::new(output).selectable(false));
+                config.apply_on_widget(true, ui, |ui| {
+                    ui.add(Label::new(output).selectable(false));
+                });
             }
-
-            ui.add_space(WIDGET_SPACING);
         }
 
         if self.enable {
@@ -367,21 +367,21 @@ impl BarWidget for Network {
                     TextFormat::simple(font_id, ctx.style().visuals.text_color()),
                 );
 
-                if ui
-                    .add(
-                        Label::new(layout_job)
-                            .selectable(false)
-                            .sense(Sense::click()),
-                    )
-                    .clicked()
-                {
-                    if let Err(error) = Command::new("cmd.exe").args(["/C", "ncpa"]).spawn() {
-                        eprintln!("{}", error)
+                config.apply_on_widget(true, ui, |ui| {
+                    if ui
+                        .add(
+                            Label::new(layout_job)
+                                .selectable(false)
+                                .sense(Sense::click()),
+                        )
+                        .clicked()
+                    {
+                        if let Err(error) = Command::new("cmd.exe").args(["/C", "ncpa"]).spawn() {
+                            eprintln!("{}", error)
+                        }
                     }
-                }
+                });
             }
-
-            ui.add_space(WIDGET_SPACING);
         }
     }
 }
