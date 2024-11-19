@@ -7,6 +7,7 @@ mod komorebi;
 mod media;
 mod memory;
 mod network;
+mod render;
 mod storage;
 mod time;
 mod ui;
@@ -41,8 +42,6 @@ use windows::Win32::UI::HiDpi::SetProcessDpiAwarenessContext;
 use windows::Win32::UI::HiDpi::DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2;
 use windows::Win32::UI::WindowsAndMessaging::EnumThreadWindows;
 use windows::Win32::UI::WindowsAndMessaging::GetWindowThreadProcessId;
-
-pub static WIDGET_SPACING: f32 = 10.0;
 
 pub static MAX_LABEL_WIDTH: AtomicI32 = AtomicI32::new(400);
 pub static MONITOR_LEFT: AtomicI32 = AtomicI32::new(0);
@@ -266,7 +265,7 @@ fn main() -> color_eyre::Result<()> {
 
     let viewport_builder = ViewportBuilder::default()
         .with_decorations(false)
-        // .with_transparent(config.transparent)
+        .with_transparent(config.transparency_alpha.is_some())
         .with_taskbar(false);
 
     let native_options = eframe::NativeOptions {

@@ -39,6 +39,18 @@ impl From<Color32> for Colour {
     }
 }
 
+impl From<Colour> for Color32 {
+    fn from(value: Colour) -> Self {
+        match value {
+            Colour::Rgb(rgb) => Color32::from_rgb(rgb.r as u8, rgb.g as u8, rgb.b as u8),
+            Colour::Hex(hex) => {
+                let rgb = Rgb::from(hex);
+                Color32::from_rgb(rgb.r as u8, rgb.g as u8, rgb.b as u8)
+            }
+        }
+    }
+}
+
 #[derive(Debug, Copy, Clone, Serialize, Deserialize)]
 pub struct Hex(HexColor);
 

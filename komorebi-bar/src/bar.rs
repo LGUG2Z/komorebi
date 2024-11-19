@@ -5,6 +5,10 @@ use crate::config::PositionConfig;
 use crate::komorebi::Komorebi;
 use crate::komorebi::KomorebiNotificationState;
 use crate::process_hwnd;
+use crate::render::Color32Ext;
+use crate::render::Grouping;
+use crate::render::RenderConfig;
+use crate::render::RenderExt;
 use crate::widget::BarWidget;
 use crate::widget::WidgetConfig;
 use crate::BAR_HEIGHT;
@@ -27,8 +31,10 @@ use eframe::egui::Frame;
 use eframe::egui::Id;
 use eframe::egui::Layout;
 use eframe::egui::Margin;
+use eframe::egui::Rgba;
 use eframe::egui::Style;
 use eframe::egui::TextStyle;
+use eframe::egui::Visuals;
 use font_loader::system_fonts;
 use font_loader::system_fonts::FontPropertyBuilder;
 use komorebi_client::KomorebiTheme;
@@ -44,6 +50,7 @@ use std::sync::Arc;
 
 pub struct Komobar {
     pub config: Arc<KomobarConfig>,
+    pub render_config: Rc<RefCell<RenderConfig>>,
     pub komorebi_notification_state: Option<Rc<RefCell<KomorebiNotificationState>>>,
     pub left_widgets: Vec<Box<dyn BarWidget>>,
     pub center_widgets: Vec<Box<dyn BarWidget>>,
@@ -241,6 +248,30 @@ impl Komobar {
             }
         }
 
+        // apply rounding to the widgets
+        if let Some(
+            Grouping::Bar(config) | Grouping::Alignment(config) | Grouping::Widget(config),
+        ) = &config.grouping
+        {
+            if let Some(rounding) = config.rounding {
+                ctx.style_mut(|style| {
+                    style.visuals.widgets.noninteractive.rounding = rounding.into();
+                    style.visuals.widgets.inactive.rounding = rounding.into();
+                    style.visuals.widgets.hovered.rounding = rounding.into();
+                    style.visuals.widgets.active.rounding = rounding.into();
+                    style.visuals.widgets.open.rounding = rounding.into();
+                });
+            }
+        }
+
+        let theme_color = *self.bg_color.borrow();
+
+        self.render_config
+            .replace(config.new_renderconfig(theme_color));
+
+        self.bg_color
+            .replace(theme_color.try_apply_alpha(self.config.transparency_alpha));
+
         if let Some(font_size) = &config.font_size {
             tracing::info!("attempting to set custom font size: {font_size}");
             Self::set_font_size(ctx, *font_size);
@@ -255,7 +286,7 @@ impl Komobar {
             if let WidgetConfig::Komorebi(config) = widget_config {
                 komorebi_widget = Some(Komorebi::from(config));
                 komorebi_widget_idx = Some(idx);
-                side = Some(Side::Left);
+                side = Some(Alignment::Left);
             }
         }
 
@@ -263,7 +294,7 @@ impl Komobar {
             if let WidgetConfig::Komorebi(config) = widget_config {
                 komorebi_widget = Some(Komorebi::from(config));
                 komorebi_widget_idx = Some(idx);
-                side = Some(Side::Center);
+                side = Some(Alignment::Center);
             }
         }
 
@@ -271,7 +302,7 @@ impl Komobar {
             if let WidgetConfig::Komorebi(config) = widget_config {
                 komorebi_widget = Some(Komorebi::from(config));
                 komorebi_widget_idx = Some(idx);
-                side = Some(Side::Right);
+                side = Some(Alignment::Right);
             }
         }
 
@@ -311,9 +342,9 @@ impl Komobar {
 
             let boxed: Box<dyn BarWidget> = Box::new(widget);
             match side {
-                Side::Left => left_widgets[idx] = boxed,
-                Side::Center => center_widgets[idx] = boxed,
-                Side::Right => right_widgets[idx] = boxed,
+                Alignment::Left => left_widgets[idx] = boxed,
+                Alignment::Center => center_widgets[idx] = boxed,
+                Alignment::Right => right_widgets[idx] = boxed,
             }
         }
 
@@ -327,6 +358,7 @@ impl Komobar {
 
         self.komorebi_notification_state = komorebi_notification_state;
     }
+
     pub fn new(
         cc: &eframe::CreationContext<'_>,
         rx_gui: Receiver<komorebi_client::Notification>,
@@ -335,6 +367,7 @@ impl Komobar {
     ) -> Self {
         let mut komobar = Self {
             config: config.clone(),
+            render_config: Rc::new(RefCell::new(RenderConfig::new())),
             komorebi_notification_state: None,
             left_widgets: vec![],
             center_widgets: vec![],
@@ -406,13 +439,10 @@ impl Komobar {
     }
 }
 impl eframe::App for Komobar {
-    // TODO: I think this is needed for transparency??
-    // fn clear_color(&self, _visuals: &Visuals) -> [f32; 4] {
-    // egui::Rgba::TRANSPARENT.to_array()
-    // let mut background = Color32::from_gray(18).to_normalized_gamma_f32();
-    // background[3] = 0.9;
-    // background
-    // }
+    // Needed for transparency
+    fn clear_color(&self, _visuals: &Visuals) -> [f32; 4] {
+        Rgba::TRANSPARENT.to_array()
+    }
 
     fn update(&mut self, ctx: &Context, _frame: &mut eframe::Frame) {
         if self.scale_factor != ctx.native_pixels_per_point().unwrap_or(1.0) {
@@ -454,39 +484,61 @@ impl eframe::App for Komobar {
             Frame::none().fill(*self.bg_color.borrow())
         };
 
+        let mut render_config = self.render_config.borrow_mut();
+
         CentralPanel::default().frame(frame).show(ctx, |ui| {
-            ui.horizontal_centered(|ui| {
-                ui.with_layout(Layout::left_to_right(Align::Center), |ui| {
-                    for w in &mut self.left_widgets {
-                        w.render(ctx, ui);
-                    }
-                });
+            // Apply grouping logic for the bar as a whole
+            render_config.clone().apply_on_bar(ui, |ui| {
+                ui.horizontal_centered(|ui| {
+                    // Left-aligned widgets layout
+                    ui.with_layout(Layout::left_to_right(Align::Center), |ui| {
+                        let mut render_conf = *render_config;
+                        render_conf.alignment = Some(Alignment::Left);
 
-                ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                    for w in &mut self.right_widgets {
-                        w.render(ctx, ui);
-                    }
-                });
-
-                // Floating center panel without borders
-                Area::new(Id::new("center_panel"))
-                    .anchor(Align2::CENTER_CENTER, [0.0, 0.0]) // Align in the center of the window
-                    .show(ctx, |ui| {
-                        Frame::none().show(ui, |ui| {
-                            ui.horizontal_centered(|ui| {
-                                for w in &mut self.center_widgets {
-                                    w.render(ctx, ui);
-                                }
-                            });
+                        render_config.apply_on_alignment(ui, |ui| {
+                            for w in &mut self.left_widgets {
+                                w.render(ctx, ui, &mut render_conf);
+                            }
                         });
-                    })
+                    });
+
+                    // Right-aligned widgets layout
+                    ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+                        let mut render_conf = *render_config;
+                        render_conf.alignment = Some(Alignment::Right);
+
+                        render_config.apply_on_alignment(ui, |ui| {
+                            for w in &mut self.right_widgets {
+                                w.render(ctx, ui, &mut render_conf);
+                            }
+                        });
+                    });
+
+                    // Floating center widgets
+                    Area::new(Id::new("center_panel"))
+                        .anchor(Align2::CENTER_CENTER, [0.0, 0.0]) // Align in the center of the window
+                        .show(ctx, |ui| {
+                            Frame::none().show(ui, |ui| {
+                                ui.horizontal_centered(|ui| {
+                                    let mut render_conf = *render_config;
+                                    render_conf.alignment = Some(Alignment::Right);
+
+                                    render_config.apply_on_alignment(ui, |ui| {
+                                        for w in &mut self.center_widgets {
+                                            w.render(ctx, ui, &mut render_conf);
+                                        }
+                                    });
+                                });
+                            });
+                        })
+                })
             })
         });
     }
 }
 
 #[derive(Copy, Clone)]
-enum Side {
+pub enum Alignment {
     Left,
     Center,
     Right,

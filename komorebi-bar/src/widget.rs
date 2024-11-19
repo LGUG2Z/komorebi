@@ -12,6 +12,7 @@ use crate::memory::Memory;
 use crate::memory::MemoryConfig;
 use crate::network::Network;
 use crate::network::NetworkConfig;
+use crate::render::RenderConfig;
 use crate::storage::Storage;
 use crate::storage::StorageConfig;
 use crate::time::Time;
@@ -23,7 +24,7 @@ use serde::Deserialize;
 use serde::Serialize;
 
 pub trait BarWidget {
-    fn render(&mut self, ctx: &Context, ui: &mut Ui);
+    fn render(&mut self, ctx: &Context, ui: &mut Ui, config: &mut RenderConfig);
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
