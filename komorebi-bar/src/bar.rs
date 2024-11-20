@@ -178,6 +178,10 @@ impl Komobar {
                 y: BAR_HEIGHT,
             });
 
+            if end.y == 0.0 {
+                tracing::warn!("position.end.y is set to 0.0 which will make your bar invisible on a config reload - this is usually set to 50.0 by default")
+            }
+
             let rect = komorebi_client::Rect {
                 left: start.x as i32,
                 top: start.y as i32,
