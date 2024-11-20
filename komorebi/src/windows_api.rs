@@ -675,7 +675,12 @@ impl WindowsApi {
     }
 
     pub fn center_cursor_in_rect(rect: &Rect) -> Result<()> {
-        Self::set_cursor_pos(rect.left + (rect.right / 2), rect.top + (rect.bottom / 2))
+        Self::place_cursor_at_top_left_of_rect(rect)
+        // Self::set_cursor_pos(rect.left + (rect.right / 2), rect.top + (rect.bottom / 2))
+    }
+
+    pub fn place_cursor_at_top_left_of_rect(rect: &Rect) -> Result<()> {
+        Self::set_cursor_pos(rect.left + 15, rect.top + 15)
     }
 
     pub fn window_thread_process_id(hwnd: isize) -> (u32, u32) {
