@@ -219,8 +219,10 @@ pub struct GroupingConfig {
 
 #[derive(Copy, Clone, Debug, Serialize, Deserialize, JsonSchema)]
 pub enum GroupingStyle {
+    #[serde(alias = "CtByte")]
     Default,
     /// A black shadow is added under the default group
+    #[serde(alias = "CtByteWithShadow")]
     DefaultWithShadow,
 }
 
