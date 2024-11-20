@@ -266,7 +266,7 @@ impl Komobar {
             .replace(config.new_renderconfig(theme_color));
 
         self.bg_color
-            .replace(theme_color.try_apply_alpha(self.config.transparency_alpha));
+            .replace(theme_color.try_apply_alpha(config.transparency_alpha));
 
         if let Some(font_size) = &config.font_size {
             tracing::info!("attempting to set custom font size: {font_size}");
