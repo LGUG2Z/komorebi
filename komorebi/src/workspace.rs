@@ -246,6 +246,10 @@ impl Workspace {
         if let Some(window) = to_focus {
             if self.maximized_window().is_none() && self.floating_windows().is_empty() {
                 window.focus(mouse_follows_focus)?;
+            } else if let Some(maximized_window) = self.maximized_window() {
+                maximized_window.focus(mouse_follows_focus)?;
+            } else if let Some(floating_window) = self.floating_windows().first() {
+                floating_window.focus(mouse_follows_focus)?;
             }
         }
 

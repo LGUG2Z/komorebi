@@ -4,6 +4,7 @@ use crate::render::RenderConfig;
 use crate::ui::CustomUi;
 use crate::widget::BarWidget;
 use crate::MAX_LABEL_WIDTH;
+use crate::MONITOR_INDEX;
 use crossbeam_channel::Receiver;
 use crossbeam_channel::TryRecvError;
 use eframe::egui::text::LayoutJob;
@@ -103,6 +104,7 @@ impl From<&KomorebiConfig> for Komorebi {
                 work_area_offset: None,
                 focused_container_information: (vec![], vec![], 0),
                 stack_accent: None,
+                monitor_index: MONITOR_INDEX.load(Ordering::SeqCst),
             })),
             workspaces: value.workspaces,
             layout: value.layout,
@@ -154,9 +156,12 @@ impl BarWidget for Komorebi {
                         }
 
                         if proceed
-                            && komorebi_client::send_message(&SocketMessage::FocusWorkspaceNumber(
-                                i,
-                            ))
+                            && komorebi_client::send_message(
+                                &SocketMessage::FocusMonitorWorkspaceNumber(
+                                    komorebi_notification_state.monitor_index,
+                                    i,
+                                ),
+                            )
                             .is_err()
                         {
                             tracing::error!(
@@ -435,6 +440,7 @@ pub struct KomorebiNotificationState {
     pub mouse_follows_focus: bool,
     pub work_area_offset: Option<Rect>,
     pub stack_accent: Option<Color32>,
+    pub monitor_index: usize,
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -496,6 +502,8 @@ impl KomorebiNotificationState {
                         _ => {}
                     },
                 }
+
+                self.monitor_index = monitor_index;
 
                 self.mouse_follows_focus = notification.state.mouse_follows_focus;
 
