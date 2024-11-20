@@ -182,6 +182,10 @@ impl Komobar {
                 y: BAR_HEIGHT,
             });
 
+            if end.y == 0.0 {
+                tracing::warn!("position.end.y is set to 0.0 which will make your bar invisible on a config reload - this is usually set to 50.0 by default")
+            }
+
             let rect = komorebi_client::Rect {
                 left: start.x as i32,
                 top: start.y as i32,
@@ -270,7 +274,7 @@ impl Komobar {
             .replace(config.new_renderconfig(theme_color));
 
         self.bg_color
-            .replace(theme_color.try_apply_alpha(self.config.transparency_alpha));
+            .replace(theme_color.try_apply_alpha(config.transparency_alpha));
 
         if let Some(font_size) = &config.font_size {
             tracing::info!("attempting to set custom font size: {font_size}");

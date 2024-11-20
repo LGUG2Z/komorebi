@@ -29,6 +29,7 @@ use std::io::BufReader;
 use std::io::Read;
 use std::path::PathBuf;
 use std::sync::atomic::AtomicI32;
+use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
 use std::time::Duration;
@@ -47,6 +48,7 @@ pub static MAX_LABEL_WIDTH: AtomicI32 = AtomicI32::new(400);
 pub static MONITOR_LEFT: AtomicI32 = AtomicI32::new(0);
 pub static MONITOR_TOP: AtomicI32 = AtomicI32::new(0);
 pub static MONITOR_RIGHT: AtomicI32 = AtomicI32::new(0);
+pub static MONITOR_INDEX: AtomicUsize = AtomicUsize::new(0);
 pub static BAR_HEIGHT: f32 = 50.0;
 
 #[derive(Parser)]
@@ -232,6 +234,8 @@ fn main() -> color_eyre::Result<()> {
         state.monitors.elements()[config.monitor.index].size().left,
         Ordering::SeqCst,
     );
+
+    MONITOR_INDEX.store(config.monitor.index, Ordering::SeqCst);
 
     match config.position {
         None => {
