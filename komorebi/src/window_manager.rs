@@ -1548,11 +1548,12 @@ impl WindowManager {
 
         tracing::info!("focusing container");
 
-        let new_idx = if workspace.monocle_container().is_some() {
-            None
-        } else {
-            workspace.new_idx_for_direction(direction)
-        };
+        let new_idx =
+            if workspace.maximized_window().is_some() || workspace.monocle_container().is_some() {
+                None
+            } else {
+                workspace.new_idx_for_direction(direction)
+            };
 
         let mut cross_monitor_monocle_or_max = false;
 
