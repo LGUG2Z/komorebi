@@ -447,7 +447,7 @@ pub struct StaticConfig {
     /// Aspect ratio to resize with when toggling floating mode for a window
     #[serde(skip_serializing_if = "Option::is_none")]
     pub floating_window_aspect_ratio: Option<AspectRatio>,
-    /// Whether new windows should automatically be moved to the focused monitor
+    /// Whether new windows should automatically be moved to the focused monitor (default: false)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub move_new_windows_to_focused_monitor: Option<bool>,
 }
