@@ -1785,13 +1785,14 @@ impl WindowManager {
 
         tracing::info!("focusing container");
 
-        let new_idx = if workspace.monocle_container().is_some() {
-            None
-        } else {
-            workspace.new_idx_for_direction(direction)
-        };
+        let new_idx =
+            if workspace.maximized_window().is_some() || workspace.monocle_container().is_some() {
+                None
+            } else {
+                workspace.new_idx_for_direction(direction)
+            };
 
-        let mut cross_monitor_monocle = false;
+        let mut cross_monitor_monocle_or_max = false;
 
         // this is for when we are scrolling across workspaces like PaperWM
         if new_idx.is_none()
@@ -1868,14 +1869,24 @@ impl WindowManager {
                 let mouse_follows_focus = self.mouse_follows_focus;
 
                 if let Ok(focused_workspace) = self.focused_workspace_mut() {
-                    if let Some(monocle) = focused_workspace.monocle_container() {
+                    if let Some(window) = focused_workspace.maximized_window() {
+                        window.focus(mouse_follows_focus)?;
+                        // (alex-ds13): @LGUG2Z Why was this being done below on the monocle?
+                        // Should it really be done?
+                        //
+                        // WindowsApi::center_cursor_in_rect(&WindowsApi::window_rect(
+                        //     window.hwnd,
+                        // )?)?;
+
+                        cross_monitor_monocle_or_max = true;
+                    } else if let Some(monocle) = focused_workspace.monocle_container() {
                         if let Some(window) = monocle.focused_window() {
                             window.focus(mouse_follows_focus)?;
                             WindowsApi::center_cursor_in_rect(&WindowsApi::window_rect(
                                 window.hwnd,
                             )?)?;
 
-                            cross_monitor_monocle = true;
+                            cross_monitor_monocle_or_max = true;
                         }
                     } else {
                         match direction {
@@ -1912,7 +1923,7 @@ impl WindowManager {
             }
         }
 
-        if !cross_monitor_monocle {
+        if !cross_monitor_monocle_or_max {
             if let Ok(focused_window) = self.focused_window_mut() {
                 focused_window.focus(self.mouse_follows_focus)?;
             }
