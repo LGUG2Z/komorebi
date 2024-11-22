@@ -4,9 +4,9 @@
     "index": 0,
     "work_area_offset": {
       "left": 0,
-      "top": 40,
+      "top": 50,
       "right": 0,
-      "bottom": 40
+      "bottom": 50
     }
   },
   "font_family": "JetBrains Mono",
