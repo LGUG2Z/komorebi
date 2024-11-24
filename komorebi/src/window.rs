@@ -25,6 +25,7 @@ use std::fmt::Formatter;
 use std::fmt::Write as _;
 use std::sync::atomic::AtomicI32;
 use std::sync::atomic::Ordering;
+use std::thread;
 use std::time::Duration;
 
 use crate::core::config_generation::IdWithIdentifier;
@@ -331,7 +332,46 @@ impl Window {
             bottom: corrected_height,
         };
 
-        self.set_position(&new_rect, true)
+        let is_maximized = &new_rect == target_area;
+        if is_maximized {
+            windows_api::WindowsApi::unmaximize_window(self.hwnd);
+            let animation_enabled = ANIMATION_ENABLED_PER_ANIMATION.lock();
+            let move_enabled = animation_enabled
+                .get(&MovementRenderDispatcher::PREFIX)
+                .is_some_and(|v| *v);
+            drop(animation_enabled);
+
+            if move_enabled || ANIMATION_ENABLED_GLOBAL.load(Ordering::SeqCst) {
+                let anim_count = ANIMATION_MANAGER
+                    .lock()
+                    .count_in_progress(MovementRenderDispatcher::PREFIX);
+                self.set_position(&new_rect, true)?;
+                let hwnd = self.hwnd;
+                // Wait for the animation to finish before maximizing the window again, otherwise
+                // we would be maximizing the window on the current monitor anyway
+                thread::spawn(move || {
+                    let mut new_anim_count = ANIMATION_MANAGER
+                        .lock()
+                        .count_in_progress(MovementRenderDispatcher::PREFIX);
+                    let mut max_wait = 2000; // Max waiting time. No one will be using an animation longer than 2s, right? RIGHT??? WHY?
+                    while new_anim_count > anim_count && max_wait > 0 {
+                        thread::sleep(Duration::from_millis(10));
+                        new_anim_count = ANIMATION_MANAGER
+                            .lock()
+                            .count_in_progress(MovementRenderDispatcher::PREFIX);
+                        max_wait -= 1;
+                    }
+                    windows_api::WindowsApi::maximize_window(hwnd);
+                });
+            } else {
+                self.set_position(&new_rect, true)?;
+                windows_api::WindowsApi::maximize_window(self.hwnd);
+            }
+        } else {
+            self.set_position(&new_rect, true)?;
+        }
+
+        Ok(())
     }
 
     pub fn center(&mut self, work_area: &Rect) -> Result<()> {
