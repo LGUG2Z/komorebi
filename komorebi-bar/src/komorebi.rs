@@ -1,22 +1,20 @@
 use crate::bar::apply_theme;
 use crate::config::KomobarTheme;
 use crate::render::RenderConfig;
+use crate::selected_frame::SelectableFrame;
 use crate::ui::CustomUi;
 use crate::widget::BarWidget;
 use crate::MAX_LABEL_WIDTH;
 use crate::MONITOR_INDEX;
 use crossbeam_channel::Receiver;
 use crossbeam_channel::TryRecvError;
-use eframe::egui::text::LayoutJob;
 use eframe::egui::Color32;
 use eframe::egui::ColorImage;
 use eframe::egui::Context;
-use eframe::egui::FontId;
 use eframe::egui::Image;
 use eframe::egui::Label;
 use eframe::egui::SelectableLabel;
 use eframe::egui::Sense;
-use eframe::egui::TextStyle;
 use eframe::egui::TextureHandle;
 use eframe::egui::TextureOptions;
 use eframe::egui::Ui;
@@ -315,146 +313,69 @@ impl BarWidget for Komorebi {
                             komorebi_notification_state.focused_container_information.2;
 
                         let iter = titles.iter().zip(icons.iter());
-                        
+
                         for (i, (title, icon)) in iter.enumerate() {
-                            eframe::egui::Frame::none().show(ui, |ui| {
-                                let response = ui.interact(
-                                    ui.max_rect(),
-                                    ui.make_persistent_id(format!("window_{}_click", i)),
-                                    Sense::click(),
-                                );
+                            let selected = i == focused_window_idx;
 
-                                let selected = i == focused_window_idx || response.hovered();
+                            if SelectableFrame::new(selected)
+                                .show(ui, |ui| {
+                                    if focused_window.show_icon {
+                                        if let Some(img) = icon {
+                                            ui.add(
+                                                Image::from(&img_to_texture(ctx, img))
+                                                    .maintain_aspect_ratio(true)
+                                                    .max_height(15.0),
+                                            );
+                                        }
+                                    }
 
-                                let visuals = ui.style().interact_selectable(&response, selected);
-                                
-                                if response.clicked() {
-                                    dbg!("{} is clicked", title);
+                                    let available_height = ui.available_height();
+                                    let mut custom_ui = CustomUi(ui);
+
+                                    custom_ui.add_sized_left_to_right(
+                                        Vec2::new(
+                                            MAX_LABEL_WIDTH.load(Ordering::SeqCst) as f32,
+                                            available_height,
+                                        ),
+                                        Label::new(title).selectable(false).truncate(),
+                                    );
+                                })
+                                .clicked()
+                            {
+                                if selected {
+                                    return;
                                 }
 
-                                let frame_fill = if selected {
-                                    visuals.bg_fill
-                                } else {
-                                    eframe::egui::Color32::TRANSPARENT
-                                };
+                                if komorebi_client::send_message(&SocketMessage::MouseFollowsFocus(
+                                    false,
+                                ))
+                                .is_err()
+                                {
+                                    tracing::error!(
+                                        "could not send message to komorebi: MouseFollowsFocus"
+                                    );
+                                }
 
-                                eframe::egui::Frame::none()
-                                    .fill(frame_fill)
-                                    .stroke(visuals.bg_stroke)
-                                    .rounding(visuals.rounding)
-                                    .inner_margin(eframe::egui::Margin {
-                                        left: ui.style().spacing.button_padding.x,
-                                        right: ui.style().spacing.button_padding.x,
-                                        top: ui.style().spacing.button_padding.y,
-                                        bottom: ui.style().spacing.button_padding.y,
-                                    })
-                                    .show(ui, |ui| {
-                                        if focused_window.show_icon {
-                                            if let Some(img) = icon {
-                                                ui.add(
-                                                    Image::from(&img_to_texture(ctx, img))
-                                                        .maintain_aspect_ratio(true)
-                                                        .max_height(15.0),
-                                                );
-                                            }
-                                        }
+                                if komorebi_client::send_message(&SocketMessage::FocusStackWindow(
+                                    i,
+                                ))
+                                .is_err()
+                                {
+                                    tracing::error!(
+                                        "could not send message to komorebi: FocusStackWindow"
+                                    );
+                                }
 
-                                        if i == focused_window_idx {
-                                            let font_id = ctx
-                                                .style()
-                                                .text_styles
-                                                .get(&TextStyle::Body)
-                                                .cloned()
-                                                .unwrap_or_else(FontId::default);
-
-                                            let layout_job = LayoutJob::simple(
-                                                title.to_string(),
-                                                font_id.clone(),
-                                                komorebi_notification_state.stack_accent.unwrap_or(
-                                                    ctx.style().visuals.selection.stroke.color,
-                                                ),
-                                                100.0,
-                                            );
-
-                                            if titles.len() > 1 {
-                                                let available_height = ui.available_height();
-                                                let mut custom_ui = CustomUi(ui);
-                                                custom_ui.add_sized_left_to_right(
-                                                    Vec2::new(
-                                                        MAX_LABEL_WIDTH.load(Ordering::SeqCst)
-                                                            as f32,
-                                                        available_height,
-                                                    ),
-                                                    Label::new(layout_job)
-                                                        .selectable(false)
-                                                        .truncate(),
-                                                );
-                                            } else {
-                                                let available_height = ui.available_height();
-                                                let mut custom_ui = CustomUi(ui);
-                                                custom_ui.add_sized_left_to_right(
-                                                    Vec2::new(
-                                                        MAX_LABEL_WIDTH.load(Ordering::SeqCst)
-                                                            as f32,
-                                                        available_height,
-                                                    ),
-                                                    Label::new(title).selectable(false).truncate(),
-                                                );
-                                            }
-                                        } else {
-                                            let available_height = ui.available_height();
-                                            let mut custom_ui = CustomUi(ui);
-
-                                            if custom_ui
-                                                .add_sized_left_to_right(
-                                                    Vec2::new(
-                                                        MAX_LABEL_WIDTH.load(Ordering::SeqCst)
-                                                            as f32,
-                                                        available_height,
-                                                    ),
-                                                    Label::new(title)
-                                                        .selectable(false)
-                                                        //.sense(Sense::click())
-                                                        .truncate(),
-                                                )
-                                                .clicked()
-                                            {
-                                                if komorebi_client::send_message(
-                                                    &SocketMessage::MouseFollowsFocus(false),
-                                                )
-                                                .is_err()
-                                                {
-                                                    tracing::error!(
-                                            "could not send message to komorebi: MouseFollowsFocus"
-                                        );
-                                                }
-
-                                                if komorebi_client::send_message(
-                                                    &SocketMessage::FocusStackWindow(i),
-                                                )
-                                                .is_err()
-                                                {
-                                                    tracing::error!(
-                                            "could not send message to komorebi: FocusStackWindow"
-                                        );
-                                                }
-
-                                                if komorebi_client::send_message(
-                                                    &SocketMessage::MouseFollowsFocus(
-                                                        komorebi_notification_state
-                                                            .mouse_follows_focus,
-                                                    ),
-                                                )
-                                                .is_err()
-                                                {
-                                                    tracing::error!(
-                                            "could not send message to komorebi: MouseFollowsFocus"
-                                        );
-                                                }
-                                            }
-                                        }
-                                    });
-                            });
+                                if komorebi_client::send_message(&SocketMessage::MouseFollowsFocus(
+                                    komorebi_notification_state.mouse_follows_focus,
+                                ))
+                                .is_err()
+                                {
+                                    tracing::error!(
+                                        "could not send message to komorebi: MouseFollowsFocus"
+                                    );
+                                }
+                            }
                         }
                     });
                 }

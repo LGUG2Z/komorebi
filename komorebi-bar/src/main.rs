@@ -8,6 +8,7 @@ mod media;
 mod memory;
 mod network;
 mod render;
+mod selected_frame;
 mod storage;
 mod time;
 mod ui;
