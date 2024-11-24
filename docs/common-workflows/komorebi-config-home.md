@@ -26,5 +26,13 @@ If you already have configuration files that you wish to keep, move them to the
 The next time you run `komorebic start`, any files created by or loaded by
 _komorebi_ will be placed or expected to exist in this folder.
 
+After setting `$Env:KOMOREBI_CONFIG_HOME`, make sure to update the path in komorebi.json:
+```json
+{
+  "app_specific_configuration_path": "$Env:USERPROFILE/.config/komorebi/applications.json"
+}
+```
+This ensures that komorebi can locate all configuration files correctly.
+
 [![Watch the tutorial
 video](https://img.youtube.com/vi/C_KWUqQ6kko/hqdefault.jpg)](https://www.youtube.com/watch?v=C_KWUqQ6kko)
