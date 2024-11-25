@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "KomobarConfig",
-  "description": "The `komorebi.bar.json` configuration file reference for `v0.1.30`",
+  "description": "The `komorebi.bar.json` configuration file reference for `v0.1.31`",
   "type": "object",
   "required": [
     "left_widgets",
@@ -46,6 +46,203 @@
           }
         }
       }
+    },
+    "grouping": {
+      "description": "Visual grouping for widgets",
+      "oneOf": [
+        {
+          "description": "No grouping is applied",
+          "type": "object",
+          "required": [
+            "kind"
+          ],
+          "properties": {
+            "kind": {
+              "type": "string",
+              "enum": [
+                "None"
+              ]
+            }
+          }
+        },
+        {
+          "description": "Widgets are grouped as a whole",
+          "type": "object",
+          "required": [
+            "kind"
+          ],
+          "properties": {
+            "kind": {
+              "type": "string",
+              "enum": [
+                "Bar"
+              ]
+            },
+            "rounding": {
+              "description": "Rounding values for the 4 corners. Can be a single or 4 values.",
+              "anyOf": [
+                {
+                  "description": "All 4 corners are the same",
+                  "type": "number",
+                  "format": "float"
+                },
+                {
+                  "description": "All 4 corners are custom. Order: NW, NE, SW, SE",
+                  "type": "array",
+                  "items": {
+                    "type": "number",
+                    "format": "float"
+                  },
+                  "maxItems": 4,
+                  "minItems": 4
+                }
+              ]
+            },
+            "style": {
+              "description": "Styles for the grouping",
+              "oneOf": [
+                {
+                  "type": "string",
+                  "enum": [
+                    "Default"
+                  ]
+                },
+                {
+                  "description": "A black shadow is added under the default group",
+                  "type": "string",
+                  "enum": [
+                    "DefaultWithShadow"
+                  ]
+                }
+              ]
+            },
+            "transparency_alpha": {
+              "description": "Alpha value for the color transparency [[0-255]] (default: 200)",
+              "type": "integer",
+              "format": "uint8",
+              "minimum": 0.0
+            }
+          }
+        },
+        {
+          "description": "Widgets are grouped by alignment",
+          "type": "object",
+          "required": [
+            "kind"
+          ],
+          "properties": {
+            "kind": {
+              "type": "string",
+              "enum": [
+                "Alignment"
+              ]
+            },
+            "rounding": {
+              "description": "Rounding values for the 4 corners. Can be a single or 4 values.",
+              "anyOf": [
+                {
+                  "description": "All 4 corners are the same",
+                  "type": "number",
+                  "format": "float"
+                },
+                {
+                  "description": "All 4 corners are custom. Order: NW, NE, SW, SE",
+                  "type": "array",
+                  "items": {
+                    "type": "number",
+                    "format": "float"
+                  },
+                  "maxItems": 4,
+                  "minItems": 4
+                }
+              ]
+            },
+            "style": {
+              "description": "Styles for the grouping",
+              "oneOf": [
+                {
+                  "type": "string",
+                  "enum": [
+                    "Default"
+                  ]
+                },
+                {
+                  "description": "A black shadow is added under the default group",
+                  "type": "string",
+                  "enum": [
+                    "DefaultWithShadow"
+                  ]
+                }
+              ]
+            },
+            "transparency_alpha": {
+              "description": "Alpha value for the color transparency [[0-255]] (default: 200)",
+              "type": "integer",
+              "format": "uint8",
+              "minimum": 0.0
+            }
+          }
+        },
+        {
+          "description": "Widgets are grouped individually",
+          "type": "object",
+          "required": [
+            "kind"
+          ],
+          "properties": {
+            "kind": {
+              "type": "string",
+              "enum": [
+                "Widget"
+              ]
+            },
+            "rounding": {
+              "description": "Rounding values for the 4 corners. Can be a single or 4 values.",
+              "anyOf": [
+                {
+                  "description": "All 4 corners are the same",
+                  "type": "number",
+                  "format": "float"
+                },
+                {
+                  "description": "All 4 corners are custom. Order: NW, NE, SW, SE",
+                  "type": "array",
+                  "items": {
+                    "type": "number",
+                    "format": "float"
+                  },
+                  "maxItems": 4,
+                  "minItems": 4
+                }
+              ]
+            },
+            "style": {
+              "description": "Styles for the grouping",
+              "oneOf": [
+                {
+                  "type": "string",
+                  "enum": [
+                    "Default"
+                  ]
+                },
+                {
+                  "description": "A black shadow is added under the default group",
+                  "type": "string",
+                  "enum": [
+                    "DefaultWithShadow"
+                  ]
+                }
+              ]
+            },
+            "transparency_alpha": {
+              "description": "Alpha value for the color transparency [[0-255]] (default: 200)",
+              "type": "integer",
+              "format": "uint8",
+              "minimum": 0.0
+            }
+          }
+        }
+      ]
     },
     "left_widgets": {
       "description": "Left side widgets (ordered left-to-right)",
@@ -1758,6 +1955,17 @@
           }
         }
       ]
+    },
+    "transparency_alpha": {
+      "description": "Alpha value for the color transparency [[0-255]] (default: 200)",
+      "type": "integer",
+      "format": "uint8",
+      "minimum": 0.0
+    },
+    "widget_spacing": {
+      "description": "Spacing between widgets (default: 10.0)",
+      "type": "number",
+      "format": "float"
     }
   }
 }
