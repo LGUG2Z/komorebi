@@ -318,15 +318,18 @@ impl Window {
         let corrected_relative_y = (window_relative_y as f32 * y_ratio) as i32;
         let window_x = current_area.left + corrected_relative_x;
         let window_y = current_area.top + corrected_relative_y;
+        let left = x_diff + window_x;
+        let top = y_diff + window_y;
+
+        let corrected_width = (current_rect.right as f32 * x_ratio) as i32;
+        let corrected_height = (current_rect.bottom as f32 * y_ratio) as i32;
 
         let new_rect = Rect {
-            left: x_diff + window_x,
-            top: y_diff + window_y,
-            right: current_rect.right,
-            bottom: current_rect.bottom,
+            left,
+            top,
+            right: corrected_width,
+            bottom: corrected_height,
         };
-        //TODO: We might need to take into account the differences in DPI for the new_rect, unless
-        //we can use the xy ratios above to the right/bottom (width/height of window) as well?
 
         self.set_position(&new_rect, true)
     }
