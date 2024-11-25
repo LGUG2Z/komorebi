@@ -307,6 +307,7 @@ pub fn notify_subscribers(notification: Notification, state_has_been_modified: b
             | NotificationEvent::Socket(SocketMessage::AddSubscriberSocketWithOptions(_, _))
             | NotificationEvent::Socket(SocketMessage::Theme(_))
             | NotificationEvent::Socket(SocketMessage::ReloadStaticConfiguration(_))
+            | NotificationEvent::WindowManager(WindowManagerEvent::TitleUpdate(_, _))
     );
 
     let notification = &serde_json::to_string(&notification)?;
