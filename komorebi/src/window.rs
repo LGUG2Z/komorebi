@@ -363,6 +363,10 @@ impl Window {
         Ok(())
     }
 
+    pub fn is_focused(self) -> bool {
+        WindowsApi::foreground_window().unwrap_or_default() == self.hwnd
+    }
+
     pub fn transparent(self) -> Result<()> {
         let mut ex_style = self.ex_style()?;
         ex_style.insert(ExtendedWindowStyle::LAYERED);
