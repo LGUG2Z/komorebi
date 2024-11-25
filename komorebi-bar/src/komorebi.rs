@@ -546,9 +546,12 @@ impl KomorebiNotificationState {
                     self.layout = KomorebiLayout::Paused;
                 }
 
+                let mut has_window_container_information = false;
+
                 if let Some(container) =
                     monitor.workspaces()[focused_workspace_idx].monocle_container()
                 {
+                    has_window_container_information = true;
                     self.focused_container_information = (
                         container
                             .windows()
@@ -565,6 +568,7 @@ impl KomorebiNotificationState {
                 } else if let Some(container) =
                     monitor.workspaces()[focused_workspace_idx].focused_container()
                 {
+                    has_window_container_information = true;
                     self.focused_container_information = (
                         container
                             .windows()
@@ -578,7 +582,24 @@ impl KomorebiNotificationState {
                             .collect::<Vec<_>>(),
                         container.focused_window_idx(),
                     );
-                } else {
+                }
+
+                for floating_window in
+                    monitor.workspaces()[focused_workspace_idx].floating_windows()
+                {
+                    if floating_window.is_focused() {
+                        has_window_container_information = true;
+                        self.focused_container_information = (
+                            vec![floating_window.title().unwrap_or_default()],
+                            vec![windows_icons::get_icon_by_process_id(
+                                floating_window.process_id(),
+                            )],
+                            0,
+                        );
+                    }
+                }
+
+                if !has_window_container_information {
                     self.focused_container_information.0.clear();
                     self.focused_container_information.1.clear();
                     self.focused_container_information.2 = 0;

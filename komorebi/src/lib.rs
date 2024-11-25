@@ -64,7 +64,6 @@ use crate::core::config_generation::IdWithIdentifier;
 use crate::core::config_generation::MatchingRule;
 use crate::core::config_generation::MatchingStrategy;
 use crate::core::config_generation::WorkspaceMatchingRule;
-use crate::winevent::WinEvent;
 use color_eyre::Result;
 use os_info::Version;
 use parking_lot::Mutex;
@@ -309,10 +308,7 @@ pub fn notify_subscribers(notification: Notification, state_has_been_modified: b
             | NotificationEvent::Socket(SocketMessage::Theme(_))
             | NotificationEvent::Socket(SocketMessage::ReloadStaticConfiguration(_))
             | NotificationEvent::WindowManager(WindowManagerEvent::TitleUpdate(_, _))
-            | NotificationEvent::WindowManager(WindowManagerEvent::Show(
-                WinEvent::ObjectNameChange,
-                _
-            ))
+            | NotificationEvent::WindowManager(WindowManagerEvent::Show(_, _))
     );
 
     let notification = &serde_json::to_string(&notification)?;
