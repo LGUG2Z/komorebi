@@ -4,6 +4,7 @@ mod config;
 mod cpu;
 mod date;
 mod komorebi;
+mod komorebi_layout;
 mod media;
 mod memory;
 mod network;
