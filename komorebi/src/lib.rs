@@ -1,7 +1,6 @@
 #![warn(clippy::all)]
 
 pub mod animation;
-pub mod animation_manager;
 pub mod border_manager;
 pub mod com;
 #[macro_use]
@@ -47,8 +46,6 @@ use std::sync::atomic::AtomicU64;
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
 
-pub use animation::*;
-pub use animation_manager::*;
 pub use colour::*;
 pub use core::*;
 pub use process_command::*;
@@ -216,12 +213,6 @@ lazy_static! {
         )
     };
 
-    static ref ANIMATION_STYLE: Arc<Mutex<AnimationStyle >> =
-        Arc::new(Mutex::new(AnimationStyle::Linear));
-
-    static ref ANIMATION_MANAGER: Arc<Mutex<AnimationManager>> =
-        Arc::new(Mutex::new(AnimationManager::new()));
-
     // Use app-specific titlebar removal options where possible
     // eg. Windows Terminal, IntelliJ IDEA, Firefox
     static ref NO_TITLEBAR: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(vec![]));
@@ -238,8 +229,6 @@ pub static CUSTOM_FFM: AtomicBool = AtomicBool::new(false);
 pub static SESSION_ID: AtomicU32 = AtomicU32::new(0);
 
 pub static REMOVE_TITLEBARS: AtomicBool = AtomicBool::new(false);
-pub static ANIMATION_ENABLED: AtomicBool = AtomicBool::new(false);
-pub static ANIMATION_DURATION: AtomicU64 = AtomicU64::new(250);
 
 pub static SLOW_APPLICATION_COMPENSATION_TIME: AtomicU64 = AtomicU64::new(20);
 
@@ -307,6 +296,8 @@ pub fn notify_subscribers(notification: Notification, state_has_been_modified: b
             | NotificationEvent::Socket(SocketMessage::AddSubscriberSocketWithOptions(_, _))
             | NotificationEvent::Socket(SocketMessage::Theme(_))
             | NotificationEvent::Socket(SocketMessage::ReloadStaticConfiguration(_))
+            | NotificationEvent::WindowManager(WindowManagerEvent::TitleUpdate(_, _))
+            | NotificationEvent::WindowManager(WindowManagerEvent::Show(_, _))
     );
 
     let notification = &serde_json::to_string(&notification)?;

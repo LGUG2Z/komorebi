@@ -1,3 +1,12 @@
+use crate::animation::PerAnimationPrefixConfig;
+use crate::animation::ANIMATION_DURATION_GLOBAL;
+use crate::animation::ANIMATION_DURATION_PER_ANIMATION;
+use crate::animation::ANIMATION_ENABLED_GLOBAL;
+use crate::animation::ANIMATION_ENABLED_PER_ANIMATION;
+use crate::animation::ANIMATION_FPS;
+use crate::animation::ANIMATION_STYLE_GLOBAL;
+use crate::animation::ANIMATION_STYLE_PER_ANIMATION;
+use crate::animation::DEFAULT_ANIMATION_FPS;
 use crate::border_manager;
 use crate::border_manager::ZOrder;
 use crate::border_manager::IMPLEMENTATION;
@@ -28,10 +37,6 @@ use crate::window_manager_event::WindowManagerEvent;
 use crate::windows_api::WindowsApi;
 use crate::workspace::Workspace;
 use crate::CrossBoundaryBehaviour;
-use crate::ANIMATION_DURATION;
-use crate::ANIMATION_ENABLED;
-use crate::ANIMATION_FPS;
-use crate::ANIMATION_STYLE;
 use crate::DATA_DIR;
 use crate::DEFAULT_CONTAINER_PADDING;
 use crate::DEFAULT_WORKSPACE_PADDING;
@@ -374,11 +379,11 @@ pub struct StaticConfig {
 #[derive(Debug, Serialize, Deserialize, JsonSchema)]
 pub struct AnimationsConfig {
     /// Enable or disable animations (default: false)
-    enabled: bool,
+    enabled: PerAnimationPrefixConfig<bool>,
     /// Set the animation duration in ms (default: 250)
-    duration: Option<u64>,
+    duration: Option<PerAnimationPrefixConfig<u64>>,
     /// Set the animation style (default: Linear)
-    style: Option<AnimationStyle>,
+    style: Option<PerAnimationPrefixConfig<AnimationStyle>>,
     /// Set the animation FPS (default: 60)
     fps: Option<u64>,
 }
@@ -654,11 +659,43 @@ impl StaticConfig {
         }
 
         if let Some(animations) = &self.animation {
-            ANIMATION_ENABLED.store(animations.enabled, Ordering::SeqCst);
-            ANIMATION_DURATION.store(animations.duration.unwrap_or(250), Ordering::SeqCst);
-            ANIMATION_FPS.store(animations.fps.unwrap_or(60), Ordering::SeqCst);
-            let mut animation_style = ANIMATION_STYLE.lock();
-            *animation_style = animations.style.unwrap_or(AnimationStyle::Linear);
+            match &animations.enabled {
+                PerAnimationPrefixConfig::Prefix(enabled) => {
+                    ANIMATION_ENABLED_PER_ANIMATION.lock().clone_from(enabled);
+                }
+                PerAnimationPrefixConfig::Global(enabled) => {
+                    ANIMATION_ENABLED_GLOBAL.store(*enabled, Ordering::SeqCst);
+                    ANIMATION_ENABLED_PER_ANIMATION.lock().clear();
+                }
+            }
+
+            match &animations.style {
+                Some(PerAnimationPrefixConfig::Prefix(style)) => {
+                    ANIMATION_STYLE_PER_ANIMATION.lock().clone_from(style);
+                }
+                Some(PerAnimationPrefixConfig::Global(style)) => {
+                    let mut animation_style = ANIMATION_STYLE_GLOBAL.lock();
+                    *animation_style = *style;
+                    ANIMATION_STYLE_PER_ANIMATION.lock().clear();
+                }
+                None => {}
+            }
+
+            match &animations.duration {
+                Some(PerAnimationPrefixConfig::Prefix(duration)) => {
+                    ANIMATION_DURATION_PER_ANIMATION.lock().clone_from(duration);
+                }
+                Some(PerAnimationPrefixConfig::Global(duration)) => {
+                    ANIMATION_DURATION_GLOBAL.store(*duration, Ordering::SeqCst);
+                    ANIMATION_DURATION_PER_ANIMATION.lock().clear();
+                }
+                None => {}
+            }
+
+            ANIMATION_FPS.store(
+                animations.fps.unwrap_or(DEFAULT_ANIMATION_FPS),
+                Ordering::SeqCst,
+            );
         }
 
         if let Some(container) = self.default_container_padding {

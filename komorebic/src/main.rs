@@ -724,12 +724,18 @@ struct BorderImplementation {
 struct Animation {
     #[clap(value_enum)]
     boolean_state: BooleanState,
+    /// Animation type to apply the state to. If not specified, sets global state
+    #[clap(value_enum, short, long)]
+    animation_type: Option<komorebi_client::AnimationPrefix>,
 }
 
 #[derive(Parser)]
 struct AnimationDuration {
     /// Desired animation durations in ms
     duration: u64,
+    /// Animation type to apply the duration to. If not specified, sets global duration
+    #[clap(value_enum, short, long)]
+    animation_type: Option<komorebi_client::AnimationPrefix>,
 }
 
 #[derive(Parser)]
@@ -743,6 +749,9 @@ struct AnimationStyle {
     /// Desired ease function for animation
     #[clap(value_enum, short, long, default_value = "linear")]
     style: komorebi_client::AnimationStyle,
+    /// Animation type to apply the style to. If not specified, sets global style
+    #[clap(value_enum, short, long)]
+    animation_type: Option<komorebi_client::AnimationPrefix>,
 }
 
 #[derive(Parser)]
@@ -2581,16 +2590,25 @@ Stop-Process -Name:komorebi -ErrorAction SilentlyContinue
             send_message(&SocketMessage::ToggleTransparency)?;
         }
         SubCommand::Animation(arg) => {
-            send_message(&SocketMessage::Animation(arg.boolean_state.into()))?;
+            send_message(&SocketMessage::Animation(
+                arg.boolean_state.into(),
+                arg.animation_type,
+            ))?;
         }
         SubCommand::AnimationDuration(arg) => {
-            send_message(&SocketMessage::AnimationDuration(arg.duration))?;
+            send_message(&SocketMessage::AnimationDuration(
+                arg.duration,
+                arg.animation_type,
+            ))?;
         }
         SubCommand::AnimationFps(arg) => {
             send_message(&SocketMessage::AnimationFps(arg.fps))?;
         }
         SubCommand::AnimationStyle(arg) => {
-            send_message(&SocketMessage::AnimationStyle(arg.style))?;
+            send_message(&SocketMessage::AnimationStyle(
+                arg.style,
+                arg.animation_type,
+            ))?;
         }
 
         SubCommand::ResizeDelta(arg) => {

@@ -14,6 +14,7 @@ use serde::Serialize;
 use strum::Display;
 use strum::EnumString;
 
+use crate::animation::prefix::AnimationPrefix;
 use crate::KomorebiTheme;
 pub use animation::AnimationStyle;
 pub use arrangement::Arrangement;
@@ -150,10 +151,10 @@ pub enum SocketMessage {
     CompleteConfiguration,
     AltFocusHack(bool),
     Theme(KomorebiTheme),
-    Animation(bool),
-    AnimationDuration(u64),
+    Animation(bool, Option<AnimationPrefix>),
+    AnimationDuration(u64, Option<AnimationPrefix>),
     AnimationFps(u64),
-    AnimationStyle(AnimationStyle),
+    AnimationStyle(AnimationStyle, Option<AnimationPrefix>),
     #[serde(alias = "ActiveWindowBorder")]
     Border(bool),
     #[serde(alias = "ActiveWindowBorderColour")]

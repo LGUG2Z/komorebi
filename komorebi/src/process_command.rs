@@ -22,6 +22,10 @@ use schemars::gen::SchemaSettings;
 use schemars::schema_for;
 use uds_windows::UnixStream;
 
+use crate::animation::AnimationEngine;
+use crate::animation::ANIMATION_DURATION_PER_ANIMATION;
+use crate::animation::ANIMATION_ENABLED_PER_ANIMATION;
+use crate::animation::ANIMATION_STYLE_PER_ANIMATION;
 use crate::core::config_generation::ApplicationConfiguration;
 use crate::core::config_generation::IdWithIdentifier;
 use crate::core::config_generation::MatchingRule;
@@ -40,6 +44,10 @@ use crate::core::StateQuery;
 use crate::core::WindowContainerBehaviour;
 use crate::core::WindowKind;
 
+use crate::animation::ANIMATION_DURATION_GLOBAL;
+use crate::animation::ANIMATION_ENABLED_GLOBAL;
+use crate::animation::ANIMATION_FPS;
+use crate::animation::ANIMATION_STYLE_GLOBAL;
 use crate::border_manager;
 use crate::border_manager::IMPLEMENTATION;
 use crate::border_manager::STYLE;
@@ -63,10 +71,6 @@ use crate::GlobalState;
 use crate::Notification;
 use crate::NotificationEvent;
 use crate::State;
-use crate::ANIMATION_DURATION;
-use crate::ANIMATION_ENABLED;
-use crate::ANIMATION_FPS;
-use crate::ANIMATION_STYLE;
 use crate::CUSTOM_FFM;
 use crate::DATA_DIR;
 use crate::DISPLAY_INDEX_PREFERENCES;
@@ -926,7 +930,11 @@ impl WindowManager {
                 tracing::info!(
                     "received stop command, restoring all hidden windows and terminating process"
                 );
+
+                ANIMATION_ENABLED_PER_ANIMATION.lock().clear();
+                ANIMATION_ENABLED_GLOBAL.store(false, Ordering::SeqCst);
                 self.restore_all_windows()?;
+                AnimationEngine::wait_for_all_animations();
 
                 if WindowsApi::focus_follows_mouse()? {
                     WindowsApi::disable_focus_follows_mouse()?;
@@ -1569,18 +1577,41 @@ impl WindowManager {
             SocketMessage::BorderOffset(offset) => {
                 border_manager::BORDER_OFFSET.store(offset, Ordering::SeqCst);
             }
-            SocketMessage::Animation(enable) => {
-                ANIMATION_ENABLED.store(enable, Ordering::SeqCst);
-            }
-            SocketMessage::AnimationDuration(duration) => {
-                ANIMATION_DURATION.store(duration, Ordering::SeqCst);
-            }
+            SocketMessage::Animation(enable, prefix) => match prefix {
+                Some(prefix) => {
+                    ANIMATION_ENABLED_PER_ANIMATION
+                        .lock()
+                        .insert(prefix, enable);
+                }
+                None => {
+                    ANIMATION_ENABLED_GLOBAL.store(enable, Ordering::SeqCst);
+                    ANIMATION_ENABLED_PER_ANIMATION.lock().clear();
+                }
+            },
+            SocketMessage::AnimationDuration(duration, prefix) => match prefix {
+                Some(prefix) => {
+                    ANIMATION_DURATION_PER_ANIMATION
+                        .lock()
+                        .insert(prefix, duration);
+                }
+                None => {
+                    ANIMATION_DURATION_GLOBAL.store(duration, Ordering::SeqCst);
+                    ANIMATION_DURATION_PER_ANIMATION.lock().clear();
+                }
+            },
             SocketMessage::AnimationFps(fps) => {
                 ANIMATION_FPS.store(fps, Ordering::SeqCst);
             }
-            SocketMessage::AnimationStyle(style) => {
-                *ANIMATION_STYLE.lock() = style;
-            }
+            SocketMessage::AnimationStyle(style, prefix) => match prefix {
+                Some(prefix) => {
+                    ANIMATION_STYLE_PER_ANIMATION.lock().insert(prefix, style);
+                }
+                None => {
+                    let mut animation_style = ANIMATION_STYLE_GLOBAL.lock();
+                    *animation_style = style;
+                    ANIMATION_STYLE_PER_ANIMATION.lock().clear();
+                }
+            },
             SocketMessage::ToggleTransparency => {
                 let current = transparency_manager::TRANSPARENCY_ENABLED.load(Ordering::SeqCst);
                 transparency_manager::TRANSPARENCY_ENABLED.store(!current, Ordering::SeqCst);

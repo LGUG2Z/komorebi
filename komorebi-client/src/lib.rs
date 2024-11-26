@@ -1,6 +1,7 @@
 #![warn(clippy::all)]
 #![allow(clippy::missing_errors_doc)]
 
+pub use komorebi::animation::prefix::AnimationPrefix;
 pub use komorebi::asc::ApplicationSpecificConfiguration;
 pub use komorebi::colour::Colour;
 pub use komorebi::colour::Rgb;
