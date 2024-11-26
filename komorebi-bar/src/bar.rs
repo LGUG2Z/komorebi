@@ -294,11 +294,13 @@ impl Komobar {
             }
         }
 
-        for (idx, widget_config) in config.center_widgets.iter().enumerate() {
-            if let WidgetConfig::Komorebi(config) = widget_config {
-                komorebi_widget = Some(Komorebi::from(config));
-                komorebi_widget_idx = Some(idx);
-                side = Some(Alignment::Center);
+        if let Some(center_widgets) = &config.center_widgets {
+            for (idx, widget_config) in center_widgets.iter().enumerate() {
+                if let WidgetConfig::Komorebi(config) = widget_config {
+                    komorebi_widget = Some(Komorebi::from(config));
+                    komorebi_widget_idx = Some(idx);
+                    side = Some(Alignment::Center);
+                }
             }
         }
 
@@ -316,11 +318,13 @@ impl Komobar {
             .map(|config| config.as_boxed_bar_widget())
             .collect::<Vec<Box<dyn BarWidget>>>();
 
-        let mut center_widgets = config
-            .center_widgets
-            .iter()
-            .map(|config| config.as_boxed_bar_widget())
-            .collect::<Vec<Box<dyn BarWidget>>>();
+        let mut center_widgets = match &config.center_widgets {
+            Some(center_widgets) => center_widgets
+                .iter()
+                .map(|config| config.as_boxed_bar_widget())
+                .collect::<Vec<Box<dyn BarWidget>>>(),
+            None => vec![],
+        };
 
         let mut right_widgets = config
             .right_widgets
@@ -518,23 +522,25 @@ impl eframe::App for Komobar {
                         });
                     });
 
-                    // Floating center widgets
-                    Area::new(Id::new("center_panel"))
-                        .anchor(Align2::CENTER_CENTER, [0.0, 0.0]) // Align in the center of the window
-                        .show(ctx, |ui| {
-                            Frame::none().show(ui, |ui| {
-                                ui.horizontal_centered(|ui| {
-                                    let mut render_conf = *render_config;
-                                    render_conf.alignment = Some(Alignment::Right);
+                    if !self.center_widgets.is_empty() {
+                        // Floating center widgets
+                        Area::new(Id::new("center_panel"))
+                            .anchor(Align2::CENTER_CENTER, [0.0, 0.0]) // Align in the center of the window
+                            .show(ctx, |ui| {
+                                Frame::none().show(ui, |ui| {
+                                    ui.horizontal_centered(|ui| {
+                                        let mut render_conf = *render_config;
+                                        render_conf.alignment = Some(Alignment::Center);
 
-                                    render_config.apply_on_alignment(ui, |ui| {
-                                        for w in &mut self.center_widgets {
-                                            w.render(ctx, ui, &mut render_conf);
-                                        }
+                                        render_config.apply_on_alignment(ui, |ui| {
+                                            for w in &mut self.center_widgets {
+                                                w.render(ctx, ui, &mut render_conf);
+                                            }
+                                        });
                                     });
                                 });
                             });
-                        })
+                    }
                 })
             })
         });

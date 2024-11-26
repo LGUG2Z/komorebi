@@ -38,7 +38,7 @@ pub struct KomobarConfig {
     /// Left side widgets (ordered left-to-right)
     pub left_widgets: Vec<WidgetConfig>,
     /// Center widgets (ordered left-to-right)
-    pub center_widgets: Vec<WidgetConfig>,
+    pub center_widgets: Option<Vec<WidgetConfig>>,
     /// Right side widgets (ordered left-to-right)
     pub right_widgets: Vec<WidgetConfig>,
 }
