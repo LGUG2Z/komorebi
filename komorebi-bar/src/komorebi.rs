@@ -1,5 +1,6 @@
 use crate::bar::apply_theme;
 use crate::config::KomobarTheme;
+use crate::komorebi_layout::KomorebiLayout;
 use crate::render::RenderConfig;
 use crate::selected_frame::SelectableFrame;
 use crate::ui::CustomUi;
@@ -20,7 +21,6 @@ use eframe::egui::TextureOptions;
 use eframe::egui::Ui;
 use eframe::egui::Vec2;
 use image::RgbaImage;
-use komorebi_client::CycleDirection;
 use komorebi_client::NotificationEvent;
 use komorebi_client::Rect;
 use komorebi_client::SocketMessage;
@@ -29,8 +29,6 @@ use serde::Deserialize;
 use serde::Serialize;
 use std::cell::RefCell;
 use std::collections::BTreeMap;
-use std::fmt::Display;
-use std::fmt::Formatter;
 use std::path::PathBuf;
 use std::rc::Rc;
 use std::sync::atomic::Ordering;
@@ -55,10 +53,12 @@ pub struct KomorebiWorkspacesConfig {
     pub hide_empty_workspaces: bool,
 }
 
-#[derive(Copy, Clone, Debug, Serialize, Deserialize, JsonSchema)]
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 pub struct KomorebiLayoutConfig {
     /// Enable the Komorebi Layout widget
     pub enable: bool,
+    /// List of layout options
+    pub layouts: Option<Vec<KomorebiLayout>>,
 }
 
 #[derive(Copy, Clone, Debug, Serialize, Deserialize, JsonSchema)]
@@ -105,7 +105,7 @@ impl From<&KomorebiConfig> for Komorebi {
                 monitor_index: MONITOR_INDEX.load(Ordering::SeqCst),
             })),
             workspaces: value.workspaces,
-            layout: value.layout,
+            layout: value.layout.clone(),
             focused_window: value.focused_window,
             configuration_switcher,
         }
@@ -197,146 +197,20 @@ impl BarWidget for Komorebi {
             }
         }
 
-        if let Some(layout) = self.layout {
+        if let Some(layout) = &self.layout {
             if layout.enable {
-                let font_id = ctx
-                    .style()
-                    .text_styles
-                    .get(&eframe::egui::TextStyle::Body)
-                    .cloned()
-                    .unwrap_or_else(eframe::egui::FontId::default);
+                let workspace_idx: Option<usize> = komorebi_notification_state
+                    .workspaces
+                    .iter()
+                    .position(|o| komorebi_notification_state.selected_workspace.eq(&o.0));
 
-                let mut show_options = config.states.show_komorebi_layout_options;
-
-                config.apply_on_widget(false, ui, |ui| {
-                    let layout_frame =
-                        komorebi_notification_state
-                            .layout
-                            .show(font_id.clone(), ctx, ui);
-
-                    if layout_frame.clicked() {
-                        //let selected_workspace_idx = komorebi_notification_state
-                        //    .workspaces
-                        //    .iter()
-                        //    .position(|o| komorebi_notification_state.selected_workspace.eq(&o.0));
-                        //dbg!("selected workspace index is {}", selected_workspace_idx);
-
-                        show_options = true;
-
-                        //match komorebi_notification_state.layout {
-                        //    KomorebiLayout::Default(_) => {
-                        //        dbg!("change layout");
-
-                        //        let monitor_idx: usize = 1;
-                        //        let workspace_idx: usize = 0;
-                        //        let new_layout = komorebi_client::DefaultLayout::BSP;
-
-                        //        if komorebi_client::send_message(&SocketMessage::WorkspaceLayout(
-                        //            monitor_idx,
-                        //            workspace_idx,
-                        //            new_layout,
-                        //        ))
-                        //        .is_err()
-                        //        {
-                        //            tracing::error!(
-                        //                "could not send message to komorebi: CycleLayout"
-                        //            );
-                        //        }
-                        //    }
-                        //    _ => {}
-                        //}
-
-                        //match komorebi_notification_state.layout {
-                        //    KomorebiLayout::Default(_) => {
-                        //        if komorebi_client::send_message(&SocketMessage::CycleLayout(
-                        //            CycleDirection::Next,
-                        //        ))
-                        //        .is_err()
-                        //        {
-                        //            tracing::error!(
-                        //                "could not send message to komorebi: CycleLayout"
-                        //            );
-                        //        }
-                        //    }
-                        //    KomorebiLayout::Floating => {
-                        //        if komorebi_client::send_message(&SocketMessage::ToggleTiling)
-                        //            .is_err()
-                        //        {
-                        //            tracing::error!(
-                        //                "could not send message to komorebi: ToggleTiling"
-                        //            );
-                        //        }
-                        //    }
-                        //    KomorebiLayout::Paused => {
-                        //        if komorebi_client::send_message(&SocketMessage::TogglePause)
-                        //            .is_err()
-                        //        {
-                        //            tracing::error!(
-                        //                "could not send message to komorebi: TogglePause"
-                        //            );
-                        //        }
-                        //    }
-                        //    KomorebiLayout::Custom => {}
-                        //}
-                    }
-
-                    //if layout_frame.hovered() {
-                    //    show_options = true;
-                    //}
-
-                    if show_options {
-                        eframe::egui::Frame::none().show(ui, |ui| {
-                            SelectableFrame::new(false).show(ui, |ui| {
-                                KomorebiLayout::Default(komorebi_client::DefaultLayout::BSP)
-                                    .show_icon(font_id.clone(), ctx, ui)
-                            })
-                        });
-                    }
-
-                    //if ui
-                    //    .add(
-                    //        Label::new(komorebi_notification_state.layout.to_string())
-                    //            .selectable(false)
-                    //            .sense(Sense::click()),
-                    //    )
-                    //    .clicked()
-                    //{
-                    //    match komorebi_notification_state.layout {
-                    //        KomorebiLayout::Default(_) => {
-                    //            if komorebi_client::send_message(&SocketMessage::CycleLayout(
-                    //                CycleDirection::Next,
-                    //            ))
-                    //            .is_err()
-                    //            {
-                    //                tracing::error!(
-                    //                    "could not send message to komorebi: CycleLayout"
-                    //                );
-                    //            }
-                    //        }
-                    //        KomorebiLayout::Floating => {
-                    //            if komorebi_client::send_message(&SocketMessage::ToggleTiling)
-                    //                .is_err()
-                    //            {
-                    //                tracing::error!(
-                    //                    "could not send message to komorebi: ToggleTiling"
-                    //                );
-                    //            }
-                    //        }
-                    //        KomorebiLayout::Paused => {
-                    //            if komorebi_client::send_message(&SocketMessage::TogglePause)
-                    //                .is_err()
-                    //            {
-                    //                tracing::error!(
-                    //                    "could not send message to komorebi: TogglePause"
-                    //                );
-                    //            }
-                    //        }
-                    //        KomorebiLayout::Custom => {}
-                    //    }
-                    //}
-                });
-
-                config.states.show_komorebi_layout_options = show_options;
+                komorebi_notification_state.layout.show(
+                    ctx,
+                    ui,
+                    config,
+                    workspace_idx,
+                    layout.layouts.clone(),
+                );
             }
         }
 
@@ -497,25 +371,6 @@ pub struct KomorebiNotificationState {
     pub work_area_offset: Option<Rect>,
     pub stack_accent: Option<Color32>,
     pub monitor_index: usize,
-}
-
-#[derive(Copy, Clone, Debug)]
-pub enum KomorebiLayout {
-    Default(komorebi_client::DefaultLayout),
-    Floating,
-    Paused,
-    Custom,
-}
-
-impl Display for KomorebiLayout {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match self {
-            KomorebiLayout::Default(layout) => write!(f, "{layout}"),
-            KomorebiLayout::Floating => write!(f, "Floating"),
-            KomorebiLayout::Paused => write!(f, "Paused"),
-            KomorebiLayout::Custom => write!(f, "Custom"),
-        }
-    }
 }
 
 impl KomorebiNotificationState {

@@ -53,5 +53,6 @@ impl SelectableFrame {
                 response
             })
             .inner
+            .on_hover_cursor(eframe::egui::CursorIcon::PointingHand)
     }
 }
