@@ -55,6 +55,7 @@ use std::io::BufReader;
 use std::io::Read;
 use std::io::Write;
 use std::net::Shutdown;
+use std::time::Duration;
 pub use uds_windows::UnixListener;
 use uds_windows::UnixStream;
 
@@ -63,6 +64,7 @@ const KOMOREBI: &str = "komorebi.sock";
 pub fn send_message(message: &SocketMessage) -> std::io::Result<()> {
     let socket = DATA_DIR.join(KOMOREBI);
     let mut stream = UnixStream::connect(socket)?;
+    stream.set_write_timeout(Some(Duration::from_secs(1)))?;
     stream.write_all(serde_json::to_string(message)?.as_bytes())
 }
 
@@ -70,6 +72,8 @@ pub fn send_query(message: &SocketMessage) -> std::io::Result<String> {
     let socket = DATA_DIR.join(KOMOREBI);
 
     let mut stream = UnixStream::connect(socket)?;
+    stream.set_read_timeout(Some(Duration::from_secs(1)))?;
+    stream.set_write_timeout(Some(Duration::from_secs(1)))?;
     stream.write_all(serde_json::to_string(message)?.as_bytes())?;
     stream.shutdown(Shutdown::Write)?;
 
