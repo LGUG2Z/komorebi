@@ -232,7 +232,7 @@ impl KomorebiLayout {
                                         .is_err()
                                         {
                                             tracing::error!(
-                                       F     "could not send message to komorebi: WorkspaceLayout"
+                                            "could not send message to komorebi: WorkspaceLayout"
                                         );
                                         }
                                     }
