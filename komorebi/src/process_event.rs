@@ -669,6 +669,7 @@ impl WindowManager {
             }
             WindowManagerEvent::MouseCapture(..)
             | WindowManagerEvent::Cloak(..)
+            | WindowManagerEvent::LocationChange(..)
             | WindowManagerEvent::TitleUpdate(..) => {}
         };
 
@@ -714,6 +715,7 @@ impl WindowManager {
         if !matches!(
             event,
             WindowManagerEvent::Show(WinEvent::ObjectNameChange, _)
+                | WindowManagerEvent::LocationChange(_, _)
         ) {
             tracing::info!("processed: {}", event.window().to_string());
         } else {
