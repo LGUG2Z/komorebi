@@ -206,12 +206,23 @@ impl BarWidget for Komorebi {
                     .cloned()
                     .unwrap_or_else(eframe::egui::FontId::default);
 
+                let mut show_options = config.states.show_komorebi_layout_options;
+
                 config.apply_on_widget(false, ui, |ui| {
-                    if komorebi_notification_state
-                        .layout
-                        .show(font_id, ctx, ui)
-                        .clicked()
-                    {
+                    let layout_frame =
+                        komorebi_notification_state
+                            .layout
+                            .show(font_id.clone(), ctx, ui);
+
+                    if layout_frame.clicked() {
+                        //let selected_workspace_idx = komorebi_notification_state
+                        //    .workspaces
+                        //    .iter()
+                        //    .position(|o| komorebi_notification_state.selected_workspace.eq(&o.0));
+                        //dbg!("selected workspace index is {}", selected_workspace_idx);
+
+                        show_options = true;
+
                         //match komorebi_notification_state.layout {
                         //    KomorebiLayout::Default(_) => {
                         //        dbg!("change layout");
@@ -235,38 +246,51 @@ impl BarWidget for Komorebi {
                         //    _ => {}
                         //}
 
-                        match komorebi_notification_state.layout {
-                            KomorebiLayout::Default(_) => {
-                                if komorebi_client::send_message(&SocketMessage::CycleLayout(
-                                    CycleDirection::Next,
-                                ))
-                                .is_err()
-                                {
-                                    tracing::error!(
-                                        "could not send message to komorebi: CycleLayout"
-                                    );
-                                }
-                            }
-                            KomorebiLayout::Floating => {
-                                if komorebi_client::send_message(&SocketMessage::ToggleTiling)
-                                    .is_err()
-                                {
-                                    tracing::error!(
-                                        "could not send message to komorebi: ToggleTiling"
-                                    );
-                                }
-                            }
-                            KomorebiLayout::Paused => {
-                                if komorebi_client::send_message(&SocketMessage::TogglePause)
-                                    .is_err()
-                                {
-                                    tracing::error!(
-                                        "could not send message to komorebi: TogglePause"
-                                    );
-                                }
-                            }
-                            KomorebiLayout::Custom => {}
-                        }
+                        //match komorebi_notification_state.layout {
+                        //    KomorebiLayout::Default(_) => {
+                        //        if komorebi_client::send_message(&SocketMessage::CycleLayout(
+                        //            CycleDirection::Next,
+                        //        ))
+                        //        .is_err()
+                        //        {
+                        //            tracing::error!(
+                        //                "could not send message to komorebi: CycleLayout"
+                        //            );
+                        //        }
+                        //    }
+                        //    KomorebiLayout::Floating => {
+                        //        if komorebi_client::send_message(&SocketMessage::ToggleTiling)
+                        //            .is_err()
+                        //        {
+                        //            tracing::error!(
+                        //                "could not send message to komorebi: ToggleTiling"
+                        //            );
+                        //        }
+                        //    }
+                        //    KomorebiLayout::Paused => {
+                        //        if komorebi_client::send_message(&SocketMessage::TogglePause)
+                        //            .is_err()
+                        //        {
+                        //            tracing::error!(
+                        //                "could not send message to komorebi: TogglePause"
+                        //            );
+                        //        }
+                        //    }
+                        //    KomorebiLayout::Custom => {}
+                        //}
+                    }
+
+                    //if layout_frame.hovered() {
+                    //    show_options = true;
+                    //}
+
+                    if show_options {
+                        eframe::egui::Frame::none().show(ui, |ui| {
+                            SelectableFrame::new(false).show(ui, |ui| {
+                                KomorebiLayout::Default(komorebi_client::DefaultLayout::BSP)
+                                    .show_icon(font_id.clone(), ctx, ui)
+                            })
+                        });
                     }
 
                     //if ui
@@ -311,6 +335,8 @@ impl BarWidget for Komorebi {
                     //    }
                     //}
                 });
+
+                config.states.show_komorebi_layout_options = show_options;
             }
         }
 

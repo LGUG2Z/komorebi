@@ -39,6 +39,13 @@ pub struct RenderConfig {
     pub more_inner_margin: bool,
     /// Set to true after the first time the apply_on_widget was called on an alignment
     pub applied_on_widget: bool,
+    /// used to store different states of the UI
+    pub states: RenderStates,
+}
+
+#[derive(Copy, Clone)]
+pub struct RenderStates {
+    pub show_komorebi_layout_options: bool,
 }
 
 pub trait RenderExt {
@@ -54,6 +61,9 @@ impl RenderExt for &KomobarConfig {
             alignment: None,
             more_inner_margin: false,
             applied_on_widget: false,
+            states: RenderStates {
+                show_komorebi_layout_options: false,
+            },
         }
     }
 }
@@ -67,6 +77,9 @@ impl RenderConfig {
             alignment: None,
             more_inner_margin: false,
             applied_on_widget: false,
+            states: RenderStates {
+                show_komorebi_layout_options: false,
+            },
         }
     }
 
