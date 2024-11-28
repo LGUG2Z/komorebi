@@ -44,7 +44,7 @@ impl<'a, T: Clone> ComIn<'a, T> {
     }
 }
 
-impl<'a, T> Deref for ComIn<'a, T> {
+impl<T> Deref for ComIn<'_, T> {
     type Target = T;
     fn deref(&self) -> &Self::Target {
         &self.data
