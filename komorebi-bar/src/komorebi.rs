@@ -1,4 +1,5 @@
 use crate::bar::apply_theme;
+use crate::config::DisplayFormat;
 use crate::config::KomobarTheme;
 use crate::komorebi_layout::KomorebiLayout;
 use crate::render::RenderConfig;
@@ -58,7 +59,9 @@ pub struct KomorebiLayoutConfig {
     /// Enable the Komorebi Layout widget
     pub enable: bool,
     /// List of layout options
-    pub layouts: Option<Vec<KomorebiLayout>>,
+    pub options: Option<Vec<KomorebiLayout>>,
+    /// Display format of the current layout
+    pub display: Option<DisplayFormat>,
 }
 
 #[derive(Copy, Clone, Debug, Serialize, Deserialize, JsonSchema)]
@@ -197,8 +200,8 @@ impl BarWidget for Komorebi {
             }
         }
 
-        if let Some(layout) = &self.layout {
-            if layout.enable {
+        if let Some(layout_config) = &self.layout {
+            if layout_config.enable {
                 let workspace_idx: Option<usize> = komorebi_notification_state
                     .workspaces
                     .iter()
@@ -208,8 +211,8 @@ impl BarWidget for Komorebi {
                     ctx,
                     ui,
                     config,
+                    layout_config,
                     workspace_idx,
-                    layout.layouts.clone(),
                 );
             }
         }
@@ -444,17 +447,23 @@ impl KomorebiNotificationState {
                 }
 
                 self.workspaces = workspaces;
-                self.layout = match monitor.workspaces()[focused_workspace_idx].layout() {
-                    komorebi_client::Layout::Default(layout) => KomorebiLayout::Default(*layout),
-                    komorebi_client::Layout::Custom(_) => KomorebiLayout::Custom,
-                };
 
-                if !*monitor.workspaces()[focused_workspace_idx].tile() {
+                if monitor.workspaces()[focused_workspace_idx]
+                    .monocle_container()
+                    .is_some()
+                {
+                    self.layout = KomorebiLayout::Monocle;
+                } else if !*monitor.workspaces()[focused_workspace_idx].tile() {
                     self.layout = KomorebiLayout::Floating;
-                }
-
-                if notification.state.is_paused {
+                } else if notification.state.is_paused {
                     self.layout = KomorebiLayout::Paused;
+                } else {
+                    self.layout = match monitor.workspaces()[focused_workspace_idx].layout() {
+                        komorebi_client::Layout::Default(layout) => {
+                            KomorebiLayout::Default(*layout)
+                        }
+                        komorebi_client::Layout::Custom(_) => KomorebiLayout::Custom,
+                    };
                 }
 
                 let mut has_window_container_information = false;
