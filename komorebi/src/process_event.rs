@@ -530,7 +530,9 @@ impl WindowManager {
                 }
 
                 let workspace = self.focused_workspace_mut()?;
-                if workspace.contains_managed_window(window.hwnd) || moved_across_monitors {
+                if (*workspace.tile() && workspace.contains_managed_window(window.hwnd))
+                    || moved_across_monitors
+                {
                     let resize = Rect {
                         left: new_position.left - old_position.left,
                         top: new_position.top - old_position.top,
