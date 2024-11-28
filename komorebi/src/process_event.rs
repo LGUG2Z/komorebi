@@ -585,11 +585,19 @@ impl WindowManager {
                                 // so that we don't have ghost tiles until we force an interaction on
                                 // the origin monitor's focused workspace
                                 self.focus_monitor(origin_monitor_idx)?;
-                                self.focus_workspace(origin_workspace_idx)?;
+                                let origin_monitor = self
+                                    .monitors_mut()
+                                    .get_mut(origin_monitor_idx)
+                                    .ok_or_else(|| anyhow!("there is no monitor at this idx"))?;
+                                origin_monitor.focus_workspace(origin_workspace_idx)?;
                                 self.update_focused_workspace(false, false)?;
 
                                 self.focus_monitor(target_monitor_idx)?;
-                                self.focus_workspace(target_workspace_idx)?;
+                                let target_monitor = self
+                                    .monitors_mut()
+                                    .get_mut(target_monitor_idx)
+                                    .ok_or_else(|| anyhow!("there is no monitor at this idx"))?;
+                                target_monitor.focus_workspace(target_workspace_idx)?;
                                 self.update_focused_workspace(false, false)?;
 
                                 // Make sure to give focus to the moved window again
