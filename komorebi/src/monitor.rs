@@ -142,7 +142,7 @@ impl Monitor {
     /// Adds a container to this `Monitor` using the move direction to calculate if the container
     /// should be added in front of all containers, in the back or in place of the focused
     /// container, moving the rest along. The move direction should be from the origin monitor
-    /// towards the target monitor.
+    /// towards the target monitor or from the origin workspace towards the target workspace.
     pub fn add_container_with_direction(
         &mut self,
         container: Container,
@@ -295,54 +295,14 @@ impl Monitor {
                 Some(workspace) => workspace,
             };
 
-            match direction {
-                Some(OperationDirection::Left) => match target_workspace.layout() {
-                    Layout::Default(layout) => match layout {
-                        DefaultLayout::RightMainVerticalStack => {
-                            target_workspace.add_container_to_front(container);
-                        }
-                        DefaultLayout::UltrawideVerticalStack => {
-                            if target_workspace.containers().len() == 1 {
-                                target_workspace.insert_container_at_idx(0, container);
-                            } else {
-                                target_workspace.add_container_to_back(container);
-                            }
-                        }
-                        _ => {
-                            target_workspace.add_container_to_back(container);
-                        }
-                    },
-                    Layout::Custom(_) => {
-                        target_workspace.add_container_to_back(container);
-                    }
-                },
-                Some(OperationDirection::Right) => match target_workspace.layout() {
-                    Layout::Default(layout) => {
-                        let target_index =
-                            layout.leftmost_index(target_workspace.containers().len());
-
-                        match layout {
-                            DefaultLayout::RightMainVerticalStack
-                            | DefaultLayout::UltrawideVerticalStack => {
-                                if target_workspace.containers().len() == 1 {
-                                    target_workspace.add_container_to_back(container);
-                                } else {
-                                    target_workspace
-                                        .insert_container_at_idx(target_index, container);
-                                }
-                            }
-                            _ => {
-                                target_workspace.insert_container_at_idx(target_index, container);
-                            }
-                        }
-                    }
-                    Layout::Custom(_) => {
-                        target_workspace.add_container_to_front(container);
-                    }
-                },
-                _ => {
-                    target_workspace.add_container_to_back(container);
-                }
+            if let Some(direction) = direction {
+                self.add_container_with_direction(
+                    container,
+                    Some(target_workspace_idx),
+                    direction,
+                )?;
+            } else {
+                target_workspace.add_container_to_back(container);
             }
         }
 
