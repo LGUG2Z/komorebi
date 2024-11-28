@@ -485,8 +485,21 @@ impl WindowManager {
                     // place across a monitor boundary to an empty workspace
                     .unwrap_or(&Rect::default());
 
-                // This will be true if we have moved to an empty workspace on another monitor
-                let mut moved_across_monitors = old_position == Rect::default();
+                // This will be true if we have moved to another monitor
+                let mut moved_across_monitors = false;
+
+                for (i, monitors) in self.monitors().iter().enumerate() {
+                    for workspace in monitors.workspaces() {
+                        if workspace.contains_window(window.hwnd) && i != target_monitor_idx {
+                            moved_across_monitors = true;
+                            break;
+                        }
+                    }
+                    if moved_across_monitors {
+                        break;
+                    }
+                }
+
                 if let Some((origin_monitor_idx, origin_workspace_idx, _)) = pending {
                     // If we didn't move to another monitor with an empty workspace, it is
                     // still possible that we moved to another monitor with a populated workspace
