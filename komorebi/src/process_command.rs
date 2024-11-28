@@ -536,7 +536,8 @@ impl WindowManager {
                 self.move_container_to_workspace(workspace_idx, true, None)?;
             }
             SocketMessage::MoveContainerToMonitorNumber(monitor_idx) => {
-                self.move_container_to_monitor(monitor_idx, None, true)?;
+                let direction = self.direction_from_monitor_idx(monitor_idx);
+                self.move_container_to_monitor(monitor_idx, None, true, direction)?;
             }
             SocketMessage::SwapWorkspacesToMonitorNumber(monitor_idx) => {
                 self.swap_focused_monitor(monitor_idx)?;
@@ -548,7 +549,8 @@ impl WindowManager {
                         .ok_or_else(|| anyhow!("there must be at least one monitor"))?,
                 );
 
-                self.move_container_to_monitor(monitor_idx, None, true)?;
+                let direction = self.direction_from_monitor_idx(monitor_idx);
+                self.move_container_to_monitor(monitor_idx, None, true, direction)?;
             }
             SocketMessage::SendContainerToWorkspaceNumber(workspace_idx) => {
                 self.move_container_to_workspace(workspace_idx, false, None)?;
@@ -570,7 +572,8 @@ impl WindowManager {
                 self.move_container_to_workspace(workspace_idx, false, None)?;
             }
             SocketMessage::SendContainerToMonitorNumber(monitor_idx) => {
-                self.move_container_to_monitor(monitor_idx, None, false)?;
+                let direction = self.direction_from_monitor_idx(monitor_idx);
+                self.move_container_to_monitor(monitor_idx, None, false, direction)?;
             }
             SocketMessage::CycleSendContainerToMonitor(direction) => {
                 let monitor_idx = direction.next_idx(
@@ -579,22 +582,37 @@ impl WindowManager {
                         .ok_or_else(|| anyhow!("there must be at least one monitor"))?,
                 );
 
-                self.move_container_to_monitor(monitor_idx, None, false)?;
+                let direction = self.direction_from_monitor_idx(monitor_idx);
+                self.move_container_to_monitor(monitor_idx, None, false, direction)?;
             }
             SocketMessage::SendContainerToMonitorWorkspaceNumber(monitor_idx, workspace_idx) => {
-                self.move_container_to_monitor(monitor_idx, Option::from(workspace_idx), false)?;
+                let direction = self.direction_from_monitor_idx(monitor_idx);
+                self.move_container_to_monitor(
+                    monitor_idx,
+                    Option::from(workspace_idx),
+                    false,
+                    direction,
+                )?;
             }
             SocketMessage::MoveContainerToMonitorWorkspaceNumber(monitor_idx, workspace_idx) => {
-                self.move_container_to_monitor(monitor_idx, Option::from(workspace_idx), true)?;
+                let direction = self.direction_from_monitor_idx(monitor_idx);
+                self.move_container_to_monitor(
+                    monitor_idx,
+                    Option::from(workspace_idx),
+                    true,
+                    direction,
+                )?;
             }
             SocketMessage::SendContainerToNamedWorkspace(ref workspace) => {
                 if let Some((monitor_idx, workspace_idx)) =
                     self.monitor_workspace_index_by_name(workspace)
                 {
+                    let direction = self.direction_from_monitor_idx(monitor_idx);
                     self.move_container_to_monitor(
                         monitor_idx,
                         Option::from(workspace_idx),
                         false,
+                        direction,
                     )?;
                 }
             }
@@ -602,7 +620,13 @@ impl WindowManager {
                 if let Some((monitor_idx, workspace_idx)) =
                     self.monitor_workspace_index_by_name(workspace)
                 {
-                    self.move_container_to_monitor(monitor_idx, Option::from(workspace_idx), true)?;
+                    let direction = self.direction_from_monitor_idx(monitor_idx);
+                    self.move_container_to_monitor(
+                        monitor_idx,
+                        Option::from(workspace_idx),
+                        true,
+                        direction,
+                    )?;
                 }
             }
 
