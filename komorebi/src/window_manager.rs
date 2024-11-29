@@ -1674,8 +1674,12 @@ impl WindowManager {
             .get_mut(monitor_idx)
             .ok_or_else(|| anyhow!("there is no monitor"))?;
 
+        let mut should_load_workspace = false;
         if let Some(workspace_idx) = workspace_idx {
-            target_monitor.focus_workspace(workspace_idx)?;
+            if workspace_idx != target_monitor.focused_workspace_idx() {
+                target_monitor.focus_workspace(workspace_idx)?;
+                should_load_workspace = true;
+            }
         }
         let target_workspace = target_monitor
             .focused_workspace_mut()
@@ -1706,7 +1710,9 @@ impl WindowManager {
             bail!("failed to find a window to move");
         }
 
-        target_monitor.load_focused_workspace(mouse_follows_focus)?;
+        if should_load_workspace {
+            target_monitor.load_focused_workspace(mouse_follows_focus)?;
+        }
         target_monitor.update_focused_workspace(offset)?;
 
         // this second one is for DPI changes when the target is another monitor

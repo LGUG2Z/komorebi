@@ -493,8 +493,21 @@ impl WindowManager {
                     // place across a monitor boundary to an empty workspace
                     .unwrap_or(&Rect::default());
 
-                // This will be true if we have moved to an empty workspace on another monitor
-                let mut moved_across_monitors = old_position == Rect::default();
+                // This will be true if we have moved to another monitor
+                let mut moved_across_monitors = false;
+
+                for (i, monitors) in self.monitors().iter().enumerate() {
+                    for workspace in monitors.workspaces() {
+                        if workspace.contains_window(window.hwnd) && i != target_monitor_idx {
+                            moved_across_monitors = true;
+                            break;
+                        }
+                    }
+                    if moved_across_monitors {
+                        break;
+                    }
+                }
+
                 if let Some((origin_monitor_idx, origin_workspace_idx, _)) = pending {
                     // If we didn't move to another monitor with an empty workspace, it is
                     // still possible that we moved to another monitor with a populated workspace
@@ -525,7 +538,9 @@ impl WindowManager {
                 }
 
                 let workspace = self.focused_workspace_mut()?;
-                if workspace.contains_managed_window(window.hwnd) || moved_across_monitors {
+                if (*workspace.tile() && workspace.contains_managed_window(window.hwnd))
+                    || moved_across_monitors
+                {
                     let resize = Rect {
                         left: new_position.left - old_position.left,
                         top: new_position.top - old_position.top,
@@ -578,11 +593,19 @@ impl WindowManager {
                                 // so that we don't have ghost tiles until we force an interaction on
                                 // the origin monitor's focused workspace
                                 self.focus_monitor(origin_monitor_idx)?;
-                                self.focus_workspace(origin_workspace_idx)?;
+                                let origin_monitor = self
+                                    .monitors_mut()
+                                    .get_mut(origin_monitor_idx)
+                                    .ok_or_else(|| anyhow!("there is no monitor at this idx"))?;
+                                origin_monitor.focus_workspace(origin_workspace_idx)?;
                                 self.update_focused_workspace(false, false)?;
 
                                 self.focus_monitor(target_monitor_idx)?;
-                                self.focus_workspace(target_workspace_idx)?;
+                                let target_monitor = self
+                                    .monitors_mut()
+                                    .get_mut(target_monitor_idx)
+                                    .ok_or_else(|| anyhow!("there is no monitor at this idx"))?;
+                                target_monitor.focus_workspace(target_workspace_idx)?;
                                 self.update_focused_workspace(false, false)?;
 
                                 // Make sure to give focus to the moved window again
