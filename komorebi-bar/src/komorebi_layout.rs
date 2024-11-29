@@ -13,19 +13,47 @@ use eframe::egui::Ui;
 use eframe::egui::Vec2;
 use komorebi_client::SocketMessage;
 use schemars::JsonSchema;
+use serde::de::Error;
 use serde::Deserialize;
+use serde::Deserializer;
 use serde::Serialize;
+use serde_json::from_str;
 use std::fmt::Display;
 use std::fmt::Formatter;
 
-#[derive(Copy, Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq)]
-//#[serde(untagged)]
+#[derive(Copy, Clone, Debug, Serialize, JsonSchema, PartialEq)]
+#[serde(untagged)]
 pub enum KomorebiLayout {
     Default(komorebi_client::DefaultLayout),
     Monocle,
     Floating,
     Paused,
     Custom,
+}
+
+impl<'de> Deserialize<'de> for KomorebiLayout {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let s: String = String::deserialize(deserializer)?;
+
+        // Attempt to deserialize the string as a DefaultLayout
+        if let Ok(default_layout) =
+            from_str::<komorebi_client::DefaultLayout>(&format!("\"{}\"", s))
+        {
+            return Ok(KomorebiLayout::Default(default_layout));
+        }
+
+        // Handle other cases
+        match s.as_str() {
+            "Monocle" => Ok(KomorebiLayout::Monocle),
+            "Floating" => Ok(KomorebiLayout::Floating),
+            "Paused" => Ok(KomorebiLayout::Paused),
+            "Custom" => Ok(KomorebiLayout::Custom),
+            _ => Err(Error::custom(format!("Invalid layout: {}", s))),
+        }
+    }
 }
 
 impl Display for KomorebiLayout {
@@ -94,77 +122,95 @@ impl KomorebiLayout {
     }
 
     fn show_icon(&mut self, font_id: FontId, ctx: &Context, ui: &mut Ui) {
-        let rounding = Rounding::same(1.0);
-
         // paint custom icons for the layout
         let size = Vec2::splat(font_id.size);
         let (response, painter) = ui.allocate_painter(size, Sense::hover());
         let color = ctx.style().visuals.selection.stroke.color;
         let stroke = Stroke::new(1.0, color);
         let mut rect = response.rect;
+        let rounding = Rounding::same(rect.width() * 0.1);
         rect = rect.shrink(stroke.width);
         let c = rect.center();
         let r = rect.width() / 2.0;
+        painter.rect_stroke(rect, rounding, stroke);
 
         match self {
             KomorebiLayout::Default(layout) => match layout {
                 komorebi_client::DefaultLayout::BSP => {
-                    painter.rect_stroke(rect, rounding, stroke);
                     painter.line_segment([c - vec2(0.0, r), c + vec2(0.0, r)], stroke);
                     painter.line_segment([c, c + vec2(r, 0.0)], stroke);
                     painter.line_segment([c + vec2(r / 2.0, 0.0), c + vec2(r / 2.0, r)], stroke);
                 }
                 komorebi_client::DefaultLayout::Columns => {
-                    painter.rect_stroke(rect, rounding, stroke);
                     painter.line_segment([c - vec2(r / 2.0, r), c + vec2(-r / 2.0, r)], stroke);
                     painter.line_segment([c - vec2(0.0, r), c + vec2(0.0, r)], stroke);
                     painter.line_segment([c - vec2(-r / 2.0, r), c + vec2(r / 2.0, r)], stroke);
                 }
                 komorebi_client::DefaultLayout::Rows => {
-                    painter.rect_stroke(rect, rounding, stroke);
                     painter.line_segment([c - vec2(r, r / 2.0), c + vec2(r, -r / 2.0)], stroke);
                     painter.line_segment([c - vec2(r, 0.0), c + vec2(r, 0.0)], stroke);
                     painter.line_segment([c - vec2(r, -r / 2.0), c + vec2(r, r / 2.0)], stroke);
                 }
                 komorebi_client::DefaultLayout::VerticalStack => {
-                    painter.rect_stroke(rect, rounding, stroke);
                     painter.line_segment([c - vec2(0.0, r), c + vec2(0.0, r)], stroke);
                     painter.line_segment([c, c + vec2(r, 0.0)], stroke);
                 }
                 komorebi_client::DefaultLayout::RightMainVerticalStack => {
-                    painter.rect_stroke(rect, rounding, stroke);
                     painter.line_segment([c - vec2(0.0, r), c + vec2(0.0, r)], stroke);
                     painter.line_segment([c - vec2(r, 0.0), c], stroke);
                 }
                 komorebi_client::DefaultLayout::HorizontalStack => {
-                    painter.rect_stroke(rect, rounding, stroke);
                     painter.line_segment([c - vec2(r, 0.0), c + vec2(r, 0.0)], stroke);
                     painter.line_segment([c, c + vec2(0.0, r)], stroke);
                 }
                 komorebi_client::DefaultLayout::UltrawideVerticalStack => {
-                    painter.rect_stroke(rect, rounding, stroke);
                     painter.line_segment([c - vec2(r / 2.0, r), c + vec2(-r / 2.0, r)], stroke);
                     painter.line_segment([c + vec2(r / 2.0, 0.0), c + vec2(r, 0.0)], stroke);
                     painter.line_segment([c - vec2(-r / 2.0, r), c + vec2(r / 2.0, r)], stroke);
                 }
                 komorebi_client::DefaultLayout::Grid => {
-                    painter.rect_stroke(rect, rounding, stroke);
                     painter.line_segment([c - vec2(r, 0.0), c + vec2(r, 0.0)], stroke);
                     painter.line_segment([c - vec2(0.0, r), c + vec2(0.0, r)], stroke);
                 }
             },
-            KomorebiLayout::Monocle => {
-                painter.rect_stroke(response.rect.shrink(stroke.width), rounding, stroke);
-            }
+            KomorebiLayout::Monocle => {}
             KomorebiLayout::Floating => {
-                painter.rect_stroke(response.rect.shrink(stroke.width), rounding, stroke);
-                // TODO
+                let mut rect_left = response.rect;
+                rect_left.set_width(rect.width() * 0.5);
+                rect_left.set_height(rect.height() * 0.5);
+                let mut rect_right = rect_left;
+                rect_left = rect_left.translate(Vec2::new(
+                    rect.width() * 0.1 + stroke.width,
+                    rect.width() * 0.1 + stroke.width,
+                ));
+                rect_right = rect_right.translate(Vec2::new(
+                    rect.width() * 0.35 + stroke.width,
+                    rect.width() * 0.35 + stroke.width,
+                ));
+                painter.rect_filled(rect_left, rounding, color);
+                painter.rect_stroke(rect_right, rounding, stroke);
             }
             KomorebiLayout::Paused => {
-                painter.rect_stroke(response.rect.shrink(stroke.width), rounding, stroke);
-                // TODO
+                let mut rect_left = response.rect;
+                rect_left.set_width(rect.width() * 0.25);
+                rect_left.set_height(rect.height() * 0.8);
+                let mut rect_right = rect_left;
+                rect_left = rect_left.translate(Vec2::new(
+                    rect.width() * 0.2 + stroke.width,
+                    rect.width() * 0.1 + stroke.width,
+                ));
+                rect_right = rect_right.translate(Vec2::new(
+                    rect.width() * 0.55 + stroke.width,
+                    rect.width() * 0.1 + stroke.width,
+                ));
+                painter.rect_filled(rect_left, rounding, color);
+                painter.rect_filled(rect_right, rounding, color);
             }
-            KomorebiLayout::Custom => {}
+            KomorebiLayout::Custom => {
+                painter.line_segment([c - vec2(0.0, r), c + vec2(0.0, r)], stroke);
+                painter.line_segment([c + vec2(0.0, r / 2.0), c + vec2(r, r / 2.0)], stroke);
+                painter.line_segment([c - vec2(0.0, r / 3.0), c - vec2(r, r / 3.0)], stroke);
+            }
         }
     }
 
@@ -231,6 +277,7 @@ impl KomorebiLayout {
                                 komorebi_client::DefaultLayout::UltrawideVerticalStack,
                             ),
                             KomorebiLayout::Default(komorebi_client::DefaultLayout::Grid),
+                            KomorebiLayout::Custom,
                             KomorebiLayout::Monocle,
                             KomorebiLayout::Floating,
                             KomorebiLayout::Paused,
