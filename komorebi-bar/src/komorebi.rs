@@ -68,8 +68,10 @@ pub struct KomorebiLayoutConfig {
 pub struct KomorebiFocusedWindowConfig {
     /// Enable the Komorebi Focused Window widget
     pub enable: bool,
-    /// Show the icon of the currently focused window
-    pub show_icon: bool,
+    /// DEPRECATED: use 'display' instead (Show the icon of the currently focused window)
+    pub show_icon: Option<bool>,
+    /// Display format of the currently focused window
+    pub display: Option<DisplayFormat>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
@@ -291,26 +293,43 @@ impl BarWidget for Komorebi {
 
                             if SelectableFrame::new(selected)
                                 .show(ui, |ui| {
-                                    if focused_window.show_icon {
+                                    // handle legacy setting
+                                    let format = focused_window.display.unwrap_or(
+                                        if focused_window.show_icon.unwrap_or(false) {
+                                            DisplayFormat::IconAndText
+                                        } else {
+                                            DisplayFormat::Text
+                                        },
+                                    );
+
+                                    if let DisplayFormat::Icon | DisplayFormat::IconAndText = format
+                                    {
                                         if let Some(img) = icon {
-                                            ui.add(
+                                            let response = ui.add(
                                                 Image::from(&img_to_texture(ctx, img))
                                                     .maintain_aspect_ratio(true)
                                                     .max_height(15.0),
                                             );
+
+                                            if let DisplayFormat::Icon = format {
+                                                response.on_hover_text(title);
+                                            }
                                         }
                                     }
 
-                                    let available_height = ui.available_height();
-                                    let mut custom_ui = CustomUi(ui);
+                                    if let DisplayFormat::Text | DisplayFormat::IconAndText = format
+                                    {
+                                        let available_height = ui.available_height();
+                                        let mut custom_ui = CustomUi(ui);
 
-                                    custom_ui.add_sized_left_to_right(
-                                        Vec2::new(
-                                            MAX_LABEL_WIDTH.load(Ordering::SeqCst) as f32,
-                                            available_height,
-                                        ),
-                                        Label::new(title).selectable(false).truncate(),
-                                    );
+                                        custom_ui.add_sized_left_to_right(
+                                            Vec2::new(
+                                                MAX_LABEL_WIDTH.load(Ordering::SeqCst) as f32,
+                                                available_height,
+                                            ),
+                                            Label::new(title).selectable(false).truncate(),
+                                        );
+                                    }
                                 })
                                 .clicked()
                             {

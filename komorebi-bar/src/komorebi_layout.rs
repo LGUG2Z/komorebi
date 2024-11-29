@@ -230,8 +230,8 @@ impl KomorebiLayout {
             .cloned()
             .unwrap_or_else(eframe::egui::FontId::default);
 
-        let mut show_options = render_config.states.show_komorebi_layout_options;
-        let format = layout_config.display.unwrap_or(DisplayFormat::Icon);
+        let mut show_options = RenderConfig::load_show_komorebi_layout_options();
+        let format = layout_config.display.unwrap_or(DisplayFormat::IconAndText);
 
         if !self.is_default() {
             show_options = false;
@@ -304,6 +304,6 @@ impl KomorebiLayout {
             }
         });
 
-        render_config.states.show_komorebi_layout_options = show_options;
+        RenderConfig::store_show_komorebi_layout_options(show_options);
     }
 }

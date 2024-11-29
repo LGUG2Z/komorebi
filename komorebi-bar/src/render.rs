@@ -11,6 +11,10 @@ use eframe::egui::Vec2;
 use schemars::JsonSchema;
 use serde::Deserialize;
 use serde::Serialize;
+use std::sync::atomic::AtomicUsize;
+use std::sync::atomic::Ordering;
+
+pub static SHOW_KOMOREBI_LAYOUT_OPTIONS: AtomicUsize = AtomicUsize::new(0);
 
 #[derive(Copy, Clone, Debug, Serialize, Deserialize, JsonSchema)]
 #[serde(tag = "kind")]
@@ -41,13 +45,6 @@ pub struct RenderConfig {
     pub more_inner_margin: bool,
     /// Set to true after the first time the apply_on_widget was called on an alignment
     pub applied_on_widget: bool,
-    /// used to store different states of the UI
-    pub states: RenderStates,
-}
-
-#[derive(Copy, Clone)]
-pub struct RenderStates {
-    pub show_komorebi_layout_options: bool,
 }
 
 pub trait RenderExt {
@@ -64,14 +61,19 @@ impl RenderExt for &KomobarConfig {
             alignment: None,
             more_inner_margin: false,
             applied_on_widget: false,
-            states: RenderStates {
-                show_komorebi_layout_options: false,
-            },
         }
     }
 }
 
 impl RenderConfig {
+    pub fn load_show_komorebi_layout_options() -> bool {
+        SHOW_KOMOREBI_LAYOUT_OPTIONS.load(Ordering::SeqCst) != 0
+    }
+
+    pub fn store_show_komorebi_layout_options(show: bool) {
+        SHOW_KOMOREBI_LAYOUT_OPTIONS.store(show as usize, Ordering::SeqCst);
+    }
+
     pub fn new() -> Self {
         Self {
             monitor_idx: 0,
@@ -81,9 +83,6 @@ impl RenderConfig {
             alignment: None,
             more_inner_margin: false,
             applied_on_widget: false,
-            states: RenderStates {
-                show_komorebi_layout_options: false,
-            },
         }
     }
 

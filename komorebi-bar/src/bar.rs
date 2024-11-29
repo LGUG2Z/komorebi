@@ -493,7 +493,6 @@ impl eframe::App for Komobar {
         };
 
         let mut render_config = self.render_config.borrow_mut();
-        let mut states = render_config.states;
 
         CentralPanel::default().frame(frame).show(ctx, |ui| {
             // Apply grouping logic for the bar as a whole
@@ -509,9 +508,6 @@ impl eframe::App for Komobar {
                                 w.render(ctx, ui, &mut render_conf);
                             }
                         });
-
-                        states.show_komorebi_layout_options =
-                            render_conf.states.show_komorebi_layout_options;
                     });
 
                     // Right-aligned widgets layout
@@ -548,8 +544,6 @@ impl eframe::App for Komobar {
                 })
             })
         });
-
-        render_config.states = states;
     }
 }
 
