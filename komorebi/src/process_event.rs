@@ -709,6 +709,20 @@ impl WindowManager {
                         known_hwnds.push(window.hwnd);
                     }
                 }
+
+                for window in workspace.floating_windows() {
+                    known_hwnds.push(window.hwnd);
+                }
+
+                if let Some(window) = workspace.maximized_window() {
+                    known_hwnds.push(window.hwnd);
+                }
+
+                if let Some(container) = workspace.monocle_container() {
+                    for window in container.windows() {
+                        known_hwnds.push(window.hwnd);
+                    }
+                }
             }
         }
 
