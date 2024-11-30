@@ -16,7 +16,6 @@ use eframe::egui::Context;
 use eframe::egui::Image;
 use eframe::egui::Label;
 use eframe::egui::SelectableLabel;
-use eframe::egui::Sense;
 use eframe::egui::TextureHandle;
 use eframe::egui::TextureOptions;
 use eframe::egui::Ui;
@@ -224,9 +223,10 @@ impl BarWidget for Komorebi {
                 for (name, location) in configuration_switcher.configurations.iter() {
                     let path = PathBuf::from(location);
                     if path.is_file() {
-                        config.apply_on_widget(true, ui,|ui|{
-                    if ui
-                            .add(Label::new(name).selectable(false).sense(Sense::click()))
+                        config.apply_on_widget(false, ui,|ui|{
+                    if SelectableFrame::new(false).show(ui, |ui|{
+                          ui.add(Label::new(name).selectable(false))
+                            })
                             .clicked()
                         {
                             let canonicalized = dunce::canonicalize(path.clone()).unwrap_or(path);

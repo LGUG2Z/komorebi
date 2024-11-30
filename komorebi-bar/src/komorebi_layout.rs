@@ -277,7 +277,7 @@ impl KomorebiLayout {
                                 komorebi_client::DefaultLayout::UltrawideVerticalStack,
                             ),
                             KomorebiLayout::Default(komorebi_client::DefaultLayout::Grid),
-                            KomorebiLayout::Custom,
+                            //KomorebiLayout::Custom,
                             KomorebiLayout::Monocle,
                             KomorebiLayout::Floating,
                             KomorebiLayout::Paused,
