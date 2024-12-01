@@ -4,6 +4,7 @@ use eframe::egui::Response;
 use eframe::egui::Sense;
 use eframe::egui::Ui;
 
+/// Same as SelectableLabel, but supports all content
 pub struct SelectableFrame {
     selected: bool,
 }
@@ -12,9 +13,7 @@ impl SelectableFrame {
     pub fn new(selected: bool) -> Self {
         Self { selected }
     }
-}
 
-impl SelectableFrame {
     pub fn show<R>(self, ui: &mut Ui, add_contents: impl FnOnce(&mut Ui) -> R) -> Response {
         let Self { selected } = self;
 
