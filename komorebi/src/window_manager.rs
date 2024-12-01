@@ -501,6 +501,35 @@ impl WindowManager {
         None
     }
 
+    /// Calculates the direction of a move across monitors given a specific monitor index
+    pub fn direction_from_monitor_idx(
+        &self,
+        target_monitor_idx: usize,
+    ) -> Option<OperationDirection> {
+        let current_monitor_idx = self.focused_monitor_idx();
+        if current_monitor_idx == target_monitor_idx {
+            return None;
+        }
+
+        let current_monitor_size = self.focused_monitor_size().ok()?;
+        let target_monitor_size = *self.monitors().get(target_monitor_idx)?.size();
+
+        if target_monitor_size.left + target_monitor_size.right == current_monitor_size.left {
+            return Some(OperationDirection::Left);
+        }
+        if current_monitor_size.right + current_monitor_size.left == target_monitor_size.left {
+            return Some(OperationDirection::Right);
+        }
+        if target_monitor_size.top + target_monitor_size.bottom == current_monitor_size.top {
+            return Some(OperationDirection::Up);
+        }
+        if current_monitor_size.top + current_monitor_size.bottom == target_monitor_size.top {
+            return Some(OperationDirection::Down);
+        }
+
+        None
+    }
+
     #[allow(clippy::too_many_arguments)]
     #[tracing::instrument(skip(self), level = "debug")]
     fn add_window_handle_to_move_based_on_workspace_rule(
@@ -1620,6 +1649,7 @@ impl WindowManager {
         monitor_idx: usize,
         workspace_idx: Option<usize>,
         follow: bool,
+        move_direction: Option<OperationDirection>,
     ) -> Result<()> {
         self.handle_unmanaged_window_behaviour()?;
 
@@ -1696,7 +1726,11 @@ impl WindowManager {
                 .map(|w| w.hwnd)
                 .collect::<Vec<_>>();
 
-            target_monitor.add_container(container, workspace_idx)?;
+            if let Some(direction) = move_direction {
+                target_monitor.add_container_with_direction(container, workspace_idx, direction)?;
+            } else {
+                target_monitor.add_container(container, workspace_idx)?;
+            }
 
             if let Some(workspace) = target_monitor.focused_workspace() {
                 if !*workspace.tile() {
@@ -2008,15 +2042,13 @@ impl WindowManager {
                     .ok_or_else(|| anyhow!("there is no container or monitor in this direction"))?;
 
                 {
-                    // remove the container from the origin monitor workspace
-                    let origin_container = self
-                        .focused_workspace_mut()?
-                        .remove_container_by_idx(origin_container_idx)
-                        .ok_or_else(|| {
-                            anyhow!("could not remove container at given origin index")
-                        })?;
-
-                    self.focused_workspace_mut()?.focus_previous_container();
+                    // actually move the container to target monitor using the direction
+                    self.move_container_to_monitor(
+                        target_monitor_idx,
+                        None,
+                        true,
+                        Some(direction),
+                    )?;
 
                     // focus the target monitor
                     self.focus_monitor(target_monitor_idx)?;
@@ -2035,79 +2067,6 @@ impl WindowManager {
 
                     // get a mutable ref to the focused workspace on the target monitor
                     let target_workspace = self.focused_workspace_mut()?;
-
-                    match direction {
-                        OperationDirection::Left => {
-                            // insert the origin container into the focused workspace on the target monitor
-                            // at the back (or rightmost position) if we are moving across a boundary to
-                            // the left (back = right side of the target)
-                            match target_workspace.layout() {
-                                Layout::Default(layout) => match layout {
-                                    DefaultLayout::RightMainVerticalStack => {
-                                        target_workspace.add_container_to_front(origin_container);
-                                    }
-                                    DefaultLayout::UltrawideVerticalStack => {
-                                        if target_workspace.containers().len() == 1 {
-                                            target_workspace
-                                                .insert_container_at_idx(0, origin_container);
-                                        } else {
-                                            target_workspace
-                                                .add_container_to_back(origin_container);
-                                        }
-                                    }
-                                    _ => {
-                                        target_workspace.add_container_to_back(origin_container);
-                                    }
-                                },
-                                Layout::Custom(_) => {
-                                    target_workspace.add_container_to_back(origin_container);
-                                }
-                            }
-                        }
-                        OperationDirection::Right => {
-                            // insert the origin container into the focused workspace on the target monitor
-                            // at the front (or leftmost position) if we are moving across a boundary to the
-                            // right (front = left side of the target)
-                            match target_workspace.layout() {
-                                Layout::Default(layout) => {
-                                    let target_index =
-                                        layout.leftmost_index(target_workspace.containers().len());
-
-                                    match layout {
-                                        DefaultLayout::RightMainVerticalStack
-                                        | DefaultLayout::UltrawideVerticalStack => {
-                                            if target_workspace.containers().len() == 1 {
-                                                target_workspace
-                                                    .add_container_to_back(origin_container);
-                                            } else {
-                                                target_workspace.insert_container_at_idx(
-                                                    target_index,
-                                                    origin_container,
-                                                );
-                                            }
-                                        }
-                                        _ => {
-                                            target_workspace.insert_container_at_idx(
-                                                target_index,
-                                                origin_container,
-                                            );
-                                        }
-                                    }
-                                }
-                                Layout::Custom(_) => {
-                                    target_workspace.add_container_to_front(origin_container);
-                                }
-                            }
-                        }
-                        OperationDirection::Up | OperationDirection::Down => {
-                            // insert the origin container into the focused workspace on the target monitor
-                            // at the position where the currently focused container on that workspace is
-                            target_workspace.insert_container_at_idx(
-                                target_workspace.focused_container_idx(),
-                                origin_container,
-                            );
-                        }
-                    };
 
                     // if there is only one container on the target workspace after the insertion
                     // it means that there won't be one swapped back, so we have to decrement the
