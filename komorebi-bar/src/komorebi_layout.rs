@@ -5,10 +5,12 @@ use crate::selected_frame::SelectableFrame;
 use eframe::egui::vec2;
 use eframe::egui::Context;
 use eframe::egui::FontId;
+use eframe::egui::Frame;
 use eframe::egui::Label;
 use eframe::egui::Rounding;
 use eframe::egui::Sense;
 use eframe::egui::Stroke;
+use eframe::egui::TextStyle;
 use eframe::egui::Ui;
 use eframe::egui::Vec2;
 use komorebi_client::SocketMessage;
@@ -226,9 +228,9 @@ impl KomorebiLayout {
         let font_id = ctx
             .style()
             .text_styles
-            .get(&eframe::egui::TextStyle::Body)
+            .get(&TextStyle::Body)
             .cloned()
-            .unwrap_or_else(eframe::egui::FontId::default);
+            .unwrap_or_else(FontId::default);
 
         let mut show_options = RenderConfig::load_show_komorebi_layout_options();
         let format = layout_config.display.unwrap_or(DisplayFormat::IconAndText);
@@ -256,7 +258,7 @@ impl KomorebiLayout {
 
             if show_options {
                 if let Some(workspace_idx) = workspace_idx {
-                    eframe::egui::Frame::none().show(ui, |ui| {
+                    Frame::none().show(ui, |ui| {
                         ui.add(
                             Label::new(egui_phosphor::regular::ARROW_FAT_LINES_RIGHT.to_string())
                                 .selectable(false),

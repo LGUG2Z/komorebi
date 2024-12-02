@@ -10,11 +10,19 @@ use crate::MAX_LABEL_WIDTH;
 use crate::MONITOR_INDEX;
 use crossbeam_channel::Receiver;
 use crossbeam_channel::TryRecvError;
+use eframe::egui::vec2;
 use eframe::egui::Color32;
 use eframe::egui::ColorImage;
 use eframe::egui::Context;
+use eframe::egui::FontId;
+use eframe::egui::Frame;
 use eframe::egui::Image;
 use eframe::egui::Label;
+use eframe::egui::Margin;
+use eframe::egui::Rounding;
+use eframe::egui::Sense;
+use eframe::egui::Stroke;
+use eframe::egui::TextStyle;
 use eframe::egui::TextureHandle;
 use eframe::egui::TextureOptions;
 use eframe::egui::Ui;
@@ -147,35 +155,63 @@ impl BarWidget for Komorebi {
                             komorebi_notification_state.selected_workspace.eq(ws),
                         )
                         .show(ui, |ui| {
-                            let mut response = None;
+                            let mut has_icon = false;
 
                             if let DisplayFormat::Icon | DisplayFormat::IconAndText = format {
-                                if let Some(container_information) = container_information {
-                                    for icon in container_information.icons.iter().flatten() {
-                                        response = Some(
-                                            ui.add(
-                                                Image::from(&img_to_texture(ctx, icon))
-                                                    .maintain_aspect_ratio(true)
-                                                    .shrink_to_fit(),
-                                            ),
-                                        );
-                                    }
+                                let icons: Vec<_> =
+                                    container_information.icons.iter().flatten().collect();
+
+                                if !icons.is_empty() {
+                                    Frame::none()
+                                        .inner_margin(Margin::same(
+                                            ui.style().spacing.button_padding.y,
+                                        ))
+                                        .show(ui, |ui| {
+                                            for icon in icons {
+                                                ui.add(
+                                                    Image::from(&img_to_texture(ctx, icon))
+                                                        .maintain_aspect_ratio(true)
+                                                        .shrink_to_fit(),
+                                                );
+
+                                                if !has_icon {
+                                                    has_icon = true;
+                                                }
+                                            }
+                                        });
                                 }
                             }
 
+                            // draw a custom icon when there is no app icon
                             if match format {
-                                DisplayFormat::Icon => response.is_none(),
+                                DisplayFormat::Icon => !has_icon,
                                 _ => false,
                             } {
-                                ui.add(
-                                    Label::new(egui_phosphor::regular::PLACEHOLDER.to_string())
-                                        .selectable(false),
-                                )
+                                let font_id = ctx
+                                    .style()
+                                    .text_styles
+                                    .get(&TextStyle::Body)
+                                    .cloned()
+                                    .unwrap_or_else(FontId::default);
+
+                                let (response, painter) =
+                                    ui.allocate_painter(Vec2::splat(font_id.size), Sense::hover());
+                                let stroke =
+                                    Stroke::new(1.0, ctx.style().visuals.selection.stroke.color);
+                                let mut rect = response.rect;
+                                let rounding = Rounding::same(rect.width() * 0.1);
+                                rect = rect.shrink(stroke.width);
+                                let c = rect.center();
+                                let r = rect.width() / 2.0;
+                                painter.rect_stroke(rect, rounding, stroke);
+                                painter.line_segment([c - vec2(r, r), c + vec2(r, r)], stroke);
+
+                                response.on_hover_text(ws.to_string())
                             } else if match format {
-                                DisplayFormat::Icon => response.is_some(),
+                                DisplayFormat::Icon => has_icon,
                                 _ => false,
                             } {
-                                response.unwrap()
+                                ui.response().on_hover_text(ws.to_string())
                             } else {
                                 ui.add(Label::new(ws.to_string()).selectable(false))
                             }
@@ -350,15 +386,21 @@ impl BarWidget for Komorebi {
                                     if let DisplayFormat::Icon | DisplayFormat::IconAndText = format
                                     {
                                         if let Some(img) = icon {
-                                            let response = ui.add(
-                                                Image::from(&img_to_texture(ctx, img))
-                                                    .maintain_aspect_ratio(true)
-                                                    .shrink_to_fit(),
-                                            );
+                                            Frame::none()
+                                                .inner_margin(Margin::same(
+                                                    ui.style().spacing.button_padding.y,
+                                                ))
+                                                .show(ui, |ui| {
+                                                    let response = ui.add(
+                                                        Image::from(&img_to_texture(ctx, img))
+                                                            .maintain_aspect_ratio(true)
+                                                            .shrink_to_fit(),
+                                                    );
 
-                                            if let DisplayFormat::Icon = format {
-                                                response.on_hover_text(title);
-                                            }
+                                                    if let DisplayFormat::Icon = format {
+                                                        response.on_hover_text(title);
+                                                    }
+                                                });
                                         }
                                     }
 
@@ -429,10 +471,7 @@ fn img_to_texture(ctx: &Context, rgba_image: &RgbaImage) -> TextureHandle {
 
 #[derive(Clone, Debug)]
 pub struct KomorebiNotificationState {
-    pub workspaces: Vec<(
-        String,
-        Option<KomorebiNotificationStateContainerInformation>,
-    )>,
+    pub workspaces: Vec<(String, KomorebiNotificationStateContainerInformation)>,
     pub selected_workspace: String,
     pub focused_container_information: KomorebiNotificationStateContainerInformation,
     pub layout: KomorebiLayout,
@@ -510,7 +549,7 @@ impl KomorebiNotificationState {
                     if should_show {
                         workspaces.push((
                             ws.name().to_owned().unwrap_or_else(|| format!("{}", i + 1)),
-                            Some(ws.into()),
+                            ws.into(),
                         ));
                     }
                 }

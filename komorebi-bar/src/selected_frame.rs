@@ -22,12 +22,10 @@ impl SelectableFrame {
                 let response = ui.interact(ui.max_rect(), ui.unique_id(), Sense::click());
 
                 if ui.is_rect_visible(response.rect) {
-                    let inner_margin = Margin {
-                        left: ui.style().spacing.button_padding.x,
-                        right: ui.style().spacing.button_padding.x,
-                        top: ui.style().spacing.button_padding.y,
-                        bottom: ui.style().spacing.button_padding.y,
-                    };
+                    let inner_margin = Margin::symmetric(
+                        ui.style().spacing.button_padding.x,
+                        ui.style().spacing.button_padding.y,
+                    );
 
                     if selected
                         || response.hovered()
