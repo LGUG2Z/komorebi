@@ -132,6 +132,7 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                 );
 
                 ACTIVE.store(true, Ordering::SeqCst);
+                border_manager::send_notification(None);
             }
 
             continue 'receiver;
