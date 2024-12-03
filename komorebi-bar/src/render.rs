@@ -11,6 +11,10 @@ use eframe::egui::Vec2;
 use schemars::JsonSchema;
 use serde::Deserialize;
 use serde::Serialize;
+use std::sync::atomic::AtomicUsize;
+use std::sync::atomic::Ordering;
+
+static SHOW_KOMOREBI_LAYOUT_OPTIONS: AtomicUsize = AtomicUsize::new(0);
 
 #[derive(Copy, Clone, Debug, Serialize, Deserialize, JsonSchema)]
 #[serde(tag = "kind")]
@@ -27,6 +31,8 @@ pub enum Grouping {
 
 #[derive(Copy, Clone)]
 pub struct RenderConfig {
+    /// Komorebi monitor index of the monitor on which to render the bar
+    pub monitor_idx: usize,
     /// Spacing between widgets
     pub spacing: f32,
     /// Sets how widgets are grouped
@@ -48,6 +54,7 @@ pub trait RenderExt {
 impl RenderExt for &KomobarConfig {
     fn new_renderconfig(&self, background_color: Color32) -> RenderConfig {
         RenderConfig {
+            monitor_idx: self.monitor.index,
             spacing: self.widget_spacing.unwrap_or(10.0),
             grouping: self.grouping.unwrap_or(Grouping::None),
             background_color,
@@ -59,8 +66,17 @@ impl RenderExt for &KomobarConfig {
 }
 
 impl RenderConfig {
+    pub fn load_show_komorebi_layout_options() -> bool {
+        SHOW_KOMOREBI_LAYOUT_OPTIONS.load(Ordering::SeqCst) != 0
+    }
+
+    pub fn store_show_komorebi_layout_options(show: bool) {
+        SHOW_KOMOREBI_LAYOUT_OPTIONS.store(show as usize, Ordering::SeqCst);
+    }
+
     pub fn new() -> Self {
         Self {
+            monitor_idx: 0,
             spacing: 0.0,
             grouping: Grouping::None,
             background_color: Color32::BLACK,

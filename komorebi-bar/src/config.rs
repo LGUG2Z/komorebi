@@ -187,3 +187,13 @@ pub enum LabelPrefix {
     /// Show an icon and text
     IconAndText,
 }
+
+#[derive(Copy, Clone, Debug, Serialize, Deserialize, JsonSchema)]
+pub enum DisplayFormat {
+    /// Show only icon
+    Icon,
+    /// Show only text
+    Text,
+    /// Show both icon and text
+    IconAndText,
+}
