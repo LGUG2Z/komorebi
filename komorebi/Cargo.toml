@@ -42,7 +42,6 @@ tracing-appender = { workspace = true }
 tracing-subscriber = { workspace = true }
 uds_windows = { workspace = true }
 which = { workspace = true }
-widestring = "1"
 win32-display-data = { workspace = true }
 windows = { workspace = true }
 windows-core = { workspace = true }
