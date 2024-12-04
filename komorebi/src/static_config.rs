@@ -11,7 +11,6 @@ use crate::border_manager;
 use crate::border_manager::ZOrder;
 use crate::border_manager::IMPLEMENTATION;
 use crate::border_manager::STYLE;
-use crate::border_manager::Z_ORDER;
 use crate::colour::Colour;
 use crate::core::BorderImplementation;
 use crate::core::StackbarLabel;
@@ -297,7 +296,7 @@ pub struct StaticConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(alias = "active_window_border_style")]
     pub border_style: Option<BorderStyle>,
-    /// Active window border z-order (default: System)
+    /// DEPRECATED from v0.1.31: no longer required
     #[serde(skip_serializing_if = "Option::is_none")]
     pub border_z_order: Option<ZOrder>,
     /// Active window border implementation (default: Komorebi)
@@ -497,7 +496,7 @@ impl StaticConfig {
     }
 
     pub fn deprecated(raw: &str) {
-        let deprecated_options = ["invisible_borders"];
+        let deprecated_options = ["invisible_borders", "border_z_order"];
         let deprecated_variants = vec![
             ("Hide", "window_hiding_behaviour", "Cloak"),
             ("Minimize", "window_hiding_behaviour", "Cloak"),
@@ -600,7 +599,7 @@ impl From<&WindowManager> for StaticConfig {
             ),
             transparency_ignore_rules: None,
             border_style: Option::from(STYLE.load()),
-            border_z_order: Option::from(Z_ORDER.load()),
+            border_z_order: None,
             border_implementation: Option::from(IMPLEMENTATION.load()),
             default_workspace_padding: Option::from(
                 DEFAULT_WORKSPACE_PADDING.load(Ordering::SeqCst),

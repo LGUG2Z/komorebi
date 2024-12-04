@@ -5,16 +5,18 @@ use crate::border_manager::BORDER_WIDTH;
 use crate::border_manager::FOCUS_STATE;
 use crate::border_manager::RENDER_TARGETS;
 use crate::border_manager::STYLE;
-use crate::border_manager::Z_ORDER;
 use crate::core::BorderStyle;
 use crate::core::Rect;
 use crate::windows_api;
 use crate::WindowsApi;
 use crate::WINDOWS_11;
+use color_eyre::eyre::anyhow;
+use std::collections::HashMap;
 use std::ops::Deref;
 use std::sync::atomic::Ordering;
 use std::sync::mpsc;
 use std::sync::LazyLock;
+use std::sync::OnceLock;
 use windows::Foundation::Numerics::Matrix3x2;
 use windows::Win32::Foundation::BOOL;
 use windows::Win32::Foundation::FALSE;
@@ -30,6 +32,8 @@ use windows::Win32::Graphics::Direct2D::Common::D2D_RECT_F;
 use windows::Win32::Graphics::Direct2D::Common::D2D_SIZE_U;
 use windows::Win32::Graphics::Direct2D::D2D1CreateFactory;
 use windows::Win32::Graphics::Direct2D::ID2D1Factory;
+use windows::Win32::Graphics::Direct2D::ID2D1HwndRenderTarget;
+use windows::Win32::Graphics::Direct2D::ID2D1SolidColorBrush;
 use windows::Win32::Graphics::Direct2D::D2D1_ANTIALIAS_MODE_PER_PRIMITIVE;
 use windows::Win32::Graphics::Direct2D::D2D1_BRUSH_PROPERTIES;
 use windows::Win32::Graphics::Direct2D::D2D1_FACTORY_TYPE_MULTI_THREADED;
@@ -43,22 +47,26 @@ use windows::Win32::Graphics::Dwm::DWM_BB_BLURREGION;
 use windows::Win32::Graphics::Dwm::DWM_BB_ENABLE;
 use windows::Win32::Graphics::Dwm::DWM_BLURBEHIND;
 use windows::Win32::Graphics::Dxgi::Common::DXGI_FORMAT_UNKNOWN;
-use windows::Win32::Graphics::Gdi::BeginPaint;
 use windows::Win32::Graphics::Gdi::CreateRectRgn;
-use windows::Win32::Graphics::Gdi::EndPaint;
 use windows::Win32::Graphics::Gdi::InvalidateRect;
-use windows::Win32::Graphics::Gdi::PAINTSTRUCT;
+use windows::Win32::Graphics::Gdi::ValidateRect;
 use windows::Win32::UI::WindowsAndMessaging::DefWindowProcW;
 use windows::Win32::UI::WindowsAndMessaging::DispatchMessageW;
 use windows::Win32::UI::WindowsAndMessaging::GetMessageW;
 use windows::Win32::UI::WindowsAndMessaging::GetSystemMetrics;
+use windows::Win32::UI::WindowsAndMessaging::GetWindowLongPtrW;
 use windows::Win32::UI::WindowsAndMessaging::PostQuitMessage;
+use windows::Win32::UI::WindowsAndMessaging::SetWindowLongPtrW;
 use windows::Win32::UI::WindowsAndMessaging::TranslateMessage;
+use windows::Win32::UI::WindowsAndMessaging::CREATESTRUCTW;
+use windows::Win32::UI::WindowsAndMessaging::EVENT_OBJECT_DESTROY;
+use windows::Win32::UI::WindowsAndMessaging::EVENT_OBJECT_LOCATIONCHANGE;
+use windows::Win32::UI::WindowsAndMessaging::GWLP_USERDATA;
 use windows::Win32::UI::WindowsAndMessaging::MSG;
 use windows::Win32::UI::WindowsAndMessaging::SM_CXVIRTUALSCREEN;
+use windows::Win32::UI::WindowsAndMessaging::WM_CREATE;
 use windows::Win32::UI::WindowsAndMessaging::WM_DESTROY;
 use windows::Win32::UI::WindowsAndMessaging::WM_PAINT;
-use windows::Win32::UI::WindowsAndMessaging::WM_SIZE;
 use windows::Win32::UI::WindowsAndMessaging::WNDCLASSW;
 use windows_core::PCWSTR;
 
@@ -89,14 +97,36 @@ pub extern "system" fn border_hwnds(hwnd: HWND, lparam: LPARAM) -> BOOL {
     true.into()
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Border {
     pub hwnd: isize,
+    pub render_target: OnceLock<ID2D1HwndRenderTarget>,
+    pub tracking_hwnd: isize,
+    pub window_rect: Rect,
+    pub window_kind: WindowKind,
+    pub style: BorderStyle,
+    pub width: i32,
+    pub offset: i32,
+    pub brush_properties: D2D1_BRUSH_PROPERTIES,
+    pub rounded_rect: D2D1_ROUNDED_RECT,
+    pub brushes: HashMap<WindowKind, ID2D1SolidColorBrush>,
 }
 
 impl From<isize> for Border {
     fn from(value: isize) -> Self {
-        Self { hwnd: value }
+        Self {
+            hwnd: value,
+            render_target: OnceLock::new(),
+            tracking_hwnd: 0,
+            window_rect: Rect::default(),
+            window_kind: WindowKind::Unfocused,
+            style: STYLE.load(),
+            width: BORDER_WIDTH.load(Ordering::Relaxed),
+            offset: BORDER_OFFSET.load(Ordering::Relaxed),
+            brush_properties: D2D1_BRUSH_PROPERTIES::default(),
+            rounded_rect: D2D1_ROUNDED_RECT::default(),
+            brushes: HashMap::new(),
+        }
     }
 }
 
@@ -105,7 +135,7 @@ impl Border {
         HWND(windows_api::as_ptr!(self.hwnd))
     }
 
-    pub fn create(id: &str) -> color_eyre::Result<Self> {
+    pub fn create(id: &str, tracking_hwnd: isize) -> color_eyre::Result<Self> {
         let name: Vec<u16> = format!("komoborder-{id}\0").encode_utf16().collect();
         let class_name = PCWSTR(name.as_ptr());
 
@@ -121,12 +151,30 @@ impl Border {
 
         let _ = WindowsApi::register_class_w(&window_class);
 
-        let (hwnd_sender, hwnd_receiver) = mpsc::channel();
+        let (border_sender, border_receiver) = mpsc::channel();
 
         let instance = h_module.0 as isize;
         std::thread::spawn(move || -> color_eyre::Result<()> {
-            let hwnd = WindowsApi::create_border_window(PCWSTR(name.as_ptr()), instance)?;
-            hwnd_sender.send(hwnd)?;
+            let mut border = Self {
+                hwnd: 0,
+                render_target: OnceLock::new(),
+                tracking_hwnd,
+                window_rect: WindowsApi::window_rect(tracking_hwnd).unwrap_or_default(),
+                window_kind: WindowKind::Unfocused,
+                style: STYLE.load(),
+                width: BORDER_WIDTH.load(Ordering::Relaxed),
+                offset: BORDER_OFFSET.load(Ordering::Relaxed),
+                brush_properties: Default::default(),
+                rounded_rect: Default::default(),
+                brushes: HashMap::new(),
+            };
+
+            let border_pointer = std::ptr::addr_of!(border);
+            let hwnd =
+                WindowsApi::create_border_window(PCWSTR(name.as_ptr()), instance, border_pointer)?;
+
+            border.hwnd = hwnd;
+            border_sender.send(border_pointer as isize)?;
 
             let mut msg: MSG = MSG::default();
 
@@ -145,8 +193,8 @@ impl Border {
             Ok(())
         });
 
-        let hwnd = hwnd_receiver.recv()?;
-        let border = Self { hwnd };
+        let border_ref = border_receiver.recv()?;
+        let border = unsafe { &mut *(border_ref as *mut Border) };
 
         // I have literally no idea, apparently this is to get rid of the black pixels
         // around the edges of rounded corners? @lukeyou05 borrowed this from PowerToys
@@ -167,7 +215,7 @@ impl Border {
         }
 
         let hwnd_render_target_properties = D2D1_HWND_RENDER_TARGET_PROPERTIES {
-            hwnd: HWND(windows_api::as_ptr!(hwnd)),
+            hwnd: HWND(windows_api::as_ptr!(border.hwnd)),
             pixelSize: Default::default(),
             presentOptions: D2D1_PRESENT_OPTIONS_IMMEDIATELY,
         };
@@ -188,10 +236,47 @@ impl Border {
                 .CreateHwndRenderTarget(&render_target_properties, &hwnd_render_target_properties)
         } {
             Ok(render_target) => unsafe {
+                border.brush_properties = *BRUSH_PROPERTIES.deref();
+                for window_kind in [
+                    WindowKind::Single,
+                    WindowKind::Stack,
+                    WindowKind::Monocle,
+                    WindowKind::Unfocused,
+                    WindowKind::Floating,
+                ] {
+                    let color = window_kind_colour(window_kind);
+                    let color = D2D1_COLOR_F {
+                        r: ((color & 0xFF) as f32) / 255.0,
+                        g: (((color >> 8) & 0xFF) as f32) / 255.0,
+                        b: (((color >> 16) & 0xFF) as f32) / 255.0,
+                        a: 1.0,
+                    };
+
+                    if let Ok(brush) =
+                        render_target.CreateSolidColorBrush(&color, Some(&border.brush_properties))
+                    {
+                        border.brushes.insert(window_kind, brush);
+                    }
+                }
+
                 render_target.SetAntialiasMode(D2D1_ANTIALIAS_MODE_PER_PRIMITIVE);
+
+                if border.render_target.set(render_target.clone()).is_err() {
+                    return Err(anyhow!("could not store border render target"));
+                }
+
+                border.rounded_rect = {
+                    let radius = 8.0 + border.width as f32 / 2.0;
+                    D2D1_ROUNDED_RECT {
+                        rect: Default::default(),
+                        radiusX: radius,
+                        radiusY: radius,
+                    }
+                };
+
                 let mut render_targets = RENDER_TARGETS.lock();
-                render_targets.insert(hwnd, render_target);
-                Ok(border)
+                render_targets.insert(border.hwnd, render_target);
+                Ok(border.clone())
             },
             Err(error) => Err(error.into()),
         }
@@ -203,27 +288,17 @@ impl Border {
         WindowsApi::close_window(self.hwnd)
     }
 
-    pub fn update(&self, rect: &Rect, should_invalidate: bool) -> color_eyre::Result<()> {
-        // Make adjustments to the border
+    pub fn set_position(&self, rect: &Rect, reference_hwnd: isize) -> color_eyre::Result<()> {
         let mut rect = *rect;
-        rect.add_margin(BORDER_WIDTH.load(Ordering::Relaxed));
-        rect.add_padding(-BORDER_OFFSET.load(Ordering::Relaxed));
+        rect.add_margin(self.width);
+        rect.add_padding(-self.offset);
 
-        // Update the position of the border if required
-        // This effectively handles WM_MOVE
-        // Also if I remove this no borders render at all lol
-        if !WindowsApi::window_rect(self.hwnd)?.eq(&rect) {
-            WindowsApi::set_border_pos(self.hwnd, &rect, Z_ORDER.load().into())?;
-        }
-
-        // Invalidate the rect to trigger the callback to update colours etc.
-        if should_invalidate {
-            self.invalidate();
-        }
+        WindowsApi::set_border_pos(self.hwnd, &rect, reference_hwnd)?;
 
         Ok(())
     }
 
+    // this triggers WM_PAINT in the callback below
     pub fn invalidate(&self) {
         let _ = unsafe { InvalidateRect(self.hwnd(), None, false) };
     }
@@ -236,50 +311,73 @@ impl Border {
     ) -> LRESULT {
         unsafe {
             match message {
-                WM_SIZE | WM_PAINT => {
-                    if let Ok(rect) = WindowsApi::window_rect(window.0 as isize) {
-                        let render_targets = RENDER_TARGETS.lock();
-                        if let Some(render_target) = render_targets.get(&(window.0 as isize)) {
-                            let pixel_size = D2D_SIZE_U {
-                                width: rect.right as u32,
-                                height: rect.bottom as u32,
-                            };
+                WM_CREATE => {
+                    let mut border_pointer: *mut Border =
+                        GetWindowLongPtrW(window, GWLP_USERDATA) as _;
 
-                            let border_width = BORDER_WIDTH.load(Ordering::SeqCst);
-                            let border_offset = BORDER_OFFSET.load(Ordering::SeqCst);
+                    if border_pointer.is_null() {
+                        let create_struct: *mut CREATESTRUCTW = lparam.0 as *mut _;
+                        border_pointer = (*create_struct).lpCreateParams as *mut _;
+                        SetWindowLongPtrW(window, GWLP_USERDATA, border_pointer as _);
+                    }
 
-                            let rect = D2D_RECT_F {
+                    LRESULT(0)
+                }
+                EVENT_OBJECT_DESTROY => {
+                    let border_pointer: *mut Border = GetWindowLongPtrW(window, GWLP_USERDATA) as _;
+
+                    if border_pointer.is_null() {
+                        return LRESULT(0);
+                    }
+
+                    // we don't actually want to destroy the window here, just hide it for quicker
+                    // visual feedback to the user; the actual destruction will be handled by the
+                    // core border manager loop
+                    WindowsApi::hide_window(window.0 as isize);
+                    LRESULT(0)
+                }
+                EVENT_OBJECT_LOCATIONCHANGE => {
+                    let border_pointer: *mut Border = GetWindowLongPtrW(window, GWLP_USERDATA) as _;
+
+                    if border_pointer.is_null() {
+                        return LRESULT(0);
+                    }
+
+                    let reference_hwnd = lparam.0;
+
+                    let old_rect = (*border_pointer).window_rect;
+                    let rect = WindowsApi::window_rect(reference_hwnd).unwrap_or_default();
+
+                    (*border_pointer).window_rect = rect;
+
+                    if let Err(error) = (*border_pointer).set_position(&rect, reference_hwnd) {
+                        tracing::error!("failed to update border position {error}");
+                    }
+
+                    if !rect.is_same_size_as(&old_rect) {
+                        if let Some(render_target) = (*border_pointer).render_target.get() {
+                            let border_width = (*border_pointer).width;
+                            let border_offset = (*border_pointer).offset;
+
+                            (*border_pointer).rounded_rect.rect = D2D_RECT_F {
                                 left: (border_width / 2 - border_offset) as f32,
                                 top: (border_width / 2 - border_offset) as f32,
                                 right: (rect.right - border_width / 2 + border_offset) as f32,
                                 bottom: (rect.bottom - border_width / 2 + border_offset) as f32,
                             };
 
-                            let _ = render_target.Resize(&pixel_size);
+                            let _ = render_target.Resize(&D2D_SIZE_U {
+                                width: rect.right as u32,
+                                height: rect.bottom as u32,
+                            });
 
-                            // Get window kind and color
-                            let window_kind = FOCUS_STATE
-                                .lock()
-                                .get(&(window.0 as isize))
-                                .copied()
-                                .unwrap_or(WindowKind::Unfocused);
-
-                            let color = window_kind_colour(window_kind);
-                            let color = D2D1_COLOR_F {
-                                r: ((color & 0xFF) as f32) / 255.0,
-                                g: (((color >> 8) & 0xFF) as f32) / 255.0,
-                                b: (((color >> 16) & 0xFF) as f32) / 255.0,
-                                a: 1.0,
-                            };
-
-                            if let Ok(brush) = render_target
-                                .CreateSolidColorBrush(&color, Some(BRUSH_PROPERTIES.deref()))
-                            {
+                            let window_kind = (*border_pointer).window_kind;
+                            if let Some(brush) = (*border_pointer).brushes.get(&window_kind) {
                                 render_target.BeginDraw();
                                 render_target.Clear(None);
 
                                 // Calculate border radius based on style
-                                let style = match STYLE.load() {
+                                let style = match (*border_pointer).style {
                                     BorderStyle::System => {
                                         if *WINDOWS_11 {
                                             BorderStyle::Rounded
@@ -293,31 +391,17 @@ impl Border {
 
                                 match style {
                                     BorderStyle::Rounded => {
-                                        let radius = 8.0 + border_width as f32 / 2.0;
-                                        let rounded_rect = D2D1_ROUNDED_RECT {
-                                            rect,
-                                            radiusX: radius,
-                                            radiusY: radius,
-                                        };
-
                                         render_target.DrawRoundedRectangle(
-                                            &rounded_rect,
-                                            &brush,
+                                            &(*border_pointer).rounded_rect,
+                                            brush,
                                             border_width as f32,
                                             None,
                                         );
                                     }
                                     BorderStyle::Square => {
-                                        let rect = D2D_RECT_F {
-                                            left: rect.left,
-                                            top: rect.top,
-                                            right: rect.right,
-                                            bottom: rect.bottom,
-                                        };
-
                                         render_target.DrawRectangle(
-                                            &rect,
-                                            &brush,
+                                            &(*border_pointer).rounded_rect.rect,
+                                            brush,
                                             border_width as f32,
                                             None,
                                         );
@@ -326,17 +410,97 @@ impl Border {
                                 }
 
                                 let _ = render_target.EndDraw(None, None);
-
-                                // If we don't do this we'll get spammed with WM_PAINT according to Raymond Chen
-                                // https://stackoverflow.com/questions/41783234/why-does-my-call-to-d2d1rendertargetdrawtext-result-in-a-wm-paint-being-se#comment70756781_41783234
-                                let _ = BeginPaint(window, &mut PAINTSTRUCT::default());
-                                let _ = EndPaint(window, &PAINTSTRUCT::default());
                             }
                         }
                     }
+
+                    LRESULT(0)
+                }
+                WM_PAINT => {
+                    if let Ok(rect) = WindowsApi::window_rect(window.0 as isize) {
+                        let border_pointer: *mut Border =
+                            GetWindowLongPtrW(window, GWLP_USERDATA) as _;
+
+                        if border_pointer.is_null() {
+                            return LRESULT(0);
+                        }
+
+                        if let Some(render_target) = (*border_pointer).render_target.get() {
+                            (*border_pointer).width = BORDER_WIDTH.load(Ordering::Relaxed);
+                            (*border_pointer).offset = BORDER_OFFSET.load(Ordering::Relaxed);
+
+                            let border_width = (*border_pointer).width;
+                            let border_offset = (*border_pointer).offset;
+
+                            (*border_pointer).rounded_rect.rect = D2D_RECT_F {
+                                left: (border_width / 2 - border_offset) as f32,
+                                top: (border_width / 2 - border_offset) as f32,
+                                right: (rect.right - border_width / 2 + border_offset) as f32,
+                                bottom: (rect.bottom - border_width / 2 + border_offset) as f32,
+                            };
+
+                            let _ = render_target.Resize(&D2D_SIZE_U {
+                                width: rect.right as u32,
+                                height: rect.bottom as u32,
+                            });
+
+                            // Get window kind and color
+
+                            (*border_pointer).window_kind = FOCUS_STATE
+                                .lock()
+                                .get(&(window.0 as isize))
+                                .copied()
+                                .unwrap_or(WindowKind::Unfocused);
+
+                            let window_kind = (*border_pointer).window_kind;
+                            if let Some(brush) = (*border_pointer).brushes.get(&window_kind) {
+                                render_target.BeginDraw();
+                                render_target.Clear(None);
+
+                                (*border_pointer).style = STYLE.load();
+
+                                // Calculate border radius based on style
+                                let style = match (*border_pointer).style {
+                                    BorderStyle::System => {
+                                        if *WINDOWS_11 {
+                                            BorderStyle::Rounded
+                                        } else {
+                                            BorderStyle::Square
+                                        }
+                                    }
+                                    BorderStyle::Rounded => BorderStyle::Rounded,
+                                    BorderStyle::Square => BorderStyle::Square,
+                                };
+
+                                match style {
+                                    BorderStyle::Rounded => {
+                                        render_target.DrawRoundedRectangle(
+                                            &(*border_pointer).rounded_rect,
+                                            brush,
+                                            border_width as f32,
+                                            None,
+                                        );
+                                    }
+                                    BorderStyle::Square => {
+                                        render_target.DrawRectangle(
+                                            &(*border_pointer).rounded_rect.rect,
+                                            brush,
+                                            border_width as f32,
+                                            None,
+                                        );
+                                    }
+                                    _ => {}
+                                }
+
+                                let _ = render_target.EndDraw(None, None);
+                            }
+                        }
+                    }
+                    let _ = ValidateRect(window, None);
                     LRESULT(0)
                 }
                 WM_DESTROY => {
+                    SetWindowLongPtrW(window, GWLP_USERDATA, 0);
                     PostQuitMessage(0);
                     LRESULT(0)
                 }

@@ -1,10 +1,6 @@
 use std::collections::VecDeque;
 
-use windows::Win32::Foundation::BOOL;
-use windows::Win32::Foundation::HWND;
-use windows::Win32::Foundation::LPARAM;
-use windows::Win32::UI::Accessibility::HWINEVENTHOOK;
-
+use crate::border_manager;
 use crate::container::Container;
 use crate::window::RuleDebug;
 use crate::window::Window;
@@ -12,6 +8,19 @@ use crate::window_manager_event::WindowManagerEvent;
 use crate::windows_api::WindowsApi;
 use crate::winevent::WinEvent;
 use crate::winevent_listener;
+use windows::Win32::Foundation::BOOL;
+use windows::Win32::Foundation::HWND;
+use windows::Win32::Foundation::LPARAM;
+use windows::Win32::Foundation::WPARAM;
+use windows::Win32::UI::Accessibility::HWINEVENTHOOK;
+use windows::Win32::UI::WindowsAndMessaging::GetWindowLongW;
+use windows::Win32::UI::WindowsAndMessaging::SendNotifyMessageW;
+use windows::Win32::UI::WindowsAndMessaging::GWL_EXSTYLE;
+use windows::Win32::UI::WindowsAndMessaging::GWL_STYLE;
+use windows::Win32::UI::WindowsAndMessaging::OBJID_WINDOW;
+use windows::Win32::UI::WindowsAndMessaging::WS_CHILD;
+use windows::Win32::UI::WindowsAndMessaging::WS_EX_NOACTIVATE;
+use windows::Win32::UI::WindowsAndMessaging::WS_EX_TOOLWINDOW;
 
 pub extern "system" fn enum_window(hwnd: HWND, lparam: LPARAM) -> BOOL {
     let containers = unsafe { &mut *(lparam.0 as *mut VecDeque<Container>) };
@@ -60,6 +69,15 @@ pub extern "system" fn alt_tab_windows(hwnd: HWND, lparam: LPARAM) -> BOOL {
     true.into()
 }
 
+fn has_filtered_style(hwnd: HWND) -> bool {
+    let style = unsafe { GetWindowLongW(hwnd, GWL_STYLE) as u32 };
+    let ex_style = unsafe { GetWindowLongW(hwnd, GWL_EXSTYLE) as u32 };
+
+    style & WS_CHILD.0 != 0
+        || ex_style & WS_EX_TOOLWINDOW.0 != 0
+        || ex_style & WS_EX_NOACTIVATE.0 != 0
+}
+
 pub extern "system" fn win_event_hook(
     _h_win_event_hook: HWINEVENTHOOK,
     event: u32,
@@ -69,8 +87,7 @@ pub extern "system" fn win_event_hook(
     _id_event_thread: u32,
     _dwms_event_time: u32,
 ) {
-    // OBJID_WINDOW
-    if id_object != 0 {
+    if id_object != OBJID_WINDOW.0 {
         return;
     }
 
@@ -80,6 +97,23 @@ pub extern "system" fn win_event_hook(
         Ok(event) => event,
         Err(_) => return,
     };
+
+    // this forwards the message to the window's border when it moves or is destroyed
+    // see border_manager/border.rs
+    if matches!(
+        winevent,
+        WinEvent::ObjectLocationChange | WinEvent::ObjectDestroy
+    ) && !has_filtered_style(hwnd)
+    {
+        let border_window = border_manager::window_border(hwnd.0 as isize);
+
+        if let Some(border) = border_window {
+            unsafe {
+                let _ =
+                    SendNotifyMessageW(border.hwnd(), event, WPARAM(0), LPARAM(hwnd.0 as isize));
+            }
+        }
+    }
 
     let event_type = match WindowManagerEvent::from_win_event(winevent, window) {
         None => {

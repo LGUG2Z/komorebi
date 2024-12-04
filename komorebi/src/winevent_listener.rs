@@ -11,6 +11,8 @@ use windows::Win32::UI::WindowsAndMessaging::TranslateMessage;
 use windows::Win32::UI::WindowsAndMessaging::EVENT_MAX;
 use windows::Win32::UI::WindowsAndMessaging::EVENT_MIN;
 use windows::Win32::UI::WindowsAndMessaging::MSG;
+use windows::Win32::UI::WindowsAndMessaging::WINEVENT_OUTOFCONTEXT;
+use windows::Win32::UI::WindowsAndMessaging::WINEVENT_SKIPOWNPROCESS;
 
 use crate::window_manager_event::WindowManagerEvent;
 use crate::windows_callbacks;
@@ -31,7 +33,7 @@ pub fn start() {
                     Some(windows_callbacks::win_event_hook),
                     0,
                     0,
-                    0,
+                    WINEVENT_OUTOFCONTEXT | WINEVENT_SKIPOWNPROCESS,
                 )
             };
 
