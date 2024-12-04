@@ -105,6 +105,7 @@ pub struct WindowManager {
     pub pending_move_op: Arc<Option<(usize, usize, isize)>>,
     pub already_moved_window_handles: Arc<Mutex<HashSet<isize>>>,
     pub uncloack_to_ignore: usize,
+    pub move_new_windows_to_focused_monitor: bool,
 }
 
 #[allow(clippy::struct_excessive_bools)]
@@ -343,6 +344,7 @@ impl WindowManager {
             pending_move_op: Arc::new(None),
             already_moved_window_handles: Arc::new(Mutex::new(HashSet::new())),
             uncloack_to_ignore: 0,
+            move_new_windows_to_focused_monitor: false
         })
     }
 
