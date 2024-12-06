@@ -368,9 +368,10 @@ impl BarWidget for Komorebi {
                             .focused_window_idx;
 
                         let iter = titles.iter().zip(icons.iter());
+                        let len = iter.len();
 
                         for (i, (title, icon)) in iter.enumerate() {
-                            let selected = i == focused_window_idx;
+                            let selected = i == focused_window_idx && len != 1;
 
                             if SelectableFrame::new(selected)
                                 .show(ui, |ui| {
