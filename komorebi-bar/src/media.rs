@@ -1,4 +1,5 @@
 use crate::render::RenderConfig;
+use crate::selected_frame::SelectableFrame;
 use crate::ui::CustomUi;
 use crate::widget::BarWidget;
 use crate::MAX_LABEL_WIDTH;
@@ -6,7 +7,6 @@ use eframe::egui::text::LayoutJob;
 use eframe::egui::Context;
 use eframe::egui::FontId;
 use eframe::egui::Label;
-use eframe::egui::Sense;
 use eframe::egui::TextFormat;
 use eframe::egui::TextStyle;
 use eframe::egui::Ui;
@@ -102,21 +102,20 @@ impl BarWidget for Media {
                     TextFormat::simple(font_id, ctx.style().visuals.text_color()),
                 );
 
-                config.apply_on_widget(true, ui, |ui| {
-                    let available_height = ui.available_height();
-                    let mut custom_ui = CustomUi(ui);
+                config.apply_on_widget(false, ui, |ui| {
+                    if SelectableFrame::new(false)
+                        .show(ui, |ui| {
+                            let available_height = ui.available_height();
+                            let mut custom_ui = CustomUi(ui);
 
-                    if custom_ui
-                        .add_sized_left_to_right(
-                            Vec2::new(
-                                MAX_LABEL_WIDTH.load(Ordering::SeqCst) as f32,
-                                available_height,
-                            ),
-                            Label::new(layout_job)
-                                .selectable(false)
-                                .sense(Sense::click())
-                                .truncate(),
-                        )
+                            custom_ui.add_sized_left_to_right(
+                                Vec2::new(
+                                    MAX_LABEL_WIDTH.load(Ordering::SeqCst) as f32,
+                                    available_height,
+                                ),
+                                Label::new(layout_job).selectable(false).truncate(),
+                            )
+                        })
                         .clicked()
                     {
                         self.toggle();
