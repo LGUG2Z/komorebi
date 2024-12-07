@@ -268,7 +268,7 @@ pub struct StaticConfig {
     /// Determine what happens when commands are sent while an unmanaged window is in the foreground (default: Op)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub unmanaged_window_operation_behaviour: Option<OperationBehaviour>,
-    /// END OF LIFE FEATURE: Determine focus follows mouse implementation (default: None)
+    /// END OF LIFE FEATURE: Use https://github.com/LGUG2Z/masir instead
     #[serde(skip_serializing_if = "Option::is_none")]
     pub focus_follows_mouse: Option<FocusFollowsMouseImplementation>,
     /// Enable or disable mouse follows focus (default: true)

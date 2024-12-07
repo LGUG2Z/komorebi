@@ -779,6 +779,9 @@ struct Start {
     /// Start komorebi-bar in a background process
     #[clap(long)]
     bar: bool,
+    /// Start masir in a background process for focus-follows-mouse
+    #[clap(long)]
+    masir: bool,
 }
 
 #[derive(Parser)]
@@ -792,6 +795,9 @@ struct Stop {
     /// Stop komorebi-bar if it is running as a background process
     #[clap(long)]
     bar: bool,
+    /// Stop masir if it is running as a background process
+    #[clap(long)]
+    masir: bool,
 }
 
 #[derive(Parser)]
@@ -888,6 +894,9 @@ struct EnableAutostart {
     /// Enable autostart of komorebi-bar
     #[clap(long)]
     bar: bool,
+    /// Enable autostart of masir
+    #[clap(long)]
+    masir: bool,
 }
 
 #[derive(Parser)]
@@ -1507,6 +1516,10 @@ fn main() -> Result<()> {
                 arguments.push_str(" --ahk");
             }
 
+            if args.bar {
+                arguments.push_str(" --masir");
+            }
+
             Command::new("powershell")
                 .arg("-c")
                 .arg("$WshShell = New-Object -comObject WScript.Shell; $Shortcut = $WshShell.CreateShortcut($env:SHORTCUT_PATH); $Shortcut.TargetPath = $env:TARGET_PATH; $Shortcut.Arguments = $env:TARGET_ARGS; $Shortcut.Save()")
@@ -1927,6 +1940,10 @@ fn main() -> Result<()> {
                 bail!("could not find whkd, please make sure it is installed before using the --whkd flag");
             }
 
+            if arg.masir && which("masir").is_err() {
+                bail!("could not find masir, please make sure it is installed before using the --masir flag");
+            }
+
             if arg.ahk && which(&ahk).is_err() {
                 bail!("could not find autohotkey, please make sure it is installed before using the --ahk flag");
             }
@@ -2130,6 +2147,23 @@ if (!(Get-Process komorebi-bar -ErrorAction SilentlyContinue))
                 }
             }
 
+            if arg.masir {
+                let script = r"
+if (!(Get-Process masir -ErrorAction SilentlyContinue))
+{
+  Start-Process masir -WindowStyle hidden
+}
+                ";
+                match powershell_script::run(script) {
+                    Ok(_) => {
+                        println!("{script}");
+                    }
+                    Err(error) => {
+                        println!("Error: {error}");
+                    }
+                }
+            }
+
             println!("\nThank you for using komorebi!\n");
             println!("# Sponsorship");
             println!("* Become a sponsor https://github.com/sponsors/LGUG2Z - $5/month makes a big difference");
@@ -2187,6 +2221,20 @@ Stop-Process -Name:whkd -ErrorAction SilentlyContinue
             if arg.bar {
                 let script = r"
 Stop-Process -Name:komorebi-bar -ErrorAction SilentlyContinue
+                ";
+                match powershell_script::run(script) {
+                    Ok(_) => {
+                        println!("{script}");
+                    }
+                    Err(error) => {
+                        println!("Error: {error}");
+                    }
+                }
+            }
+
+            if arg.masir {
+                let script = r"
+Stop-Process -Name:masir -ErrorAction SilentlyContinue
                 ";
                 match powershell_script::run(script) {
                     Ok(_) => {
