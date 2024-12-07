@@ -1,11 +1,11 @@
 use crate::config::LabelPrefix;
 use crate::render::RenderConfig;
+use crate::selected_frame::SelectableFrame;
 use crate::widget::BarWidget;
 use eframe::egui::text::LayoutJob;
 use eframe::egui::Context;
 use eframe::egui::FontId;
 use eframe::egui::Label;
-use eframe::egui::Sense;
 use eframe::egui::TextFormat;
 use eframe::egui::TextStyle;
 use eframe::egui::Ui;
@@ -303,13 +303,9 @@ impl BarWidget for Network {
                     TextFormat::simple(font_id, ctx.style().visuals.text_color()),
                 );
 
-                config.apply_on_widget(true, ui, |ui| {
-                    if ui
-                        .add(
-                            Label::new(layout_job)
-                                .selectable(false)
-                                .sense(Sense::click()),
-                        )
+                config.apply_on_widget(false, ui, |ui| {
+                    if SelectableFrame::new(false)
+                        .show(ui, |ui| ui.add(Label::new(layout_job).selectable(false)))
                         .clicked()
                     {
                         if let Err(error) = Command::new("cmd.exe").args(["/C", "ncpa"]).spawn() {
