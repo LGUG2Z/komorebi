@@ -1990,8 +1990,14 @@ fn main() -> Result<()> {
                 )
             };
 
+            let mut system = sysinfo::System::new_all();
+            system.refresh_processes(ProcessesToUpdate::All);
+
             let mut attempts = 0;
-            let mut running = false;
+            let mut running = system
+                .processes_by_name("komorebi.exe".as_ref())
+                .next()
+                .is_some();
 
             while !running && attempts <= 2 {
                 match powershell_script::run(&script) {
@@ -2006,7 +2012,6 @@ fn main() -> Result<()> {
                 print!("Waiting for komorebi.exe to start...");
                 std::thread::sleep(Duration::from_secs(3));
 
-                let mut system = sysinfo::System::new_all();
                 system.refresh_processes(ProcessesToUpdate::All);
 
                 if system
