@@ -30,17 +30,18 @@ pub struct MemoryConfig {
 
 impl From<MemoryConfig> for Memory {
     fn from(value: MemoryConfig) -> Self {
-        let mut system =
-            System::new_with_specifics(RefreshKind::default().without_cpu().without_processes());
-
-        system.refresh_memory();
+        let data_refresh_interval = value.data_refresh_interval.unwrap_or(10);
 
         Self {
             enable: value.enable,
-            system,
-            data_refresh_interval: value.data_refresh_interval.unwrap_or(10),
+            system: System::new_with_specifics(
+                RefreshKind::default().without_cpu().without_processes(),
+            ),
+            data_refresh_interval,
             label_prefix: value.label_prefix.unwrap_or(LabelPrefix::IconAndText),
-            last_updated: Instant::now(),
+            last_updated: Instant::now()
+                .checked_sub(Duration::from_secs(data_refresh_interval))
+                .unwrap(),
         }
     }
 }
