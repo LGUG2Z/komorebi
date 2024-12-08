@@ -1,11 +1,11 @@
 use crate::config::LabelPrefix;
 use crate::render::RenderConfig;
+use crate::selected_frame::SelectableFrame;
 use crate::widget::BarWidget;
 use eframe::egui::text::LayoutJob;
 use eframe::egui::Context;
 use eframe::egui::FontId;
 use eframe::egui::Label;
-use eframe::egui::Sense;
 use eframe::egui::TextFormat;
 use eframe::egui::TextStyle;
 use eframe::egui::Ui;
@@ -30,17 +30,18 @@ pub struct CpuConfig {
 
 impl From<CpuConfig> for Cpu {
     fn from(value: CpuConfig) -> Self {
-        let mut system =
-            System::new_with_specifics(RefreshKind::default().without_memory().without_processes());
-
-        system.refresh_cpu_usage();
+        let data_refresh_interval = value.data_refresh_interval.unwrap_or(10);
 
         Self {
             enable: value.enable,
-            system,
-            data_refresh_interval: value.data_refresh_interval.unwrap_or(10),
+            system: System::new_with_specifics(
+                RefreshKind::default().without_memory().without_processes(),
+            ),
+            data_refresh_interval,
             label_prefix: value.label_prefix.unwrap_or(LabelPrefix::IconAndText),
-            last_updated: Instant::now(),
+            last_updated: Instant::now()
+                .checked_sub(Duration::from_secs(data_refresh_interval))
+                .unwrap(),
         }
     }
 }
@@ -99,13 +100,9 @@ impl BarWidget for Cpu {
                     TextFormat::simple(font_id, ctx.style().visuals.text_color()),
                 );
 
-                config.apply_on_widget(true, ui, |ui| {
-                    if ui
-                        .add(
-                            Label::new(layout_job)
-                                .selectable(false)
-                                .sense(Sense::click()),
-                        )
+                config.apply_on_widget(false, ui, |ui| {
+                    if SelectableFrame::new(false)
+                        .show(ui, |ui| ui.add(Label::new(layout_job).selectable(false)))
                         .clicked()
                     {
                         if let Err(error) =

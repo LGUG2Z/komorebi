@@ -54,4 +54,35 @@ impl WidgetConfig {
             WidgetConfig::Time(config) => Box::new(Time::from(config.clone())),
         }
     }
+
+    pub fn enabled(&self) -> bool {
+        match self {
+            WidgetConfig::Battery(config) => config.enable,
+            WidgetConfig::Cpu(config) => config.enable,
+            WidgetConfig::Date(config) => config.enable,
+            WidgetConfig::Komorebi(config) => {
+                config.workspaces.enable
+                    || (if let Some(layout) = &config.layout {
+                        layout.enable
+                    } else {
+                        false
+                    })
+                    || (if let Some(focused_window) = &config.focused_window {
+                        focused_window.enable
+                    } else {
+                        false
+                    })
+                    || (if let Some(configuration_switcher) = &config.configuration_switcher {
+                        configuration_switcher.enable
+                    } else {
+                        false
+                    })
+            }
+            WidgetConfig::Media(config) => config.enable,
+            WidgetConfig::Memory(config) => config.enable,
+            WidgetConfig::Network(config) => config.enable,
+            WidgetConfig::Storage(config) => config.enable,
+            WidgetConfig::Time(config) => config.enable,
+        }
+    }
 }

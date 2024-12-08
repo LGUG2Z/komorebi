@@ -178,11 +178,59 @@ impl RenderConfig {
                 Some(style) => match style {
                     // new styles can be added if needed here
                     GroupingStyle::Default => Shadow::NONE,
-                    GroupingStyle::DefaultWithShadow => Shadow {
+                    GroupingStyle::DefaultWithShadowB4O1S3 => Shadow {
                         blur: 4.0,
                         offset: Vec2::new(1.0, 1.0),
                         spread: 3.0,
                         color: Color32::BLACK.try_apply_alpha(config.transparency_alpha),
+                    },
+                    GroupingStyle::DefaultWithShadowB4O0S3 => Shadow {
+                        blur: 4.0,
+                        offset: Vec2::new(0.0, 0.0),
+                        spread: 3.0,
+                        color: Color32::BLACK.try_apply_alpha(config.transparency_alpha),
+                    },
+                    GroupingStyle::DefaultWithShadowB0O1S3 => Shadow {
+                        blur: 0.0,
+                        offset: Vec2::new(1.0, 1.0),
+                        spread: 3.0,
+                        color: Color32::BLACK.try_apply_alpha(config.transparency_alpha),
+                    },
+                    GroupingStyle::DefaultWithGlowB3O1S2 => Shadow {
+                        blur: 3.0,
+                        offset: Vec2::new(1.0, 1.0),
+                        spread: 2.0,
+                        color: ui
+                            .style()
+                            .visuals
+                            .selection
+                            .stroke
+                            .color
+                            .try_apply_alpha(config.transparency_alpha),
+                    },
+                    GroupingStyle::DefaultWithGlowB3O0S2 => Shadow {
+                        blur: 3.0,
+                        offset: Vec2::new(0.0, 0.0),
+                        spread: 2.0,
+                        color: ui
+                            .style()
+                            .visuals
+                            .selection
+                            .stroke
+                            .color
+                            .try_apply_alpha(config.transparency_alpha),
+                    },
+                    GroupingStyle::DefaultWithGlowB0O1S2 => Shadow {
+                        blur: 0.0,
+                        offset: Vec2::new(1.0, 1.0),
+                        spread: 2.0,
+                        color: ui
+                            .style()
+                            .visuals
+                            .selection
+                            .stroke
+                            .color
+                            .try_apply_alpha(config.transparency_alpha),
                     },
                 },
                 None => Shadow::NONE,
@@ -239,9 +287,20 @@ pub struct GroupingConfig {
 pub enum GroupingStyle {
     #[serde(alias = "CtByte")]
     Default,
-    /// A black shadow is added under the default group
+    /// A shadow is added under the default group. (blur: 4, offset: x-1 y-1, spread: 3)
     #[serde(alias = "CtByteWithShadow")]
-    DefaultWithShadow,
+    #[serde(alias = "DefaultWithShadow")]
+    DefaultWithShadowB4O1S3,
+    /// A shadow is added under the default group. (blur: 4, offset: x-0 y-0, spread: 3)
+    DefaultWithShadowB4O0S3,
+    /// A shadow is added under the default group. (blur: 0, offset: x-1 y-1, spread: 3)
+    DefaultWithShadowB0O1S3,
+    /// A glow is added under the default group. (blur: 3, offset: x-1 y-1, spread: 2)
+    DefaultWithGlowB3O1S2,
+    /// A glow is added under the default group. (blur: 3, offset: x-0 y-0, spread: 2)
+    DefaultWithGlowB3O0S2,
+    /// A glow is added under the default group. (blur: 0, offset: x-1 y-1, spread: 2)
+    DefaultWithGlowB0O1S2,
 }
 
 #[derive(Copy, Clone, Debug, Serialize, Deserialize, JsonSchema)]

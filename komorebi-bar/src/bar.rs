@@ -315,12 +315,14 @@ impl Komobar {
         let mut left_widgets = config
             .left_widgets
             .iter()
+            .filter(|config| config.enabled())
             .map(|config| config.as_boxed_bar_widget())
             .collect::<Vec<Box<dyn BarWidget>>>();
 
         let mut center_widgets = match &config.center_widgets {
             Some(center_widgets) => center_widgets
                 .iter()
+                .filter(|config| config.enabled())
                 .map(|config| config.as_boxed_bar_widget())
                 .collect::<Vec<Box<dyn BarWidget>>>(),
             None => vec![],
@@ -329,6 +331,7 @@ impl Komobar {
         let mut right_widgets = config
             .right_widgets
             .iter()
+            .filter(|config| config.enabled())
             .map(|config| config.as_boxed_bar_widget())
             .collect::<Vec<Box<dyn BarWidget>>>();
 

@@ -1,11 +1,11 @@
 use crate::config::LabelPrefix;
 use crate::render::RenderConfig;
+use crate::selected_frame::SelectableFrame;
 use crate::widget::BarWidget;
 use eframe::egui::text::LayoutJob;
 use eframe::egui::Context;
 use eframe::egui::FontId;
 use eframe::egui::Label;
-use eframe::egui::Sense;
 use eframe::egui::TextFormat;
 use eframe::egui::TextStyle;
 use eframe::egui::Ui;
@@ -27,6 +27,8 @@ pub struct NetworkConfig {
     pub show_total_data_transmitted: bool,
     /// Show network activity
     pub show_network_activity: bool,
+    /// Show default interface
+    pub show_default_interface: Option<bool>,
     /// Characters to reserve for network activity data
     pub network_activity_fill_characters: Option<usize>,
     /// Data refresh interval (default: 10 seconds)
@@ -41,12 +43,13 @@ impl From<NetworkConfig> for Network {
 
         Self {
             enable: value.enable,
+            show_total_activity: value.show_total_data_transmitted,
+            show_activity: value.show_network_activity,
+            show_default_interface: value.show_default_interface.unwrap_or(true),
             networks_network_activity: Networks::new_with_refreshed_list(),
             default_interface: String::new(),
             data_refresh_interval,
             label_prefix: value.label_prefix.unwrap_or(LabelPrefix::Icon),
-            show_total_activity: value.show_total_data_transmitted,
-            show_activity: value.show_network_activity,
             network_activity_fill_characters: value
                 .network_activity_fill_characters
                 .unwrap_or_default(),
@@ -63,6 +66,7 @@ pub struct Network {
     pub enable: bool,
     pub show_total_activity: bool,
     pub show_activity: bool,
+    pub show_default_interface: bool,
     networks_network_activity: Networks,
     data_refresh_interval: u64,
     label_prefix: LabelPrefix,
@@ -250,73 +254,72 @@ impl Network {
 
 impl BarWidget for Network {
     fn render(&mut self, ctx: &Context, ui: &mut Ui, config: &mut RenderConfig) {
-        if self.show_total_activity || self.show_activity {
-            let (activity, total_activity) = self.network_activity();
-
-            if self.show_total_activity {
-                for reading in total_activity {
-                    config.apply_on_widget(true, ui, |ui| {
-                        ui.add(self.reading_to_label(ctx, reading));
-                    });
-                }
-            }
-
-            if self.show_activity {
-                for reading in activity {
-                    config.apply_on_widget(true, ui, |ui| {
-                        ui.add(self.reading_to_label(ctx, reading));
-                    });
-                }
-            }
-        }
-
         if self.enable {
-            self.default_interface();
+            if self.show_total_activity || self.show_activity {
+                let (activity, total_activity) = self.network_activity();
 
-            if !self.default_interface.is_empty() {
-                let font_id = ctx
-                    .style()
-                    .text_styles
-                    .get(&TextStyle::Body)
-                    .cloned()
-                    .unwrap_or_else(FontId::default);
-
-                let mut layout_job = LayoutJob::simple(
-                    match self.label_prefix {
-                        LabelPrefix::Icon | LabelPrefix::IconAndText => {
-                            egui_phosphor::regular::WIFI_HIGH.to_string()
-                        }
-                        LabelPrefix::None | LabelPrefix::Text => String::new(),
-                    },
-                    font_id.clone(),
-                    ctx.style().visuals.selection.stroke.color,
-                    100.0,
-                );
-
-                if let LabelPrefix::Text | LabelPrefix::IconAndText = self.label_prefix {
-                    self.default_interface.insert_str(0, "NET: ");
+                if self.show_total_activity {
+                    for reading in total_activity {
+                        config.apply_on_widget(true, ui, |ui| {
+                            ui.add(self.reading_to_label(ctx, reading));
+                        });
+                    }
                 }
 
-                layout_job.append(
-                    &self.default_interface,
-                    10.0,
-                    TextFormat::simple(font_id, ctx.style().visuals.text_color()),
-                );
-
-                config.apply_on_widget(true, ui, |ui| {
-                    if ui
-                        .add(
-                            Label::new(layout_job)
-                                .selectable(false)
-                                .sense(Sense::click()),
-                        )
-                        .clicked()
-                    {
-                        if let Err(error) = Command::new("cmd.exe").args(["/C", "ncpa"]).spawn() {
-                            eprintln!("{}", error)
-                        }
+                if self.show_activity {
+                    for reading in activity {
+                        config.apply_on_widget(true, ui, |ui| {
+                            ui.add(self.reading_to_label(ctx, reading));
+                        });
                     }
-                });
+                }
+            }
+
+            if self.show_default_interface {
+                self.default_interface();
+
+                if !self.default_interface.is_empty() {
+                    let font_id = ctx
+                        .style()
+                        .text_styles
+                        .get(&TextStyle::Body)
+                        .cloned()
+                        .unwrap_or_else(FontId::default);
+
+                    let mut layout_job = LayoutJob::simple(
+                        match self.label_prefix {
+                            LabelPrefix::Icon | LabelPrefix::IconAndText => {
+                                egui_phosphor::regular::WIFI_HIGH.to_string()
+                            }
+                            LabelPrefix::None | LabelPrefix::Text => String::new(),
+                        },
+                        font_id.clone(),
+                        ctx.style().visuals.selection.stroke.color,
+                        100.0,
+                    );
+
+                    if let LabelPrefix::Text | LabelPrefix::IconAndText = self.label_prefix {
+                        self.default_interface.insert_str(0, "NET: ");
+                    }
+
+                    layout_job.append(
+                        &self.default_interface,
+                        10.0,
+                        TextFormat::simple(font_id, ctx.style().visuals.text_color()),
+                    );
+
+                    config.apply_on_widget(false, ui, |ui| {
+                        if SelectableFrame::new(false)
+                            .show(ui, |ui| ui.add(Label::new(layout_job).selectable(false)))
+                            .clicked()
+                        {
+                            if let Err(error) = Command::new("cmd.exe").args(["/C", "ncpa"]).spawn()
+                            {
+                                eprintln!("{}", error)
+                            }
+                        }
+                    });
+                }
             }
         }
     }
