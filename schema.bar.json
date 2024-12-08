@@ -9,6 +9,736 @@
     "right_widgets"
   ],
   "properties": {
+    "center_widgets": {
+      "description": "Center widgets (ordered left-to-right)",
+      "type": "array",
+      "items": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "Battery"
+            ],
+            "properties": {
+              "Battery": {
+                "type": "object",
+                "required": [
+                  "enable"
+                ],
+                "properties": {
+                  "data_refresh_interval": {
+                    "description": "Data refresh interval (default: 10 seconds)",
+                    "type": "integer",
+                    "format": "uint64",
+                    "minimum": 0.0
+                  },
+                  "enable": {
+                    "description": "Enable the Battery widget",
+                    "type": "boolean"
+                  },
+                  "label_prefix": {
+                    "description": "Display label prefix",
+                    "oneOf": [
+                      {
+                        "description": "Show no prefix",
+                        "type": "string",
+                        "enum": [
+                          "None"
+                        ]
+                      },
+                      {
+                        "description": "Show an icon",
+                        "type": "string",
+                        "enum": [
+                          "Icon"
+                        ]
+                      },
+                      {
+                        "description": "Show text",
+                        "type": "string",
+                        "enum": [
+                          "Text"
+                        ]
+                      },
+                      {
+                        "description": "Show an icon and text",
+                        "type": "string",
+                        "enum": [
+                          "IconAndText"
+                        ]
+                      }
+                    ]
+                  }
+                }
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
+              "Cpu"
+            ],
+            "properties": {
+              "Cpu": {
+                "type": "object",
+                "required": [
+                  "enable"
+                ],
+                "properties": {
+                  "data_refresh_interval": {
+                    "description": "Data refresh interval (default: 10 seconds)",
+                    "type": "integer",
+                    "format": "uint64",
+                    "minimum": 0.0
+                  },
+                  "enable": {
+                    "description": "Enable the Cpu widget",
+                    "type": "boolean"
+                  },
+                  "label_prefix": {
+                    "description": "Display label prefix",
+                    "oneOf": [
+                      {
+                        "description": "Show no prefix",
+                        "type": "string",
+                        "enum": [
+                          "None"
+                        ]
+                      },
+                      {
+                        "description": "Show an icon",
+                        "type": "string",
+                        "enum": [
+                          "Icon"
+                        ]
+                      },
+                      {
+                        "description": "Show text",
+                        "type": "string",
+                        "enum": [
+                          "Text"
+                        ]
+                      },
+                      {
+                        "description": "Show an icon and text",
+                        "type": "string",
+                        "enum": [
+                          "IconAndText"
+                        ]
+                      }
+                    ]
+                  }
+                }
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
+              "Date"
+            ],
+            "properties": {
+              "Date": {
+                "type": "object",
+                "required": [
+                  "enable",
+                  "format"
+                ],
+                "properties": {
+                  "enable": {
+                    "description": "Enable the Date widget",
+                    "type": "boolean"
+                  },
+                  "format": {
+                    "description": "Set the Date format",
+                    "oneOf": [
+                      {
+                        "description": "Month/Date/Year format (09/08/24)",
+                        "type": "string",
+                        "enum": [
+                          "MonthDateYear"
+                        ]
+                      },
+                      {
+                        "description": "Year-Month-Date format (2024-09-08)",
+                        "type": "string",
+                        "enum": [
+                          "YearMonthDate"
+                        ]
+                      },
+                      {
+                        "description": "Date-Month-Year format (8-Sep-2024)",
+                        "type": "string",
+                        "enum": [
+                          "DateMonthYear"
+                        ]
+                      },
+                      {
+                        "description": "Day Date Month Year format (8 September 2024)",
+                        "type": "string",
+                        "enum": [
+                          "DayDateMonthYear"
+                        ]
+                      },
+                      {
+                        "description": "Custom format (https://docs.rs/chrono/latest/chrono/format/strftime/index.html)",
+                        "type": "object",
+                        "required": [
+                          "Custom"
+                        ],
+                        "properties": {
+                          "Custom": {
+                            "type": "string"
+                          }
+                        },
+                        "additionalProperties": false
+                      }
+                    ]
+                  },
+                  "label_prefix": {
+                    "description": "Display label prefix",
+                    "oneOf": [
+                      {
+                        "description": "Show no prefix",
+                        "type": "string",
+                        "enum": [
+                          "None"
+                        ]
+                      },
+                      {
+                        "description": "Show an icon",
+                        "type": "string",
+                        "enum": [
+                          "Icon"
+                        ]
+                      },
+                      {
+                        "description": "Show text",
+                        "type": "string",
+                        "enum": [
+                          "Text"
+                        ]
+                      },
+                      {
+                        "description": "Show an icon and text",
+                        "type": "string",
+                        "enum": [
+                          "IconAndText"
+                        ]
+                      }
+                    ]
+                  }
+                }
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
+              "Komorebi"
+            ],
+            "properties": {
+              "Komorebi": {
+                "type": "object",
+                "required": [
+                  "workspaces"
+                ],
+                "properties": {
+                  "configuration_switcher": {
+                    "description": "Configure the Configuration Switcher widget",
+                    "type": "object",
+                    "required": [
+                      "configurations",
+                      "enable"
+                    ],
+                    "properties": {
+                      "configurations": {
+                        "description": "A map of display friendly name => path to configuration.json",
+                        "type": "object",
+                        "additionalProperties": {
+                          "type": "string"
+                        }
+                      },
+                      "enable": {
+                        "description": "Enable the Komorebi Configurations widget",
+                        "type": "boolean"
+                      }
+                    }
+                  },
+                  "focused_window": {
+                    "description": "Configure the Focused Window widget",
+                    "type": "object",
+                    "required": [
+                      "enable"
+                    ],
+                    "properties": {
+                      "display": {
+                        "description": "Display format of the currently focused window",
+                        "oneOf": [
+                          {
+                            "description": "Show only icon",
+                            "type": "string",
+                            "enum": [
+                              "Icon"
+                            ]
+                          },
+                          {
+                            "description": "Show only text",
+                            "type": "string",
+                            "enum": [
+                              "Text"
+                            ]
+                          },
+                          {
+                            "description": "Show both icon and text",
+                            "type": "string",
+                            "enum": [
+                              "IconAndText"
+                            ]
+                          }
+                        ]
+                      },
+                      "enable": {
+                        "description": "Enable the Komorebi Focused Window widget",
+                        "type": "boolean"
+                      },
+                      "show_icon": {
+                        "description": "DEPRECATED: use 'display' instead (Show the icon of the currently focused window)",
+                        "type": "boolean"
+                      }
+                    }
+                  },
+                  "layout": {
+                    "description": "Configure the Layout widget",
+                    "type": "object",
+                    "required": [
+                      "enable"
+                    ],
+                    "properties": {
+                      "display": {
+                        "description": "Display format of the current layout",
+                        "oneOf": [
+                          {
+                            "description": "Show only icon",
+                            "type": "string",
+                            "enum": [
+                              "Icon"
+                            ]
+                          },
+                          {
+                            "description": "Show only text",
+                            "type": "string",
+                            "enum": [
+                              "Text"
+                            ]
+                          },
+                          {
+                            "description": "Show both icon and text",
+                            "type": "string",
+                            "enum": [
+                              "IconAndText"
+                            ]
+                          }
+                        ]
+                      },
+                      "enable": {
+                        "description": "Enable the Komorebi Layout widget",
+                        "type": "boolean"
+                      },
+                      "options": {
+                        "description": "List of layout options",
+                        "type": "array",
+                        "items": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "enum": [
+                                "BSP",
+                                "Columns",
+                                "Rows",
+                                "VerticalStack",
+                                "HorizontalStack",
+                                "UltrawideVerticalStack",
+                                "Grid",
+                                "RightMainVerticalStack"
+                              ]
+                            },
+                            {
+                              "type": "null"
+                            },
+                            {
+                              "type": "null"
+                            },
+                            {
+                              "type": "null"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        }
+                      }
+                    }
+                  },
+                  "workspaces": {
+                    "description": "Configure the Workspaces widget",
+                    "type": "object",
+                    "required": [
+                      "enable",
+                      "hide_empty_workspaces"
+                    ],
+                    "properties": {
+                      "display": {
+                        "description": "Display format of the workspace",
+                        "oneOf": [
+                          {
+                            "description": "Show only icon",
+                            "type": "string",
+                            "enum": [
+                              "Icon"
+                            ]
+                          },
+                          {
+                            "description": "Show only text",
+                            "type": "string",
+                            "enum": [
+                              "Text"
+                            ]
+                          },
+                          {
+                            "description": "Show both icon and text",
+                            "type": "string",
+                            "enum": [
+                              "IconAndText"
+                            ]
+                          }
+                        ]
+                      },
+                      "enable": {
+                        "description": "Enable the Komorebi Workspaces widget",
+                        "type": "boolean"
+                      },
+                      "hide_empty_workspaces": {
+                        "description": "Hide workspaces without any windows",
+                        "type": "boolean"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
+              "Media"
+            ],
+            "properties": {
+              "Media": {
+                "type": "object",
+                "required": [
+                  "enable"
+                ],
+                "properties": {
+                  "enable": {
+                    "description": "Enable the Media widget",
+                    "type": "boolean"
+                  }
+                }
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
+              "Memory"
+            ],
+            "properties": {
+              "Memory": {
+                "type": "object",
+                "required": [
+                  "enable"
+                ],
+                "properties": {
+                  "data_refresh_interval": {
+                    "description": "Data refresh interval (default: 10 seconds)",
+                    "type": "integer",
+                    "format": "uint64",
+                    "minimum": 0.0
+                  },
+                  "enable": {
+                    "description": "Enable the Memory widget",
+                    "type": "boolean"
+                  },
+                  "label_prefix": {
+                    "description": "Display label prefix",
+                    "oneOf": [
+                      {
+                        "description": "Show no prefix",
+                        "type": "string",
+                        "enum": [
+                          "None"
+                        ]
+                      },
+                      {
+                        "description": "Show an icon",
+                        "type": "string",
+                        "enum": [
+                          "Icon"
+                        ]
+                      },
+                      {
+                        "description": "Show text",
+                        "type": "string",
+                        "enum": [
+                          "Text"
+                        ]
+                      },
+                      {
+                        "description": "Show an icon and text",
+                        "type": "string",
+                        "enum": [
+                          "IconAndText"
+                        ]
+                      }
+                    ]
+                  }
+                }
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
+              "Network"
+            ],
+            "properties": {
+              "Network": {
+                "type": "object",
+                "required": [
+                  "enable",
+                  "show_network_activity",
+                  "show_total_data_transmitted"
+                ],
+                "properties": {
+                  "data_refresh_interval": {
+                    "description": "Data refresh interval (default: 10 seconds)",
+                    "type": "integer",
+                    "format": "uint64",
+                    "minimum": 0.0
+                  },
+                  "enable": {
+                    "description": "Enable the Network widget",
+                    "type": "boolean"
+                  },
+                  "label_prefix": {
+                    "description": "Display label prefix",
+                    "oneOf": [
+                      {
+                        "description": "Show no prefix",
+                        "type": "string",
+                        "enum": [
+                          "None"
+                        ]
+                      },
+                      {
+                        "description": "Show an icon",
+                        "type": "string",
+                        "enum": [
+                          "Icon"
+                        ]
+                      },
+                      {
+                        "description": "Show text",
+                        "type": "string",
+                        "enum": [
+                          "Text"
+                        ]
+                      },
+                      {
+                        "description": "Show an icon and text",
+                        "type": "string",
+                        "enum": [
+                          "IconAndText"
+                        ]
+                      }
+                    ]
+                  },
+                  "network_activity_fill_characters": {
+                    "description": "Characters to reserve for network activity data",
+                    "type": "integer",
+                    "format": "uint",
+                    "minimum": 0.0
+                  },
+                  "show_network_activity": {
+                    "description": "Show network activity",
+                    "type": "boolean"
+                  },
+                  "show_total_data_transmitted": {
+                    "description": "Show total data transmitted",
+                    "type": "boolean"
+                  }
+                }
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
+              "Storage"
+            ],
+            "properties": {
+              "Storage": {
+                "type": "object",
+                "required": [
+                  "enable"
+                ],
+                "properties": {
+                  "data_refresh_interval": {
+                    "description": "Data refresh interval (default: 10 seconds)",
+                    "type": "integer",
+                    "format": "uint64",
+                    "minimum": 0.0
+                  },
+                  "enable": {
+                    "description": "Enable the Storage widget",
+                    "type": "boolean"
+                  },
+                  "label_prefix": {
+                    "description": "Display label prefix",
+                    "oneOf": [
+                      {
+                        "description": "Show no prefix",
+                        "type": "string",
+                        "enum": [
+                          "None"
+                        ]
+                      },
+                      {
+                        "description": "Show an icon",
+                        "type": "string",
+                        "enum": [
+                          "Icon"
+                        ]
+                      },
+                      {
+                        "description": "Show text",
+                        "type": "string",
+                        "enum": [
+                          "Text"
+                        ]
+                      },
+                      {
+                        "description": "Show an icon and text",
+                        "type": "string",
+                        "enum": [
+                          "IconAndText"
+                        ]
+                      }
+                    ]
+                  }
+                }
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
+              "Time"
+            ],
+            "properties": {
+              "Time": {
+                "type": "object",
+                "required": [
+                  "enable",
+                  "format"
+                ],
+                "properties": {
+                  "enable": {
+                    "description": "Enable the Time widget",
+                    "type": "boolean"
+                  },
+                  "format": {
+                    "description": "Set the Time format",
+                    "oneOf": [
+                      {
+                        "description": "Twelve-hour format (with seconds)",
+                        "type": "string",
+                        "enum": [
+                          "TwelveHour"
+                        ]
+                      },
+                      {
+                        "description": "Twenty-four-hour format (with seconds)",
+                        "type": "string",
+                        "enum": [
+                          "TwentyFourHour"
+                        ]
+                      },
+                      {
+                        "description": "Custom format (https://docs.rs/chrono/latest/chrono/format/strftime/index.html)",
+                        "type": "object",
+                        "required": [
+                          "Custom"
+                        ],
+                        "properties": {
+                          "Custom": {
+                            "type": "string"
+                          }
+                        },
+                        "additionalProperties": false
+                      }
+                    ]
+                  },
+                  "label_prefix": {
+                    "description": "Display label prefix",
+                    "oneOf": [
+                      {
+                        "description": "Show no prefix",
+                        "type": "string",
+                        "enum": [
+                          "None"
+                        ]
+                      },
+                      {
+                        "description": "Show an icon",
+                        "type": "string",
+                        "enum": [
+                          "Icon"
+                        ]
+                      },
+                      {
+                        "description": "Show text",
+                        "type": "string",
+                        "enum": [
+                          "Text"
+                        ]
+                      },
+                      {
+                        "description": "Show an icon and text",
+                        "type": "string",
+                        "enum": [
+                          "IconAndText"
+                        ]
+                      }
+                    ]
+                  }
+                }
+              }
+            },
+            "additionalProperties": false
+          }
+        ]
+      }
+    },
     "font_family": {
       "description": "Font family",
       "type": "string"
@@ -507,16 +1237,41 @@
                     "description": "Configure the Focused Window widget",
                     "type": "object",
                     "required": [
-                      "enable",
-                      "show_icon"
+                      "enable"
                     ],
                     "properties": {
+                      "display": {
+                        "description": "Display format of the currently focused window",
+                        "oneOf": [
+                          {
+                            "description": "Show only icon",
+                            "type": "string",
+                            "enum": [
+                              "Icon"
+                            ]
+                          },
+                          {
+                            "description": "Show only text",
+                            "type": "string",
+                            "enum": [
+                              "Text"
+                            ]
+                          },
+                          {
+                            "description": "Show both icon and text",
+                            "type": "string",
+                            "enum": [
+                              "IconAndText"
+                            ]
+                          }
+                        ]
+                      },
                       "enable": {
                         "description": "Enable the Komorebi Focused Window widget",
                         "type": "boolean"
                       },
                       "show_icon": {
-                        "description": "Show the icon of the currently focused window",
+                        "description": "DEPRECATED: use 'display' instead (Show the icon of the currently focused window)",
                         "type": "boolean"
                       }
                     }
@@ -528,9 +1283,68 @@
                       "enable"
                     ],
                     "properties": {
+                      "display": {
+                        "description": "Display format of the current layout",
+                        "oneOf": [
+                          {
+                            "description": "Show only icon",
+                            "type": "string",
+                            "enum": [
+                              "Icon"
+                            ]
+                          },
+                          {
+                            "description": "Show only text",
+                            "type": "string",
+                            "enum": [
+                              "Text"
+                            ]
+                          },
+                          {
+                            "description": "Show both icon and text",
+                            "type": "string",
+                            "enum": [
+                              "IconAndText"
+                            ]
+                          }
+                        ]
+                      },
                       "enable": {
                         "description": "Enable the Komorebi Layout widget",
                         "type": "boolean"
+                      },
+                      "options": {
+                        "description": "List of layout options",
+                        "type": "array",
+                        "items": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "enum": [
+                                "BSP",
+                                "Columns",
+                                "Rows",
+                                "VerticalStack",
+                                "HorizontalStack",
+                                "UltrawideVerticalStack",
+                                "Grid",
+                                "RightMainVerticalStack"
+                              ]
+                            },
+                            {
+                              "type": "null"
+                            },
+                            {
+                              "type": "null"
+                            },
+                            {
+                              "type": "null"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        }
                       }
                     }
                   },
@@ -542,6 +1356,32 @@
                       "hide_empty_workspaces"
                     ],
                     "properties": {
+                      "display": {
+                        "description": "Display format of the workspace",
+                        "oneOf": [
+                          {
+                            "description": "Show only icon",
+                            "type": "string",
+                            "enum": [
+                              "Icon"
+                            ]
+                          },
+                          {
+                            "description": "Show only text",
+                            "type": "string",
+                            "enum": [
+                              "Text"
+                            ]
+                          },
+                          {
+                            "description": "Show both icon and text",
+                            "type": "string",
+                            "enum": [
+                              "IconAndText"
+                            ]
+                          }
+                        ]
+                      },
                       "enable": {
                         "description": "Enable the Komorebi Workspaces widget",
                         "type": "boolean"
@@ -1225,16 +2065,41 @@
                     "description": "Configure the Focused Window widget",
                     "type": "object",
                     "required": [
-                      "enable",
-                      "show_icon"
+                      "enable"
                     ],
                     "properties": {
+                      "display": {
+                        "description": "Display format of the currently focused window",
+                        "oneOf": [
+                          {
+                            "description": "Show only icon",
+                            "type": "string",
+                            "enum": [
+                              "Icon"
+                            ]
+                          },
+                          {
+                            "description": "Show only text",
+                            "type": "string",
+                            "enum": [
+                              "Text"
+                            ]
+                          },
+                          {
+                            "description": "Show both icon and text",
+                            "type": "string",
+                            "enum": [
+                              "IconAndText"
+                            ]
+                          }
+                        ]
+                      },
                       "enable": {
                         "description": "Enable the Komorebi Focused Window widget",
                         "type": "boolean"
                       },
                       "show_icon": {
-                        "description": "Show the icon of the currently focused window",
+                        "description": "DEPRECATED: use 'display' instead (Show the icon of the currently focused window)",
                         "type": "boolean"
                       }
                     }
@@ -1246,9 +2111,68 @@
                       "enable"
                     ],
                     "properties": {
+                      "display": {
+                        "description": "Display format of the current layout",
+                        "oneOf": [
+                          {
+                            "description": "Show only icon",
+                            "type": "string",
+                            "enum": [
+                              "Icon"
+                            ]
+                          },
+                          {
+                            "description": "Show only text",
+                            "type": "string",
+                            "enum": [
+                              "Text"
+                            ]
+                          },
+                          {
+                            "description": "Show both icon and text",
+                            "type": "string",
+                            "enum": [
+                              "IconAndText"
+                            ]
+                          }
+                        ]
+                      },
                       "enable": {
                         "description": "Enable the Komorebi Layout widget",
                         "type": "boolean"
+                      },
+                      "options": {
+                        "description": "List of layout options",
+                        "type": "array",
+                        "items": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "enum": [
+                                "BSP",
+                                "Columns",
+                                "Rows",
+                                "VerticalStack",
+                                "HorizontalStack",
+                                "UltrawideVerticalStack",
+                                "Grid",
+                                "RightMainVerticalStack"
+                              ]
+                            },
+                            {
+                              "type": "null"
+                            },
+                            {
+                              "type": "null"
+                            },
+                            {
+                              "type": "null"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        }
                       }
                     }
                   },
@@ -1260,6 +2184,32 @@
                       "hide_empty_workspaces"
                     ],
                     "properties": {
+                      "display": {
+                        "description": "Display format of the workspace",
+                        "oneOf": [
+                          {
+                            "description": "Show only icon",
+                            "type": "string",
+                            "enum": [
+                              "Icon"
+                            ]
+                          },
+                          {
+                            "description": "Show only text",
+                            "type": "string",
+                            "enum": [
+                              "Text"
+                            ]
+                          },
+                          {
+                            "description": "Show both icon and text",
+                            "type": "string",
+                            "enum": [
+                              "IconAndText"
+                            ]
+                          }
+                        ]
+                      },
                       "enable": {
                         "description": "Enable the Komorebi Workspaces widget",
                         "type": "boolean"
