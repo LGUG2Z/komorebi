@@ -309,6 +309,8 @@ pub enum BorderImplementation {
     ValueEnum,
     JsonSchema,
     PartialEq,
+    Eq,
+    Hash,
 )]
 pub enum WindowKind {
     Single,

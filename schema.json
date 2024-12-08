@@ -13,13 +13,35 @@
       "properties": {
         "duration": {
           "description": "Set the animation duration in ms (default: 250)",
-          "type": "integer",
-          "format": "uint64",
-          "minimum": 0.0
+          "anyOf": [
+            {
+              "type": "object",
+              "additionalProperties": {
+                "type": "integer",
+                "format": "uint64",
+                "minimum": 0.0
+              }
+            },
+            {
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            }
+          ]
         },
         "enabled": {
           "description": "Enable or disable animations (default: false)",
-          "type": "boolean"
+          "anyOf": [
+            {
+              "type": "object",
+              "additionalProperties": {
+                "type": "boolean"
+              }
+            },
+            {
+              "type": "boolean"
+            }
+          ]
         },
         "fps": {
           "description": "Set the animation FPS (default: 60)",
@@ -29,38 +51,80 @@
         },
         "style": {
           "description": "Set the animation style (default: Linear)",
-          "type": "string",
-          "enum": [
-            "Linear",
-            "EaseInSine",
-            "EaseOutSine",
-            "EaseInOutSine",
-            "EaseInQuad",
-            "EaseOutQuad",
-            "EaseInOutQuad",
-            "EaseInCubic",
-            "EaseInOutCubic",
-            "EaseInQuart",
-            "EaseOutQuart",
-            "EaseInOutQuart",
-            "EaseInQuint",
-            "EaseOutQuint",
-            "EaseInOutQuint",
-            "EaseInExpo",
-            "EaseOutExpo",
-            "EaseInOutExpo",
-            "EaseInCirc",
-            "EaseOutCirc",
-            "EaseInOutCirc",
-            "EaseInBack",
-            "EaseOutBack",
-            "EaseInOutBack",
-            "EaseInElastic",
-            "EaseOutElastic",
-            "EaseInOutElastic",
-            "EaseInBounce",
-            "EaseOutBounce",
-            "EaseInOutBounce"
+          "anyOf": [
+            {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string",
+                "enum": [
+                  "Linear",
+                  "EaseInSine",
+                  "EaseOutSine",
+                  "EaseInOutSine",
+                  "EaseInQuad",
+                  "EaseOutQuad",
+                  "EaseInOutQuad",
+                  "EaseInCubic",
+                  "EaseInOutCubic",
+                  "EaseInQuart",
+                  "EaseOutQuart",
+                  "EaseInOutQuart",
+                  "EaseInQuint",
+                  "EaseOutQuint",
+                  "EaseInOutQuint",
+                  "EaseInExpo",
+                  "EaseOutExpo",
+                  "EaseInOutExpo",
+                  "EaseInCirc",
+                  "EaseOutCirc",
+                  "EaseInOutCirc",
+                  "EaseInBack",
+                  "EaseOutBack",
+                  "EaseInOutBack",
+                  "EaseInElastic",
+                  "EaseOutElastic",
+                  "EaseInOutElastic",
+                  "EaseInBounce",
+                  "EaseOutBounce",
+                  "EaseInOutBounce"
+                ]
+              }
+            },
+            {
+              "type": "string",
+              "enum": [
+                "Linear",
+                "EaseInSine",
+                "EaseOutSine",
+                "EaseInOutSine",
+                "EaseInQuad",
+                "EaseOutQuad",
+                "EaseInOutQuad",
+                "EaseInCubic",
+                "EaseInOutCubic",
+                "EaseInQuart",
+                "EaseOutQuart",
+                "EaseInOutQuart",
+                "EaseInQuint",
+                "EaseOutQuint",
+                "EaseInOutQuint",
+                "EaseInExpo",
+                "EaseOutExpo",
+                "EaseInOutExpo",
+                "EaseInCirc",
+                "EaseOutCirc",
+                "EaseInOutCirc",
+                "EaseInBack",
+                "EaseOutBack",
+                "EaseInOutBack",
+                "EaseInElastic",
+                "EaseOutElastic",
+                "EaseInOutElastic",
+                "EaseInBounce",
+                "EaseOutBounce",
+                "EaseInOutBounce"
+              ]
+            }
           ]
         }
       }
@@ -420,7 +484,7 @@
       "format": "int32"
     },
     "border_z_order": {
-      "description": "Active window border z-order (default: System)",
+      "description": "DEPRECATED from v0.1.31: no longer required",
       "type": "string",
       "enum": [
         "Top",
@@ -579,7 +643,7 @@
       }
     },
     "focus_follows_mouse": {
-      "description": "END OF LIFE FEATURE: Determine focus follows mouse implementation (default: None)",
+      "description": "END OF LIFE FEATURE: Use https://github.com/LGUG2Z/masir instead",
       "oneOf": [
         {
           "description": "A custom FFM implementation (slightly more CPU-intensive)",

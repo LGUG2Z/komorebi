@@ -694,12 +694,10 @@ impl WindowManager {
                 self.update_focused_workspace(self.mouse_follows_focus, true)?;
             }
             SocketMessage::Retile => {
-                border_manager::BORDER_TEMPORARILY_DISABLED.store(false, Ordering::SeqCst);
                 border_manager::destroy_all_borders()?;
                 self.retile_all(false)?
             }
             SocketMessage::RetileWithResizeDimensions => {
-                border_manager::BORDER_TEMPORARILY_DISABLED.store(false, Ordering::SeqCst);
                 border_manager::destroy_all_borders()?;
                 self.retile_all(true)?
             }
@@ -1555,6 +1553,16 @@ impl WindowManager {
             }
             SocketMessage::Border(enable) => {
                 border_manager::BORDER_ENABLED.store(enable, Ordering::SeqCst);
+                if !enable {
+                    match IMPLEMENTATION.load() {
+                        BorderImplementation::Komorebi => {
+                            border_manager::destroy_all_borders()?;
+                        }
+                        BorderImplementation::Windows => {
+                            self.remove_all_accents()?;
+                        }
+                    }
+                }
             }
             SocketMessage::BorderImplementation(implementation) => {
                 if !*WINDOWS_11 && matches!(implementation, BorderImplementation::Windows) {

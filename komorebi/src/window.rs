@@ -10,7 +10,6 @@ use crate::animation::ANIMATION_ENABLED_PER_ANIMATION;
 use crate::animation::ANIMATION_MANAGER;
 use crate::animation::ANIMATION_STYLE_GLOBAL;
 use crate::animation::ANIMATION_STYLE_PER_ANIMATION;
-use crate::border_manager;
 use crate::com::SetCloak;
 use crate::focus_manager;
 use crate::stackbar_manager;
@@ -193,9 +192,6 @@ impl RenderDispatcher for MovementRenderDispatcher {
     }
 
     fn pre_render(&self) -> Result<()> {
-        border_manager::BORDER_TEMPORARILY_DISABLED.store(true, Ordering::SeqCst);
-        border_manager::send_notification(Some(self.hwnd));
-
         stackbar_manager::STACKBAR_TEMPORARILY_DISABLED.store(true, Ordering::SeqCst);
         stackbar_manager::send_notification();
 
@@ -224,10 +220,8 @@ impl RenderDispatcher for MovementRenderDispatcher {
                 focus_manager::send_notification(self.hwnd)
             }
 
-            border_manager::BORDER_TEMPORARILY_DISABLED.store(false, Ordering::SeqCst);
             stackbar_manager::STACKBAR_TEMPORARILY_DISABLED.store(false, Ordering::SeqCst);
 
-            border_manager::send_notification(Some(self.hwnd));
             stackbar_manager::send_notification();
             transparency_manager::send_notification();
         }

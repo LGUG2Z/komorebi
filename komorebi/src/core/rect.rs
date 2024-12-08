@@ -38,6 +38,12 @@ impl From<Rect> for RECT {
 }
 
 impl Rect {
+    pub fn is_same_size_as(&self, rhs: &Self) -> bool {
+        self.right == rhs.right && self.bottom == rhs.bottom
+    }
+}
+
+impl Rect {
     /// decrease the size of self by the padding amount.
     pub fn add_padding<T>(&mut self, padding: T)
     where
