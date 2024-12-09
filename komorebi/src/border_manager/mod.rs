@@ -169,6 +169,7 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
             .iter()
             .map(|w| w.hwnd)
             .collect::<Vec<_>>();
+        let foreground_window = WindowsApi::foreground_window().unwrap_or_default();
 
         drop(state);
 
@@ -238,10 +239,19 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                     should_process_notification = true;
                 }
 
-                // when we switch focus to a floating window
-                if !should_process_notification
-                    && floating_window_hwnds.contains(&notification.0.unwrap_or_default())
-                {
+                // when we switch focus to/from a floating window
+                let switch_focus_to_from_floating_window = floating_window_hwnds.iter().any(|fw| {
+                    // if we switch focus to a floating window
+                    fw == &notification.0.unwrap_or_default() ||
+                    // if there is any floating window with a `WindowKind::Floating` border
+                    // that no longer is the foreground window then we need to update that
+                    // border.
+                    (fw != &foreground_window
+                        && window_border(*fw)
+                        .map(|b| b.window_kind == WindowKind::Floating)
+                        .unwrap_or_default())
+                });
+                if !should_process_notification && switch_focus_to_from_floating_window {
                     should_process_notification = true;
                 }
 
@@ -321,22 +331,15 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                                 }
                             };
 
-                            borders_monitors.insert(monocle.id().clone(), monitor_idx);
-                            windows_borders.insert(
-                                monocle.focused_window().cloned().unwrap_or_default().hwnd,
-                                border.clone(),
-                            );
-
+                            let new_focus_state = if monitor_idx != focused_monitor_idx {
+                                WindowKind::Unfocused
+                            } else {
+                                WindowKind::Monocle
+                            };
+                            border.window_kind = new_focus_state;
                             {
                                 let mut focus_state = FOCUS_STATE.lock();
-                                focus_state.insert(
-                                    border.hwnd,
-                                    if monitor_idx != focused_monitor_idx {
-                                        WindowKind::Unfocused
-                                    } else {
-                                        WindowKind::Monocle
-                                    },
-                                );
+                                focus_state.insert(border.hwnd, new_focus_state);
                             }
 
                             let reference_hwnd =
@@ -349,6 +352,12 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                             }
 
                             border.invalidate();
+
+                            borders_monitors.insert(monocle.id().clone(), monitor_idx);
+                            windows_borders.insert(
+                                monocle.focused_window().cloned().unwrap_or_default().hwnd,
+                                border.clone(),
+                            );
 
                             let border_hwnd = border.hwnd;
                             let mut to_remove = vec![];
@@ -434,17 +443,14 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                                 }
                             };
 
-                            borders_monitors.insert(c.id().clone(), monitor_idx);
-                            windows_borders.insert(
-                                c.focused_window().cloned().unwrap_or_default().hwnd,
-                                border.clone(),
-                            );
-
                             #[allow(unused_assignments)]
                             let mut last_focus_state = None;
 
                             let new_focus_state = if idx != ws.focused_container_idx()
                                 || monitor_idx != focused_monitor_idx
+                                || c.focused_window()
+                                    .map(|w| w.hwnd != foreground_window)
+                                    .unwrap_or_default()
                             {
                                 WindowKind::Unfocused
                             } else if c.windows().len() > 1 {
@@ -452,6 +458,7 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                             } else {
                                 WindowKind::Single
                             };
+                            border.window_kind = new_focus_state;
 
                             // Update the focused state for all containers on this workspace
                             {
@@ -476,10 +483,16 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                             if should_invalidate {
                                 border.invalidate();
                             }
+
+                            borders_monitors.insert(c.id().clone(), monitor_idx);
+                            windows_borders.insert(
+                                c.focused_window().cloned().unwrap_or_default().hwnd,
+                                border.clone(),
+                            );
                         }
 
                         {
-                            'windows: for window in ws.floating_windows() {
+                            for window in ws.floating_windows() {
                                 let mut new_border = false;
                                 let border = match borders.entry(window.hwnd.to_string()) {
                                     Entry::Occupied(entry) => entry.into_mut(),
@@ -495,33 +508,15 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                                     }
                                 };
 
-                                borders_monitors.insert(window.hwnd.to_string(), monitor_idx);
-                                windows_borders.insert(window.hwnd, border.clone());
-
-                                let mut should_destroy = false;
-
-                                if let Some(notification_hwnd) = notification.0 {
-                                    if notification_hwnd != window.hwnd {
-                                        should_destroy = true;
-                                    }
-                                }
-
-                                if WindowsApi::foreground_window().unwrap_or_default()
-                                    != window.hwnd
-                                {
-                                    should_destroy = true;
-                                }
-
-                                if should_destroy {
-                                    border.destroy()?;
-                                    borders.remove(&window.hwnd.to_string());
-                                    borders_monitors.remove(&window.hwnd.to_string());
-                                    continue 'windows;
-                                }
-
                                 #[allow(unused_assignments)]
                                 let mut last_focus_state = None;
-                                let new_focus_state = WindowKind::Floating;
+                                let mut new_focus_state = WindowKind::Unfocused;
+
+                                if foreground_window == window.hwnd {
+                                    new_focus_state = WindowKind::Floating;
+                                }
+
+                                border.window_kind = new_focus_state;
                                 {
                                     let mut focus_state = FOCUS_STATE.lock();
                                     last_focus_state =
@@ -542,6 +537,9 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                                 if should_invalidate {
                                     border.invalidate();
                                 }
+
+                                borders_monitors.insert(window.hwnd.to_string(), monitor_idx);
+                                windows_borders.insert(window.hwnd, border.clone());
                             }
                         }
                     }
