@@ -425,6 +425,18 @@ impl Border {
                             return LRESULT(0);
                         }
 
+                        let reference_hwnd = (*border_pointer).tracking_hwnd;
+
+                        // Update position to update the ZOrder
+                        let border_window_rect = (*border_pointer).window_rect;
+
+                        tracing::trace!("updating border position");
+                        if let Err(error) =
+                            (*border_pointer).set_position(&border_window_rect, reference_hwnd)
+                        {
+                            tracing::error!("failed to update border position {error}");
+                        }
+
                         if let Some(render_target) = (*border_pointer).render_target.get() {
                             (*border_pointer).width = BORDER_WIDTH.load(Ordering::Relaxed);
                             (*border_pointer).offset = BORDER_OFFSET.load(Ordering::Relaxed);
