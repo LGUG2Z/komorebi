@@ -305,7 +305,6 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
 
                         // Handle the monocle container separately
                         if let Some(monocle) = ws.monocle_container() {
-                            let mut new_border = false;
                             let border = match borders.entry(monocle.id().clone()) {
                                 Entry::Occupied(entry) => entry.into_mut(),
                                 Entry::Vacant(entry) => {
@@ -313,7 +312,6 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                                         monocle.id(),
                                         monocle.focused_window().copied().unwrap_or_default().hwnd,
                                     ) {
-                                        new_border = true;
                                         entry.insert(border)
                                     } else {
                                         continue 'monitors;
@@ -344,9 +342,7 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
 
                             let rect = WindowsApi::window_rect(reference_hwnd)?;
 
-                            if new_border {
-                                border.set_position(&rect, reference_hwnd)?;
-                            }
+                            border.set_position(&rect, reference_hwnd)?;
 
                             border.invalidate();
 
@@ -420,7 +416,6 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
 
                         for (idx, c) in ws.containers().iter().enumerate() {
                             // Get the border entry for this container from the map or create one
-                            let mut new_border = false;
                             let border = match borders.entry(c.id().clone()) {
                                 Entry::Occupied(entry) => entry.into_mut(),
                                 Entry::Vacant(entry) => {
@@ -428,7 +423,6 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                                         c.id(),
                                         c.focused_window().copied().unwrap_or_default().hwnd,
                                     ) {
-                                        new_border = true;
                                         entry.insert(border)
                                     } else {
                                         continue 'monitors;
@@ -471,9 +465,7 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                                 Some(last_focus_state) => last_focus_state != new_focus_state,
                             };
 
-                            if new_border {
-                                border.set_position(&rect, reference_hwnd)?;
-                            }
+                            border.set_position(&rect, reference_hwnd)?;
 
                             if should_invalidate {
                                 border.invalidate();
@@ -481,15 +473,13 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                         }
 
                         {
-                            'windows: for window in ws.floating_windows() {
-                                let mut new_border = false;
+                            for window in ws.floating_windows() {
                                 let border = match borders.entry(window.hwnd.to_string()) {
                                     Entry::Occupied(entry) => entry.into_mut(),
                                     Entry::Vacant(entry) => {
                                         if let Ok(border) =
                                             Border::create(&window.hwnd.to_string(), window.hwnd)
                                         {
-                                            new_border = true;
                                             entry.insert(border)
                                         } else {
                                             continue 'monitors;
@@ -500,30 +490,23 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                                 borders_monitors.insert(window.hwnd.to_string(), monitor_idx);
                                 windows_borders.insert(window.hwnd, border.clone());
 
-                                let mut should_destroy = false;
-
-                                if let Some(notification_hwnd) = notification.0 {
-                                    if notification_hwnd != window.hwnd {
-                                        should_destroy = true;
-                                    }
-                                }
+                                let mut is_focused = false;
 
                                 if WindowsApi::foreground_window().unwrap_or_default()
-                                    != window.hwnd
+                                    == window.hwnd
                                 {
-                                    should_destroy = true;
-                                }
-
-                                if should_destroy {
-                                    border.destroy()?;
-                                    borders.remove(&window.hwnd.to_string());
-                                    borders_monitors.remove(&window.hwnd.to_string());
-                                    continue 'windows;
+                                    is_focused = true;
                                 }
 
                                 #[allow(unused_assignments)]
                                 let mut last_focus_state = None;
-                                let new_focus_state = WindowKind::Floating;
+                                let new_focus_state = if is_focused {
+                                    WindowKind::Floating
+                                } else {
+                                    WindowKind::Unfocused
+                                };
+
+                                // Update the focused state for all containers on this workspace
                                 {
                                     let mut focus_state = FOCUS_STATE.lock();
                                     last_focus_state =
@@ -537,9 +520,9 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                                     Some(last_focus_state) => last_focus_state != new_focus_state,
                                 };
 
-                                if new_border {
-                                    border.set_position(&rect, window.hwnd)?;
-                                }
+                                // this has to be sent to match the z-order when clicking on
+                                // a floating window to focus it
+                                border.set_position(&rect, window.hwnd)?;
 
                                 if should_invalidate {
                                     border.invalidate();
