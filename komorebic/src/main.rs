@@ -779,6 +779,9 @@ struct Start {
     /// Start komorebi-bar in a background process
     #[clap(long)]
     bar: bool,
+    /// Start masir in a background process for focus-follows-mouse
+    #[clap(long)]
+    masir: bool,
 }
 
 #[derive(Parser)]
@@ -792,6 +795,25 @@ struct Stop {
     /// Stop komorebi-bar if it is running as a background process
     #[clap(long)]
     bar: bool,
+    /// Stop masir if it is running as a background process
+    #[clap(long)]
+    masir: bool,
+}
+
+#[derive(Parser)]
+struct Kill {
+    /// Kill whkd if it is running as a background process
+    #[clap(long)]
+    whkd: bool,
+    /// Kill ahk if it is running as a background process
+    #[clap(long)]
+    ahk: bool,
+    /// Kill komorebi-bar if it is running as a background process
+    #[clap(long)]
+    bar: bool,
+    /// Kill masir if it is running as a background process
+    #[clap(long)]
+    masir: bool,
 }
 
 #[derive(Parser)]
@@ -888,6 +910,9 @@ struct EnableAutostart {
     /// Enable autostart of komorebi-bar
     #[clap(long)]
     bar: bool,
+    /// Enable autostart of masir
+    #[clap(long)]
+    masir: bool,
 }
 
 #[derive(Parser)]
@@ -913,6 +938,8 @@ enum SubCommand {
     Start(Start),
     /// Stop the komorebi.exe process and restore all hidden windows
     Stop(Stop),
+    /// Kill background processes started by komorebic
+    Kill(Kill),
     /// Check komorebi configuration and related files for common errors
     Check,
     /// Show the path to komorebi.json
@@ -1507,6 +1534,10 @@ fn main() -> Result<()> {
                 arguments.push_str(" --ahk");
             }
 
+            if args.bar {
+                arguments.push_str(" --masir");
+            }
+
             Command::new("powershell")
                 .arg("-c")
                 .arg("$WshShell = New-Object -comObject WScript.Shell; $Shortcut = $WshShell.CreateShortcut($env:SHORTCUT_PATH); $Shortcut.TargetPath = $env:TARGET_PATH; $Shortcut.Arguments = $env:TARGET_ARGS; $Shortcut.Save()")
@@ -1927,6 +1958,10 @@ fn main() -> Result<()> {
                 bail!("could not find whkd, please make sure it is installed before using the --whkd flag");
             }
 
+            if arg.masir && which("masir").is_err() {
+                bail!("could not find masir, please make sure it is installed before using the --masir flag");
+            }
+
             if arg.ahk && which(&ahk).is_err() {
                 bail!("could not find autohotkey, please make sure it is installed before using the --ahk flag");
             }
@@ -1990,8 +2025,14 @@ fn main() -> Result<()> {
                 )
             };
 
+            let mut system = sysinfo::System::new_all();
+            system.refresh_processes(ProcessesToUpdate::All);
+
             let mut attempts = 0;
-            let mut running = false;
+            let mut running = system
+                .processes_by_name("komorebi.exe".as_ref())
+                .next()
+                .is_some();
 
             while !running && attempts <= 2 {
                 match powershell_script::run(&script) {
@@ -2006,7 +2047,6 @@ fn main() -> Result<()> {
                 print!("Waiting for komorebi.exe to start...");
                 std::thread::sleep(Duration::from_secs(3));
 
-                let mut system = sysinfo::System::new_all();
                 system.refresh_processes(ProcessesToUpdate::All);
 
                 if system
@@ -2094,7 +2134,7 @@ if (!(Get-Process whkd -ErrorAction SilentlyContinue))
                     let mut config = StaticConfig::read(config)?;
                     if let Some(display_bar_configurations) = &mut config.bar_configurations {
                         for config_file_path in &mut *display_bar_configurations {
-                            let script = r#"Start-Process 'komorebi-bar' '--config "CONFIGFILE"' -WindowStyle hidden"#
+                            let script = r#"Start-Process "komorebi-bar" '"--config" "CONFIGFILE"' -WindowStyle hidden"#
                             .replace("CONFIGFILE", &config_file_path.to_string_lossy());
 
                             match powershell_script::run(&script) {
@@ -2121,6 +2161,23 @@ if (!(Get-Process komorebi-bar -ErrorAction SilentlyContinue))
                                 println!("Error: {error}");
                             }
                         }
+                    }
+                }
+            }
+
+            if arg.masir {
+                let script = r"
+if (!(Get-Process masir -ErrorAction SilentlyContinue))
+{
+  Start-Process masir -WindowStyle hidden
+}
+                ";
+                match powershell_script::run(script) {
+                    Ok(_) => {
+                        println!("{script}");
+                    }
+                    Err(error) => {
+                        println!("Error: {error}");
                     }
                 }
             }
@@ -2193,6 +2250,20 @@ Stop-Process -Name:komorebi-bar -ErrorAction SilentlyContinue
                 }
             }
 
+            if arg.masir {
+                let script = r"
+Stop-Process -Name:masir -ErrorAction SilentlyContinue
+                ";
+                match powershell_script::run(script) {
+                    Ok(_) => {
+                        println!("{script}");
+                    }
+                    Err(error) => {
+                        println!("Error: {error}");
+                    }
+                }
+            }
+
             if arg.ahk {
                 let script = r#"
 if (Get-Command Get-CimInstance -ErrorAction SilentlyContinue) {
@@ -2245,6 +2316,78 @@ Stop-Process -Name:komorebi -ErrorAction SilentlyContinue
                         for hwnd in hwnds {
                             restore_window(hwnd);
                         }
+                    }
+                    Err(error) => {
+                        println!("Error: {error}");
+                    }
+                }
+            }
+        }
+        SubCommand::Kill(arg) => {
+            if arg.whkd {
+                let script = r"
+Stop-Process -Name:whkd -ErrorAction SilentlyContinue
+                ";
+                match powershell_script::run(script) {
+                    Ok(_) => {
+                        println!("{script}");
+                    }
+                    Err(error) => {
+                        println!("Error: {error}");
+                    }
+                }
+            }
+
+            if arg.bar {
+                let script = r"
+Stop-Process -Name:komorebi-bar -ErrorAction SilentlyContinue
+                ";
+                match powershell_script::run(script) {
+                    Ok(_) => {
+                        println!("{script}");
+                    }
+                    Err(error) => {
+                        println!("Error: {error}");
+                    }
+                }
+            }
+
+            if arg.masir {
+                let script = r"
+Stop-Process -Name:masir -ErrorAction SilentlyContinue
+                ";
+                match powershell_script::run(script) {
+                    Ok(_) => {
+                        println!("{script}");
+                    }
+                    Err(error) => {
+                        println!("Error: {error}");
+                    }
+                }
+            }
+
+            if arg.ahk {
+                let script = r#"
+if (Get-Command Get-CimInstance -ErrorAction SilentlyContinue) {
+    (Get-CimInstance Win32_Process | Where-Object {
+        ($_.CommandLine -like '*komorebi.ahk"') -and
+        ($_.Name -in @('AutoHotkey.exe', 'AutoHotkey64.exe', 'AutoHotkey32.exe', 'AutoHotkeyUX.exe'))
+    } | Select-Object -First 1) | ForEach-Object {
+        Stop-Process -Id $_.ProcessId -ErrorAction SilentlyContinue
+    }
+} else {
+    (Get-WmiObject Win32_Process | Where-Object {
+        ($_.CommandLine -like '*komorebi.ahk"') -and
+        ($_.Name -in @('AutoHotkey.exe', 'AutoHotkey64.exe', 'AutoHotkey32.exe', 'AutoHotkeyUX.exe'))
+    } | Select-Object -First 1) | ForEach-Object {
+        Stop-Process -Id $_.ProcessId -ErrorAction SilentlyContinue
+    }
+}
+"#;
+
+                match powershell_script::run(script) {
+                    Ok(_) => {
+                        println!("{script}");
                     }
                     Err(error) => {
                         println!("Error: {error}");
