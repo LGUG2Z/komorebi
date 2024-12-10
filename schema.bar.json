@@ -576,6 +576,10 @@
                     "format": "uint",
                     "minimum": 0.0
                   },
+                  "show_default_interface": {
+                    "description": "Show default interface",
+                    "type": "boolean"
+                  },
                   "show_network_activity": {
                     "description": "Show network activity",
                     "type": "boolean"
@@ -838,10 +842,45 @@
                   ]
                 },
                 {
-                  "description": "A black shadow is added under the default group",
+                  "description": "A shadow is added under the default group. (blur: 4, offset: x-1 y-1, spread: 3)",
                   "type": "string",
                   "enum": [
-                    "DefaultWithShadow"
+                    "DefaultWithShadowB4O1S3"
+                  ]
+                },
+                {
+                  "description": "A shadow is added under the default group. (blur: 4, offset: x-0 y-0, spread: 3)",
+                  "type": "string",
+                  "enum": [
+                    "DefaultWithShadowB4O0S3"
+                  ]
+                },
+                {
+                  "description": "A shadow is added under the default group. (blur: 0, offset: x-1 y-1, spread: 3)",
+                  "type": "string",
+                  "enum": [
+                    "DefaultWithShadowB0O1S3"
+                  ]
+                },
+                {
+                  "description": "A glow is added under the default group. (blur: 3, offset: x-1 y-1, spread: 2)",
+                  "type": "string",
+                  "enum": [
+                    "DefaultWithGlowB3O1S2"
+                  ]
+                },
+                {
+                  "description": "A glow is added under the default group. (blur: 3, offset: x-0 y-0, spread: 2)",
+                  "type": "string",
+                  "enum": [
+                    "DefaultWithGlowB3O0S2"
+                  ]
+                },
+                {
+                  "description": "A glow is added under the default group. (blur: 0, offset: x-1 y-1, spread: 2)",
+                  "type": "string",
+                  "enum": [
+                    "DefaultWithGlowB0O1S2"
                   ]
                 }
               ]
@@ -897,10 +936,45 @@
                   ]
                 },
                 {
-                  "description": "A black shadow is added under the default group",
+                  "description": "A shadow is added under the default group. (blur: 4, offset: x-1 y-1, spread: 3)",
                   "type": "string",
                   "enum": [
-                    "DefaultWithShadow"
+                    "DefaultWithShadowB4O1S3"
+                  ]
+                },
+                {
+                  "description": "A shadow is added under the default group. (blur: 4, offset: x-0 y-0, spread: 3)",
+                  "type": "string",
+                  "enum": [
+                    "DefaultWithShadowB4O0S3"
+                  ]
+                },
+                {
+                  "description": "A shadow is added under the default group. (blur: 0, offset: x-1 y-1, spread: 3)",
+                  "type": "string",
+                  "enum": [
+                    "DefaultWithShadowB0O1S3"
+                  ]
+                },
+                {
+                  "description": "A glow is added under the default group. (blur: 3, offset: x-1 y-1, spread: 2)",
+                  "type": "string",
+                  "enum": [
+                    "DefaultWithGlowB3O1S2"
+                  ]
+                },
+                {
+                  "description": "A glow is added under the default group. (blur: 3, offset: x-0 y-0, spread: 2)",
+                  "type": "string",
+                  "enum": [
+                    "DefaultWithGlowB3O0S2"
+                  ]
+                },
+                {
+                  "description": "A glow is added under the default group. (blur: 0, offset: x-1 y-1, spread: 2)",
+                  "type": "string",
+                  "enum": [
+                    "DefaultWithGlowB0O1S2"
                   ]
                 }
               ]
@@ -956,10 +1030,45 @@
                   ]
                 },
                 {
-                  "description": "A black shadow is added under the default group",
+                  "description": "A shadow is added under the default group. (blur: 4, offset: x-1 y-1, spread: 3)",
                   "type": "string",
                   "enum": [
-                    "DefaultWithShadow"
+                    "DefaultWithShadowB4O1S3"
+                  ]
+                },
+                {
+                  "description": "A shadow is added under the default group. (blur: 4, offset: x-0 y-0, spread: 3)",
+                  "type": "string",
+                  "enum": [
+                    "DefaultWithShadowB4O0S3"
+                  ]
+                },
+                {
+                  "description": "A shadow is added under the default group. (blur: 0, offset: x-1 y-1, spread: 3)",
+                  "type": "string",
+                  "enum": [
+                    "DefaultWithShadowB0O1S3"
+                  ]
+                },
+                {
+                  "description": "A glow is added under the default group. (blur: 3, offset: x-1 y-1, spread: 2)",
+                  "type": "string",
+                  "enum": [
+                    "DefaultWithGlowB3O1S2"
+                  ]
+                },
+                {
+                  "description": "A glow is added under the default group. (blur: 3, offset: x-0 y-0, spread: 2)",
+                  "type": "string",
+                  "enum": [
+                    "DefaultWithGlowB3O0S2"
+                  ]
+                },
+                {
+                  "description": "A glow is added under the default group. (blur: 0, offset: x-1 y-1, spread: 2)",
+                  "type": "string",
+                  "enum": [
+                    "DefaultWithGlowB0O1S2"
                   ]
                 }
               ]
@@ -1540,6 +1649,10 @@
                     "type": "integer",
                     "format": "uint",
                     "minimum": 0.0
+                  },
+                  "show_default_interface": {
+                    "description": "Show default interface",
+                    "type": "boolean"
                   },
                   "show_network_activity": {
                     "description": "Show network activity",
@@ -2368,6 +2481,10 @@
                     "type": "integer",
                     "format": "uint",
                     "minimum": 0.0
+                  },
+                  "show_default_interface": {
+                    "description": "Show default interface",
+                    "type": "boolean"
                   },
                   "show_network_activity": {
                     "description": "Show network activity",
