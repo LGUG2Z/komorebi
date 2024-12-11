@@ -24,9 +24,11 @@ use eframe::egui::ViewportBuilder;
 use font_loader::system_fonts;
 use hotwatch::EventKind;
 use hotwatch::Hotwatch;
+use image::RgbaImage;
 use komorebi_client::SocketMessage;
 use komorebi_client::SubscribeOptions;
 use schemars::gen::SchemaSettings;
+use std::collections::HashMap;
 use std::io::BufReader;
 use std::io::Read;
 use std::path::PathBuf;
@@ -34,6 +36,8 @@ use std::sync::atomic::AtomicI32;
 use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
+use std::sync::LazyLock;
+use std::sync::Mutex;
 use std::time::Duration;
 use tracing_subscriber::EnvFilter;
 use windows::Win32::Foundation::BOOL;
@@ -52,6 +56,9 @@ pub static MONITOR_TOP: AtomicI32 = AtomicI32::new(0);
 pub static MONITOR_RIGHT: AtomicI32 = AtomicI32::new(0);
 pub static MONITOR_INDEX: AtomicUsize = AtomicUsize::new(0);
 pub static BAR_HEIGHT: f32 = 50.0;
+
+pub static ICON_CACHE: LazyLock<Mutex<HashMap<String, RgbaImage>>> =
+    LazyLock::new(|| Mutex::new(HashMap::new()));
 
 #[derive(Parser)]
 #[clap(author, about, version)]

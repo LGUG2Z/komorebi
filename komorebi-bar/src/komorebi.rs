@@ -6,6 +6,7 @@ use crate::render::RenderConfig;
 use crate::selected_frame::SelectableFrame;
 use crate::ui::CustomUi;
 use crate::widget::BarWidget;
+use crate::ICON_CACHE;
 use crate::MAX_LABEL_WIDTH;
 use crate::MONITOR_INDEX;
 use crossbeam_channel::Receiver;
@@ -611,17 +612,38 @@ impl From<&Workspace> for KomorebiNotificationStateContainerInformation {
 
 impl From<&Container> for KomorebiNotificationStateContainerInformation {
     fn from(value: &Container) -> Self {
+        let windows = value.windows().iter().collect::<Vec<_>>();
+        let mut icons = vec![];
+
+        for window in windows {
+            let mut icon_cache = ICON_CACHE.lock().unwrap();
+            let mut update_cache = false;
+            let exe = window.exe().unwrap_or_default();
+
+            match icon_cache.get(&exe) {
+                None => {
+                    icons.push(windows_icons::get_icon_by_process_id(window.process_id()));
+                    update_cache = true;
+                }
+                Some(icon) => {
+                    icons.push(Some(icon.clone()));
+                }
+            }
+
+            if update_cache {
+                if let Some(Some(icon)) = icons.last() {
+                    icon_cache.insert(exe, icon.clone());
+                }
+            }
+        }
+
         Self {
             titles: value
                 .windows()
                 .iter()
                 .map(|w| w.title().unwrap_or_default())
                 .collect::<Vec<_>>(),
-            icons: value
-                .windows()
-                .iter()
-                .map(|w| windows_icons::get_icon_by_process_id(w.process_id()))
-                .collect::<Vec<_>>(),
+            icons,
             focused_window_idx: value.focused_window_idx(),
         }
     }
@@ -629,9 +651,30 @@ impl From<&Container> for KomorebiNotificationStateContainerInformation {
 
 impl From<&Window> for KomorebiNotificationStateContainerInformation {
     fn from(value: &Window) -> Self {
+        let mut icon_cache = ICON_CACHE.lock().unwrap();
+        let mut update_cache = false;
+        let mut icons = vec![];
+        let exe = value.exe().unwrap_or_default();
+
+        match icon_cache.get(&exe) {
+            None => {
+                icons.push(windows_icons::get_icon_by_process_id(value.process_id()));
+                update_cache = true;
+            }
+            Some(icon) => {
+                icons.push(Some(icon.clone()));
+            }
+        }
+
+        if update_cache {
+            if let Some(Some(icon)) = icons.last() {
+                icon_cache.insert(exe, icon.clone());
+            }
+        }
+
         Self {
             titles: vec![value.title().unwrap_or_default()],
-            icons: vec![windows_icons::get_icon_by_process_id(value.process_id())],
+            icons,
             focused_window_idx: 0,
         }
     }
