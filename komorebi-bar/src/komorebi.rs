@@ -161,7 +161,12 @@ impl BarWidget for Komorebi {
                             .show(ui, |ui| {
                                 let mut has_icon = false;
 
-                                if let DisplayFormat::Icon | DisplayFormat::IconAndText = format {
+                                if format == DisplayFormat::Icon
+                                    || format == DisplayFormat::IconAndText
+                                    || format == DisplayFormat::IconAndTextOnSelected
+                                    || (format == DisplayFormat::TextAndIconOnSelected
+                                        && komorebi_notification_state.selected_workspace.eq(ws))
+                                {
                                     let icons: Vec<_> =
                                         container_information.icons.iter().flatten().collect();
 
@@ -211,8 +216,13 @@ impl BarWidget for Komorebi {
                                     _ => false,
                                 } {
                                     ui.response().on_hover_text(ws.to_string())
-                                } else {
+                                } else if format != DisplayFormat::IconAndTextOnSelected
+                                    || (format == DisplayFormat::IconAndTextOnSelected
+                                        && komorebi_notification_state.selected_workspace.eq(ws))
+                                {
                                     ui.add(Label::new(ws.to_string()).selectable(false))
+                                } else {
+                                    ui.response()
                                 }
                             })
                             .clicked()
@@ -376,7 +386,11 @@ impl BarWidget for Komorebi {
                                         },
                                     );
 
-                                    if let DisplayFormat::Icon | DisplayFormat::IconAndText = format
+                                    if format == DisplayFormat::Icon
+                                        || format == DisplayFormat::IconAndText
+                                        || format == DisplayFormat::IconAndTextOnSelected
+                                        || (format == DisplayFormat::TextAndIconOnSelected
+                                            && i == focused_window_idx)
                                     {
                                         if let Some(img) = icon {
                                             Frame::none()
@@ -397,7 +411,11 @@ impl BarWidget for Komorebi {
                                         }
                                     }
 
-                                    if let DisplayFormat::Text | DisplayFormat::IconAndText = format
+                                    if format == DisplayFormat::Text
+                                        || format == DisplayFormat::IconAndText
+                                        || format == DisplayFormat::TextAndIconOnSelected
+                                        || (format == DisplayFormat::IconAndTextOnSelected
+                                            && i == focused_window_idx)
                                     {
                                         let available_height = ui.available_height();
                                         let mut custom_ui = CustomUi(ui);
