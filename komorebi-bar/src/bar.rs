@@ -281,34 +281,26 @@ impl Komobar {
         self.render_config
             .replace(config.new_renderconfig(ctx, theme_color));
 
-        let mut komorebi_widget = None;
-        let mut komorebi_widget_idx = None;
         let mut komorebi_notification_state = previous_notification_state;
-        let mut side = None;
+        let mut komorebi_widgets = Vec::new();
 
         for (idx, widget_config) in config.left_widgets.iter().enumerate() {
             if let WidgetConfig::Komorebi(config) = widget_config {
-                komorebi_widget = Some(Komorebi::from(config));
-                komorebi_widget_idx = Some(idx);
-                side = Some(Alignment::Left);
+                komorebi_widgets.push((Komorebi::from(config), idx, Alignment::Left));
             }
         }
 
         if let Some(center_widgets) = &config.center_widgets {
             for (idx, widget_config) in center_widgets.iter().enumerate() {
                 if let WidgetConfig::Komorebi(config) = widget_config {
-                    komorebi_widget = Some(Komorebi::from(config));
-                    komorebi_widget_idx = Some(idx);
-                    side = Some(Alignment::Center);
+                    komorebi_widgets.push((Komorebi::from(config), idx, Alignment::Center));
                 }
             }
         }
 
         for (idx, widget_config) in config.right_widgets.iter().enumerate() {
             if let WidgetConfig::Komorebi(config) = widget_config {
-                komorebi_widget = Some(Komorebi::from(config));
-                komorebi_widget_idx = Some(idx);
-                side = Some(Alignment::Right);
+                komorebi_widgets.push((Komorebi::from(config), idx, Alignment::Right));
             }
         }
 
@@ -335,28 +327,33 @@ impl Komobar {
             .map(|config| config.as_boxed_bar_widget())
             .collect::<Vec<Box<dyn BarWidget>>>();
 
-        if let (Some(idx), Some(mut widget), Some(side)) =
-            (komorebi_widget_idx, komorebi_widget, side)
-        {
-            match komorebi_notification_state {
-                None => {
-                    komorebi_notification_state = Some(widget.komorebi_notification_state.clone());
-                }
-                Some(ref previous) => {
-                    previous
-                        .borrow_mut()
-                        .update_from_config(&widget.komorebi_notification_state.borrow());
+        if !komorebi_widgets.is_empty() {
+            komorebi_widgets
+                .into_iter()
+                .for_each(|(mut widget, idx, side)| {
+                    match komorebi_notification_state {
+                        None => {
+                            komorebi_notification_state =
+                                Some(widget.komorebi_notification_state.clone());
+                        }
+                        Some(ref previous) => {
+                            if widget.workspaces.map_or(false, |w| w.enable) {
+                                previous.borrow_mut().update_from_config(
+                                    &widget.komorebi_notification_state.borrow(),
+                                );
+                            }
 
-                    widget.komorebi_notification_state = previous.clone();
-                }
-            }
+                            widget.komorebi_notification_state = previous.clone();
+                        }
+                    }
 
-            let boxed: Box<dyn BarWidget> = Box::new(widget);
-            match side {
-                Alignment::Left => left_widgets[idx] = boxed,
-                Alignment::Center => center_widgets[idx] = boxed,
-                Alignment::Right => right_widgets[idx] = boxed,
-            }
+                    let boxed: Box<dyn BarWidget> = Box::new(widget);
+                    match side {
+                        Alignment::Left => left_widgets[idx] = boxed,
+                        Alignment::Center => center_widgets[idx] = boxed,
+                        Alignment::Right => right_widgets[idx] = boxed,
+                    }
+                });
         }
 
         right_widgets.reverse();

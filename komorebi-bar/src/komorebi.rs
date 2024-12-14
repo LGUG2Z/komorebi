@@ -45,7 +45,7 @@ use std::sync::atomic::Ordering;
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 pub struct KomorebiConfig {
     /// Configure the Workspaces widget
-    pub workspaces: KomorebiWorkspacesConfig,
+    pub workspaces: Option<KomorebiWorkspacesConfig>,
     /// Configure the Layout widget
     pub layout: Option<KomorebiLayoutConfig>,
     /// Configure the Focused Window widget
@@ -112,7 +112,10 @@ impl From<&KomorebiConfig> for Komorebi {
                 selected_workspace: String::new(),
                 layout: KomorebiLayout::Default(komorebi_client::DefaultLayout::BSP),
                 workspaces: vec![],
-                hide_empty_workspaces: value.workspaces.hide_empty_workspaces,
+                hide_empty_workspaces: value
+                    .workspaces
+                    .map(|w| w.hide_empty_workspaces)
+                    .unwrap_or_default(),
                 mouse_follows_focus: true,
                 work_area_offset: None,
                 focused_container_information: KomorebiNotificationStateContainerInformation::EMPTY,
@@ -130,7 +133,7 @@ impl From<&KomorebiConfig> for Komorebi {
 #[derive(Clone, Debug)]
 pub struct Komorebi {
     pub komorebi_notification_state: Rc<RefCell<KomorebiNotificationState>>,
-    pub workspaces: KomorebiWorkspacesConfig,
+    pub workspaces: Option<KomorebiWorkspacesConfig>,
     pub layout: Option<KomorebiLayoutConfig>,
     pub focused_window: Option<KomorebiFocusedWindowConfig>,
     pub configuration_switcher: Option<KomorebiConfigurationSwitcherConfig>,
@@ -141,124 +144,128 @@ impl BarWidget for Komorebi {
         let mut komorebi_notification_state = self.komorebi_notification_state.borrow_mut();
         let icon_size = Vec2::splat(config.icon_font_id.size);
 
-        if self.workspaces.enable {
-            let mut update = None;
+        if let Some(workspaces) = self.workspaces {
+            if workspaces.enable {
+                let mut update = None;
 
-            if !komorebi_notification_state.workspaces.is_empty() {
-                let format = self.workspaces.display.unwrap_or(DisplayFormat::Text);
+                if !komorebi_notification_state.workspaces.is_empty() {
+                    let format = workspaces.display.unwrap_or(DisplayFormat::Text);
 
-                config.apply_on_widget(false, ui, |ui| {
-                    for (i, (ws, container_information)) in
-                        komorebi_notification_state.workspaces.iter().enumerate()
-                    {
-                        if SelectableFrame::new(
-                            komorebi_notification_state.selected_workspace.eq(ws),
-                        )
-                        .show(ui, |ui| {
-                            let mut has_icon = false;
-
-                            if let DisplayFormat::Icon | DisplayFormat::IconAndText = format {
-                                let icons: Vec<_> =
-                                    container_information.icons.iter().flatten().collect();
-
-                                if !icons.is_empty() {
-                                    Frame::none()
-                                        .inner_margin(Margin::same(
-                                            ui.style().spacing.button_padding.y,
-                                        ))
-                                        .show(ui, |ui| {
-                                            for icon in icons {
-                                                ui.add(
-                                                    Image::from(&img_to_texture(ctx, icon))
-                                                        .maintain_aspect_ratio(true)
-                                                        .fit_to_exact_size(icon_size),
-                                                );
-
-                                                if !has_icon {
-                                                    has_icon = true;
-                                                }
-                                            }
-                                        });
-                                }
-                            }
-
-                            // draw a custom icon when there is no app icon
-                            if match format {
-                                DisplayFormat::Icon => !has_icon,
-                                _ => false,
-                            } {
-                                let (response, painter) =
-                                    ui.allocate_painter(icon_size, Sense::hover());
-                                let stroke =
-                                    Stroke::new(1.0, ctx.style().visuals.selection.stroke.color);
-                                let mut rect = response.rect;
-                                let rounding = Rounding::same(rect.width() * 0.1);
-                                rect = rect.shrink(stroke.width);
-                                let c = rect.center();
-                                let r = rect.width() / 2.0;
-                                painter.rect_stroke(rect, rounding, stroke);
-                                painter.line_segment([c - vec2(r, r), c + vec2(r, r)], stroke);
-
-                                response.on_hover_text(ws.to_string())
-                            } else if match format {
-                                DisplayFormat::Icon => has_icon,
-                                _ => false,
-                            } {
-                                ui.response().on_hover_text(ws.to_string())
-                            } else {
-                                ui.add(Label::new(ws.to_string()).selectable(false))
-                            }
-                        })
-                        .clicked()
+                    config.apply_on_widget(false, ui, |ui| {
+                        for (i, (ws, container_information)) in
+                            komorebi_notification_state.workspaces.iter().enumerate()
                         {
-                            update = Some(ws.to_string());
+                            if SelectableFrame::new(
+                                komorebi_notification_state.selected_workspace.eq(ws),
+                            )
+                            .show(ui, |ui| {
+                                let mut has_icon = false;
 
-                            if komorebi_notification_state.mouse_follows_focus {
-                                if komorebi_client::send_batch([
-                                    SocketMessage::MouseFollowsFocus(false),
+                                if let DisplayFormat::Icon | DisplayFormat::IconAndText = format {
+                                    let icons: Vec<_> =
+                                        container_information.icons.iter().flatten().collect();
+
+                                    if !icons.is_empty() {
+                                        Frame::none()
+                                            .inner_margin(Margin::same(
+                                                ui.style().spacing.button_padding.y,
+                                            ))
+                                            .show(ui, |ui| {
+                                                for icon in icons {
+                                                    ui.add(
+                                                        Image::from(&img_to_texture(ctx, icon))
+                                                            .maintain_aspect_ratio(true)
+                                                            .fit_to_exact_size(icon_size),
+                                                    );
+
+                                                    if !has_icon {
+                                                        has_icon = true;
+                                                    }
+                                                }
+                                            });
+                                    }
+                                }
+
+                                // draw a custom icon when there is no app icon
+                                if match format {
+                                    DisplayFormat::Icon => !has_icon,
+                                    _ => false,
+                                } {
+                                    let (response, painter) =
+                                        ui.allocate_painter(icon_size, Sense::hover());
+                                    let stroke = Stroke::new(
+                                        1.0,
+                                        ctx.style().visuals.selection.stroke.color,
+                                    );
+                                    let mut rect = response.rect;
+                                    let rounding = Rounding::same(rect.width() * 0.1);
+                                    rect = rect.shrink(stroke.width);
+                                    let c = rect.center();
+                                    let r = rect.width() / 2.0;
+                                    painter.rect_stroke(rect, rounding, stroke);
+                                    painter.line_segment([c - vec2(r, r), c + vec2(r, r)], stroke);
+
+                                    response.on_hover_text(ws.to_string())
+                                } else if match format {
+                                    DisplayFormat::Icon => has_icon,
+                                    _ => false,
+                                } {
+                                    ui.response().on_hover_text(ws.to_string())
+                                } else {
+                                    ui.add(Label::new(ws.to_string()).selectable(false))
+                                }
+                            })
+                            .clicked()
+                            {
+                                update = Some(ws.to_string());
+
+                                if komorebi_notification_state.mouse_follows_focus {
+                                    if komorebi_client::send_batch([
+                                        SocketMessage::MouseFollowsFocus(false),
+                                        SocketMessage::FocusMonitorWorkspaceNumber(
+                                            komorebi_notification_state.monitor_index,
+                                            i,
+                                        ),
+                                        SocketMessage::RetileWithResizeDimensions,
+                                        SocketMessage::MouseFollowsFocus(true),
+                                    ])
+                                        .is_err()
+                                    {
+                                        tracing::error!(
+                                            "could not send the following batch of messages to komorebi:\n
+                                            MouseFollowsFocus(false)\n
+                                            FocusMonitorWorkspaceNumber({}, {})\n
+                                            RetileWithResizeDimensions
+                                            MouseFollowsFocus(true)\n",
+                                            komorebi_notification_state.monitor_index,
+                                            i,
+                                        );
+                                    }
+                                } else if komorebi_client::send_batch([
                                     SocketMessage::FocusMonitorWorkspaceNumber(
                                         komorebi_notification_state.monitor_index,
                                         i,
                                     ),
                                     SocketMessage::RetileWithResizeDimensions,
-                                    SocketMessage::MouseFollowsFocus(true),
                                 ])
-                                .is_err()
+                                    .is_err()
                                 {
                                     tracing::error!(
                                         "could not send the following batch of messages to komorebi:\n
-                                        MouseFollowsFocus(false)\n
                                         FocusMonitorWorkspaceNumber({}, {})\n
-                                        RetileWithResizeDimensions
-                                        MouseFollowsFocus(true)\n",
+                                        RetileWithResizeDimensions",
                                         komorebi_notification_state.monitor_index,
                                         i,
                                     );
                                 }
-                            } else if komorebi_client::send_batch([
-                                SocketMessage::FocusMonitorWorkspaceNumber(
-                                    komorebi_notification_state.monitor_index,
-                                    i,
-                                ),
-                                SocketMessage::RetileWithResizeDimensions,
-                            ])
-                            .is_err()
-                            {
-                                tracing::error!(
-                                    "could not send the following batch of messages to komorebi:\n
-                                    FocusMonitorWorkspaceNumber({}, {})\n
-                                    RetileWithResizeDimensions",
-                                    komorebi_notification_state.monitor_index,
-                                    i,
-                                );
                             }
                         }
-                    }
-                });
-            }
+                    });
+                }
 
-            if let Some(update) = update {
-                komorebi_notification_state.selected_workspace = update;
+                if let Some(update) = update {
+                    komorebi_notification_state.selected_workspace = update;
+                }
             }
         }
 
