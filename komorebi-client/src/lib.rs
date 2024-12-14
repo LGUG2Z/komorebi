@@ -68,6 +68,20 @@ pub fn send_message(message: &SocketMessage) -> std::io::Result<()> {
     stream.write_all(serde_json::to_string(message)?.as_bytes())
 }
 
+pub fn send_batch(messages: impl IntoIterator<Item = SocketMessage>) -> std::io::Result<()> {
+    let socket = DATA_DIR.join(KOMOREBI);
+    let mut stream = UnixStream::connect(socket)?;
+    stream.set_write_timeout(Some(Duration::from_secs(1)))?;
+    let msgs = messages.into_iter().fold(String::new(), |mut s, m| {
+        if let Ok(m_str) = serde_json::to_string(&m) {
+            s.push_str(&m_str);
+            s.push('\n');
+        }
+        s
+    });
+    stream.write_all(msgs.as_bytes())
+}
+
 pub fn send_query(message: &SocketMessage) -> std::io::Result<String> {
     let socket = DATA_DIR.join(KOMOREBI);
 
