@@ -199,7 +199,7 @@ jobs:
     needs: release
     if: startsWith(github.ref, 'refs/tags/v')
     steps:
-      - uses: vedantmgoyal2009/winget-releaser@v2
+      - uses: vedantmgoyal2009/winget-releaser@main
         with:
           identifier: LGUG2Z.komorebi
           token: ${{ secrets.WINGET_TOKEN }}
