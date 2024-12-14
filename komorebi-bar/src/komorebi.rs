@@ -220,53 +220,45 @@ impl BarWidget for Komorebi {
                         .clicked()
                         {
                             update = Some(ws.to_string());
-                            let mut proceed = true;
 
-                            if komorebi_client::send_message(&SocketMessage::MouseFollowsFocus(
-                                false,
-                            ))
-                            .is_err()
-                            {
-                                tracing::error!(
-                                    "could not send message to komorebi: MouseFollowsFocus"
-                                );
-                                proceed = false;
-                            }
-
-                            if proceed
-                                && komorebi_client::send_message(
-                                    &SocketMessage::FocusMonitorWorkspaceNumber(
+                            if komorebi_notification_state.mouse_follows_focus {
+                                if komorebi_client::send_batch([
+                                    SocketMessage::MouseFollowsFocus(false),
+                                    SocketMessage::FocusMonitorWorkspaceNumber(
                                         komorebi_notification_state.monitor_index,
                                         i,
                                     ),
-                                )
+                                    SocketMessage::RetileWithResizeDimensions,
+                                    SocketMessage::MouseFollowsFocus(true),
+                                ])
                                 .is_err()
+                                {
+                                    tracing::error!(
+                                        "could not send the following batch of messages to komorebi:\n
+                                        MouseFollowsFocus(false)\n
+                                        FocusMonitorWorkspaceNumber({}, {})\n
+                                        RetileWithResizeDimensions
+                                        MouseFollowsFocus(true)\n",
+                                        komorebi_notification_state.monitor_index,
+                                        i,
+                                    );
+                                }
+                            } else if komorebi_client::send_batch([
+                                SocketMessage::FocusMonitorWorkspaceNumber(
+                                    komorebi_notification_state.monitor_index,
+                                    i,
+                                ),
+                                SocketMessage::RetileWithResizeDimensions,
+                            ])
+                            .is_err()
                             {
                                 tracing::error!(
-                                    "could not send message to komorebi: FocusWorkspaceNumber"
+                                    "could not send the following batch of messages to komorebi:\n
+                                    FocusMonitorWorkspaceNumber({}, {})\n
+                                    RetileWithResizeDimensions",
+                                    komorebi_notification_state.monitor_index,
+                                    i,
                                 );
-                                proceed = false;
-                            }
-
-                            if proceed
-                                && komorebi_client::send_message(&SocketMessage::MouseFollowsFocus(
-                                    komorebi_notification_state.mouse_follows_focus,
-                                ))
-                                .is_err()
-                            {
-                                tracing::error!(
-                                    "could not send message to komorebi: MouseFollowsFocus"
-                                );
-                                proceed = false;
-                            }
-
-                            if proceed
-                                && komorebi_client::send_message(
-                                    &SocketMessage::RetileWithResizeDimensions,
-                                )
-                                .is_err()
-                            {
-                                tracing::error!("could not send message to komorebi: Retile");
                             }
                         }
                     }
@@ -426,33 +418,25 @@ impl BarWidget for Komorebi {
                                     return;
                                 }
 
-                                if komorebi_client::send_message(&SocketMessage::MouseFollowsFocus(
-                                    false,
-                                ))
-                                .is_err()
-                                {
-                                    tracing::error!(
-                                        "could not send message to komorebi: MouseFollowsFocus"
-                                    );
-                                }
-
-                                if komorebi_client::send_message(&SocketMessage::FocusStackWindow(
-                                    i,
-                                ))
-                                .is_err()
-                                {
+                                if komorebi_notification_state.mouse_follows_focus {
+                                    if komorebi_client::send_batch([
+                                        SocketMessage::MouseFollowsFocus(false),
+                                        SocketMessage::FocusStackWindow(i),
+                                        SocketMessage::MouseFollowsFocus(true),
+                                    ]).is_err() {
+                                        tracing::error!(
+                                            "could not send the following batch of messages to komorebi:\n
+                                            MouseFollowsFocus(false)\n
+                                            FocusStackWindow({})\n
+                                            MouseFollowsFocus(true)\n",
+                                            i,
+                                        );
+                                    }
+                                } else if komorebi_client::send_message(
+                                    &SocketMessage::FocusStackWindow(i)
+                                ).is_err() {
                                     tracing::error!(
                                         "could not send message to komorebi: FocusStackWindow"
-                                    );
-                                }
-
-                                if komorebi_client::send_message(&SocketMessage::MouseFollowsFocus(
-                                    komorebi_notification_state.mouse_follows_focus,
-                                ))
-                                .is_err()
-                                {
-                                    tracing::error!(
-                                        "could not send message to komorebi: MouseFollowsFocus"
                                     );
                                 }
                             }
