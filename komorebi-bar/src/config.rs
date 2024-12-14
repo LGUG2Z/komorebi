@@ -188,12 +188,16 @@ pub enum LabelPrefix {
     IconAndText,
 }
 
-#[derive(Copy, Clone, Debug, Serialize, Deserialize, JsonSchema)]
+#[derive(Copy, Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq)]
 pub enum DisplayFormat {
     /// Show only icon
     Icon,
     /// Show only text
     Text,
+    /// Show an icon and text for the selected element, and text on the rest
+    TextAndIconOnSelected,
     /// Show both icon and text
     IconAndText,
+    /// Show an icon and text for the selected element, and icons on the rest
+    IconAndTextOnSelected,
 }
