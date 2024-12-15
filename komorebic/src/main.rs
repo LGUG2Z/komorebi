@@ -1534,7 +1534,7 @@ fn main() -> Result<()> {
                 arguments.push_str(" --ahk");
             }
 
-            if args.bar {
+            if args.masir {
                 arguments.push_str(" --masir");
             }
 
