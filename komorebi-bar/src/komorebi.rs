@@ -15,7 +15,6 @@ use eframe::egui::vec2;
 use eframe::egui::Color32;
 use eframe::egui::ColorImage;
 use eframe::egui::Context;
-use eframe::egui::FontId;
 use eframe::egui::Frame;
 use eframe::egui::Image;
 use eframe::egui::Label;
@@ -23,7 +22,6 @@ use eframe::egui::Margin;
 use eframe::egui::Rounding;
 use eframe::egui::Sense;
 use eframe::egui::Stroke;
-use eframe::egui::TextStyle;
 use eframe::egui::TextureHandle;
 use eframe::egui::TextureOptions;
 use eframe::egui::Ui;
@@ -141,6 +139,7 @@ pub struct Komorebi {
 impl BarWidget for Komorebi {
     fn render(&mut self, ctx: &Context, ui: &mut Ui, config: &mut RenderConfig) {
         let mut komorebi_notification_state = self.komorebi_notification_state.borrow_mut();
+        let icon_size = Vec2::splat(config.icon_font_id.size);
 
         if self.workspaces.enable {
             let mut update = None;
@@ -172,7 +171,7 @@ impl BarWidget for Komorebi {
                                                 ui.add(
                                                     Image::from(&img_to_texture(ctx, icon))
                                                         .maintain_aspect_ratio(true)
-                                                        .shrink_to_fit(),
+                                                        .fit_to_exact_size(icon_size),
                                                 );
 
                                                 if !has_icon {
@@ -188,15 +187,8 @@ impl BarWidget for Komorebi {
                                 DisplayFormat::Icon => !has_icon,
                                 _ => false,
                             } {
-                                let font_id = ctx
-                                    .style()
-                                    .text_styles
-                                    .get(&TextStyle::Body)
-                                    .cloned()
-                                    .unwrap_or_else(FontId::default);
-
                                 let (response, painter) =
-                                    ui.allocate_painter(Vec2::splat(font_id.size), Sense::hover());
+                                    ui.allocate_painter(icon_size, Sense::hover());
                                 let stroke =
                                     Stroke::new(1.0, ctx.style().visuals.selection.stroke.color);
                                 let mut rect = response.rect;
@@ -388,7 +380,7 @@ impl BarWidget for Komorebi {
                                                     let response = ui.add(
                                                         Image::from(&img_to_texture(ctx, img))
                                                             .maintain_aspect_ratio(true)
-                                                            .shrink_to_fit(),
+                                                            .fit_to_exact_size(icon_size),
                                                     );
 
                                                     if let DisplayFormat::Icon = format {

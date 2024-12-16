@@ -10,7 +10,6 @@ use eframe::egui::Label;
 use eframe::egui::Rounding;
 use eframe::egui::Sense;
 use eframe::egui::Stroke;
-use eframe::egui::TextStyle;
 use eframe::egui::Ui;
 use eframe::egui::Vec2;
 use komorebi_client::SocketMessage;
@@ -225,13 +224,7 @@ impl KomorebiLayout {
         workspace_idx: Option<usize>,
     ) {
         let monitor_idx = render_config.monitor_idx;
-        let font_id = ctx
-            .style()
-            .text_styles
-            .get(&TextStyle::Body)
-            .cloned()
-            .unwrap_or_else(FontId::default);
-
+        let font_id = render_config.icon_font_id.clone();
         let mut show_options = RenderConfig::load_show_komorebi_layout_options();
         let format = layout_config.display.unwrap_or(DisplayFormat::IconAndText);
 
