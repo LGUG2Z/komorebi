@@ -270,9 +270,6 @@ impl Komobar {
 
         let theme_color = *self.bg_color.borrow();
 
-        self.render_config
-            .replace(config.new_renderconfig(theme_color));
-
         self.bg_color
             .replace(theme_color.try_apply_alpha(config.transparency_alpha));
 
@@ -280,6 +277,9 @@ impl Komobar {
             tracing::info!("attempting to set custom font size: {font_size}");
             Self::set_font_size(ctx, *font_size);
         }
+
+        self.render_config
+            .replace(config.new_renderconfig(ctx, theme_color));
 
         let mut komorebi_widget = None;
         let mut komorebi_widget_idx = None;
@@ -503,7 +503,7 @@ impl eframe::App for Komobar {
                 ui.horizontal_centered(|ui| {
                     // Left-aligned widgets layout
                     ui.with_layout(Layout::left_to_right(Align::Center), |ui| {
-                        let mut render_conf = *render_config;
+                        let mut render_conf = render_config.clone();
                         render_conf.alignment = Some(Alignment::Left);
 
                         render_config.apply_on_alignment(ui, |ui| {
@@ -515,7 +515,7 @@ impl eframe::App for Komobar {
 
                     // Right-aligned widgets layout
                     ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                        let mut render_conf = *render_config;
+                        let mut render_conf = render_config.clone();
                         render_conf.alignment = Some(Alignment::Right);
 
                         render_config.apply_on_alignment(ui, |ui| {
@@ -532,7 +532,7 @@ impl eframe::App for Komobar {
                             .show(ctx, |ui| {
                                 Frame::none().show(ui, |ui| {
                                     ui.horizontal_centered(|ui| {
-                                        let mut render_conf = *render_config;
+                                        let mut render_conf = render_config.clone();
                                         render_conf.alignment = Some(Alignment::Center);
 
                                         render_config.apply_on_alignment(ui, |ui| {

@@ -1,3 +1,4 @@
+use eframe::egui::CursorIcon;
 use eframe::egui::Frame;
 use eframe::egui::Margin;
 use eframe::egui::Response;
@@ -50,6 +51,6 @@ impl SelectableFrame {
                 response
             })
             .inner
-            .on_hover_cursor(eframe::egui::CursorIcon::PointingHand)
+            .on_hover_cursor(CursorIcon::PointingHand)
     }
 }

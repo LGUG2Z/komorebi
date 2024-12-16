@@ -1,11 +1,14 @@
 use crate::bar::Alignment;
 use crate::config::KomobarConfig;
 use eframe::egui::Color32;
+use eframe::egui::Context;
+use eframe::egui::FontId;
 use eframe::egui::Frame;
 use eframe::egui::InnerResponse;
 use eframe::egui::Margin;
 use eframe::egui::Rounding;
 use eframe::egui::Shadow;
+use eframe::egui::TextStyle;
 use eframe::egui::Ui;
 use eframe::egui::Vec2;
 use schemars::JsonSchema;
@@ -29,7 +32,7 @@ pub enum Grouping {
     Widget(GroupingConfig),
 }
 
-#[derive(Copy, Clone)]
+#[derive(Clone)]
 pub struct RenderConfig {
     /// Komorebi monitor index of the monitor on which to render the bar
     pub monitor_idx: usize,
@@ -45,14 +48,28 @@ pub struct RenderConfig {
     pub more_inner_margin: bool,
     /// Set to true after the first time the apply_on_widget was called on an alignment
     pub applied_on_widget: bool,
+    /// FontId for text
+    pub text_font_id: FontId,
+    /// FontId for icon (based on scaling the text font id)
+    pub icon_font_id: FontId,
 }
 
 pub trait RenderExt {
-    fn new_renderconfig(&self, background_color: Color32) -> RenderConfig;
+    fn new_renderconfig(&self, ctx: &Context, background_color: Color32) -> RenderConfig;
 }
 
 impl RenderExt for &KomobarConfig {
-    fn new_renderconfig(&self, background_color: Color32) -> RenderConfig {
+    fn new_renderconfig(&self, ctx: &Context, background_color: Color32) -> RenderConfig {
+        let text_font_id = ctx
+            .style()
+            .text_styles
+            .get(&TextStyle::Body)
+            .cloned()
+            .unwrap_or_else(FontId::default);
+
+        let mut icon_font_id = text_font_id.clone();
+        icon_font_id.size *= 1.4;
+
         RenderConfig {
             monitor_idx: self.monitor.index,
             spacing: self.widget_spacing.unwrap_or(10.0),
@@ -61,6 +78,8 @@ impl RenderExt for &KomobarConfig {
             alignment: None,
             more_inner_margin: false,
             applied_on_widget: false,
+            text_font_id,
+            icon_font_id,
         }
     }
 }
@@ -83,6 +102,8 @@ impl RenderConfig {
             alignment: None,
             more_inner_margin: false,
             applied_on_widget: false,
+            text_font_id: FontId::default(),
+            icon_font_id: FontId::default(),
         }
     }
 
@@ -162,8 +183,8 @@ impl RenderConfig {
         Frame::group(ui.style_mut())
             .outer_margin(outer_margin.unwrap_or(Margin::ZERO))
             .inner_margin(match self.more_inner_margin {
-                true => Margin::symmetric(8.0, 3.0),
-                false => Margin::symmetric(3.0, 3.0),
+                true => Margin::symmetric(6.0, 1.0),
+                false => Margin::symmetric(1.0, 1.0),
             })
             .stroke(ui.style().visuals.widgets.noninteractive.bg_stroke)
             .rounding(match config.rounding {

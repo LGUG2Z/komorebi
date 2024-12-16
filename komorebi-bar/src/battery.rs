@@ -2,12 +2,11 @@ use crate::config::LabelPrefix;
 use crate::render::RenderConfig;
 use crate::widget::BarWidget;
 use eframe::egui::text::LayoutJob;
+use eframe::egui::Align;
 use eframe::egui::Context;
-use eframe::egui::FontId;
 use eframe::egui::Label;
 use eframe::egui::Sense;
 use eframe::egui::TextFormat;
-use eframe::egui::TextStyle;
 use eframe::egui::Ui;
 use schemars::JsonSchema;
 use serde::Deserialize;
@@ -105,19 +104,12 @@ impl BarWidget for Battery {
                     BatteryState::Discharging => egui_phosphor::regular::BATTERY_FULL,
                 };
 
-                let font_id = ctx
-                    .style()
-                    .text_styles
-                    .get(&TextStyle::Body)
-                    .cloned()
-                    .unwrap_or_else(FontId::default);
-
                 let mut layout_job = LayoutJob::simple(
                     match self.label_prefix {
                         LabelPrefix::Icon | LabelPrefix::IconAndText => emoji.to_string(),
                         LabelPrefix::None | LabelPrefix::Text => String::new(),
                     },
-                    font_id.clone(),
+                    config.icon_font_id.clone(),
                     ctx.style().visuals.selection.stroke.color,
                     100.0,
                 );
@@ -125,7 +117,12 @@ impl BarWidget for Battery {
                 layout_job.append(
                     &output,
                     10.0,
-                    TextFormat::simple(font_id, ctx.style().visuals.text_color()),
+                    TextFormat {
+                        font_id: config.text_font_id.clone(),
+                        color: ctx.style().visuals.text_color(),
+                        valign: Align::Center,
+                        ..Default::default()
+                    },
                 );
 
                 config.apply_on_widget(true, ui, |ui| {

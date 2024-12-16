@@ -3,11 +3,10 @@ use crate::render::RenderConfig;
 use crate::selected_frame::SelectableFrame;
 use crate::widget::BarWidget;
 use eframe::egui::text::LayoutJob;
+use eframe::egui::Align;
 use eframe::egui::Context;
-use eframe::egui::FontId;
 use eframe::egui::Label;
 use eframe::egui::TextFormat;
-use eframe::egui::TextStyle;
 use eframe::egui::Ui;
 use eframe::egui::WidgetText;
 use schemars::JsonSchema;
@@ -90,13 +89,6 @@ impl BarWidget for Date {
         if self.enable {
             let mut output = self.output();
             if !output.is_empty() {
-                let font_id = ctx
-                    .style()
-                    .text_styles
-                    .get(&TextStyle::Body)
-                    .cloned()
-                    .unwrap_or_else(FontId::default);
-
                 let mut layout_job = LayoutJob::simple(
                     match self.label_prefix {
                         LabelPrefix::Icon | LabelPrefix::IconAndText => {
@@ -104,7 +96,7 @@ impl BarWidget for Date {
                         }
                         LabelPrefix::None | LabelPrefix::Text => String::new(),
                     },
-                    font_id.clone(),
+                    config.icon_font_id.clone(),
                     ctx.style().visuals.selection.stroke.color,
                     100.0,
                 );
@@ -116,7 +108,12 @@ impl BarWidget for Date {
                 layout_job.append(
                     &output,
                     10.0,
-                    TextFormat::simple(font_id, ctx.style().visuals.text_color()),
+                    TextFormat {
+                        font_id: config.text_font_id.clone(),
+                        color: ctx.style().visuals.text_color(),
+                        valign: Align::Center,
+                        ..Default::default()
+                    },
                 );
 
                 config.apply_on_widget(false, ui, |ui| {
