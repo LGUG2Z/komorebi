@@ -782,6 +782,9 @@ struct Start {
     /// Start masir in a background process for focus-follows-mouse
     #[clap(long)]
     masir: bool,
+    /// Do not attempt to auto-apply a dumped state temp file from a previously running instance of komorebi
+    #[clap(long)]
+    clean_state: bool,
 }
 
 #[derive(Parser)]
@@ -2010,6 +2013,10 @@ fn main() -> Result<()> {
 
             if let Some(port) = arg.tcp_port {
                 flags.push(format!("'--tcp-port={port}'"));
+            }
+
+            if arg.clean_state {
+                flags.push("'--clean-state'".to_string());
             }
 
             let script = if flags.is_empty() {

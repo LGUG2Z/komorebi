@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::collections::VecDeque;
+use std::env::temp_dir;
 use std::io::ErrorKind;
 use std::num::NonZeroUsize;
 use std::path::Path;
@@ -360,6 +361,81 @@ impl WindowManager {
         tracing::info!("initialising");
         WindowsApi::load_monitor_information(&mut self.monitors)?;
         WindowsApi::load_workspace_information(&mut self.monitors)
+    }
+
+    #[tracing::instrument(skip(self, state))]
+    pub fn apply_state(&mut self, state: State) {
+        let mut can_apply = true;
+
+        let state_monitors_len = state.monitors.elements().len();
+        let current_monitors_len = self.monitors.elements().len();
+        if state_monitors_len != current_monitors_len {
+            tracing::warn!(
+                "cannot apply state from {}; state file has {state_monitors_len} monitors, but only {current_monitors_len} are currently connected",
+                temp_dir().join("komorebi.state.json").to_string_lossy()
+            );
+
+            return;
+        }
+
+        for monitor in state.monitors.elements() {
+            for workspace in monitor.workspaces() {
+                for container in workspace.containers() {
+                    for window in container.windows() {
+                        if window.exe().is_err() {
+                            can_apply = false;
+                            break;
+                        }
+                    }
+                }
+
+                if let Some(window) = workspace.maximized_window() {
+                    if window.exe().is_err() {
+                        can_apply = false;
+                        break;
+                    }
+                }
+
+                if let Some(container) = workspace.monocle_container() {
+                    for window in container.windows() {
+                        if window.exe().is_err() {
+                            can_apply = false;
+                            break;
+                        }
+                    }
+                }
+
+                for window in workspace.floating_windows() {
+                    if window.exe().is_err() {
+                        can_apply = false;
+                        break;
+                    }
+                }
+            }
+        }
+
+        if can_apply {
+            tracing::info!(
+                "applying state from {}",
+                temp_dir().join("komorebi.state.json").to_string_lossy()
+            );
+
+            for (monitor_idx, monitor) in self.monitors_mut().iter_mut().enumerate() {
+                for (workspace_idx, workspace) in monitor.workspaces_mut().iter_mut().enumerate() {
+                    if let Some(state_monitor) = state.monitors.elements().get(monitor_idx) {
+                        if let Some(state_workspace) = state_monitor.workspaces().get(workspace_idx)
+                        {
+                            *workspace = state_workspace.clone();
+                        }
+                    }
+                }
+            }
+        } else {
+            tracing::warn!(
+                "cannot apply state from {}; some windows referenced in the state file no longer exist",
+                temp_dir().join("komorebi.state.json").to_string_lossy()
+            );
+        }
     }
 
     #[tracing::instrument]

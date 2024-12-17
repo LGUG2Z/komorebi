@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::env::temp_dir;
 use std::fs::File;
 use std::fs::OpenOptions;
 use std::io::BufRead;
@@ -915,6 +916,12 @@ impl WindowManager {
                 tracing::info!(
                     "received stop command, restoring all hidden windows and terminating process"
                 );
+
+                let state = &window_manager::State::from(&*self);
+                std::fs::write(
+                    temp_dir().join("komorebi.state.json"),
+                    serde_json::to_string_pretty(&state)?,
+                )?;
 
                 ANIMATION_ENABLED_PER_ANIMATION.lock().clear();
                 ANIMATION_ENABLED_GLOBAL.store(false, Ordering::SeqCst);
