@@ -420,15 +420,74 @@ impl WindowManager {
                 temp_dir().join("komorebi.state.json").to_string_lossy()
             );
 
+            let offset = self.work_area_offset;
+            let mouse_follows_focus = self.mouse_follows_focus;
             for (monitor_idx, monitor) in self.monitors_mut().iter_mut().enumerate() {
+                let mut focused_workspace = 0;
                 for (workspace_idx, workspace) in monitor.workspaces_mut().iter_mut().enumerate() {
                     if let Some(state_monitor) = state.monitors.elements().get(monitor_idx) {
                         if let Some(state_workspace) = state_monitor.workspaces().get(workspace_idx)
                         {
                             *workspace = state_workspace.clone();
+                            if state_monitor.focused_workspace_idx() == workspace_idx {
+                                focused_workspace = workspace_idx;
+                            }
                         }
                     }
                 }
+                if let Err(error) = monitor.focus_workspace(focused_workspace) {
+                    tracing::warn!(
+                        "cannot focus workspace '{focused_workspace}' on monitor '{monitor_idx}' from {}: {}",
+                        temp_dir().join("komorebi.state.json").to_string_lossy(),
+                        error,
+                    );
+                }
+                if let Err(error) = monitor.load_focused_workspace(mouse_follows_focus) {
+                    tracing::warn!(
+                        "cannot load focused workspace '{focused_workspace}' on monitor '{monitor_idx}' from {}: {}",
+                        temp_dir().join("komorebi.state.json").to_string_lossy(),
+                        error,
+                    );
+                }
+                if let Err(error) = monitor.update_focused_workspace(offset) {
+                    tracing::warn!(
+                        "cannot update workspace '{focused_workspace}' on monitor '{monitor_idx}' from {}: {}",
+                        temp_dir().join("komorebi.state.json").to_string_lossy(),
+                        error,
+                    );
+                }
+            }
+
+            let focused_monitor_idx = state.monitors.focused_idx();
+            let focused_workspace_idx = state
+                .monitors
+                .elements()
+                .get(focused_monitor_idx)
+                .map(|m| m.focused_workspace_idx())
+                .unwrap_or_default();
+
+            if let Err(error) = self.focus_monitor(focused_monitor_idx) {
+                tracing::warn!(
+                    "cannot focus monitor '{focused_monitor_idx}' from {}: {}",
+                    temp_dir().join("komorebi.state.json").to_string_lossy(),
+                    error,
+                );
+            }
+
+            if let Err(error) = self.focus_workspace(focused_workspace_idx) {
+                tracing::warn!(
+                    "cannot focus workspace '{focused_workspace_idx}' on monitor '{focused_monitor_idx}' from {}: {}",
+                    temp_dir().join("komorebi.state.json").to_string_lossy(),
+                    error,
+                );
+            }
+
+            if let Err(error) = self.update_focused_workspace(true, true) {
+                tracing::warn!(
+                    "cannot update focused workspace '{focused_workspace_idx}' on monitor '{focused_monitor_idx}' from {}: {}",
+                    temp_dir().join("komorebi.state.json").to_string_lossy(),
+                    error,
+                );
             }
         } else {
             tracing::warn!(
