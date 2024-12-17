@@ -3,6 +3,7 @@ use std::collections::HashSet;
 use std::collections::VecDeque;
 use std::env::temp_dir;
 use std::io::ErrorKind;
+use std::net::Shutdown;
 use std::num::NonZeroUsize;
 use std::path::Path;
 use std::path::PathBuf;
@@ -21,7 +22,11 @@ use schemars::JsonSchema;
 use serde::Deserialize;
 use serde::Serialize;
 use uds_windows::UnixListener;
+use uds_windows::UnixStream;
 
+use crate::animation::AnimationEngine;
+use crate::animation::ANIMATION_ENABLED_GLOBAL;
+use crate::animation::ANIMATION_ENABLED_PER_ANIMATION;
 use crate::core::config_generation::MatchingRule;
 use crate::core::custom_layout::CustomLayout;
 use crate::core::Arrangement;
@@ -85,6 +90,7 @@ use crate::NO_TITLEBAR;
 use crate::OBJECT_NAME_CHANGE_ON_LAUNCH;
 use crate::REGEX_IDENTIFIERS;
 use crate::REMOVE_TITLEBARS;
+use crate::SUBSCRIPTION_SOCKETS;
 use crate::TRANSPARENCY_BLACKLIST;
 use crate::TRAY_AND_MULTI_WINDOW_IDENTIFIERS;
 use crate::WORKSPACE_MATCHING_RULES;
@@ -1386,7 +1392,41 @@ impl WindowManager {
     }
 
     #[tracing::instrument(skip(self))]
-    pub fn restore_all_windows(&mut self) -> Result<()> {
+    pub fn stop(&mut self, ignore_restore: bool) -> Result<()> {
+        tracing::info!(
+            "received stop command, restoring all hidden windows and terminating process"
+        );
+
+        let state = &State::from(&*self);
+        std::fs::write(
+            temp_dir().join("komorebi.state.json"),
+            serde_json::to_string_pretty(&state)?,
+        )?;
+
+        ANIMATION_ENABLED_PER_ANIMATION.lock().clear();
+        ANIMATION_ENABLED_GLOBAL.store(false, Ordering::SeqCst);
+        self.restore_all_windows(ignore_restore)?;
+        AnimationEngine::wait_for_all_animations();
+
+        if WindowsApi::focus_follows_mouse()? {
+            WindowsApi::disable_focus_follows_mouse()?;
+        }
+
+        let sockets = SUBSCRIPTION_SOCKETS.lock();
+        for path in (*sockets).values() {
+            if let Ok(stream) = UnixStream::connect(path) {
+                stream.shutdown(Shutdown::Both)?;
+            }
+        }
+
+        let socket = DATA_DIR.join("komorebi.sock");
+        let _ = std::fs::remove_file(socket);
+
+        std::process::exit(0)
+    }
+
+    #[tracing::instrument(skip(self))]
+    pub fn restore_all_windows(&mut self, ignore_restore: bool) -> Result<()> {
         tracing::info!("restoring all hidden windows");
 
         let no_titlebar = NO_TITLEBAR.lock();
@@ -1417,7 +1457,9 @@ impl WindowManager {
                             window.remove_accent()?;
                         }
 
-                        window.restore();
+                        if !ignore_restore {
+                            window.restore();
+                        }
                     }
                 }
             }
