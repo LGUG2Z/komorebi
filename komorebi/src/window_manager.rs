@@ -60,6 +60,8 @@ use crate::stackbar_manager::STACKBAR_TAB_WIDTH;
 use crate::stackbar_manager::STACKBAR_UNFOCUSED_TEXT_COLOUR;
 use crate::static_config::StaticConfig;
 use crate::transparency_manager;
+use crate::transparency_manager::TRANSPARENCY_ALPHA;
+use crate::transparency_manager::TRANSPARENCY_ENABLED;
 use crate::window::Window;
 use crate::window_manager_event::WindowManagerEvent;
 use crate::windows_api::WindowsApi;
@@ -82,6 +84,7 @@ use crate::NO_TITLEBAR;
 use crate::OBJECT_NAME_CHANGE_ON_LAUNCH;
 use crate::REGEX_IDENTIFIERS;
 use crate::REMOVE_TITLEBARS;
+use crate::TRANSPARENCY_BLACKLIST;
 use crate::TRAY_AND_MULTI_WINDOW_IDENTIFIERS;
 use crate::WORKSPACE_MATCHING_RULES;
 
@@ -188,6 +191,9 @@ pub struct GlobalState {
     pub stackbar_tab_background_colour: Colour,
     pub stackbar_tab_width: i32,
     pub stackbar_height: i32,
+    pub transparency_enabled: bool,
+    pub transparency_alpha: u8,
+    pub transparency_blacklist: Vec<MatchingRule>,
     pub remove_titlebars: bool,
     #[serde(alias = "float_identifiers")]
     pub ignore_identifiers: Vec<MatchingRule>,
@@ -241,6 +247,9 @@ impl Default for GlobalState {
             )),
             stackbar_tab_width: STACKBAR_TAB_WIDTH.load(Ordering::SeqCst),
             stackbar_height: STACKBAR_TAB_HEIGHT.load(Ordering::SeqCst),
+            transparency_enabled: TRANSPARENCY_ENABLED.load(Ordering::SeqCst),
+            transparency_alpha: TRANSPARENCY_ALPHA.load(Ordering::SeqCst),
+            transparency_blacklist: TRANSPARENCY_BLACKLIST.lock().clone(),
             remove_titlebars: REMOVE_TITLEBARS.load(Ordering::SeqCst),
             ignore_identifiers: IGNORE_IDENTIFIERS.lock().clone(),
             manage_identifiers: MANAGE_IDENTIFIERS.lock().clone(),
