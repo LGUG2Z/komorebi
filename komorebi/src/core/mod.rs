@@ -105,6 +105,7 @@ pub enum SocketMessage {
     NewWorkspace,
     ToggleTiling,
     Stop,
+    StopIgnoreRestore,
     TogglePause,
     Retile,
     RetileWithResizeDimensions,
