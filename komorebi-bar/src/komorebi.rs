@@ -491,12 +491,14 @@ impl KomorebiNotificationState {
         self.hide_empty_workspaces = config.hide_empty_workspaces;
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn handle_notification(
         &mut self,
         ctx: &Context,
         monitor_index: usize,
         rx_gui: Receiver<komorebi_client::Notification>,
         bg_color: Rc<RefCell<Color32>>,
+        bg_color_with_alpha: Rc<RefCell<Color32>>,
         transparency_alpha: Option<u8>,
         grouping: Option<Grouping>,
         default_theme: Option<KomobarTheme>,
@@ -521,6 +523,7 @@ impl KomorebiNotificationState {
                                         ctx,
                                         KomobarTheme::from(theme),
                                         bg_color.clone(),
+                                        bg_color_with_alpha.clone(),
                                         transparency_alpha,
                                         grouping,
                                     );
@@ -530,6 +533,7 @@ impl KomorebiNotificationState {
                                         ctx,
                                         default_theme,
                                         bg_color.clone(),
+                                        bg_color_with_alpha.clone(),
                                         transparency_alpha,
                                         grouping,
                                     );
@@ -544,6 +548,7 @@ impl KomorebiNotificationState {
                                 ctx,
                                 KomobarTheme::from(theme),
                                 bg_color,
+                                bg_color_with_alpha.clone(),
                                 transparency_alpha,
                                 grouping,
                             );
