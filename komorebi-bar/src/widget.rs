@@ -61,22 +61,13 @@ impl WidgetConfig {
             WidgetConfig::Cpu(config) => config.enable,
             WidgetConfig::Date(config) => config.enable,
             WidgetConfig::Komorebi(config) => {
-                config.workspaces.enable
-                    || (if let Some(layout) = &config.layout {
-                        layout.enable
-                    } else {
-                        false
-                    })
-                    || (if let Some(focused_window) = &config.focused_window {
-                        focused_window.enable
-                    } else {
-                        false
-                    })
-                    || (if let Some(configuration_switcher) = &config.configuration_switcher {
-                        configuration_switcher.enable
-                    } else {
-                        false
-                    })
+                config.workspaces.as_ref().map_or(false, |w| w.enable)
+                    || config.layout.as_ref().map_or(false, |w| w.enable)
+                    || config.focused_window.as_ref().map_or(false, |w| w.enable)
+                    || config
+                        .configuration_switcher
+                        .as_ref()
+                        .map_or(false, |w| w.enable)
             }
             WidgetConfig::Media(config) => config.enable,
             WidgetConfig::Memory(config) => config.enable,

@@ -1,7 +1,9 @@
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::collections::VecDeque;
+use std::env::temp_dir;
 use std::io::ErrorKind;
+use std::net::Shutdown;
 use std::num::NonZeroUsize;
 use std::path::Path;
 use std::path::PathBuf;
@@ -20,7 +22,11 @@ use schemars::JsonSchema;
 use serde::Deserialize;
 use serde::Serialize;
 use uds_windows::UnixListener;
+use uds_windows::UnixStream;
 
+use crate::animation::AnimationEngine;
+use crate::animation::ANIMATION_ENABLED_GLOBAL;
+use crate::animation::ANIMATION_ENABLED_PER_ANIMATION;
 use crate::core::config_generation::MatchingRule;
 use crate::core::custom_layout::CustomLayout;
 use crate::core::Arrangement;
@@ -84,6 +90,7 @@ use crate::NO_TITLEBAR;
 use crate::OBJECT_NAME_CHANGE_ON_LAUNCH;
 use crate::REGEX_IDENTIFIERS;
 use crate::REMOVE_TITLEBARS;
+use crate::SUBSCRIPTION_SOCKETS;
 use crate::TRANSPARENCY_BLACKLIST;
 use crate::TRAY_AND_MULTI_WINDOW_IDENTIFIERS;
 use crate::WORKSPACE_MATCHING_RULES;
@@ -363,6 +370,140 @@ impl WindowManager {
         tracing::info!("initialising");
         WindowsApi::load_monitor_information(&mut self.monitors)?;
         WindowsApi::load_workspace_information(&mut self.monitors)
+    }
+
+    #[tracing::instrument(skip(self, state))]
+    pub fn apply_state(&mut self, state: State) {
+        let mut can_apply = true;
+
+        let state_monitors_len = state.monitors.elements().len();
+        let current_monitors_len = self.monitors.elements().len();
+        if state_monitors_len != current_monitors_len {
+            tracing::warn!(
+                "cannot apply state from {}; state file has {state_monitors_len} monitors, but only {current_monitors_len} are currently connected",
+                temp_dir().join("komorebi.state.json").to_string_lossy()
+            );
+
+            return;
+        }
+
+        for monitor in state.monitors.elements() {
+            for workspace in monitor.workspaces() {
+                for container in workspace.containers() {
+                    for window in container.windows() {
+                        if window.exe().is_err() {
+                            can_apply = false;
+                            break;
+                        }
+                    }
+                }
+
+                if let Some(window) = workspace.maximized_window() {
+                    if window.exe().is_err() {
+                        can_apply = false;
+                        break;
+                    }
+                }
+
+                if let Some(container) = workspace.monocle_container() {
+                    for window in container.windows() {
+                        if window.exe().is_err() {
+                            can_apply = false;
+                            break;
+                        }
+                    }
+                }
+
+                for window in workspace.floating_windows() {
+                    if window.exe().is_err() {
+                        can_apply = false;
+                        break;
+                    }
+                }
+            }
+        }
+
+        if can_apply {
+            tracing::info!(
+                "applying state from {}",
+                temp_dir().join("komorebi.state.json").to_string_lossy()
+            );
+
+            let offset = self.work_area_offset;
+            let mouse_follows_focus = self.mouse_follows_focus;
+            for (monitor_idx, monitor) in self.monitors_mut().iter_mut().enumerate() {
+                let mut focused_workspace = 0;
+                for (workspace_idx, workspace) in monitor.workspaces_mut().iter_mut().enumerate() {
+                    if let Some(state_monitor) = state.monitors.elements().get(monitor_idx) {
+                        if let Some(state_workspace) = state_monitor.workspaces().get(workspace_idx)
+                        {
+                            *workspace = state_workspace.clone();
+                            if state_monitor.focused_workspace_idx() == workspace_idx {
+                                focused_workspace = workspace_idx;
+                            }
+                        }
+                    }
+                }
+                if let Err(error) = monitor.focus_workspace(focused_workspace) {
+                    tracing::warn!(
+                        "cannot focus workspace '{focused_workspace}' on monitor '{monitor_idx}' from {}: {}",
+                        temp_dir().join("komorebi.state.json").to_string_lossy(),
+                        error,
+                    );
+                }
+                if let Err(error) = monitor.load_focused_workspace(mouse_follows_focus) {
+                    tracing::warn!(
+                        "cannot load focused workspace '{focused_workspace}' on monitor '{monitor_idx}' from {}: {}",
+                        temp_dir().join("komorebi.state.json").to_string_lossy(),
+                        error,
+                    );
+                }
+                if let Err(error) = monitor.update_focused_workspace(offset) {
+                    tracing::warn!(
+                        "cannot update workspace '{focused_workspace}' on monitor '{monitor_idx}' from {}: {}",
+                        temp_dir().join("komorebi.state.json").to_string_lossy(),
+                        error,
+                    );
+                }
+            }
+
+            let focused_monitor_idx = state.monitors.focused_idx();
+            let focused_workspace_idx = state
+                .monitors
+                .elements()
+                .get(focused_monitor_idx)
+                .map(|m| m.focused_workspace_idx())
+                .unwrap_or_default();
+
+            if let Err(error) = self.focus_monitor(focused_monitor_idx) {
+                tracing::warn!(
+                    "cannot focus monitor '{focused_monitor_idx}' from {}: {}",
+                    temp_dir().join("komorebi.state.json").to_string_lossy(),
+                    error,
+                );
+            }
+
+            if let Err(error) = self.focus_workspace(focused_workspace_idx) {
+                tracing::warn!(
+                    "cannot focus workspace '{focused_workspace_idx}' on monitor '{focused_monitor_idx}' from {}: {}",
+                    temp_dir().join("komorebi.state.json").to_string_lossy(),
+                    error,
+                );
+            }
+
+            if let Err(error) = self.update_focused_workspace(true, true) {
+                tracing::warn!(
+                    "cannot update focused workspace '{focused_workspace_idx}' on monitor '{focused_monitor_idx}' from {}: {}",
+                    temp_dir().join("komorebi.state.json").to_string_lossy(),
+                    error,
+                );
+            }
+        } else {
+            tracing::warn!(
+                "cannot apply state from {}; some windows referenced in the state file no longer exist",
+                temp_dir().join("komorebi.state.json").to_string_lossy()
+            );
+        }
     }
 
     #[tracing::instrument]
@@ -1254,7 +1395,41 @@ impl WindowManager {
     }
 
     #[tracing::instrument(skip(self))]
-    pub fn restore_all_windows(&mut self) -> Result<()> {
+    pub fn stop(&mut self, ignore_restore: bool) -> Result<()> {
+        tracing::info!(
+            "received stop command, restoring all hidden windows and terminating process"
+        );
+
+        let state = &State::from(&*self);
+        std::fs::write(
+            temp_dir().join("komorebi.state.json"),
+            serde_json::to_string_pretty(&state)?,
+        )?;
+
+        ANIMATION_ENABLED_PER_ANIMATION.lock().clear();
+        ANIMATION_ENABLED_GLOBAL.store(false, Ordering::SeqCst);
+        self.restore_all_windows(ignore_restore)?;
+        AnimationEngine::wait_for_all_animations();
+
+        if WindowsApi::focus_follows_mouse()? {
+            WindowsApi::disable_focus_follows_mouse()?;
+        }
+
+        let sockets = SUBSCRIPTION_SOCKETS.lock();
+        for path in (*sockets).values() {
+            if let Ok(stream) = UnixStream::connect(path) {
+                stream.shutdown(Shutdown::Both)?;
+            }
+        }
+
+        let socket = DATA_DIR.join("komorebi.sock");
+        let _ = std::fs::remove_file(socket);
+
+        std::process::exit(0)
+    }
+
+    #[tracing::instrument(skip(self))]
+    pub fn restore_all_windows(&mut self, ignore_restore: bool) -> Result<()> {
         tracing::info!("restoring all hidden windows");
 
         let no_titlebar = NO_TITLEBAR.lock();
@@ -1285,7 +1460,9 @@ impl WindowManager {
                             window.remove_accent()?;
                         }
 
-                        window.restore();
+                        if !ignore_restore {
+                            window.restore();
+                        }
                     }
                 }
             }

@@ -782,6 +782,9 @@ struct Start {
     /// Start masir in a background process for focus-follows-mouse
     #[clap(long)]
     masir: bool,
+    /// Do not attempt to auto-apply a dumped state temp file from a previously running instance of komorebi
+    #[clap(long)]
+    clean_state: bool,
 }
 
 #[derive(Parser)]
@@ -798,6 +801,9 @@ struct Stop {
     /// Stop masir if it is running as a background process
     #[clap(long)]
     masir: bool,
+    /// Do not restore windows after stopping komorebi
+    #[clap(long, hide = true)]
+    ignore_restore: bool,
 }
 
 #[derive(Parser)]
@@ -2047,6 +2053,10 @@ fn main() -> Result<()> {
                 flags.push(format!("'--tcp-port={port}'"));
             }
 
+            if arg.clean_state {
+                flags.push("'--clean-state'".to_string());
+            }
+
             let script = if flags.is_empty() {
                 format!(
                     "Start-Process '{}' -WindowStyle hidden",
@@ -2328,7 +2338,11 @@ if (Get-Command Get-CimInstance -ErrorAction SilentlyContinue) {
                 }
             }
 
-            send_message(&SocketMessage::Stop)?;
+            if arg.ignore_restore {
+                send_message(&SocketMessage::StopIgnoreRestore)?;
+            } else {
+                send_message(&SocketMessage::Stop)?;
+            }
             let mut system = sysinfo::System::new_all();
             system.refresh_processes(ProcessesToUpdate::All);
 

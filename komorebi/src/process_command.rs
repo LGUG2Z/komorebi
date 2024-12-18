@@ -4,7 +4,6 @@ use std::fs::OpenOptions;
 use std::io::BufRead;
 use std::io::BufReader;
 use std::io::Read;
-use std::net::Shutdown;
 use std::net::TcpListener;
 use std::net::TcpStream;
 use std::num::NonZeroUsize;
@@ -22,7 +21,6 @@ use schemars::gen::SchemaSettings;
 use schemars::schema_for;
 use uds_windows::UnixStream;
 
-use crate::animation::AnimationEngine;
 use crate::animation::ANIMATION_DURATION_PER_ANIMATION;
 use crate::animation::ANIMATION_ENABLED_PER_ANIMATION;
 use crate::animation::ANIMATION_STYLE_PER_ANIMATION;
@@ -949,30 +947,10 @@ impl WindowManager {
                 }
             }
             SocketMessage::Stop => {
-                tracing::info!(
-                    "received stop command, restoring all hidden windows and terminating process"
-                );
-
-                ANIMATION_ENABLED_PER_ANIMATION.lock().clear();
-                ANIMATION_ENABLED_GLOBAL.store(false, Ordering::SeqCst);
-                self.restore_all_windows()?;
-                AnimationEngine::wait_for_all_animations();
-
-                if WindowsApi::focus_follows_mouse()? {
-                    WindowsApi::disable_focus_follows_mouse()?;
-                }
-
-                let sockets = SUBSCRIPTION_SOCKETS.lock();
-                for path in (*sockets).values() {
-                    if let Ok(stream) = UnixStream::connect(path) {
-                        stream.shutdown(Shutdown::Both)?;
-                    }
-                }
-
-                let socket = DATA_DIR.join("komorebi.sock");
-                let _ = std::fs::remove_file(socket);
-
-                std::process::exit(0)
+                self.stop(false)?;
+            }
+            SocketMessage::StopIgnoreRestore => {
+                self.stop(true)?;
             }
             SocketMessage::MonitorIndexPreference(index_preference, left, top, right, bottom) => {
                 let mut monitor_index_preferences = MONITOR_INDEX_PREFERENCES.lock();
@@ -1287,7 +1265,7 @@ impl WindowManager {
                     // Pause so that restored windows come to the foreground from all workspaces
                     self.is_paused = true;
                     // Bring all windows to the foreground
-                    self.restore_all_windows()?;
+                    self.restore_all_windows(false)?;
 
                     // Create a new wm from the config path
                     let mut wm = StaticConfig::preload(
