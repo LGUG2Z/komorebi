@@ -2,6 +2,7 @@ use crate::bar::apply_theme;
 use crate::config::DisplayFormat;
 use crate::config::KomobarTheme;
 use crate::komorebi_layout::KomorebiLayout;
+use crate::render::Grouping;
 use crate::render::RenderConfig;
 use crate::selected_frame::SelectableFrame;
 use crate::ui::CustomUi;
@@ -497,6 +498,7 @@ impl KomorebiNotificationState {
         rx_gui: Receiver<komorebi_client::Notification>,
         bg_color: Rc<RefCell<Color32>>,
         transparency_alpha: Option<u8>,
+        grouping: Option<Grouping>,
         default_theme: Option<KomobarTheme>,
     ) {
         match rx_gui.try_recv() {
@@ -520,6 +522,7 @@ impl KomorebiNotificationState {
                                         KomobarTheme::from(theme),
                                         bg_color.clone(),
                                         transparency_alpha,
+                                        grouping,
                                     );
                                     tracing::info!("applied theme from updated komorebi.json");
                                 } else if let Some(default_theme) = default_theme {
@@ -528,6 +531,7 @@ impl KomorebiNotificationState {
                                         default_theme,
                                         bg_color.clone(),
                                         transparency_alpha,
+                                        grouping,
                                     );
                                     tracing::info!("removed theme from updated komorebi.json and applied default theme");
                                 } else {
@@ -541,6 +545,7 @@ impl KomorebiNotificationState {
                                 KomobarTheme::from(theme),
                                 bg_color,
                                 transparency_alpha,
+                                grouping,
                             );
                             tracing::info!("applied theme from komorebi socket message");
                         }
