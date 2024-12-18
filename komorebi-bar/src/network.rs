@@ -261,26 +261,6 @@ impl BarWidget for Network {
         if self.enable {
             let mut render_config = config.clone();
 
-            if self.show_total_activity || self.show_activity {
-                let (activity, total_activity) = self.network_activity();
-
-                if self.show_total_activity {
-                    for reading in total_activity {
-                        config.apply_on_widget(true, ui, |ui| {
-                            ui.add(self.reading_to_label(ctx, reading, render_config.clone()));
-                        });
-                    }
-                }
-
-                if self.show_activity {
-                    for reading in activity {
-                        config.apply_on_widget(true, ui, |ui| {
-                            ui.add(self.reading_to_label(ctx, reading, render_config.clone()));
-                        });
-                    }
-                }
-            }
-
             if self.show_default_interface {
                 self.default_interface();
 
@@ -323,6 +303,26 @@ impl BarWidget for Network {
                             }
                         }
                     });
+                }
+            }
+
+            if self.show_total_activity || self.show_activity {
+                let (activity, total_activity) = self.network_activity();
+
+                if self.show_activity {
+                    for reading in activity {
+                        config.apply_on_widget(true, ui, |ui| {
+                            ui.add(self.reading_to_label(ctx, reading, render_config.clone()));
+                        });
+                    }
+                }
+
+                if self.show_total_activity {
+                    for reading in total_activity {
+                        config.apply_on_widget(true, ui, |ui| {
+                            ui.add(self.reading_to_label(ctx, reading, render_config.clone()));
+                        });
+                    }
                 }
             }
         }
