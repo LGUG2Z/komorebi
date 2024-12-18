@@ -361,6 +361,8 @@ impl Komobar {
         tracing::info!("widget configuration options applied");
 
         self.komorebi_notification_state = komorebi_notification_state;
+
+        self.config = config.clone().into();
     }
 
     pub fn new(
