@@ -17,7 +17,6 @@ use crate::MONITOR_LEFT;
 use crate::MONITOR_RIGHT;
 use crate::MONITOR_TOP;
 use crossbeam_channel::Receiver;
-use eframe::egui::Align;
 use eframe::egui::Align2;
 use eframe::egui::Area;
 use eframe::egui::CentralPanel;
@@ -29,7 +28,6 @@ use eframe::egui::FontFamily;
 use eframe::egui::FontId;
 use eframe::egui::Frame;
 use eframe::egui::Id;
-use eframe::egui::Layout;
 use eframe::egui::Margin;
 use eframe::egui::Rgba;
 use eframe::egui::Style;
@@ -356,8 +354,6 @@ impl Komobar {
                 });
         }
 
-        right_widgets.reverse();
-
         self.left_widgets = left_widgets;
         self.center_widgets = center_widgets;
         self.right_widgets = right_widgets;
@@ -494,55 +490,75 @@ impl eframe::App for Komobar {
 
         let mut render_config = self.render_config.borrow_mut();
 
-        CentralPanel::default().frame(frame).show(ctx, |ui| {
+        let frame = render_config.change_frame_on_bar(frame, &ctx.style());
+
+        CentralPanel::default().frame(frame).show(ctx, |_| {
             // Apply grouping logic for the bar as a whole
-            render_config.clone().apply_on_bar(ui, |ui| {
-                ui.horizontal_centered(|ui| {
-                    // Left-aligned widgets layout
-                    ui.with_layout(Layout::left_to_right(Align::Center), |ui| {
-                        let mut render_conf = render_config.clone();
-                        render_conf.alignment = Some(Alignment::Left);
+            if !self.left_widgets.is_empty() {
+                // Left-aligned widgets layout
+                Area::new(Id::new("left_panel"))
+                    .anchor(
+                        Align2::LEFT_CENTER,
+                        [self.config.widget_spacing.unwrap_or(10.0), 0.0],
+                    ) // Align in the left center of the window
+                    .show(ctx, |ui| {
+                        Frame::none().show(ui, |ui| {
+                            ui.horizontal_centered(|ui| {
+                                let mut render_conf = render_config.clone();
+                                render_conf.alignment = Some(Alignment::Left);
 
-                        render_config.apply_on_alignment(ui, |ui| {
-                            for w in &mut self.left_widgets {
-                                w.render(ctx, ui, &mut render_conf);
-                            }
-                        });
-                    });
-
-                    // Right-aligned widgets layout
-                    ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                        let mut render_conf = render_config.clone();
-                        render_conf.alignment = Some(Alignment::Right);
-
-                        render_config.apply_on_alignment(ui, |ui| {
-                            for w in &mut self.right_widgets {
-                                w.render(ctx, ui, &mut render_conf);
-                            }
-                        });
-                    });
-
-                    if !self.center_widgets.is_empty() {
-                        // Floating center widgets
-                        Area::new(Id::new("center_panel"))
-                            .anchor(Align2::CENTER_CENTER, [0.0, 0.0]) // Align in the center of the window
-                            .show(ctx, |ui| {
-                                Frame::none().show(ui, |ui| {
-                                    ui.horizontal_centered(|ui| {
-                                        let mut render_conf = render_config.clone();
-                                        render_conf.alignment = Some(Alignment::Center);
-
-                                        render_config.apply_on_alignment(ui, |ui| {
-                                            for w in &mut self.center_widgets {
-                                                w.render(ctx, ui, &mut render_conf);
-                                            }
-                                        });
-                                    });
+                                render_config.apply_on_alignment(ui, |ui| {
+                                    for w in &mut self.left_widgets {
+                                        w.render(ctx, ui, &mut render_conf);
+                                    }
                                 });
                             });
-                    }
-                })
-            })
+                        });
+                    });
+            }
+
+            if !self.right_widgets.is_empty() {
+                // Right-aligned widgets layout
+                Area::new(Id::new("right_panel"))
+                    .anchor(
+                        Align2::RIGHT_CENTER,
+                        [-self.config.widget_spacing.unwrap_or(10.0), 0.0],
+                    ) // Align in the right center of the window
+                    .show(ctx, |ui| {
+                        Frame::none().show(ui, |ui| {
+                            ui.horizontal_centered(|ui| {
+                                let mut render_conf = render_config.clone();
+                                render_conf.alignment = Some(Alignment::Right);
+
+                                render_config.apply_on_alignment(ui, |ui| {
+                                    for w in &mut self.right_widgets {
+                                        w.render(ctx, ui, &mut render_conf);
+                                    }
+                                });
+                            });
+                        });
+                    });
+            }
+
+            if !self.center_widgets.is_empty() {
+                // Floating center widgets
+                Area::new(Id::new("center_panel"))
+                    .anchor(Align2::CENTER_CENTER, [0.0, 0.0]) // Align in the center of the window
+                    .show(ctx, |ui| {
+                        Frame::none().show(ui, |ui| {
+                            ui.horizontal_centered(|ui| {
+                                let mut render_conf = render_config.clone();
+                                render_conf.alignment = Some(Alignment::Center);
+
+                                render_config.apply_on_alignment(ui, |ui| {
+                                    for w in &mut self.center_widgets {
+                                        w.render(ctx, ui, &mut render_conf);
+                                    }
+                                });
+                            });
+                        });
+                    });
+            }
         });
     }
 }
