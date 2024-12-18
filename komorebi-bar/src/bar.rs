@@ -36,6 +36,7 @@ use eframe::egui::Visuals;
 use font_loader::system_fonts;
 use font_loader::system_fonts::FontPropertyBuilder;
 use komorebi_client::KomorebiTheme;
+use komorebi_client::SocketMessage;
 use komorebi_themes::catppuccin_egui;
 use komorebi_themes::Base16Value;
 use komorebi_themes::Catppuccin;
@@ -59,7 +60,12 @@ pub struct Komobar {
     pub scale_factor: f32,
 }
 
-pub fn apply_theme(ctx: &Context, theme: KomobarTheme, bg_color: Rc<RefCell<Color32>>, transparency_alpha: Option<u8>) {
+pub fn apply_theme(
+    ctx: &Context,
+    theme: KomobarTheme,
+    bg_color: Rc<RefCell<Color32>>,
+    transparency_alpha: Option<u8>,
+) {
     match theme {
         KomobarTheme::Catppuccin {
             name: catppuccin,
@@ -143,8 +149,7 @@ pub fn apply_theme(ctx: &Context, theme: KomobarTheme, bg_color: Rc<RefCell<Colo
     // Apply transparency_alpha
     let theme_color = *bg_color.borrow();
 
-    bg_color
-        .replace(theme_color.try_apply_alpha(transparency_alpha));
+    bg_color.replace(theme_color.try_apply_alpha(transparency_alpha));
 }
 
 impl Komobar {
@@ -230,7 +235,12 @@ impl Komobar {
                 match komorebi_client::StaticConfig::read(&config) {
                     Ok(config) => {
                         if let Some(theme) = config.theme {
-                            apply_theme(ctx, KomobarTheme::from(theme), self.bg_color.clone(), config.transparency_alpha);
+                            apply_theme(
+                                ctx,
+                                KomobarTheme::from(theme),
+                                self.bg_color.clone(),
+                                config.transparency_alpha,
+                            );
 
                             let stack_accent = match theme {
                                 KomorebiTheme::Catppuccin {
@@ -358,6 +368,28 @@ impl Komobar {
         self.left_widgets = left_widgets;
         self.center_widgets = center_widgets;
         self.right_widgets = right_widgets;
+
+        if let (Some(prev_rect), Some(new_rect)) = (
+            &self.config.monitor.work_area_offset,
+            &config.monitor.work_area_offset,
+        ) {
+            if new_rect != prev_rect {
+                if let Err(error) = komorebi_client::send_message(
+                    &SocketMessage::MonitorWorkAreaOffset(config.monitor.index, *new_rect),
+                ) {
+                    tracing::error!(
+                        "error applying work area offset to monitor '{}': {}",
+                        config.monitor.index,
+                        error,
+                    );
+                } else {
+                    tracing::info!(
+                        "work area offset applied to monitor: {}",
+                        config.monitor.index
+                    );
+                }
+            }
+        }
 
         tracing::info!("widget configuration options applied");
 
