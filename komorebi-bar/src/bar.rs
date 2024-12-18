@@ -496,15 +496,22 @@ impl eframe::App for Komobar {
 
         CentralPanel::default().frame(frame).show(ctx, |_| {
             // Apply grouping logic for the bar as a whole
+            let area_frame = if let Some(frame) = &self.config.frame {
+                Frame::none().inner_margin(Margin::symmetric(0.0, frame.inner_margin.y))
+            } else {
+                Frame::none()
+            };
+
             if !self.left_widgets.is_empty() {
                 // Left-aligned widgets layout
                 Area::new(Id::new("left_panel"))
-                    .anchor(
-                        Align2::LEFT_CENTER,
-                        [self.config.widget_spacing.unwrap_or(10.0), 0.0],
-                    ) // Align in the left center of the window
+                    .anchor(Align2::LEFT_CENTER, [0.0, 0.0]) // Align in the left center of the window
                     .show(ctx, |ui| {
-                        Frame::none().show(ui, |ui| {
+                        let mut left_area_frame = area_frame;
+                        if let Some(frame) = &self.config.frame {
+                            left_area_frame.inner_margin.left = frame.inner_margin.x;
+                        }
+                        left_area_frame.show(ui, |ui| {
                             ui.horizontal_centered(|ui| {
                                 let mut render_conf = render_config.clone();
                                 render_conf.alignment = Some(Alignment::Left);
@@ -522,12 +529,13 @@ impl eframe::App for Komobar {
             if !self.right_widgets.is_empty() {
                 // Right-aligned widgets layout
                 Area::new(Id::new("right_panel"))
-                    .anchor(
-                        Align2::RIGHT_CENTER,
-                        [-self.config.widget_spacing.unwrap_or(10.0), 0.0],
-                    ) // Align in the right center of the window
+                    .anchor(Align2::RIGHT_CENTER, [0.0, 0.0]) // Align in the right center of the window
                     .show(ctx, |ui| {
-                        Frame::none().show(ui, |ui| {
+                        let mut right_area_frame = area_frame;
+                        if let Some(frame) = &self.config.frame {
+                            right_area_frame.inner_margin.right = frame.inner_margin.x;
+                        }
+                        right_area_frame.show(ui, |ui| {
                             ui.horizontal_centered(|ui| {
                                 let mut render_conf = render_config.clone();
                                 render_conf.alignment = Some(Alignment::Right);
@@ -547,7 +555,8 @@ impl eframe::App for Komobar {
                 Area::new(Id::new("center_panel"))
                     .anchor(Align2::CENTER_CENTER, [0.0, 0.0]) // Align in the center of the window
                     .show(ctx, |ui| {
-                        Frame::none().show(ui, |ui| {
+                        let center_area_frame = area_frame;
+                        center_area_frame.show(ui, |ui| {
                             ui.horizontal_centered(|ui| {
                                 let mut render_conf = render_config.clone();
                                 render_conf.alignment = Some(Alignment::Center);
