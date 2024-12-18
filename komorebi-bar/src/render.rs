@@ -56,11 +56,21 @@ pub struct RenderConfig {
 }
 
 pub trait RenderExt {
-    fn new_renderconfig(&self, ctx: &Context, background_color: Color32) -> RenderConfig;
+    fn new_renderconfig(
+        &self,
+        ctx: &Context,
+        background_color: Color32,
+        icon_scale: Option<f32>,
+    ) -> RenderConfig;
 }
 
 impl RenderExt for &KomobarConfig {
-    fn new_renderconfig(&self, ctx: &Context, background_color: Color32) -> RenderConfig {
+    fn new_renderconfig(
+        &self,
+        ctx: &Context,
+        background_color: Color32,
+        icon_scale: Option<f32>,
+    ) -> RenderConfig {
         let text_font_id = ctx
             .style()
             .text_styles
@@ -69,7 +79,7 @@ impl RenderExt for &KomobarConfig {
             .unwrap_or_else(FontId::default);
 
         let mut icon_font_id = text_font_id.clone();
-        icon_font_id.size *= 1.4;
+        icon_font_id.size *= icon_scale.unwrap_or(1.4).clamp(1.0, 2.0);
 
         RenderConfig {
             monitor_idx: self.monitor.index,
