@@ -213,6 +213,7 @@ impl Komobar {
             }
         }
 
+        let background_color_before_transparency = *self.bg_color.borrow();
         match config.theme {
             Some(theme) => {
                 apply_theme(ctx, theme, self.bg_color.clone(), config.transparency_alpha);
@@ -289,7 +290,7 @@ impl Komobar {
         }
 
         self.render_config
-            .replace(config.new_renderconfig(ctx, *self.bg_color.borrow()));
+            .replace(config.new_renderconfig(ctx, background_color_before_transparency));
 
         let mut komorebi_notification_state = previous_notification_state;
         let mut komorebi_widgets = Vec::new();
