@@ -231,6 +231,7 @@ impl Komobar {
                     },
                 );
 
+                let bar_transparency_alpha = config.transparency_alpha;
                 let config = home_dir.join("komorebi.json");
                 match komorebi_client::StaticConfig::read(&config) {
                     Ok(config) => {
@@ -239,7 +240,7 @@ impl Komobar {
                                 ctx,
                                 KomobarTheme::from(theme),
                                 self.bg_color.clone(),
-                                config.transparency_alpha,
+                                bar_transparency_alpha,
                             );
 
                             let stack_accent = match theme {
