@@ -65,6 +65,7 @@ pub fn apply_theme(
     theme: KomobarTheme,
     bg_color: Rc<RefCell<Color32>>,
     transparency_alpha: Option<u8>,
+    grouping: Option<Grouping>,
 ) {
     match theme {
         KomobarTheme::Catppuccin {
@@ -150,6 +151,21 @@ pub fn apply_theme(
     let theme_color = *bg_color.borrow();
 
     bg_color.replace(theme_color.try_apply_alpha(transparency_alpha));
+
+    // apply rounding to the widgets
+    if let Some(Grouping::Bar(config) | Grouping::Alignment(config) | Grouping::Widget(config)) =
+        &grouping
+    {
+        if let Some(rounding) = config.rounding {
+            ctx.style_mut(|style| {
+                style.visuals.widgets.noninteractive.rounding = rounding.into();
+                style.visuals.widgets.inactive.rounding = rounding.into();
+                style.visuals.widgets.hovered.rounding = rounding.into();
+                style.visuals.widgets.active.rounding = rounding.into();
+                style.visuals.widgets.open.rounding = rounding.into();
+            });
+        }
+    }
 }
 
 impl Komobar {
@@ -216,7 +232,13 @@ impl Komobar {
         let background_color_before_transparency = *self.bg_color.borrow();
         match config.theme {
             Some(theme) => {
-                apply_theme(ctx, theme, self.bg_color.clone(), config.transparency_alpha);
+                apply_theme(
+                    ctx,
+                    theme,
+                    self.bg_color.clone(),
+                    config.transparency_alpha,
+                    config.grouping,
+                );
             }
             None => {
                 let home_dir: PathBuf = std::env::var("KOMOREBI_CONFIG_HOME").map_or_else(
@@ -233,6 +255,7 @@ impl Komobar {
                 );
 
                 let bar_transparency_alpha = config.transparency_alpha;
+                let bar_grouping = config.grouping;
                 let config = home_dir.join("komorebi.json");
                 match komorebi_client::StaticConfig::read(&config) {
                     Ok(config) => {
@@ -242,6 +265,7 @@ impl Komobar {
                                 KomobarTheme::from(theme),
                                 self.bg_color.clone(),
                                 bar_transparency_alpha,
+                                bar_grouping,
                             );
 
                             let stack_accent = match theme {
@@ -263,24 +287,24 @@ impl Komobar {
                     Err(_) => {
                         ctx.set_style(Style::default());
                         self.bg_color.replace(Style::default().visuals.panel_fill);
+
+                        // apply rounding to the widgets since we didn't call `apply_theme`
+                        if let Some(
+                            Grouping::Bar(config) | Grouping::Alignment(config) | Grouping::Widget(config),
+                        ) = &bar_grouping
+                        {
+                            if let Some(rounding) = config.rounding {
+                                ctx.style_mut(|style| {
+                                    style.visuals.widgets.noninteractive.rounding = rounding.into();
+                                    style.visuals.widgets.inactive.rounding = rounding.into();
+                                    style.visuals.widgets.hovered.rounding = rounding.into();
+                                    style.visuals.widgets.active.rounding = rounding.into();
+                                    style.visuals.widgets.open.rounding = rounding.into();
+                                });
+                            }
+                        }
                     }
                 }
-            }
-        }
-
-        // apply rounding to the widgets
-        if let Some(
-            Grouping::Bar(config) | Grouping::Alignment(config) | Grouping::Widget(config),
-        ) = &config.grouping
-        {
-            if let Some(rounding) = config.rounding {
-                ctx.style_mut(|style| {
-                    style.visuals.widgets.noninteractive.rounding = rounding.into();
-                    style.visuals.widgets.inactive.rounding = rounding.into();
-                    style.visuals.widgets.hovered.rounding = rounding.into();
-                    style.visuals.widgets.active.rounding = rounding.into();
-                    style.visuals.widgets.open.rounding = rounding.into();
-                });
             }
         }
 
@@ -512,6 +536,7 @@ impl eframe::App for Komobar {
                     self.rx_gui.clone(),
                     self.bg_color.clone(),
                     self.config.transparency_alpha,
+                    self.config.grouping,
                     self.config.theme,
                 );
         }
