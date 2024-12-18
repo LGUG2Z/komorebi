@@ -279,7 +279,7 @@ impl Komobar {
         }
 
         self.render_config
-            .replace(config.new_renderconfig(ctx, theme_color));
+            .replace(config.new_renderconfig(ctx, theme_color, config.icon_scale));
 
         let mut komorebi_notification_state = previous_notification_state;
         let mut komorebi_widgets = Vec::new();
