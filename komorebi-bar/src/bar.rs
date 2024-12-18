@@ -57,6 +57,7 @@ pub struct Komobar {
     pub rx_gui: Receiver<komorebi_client::Notification>,
     pub rx_config: Receiver<KomobarConfig>,
     pub bg_color: Rc<RefCell<Color32>>,
+    pub bg_color_with_alpha: Rc<RefCell<Color32>>,
     pub scale_factor: f32,
 }
 
@@ -64,6 +65,7 @@ pub fn apply_theme(
     ctx: &Context,
     theme: KomobarTheme,
     bg_color: Rc<RefCell<Color32>>,
+    bg_color_with_alpha: Rc<RefCell<Color32>>,
     transparency_alpha: Option<u8>,
     grouping: Option<Grouping>,
 ) {
@@ -150,7 +152,7 @@ pub fn apply_theme(
     // Apply transparency_alpha
     let theme_color = *bg_color.borrow();
 
-    bg_color.replace(theme_color.try_apply_alpha(transparency_alpha));
+    bg_color_with_alpha.replace(theme_color.try_apply_alpha(transparency_alpha));
 
     // apply rounding to the widgets
     if let Some(Grouping::Bar(config) | Grouping::Alignment(config) | Grouping::Widget(config)) =
@@ -236,6 +238,7 @@ impl Komobar {
                     ctx,
                     theme,
                     self.bg_color.clone(),
+                    self.bg_color_with_alpha.clone(),
                     config.transparency_alpha,
                     config.grouping,
                 );
@@ -264,6 +267,7 @@ impl Komobar {
                                 ctx,
                                 KomobarTheme::from(theme),
                                 self.bg_color.clone(),
+                                self.bg_color_with_alpha.clone(),
                                 bar_transparency_alpha,
                                 bar_grouping,
                             );
@@ -290,7 +294,9 @@ impl Komobar {
 
                         // apply rounding to the widgets since we didn't call `apply_theme`
                         if let Some(
-                            Grouping::Bar(config) | Grouping::Alignment(config) | Grouping::Widget(config),
+                            Grouping::Bar(config)
+                            | Grouping::Alignment(config)
+                            | Grouping::Widget(config),
                         ) = &bar_grouping
                         {
                             if let Some(rounding) = config.rounding {
@@ -440,6 +446,7 @@ impl Komobar {
             rx_gui,
             rx_config,
             bg_color: Rc::new(RefCell::new(Style::default().visuals.panel_fill)),
+            bg_color_with_alpha: Rc::new(RefCell::new(Style::default().visuals.panel_fill)),
             scale_factor: cc.egui_ctx.native_pixels_per_point().unwrap_or(1.0),
         };
 
@@ -535,6 +542,7 @@ impl eframe::App for Komobar {
                     self.config.monitor.index,
                     self.rx_gui.clone(),
                     self.bg_color.clone(),
+                    self.bg_color_with_alpha.clone(),
                     self.config.transparency_alpha,
                     self.config.grouping,
                     self.config.theme,
@@ -547,9 +555,9 @@ impl eframe::App for Komobar {
                     frame.inner_margin.x,
                     frame.inner_margin.y,
                 ))
-                .fill(*self.bg_color.borrow())
+                .fill(*self.bg_color_with_alpha.borrow())
         } else {
-            Frame::none().fill(*self.bg_color.borrow())
+            Frame::none().fill(*self.bg_color_with_alpha.borrow())
         };
 
         let mut render_config = self.render_config.borrow_mut();
