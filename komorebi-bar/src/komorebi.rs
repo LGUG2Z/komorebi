@@ -496,6 +496,8 @@ impl KomorebiNotificationState {
         monitor_index: usize,
         rx_gui: Receiver<komorebi_client::Notification>,
         bg_color: Rc<RefCell<Color32>>,
+        transparency_alpha: Option<u8>,
+        default_theme: Option<KomobarTheme>,
     ) {
         match rx_gui.try_recv() {
             Err(error) => match error {
@@ -513,13 +515,33 @@ impl KomorebiNotificationState {
                         SocketMessage::ReloadStaticConfiguration(path) => {
                             if let Ok(config) = komorebi_client::StaticConfig::read(&path) {
                                 if let Some(theme) = config.theme {
-                                    apply_theme(ctx, KomobarTheme::from(theme), bg_color.clone());
+                                    apply_theme(
+                                        ctx,
+                                        KomobarTheme::from(theme),
+                                        bg_color.clone(),
+                                        transparency_alpha,
+                                    );
                                     tracing::info!("applied theme from updated komorebi.json");
+                                } else if let Some(default_theme) = default_theme {
+                                    apply_theme(
+                                        ctx,
+                                        default_theme,
+                                        bg_color.clone(),
+                                        transparency_alpha,
+                                    );
+                                    tracing::info!("removed theme from updated komorebi.json and applied default theme");
+                                } else {
+                                    tracing::warn!("theme was removed from updated komorebi.json but there was no default theme to apply");
                                 }
                             }
                         }
                         SocketMessage::Theme(theme) => {
-                            apply_theme(ctx, KomobarTheme::from(theme), bg_color);
+                            apply_theme(
+                                ctx,
+                                KomobarTheme::from(theme),
+                                bg_color,
+                                transparency_alpha,
+                            );
                             tracing::info!("applied theme from komorebi socket message");
                         }
                         _ => {}
