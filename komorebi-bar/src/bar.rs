@@ -59,7 +59,7 @@ pub struct Komobar {
     pub scale_factor: f32,
 }
 
-pub fn apply_theme(ctx: &Context, theme: KomobarTheme, bg_color: Rc<RefCell<Color32>>) {
+pub fn apply_theme(ctx: &Context, theme: KomobarTheme, bg_color: Rc<RefCell<Color32>>, transparency_alpha: Option<u8>) {
     match theme {
         KomobarTheme::Catppuccin {
             name: catppuccin,
@@ -139,6 +139,12 @@ pub fn apply_theme(ctx: &Context, theme: KomobarTheme, bg_color: Rc<RefCell<Colo
             bg_color.replace(base16.background());
         }
     }
+
+    // Apply transparency_alpha
+    let theme_color = *bg_color.borrow();
+
+    bg_color
+        .replace(theme_color.try_apply_alpha(transparency_alpha));
 }
 
 impl Komobar {
@@ -204,7 +210,7 @@ impl Komobar {
 
         match config.theme {
             Some(theme) => {
-                apply_theme(ctx, theme, self.bg_color.clone());
+                apply_theme(ctx, theme, self.bg_color.clone(), config.transparency_alpha);
             }
             None => {
                 let home_dir: PathBuf = std::env::var("KOMOREBI_CONFIG_HOME").map_or_else(
@@ -224,7 +230,7 @@ impl Komobar {
                 match komorebi_client::StaticConfig::read(&config) {
                     Ok(config) => {
                         if let Some(theme) = config.theme {
-                            apply_theme(ctx, KomobarTheme::from(theme), self.bg_color.clone());
+                            apply_theme(ctx, KomobarTheme::from(theme), self.bg_color.clone(), config.transparency_alpha);
 
                             let stack_accent = match theme {
                                 KomorebiTheme::Catppuccin {
@@ -266,18 +272,13 @@ impl Komobar {
             }
         }
 
-        let theme_color = *self.bg_color.borrow();
-
-        self.bg_color
-            .replace(theme_color.try_apply_alpha(config.transparency_alpha));
-
         if let Some(font_size) = &config.font_size {
             tracing::info!("attempting to set custom font size: {font_size}");
             Self::set_font_size(ctx, *font_size);
         }
 
         self.render_config
-            .replace(config.new_renderconfig(ctx, theme_color));
+            .replace(config.new_renderconfig(ctx, *self.bg_color.borrow()));
 
         let mut komorebi_notification_state = previous_notification_state;
         let mut komorebi_widgets = Vec::new();
@@ -476,6 +477,8 @@ impl eframe::App for Komobar {
                     self.config.monitor.index,
                     self.rx_gui.clone(),
                     self.bg_color.clone(),
+                    self.config.transparency_alpha,
+                    self.config.theme,
                 );
         }
 
