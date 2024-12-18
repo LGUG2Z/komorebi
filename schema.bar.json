@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "KomobarConfig",
-  "description": "The `komorebi.bar.json` configuration file reference for `v0.1.31`",
+  "description": "The `komorebi.bar.json` configuration file reference for `v0.1.32`",
   "type": "object",
   "required": [
     "left_widgets",
@@ -243,9 +243,6 @@
             "properties": {
               "Komorebi": {
                 "type": "object",
-                "required": [
-                  "workspaces"
-                ],
                 "properties": {
                   "configuration_switcher": {
                     "description": "Configure the Configuration Switcher widget",
@@ -293,10 +290,24 @@
                             ]
                           },
                           {
+                            "description": "Show an icon and text for the selected element, and text on the rest",
+                            "type": "string",
+                            "enum": [
+                              "TextAndIconOnSelected"
+                            ]
+                          },
+                          {
                             "description": "Show both icon and text",
                             "type": "string",
                             "enum": [
                               "IconAndText"
+                            ]
+                          },
+                          {
+                            "description": "Show an icon and text for the selected element, and icons on the rest",
+                            "type": "string",
+                            "enum": [
+                              "IconAndTextOnSelected"
                             ]
                           }
                         ]
@@ -336,10 +347,24 @@
                             ]
                           },
                           {
+                            "description": "Show an icon and text for the selected element, and text on the rest",
+                            "type": "string",
+                            "enum": [
+                              "TextAndIconOnSelected"
+                            ]
+                          },
+                          {
                             "description": "Show both icon and text",
                             "type": "string",
                             "enum": [
                               "IconAndText"
+                            ]
+                          },
+                          {
+                            "description": "Show an icon and text for the selected element, and icons on the rest",
+                            "type": "string",
+                            "enum": [
+                              "IconAndTextOnSelected"
                             ]
                           }
                         ]
@@ -409,10 +434,24 @@
                             ]
                           },
                           {
+                            "description": "Show an icon and text for the selected element, and text on the rest",
+                            "type": "string",
+                            "enum": [
+                              "TextAndIconOnSelected"
+                            ]
+                          },
+                          {
                             "description": "Show both icon and text",
                             "type": "string",
                             "enum": [
                               "IconAndText"
+                            ]
+                          },
+                          {
+                            "description": "Show an icon and text for the selected element, and icons on the rest",
+                            "type": "string",
+                            "enum": [
+                              "IconAndTextOnSelected"
                             ]
                           }
                         ]
@@ -1317,9 +1356,6 @@
             "properties": {
               "Komorebi": {
                 "type": "object",
-                "required": [
-                  "workspaces"
-                ],
                 "properties": {
                   "configuration_switcher": {
                     "description": "Configure the Configuration Switcher widget",
@@ -1367,10 +1403,24 @@
                             ]
                           },
                           {
+                            "description": "Show an icon and text for the selected element, and text on the rest",
+                            "type": "string",
+                            "enum": [
+                              "TextAndIconOnSelected"
+                            ]
+                          },
+                          {
                             "description": "Show both icon and text",
                             "type": "string",
                             "enum": [
                               "IconAndText"
+                            ]
+                          },
+                          {
+                            "description": "Show an icon and text for the selected element, and icons on the rest",
+                            "type": "string",
+                            "enum": [
+                              "IconAndTextOnSelected"
                             ]
                           }
                         ]
@@ -1410,10 +1460,24 @@
                             ]
                           },
                           {
+                            "description": "Show an icon and text for the selected element, and text on the rest",
+                            "type": "string",
+                            "enum": [
+                              "TextAndIconOnSelected"
+                            ]
+                          },
+                          {
                             "description": "Show both icon and text",
                             "type": "string",
                             "enum": [
                               "IconAndText"
+                            ]
+                          },
+                          {
+                            "description": "Show an icon and text for the selected element, and icons on the rest",
+                            "type": "string",
+                            "enum": [
+                              "IconAndTextOnSelected"
                             ]
                           }
                         ]
@@ -1483,10 +1547,24 @@
                             ]
                           },
                           {
+                            "description": "Show an icon and text for the selected element, and text on the rest",
+                            "type": "string",
+                            "enum": [
+                              "TextAndIconOnSelected"
+                            ]
+                          },
+                          {
                             "description": "Show both icon and text",
                             "type": "string",
                             "enum": [
                               "IconAndText"
+                            ]
+                          },
+                          {
+                            "description": "Show an icon and text for the selected element, and icons on the rest",
+                            "type": "string",
+                            "enum": [
+                              "IconAndTextOnSelected"
                             ]
                           }
                         ]
@@ -2149,9 +2227,6 @@
             "properties": {
               "Komorebi": {
                 "type": "object",
-                "required": [
-                  "workspaces"
-                ],
                 "properties": {
                   "configuration_switcher": {
                     "description": "Configure the Configuration Switcher widget",
@@ -2199,10 +2274,24 @@
                             ]
                           },
                           {
+                            "description": "Show an icon and text for the selected element, and text on the rest",
+                            "type": "string",
+                            "enum": [
+                              "TextAndIconOnSelected"
+                            ]
+                          },
+                          {
                             "description": "Show both icon and text",
                             "type": "string",
                             "enum": [
                               "IconAndText"
+                            ]
+                          },
+                          {
+                            "description": "Show an icon and text for the selected element, and icons on the rest",
+                            "type": "string",
+                            "enum": [
+                              "IconAndTextOnSelected"
                             ]
                           }
                         ]
@@ -2242,10 +2331,24 @@
                             ]
                           },
                           {
+                            "description": "Show an icon and text for the selected element, and text on the rest",
+                            "type": "string",
+                            "enum": [
+                              "TextAndIconOnSelected"
+                            ]
+                          },
+                          {
                             "description": "Show both icon and text",
                             "type": "string",
                             "enum": [
                               "IconAndText"
+                            ]
+                          },
+                          {
+                            "description": "Show an icon and text for the selected element, and icons on the rest",
+                            "type": "string",
+                            "enum": [
+                              "IconAndTextOnSelected"
                             ]
                           }
                         ]
@@ -2315,10 +2418,24 @@
                             ]
                           },
                           {
+                            "description": "Show an icon and text for the selected element, and text on the rest",
+                            "type": "string",
+                            "enum": [
+                              "TextAndIconOnSelected"
+                            ]
+                          },
+                          {
                             "description": "Show both icon and text",
                             "type": "string",
                             "enum": [
                               "IconAndText"
+                            ]
+                          },
+                          {
+                            "description": "Show an icon and text for the selected element, and icons on the rest",
+                            "type": "string",
+                            "enum": [
+                              "IconAndTextOnSelected"
                             ]
                           }
                         ]
