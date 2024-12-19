@@ -17,6 +17,7 @@ use crate::MONITOR_LEFT;
 use crate::MONITOR_RIGHT;
 use crate::MONITOR_TOP;
 use crossbeam_channel::Receiver;
+use eframe::egui::Align;
 use eframe::egui::Align2;
 use eframe::egui::Area;
 use eframe::egui::CentralPanel;
@@ -28,6 +29,7 @@ use eframe::egui::FontFamily;
 use eframe::egui::FontId;
 use eframe::egui::Frame;
 use eframe::egui::Id;
+use eframe::egui::Layout;
 use eframe::egui::Margin;
 use eframe::egui::Rgba;
 use eframe::egui::Style;
@@ -397,6 +399,8 @@ impl Komobar {
                 });
         }
 
+        right_widgets.reverse();
+
         self.left_widgets = left_widgets;
         self.center_widgets = center_widgets;
         self.right_widgets = right_widgets;
@@ -582,7 +586,7 @@ impl eframe::App for Komobar {
                             left_area_frame.inner_margin.left = frame.inner_margin.x;
                         }
                         left_area_frame.show(ui, |ui| {
-                            ui.horizontal_centered(|ui| {
+                            ui.with_layout(Layout::left_to_right(Align::Center), |ui| {
                                 let mut render_conf = render_config.clone();
                                 render_conf.alignment = Some(Alignment::Left);
 
@@ -606,7 +610,7 @@ impl eframe::App for Komobar {
                             right_area_frame.inner_margin.right = frame.inner_margin.x;
                         }
                         right_area_frame.show(ui, |ui| {
-                            ui.horizontal_centered(|ui| {
+                            ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
                                 let mut render_conf = render_config.clone();
                                 render_conf.alignment = Some(Alignment::Right);
 
@@ -627,7 +631,7 @@ impl eframe::App for Komobar {
                     .show(ctx, |ui| {
                         let center_area_frame = area_frame;
                         center_area_frame.show(ui, |ui| {
-                            ui.horizontal_centered(|ui| {
+                            ui.with_layout(Layout::left_to_right(Align::Center), |ui| {
                                 let mut render_conf = render_config.clone();
                                 render_conf.alignment = Some(Alignment::Center);
 
