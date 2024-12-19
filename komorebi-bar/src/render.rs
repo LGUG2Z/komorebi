@@ -16,6 +16,7 @@ use serde::Deserialize;
 use serde::Serialize;
 use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering;
+use std::sync::Arc;
 
 static SHOW_KOMOREBI_LAYOUT_OPTIONS: AtomicUsize = AtomicUsize::new(0);
 
@@ -107,18 +108,28 @@ impl RenderConfig {
         }
     }
 
-    pub fn apply_on_bar<R>(
+    pub fn change_frame_on_bar(
         &mut self,
-        ui: &mut Ui,
-        add_contents: impl FnOnce(&mut Ui) -> R,
-    ) -> InnerResponse<R> {
+        frame: Frame,
+        ui_style: &Arc<eframe::egui::Style>,
+    ) -> Frame {
         self.alignment = None;
 
         if let Grouping::Bar(config) = self.grouping {
-            return self.define_group(None, config, ui, add_contents);
+            return self.define_group_frame(
+                //TODO: this outer margin can be a config
+                Some(Margin {
+                    left: 10.0,
+                    right: 10.0,
+                    top: 6.0,
+                    bottom: 6.0,
+                }),
+                config,
+                ui_style,
+            );
         }
 
-        Self::fallback_group(ui, add_contents)
+        frame
     }
 
     pub fn apply_on_alignment<R>(
@@ -180,16 +191,26 @@ impl RenderConfig {
         ui: &mut Ui,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> InnerResponse<R> {
-        Frame::group(ui.style_mut())
+        self.define_group_frame(outer_margin, config, ui.style())
+            .show(ui, add_contents)
+    }
+
+    pub fn define_group_frame(
+        &mut self,
+        outer_margin: Option<Margin>,
+        config: GroupingConfig,
+        ui_style: &Arc<eframe::egui::Style>,
+    ) -> Frame {
+        Frame::group(ui_style)
             .outer_margin(outer_margin.unwrap_or(Margin::ZERO))
             .inner_margin(match self.more_inner_margin {
                 true => Margin::symmetric(6.0, 1.0),
                 false => Margin::symmetric(1.0, 1.0),
             })
-            .stroke(ui.style().visuals.widgets.noninteractive.bg_stroke)
+            .stroke(ui_style.visuals.widgets.noninteractive.bg_stroke)
             .rounding(match config.rounding {
                 Some(rounding) => rounding.into(),
-                None => ui.style().visuals.widgets.noninteractive.rounding,
+                None => ui_style.visuals.widgets.noninteractive.rounding,
             })
             .fill(
                 self.background_color
@@ -221,8 +242,7 @@ impl RenderConfig {
                         blur: 3.0,
                         offset: Vec2::new(1.0, 1.0),
                         spread: 2.0,
-                        color: ui
-                            .style()
+                        color: ui_style
                             .visuals
                             .selection
                             .stroke
@@ -233,8 +253,7 @@ impl RenderConfig {
                         blur: 3.0,
                         offset: Vec2::new(0.0, 0.0),
                         spread: 2.0,
-                        color: ui
-                            .style()
+                        color: ui_style
                             .visuals
                             .selection
                             .stroke
@@ -245,8 +264,7 @@ impl RenderConfig {
                         blur: 0.0,
                         offset: Vec2::new(1.0, 1.0),
                         spread: 2.0,
-                        color: ui
-                            .style()
+                        color: ui_style
                             .visuals
                             .selection
                             .stroke
@@ -256,7 +274,6 @@ impl RenderConfig {
                 },
                 None => Shadow::NONE,
             })
-            .show(ui, add_contents)
     }
 
     fn widget_outer_margin(&mut self, ui: &mut Ui) -> Margin {

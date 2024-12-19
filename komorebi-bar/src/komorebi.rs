@@ -2,6 +2,7 @@ use crate::bar::apply_theme;
 use crate::config::DisplayFormat;
 use crate::config::KomobarTheme;
 use crate::komorebi_layout::KomorebiLayout;
+use crate::render::Grouping;
 use crate::render::RenderConfig;
 use crate::selected_frame::SelectableFrame;
 use crate::ui::CustomUi;
@@ -490,12 +491,17 @@ impl KomorebiNotificationState {
         self.hide_empty_workspaces = config.hide_empty_workspaces;
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn handle_notification(
         &mut self,
         ctx: &Context,
         monitor_index: usize,
         rx_gui: Receiver<komorebi_client::Notification>,
         bg_color: Rc<RefCell<Color32>>,
+        bg_color_with_alpha: Rc<RefCell<Color32>>,
+        transparency_alpha: Option<u8>,
+        grouping: Option<Grouping>,
+        default_theme: Option<KomobarTheme>,
     ) {
         match rx_gui.try_recv() {
             Err(error) => match error {
@@ -513,13 +519,39 @@ impl KomorebiNotificationState {
                         SocketMessage::ReloadStaticConfiguration(path) => {
                             if let Ok(config) = komorebi_client::StaticConfig::read(&path) {
                                 if let Some(theme) = config.theme {
-                                    apply_theme(ctx, KomobarTheme::from(theme), bg_color.clone());
+                                    apply_theme(
+                                        ctx,
+                                        KomobarTheme::from(theme),
+                                        bg_color.clone(),
+                                        bg_color_with_alpha.clone(),
+                                        transparency_alpha,
+                                        grouping,
+                                    );
                                     tracing::info!("applied theme from updated komorebi.json");
+                                } else if let Some(default_theme) = default_theme {
+                                    apply_theme(
+                                        ctx,
+                                        default_theme,
+                                        bg_color.clone(),
+                                        bg_color_with_alpha.clone(),
+                                        transparency_alpha,
+                                        grouping,
+                                    );
+                                    tracing::info!("removed theme from updated komorebi.json and applied default theme");
+                                } else {
+                                    tracing::warn!("theme was removed from updated komorebi.json but there was no default theme to apply");
                                 }
                             }
                         }
                         SocketMessage::Theme(theme) => {
-                            apply_theme(ctx, KomobarTheme::from(theme), bg_color);
+                            apply_theme(
+                                ctx,
+                                KomobarTheme::from(theme),
+                                bg_color,
+                                bg_color_with_alpha.clone(),
+                                transparency_alpha,
+                                grouping,
+                            );
                             tracing::info!("applied theme from komorebi socket message");
                         }
                         _ => {}
