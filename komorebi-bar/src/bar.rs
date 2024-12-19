@@ -17,7 +17,6 @@ use crate::MONITOR_LEFT;
 use crate::MONITOR_RIGHT;
 use crate::MONITOR_TOP;
 use crossbeam_channel::Receiver;
-use eframe::egui::Align;
 use eframe::egui::Align2;
 use eframe::egui::Area;
 use eframe::egui::CentralPanel;
@@ -29,7 +28,6 @@ use eframe::egui::FontFamily;
 use eframe::egui::FontId;
 use eframe::egui::Frame;
 use eframe::egui::Id;
-use eframe::egui::Layout;
 use eframe::egui::Margin;
 use eframe::egui::Rgba;
 use eframe::egui::Style;
@@ -38,6 +36,7 @@ use eframe::egui::Visuals;
 use font_loader::system_fonts;
 use font_loader::system_fonts::FontPropertyBuilder;
 use komorebi_client::KomorebiTheme;
+use komorebi_client::SocketMessage;
 use komorebi_themes::catppuccin_egui;
 use komorebi_themes::Base16Value;
 use komorebi_themes::Catppuccin;
@@ -58,10 +57,18 @@ pub struct Komobar {
     pub rx_gui: Receiver<komorebi_client::Notification>,
     pub rx_config: Receiver<KomobarConfig>,
     pub bg_color: Rc<RefCell<Color32>>,
+    pub bg_color_with_alpha: Rc<RefCell<Color32>>,
     pub scale_factor: f32,
 }
 
-pub fn apply_theme(ctx: &Context, theme: KomobarTheme, bg_color: Rc<RefCell<Color32>>) {
+pub fn apply_theme(
+    ctx: &Context,
+    theme: KomobarTheme,
+    bg_color: Rc<RefCell<Color32>>,
+    bg_color_with_alpha: Rc<RefCell<Color32>>,
+    transparency_alpha: Option<u8>,
+    grouping: Option<Grouping>,
+) {
     match theme {
         KomobarTheme::Catppuccin {
             name: catppuccin,
@@ -141,6 +148,26 @@ pub fn apply_theme(ctx: &Context, theme: KomobarTheme, bg_color: Rc<RefCell<Colo
             bg_color.replace(base16.background());
         }
     }
+
+    // Apply transparency_alpha
+    let theme_color = *bg_color.borrow();
+
+    bg_color_with_alpha.replace(theme_color.try_apply_alpha(transparency_alpha));
+
+    // apply rounding to the widgets
+    if let Some(Grouping::Bar(config) | Grouping::Alignment(config) | Grouping::Widget(config)) =
+        &grouping
+    {
+        if let Some(rounding) = config.rounding {
+            ctx.style_mut(|style| {
+                style.visuals.widgets.noninteractive.rounding = rounding.into();
+                style.visuals.widgets.inactive.rounding = rounding.into();
+                style.visuals.widgets.hovered.rounding = rounding.into();
+                style.visuals.widgets.active.rounding = rounding.into();
+                style.visuals.widgets.open.rounding = rounding.into();
+            });
+        }
+    }
 }
 
 impl Komobar {
@@ -204,9 +231,17 @@ impl Komobar {
             }
         }
 
+        let background_color_before_transparency = *self.bg_color.borrow();
         match config.theme {
             Some(theme) => {
-                apply_theme(ctx, theme, self.bg_color.clone());
+                apply_theme(
+                    ctx,
+                    theme,
+                    self.bg_color.clone(),
+                    self.bg_color_with_alpha.clone(),
+                    config.transparency_alpha,
+                    config.grouping,
+                );
             }
             None => {
                 let home_dir: PathBuf = std::env::var("KOMOREBI_CONFIG_HOME").map_or_else(
@@ -222,11 +257,20 @@ impl Komobar {
                     },
                 );
 
+                let bar_transparency_alpha = config.transparency_alpha;
+                let bar_grouping = config.grouping;
                 let config = home_dir.join("komorebi.json");
                 match komorebi_client::StaticConfig::read(&config) {
                     Ok(config) => {
                         if let Some(theme) = config.theme {
-                            apply_theme(ctx, KomobarTheme::from(theme), self.bg_color.clone());
+                            apply_theme(
+                                ctx,
+                                KomobarTheme::from(theme),
+                                self.bg_color.clone(),
+                                self.bg_color_with_alpha.clone(),
+                                bar_transparency_alpha,
+                                bar_grouping,
+                            );
 
                             let stack_accent = match theme {
                                 KomorebiTheme::Catppuccin {
@@ -247,31 +291,28 @@ impl Komobar {
                     Err(_) => {
                         ctx.set_style(Style::default());
                         self.bg_color.replace(Style::default().visuals.panel_fill);
+
+                        // apply rounding to the widgets since we didn't call `apply_theme`
+                        if let Some(
+                            Grouping::Bar(config)
+                            | Grouping::Alignment(config)
+                            | Grouping::Widget(config),
+                        ) = &bar_grouping
+                        {
+                            if let Some(rounding) = config.rounding {
+                                ctx.style_mut(|style| {
+                                    style.visuals.widgets.noninteractive.rounding = rounding.into();
+                                    style.visuals.widgets.inactive.rounding = rounding.into();
+                                    style.visuals.widgets.hovered.rounding = rounding.into();
+                                    style.visuals.widgets.active.rounding = rounding.into();
+                                    style.visuals.widgets.open.rounding = rounding.into();
+                                });
+                            }
+                        }
                     }
                 }
             }
         }
-
-        // apply rounding to the widgets
-        if let Some(
-            Grouping::Bar(config) | Grouping::Alignment(config) | Grouping::Widget(config),
-        ) = &config.grouping
-        {
-            if let Some(rounding) = config.rounding {
-                ctx.style_mut(|style| {
-                    style.visuals.widgets.noninteractive.rounding = rounding.into();
-                    style.visuals.widgets.inactive.rounding = rounding.into();
-                    style.visuals.widgets.hovered.rounding = rounding.into();
-                    style.visuals.widgets.active.rounding = rounding.into();
-                    style.visuals.widgets.open.rounding = rounding.into();
-                });
-            }
-        }
-
-        let theme_color = *self.bg_color.borrow();
-
-        self.bg_color
-            .replace(theme_color.try_apply_alpha(config.transparency_alpha));
 
         if let Some(font_size) = &config.font_size {
             tracing::info!("attempting to set custom font size: {font_size}");
@@ -279,7 +320,7 @@ impl Komobar {
         }
 
         self.render_config
-            .replace(config.new_renderconfig(ctx, theme_color));
+            .replace(config.new_renderconfig(ctx, background_color_before_transparency));
 
         let mut komorebi_notification_state = previous_notification_state;
         let mut komorebi_widgets = Vec::new();
@@ -356,15 +397,37 @@ impl Komobar {
                 });
         }
 
-        right_widgets.reverse();
-
         self.left_widgets = left_widgets;
         self.center_widgets = center_widgets;
         self.right_widgets = right_widgets;
 
+        if let (Some(prev_rect), Some(new_rect)) = (
+            &self.config.monitor.work_area_offset,
+            &config.monitor.work_area_offset,
+        ) {
+            if new_rect != prev_rect {
+                if let Err(error) = komorebi_client::send_message(
+                    &SocketMessage::MonitorWorkAreaOffset(config.monitor.index, *new_rect),
+                ) {
+                    tracing::error!(
+                        "error applying work area offset to monitor '{}': {}",
+                        config.monitor.index,
+                        error,
+                    );
+                } else {
+                    tracing::info!(
+                        "work area offset applied to monitor: {}",
+                        config.monitor.index
+                    );
+                }
+            }
+        }
+
         tracing::info!("widget configuration options applied");
 
         self.komorebi_notification_state = komorebi_notification_state;
+
+        self.config = config.clone().into();
     }
 
     pub fn new(
@@ -383,6 +446,7 @@ impl Komobar {
             rx_gui,
             rx_config,
             bg_color: Rc::new(RefCell::new(Style::default().visuals.panel_fill)),
+            bg_color_with_alpha: Rc::new(RefCell::new(Style::default().visuals.panel_fill)),
             scale_factor: cc.egui_ctx.native_pixels_per_point().unwrap_or(1.0),
         };
 
@@ -478,6 +542,10 @@ impl eframe::App for Komobar {
                     self.config.monitor.index,
                     self.rx_gui.clone(),
                     self.bg_color.clone(),
+                    self.bg_color_with_alpha.clone(),
+                    self.config.transparency_alpha,
+                    self.config.grouping,
+                    self.config.theme,
                 );
         }
 
@@ -487,62 +555,91 @@ impl eframe::App for Komobar {
                     frame.inner_margin.x,
                     frame.inner_margin.y,
                 ))
-                .fill(*self.bg_color.borrow())
+                .fill(*self.bg_color_with_alpha.borrow())
         } else {
-            Frame::none().fill(*self.bg_color.borrow())
+            Frame::none().fill(*self.bg_color_with_alpha.borrow())
         };
 
         let mut render_config = self.render_config.borrow_mut();
 
-        CentralPanel::default().frame(frame).show(ctx, |ui| {
+        let frame = render_config.change_frame_on_bar(frame, &ctx.style());
+
+        CentralPanel::default().frame(frame).show(ctx, |_| {
             // Apply grouping logic for the bar as a whole
-            render_config.clone().apply_on_bar(ui, |ui| {
-                ui.horizontal_centered(|ui| {
-                    // Left-aligned widgets layout
-                    ui.with_layout(Layout::left_to_right(Align::Center), |ui| {
-                        let mut render_conf = render_config.clone();
-                        render_conf.alignment = Some(Alignment::Left);
+            let area_frame = if let Some(frame) = &self.config.frame {
+                Frame::none().inner_margin(Margin::symmetric(0.0, frame.inner_margin.y))
+            } else {
+                Frame::none()
+            };
 
-                        render_config.apply_on_alignment(ui, |ui| {
-                            for w in &mut self.left_widgets {
-                                w.render(ctx, ui, &mut render_conf);
-                            }
-                        });
-                    });
+            if !self.left_widgets.is_empty() {
+                // Left-aligned widgets layout
+                Area::new(Id::new("left_panel"))
+                    .anchor(Align2::LEFT_CENTER, [0.0, 0.0]) // Align in the left center of the window
+                    .show(ctx, |ui| {
+                        let mut left_area_frame = area_frame;
+                        if let Some(frame) = &self.config.frame {
+                            left_area_frame.inner_margin.left = frame.inner_margin.x;
+                        }
+                        left_area_frame.show(ui, |ui| {
+                            ui.horizontal_centered(|ui| {
+                                let mut render_conf = render_config.clone();
+                                render_conf.alignment = Some(Alignment::Left);
 
-                    // Right-aligned widgets layout
-                    ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                        let mut render_conf = render_config.clone();
-                        render_conf.alignment = Some(Alignment::Right);
-
-                        render_config.apply_on_alignment(ui, |ui| {
-                            for w in &mut self.right_widgets {
-                                w.render(ctx, ui, &mut render_conf);
-                            }
-                        });
-                    });
-
-                    if !self.center_widgets.is_empty() {
-                        // Floating center widgets
-                        Area::new(Id::new("center_panel"))
-                            .anchor(Align2::CENTER_CENTER, [0.0, 0.0]) // Align in the center of the window
-                            .show(ctx, |ui| {
-                                Frame::none().show(ui, |ui| {
-                                    ui.horizontal_centered(|ui| {
-                                        let mut render_conf = render_config.clone();
-                                        render_conf.alignment = Some(Alignment::Center);
-
-                                        render_config.apply_on_alignment(ui, |ui| {
-                                            for w in &mut self.center_widgets {
-                                                w.render(ctx, ui, &mut render_conf);
-                                            }
-                                        });
-                                    });
+                                render_config.apply_on_alignment(ui, |ui| {
+                                    for w in &mut self.left_widgets {
+                                        w.render(ctx, ui, &mut render_conf);
+                                    }
                                 });
                             });
-                    }
-                })
-            })
+                        });
+                    });
+            }
+
+            if !self.right_widgets.is_empty() {
+                // Right-aligned widgets layout
+                Area::new(Id::new("right_panel"))
+                    .anchor(Align2::RIGHT_CENTER, [0.0, 0.0]) // Align in the right center of the window
+                    .show(ctx, |ui| {
+                        let mut right_area_frame = area_frame;
+                        if let Some(frame) = &self.config.frame {
+                            right_area_frame.inner_margin.right = frame.inner_margin.x;
+                        }
+                        right_area_frame.show(ui, |ui| {
+                            ui.horizontal_centered(|ui| {
+                                let mut render_conf = render_config.clone();
+                                render_conf.alignment = Some(Alignment::Right);
+
+                                render_config.apply_on_alignment(ui, |ui| {
+                                    for w in &mut self.right_widgets {
+                                        w.render(ctx, ui, &mut render_conf);
+                                    }
+                                });
+                            });
+                        });
+                    });
+            }
+
+            if !self.center_widgets.is_empty() {
+                // Floating center widgets
+                Area::new(Id::new("center_panel"))
+                    .anchor(Align2::CENTER_CENTER, [0.0, 0.0]) // Align in the center of the window
+                    .show(ctx, |ui| {
+                        let center_area_frame = area_frame;
+                        center_area_frame.show(ui, |ui| {
+                            ui.horizontal_centered(|ui| {
+                                let mut render_conf = render_config.clone();
+                                render_conf.alignment = Some(Alignment::Center);
+
+                                render_config.apply_on_alignment(ui, |ui| {
+                                    for w in &mut self.center_widgets {
+                                        w.render(ctx, ui, &mut render_conf);
+                                    }
+                                });
+                            });
+                        });
+                    });
+            }
         });
     }
 }
