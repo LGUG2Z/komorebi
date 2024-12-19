@@ -293,7 +293,7 @@ impl RenderConfig {
                 Some(align) => match align {
                     Alignment::Left => spacing,
                     Alignment::Center => spacing,
-                    Alignment::Right => 0.0,
+                    Alignment::Right => spacing,
                 },
                 None => 0.0,
             },
@@ -301,7 +301,7 @@ impl RenderConfig {
                 Some(align) => match align {
                     Alignment::Left => 0.0,
                     Alignment::Center => 0.0,
-                    Alignment::Right => spacing,
+                    Alignment::Right => 0.0,
                 },
                 None => 0.0,
             },
