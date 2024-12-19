@@ -1309,6 +1309,8 @@ enum SubCommand {
     ClearNamedWorkspaceRules(ClearNamedWorkspaceRules),
     /// Remove all application association rules for all workspaces
     ClearAllWorkspaceRules,
+    /// Enforce all workspace rules, including initial workspace rules that have already been applied
+    EnforceWorkspaceRules,
     /// Identify an application that sends EVENT_OBJECT_NAMECHANGE on launch
     #[clap(arg_required_else_help = true)]
     IdentifyObjectNameChangeApplication(IdentifyObjectNameChangeApplication),
@@ -2456,6 +2458,9 @@ if (Get-Command Get-CimInstance -ErrorAction SilentlyContinue) {
         }
         SubCommand::ClearAllWorkspaceRules => {
             send_message(&SocketMessage::ClearAllWorkspaceRules)?;
+        }
+        SubCommand::EnforceWorkspaceRules => {
+            send_message(&SocketMessage::EnforceWorkspaceRules)?;
         }
         SubCommand::Stack(arg) => {
             send_message(&SocketMessage::StackWindow(arg.operation_direction))?;

@@ -396,6 +396,13 @@ impl WindowManager {
                 let mut workspace_rules = WORKSPACE_MATCHING_RULES.lock();
                 workspace_rules.clear();
             }
+            SocketMessage::EnforceWorkspaceRules => {
+                {
+                    let mut already_moved = self.already_moved_window_handles.lock();
+                    already_moved.clear();
+                }
+                self.enforce_workspace_rules()?;
+            }
             SocketMessage::ManageRule(identifier, ref id) => {
                 let mut manage_identifiers = MANAGE_IDENTIFIERS.lock();
 
