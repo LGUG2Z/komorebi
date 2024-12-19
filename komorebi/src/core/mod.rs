@@ -185,6 +185,8 @@ pub enum SocketMessage {
     ClearWorkspaceRules(usize, usize),
     ClearNamedWorkspaceRules(String),
     ClearAllWorkspaceRules,
+    ReapplyInitialWorkspaceRules,
+    ReapplyInitialWorkspaceRulesForWindow,
     #[serde(alias = "FloatRule")]
     IgnoreRule(ApplicationIdentifier, String),
     ManageRule(ApplicationIdentifier, String),

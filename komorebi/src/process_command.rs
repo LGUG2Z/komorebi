@@ -396,6 +396,21 @@ impl WindowManager {
                 let mut workspace_rules = WORKSPACE_MATCHING_RULES.lock();
                 workspace_rules.clear();
             }
+            SocketMessage::ReapplyInitialWorkspaceRules => {
+                {
+                    let mut already_moved = self.already_moved_window_handles.lock();
+                    already_moved.clear();
+                }
+                self.enforce_workspace_rules()?;
+            }
+            SocketMessage::ReapplyInitialWorkspaceRulesForWindow => {
+                let focused_window_hwnd = WindowsApi::foreground_window()?;
+                {
+                    let mut already_moved = self.already_moved_window_handles.lock();
+                    already_moved.remove(&focused_window_hwnd);
+                }
+                self.enforce_workspace_rules()?;
+            }
             SocketMessage::ManageRule(identifier, ref id) => {
                 let mut manage_identifiers = MANAGE_IDENTIFIERS.lock();
 
