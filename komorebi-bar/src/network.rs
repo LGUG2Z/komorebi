@@ -259,6 +259,7 @@ impl Network {
 impl BarWidget for Network {
     fn render(&mut self, ctx: &Context, ui: &mut Ui, config: &mut RenderConfig) {
         if self.enable {
+            // widget spacing: make sure to use the same config to call the apply_on_widget function
             let mut render_config = config.clone();
 
             if self.show_total_activity || self.show_activity {
@@ -266,16 +267,16 @@ impl BarWidget for Network {
 
                 if self.show_total_activity {
                     for reading in total_activity {
-                        config.apply_on_widget(true, ui, |ui| {
-                            ui.add(self.reading_to_label(ctx, reading, render_config.clone()));
+                        render_config.apply_on_widget(true, ui, |ui| {
+                            ui.add(self.reading_to_label(ctx, reading, config.clone()));
                         });
                     }
                 }
 
                 if self.show_activity {
                     for reading in activity {
-                        config.apply_on_widget(true, ui, |ui| {
-                            ui.add(self.reading_to_label(ctx, reading, render_config.clone()));
+                        render_config.apply_on_widget(true, ui, |ui| {
+                            ui.add(self.reading_to_label(ctx, reading, config.clone()));
                         });
                     }
                 }
@@ -325,6 +326,9 @@ impl BarWidget for Network {
                     });
                 }
             }
+
+            // widget spacing: pass on the config that was use for calling the apply_on_widget function
+            *config = render_config.clone();
         }
     }
 }
