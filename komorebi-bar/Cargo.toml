@@ -16,7 +16,7 @@ crossbeam-channel = { workspace = true }
 dirs = { workspace = true }
 dunce = { workspace = true }
 eframe = { workspace = true }
-egui-phosphor = "0.7"
+egui-phosphor = "0.8"
 font-loader = "0.11"
 hotwatch = { workspace = true }
 image = "0.25"

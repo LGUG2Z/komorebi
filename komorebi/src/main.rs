@@ -307,7 +307,7 @@ fn main() -> Result<()> {
 
     ANIMATION_ENABLED_PER_ANIMATION.lock().clear();
     ANIMATION_ENABLED_GLOBAL.store(false, Ordering::SeqCst);
-    wm.lock().restore_all_windows()?;
+    wm.lock().restore_all_windows(false)?;
     AnimationEngine::wait_for_all_animations();
 
     if WindowsApi::focus_follows_mouse()? {
