@@ -405,13 +405,13 @@ pub struct StaticConfig {
 #[derive(Debug, Serialize, Deserialize, JsonSchema)]
 pub struct AnimationsConfig {
     /// Enable or disable animations (default: false)
-    enabled: PerAnimationPrefixConfig<bool>,
+    pub enabled: PerAnimationPrefixConfig<bool>,
     /// Set the animation duration in ms (default: 250)
-    duration: Option<PerAnimationPrefixConfig<u64>>,
+    pub duration: Option<PerAnimationPrefixConfig<u64>>,
     /// Set the animation style (default: Linear)
-    style: Option<PerAnimationPrefixConfig<AnimationStyle>>,
+    pub style: Option<PerAnimationPrefixConfig<AnimationStyle>>,
     /// Set the animation FPS (default: 60)
-    fps: Option<u64>,
+    pub fps: Option<u64>,
 }
 #[derive(Copy, Clone, Debug, Serialize, Deserialize, JsonSchema)]
 #[serde(tag = "palette")]
