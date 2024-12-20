@@ -61,6 +61,7 @@ pub struct Komobar {
     pub bg_color: Rc<RefCell<Color32>>,
     pub bg_color_with_alpha: Rc<RefCell<Color32>>,
     pub scale_factor: f32,
+    applied_theme_on_first_frame: bool,
 }
 
 pub fn apply_theme(
@@ -233,88 +234,7 @@ impl Komobar {
             }
         }
 
-        let background_color_before_transparency = *self.bg_color.borrow();
-        match config.theme {
-            Some(theme) => {
-                apply_theme(
-                    ctx,
-                    theme,
-                    self.bg_color.clone(),
-                    self.bg_color_with_alpha.clone(),
-                    config.transparency_alpha,
-                    config.grouping,
-                );
-            }
-            None => {
-                let home_dir: PathBuf = std::env::var("KOMOREBI_CONFIG_HOME").map_or_else(
-                    |_| dirs::home_dir().expect("there is no home directory"),
-                    |home_path| {
-                        let home = PathBuf::from(&home_path);
-
-                        if home.as_path().is_dir() {
-                            home
-                        } else {
-                            panic!("$Env:KOMOREBI_CONFIG_HOME is set to '{home_path}', which is not a valid directory");
-                        }
-                    },
-                );
-
-                let bar_transparency_alpha = config.transparency_alpha;
-                let bar_grouping = config.grouping;
-                let config = home_dir.join("komorebi.json");
-                match komorebi_client::StaticConfig::read(&config) {
-                    Ok(config) => {
-                        if let Some(theme) = config.theme {
-                            apply_theme(
-                                ctx,
-                                KomobarTheme::from(theme),
-                                self.bg_color.clone(),
-                                self.bg_color_with_alpha.clone(),
-                                bar_transparency_alpha,
-                                bar_grouping,
-                            );
-
-                            let stack_accent = match theme {
-                                KomorebiTheme::Catppuccin {
-                                    name, stack_border, ..
-                                } => stack_border
-                                    .unwrap_or(CatppuccinValue::Green)
-                                    .color32(name.as_theme()),
-                                KomorebiTheme::Base16 {
-                                    name, stack_border, ..
-                                } => stack_border.unwrap_or(Base16Value::Base0B).color32(name),
-                            };
-
-                            if let Some(state) = &self.komorebi_notification_state {
-                                state.borrow_mut().stack_accent = Some(stack_accent);
-                            }
-                        }
-                    }
-                    Err(_) => {
-                        ctx.set_style(Style::default());
-                        self.bg_color.replace(Style::default().visuals.panel_fill);
-
-                        // apply rounding to the widgets since we didn't call `apply_theme`
-                        if let Some(
-                            Grouping::Bar(config)
-                            | Grouping::Alignment(config)
-                            | Grouping::Widget(config),
-                        ) = &bar_grouping
-                        {
-                            if let Some(rounding) = config.rounding {
-                                ctx.style_mut(|style| {
-                                    style.visuals.widgets.noninteractive.rounding = rounding.into();
-                                    style.visuals.widgets.inactive.rounding = rounding.into();
-                                    style.visuals.widgets.hovered.rounding = rounding.into();
-                                    style.visuals.widgets.active.rounding = rounding.into();
-                                    style.visuals.widgets.open.rounding = rounding.into();
-                                });
-                            }
-                        }
-                    }
-                }
-            }
-        }
+        self.try_apply_theme(config, ctx);
 
         if let Some(font_size) = &config.font_size {
             tracing::info!("attempting to set custom font size: {font_size}");
@@ -322,7 +242,7 @@ impl Komobar {
         }
 
         self.render_config
-            .replace(config.new_renderconfig(ctx, background_color_before_transparency));
+            .replace(config.new_renderconfig(ctx, *self.bg_color.borrow()));
 
         let mut komorebi_notification_state = previous_notification_state;
         let mut komorebi_widgets = Vec::new();
@@ -434,6 +354,90 @@ impl Komobar {
         self.config = config.clone().into();
     }
 
+    fn try_apply_theme(&mut self, config: &KomobarConfig, ctx: &Context) {
+        match config.theme {
+            Some(theme) => {
+                apply_theme(
+                    ctx,
+                    theme,
+                    self.bg_color.clone(),
+                    self.bg_color_with_alpha.clone(),
+                    config.transparency_alpha,
+                    config.grouping,
+                );
+            }
+            None => {
+                let home_dir: PathBuf = std::env::var("KOMOREBI_CONFIG_HOME").map_or_else(
+                    |_| dirs::home_dir().expect("there is no home directory"),
+                    |home_path| {
+                        let home = PathBuf::from(&home_path);
+
+                        if home.as_path().is_dir() {
+                            home
+                        } else {
+                            panic!("$Env:KOMOREBI_CONFIG_HOME is set to '{home_path}', which is not a valid directory");
+                        }
+                    },
+                );
+
+                let bar_transparency_alpha = config.transparency_alpha;
+                let bar_grouping = config.grouping;
+                let config = home_dir.join("komorebi.json");
+                match komorebi_client::StaticConfig::read(&config) {
+                    Ok(config) => {
+                        if let Some(theme) = config.theme {
+                            apply_theme(
+                                ctx,
+                                KomobarTheme::from(theme),
+                                self.bg_color.clone(),
+                                self.bg_color_with_alpha.clone(),
+                                bar_transparency_alpha,
+                                bar_grouping,
+                            );
+
+                            let stack_accent = match theme {
+                                KomorebiTheme::Catppuccin {
+                                    name, stack_border, ..
+                                } => stack_border
+                                    .unwrap_or(CatppuccinValue::Green)
+                                    .color32(name.as_theme()),
+                                KomorebiTheme::Base16 {
+                                    name, stack_border, ..
+                                } => stack_border.unwrap_or(Base16Value::Base0B).color32(name),
+                            };
+
+                            if let Some(state) = &self.komorebi_notification_state {
+                                state.borrow_mut().stack_accent = Some(stack_accent);
+                            }
+                        }
+                    }
+                    Err(_) => {
+                        ctx.set_style(Style::default());
+                        self.bg_color.replace(Style::default().visuals.panel_fill);
+
+                        // apply rounding to the widgets since we didn't call `apply_theme`
+                        if let Some(
+                            Grouping::Bar(config)
+                            | Grouping::Alignment(config)
+                            | Grouping::Widget(config),
+                        ) = &bar_grouping
+                        {
+                            if let Some(rounding) = config.rounding {
+                                ctx.style_mut(|style| {
+                                    style.visuals.widgets.noninteractive.rounding = rounding.into();
+                                    style.visuals.widgets.inactive.rounding = rounding.into();
+                                    style.visuals.widgets.hovered.rounding = rounding.into();
+                                    style.visuals.widgets.active.rounding = rounding.into();
+                                    style.visuals.widgets.open.rounding = rounding.into();
+                                });
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     pub fn new(
         cc: &eframe::CreationContext<'_>,
         rx_gui: Receiver<komorebi_client::Notification>,
@@ -452,6 +456,7 @@ impl Komobar {
             bg_color: Rc::new(RefCell::new(Style::default().visuals.panel_fill)),
             bg_color_with_alpha: Rc::new(RefCell::new(Style::default().visuals.panel_fill)),
             scale_factor: cc.egui_ctx.native_pixels_per_point().unwrap_or(1.0),
+            applied_theme_on_first_frame: false,
         };
 
         komobar.apply_config(&cc.egui_ctx, &config, None);
@@ -551,6 +556,11 @@ impl eframe::App for Komobar {
                     self.config.grouping,
                     self.config.theme,
                 );
+        }
+
+        if !self.applied_theme_on_first_frame {
+            self.try_apply_theme(&self.config.clone(), ctx);
+            self.applied_theme_on_first_frame = true;
         }
 
         let frame = if let Some(frame) = &self.config.frame {
