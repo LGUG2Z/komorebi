@@ -4,9 +4,9 @@ version = "0.1.32"
 edition = "2021"
 
 [dependencies]
-base16-egui-themes = { git = "https://github.com/LGUG2Z/base16-egui-themes", rev = "c11fbe2a3a4681485c5065b899a4c4d85fad3b04" }
-#catppuccin-egui = { git = "https://github.com/LGUG2Z/catppuccin-egui", rev = "f579847bf2f552b144361d5a78ed8cf360b55cbb" }
-catppuccin-egui = { version = "5", default-features = false, features = ["egui29"] }
+base16-egui-themes = { git = "https://github.com/LGUG2Z/base16-egui-themes", rev = "24362c4" }
+catppuccin-egui = { git = "https://github.com/LGUG2Z/catppuccin-egui", rev = "f85cc3c", default-features = false, features = ["egui30"] }
+#catppuccin-egui = { version = "5", default-features = false, features = ["egui30"] }
 eframe = { workspace = true }
 schemars = { workspace = true }
 serde = { workspace = true }

@@ -500,7 +500,7 @@ impl Komobar {
         if let Some((font, _)) = system_fonts::get(&property) {
             fonts
                 .font_data
-                .insert(name.to_owned(), FontData::from_owned(font));
+                .insert(name.to_owned(), Arc::new(FontData::from_owned(font)));
 
             fonts
                 .families
