@@ -71,6 +71,7 @@ pub fn apply_theme(
     bg_color_with_alpha: Rc<RefCell<Color32>>,
     transparency_alpha: Option<u8>,
     grouping: Option<Grouping>,
+    render_config: Rc<RefCell<RenderConfig>>,
 ) {
     match theme {
         KomobarTheme::Catppuccin {
@@ -171,6 +172,9 @@ pub fn apply_theme(
             });
         }
     }
+
+    // Update RenderConfig's background_color so that widgets will have the new color
+    render_config.borrow_mut().background_color = *bg_color.borrow();
 }
 
 impl Komobar {
@@ -364,6 +368,7 @@ impl Komobar {
                     self.bg_color_with_alpha.clone(),
                     config.transparency_alpha,
                     config.grouping,
+                    self.render_config.clone(),
                 );
             }
             None => {
@@ -393,6 +398,7 @@ impl Komobar {
                                 self.bg_color_with_alpha.clone(),
                                 bar_transparency_alpha,
                                 bar_grouping,
+                                self.render_config.clone(),
                             );
 
                             let stack_accent = match theme {
@@ -555,6 +561,7 @@ impl eframe::App for Komobar {
                     self.config.transparency_alpha,
                     self.config.grouping,
                     self.config.theme,
+                    self.render_config.clone(),
                 );
         }
 
