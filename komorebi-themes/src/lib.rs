@@ -11,7 +11,7 @@ pub use catppuccin_egui;
 pub use eframe::egui::Color32;
 use serde_variant::to_variant_name;
 
-#[derive(Copy, Clone, Debug, Serialize, Deserialize, JsonSchema)]
+#[derive(Copy, Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq)]
 #[serde(tag = "type")]
 pub enum Theme {
     /// A theme from catppuccin-egui
@@ -48,7 +48,7 @@ impl Theme {
     }
 }
 
-#[derive(Copy, Clone, Debug, Default, Serialize, Deserialize, JsonSchema)]
+#[derive(Copy, Clone, Debug, Default, Serialize, Deserialize, JsonSchema, PartialEq)]
 pub enum Base16Value {
     Base00,
     Base01,
@@ -92,7 +92,7 @@ impl Base16Value {
     }
 }
 
-#[derive(Copy, Clone, Debug, Serialize, Deserialize, JsonSchema)]
+#[derive(Copy, Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq)]
 pub enum Catppuccin {
     Frappe,
     Latte,
@@ -117,7 +117,7 @@ impl From<Catppuccin> for catppuccin_egui::Theme {
     }
 }
 
-#[derive(Copy, Clone, Debug, Default, Serialize, Deserialize, JsonSchema)]
+#[derive(Copy, Clone, Debug, Default, Serialize, Deserialize, JsonSchema, PartialEq)]
 pub enum CatppuccinValue {
     Rosewater,
     Flamingo,

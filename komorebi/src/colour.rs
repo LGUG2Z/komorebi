@@ -8,7 +8,7 @@ use schemars::JsonSchema;
 use serde::Deserialize;
 use serde::Serialize;
 
-#[derive(Debug, Copy, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Copy, Clone, Serialize, Deserialize, JsonSchema, PartialEq)]
 #[serde(untagged)]
 pub enum Colour {
     /// Colour represented as RGB
@@ -51,7 +51,7 @@ impl From<Colour> for Color32 {
     }
 }
 
-#[derive(Debug, Copy, Clone, Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Hex(HexColor);
 
 impl JsonSchema for Hex {
@@ -78,7 +78,7 @@ impl From<Colour> for u32 {
     }
 }
 
-#[derive(Debug, Copy, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Copy, Clone, Serialize, Deserialize, JsonSchema, PartialEq)]
 pub struct Rgb {
     /// Red
     pub r: u32,

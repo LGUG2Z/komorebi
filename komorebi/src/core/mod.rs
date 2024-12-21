@@ -432,7 +432,16 @@ pub enum MoveBehaviour {
 }
 
 #[derive(
-    Clone, Copy, Debug, Serialize, Deserialize, Display, EnumString, ValueEnum, JsonSchema,
+    Clone,
+    Copy,
+    Debug,
+    Serialize,
+    Deserialize,
+    Display,
+    EnumString,
+    ValueEnum,
+    JsonSchema,
+    PartialEq,
 )]
 pub enum CrossBoundaryBehaviour {
     /// Attempt to perform actions across a workspace boundary
@@ -442,7 +451,16 @@ pub enum CrossBoundaryBehaviour {
 }
 
 #[derive(
-    Copy, Clone, Debug, Serialize, Deserialize, Display, EnumString, ValueEnum, JsonSchema,
+    Copy,
+    Clone,
+    Debug,
+    Serialize,
+    Deserialize,
+    Display,
+    EnumString,
+    ValueEnum,
+    JsonSchema,
+    PartialEq,
 )]
 pub enum HidingBehaviour {
     /// Use the SW_HIDE flag to hide windows when switching workspaces (has issues with Electron apps)
