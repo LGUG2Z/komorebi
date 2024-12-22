@@ -548,17 +548,17 @@ impl StaticConfig {
 #[derive(Debug, Serialize, Deserialize, JsonSchema)]
 pub struct TabsConfig {
     /// Width of a stackbar tab
-    width: Option<i32>,
+    pub width: Option<i32>,
     /// Focused tab text colour
-    focused_text: Option<Colour>,
+    pub focused_text: Option<Colour>,
     /// Unfocused tab text colour
-    unfocused_text: Option<Colour>,
+    pub unfocused_text: Option<Colour>,
     /// Tab background colour
-    background: Option<Colour>,
+    pub background: Option<Colour>,
     /// Font family
-    font_family: Option<String>,
+    pub font_family: Option<String>,
     /// Font size
-    font_size: Option<i32>,
+    pub font_size: Option<i32>,
 }
 
 #[derive(Debug, Serialize, Deserialize, JsonSchema)]
