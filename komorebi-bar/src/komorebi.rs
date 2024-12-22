@@ -502,6 +502,7 @@ impl KomorebiNotificationState {
         transparency_alpha: Option<u8>,
         grouping: Option<Grouping>,
         default_theme: Option<KomobarTheme>,
+        render_config: Rc<RefCell<RenderConfig>>,
     ) {
         match rx_gui.try_recv() {
             Err(error) => match error {
@@ -526,6 +527,7 @@ impl KomorebiNotificationState {
                                         bg_color_with_alpha.clone(),
                                         transparency_alpha,
                                         grouping,
+                                        render_config,
                                     );
                                     tracing::info!("applied theme from updated komorebi.json");
                                 } else if let Some(default_theme) = default_theme {
@@ -536,6 +538,7 @@ impl KomorebiNotificationState {
                                         bg_color_with_alpha.clone(),
                                         transparency_alpha,
                                         grouping,
+                                        render_config,
                                     );
                                     tracing::info!("removed theme from updated komorebi.json and applied default theme");
                                 } else {
@@ -551,6 +554,7 @@ impl KomorebiNotificationState {
                                 bg_color_with_alpha.clone(),
                                 transparency_alpha,
                                 grouping,
+                                render_config,
                             );
                             tracing::info!("applied theme from komorebi socket message");
                         }
