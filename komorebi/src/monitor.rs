@@ -118,6 +118,26 @@ pub fn new(
 }
 
 impl Monitor {
+    pub fn new(
+        id: isize,
+        size: Rect,
+        work_area_size: Rect,
+        name: String,
+        device: String,
+        device_id: String,
+        serial_number_id: Option<String>,
+    ) -> Self {
+        new(
+            id,
+            size,
+            work_area_size,
+            name,
+            device,
+            device_id,
+            serial_number_id,
+        )
+    }
+
     pub fn placeholder() -> Self {
         Self {
             id: 0,
