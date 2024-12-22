@@ -101,7 +101,7 @@ use std::sync::Arc;
 use uds_windows::UnixListener;
 use uds_windows::UnixStream;
 
-#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 pub struct BorderColours {
     /// Border colour when the container contains a single window
     pub single: Option<Colour>,
@@ -254,7 +254,7 @@ impl From<&Monitor> for MonitorConfig {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize, JsonSchema)]
 /// The `komorebi.json` static configuration file reference for `v0.1.34`
 pub struct StaticConfig {
     /// DEPRECATED from v0.1.22: no longer required
@@ -402,7 +402,7 @@ pub struct StaticConfig {
     pub floating_window_aspect_ratio: Option<AspectRatio>,
 }
 
-#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 pub struct AnimationsConfig {
     /// Enable or disable animations (default: false)
     pub enabled: PerAnimationPrefixConfig<bool>,
@@ -545,7 +545,7 @@ impl StaticConfig {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 pub struct TabsConfig {
     /// Width of a stackbar tab
     pub width: Option<i32>,
@@ -561,7 +561,7 @@ pub struct TabsConfig {
     pub font_size: Option<i32>,
 }
 
-#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 pub struct StackbarConfig {
     /// Stackbar height
     pub height: Option<i32>,
