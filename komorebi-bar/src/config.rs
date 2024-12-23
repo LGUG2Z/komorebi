@@ -25,6 +25,8 @@ pub struct KomobarConfig {
     pub font_family: Option<String>,
     /// Font size (default: 12.5)
     pub font_size: Option<f32>,
+    /// Scale of the icons relative to the font_size [[1.0-2.0]]. (default: 1.4)
+    pub icon_scale: Option<f32>,
     /// Max label width before text truncation (default: 400.0)
     pub max_label_width: Option<f32>,
     /// Theme
