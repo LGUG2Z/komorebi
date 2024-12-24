@@ -836,9 +836,7 @@ impl WindowManager {
 
                 if let Some(monitor) = self.focused_monitor_mut() {
                     let focused_workspace_idx = monitor.focused_workspace_idx();
-                    let last_focused_workspace = monitor
-                        .last_focused_workspace()
-                        .unwrap_or(focused_workspace_idx.saturating_sub(1));
+                    let next_focused_workspace_idx = focused_workspace_idx.saturating_sub(1);
 
                     if let Some(workspace) = monitor.focused_workspace() {
                         if monitor.workspaces().len() > 1
@@ -858,7 +856,7 @@ impl WindowManager {
                             .remove(focused_workspace_idx)
                             .is_some()
                     {
-                        self.focus_workspace(last_focused_workspace)?;
+                        self.focus_workspace(next_focused_workspace_idx)?;
                     }
                 }
             }
