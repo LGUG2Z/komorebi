@@ -182,6 +182,14 @@ impl WindowManager {
 
                     already_moved_window_handles.remove(&window.hwnd);
                 }
+
+                if let Some(aot) = self.always_on_top.as_mut() {
+                    if aot.contains(&window.hwnd) {
+                        let idx = aot.iter().position(|x| *x == window.hwnd).unwrap();
+                        aot.remove(idx);
+                    }
+
+                }
             }
             WindowManagerEvent::Minimize(_, window) => {
                 let mut hide = false;
@@ -692,6 +700,7 @@ impl WindowManager {
             }
             WindowManagerEvent::MouseCapture(..)
             | WindowManagerEvent::Cloak(..)
+            | WindowManagerEvent::LocationChange(..)
             | WindowManagerEvent::TitleUpdate(..) => {}
         };
 
@@ -751,6 +760,7 @@ impl WindowManager {
         if !matches!(
             event,
             WindowManagerEvent::Show(WinEvent::ObjectNameChange, _)
+                | WindowManagerEvent::LocationChange(_, _)
         ) {
             tracing::info!("processed: {}", event.window().to_string());
         } else {
