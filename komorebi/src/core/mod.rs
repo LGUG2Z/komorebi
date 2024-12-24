@@ -109,6 +109,7 @@ pub enum SocketMessage {
     TogglePause,
     Retile,
     RetileWithResizeDimensions,
+    EnforceWorkspaceRules,
     QuickSave,
     QuickLoad,
     Save(PathBuf),

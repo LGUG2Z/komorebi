@@ -1175,7 +1175,7 @@ impl StaticConfig {
             }
         }
 
-        wm.enforce_workspace_rules()?;
+        wm.enforce_workspace_rules(false)?;
 
         if value.border == Some(true) {
             border_manager::BORDER_ENABLED.store(true, Ordering::SeqCst);
@@ -1236,7 +1236,7 @@ impl StaticConfig {
             }
         }
 
-        wm.enforce_workspace_rules()?;
+        wm.enforce_workspace_rules(false)?;
 
         if let Some(enabled) = value.border {
             border_manager::BORDER_ENABLED.store(enabled, Ordering::SeqCst);

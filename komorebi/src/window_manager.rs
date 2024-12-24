@@ -709,7 +709,7 @@ impl WindowManager {
     }
 
     #[tracing::instrument(skip(self), level = "debug")]
-    pub fn enforce_workspace_rules(&mut self) -> Result<()> {
+    pub fn enforce_workspace_rules(&mut self, reapply_initial_rules: bool) -> Result<()> {
         let mut to_move = vec![];
 
         let focused_monitor_idx = self.focused_monitor_idx();
@@ -762,7 +762,7 @@ impl WindowManager {
                         if matched {
                             let floating = workspace.floating_windows().contains(window);
 
-                            if rule.initial_only {
+                            if !reapply_initial_rules && rule.initial_only {
                                 if !already_moved_window_handles.contains(&window.hwnd) {
                                     already_moved_window_handles.insert(window.hwnd);
 

@@ -675,6 +675,9 @@ impl WindowManager {
                 border_manager::destroy_all_borders()?;
                 self.retile_all(true)?
             }
+            SocketMessage::EnforceWorkspaceRules => {
+                self.enforce_workspace_rules(true)?;
+            }
             SocketMessage::FlipLayout(layout_flip) => self.flip_layout(layout_flip)?,
             SocketMessage::ChangeLayout(layout) => self.change_workspace_layout_default(layout)?,
             SocketMessage::CycleLayout(direction) => self.cycle_layout(direction)?,

@@ -1162,6 +1162,8 @@ enum SubCommand {
     PromoteWindow(PromoteWindow),
     /// Force the retiling of all managed windows
     Retile,
+    /// Enforce all workspace rules, including initial workspace rules that have already been applied
+    EnforceWorkspaceRules,
     /// Set the monitor index preference for a monitor identified using its size
     #[clap(arg_required_else_help = true)]
     MonitorIndexPreference(MonitorIndexPreference),
@@ -1714,6 +1716,9 @@ fn main() -> Result<()> {
         }
         SubCommand::Retile => {
             send_message(&SocketMessage::Retile)?;
+        }
+        SubCommand::EnforceWorkspaceRules => {
+            send_message(&SocketMessage::EnforceWorkspaceRules)?;
         }
         SubCommand::Move(arg) => {
             send_message(&SocketMessage::MoveWindow(arg.operation_direction))?;

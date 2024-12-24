@@ -159,7 +159,7 @@ impl WindowManager {
             _ => {}
         }
 
-        self.enforce_workspace_rules()?;
+        self.enforce_workspace_rules(false)?;
 
         if matches!(event, WindowManagerEvent::MouseCapture(..)) {
             tracing::trace!(
