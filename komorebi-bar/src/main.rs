@@ -351,6 +351,10 @@ fn main() -> color_eyre::Result<()> {
                 for client in listener.incoming() {
                     match client {
                         Ok(subscription) => {
+                            match subscription.set_read_timeout(Some(Duration::from_secs(1))) {
+                                Ok(()) => {}
+                                Err(error) => tracing::error!("{}", error),
+                            }
                             let mut buffer = Vec::new();
                             let mut reader = BufReader::new(subscription);
 
