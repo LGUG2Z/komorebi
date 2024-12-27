@@ -7,6 +7,7 @@ pub use komorebi::asc::ApplicationSpecificConfiguration;
 pub use komorebi::colour::Colour;
 pub use komorebi::colour::Rgb;
 pub use komorebi::config_generation::ApplicationConfiguration;
+pub use komorebi::config_generation::MatchingRule;
 pub use komorebi::container::Container;
 pub use komorebi::core::config_generation::ApplicationConfigurationGenerator;
 pub use komorebi::core::resolve_home_path;
