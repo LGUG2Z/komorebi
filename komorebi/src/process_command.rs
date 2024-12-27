@@ -1667,10 +1667,24 @@ impl WindowManager {
 
                 reply.write_all(config.as_bytes())?;
             }
-            SocketMessage::RemoveTitleBar(_, ref id) => {
+            SocketMessage::RemoveTitleBar(identifier, ref id) => {
                 let mut identifiers = NO_TITLEBAR.lock();
-                if !identifiers.contains(id) {
-                    identifiers.push(id.clone());
+
+                let mut should_push = true;
+                for i in &*identifiers {
+                    if let MatchingRule::Simple(i) = i {
+                        if i.id.eq(id) {
+                            should_push = false;
+                        }
+                    }
+                }
+
+                if should_push {
+                    identifiers.push(MatchingRule::Simple(IdWithIdentifier {
+                        kind: identifier,
+                        id: id.clone(),
+                        matching_strategy: Option::from(MatchingStrategy::Legacy),
+                    }));
                 }
             }
             SocketMessage::ToggleTitleBars => {

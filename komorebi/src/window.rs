@@ -784,7 +784,7 @@ pub struct RuleDebug {
     pub matches_layered_whitelist: Option<MatchingRule>,
     pub matches_floating_applications: Option<MatchingRule>,
     pub matches_wsl2_gui: Option<String>,
-    pub matches_no_titlebar: Option<String>,
+    pub matches_no_titlebar: Option<MatchingRule>,
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -889,9 +889,19 @@ fn window_is_eligible(
         allow
     };
 
-    let allow_titlebar_removed = {
-        let titlebars_removed = NO_TITLEBAR.lock();
-        titlebars_removed.contains(exe_name)
+    let titlebars_removed = NO_TITLEBAR.lock();
+    let allow_titlebar_removed = if let Some(rule) = should_act(
+        title,
+        exe_name,
+        class,
+        path,
+        &titlebars_removed,
+        &regex_identifiers,
+    ) {
+        debug.matches_no_titlebar = Some(rule);
+        true
+    } else {
+        false
     };
 
     {

@@ -56,6 +56,7 @@ use crate::current_virtual_desktop;
 use crate::load_configuration;
 use crate::monitor::Monitor;
 use crate::ring::Ring;
+use crate::should_act;
 use crate::should_act_individual;
 use crate::stackbar_manager::STACKBAR_FOCUSED_TEXT_COLOUR;
 use crate::stackbar_manager::STACKBAR_LABEL;
@@ -1430,6 +1431,7 @@ impl WindowManager {
         tracing::info!("restoring all hidden windows");
 
         let no_titlebar = NO_TITLEBAR.lock();
+        let regex_identifiers = REGEX_IDENTIFIERS.lock();
         let known_transparent_hwnds = transparency_manager::known_hwnds();
         let border_implementation = border_manager::IMPLEMENTATION.load();
 
@@ -1445,7 +1447,17 @@ impl WindowManager {
 
                 for containers in workspace.containers_mut() {
                     for window in containers.windows_mut() {
-                        if no_titlebar.contains(&window.exe()?) {
+                        let should_remove_titlebar_for_window = should_act(
+                            &window.title().unwrap_or_default(),
+                            &window.exe().unwrap_or_default(),
+                            &window.class().unwrap_or_default(),
+                            &window.path().unwrap_or_default(),
+                            &no_titlebar,
+                            &regex_identifiers,
+                        )
+                        .is_some();
+
+                        if should_remove_titlebar_for_window {
                             window.add_title_bar()?;
                         }
 

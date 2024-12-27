@@ -1122,6 +1122,11 @@
         }
       ]
     },
+    "icon_scale": {
+      "description": "Scale of the icons relative to the font_size [[1.0-2.0]]. (default: 1.4)",
+      "type": "number",
+      "format": "float"
+    },
     "left_widgets": {
       "description": "Left side widgets (ordered left-to-right)",
       "type": "array",

@@ -1448,6 +1448,89 @@
         ]
       }
     },
+    "remove_titlebar_applications": {
+      "description": "HEAVILY DISCOURAGED: Identify applications for which komorebi should forcibly remove title bars",
+      "type": "array",
+      "items": {
+        "anyOf": [
+          {
+            "type": "object",
+            "required": [
+              "id",
+              "kind"
+            ],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "Exe",
+                  "Class",
+                  "Title",
+                  "Path"
+                ]
+              },
+              "matching_strategy": {
+                "type": "string",
+                "enum": [
+                  "Legacy",
+                  "Equals",
+                  "StartsWith",
+                  "EndsWith",
+                  "Contains",
+                  "Regex",
+                  "DoesNotEndWith",
+                  "DoesNotStartWith",
+                  "DoesNotEqual",
+                  "DoesNotContain"
+                ]
+              }
+            }
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "id",
+                "kind"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "kind": {
+                  "type": "string",
+                  "enum": [
+                    "Exe",
+                    "Class",
+                    "Title",
+                    "Path"
+                  ]
+                },
+                "matching_strategy": {
+                  "type": "string",
+                  "enum": [
+                    "Legacy",
+                    "Equals",
+                    "StartsWith",
+                    "EndsWith",
+                    "Contains",
+                    "Regex",
+                    "DoesNotEndWith",
+                    "DoesNotStartWith",
+                    "DoesNotEqual",
+                    "DoesNotContain"
+                  ]
+                }
+              }
+            }
+          }
+        ]
+      }
+    },
     "resize_delta": {
       "description": "Delta to resize windows by (default 50)",
       "type": "integer",

@@ -215,7 +215,7 @@ lazy_static! {
 
     // Use app-specific titlebar removal options where possible
     // eg. Windows Terminal, IntelliJ IDEA, Firefox
-    static ref NO_TITLEBAR: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(vec![]));
+    static ref NO_TITLEBAR: Arc<Mutex<Vec<MatchingRule>>> = Arc::new(Mutex::new(vec![]));
 
     static ref WINDOWS_BY_BAR_HWNDS: Arc<Mutex<HashMap<isize, VecDeque<isize>>>> =
         Arc::new(Mutex::new(HashMap::new()));
