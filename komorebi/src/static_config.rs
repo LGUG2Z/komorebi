@@ -373,6 +373,9 @@ pub struct StaticConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
     // this option is a little special because it is only consumed by komorebic
     pub bar_configurations: Option<Vec<PathBuf>>,
+    /// Whether new windows should automatically be moved to the focused monitor (default: false)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub move_new_windows_to_focused_monitor: Option<bool>,
 }
 
 #[derive(Debug, Serialize, Deserialize, JsonSchema)]
@@ -627,6 +630,7 @@ impl From<&WindowManager> for StaticConfig {
             ),
             slow_application_identifiers: Option::from(SLOW_APPLICATION_IDENTIFIERS.lock().clone()),
             bar_configurations: None,
+            move_new_windows_to_focused_monitor: Option::from(value.move_new_windows_to_focused_monitor),
         }
     }
 }
@@ -1091,6 +1095,7 @@ impl StaticConfig {
             pending_move_op: Arc::new(None),
             already_moved_window_handles: Arc::new(Mutex::new(HashSet::new())),
             uncloack_to_ignore: 0,
+            move_new_windows_to_focused_monitor: value.move_new_windows_to_focused_monitor.unwrap_or(false),
         };
 
         match value.focus_follows_mouse {
@@ -1268,6 +1273,10 @@ impl StaticConfig {
 
         if let Some(val) = value.mouse_follows_focus {
             wm.mouse_follows_focus = val;
+        }
+
+        if let Some(val) = value.move_new_windows_to_focused_monitor {
+            wm.move_new_windows_to_focused_monitor = val;
         }
 
         wm.work_area_offset = value.global_work_area_offset;
