@@ -404,6 +404,13 @@ impl WindowManager {
                 let mut workspace_rules = WORKSPACE_MATCHING_RULES.lock();
                 workspace_rules.clear();
             }
+            SocketMessage::EnforceWorkspaceRules => {
+                {
+                    let mut already_moved = self.already_moved_window_handles.lock();
+                    already_moved.clear();
+                }
+                self.enforce_workspace_rules()?;
+            }
             SocketMessage::ManageRule(identifier, ref id) => {
                 let mut manage_identifiers = MANAGE_IDENTIFIERS.lock();
 
@@ -836,9 +843,7 @@ impl WindowManager {
 
                 if let Some(monitor) = self.focused_monitor_mut() {
                     let focused_workspace_idx = monitor.focused_workspace_idx();
-                    let last_focused_workspace = monitor
-                        .last_focused_workspace()
-                        .unwrap_or(focused_workspace_idx.saturating_sub(1));
+                    let next_focused_workspace_idx = focused_workspace_idx.saturating_sub(1);
 
                     if let Some(workspace) = monitor.focused_workspace() {
                         if monitor.workspaces().len() > 1
@@ -858,7 +863,7 @@ impl WindowManager {
                             .remove(focused_workspace_idx)
                             .is_some()
                     {
-                        self.focus_workspace(last_focused_workspace)?;
+                        self.focus_workspace(next_focused_workspace_idx)?;
                     }
                 }
             }
