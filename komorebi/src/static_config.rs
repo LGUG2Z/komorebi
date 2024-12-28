@@ -46,6 +46,7 @@ use crate::IGNORE_IDENTIFIERS;
 use crate::LAYERED_WHITELIST;
 use crate::MANAGE_IDENTIFIERS;
 use crate::MONITOR_INDEX_PREFERENCES;
+use crate::NO_TITLEBAR;
 use crate::OBJECT_NAME_CHANGE_ON_LAUNCH;
 use crate::REGEX_IDENTIFIERS;
 use crate::SLOW_APPLICATION_COMPENSATION_TIME;
@@ -373,6 +374,9 @@ pub struct StaticConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
     // this option is a little special because it is only consumed by komorebic
     pub bar_configurations: Option<Vec<PathBuf>>,
+    /// HEAVILY DISCOURAGED: Identify applications for which komorebi should forcibly remove title bars
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub remove_titlebar_applications: Option<Vec<MatchingRule>>,
 }
 
 #[derive(Debug, Serialize, Deserialize, JsonSchema)]
@@ -627,6 +631,7 @@ impl From<&WindowManager> for StaticConfig {
             ),
             slow_application_identifiers: Option::from(SLOW_APPLICATION_IDENTIFIERS.lock().clone()),
             bar_configurations: None,
+            remove_titlebar_applications: Option::from(NO_TITLEBAR.lock().clone()),
         }
     }
 }
@@ -773,6 +778,7 @@ impl StaticConfig {
         let mut transparency_blacklist = TRANSPARENCY_BLACKLIST.lock();
         let mut slow_application_identifiers = SLOW_APPLICATION_IDENTIFIERS.lock();
         let mut floating_applications = FLOATING_APPLICATIONS.lock();
+        let mut no_titlebar_applications = NO_TITLEBAR.lock();
 
         if let Some(rules) = &mut self.ignore_rules {
             populate_rules(rules, &mut ignore_identifiers, &mut regex_identifiers)?;
@@ -816,6 +822,10 @@ impl StaticConfig {
                 &mut slow_application_identifiers,
                 &mut regex_identifiers,
             )?;
+        }
+
+        if let Some(rules) = &mut self.remove_titlebar_applications {
+            populate_rules(rules, &mut no_titlebar_applications, &mut regex_identifiers)?;
         }
 
         if let Some(stackbar) = &self.stackbar {

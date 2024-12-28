@@ -24,6 +24,7 @@ use crate::border_manager::BORDER_OFFSET;
 use crate::border_manager::BORDER_WIDTH;
 use crate::container::Container;
 use crate::ring::Ring;
+use crate::should_act;
 use crate::stackbar_manager;
 use crate::stackbar_manager::STACKBAR_TAB_HEIGHT;
 use crate::static_config::WorkspaceConfig;
@@ -35,6 +36,7 @@ use crate::DEFAULT_CONTAINER_PADDING;
 use crate::DEFAULT_WORKSPACE_PADDING;
 use crate::INITIAL_CONFIGURATION_LOADED;
 use crate::NO_TITLEBAR;
+use crate::REGEX_IDENTIFIERS;
 use crate::REMOVE_TITLEBARS;
 
 #[allow(clippy::struct_field_names)]
@@ -354,6 +356,7 @@ impl Workspace {
 
                 let should_remove_titlebars = REMOVE_TITLEBARS.load(Ordering::SeqCst);
                 let no_titlebar = NO_TITLEBAR.lock().clone();
+                let regex_identifiers = REGEX_IDENTIFIERS.lock().clone();
 
                 let container_padding = self.container_padding().unwrap_or(0);
                 let containers = self.containers_mut();
@@ -383,9 +386,19 @@ impl Workspace {
                                 .focused_window()
                                 .is_some_and(|w| w.hwnd == window.hwnd)
                             {
-                                if should_remove_titlebars && no_titlebar.contains(&window.exe()?) {
+                                let should_remove_titlebar_for_window = should_act(
+                                    &window.title().unwrap_or_default(),
+                                    &window.exe().unwrap_or_default(),
+                                    &window.class().unwrap_or_default(),
+                                    &window.path().unwrap_or_default(),
+                                    &no_titlebar,
+                                    &regex_identifiers,
+                                )
+                                .is_some();
+
+                                if should_remove_titlebars && should_remove_titlebar_for_window {
                                     window.remove_title_bar()?;
-                                } else if no_titlebar.contains(&window.exe()?) {
+                                } else if should_remove_titlebar_for_window {
                                     window.add_title_bar()?;
                                 }
 

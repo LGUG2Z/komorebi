@@ -361,10 +361,11 @@ impl WindowManager {
 
                         if !workspace_contains_window && !needs_reconciliation {
                             let floating_applications = FLOATING_APPLICATIONS.lock();
-                            let regex_identifiers = REGEX_IDENTIFIERS.lock();
                             let mut should_float = false;
 
                             if !floating_applications.is_empty() {
+                                let regex_identifiers = REGEX_IDENTIFIERS.lock();
+
                                 if let (Ok(title), Ok(exe_name), Ok(class), Ok(path)) =
                                     (window.title(), window.exe(), window.class(), window.path())
                                 {
