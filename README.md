@@ -29,6 +29,8 @@ Tiling Window Management for Windows.
 
 ![screenshot](https://user-images.githubusercontent.com/13164844/184027064-f5a6cec2-2865-4d65-a549-a1f1da589abf.png)
 
+## Overview
+
 _komorebi_ is a tiling window manager that works as an extension to Microsoft's
 [Desktop Window
 Manager](https://docs.microsoft.com/en-us/windows/win32/dwm/dwm-overview) in
@@ -50,6 +52,8 @@ _komorebi_, [common workflows](https://lgug2z.github.io/komorebi/common-workflow
 [configuration schema reference](https://komorebi.lgug2z.com/schema) and a
 complete [CLI reference](https://lgug2z.github.io/komorebi/cli/quickstart.html).
 
+## Community
+
 There is a [Discord server](https://discord.gg/mGkn66PHkx) available for
 _komorebi_-related discussion, help, troubleshooting etc. If you have any
 specific feature requests or bugs to report, please create an issue in this
@@ -57,28 +61,62 @@ repository.
 
 There is a [YouTube
 channel](https://www.youtube.com/channel/UCeai3-do-9O4MNy9_xjO6mg) where I post
-_komorebi_ development videos. If you would like to be notified of upcoming
-videos please subscribe and turn on notifications.
+_komorebi_ development videos, feature previews and release overviews. Subscribing
+to the channel (which is monetized as part of the YouTube Partner Program) and
+watching videos is a really simple and passive way to contribute financially to
+the development and maintenance of _komorebi_.
 
 There is an [Awesome List](https://github.com/LGUG2Z/awesome-komorebi) which
 showcases the many awesome projects that exist in the _komorebi_ ecosystem.
 
-_komorebi_ is a free and source-available project, and one that encourages you to
-make charitable donations if you find the software to be useful and have the
+## Licensing for Personal Use
+
+`komorebi` is licensed under the [Komorebi 1.0.0
+license](https://github.com/LGUG2Z/komorebi-license), which is a fork of the
+[PolyForm Strict 1.0.0
+license](https://polyformproject.org/licenses/strict/1.0.0). On a high level
+this means that you are free to do whatever you want with `komorebi` for
+personal use other than redistribution, or distribution of new works (i.e.
+hard-forks) based on the software.
+
+Anyone is free to make their own fork of `komorebi` with changes intended either
+for personal use or for integration back upstream via pull requests.
+
+The [Komorebi 1.0.0 License](https://github.com/LGUG2Z/komorebi-license) does
+not permit any kind of commercial use (i.e. using `komorebi` at work).
+
+## Sponsorship for Personal Use
+
+_komorebi_ is a free and educational source project, and one that encourages you
+to make charitable donations if you find the software to be useful and have the
 financial means.
 
 I encourage you to make a charitable donation to the [Palestine Children's
-Relief Fund](https://pcrf1.app.neoncrm.com/forms/gaza-recovery) or contributing
+Relief Fund](https://pcrf1.app.neoncrm.com/forms/gaza-recovery) or to contribute
 to a [Gaza Funds campaign](https://gazafunds.com) before you consider sponsoring
 me on GitHub.
 
 [GitHub Sponsors is enabled for this
-project](https://github.com/sponsors/LGUG2Z). Unfortunately I don't have
-anything specific to offer besides my gratitude and shout outs at the end of
-_komorebi_ live development videos and tutorials.
+project](https://github.com/sponsors/LGUG2Z). Sponsors can claim custom roles on
+the Discord server, get shout outs at the end of _komorebi_-related videos on
+YouTube, and gain the ability to submit feature requests on the issue tracker.
 
 If you would like to tip or sponsor the project but are unable to use GitHub
-Sponsors, you may also sponsor through [Ko-fi](https://ko-fi.com/lgug2z).
+Sponsors, you may also sponsor through [Ko-fi](https://ko-fi.com/lgug2z), or
+make an anonymous Bitcoin donation to `bc1qv73wzspc77k46uty4vp85x8sdp24mphvm58f6q`.
+
+## Licensing for Commercial Use
+
+A dedicated Individual Commercial Use License is available for those who want to
+use `komorebi` at work.
+
+The Individual Commerical Use License adds “Commercial Use” as a “Permitted Use”
+for the licensed individual only, for the duration of a valid paid license
+subscription only. All provisions and restrictions enumerated in the [Komorebi
+License](https://github.com/LGUG2Z/komorebi-license) continue to apply.
+
+More information, pricing and purchase links for Individual Commercial Use
+Licenses [can be found here](https://lgug2z.com/software/komorebi).
 
 # Installation
 
@@ -125,7 +163,11 @@ https://user-images.githubusercontent.com/13164844/163496414-a9cde3d1-b8a7-4a7a-
 
 # Contribution Guidelines
 
-If you would like to contribute to `komorebi` please take the time to carefully read the guidelines below.
+If you would like to contribute to `komorebi` please take the time to carefully
+read the guidelines below.
+
+Please see [CONTRIBUTING.md](./CONTRIBUTING.md) for more information about how
+code contributions to `komorebi` are licensed.
 
 ## Commit hygiene
 
@@ -135,8 +177,8 @@ If you would like to contribute to `komorebi` please take the time to carefully 
 - Use `git cz` with
   the [Commitizen CLI](https://github.com/commitizen/cz-cli#conventional-commit-messages-as-a-global-utility) to prepare
   commit messages
-- Provide **at least** one short sentence or paragraph in your commit message body to describe your thought process for the
-  changes being committed
+- Provide **at least** one short sentence or paragraph in your commit message body to describe your thought process for
+  the changes being committed
 
 ## PRs should contain only a single feature or bug fix
 
@@ -175,7 +217,8 @@ This includes but is not limited to:
 
 - All `komorebic` commands
 - The `komorebi.json` schema
-- The [`komorebi-application-specific-configuration`](https://github.com/LGUG2Z/komorebi-application-specific-configuration)
+- The [
+  `komorebi-application-specific-configuration`](https://github.com/LGUG2Z/komorebi-application-specific-configuration)
   schema
 
 No user should ever find that their configuration file has stopped working after upgrading to a new version
@@ -191,27 +234,6 @@ ability for users to specify colours in `komorebi.json` in Hex format alongside 
 There is also a process in place for graceful, non-breaking, deprecation of configuration options that are no longer
 required.
 
-## License
-
-`komorebi` is licensed under the [Komorebi 1.0.0 license](./LICENSE.md), which
-is a fork of the [PolyForm Strict 1.0.0
-license](https://polyformproject.org/licenses/strict/1.0.0). On a high level
-this means that you are free to do whatever you want with `komorebi` for
-personal use other than redistribution, or distribution of new works (ie.
-hard-forks) based on the software.
-
-Anyone is free to make their own fork of `komorebi` with changes intended
-either for personal use or for integration back upstream via pull requests.
-
-The [Komorebi 1.0.0 License](./LICENSE.md) does not permit any kind of
-commercial use.
-
-A dedicated license and EULA will be introduced in 2025 for both commercial and
-noncommercial organizations.
-
-Please see [CONTRIBUTING.md](./CONTRIBUTING.md) for more information about how
-code contributions to `komorebi` are licensed.
-
 # Development
 
 If you use IntelliJ, you should enable the following settings to ensure that code generated by macros is recognised by
@@ -220,13 +242,13 @@ the IDE for completions and navigation:
 - Set `Expand declarative macros`
   to `Use new engine` under "Settings > Langauges & Frameworks > Rust"
 - Enable the following experimental features:
-  - `org.rust.cargo.evaluate.build.scripts`
-  - `org.rust.macros.proc`
+    - `org.rust.cargo.evaluate.build.scripts`
+    - `org.rust.macros.proc`
 
 # Logs and Debugging
 
-Logs from `komorebi` will be appended to `%LOCALAPPDATA%/komorebi/komorebi.log`; this file is never rotated or overwritten, so it will keep
-growing until it is deleted by the user.
+Logs from `komorebi` will be appended to `%LOCALAPPDATA%/komorebi/komorebi.log`; this file is never rotated or
+overwritten, so it will keep growing until it is deleted by the user.
 
 Whenever running the `komorebic stop` command or sending a Ctrl-C signal to `komorebi` directly, the `komorebi` process
 ensures that all hidden windows are restored before termination.
@@ -442,12 +464,17 @@ programming languages.
 
 # Appreciations
 
-- First and foremost, thank you to my wife, both for naming this project and for her patience throughout its never-ending development
+- First and foremost, thank you to my wife, both for naming this project and for her patience throughout its
+  never-ending development
 
-- Thank you to [@sitiom](https://github.com/sitiom) for being [an exemplary open source community leader](https://jeezy.substack.com/p/the-open-source-contributions-i-appreciate)
+- Thank you to [@sitiom](https://github.com/sitiom) for
+  being [an exemplary open source community leader](https://jeezy.substack.com/p/the-open-source-contributions-i-appreciate)
 
-- Thank you to the developers of [nog](https://github.com/TimUntersberger/nog) who came before me and whose work taught me more than I can ever hope to repay
+- Thank you to the developers of [nog](https://github.com/TimUntersberger/nog) who came before me and whose work taught
+  me more than I can ever hope to repay
 
-- Thank you to the developers of [GlazeWM](https://github.com/lars-berger/GlazeWM) for pushing the boundaries of tiling window management on Windows with me and having an excellent spirit of collaboration
+- Thank you to the developers of [GlazeWM](https://github.com/lars-berger/GlazeWM) for pushing the boundaries of tiling
+  window management on Windows with me and having an excellent spirit of collaboration
 
-- Thank you to [@Ciantic](https://github.com/Ciantic) for helping me bring the [hidden Virtual Desktops cloaking function](https://github.com/Ciantic/AltTabAccessor/issues/1) to `komorebi`
+- Thank you to [@Ciantic](https://github.com/Ciantic) for helping me bring
+  the [hidden Virtual Desktops cloaking function](https://github.com/Ciantic/AltTabAccessor/issues/1) to `komorebi`
