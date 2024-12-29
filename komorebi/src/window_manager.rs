@@ -2245,7 +2245,7 @@ impl WindowManager {
         let len = NonZeroUsize::new(container.windows().len())
             .ok_or_else(|| anyhow!("there must be at least one window in a container"))?;
 
-        if len.get() == 1 {
+        if len.get() == 1 && idx != 0 {
             bail!("there is only one window in this container");
         }
 
@@ -3268,6 +3268,10 @@ impl WindowManager {
         self.focused_workspace()?
             .focused_container()
             .ok_or_else(|| anyhow!("there is no container"))
+    }
+
+    pub fn focused_container_idx(&self) -> Result<usize> {
+        Ok(self.focused_workspace()?.focused_container_idx())
     }
 
     pub fn focused_container_mut(&mut self) -> Result<&mut Container> {

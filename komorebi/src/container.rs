@@ -75,6 +75,18 @@ impl Container {
         None
     }
 
+    pub fn idx_from_exe(&self, exe: &str) -> Option<usize> {
+        for (idx, window) in self.windows().iter().enumerate() {
+            if let Ok(window_exe) = window.exe() {
+                if exe == window_exe {
+                    return Option::from(idx);
+                }
+            }
+        }
+
+        None
+    }
+
     pub fn contains_window(&self, hwnd: isize) -> bool {
         for window in self.windows() {
             if window.hwnd == hwnd {
