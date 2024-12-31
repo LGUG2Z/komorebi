@@ -65,6 +65,7 @@ use crate::window_manager;
 use crate::window_manager::WindowManager;
 use crate::windows_api::WindowsApi;
 use crate::winevent_listener;
+use crate::workspace::WorkspaceWindowLocation;
 use crate::GlobalState;
 use crate::Notification;
 use crate::NotificationEvent;
@@ -232,6 +233,65 @@ impl WindowManager {
             SocketMessage::DisplayMonitorWorkspaceNumber(monitor_idx, workspace_idx) => {
                 self.send_always_on_top(Option::from(monitor_idx), Option::from(workspace_idx), None)?;
                 self.display_monitor_workspace(monitor_idx, workspace_idx)?;
+            }
+            SocketMessage::EagerFocus(ref exe) => {
+                let focused_monitor_idx = self.focused_monitor_idx();
+                let focused_workspace_idx = self.focused_workspace_idx()?;
+
+                let mut window_location = None;
+                let mut monitor_workspace_indices = None;
+
+                'search: for (monitor_idx, monitor) in self.monitors().iter().enumerate() {
+                    for (workspace_idx, workspace) in monitor.workspaces().iter().enumerate() {
+                        if let Some(location) = workspace.location_from_exe(exe) {
+                            window_location = Some(location);
+                            monitor_workspace_indices = Some((monitor_idx, workspace_idx));
+                            break 'search;
+                        }
+                    }
+                }
+
+                if let Some((monitor_idx, workspace_idx)) = monitor_workspace_indices {
+                    if monitor_idx != focused_monitor_idx {
+                        self.focus_monitor(monitor_idx)?;
+                    }
+
+                    if workspace_idx != focused_workspace_idx {
+                        self.focus_workspace(workspace_idx)?;
+                    }
+                }
+
+                if let Some(location) = window_location {
+                    match location {
+                        WorkspaceWindowLocation::Monocle(window_idx) => {
+                            self.focus_container_window(window_idx)?;
+                        }
+                        WorkspaceWindowLocation::Maximized => {
+                            if let Some(window) =
+                                self.focused_workspace_mut()?.maximized_window_mut()
+                            {
+                                window.focus(self.mouse_follows_focus)?;
+                            }
+                        }
+                        WorkspaceWindowLocation::Container(container_idx, window_idx) => {
+                            let focused_container_idx = self.focused_container_idx()?;
+                            if container_idx != focused_container_idx {
+                                self.focused_workspace_mut()?.focus_container(container_idx);
+                            }
+
+                            self.focus_container_window(window_idx)?;
+                        }
+                        WorkspaceWindowLocation::Floating(window_idx) => {
+                            if let Some(window) = self
+                                .focused_workspace_mut()?
+                                .floating_windows_mut()
+                                .get_mut(window_idx)
+                            {
+                                window.focus(self.mouse_follows_focus)?;
+                            }
+                        }
+                    }
+                }
             }
             SocketMessage::FocusWindow(direction) => {
                 self.focus_container_in_direction(direction)?;
