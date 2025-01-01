@@ -24,6 +24,12 @@ Options:
       --bar
           Start komorebi-bar in a background process
 
+      --masir
+          Start masir in a background process for focus-follows-mouse
+
+      --clean-state
+          Do not attempt to auto-apply a dumped state temp file from a previously running instance of komorebi
+
   -h, --help
           Print help
 

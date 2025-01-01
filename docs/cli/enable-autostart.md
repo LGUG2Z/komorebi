@@ -18,6 +18,9 @@ Options:
       --bar
           Enable autostart of komorebi-bar
 
+      --masir
+          Enable autostart of masir
+
   -h, --help
           Print help
 
