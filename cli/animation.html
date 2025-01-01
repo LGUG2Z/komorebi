@@ -1333,6 +1333,16 @@
       
         
       
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
     
     
       
@@ -1423,6 +1433,27 @@
   
   <span class="md-ellipsis">
     stop
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="kill.html" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    kill
   </span>
   
 
@@ -1985,6 +2016,27 @@
   
   
     <li class="md-nav__item">
+      <a href="eager-focus.html" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    eager-focus
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="stack.html" class="md-nav__link">
         
   
@@ -2032,6 +2084,27 @@
   
   <span class="md-ellipsis">
     cycle-stack
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="cycle-stack-index.html" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    cycle-stack-index
   </span>
   
 
@@ -2515,6 +2588,27 @@
   
   <span class="md-ellipsis">
     focus-named-workspace
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="close-workspace.html" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    close-workspace
   </span>
   
 
@@ -3938,6 +4032,27 @@
   
   
     <li class="md-nav__item">
+      <a href="enforce-workspace-rules.html" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    enforce-workspace-rules
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="identify-object-name-change-application.html" class="md-nav__link">
         
   
@@ -4651,13 +4766,18 @@
 <h1 id="animation">animation</h1>
 <div class="highlight"><pre><span></span><code>Enable or disable movement animations
 
-Usage: komorebic.exe animation &lt;BOOLEAN_STATE&gt;
+Usage: komorebic.exe animation [OPTIONS] &lt;BOOLEAN_STATE&gt;
 
 Arguments:
   &lt;BOOLEAN_STATE&gt;
           [possible values: enable, disable]
 
 Options:
+  -a, --animation-type &lt;ANIMATION_TYPE&gt;
+          Animation type to apply the state to. If not specified, sets global state
+
+          [possible values: movement, transparency]
+
   -h, --help
           Print help
 </code></pre></div>

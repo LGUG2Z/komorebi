@@ -1585,6 +1585,16 @@
       
         
       
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
     
     
       
@@ -1672,6 +1682,27 @@
   
   <span class="md-ellipsis">
     stop
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="cli/kill.html" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    kill
   </span>
   
 
@@ -2234,6 +2265,27 @@
   
   
     <li class="md-nav__item">
+      <a href="cli/eager-focus.html" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    eager-focus
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="cli/stack.html" class="md-nav__link">
         
   
@@ -2281,6 +2333,27 @@
   
   <span class="md-ellipsis">
     cycle-stack
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="cli/cycle-stack-index.html" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    cycle-stack-index
   </span>
   
 
@@ -2764,6 +2837,27 @@
   
   <span class="md-ellipsis">
     focus-named-workspace
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="cli/close-workspace.html" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    close-workspace
   </span>
   
 
@@ -4187,6 +4281,27 @@
   
   
     <li class="md-nav__item">
+      <a href="cli/enforce-workspace-rules.html" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    enforce-workspace-rules
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="cli/identify-object-name-change-application.html" class="md-nav__link">
         
   
@@ -5129,7 +5244,7 @@ the example files have been downloaded. For most new users this will be in the
 seven preconfigured workspaces on the primary monitor each with a different
 layout.</p>
 <div class="highlight"><pre><span></span><code><span class="p">{</span>
-<span class="w">  </span><span class="nt">&quot;$schema&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;https://raw.githubusercontent.com/LGUG2Z/komorebi/v0.1.31/schema.json&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;$schema&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;https://raw.githubusercontent.com/LGUG2Z/komorebi/v0.1.32/schema.json&quot;</span><span class="p">,</span>
 <span class="w">  </span><span class="nt">&quot;app_specific_configuration_path&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;$Env:USERPROFILE/applications.json&quot;</span><span class="p">,</span>
 <span class="w">  </span><span class="nt">&quot;window_hiding_behaviour&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Cloak&quot;</span><span class="p">,</span>
 <span class="w">  </span><span class="nt">&quot;cross_monitor_move_behaviour&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Insert&quot;</span><span class="p">,</span>
@@ -5292,10 +5407,10 @@ monocle.</p>
 <p><code>whkd</code> is a fairly basic piece of software with a simple configuration format:
 key bindings go to the left of the colon, and shell commands go to the right of the
 colon.</p>
-<p>Please remember that <code>whkd</code> does not support overriding Microsoft's limitations
-on hotkey bindings that include the <code>Windows</code> key. If this is important to you,
-I recommend using <a href="https://autohotkey.com">AutoHotKey</a> to set up your key
-bindings for <code>komorebic</code> commands instead.</p>
+<p>As of <a href="https://github.com/LGUG2Z/whkd/releases/tag/v0.2.4"><code>v0.2.4</code></a>, <code>whkd</code> can override most of Microsoft's
+limitations on hotkey bindings that include the <code>win</code> key. However, you will still need
+to <a href="https://superuser.com/questions/1059511/how-to-disable-winl-in-windows-10">modify the registry</a> to prevent
+<code>win + l</code> from locking the operating system.</p>
 <div class="highlight"><pre><span></span><code>.shell powershell
 
 # Reload whkd configuration
@@ -5419,7 +5534,7 @@ the sample configuration above.</p>
 <p>The example status bar configuration sets some sane defaults and provides
 a number of pre-configured widgets on the primary monitor.</p>
 <div class="highlight"><pre><span></span><code><span class="p">{</span>
-<span class="w">  </span><span class="nt">&quot;$schema&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;https://raw.githubusercontent.com/LGUG2Z/komorebi/v0.1.31/schema.bar.json&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;$schema&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;https://raw.githubusercontent.com/LGUG2Z/komorebi/v0.1.32/schema.bar.json&quot;</span><span class="p">,</span>
 <span class="w">  </span><span class="nt">&quot;monitor&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="nt">&quot;index&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span>
 <span class="w">    </span><span class="nt">&quot;work_area_offset&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
