@@ -35,6 +35,7 @@ use miette::SourceSpan;
 use paste::paste;
 use schemars::gen::SchemaSettings;
 use schemars::schema_for;
+use serde::Deserialize;
 use sysinfo::ProcessesToUpdate;
 use which::which;
 use windows::Win32::Foundation::HWND;
@@ -1693,6 +1694,30 @@ fn main() -> Result<()> {
                 println!("No komorebi configuration found in {home_display}\n");
                 println!("If running 'komorebic start --await-configuration', you will manually have to call the following command to begin tiling: komorebic complete-configuration\n");
             }
+
+            let client = reqwest::blocking::Client::new();
+
+            if let Ok(response) = client
+                .get("https://api.github.com/repos/LGUG2Z/komorebi/releases/latest")
+                .header("User-Agent", "komorebic-version-checker")
+                .send()
+            {
+                let version = env!("CARGO_PKG_VERSION");
+
+                #[derive(Deserialize)]
+                struct Release {
+                    tag_name: String,
+                }
+
+                if let Ok(release) =
+                    serde_json::from_str::<Release>(&response.text().unwrap_or_default())
+                {
+                    let trimmed = release.tag_name.trim_start_matches("v");
+                    if trimmed > version {
+                        println!("An updated version of komorebi is available! https://github.com/LGUG2Z/komorebi/releases/v{trimmed}");
+                    }
+                }
+            }
         }
         SubCommand::Configuration => {
             let static_config = HOME_DIR.join("komorebi.json");
@@ -2242,14 +2267,16 @@ if (!(Get-Process masir -ErrorAction SilentlyContinue))
             }
 
             println!("\nThank you for using komorebi!\n");
-            println!("# Sponsorship");
+            println!("# Commercial Use License");
+            println!("* View licensing options https://lgug2z.com/software/komorebi - A commercial use license is required to use komorebi at work");
+            println!("\n# Personal Use Sponsorship");
             println!("* Become a sponsor https://github.com/sponsors/LGUG2Z - $5/month makes a big difference");
             println!("* Leave a tip https://ko-fi.com/lgug2z - An alternative to GitHub Sponsors");
+            println!("\n# Community");
+            println!("* Join the Discord https://discord.gg/mGkn66PHkx - Chat, ask questions, share your desktops");
             println!(
                 "* Subscribe to https://youtube.com/@LGUG2Z - Development videos, feature previews and release overviews"
             );
-            println!("\n# Community");
-            println!("* Join the Discord https://discord.gg/mGkn66PHkx - Chat, ask questions, share your desktops");
             println!("* Explore the Awesome Komorebi list https://github.com/LGUG2Z/awesome-komorebi - Projects in the komorebi ecosystem");
             println!("\n# Documentation");
             println!("* Read the docs https://lgug2z.github.io/komorebi - Quickly search through all komorebic commands");
@@ -2278,6 +2305,30 @@ if (!(Get-Process masir -ErrorAction SilentlyContinue))
                 let output = Command::new("komorebi-bar.exe").arg("--aliases").output()?;
                 let stdout = String::from_utf8(output.stdout)?;
                 println!("{stdout}");
+            }
+
+            let client = reqwest::blocking::Client::new();
+
+            if let Ok(response) = client
+                .get("https://api.github.com/repos/LGUG2Z/komorebi/releases/latest")
+                .header("User-Agent", "komorebic-version-checker")
+                .send()
+            {
+                let version = env!("CARGO_PKG_VERSION");
+
+                #[derive(Deserialize)]
+                struct Release {
+                    tag_name: String,
+                }
+
+                if let Ok(release) =
+                    serde_json::from_str::<Release>(&response.text().unwrap_or_default())
+                {
+                    let trimmed = release.tag_name.trim_start_matches("v");
+                    if trimmed > version {
+                        println!("An updated version of komorebi is available! https://github.com/LGUG2Z/komorebi/releases/v{trimmed}");
+                    }
+                }
             }
         }
         SubCommand::Stop(arg) => {
