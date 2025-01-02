@@ -458,8 +458,69 @@ impl Container {
             return Ok(());
         }
 
-        // If no windows or not tiling, nothing to do
-        if !*self.tile() || self.windows().is_empty() {
+        // If no windows, nothing to do
+        if self.windows().is_empty() {
+            return Ok(());
+        }
+
+        // Handle non-tiling mode
+        if !*self.tile() {
+            for window in self.windows() {
+                // Get current window position
+                if let Ok(current_pos) = window.rect() {
+                    let mut new_pos = current_pos;
+                    let mut needs_adjustment = false;
+
+                    // Check if window extends beyond container boundaries
+                    // Left edge
+                    if new_pos.left < container_rect.left {
+                        new_pos.right += container_rect.left - new_pos.left;
+                        new_pos.left = container_rect.left;
+                        needs_adjustment = true;
+                    }
+                    // Top edge
+                    if new_pos.top < container_rect.top {
+                        new_pos.bottom += container_rect.top - new_pos.top;
+                        new_pos.top = container_rect.top;
+                        needs_adjustment = true;
+                    }
+                    // Right edge
+                    if new_pos.right > container_rect.right {
+                        new_pos.left -= new_pos.right - container_rect.right;
+                        new_pos.right = container_rect.right;
+                        needs_adjustment = true;
+                    }
+                    // Bottom edge
+                    if new_pos.bottom > container_rect.bottom {
+                        new_pos.top -= new_pos.bottom - container_rect.bottom;
+                        new_pos.bottom = container_rect.bottom;
+                        needs_adjustment = true;
+                    }
+
+                    // If window is completely outside container, center it within container
+                    if new_pos.left >= container_rect.right || 
+                       new_pos.top >= container_rect.bottom ||
+                       new_pos.right <= container_rect.left ||
+                       new_pos.bottom <= container_rect.top {
+                        let window_width = current_pos.right - current_pos.left;
+                        let window_height = current_pos.bottom - current_pos.top;
+                        let container_width = container_rect.right - container_rect.left;
+                        let container_height = container_rect.bottom - container_rect.top;
+
+                        new_pos.left = container_rect.left + (container_width - window_width) / 2;
+                        new_pos.top = container_rect.top + (container_height - window_height) / 2;
+                        new_pos.right = new_pos.left + window_width;
+                        new_pos.bottom = new_pos.top + window_height;
+                        needs_adjustment = true;
+                    }
+
+                    // Only update position if adjustment was needed
+                    if needs_adjustment {
+                        window.set_position(&new_pos, false)?;
+                    }
+                }
+                window.restore();
+            }
             return Ok(());
         }
 
