@@ -485,7 +485,7 @@ impl Container {
         }
 
         // Calculate layouts for all windows
-        let mut layouts = self.layout().as_boxed_arrangement().calculate(
+        let layouts = self.layout().as_boxed_arrangement().calculate(
             container_rect,
             NonZeroUsize::new(self.windows().len())
                 .ok_or_else(|| anyhow!("there must be at least one window to calculate a container layout"))?,
@@ -495,14 +495,10 @@ impl Container {
         );
 
         // Apply layouts to windows
-        for (i, window) in self.windows_mut().iter_mut().enumerate() {
+        for (i, window) in self.windows().iter().enumerate() {
             if let Some(layout) = layouts.get(i) {
-                // Only set position for focused window, hide others
-                if self.focused_window_idx() == i {
-                    window.set_position(layout, true)?;
-                } else {
-                    window.hide();
-                }
+                window.set_position(layout, false)?;
+                window.restore();
             }
         }
 

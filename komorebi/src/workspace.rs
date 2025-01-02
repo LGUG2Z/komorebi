@@ -390,7 +390,7 @@ impl Workspace {
                         }
 
                         // If container has more than 2 windows, use container's update
-                        if window_count > 2 {
+                        if window_count >= 2 {
                             container.update(layout)?;
                         } else {
                             // Original single-window handling
