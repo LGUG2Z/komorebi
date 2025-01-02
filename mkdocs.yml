@@ -77,6 +77,7 @@ nav:
       - cli/quickstart.md
       - cli/start.md
       - cli/stop.md
+      - cli/kill.md
       - cli/check.md
       - cli/configuration.md
       - cli/bar-configuration.md
@@ -103,9 +104,11 @@ nav:
       - cli/force-focus.md
       - cli/cycle-focus.md
       - cli/cycle-move.md
+      - cli/eager-focus.md
       - cli/stack.md
       - cli/unstack.md
       - cli/cycle-stack.md
+      - cli/cycle-stack-index.md
       - cli/focus-stack-window.md
       - cli/stack-all.md
       - cli/unstack-all.md
@@ -129,6 +132,7 @@ nav:
       - cli/focus-workspaces.md
       - cli/focus-monitor-workspace.md
       - cli/focus-named-workspace.md
+      - cli/close-workspace.md
       - cli/cycle-monitor.md
       - cli/cycle-workspace.md
       - cli/move-workspace-to-monitor.md
@@ -196,6 +200,7 @@ nav:
       - cli/clear-workspace-rules.md
       - cli/clear-named-workspace-rules.md
       - cli/clear-all-workspace-rules.md
+      - cli/enforce-workspace-rules.md
       - cli/identify-object-name-change-application.md
       - cli/identify-tray-application.md
       - cli/identify-layered-application.md

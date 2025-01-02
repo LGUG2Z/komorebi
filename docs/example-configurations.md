@@ -181,10 +181,10 @@ The `grid` layout does not support resizing windows tiles.
 key bindings go to the left of the colon, and shell commands go to the right of the
 colon.
 
-Please remember that `whkd` does not support overriding Microsoft's limitations
-on hotkey bindings that include the `Windows` key. If this is important to you,
-I recommend using [AutoHotKey](https://autohotkey.com) to set up your key
-bindings for `komorebic` commands instead.
+As of [`v0.2.4`](https://github.com/LGUG2Z/whkd/releases/tag/v0.2.4), `whkd` can override most of Microsoft's
+limitations on hotkey bindings that include the `win` key. However, you will still need
+to [modify the registry](https://superuser.com/questions/1059511/how-to-disable-winl-in-windows-10) to prevent
+`win + l` from locking the operating system.
 
 ```
 {% include "./whkdrc.sample" %}
@@ -203,7 +203,7 @@ It is also possible to change a hotkey behavior depending on which application h
 alt + n [
     # ProcessName as shown by `Get-Process`
     Firefox       : echo "hello firefox"
-    
+
     # Spaces are fine, no quotes required
     Google Chrome : echo "hello chrome"
 ]
