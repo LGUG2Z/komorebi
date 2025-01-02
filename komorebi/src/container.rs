@@ -222,6 +222,69 @@ impl Container {
         }
     }
 
+    pub fn update(&mut self, container_rect: &Rect) -> Result<()> {
+        // Handle monocle window first - it takes precedence
+        if let Some(window) = self.monocle_window_mut() {
+            window.set_position(container_rect, true)?;
+            return Ok(());
+        }
+
+        // If no windows or not tiling, nothing to do
+        if !*self.tile() || self.windows().is_empty() {
+            return Ok(());
+        }
+
+        // Check layout rules and update layout if needed
+        if !self.layout_rules().is_empty() {
+            let mut updated_layout = None;
+
+            for rule in self.layout_rules() {
+                if self.windows().len() >= rule.0 {
+                    updated_layout = Option::from(rule.1.clone());
+                }
+            }
+
+            if let Some(updated_layout) = updated_layout {
+                if !matches!(updated_layout, Layout::Default(DefaultLayout::BSP)) {
+                    self.set_layout_flip(None);
+                }
+
+                self.set_layout(updated_layout);
+            }
+        }
+
+        // Calculate layouts for all windows
+        let mut layouts = self.layout().as_boxed_arrangement().calculate(
+            container_rect,
+            NonZeroUsize::new(self.windows().len())
+                .ok_or_else(|| anyhow!("there must be at least one window to calculate a container layout"))?,
+            None, // containers don't have internal padding
+            self.layout_flip(),
+            self.resize_dimensions(),
+        );
+
+        // Apply layouts to windows
+        for (i, window) in self.windows_mut().iter_mut().enumerate() {
+            if let Some(layout) = layouts.get(i) {
+                // Only set position for focused window, hide others
+                if self.focused_window_idx() == i {
+                    window.set_position(layout, true)?;
+                } else {
+                    window.hide();
+                }
+            }
+        }
+
+        // Store latest layout for future reference
+        self.set_latest_layout(layouts);
+
+        // Ensure resize_dimensions length matches window count
+        let window_count = self.windows().len();
+        self.resize_dimensions_mut().resize(window_count, None);
+
+        Ok(())
+    }
+
     #[tracing::instrument(skip(self))]
     pub fn focus_window(&mut self, idx: usize) {
         tracing::info!("focusing window");
