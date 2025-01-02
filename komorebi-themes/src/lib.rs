@@ -4,6 +4,7 @@
 use schemars::JsonSchema;
 use serde::Deserialize;
 use serde::Serialize;
+use strum::Display;
 use strum::IntoEnumIterator;
 
 pub use base16_egui_themes::Base16;
@@ -48,7 +49,7 @@ impl Theme {
     }
 }
 
-#[derive(Copy, Clone, Debug, Default, Serialize, Deserialize, JsonSchema, PartialEq)]
+#[derive(Copy, Clone, Debug, Default, Serialize, Deserialize, JsonSchema, Display, PartialEq)]
 pub enum Base16Value {
     Base00,
     Base01,
@@ -92,7 +93,7 @@ impl Base16Value {
     }
 }
 
-#[derive(Copy, Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq)]
+#[derive(Copy, Clone, Debug, Serialize, Deserialize, JsonSchema, Display, PartialEq)]
 pub enum Catppuccin {
     Frappe,
     Latte,
@@ -117,7 +118,7 @@ impl From<Catppuccin> for catppuccin_egui::Theme {
     }
 }
 
-#[derive(Copy, Clone, Debug, Default, Serialize, Deserialize, JsonSchema, PartialEq)]
+#[derive(Copy, Clone, Debug, Default, Serialize, Deserialize, JsonSchema, Display, PartialEq)]
 pub enum CatppuccinValue {
     Rosewater,
     Flamingo,
