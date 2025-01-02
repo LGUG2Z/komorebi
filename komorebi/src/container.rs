@@ -222,6 +222,235 @@ impl Container {
         }
     }
 
+    fn enforce_resize_constraints(&mut self) {
+        match self.layout {
+            Layout::Default(DefaultLayout::BSP) => self.enforce_resize_constraints_for_bsp(),
+            Layout::Default(DefaultLayout::Columns) => self.enforce_resize_for_columns(),
+            Layout::Default(DefaultLayout::Rows) => self.enforce_resize_for_rows(),
+            Layout::Default(DefaultLayout::VerticalStack) => {
+                self.enforce_resize_for_vertical_stack();
+            }
+            Layout::Default(DefaultLayout::RightMainVerticalStack) => {
+                self.enforce_resize_for_right_vertical_stack();
+            }
+            Layout::Default(DefaultLayout::HorizontalStack) => {
+                self.enforce_resize_for_horizontal_stack();
+            }
+            Layout::Default(DefaultLayout::UltrawideVerticalStack) => {
+                self.enforce_resize_for_ultrawide();
+            }
+            _ => self.enforce_no_resize(),
+        }
+    }
+
+    fn enforce_resize_constraints_for_bsp(&mut self) {
+        for (i, rect) in self.resize_dimensions_mut().iter_mut().enumerate() {
+            if let Some(rect) = rect {
+                // Even windows can't be resized to the bottom
+                if i % 2 == 0 {
+                    rect.bottom = 0;
+                    // Odd windows can't be resized to the right
+                } else {
+                    rect.right = 0;
+                }
+            }
+        }
+
+        // The first window can never be resized to the left or the top
+        if let Some(Some(first)) = self.resize_dimensions_mut().first_mut() {
+            first.top = 0;
+            first.left = 0;
+        }
+
+        // The last window can never be resized to the bottom or the right
+        if let Some(Some(last)) = self.resize_dimensions_mut().last_mut() {
+            last.bottom = 0;
+            last.right = 0;
+        }
+    }
+
+    fn enforce_resize_for_columns(&mut self) {
+        let resize_dimensions = self.resize_dimensions_mut();
+        match resize_dimensions.len() {
+            0 | 1 => self.enforce_no_resize(),
+            _ => {
+                let len = resize_dimensions.len();
+                for (i, rect) in resize_dimensions.iter_mut().enumerate() {
+                    if let Some(rect) = rect {
+                        rect.top = 0;
+                        rect.bottom = 0;
+
+                        if i == 0 {
+                            rect.left = 0;
+                        }
+                        if i == len - 1 {
+                            rect.right = 0;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    fn enforce_resize_for_rows(&mut self) {
+        let resize_dimensions = self.resize_dimensions_mut();
+        match resize_dimensions.len() {
+            0 | 1 => self.enforce_no_resize(),
+            _ => {
+                let len = resize_dimensions.len();
+                for (i, rect) in resize_dimensions.iter_mut().enumerate() {
+                    if let Some(rect) = rect {
+                        rect.left = 0;
+                        rect.right = 0;
+
+                        if i == 0 {
+                            rect.top = 0;
+                        }
+                        if i == len - 1 {
+                            rect.bottom = 0;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    fn enforce_resize_for_vertical_stack(&mut self) {
+        let resize_dimensions = self.resize_dimensions_mut();
+        match resize_dimensions.len() {
+            0 | 1 => self.enforce_no_resize(),
+            _ => {
+                if let Some(mut left) = resize_dimensions[0] {
+                    left.top = 0;
+                    left.bottom = 0;
+                    left.left = 0;
+                }
+
+                let stack_size = resize_dimensions[1..].len();
+                for (i, rect) in resize_dimensions[1..].iter_mut().enumerate() {
+                    if let Some(rect) = rect {
+                        rect.right = 0;
+
+                        if i == 0 {
+                            rect.top = 0;
+                        } else if i == stack_size - 1 {
+                            rect.bottom = 0;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    fn enforce_resize_for_right_vertical_stack(&mut self) {
+        let resize_dimensions = self.resize_dimensions_mut();
+        match resize_dimensions.len() {
+            0 | 1 => self.enforce_no_resize(),
+            _ => {
+                if let Some(mut left) = resize_dimensions[1] {
+                    left.top = 0;
+                    left.bottom = 0;
+                    left.right = 0;
+                }
+
+                let stack_size = resize_dimensions[1..].len();
+                for (i, rect) in resize_dimensions[1..].iter_mut().enumerate() {
+                    if let Some(rect) = rect {
+                        rect.left = 0;
+
+                        if i == 0 {
+                            rect.top = 0;
+                        } else if i == stack_size - 1 {
+                            rect.bottom = 0;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    fn enforce_resize_for_horizontal_stack(&mut self) {
+        let resize_dimensions = self.resize_dimensions_mut();
+        match resize_dimensions.len() {
+            0 | 1 => self.enforce_no_resize(),
+            _ => {
+                if let Some(mut left) = resize_dimensions[0] {
+                    left.top = 0;
+                    left.left = 0;
+                    left.right = 0;
+                }
+
+                let stack_size = resize_dimensions[1..].len();
+                for (i, rect) in resize_dimensions[1..].iter_mut().enumerate() {
+                    if let Some(rect) = rect {
+                        rect.bottom = 0;
+
+                        if i == 0 {
+                            rect.left = 0;
+                        }
+                        if i == stack_size - 1 {
+                            rect.right = 0;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    fn enforce_resize_for_ultrawide(&mut self) {
+        let resize_dimensions = self.resize_dimensions_mut();
+        match resize_dimensions.len() {
+            0 | 1 => self.enforce_no_resize(),
+            2 => {
+                if let Some(mut right) = resize_dimensions[0] {
+                    right.top = 0;
+                    right.bottom = 0;
+                    right.right = 0;
+                }
+
+                if let Some(mut left) = resize_dimensions[1] {
+                    left.top = 0;
+                    left.bottom = 0;
+                    left.left = 0;
+                }
+            }
+            _ => {
+                if let Some(mut right) = resize_dimensions[0] {
+                    right.top = 0;
+                    right.bottom = 0;
+                }
+
+                if let Some(mut left) = resize_dimensions[1] {
+                    left.top = 0;
+                    left.bottom = 0;
+                    left.left = 0;
+                }
+
+                let stack_size = resize_dimensions[2..].len();
+                for (i, rect) in resize_dimensions[2..].iter_mut().enumerate() {
+                    if let Some(rect) = rect {
+                        rect.right = 0;
+
+                        if i == 0 {
+                            rect.top = 0;
+                        } else if i == stack_size - 1 {
+                            rect.bottom = 0;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    fn enforce_no_resize(&mut self) {
+        for rect in self.resize_dimensions_mut().iter_mut().flatten() {
+            rect.left = 0;
+            rect.right = 0;
+            rect.top = 0;
+            rect.bottom = 0;
+        }
+    }
+
     pub fn update(&mut self, container_rect: &Rect) -> Result<()> {
         // Handle monocle window first - it takes precedence
         if let Some(window) = self.monocle_window_mut() {
@@ -233,6 +462,8 @@ impl Container {
         if !*self.tile() || self.windows().is_empty() {
             return Ok(());
         }
+
+        self.enforce_resize_constraints();
 
         // Check layout rules and update layout if needed
         if !self.layout_rules().is_empty() {
