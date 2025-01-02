@@ -1,5 +1,7 @@
 use std::collections::VecDeque;
 
+use color_eyre::eyre::anyhow;
+use color_eyre::Result;
 use getset::{Getters, MutGetters, Setters};
 use nanoid::nanoid;
 use schemars::JsonSchema;
@@ -16,6 +18,11 @@ pub struct Container {
     #[getset(get = "pub")]
     id: String,
     windows: Ring<Window>,
+    #[getset(get = "pub", get_mut = "pub", set = "pub")]
+    monocle_window: Option<Window>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[getset(get_copy = "pub", set = "pub")]
+    monocle_window_restore_idx: Option<usize>,
     #[getset(get = "pub", get_mut = "pub", set = "pub")]
     layout: Layout,
     #[getset(get = "pub", get_mut = "pub", set = "pub")]
@@ -37,6 +44,8 @@ impl Default for Container {
         Self {
             id: nanoid!(),
             windows: Ring::default(),
+            monocle_window: None,
+            monocle_window_restore_idx: None,
             layout: Layout::Default(DefaultLayout::BSP),
             layout_rules: vec![],
             layout_flip: None,
@@ -48,7 +57,64 @@ impl Default for Container {
 }
 
 impl Container {
+    pub fn new_monocle_window(&mut self) -> Result<()> {
+        let focused_idx = self.focused_window_idx();
+        let window = self.remove_focused_window()
+            .ok_or_else(|| anyhow!("there is no window"))?;
+
+        if self.windows().is_empty() {
+            self.windows_mut().remove(focused_idx);
+        } else {
+            self.load_focused_window();
+        }
+
+        self.set_monocle_window(Option::from(window));
+        self.set_monocle_window_restore_idx(Option::from(focused_idx));
+
+        Ok(())
+    }
+
+    pub fn reintegrate_monocle_window(&mut self) -> Result<()> {
+        let restore_idx = self.monocle_window_restore_idx()
+            .ok_or_else(|| anyhow!("there is no monocle restore index"))?;
+
+        let window = self.monocle_window()
+            .as_ref()
+            .ok_or_else(|| anyhow!("there is no monocle window"))?;
+
+        let window = *window;
+        if restore_idx >= self.windows().len() {
+            self.windows_mut().push_back(window);
+            self.focus_window(self.windows().len().saturating_sub(1));
+        } else {
+            self.windows_mut().insert(restore_idx, window);
+            self.focus_window(restore_idx);
+        }
+
+        self.load_focused_window();
+        self.set_monocle_window(None);
+        self.set_monocle_window_restore_idx(None);
+
+        Ok(())
+    }
+
     pub fn hide(&self, omit: Option<isize>) {
+        if let Some(window) = self.monocle_window() {
+            let mut should_hide = omit.is_none();
+
+            if !should_hide {
+                if let Some(omit) = omit {
+                    if omit != window.hwnd {
+                        should_hide = true
+                    }
+                }
+            }
+
+            if should_hide {
+                window.hide();
+            }
+        }
+
         for window in self.windows().iter().rev() {
             let mut should_hide = omit.is_none();
 
@@ -67,6 +133,11 @@ impl Container {
     }
 
     pub fn restore(&self) {
+        if let Some(window) = self.monocle_window() {
+            window.restore();
+            return;
+        }
+
         if let Some(window) = self.focused_window() {
             window.restore();
         }
