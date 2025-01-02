@@ -1,19 +1,33 @@
 use std::collections::VecDeque;
 
-use getset::Getters;
+use getset::{Getters, MutGetters, Setters};
 use nanoid::nanoid;
 use schemars::JsonSchema;
 use serde::Deserialize;
 use serde::Serialize;
 
+use crate::core::{Axis, DefaultLayout, Layout, Rect};
+
 use crate::ring::Ring;
 use crate::window::Window;
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Getters, JsonSchema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Getters, MutGetters, Setters, JsonSchema)]
 pub struct Container {
     #[getset(get = "pub")]
     id: String,
     windows: Ring<Window>,
+    #[getset(get = "pub", get_mut = "pub", set = "pub")]
+    layout: Layout,
+    #[getset(get = "pub", get_mut = "pub", set = "pub")]
+    layout_rules: Vec<(usize, Layout)>,
+    #[getset(get_copy = "pub", set = "pub")]
+    layout_flip: Option<Axis>,
+    #[getset(get = "pub", set = "pub")]
+    latest_layout: Vec<Rect>,
+    #[getset(get = "pub", get_mut = "pub", set = "pub")]
+    resize_dimensions: Vec<Option<Rect>>,
+    #[getset(get = "pub", set = "pub")]
+    tile: bool,
 }
 
 impl_ring_elements!(Container, Window);
@@ -23,6 +37,12 @@ impl Default for Container {
         Self {
             id: nanoid!(),
             windows: Ring::default(),
+            layout: Layout::Default(DefaultLayout::BSP),
+            layout_rules: vec![],
+            layout_flip: None,
+            latest_layout: vec![],
+            resize_dimensions: vec![],
+            tile: true,
         }
     }
 }
