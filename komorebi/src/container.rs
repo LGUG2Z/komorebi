@@ -12,6 +12,7 @@ use crate::core::{Axis, DefaultLayout, Layout, Rect};
 
 use crate::ring::Ring;
 use crate::window::Window;
+use crate::windows_api::WindowsApi;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Getters, CopyGetters, MutGetters, Setters, JsonSchema)]
 pub struct Container {
@@ -466,8 +467,8 @@ impl Container {
         // Handle non-tiling mode
         if !*self.tile() {
             for window in self.windows() {
-                // Get current window position
-                if let Ok(current_pos) = window.rect() {
+                // Get current window position using WindowsApi
+                if let Ok(current_pos) = WindowsApi::window_rect(window.hwnd) {
                     let mut new_pos = current_pos;
                     let mut needs_adjustment = false;
 
