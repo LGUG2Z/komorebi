@@ -846,8 +846,10 @@ impl WindowManager {
                 // This is to ensure that even on an empty workspace on a secondary monitor, the
                 // secondary monitor where the cursor is focused will be used as the target for
                 // the workspace switch op
-                if let Some(monitor_idx) = self.monitor_idx_from_current_pos() {
-                    self.focus_monitor(monitor_idx)?;
+                if self.mouse_follows_focus {
+                    if let Some(monitor_idx) = self.monitor_idx_from_current_pos() {
+                        self.focus_monitor(monitor_idx)?;
+                    }
                 }
 
                 let focused_monitor = self
@@ -869,8 +871,10 @@ impl WindowManager {
                 // This is to ensure that even on an empty workspace on a secondary monitor, the
                 // secondary monitor where the cursor is focused will be used as the target for
                 // the workspace switch op
-                if let Some(monitor_idx) = self.monitor_idx_from_current_pos() {
-                    self.focus_monitor(monitor_idx)?;
+                if self.mouse_follows_focus {
+                    if let Some(monitor_idx) = self.monitor_idx_from_current_pos() {
+                        self.focus_monitor(monitor_idx)?;
+                    }
                 }
 
                 let mut can_close = false;
@@ -905,8 +909,10 @@ impl WindowManager {
                 // This is to ensure that even on an empty workspace on a secondary monitor, the
                 // secondary monitor where the cursor is focused will be used as the target for
                 // the workspace switch op
-                if let Some(monitor_idx) = self.monitor_idx_from_current_pos() {
-                    self.focus_monitor(monitor_idx)?;
+                if self.mouse_follows_focus {
+                    if let Some(monitor_idx) = self.monitor_idx_from_current_pos() {
+                        self.focus_monitor(monitor_idx)?;
+                    }
                 }
 
                 let idx = self
@@ -928,8 +934,10 @@ impl WindowManager {
                 // This is to ensure that even on an empty workspace on a secondary monitor, the
                 // secondary monitor where the cursor is focused will be used as the target for
                 // the workspace switch op
-                if let Some(monitor_idx) = self.monitor_idx_from_current_pos() {
-                    self.focus_monitor(monitor_idx)?;
+                if self.mouse_follows_focus {
+                    if let Some(monitor_idx) = self.monitor_idx_from_current_pos() {
+                        self.focus_monitor(monitor_idx)?;
+                    }
                 }
 
                 if self.focused_workspace_idx().unwrap_or_default() != workspace_idx {
@@ -940,8 +948,10 @@ impl WindowManager {
                 // This is to ensure that even on an empty workspace on a secondary monitor, the
                 // secondary monitor where the cursor is focused will be used as the target for
                 // the workspace switch op
-                if let Some(monitor_idx) = self.monitor_idx_from_current_pos() {
-                    self.focus_monitor(monitor_idx)?;
+                if self.mouse_follows_focus {
+                    if let Some(monitor_idx) = self.monitor_idx_from_current_pos() {
+                        self.focus_monitor(monitor_idx)?;
+                    }
                 }
 
                 let focused_monitor_idx = self.focused_monitor_idx();
