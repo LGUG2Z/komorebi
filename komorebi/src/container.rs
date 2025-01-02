@@ -2,7 +2,7 @@ use std::collections::VecDeque;
 use std::num::NonZeroUsize;
 use color_eyre::eyre::anyhow;
 use color_eyre::Result;
-use getset::{Getters, MutGetters, Setters};
+use getset::{Getters, MutGetters, Setters, CopyGetters};
 use nanoid::nanoid;
 use schemars::JsonSchema;
 use serde::Deserialize;
@@ -13,7 +13,7 @@ use crate::core::{Axis, DefaultLayout, Layout, Rect};
 use crate::ring::Ring;
 use crate::window::Window;
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Getters, MutGetters, Setters, JsonSchema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Getters, CopyGetters, MutGetters, Setters, JsonSchema)]
 pub struct Container {
     #[getset(get = "pub")]
     id: String,
