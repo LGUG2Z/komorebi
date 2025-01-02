@@ -389,34 +389,38 @@ impl Workspace {
                             layout.bottom -= total_height;
                         }
 
-                        for window in container.windows() {
-                            if container
-                                .focused_window()
-                                .is_some_and(|w| w.hwnd == window.hwnd)
-                            {
-                                let should_remove_titlebar_for_window = should_act(
-                                    &window.title().unwrap_or_default(),
-                                    &window.exe().unwrap_or_default(),
-                                    &window.class().unwrap_or_default(),
-                                    &window.path().unwrap_or_default(),
-                                    &no_titlebar,
-                                    &regex_identifiers,
-                                )
-                                .is_some();
+                        // If container has more than 2 windows, use container's update
+                        if window_count > 2 {
+                            container.update(layout)?;
+                        } else {
+                            // Original single-window handling
+                            for window in container.windows() {
+                                if container
+                                    .focused_window()
+                                    .is_some_and(|w| w.hwnd == window.hwnd)
+                                {
+                                    let should_remove_titlebar_for_window = should_act(
+                                        &window.title().unwrap_or_default(),
+                                        &window.exe().unwrap_or_default(),
+                                        &window.class().unwrap_or_default(),
+                                        &window.path().unwrap_or_default(),
+                                        &no_titlebar,
+                                        &regex_identifiers,
+                                    )
+                                    .is_some();
 
-                                if should_remove_titlebars && should_remove_titlebar_for_window {
-                                    window.remove_title_bar()?;
-                                } else if should_remove_titlebar_for_window {
-                                    window.add_title_bar()?;
-                                }
+                                    if should_remove_titlebars && should_remove_titlebar_for_window {
+                                        window.remove_title_bar()?;
+                                    } else if should_remove_titlebar_for_window {
+                                        window.add_title_bar()?;
+                                    }
 
-                                // If a window has been unmaximized via toggle-maximize, this block
-                                // will make sure that it is unmaximized via restore_window
-                                if window.is_maximized() && !managed_maximized_window {
-                                    WindowsApi::restore_window(window.hwnd);
+                                    if window.is_maximized() && !managed_maximized_window {
+                                        WindowsApi::restore_window(window.hwnd);
+                                    }
                                 }
+                                window.set_position(layout, false)?;
                             }
-                            window.set_position(layout, false)?;
                         }
                     }
                 }
