@@ -78,8 +78,16 @@ impl Container {
     }
 
     pub fn restore(&self) {
-        if let Some(window) = self.focused_window() {
-            window.restore();
+        if self.monocle {
+            // In monocle mode, only restore the focused window
+            if let Some(window) = self.focused_window() {
+                window.restore();
+            }
+        } else {
+            // In regular layout mode, restore all windows
+            for window in self.windows() {
+                window.restore();
+            }
         }
     }
 
