@@ -55,7 +55,7 @@ impl Default for Container {
 
 impl Container {
     pub fn toggle_monocle(&mut self) -> Result<()> {
-        self.monocle = !self.monocle;
+        self.set_monocle(!*self.monocle());
         Ok(())
     }
 
