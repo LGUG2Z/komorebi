@@ -54,6 +54,8 @@ pub enum SocketMessage {
     FocusStackWindow(usize),
     StackAll,
     UnstackAll,
+    FocusExe(Option<String>, Option<isize>),
+    DisplayMonitorWorkspaceNumber(usize,usize),
     ResizeWindowEdge(OperationDirection, Sizing),
     ResizeWindowAxis(Axis, Sizing),
     MoveContainerToMonitorNumber(usize),
@@ -81,6 +83,7 @@ pub enum SocketMessage {
     ToggleFloat,
     ToggleMonocle,
     ToggleMaximize,
+    ToggleAlwaysOnTop,
     ToggleWindowContainerBehaviour,
     ToggleFloatOverride,
     WindowHidingBehaviour(HidingBehaviour),
@@ -216,6 +219,7 @@ pub enum SocketMessage {
     StaticConfigSchema,
     GenerateStaticConfig,
     DebugWindow(isize),
+
 }
 
 impl SocketMessage {
