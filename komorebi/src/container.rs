@@ -399,7 +399,7 @@ impl Container {
         }
     }
 
-    pub fn update(&mut self, container_rect: &Rect) -> Result<()> {
+    pub fn update(&mut self, container_rect: &Rect, should_have_stackber: bool) -> Result<()> {
         // If no windows, nothing to do
         if self.windows().is_empty() {
             return Ok(());

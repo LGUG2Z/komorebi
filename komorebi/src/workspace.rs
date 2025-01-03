@@ -371,6 +371,7 @@ impl Workspace {
 
                 for (i, container) in containers.iter_mut().enumerate() {
                     let window_count = container.windows().len();
+                    let should_have_stackbar = stackbar_manager::should_have_stackbar(window_count, container.monocle());
 
                     if let Some(layout) = layouts.get_mut(i) {
                         {
@@ -381,7 +382,7 @@ impl Workspace {
                             layout.add_padding(width);
                         }
 
-                        if stackbar_manager::should_have_stackbar(window_count) {
+                        if  should_have_stackbar {
                             let tab_height = STACKBAR_TAB_HEIGHT.load(Ordering::SeqCst);
                             let total_height = tab_height + container_padding;
 
@@ -391,7 +392,7 @@ impl Workspace {
 
                         // If container has more than 2 windows, use container's update
                         if window_count >= 2 {
-                            container.update(layout)?;
+                            container.update(layout, should_have_stackbar)?;
                         } else {
                             // Original single-window handling
                             for window in container.windows() {

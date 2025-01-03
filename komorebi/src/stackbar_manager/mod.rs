@@ -62,10 +62,10 @@ pub fn send_notification() {
     }
 }
 
-pub fn should_have_stackbar(window_count: usize, container: &Container) -> bool {
+pub fn should_have_stackbar(window_count: usize, monocle: bool) -> bool {
     match STACKBAR_MODE.load() {
         StackbarMode::Always => true,
-        StackbarMode::OnStack => window_count > 1 && container.monocle(),
+        StackbarMode::OnStack => window_count > 1 && monocle,
         StackbarMode::Never => false,
     }
 }
