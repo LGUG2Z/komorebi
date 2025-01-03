@@ -78,7 +78,7 @@ impl Container {
     }
 
     pub fn restore(&self) {
-        if self.monocle {
+        if *self.monocle() {
             // In monocle mode, only restore the focused window
             if let Some(window) = self.focused_window() {
                 window.restore();
@@ -171,7 +171,7 @@ impl Container {
     }
 
     fn enforce_resize_constraints(&mut self) {
-        match self.layout {
+        match self.layout() {
             Layout::Default(DefaultLayout::BSP) => self.enforce_resize_constraints_for_bsp(),
             Layout::Default(DefaultLayout::Columns) => self.enforce_resize_for_columns(),
             Layout::Default(DefaultLayout::Rows) => self.enforce_resize_for_rows(),
