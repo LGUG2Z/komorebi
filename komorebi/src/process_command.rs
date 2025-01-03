@@ -231,7 +231,10 @@ impl WindowManager {
                 self.promote_container_to_front()?
             }
             SocketMessage::DisplayMonitorWorkspaceNumber(monitor_idx, workspace_idx) => {
-                self.send_always_on_top(Option::from(monitor_idx), Option::from(workspace_idx), None)?;
+                self.send_always_on_top(
+                    Option::from(monitor_idx),
+                    Option::from(workspace_idx),
+                    None)?;
                 self.display_monitor_workspace(monitor_idx, workspace_idx)?;
             }
             SocketMessage::EagerFocus(ref exe) => {
@@ -296,7 +299,7 @@ impl WindowManager {
             SocketMessage::FocusWindow(direction) => {
                 self.focus_container_in_direction(direction)?;
             }
-            SocketMessage::FocusExe( ref exe, hwnd) => {
+            SocketMessage::FocusExe(ref exe, hwnd) => {
                 self.focus_window_from_exe(exe, hwnd)?;
             }
             SocketMessage::MoveWindow(direction) => {
@@ -1006,7 +1009,10 @@ impl WindowManager {
                 if let Some((monitor_idx, workspace_idx)) =
                     self.monitor_workspace_index_by_name(name)
                 {
-                    self.send_always_on_top(Option::from(monitor_idx), Some(workspace_idx), None)?;
+                    self.send_always_on_top(
+                        Option::from(monitor_idx),
+                        Some(workspace_idx),
+                        None)?;
                     self.focus_monitor(monitor_idx)?;
                     self.focus_workspace(workspace_idx)?;
                 }

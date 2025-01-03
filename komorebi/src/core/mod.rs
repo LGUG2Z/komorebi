@@ -55,7 +55,7 @@ pub enum SocketMessage {
     StackAll,
     UnstackAll,
     FocusExe(Option<String>, Option<isize>),
-    DisplayMonitorWorkspaceNumber(usize,usize),
+    DisplayMonitorWorkspaceNumber(usize, usize),
     ResizeWindowEdge(OperationDirection, Sizing),
     ResizeWindowAxis(Axis, Sizing),
     MoveContainerToMonitorNumber(usize),

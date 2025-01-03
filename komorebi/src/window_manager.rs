@@ -1609,8 +1609,11 @@ impl WindowManager {
 
 
     #[tracing::instrument(skip(self))]
-    pub fn focus_window_from_exe(&mut self, exe: &Option<String>, hwnd: Option<isize>) -> Result<()> {
-
+    pub fn focus_window_from_exe(
+        &mut self,
+        exe: &Option<String>,
+        hwnd: Option<isize>,
+    ) -> Result<()> {
         let mut monitor_idx = 0;
         let mut workspace_idx = 0;
         let mut hwnd_from_exe: isize = 0;
@@ -1618,7 +1621,7 @@ impl WindowManager {
         let mouse_follows_focus = self.mouse_follows_focus;
         let offset = self.work_area_offset;
 
-        'outer: for (i, m ) in self.monitors.elements().iter().enumerate(){
+        'outer: for (i, m) in self.monitors.elements().iter().enumerate(){
             for (j, w) in m.workspaces().iter().enumerate() {
                 if let Some(hwnd) = hwnd {
                     if w.contains_managed_window(hwnd) {
@@ -1650,10 +1653,16 @@ impl WindowManager {
 
             }
             if self.focused_workspace_idx()? != workspace_idx {
-                self.focused_monitor_mut().ok_or_else(|| anyhow!("there is no monitor"))?.focus_workspace(workspace_idx)?;
+                self.focused_monitor_mut()
+                    .ok_or_else(|| anyhow!("there is no monitor"))?
+                    .focus_workspace(workspace_idx)?;
             }
-            let target_monitor = self.focused_monitor_mut().ok_or_else(|| anyhow!("there is no monitor"))?;
-            target_monitor.workspaces_mut().get_mut(workspace_idx)
+            let target_monitor = self
+                .focused_monitor_mut()
+                .ok_or_else(|| anyhow!("there is no monitor"))?;
+            target_monitor
+                .workspaces_mut()
+                .get_mut(workspace_idx)
                 .ok_or_else(|| anyhow!("there is no workspace"))?
                 .focus_container_by_window(hwnd_from_exe)?;
             target_monitor.load_focused_workspace(mouse_follows_focus)?;
@@ -1682,16 +1691,21 @@ impl WindowManager {
     }
 
     #[tracing::instrument(skip(self))]
-    pub fn send_always_on_top(&mut self, monitor_idx: Option<usize>, workspace_idx: Option<usize>, follows: Option<bool>) -> Result<()> {
+    pub fn send_always_on_top(
+        &mut self,
+        monitor_idx: Option<usize>,
+        workspace_idx: Option<usize>,
+        follows: Option<bool>
+    ) -> Result<()> {
         let mut contains_always_on_top = false;
-        let last_window = if let Ok(window) = self.focused_window(){
+        let last_window = if let Ok(window) = self.focused_window() {
             window.hwnd
 
         } else {
             if self.focused_workspace()?.floating_windows().len() > 0 {
                 self.focused_workspace()?.floating_windows()[0].hwnd
             }else {
-                return Ok(())
+                return Ok(());
             }
         };
         let aot = self.always_on_top.clone();
