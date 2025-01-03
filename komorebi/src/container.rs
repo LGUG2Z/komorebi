@@ -19,11 +19,8 @@ pub struct Container {
     #[getset(get = "pub")]
     id: String,
     windows: Ring<Window>,
-    #[getset(get = "pub", get_mut = "pub", set = "pub")]
-    monocle_window: Option<Window>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     #[getset(get_copy = "pub", set = "pub")]
-    monocle_window_restore_idx: Option<usize>,
+    monocle: bool,
     #[getset(get = "pub", get_mut = "pub", set = "pub")]
     layout: Layout,
     #[getset(get = "pub", get_mut = "pub", set = "pub")]
@@ -45,8 +42,7 @@ impl Default for Container {
         Self {
             id: nanoid!(),
             windows: Ring::default(),
-            monocle_window: None,
-            monocle_window_restore_idx: None,
+            monocle: false,
             layout: Layout::Default(DefaultLayout::BSP),
             layout_rules: vec![],
             layout_flip: None,
@@ -58,44 +54,8 @@ impl Default for Container {
 }
 
 impl Container {
-    pub fn new_monocle_window(&mut self) -> Result<()> {
-        let focused_idx = self.focused_window_idx();
-        let window = self.remove_focused_window()
-            .ok_or_else(|| anyhow!("there is no window"))?;
-
-        if self.windows().is_empty() {
-            self.windows_mut().remove(focused_idx);
-        } else {
-            self.load_focused_window();
-        }
-
-        self.set_monocle_window(Option::from(window));
-        self.set_monocle_window_restore_idx(Option::from(focused_idx));
-
-        Ok(())
-    }
-
-    pub fn reintegrate_monocle_window(&mut self) -> Result<()> {
-        let restore_idx = self.monocle_window_restore_idx()
-            .ok_or_else(|| anyhow!("there is no monocle restore index"))?;
-
-        let window = self.monocle_window()
-            .as_ref()
-            .ok_or_else(|| anyhow!("there is no monocle window"))?;
-
-        let window = *window;
-        if restore_idx >= self.windows().len() {
-            self.windows_mut().push_back(window);
-            self.focus_window(self.windows().len().saturating_sub(1));
-        } else {
-            self.windows_mut().insert(restore_idx, window);
-            self.focus_window(restore_idx);
-        }
-
-        self.load_focused_window();
-        self.set_monocle_window(None);
-        self.set_monocle_window_restore_idx(None);
-
+    pub fn toggle_monocle(&mut self) -> Result<()> {
+        self.monocle = !self.monocle;
         Ok(())
     }
 
@@ -134,11 +94,6 @@ impl Container {
     }
 
     pub fn restore(&self) {
-        if let Some(window) = self.monocle_window() {
-            window.restore();
-            return;
-        }
-
         if let Some(window) = self.focused_window() {
             window.restore();
         }
@@ -453,15 +408,18 @@ impl Container {
     }
 
     pub fn update(&mut self, container_rect: &Rect) -> Result<()> {
-        // Handle monocle window first - it takes precedence
-        if let Some(window) = self.monocle_window_mut() {
-            window.set_position(container_rect, true)?;
-            return Ok(());
-        }
-
         // If no windows, nothing to do
         if self.windows().is_empty() {
             return Ok(());
+        }
+
+        // Handle monocle mode
+        if self.monocle {
+            if let Some(window) = self.focused_window() {
+                window.set_position(container_rect, true)?;
+                self.load_focused_window();
+                return Ok(());
+            }
         }
 
         // Handle non-tiling mode
