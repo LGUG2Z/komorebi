@@ -219,7 +219,6 @@ pub enum SocketMessage {
     StaticConfigSchema,
     GenerateStaticConfig,
     DebugWindow(isize),
-
 }
 
 impl SocketMessage {
