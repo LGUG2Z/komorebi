@@ -60,22 +60,6 @@ impl Container {
     }
 
     pub fn hide(&self, omit: Option<isize>) {
-        if let Some(window) = self.monocle_window() {
-            let mut should_hide = omit.is_none();
-
-            if !should_hide {
-                if let Some(omit) = omit {
-                    if omit != window.hwnd {
-                        should_hide = true
-                    }
-                }
-            }
-
-            if should_hide {
-                window.hide();
-            }
-        }
-
         for window in self.windows().iter().rev() {
             let mut should_hide = omit.is_none();
 
