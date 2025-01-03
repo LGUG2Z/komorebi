@@ -55,7 +55,7 @@ impl Default for Container {
 
 impl Container {
     pub fn toggle_monocle(&mut self) -> Result<()> {
-        self.set_monocle(!*self.monocle());
+        self.set_monocle(!self.monocle());
         Ok(())
     }
 
@@ -78,7 +78,7 @@ impl Container {
     }
 
     pub fn restore(&self) {
-        if *self.monocle() {
+        if self.monocle() {
             // In monocle mode, only restore the focused window
             if let Some(window) = self.focused_window() {
                 window.restore();
@@ -406,7 +406,7 @@ impl Container {
         }
 
         // Handle monocle mode
-        if self.monocle {
+        if self.monocle() {
             if let Some(window) = self.focused_window() {
                 window.set_position(container_rect, true)?;
                 self.load_focused_window();
