@@ -176,7 +176,9 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                 'containers: for container in ws.containers_mut() {
                     let should_add_stackbar = match STACKBAR_MODE.load() {
                         StackbarMode::Always => true,
-                        StackbarMode::OnStack => container.windows().len() > 1 && container.monocle(),
+                        StackbarMode::OnStack => {
+                            container.windows().len() > 1 && container.monocle()
+                        }
                         StackbarMode::Never => false,
                     };
 

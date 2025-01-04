@@ -1,20 +1,37 @@
-use std::collections::VecDeque;
-use std::num::NonZeroUsize;
 use color_eyre::eyre::anyhow;
 use color_eyre::Result;
-use getset::{Getters, MutGetters, Setters, CopyGetters};
+use getset::CopyGetters;
+use getset::Getters;
+use getset::MutGetters;
+use getset::Setters;
 use nanoid::nanoid;
 use schemars::JsonSchema;
 use serde::Deserialize;
 use serde::Serialize;
+use std::collections::VecDeque;
+use std::num::NonZeroUsize;
 
-use crate::core::{Axis, DefaultLayout, Layout, Rect};
+use crate::core::Axis;
+use crate::core::DefaultLayout;
+use crate::core::Layout;
+use crate::core::Rect;
 
 use crate::ring::Ring;
 use crate::window::Window;
 use crate::windows_api::WindowsApi;
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Getters, CopyGetters, MutGetters, Setters, JsonSchema)]
+#[derive(
+    Debug,
+    Clone,
+    PartialEq,
+    Serialize,
+    Deserialize,
+    Getters,
+    CopyGetters,
+    MutGetters,
+    Setters,
+    JsonSchema,
+)]
 pub struct Container {
     #[getset(get = "pub")]
     id: String,
@@ -399,7 +416,12 @@ impl Container {
         }
     }
 
-    pub fn update(&mut self, container_rect: &Rect, should_have_stackber: bool) -> Result<()> {
+    pub fn update(
+        &mut self,
+        container_rect: &Rect,
+        should_have_stackbar: bool,
+        tab_height: &i32,
+    ) -> Result<()> {
         // If no windows, nothing to do
         if self.windows().is_empty() {
             return Ok(());
@@ -449,10 +471,11 @@ impl Container {
                     }
 
                     // If window is completely outside container, center it within container
-                    if new_pos.left >= container_rect.right || 
-                       new_pos.top >= container_rect.bottom ||
-                       new_pos.right <= container_rect.left ||
-                       new_pos.bottom <= container_rect.top {
+                    if new_pos.left >= container_rect.right
+                        || new_pos.top >= container_rect.bottom
+                        || new_pos.right <= container_rect.left
+                        || new_pos.bottom <= container_rect.top
+                    {
                         let window_width = current_pos.right - current_pos.left;
                         let window_height = current_pos.bottom - current_pos.top;
                         let container_width = container_rect.right - container_rect.left;
@@ -497,10 +520,11 @@ impl Container {
         }
 
         // Calculate layouts for all windows
-        let layouts = self.layout().as_boxed_arrangement().calculate(
+        let mut layouts = self.layout().as_boxed_arrangement().calculate(
             container_rect,
-            NonZeroUsize::new(self.windows().len())
-                .ok_or_else(|| anyhow!("there must be at least one window to calculate a container layout"))?,
+            NonZeroUsize::new(self.windows().len()).ok_or_else(|| {
+                anyhow!("there must be at least one window to calculate a container layout")
+            })?,
             None, // containers don't have internal padding
             self.layout_flip(),
             self.resize_dimensions(),
@@ -508,7 +532,15 @@ impl Container {
 
         // Apply layouts to windows
         for (i, window) in self.windows().iter().enumerate() {
-            if let Some(layout) = layouts.get(i) {
+            if let Some(layout) = layouts.get_mut(i) {
+                if should_have_stackbar && !self.monocle() {
+                    if let Some(focused_window) = self.focused_window() {
+                        if focused_window.hwnd == window.hwnd {
+                            layout.top += *tab_height;
+                            layout.bottom -= *tab_height;
+                        }
+                    }
+                }
                 window.set_position(layout, false)?;
                 window.restore();
             }
