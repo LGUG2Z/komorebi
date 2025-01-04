@@ -464,9 +464,9 @@ checksum = "8b75356056920673b02621b35afd0f7dda9306d03c79a30f5c56c44cf256e3de"
 
 [[package]]
 name = "async-trait"
-version = "0.1.83"
+version = "0.1.84"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "721cae7de5c34fbb2acd27e21e6d2cf7b886dce0c27388d46c4e6c47ea4318dd"
+checksum = "1b1244b10dcd56c92219da4e14caa97e312079e185f04ba3eea25061561dc0a0"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -787,9 +787,9 @@ dependencies = [
 
 [[package]]
 name = "cc"
-version = "1.2.6"
+version = "1.2.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8d6dbb628b8f8555f86d0323c2eb39e3ec81901f4b83e091db8a6a76d316a333"
+checksum = "a012a0df96dd6d06ba9a1b29d6402d1a5d77c6befd2566afdc26e10603dc93d7"
 dependencies = [
  "jobserver",
  "libc",
@@ -2613,7 +2613,7 @@ checksum = "e2db585e1d738fc771bf08a151420d3ed193d9d895a36df7f6f8a9456b911ddc"
 
 [[package]]
 name = "komorebi"
-version = "0.1.32"
+version = "0.1.33"
 dependencies = [
  "bitflags 2.6.0",
  "clap",
@@ -2658,7 +2658,7 @@ dependencies = [
 
 [[package]]
 name = "komorebi-bar"
-version = "0.1.32"
+version = "0.1.33"
 dependencies = [
  "chrono",
  "clap",
@@ -2691,7 +2691,7 @@ dependencies = [
 
 [[package]]
 name = "komorebi-client"
-version = "0.1.32"
+version = "0.1.33"
 dependencies = [
  "komorebi",
  "serde_json_lenient",
@@ -2700,7 +2700,7 @@ dependencies = [
 
 [[package]]
 name = "komorebi-gui"
-version = "0.1.32"
+version = "0.1.33"
 dependencies = [
  "eframe",
  "egui_extras",
@@ -2712,7 +2712,7 @@ dependencies = [
 
 [[package]]
 name = "komorebi-themes"
-version = "0.1.32"
+version = "0.1.33"
 dependencies = [
  "base16-egui-themes",
  "catppuccin-egui",
@@ -2725,7 +2725,7 @@ dependencies = [
 
 [[package]]
 name = "komorebic"
-version = "0.1.32"
+version = "0.1.33"
 dependencies = [
  "chrono",
  "clap",
@@ -2754,7 +2754,7 @@ dependencies = [
 
 [[package]]
 name = "komorebic-no-console"
-version = "0.1.32"
+version = "0.1.33"
 
 [[package]]
 name = "kqueue"
@@ -4873,9 +4873,9 @@ checksum = "b7401a30af6cb5818bb64852270bb722533397edcfc7344954a38f420819ece2"
 
 [[package]]
 name = "syn"
-version = "2.0.93"
+version = "2.0.94"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9c786062daee0d6db1132800e623df74274a0a87322d8e183338e01b3d98d058"
+checksum = "987bc0be1cdea8b10216bd06e2ca407d40b9543468fafd3ddfb02f36e77f71f3"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -4958,12 +4958,13 @@ checksum = "61c41af27dd6d1e27b1b16b489db798443478cef1f06a660c96db617ba5de3b1"
 
 [[package]]
 name = "tempfile"
-version = "3.14.0"
+version = "3.15.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "28cce251fcbc87fac86a866eeb0d6c2d536fc16d06f184bb61aeae11aa4cee0c"
+checksum = "9a8a559c81686f576e8cd0290cd2a24a2a9ad80c98b3478856500fcbd7acd704"
 dependencies = [
  "cfg-if 1.0.0",
  "fastrand",
+ "getrandom",
  "once_cell",
  "rustix",
  "windows-sys 0.59.0",
@@ -6332,9 +6333,9 @@ dependencies = [
 
 [[package]]
 name = "winnow"
-version = "0.6.21"
+version = "0.6.22"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e6f5bb5257f2407a5425c6e749bfd9692192a73e70a6060516ac04f889087d68"
+checksum = "39281189af81c07ec09db316b302a3e67bf9bd7cbf6c820b50e35fee9c2fa980"
 dependencies = [
  "memchr",
 ]

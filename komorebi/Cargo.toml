@@ -1,8 +1,7 @@
 [package]
 name = "komorebi"
-version = "0.1.32"
+version = "0.1.33"
 description = "A tiling window manager for Windows"
-categories = ["tiling-window-manager", "windows"]
 repository = "https://github.com/LGUG2Z/komorebi"
 edition = "2021"
 
