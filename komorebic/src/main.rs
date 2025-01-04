@@ -923,6 +923,13 @@ struct EnableAutostart {
 }
 
 #[derive(Parser)]
+struct Check {
+    /// Path to a static configuration JSON file
+    #[clap(action, short, long)]
+    komorebi_config: Option<PathBuf>,
+}
+
+#[derive(Parser)]
 struct ReplaceConfiguration {
     /// Static configuration JSON file from which the configuration should be loaded
     path: PathBuf,
@@ -954,7 +961,7 @@ enum SubCommand {
     /// Kill background processes started by komorebic
     Kill(Kill),
     /// Check komorebi configuration and related files for common errors
-    Check,
+    Check(Check),
     /// Show the path to komorebi.json
     #[clap(alias = "config")]
     Configuration,
@@ -1576,7 +1583,7 @@ fn main() -> Result<()> {
                 std::fs::remove_file(shortcut_file)?;
             }
         }
-        SubCommand::Check => {
+        SubCommand::Check(args) => {
             let home_display = HOME_DIR.display();
             if HAS_CUSTOM_CONFIG_HOME.load(Ordering::SeqCst) {
                 println!("KOMOREBI_CONFIG_HOME detected: {home_display}\n");
@@ -1591,7 +1598,15 @@ fn main() -> Result<()> {
 
             println!("Looking for configuration files in {home_display}\n");
 
-            let static_config = HOME_DIR.join("komorebi.json");
+            let static_config = if let Some(static_config) = args.komorebi_config {
+                println!(
+                    "Using an arbitrary configuration file passed to --komorebi-config flag\n"
+                );
+                static_config
+            } else {
+                HOME_DIR.join("komorebi.json")
+            };
+
             let config_pwsh = HOME_DIR.join("komorebi.ps1");
             let config_ahk = HOME_DIR.join("komorebi.ahk");
             let config_whkd = WHKD_CONFIG_DIR.join("whkdrc");
