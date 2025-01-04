@@ -188,7 +188,6 @@ impl WindowManager {
                         let idx = aot.iter().position(|x| *x == window.hwnd).unwrap();
                         aot.remove(idx);
                     }
-
                 }
             }
             WindowManagerEvent::Minimize(_, window) => {

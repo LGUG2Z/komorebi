@@ -831,7 +831,6 @@ struct Exe {
     /// hwnd handle of the window
     #[clap(long)]
     hwnd: Option<isize>,
-
 }
 
 #[derive(Parser)]
@@ -1751,13 +1750,16 @@ fn main() -> Result<()> {
             }
         }
         SubCommand::DisplayMonitorWorkspace(arg) => {
-            send_message(&SocketMessage::DisplayMonitorWorkspaceNumber(arg.monitor, arg.workspace))?;
+            send_message(&SocketMessage::DisplayMonitorWorkspaceNumber(
+                arg.monitor,
+                arg.workspace,
+            ))?;
         }
         SubCommand::Focus(arg) => {
             send_message(&SocketMessage::FocusWindow(arg.operation_direction))?;
         }
         SubCommand::FocusExe(arg) => {
-            send_message(&SocketMessage::FocusExe(arg.exe,arg.hwnd))?;
+            send_message(&SocketMessage::FocusExe(arg.exe, arg.hwnd))?;
         }
         SubCommand::ForceFocus => {
             send_message(&SocketMessage::ForceFocus)?;
