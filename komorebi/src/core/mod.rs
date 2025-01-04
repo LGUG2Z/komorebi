@@ -241,7 +241,9 @@ pub struct SubscribeOptions {
     pub filter_state_changes: bool,
 }
 
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Display, Serialize, Deserialize, JsonSchema)]
+#[derive(
+    Debug, Copy, Clone, Eq, PartialEq, Display, Serialize, Deserialize, JsonSchema, ValueEnum,
+)]
 pub enum StackbarMode {
     Always,
     Never,

@@ -1709,6 +1709,7 @@ impl WindowManager {
             }
             SocketMessage::StackbarMode(mode) => {
                 STACKBAR_MODE.store(mode);
+                self.retile_all(true)?;
             }
             SocketMessage::StackbarLabel(label) => {
                 STACKBAR_LABEL.store(label);

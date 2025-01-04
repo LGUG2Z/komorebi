@@ -722,53 +722,69 @@ impl WindowManager {
             .ok_or_else(|| anyhow!("there is no monitor with that index"))?
             .focused_workspace_idx();
 
-        let workspace_matching_rules = WORKSPACE_MATCHING_RULES.lock();
-        let regex_identifiers = REGEX_IDENTIFIERS.lock();
-        // Go through all the monitors and workspaces
-        for (i, monitor) in self.monitors().iter().enumerate() {
-            for (j, workspace) in monitor.workspaces().iter().enumerate() {
-                // And all the visible windows (at the top of a container)
-                for window in workspace.visible_windows().into_iter().flatten() {
-                    let mut already_moved_window_handles = self.already_moved_window_handles.lock();
-                    let exe_name = window.exe()?;
-                    let title = window.title()?;
-                    let class = window.class()?;
-                    let path = window.path()?;
+        // scope mutex locks to avoid deadlock if should_update_focused_workspace evaluates to true
+        // at the end of this function
+        {
+            let workspace_matching_rules = WORKSPACE_MATCHING_RULES.lock();
+            let regex_identifiers = REGEX_IDENTIFIERS.lock();
+            // Go through all the monitors and workspaces
+            for (i, monitor) in self.monitors().iter().enumerate() {
+                for (j, workspace) in monitor.workspaces().iter().enumerate() {
+                    // And all the visible windows (at the top of a container)
+                    for window in workspace.visible_windows().into_iter().flatten() {
+                        let mut already_moved_window_handles =
+                            self.already_moved_window_handles.lock();
+                        let exe_name = window.exe()?;
+                        let title = window.title()?;
+                        let class = window.class()?;
+                        let path = window.path()?;
 
-                    for rule in &*workspace_matching_rules {
-                        let matched = match &rule.matching_rule {
-                            MatchingRule::Simple(r) => should_act_individual(
-                                &title,
-                                &exe_name,
-                                &class,
-                                &path,
-                                r,
-                                &regex_identifiers,
-                            ),
-                            MatchingRule::Composite(r) => {
-                                let mut composite_results = vec![];
-                                for identifier in r {
-                                    composite_results.push(should_act_individual(
-                                        &title,
-                                        &exe_name,
-                                        &class,
-                                        &path,
-                                        identifier,
-                                        &regex_identifiers,
-                                    ));
+                        for rule in &*workspace_matching_rules {
+                            let matched = match &rule.matching_rule {
+                                MatchingRule::Simple(r) => should_act_individual(
+                                    &title,
+                                    &exe_name,
+                                    &class,
+                                    &path,
+                                    r,
+                                    &regex_identifiers,
+                                ),
+                                MatchingRule::Composite(r) => {
+                                    let mut composite_results = vec![];
+                                    for identifier in r {
+                                        composite_results.push(should_act_individual(
+                                            &title,
+                                            &exe_name,
+                                            &class,
+                                            &path,
+                                            identifier,
+                                            &regex_identifiers,
+                                        ));
+                                    }
+
+                                    composite_results.iter().all(|&x| x)
                                 }
+                            };
 
-                                composite_results.iter().all(|&x| x)
-                            }
-                        };
+                            if matched {
+                                let floating = workspace.floating_windows().contains(window);
 
-                        if matched {
-                            let floating = workspace.floating_windows().contains(window);
+                                if rule.initial_only {
+                                    if !already_moved_window_handles.contains(&window.hwnd) {
+                                        already_moved_window_handles.insert(window.hwnd);
 
-                            if rule.initial_only {
-                                if !already_moved_window_handles.contains(&window.hwnd) {
-                                    already_moved_window_handles.insert(window.hwnd);
-
+                                        self.add_window_handle_to_move_based_on_workspace_rule(
+                                            &window.title()?,
+                                            window.hwnd,
+                                            i,
+                                            j,
+                                            rule.monitor_index,
+                                            rule.workspace_index,
+                                            floating,
+                                            &mut to_move,
+                                        );
+                                    }
+                                } else {
                                     self.add_window_handle_to_move_based_on_workspace_rule(
                                         &window.title()?,
                                         window.hwnd,
@@ -780,17 +796,6 @@ impl WindowManager {
                                         &mut to_move,
                                     );
                                 }
-                            } else {
-                                self.add_window_handle_to_move_based_on_workspace_rule(
-                                    &window.title()?,
-                                    window.hwnd,
-                                    i,
-                                    j,
-                                    rule.monitor_index,
-                                    rule.workspace_index,
-                                    floating,
-                                    &mut to_move,
-                                );
                             }
                         }
                     }

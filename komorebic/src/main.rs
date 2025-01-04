@@ -722,6 +722,13 @@ struct BorderImplementation {
 }
 
 #[derive(Parser)]
+struct StackbarMode {
+    /// Desired stackbar mode
+    #[clap(value_enum)]
+    mode: komorebi_client::StackbarMode,
+}
+
+#[derive(Parser)]
 struct Animation {
     #[clap(value_enum)]
     boolean_state: BooleanState,
@@ -1393,6 +1400,9 @@ enum SubCommand {
     /// Set the border implementation
     #[clap(arg_required_else_help = true)]
     BorderImplementation(BorderImplementation),
+    /// Set the stackbar mode
+    #[clap(arg_required_else_help = true)]
+    StackbarMode(StackbarMode),
     /// Enable or disable transparency for unfocused windows
     #[clap(arg_required_else_help = true)]
     Transparency(Transparency),
@@ -2821,6 +2831,9 @@ if (Get-Command Get-CimInstance -ErrorAction SilentlyContinue) {
         }
         SubCommand::BorderImplementation(arg) => {
             send_message(&SocketMessage::BorderImplementation(arg.style))?;
+        }
+        SubCommand::StackbarMode(arg) => {
+            send_message(&SocketMessage::StackbarMode(arg.mode))?;
         }
         SubCommand::Transparency(arg) => {
             send_message(&SocketMessage::Transparency(arg.boolean_state.into()))?;
