@@ -187,6 +187,10 @@ impl Workspace {
             self.set_float_override(config.float_override);
         }
 
+        if config.layout_flip.is_some() {
+            self.set_layout_flip(config.layout_flip);
+        }
+
         Ok(())
     }
 

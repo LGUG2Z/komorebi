@@ -35,6 +35,7 @@ use crate::window_manager::WindowManager;
 use crate::window_manager_event::WindowManagerEvent;
 use crate::windows_api::WindowsApi;
 use crate::workspace::Workspace;
+use crate::Axis;
 use crate::CrossBoundaryBehaviour;
 use crate::DATA_DIR;
 use crate::DEFAULT_CONTAINER_PADDING;
@@ -148,6 +149,9 @@ pub struct WorkspaceConfig {
     /// (default: false)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub float_override: Option<bool>,
+    /// Specify an axis on which to flip the selected layout (default: None)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub layout_flip: Option<Axis>,
 }
 
 impl From<&Workspace> for WorkspaceConfig {
@@ -202,6 +206,7 @@ impl From<&Workspace> for WorkspaceConfig {
             apply_window_based_work_area_offset: Some(value.apply_window_based_work_area_offset()),
             window_container_behaviour: *value.window_container_behaviour(),
             float_override: *value.float_override(),
+            layout_flip: value.layout_flip(),
         }
     }
 }
@@ -238,7 +243,7 @@ impl From<&Monitor> for MonitorConfig {
 }
 
 #[derive(Debug, Serialize, Deserialize, JsonSchema)]
-/// The `komorebi.json` static configuration file reference for `v0.1.32`
+/// The `komorebi.json` static configuration file reference for `v0.1.33`
 pub struct StaticConfig {
     /// DEPRECATED from v0.1.22: no longer required
     #[serde(skip_serializing_if = "Option::is_none")]
