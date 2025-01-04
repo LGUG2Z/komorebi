@@ -212,6 +212,7 @@ nav:
       - cli/border-offset.md
       - cli/border-style.md
       - cli/border-implementation.md
+      - cli/stackbar-mode.md
       - cli/transparency.md
       - cli/transparency-alpha.md
       - cli/toggle-transparency.md
