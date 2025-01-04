@@ -427,7 +427,7 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                             borders.remove(id);
                         }
 
-                        for (idx, c) in ws.containers().iter().enumerate() {
+                        'containers: for (idx, c) in ws.containers().iter().enumerate() {
                             // Get the border entry for this container from the map or create one
                             let mut new_border = false;
                             let border = match borders.entry(c.id().clone()) {
@@ -471,7 +471,17 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                             let reference_hwnd =
                                 c.focused_window().copied().unwrap_or_default().hwnd;
 
-                            let rect = WindowsApi::window_rect(reference_hwnd)?;
+                            // avoid getting into a thread restart loop if we try to look up
+                            // rect info for a window that has been destroyed by the time
+                            // we get here
+                            let rect = match WindowsApi::window_rect(reference_hwnd) {
+                                Ok(rect) => rect,
+                                Err(_) => {
+                                    let _ = border.destroy();
+                                    borders.remove(c.id());
+                                    continue 'containers;
+                                }
+                            };
 
                             let should_invalidate = match last_focus_state {
                                 None => true,
