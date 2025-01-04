@@ -388,7 +388,7 @@ impl Workspace {
                             layout.add_padding(width);
                         }
 
-                        if should_have_stackbar && container.monocle() && window_count > 1 {
+                        if should_have_stackbar && container.monocle() || window_count == 1 {
                             // TODO: to many statements
                             let total_height = tab_height + container_padding;
 
