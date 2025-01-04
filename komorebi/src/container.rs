@@ -109,12 +109,20 @@ impl Container {
     }
 
     pub fn load_focused_window(&mut self) {
-        let focused_idx = self.focused_window_idx();
-        for (i, window) in self.windows_mut().iter_mut().enumerate() {
-            if i == focused_idx {
+        if self.monocle() {
+            // In monocle mode, only show focused window
+            let focused_idx = self.focused_window_idx();
+            for (i, window) in self.windows_mut().iter_mut().enumerate() {
+                if i == focused_idx {
+                    window.restore();
+                } else {
+                    window.hide();
+                }
+            }
+        } else {
+            // When not in monocle mode, restore all windows
+            for window in self.windows_mut() {
                 window.restore();
-            } else {
-                window.hide();
             }
         }
     }
