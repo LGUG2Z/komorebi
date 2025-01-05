@@ -277,6 +277,7 @@ impl WindowManager {
             }
             WindowManagerEvent::Show(_, window)
             | WindowManagerEvent::Manage(window)
+            | WindowManagerEvent::TitleUpdate(_, window)
             | WindowManagerEvent::Uncloak(_, window) => {
                 if matches!(event, WindowManagerEvent::Uncloak(_, _))
                     && self.uncloack_to_ignore >= 1
@@ -692,8 +693,7 @@ impl WindowManager {
                 }
             }
             WindowManagerEvent::MouseCapture(..)
-            | WindowManagerEvent::Cloak(..)
-            | WindowManagerEvent::TitleUpdate(..) => {}
+            | WindowManagerEvent::Cloak(..) => {}
         };
 
         // If we unmanaged a window, it shouldn't be immediately hidden behind managed windows
