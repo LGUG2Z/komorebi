@@ -437,11 +437,10 @@ impl Container {
 
         // Handle monocle mode
         if self.monocle() {
-            if let Some(window) = self.focused_window() {
+            for window in self.windows() {
                 window.set_position(container_rect, true)?;
-                self.load_focused_window();
-                return Ok(());
             }
+            return Ok(());
         }
 
         // Handle non-tiling mode
