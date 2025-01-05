@@ -451,48 +451,61 @@ impl Container {
                     let mut new_pos = current_pos;
                     let mut needs_adjustment = false;
 
-                    // Check if window extends beyond container boundaries
-                    // Left edge
-                    if new_pos.left < container_rect.left {
-                        new_pos.right += container_rect.left - new_pos.left;
-                        new_pos.left = container_rect.left;
-                        needs_adjustment = true;
-                    }
-                    // Top edge
-                    if new_pos.top < container_rect.top {
-                        new_pos.bottom += container_rect.top - new_pos.top;
-                        new_pos.top = container_rect.top;
-                        needs_adjustment = true;
-                    }
-                    // Right edge
-                    if new_pos.right > container_rect.right {
-                        new_pos.left -= new_pos.right - container_rect.right;
-                        new_pos.right = container_rect.right;
-                        needs_adjustment = true;
-                    }
-                    // Bottom edge
-                    if new_pos.bottom > container_rect.bottom {
-                        new_pos.top -= new_pos.bottom - container_rect.bottom;
-                        new_pos.bottom = container_rect.bottom;
-                        needs_adjustment = true;
-                    }
+                    // Calculate window dimensions
+                    let window_width = new_pos.right - new_pos.left;
+                    let window_height = new_pos.bottom - new_pos.top;
+                    
+                    // Calculate container dimensions  
+                    let container_width = container_rect.right - container_rect.left;
+                    let container_height = container_rect.bottom - container_rect.top;
 
-                    // If window is completely outside container, center it within container
-                    if new_pos.left >= container_rect.right
-                        || new_pos.top >= container_rect.bottom
-                        || new_pos.right <= container_rect.left
-                        || new_pos.bottom <= container_rect.top
+                    // Case 1: Window is completely outside container
+                    if new_pos.left >= container_rect.right ||  // Completely to the right
+                        new_pos.right <= container_rect.left || // Completely to the left 
+                        new_pos.top >= container_rect.bottom || // Completely below
+                        new_pos.bottom <= container_rect.top    // Completely above
                     {
-                        let window_width = current_pos.right - current_pos.left;
-                        let window_height = current_pos.bottom - current_pos.top;
-                        let container_width = container_rect.right - container_rect.left;
-                        let container_height = container_rect.bottom - container_rect.top;
-
-                        new_pos.left = container_rect.left + (container_width - window_width) / 2;
-                        new_pos.top = container_rect.top + (container_height - window_height) / 2;
-                        new_pos.right = new_pos.left + window_width;
-                        new_pos.bottom = new_pos.top + window_height;
+                        // First, ensure window doesn't exceed container dimensions
+                        let new_width = window_width.min(container_width);
+                        let new_height = window_height.min(container_height);
+                        
+                        // Center the window within container
+                        new_pos.left = container_rect.left + (container_width - new_width) / 2;
+                        new_pos.top = container_rect.top + (container_height - new_height) / 2;
+                        new_pos.right = new_pos.left + new_width;
+                        new_pos.bottom = new_pos.top + new_height;
+                        
                         needs_adjustment = true;
+                    }
+                    // Case 2: Window is partially outside container
+                    else {
+                        // Adjust right edge if needed
+                        if new_pos.right > container_rect.right {
+                            let overflow = new_pos.right - container_rect.right;
+                            new_pos.right -= overflow;
+                            needs_adjustment = true;
+                        }
+                        
+                        // Adjust left edge if needed
+                        if new_pos.left < container_rect.left {
+                            let overflow = container_rect.left - new_pos.left;
+                            new_pos.left += overflow;
+                            needs_adjustment = true;
+                        }
+                        
+                        // Adjust bottom edge if needed
+                        if new_pos.bottom > container_rect.bottom {
+                            let overflow = new_pos.bottom - container_rect.bottom;
+                            new_pos.bottom -= overflow;
+                            needs_adjustment = true;
+                        }
+                        
+                        // Adjust top edge if needed
+                        if new_pos.top < container_rect.top {
+                            let overflow = container_rect.top - new_pos.top;
+                            new_pos.top += overflow;
+                            needs_adjustment = true;
+                        }
                     }
 
                     // Only update position if adjustment was needed
