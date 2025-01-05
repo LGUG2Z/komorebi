@@ -549,7 +549,6 @@ impl Container {
                     }
                 }
                 window.set_position(layout, false)?;
-                window.restore();
             }
         }
 
