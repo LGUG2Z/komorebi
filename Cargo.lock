@@ -2678,6 +2678,7 @@ dependencies = [
  "num-derive",
  "num-traits",
  "random_word",
+ "reqwest",
  "schemars",
  "serde",
  "serde_json_lenient",
