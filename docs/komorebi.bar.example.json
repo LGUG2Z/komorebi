@@ -34,6 +34,11 @@
   ],
   "right_widgets": [
     {
+      "Update": {
+        "enable": true
+      }
+    },
+    {
       "Media": {
         "enable": true
       }

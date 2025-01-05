@@ -17,6 +17,8 @@ use crate::storage::Storage;
 use crate::storage::StorageConfig;
 use crate::time::Time;
 use crate::time::TimeConfig;
+use crate::update::Update;
+use crate::update::UpdateConfig;
 use eframe::egui::Context;
 use eframe::egui::Ui;
 use schemars::JsonSchema;
@@ -38,6 +40,7 @@ pub enum WidgetConfig {
     Network(NetworkConfig),
     Storage(StorageConfig),
     Time(TimeConfig),
+    Update(UpdateConfig),
 }
 
 impl WidgetConfig {
@@ -52,6 +55,7 @@ impl WidgetConfig {
             WidgetConfig::Network(config) => Box::new(Network::from(*config)),
             WidgetConfig::Storage(config) => Box::new(Storage::from(*config)),
             WidgetConfig::Time(config) => Box::new(Time::from(config.clone())),
+            WidgetConfig::Update(config) => Box::new(Update::from(*config)),
         }
     }
 
@@ -74,6 +78,7 @@ impl WidgetConfig {
             WidgetConfig::Network(config) => config.enable,
             WidgetConfig::Storage(config) => config.enable,
             WidgetConfig::Time(config) => config.enable,
+            WidgetConfig::Update(config) => config.enable,
         }
     }
 }
