@@ -13,6 +13,7 @@ mod selected_frame;
 mod storage;
 mod time;
 mod ui;
+mod update;
 mod widget;
 
 use crate::bar::Komobar;
