@@ -481,29 +481,25 @@ impl Container {
                     else {
                         // Adjust right edge if needed
                         if new_pos.right > container_rect.right {
-                            let overflow = new_pos.right - container_rect.right;
-                            new_pos.right -= overflow;
+                            new_pos.right = container_rect.right;
                             needs_adjustment = true;
                         }
-                        
+
                         // Adjust left edge if needed
                         if new_pos.left < container_rect.left {
-                            let overflow = container_rect.left - new_pos.left;
-                            new_pos.left += overflow;
+                            new_pos.left = container_rect.left;
                             needs_adjustment = true;
                         }
-                        
+
                         // Adjust bottom edge if needed
                         if new_pos.bottom > container_rect.bottom {
-                            let overflow = new_pos.bottom - container_rect.bottom;
-                            new_pos.bottom -= overflow;
+                            new_pos.bottom = container_rect.bottom;
                             needs_adjustment = true;
                         }
-                        
+
                         // Adjust top edge if needed
                         if new_pos.top < container_rect.top {
-                            let overflow = container_rect.top - new_pos.top;
-                            new_pos.top += overflow;
+                            new_pos.top = container_rect.top;
                             needs_adjustment = true;
                         }
                     }
