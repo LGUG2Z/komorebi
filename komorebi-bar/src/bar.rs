@@ -50,6 +50,7 @@ use std::sync::atomic::Ordering;
 use std::sync::Arc;
 
 pub struct Komobar {
+    pub hwnd: Option<isize>,
     pub config: Arc<KomobarConfig>,
     pub render_config: Rc<RefCell<RenderConfig>>,
     pub komorebi_notification_state: Option<Rc<RefCell<KomorebiNotificationState>>>,
@@ -61,6 +62,7 @@ pub struct Komobar {
     pub bg_color: Rc<RefCell<Color32>>,
     pub bg_color_with_alpha: Rc<RefCell<Color32>>,
     pub scale_factor: f32,
+    pub size_rect: komorebi_client::Rect,
     applied_theme_on_first_frame: bool,
 }
 
@@ -194,49 +196,9 @@ impl Komobar {
             Self::add_custom_font(ctx, font_family);
         }
 
-        let position = config.position.clone().unwrap_or(PositionConfig {
-            start: Some(Position {
-                x: MONITOR_LEFT.load(Ordering::SeqCst) as f32,
-                y: MONITOR_TOP.load(Ordering::SeqCst) as f32,
-            }),
-            end: Some(Position {
-                x: MONITOR_RIGHT.load(Ordering::SeqCst) as f32,
-                y: BAR_HEIGHT,
-            }),
-        });
-
-        if let Some(hwnd) = process_hwnd() {
-            let start = position.start.unwrap_or(Position {
-                x: MONITOR_LEFT.load(Ordering::SeqCst) as f32,
-                y: MONITOR_TOP.load(Ordering::SeqCst) as f32,
-            });
-
-            let end = position.end.unwrap_or(Position {
-                x: MONITOR_RIGHT.load(Ordering::SeqCst) as f32,
-                y: BAR_HEIGHT,
-            });
-
-            if end.y == 0.0 {
-                tracing::warn!("position.end.y is set to 0.0 which will make your bar invisible on a config reload - this is usually set to 50.0 by default")
-            }
-
-            let rect = komorebi_client::Rect {
-                left: start.x as i32,
-                top: start.y as i32,
-                right: end.x as i32,
-                bottom: end.y as i32,
-            };
-
-            let window = komorebi_client::Window::from(hwnd);
-            match window.set_position(&rect, false) {
-                Ok(_) => {
-                    tracing::info!("updated bar position");
-                }
-                Err(error) => {
-                    tracing::error!("{}", error.to_string())
-                }
-            }
-        }
+        // Update the `size_rect` so that the bar position can be changed on the EGUI update
+        // function
+        self.update_size_rect(config.position.clone());
 
         self.try_apply_theme(config, ctx);
 
@@ -361,6 +323,41 @@ impl Komobar {
         self.config = config.clone().into();
     }
 
+    /// Updates the `size_rect` field. Returns a bool indicating if the field was changed or not
+    fn update_size_rect(&mut self, position: Option<PositionConfig>) {
+        let position = position.unwrap_or(PositionConfig {
+            start: Some(Position {
+                x: MONITOR_LEFT.load(Ordering::SeqCst) as f32,
+                y: MONITOR_TOP.load(Ordering::SeqCst) as f32,
+            }),
+            end: Some(Position {
+                x: MONITOR_RIGHT.load(Ordering::SeqCst) as f32,
+                y: BAR_HEIGHT,
+            }),
+        });
+
+        let start = position.start.unwrap_or(Position {
+            x: MONITOR_LEFT.load(Ordering::SeqCst) as f32,
+            y: MONITOR_TOP.load(Ordering::SeqCst) as f32,
+        });
+
+        let end = position.end.unwrap_or(Position {
+            x: MONITOR_RIGHT.load(Ordering::SeqCst) as f32,
+            y: BAR_HEIGHT,
+        });
+
+        if end.y == 0.0 {
+            tracing::warn!("position.end.y is set to 0.0 which will make your bar invisible on a config reload - this is usually set to 50.0 by default")
+        }
+
+        self.size_rect = komorebi_client::Rect {
+            left: start.x as i32,
+            top: start.y as i32,
+            right: end.x as i32,
+            bottom: end.y as i32,
+        };
+    }
+
     fn try_apply_theme(&mut self, config: &KomobarConfig, ctx: &Context) {
         match config.theme {
             Some(theme) => {
@@ -454,6 +451,7 @@ impl Komobar {
         config: Arc<KomobarConfig>,
     ) -> Self {
         let mut komobar = Self {
+            hwnd: process_hwnd(),
             config: config.clone(),
             render_config: Rc::new(RefCell::new(RenderConfig::new())),
             komorebi_notification_state: None,
@@ -465,6 +463,7 @@ impl Komobar {
             bg_color: Rc::new(RefCell::new(Style::default().visuals.panel_fill)),
             bg_color_with_alpha: Rc::new(RefCell::new(Style::default().visuals.panel_fill)),
             scale_factor: cc.egui_ctx.native_pixels_per_point().unwrap_or(1.0),
+            size_rect: komorebi_client::Rect::default(),
             applied_theme_on_first_frame: false,
         };
 
@@ -535,6 +534,10 @@ impl eframe::App for Komobar {
     }
 
     fn update(&mut self, ctx: &Context, _frame: &mut eframe::Frame) {
+        if self.hwnd.is_none() {
+            self.hwnd = process_hwnd();
+        }
+
         if self.scale_factor != ctx.native_pixels_per_point().unwrap_or(1.0) {
             self.scale_factor = ctx.native_pixels_per_point().unwrap_or(1.0);
             self.apply_config(
@@ -571,6 +574,31 @@ impl eframe::App for Komobar {
         if !self.applied_theme_on_first_frame {
             self.try_apply_theme(&self.config.clone(), ctx);
             self.applied_theme_on_first_frame = true;
+        }
+
+        // Check if egui's Window size is the expected one, if not, update it
+        if let Some(current_rect) = ctx.input(|i| i.viewport().outer_rect) {
+            // Get the correct size according to scale factor
+            let current_rect = komorebi_client::Rect {
+                left: (current_rect.min.x * self.scale_factor) as i32,
+                top: (current_rect.min.y * self.scale_factor) as i32,
+                right: ((current_rect.max.x - current_rect.min.x) * self.scale_factor) as i32,
+                bottom: ((current_rect.max.y - current_rect.min.y) * self.scale_factor) as i32,
+            };
+
+            if self.size_rect != current_rect {
+                if let Some(hwnd) = self.hwnd {
+                    let window = komorebi_client::Window::from(hwnd);
+                    match window.set_position(&self.size_rect, false) {
+                        Ok(_) => {
+                            tracing::info!("updated bar position");
+                        }
+                        Err(error) => {
+                            tracing::error!("{}", error.to_string())
+                        }
+                    }
+                }
+            }
         }
 
         let frame = if let Some(frame) = &self.config.frame {
