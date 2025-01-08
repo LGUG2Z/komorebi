@@ -465,7 +465,7 @@ impl Container {
                     // Adjust right edge if needed
                     if (new_pos.left + window_width) > (container_rect.left + container_width) {
                         let new_width = (container_rect.left + container_width) - new_pos.left;
-                        
+
                         // Always adjust the right edge to container boundary
                         new_pos.right = container_width - (new_pos.left - container_rect.left);
                         needs_adjustment = true;
@@ -481,7 +481,7 @@ impl Container {
                     // Adjust left edge if needed
                     if new_pos.left < container_rect.left {
                         let new_width = window_width + (new_pos.left - container_rect.left);
-                        
+
                         // Always adjust the left edge to container boundary
                         new_pos.left = container_rect.left;
                         new_pos.right = new_width;
@@ -498,7 +498,7 @@ impl Container {
                     // Adjust bottom edge if needed
                     if (new_pos.top + window_height) > (container_rect.top + container_height) {
                         let new_height = (container_rect.top + container_height) - new_pos.top;
-                        
+
                         // Always adjust the bottom edge to container boundary
                         new_pos.bottom = container_height - (new_pos.top - container_rect.top);
                         needs_adjustment = true;
@@ -514,7 +514,7 @@ impl Container {
                     // Adjust top edge if needed
                     if new_pos.top < container_rect.top {
                         let new_height = window_height + (new_pos.top - container_rect.top);
-                        
+
                         // Always adjust the top edge to container boundary
                         new_pos.top = container_rect.top;
                         new_pos.bottom = new_height;
