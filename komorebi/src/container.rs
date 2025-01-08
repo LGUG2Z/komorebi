@@ -466,14 +466,14 @@ impl Container {
                     if (new_pos.left + window_width) > (container_rect.left + container_width) {
                         let new_width = (container_rect.left + container_width) - new_pos.left;
                         
-                        // Always adjust the right edge
-                        new_pos.right = new_width;
+                        // Always adjust the right edge to container boundary
+                        new_pos.right = container_width - (new_pos.left - container_rect.left);
                         needs_adjustment = true;
 
                         // Special handling if new width would be smaller than minimum
                         if new_width < min_width {
-                            // Move left edge to center and set width to half container
-                            new_pos.left = container_rect.left + (container_width - min_width) / 2;
+                            // Move left edge to center while keeping right edge at container boundary
+                            new_pos.left = container_rect.left + container_width - min_width;
                             new_pos.right = min_width;
                         }
                     }
@@ -482,16 +482,16 @@ impl Container {
                     if new_pos.left < container_rect.left {
                         let new_width = window_width + (new_pos.left - container_rect.left);
                         
-                        // Always adjust the left edge
+                        // Always adjust the left edge to container boundary
                         new_pos.left = container_rect.left;
                         new_pos.right = new_width;
                         needs_adjustment = true;
 
                         // Special handling if new width would be smaller than minimum
                         if new_width < min_width {
-                            // Move right edge to center and set width to half container
-                            new_pos.left = container_rect.left + (container_width - min_width) / 2;
+                            // Move right edge to center while keeping left edge at container boundary
                             new_pos.right = min_width;
+                            new_pos.left = container_rect.left;
                         }
                     }
 
@@ -499,14 +499,14 @@ impl Container {
                     if (new_pos.top + window_height) > (container_rect.top + container_height) {
                         let new_height = (container_rect.top + container_height) - new_pos.top;
                         
-                        // Always adjust the bottom edge
-                        new_pos.bottom = new_height;
+                        // Always adjust the bottom edge to container boundary
+                        new_pos.bottom = container_height - (new_pos.top - container_rect.top);
                         needs_adjustment = true;
 
                         // Special handling if new height would be smaller than minimum
                         if new_height < min_height {
-                            // Move top edge to center and set height to half container
-                            new_pos.top = container_rect.top + (container_height - min_height) / 2;
+                            // Move top edge to center while keeping bottom edge at container boundary
+                            new_pos.top = container_rect.top + container_height - min_height;
                             new_pos.bottom = min_height;
                         }
                     }
@@ -515,16 +515,16 @@ impl Container {
                     if new_pos.top < container_rect.top {
                         let new_height = window_height + (new_pos.top - container_rect.top);
                         
-                        // Always adjust the top edge
+                        // Always adjust the top edge to container boundary
                         new_pos.top = container_rect.top;
                         new_pos.bottom = new_height;
                         needs_adjustment = true;
 
                         // Special handling if new height would be smaller than minimum
                         if new_height < min_height {
-                            // Move bottom edge to center and set height to half container
-                            new_pos.top = container_rect.top + (container_height - min_height) / 2;
+                            // Move bottom edge to center while keeping top edge at container boundary
                             new_pos.bottom = min_height;
+                            new_pos.top = container_rect.top;
                         }
                     }
 
