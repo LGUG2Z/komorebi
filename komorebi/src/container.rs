@@ -446,101 +446,88 @@ impl Container {
         // Handle non-tiling mode
         if !*self.tile() {
             for window in self.windows() {
-                // Get current window position using WindowsApi
                 if let Ok(current_pos) = WindowsApi::window_rect(window.hwnd) {
                     let mut new_pos = current_pos;
                     let mut needs_adjustment = false;
-
-                    // Calculate window dimensions (right and bottom are width/height)
-                    let window_width = new_pos.right;
-                    let window_height = new_pos.bottom;
 
                     // Calculate container dimensions (right and bottom are width/height)
                     let container_width = container_rect.right;
                     let container_height = container_rect.bottom;
 
-                    // Case 1: Window is completely outside container
-                    if new_pos.left >= (container_rect.left + container_width) ||  // Completely to the right
-                        (new_pos.left + window_width) <= container_rect.left ||    // Completely to the left
-                        new_pos.top >= (container_rect.top + container_height) ||  // Completely below
-                        (new_pos.top + window_height) <= container_rect.top        // Completely above
-                    {
-                        // First, ensure window doesn't exceed container dimensions
-                        let new_width = window_width.min(container_width);
-                        let new_height = window_height.min(container_height);
+                    // Set minimum sizes to half of container dimensions
+                    let min_width = container_width / 2;
+                    let min_height = container_height / 2;
 
-                        // Center the window within container
-                        new_pos.left = container_rect.left + (container_width - new_width) / 2;
-                        new_pos.top = container_rect.top + (container_height - new_height) / 2;
+                    // Calculate window dimensions (right and bottom are width/height)
+                    let window_width = new_pos.right;
+                    let window_height = new_pos.bottom;
+
+                    // Adjust right edge if needed
+                    if (new_pos.left + window_width) > (container_rect.left + container_width) {
+                        let new_width = (container_rect.left + container_width) - new_pos.left;
+                        
+                        // Always adjust the right edge
                         new_pos.right = new_width;
-                        new_pos.bottom = new_height;
-
                         needs_adjustment = true;
-                    }
-                    // Case 2: Window is partially outside container
-                    else {
-                        // Calculate minimum dimensions based on half of current size
-                        let min_width = window_width / 2;
-                        let min_height = window_height / 2;
 
-                        // Adjust right edge if needed
-                        if (new_pos.left + window_width) > (container_rect.left + container_width) {
-                            new_pos.right = (container_rect.left + container_width) - new_pos.left;
-
-                            // Check if new width would be too small
-                            if new_pos.right < min_width {
-                                // Move left edge to maintain minimum width
-                                new_pos.left = (container_rect.left + container_width) - min_width;
-                                new_pos.right = min_width;
-                            }
-
-                            needs_adjustment = true;
-                        }
-
-                        // Adjust left edge if needed
-                        if new_pos.left < container_rect.left {
-                            new_pos.left = container_rect.left;
-                            new_pos.right = window_width.min(container_width);
-
-                            // Check if new width would be too small
-                            if new_pos.right < min_width {
-                                // Move right edge to maintain minimum width
-                                new_pos.right = min_width;
-                            }
-
-                            needs_adjustment = true;
-                        }
-
-                        // Adjust bottom edge if needed
-                        if (new_pos.top + window_height) > (container_rect.top + container_height) {
-                            new_pos.bottom = (container_rect.top + container_height) - new_pos.top;
-
-                            // Check if new height would be too small
-                            if new_pos.bottom < min_height {
-                                // Move top edge to maintain minimum height
-                                new_pos.top = (container_rect.top + container_height) - min_height;
-                                new_pos.bottom = min_height;
-                            }
-
-                            needs_adjustment = true;
-                        }
-
-                        // Adjust top edge if needed
-                        if new_pos.top < container_rect.top {
-                            new_pos.top = container_rect.top;
-                            new_pos.bottom = window_height.min(container_height);
-
-                            // Check if new height would be too small
-                            if new_pos.bottom < min_height {
-                                // Move bottom edge to maintain minimum height
-                                new_pos.bottom = min_height;
-                            }
-
-                            needs_adjustment = true;
+                        // Special handling if new width would be smaller than minimum
+                        if new_width < min_width {
+                            // Move left edge to center and set width to half container
+                            new_pos.left = container_rect.left + (container_width - min_width) / 2;
+                            new_pos.right = min_width;
                         }
                     }
 
-                    // Only update position if adjustment was needed
+                    // Adjust left edge if needed
+                    if new_pos.left < container_rect.left {
+                        let new_width = window_width + (new_pos.left - container_rect.left);
+                        
+                        // Always adjust the left edge
+                        new_pos.left = container_rect.left;
+                        new_pos.right = new_width;
+                        needs_adjustment = true;
+
+                        // Special handling if new width would be smaller than minimum
+                        if new_width < min_width {
+                            // Move right edge to center and set width to half container
+                            new_pos.left = container_rect.left + (container_width - min_width) / 2;
+                            new_pos.right = min_width;
+                        }
+                    }
+
+                    // Adjust bottom edge if needed
+                    if (new_pos.top + window_height) > (container_rect.top + container_height) {
+                        let new_height = (container_rect.top + container_height) - new_pos.top;
+                        
+                        // Always adjust the bottom edge
+                        new_pos.bottom = new_height;
+                        needs_adjustment = true;
+
+                        // Special handling if new height would be smaller than minimum
+                        if new_height < min_height {
+                            // Move top edge to center and set height to half container
+                            new_pos.top = container_rect.top + (container_height - min_height) / 2;
+                            new_pos.bottom = min_height;
+                        }
+                    }
+
+                    // Adjust top edge if needed
+                    if new_pos.top < container_rect.top {
+                        let new_height = window_height + (new_pos.top - container_rect.top);
+                        
+                        // Always adjust the top edge
+                        new_pos.top = container_rect.top;
+                        new_pos.bottom = new_height;
+                        needs_adjustment = true;
+
+                        // Special handling if new height would be smaller than minimum
+                        if new_height < min_height {
+                            // Move bottom edge to center and set height to half container
+                            new_pos.top = container_rect.top + (container_height - min_height) / 2;
+                            new_pos.bottom = min_height;
+                        }
+                    }
+
                     if needs_adjustment {
                         window.set_position(&new_pos, false)?;
                     }
