@@ -2100,7 +2100,7 @@ fn main() -> Result<()> {
             };
 
             let mut system = sysinfo::System::new_all();
-            system.refresh_processes(ProcessesToUpdate::All);
+            system.refresh_processes(ProcessesToUpdate::All, true);
 
             let mut attempts = 0;
             let mut running = system
@@ -2121,7 +2121,7 @@ fn main() -> Result<()> {
                 print!("Waiting for komorebi.exe to start...");
                 std::thread::sleep(Duration::from_secs(3));
 
-                system.refresh_processes(ProcessesToUpdate::All);
+                system.refresh_processes(ProcessesToUpdate::All, true);
 
                 if system
                     .processes_by_name("komorebi.exe".as_ref())
@@ -2399,7 +2399,7 @@ if (Get-Command Get-CimInstance -ErrorAction SilentlyContinue) {
                 send_message(&SocketMessage::Stop)?;
             }
             let mut system = sysinfo::System::new_all();
-            system.refresh_processes(ProcessesToUpdate::All);
+            system.refresh_processes(ProcessesToUpdate::All, true);
 
             if system.processes_by_name("komorebi.exe".as_ref()).count() >= 1 {
                 println!("komorebi is still running, attempting to force-quit");

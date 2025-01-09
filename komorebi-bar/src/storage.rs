@@ -50,7 +50,7 @@ impl Storage {
     fn output(&mut self) -> Vec<String> {
         let now = Instant::now();
         if now.duration_since(self.last_updated) > Duration::from_secs(self.data_refresh_interval) {
-            self.disks.refresh();
+            self.disks.refresh(true);
             self.last_updated = now;
         }
 
