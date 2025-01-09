@@ -534,159 +534,167 @@ impl WindowManager {
                 if (*workspace.tile() && workspace.contains_managed_window(window.hwnd))
                     || moved_across_monitors
                 {
-                    let resize = Rect {
-                        left: new_position.left - old_position.left,
-                        top: new_position.top - old_position.top,
-                        right: new_position.right - old_position.right,
-                        bottom: new_position.bottom - old_position.bottom,
-                    };
+                    let container = workspace
+                        .focused_container()
+                        .ok_or_else(|| anyhow!("there is no focused container"))?;
 
-                    // If we have moved across the monitors, use that override, otherwise determine
-                    // if a move has taken place by ruling out a resize
-                    let right_bottom_constant = 0;
+                    if *container.tile() {
+                        let resize = Rect {
+                            left: new_position.left - old_position.left,
+                            top: new_position.top - old_position.top,
+                            right: new_position.right - old_position.right,
+                            bottom: new_position.bottom - old_position.bottom,
+                        };
 
-                    let is_move = moved_across_monitors
-                        || resize.right.abs() == right_bottom_constant
+                        // If we have moved across the monitors, use that override, otherwise determine
+                        // if a move has taken place by ruling out a resize
+                        let right_bottom_constant = 0;
+
+                        let is_move = moved_across_monitors
+                            || resize.right.abs() == right_bottom_constant
                             && resize.bottom.abs() == right_bottom_constant;
 
-                    if is_move {
-                        tracing::info!("moving with mouse");
+                        if is_move {
+                            tracing::info!("moving with mouse");
 
-                        if moved_across_monitors {
-                            if let Some((origin_monitor_idx, origin_workspace_idx, w_hwnd)) =
-                                pending
-                            {
-                                let target_workspace_idx = self
-                                    .monitors()
-                                    .get(target_monitor_idx)
-                                    .ok_or_else(|| anyhow!("there is no monitor at this idx"))?
-                                    .focused_workspace_idx();
+                            if moved_across_monitors {
+                                if let Some((origin_monitor_idx, origin_workspace_idx, w_hwnd)) =
+                                    pending
+                                {
+                                    let target_workspace_idx = self
+                                        .monitors()
+                                        .get(target_monitor_idx)
+                                        .ok_or_else(|| anyhow!("there is no monitor at this idx"))?
+                                        .focused_workspace_idx();
 
-                                let target_container_idx = self
-                                    .monitors()
-                                    .get(target_monitor_idx)
-                                    .ok_or_else(|| anyhow!("there is no monitor at this idx"))?
-                                    .focused_workspace()
-                                    .ok_or_else(|| {
-                                        anyhow!("there is no focused workspace for this monitor")
-                                    })?
-                                    .container_idx_from_current_point()
-                                    // Default to 0 in the case of an empty workspace
-                                    .unwrap_or(0);
+                                    let target_container_idx = self
+                                        .monitors()
+                                        .get(target_monitor_idx)
+                                        .ok_or_else(|| anyhow!("there is no monitor at this idx"))?
+                                        .focused_workspace()
+                                        .ok_or_else(|| {
+                                            anyhow!("there is no focused workspace for this monitor")
+                                        })?
+                                        .container_idx_from_current_point()
+                                        // Default to 0 in the case of an empty workspace
+                                        .unwrap_or(0);
 
-                                let origin = (origin_monitor_idx, origin_workspace_idx, w_hwnd);
-                                let target = (
-                                    target_monitor_idx,
-                                    target_workspace_idx,
-                                    target_container_idx,
-                                );
-                                self.transfer_window(origin, target)?;
+                                    let origin = (origin_monitor_idx, origin_workspace_idx, w_hwnd);
+                                    let target = (
+                                        target_monitor_idx,
+                                        target_workspace_idx,
+                                        target_container_idx,
+                                    );
+                                    self.transfer_window(origin, target)?;
 
-                                // We want to make sure both the origin and target monitors are updated,
-                                // so that we don't have ghost tiles until we force an interaction on
-                                // the origin monitor's focused workspace
-                                self.focus_monitor(origin_monitor_idx)?;
-                                let origin_monitor = self
-                                    .monitors_mut()
-                                    .get_mut(origin_monitor_idx)
-                                    .ok_or_else(|| anyhow!("there is no monitor at this idx"))?;
-                                origin_monitor.focus_workspace(origin_workspace_idx)?;
+                                    // We want to make sure both the origin and target monitors are updated,
+                                    // so that we don't have ghost tiles until we force an interaction on
+                                    // the origin monitor's focused workspace
+                                    self.focus_monitor(origin_monitor_idx)?;
+                                    let origin_monitor = self
+                                        .monitors_mut()
+                                        .get_mut(origin_monitor_idx)
+                                        .ok_or_else(|| anyhow!("there is no monitor at this idx"))?;
+                                    origin_monitor.focus_workspace(origin_workspace_idx)?;
+                                    self.update_focused_workspace(false, false)?;
+
+                                    self.focus_monitor(target_monitor_idx)?;
+                                    let target_monitor = self
+                                        .monitors_mut()
+                                        .get_mut(target_monitor_idx)
+                                        .ok_or_else(|| anyhow!("there is no monitor at this idx"))?;
+                                    target_monitor.focus_workspace(target_workspace_idx)?;
+                                    self.update_focused_workspace(false, false)?;
+
+                                    // Make sure to give focus to the moved window again
+                                    window.focus(self.mouse_follows_focus)?;
+                                }
+                            } else if window_management_behaviour.float_override {
+                                workspace.floating_windows_mut().push(window);
                                 self.update_focused_workspace(false, false)?;
+                            } else {
+                                match window_management_behaviour.current_behaviour {
+                                    WindowContainerBehaviour::Create => {
+                                        match workspace.container_idx_from_current_point() {
+                                            Some(target_idx) => {
+                                                workspace
+                                                    .swap_containers(focused_container_idx, target_idx);
+                                                self.update_focused_workspace(false, false)?;
+                                            }
+                                            None => {
+                                                self.update_focused_workspace(
+                                                    self.mouse_follows_focus,
+                                                    false,
+                                                )?;
+                                            }
+                                        }
+                                    }
+                                    WindowContainerBehaviour::Append => {
+                                        match workspace.container_idx_from_current_point() {
+                                            Some(target_idx) => {
+                                                workspace.move_window_to_container(target_idx)?;
+                                                self.update_focused_workspace(false, false)?;
+                                            }
+                                            None => {
+                                                self.update_focused_workspace(
+                                                    self.mouse_follows_focus,
+                                                    false,
+                                                )?;
+                                            }
+                                        }
 
-                                self.focus_monitor(target_monitor_idx)?;
-                                let target_monitor = self
-                                    .monitors_mut()
-                                    .get_mut(target_monitor_idx)
-                                    .ok_or_else(|| anyhow!("there is no monitor at this idx"))?;
-                                target_monitor.focus_workspace(target_workspace_idx)?;
-                                self.update_focused_workspace(false, false)?;
-
-                                // Make sure to give focus to the moved window again
-                                window.focus(self.mouse_follows_focus)?;
+                                        stackbar_manager::send_notification();
+                                    }
+                                }
                             }
-                        } else if window_management_behaviour.float_override {
-                            workspace.floating_windows_mut().push(window);
-                            self.update_focused_workspace(false, false)?;
                         } else {
-                            match window_management_behaviour.current_behaviour {
-                                WindowContainerBehaviour::Create => {
-                                    match workspace.container_idx_from_current_point() {
-                                        Some(target_idx) => {
-                                            workspace
-                                                .swap_containers(focused_container_idx, target_idx);
-                                            self.update_focused_workspace(false, false)?;
-                                        }
-                                        None => {
-                                            self.update_focused_workspace(
-                                                self.mouse_follows_focus,
-                                                false,
-                                            )?;
-                                        }
-                                    }
-                                }
-                                WindowContainerBehaviour::Append => {
-                                    match workspace.container_idx_from_current_point() {
-                                        Some(target_idx) => {
-                                            workspace.move_window_to_container(target_idx)?;
-                                            self.update_focused_workspace(false, false)?;
-                                        }
-                                        None => {
-                                            self.update_focused_workspace(
-                                                self.mouse_follows_focus,
-                                                false,
-                                            )?;
-                                        }
-                                    }
+                            tracing::info!("resizing with mouse");
+                            let mut ops = vec![];
 
-                                    stackbar_manager::send_notification();
-                                }
+                            macro_rules! resize_op {
+                                ($coordinate:expr, $comparator:tt, $direction:expr) => {{
+                                    let adjusted = $coordinate * 2;
+                                    let sizing = if adjusted $comparator 0 {
+                                        Sizing::Decrease
+                                    } else {
+                                        Sizing::Increase
+                                    };
+
+                                    ($direction, sizing, adjusted.abs())
+                                }};
                             }
+
+                            if resize.left != 0 {
+                                ops.push(resize_op!(resize.left, >, OperationDirection::Left));
+                            }
+
+                            if resize.top != 0 {
+                                ops.push(resize_op!(resize.top, >, OperationDirection::Up));
+                            }
+
+                            // TODO: Determine if this is still needed
+                            let top_left_constant = BORDER_WIDTH.load(Ordering::SeqCst)
+                                + BORDER_OFFSET.load(Ordering::SeqCst);
+
+                            if resize.right != 0
+                                && (resize.left == top_left_constant || resize.left == 0)
+                            {
+                                ops.push(resize_op!(resize.right, <, OperationDirection::Right));
+                            }
+
+                            if resize.bottom != 0
+                                && (resize.top == top_left_constant || resize.top == 0)
+                            {
+                                ops.push(resize_op!(resize.bottom, <, OperationDirection::Down));
+                            }
+
+                            for (edge, sizing, delta) in ops {
+                                self.resize_window(edge, sizing, delta, true)?;
+                            }
+
+                            self.update_focused_workspace(false, false)?;
                         }
                     } else {
-                        tracing::info!("resizing with mouse");
-                        let mut ops = vec![];
-
-                        macro_rules! resize_op {
-                            ($coordinate:expr, $comparator:tt, $direction:expr) => {{
-                                let adjusted = $coordinate * 2;
-                                let sizing = if adjusted $comparator 0 {
-                                    Sizing::Decrease
-                                } else {
-                                    Sizing::Increase
-                                };
-
-                                ($direction, sizing, adjusted.abs())
-                            }};
-                        }
-
-                        if resize.left != 0 {
-                            ops.push(resize_op!(resize.left, >, OperationDirection::Left));
-                        }
-
-                        if resize.top != 0 {
-                            ops.push(resize_op!(resize.top, >, OperationDirection::Up));
-                        }
-
-                        // TODO: Determine if this is still needed
-                        let top_left_constant = BORDER_WIDTH.load(Ordering::SeqCst)
-                            + BORDER_OFFSET.load(Ordering::SeqCst);
-
-                        if resize.right != 0
-                            && (resize.left == top_left_constant || resize.left == 0)
-                        {
-                            ops.push(resize_op!(resize.right, <, OperationDirection::Right));
-                        }
-
-                        if resize.bottom != 0
-                            && (resize.top == top_left_constant || resize.top == 0)
-                        {
-                            ops.push(resize_op!(resize.bottom, <, OperationDirection::Down));
-                        }
-
-                        for (edge, sizing, delta) in ops {
-                            self.resize_window(edge, sizing, delta, true)?;
-                        }
-
                         self.update_focused_workspace(false, false)?;
                     }
                 }
