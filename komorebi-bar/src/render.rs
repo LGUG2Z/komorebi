@@ -1,5 +1,6 @@
 use crate::bar::Alignment;
 use crate::config::KomobarConfig;
+use crate::config::MonitorConfigOrIndex;
 use eframe::egui::Color32;
 use eframe::egui::Context;
 use eframe::egui::FontId;
@@ -81,8 +82,13 @@ impl RenderExt for &KomobarConfig {
         let mut icon_font_id = text_font_id.clone();
         icon_font_id.size *= icon_scale.unwrap_or(1.4).clamp(1.0, 2.0);
 
+        let monitor_idx = match &self.monitor {
+            MonitorConfigOrIndex::MonitorConfig(monitor_config) => monitor_config.index,
+            MonitorConfigOrIndex::Index(idx) => *idx,
+        };
+
         RenderConfig {
-            monitor_idx: self.monitor.index,
+            monitor_idx,
             spacing: self.widget_spacing.unwrap_or(10.0),
             grouping: self.grouping.unwrap_or(Grouping::None),
             background_color,

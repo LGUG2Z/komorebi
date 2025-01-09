@@ -21,6 +21,7 @@ use crate::config::KomobarConfig;
 use crate::config::Position;
 use crate::config::PositionConfig;
 use clap::Parser;
+use config::MonitorConfigOrIndex;
 use eframe::egui::ViewportBuilder;
 use font_loader::system_fonts;
 use hotwatch::EventKind;
@@ -57,6 +58,7 @@ pub static MONITOR_TOP: AtomicI32 = AtomicI32::new(0);
 pub static MONITOR_RIGHT: AtomicI32 = AtomicI32::new(0);
 pub static MONITOR_INDEX: AtomicUsize = AtomicUsize::new(0);
 pub static BAR_HEIGHT: f32 = 50.0;
+pub static DEFAULT_PADDING: f32 = 10.0;
 
 pub static ICON_CACHE: LazyLock<Mutex<HashMap<String, RgbaImage>>> =
     LazyLock::new(|| Mutex::new(HashMap::new()));
@@ -230,32 +232,39 @@ fn main() -> color_eyre::Result<()> {
         &SocketMessage::State,
     )?)?;
 
+    let (monitor_index, work_area_offset) = match &config.monitor {
+        MonitorConfigOrIndex::MonitorConfig(monitor_config) => {
+            (monitor_config.index, monitor_config.work_area_offset)
+        }
+        MonitorConfigOrIndex::Index(idx) => (*idx, None),
+    };
+
     MONITOR_RIGHT.store(
-        state.monitors.elements()[config.monitor.index].size().right,
+        state.monitors.elements()[monitor_index].size().right,
         Ordering::SeqCst,
     );
 
     MONITOR_TOP.store(
-        state.monitors.elements()[config.monitor.index].size().top,
+        state.monitors.elements()[monitor_index].size().top,
         Ordering::SeqCst,
     );
 
-    MONITOR_TOP.store(
-        state.monitors.elements()[config.monitor.index].size().left,
+    MONITOR_LEFT.store(
+        state.monitors.elements()[monitor_index].size().left,
         Ordering::SeqCst,
     );
 
-    MONITOR_INDEX.store(config.monitor.index, Ordering::SeqCst);
+    MONITOR_INDEX.store(monitor_index, Ordering::SeqCst);
 
     match config.position {
         None => {
             config.position = Some(PositionConfig {
                 start: Some(Position {
-                    x: state.monitors.elements()[config.monitor.index].size().left as f32,
-                    y: state.monitors.elements()[config.monitor.index].size().top as f32,
+                    x: state.monitors.elements()[monitor_index].size().left as f32,
+                    y: state.monitors.elements()[monitor_index].size().top as f32,
                 }),
                 end: Some(Position {
-                    x: state.monitors.elements()[config.monitor.index].size().right as f32,
+                    x: state.monitors.elements()[monitor_index].size().right as f32,
                     y: 50.0,
                 }),
             })
@@ -263,14 +272,14 @@ fn main() -> color_eyre::Result<()> {
         Some(ref mut position) => {
             if position.start.is_none() {
                 position.start = Some(Position {
-                    x: state.monitors.elements()[config.monitor.index].size().left as f32,
-                    y: state.monitors.elements()[config.monitor.index].size().top as f32,
+                    x: state.monitors.elements()[monitor_index].size().left as f32,
+                    y: state.monitors.elements()[monitor_index].size().top as f32,
                 });
             }
 
             if position.end.is_none() {
                 position.end = Some(Position {
-                    x: state.monitors.elements()[config.monitor.index].size().right as f32,
+                    x: state.monitors.elements()[monitor_index].size().right as f32,
                     y: 50.0,
                 })
             }
@@ -287,15 +296,9 @@ fn main() -> color_eyre::Result<()> {
         ..Default::default()
     };
 
-    if let Some(rect) = &config.monitor.work_area_offset {
-        komorebi_client::send_message(&SocketMessage::MonitorWorkAreaOffset(
-            config.monitor.index,
-            *rect,
-        ))?;
-        tracing::info!(
-            "work area offset applied to monitor: {}",
-            config.monitor.index
-        );
+    if let Some(rect) = &work_area_offset {
+        komorebi_client::send_message(&SocketMessage::MonitorWorkAreaOffset(monitor_index, *rect))?;
+        tracing::info!("work area offset applied to monitor: {}", monitor_index);
     }
 
     let (tx_gui, rx_gui) = crossbeam_channel::unbounded();
@@ -374,10 +377,17 @@ fn main() -> color_eyre::Result<()> {
 
                                 tracing::info!("reconnected to komorebi");
 
-                                if let Some(rect) = &config_cl.monitor.work_area_offset {
+                                let (monitor_index, work_area_offset) = match &config_cl.monitor {
+                                    MonitorConfigOrIndex::MonitorConfig(monitor_config) => {
+                                        (monitor_config.index, monitor_config.work_area_offset)
+                                    }
+                                    MonitorConfigOrIndex::Index(idx) => (*idx, None),
+                                };
+
+                                if let Some(rect) = &work_area_offset {
                                     while komorebi_client::send_message(
                                         &SocketMessage::MonitorWorkAreaOffset(
-                                            config_cl.monitor.index,
+                                            monitor_index,
                                             *rect,
                                         ),
                                     )
