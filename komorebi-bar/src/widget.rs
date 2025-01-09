@@ -65,13 +65,13 @@ impl WidgetConfig {
             WidgetConfig::Cpu(config) => config.enable,
             WidgetConfig::Date(config) => config.enable,
             WidgetConfig::Komorebi(config) => {
-                config.workspaces.as_ref().map_or(false, |w| w.enable)
-                    || config.layout.as_ref().map_or(false, |w| w.enable)
-                    || config.focused_window.as_ref().map_or(false, |w| w.enable)
+                config.workspaces.as_ref().is_some_and(|w| w.enable)
+                    || config.layout.as_ref().is_some_and(|w| w.enable)
+                    || config.focused_window.as_ref().is_some_and(|w| w.enable)
                     || config
                         .configuration_switcher
                         .as_ref()
-                        .map_or(false, |w| w.enable)
+                        .is_some_and(|w| w.enable)
             }
             WidgetConfig::Media(config) => config.enable,
             WidgetConfig::Memory(config) => config.enable,
