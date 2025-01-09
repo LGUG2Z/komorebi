@@ -1,3 +1,5 @@
+use shadow_rs::ShadowBuilder;
+
 fn main() {
     if std::fs::metadata("applications.json").is_err() {
         let applications_json = reqwest::blocking::get(
@@ -6,5 +8,5 @@ fn main() {
         std::fs::write("applications.json", applications_json).unwrap();
     }
 
-    shadow_rs::new().unwrap();
+    ShadowBuilder::builder().build().unwrap();
 }

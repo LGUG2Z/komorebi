@@ -1,3 +1,5 @@
+use shadow_rs::ShadowBuilder;
+
 fn main() {
-    shadow_rs::new().unwrap();
+    ShadowBuilder::builder().build().unwrap();
 }
