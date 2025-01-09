@@ -703,14 +703,6 @@ impl WindowManager {
                                 .ok_or_else(|| anyhow!("there is no monitor at this idx"))?;
                             origin_monitor.focus_workspace(origin_workspace_idx)?;
                             self.update_focused_workspace(false, false)?;
-
-                            self.focus_monitor(target_monitor_idx)?;
-                            let target_monitor = self
-                                .monitors_mut()
-                                .get_mut(target_monitor_idx)
-                                .ok_or_else(|| anyhow!("there is no monitor at this idx"))?;
-                            target_monitor.focus_workspace(target_workspace_idx)?;
-                            self.update_focused_workspace(false, false)?;
                         }
                     } else {
                         self.update_focused_workspace(false, false)?;
