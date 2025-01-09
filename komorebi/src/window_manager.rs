@@ -435,13 +435,22 @@ impl WindowManager {
                     if let Some(state_monitor) = state.monitors.elements().get(monitor_idx) {
                         if let Some(state_workspace) = state_monitor.workspaces().get(workspace_idx)
                         {
+                            // to make sure padding changes get applied for users after a quick restart
+                            let container_padding = workspace.container_padding();
+                            let workspace_padding = workspace.workspace_padding();
+
                             *workspace = state_workspace.clone();
+
+                            workspace.set_container_padding(container_padding);
+                            workspace.set_workspace_padding(workspace_padding);
+
                             if state_monitor.focused_workspace_idx() == workspace_idx {
                                 focused_workspace = workspace_idx;
                             }
                         }
                     }
                 }
+
                 if let Err(error) = monitor.focus_workspace(focused_workspace) {
                     tracing::warn!(
                         "cannot focus workspace '{focused_workspace}' on monitor '{monitor_idx}' from {}: {}",
@@ -449,6 +458,7 @@ impl WindowManager {
                         error,
                     );
                 }
+
                 if let Err(error) = monitor.load_focused_workspace(mouse_follows_focus) {
                     tracing::warn!(
                         "cannot load focused workspace '{focused_workspace}' on monitor '{monitor_idx}' from {}: {}",
@@ -456,6 +466,7 @@ impl WindowManager {
                         error,
                     );
                 }
+
                 if let Err(error) = monitor.update_focused_workspace(offset) {
                     tracing::warn!(
                         "cannot update workspace '{focused_workspace}' on monitor '{monitor_idx}' from {}: {}",
