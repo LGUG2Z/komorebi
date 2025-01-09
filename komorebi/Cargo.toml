@@ -47,7 +47,7 @@ windows-core = { workspace = true }
 windows-implement = { workspace = true }
 windows-interface = { workspace = true }
 winput = "0.2"
-winreg = "0.52"
+winreg = "0.53"
 
 [build-dependencies]
 shadow-rs = { workspace = true }
