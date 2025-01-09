@@ -177,7 +177,7 @@ fn main() -> Result<()> {
     SESSION_ID.store(session_id, Ordering::SeqCst);
 
     let mut system = sysinfo::System::new_all();
-    system.refresh_processes(ProcessesToUpdate::All);
+    system.refresh_processes(ProcessesToUpdate::All, true);
 
     let matched_procs: Vec<&Process> = system.processes_by_name("komorebi.exe".as_ref()).collect();
 
