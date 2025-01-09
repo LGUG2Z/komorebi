@@ -1214,6 +1214,63 @@
         }
       ]
     },
+    "height": {
+      "description": "Bar height (default: 50)",
+      "type": "number",
+      "format": "float"
+    },
+    "horizontal_margin": {
+      "description": "Bar horizontal margin. Use one value for symmetric margin or use `[left, right]` to specify a different margin on each side (default: 0)",
+      "anyOf": [
+        {
+          "description": "A symmetric spacing on some axis (horizontal or vertical), with the same size on both sides",
+          "type": "number",
+          "format": "float"
+        },
+        {
+          "description": "A detailed spacing on some axis (horizontal or vertical), with a size for each side. If an horizontal spacing, then it will be (left, right), if vertical it will be (top, bottom)",
+          "type": "array",
+          "items": [
+            {
+              "type": "number",
+              "format": "float"
+            },
+            {
+              "type": "number",
+              "format": "float"
+            }
+          ],
+          "maxItems": 2,
+          "minItems": 2
+        }
+      ]
+    },
+    "horizontal_padding": {
+      "description": "Bar horizontal padding. Use one value for symmetric padding or use `[left, right]` to specify a different padding on each side (default: 10)",
+      "anyOf": [
+        {
+          "description": "A symmetric spacing on some axis (horizontal or vertical), with the same size on both sides",
+          "type": "number",
+          "format": "float"
+        },
+        {
+          "description": "A detailed spacing on some axis (horizontal or vertical), with a size for each side. If an horizontal spacing, then it will be (left, right), if vertical it will be (top, bottom)",
+          "type": "array",
+          "items": [
+            {
+              "type": "number",
+              "format": "float"
+            },
+            {
+              "type": "number",
+              "format": "float"
+            }
+          ],
+          "maxItems": 2,
+          "minItems": 2
+        }
+      ]
+    },
     "icon_scale": {
       "description": "Scale of the icons relative to the font_size [[1.0-2.0]]. (default: 1.4)",
       "type": "number",
@@ -2090,51 +2147,62 @@
       "format": "float"
     },
     "monitor": {
-      "description": "Monitor options",
-      "type": "object",
-      "required": [
-        "index"
-      ],
-      "properties": {
-        "index": {
-          "description": "Komorebi monitor index of the monitor on which to render the bar",
+      "description": "The monitor index or the full monitor options",
+      "anyOf": [
+        {
+          "description": "The monitor index where you want the bar to show",
           "type": "integer",
           "format": "uint",
           "minimum": 0.0
         },
-        "work_area_offset": {
-          "description": "Automatically apply a work area offset for this monitor to accommodate the bar",
+        {
+          "description": "The full monitor options with the index and an optional work_area_offset",
           "type": "object",
           "required": [
-            "bottom",
-            "left",
-            "right",
-            "top"
+            "index"
           ],
           "properties": {
-            "bottom": {
-              "description": "The bottom point in a Win32 Rect",
+            "index": {
+              "description": "Komorebi monitor index of the monitor on which to render the bar",
               "type": "integer",
-              "format": "int32"
+              "format": "uint",
+              "minimum": 0.0
             },
-            "left": {
-              "description": "The left point in a Win32 Rect",
-              "type": "integer",
-              "format": "int32"
-            },
-            "right": {
-              "description": "The right point in a Win32 Rect",
-              "type": "integer",
-              "format": "int32"
-            },
-            "top": {
-              "description": "The top point in a Win32 Rect",
-              "type": "integer",
-              "format": "int32"
+            "work_area_offset": {
+              "description": "Automatically apply a work area offset for this monitor to accommodate the bar",
+              "type": "object",
+              "required": [
+                "bottom",
+                "left",
+                "right",
+                "top"
+              ],
+              "properties": {
+                "bottom": {
+                  "description": "The bottom point in a Win32 Rect",
+                  "type": "integer",
+                  "format": "int32"
+                },
+                "left": {
+                  "description": "The left point in a Win32 Rect",
+                  "type": "integer",
+                  "format": "int32"
+                },
+                "right": {
+                  "description": "The right point in a Win32 Rect",
+                  "type": "integer",
+                  "format": "int32"
+                },
+                "top": {
+                  "description": "The top point in a Win32 Rect",
+                  "type": "integer",
+                  "format": "int32"
+                }
+              }
             }
           }
         }
-      }
+      ]
     },
     "position": {
       "description": "Bar positioning options",
@@ -3426,6 +3494,58 @@
       "type": "integer",
       "format": "uint8",
       "minimum": 0.0
+    },
+    "vertical_margin": {
+      "description": "Bar vertical margin. Use one value for symmetric margin or use `[top, bottom]` to specify a different margin on each side (default: 0)",
+      "anyOf": [
+        {
+          "description": "A symmetric spacing on some axis (horizontal or vertical), with the same size on both sides",
+          "type": "number",
+          "format": "float"
+        },
+        {
+          "description": "A detailed spacing on some axis (horizontal or vertical), with a size for each side. If an horizontal spacing, then it will be (left, right), if vertical it will be (top, bottom)",
+          "type": "array",
+          "items": [
+            {
+              "type": "number",
+              "format": "float"
+            },
+            {
+              "type": "number",
+              "format": "float"
+            }
+          ],
+          "maxItems": 2,
+          "minItems": 2
+        }
+      ]
+    },
+    "vertical_padding": {
+      "description": "Bar vertical padding. Use one value for symmetric padding or use `[top, bottom]` to specify a different padding on each side (default: 10)",
+      "anyOf": [
+        {
+          "description": "A symmetric spacing on some axis (horizontal or vertical), with the same size on both sides",
+          "type": "number",
+          "format": "float"
+        },
+        {
+          "description": "A detailed spacing on some axis (horizontal or vertical), with a size for each side. If an horizontal spacing, then it will be (left, right), if vertical it will be (top, bottom)",
+          "type": "array",
+          "items": [
+            {
+              "type": "number",
+              "format": "float"
+            },
+            {
+              "type": "number",
+              "format": "float"
+            }
+          ],
+          "maxItems": 2,
+          "minItems": 2
+        }
+      ]
     },
     "widget_spacing": {
       "description": "Spacing between widgets (default: 10.0)",
