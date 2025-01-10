@@ -406,7 +406,7 @@ impl Direction for CustomLayout {
                 }
 
                 let (column_idx, column) = self.column_with_idx(idx);
-                column.map_or(false, |column| match column {
+                column.is_some_and(|column| match column {
                     Column::Secondary(Some(ColumnSplitWithCapacity::Horizontal(_)))
                     | Column::Tertiary(ColumnSplit::Horizontal) => {
                         self.column_for_container_idx(idx - 1) == column_idx
@@ -420,7 +420,7 @@ impl Direction for CustomLayout {
                 }
 
                 let (column_idx, column) = self.column_with_idx(idx);
-                column.map_or(false, |column| match column {
+                column.is_some_and(|column| match column {
                     Column::Secondary(Some(ColumnSplitWithCapacity::Horizontal(_)))
                     | Column::Tertiary(ColumnSplit::Horizontal) => {
                         self.column_for_container_idx(idx + 1) == column_idx

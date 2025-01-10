@@ -36,6 +36,10 @@
                     "description": "Enable the Battery widget",
                     "type": "boolean"
                   },
+                  "hide_on_full_charge": {
+                    "description": "Hide the widget if the battery is at full charge",
+                    "type": "boolean"
+                  },
                   "label_prefix": {
                     "description": "Display label prefix",
                     "oneOf": [
@@ -1214,6 +1218,10 @@
                     "description": "Enable the Battery widget",
                     "type": "boolean"
                   },
+                  "hide_on_full_charge": {
+                    "description": "Hide the widget if the battery is at full charge",
+                    "type": "boolean"
+                  },
                   "label_prefix": {
                     "description": "Display label prefix",
                     "oneOf": [
@@ -2143,6 +2151,10 @@
                   },
                   "enable": {
                     "description": "Enable the Battery widget",
+                    "type": "boolean"
+                  },
+                  "hide_on_full_charge": {
+                    "description": "Hide the widget if the battery is at full charge",
                     "type": "boolean"
                   },
                   "label_prefix": {

@@ -1,11 +1,11 @@
 use crate::config::LabelPrefix;
 use crate::render::RenderConfig;
+use crate::selected_frame::SelectableFrame;
 use crate::widget::BarWidget;
 use eframe::egui::text::LayoutJob;
 use eframe::egui::Align;
 use eframe::egui::Context;
 use eframe::egui::Label;
-use eframe::egui::Sense;
 use eframe::egui::TextFormat;
 use eframe::egui::Ui;
 use schemars::JsonSchema;
@@ -14,6 +14,7 @@ use serde::Serialize;
 use starship_battery::units::ratio::percent;
 use starship_battery::Manager;
 use starship_battery::State;
+use std::process::Command;
 use std::time::Duration;
 use std::time::Instant;
 
@@ -21,6 +22,8 @@ use std::time::Instant;
 pub struct BatteryConfig {
     /// Enable the Battery widget
     pub enable: bool,
+    /// Hide the widget if the battery is at full charge
+    pub hide_on_full_charge: Option<bool>,
     /// Data refresh interval (default: 10 seconds)
     pub data_refresh_interval: Option<u64>,
     /// Display label prefix
@@ -33,6 +36,7 @@ impl From<BatteryConfig> for Battery {
 
         Self {
             enable: value.enable,
+            hide_on_full_charge: value.hide_on_full_charge.unwrap_or(false),
             manager: Manager::new().unwrap(),
             last_state: String::new(),
             data_refresh_interval,
@@ -52,6 +56,7 @@ pub enum BatteryState {
 
 pub struct Battery {
     pub enable: bool,
+    hide_on_full_charge: bool,
     manager: Manager,
     pub state: BatteryState,
     data_refresh_interval: u64,
@@ -71,17 +76,22 @@ impl Battery {
             if let Ok(mut batteries) = self.manager.batteries() {
                 if let Some(Ok(first)) = batteries.nth(0) {
                     let percentage = first.state_of_charge().get::<percent>();
-                    match first.state() {
-                        State::Charging => self.state = BatteryState::Charging,
-                        State::Discharging => self.state = BatteryState::Discharging,
-                        _ => {}
-                    }
 
-                    output = match self.label_prefix {
-                        LabelPrefix::Text | LabelPrefix::IconAndText => {
-                            format!("BAT: {percentage:.0}%")
+                    if percentage == 100.0 && self.hide_on_full_charge {
+                        output = String::new()
+                    } else {
+                        match first.state() {
+                            State::Charging => self.state = BatteryState::Charging,
+                            State::Discharging => self.state = BatteryState::Discharging,
+                            _ => {}
                         }
-                        LabelPrefix::None | LabelPrefix::Icon => format!("{percentage:.0}%"),
+
+                        output = match self.label_prefix {
+                            LabelPrefix::Text | LabelPrefix::IconAndText => {
+                                format!("BAT: {percentage:.0}%")
+                            }
+                            LabelPrefix::None | LabelPrefix::Icon => format!("{percentage:.0}%"),
+                        }
                     }
                 }
             }
@@ -125,12 +135,18 @@ impl BarWidget for Battery {
                     },
                 );
 
-                config.apply_on_widget(true, ui, |ui| {
-                    ui.add(
-                        Label::new(layout_job)
-                            .selectable(false)
-                            .sense(Sense::click()),
-                    );
+                config.apply_on_widget(false, ui, |ui| {
+                    if SelectableFrame::new(false)
+                        .show(ui, |ui| ui.add(Label::new(layout_job).selectable(false)))
+                        .clicked()
+                    {
+                        if let Err(error) = Command::new("cmd.exe")
+                            .args(["/C", "start", "ms-settings:batterysaver"])
+                            .spawn()
+                        {
+                            eprintln!("{}", error)
+                        }
+                    }
                 });
             }
         }
