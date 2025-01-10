@@ -269,7 +269,7 @@ impl Komobar {
                                 Some(widget.komorebi_notification_state.clone());
                         }
                         Some(ref previous) => {
-                            if widget.workspaces.map_or(false, |w| w.enable) {
+                            if widget.workspaces.is_some_and(|w| w.enable) {
                                 previous.borrow_mut().update_from_config(
                                     &widget.komorebi_notification_state.borrow(),
                                 );
