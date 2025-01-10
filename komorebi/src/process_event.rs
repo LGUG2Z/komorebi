@@ -552,7 +552,7 @@ impl WindowManager {
 
                         let is_move = moved_across_monitors
                             || resize.right.abs() == right_bottom_constant
-                            && resize.bottom.abs() == right_bottom_constant;
+                                && resize.bottom.abs() == right_bottom_constant;
 
                         if is_move {
                             tracing::info!("moving with mouse");
@@ -573,7 +573,9 @@ impl WindowManager {
                                         .ok_or_else(|| anyhow!("there is no monitor at this idx"))?
                                         .focused_workspace()
                                         .ok_or_else(|| {
-                                            anyhow!("there is no focused workspace for this monitor")
+                                            anyhow!(
+                                                "there is no focused workspace for this monitor"
+                                            )
                                         })?
                                         .container_idx_from_current_point()
                                         // Default to 0 in the case of an empty workspace
@@ -594,7 +596,9 @@ impl WindowManager {
                                     let origin_monitor = self
                                         .monitors_mut()
                                         .get_mut(origin_monitor_idx)
-                                        .ok_or_else(|| anyhow!("there is no monitor at this idx"))?;
+                                        .ok_or_else(|| {
+                                            anyhow!("there is no monitor at this idx")
+                                        })?;
                                     origin_monitor.focus_workspace(origin_workspace_idx)?;
                                     self.update_focused_workspace(false, false)?;
 
@@ -602,7 +606,9 @@ impl WindowManager {
                                     let target_monitor = self
                                         .monitors_mut()
                                         .get_mut(target_monitor_idx)
-                                        .ok_or_else(|| anyhow!("there is no monitor at this idx"))?;
+                                        .ok_or_else(|| {
+                                            anyhow!("there is no monitor at this idx")
+                                        })?;
                                     target_monitor.focus_workspace(target_workspace_idx)?;
                                     self.update_focused_workspace(false, false)?;
 
@@ -617,8 +623,10 @@ impl WindowManager {
                                     WindowContainerBehaviour::Create => {
                                         match workspace.container_idx_from_current_point() {
                                             Some(target_idx) => {
-                                                workspace
-                                                    .swap_containers(focused_container_idx, target_idx);
+                                                workspace.swap_containers(
+                                                    focused_container_idx,
+                                                    target_idx,
+                                                );
                                                 self.update_focused_workspace(false, false)?;
                                             }
                                             None => {
