@@ -1,3 +1,4 @@
+use crate::bar::Alignment;
 use crate::config::LabelPrefix;
 use crate::render::RenderConfig;
 use crate::selected_frame::SelectableFrame;
@@ -296,29 +297,41 @@ impl BarWidget for Time {
                 }
 
                 let font_id = config.icon_font_id.clone();
+                let is_reversed = matches!(config.alignment, Some(Alignment::Right));
 
                 config.apply_on_widget(false, ui, |ui| {
                     if SelectableFrame::new(false)
                         .show(ui, |ui| {
-                            ui.add(Label::new(layout_job).selectable(false));
+                            if !is_reversed {
+                                ui.add(Label::new(layout_job.clone()).selectable(false));
+                            }
 
                             if use_binary_circle || use_binary_rectangle {
-                                for (section_index, section) in output.split(':').enumerate() {
+                                let ordered_output = if is_reversed {
+                                    output.chars().rev().collect()
+                                } else {
+                                    output
+                                };
+
+                                for (section_index, section) in
+                                    ordered_output.split(':').enumerate()
+                                {
                                     ui.scope(|ui| {
                                         ui.spacing_mut().item_spacing = Vec2::splat(2.0);
                                         for (number_index, number_char) in
                                             section.chars().enumerate()
                                         {
                                             if let Some(number) = number_char.to_digit(10) {
-                                                // the hour is the second char in the first section
-                                                let max_power =
-                                                    if section_index == 0 && number_index == 1 {
-                                                        2
-                                                    } else if number_index == 0 {
-                                                        3
-                                                    } else {
-                                                        4
-                                                    };
+                                                // the hour is the second char in the first section (in reverse, it's in the last section)
+                                                let max_power = match (
+                                                    is_reversed,
+                                                    section_index,
+                                                    number_index,
+                                                ) {
+                                                    (true, 2, 1) | (false, 0, 1) => 2,
+                                                    (true, _, 1) | (false, _, 0) => 3,
+                                                    _ => 4,
+                                                };
 
                                                 if use_binary_circle {
                                                     self.paint_binary_circle(
@@ -341,6 +354,10 @@ impl BarWidget for Time {
                                         }
                                     });
                                 }
+                            }
+
+                            if is_reversed {
+                                ui.add(Label::new(layout_job.clone()).selectable(false));
                             }
                         })
                         .clicked()
