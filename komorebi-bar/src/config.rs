@@ -12,7 +12,7 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
-/// The `komorebi.bar.json` configuration file reference for `v0.1.33`
+/// The `komorebi.bar.json` configuration file reference for `v0.1.34`
 pub struct KomobarConfig {
     /// Bar positioning options
     #[serde(alias = "viewport")]
