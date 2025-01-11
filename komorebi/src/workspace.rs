@@ -133,10 +133,14 @@ impl Workspace {
 
         if config.container_padding.is_some() {
             self.set_container_padding(config.container_padding);
+        } else {
+            self.set_container_padding(Some(DEFAULT_CONTAINER_PADDING.load(Ordering::SeqCst)));
         }
 
         if config.workspace_padding.is_some() {
             self.set_workspace_padding(config.workspace_padding);
+        } else {
+            self.set_container_padding(Some(DEFAULT_WORKSPACE_PADDING.load(Ordering::SeqCst)));
         }
 
         if let Some(layout) = &config.layout {

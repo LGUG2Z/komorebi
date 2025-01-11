@@ -100,7 +100,7 @@ impl Network {
                 if let Some(friendly_name) = &interface.friendly_name {
                     self.default_interface.clone_from(friendly_name);
 
-                    self.networks_network_activity.refresh();
+                    self.networks_network_activity.refresh(true);
 
                     for (interface_name, data) in &self.networks_network_activity {
                         if friendly_name.eq(interface_name) {
