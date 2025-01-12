@@ -1014,6 +1014,10 @@ impl StaticConfig {
         Ok(())
     }
 
+    pub fn read_raw(raw: &str) -> Result<Self> {
+        Ok(serde_json::from_str(raw)?)
+    }
+
     pub fn read(path: &PathBuf) -> Result<Self> {
         let content = std::fs::read_to_string(path)?;
         let mut value: Self = serde_json::from_str(&content)?;

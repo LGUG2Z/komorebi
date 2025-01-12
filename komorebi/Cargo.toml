@@ -52,5 +52,8 @@ winreg = "0.53"
 [build-dependencies]
 shadow-rs = { workspace = true }
 
+[dev-dependencies]
+reqwest = { version = "0.12", features = ["blocking"] }
+
 [features]
 deadlock_detection = ["parking_lot/deadlock_detection"]
