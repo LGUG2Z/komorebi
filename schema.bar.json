@@ -724,10 +724,38 @@
                         ]
                       },
                       {
+                        "description": "Twelve-hour format (without seconds)",
+                        "type": "string",
+                        "enum": [
+                          "TwelveHourWithoutSeconds"
+                        ]
+                      },
+                      {
                         "description": "Twenty-four-hour format (with seconds)",
                         "type": "string",
                         "enum": [
                           "TwentyFourHour"
+                        ]
+                      },
+                      {
+                        "description": "Twenty-four-hour format (without seconds)",
+                        "type": "string",
+                        "enum": [
+                          "TwentyFourHourWithoutSeconds"
+                        ]
+                      },
+                      {
+                        "description": "Twenty-four-hour format displayed as a binary clock with circles (with seconds) (https://en.wikipedia.org/wiki/Binary_clock)",
+                        "type": "string",
+                        "enum": [
+                          "BinaryCircle"
+                        ]
+                      },
+                      {
+                        "description": "Twenty-four-hour format displayed as a binary clock with rectangles (with seconds) (https://en.wikipedia.org/wiki/Binary_clock)",
+                        "type": "string",
+                        "enum": [
+                          "BinaryRectangle"
                         ]
                       },
                       {
@@ -1906,10 +1934,38 @@
                         ]
                       },
                       {
+                        "description": "Twelve-hour format (without seconds)",
+                        "type": "string",
+                        "enum": [
+                          "TwelveHourWithoutSeconds"
+                        ]
+                      },
+                      {
                         "description": "Twenty-four-hour format (with seconds)",
                         "type": "string",
                         "enum": [
                           "TwentyFourHour"
+                        ]
+                      },
+                      {
+                        "description": "Twenty-four-hour format (without seconds)",
+                        "type": "string",
+                        "enum": [
+                          "TwentyFourHourWithoutSeconds"
+                        ]
+                      },
+                      {
+                        "description": "Twenty-four-hour format displayed as a binary clock with circles (with seconds) (https://en.wikipedia.org/wiki/Binary_clock)",
+                        "type": "string",
+                        "enum": [
+                          "BinaryCircle"
+                        ]
+                      },
+                      {
+                        "description": "Twenty-four-hour format displayed as a binary clock with rectangles (with seconds) (https://en.wikipedia.org/wiki/Binary_clock)",
+                        "type": "string",
+                        "enum": [
+                          "BinaryRectangle"
                         ]
                       },
                       {
@@ -2841,10 +2897,38 @@
                         ]
                       },
                       {
+                        "description": "Twelve-hour format (without seconds)",
+                        "type": "string",
+                        "enum": [
+                          "TwelveHourWithoutSeconds"
+                        ]
+                      },
+                      {
                         "description": "Twenty-four-hour format (with seconds)",
                         "type": "string",
                         "enum": [
                           "TwentyFourHour"
+                        ]
+                      },
+                      {
+                        "description": "Twenty-four-hour format (without seconds)",
+                        "type": "string",
+                        "enum": [
+                          "TwentyFourHourWithoutSeconds"
+                        ]
+                      },
+                      {
+                        "description": "Twenty-four-hour format displayed as a binary clock with circles (with seconds) (https://en.wikipedia.org/wiki/Binary_clock)",
+                        "type": "string",
+                        "enum": [
+                          "BinaryCircle"
+                        ]
+                      },
+                      {
+                        "description": "Twenty-four-hour format displayed as a binary clock with rectangles (with seconds) (https://en.wikipedia.org/wiki/Binary_clock)",
+                        "type": "string",
+                        "enum": [
+                          "BinaryRectangle"
                         ]
                       },
                       {
