@@ -92,6 +92,8 @@ pub struct Workspace {
     window_container_behaviour_rules: Option<Vec<(usize, WindowContainerBehaviour)>>,
     #[getset(get = "pub", get_mut = "pub", set = "pub")]
     float_override: Option<bool>,
+    #[getset(get = "pub", set = "pub")]
+    workspace_config: Option<WorkspaceConfig>,
 }
 
 impl_ring_elements!(Workspace, Container);
@@ -118,6 +120,7 @@ impl Default for Workspace {
             window_container_behaviour: None,
             window_container_behaviour_rules: None,
             float_override: None,
+            workspace_config: None,
         }
     }
 }
@@ -208,6 +211,8 @@ impl Workspace {
 
         self.set_float_override(config.float_override);
         self.set_layout_flip(config.layout_flip);
+
+        self.set_workspace_config(Some(config.clone()));
 
         Ok(())
     }
