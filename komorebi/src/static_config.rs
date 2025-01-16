@@ -206,12 +206,14 @@ impl From<&Workspace> for WorkspaceConfig {
                 .name()
                 .clone()
                 .unwrap_or_else(|| String::from("unnamed")),
-            layout: match value.layout() {
-                Layout::Default(layout) => Option::from(*layout),
-                // TODO: figure out how we might resolve file references in the future
-                Layout::Custom(_) => None,
-            },
             custom_layout: None,
+            layout: value
+                .tile()
+                .then_some(match value.layout() {
+                    Layout::Default(layout) => Option::from(*layout),
+                    Layout::Custom(_) => None,
+                })
+                .flatten(),
             layout_rules: Option::from(layout_rules),
             // TODO: figure out how we might resolve file references in the future
             custom_layout_rules: None,
