@@ -44,6 +44,7 @@ use komorebi_themes::Base16Value;
 use komorebi_themes::Catppuccin;
 use komorebi_themes::CatppuccinValue;
 use std::cell::RefCell;
+use std::collections::HashMap;
 use std::path::PathBuf;
 use std::rc::Rc;
 use std::sync::atomic::Ordering;
@@ -503,6 +504,27 @@ impl Komobar {
         let mut fonts = FontDefinitions::default();
         egui_phosphor::add_to_fonts(&mut fonts, egui_phosphor::Variant::Regular);
 
+        let mut fallbacks = HashMap::new();
+
+        fallbacks.insert("Microsoft YaHei", "C:\\Windows\\Fonts\\msyh.ttc"); // chinese
+        fallbacks.insert("Malgun Gothic", "C:\\Windows\\Fonts\\malgun.ttf"); // korean
+
+        for (name, path) in fallbacks {
+            if let Ok(bytes) = std::fs::read(path) {
+                fonts
+                    .font_data
+                    .insert(name.to_owned(), Arc::from(FontData::from_owned(bytes)));
+
+                for family in [FontFamily::Proportional, FontFamily::Monospace] {
+                    fonts
+                        .families
+                        .entry(family)
+                        .or_default()
+                        .insert(0, name.to_owned());
+                }
+            }
+        }
+
         let property = FontPropertyBuilder::new().family(name).build();
 
         if let Some((font, _)) = system_fonts::get(&property) {
@@ -510,21 +532,17 @@ impl Komobar {
                 .font_data
                 .insert(name.to_owned(), Arc::new(FontData::from_owned(font)));
 
-            fonts
-                .families
-                .entry(FontFamily::Proportional)
-                .or_default()
-                .insert(0, name.to_owned());
-
-            fonts
-                .families
-                .entry(FontFamily::Monospace)
-                .or_default()
-                .push(name.to_owned());
-
-            // Tell egui to use these fonts:
-            ctx.set_fonts(fonts);
+            for family in [FontFamily::Proportional, FontFamily::Monospace] {
+                fonts
+                    .families
+                    .entry(family)
+                    .or_default()
+                    .insert(0, name.to_owned());
+            }
         }
+
+        // Tell egui to use these fonts:
+        ctx.set_fonts(fonts);
     }
 }
 impl eframe::App for Komobar {
