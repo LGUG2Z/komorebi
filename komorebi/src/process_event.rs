@@ -93,8 +93,18 @@ impl WindowManager {
                             .map(|w| w.hwnd)
                             .collect::<Vec<_>>();
 
-                        if w.contains_managed_window(event_hwnd)
-                            && !visible_hwnds.contains(&event_hwnd)
+                        let contains_managed_window = w.contains_managed_window(event_hwnd);
+
+                        // this is for an old stackbar clicking fix
+                        if contains_managed_window && !visible_hwnds.contains(&event_hwnd) {
+                            transparency_override = true;
+                        }
+
+                        // but we always want to handle a minimize event when transparency overrides
+                        // are applied
+                        if !transparency_override
+                            && contains_managed_window
+                            && matches!(event, WindowManagerEvent::Minimize(_, _))
                         {
                             transparency_override = true;
                         }
