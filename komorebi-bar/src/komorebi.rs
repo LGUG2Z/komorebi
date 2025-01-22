@@ -10,8 +10,6 @@ use crate::widget::BarWidget;
 use crate::ICON_CACHE;
 use crate::MAX_LABEL_WIDTH;
 use crate::MONITOR_INDEX;
-use crossbeam_channel::Receiver;
-use crossbeam_channel::TryRecvError;
 use eframe::egui::vec2;
 use eframe::egui::Color32;
 use eframe::egui::ColorImage;
@@ -496,7 +494,7 @@ impl KomorebiNotificationState {
         &mut self,
         ctx: &Context,
         monitor_index: usize,
-        rx_gui: Receiver<komorebi_client::Notification>,
+        notification: komorebi_client::Notification,
         bg_color: Rc<RefCell<Color32>>,
         bg_color_with_alpha: Rc<RefCell<Color32>>,
         transparency_alpha: Option<u8>,
@@ -504,119 +502,104 @@ impl KomorebiNotificationState {
         default_theme: Option<KomobarTheme>,
         render_config: Rc<RefCell<RenderConfig>>,
     ) {
-        match rx_gui.try_recv() {
-            Err(error) => match error {
-                TryRecvError::Empty => {}
-                TryRecvError::Disconnected => {
-                    tracing::error!(
-                        "failed to receive komorebi notification on gui thread: {error}"
-                    );
-                }
-            },
-            Ok(notification) => {
-                match notification.event {
-                    NotificationEvent::WindowManager(_) => {}
-                    NotificationEvent::Socket(message) => match message {
-                        SocketMessage::ReloadStaticConfiguration(path) => {
-                            if let Ok(config) = komorebi_client::StaticConfig::read(&path) {
-                                if let Some(theme) = config.theme {
-                                    apply_theme(
-                                        ctx,
-                                        KomobarTheme::from(theme),
-                                        bg_color.clone(),
-                                        bg_color_with_alpha.clone(),
-                                        transparency_alpha,
-                                        grouping,
-                                        render_config,
-                                    );
-                                    tracing::info!("applied theme from updated komorebi.json");
-                                } else if let Some(default_theme) = default_theme {
-                                    apply_theme(
-                                        ctx,
-                                        default_theme,
-                                        bg_color.clone(),
-                                        bg_color_with_alpha.clone(),
-                                        transparency_alpha,
-                                        grouping,
-                                        render_config,
-                                    );
-                                    tracing::info!("removed theme from updated komorebi.json and applied default theme");
-                                } else {
-                                    tracing::warn!("theme was removed from updated komorebi.json but there was no default theme to apply");
-                                }
-                            }
-                        }
-                        SocketMessage::Theme(theme) => {
+        match notification.event {
+            NotificationEvent::WindowManager(_) => {}
+            NotificationEvent::Socket(message) => match message {
+                SocketMessage::ReloadStaticConfiguration(path) => {
+                    if let Ok(config) = komorebi_client::StaticConfig::read(&path) {
+                        if let Some(theme) = config.theme {
                             apply_theme(
                                 ctx,
                                 KomobarTheme::from(theme),
-                                bg_color,
+                                bg_color.clone(),
                                 bg_color_with_alpha.clone(),
                                 transparency_alpha,
                                 grouping,
                                 render_config,
                             );
-                            tracing::info!("applied theme from komorebi socket message");
+                            tracing::info!("applied theme from updated komorebi.json");
+                        } else if let Some(default_theme) = default_theme {
+                            apply_theme(
+                                ctx,
+                                default_theme,
+                                bg_color.clone(),
+                                bg_color_with_alpha.clone(),
+                                transparency_alpha,
+                                grouping,
+                                render_config,
+                            );
+                            tracing::info!("removed theme from updated komorebi.json and applied default theme");
+                        } else {
+                            tracing::warn!("theme was removed from updated komorebi.json but there was no default theme to apply");
                         }
-                        _ => {}
-                    },
-                }
-
-                self.monitor_index = monitor_index;
-
-                self.mouse_follows_focus = notification.state.mouse_follows_focus;
-
-                let monitor = &notification.state.monitors.elements()[monitor_index];
-                self.work_area_offset =
-                    notification.state.monitors.elements()[monitor_index].work_area_offset();
-
-                let focused_workspace_idx = monitor.focused_workspace_idx();
-
-                let mut workspaces = vec![];
-                self.selected_workspace = monitor.workspaces()[focused_workspace_idx]
-                    .name()
-                    .to_owned()
-                    .unwrap_or_else(|| format!("{}", focused_workspace_idx + 1));
-
-                for (i, ws) in monitor.workspaces().iter().enumerate() {
-                    let should_show = if self.hide_empty_workspaces {
-                        focused_workspace_idx == i || !ws.containers().is_empty()
-                    } else {
-                        true
-                    };
-
-                    if should_show {
-                        workspaces.push((
-                            ws.name().to_owned().unwrap_or_else(|| format!("{}", i + 1)),
-                            ws.into(),
-                        ));
                     }
                 }
-
-                self.workspaces = workspaces;
-
-                if monitor.workspaces()[focused_workspace_idx]
-                    .monocle_container()
-                    .is_some()
-                {
-                    self.layout = KomorebiLayout::Monocle;
-                } else if !*monitor.workspaces()[focused_workspace_idx].tile() {
-                    self.layout = KomorebiLayout::Floating;
-                } else if notification.state.is_paused {
-                    self.layout = KomorebiLayout::Paused;
-                } else {
-                    self.layout = match monitor.workspaces()[focused_workspace_idx].layout() {
-                        komorebi_client::Layout::Default(layout) => {
-                            KomorebiLayout::Default(*layout)
-                        }
-                        komorebi_client::Layout::Custom(_) => KomorebiLayout::Custom,
-                    };
+                SocketMessage::Theme(theme) => {
+                    apply_theme(
+                        ctx,
+                        KomobarTheme::from(theme),
+                        bg_color,
+                        bg_color_with_alpha.clone(),
+                        transparency_alpha,
+                        grouping,
+                        render_config,
+                    );
+                    tracing::info!("applied theme from komorebi socket message");
                 }
+                _ => {}
+            },
+        }
 
-                self.focused_container_information =
-                    (&monitor.workspaces()[focused_workspace_idx]).into();
+        self.monitor_index = monitor_index;
+
+        self.mouse_follows_focus = notification.state.mouse_follows_focus;
+
+        let monitor = &notification.state.monitors.elements()[monitor_index];
+        self.work_area_offset =
+            notification.state.monitors.elements()[monitor_index].work_area_offset();
+
+        let focused_workspace_idx = monitor.focused_workspace_idx();
+
+        let mut workspaces = vec![];
+        self.selected_workspace = monitor.workspaces()[focused_workspace_idx]
+            .name()
+            .to_owned()
+            .unwrap_or_else(|| format!("{}", focused_workspace_idx + 1));
+
+        for (i, ws) in monitor.workspaces().iter().enumerate() {
+            let should_show = if self.hide_empty_workspaces {
+                focused_workspace_idx == i || !ws.containers().is_empty()
+            } else {
+                true
+            };
+
+            if should_show {
+                workspaces.push((
+                    ws.name().to_owned().unwrap_or_else(|| format!("{}", i + 1)),
+                    ws.into(),
+                ));
             }
         }
+
+        self.workspaces = workspaces;
+
+        if monitor.workspaces()[focused_workspace_idx]
+            .monocle_container()
+            .is_some()
+        {
+            self.layout = KomorebiLayout::Monocle;
+        } else if !*monitor.workspaces()[focused_workspace_idx].tile() {
+            self.layout = KomorebiLayout::Floating;
+        } else if notification.state.is_paused {
+            self.layout = KomorebiLayout::Paused;
+        } else {
+            self.layout = match monitor.workspaces()[focused_workspace_idx].layout() {
+                komorebi_client::Layout::Default(layout) => KomorebiLayout::Default(*layout),
+                komorebi_client::Layout::Custom(_) => KomorebiLayout::Custom,
+            };
+        }
+
+        self.focused_container_information = (&monitor.workspaces()[focused_workspace_idx]).into();
     }
 }
 
