@@ -115,6 +115,11 @@ fn process_hwnd() -> Option<isize> {
     }
 }
 
+pub enum KomorebiEvent {
+    Notification(komorebi_client::Notification),
+    Reconnect,
+}
+
 fn main() -> color_eyre::Result<()> {
     unsafe { SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2) }?;
 
@@ -333,8 +338,6 @@ fn main() -> color_eyre::Result<()> {
         "komorebi-bar",
         native_options,
         Box::new(|cc| {
-            let config_cl = config_arc.clone();
-
             let ctx_repainter = cc.egui_ctx.clone();
             std::thread::spawn(move || loop {
                 std::thread::sleep(Duration::from_secs(1));
@@ -377,25 +380,12 @@ fn main() -> color_eyre::Result<()> {
 
                                 tracing::info!("reconnected to komorebi");
 
-                                let (monitor_index, work_area_offset) = match &config_cl.monitor {
-                                    MonitorConfigOrIndex::MonitorConfig(monitor_config) => {
-                                        (monitor_config.index, monitor_config.work_area_offset)
-                                    }
-                                    MonitorConfigOrIndex::Index(idx) => (*idx, None),
-                                };
-
-                                if let Some(rect) = &work_area_offset {
-                                    while komorebi_client::send_message(
-                                        &SocketMessage::MonitorWorkAreaOffset(
-                                            monitor_index,
-                                            *rect,
-                                        ),
-                                    )
-                                    .is_err()
-                                    {
-                                        std::thread::sleep(Duration::from_secs(1));
-                                    }
+                                if let Err(error) = tx_gui.send(KomorebiEvent::Reconnect) {
+                                    tracing::error!("could not send komorebi reconnect event to gui thread: {error}")
                                 }
+
+                                ctx_komorebi.request_repaint();
+                                continue;
                             }
 
                             match String::from_utf8(buffer) {
@@ -406,7 +396,7 @@ fn main() -> color_eyre::Result<()> {
                                         Ok(notification) => {
                                             tracing::debug!("received notification from komorebi");
 
-                                            if let Err(error) = tx_gui.send(notification) {
+                                            if let Err(error) = tx_gui.send(KomorebiEvent::Notification(notification)) {
                                                 tracing::error!("could not send komorebi notification update to gui thread: {error}")
                                             }
 

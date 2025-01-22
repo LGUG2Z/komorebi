@@ -13,6 +13,7 @@ use crate::render::RenderConfig;
 use crate::render::RenderExt;
 use crate::widget::BarWidget;
 use crate::widget::WidgetConfig;
+use crate::KomorebiEvent;
 use crate::BAR_HEIGHT;
 use crate::DEFAULT_PADDING;
 use crate::MAX_LABEL_WIDTH;
@@ -20,6 +21,7 @@ use crate::MONITOR_LEFT;
 use crate::MONITOR_RIGHT;
 use crate::MONITOR_TOP;
 use crossbeam_channel::Receiver;
+use crossbeam_channel::TryRecvError;
 use eframe::egui::Align;
 use eframe::egui::Align2;
 use eframe::egui::Area;
@@ -63,7 +65,7 @@ pub struct Komobar {
     pub left_widgets: Vec<Box<dyn BarWidget>>,
     pub center_widgets: Vec<Box<dyn BarWidget>>,
     pub right_widgets: Vec<Box<dyn BarWidget>>,
-    pub rx_gui: Receiver<komorebi_client::Notification>,
+    pub rx_gui: Receiver<KomorebiEvent>,
     pub rx_config: Receiver<KomobarConfig>,
     pub bg_color: Rc<RefCell<Color32>>,
     pub bg_color_with_alpha: Rc<RefCell<Color32>>,
@@ -504,7 +506,7 @@ impl Komobar {
 
     pub fn new(
         cc: &eframe::CreationContext<'_>,
-        rx_gui: Receiver<komorebi_client::Notification>,
+        rx_gui: Receiver<KomorebiEvent>,
         rx_config: Receiver<KomobarConfig>,
         config: Arc<KomobarConfig>,
     ) -> Self {
@@ -632,20 +634,51 @@ impl eframe::App for Komobar {
             );
         }
 
-        if let Some(komorebi_notification_state) = &self.komorebi_notification_state {
-            komorebi_notification_state
-                .borrow_mut()
-                .handle_notification(
-                    ctx,
-                    self.monitor_index,
-                    self.rx_gui.clone(),
-                    self.bg_color.clone(),
-                    self.bg_color_with_alpha.clone(),
-                    self.config.transparency_alpha,
-                    self.config.grouping,
-                    self.config.theme,
-                    self.render_config.clone(),
-                );
+        match self.rx_gui.try_recv() {
+            Err(error) => match error {
+                TryRecvError::Empty => {}
+                TryRecvError::Disconnected => {
+                    tracing::error!(
+                        "failed to receive komorebi notification on gui thread: {error}"
+                    );
+                }
+            },
+            Ok(KomorebiEvent::Notification(notification)) => {
+                if let Some(komorebi_notification_state) = &self.komorebi_notification_state {
+                    komorebi_notification_state
+                        .borrow_mut()
+                        .handle_notification(
+                            ctx,
+                            self.monitor_index,
+                            notification,
+                            self.bg_color.clone(),
+                            self.bg_color_with_alpha.clone(),
+                            self.config.transparency_alpha,
+                            self.config.grouping,
+                            self.config.theme,
+                            self.render_config.clone(),
+                        );
+                }
+            }
+            Ok(KomorebiEvent::Reconnect) => {
+                if let Err(error) =
+                    komorebi_client::send_message(&SocketMessage::MonitorWorkAreaOffset(
+                        self.monitor_index,
+                        self.work_area_offset,
+                    ))
+                {
+                    tracing::error!(
+                        "error applying work area offset to monitor '{}': {}",
+                        self.monitor_index,
+                        error,
+                    );
+                } else {
+                    tracing::info!(
+                        "work area offset applied to monitor: {}",
+                        self.monitor_index
+                    );
+                }
+            }
         }
 
         if !self.applied_theme_on_first_frame {
