@@ -1210,7 +1210,7 @@ impl StaticConfig {
         drop(workspace_matching_rules);
 
         for (i, monitor) in wm.monitors_mut().iter_mut().enumerate() {
-            let config_idx = {
+            let preferred_config_idx = {
                 let display_index_preferences = DISPLAY_INDEX_PREFERENCES.lock();
                 let c_idx = display_index_preferences
                     .iter()
@@ -1218,7 +1218,7 @@ impl StaticConfig {
                 drop(display_index_preferences);
                 c_idx
             };
-            let idx = config_idx.or({
+            let idx = preferred_config_idx.or({
                 // Monitor without preferred config idx.
                 // Get index of first config that is not a preferred config of some other monitor
                 // and that has not been used yet. This might return `None` as well, in that case
@@ -1238,7 +1238,7 @@ impl StaticConfig {
             {
                 // Check if this monitor config is the preferred config for this monitor and store
                 // a copy of the config on the monitor cache if it is.
-                if idx == config_idx {
+                if idx == preferred_config_idx {
                     monitor_reconciliator::insert_in_monitor_cache(
                         monitor.device_id(),
                         monitor_config.clone(),
@@ -1293,6 +1293,29 @@ impl StaticConfig {
             }
         }
 
+        // Check for configs that should be tied to a specific display that isn't loaded right now
+        // and cache those configs with the specific `device_id` so that when those devices are
+        // connected later we can use the correct config from the cache.
+        if configs_with_preference.len() > configs_used.len() {
+            for i in configs_with_preference
+                .iter()
+                .filter(|i| !configs_used.contains(i))
+            {
+                let device_id = {
+                    let display_index_preferences = DISPLAY_INDEX_PREFERENCES.lock();
+                    display_index_preferences.get(i).cloned()
+                };
+                if let (Some(device_id), Some(monitor_config)) =
+                    (device_id, value.monitors.as_ref().and_then(|ms| ms.get(*i)))
+                {
+                    monitor_reconciliator::insert_in_monitor_cache(
+                        &device_id,
+                        monitor_config.clone(),
+                    );
+                }
+            }
+        }
+
         wm.enforce_workspace_rules()?;
 
         if value.border == Some(true) {
@@ -1316,7 +1339,7 @@ impl StaticConfig {
         drop(workspace_matching_rules);
 
         for (i, monitor) in wm.monitors_mut().iter_mut().enumerate() {
-            let config_idx = {
+            let preferred_config_idx = {
                 let display_index_preferences = DISPLAY_INDEX_PREFERENCES.lock();
                 let c_idx = display_index_preferences
                     .iter()
@@ -1324,7 +1347,7 @@ impl StaticConfig {
                 drop(display_index_preferences);
                 c_idx
             };
-            let idx = config_idx.or({
+            let idx = preferred_config_idx.or({
                 // Monitor without preferred config idx.
                 // Get index of first config that is not a preferred config of some other monitor
                 // and that has not been used yet. This might return `None` as well, in that case
@@ -1344,7 +1367,7 @@ impl StaticConfig {
             {
                 // Check if this monitor config is the preferred config for this monitor and store
                 // a copy of the config on the monitor cache if it is.
-                if idx == config_idx {
+                if idx == preferred_config_idx {
                     monitor_reconciliator::insert_in_monitor_cache(
                         monitor.device_id(),
                         monitor_config.clone(),
@@ -1397,6 +1420,29 @@ impl StaticConfig {
                             });
                         }
                     }
+                }
+            }
+        }
+
+        // Check for configs that should be tied to a specific display that isn't loaded right now
+        // and cache those configs with the specific `device_id` so that when those devices are
+        // connected later we can use the correct config from the cache.
+        if configs_with_preference.len() > configs_used.len() {
+            for i in configs_with_preference
+                .iter()
+                .filter(|i| !configs_used.contains(i))
+            {
+                let device_id = {
+                    let display_index_preferences = DISPLAY_INDEX_PREFERENCES.lock();
+                    display_index_preferences.get(i).cloned()
+                };
+                if let (Some(device_id), Some(monitor_config)) =
+                    (device_id, value.monitors.as_ref().and_then(|ms| ms.get(*i)))
+                {
+                    monitor_reconciliator::insert_in_monitor_cache(
+                        &device_id,
+                        monitor_config.clone(),
+                    );
                 }
             }
         }
