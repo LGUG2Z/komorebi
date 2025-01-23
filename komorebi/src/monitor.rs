@@ -107,6 +107,13 @@ impl Monitor {
             workspace_names: Default::default(),
         }
     }
+
+    pub fn focused_workspace_name(&self) -> Option<String> {
+        self.focused_workspace()
+            .map(|w| w.name().clone())
+            .unwrap_or(None)
+    }
+
     pub fn load_focused_workspace(&mut self, mouse_follows_focus: bool) -> Result<()> {
         let focused_idx = self.focused_workspace_idx();
         for (i, workspace) in self.workspaces_mut().iter_mut().enumerate() {
