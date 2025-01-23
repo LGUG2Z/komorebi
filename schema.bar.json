@@ -198,6 +198,38 @@
                           }
                         },
                         "additionalProperties": false
+                      },
+                      {
+                        "description": "Custom format with modifiers",
+                        "type": "object",
+                        "required": [
+                          "CustomModifiers"
+                        ],
+                        "properties": {
+                          "CustomModifiers": {
+                            "description": "Custom format with additive modifiers for integer format specifiers",
+                            "type": "object",
+                            "required": [
+                              "format",
+                              "modifiers"
+                            ],
+                            "properties": {
+                              "format": {
+                                "description": "Custom format (https://docs.rs/chrono/latest/chrono/format/strftime/index.html)",
+                                "type": "string"
+                              },
+                              "modifiers": {
+                                "description": "Additive modifiers for integer format specifiers (e.g. { \"%U\": 1 } to increment the zero-indexed week number by 1)",
+                                "type": "object",
+                                "additionalProperties": {
+                                  "type": "integer",
+                                  "format": "int32"
+                                }
+                              }
+                            }
+                          }
+                        },
+                        "additionalProperties": false
                       }
                     ]
                   },
@@ -1413,6 +1445,38 @@
                           }
                         },
                         "additionalProperties": false
+                      },
+                      {
+                        "description": "Custom format with modifiers",
+                        "type": "object",
+                        "required": [
+                          "CustomModifiers"
+                        ],
+                        "properties": {
+                          "CustomModifiers": {
+                            "description": "Custom format with additive modifiers for integer format specifiers",
+                            "type": "object",
+                            "required": [
+                              "format",
+                              "modifiers"
+                            ],
+                            "properties": {
+                              "format": {
+                                "description": "Custom format (https://docs.rs/chrono/latest/chrono/format/strftime/index.html)",
+                                "type": "string"
+                              },
+                              "modifiers": {
+                                "description": "Additive modifiers for integer format specifiers (e.g. { \"%U\": 1 } to increment the zero-indexed week number by 1)",
+                                "type": "object",
+                                "additionalProperties": {
+                                  "type": "integer",
+                                  "format": "int32"
+                                }
+                              }
+                            }
+                          }
+                        },
+                        "additionalProperties": false
                       }
                     ]
                   },
@@ -2558,6 +2622,38 @@
                         "properties": {
                           "Custom": {
                             "type": "string"
+                          }
+                        },
+                        "additionalProperties": false
+                      },
+                      {
+                        "description": "Custom format with modifiers",
+                        "type": "object",
+                        "required": [
+                          "CustomModifiers"
+                        ],
+                        "properties": {
+                          "CustomModifiers": {
+                            "description": "Custom format with additive modifiers for integer format specifiers",
+                            "type": "object",
+                            "required": [
+                              "format",
+                              "modifiers"
+                            ],
+                            "properties": {
+                              "format": {
+                                "description": "Custom format (https://docs.rs/chrono/latest/chrono/format/strftime/index.html)",
+                                "type": "string"
+                              },
+                              "modifiers": {
+                                "description": "Additive modifiers for integer format specifiers (e.g. { \"%U\": 1 } to increment the zero-indexed week number by 1)",
+                                "type": "object",
+                                "additionalProperties": {
+                                  "type": "integer",
+                                  "format": "int32"
+                                }
+                              }
+                            }
                           }
                         },
                         "additionalProperties": false

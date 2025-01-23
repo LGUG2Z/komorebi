@@ -13,6 +13,48 @@ use schemars::JsonSchema;
 use serde::Deserialize;
 use serde::Serialize;
 
+/// Custom format with additive modifiers for integer format specifiers
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
+pub struct CustomModifiers {
+    /// Custom format (https://docs.rs/chrono/latest/chrono/format/strftime/index.html)
+    format: String,
+    /// Additive modifiers for integer format specifiers (e.g. { "%U": 1 } to increment the zero-indexed week number by 1)
+    modifiers: std::collections::HashMap<String, i32>,
+}
+
+impl CustomModifiers {
+    fn apply(&self, output: &str) -> String {
+        let int_formatters = vec![
+            "%Y", "%C", "%y", "%m", "%d", "%e", "%w", "%u", "%U", "%W", "%G", "%g", "%V", "%j",
+            "%H", "%k", "%I", "%l", "%M", "%S", "%f",
+        ];
+
+        let mut modified_output = output.to_string();
+
+        for (modifier, value) in &self.modifiers {
+            // check if formatter is integer type
+            if !int_formatters.contains(&modifier.as_str()) {
+                continue;
+            }
+
+            // get the strftime value of modifier
+            let formatted_modifier = chrono::Local::now().format(modifier).to_string();
+
+            // find the gotten value in the original output
+            if let Some(pos) = modified_output.find(&formatted_modifier) {
+                let start = pos;
+                let end = start + formatted_modifier.len();
+                // replace that value with the modified value
+                if let Ok(num) = formatted_modifier.parse::<i32>() {
+                    modified_output.replace_range(start..end, &(num + value).to_string());
+                }
+            }
+        }
+
+        modified_output
+    }
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 pub struct DateConfig {
     /// Enable the Date widget
@@ -45,6 +87,8 @@ pub enum DateFormat {
     DayDateMonthYear,
     /// Custom format (https://docs.rs/chrono/latest/chrono/format/strftime/index.html)
     Custom(String),
+    /// Custom format with modifiers
+    CustomModifiers(CustomModifiers),
 }
 
 impl DateFormat {
@@ -58,13 +102,14 @@ impl DateFormat {
         };
     }
 
-    fn fmt_string(&self) -> String {
+    pub fn fmt_string(&self) -> String {
         match self {
             DateFormat::MonthDateYear => String::from("%D"),
             DateFormat::YearMonthDate => String::from("%F"),
             DateFormat::DateMonthYear => String::from("%v"),
             DateFormat::DayDateMonthYear => String::from("%A %e %B %Y"),
             DateFormat::Custom(custom) => custom.to_string(),
+            DateFormat::CustomModifiers(custom) => custom.format.clone(),
         }
     }
 }
@@ -78,9 +123,15 @@ pub struct Date {
 
 impl Date {
     fn output(&mut self) -> String {
-        chrono::Local::now()
+        let formatted = chrono::Local::now()
             .format(&self.format.fmt_string())
-            .to_string()
+            .to_string();
+
+        // if custom modifiers are used, apply them
+        match &self.format {
+            DateFormat::CustomModifiers(custom) => custom.apply(&formatted),
+            _ => formatted,
+        }
     }
 }
 
