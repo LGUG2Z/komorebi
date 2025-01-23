@@ -337,6 +337,7 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
 
                                 // Put the orphaned containers somewhere visible
                                 for container in orphaned_containers {
+                                    container.restore();
                                     focused_ws.add_container_to_back(container);
                                 }
 
