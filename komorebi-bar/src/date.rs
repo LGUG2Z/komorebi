@@ -14,6 +14,16 @@ use serde::Deserialize;
 use serde::Serialize;
 
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
+#[serde(untagged)]
+pub enum Custom {
+    Simple(String),
+    WithModifiers {
+        Custom: String,
+        Modifiers: std::collections::HashMap<String, i32>,
+    },
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 pub struct DateConfig {
     /// Enable the Date widget
     pub enable: bool,
@@ -44,7 +54,9 @@ pub enum DateFormat {
     /// Day Date Month Year format (8 September 2024)
     DayDateMonthYear,
     /// Custom format (https://docs.rs/chrono/latest/chrono/format/strftime/index.html)
-    Custom(String),
+    /// Allow modifiers for any integer formatter
+    /// Use format: { Custom: "format_str", "Modifiers": { "formatter": value } }
+    Custom(Custom),
 }
 
 impl DateFormat {
@@ -58,13 +70,73 @@ impl DateFormat {
         };
     }
 
-    fn fmt_string(&self) -> String {
+    pub fn fmt_string(&self) -> String {
         match self {
             DateFormat::MonthDateYear => String::from("%D"),
             DateFormat::YearMonthDate => String::from("%F"),
             DateFormat::DateMonthYear => String::from("%v"),
             DateFormat::DayDateMonthYear => String::from("%A %e %B %Y"),
-            DateFormat::Custom(custom) => custom.to_string(),
+            DateFormat::Custom(Custom) => match Custom {
+                Custom::Simple(fmt) => fmt.clone(),
+                Custom::WithModifiers { Custom, .. } => Custom.clone(),
+            },
+        }
+    }
+
+    fn apply_modifiers(&self, output: &str) -> String {
+        // contains all strftime formatters that return integers
+        let int_formatters = vec!(
+            "%Y",
+            "%C",
+            "%y%",
+            "%m",
+            "%d",
+            "%e",
+            "%w",
+            "%u",
+            "%U",
+            "%W",
+            "%G",
+            "%g",
+            "%V",
+            "%j",
+            "%H",
+            "%k",
+            "%I",
+            "%l",
+            "%M",
+            "%S",
+            "%f"
+        );
+
+        match self {
+            // unwrap the Custom enum
+            DateFormat::Custom(Custom::WithModifiers { Modifiers: modifiers, .. }) => {
+                let mut modified_output = output.to_string();
+
+                // iterate over the modifiers
+                for (modifier, value) in modifiers {
+                    // only run if int formatters are used
+                    if !int_formatters.contains(&modifier.as_str()) {
+                        continue;
+                    }
+
+                    // get the strftime value of modifier
+                    let formatted_modifier = chrono::Local::now().format(modifier).to_string();
+
+                    // find the original value in the original output
+                    if let Some(pos) = modified_output.find(&formatted_modifier) {
+                        let start = pos;
+                        let end = start + formatted_modifier.len();
+                        // replace the original value with the modified value
+                        if let Ok(num) = formatted_modifier.parse::<i32>() {
+                            modified_output.replace_range(start..end, &(num + value).to_string());
+                        }
+                    }
+                }
+                modified_output
+            }
+            _ => output.to_string(),
         }
     }
 }
@@ -78,9 +150,13 @@ pub struct Date {
 
 impl Date {
     fn output(&mut self) -> String {
-        chrono::Local::now()
-            .format(&self.format.fmt_string())
-            .to_string()
+        let formatted = chrono::Local::now().format(&self.format.fmt_string()).to_string();
+
+        // if modifiers are present, apply them
+        match &self.format {
+            DateFormat::Custom { .. } => self.format.apply_modifiers(&formatted),
+            _ => formatted,
+        }
     }
 }
 
