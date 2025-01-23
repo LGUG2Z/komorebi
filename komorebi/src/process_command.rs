@@ -1110,19 +1110,29 @@ impl WindowManager {
             }
             SocketMessage::Query(query) => {
                 let response = match query {
-                    StateQuery::FocusedMonitorIndex => self.focused_monitor_idx(),
+                    StateQuery::FocusedMonitorIndex => self.focused_monitor_idx().to_string(),
                     StateQuery::FocusedWorkspaceIndex => self
                         .focused_monitor()
                         .ok_or_else(|| anyhow!("there is no monitor"))?
-                        .focused_workspace_idx(),
-                    StateQuery::FocusedContainerIndex => {
-                        self.focused_workspace()?.focused_container_idx()
-                    }
+                        .focused_workspace_idx()
+                        .to_string(),
+                    StateQuery::FocusedContainerIndex => self
+                        .focused_workspace()?
+                        .focused_container_idx()
+                        .to_string(),
                     StateQuery::FocusedWindowIndex => {
-                        self.focused_container()?.focused_window_idx()
+                        self.focused_container()?.focused_window_idx().to_string()
                     }
-                }
-                .to_string();
+                    StateQuery::FocusedWorkspaceName => {
+                        let focused_monitor = self
+                            .focused_monitor()
+                            .ok_or_else(|| anyhow!("there is no monitor"))?;
+
+                        focused_monitor
+                            .focused_workspace_name()
+                            .unwrap_or_else(|| focused_monitor.focused_workspace_idx().to_string())
+                    }
+                };
 
                 reply.write_all(response.as_bytes())?;
             }

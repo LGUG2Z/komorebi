@@ -1,5 +1,7 @@
+use crate::config::get_individual_spacing;
 use crate::config::KomobarConfig;
 use crate::config::KomobarTheme;
+use crate::config::MonitorConfigOrIndex;
 use crate::config::Position;
 use crate::config::PositionConfig;
 use crate::komorebi::Komorebi;
@@ -11,12 +13,15 @@ use crate::render::RenderConfig;
 use crate::render::RenderExt;
 use crate::widget::BarWidget;
 use crate::widget::WidgetConfig;
+use crate::KomorebiEvent;
 use crate::BAR_HEIGHT;
+use crate::DEFAULT_PADDING;
 use crate::MAX_LABEL_WIDTH;
 use crate::MONITOR_LEFT;
 use crate::MONITOR_RIGHT;
 use crate::MONITOR_TOP;
 use crossbeam_channel::Receiver;
+use crossbeam_channel::TryRecvError;
 use eframe::egui::Align;
 use eframe::egui::Align2;
 use eframe::egui::Area;
@@ -34,6 +39,7 @@ use eframe::egui::Margin;
 use eframe::egui::Rgba;
 use eframe::egui::Style;
 use eframe::egui::TextStyle;
+use eframe::egui::Vec2;
 use eframe::egui::Visuals;
 use font_loader::system_fonts;
 use font_loader::system_fonts::FontPropertyBuilder;
@@ -52,18 +58,20 @@ use std::sync::Arc;
 
 pub struct Komobar {
     pub hwnd: Option<isize>,
+    pub monitor_index: usize,
     pub config: Arc<KomobarConfig>,
     pub render_config: Rc<RefCell<RenderConfig>>,
     pub komorebi_notification_state: Option<Rc<RefCell<KomorebiNotificationState>>>,
     pub left_widgets: Vec<Box<dyn BarWidget>>,
     pub center_widgets: Vec<Box<dyn BarWidget>>,
     pub right_widgets: Vec<Box<dyn BarWidget>>,
-    pub rx_gui: Receiver<komorebi_client::Notification>,
+    pub rx_gui: Receiver<KomorebiEvent>,
     pub rx_config: Receiver<KomobarConfig>,
     pub bg_color: Rc<RefCell<Color32>>,
     pub bg_color_with_alpha: Rc<RefCell<Color32>>,
     pub scale_factor: f32,
     pub size_rect: komorebi_client::Rect,
+    pub work_area_offset: komorebi_client::Rect,
     applied_theme_on_first_frame: bool,
 }
 
@@ -199,7 +207,7 @@ impl Komobar {
 
         // Update the `size_rect` so that the bar position can be changed on the EGUI update
         // function
-        self.update_size_rect(config.position.clone());
+        self.update_size_rect(config);
 
         self.try_apply_theme(config, ctx);
 
@@ -295,23 +303,64 @@ impl Komobar {
         self.center_widgets = center_widgets;
         self.right_widgets = right_widgets;
 
-        if let (Some(prev_rect), Some(new_rect)) = (
-            &self.config.monitor.work_area_offset,
-            &config.monitor.work_area_offset,
-        ) {
+        let (monitor_index, config_work_area_offset) = match &config.monitor {
+            MonitorConfigOrIndex::MonitorConfig(monitor_config) => {
+                (monitor_config.index, monitor_config.work_area_offset)
+            }
+            MonitorConfigOrIndex::Index(idx) => (*idx, None),
+        };
+        self.monitor_index = monitor_index;
+
+        if let (prev_rect, Some(new_rect)) = (&self.work_area_offset, &config_work_area_offset) {
             if new_rect != prev_rect {
+                self.work_area_offset = *new_rect;
                 if let Err(error) = komorebi_client::send_message(
-                    &SocketMessage::MonitorWorkAreaOffset(config.monitor.index, *new_rect),
+                    &SocketMessage::MonitorWorkAreaOffset(self.monitor_index, *new_rect),
                 ) {
                     tracing::error!(
                         "error applying work area offset to monitor '{}': {}",
-                        config.monitor.index,
+                        self.monitor_index,
                         error,
                     );
                 } else {
                     tracing::info!(
                         "work area offset applied to monitor: {}",
-                        config.monitor.index
+                        self.monitor_index
+                    );
+                }
+            }
+        } else if let Some(height) = config.height.or(Some(BAR_HEIGHT)) {
+            // We only add the `bottom_margin` to the work_area_offset since the top margin is
+            // already considered on the `size_rect.top`
+            let bottom_margin = config
+                .margin
+                .as_ref()
+                .map_or(0, |v| v.to_individual(0.0).bottom as i32);
+            let new_rect = komorebi_client::Rect {
+                left: 0,
+                top: (height as i32)
+                    + (self.size_rect.top - MONITOR_TOP.load(Ordering::SeqCst))
+                    + bottom_margin,
+                right: 0,
+                bottom: (height as i32)
+                    + (self.size_rect.top - MONITOR_TOP.load(Ordering::SeqCst))
+                    + bottom_margin,
+            };
+
+            if new_rect != self.work_area_offset {
+                self.work_area_offset = new_rect;
+                if let Err(error) = komorebi_client::send_message(
+                    &SocketMessage::MonitorWorkAreaOffset(self.monitor_index, new_rect),
+                ) {
+                    tracing::error!(
+                        "error applying work area offset to monitor '{}': {}",
+                        self.monitor_index,
+                        error,
+                    );
+                } else {
+                    tracing::info!(
+                        "work area offset applied to monitor: {}",
+                        self.monitor_index
                     );
                 }
             }
@@ -325,8 +374,8 @@ impl Komobar {
     }
 
     /// Updates the `size_rect` field. Returns a bool indicating if the field was changed or not
-    fn update_size_rect(&mut self, position: Option<PositionConfig>) {
-        let position = position.unwrap_or(PositionConfig {
+    fn update_size_rect(&mut self, config: &KomobarConfig) {
+        let position = config.position.clone().unwrap_or(PositionConfig {
             start: Some(Position {
                 x: MONITOR_LEFT.load(Ordering::SeqCst) as f32,
                 y: MONITOR_TOP.load(Ordering::SeqCst) as f32,
@@ -337,15 +386,25 @@ impl Komobar {
             }),
         });
 
-        let start = position.start.unwrap_or(Position {
+        let mut start = position.start.unwrap_or(Position {
             x: MONITOR_LEFT.load(Ordering::SeqCst) as f32,
             y: MONITOR_TOP.load(Ordering::SeqCst) as f32,
         });
 
-        let end = position.end.unwrap_or(Position {
+        let mut end = position.end.unwrap_or(Position {
             x: MONITOR_RIGHT.load(Ordering::SeqCst) as f32,
             y: BAR_HEIGHT,
         });
+
+        if let Some(height) = config.height {
+            end.y = height;
+        }
+
+        let margin = get_individual_spacing(0.0, &config.margin);
+
+        start.y += margin.top;
+        start.x += margin.left;
+        end.x -= margin.left + margin.right;
 
         if end.y == 0.0 {
             tracing::warn!("position.end.y is set to 0.0 which will make your bar invisible on a config reload - this is usually set to 50.0 by default")
@@ -447,12 +506,13 @@ impl Komobar {
 
     pub fn new(
         cc: &eframe::CreationContext<'_>,
-        rx_gui: Receiver<komorebi_client::Notification>,
+        rx_gui: Receiver<KomorebiEvent>,
         rx_config: Receiver<KomobarConfig>,
         config: Arc<KomobarConfig>,
     ) -> Self {
         let mut komobar = Self {
             hwnd: process_hwnd(),
+            monitor_index: 0,
             config: config.clone(),
             render_config: Rc::new(RefCell::new(RenderConfig::new())),
             komorebi_notification_state: None,
@@ -465,6 +525,7 @@ impl Komobar {
             bg_color_with_alpha: Rc::new(RefCell::new(Style::default().visuals.panel_fill)),
             scale_factor: cc.egui_ctx.native_pixels_per_point().unwrap_or(1.0),
             size_rect: komorebi_client::Rect::default(),
+            work_area_offset: komorebi_client::Rect::default(),
             applied_theme_on_first_frame: false,
         };
 
@@ -573,20 +634,51 @@ impl eframe::App for Komobar {
             );
         }
 
-        if let Some(komorebi_notification_state) = &self.komorebi_notification_state {
-            komorebi_notification_state
-                .borrow_mut()
-                .handle_notification(
-                    ctx,
-                    self.config.monitor.index,
-                    self.rx_gui.clone(),
-                    self.bg_color.clone(),
-                    self.bg_color_with_alpha.clone(),
-                    self.config.transparency_alpha,
-                    self.config.grouping,
-                    self.config.theme,
-                    self.render_config.clone(),
-                );
+        match self.rx_gui.try_recv() {
+            Err(error) => match error {
+                TryRecvError::Empty => {}
+                TryRecvError::Disconnected => {
+                    tracing::error!(
+                        "failed to receive komorebi notification on gui thread: {error}"
+                    );
+                }
+            },
+            Ok(KomorebiEvent::Notification(notification)) => {
+                if let Some(komorebi_notification_state) = &self.komorebi_notification_state {
+                    komorebi_notification_state
+                        .borrow_mut()
+                        .handle_notification(
+                            ctx,
+                            self.monitor_index,
+                            notification,
+                            self.bg_color.clone(),
+                            self.bg_color_with_alpha.clone(),
+                            self.config.transparency_alpha,
+                            self.config.grouping,
+                            self.config.theme,
+                            self.render_config.clone(),
+                        );
+                }
+            }
+            Ok(KomorebiEvent::Reconnect) => {
+                if let Err(error) =
+                    komorebi_client::send_message(&SocketMessage::MonitorWorkAreaOffset(
+                        self.monitor_index,
+                        self.work_area_offset,
+                    ))
+                {
+                    tracing::error!(
+                        "error applying work area offset to monitor '{}': {}",
+                        self.monitor_index,
+                        error,
+                    );
+                } else {
+                    tracing::info!(
+                        "work area offset applied to monitor: {}",
+                        self.monitor_index
+                    );
+                }
+            }
         }
 
         if !self.applied_theme_on_first_frame {
@@ -619,28 +711,54 @@ impl eframe::App for Komobar {
             }
         }
 
-        let frame = if let Some(frame) = &self.config.frame {
-            Frame::none()
-                .inner_margin(Margin::symmetric(
-                    frame.inner_margin.x,
-                    frame.inner_margin.y,
-                ))
-                .fill(*self.bg_color_with_alpha.borrow())
-        } else {
-            Frame::none().fill(*self.bg_color_with_alpha.borrow())
+        let frame = match &self.config.padding {
+            None => {
+                if let Some(frame) = &self.config.frame {
+                    Frame::none()
+                        .inner_margin(Margin::symmetric(
+                            frame.inner_margin.x,
+                            frame.inner_margin.y,
+                        ))
+                        .fill(*self.bg_color_with_alpha.borrow())
+                } else {
+                    Frame::none()
+                        .inner_margin(Margin::same(0.0))
+                        .fill(*self.bg_color_with_alpha.borrow())
+                }
+            }
+            Some(padding) => {
+                let padding = padding.to_individual(DEFAULT_PADDING);
+                Frame::none()
+                    .inner_margin(Margin {
+                        top: padding.top,
+                        bottom: padding.bottom,
+                        left: padding.left,
+                        right: padding.right,
+                    })
+                    .fill(*self.bg_color_with_alpha.borrow())
+            }
         };
 
         let mut render_config = self.render_config.borrow_mut();
 
         let frame = render_config.change_frame_on_bar(frame, &ctx.style());
 
-        CentralPanel::default().frame(frame).show(ctx, |_| {
+        CentralPanel::default().frame(frame).show(ctx, |ui| {
             // Apply grouping logic for the bar as a whole
             let area_frame = if let Some(frame) = &self.config.frame {
-                Frame::none().inner_margin(Margin::symmetric(0.0, frame.inner_margin.y))
+                Frame::none()
+                    .inner_margin(Margin::symmetric(0.0, frame.inner_margin.y))
+                    .outer_margin(Margin::same(0.0))
             } else {
                 Frame::none()
+                    .inner_margin(Margin::same(0.0))
+                    .outer_margin(Margin::same(0.0))
             };
+
+            let available_height = ui.max_rect().max.y;
+            ctx.style_mut(|style| {
+                style.spacing.interact_size.y = available_height;
+            });
 
             if !self.left_widgets.is_empty() {
                 // Left-aligned widgets layout
@@ -648,11 +766,23 @@ impl eframe::App for Komobar {
                     .anchor(Align2::LEFT_CENTER, [0.0, 0.0]) // Align in the left center of the window
                     .show(ctx, |ui| {
                         let mut left_area_frame = area_frame;
-                        if let Some(frame) = &self.config.frame {
+                        if let Some(padding) = self
+                            .config
+                            .padding
+                            .as_ref()
+                            .map(|s| s.to_individual(DEFAULT_PADDING))
+                        {
+                            left_area_frame.inner_margin.left = padding.left;
+                            left_area_frame.inner_margin.top = padding.top;
+                            left_area_frame.inner_margin.bottom = padding.bottom;
+                        } else if let Some(frame) = &self.config.frame {
                             left_area_frame.inner_margin.left = frame.inner_margin.x;
+                            left_area_frame.inner_margin.top = frame.inner_margin.y;
+                            left_area_frame.inner_margin.bottom = frame.inner_margin.y;
                         }
+
                         left_area_frame.show(ui, |ui| {
-                            ui.with_layout(Layout::left_to_right(Align::Center), |ui| {
+                            ui.horizontal(|ui| {
                                 let mut render_conf = render_config.clone();
                                 render_conf.alignment = Some(Alignment::Left);
 
@@ -672,20 +802,40 @@ impl eframe::App for Komobar {
                     .anchor(Align2::RIGHT_CENTER, [0.0, 0.0]) // Align in the right center of the window
                     .show(ctx, |ui| {
                         let mut right_area_frame = area_frame;
-                        if let Some(frame) = &self.config.frame {
+                        if let Some(padding) = self
+                            .config
+                            .padding
+                            .as_ref()
+                            .map(|s| s.to_individual(DEFAULT_PADDING))
+                        {
+                            right_area_frame.inner_margin.right = padding.right;
+                            right_area_frame.inner_margin.top = padding.top;
+                            right_area_frame.inner_margin.bottom = padding.bottom;
+                        } else if let Some(frame) = &self.config.frame {
                             right_area_frame.inner_margin.right = frame.inner_margin.x;
+                            right_area_frame.inner_margin.top = frame.inner_margin.y;
+                            right_area_frame.inner_margin.bottom = frame.inner_margin.y;
                         }
-                        right_area_frame.show(ui, |ui| {
-                            ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                                let mut render_conf = render_config.clone();
-                                render_conf.alignment = Some(Alignment::Right);
 
-                                render_config.apply_on_alignment(ui, |ui| {
-                                    for w in &mut self.right_widgets {
-                                        w.render(ctx, ui, &mut render_conf);
-                                    }
-                                });
-                            });
+                        right_area_frame.show(ui, |ui| {
+                            let initial_size = Vec2 {
+                                x: ui.available_size_before_wrap().x,
+                                y: ui.spacing().interact_size.y,
+                            };
+                            ui.allocate_ui_with_layout(
+                                initial_size,
+                                Layout::right_to_left(Align::Center),
+                                |ui| {
+                                    let mut render_conf = render_config.clone();
+                                    render_conf.alignment = Some(Alignment::Right);
+
+                                    render_config.apply_on_alignment(ui, |ui| {
+                                        for w in &mut self.right_widgets {
+                                            w.render(ctx, ui, &mut render_conf);
+                                        }
+                                    });
+                                },
+                            );
                         });
                     });
             }
@@ -695,9 +845,22 @@ impl eframe::App for Komobar {
                 Area::new(Id::new("center_panel"))
                     .anchor(Align2::CENTER_CENTER, [0.0, 0.0]) // Align in the center of the window
                     .show(ctx, |ui| {
-                        let center_area_frame = area_frame;
+                        let mut center_area_frame = area_frame;
+                        if let Some(padding) = self
+                            .config
+                            .padding
+                            .as_ref()
+                            .map(|s| s.to_individual(DEFAULT_PADDING))
+                        {
+                            center_area_frame.inner_margin.top = padding.top;
+                            center_area_frame.inner_margin.bottom = padding.bottom;
+                        } else if let Some(frame) = &self.config.frame {
+                            center_area_frame.inner_margin.top = frame.inner_margin.y;
+                            center_area_frame.inner_margin.bottom = frame.inner_margin.y;
+                        }
+
                         center_area_frame.show(ui, |ui| {
-                            ui.with_layout(Layout::left_to_right(Align::Center), |ui| {
+                            ui.horizontal(|ui| {
                                 let mut render_conf = render_config.clone();
                                 render_conf.alignment = Some(Alignment::Center);
 
