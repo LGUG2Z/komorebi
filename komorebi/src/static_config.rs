@@ -176,6 +176,7 @@ impl From<&Workspace> for WorkspaceConfig {
                 Layout::Custom(_) => {}
             }
         }
+        let layout_rules = (!layout_rules.is_empty()).then_some(layout_rules);
 
         let mut window_container_behaviour_rules = HashMap::new();
         for (threshold, behaviour) in value.window_container_behaviour_rules().iter().flatten() {
@@ -217,7 +218,7 @@ impl From<&Workspace> for WorkspaceConfig {
                 .workspace_config()
                 .as_ref()
                 .and_then(|c| c.custom_layout.clone()),
-            layout_rules: Option::from(layout_rules),
+            layout_rules,
             custom_layout_rules: value
                 .workspace_config()
                 .as_ref()
