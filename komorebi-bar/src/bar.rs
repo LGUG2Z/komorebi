@@ -44,6 +44,8 @@ use eframe::egui::Visuals;
 use font_loader::system_fonts;
 use font_loader::system_fonts::FontPropertyBuilder;
 use komorebi_client::KomorebiTheme;
+use komorebi_client::MonitorNotification;
+use komorebi_client::NotificationEvent;
 use komorebi_client::SocketMessage;
 use komorebi_themes::catppuccin_egui;
 use komorebi_themes::Base16Value;
@@ -644,6 +646,33 @@ impl eframe::App for Komobar {
                 }
             },
             Ok(KomorebiEvent::Notification(notification)) => {
+                let should_apply_config = if matches!(
+                    notification.event,
+                    NotificationEvent::Monitor(MonitorNotification::DisplayConnectionChange)
+                ) {
+                    let state = &notification.state;
+
+                    // Store the monitor coordinates in case they've changed
+                    MONITOR_RIGHT.store(
+                        state.monitors.elements()[self.monitor_index].size().right,
+                        Ordering::SeqCst,
+                    );
+
+                    MONITOR_TOP.store(
+                        state.monitors.elements()[self.monitor_index].size().top,
+                        Ordering::SeqCst,
+                    );
+
+                    MONITOR_LEFT.store(
+                        state.monitors.elements()[self.monitor_index].size().left,
+                        Ordering::SeqCst,
+                    );
+
+                    true
+                } else {
+                    false
+                };
+
                 if let Some(komorebi_notification_state) = &self.komorebi_notification_state {
                     komorebi_notification_state
                         .borrow_mut()
@@ -658,6 +687,14 @@ impl eframe::App for Komobar {
                             self.config.theme,
                             self.render_config.clone(),
                         );
+                }
+
+                if should_apply_config {
+                    self.apply_config(
+                        ctx,
+                        &self.config.clone(),
+                        self.komorebi_notification_state.clone(),
+                    );
                 }
             }
             Ok(KomorebiEvent::Reconnect) => {
