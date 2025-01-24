@@ -28,6 +28,7 @@ use eframe::egui::Vec2;
 use image::RgbaImage;
 use komorebi_client::Container;
 use komorebi_client::NotificationEvent;
+use komorebi_client::PathExt;
 use komorebi_client::Rect;
 use komorebi_client::SocketMessage;
 use komorebi_client::Window;
@@ -97,7 +98,7 @@ impl From<&KomorebiConfig> for Komorebi {
             if let Some(configuration_switcher) = &value.configuration_switcher {
                 let mut configuration_switcher = configuration_switcher.clone();
                 for (_, location) in configuration_switcher.configurations.iter_mut() {
-                    *location = dunce::simplified(&PathBuf::from(location.clone()))
+                    *location = dunce::simplified(&PathBuf::from(location.clone()).replace_env())
                         .to_string_lossy()
                         .to_string();
                 }
