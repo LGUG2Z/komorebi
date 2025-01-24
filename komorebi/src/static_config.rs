@@ -1220,6 +1220,9 @@ impl StaticConfig {
         value.apply_globals()?;
 
         if let Some(monitors) = value.monitors {
+            let mut workspace_matching_rules = WORKSPACE_MATCHING_RULES.lock();
+            workspace_matching_rules.clear();
+
             for (i, monitor) in monitors.iter().enumerate() {
                 if let Some(m) = wm.monitors_mut().get_mut(i) {
                     m.ensure_workspace_count(monitor.workspaces.len());
@@ -1238,8 +1241,6 @@ impl StaticConfig {
                     }
                 }
 
-                let mut workspace_matching_rules = WORKSPACE_MATCHING_RULES.lock();
-                workspace_matching_rules.clear();
                 for (j, ws) in monitor.workspaces.iter().enumerate() {
                     if let Some(rules) = &ws.workspace_rules {
                         for r in rules {
