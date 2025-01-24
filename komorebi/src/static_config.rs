@@ -35,13 +35,16 @@ use crate::window_manager::WindowManager;
 use crate::window_manager_event::WindowManagerEvent;
 use crate::windows_api::WindowsApi;
 use crate::workspace::Workspace;
+use crate::AspectRatio;
 use crate::Axis;
 use crate::CrossBoundaryBehaviour;
+use crate::PredefinedAspectRatio;
 use crate::DATA_DIR;
 use crate::DEFAULT_CONTAINER_PADDING;
 use crate::DEFAULT_WORKSPACE_PADDING;
 use crate::DISPLAY_INDEX_PREFERENCES;
 use crate::FLOATING_APPLICATIONS;
+use crate::FLOATING_WINDOW_TOGGLE_ASPECT_RATIO;
 use crate::HIDING_BEHAVIOUR;
 use crate::IGNORE_IDENTIFIERS;
 use crate::LAYERED_WHITELIST;
@@ -382,6 +385,9 @@ pub struct StaticConfig {
     /// HEAVILY DISCOURAGED: Identify applications for which komorebi should forcibly remove title bars
     #[serde(skip_serializing_if = "Option::is_none")]
     pub remove_titlebar_applications: Option<Vec<MatchingRule>>,
+    /// Aspect ratio to resize with when toggling floating mode for a window
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub floating_window_aspect_ratio: Option<AspectRatio>,
 }
 
 #[derive(Debug, Serialize, Deserialize, JsonSchema)]
@@ -637,6 +643,7 @@ impl From<&WindowManager> for StaticConfig {
             slow_application_identifiers: Option::from(SLOW_APPLICATION_IDENTIFIERS.lock().clone()),
             bar_configurations: None,
             remove_titlebar_applications: Option::from(NO_TITLEBAR.lock().clone()),
+            floating_window_aspect_ratio: Option::from(*FLOATING_WINDOW_TOGGLE_ASPECT_RATIO.lock()),
         }
     }
 }
@@ -644,6 +651,10 @@ impl From<&WindowManager> for StaticConfig {
 impl StaticConfig {
     #[allow(clippy::cognitive_complexity, clippy::too_many_lines)]
     fn apply_globals(&mut self) -> Result<()> {
+        *FLOATING_WINDOW_TOGGLE_ASPECT_RATIO.lock() = self
+            .floating_window_aspect_ratio
+            .unwrap_or(AspectRatio::Predefined(PredefinedAspectRatio::Standard));
+
         if let Some(monitor_index_preferences) = &self.monitor_index_preferences {
             let mut preferences = MONITOR_INDEX_PREFERENCES.lock();
             preferences.clone_from(monitor_index_preferences);

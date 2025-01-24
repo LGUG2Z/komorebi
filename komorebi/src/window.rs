@@ -15,6 +15,7 @@ use crate::focus_manager;
 use crate::stackbar_manager;
 use crate::windows_api;
 use crate::AnimationStyle;
+use crate::FLOATING_WINDOW_TOGGLE_ASPECT_RATIO;
 use crate::SLOW_APPLICATION_COMPENSATION_TIME;
 use crate::SLOW_APPLICATION_IDENTIFIERS;
 use std::collections::HashMap;
@@ -296,6 +297,38 @@ impl RenderDispatcher for TransparencyRenderDispatcher {
     }
 }
 
+#[derive(Copy, Clone, Debug, Serialize, Deserialize, JsonSchema)]
+#[serde(untagged)]
+pub enum AspectRatio {
+    /// A predefined aspect ratio
+    Predefined(PredefinedAspectRatio),
+    /// A custom W:H aspect ratio
+    Custom(i32, i32),
+}
+
+#[derive(Copy, Clone, Debug, Serialize, Deserialize, JsonSchema)]
+pub enum PredefinedAspectRatio {
+    /// 21:9
+    Ultrawide,
+    /// 16:9
+    Widescreen,
+    /// 4:3
+    Standard,
+}
+
+impl AspectRatio {
+    pub fn width_and_height(self) -> (i32, i32) {
+        match self {
+            AspectRatio::Predefined(predefined) => match predefined {
+                PredefinedAspectRatio::Ultrawide => (21, 9),
+                PredefinedAspectRatio::Widescreen => (16, 9),
+                PredefinedAspectRatio::Standard => (4, 3),
+            },
+            AspectRatio::Custom(w, h) => (w, h),
+        }
+    }
+}
+
 impl Window {
     pub const fn hwnd(self) -> HWND {
         HWND(windows_api::as_ptr!(self.hwnd))
@@ -369,15 +402,21 @@ impl Window {
     }
 
     pub fn center(&mut self, work_area: &Rect) -> Result<()> {
-        let half_width = work_area.right / 2;
-        let half_weight = work_area.bottom / 2;
+        let (aspect_ratio_width, aspect_ratio_height) = FLOATING_WINDOW_TOGGLE_ASPECT_RATIO
+            .lock()
+            .width_and_height();
+        let target_height = work_area.bottom / 2;
+        let target_width = (target_height * aspect_ratio_width) / aspect_ratio_height;
+
+        let x = work_area.left + ((work_area.right - target_width) / 2);
+        let y = work_area.top + ((work_area.bottom - target_height) / 2);
 
         self.set_position(
             &Rect {
-                left: work_area.left + ((work_area.right - half_width) / 2),
-                top: work_area.top + ((work_area.bottom - half_weight) / 2),
-                right: half_width,
-                bottom: half_weight,
+                left: x,
+                top: y,
+                right: target_width,
+                bottom: target_height,
             },
             true,
         )
@@ -928,12 +967,12 @@ fn window_is_eligible(
     }
 
     if (allow_wsl2_gui || allow_titlebar_removed || style.contains(WindowStyle::CAPTION) && ex_style.contains(ExtendedWindowStyle::WINDOWEDGE))
-                        && !ex_style.contains(ExtendedWindowStyle::DLGMODALFRAME)
-                        // Get a lot of dupe events coming through that make the redrawing go crazy
-                        // on FocusChange events if I don't filter out this one. But, if we are
-                        // allowing a specific layered window on the whitelist (like Steam), it should
-                        // pass this check
-                        && (allow_layered || !ex_style.contains(ExtendedWindowStyle::LAYERED))
+        && !ex_style.contains(ExtendedWindowStyle::DLGMODALFRAME)
+        // Get a lot of dupe events coming through that make the redrawing go crazy
+        // on FocusChange events if I don't filter out this one. But, if we are
+        // allowing a specific layered window on the whitelist (like Steam), it should
+        // pass this check
+        && (allow_layered || !ex_style.contains(ExtendedWindowStyle::LAYERED))
         || managed_override
     {
         return true;
