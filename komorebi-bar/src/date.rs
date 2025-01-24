@@ -33,10 +33,6 @@ impl CustomModifiers {
         let mut modified_output = output.to_string();
 
         for (modifier, value) in &self.Modifiers {
-<<<<<<< HEAD
-=======
-
->>>>>>> 7e8af3d (Move modifiers date to own struct)
             // check if formatter is integer type
             if !int_formatters.contains(&modifier.as_str()) {
                 continue;
@@ -117,10 +113,6 @@ impl DateFormat {
             DateFormat::CustomModifiers(custom) => custom.Format.clone(),
         }
     }
-<<<<<<< HEAD
-=======
-
->>>>>>> 7e8af3d (Move modifiers date to own struct)
 }
 
 #[derive(Clone, Debug)]
