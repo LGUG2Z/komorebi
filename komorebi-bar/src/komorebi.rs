@@ -504,6 +504,7 @@ impl KomorebiNotificationState {
     ) {
         match notification.event {
             NotificationEvent::WindowManager(_) => {}
+            NotificationEvent::Monitor(_) => {}
             NotificationEvent::Socket(message) => match message {
                 SocketMessage::ReloadStaticConfiguration(path) => {
                     if let Ok(config) = komorebi_client::StaticConfig::read(&path) {
