@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "KomobarConfig",
-  "description": "The `komorebi.bar.json` configuration file reference for `v0.1.33`",
+  "description": "The `komorebi.bar.json` configuration file reference for `v0.1.34`",
   "type": "object",
   "required": [
     "left_widgets",
@@ -1219,58 +1219,6 @@
       "type": "number",
       "format": "float"
     },
-    "horizontal_margin": {
-      "description": "Bar horizontal margin. Use one value for symmetric margin or use `[left, right]` to specify a different margin on each side (default: 0)",
-      "anyOf": [
-        {
-          "description": "A symmetric spacing on some axis (horizontal or vertical), with the same size on both sides",
-          "type": "number",
-          "format": "float"
-        },
-        {
-          "description": "A detailed spacing on some axis (horizontal or vertical), with a size for each side. If an horizontal spacing, then it will be (left, right), if vertical it will be (top, bottom)",
-          "type": "array",
-          "items": [
-            {
-              "type": "number",
-              "format": "float"
-            },
-            {
-              "type": "number",
-              "format": "float"
-            }
-          ],
-          "maxItems": 2,
-          "minItems": 2
-        }
-      ]
-    },
-    "horizontal_padding": {
-      "description": "Bar horizontal padding. Use one value for symmetric padding or use `[left, right]` to specify a different padding on each side (default: 10)",
-      "anyOf": [
-        {
-          "description": "A symmetric spacing on some axis (horizontal or vertical), with the same size on both sides",
-          "type": "number",
-          "format": "float"
-        },
-        {
-          "description": "A detailed spacing on some axis (horizontal or vertical), with a size for each side. If an horizontal spacing, then it will be (left, right), if vertical it will be (top, bottom)",
-          "type": "array",
-          "items": [
-            {
-              "type": "number",
-              "format": "float"
-            },
-            {
-              "type": "number",
-              "format": "float"
-            }
-          ],
-          "maxItems": 2,
-          "minItems": 2
-        }
-      ]
-    },
     "icon_scale": {
       "description": "Scale of the icons relative to the font_size [[1.0-2.0]]. (default: 1.4)",
       "type": "number",
@@ -2141,6 +2089,93 @@
         ]
       }
     },
+    "margin": {
+      "description": "Bar margin. Use one value for all sides or use a grouped margin for horizontal and/or vertical definition which can each take a single value for a symmetric margin or two values for each side, i.e.: ```json \"margin\": { \"horizontal\": 10 } ``` or: ```json \"margin\": { \"vertical\": [top, bottom] } ``` You can also set individual margin on each side like this: ```json \"margin\": { \"top\": 10, \"bottom\": 10, \"left\": 10, \"right\": 10, } ``` By default, margin is set to 0 on all sides.",
+      "anyOf": [
+        {
+          "type": "number",
+          "format": "float"
+        },
+        {
+          "type": "object",
+          "required": [
+            "bottom",
+            "left",
+            "right",
+            "top"
+          ],
+          "properties": {
+            "bottom": {
+              "type": "number",
+              "format": "float"
+            },
+            "left": {
+              "type": "number",
+              "format": "float"
+            },
+            "right": {
+              "type": "number",
+              "format": "float"
+            },
+            "top": {
+              "type": "number",
+              "format": "float"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "properties": {
+            "horizontal": {
+              "anyOf": [
+                {
+                  "type": "number",
+                  "format": "float"
+                },
+                {
+                  "type": "array",
+                  "items": [
+                    {
+                      "type": "number",
+                      "format": "float"
+                    },
+                    {
+                      "type": "number",
+                      "format": "float"
+                    }
+                  ],
+                  "maxItems": 2,
+                  "minItems": 2
+                }
+              ]
+            },
+            "vertical": {
+              "anyOf": [
+                {
+                  "type": "number",
+                  "format": "float"
+                },
+                {
+                  "type": "array",
+                  "items": [
+                    {
+                      "type": "number",
+                      "format": "float"
+                    },
+                    {
+                      "type": "number",
+                      "format": "float"
+                    }
+                  ],
+                  "maxItems": 2,
+                  "minItems": 2
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
     "max_label_width": {
       "description": "Max label width before text truncation (default: 400.0)",
       "type": "number",
@@ -2199,6 +2234,93 @@
                   "format": "int32"
                 }
               }
+            }
+          }
+        }
+      ]
+    },
+    "padding": {
+      "description": "Bar padding. Use one value for all sides or use a grouped padding for horizontal and/or vertical definition which can each take a single value for a symmetric padding or two values for each side, i.e.: ```json \"padding\": { \"horizontal\": 10 } ``` or: ```json \"padding\": { \"horizontal\": [left, right] } ``` You can also set individual padding on each side like this: ```json \"padding\": { \"top\": 10, \"bottom\": 10, \"left\": 10, \"right\": 10, } ``` By default, padding is set to 10 on all sides.",
+      "anyOf": [
+        {
+          "type": "number",
+          "format": "float"
+        },
+        {
+          "type": "object",
+          "required": [
+            "bottom",
+            "left",
+            "right",
+            "top"
+          ],
+          "properties": {
+            "bottom": {
+              "type": "number",
+              "format": "float"
+            },
+            "left": {
+              "type": "number",
+              "format": "float"
+            },
+            "right": {
+              "type": "number",
+              "format": "float"
+            },
+            "top": {
+              "type": "number",
+              "format": "float"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "properties": {
+            "horizontal": {
+              "anyOf": [
+                {
+                  "type": "number",
+                  "format": "float"
+                },
+                {
+                  "type": "array",
+                  "items": [
+                    {
+                      "type": "number",
+                      "format": "float"
+                    },
+                    {
+                      "type": "number",
+                      "format": "float"
+                    }
+                  ],
+                  "maxItems": 2,
+                  "minItems": 2
+                }
+              ]
+            },
+            "vertical": {
+              "anyOf": [
+                {
+                  "type": "number",
+                  "format": "float"
+                },
+                {
+                  "type": "array",
+                  "items": [
+                    {
+                      "type": "number",
+                      "format": "float"
+                    },
+                    {
+                      "type": "number",
+                      "format": "float"
+                    }
+                  ],
+                  "maxItems": 2,
+                  "minItems": 2
+                }
+              ]
             }
           }
         }
@@ -3494,58 +3616,6 @@
       "type": "integer",
       "format": "uint8",
       "minimum": 0.0
-    },
-    "vertical_margin": {
-      "description": "Bar vertical margin. Use one value for symmetric margin or use `[top, bottom]` to specify a different margin on each side (default: 0)",
-      "anyOf": [
-        {
-          "description": "A symmetric spacing on some axis (horizontal or vertical), with the same size on both sides",
-          "type": "number",
-          "format": "float"
-        },
-        {
-          "description": "A detailed spacing on some axis (horizontal or vertical), with a size for each side. If an horizontal spacing, then it will be (left, right), if vertical it will be (top, bottom)",
-          "type": "array",
-          "items": [
-            {
-              "type": "number",
-              "format": "float"
-            },
-            {
-              "type": "number",
-              "format": "float"
-            }
-          ],
-          "maxItems": 2,
-          "minItems": 2
-        }
-      ]
-    },
-    "vertical_padding": {
-      "description": "Bar vertical padding. Use one value for symmetric padding or use `[top, bottom]` to specify a different padding on each side (default: 10)",
-      "anyOf": [
-        {
-          "description": "A symmetric spacing on some axis (horizontal or vertical), with the same size on both sides",
-          "type": "number",
-          "format": "float"
-        },
-        {
-          "description": "A detailed spacing on some axis (horizontal or vertical), with a size for each side. If an horizontal spacing, then it will be (left, right), if vertical it will be (top, bottom)",
-          "type": "array",
-          "items": [
-            {
-              "type": "number",
-              "format": "float"
-            },
-            {
-              "type": "number",
-              "format": "float"
-            }
-          ],
-          "maxItems": 2,
-          "minItems": 2
-        }
-      ]
     },
     "widget_spacing": {
       "description": "Spacing between widgets (default: 10.0)",

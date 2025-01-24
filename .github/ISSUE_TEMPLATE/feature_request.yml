@@ -1,21 +1,21 @@
 name: Feature request
-description: Suggest a new feature (Sponsors only)
+description: Suggest a new feature (Limited to Sponsors, Commercial License Holders, and Collaborators)
 labels: [enhancement]
 title: "[FEAT]: "
 body:
   - type: dropdown
-    id: Sponsors
+    id: Eligibility
     attributes:
-      label: Sponsorship Information
+      label: Eligibility
       description: >
-        Feature requests are considered from individuals who are $5+ monthly sponsors to the project.
+        Feature requests are considered from individuals who are current $5+ monthly sponsors to the project, individual commercial use license holders, and approved collaborators.
 
         Please specify the platform you use to sponsor the project.
       options:
-        - GitHub Sponsors
-        - Ko-fi
-        - Discord
-        - YouTube
+        - Individual Commercial Use License
+        - GitHub Sponsor
+        - Ko-fi Sponsor
+        - Approved Collaborator
       default: 0
     validations:
       required: true
