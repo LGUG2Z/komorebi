@@ -872,7 +872,11 @@ fn window_is_eligible(
 
     let known_layered_hwnds = transparency_manager::known_hwnds();
 
-    allow_layered = if known_layered_hwnds.contains(&hwnd) {
+    allow_layered = if known_layered_hwnds.contains(&hwnd)
+        // we always want to process hide events for windows with transparency, even on other
+        // monitors, because we don't want to be left with ghost tiles
+        || matches!(event, Some(WindowManagerEvent::Hide(_, _)))
+    {
         debug.allow_layered_transparency = true;
         true
     } else {
