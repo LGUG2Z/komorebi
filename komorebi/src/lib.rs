@@ -128,6 +128,7 @@ lazy_static! {
             matching_strategy: Option::from(MatchingStrategy::Equals),
         }),
     ]));
+    static ref OBJECT_NAME_CHANGE_TITLE_IGNORE_LIST: Arc<Mutex<Vec<Regex>>> = Arc::new(Mutex::new(Vec::new()));
     static ref TRANSPARENCY_BLACKLIST: Arc<Mutex<Vec<MatchingRule>>> = Arc::new(Mutex::new(Vec::new()));
     static ref MONITOR_INDEX_PREFERENCES: Arc<Mutex<HashMap<usize, Rect>>> =
         Arc::new(Mutex::new(HashMap::new()));

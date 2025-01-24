@@ -52,6 +52,7 @@ use crate::MANAGE_IDENTIFIERS;
 use crate::MONITOR_INDEX_PREFERENCES;
 use crate::NO_TITLEBAR;
 use crate::OBJECT_NAME_CHANGE_ON_LAUNCH;
+use crate::OBJECT_NAME_CHANGE_TITLE_IGNORE_LIST;
 use crate::REGEX_IDENTIFIERS;
 use crate::SLOW_APPLICATION_COMPENSATION_TIME;
 use crate::SLOW_APPLICATION_IDENTIFIERS;
@@ -357,6 +358,9 @@ pub struct StaticConfig {
     /// Identify applications that send EVENT_OBJECT_NAMECHANGE on launch (very rare)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub object_name_change_applications: Option<Vec<MatchingRule>>,
+    /// Do not process EVENT_OBJECT_NAMECHANGE events as Show events for identified applications matching these title regexes
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub object_name_change_title_ignore_list: Option<Vec<String>>,
     /// Set monitor index preferences
     #[serde(skip_serializing_if = "Option::is_none")]
     pub monitor_index_preferences: Option<HashMap<usize, Rect>>,
@@ -631,7 +635,17 @@ impl From<&WindowManager> for StaticConfig {
             border_overflow_applications: None,
             tray_and_multi_window_applications: None,
             layered_applications: None,
-            object_name_change_applications: None,
+            object_name_change_applications: Option::from(
+                OBJECT_NAME_CHANGE_ON_LAUNCH.lock().clone(),
+            ),
+            object_name_change_title_ignore_list: Option::from(
+                OBJECT_NAME_CHANGE_TITLE_IGNORE_LIST
+                    .lock()
+                    .clone()
+                    .iter()
+                    .map(|r| r.to_string())
+                    .collect::<Vec<_>>(),
+            ),
             monitor_index_preferences: Option::from(MONITOR_INDEX_PREFERENCES.lock().clone()),
             display_index_preferences: Option::from(DISPLAY_INDEX_PREFERENCES.lock().clone()),
             stackbar: None,
@@ -790,6 +804,7 @@ impl StaticConfig {
         let mut manage_identifiers = MANAGE_IDENTIFIERS.lock();
         let mut tray_and_multi_window_identifiers = TRAY_AND_MULTI_WINDOW_IDENTIFIERS.lock();
         let mut object_name_change_identifiers = OBJECT_NAME_CHANGE_ON_LAUNCH.lock();
+        let mut object_name_change_title_ignore_list = OBJECT_NAME_CHANGE_TITLE_IGNORE_LIST.lock();
         let mut layered_identifiers = LAYERED_WHITELIST.lock();
         let mut transparency_blacklist = TRANSPARENCY_BLACKLIST.lock();
         let mut slow_application_identifiers = SLOW_APPLICATION_IDENTIFIERS.lock();
@@ -814,6 +829,17 @@ impl StaticConfig {
                 &mut object_name_change_identifiers,
                 &mut regex_identifiers,
             )?;
+        }
+
+        if let Some(regexes) = &mut self.object_name_change_title_ignore_list {
+            let mut updated = vec![];
+            for r in regexes {
+                if let Ok(regex) = Regex::new(r) {
+                    updated.push(regex);
+                }
+            }
+
+            *object_name_change_title_ignore_list = updated;
         }
 
         if let Some(rules) = &mut self.layered_applications {

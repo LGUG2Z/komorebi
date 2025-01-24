@@ -9,6 +9,7 @@ use crate::window::should_act;
 use crate::window::Window;
 use crate::winevent::WinEvent;
 use crate::OBJECT_NAME_CHANGE_ON_LAUNCH;
+use crate::OBJECT_NAME_CHANGE_TITLE_IGNORE_LIST;
 use crate::REGEX_IDENTIFIERS;
 
 #[derive(Debug, Copy, Clone, Serialize, Deserialize, JsonSchema)]
@@ -176,6 +177,8 @@ impl WindowManagerEvent {
                 // [yatta\src\windows_event.rs:110] event = 32779 ObjectLocationChange
 
                 let object_name_change_on_launch = OBJECT_NAME_CHANGE_ON_LAUNCH.lock();
+                let object_name_change_title_ignore_list =
+                    OBJECT_NAME_CHANGE_TITLE_IGNORE_LIST.lock();
                 let regex_identifiers = REGEX_IDENTIFIERS.lock();
 
                 let title = &window.title().ok()?;
@@ -183,7 +186,7 @@ impl WindowManagerEvent {
                 let class = &window.class().ok()?;
                 let path = &window.path().ok()?;
 
-                let should_trigger_show = should_act(
+                let mut should_trigger_show = should_act(
                     title,
                     exe_name,
                     class,
@@ -192,6 +195,14 @@ impl WindowManagerEvent {
                     &regex_identifiers,
                 )
                 .is_some();
+
+                if should_trigger_show {
+                    for r in &*object_name_change_title_ignore_list {
+                        if r.is_match(title) {
+                            should_trigger_show = false;
+                        }
+                    }
+                }
 
                 // should not trigger show on minimized windows, for example when firefox sends
                 // this message due to youtube autoplay changing the window title
