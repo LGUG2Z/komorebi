@@ -34,6 +34,7 @@ pub use komorebi::core::StackbarMode;
 pub use komorebi::core::StateQuery;
 pub use komorebi::core::WindowKind;
 pub use komorebi::monitor::Monitor;
+pub use komorebi::monitor_reconciliator::MonitorNotification;
 pub use komorebi::ring::Ring;
 pub use komorebi::window::Window;
 pub use komorebi::window_manager_event::WindowManagerEvent;
