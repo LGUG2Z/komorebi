@@ -32,6 +32,7 @@ pub mod workspace;
 pub mod workspace_reconciliator;
 
 use lazy_static::lazy_static;
+use monitor_reconciliator::MonitorNotification;
 use std::collections::HashMap;
 use std::collections::VecDeque;
 use std::fs::File;
@@ -283,6 +284,7 @@ pub fn current_virtual_desktop() -> Option<Vec<u8>> {
 pub enum NotificationEvent {
     WindowManager(WindowManagerEvent),
     Socket(SocketMessage),
+    Monitor(MonitorNotification),
 }
 
 #[derive(Debug, Serialize, Deserialize, JsonSchema)]
