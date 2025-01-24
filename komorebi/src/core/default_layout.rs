@@ -89,7 +89,6 @@ impl DefaultLayout {
             return None;
         };
 
-        let max_divisor = 1.005;
         let mut r = resize.unwrap_or_default();
 
         let resize_delta = delta;
@@ -108,15 +107,13 @@ impl DefaultLayout {
                     // against this; if people end up in this situation they are better off
                     // just hitting the retile command
                     let diff = ((r.left + -resize_delta) as f32).abs();
-                    let max = unaltered.right as f32 / max_divisor;
-                    if diff < max {
+                    if diff < unaltered.right as f32 {
                         r.left += -resize_delta;
                     }
                 }
                 Sizing::Decrease => {
                     let diff = ((r.left - -resize_delta) as f32).abs();
-                    let max = unaltered.right as f32 / max_divisor;
-                    if diff < max {
+                    if diff < unaltered.right as f32 {
                         r.left -= -resize_delta;
                     }
                 }
@@ -124,15 +121,13 @@ impl DefaultLayout {
             OperationDirection::Up => match sizing {
                 Sizing::Increase => {
                     let diff = ((r.top + resize_delta) as f32).abs();
-                    let max = unaltered.bottom as f32 / max_divisor;
-                    if diff < max {
+                    if diff < unaltered.bottom as f32 {
                         r.top += -resize_delta;
                     }
                 }
                 Sizing::Decrease => {
                     let diff = ((r.top - resize_delta) as f32).abs();
-                    let max = unaltered.bottom as f32 / max_divisor;
-                    if diff < max {
+                    if diff < unaltered.bottom as f32 {
                         r.top -= -resize_delta;
                     }
                 }
@@ -140,15 +135,13 @@ impl DefaultLayout {
             OperationDirection::Right => match sizing {
                 Sizing::Increase => {
                     let diff = ((r.right + resize_delta) as f32).abs();
-                    let max = unaltered.right as f32 / max_divisor;
-                    if diff < max {
+                    if diff < unaltered.right as f32 {
                         r.right += resize_delta;
                     }
                 }
                 Sizing::Decrease => {
                     let diff = ((r.right - resize_delta) as f32).abs();
-                    let max = unaltered.right as f32 / max_divisor;
-                    if diff < max {
+                    if diff < unaltered.right as f32 {
                         r.right -= resize_delta;
                     }
                 }
@@ -156,15 +149,13 @@ impl DefaultLayout {
             OperationDirection::Down => match sizing {
                 Sizing::Increase => {
                     let diff = ((r.bottom + resize_delta) as f32).abs();
-                    let max = unaltered.bottom as f32 / max_divisor;
-                    if diff < max {
+                    if diff < unaltered.bottom as f32 {
                         r.bottom += resize_delta;
                     }
                 }
                 Sizing::Decrease => {
                     let diff = ((r.bottom - resize_delta) as f32).abs();
-                    let max = unaltered.bottom as f32 / max_divisor;
-                    if diff < max {
+                    if diff < unaltered.bottom as f32 {
                         r.bottom -= resize_delta;
                     }
                 }

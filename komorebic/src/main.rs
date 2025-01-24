@@ -1198,7 +1198,7 @@ enum SubCommand {
     #[clap(hide = true)]
     #[clap(arg_required_else_help = true)]
     LoadCustomLayout(LoadCustomLayout),
-    /// Flip the layout on the focused workspace (BSP only)
+    /// Flip the layout on the focused workspace
     #[clap(arg_required_else_help = true)]
     FlipLayout(FlipLayout),
     /// Promote the focused window to the top of the tree

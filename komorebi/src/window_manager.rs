@@ -2186,21 +2186,10 @@ impl WindowManager {
                 if let Ok(focused_workspace) = self.focused_workspace_mut() {
                     if let Some(window) = focused_workspace.maximized_window() {
                         window.focus(mouse_follows_focus)?;
-                        // (alex-ds13): @LGUG2Z Why was this being done below on the monocle?
-                        // Should it really be done?
-                        //
-                        // WindowsApi::center_cursor_in_rect(&WindowsApi::window_rect(
-                        //     window.hwnd,
-                        // )?)?;
-
                         cross_monitor_monocle_or_max = true;
                     } else if let Some(monocle) = focused_workspace.monocle_container() {
                         if let Some(window) = monocle.focused_window() {
                             window.focus(mouse_follows_focus)?;
-                            WindowsApi::center_cursor_in_rect(&WindowsApi::window_rect(
-                                window.hwnd,
-                            )?)?;
-
                             cross_monitor_monocle_or_max = true;
                         }
                     } else {
