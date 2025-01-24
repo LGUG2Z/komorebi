@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "StaticConfig",
-  "description": "The `komorebi.json` static configuration file reference for `v0.1.33`",
+  "description": "The `komorebi.json` static configuration file reference for `v0.1.34`",
   "type": "object",
   "properties": {
     "animation": {
@@ -641,6 +641,39 @@
           }
         ]
       }
+    },
+    "floating_window_aspect_ratio": {
+      "description": "Aspect ratio to resize with when toggling floating mode for a window",
+      "anyOf": [
+        {
+          "description": "21:9",
+          "type": "null"
+        },
+        {
+          "description": "16:9",
+          "type": "null"
+        },
+        {
+          "description": "4:3",
+          "type": "null"
+        },
+        {
+          "description": "A custom W:H aspect ratio",
+          "type": "array",
+          "items": [
+            {
+              "type": "integer",
+              "format": "int32"
+            },
+            {
+              "type": "integer",
+              "format": "int32"
+            }
+          ],
+          "maxItems": 2,
+          "minItems": 2
+        }
+      ]
     },
     "focus_follows_mouse": {
       "description": "END OF LIFE FEATURE: Use https://github.com/LGUG2Z/masir instead",
