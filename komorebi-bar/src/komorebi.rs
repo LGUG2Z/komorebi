@@ -570,7 +570,7 @@ impl KomorebiNotificationState {
 
         for (i, ws) in monitor.workspaces().iter().enumerate() {
             let should_show = if self.hide_empty_workspaces {
-                focused_workspace_idx == i || !ws.containers().is_empty()
+                focused_workspace_idx == i || !ws.is_empty()
             } else {
                 true
             };
