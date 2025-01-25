@@ -99,10 +99,12 @@ pub fn attached_display_devices() -> color_eyre::Result<Vec<Monitor>> {
                 name,
                 device,
                 device_id,
+                display.serial_number_id,
             )
         })
         .collect::<Vec<_>>())
 }
+
 pub fn listen_for_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result<()> {
     #[allow(clippy::expect_used)]
     Hidden::create("komorebi-hidden")?;
@@ -126,6 +128,7 @@ pub fn listen_for_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Re
 
     Ok(())
 }
+
 pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result<()> {
     tracing::info!("listening");
 
