@@ -25,6 +25,7 @@ pub use default_layout::DefaultLayout;
 pub use direction::Direction;
 pub use layout::Layout;
 pub use operation_direction::OperationDirection;
+pub use pathext::PathExt;
 pub use rect::Rect;
 
 pub mod animation;
@@ -37,6 +38,7 @@ pub mod default_layout;
 pub mod direction;
 pub mod layout;
 pub mod operation_direction;
+pub mod pathext;
 pub mod rect;
 
 #[derive(Clone, Debug, Serialize, Deserialize, Display, JsonSchema)]

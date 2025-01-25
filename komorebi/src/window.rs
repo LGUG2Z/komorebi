@@ -300,22 +300,30 @@ impl RenderDispatcher for TransparencyRenderDispatcher {
 #[derive(Copy, Clone, Debug, Serialize, Deserialize, JsonSchema)]
 #[serde(untagged)]
 pub enum AspectRatio {
+    /// A predefined aspect ratio
+    Predefined(PredefinedAspectRatio),
+    /// A custom W:H aspect ratio
+    Custom(i32, i32),
+}
+
+#[derive(Copy, Clone, Debug, Serialize, Deserialize, JsonSchema)]
+pub enum PredefinedAspectRatio {
     /// 21:9
     Ultrawide,
     /// 16:9
     Widescreen,
     /// 4:3
     Standard,
-    /// A custom W:H aspect ratio
-    Custom(i32, i32),
 }
 
 impl AspectRatio {
     pub fn width_and_height(self) -> (i32, i32) {
         match self {
-            AspectRatio::Ultrawide => (21, 9),
-            AspectRatio::Widescreen => (16, 9),
-            AspectRatio::Standard => (4, 3),
+            AspectRatio::Predefined(predefined) => match predefined {
+                PredefinedAspectRatio::Ultrawide => (21, 9),
+                PredefinedAspectRatio::Widescreen => (16, 9),
+                PredefinedAspectRatio::Standard => (4, 3),
+            },
             AspectRatio::Custom(w, h) => (w, h),
         }
     }

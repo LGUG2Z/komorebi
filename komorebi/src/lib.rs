@@ -32,6 +32,7 @@ pub mod workspace;
 pub mod workspace_reconciliator;
 
 use lazy_static::lazy_static;
+use monitor_reconciliator::MonitorNotification;
 use std::collections::HashMap;
 use std::collections::VecDeque;
 use std::fs::File;
@@ -127,6 +128,7 @@ lazy_static! {
             matching_strategy: Option::from(MatchingStrategy::Equals),
         }),
     ]));
+    static ref OBJECT_NAME_CHANGE_TITLE_IGNORE_LIST: Arc<Mutex<Vec<Regex>>> = Arc::new(Mutex::new(Vec::new()));
     static ref TRANSPARENCY_BLACKLIST: Arc<Mutex<Vec<MatchingRule>>> = Arc::new(Mutex::new(Vec::new()));
     static ref MONITOR_INDEX_PREFERENCES: Arc<Mutex<HashMap<usize, Rect>>> =
         Arc::new(Mutex::new(HashMap::new()));
@@ -220,7 +222,7 @@ lazy_static! {
     static ref WINDOWS_BY_BAR_HWNDS: Arc<Mutex<HashMap<isize, VecDeque<isize>>>> =
         Arc::new(Mutex::new(HashMap::new()));
 
-    static ref FLOATING_WINDOW_TOGGLE_ASPECT_RATIO: Arc<Mutex<AspectRatio>> = Arc::new(Mutex::new(AspectRatio::Standard));
+    static ref FLOATING_WINDOW_TOGGLE_ASPECT_RATIO: Arc<Mutex<AspectRatio>> = Arc::new(Mutex::new(AspectRatio::Predefined(PredefinedAspectRatio::Widescreen)));
 }
 
 pub static DEFAULT_WORKSPACE_PADDING: AtomicI32 = AtomicI32::new(10);
@@ -283,6 +285,7 @@ pub fn current_virtual_desktop() -> Option<Vec<u8>> {
 pub enum NotificationEvent {
     WindowManager(WindowManagerEvent),
     Socket(SocketMessage),
+    Monitor(MonitorNotification),
 }
 
 #[derive(Debug, Serialize, Deserialize, JsonSchema)]

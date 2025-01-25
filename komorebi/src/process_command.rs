@@ -1362,6 +1362,8 @@ impl WindowManager {
                     // Initialize the new wm
                     wm.init()?;
 
+                    wm.restore_all_windows(true)?;
+
                     // This is equivalent to StaticConfig::postload for this use case
                     StaticConfig::reload(config, &mut wm)?;
 

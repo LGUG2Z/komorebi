@@ -646,16 +646,30 @@
       "description": "Aspect ratio to resize with when toggling floating mode for a window",
       "anyOf": [
         {
-          "description": "21:9",
-          "type": "null"
-        },
-        {
-          "description": "16:9",
-          "type": "null"
-        },
-        {
-          "description": "4:3",
-          "type": "null"
+          "description": "A predefined aspect ratio",
+          "oneOf": [
+            {
+              "description": "21:9",
+              "type": "string",
+              "enum": [
+                "Ultrawide"
+              ]
+            },
+            {
+              "description": "16:9",
+              "type": "string",
+              "enum": [
+                "Widescreen"
+              ]
+            },
+            {
+              "description": "4:3",
+              "type": "string",
+              "enum": [
+                "Standard"
+              ]
+            }
+          ]
         },
         {
           "description": "A custom W:H aspect ratio",
@@ -1488,6 +1502,13 @@
             }
           }
         ]
+      }
+    },
+    "object_name_change_title_ignore_list": {
+      "description": "Do not process EVENT_OBJECT_NAMECHANGE events as Show events for identified applications matching these title regexes",
+      "type": "array",
+      "items": {
+        "type": "string"
       }
     },
     "remove_titlebar_applications": {

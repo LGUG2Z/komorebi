@@ -28,6 +28,7 @@ use eframe::egui::Vec2;
 use image::RgbaImage;
 use komorebi_client::Container;
 use komorebi_client::NotificationEvent;
+use komorebi_client::PathExt;
 use komorebi_client::Rect;
 use komorebi_client::SocketMessage;
 use komorebi_client::Window;
@@ -97,7 +98,7 @@ impl From<&KomorebiConfig> for Komorebi {
             if let Some(configuration_switcher) = &value.configuration_switcher {
                 let mut configuration_switcher = configuration_switcher.clone();
                 for (_, location) in configuration_switcher.configurations.iter_mut() {
-                    *location = dunce::simplified(&PathBuf::from(location.clone()))
+                    *location = dunce::simplified(&PathBuf::from(location.clone()).replace_env())
                         .to_string_lossy()
                         .to_string();
                 }
@@ -504,6 +505,7 @@ impl KomorebiNotificationState {
     ) {
         match notification.event {
             NotificationEvent::WindowManager(_) => {}
+            NotificationEvent::Monitor(_) => {}
             NotificationEvent::Socket(message) => match message {
                 SocketMessage::ReloadStaticConfiguration(path) => {
                     if let Ok(config) = komorebi_client::StaticConfig::read(&path) {
@@ -568,7 +570,11 @@ impl KomorebiNotificationState {
 
         for (i, ws) in monitor.workspaces().iter().enumerate() {
             let should_show = if self.hide_empty_workspaces {
-                focused_workspace_idx == i || !ws.containers().is_empty()
+                focused_workspace_idx == i
+                    || !ws.containers().is_empty()
+                    || !ws.floating_windows().is_empty()
+                    || ws.monocle_container().is_some()
+                    || ws.maximized_window().is_some()
             } else {
                 true
             };

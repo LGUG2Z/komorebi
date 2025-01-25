@@ -114,7 +114,7 @@ impl Hidden {
                                 "WM_POWERBROADCAST event received - resume from suspend"
                             );
                             monitor_reconciliator::send_notification(
-                                monitor_reconciliator::Notification::ResumingFromSuspendedState,
+                                monitor_reconciliator::MonitorNotification::ResumingFromSuspendedState,
                             );
                             LRESULT(0)
                         }
@@ -124,7 +124,7 @@ impl Hidden {
                                 "WM_POWERBROADCAST event received - entering suspended state"
                             );
                             monitor_reconciliator::send_notification(
-                                monitor_reconciliator::Notification::EnteringSuspendedState,
+                                monitor_reconciliator::MonitorNotification::EnteringSuspendedState,
                             );
                             LRESULT(0)
                         }
@@ -137,14 +137,14 @@ impl Hidden {
                             tracing::debug!("WM_WTSSESSION_CHANGE event received with WTS_SESSION_LOCK - screen locked");
 
                             monitor_reconciliator::send_notification(
-                                monitor_reconciliator::Notification::SessionLocked,
+                                monitor_reconciliator::MonitorNotification::SessionLocked,
                             );
                         }
                         WTS_SESSION_UNLOCK => {
                             tracing::debug!("WM_WTSSESSION_CHANGE event received with WTS_SESSION_UNLOCK - screen unlocked");
 
                             monitor_reconciliator::send_notification(
-                                monitor_reconciliator::Notification::SessionUnlocked,
+                                monitor_reconciliator::MonitorNotification::SessionUnlocked,
                             );
                         }
                         _ => {}
@@ -165,7 +165,7 @@ impl Hidden {
                     );
 
                     monitor_reconciliator::send_notification(
-                        monitor_reconciliator::Notification::ResolutionScalingChanged,
+                        monitor_reconciliator::MonitorNotification::ResolutionScalingChanged,
                     );
                     LRESULT(0)
                 }
@@ -179,7 +179,7 @@ impl Hidden {
                             );
 
                         monitor_reconciliator::send_notification(
-                            monitor_reconciliator::Notification::WorkAreaChanged,
+                            monitor_reconciliator::MonitorNotification::WorkAreaChanged,
                         );
                     }
                     LRESULT(0)
@@ -193,7 +193,7 @@ impl Hidden {
                                 "WM_DEVICECHANGE event received with DBT_DEVNODES_CHANGED - display added or removed"
                             );
                         monitor_reconciliator::send_notification(
-                            monitor_reconciliator::Notification::DisplayConnectionChange,
+                            monitor_reconciliator::MonitorNotification::DisplayConnectionChange,
                         );
                     }
 
