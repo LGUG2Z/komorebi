@@ -44,6 +44,8 @@ pub struct Monitor {
     #[getset(get = "pub", set = "pub")]
     device_id: String,
     #[getset(get = "pub", set = "pub")]
+    serial_number_id: Option<String>,
+    #[getset(get = "pub", set = "pub")]
     size: Rect,
     #[getset(get = "pub", set = "pub")]
     work_area_size: Rect,
@@ -63,6 +65,29 @@ pub struct Monitor {
 
 impl_ring_elements!(Monitor, Workspace);
 
+#[derive(Serialize)]
+pub struct MonitorInformation {
+    pub id: isize,
+    pub name: String,
+    pub device: String,
+    pub device_id: String,
+    pub serial_number_id: Option<String>,
+    pub size: Rect,
+}
+
+impl From<&Monitor> for MonitorInformation {
+    fn from(monitor: &Monitor) -> Self {
+        Self {
+            id: monitor.id,
+            name: monitor.name.clone(),
+            device: monitor.device.clone(),
+            device_id: monitor.device_id.clone(),
+            serial_number_id: monitor.serial_number_id.clone(),
+            size: monitor.size,
+        }
+    }
+}
+
 pub fn new(
     id: isize,
     size: Rect,
@@ -70,6 +95,7 @@ pub fn new(
     name: String,
     device: String,
     device_id: String,
+    serial_number_id: Option<String>,
 ) -> Monitor {
     let mut workspaces = Ring::default();
     workspaces.elements_mut().push_back(Workspace::default());
@@ -79,6 +105,7 @@ pub fn new(
         name,
         device,
         device_id,
+        serial_number_id,
         size,
         work_area_size,
         work_area_offset: None,
@@ -97,6 +124,7 @@ impl Monitor {
             name: "PLACEHOLDER".to_string(),
             device: "".to_string(),
             device_id: "".to_string(),
+            serial_number_id: None,
             size: Default::default(),
             work_area_size: Default::default(),
             work_area_offset: None,
