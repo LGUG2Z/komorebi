@@ -251,6 +251,7 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                         .map(|b| b.window_kind == WindowKind::Floating)
                         .unwrap_or_default())
                 });
+
                 if !should_process_notification && switch_focus_to_from_floating_window {
                     should_process_notification = true;
                 }
@@ -488,7 +489,7 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                                 Some(last_focus_state) => last_focus_state != new_focus_state,
                             };
 
-                            if new_border {
+                            if new_border || should_invalidate {
                                 border.set_position(&rect, reference_hwnd)?;
                             }
 

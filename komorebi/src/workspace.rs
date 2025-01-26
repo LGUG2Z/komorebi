@@ -89,6 +89,8 @@ pub struct Workspace {
     #[getset(get = "pub", get_mut = "pub", set = "pub")]
     window_container_behaviour: Option<WindowContainerBehaviour>,
     #[getset(get = "pub", get_mut = "pub", set = "pub")]
+    window_container_behaviour_rules: Option<Vec<(usize, WindowContainerBehaviour)>>,
+    #[getset(get = "pub", get_mut = "pub", set = "pub")]
     float_override: Option<bool>,
 }
 
@@ -114,6 +116,7 @@ impl Default for Workspace {
             tile: true,
             apply_window_based_work_area_offset: true,
             window_container_behaviour: None,
+            window_container_behaviour_rules: None,
             float_override: None,
         }
     }
@@ -185,6 +188,19 @@ impl Workspace {
 
         if config.window_container_behaviour.is_some() {
             self.set_window_container_behaviour(config.window_container_behaviour);
+        }
+
+        if let Some(window_container_behaviour_rules) = &config.window_container_behaviour_rules {
+            if window_container_behaviour_rules.is_empty() {
+                self.set_window_container_behaviour_rules(None);
+            } else {
+                let mut all_rules = vec![];
+                for (count, behaviour) in window_container_behaviour_rules {
+                    all_rules.push((*count, *behaviour));
+                }
+
+                self.set_window_container_behaviour_rules(Some(all_rules));
+            }
         }
 
         if config.float_override.is_some() {
@@ -326,15 +342,26 @@ impl Workspace {
         if !self.layout_rules().is_empty() {
             let mut updated_layout = None;
 
-            for rule in self.layout_rules() {
-                if self.containers().len() >= rule.0 {
-                    updated_layout = Option::from(rule.1.clone());
+            for (threshold, layout) in self.layout_rules() {
+                if self.containers().len() >= *threshold {
+                    updated_layout = Option::from(layout.clone());
                 }
             }
 
             if let Some(updated_layout) = updated_layout {
                 self.set_layout(updated_layout);
             }
+        }
+
+        if let Some(window_container_behaviour_rules) = self.window_container_behaviour_rules() {
+            let mut updated_behaviour = None;
+            for (threshold, behaviour) in window_container_behaviour_rules {
+                if self.containers().len() >= *threshold {
+                    updated_behaviour = Option::from(*behaviour);
+                }
+            }
+
+            self.set_window_container_behaviour(updated_behaviour);
         }
 
         let managed_maximized_window = self.maximized_window().is_some();
