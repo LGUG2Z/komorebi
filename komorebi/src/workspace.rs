@@ -161,34 +161,32 @@ impl Workspace {
             self.tile = false;
         }
 
+        let mut all_layout_rules = vec![];
         if let Some(layout_rules) = &config.layout_rules {
-            let mut all_rules = vec![];
             for (count, rule) in layout_rules {
-                all_rules.push((*count, Layout::Default(*rule)));
+                all_layout_rules.push((*count, Layout::Default(*rule)));
             }
-
-            self.set_layout_rules(all_rules);
 
             self.tile = true;
         }
 
+        self.set_layout_rules(all_layout_rules.clone());
+
         if let Some(layout_rules) = &config.custom_layout_rules {
-            let rules = self.layout_rules_mut();
             for (count, pathbuf) in layout_rules {
                 let rule = CustomLayout::from_path(pathbuf)?;
-                rules.push((*count, Layout::Custom(rule)));
+                all_layout_rules.push((*count, Layout::Custom(rule)));
             }
 
             self.tile = true;
+            self.set_layout_rules(all_layout_rules);
         }
 
         self.set_apply_window_based_work_area_offset(
             config.apply_window_based_work_area_offset.unwrap_or(true),
         );
 
-        if config.window_container_behaviour.is_some() {
-            self.set_window_container_behaviour(config.window_container_behaviour);
-        }
+        self.set_window_container_behaviour(config.window_container_behaviour);
 
         if let Some(window_container_behaviour_rules) = &config.window_container_behaviour_rules {
             if window_container_behaviour_rules.is_empty() {
@@ -201,15 +199,13 @@ impl Workspace {
 
                 self.set_window_container_behaviour_rules(Some(all_rules));
             }
+        } else {
+            self.set_window_container_behaviour_rules(None);
+            self.set_window_container_behaviour(None);
         }
 
-        if config.float_override.is_some() {
-            self.set_float_override(config.float_override);
-        }
-
-        if config.layout_flip.is_some() {
-            self.set_layout_flip(config.layout_flip);
-        }
+        self.set_float_override(config.float_override);
+        self.set_layout_flip(config.layout_flip);
 
         Ok(())
     }
