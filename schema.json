@@ -1284,7 +1284,7 @@
                   ]
                 },
                 "layout_rules": {
-                  "description": "Layout rules (default: None)",
+                  "description": "Layout rules in the format of threshold => layout (default: None)",
                   "type": "object",
                   "additionalProperties": {
                     "type": "string",
@@ -1322,6 +1322,28 @@
                       ]
                     }
                   ]
+                },
+                "window_container_behaviour_rules": {
+                  "description": "Window container behaviour rules in the format of threshold => behaviour (default: None)",
+                  "type": "object",
+                  "additionalProperties": {
+                    "oneOf": [
+                      {
+                        "description": "Create a new container for each new window",
+                        "type": "string",
+                        "enum": [
+                          "Create"
+                        ]
+                      },
+                      {
+                        "description": "Append new windows to the focused window container",
+                        "type": "string",
+                        "enum": [
+                          "Append"
+                        ]
+                      }
+                    ]
+                  }
                 },
                 "workspace_padding": {
                   "description": "Container padding (default: global)",

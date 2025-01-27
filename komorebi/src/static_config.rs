@@ -125,7 +125,7 @@ pub struct WorkspaceConfig {
     /// END OF LIFE FEATURE: Custom Layout (default: None)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub custom_layout: Option<PathBuf>,
-    /// Layout rules (default: None)
+    /// Layout rules in the format of threshold => layout (default: None)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub layout_rules: Option<HashMap<usize, DefaultLayout>>,
     /// END OF LIFE FEATURE: Custom layout rules (default: None)
@@ -149,8 +149,10 @@ pub struct WorkspaceConfig {
     /// Determine what happens when a new window is opened (default: Create)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub window_container_behaviour: Option<WindowContainerBehaviour>,
-    /// Enable or disable float override, which makes it so every new window opens in floating mode
-    /// (default: false)
+    /// Window container behaviour rules in the format of threshold => behaviour (default: None)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub window_container_behaviour_rules: Option<HashMap<usize, WindowContainerBehaviour>>,
+    /// Enable or disable float override, which makes it so every new window opens in floating mode (default: false)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub float_override: Option<bool>,
     /// Specify an axis on which to flip the selected layout (default: None)
@@ -168,6 +170,11 @@ impl From<&Workspace> for WorkspaceConfig {
                 }
                 Layout::Custom(_) => {}
             }
+        }
+
+        let mut window_container_behaviour_rules = HashMap::new();
+        for (threshold, behaviour) in value.window_container_behaviour_rules().iter().flatten() {
+            window_container_behaviour_rules.insert(*threshold, *behaviour);
         }
 
         let default_container_padding = DEFAULT_CONTAINER_PADDING.load(Ordering::SeqCst);
@@ -209,6 +216,7 @@ impl From<&Workspace> for WorkspaceConfig {
             workspace_rules: None,
             apply_window_based_work_area_offset: Some(value.apply_window_based_work_area_offset()),
             window_container_behaviour: *value.window_container_behaviour(),
+            window_container_behaviour_rules: Option::from(window_container_behaviour_rules),
             float_override: *value.float_override(),
             layout_flip: value.layout_flip(),
         }

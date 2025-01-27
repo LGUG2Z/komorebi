@@ -15,7 +15,7 @@ use windows::Win32::System::Com::CoCreateInstance;
 use windows::Win32::System::Com::CoInitializeEx;
 use windows::Win32::System::Com::CoUninitialize;
 use windows::Win32::System::Com::CLSCTX_ALL;
-use windows::Win32::System::Com::COINIT_APARTMENTTHREADED;
+use windows::Win32::System::Com::COINIT_MULTITHREADED;
 use windows_core::Interface;
 
 struct ComInit();
@@ -23,10 +23,7 @@ struct ComInit();
 impl ComInit {
     pub fn new() -> Self {
         unsafe {
-            // Notice: Only COINIT_APARTMENTTHREADED works correctly!
-            //
-            // Not COINIT_MULTITHREADED or CoIncrementMTAUsage, they cause a seldom crashes in threading tests.
-            CoInitializeEx(None, COINIT_APARTMENTTHREADED).unwrap();
+            CoInitializeEx(None, COINIT_MULTITHREADED).unwrap();
         }
         Self()
     }

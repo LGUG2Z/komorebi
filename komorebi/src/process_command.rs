@@ -52,6 +52,7 @@ use crate::border_manager::STYLE;
 use crate::colour::Rgb;
 use crate::config_generation::WorkspaceMatchingRule;
 use crate::current_virtual_desktop;
+use crate::monitor::MonitorInformation;
 use crate::notify_subscribers;
 use crate::stackbar_manager;
 use crate::stackbar_manager::STACKBAR_FONT_FAMILY;
@@ -1098,9 +1099,9 @@ impl WindowManager {
                 reply.write_all(visible_windows_state.as_bytes())?;
             }
             SocketMessage::MonitorInformation => {
-                let mut monitors = HashMap::new();
+                let mut monitors = vec![];
                 for monitor in self.monitors() {
-                    monitors.insert(monitor.device_id(), monitor.size());
+                    monitors.push(MonitorInformation::from(monitor));
                 }
 
                 let monitors_state = serde_json::to_string_pretty(&monitors)

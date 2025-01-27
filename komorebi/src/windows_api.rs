@@ -283,6 +283,7 @@ impl WindowsApi {
                 name,
                 device,
                 device_id,
+                display.serial_number_id,
             );
 
             let mut index_preference = None;
@@ -936,6 +937,7 @@ impl WindowsApi {
                     name,
                     device,
                     device_id,
+                    display.serial_number_id,
                 );
 
                 return Ok(monitor);
