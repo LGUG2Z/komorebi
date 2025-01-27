@@ -848,7 +848,15 @@ impl WindowManager {
                 // secondary monitor where the cursor is focused will be used as the target for
                 // the workspace switch op
                 if let Some(monitor_idx) = self.monitor_idx_from_current_pos() {
-                    self.focus_monitor(monitor_idx)?;
+                    if monitor_idx != self.focused_monitor_idx() {
+                        if let Some(monitor) = self.monitors().get(monitor_idx) {
+                            if let Some(workspace) = monitor.focused_workspace() {
+                                if workspace.is_empty() {
+                                    self.focus_monitor(monitor_idx)?;
+                                }
+                            }
+                        }
+                    }
                 }
 
                 let focused_monitor = self
@@ -871,7 +879,15 @@ impl WindowManager {
                 // secondary monitor where the cursor is focused will be used as the target for
                 // the workspace switch op
                 if let Some(monitor_idx) = self.monitor_idx_from_current_pos() {
-                    self.focus_monitor(monitor_idx)?;
+                    if monitor_idx != self.focused_monitor_idx() {
+                        if let Some(monitor) = self.monitors().get(monitor_idx) {
+                            if let Some(workspace) = monitor.focused_workspace() {
+                                if workspace.is_empty() {
+                                    self.focus_monitor(monitor_idx)?;
+                                }
+                            }
+                        }
+                    }
                 }
 
                 let mut can_close = false;
@@ -907,7 +923,15 @@ impl WindowManager {
                 // secondary monitor where the cursor is focused will be used as the target for
                 // the workspace switch op
                 if let Some(monitor_idx) = self.monitor_idx_from_current_pos() {
-                    self.focus_monitor(monitor_idx)?;
+                    if monitor_idx != self.focused_monitor_idx() {
+                        if let Some(monitor) = self.monitors().get(monitor_idx) {
+                            if let Some(workspace) = monitor.focused_workspace() {
+                                if workspace.is_empty() {
+                                    self.focus_monitor(monitor_idx)?;
+                                }
+                            }
+                        }
+                    }
                 }
 
                 let idx = self
@@ -930,7 +954,15 @@ impl WindowManager {
                 // secondary monitor where the cursor is focused will be used as the target for
                 // the workspace switch op
                 if let Some(monitor_idx) = self.monitor_idx_from_current_pos() {
-                    self.focus_monitor(monitor_idx)?;
+                    if monitor_idx != self.focused_monitor_idx() {
+                        if let Some(monitor) = self.monitors().get(monitor_idx) {
+                            if let Some(workspace) = monitor.focused_workspace() {
+                                if workspace.is_empty() {
+                                    self.focus_monitor(monitor_idx)?;
+                                }
+                            }
+                        }
+                    }
                 }
 
                 if self.focused_workspace_idx().unwrap_or_default() != workspace_idx {
@@ -942,7 +974,15 @@ impl WindowManager {
                 // secondary monitor where the cursor is focused will be used as the target for
                 // the workspace switch op
                 if let Some(monitor_idx) = self.monitor_idx_from_current_pos() {
-                    self.focus_monitor(monitor_idx)?;
+                    if monitor_idx != self.focused_monitor_idx() {
+                        if let Some(monitor) = self.monitors().get(monitor_idx) {
+                            if let Some(workspace) = monitor.focused_workspace() {
+                                if workspace.is_empty() {
+                                    self.focus_monitor(monitor_idx)?;
+                                }
+                            }
+                        }
+                    }
                 }
 
                 let focused_monitor_idx = self.focused_monitor_idx();
