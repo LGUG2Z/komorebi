@@ -1213,9 +1213,14 @@ impl StaticConfig {
         for (i, monitor) in wm.monitors_mut().iter_mut().enumerate() {
             let preferred_config_idx = {
                 let display_index_preferences = DISPLAY_INDEX_PREFERENCES.lock();
-                let c_idx = display_index_preferences
-                    .iter()
-                    .find_map(|(c_idx, m_id)| (monitor.device_id() == m_id).then_some(*c_idx));
+                let c_idx = display_index_preferences.iter().find_map(|(c_idx, id)| {
+                    (monitor
+                        .serial_number_id()
+                        .as_ref()
+                        .is_some_and(|sn| sn == id)
+                        || monitor.device_id() == id)
+                        .then_some(*c_idx)
+                });
                 c_idx
             };
             let idx = preferred_config_idx.or({
@@ -1239,10 +1244,11 @@ impl StaticConfig {
                 // Check if this monitor config is the preferred config for this monitor and store
                 // a copy of the config on the monitor cache if it is.
                 if idx == preferred_config_idx {
-                    monitor_reconciliator::insert_in_monitor_cache(
-                        monitor.device_id(),
-                        monitor_config.clone(),
-                    );
+                    let id = monitor
+                        .serial_number_id()
+                        .as_ref()
+                        .map_or(monitor.device_id(), |sn| sn);
+                    monitor_reconciliator::insert_in_monitor_cache(id, monitor_config.clone());
                 }
 
                 if let Some(used_config_idx) = idx {
@@ -1294,24 +1300,21 @@ impl StaticConfig {
         }
 
         // Check for configs that should be tied to a specific display that isn't loaded right now
-        // and cache those configs with the specific `device_id` so that when those devices are
-        // connected later we can use the correct config from the cache.
+        // and cache those configs with the specific `serial_number_id` or `device_id` so that when
+        // those devices are connected later we can use the correct config from the cache.
         if configs_with_preference.len() > configs_used.len() {
             for i in configs_with_preference
                 .iter()
                 .filter(|i| !configs_used.contains(i))
             {
-                let device_id = {
+                let id = {
                     let display_index_preferences = DISPLAY_INDEX_PREFERENCES.lock();
                     display_index_preferences.get(i).cloned()
                 };
-                if let (Some(device_id), Some(monitor_config)) =
-                    (device_id, value.monitors.as_ref().and_then(|ms| ms.get(*i)))
+                if let (Some(id), Some(monitor_config)) =
+                    (id, value.monitors.as_ref().and_then(|ms| ms.get(*i)))
                 {
-                    monitor_reconciliator::insert_in_monitor_cache(
-                        &device_id,
-                        monitor_config.clone(),
-                    );
+                    monitor_reconciliator::insert_in_monitor_cache(&id, monitor_config.clone());
                 }
             }
         }
@@ -1341,9 +1344,14 @@ impl StaticConfig {
         for (i, monitor) in wm.monitors_mut().iter_mut().enumerate() {
             let preferred_config_idx = {
                 let display_index_preferences = DISPLAY_INDEX_PREFERENCES.lock();
-                let c_idx = display_index_preferences
-                    .iter()
-                    .find_map(|(c_idx, m_id)| (monitor.device_id() == m_id).then_some(*c_idx));
+                let c_idx = display_index_preferences.iter().find_map(|(c_idx, id)| {
+                    (monitor
+                        .serial_number_id()
+                        .as_ref()
+                        .is_some_and(|sn| sn == id)
+                        || monitor.device_id() == id)
+                        .then_some(*c_idx)
+                });
                 c_idx
             };
             let idx = preferred_config_idx.or({
@@ -1367,10 +1375,11 @@ impl StaticConfig {
                 // Check if this monitor config is the preferred config for this monitor and store
                 // a copy of the config on the monitor cache if it is.
                 if idx == preferred_config_idx {
-                    monitor_reconciliator::insert_in_monitor_cache(
-                        monitor.device_id(),
-                        monitor_config.clone(),
-                    );
+                    let id = monitor
+                        .serial_number_id()
+                        .as_ref()
+                        .map_or(monitor.device_id(), |sn| sn);
+                    monitor_reconciliator::insert_in_monitor_cache(id, monitor_config.clone());
                 }
 
                 if let Some(used_config_idx) = idx {
@@ -1424,24 +1433,21 @@ impl StaticConfig {
         }
 
         // Check for configs that should be tied to a specific display that isn't loaded right now
-        // and cache those configs with the specific `device_id` so that when those devices are
+        // and cache those configs with the specific `serial_number_id` so that when those devices are
         // connected later we can use the correct config from the cache.
         if configs_with_preference.len() > configs_used.len() {
             for i in configs_with_preference
                 .iter()
                 .filter(|i| !configs_used.contains(i))
             {
-                let device_id = {
+                let id = {
                     let display_index_preferences = DISPLAY_INDEX_PREFERENCES.lock();
                     display_index_preferences.get(i).cloned()
                 };
-                if let (Some(device_id), Some(monitor_config)) =
-                    (device_id, value.monitors.as_ref().and_then(|ms| ms.get(*i)))
+                if let (Some(id), Some(monitor_config)) =
+                    (id, value.monitors.as_ref().and_then(|ms| ms.get(*i)))
                 {
-                    monitor_reconciliator::insert_in_monitor_cache(
-                        &device_id,
-                        monitor_config.clone(),
-                    );
+                    monitor_reconciliator::insert_in_monitor_cache(&id, monitor_config.clone());
                 }
             }
         }
