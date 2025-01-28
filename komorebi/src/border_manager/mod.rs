@@ -211,6 +211,16 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                                 .unwrap_or_default()
                                 .set_accent(window_kind_colour(window_kind))?;
                         }
+
+                        for window in ws.floating_windows() {
+                            let mut window_kind = WindowKind::Unfocused;
+
+                            if foreground_window == window.hwnd {
+                                window_kind = WindowKind::Floating;
+                            }
+
+                            window.set_accent(window_kind_colour(window_kind))?;
+                        }
                     }
                 }
             }
