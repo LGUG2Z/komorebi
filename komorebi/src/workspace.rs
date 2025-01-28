@@ -167,6 +167,7 @@ impl Workspace {
                 all_layout_rules.push((*count, Layout::Default(*rule)));
             }
 
+            all_layout_rules.sort_by_key(|(i, _)| *i);
             self.tile = true;
         }
 
@@ -178,6 +179,7 @@ impl Workspace {
                 all_layout_rules.push((*count, Layout::Custom(rule)));
             }
 
+            all_layout_rules.sort_by_key(|(i, _)| *i);
             self.tile = true;
             self.set_layout_rules(all_layout_rules);
         }
@@ -197,11 +199,11 @@ impl Workspace {
                     all_rules.push((*count, *behaviour));
                 }
 
+                all_rules.sort_by_key(|(i, _)| *i);
                 self.set_window_container_behaviour_rules(Some(all_rules));
             }
         } else {
             self.set_window_container_behaviour_rules(None);
-            self.set_window_container_behaviour(None);
         }
 
         self.set_float_override(config.float_override);
