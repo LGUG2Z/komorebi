@@ -64,12 +64,12 @@ pub fn send_notification(notification: MonitorNotification) {
     }
 }
 
-pub fn insert_in_monitor_cache(device_id: &str, config: MonitorConfig) {
+pub fn insert_in_monitor_cache(serial_or_device_id: &str, config: MonitorConfig) {
     let mut monitor_cache = MONITOR_CACHE
         .get_or_init(|| Mutex::new(HashMap::new()))
         .lock();
 
-    monitor_cache.insert(device_id.to_string(), config);
+    monitor_cache.insert(serial_or_device_id.to_string(), config);
 }
 
 pub fn attached_display_devices() -> color_eyre::Result<Vec<Monitor>> {
@@ -260,8 +260,12 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                 // Make sure that in our state any attached displays have the latest Win32 data
                 for monitor in wm.monitors_mut() {
                     for attached in &attached_devices {
-                        if attached.device_id().eq(monitor.device_id()) {
+                        if attached.serial_number_id().eq(monitor.serial_number_id())
+                            || attached.device_id().eq(monitor.device_id())
+                        {
                             monitor.set_id(attached.id());
+                            monitor.set_device_id(attached.device_id().clone());
+                            monitor.set_serial_number_id(attached.serial_number_id().clone());
                             monitor.set_name(attached.name().clone());
                             monitor.set_size(*attached.size());
                             monitor.set_work_area_size(*attached.work_area_size());
@@ -295,11 +299,17 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                     let mut newly_removed_displays = vec![];
 
                     for m in wm.monitors().iter() {
-                        if !attached_devices
-                            .iter()
-                            .any(|attached| attached.device_id().eq(m.device_id()))
-                        {
-                            newly_removed_displays.push(m.device_id().clone());
+                        if !attached_devices.iter().any(|attached| {
+                            attached.serial_number_id().eq(m.serial_number_id())
+                                || attached.device_id().eq(m.device_id())
+                        }) {
+                            let id = m
+                                .serial_number_id()
+                                .as_ref()
+                                .map_or(m.device_id().clone(), |sn| sn.clone());
+
+                            newly_removed_displays.push(id.clone());
+
                             for workspace in m.workspaces() {
                                 for container in workspace.containers() {
                                     // Save the orphaned containers from the removed monitor
@@ -308,7 +318,7 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                             }
 
                             // Let's add their state to the cache for later
-                            monitor_cache.insert(m.device_id().clone(), m.into());
+                            monitor_cache.insert(id, m.into());
                         }
                     }
 
@@ -320,8 +330,12 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
 
                     if !newly_removed_displays.is_empty() {
                         // After we have cached them, remove them from our state
-                        wm.monitors_mut()
-                            .retain(|m| !newly_removed_displays.contains(m.device_id()));
+                        wm.monitors_mut().retain(|m| {
+                            !newly_removed_displays.iter().any(|id| {
+                                m.serial_number_id().as_ref().is_some_and(|sn| sn == id)
+                                    || m.device_id() == id
+                            })
+                        });
                     }
 
                     let post_removal_monitor_count = wm.monitors().len();
@@ -361,7 +375,11 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
 
                 let post_removal_monitor_count = wm.monitors().len();
 
-                // This is the list of device ids after we have removed detached displays
+                // This is the list of device ids after we have removed detached displays. We can
+                // keep this with just the device_ids without the serial numbers since this is used
+                // only to check which one is the newly added monitor below if there is a new
+                // monitor. Everything done after with said new monitor will again consider both
+                // serial number and device ids.
                 let post_removal_device_ids = wm
                     .monitors()
                     .iter()
@@ -382,15 +400,21 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
 
                     // Look in the updated state for new monitors
                     for m in wm.monitors_mut() {
-                        let device_id = m.device_id().clone();
+                        let device_id = m.device_id();
                         // We identify a new monitor when we encounter a new device id
-                        if !post_removal_device_ids.contains(&device_id) {
+                        if !post_removal_device_ids.contains(device_id) {
                             let mut cache_hit = false;
+                            let mut cached_id = String::new();
                             // Check if that device id exists in the cache for this session
-                            if let Some(cached) = monitor_cache.get(&device_id) {
+                            if let Some((id, cached)) = monitor_cache.get_key_value(device_id).or(m
+                                .serial_number_id()
+                                .as_ref()
+                                .and_then(|sn| monitor_cache.get_key_value(sn)))
+                            {
                                 cache_hit = true;
+                                cached_id = id.clone();
 
-                                tracing::info!("found monitor and workspace configuration for {device_id} in the monitor cache, applying");
+                                tracing::info!("found monitor and workspace configuration for {id} in the monitor cache, applying");
 
                                 // If it does, load all the monitor settings from the cache entry
                                 m.ensure_workspace_count(cached.workspaces.len());
@@ -411,8 +435,8 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                             }
 
                             // Entries in the cache should only be used once; remove the entry there was a cache hit
-                            if cache_hit {
-                                monitor_cache.remove(&device_id);
+                            if cache_hit && !cached_id.is_empty() {
+                                monitor_cache.remove(&cached_id);
                             }
                         }
                     }
