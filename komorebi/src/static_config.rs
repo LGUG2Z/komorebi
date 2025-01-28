@@ -1216,7 +1216,6 @@ impl StaticConfig {
                 let c_idx = display_index_preferences
                     .iter()
                     .find_map(|(c_idx, m_id)| (monitor.device_id() == m_id).then_some(*c_idx));
-                drop(display_index_preferences);
                 c_idx
             };
             let idx = preferred_config_idx.or({
@@ -1345,7 +1344,6 @@ impl StaticConfig {
                 let c_idx = display_index_preferences
                     .iter()
                     .find_map(|(c_idx, m_id)| (monitor.device_id() == m_id).then_some(*c_idx));
-                drop(display_index_preferences);
                 c_idx
             };
             let idx = preferred_config_idx.or({
