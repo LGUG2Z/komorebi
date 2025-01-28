@@ -115,6 +115,16 @@ pub extern "system" fn win_event_hook(
         }
     }
 
+    // sometimes the border focus state and colors don't get updated because this event comes too
+    // slow for the value of GetForegroundWindow to be up to date by the time it is inspected in
+    // the border manager to determine if a window show have its border show as "focused"
+    //
+    // so here we can just fire another event at the border manager when the system has finally
+    // registered the new foreground window and this time the correct border colors will be applied
+    if matches!(winevent, WinEvent::SystemForeground) && !has_filtered_style(hwnd) {
+        border_manager::send_notification(Some(hwnd.0 as isize));
+    }
+
     let event_type = match WindowManagerEvent::from_win_event(winevent, window) {
         None => {
             tracing::trace!(
