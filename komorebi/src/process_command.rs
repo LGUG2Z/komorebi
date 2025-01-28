@@ -735,6 +735,11 @@ impl WindowManager {
                 self.focus_monitor(monitor_idx)?;
                 self.update_focused_workspace(self.mouse_follows_focus, true)?;
             }
+            SocketMessage::FocusMonitorAtCursor => {
+                if let Some(monitor_idx) = self.monitor_idx_from_current_pos() {
+                    self.focus_monitor(monitor_idx)?;
+                }
+            }
             SocketMessage::Retile => {
                 border_manager::destroy_all_borders()?;
                 self.retile_all(false)?
