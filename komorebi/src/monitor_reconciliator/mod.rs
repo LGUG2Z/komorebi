@@ -12,6 +12,7 @@ use crate::NotificationEvent;
 use crate::State;
 use crate::WindowManager;
 use crate::WindowsApi;
+use crate::WORKSPACE_MATCHING_RULES;
 use crossbeam_channel::Receiver;
 use crossbeam_channel::Sender;
 use crossbeam_utils::atomic::AtomicConsume;
@@ -298,7 +299,7 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                     // These are monitors that have been removed
                     let mut newly_removed_displays = vec![];
 
-                    for m in wm.monitors().iter() {
+                    for (m_idx, m) in wm.monitors().iter().enumerate() {
                         if !attached_devices.iter().any(|attached| {
                             attached.serial_number_id().eq(m.serial_number_id())
                                 || attached.device_id().eq(m.device_id())
@@ -315,6 +316,18 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                                     // Save the orphaned containers from the removed monitor
                                     orphaned_containers.push(container.clone());
                                 }
+                            }
+
+                            // Remove any workspace_rules for this specific monitor
+                            let mut workspace_rules = WORKSPACE_MATCHING_RULES.lock();
+                            let mut rules_to_remove = Vec::new();
+                            for (i, rule) in workspace_rules.iter().enumerate().rev() {
+                                if rule.monitor_index == m_idx {
+                                    rules_to_remove.push(i);
+                                }
+                            }
+                            for i in rules_to_remove {
+                                workspace_rules.remove(i);
                             }
 
                             // Let's add their state to the cache for later
@@ -389,7 +402,7 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
 
                 // Check for and add any new monitors that may have been plugged in
                 // Monitor and display index preferences get applied in this function
-                WindowsApi::load_monitor_information(&mut wm.monitors)?;
+                WindowsApi::load_monitor_information(&mut wm)?;
 
                 let post_addition_monitor_count = wm.monitors().len();
 
