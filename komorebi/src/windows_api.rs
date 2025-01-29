@@ -296,7 +296,8 @@ impl WindowsApi {
 
             let display_index_preferences = DISPLAY_INDEX_PREFERENCES.lock();
             for (index, id) in &*display_index_preferences {
-                if id.eq(m.device_id()) {
+                if m.serial_number_id().as_ref().is_some_and(|sn| sn == id) || id.eq(m.device_id())
+                {
                     index_preference = Option::from(index);
                 }
             }
