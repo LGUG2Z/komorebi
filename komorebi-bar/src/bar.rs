@@ -61,6 +61,7 @@ use std::sync::Arc;
 pub struct Komobar {
     pub hwnd: Option<isize>,
     pub monitor_index: usize,
+    pub disabled: bool,
     pub config: Arc<KomobarConfig>,
     pub render_config: Rc<RefCell<RenderConfig>>,
     pub komorebi_notification_state: Option<Rc<RefCell<KomorebiNotificationState>>>,
@@ -305,12 +306,22 @@ impl Komobar {
         self.center_widgets = center_widgets;
         self.right_widgets = right_widgets;
 
-        let (monitor_index, config_work_area_offset) = match &config.monitor {
+        let (usr_monitor_index, config_work_area_offset) = match &config.monitor {
             MonitorConfigOrIndex::MonitorConfig(monitor_config) => {
                 (monitor_config.index, monitor_config.work_area_offset)
             }
             MonitorConfigOrIndex::Index(idx) => (*idx, None),
         };
+        let monitor_index = if let Some(state) = &self.komorebi_notification_state {
+            state
+                .borrow()
+                .monitor_usr_idx_map
+                .get(&usr_monitor_index)
+                .map_or(usr_monitor_index, |i| *i)
+        } else {
+            usr_monitor_index
+        };
+
         self.monitor_index = monitor_index;
 
         if let (prev_rect, Some(new_rect)) = (&self.work_area_offset, &config_work_area_offset) {
@@ -515,6 +526,7 @@ impl Komobar {
         let mut komobar = Self {
             hwnd: process_hwnd(),
             monitor_index: 0,
+            disabled: false,
             config: config.clone(),
             render_config: Rc::new(RefCell::new(RenderConfig::new())),
             komorebi_notification_state: None,
@@ -651,6 +663,32 @@ impl eframe::App for Komobar {
                     NotificationEvent::Monitor(MonitorNotification::DisplayConnectionChange)
                 ) {
                     let state = &notification.state;
+                    let usr_monitor_index = match &self.config.monitor {
+                        MonitorConfigOrIndex::MonitorConfig(monitor_config) => monitor_config.index,
+                        MonitorConfigOrIndex::Index(idx) => *idx,
+                    };
+                    let monitor_index = state
+                        .monitor_usr_idx_map
+                        .get(&usr_monitor_index)
+                        .map_or(usr_monitor_index, |i| *i);
+                    self.monitor_index = monitor_index;
+
+                    if self.monitor_index >= state.monitors.elements().len() {
+                        // Monitor for this bar got disconnected lets disable the bar until it
+                        // reconnects
+                        self.disabled = true;
+                        tracing::warn!(
+                            "This bar's monitor got disconnected. The bar will be disabled until it reconnects..."
+                        );
+                        return;
+                    } else {
+                        if self.disabled {
+                            tracing::info!(
+                                "This bar's monitor reconnected. The bar will be enabled again!"
+                            );
+                        }
+                        self.disabled = false;
+                    }
 
                     // Store the monitor coordinates in case they've changed
                     MONITOR_RIGHT.store(
@@ -672,6 +710,10 @@ impl eframe::App for Komobar {
                 } else {
                     false
                 };
+
+                if self.disabled {
+                    return;
+                }
 
                 if let Some(komorebi_notification_state) = &self.komorebi_notification_state {
                     komorebi_notification_state
@@ -716,6 +758,12 @@ impl eframe::App for Komobar {
                     );
                 }
             }
+        }
+
+        if self.disabled {
+            // The check for disabled is performed above, if we get here and the bar is still
+            // disabled then we should return without drawing anything.
+            return;
         }
 
         if !self.applied_theme_on_first_frame {
