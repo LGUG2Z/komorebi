@@ -238,12 +238,16 @@ fn main() -> color_eyre::Result<()> {
         &SocketMessage::State,
     )?)?;
 
-    let (monitor_index, work_area_offset) = match &config.monitor {
+    let (usr_monitor_index, work_area_offset) = match &config.monitor {
         MonitorConfigOrIndex::MonitorConfig(monitor_config) => {
             (monitor_config.index, monitor_config.work_area_offset)
         }
         MonitorConfigOrIndex::Index(idx) => (*idx, None),
     };
+    let monitor_index = state
+        .monitor_usr_idx_map
+        .get(&usr_monitor_index)
+        .map_or(usr_monitor_index, |i| *i);
 
     MONITOR_RIGHT.store(
         state.monitors.elements()[monitor_index].size().right,
