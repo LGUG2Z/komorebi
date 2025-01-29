@@ -1178,6 +1178,7 @@ impl StaticConfig {
 
         let mut wm = WindowManager {
             monitors: Ring::default(),
+            monitor_usr_idx_map: HashMap::new(),
             incoming_events: incoming,
             command_listener: listener,
             is_paused: false,
