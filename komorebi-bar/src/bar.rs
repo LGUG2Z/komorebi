@@ -620,6 +620,20 @@ impl Komobar {
         // Tell egui to use these fonts:
         ctx.set_fonts(fonts);
     }
+
+    pub fn position_bar(&self) {
+        if let Some(hwnd) = self.hwnd {
+            let window = komorebi_client::Window::from(hwnd);
+            match window.set_position(&self.size_rect, false) {
+                Ok(_) => {
+                    tracing::info!("updated bar position");
+                }
+                Err(error) => {
+                    tracing::error!("{}", error.to_string())
+                }
+            }
+        }
+    }
 }
 impl eframe::App for Komobar {
     // Needed for transparency
@@ -687,6 +701,18 @@ impl eframe::App for Komobar {
                             tracing::info!(
                                 "This bar's monitor reconnected. The bar will be enabled again!"
                             );
+
+                            // Restore the bar in case it has been minimized when the monitor
+                            // disconnected
+                            if let Some(hwnd) = self.hwnd {
+                                let window = komorebi_client::Window::from(hwnd);
+                                if window.is_miminized() {
+                                    komorebi_client::WindowsApi::restore_window(hwnd);
+                                }
+                            }
+
+                            // Reposition the Bar
+                            self.position_bar();
                         }
                         self.disabled = false;
                     }
@@ -783,17 +809,7 @@ impl eframe::App for Komobar {
             };
 
             if self.size_rect != current_rect {
-                if let Some(hwnd) = self.hwnd {
-                    let window = komorebi_client::Window::from(hwnd);
-                    match window.set_position(&self.size_rect, false) {
-                        Ok(_) => {
-                            tracing::info!("updated bar position");
-                        }
-                        Err(error) => {
-                            tracing::error!("{}", error.to_string())
-                        }
-                    }
-                }
+                self.position_bar();
             }
         }
 
