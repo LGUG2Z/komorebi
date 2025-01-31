@@ -348,7 +348,7 @@ impl WindowsApi {
             .len()
             .max(monitor_usr_idx_map.keys().max().map_or(0, |v| *v));
 
-        let available_usr_idxs = (0..max_usr_idx)
+        let mut available_usr_idxs = (0..max_usr_idx)
             .filter(|i| !monitor_usr_idx_map.contains_key(i))
             .collect::<Vec<_>>();
 
@@ -359,6 +359,7 @@ impl WindowsApi {
         for i in not_added_monitor_idxs {
             if let Some(next_usr_idx) = available_usr_idxs.first() {
                 monitor_usr_idx_map.insert(*next_usr_idx, i);
+                available_usr_idxs.remove(0);
             } else if let Some(idx) = monitor_usr_idx_map.keys().max() {
                 monitor_usr_idx_map.insert(*idx, i);
             }
