@@ -36,31 +36,31 @@ use crate::WindowsApi;
 )]
 pub struct Monitor {
     #[getset(get_copy = "pub", set = "pub")]
-    id: isize,
+    pub id: isize,
     #[getset(get = "pub", set = "pub")]
-    name: String,
+    pub name: String,
     #[getset(get = "pub", set = "pub")]
-    device: String,
+    pub device: String,
     #[getset(get = "pub", set = "pub")]
-    device_id: String,
+    pub device_id: String,
     #[getset(get = "pub", set = "pub")]
-    serial_number_id: Option<String>,
+    pub serial_number_id: Option<String>,
     #[getset(get = "pub", set = "pub")]
-    size: Rect,
+    pub size: Rect,
     #[getset(get = "pub", set = "pub")]
-    work_area_size: Rect,
+    pub work_area_size: Rect,
     #[getset(get_copy = "pub", set = "pub")]
-    work_area_offset: Option<Rect>,
+    pub work_area_offset: Option<Rect>,
     #[getset(get_copy = "pub", set = "pub")]
-    window_based_work_area_offset: Option<Rect>,
+    pub window_based_work_area_offset: Option<Rect>,
     #[getset(get_copy = "pub", set = "pub")]
-    window_based_work_area_offset_limit: isize,
-    workspaces: Ring<Workspace>,
+    pub window_based_work_area_offset_limit: isize,
+    pub workspaces: Ring<Workspace>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[getset(get_copy = "pub", set = "pub")]
-    last_focused_workspace: Option<usize>,
+    pub last_focused_workspace: Option<usize>,
     #[getset(get_mut = "pub")]
-    workspace_names: HashMap<usize, String>,
+    pub workspace_names: HashMap<usize, String>,
 }
 
 impl_ring_elements!(Monitor, Workspace);
