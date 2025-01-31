@@ -1,12 +1,12 @@
 #![deny(clippy::unwrap_used, clippy::expect_used)]
 
 use crate::border_manager;
+use crate::config_generation::WorkspaceMatchingRule;
 use crate::core::Rect;
 use crate::monitor;
 use crate::monitor::Monitor;
 use crate::monitor_reconciliator::hidden::Hidden;
 use crate::notify_subscribers;
-use crate::MonitorConfig;
 use crate::Notification;
 use crate::NotificationEvent;
 use crate::State;
@@ -45,7 +45,7 @@ static ACTIVE: AtomicBool = AtomicBool::new(true);
 static CHANNEL: OnceLock<(Sender<MonitorNotification>, Receiver<MonitorNotification>)> =
     OnceLock::new();
 
-static MONITOR_CACHE: OnceLock<Mutex<HashMap<String, MonitorConfig>>> = OnceLock::new();
+static MONITOR_CACHE: OnceLock<Mutex<HashMap<String, Monitor>>> = OnceLock::new();
 
 pub fn channel() -> &'static (Sender<MonitorNotification>, Receiver<MonitorNotification>) {
     CHANNEL.get_or_init(|| crossbeam_channel::bounded(1))
@@ -65,12 +65,12 @@ pub fn send_notification(notification: MonitorNotification) {
     }
 }
 
-pub fn insert_in_monitor_cache(serial_or_device_id: &str, config: MonitorConfig) {
+pub fn insert_in_monitor_cache(serial_or_device_id: &str, monitor: Monitor) {
     let mut monitor_cache = MONITOR_CACHE
         .get_or_init(|| Mutex::new(HashMap::new()))
         .lock();
 
-    monitor_cache.insert(serial_or_device_id.to_string(), config);
+    monitor_cache.insert(serial_or_device_id.to_string(), monitor);
 }
 
 pub fn attached_display_devices() -> color_eyre::Result<Vec<Monitor>> {
@@ -292,8 +292,8 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                         attached_devices.len()
                     );
 
-                    // Gather all the containers that will be orphaned from disconnected and invalid displays
-                    let mut orphaned_containers = vec![];
+                    // Windows to remove from `known_hwnds`
+                    let mut windows_to_remove = Vec::new();
 
                     // Collect the ids in our state which aren't in the current attached display ids
                     // These are monitors that have been removed
@@ -313,8 +313,23 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
 
                             for workspace in m.workspaces() {
                                 for container in workspace.containers() {
-                                    // Save the orphaned containers from the removed monitor
-                                    orphaned_containers.push(container.clone());
+                                    for window in container.windows() {
+                                        windows_to_remove.push(window.hwnd);
+                                    }
+                                }
+
+                                if let Some(maximized) = workspace.maximized_window() {
+                                    windows_to_remove.push(maximized.hwnd);
+                                }
+
+                                if let Some(container) = workspace.monocle_container() {
+                                    for window in container.windows() {
+                                        windows_to_remove.push(window.hwnd);
+                                    }
+                                }
+
+                                for window in workspace.floating_windows() {
+                                    windows_to_remove.push(window.hwnd);
                                 }
                             }
 
@@ -331,15 +346,12 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                             }
 
                             // Let's add their state to the cache for later
-                            monitor_cache.insert(id, m.into());
+                            monitor_cache.insert(id, m.clone());
                         }
                     }
 
-                    if !orphaned_containers.is_empty() {
-                        tracing::info!(
-                            "removed orphaned containers from: {newly_removed_displays:?}"
-                        );
-                    }
+                    // Update known_hwnds
+                    wm.known_hwnds.retain(|i| !windows_to_remove.contains(i));
 
                     if !newly_removed_displays.is_empty() {
                         // After we have cached them, remove them from our state
@@ -355,25 +367,6 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                     let focused_monitor_idx = wm.focused_monitor_idx();
                     if focused_monitor_idx >= post_removal_monitor_count {
                         wm.focus_monitor(0)?;
-                    }
-
-                    if !orphaned_containers.is_empty() {
-                        if let Some(primary) = wm.monitors_mut().front_mut() {
-                            if let Some(focused_ws) = primary.focused_workspace_mut() {
-                                let focused_container_idx = focused_ws.focused_container_idx();
-
-                                // Put the orphaned containers somewhere visible
-                                for container in orphaned_containers {
-                                    container.restore();
-                                    focused_ws.add_container_to_back(container);
-                                }
-
-                                // Gotta reset the focus or the movement will feel "off"
-                                if initial_monitor_count != post_removal_monitor_count {
-                                    focused_ws.focus_container(focused_container_idx);
-                                }
-                            }
-                        }
                     }
 
                     let offset = wm.work_area_offset;
@@ -411,8 +404,14 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                         "monitor count mismatch ({post_removal_monitor_count} vs {post_addition_monitor_count}), adding connected monitors",
                     );
 
+                    let known_hwnds = wm.known_hwnds.clone();
+                    let offset = wm.work_area_offset;
+                    let mouse_follows_focus = wm.mouse_follows_focus;
+                    let focused_monitor_idx = wm.focused_monitor_idx();
+                    let focused_workspace_idx = wm.focused_workspace_idx()?;
+
                     // Look in the updated state for new monitors
-                    for m in wm.monitors_mut() {
+                    for (i, m) in wm.monitors_mut().iter_mut().enumerate() {
                         let device_id = m.device_id();
                         // We identify a new monitor when we encounter a new device id
                         if !post_removal_device_ids.contains(device_id) {
@@ -429,22 +428,139 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
 
                                 tracing::info!("found monitor and workspace configuration for {id} in the monitor cache, applying");
 
-                                // If it does, load all the monitor settings from the cache entry
-                                m.ensure_workspace_count(cached.workspaces.len());
-                                m.set_work_area_offset(cached.work_area_offset);
-                                m.set_window_based_work_area_offset(
-                                    cached.window_based_work_area_offset,
-                                );
-                                m.set_window_based_work_area_offset_limit(
-                                    cached.window_based_work_area_offset_limit.unwrap_or(1),
-                                );
+                                // If it does, load the monitor removing any window that has since
+                                // been closed or moved to another workspace
+                                *m = cached.clone();
 
-                                for (w_idx, workspace) in m.workspaces_mut().iter_mut().enumerate()
-                                {
-                                    if let Some(cached_workspace) = cached.workspaces.get(w_idx) {
-                                        workspace.load_static_config(cached_workspace)?;
+                                let focused_workspace_idx = m.focused_workspace_idx();
+
+                                for (j, workspace) in m.workspaces_mut().iter_mut().enumerate() {
+                                    // If this is the focused workspace we need to show (restore) all
+                                    // windows that were visible since they were probably minimized by
+                                    // Windows.
+                                    let is_focused_workspace = j == focused_workspace_idx;
+                                    let focused_container_idx = workspace.focused_container_idx();
+
+                                    let mut empty_containers = Vec::new();
+                                    for (idx, container) in
+                                        workspace.containers_mut().iter_mut().enumerate()
+                                    {
+                                        container.windows_mut().retain(|window| {
+                                            window.exe().is_ok()
+                                                && !known_hwnds.contains(&window.hwnd)
+                                        });
+
+                                        if container.windows().is_empty() {
+                                            empty_containers.push(idx);
+                                        }
+
+                                        if is_focused_workspace && idx == focused_container_idx {
+                                            if let Some(window) = container.focused_window() {
+                                                WindowsApi::restore_window(window.hwnd);
+                                            } else {
+                                                // If the focused window was moved or removed by
+                                                // the user after the disconnect then focus the
+                                                // first window and show that one
+                                                container.focus_window(0);
+
+                                                if let Some(window) = container.focused_window() {
+                                                    WindowsApi::restore_window(window.hwnd);
+                                                }
+                                            }
+                                        }
+                                    }
+
+                                    // Remove empty containers
+                                    for empty_idx in empty_containers {
+                                        if empty_idx == focused_container_idx {
+                                            workspace.remove_container(empty_idx);
+                                        } else {
+                                            workspace.remove_container_by_idx(empty_idx);
+                                        }
+                                    }
+
+                                    if let Some(window) = workspace.maximized_window() {
+                                        if window.exe().is_err()
+                                            || known_hwnds.contains(&window.hwnd)
+                                        {
+                                            workspace.set_maximized_window(None);
+                                        } else if is_focused_workspace {
+                                            WindowsApi::restore_window(window.hwnd);
+                                        }
+                                    }
+
+                                    if let Some(container) = workspace.monocle_container_mut() {
+                                        container.windows_mut().retain(|window| {
+                                            window.exe().is_ok()
+                                                && !known_hwnds.contains(&window.hwnd)
+                                        });
+
+                                        if container.windows().is_empty() {
+                                            workspace.set_monocle_container(None);
+                                        } else if is_focused_workspace {
+                                            if let Some(window) = container.focused_window() {
+                                                WindowsApi::restore_window(window.hwnd);
+                                            } else {
+                                                // If the focused window was moved or removed by
+                                                // the user after the disconnect then focus the
+                                                // first window and show that one
+                                                container.focus_window(0);
+
+                                                if let Some(window) = container.focused_window() {
+                                                    WindowsApi::restore_window(window.hwnd);
+                                                }
+                                            }
+                                        }
+                                    }
+
+                                    workspace.floating_windows_mut().retain(|window| {
+                                        window.exe().is_ok() && !known_hwnds.contains(&window.hwnd)
+                                    });
+
+                                    if is_focused_workspace {
+                                        for window in workspace.floating_windows() {
+                                            WindowsApi::restore_window(window.hwnd);
+                                        }
+                                    }
+
+                                    // Apply workspace rules
+                                    let mut workspace_matching_rules =
+                                        WORKSPACE_MATCHING_RULES.lock();
+                                    if let Some(rules) = workspace
+                                        .workspace_config()
+                                        .as_ref()
+                                        .and_then(|c| c.workspace_rules.as_ref())
+                                    {
+                                        for r in rules {
+                                            workspace_matching_rules.push(WorkspaceMatchingRule {
+                                                monitor_index: i,
+                                                workspace_index: j,
+                                                matching_rule: r.clone(),
+                                                initial_only: false,
+                                            });
+                                        }
+                                    }
+
+                                    if let Some(rules) = workspace
+                                        .workspace_config()
+                                        .as_ref()
+                                        .and_then(|c| c.initial_workspace_rules.as_ref())
+                                    {
+                                        for r in rules {
+                                            workspace_matching_rules.push(WorkspaceMatchingRule {
+                                                monitor_index: i,
+                                                workspace_index: j,
+                                                matching_rule: r.clone(),
+                                                initial_only: true,
+                                            });
+                                        }
                                     }
                                 }
+
+                                // Restore windows from new monitor and update the focused
+                                // workspace
+                                m.load_focused_workspace(mouse_follows_focus)?;
+                                m.update_focused_workspace(offset)?;
                             }
 
                             // Entries in the cache should only be used once; remove the entry there was a cache hit
@@ -453,6 +569,11 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                             }
                         }
                     }
+
+                    // Refocus the previously focused monitor since the code above might
+                    // steal the focus away.
+                    wm.focus_monitor(focused_monitor_idx)?;
+                    wm.focus_workspace(focused_workspace_idx)?;
                 }
 
                 let final_count = wm.monitors().len();
