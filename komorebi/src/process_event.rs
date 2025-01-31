@@ -751,6 +751,8 @@ impl WindowManager {
 
         serde_json::to_writer_pretty(&file, &known_hwnds)?;
 
+        self.known_hwnds = known_hwnds;
+
         notify_subscribers(
             Notification {
                 event: NotificationEvent::WindowManager(event),
