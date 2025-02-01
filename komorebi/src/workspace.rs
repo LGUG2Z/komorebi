@@ -490,7 +490,15 @@ impl Workspace {
         }
 
         for window in self.visible_windows().into_iter().flatten() {
-            if !window.is_window() {
+            if !window.is_window()
+                // This one is a hack because WINWORD.EXE is an absolute trainwreck of an app
+                // when multiple docs are open, it keeps open an invisible window, with WS_EX_LAYERED
+                // (A STYLE THAT THE REGULAR WINDOWS NEED IN ORDER TO BE MANAGED!) when one of the
+                // docs is closed
+                //
+                // I hate every single person who worked on Microsoft Office 365, especially Word
+                || !window.is_visible()
+            {
                 hwnds.push(window.hwnd);
             }
         }
