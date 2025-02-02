@@ -458,7 +458,16 @@ impl Workspace {
         // number of layouts / containers. This should never actually truncate as the remove_window
         // function takes care of cleaning up resize dimensions when destroying empty containers
         let container_count = self.containers().len();
-        self.resize_dimensions_mut().resize(container_count, None);
+
+        // since monocle is a toggle, we never want to truncate the resize dimensions since it will
+        // almost always be toggled off and the container will be reintegrated into layout
+        //
+        // without this check, if there are exactly two containers, when one is toggled to monocle
+        // the resize dimensions will be truncated to len == 1, and when it is reintegrated, if it
+        // had a resize adjustment before, that will have been lost
+        if self.monocle_container().is_none() {
+            self.resize_dimensions_mut().resize(container_count, None);
+        }
 
         Ok(())
     }
