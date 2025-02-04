@@ -297,7 +297,7 @@ impl RenderDispatcher for TransparencyRenderDispatcher {
     }
 }
 
-#[derive(Copy, Clone, Debug, Serialize, Deserialize, JsonSchema)]
+#[derive(Copy, Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq)]
 #[serde(untagged)]
 pub enum AspectRatio {
     /// A predefined aspect ratio
@@ -306,7 +306,7 @@ pub enum AspectRatio {
     Custom(i32, i32),
 }
 
-#[derive(Copy, Clone, Debug, Serialize, Deserialize, JsonSchema)]
+#[derive(Copy, Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq)]
 pub enum PredefinedAspectRatio {
     /// 21:9
     Ultrawide,
