@@ -261,7 +261,12 @@ impl WindowManager {
                 already_moved_window_handles.remove(&window.hwnd);
             }
             WindowManagerEvent::FocusChange(_, window) => {
-                self.update_focused_workspace(self.mouse_follows_focus, false)?;
+                // don't want to trigger the full workspace updates when there are no managed
+                // containers - this makes floating windows on empty workspaces go into very
+                // annoying focus change loops which prevents users from interacting with them
+                if !self.focused_workspace()?.containers().is_empty() {
+                    self.update_focused_workspace(self.mouse_follows_focus, false)?;
+                }
 
                 let workspace = self.focused_workspace_mut()?;
                 let floating_window_idx = workspace
