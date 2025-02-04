@@ -24,13 +24,10 @@ reqwest = { version = "0.12", features = ["blocking"] }
 schemars = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
-serde_yaml = "0.9"
 shadow-rs = { workspace = true }
 sysinfo = { workspace = true }
 thiserror = "2"
-uds_windows = { workspace = true }
 which = { workspace = true }
-win32-display-data = { workspace = true }
 windows = { workspace = true }
 
 [build-dependencies]

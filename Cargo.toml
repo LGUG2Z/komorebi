@@ -19,7 +19,7 @@ crossbeam-utils = "0.8"
 color-eyre = "0.6"
 eframe = "0.30"
 egui_extras = "0.30"
-dirs = "5"
+dirs = "6"
 dunce = "1"
 hotwatch = "0.5"
 schemars = "0.8"
@@ -37,7 +37,7 @@ win32-display-data = { git = "https://github.com/LGUG2Z/win32-display-data", rev
 windows-implement = { version = "0.58" }
 windows-interface = { version = "0.58" }
 windows-core = { version = "0.58" }
-shadow-rs = "0.37"
+shadow-rs = "0.38"
 which = "7"
 
 [workspace.dependencies.windows]
