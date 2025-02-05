@@ -366,7 +366,7 @@ pub enum KomobarTheme {
     },
     /// A theme from base16-egui-themes
     Base16 {
-        /// Name of the Base16 theme (theme previews: https://tinted-theming.github.io/base16-gallery)
+        /// Name of the Base16 theme (theme previews: https://tinted-theming.github.io/tinted-gallery/)
         name: komorebi_themes::Base16,
         accent: Option<komorebi_themes::Base16Value>,
     },

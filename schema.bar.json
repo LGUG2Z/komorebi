@@ -3423,7 +3423,7 @@
               ]
             },
             "name": {
-              "description": "Name of the Base16 theme (theme previews: https://tinted-theming.github.io/base16-gallery)",
+              "description": "Name of the Base16 theme (theme previews: https://tinted-theming.github.io/tinted-gallery/)",
               "type": "string",
               "enum": [
                 "3024",
