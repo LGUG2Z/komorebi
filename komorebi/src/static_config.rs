@@ -441,7 +441,7 @@ pub enum KomorebiTheme {
     },
     /// A theme from base16-egui-themes
     Base16 {
-        /// Name of the Base16 theme (theme previews: https://tinted-theming.github.io/base16-gallery)
+        /// Name of the Base16 theme (theme previews: https://tinted-theming.github.io/tinted-gallery/)
         name: komorebi_themes::Base16,
         /// Border colour when the container contains a single window (default: Base0D)
         single_border: Option<komorebi_themes::Base16Value>,

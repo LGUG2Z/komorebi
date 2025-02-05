@@ -254,5 +254,5 @@ stackbars as well as the status bar.
 If set in `komorebi.bar.json`, the theme will only be applied to the status bar.
 
 All [Catppuccin palette variants](https://catppuccin.com/)
-and [most Base16 palette variants](https://tinted-theming.github.io/base16-gallery/)
+and [most Base16 palette variants](https://tinted-theming.github.io/tinted-gallery/)
 are available as themes.
