@@ -24,6 +24,15 @@ install-target target:
 install:
     just install-targets komorebic komorebic-no-console komorebi komorebi-bar komorebi-gui
 
+build-targets *targets:
+    "{{ targets }}" -split ' ' | ForEach-Object { just build-target $_ }
+
+build-target target:
+    cargo +stable build --release --package {{ target }} --locked
+
+build:
+    just build-targets komorebic komorebic-no-console komorebi komorebi-bar komorebi-gui
+
 run target:
     cargo +stable run --bin {{ target }} --locked
 
