@@ -499,6 +499,10 @@
                       "hide_empty_workspaces": {
                         "description": "Hide workspaces without any windows",
                         "type": "boolean"
+                      },
+                      "show_all_icons": {
+                        "description": "Display all icons for all containers",
+                        "type": "boolean"
                       }
                     }
                   }
@@ -1746,6 +1750,10 @@
                       "hide_empty_workspaces": {
                         "description": "Hide workspaces without any windows",
                         "type": "boolean"
+                      },
+                      "show_all_icons": {
+                        "description": "Display all icons for all containers",
+                        "type": "boolean"
                       }
                     }
                   }
@@ -2925,6 +2933,10 @@
                       },
                       "hide_empty_workspaces": {
                         "description": "Hide workspaces without any windows",
+                        "type": "boolean"
+                      },
+                      "show_all_icons": {
+                        "description": "Display all icons for all containers",
                         "type": "boolean"
                       }
                     }
