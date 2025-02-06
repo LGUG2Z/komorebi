@@ -3,6 +3,7 @@ mod battery;
 mod config;
 mod cpu;
 mod date;
+mod keyboard;
 mod komorebi;
 mod komorebi_layout;
 mod media;
