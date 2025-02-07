@@ -45,10 +45,10 @@ version = "0.58"
 features = [
     "implement",
     "Foundation_Numerics",
-    "Globalization",
     "Win32_System_Com",
     "Win32_UI_Shell_Common", # for IObjectArray
     "Win32_Foundation",
+    "Win32_Globalization",
     "Win32_Graphics_Dwm",
     "Win32_Graphics_Gdi",
     "Win32_Graphics_Direct2D",
