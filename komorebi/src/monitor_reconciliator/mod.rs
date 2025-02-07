@@ -48,7 +48,7 @@ static CHANNEL: OnceLock<(Sender<MonitorNotification>, Receiver<MonitorNotificat
 static MONITOR_CACHE: OnceLock<Mutex<HashMap<String, Monitor>>> = OnceLock::new();
 
 pub fn channel() -> &'static (Sender<MonitorNotification>, Receiver<MonitorNotification>) {
-    CHANNEL.get_or_init(|| crossbeam_channel::bounded(1))
+    CHANNEL.get_or_init(|| crossbeam_channel::bounded(20))
 }
 
 fn event_tx() -> Sender<MonitorNotification> {
