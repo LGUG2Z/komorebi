@@ -165,7 +165,7 @@ impl BarWidget for Keyboard {
                     },
                 );
 
-                config.apply_on_widget(false, ui, |ui| {
+                config.apply_on_widget(true, ui, |ui| {
                     ui.add(Label::new(WidgetText::LayoutJob(layout_job.clone())).selectable(false))
                 });
             }
