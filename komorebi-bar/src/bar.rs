@@ -673,50 +673,50 @@ impl eframe::App for Komobar {
                 }
             },
             Ok(KomorebiEvent::Notification(notification)) => {
+                let state = &notification.state;
+                let usr_monitor_index = match &self.config.monitor {
+                    MonitorConfigOrIndex::MonitorConfig(monitor_config) => monitor_config.index,
+                    MonitorConfigOrIndex::Index(idx) => *idx,
+                };
+                let monitor_index = state
+                    .monitor_usr_idx_map
+                    .get(&usr_monitor_index)
+                    .map_or(usr_monitor_index, |i| *i);
+                self.monitor_index = monitor_index;
+
+                if self.monitor_index >= state.monitors.elements().len() {
+                    // Monitor for this bar got disconnected lets disable the bar until it
+                    // reconnects
+                    self.disabled = true;
+                    tracing::warn!(
+                        "This bar's monitor got disconnected. The bar will be disabled until it reconnects..."
+                    );
+                    return;
+                } else {
+                    if self.disabled {
+                        tracing::info!(
+                            "This bar's monitor reconnected. The bar will be enabled again!"
+                        );
+
+                        // Restore the bar in case it has been minimized when the monitor
+                        // disconnected
+                        if let Some(hwnd) = self.hwnd {
+                            let window = komorebi_client::Window::from(hwnd);
+                            if window.is_miminized() {
+                                komorebi_client::WindowsApi::restore_window(hwnd);
+                            }
+                        }
+
+                        // Reposition the Bar
+                        self.position_bar();
+                    }
+                    self.disabled = false;
+                }
+
                 let should_apply_config = if matches!(
                     notification.event,
                     NotificationEvent::Monitor(MonitorNotification::DisplayConnectionChange)
                 ) {
-                    let state = &notification.state;
-                    let usr_monitor_index = match &self.config.monitor {
-                        MonitorConfigOrIndex::MonitorConfig(monitor_config) => monitor_config.index,
-                        MonitorConfigOrIndex::Index(idx) => *idx,
-                    };
-                    let monitor_index = state
-                        .monitor_usr_idx_map
-                        .get(&usr_monitor_index)
-                        .map_or(usr_monitor_index, |i| *i);
-                    self.monitor_index = monitor_index;
-
-                    if self.monitor_index >= state.monitors.elements().len() {
-                        // Monitor for this bar got disconnected lets disable the bar until it
-                        // reconnects
-                        self.disabled = true;
-                        tracing::warn!(
-                            "This bar's monitor got disconnected. The bar will be disabled until it reconnects..."
-                        );
-                        return;
-                    } else {
-                        if self.disabled {
-                            tracing::info!(
-                                "This bar's monitor reconnected. The bar will be enabled again!"
-                            );
-
-                            // Restore the bar in case it has been minimized when the monitor
-                            // disconnected
-                            if let Some(hwnd) = self.hwnd {
-                                let window = komorebi_client::Window::from(hwnd);
-                                if window.is_miminized() {
-                                    komorebi_client::WindowsApi::restore_window(hwnd);
-                                }
-                            }
-
-                            // Reposition the Bar
-                            self.position_bar();
-                        }
-                        self.disabled = false;
-                    }
-
                     // Store the monitor coordinates in case they've changed
                     MONITOR_RIGHT.store(
                         state.monitors.elements()[self.monitor_index].size().right,
