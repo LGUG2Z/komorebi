@@ -99,6 +99,7 @@ use crate::WORKSPACE_MATCHING_RULES;
 #[derive(Debug)]
 pub struct WindowManager {
     pub monitors: Ring<Monitor>,
+    pub monitor_usr_idx_map: HashMap<usize, usize>,
     pub incoming_events: Receiver<WindowManagerEvent>,
     pub command_listener: UnixListener,
     pub is_paused: bool,
@@ -116,12 +117,14 @@ pub struct WindowManager {
     pub pending_move_op: Arc<Option<(usize, usize, isize)>>,
     pub already_moved_window_handles: Arc<Mutex<HashSet<isize>>>,
     pub uncloack_to_ignore: usize,
+    pub known_hwnds: Vec<isize>,
 }
 
 #[allow(clippy::struct_excessive_bools)]
 #[derive(Debug, Serialize, Deserialize, JsonSchema)]
 pub struct State {
     pub monitors: Ring<Monitor>,
+    pub monitor_usr_idx_map: HashMap<usize, usize>,
     pub is_paused: bool,
     pub resize_delta: i32,
     pub new_window_behaviour: WindowContainerBehaviour,
@@ -283,6 +286,7 @@ impl From<&WindowManager> for State {
     fn from(wm: &WindowManager) -> Self {
         Self {
             monitors: wm.monitors.clone(),
+            monitor_usr_idx_map: wm.monitor_usr_idx_map.clone(),
             is_paused: wm.is_paused,
             work_area_offset: wm.work_area_offset,
             resize_delta: wm.resize_delta,
@@ -343,6 +347,7 @@ impl WindowManager {
 
         Ok(Self {
             monitors: Ring::default(),
+            monitor_usr_idx_map: HashMap::new(),
             incoming_events: incoming,
             command_listener: listener,
             is_paused: false,
@@ -360,13 +365,14 @@ impl WindowManager {
             pending_move_op: Arc::new(None),
             already_moved_window_handles: Arc::new(Mutex::new(HashSet::new())),
             uncloack_to_ignore: 0,
+            known_hwnds: Vec::new(),
         })
     }
 
     #[tracing::instrument(skip(self))]
     pub fn init(&mut self) -> Result<()> {
         tracing::info!("initialising");
-        WindowsApi::load_monitor_information(&mut self.monitors)?;
+        WindowsApi::load_monitor_information(self)?;
         WindowsApi::load_workspace_information(&mut self.monitors)
     }
 
