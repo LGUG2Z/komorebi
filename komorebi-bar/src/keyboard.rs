@@ -35,7 +35,9 @@ pub struct KeyboardConfig {
 
 impl From<KeyboardConfig> for Keyboard {
     fn from(value: KeyboardConfig) -> Self {
-        let data_refresh_interval = value.data_refresh_interval.unwrap_or(DEFAULT_DATA_REFRESH_INTERVAL);
+        let data_refresh_interval = value
+            .data_refresh_interval
+            .unwrap_or(DEFAULT_DATA_REFRESH_INTERVAL);
         Self {
             enable: value.enable,
             data_refresh_interval,
