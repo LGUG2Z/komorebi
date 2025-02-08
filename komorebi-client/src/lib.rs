@@ -2,10 +2,15 @@
 #![allow(clippy::missing_errors_doc)]
 
 pub use komorebi::animation::prefix::AnimationPrefix;
+pub use komorebi::animation::PerAnimationPrefixConfig;
 pub use komorebi::asc::ApplicationSpecificConfiguration;
 pub use komorebi::colour::Colour;
 pub use komorebi::colour::Rgb;
 pub use komorebi::config_generation::ApplicationConfiguration;
+pub use komorebi::config_generation::IdWithIdentifier;
+pub use komorebi::config_generation::IdWithIdentifierAndComment;
+pub use komorebi::config_generation::MatchingRule;
+pub use komorebi::config_generation::MatchingStrategy;
 pub use komorebi::container::Container;
 pub use komorebi::core::config_generation::ApplicationConfigurationGenerator;
 pub use komorebi::core::resolve_home_path;
@@ -39,17 +44,24 @@ pub use komorebi::ring::Ring;
 pub use komorebi::window::Window;
 pub use komorebi::window_manager_event::WindowManagerEvent;
 pub use komorebi::workspace::Workspace;
+pub use komorebi::AnimationsConfig;
+pub use komorebi::AspectRatio;
 pub use komorebi::BorderColours;
+pub use komorebi::CrossBoundaryBehaviour;
 pub use komorebi::GlobalState;
 pub use komorebi::KomorebiTheme;
+pub use komorebi::MonitorConfig;
 pub use komorebi::Notification;
 pub use komorebi::NotificationEvent;
+pub use komorebi::PredefinedAspectRatio;
 pub use komorebi::RuleDebug;
 pub use komorebi::StackbarConfig;
 pub use komorebi::State;
 pub use komorebi::StaticConfig;
 pub use komorebi::SubscribeOptions;
 pub use komorebi::TabsConfig;
+pub use komorebi::WindowContainerBehaviour;
+pub use komorebi::WorkspaceConfig;
 
 use komorebi::DATA_DIR;
 

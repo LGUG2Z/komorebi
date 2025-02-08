@@ -75,7 +75,7 @@ pub struct IdWithIdentifier {
     pub matching_strategy: Option<MatchingStrategy>,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, Display, JsonSchema)]
 pub enum MatchingStrategy {
     Legacy,
     Equals,
