@@ -2527,18 +2527,14 @@ if (Get-Command Get-CimInstance -ErrorAction SilentlyContinue) {
             } else {
                 send_message(&SocketMessage::Stop)?;
             }
-            let mut system = sysinfo::System::new_all();
-            system.refresh_processes(ProcessesToUpdate::All, true);
 
-            if system.processes_by_name("komorebi.exe".as_ref()).count() >= 1 {
+            let komorebi_exe = "komorebi.exe";
+            if system.processes_by_name(komorebi_exe.as_ref()).count() >= 1 {
                 println!("komorebi is still running, attempting to force-quit");
 
-                let script = r"
-Stop-Process -Name:komorebi -ErrorAction SilentlyContinue
-                ";
-                match powershell_script::run(script) {
+                match terminate_matching_processes(&mut system, komorebi_exe) {
                     Ok(_) => {
-                        println!("{script}");
+                        println!("{komorebi_exe} stopped");
 
                         let hwnd_json = DATA_DIR.join("komorebi.hwnd.json");
 
