@@ -1482,10 +1482,10 @@ enum SubCommand {
 macro_rules! spawn_and_log {
     ($command:expr) => {
         match $command.spawn() {
-            Err(error) => println!("Error: {error}"),
+            Err(error) => eprintln!("Error: {error}"),
             Ok(_) => match get_command_string(&$command) {
                 Ok(command_str) => println!("{command_str}"),
-                Err(error) => println!("Error: {error}"),
+                Err(error) => eprintln!("Error: {error}"),
             },
         }
     };
@@ -1507,11 +1507,11 @@ macro_rules! spawn_and_log {
 macro_rules! terminate_process {
     ($system:expr, $process_name:expr) => {
         match terminate_matching_processes(&mut $system, &$process_name) {
-            Ok(_) => {
-                println!("{} stopped", &$process_name);
+            Ok(count) => {
+                println!("{} {} processes stopped", count, &$process_name);
             }
             Err(error) => {
-                println!("Error: {}", error);
+                eprintln!("Error: {}", error);
             }
         }
     };
@@ -2407,7 +2407,7 @@ if (!(Get-Process whkd -ErrorAction SilentlyContinue))
                         println!("{script}");
                     }
                     Err(error) => {
-                        println!("Error: {error}");
+                        eprintln!("Error: {error}");
                     }
                 }
             }
@@ -2538,7 +2538,7 @@ if (!(Get-Process whkd -ErrorAction SilentlyContinue))
                         println!("{count} AutoHotkey processes stopped");
                     }
                     Err(error) => {
-                        println!("Error: {error}");
+                        eprintln!("Error: {error}");
                     }
                 }
             }
@@ -2568,7 +2568,7 @@ if (!(Get-Process whkd -ErrorAction SilentlyContinue))
                         }
                     }
                     Err(error) => {
-                        println!("Error: {error}");
+                        eprintln!("Error: {error}");
                     }
                 }
             }
@@ -2593,7 +2593,7 @@ if (!(Get-Process whkd -ErrorAction SilentlyContinue))
                         println!("{count} AutoHotkey processes stopped");
                     }
                     Err(error) => {
-                        println!("Error: {error}");
+                        eprintln!("Error: {error}");
                     }
                 }
             }
