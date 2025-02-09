@@ -7,6 +7,7 @@ use std::fs::OpenOptions;
 use std::io::BufRead;
 use std::io::BufReader;
 use std::io::Write;
+use std::os::windows::process::CommandExt;
 use std::path::Path;
 use std::path::PathBuf;
 use std::process::Command;
@@ -39,6 +40,7 @@ use serde::Deserialize;
 use sysinfo::ProcessesToUpdate;
 use which::which;
 use windows::Win32::Foundation::HWND;
+use windows::Win32::System::Threading::DETACHED_PROCESS;
 use windows::Win32::UI::WindowsAndMessaging::ShowWindow;
 use windows::Win32::UI::WindowsAndMessaging::SHOW_WINDOW_CMD;
 use windows::Win32::UI::WindowsAndMessaging::SW_RESTORE;
@@ -1459,6 +1461,68 @@ fn print_query(message: &SocketMessage) {
     }
 }
 
+/// Constructs a runnable command string from a given `Command` instance.
+///
+/// This function takes a reference to a `Command` object and attempts to construct
+/// a string representation of the command, which can be copy pasted into a shell to
+/// be run.
+///
+/// # Arguments
+///
+/// * `command` - A reference to a `Command` object, which contains information about
+///               the program and its arguments.
+///
+/// # Returns
+///
+/// * `Ok(String)` - A `String` containing the full command, including the program name
+///                  and all arguments, separated by spaces.
+/// * `Err(&'static str)` - An error message if either the program name or any argument
+///                         contains invalid Unicode characters.
+///
+/// # Errors
+///
+/// This function will return an error if the program name or any argument contains
+/// invalid Unicode characters.
+fn get_command_string(command: &Command) -> Result<String, &'static str> {
+    let mut command_str = String::new();
+
+    if let Some(program) = command.get_program().to_str() {
+        command_str.push_str(program);
+    } else {
+        return Err("Program name contains invalid Unicode");
+    }
+
+    for arg in command.get_args() {
+        command_str.push(' ');
+        if let Some(arg_str) = arg.to_str() {
+            command_str.push_str(arg_str);
+        } else {
+            return Err("Argument contains invalid Unicode");
+        }
+    }
+
+    Ok(command_str.to_string())
+}
+
+/// Creates a new `Command` instance configured to run in a detached process.
+///
+/// This function initializes a new `Command` with the specified program and configures it
+/// to run as a detached process. A detached process runs independently of the parent process,
+/// meaning it will not terminate when the parent process exits.
+///
+/// # Arguments
+///
+/// * `program` - A string slice (`&str`) specifying the path or name of the program to execute.
+///
+/// # Returns
+///
+/// * `Command` - A `Command` instance configured to run the specified program as a detached process.
+fn detached_command(program: &str) -> Command {
+    let mut command = Command::new(program);
+    command.creation_flags(DETACHED_PROCESS.0);
+    command
+}
+
 fn startup_dir() -> Result<PathBuf> {
     let startup = dirs::home_dir()
         .expect("unable to obtain user's home folder")
@@ -2210,16 +2274,15 @@ if (!(Get-Process whkd -ErrorAction SilentlyContinue))
                     let mut config = StaticConfig::read(config)?;
                     if let Some(display_bar_configurations) = &mut config.bar_configurations {
                         for config_file_path in &mut *display_bar_configurations {
-                            let script = r#"Start-Process "komorebi-bar" '"--config" "CONFIGFILE"' -WindowStyle hidden"#
-                            .replace("CONFIGFILE", &config_file_path.to_string_lossy());
+                            let mut command = detached_command("komorebi-bar");
+                            command.arg("--config").arg(&config_file_path);
 
-                            match powershell_script::run(&script) {
-                                Ok(_) => {
-                                    println!("{script}");
-                                }
-                                Err(error) => {
-                                    println!("Error: {error}");
-                                }
+                            match command.spawn() {
+                                Err(error) => println!("Error: {error}"),
+                                Ok(_) => match get_command_string(&command) {
+                                    Ok(command_str) => println!("{command_str}"),
+                                    Err(error) => println!("Error: {error}"),
+                                },
                             }
                         }
                     } else {
