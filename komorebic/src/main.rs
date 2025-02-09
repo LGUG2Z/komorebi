@@ -40,8 +40,12 @@ use serde::Deserialize;
 use sysinfo::ProcessesToUpdate;
 use sysinfo::System;
 use which::which;
+use windows::Win32::Foundation::CloseHandle;
 use windows::Win32::Foundation::HWND;
+use windows::Win32::System::Threading::OpenProcess;
+use windows::Win32::System::Threading::TerminateProcess;
 use windows::Win32::System::Threading::DETACHED_PROCESS;
+use windows::Win32::System::Threading::PROCESS_TERMINATE;
 use windows::Win32::UI::WindowsAndMessaging::ShowWindow;
 use windows::Win32::UI::WindowsAndMessaging::SHOW_WINDOW_CMD;
 use windows::Win32::UI::WindowsAndMessaging::SW_RESTORE;
@@ -1487,6 +1491,32 @@ macro_rules! spawn_and_log {
     };
 }
 
+/// A macro to terminate processes matching a given name and handle the result.
+///
+/// This macro encapsulates the logic for calling `terminate_matching_processes` with a mutable reference
+/// to the `system` and a reference to the `process_name`. It matches the result of the function call:
+/// - If successful (`Ok(_)`), it prints a message indicating that the process has been stopped.
+/// - If an error occurs (`Err(error)`), it prints an error message containing the details of the error.
+///
+/// # Arguments
+///
+/// * `system` - A mutable reference to a `System` object. This object is responsible
+///   for managing and querying system information, such as running processes.
+/// * `$process_name`: The name of the process to terminate. This is used to identify the target process.
+///   processes whose names match this string exactly will be terminated.
+macro_rules! terminate_process {
+    ($system:expr, $process_name:expr) => {
+        match terminate_matching_processes(&mut $system, &$process_name) {
+            Ok(_) => {
+                println!("{} stopped", &$process_name);
+            }
+            Err(error) => {
+                println!("Error: {}", error);
+            }
+        }
+    };
+}
+
 // print_query is a helper that queries komorebi and prints the response.
 // panics on error.
 fn print_query(message: &SocketMessage) {
@@ -1586,6 +1616,70 @@ fn is_running(system: &mut System, process_name: &str) -> bool {
         .processes_by_exact_name(process_name.as_ref())
         .next()
         .is_some()
+}
+
+/// Terminates a process identified by its Process ID (PID).
+///
+/// # Arguments
+///
+/// * `pid` - A `u32` representing the Process ID (PID) of the process to be terminated.
+///
+/// # Returns
+///
+/// * `Ok(())` - If the process was successfully terminated.
+/// * `Err(&'static str)` - If an error occurred during the operation. Possible errors include:
+///     - `"Failed to open process handle"`: The process could not be opened with the required access rights.
+///     - `"Failed to terminate process"`: The attempt to terminate the process failed.
+fn terminate_process(pid: u32) -> Result<(), &'static str> {
+    let handle = unsafe { OpenProcess(PROCESS_TERMINATE, false, pid) };
+
+    let handle = match handle {
+        Ok(handle) => handle,
+        Err(_) => return Err("Failed to open process handle"),
+    };
+
+    // Terminate the process
+    let result = unsafe { TerminateProcess(handle, 1) };
+    if result.is_err() {
+        unsafe { CloseHandle(handle).ok() };
+        return Err("Failed to terminate process");
+    }
+
+    unsafe { CloseHandle(handle).ok() };
+    Ok(())
+}
+
+/// Terminates all processes with a specific name.
+///
+/// This function iterates over all running processes in the system and terminates those whose names
+/// exactly match the provided `process_name`. It uses the `terminate_process` function to terminate
+/// each matching process.
+///
+/// # Arguments
+///
+/// * `system` - A mutable reference to a `System` object, which is used to query and manage system processes.
+/// * `process_name` - A string slice (`&str`) representing the exact name of the processes to be terminated.
+///
+/// # Returns
+///
+/// * `Ok(u32)` - The number of processes successfully terminated.
+/// * `Err(E)` - An error if something goes wrong during the operation. The specific error type depends on
+///              the implementation of `terminate_process`.
+///
+/// # Notes
+///
+/// - Remember to refresh the system processes if needed before calling this function to ensure the process
+///   list is up-to-date.
+fn terminate_matching_processes(system: &mut System, process_name: &str) -> Result<u32> {
+    let mut terminated_count = 0;
+    system
+        .processes_by_exact_name(process_name.as_ref())
+        .for_each(|process| {
+            if terminate_process(process.pid().as_u32()).is_ok() {
+                terminated_count += 1;
+            }
+        });
+    Ok(terminated_count)
 }
 
 fn startup_dir() -> Result<PathBuf> {
@@ -2283,7 +2377,7 @@ if (!(Get-Process whkd -ErrorAction SilentlyContinue))
                 let config_ahk = HOME_DIR.join("komorebi.ahk");
                 let config_ahk = dunce::simplified(&config_ahk);
                 let mut command = detached_command(&ahk);
-                command.arg(&config_ahk);
+                command.arg(config_ahk);
                 spawn_and_log!(command);
             }
 
@@ -2308,20 +2402,16 @@ if (!(Get-Process whkd -ErrorAction SilentlyContinue))
                             command.arg("--config").arg(&config_file_path);
                             spawn_and_log!(command);
                         }
-                    } else {
-                        if !is_running(&mut system, "komorebi-bar.exe") {
-                            let mut command = detached_command("komorebi-bar.exe");
-                            spawn_and_log!(command);
-                        }
+                    } else if !is_running(&mut system, "komorebi-bar.exe") {
+                        let mut command = detached_command("komorebi-bar.exe");
+                        spawn_and_log!(command);
                     }
                 }
             }
 
-            if arg.masir {
-                if !is_running(&mut system, "masir.exe") {
-                    let mut command = detached_command("masir.exe");
-                    spawn_and_log!(command);
-                }
+            if arg.masir && !is_running(&mut system, "masir.exe") {
+                let mut command = detached_command("masir.exe");
+                spawn_and_log!(command);
             }
 
             println!("\nThank you for using komorebi!\n");
@@ -2390,46 +2480,17 @@ if (!(Get-Process whkd -ErrorAction SilentlyContinue))
             }
         }
         SubCommand::Stop(arg) => {
+            let mut system = System::new_all();
             if arg.whkd {
-                let script = r"
-Stop-Process -Name:whkd -ErrorAction SilentlyContinue
-                ";
-                match powershell_script::run(script) {
-                    Ok(_) => {
-                        println!("{script}");
-                    }
-                    Err(error) => {
-                        println!("Error: {error}");
-                    }
-                }
+                terminate_process!(&mut system, "whkd.exe");
             }
 
             if arg.bar {
-                let script = r"
-Stop-Process -Name:komorebi-bar -ErrorAction SilentlyContinue
-                ";
-                match powershell_script::run(script) {
-                    Ok(_) => {
-                        println!("{script}");
-                    }
-                    Err(error) => {
-                        println!("Error: {error}");
-                    }
-                }
+                terminate_process!(&mut system, "komorebi-bar.exe");
             }
 
             if arg.masir {
-                let script = r"
-Stop-Process -Name:masir -ErrorAction SilentlyContinue
-                ";
-                match powershell_script::run(script) {
-                    Ok(_) => {
-                        println!("{script}");
-                    }
-                    Err(error) => {
-                        println!("Error: {error}");
-                    }
-                }
+                terminate_process!(&mut system, "masir.exe");
             }
 
             if arg.ahk {
@@ -2496,46 +2557,17 @@ Stop-Process -Name:komorebi -ErrorAction SilentlyContinue
             }
         }
         SubCommand::Kill(arg) => {
+            let mut system = System::new_all();
             if arg.whkd {
-                let script = r"
-Stop-Process -Name:whkd -ErrorAction SilentlyContinue
-                ";
-                match powershell_script::run(script) {
-                    Ok(_) => {
-                        println!("{script}");
-                    }
-                    Err(error) => {
-                        println!("Error: {error}");
-                    }
-                }
+                terminate_process!(&mut system, "whkd.exe");
             }
 
             if arg.bar {
-                let script = r"
-Stop-Process -Name:komorebi-bar -ErrorAction SilentlyContinue
-                ";
-                match powershell_script::run(script) {
-                    Ok(_) => {
-                        println!("{script}");
-                    }
-                    Err(error) => {
-                        println!("Error: {error}");
-                    }
-                }
+                terminate_process!(&mut system, "komorebi-bar.exe");
             }
 
             if arg.masir {
-                let script = r"
-Stop-Process -Name:masir -ErrorAction SilentlyContinue
-                ";
-                match powershell_script::run(script) {
-                    Ok(_) => {
-                        println!("{script}");
-                    }
-                    Err(error) => {
-                        println!("Error: {error}");
-                    }
-                }
+                terminate_process!(&mut system, "masir.exe");
             }
 
             if arg.ahk {
