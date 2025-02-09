@@ -113,6 +113,11 @@ lazy_static! {
 
 shadow_rs::shadow!(build);
 
+const KOMOREBI_EXE: &str = "komorebi.exe";
+const KOMOREBI_BAR_EXE: &str = "komorebi-bar.exe";
+const WHKD_EXE: &str = "whkd.exe";
+const MASIR_EXE: &str = "masir.exe";
+
 #[derive(thiserror::Error, Debug, miette::Diagnostic)]
 #[error("{message}")]
 #[diagnostic(code(komorebi::configuration), help("try fixing this syntax error"))]
@@ -2350,45 +2355,48 @@ fn main() -> Result<()> {
                 flags.push("'--clean-state'".to_string());
             }
 
-            let komorebi_exe_path = exec.unwrap_or("komorebi.exe");
+            let komorebi_exe_path = exec.unwrap_or(KOMOREBI_EXE);
             let mut command = detached_command(komorebi_exe_path);
             command.args(&flags);
             spawn_and_log!(command);
 
             let mut system = System::new_all();
             let mut attempts = 0;
-            let mut running = is_running(&mut system, "komorebi.exe");
+            let mut running = is_running(&mut system, KOMOREBI_EXE);
 
             while !running && attempts <= 2 {
                 let mut command = detached_command(komorebi_exe_path);
                 command.args(&flags);
                 spawn_and_log!(command);
 
-                print!("Waiting for komorebi.exe to start...");
+                print!("Waiting for {} to start...", KOMOREBI_EXE);
                 std::thread::sleep(Duration::from_secs(3));
 
                 system.refresh_processes(ProcessesToUpdate::All, true);
 
-                if is_running(&mut system, "komorebi.exe") {
+                if is_running(&mut system, KOMOREBI_EXE) {
                     println!("Started!");
                     running = true;
                 } else {
-                    println!("komorebi.exe did not start... Trying again");
+                    println!("{} did not start... Trying again", KOMOREBI_EXE);
                     attempts += 1;
                 }
             }
 
             if !running {
-                println!("\nRunning komorebi.exe directly for detailed error output\n");
+                println!(
+                    "\nRunning {} directly for detailed error output\n",
+                    KOMOREBI_EXE
+                );
                 if let Some(config) = arg.config {
                     let path = resolve_home_path(config)?;
-                    if let Ok(output) = Command::new("komorebi.exe")
+                    if let Ok(output) = Command::new(KOMOREBI_EXE)
                         .arg(format!("'--config=\"{}\"'", path.display()))
                         .output()
                     {
                         println!("{}", String::from_utf8(output.stderr)?);
                     }
-                } else if let Ok(output) = Command::new("komorebi.exe").output() {
+                } else if let Ok(output) = Command::new(KOMOREBI_EXE).output() {
                     println!("{}", String::from_utf8(output.stderr)?);
                 }
 
@@ -2437,19 +2445,19 @@ if (!(Get-Process whkd -ErrorAction SilentlyContinue))
                     let mut config = StaticConfig::read(config)?;
                     if let Some(display_bar_configurations) = &mut config.bar_configurations {
                         for config_file_path in &mut *display_bar_configurations {
-                            let mut command = detached_command("komorebi-bar.exe");
+                            let mut command = detached_command(KOMOREBI_BAR_EXE);
                             command.arg("--config").arg(&config_file_path);
                             spawn_and_log!(command);
                         }
-                    } else if !is_running(&mut system, "komorebi-bar.exe") {
-                        let mut command = detached_command("komorebi-bar.exe");
+                    } else if !is_running(&mut system, KOMOREBI_BAR_EXE) {
+                        let mut command = detached_command(KOMOREBI_BAR_EXE);
                         spawn_and_log!(command);
                     }
                 }
             }
 
-            if arg.masir && !is_running(&mut system, "masir.exe") {
-                let mut command = detached_command("masir.exe");
+            if arg.masir && !is_running(&mut system, MASIR_EXE) {
+                let mut command = detached_command(MASIR_EXE);
                 spawn_and_log!(command);
             }
 
@@ -2489,7 +2497,7 @@ if (!(Get-Process whkd -ErrorAction SilentlyContinue))
             }
 
             if bar_config.is_some() {
-                let output = Command::new("komorebi-bar.exe").arg("--aliases").output()?;
+                let output = Command::new(KOMOREBI_BAR_EXE).arg("--aliases").output()?;
                 let stdout = String::from_utf8(output.stdout)?;
                 println!("{stdout}");
             }
@@ -2521,15 +2529,15 @@ if (!(Get-Process whkd -ErrorAction SilentlyContinue))
         SubCommand::Stop(arg) => {
             let mut system = System::new_all();
             if arg.whkd {
-                terminate_process!(&mut system, "whkd.exe");
+                terminate_process!(&mut system, WHKD_EXE);
             }
 
             if arg.bar {
-                terminate_process!(&mut system, "komorebi-bar.exe");
+                terminate_process!(&mut system, KOMOREBI_BAR_EXE);
             }
 
             if arg.masir {
-                terminate_process!(&mut system, "masir.exe");
+                terminate_process!(&mut system, MASIR_EXE);
             }
 
             if arg.ahk {
@@ -2549,7 +2557,7 @@ if (!(Get-Process whkd -ErrorAction SilentlyContinue))
                 send_message(&SocketMessage::Stop)?;
             }
 
-            let komorebi_exe = "komorebi.exe";
+            let komorebi_exe = KOMOREBI_EXE;
             if system.processes_by_name(komorebi_exe.as_ref()).count() >= 1 {
                 println!("komorebi is still running, attempting to force-quit");
 
@@ -2576,15 +2584,15 @@ if (!(Get-Process whkd -ErrorAction SilentlyContinue))
         SubCommand::Kill(arg) => {
             let mut system = System::new_all();
             if arg.whkd {
-                terminate_process!(&mut system, "whkd.exe");
+                terminate_process!(&mut system, WHKD_EXE);
             }
 
             if arg.bar {
-                terminate_process!(&mut system, "komorebi-bar.exe");
+                terminate_process!(&mut system, KOMOREBI_BAR_EXE);
             }
 
             if arg.masir {
-                terminate_process!(&mut system, "masir.exe");
+                terminate_process!(&mut system, MASIR_EXE);
             }
 
             if arg.ahk {
