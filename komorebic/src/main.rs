@@ -1682,6 +1682,45 @@ fn terminate_matching_processes(system: &mut System, process_name: &str) -> Resu
     Ok(terminated_count)
 }
 
+const AHK_EXE_NAMES: [&str; 4] = [
+    "AutoHotkey.exe",
+    "AutoHotkey64.exe",
+    "AutoHotkey32.exe",
+    "AutoHotkeyUX.exe",
+];
+
+fn terminate_ahk_processes(system: &mut System) -> Result<u32> {
+    let mut terminated_count = 0;
+    let mut ahk_pids: Vec<u32> = vec![];
+    for (pid, process) in system.processes() {
+        let pname = match process.name().to_str() {
+            Some(name) => name,
+            None => continue,
+        };
+        if AHK_EXE_NAMES.contains(&pname) {
+            if let Some(last_arg) = process.cmd().last() {
+                if let Some(last_arg_str) = last_arg.to_str() {
+                    // Check if the last argument is komorebi.ahk
+                    // It can either be komorebi.ahk or komorebi.ahk" depending on whether the path has spaces
+                    if last_arg_str.ends_with("komorebi.ahk")
+                        || last_arg_str.ends_with("komorebi.ahk\"")
+                    {
+                        ahk_pids.push(pid.as_u32());
+                    }
+                }
+            }
+        }
+    }
+
+    for pid in ahk_pids {
+        if terminate_process(pid).is_ok() {
+            terminated_count += 1;
+        }
+    }
+
+    Ok(terminated_count)
+}
+
 fn startup_dir() -> Result<PathBuf> {
     let startup = dirs::home_dir()
         .expect("unable to obtain user's home folder")
@@ -2494,27 +2533,9 @@ if (!(Get-Process whkd -ErrorAction SilentlyContinue))
             }
 
             if arg.ahk {
-                let script = r#"
-if (Get-Command Get-CimInstance -ErrorAction SilentlyContinue) {
-    (Get-CimInstance Win32_Process | Where-Object {
-        ($_.CommandLine -like '*komorebi.ahk"') -and
-        ($_.Name -in @('AutoHotkey.exe', 'AutoHotkey64.exe', 'AutoHotkey32.exe', 'AutoHotkeyUX.exe'))
-    } | Select-Object -First 1) | ForEach-Object {
-        Stop-Process -Id $_.ProcessId -ErrorAction SilentlyContinue
-    }
-} else {
-    (Get-WmiObject Win32_Process | Where-Object {
-        ($_.CommandLine -like '*komorebi.ahk"') -and
-        ($_.Name -in @('AutoHotkey.exe', 'AutoHotkey64.exe', 'AutoHotkey32.exe', 'AutoHotkeyUX.exe'))
-    } | Select-Object -First 1) | ForEach-Object {
-        Stop-Process -Id $_.ProcessId -ErrorAction SilentlyContinue
-    }
-}
-"#;
-
-                match powershell_script::run(script) {
-                    Ok(_) => {
-                        println!("{script}");
+                match terminate_ahk_processes(&mut system) {
+                    Ok(count) => {
+                        println!("{count} AutoHotkey processes stopped");
                     }
                     Err(error) => {
                         println!("Error: {error}");
@@ -2567,27 +2588,9 @@ if (Get-Command Get-CimInstance -ErrorAction SilentlyContinue) {
             }
 
             if arg.ahk {
-                let script = r#"
-if (Get-Command Get-CimInstance -ErrorAction SilentlyContinue) {
-    (Get-CimInstance Win32_Process | Where-Object {
-        ($_.CommandLine -like '*komorebi.ahk"') -and
-        ($_.Name -in @('AutoHotkey.exe', 'AutoHotkey64.exe', 'AutoHotkey32.exe', 'AutoHotkeyUX.exe'))
-    } | Select-Object -First 1) | ForEach-Object {
-        Stop-Process -Id $_.ProcessId -ErrorAction SilentlyContinue
-    }
-} else {
-    (Get-WmiObject Win32_Process | Where-Object {
-        ($_.CommandLine -like '*komorebi.ahk"') -and
-        ($_.Name -in @('AutoHotkey.exe', 'AutoHotkey64.exe', 'AutoHotkey32.exe', 'AutoHotkeyUX.exe'))
-    } | Select-Object -First 1) | ForEach-Object {
-        Stop-Process -Id $_.ProcessId -ErrorAction SilentlyContinue
-    }
-}
-"#;
-
-                match powershell_script::run(script) {
-                    Ok(_) => {
-                        println!("{script}");
+                match terminate_ahk_processes(&mut system) {
+                    Ok(count) => {
+                        println!("{count} AutoHotkey processes stopped");
                     }
                     Err(error) => {
                         println!("Error: {error}");
