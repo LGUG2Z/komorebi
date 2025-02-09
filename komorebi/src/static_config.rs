@@ -101,21 +101,26 @@ use std::sync::Arc;
 use uds_windows::UnixListener;
 use uds_windows::UnixStream;
 
-#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq)]
 pub struct BorderColours {
     /// Border colour when the container contains a single window
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub single: Option<Colour>,
     /// Border colour when the container contains multiple windows
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub stack: Option<Colour>,
     /// Border colour when the container is in monocle mode
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub monocle: Option<Colour>,
     /// Border colour when the container is in floating mode
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub floating: Option<Colour>,
     /// Border colour when the container is unfocused
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub unfocused: Option<Colour>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, PartialEq)]
 pub struct WorkspaceConfig {
     /// Name
     pub name: String,
@@ -223,7 +228,7 @@ impl From<&Workspace> for WorkspaceConfig {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, PartialEq)]
 pub struct MonitorConfig {
     /// Workspace configurations
     pub workspaces: Vec<WorkspaceConfig>,
@@ -254,7 +259,7 @@ impl From<&Monitor> for MonitorConfig {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize, JsonSchema, PartialEq)]
 /// The `komorebi.json` static configuration file reference for `v0.1.34`
 pub struct StaticConfig {
     /// DEPRECATED from v0.1.22: no longer required
@@ -391,8 +396,8 @@ pub struct StaticConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub slow_application_compensation_time: Option<u64>,
     /// Komorebi status bar configuration files for multiple instances on different monitors
-    #[serde(skip_serializing_if = "Option::is_none")]
     // this option is a little special because it is only consumed by komorebic
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub bar_configurations: Option<Vec<PathBuf>>,
     /// HEAVILY DISCOURAGED: Identify applications for which komorebi should forcibly remove title bars
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -402,18 +407,22 @@ pub struct StaticConfig {
     pub floating_window_aspect_ratio: Option<AspectRatio>,
 }
 
-#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq)]
 pub struct AnimationsConfig {
     /// Enable or disable animations (default: false)
-    enabled: PerAnimationPrefixConfig<bool>,
+    pub enabled: PerAnimationPrefixConfig<bool>,
     /// Set the animation duration in ms (default: 250)
-    duration: Option<PerAnimationPrefixConfig<u64>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub duration: Option<PerAnimationPrefixConfig<u64>>,
     /// Set the animation style (default: Linear)
-    style: Option<PerAnimationPrefixConfig<AnimationStyle>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub style: Option<PerAnimationPrefixConfig<AnimationStyle>>,
     /// Set the animation FPS (default: 60)
-    fps: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub fps: Option<u64>,
 }
-#[derive(Copy, Clone, Debug, Serialize, Deserialize, JsonSchema)]
+
+#[derive(Copy, Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq)]
 #[serde(tag = "palette")]
 pub enum KomorebiTheme {
     /// A theme from catppuccin-egui
@@ -421,22 +430,31 @@ pub enum KomorebiTheme {
         /// Name of the Catppuccin theme (theme previews: https://github.com/catppuccin/catppuccin)
         name: komorebi_themes::Catppuccin,
         /// Border colour when the container contains a single window (default: Blue)
+        #[serde(skip_serializing_if = "Option::is_none")]
         single_border: Option<komorebi_themes::CatppuccinValue>,
         /// Border colour when the container contains multiple windows (default: Green)
+        #[serde(skip_serializing_if = "Option::is_none")]
         stack_border: Option<komorebi_themes::CatppuccinValue>,
         /// Border colour when the container is in monocle mode (default: Pink)
+        #[serde(skip_serializing_if = "Option::is_none")]
         monocle_border: Option<komorebi_themes::CatppuccinValue>,
         /// Border colour when the window is floating (default: Yellow)
+        #[serde(skip_serializing_if = "Option::is_none")]
         floating_border: Option<komorebi_themes::CatppuccinValue>,
         /// Border colour when the container is unfocused (default: Base)
+        #[serde(skip_serializing_if = "Option::is_none")]
         unfocused_border: Option<komorebi_themes::CatppuccinValue>,
         /// Stackbar focused tab text colour (default: Green)
+        #[serde(skip_serializing_if = "Option::is_none")]
         stackbar_focused_text: Option<komorebi_themes::CatppuccinValue>,
         /// Stackbar unfocused tab text colour (default: Text)
+        #[serde(skip_serializing_if = "Option::is_none")]
         stackbar_unfocused_text: Option<komorebi_themes::CatppuccinValue>,
         /// Stackbar tab background colour (default: Base)
+        #[serde(skip_serializing_if = "Option::is_none")]
         stackbar_background: Option<komorebi_themes::CatppuccinValue>,
         /// Komorebi status bar accent (default: Blue)
+        #[serde(skip_serializing_if = "Option::is_none")]
         bar_accent: Option<komorebi_themes::CatppuccinValue>,
     },
     /// A theme from base16-egui-themes
@@ -444,22 +462,31 @@ pub enum KomorebiTheme {
         /// Name of the Base16 theme (theme previews: https://tinted-theming.github.io/tinted-gallery/)
         name: komorebi_themes::Base16,
         /// Border colour when the container contains a single window (default: Base0D)
+        #[serde(skip_serializing_if = "Option::is_none")]
         single_border: Option<komorebi_themes::Base16Value>,
         /// Border colour when the container contains multiple windows (default: Base0B)
+        #[serde(skip_serializing_if = "Option::is_none")]
         stack_border: Option<komorebi_themes::Base16Value>,
         /// Border colour when the container is in monocle mode (default: Base0F)
+        #[serde(skip_serializing_if = "Option::is_none")]
         monocle_border: Option<komorebi_themes::Base16Value>,
         /// Border colour when the window is floating (default: Base09)
+        #[serde(skip_serializing_if = "Option::is_none")]
         floating_border: Option<komorebi_themes::Base16Value>,
         /// Border colour when the container is unfocused (default: Base01)
+        #[serde(skip_serializing_if = "Option::is_none")]
         unfocused_border: Option<komorebi_themes::Base16Value>,
         /// Stackbar focused tab text colour (default: Base0B)
+        #[serde(skip_serializing_if = "Option::is_none")]
         stackbar_focused_text: Option<komorebi_themes::Base16Value>,
         /// Stackbar unfocused tab text colour (default: Base05)
+        #[serde(skip_serializing_if = "Option::is_none")]
         stackbar_unfocused_text: Option<komorebi_themes::Base16Value>,
         /// Stackbar tab background colour (default: Base01)
+        #[serde(skip_serializing_if = "Option::is_none")]
         stackbar_background: Option<komorebi_themes::Base16Value>,
         /// Komorebi status bar accent (default: Base0D)
+        #[serde(skip_serializing_if = "Option::is_none")]
         bar_accent: Option<komorebi_themes::Base16Value>,
     },
 }
@@ -545,31 +572,41 @@ impl StaticConfig {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq)]
 pub struct TabsConfig {
     /// Width of a stackbar tab
-    width: Option<i32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub width: Option<i32>,
     /// Focused tab text colour
-    focused_text: Option<Colour>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub focused_text: Option<Colour>,
     /// Unfocused tab text colour
-    unfocused_text: Option<Colour>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub unfocused_text: Option<Colour>,
     /// Tab background colour
-    background: Option<Colour>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub background: Option<Colour>,
     /// Font family
-    font_family: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub font_family: Option<String>,
     /// Font size
-    font_size: Option<i32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub font_size: Option<i32>,
 }
 
-#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq)]
 pub struct StackbarConfig {
     /// Stackbar height
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub height: Option<i32>,
     /// Stackbar label
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub label: Option<StackbarLabel>,
     /// Stackbar mode
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub mode: Option<StackbarMode>,
     /// Stackbar tab configuration options
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub tabs: Option<TabsConfig>,
 }
 

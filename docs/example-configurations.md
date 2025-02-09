@@ -75,7 +75,7 @@ solo developer.
 
 If you choose to use the active window border, you can set different colours to
 give you visual queues when you are focused on a single window, a stack of
-windows, or a window that is in monocole mode.
+windows, or a window that is in monocle mode.
 
 The example colours given are blue single, green for stack and pink for
 monocle.

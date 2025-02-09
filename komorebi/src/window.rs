@@ -40,6 +40,8 @@ use serde::ser::SerializeStruct;
 use serde::Deserialize;
 use serde::Serialize;
 use serde::Serializer;
+use strum::Display;
+use strum::EnumString;
 use windows::Win32::Foundation::HWND;
 
 use crate::core::ApplicationIdentifier;
@@ -297,7 +299,9 @@ impl RenderDispatcher for TransparencyRenderDispatcher {
     }
 }
 
-#[derive(Copy, Clone, Debug, Serialize, Deserialize, JsonSchema)]
+#[derive(
+    Copy, Clone, Debug, Display, EnumString, Serialize, Deserialize, JsonSchema, PartialEq,
+)]
 #[serde(untagged)]
 pub enum AspectRatio {
     /// A predefined aspect ratio
@@ -306,13 +310,22 @@ pub enum AspectRatio {
     Custom(i32, i32),
 }
 
-#[derive(Copy, Clone, Debug, Serialize, Deserialize, JsonSchema)]
+impl Default for AspectRatio {
+    fn default() -> Self {
+        AspectRatio::Predefined(PredefinedAspectRatio::default())
+    }
+}
+
+#[derive(
+    Copy, Clone, Debug, Default, Display, EnumString, Serialize, Deserialize, JsonSchema, PartialEq,
+)]
 pub enum PredefinedAspectRatio {
     /// 21:9
     Ultrawide,
     /// 16:9
     Widescreen,
     /// 4:3
+    #[default]
     Standard,
 }
 

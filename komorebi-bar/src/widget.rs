@@ -4,6 +4,8 @@ use crate::cpu::Cpu;
 use crate::cpu::CpuConfig;
 use crate::date::Date;
 use crate::date::DateConfig;
+use crate::keyboard::Keyboard;
+use crate::keyboard::KeyboardConfig;
 use crate::komorebi::Komorebi;
 use crate::komorebi::KomorebiConfig;
 use crate::media::Media;
@@ -34,6 +36,7 @@ pub enum WidgetConfig {
     Battery(BatteryConfig),
     Cpu(CpuConfig),
     Date(DateConfig),
+    Keyboard(KeyboardConfig),
     Komorebi(KomorebiConfig),
     Media(MediaConfig),
     Memory(MemoryConfig),
@@ -49,6 +52,7 @@ impl WidgetConfig {
             WidgetConfig::Battery(config) => Box::new(Battery::from(*config)),
             WidgetConfig::Cpu(config) => Box::new(Cpu::from(*config)),
             WidgetConfig::Date(config) => Box::new(Date::from(config.clone())),
+            WidgetConfig::Keyboard(config) => Box::new(Keyboard::from(*config)),
             WidgetConfig::Komorebi(config) => Box::new(Komorebi::from(config)),
             WidgetConfig::Media(config) => Box::new(Media::from(*config)),
             WidgetConfig::Memory(config) => Box::new(Memory::from(*config)),
@@ -64,6 +68,7 @@ impl WidgetConfig {
             WidgetConfig::Battery(config) => config.enable,
             WidgetConfig::Cpu(config) => config.enable,
             WidgetConfig::Date(config) => config.enable,
+            WidgetConfig::Keyboard(config) => config.enable,
             WidgetConfig::Komorebi(config) => {
                 config.workspaces.as_ref().is_some_and(|w| w.enable)
                     || config.layout.as_ref().is_some_and(|w| w.enable)
