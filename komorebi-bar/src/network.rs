@@ -148,7 +148,7 @@ impl Network {
             LabelPrefix::None | LabelPrefix::Icon => match reading.format {
                 NetworkReadingFormat::Speed => (
                     format!(
-                        "{: >width$}/s | ",
+                        "{: >width$}/s ",
                         reading.received_text,
                         width = self.network_activity_fill_characters
                     ),
@@ -159,14 +159,14 @@ impl Network {
                     ),
                 ),
                 NetworkReadingFormat::Total => (
-                    format!("{} | ", reading.received_text),
+                    format!("{} ", reading.received_text),
                     reading.transmitted_text,
                 ),
             },
             LabelPrefix::Text | LabelPrefix::IconAndText => match reading.format {
                 NetworkReadingFormat::Speed => (
                     format!(
-                        "DOWN: {: >width$}/s | ",
+                        "DOWN: {: >width$}/s ",
                         reading.received_text,
                         width = self.network_activity_fill_characters
                     ),
@@ -177,7 +177,7 @@ impl Network {
                     ),
                 ),
                 NetworkReadingFormat::Total => (
-                    format!("\u{2211}DOWN: {}/s | ", reading.received_text),
+                    format!("\u{2211}DOWN: {}/s ", reading.received_text),
                     format!("\u{2211}UP: {}/s", reading.transmitted_text),
                 ),
             },
