@@ -242,7 +242,11 @@ fn main() -> color_eyre::Result<()> {
                 break response;
             }
             Err(err) => {
-                eprintln!("Failed to connect to the komorebi: {}. Retrying in {} second...", err, retry_duration.as_secs());
+                eprintln!(
+                    "Failed to connect to the komorebi: {}. Retrying in {} second...",
+                    err,
+                    retry_duration.as_secs()
+                );
                 std::thread::sleep(retry_duration);
             }
         }
