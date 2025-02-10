@@ -11,4 +11,4 @@ eframe = { workspace = true }
 schemars = { workspace = true }
 serde = { workspace = true }
 serde_variant = "0.1"
-strum = "0.26"
+strum = "0.27"
