@@ -2355,7 +2355,8 @@ fn main() -> Result<()> {
             command.args(&flags);
             spawn_and_log(&mut command);
 
-            let mut system = System::new_all();
+            let mut system = System::new();
+            system.refresh_processes(ProcessesToUpdate::All, true);
             let mut attempts = 0;
             let mut running = is_running(&mut system, KOMOREBI_EXE);
 
@@ -2522,7 +2523,8 @@ if (!(Get-Process whkd -ErrorAction SilentlyContinue))
             }
         }
         SubCommand::Stop(arg) => {
-            let mut system = System::new_all();
+            let mut system = System::new();
+            system.refresh_processes(ProcessesToUpdate::All, true);
             if arg.whkd {
                 terminate_process_and_log(&mut system, WHKD_EXE);
             }
@@ -2577,7 +2579,8 @@ if (!(Get-Process whkd -ErrorAction SilentlyContinue))
             }
         }
         SubCommand::Kill(arg) => {
-            let mut system = System::new_all();
+            let mut system = System::new();
+            system.refresh_processes(ProcessesToUpdate::All, true);
             if arg.whkd {
                 terminate_process_and_log(&mut system, WHKD_EXE);
             }
