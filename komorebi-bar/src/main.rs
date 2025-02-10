@@ -234,9 +234,20 @@ fn main() -> color_eyre::Result<()> {
         std::process::exit(0);
     }
 
-    let state = serde_json::from_str::<komorebi_client::State>(&komorebi_client::send_query(
-        &SocketMessage::State,
-    )?)?;
+    let retry_duration = Duration::from_secs(1);
+    let query_response = loop {
+        // keep trying to connect to komorebi at a set interval
+        match komorebi_client::send_query(&SocketMessage::State) {
+            Ok(response) => {
+                break response;
+            }
+            Err(err) => {
+                eprintln!("Failed to connect to the komorebi: {}. Retrying in {} second...", err, retry_duration.as_secs());
+                std::thread::sleep(retry_duration);
+            }
+        }
+    };
+    let state = serde_json::from_str::<komorebi_client::State>(&query_response)?;
 
     let (monitor_index, work_area_offset) = match &config.monitor {
         MonitorConfigOrIndex::MonitorConfig(monitor_config) => {
