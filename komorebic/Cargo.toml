@@ -19,7 +19,6 @@ fs-tail = "0.1"
 lazy_static = { workspace = true }
 miette = { version = "7", features = ["fancy"] }
 paste = { workspace = true }
-powershell_script = "1.0"
 reqwest = { version = "0.12", features = ["blocking"] }
 schemars = { workspace = true }
 serde = { workspace = true }
