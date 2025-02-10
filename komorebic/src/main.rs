@@ -2399,21 +2399,9 @@ fn main() -> Result<()> {
                 return Ok(());
             }
 
-            if arg.whkd {
-                let script = r"
-if (!(Get-Process whkd -ErrorAction SilentlyContinue))
-{
-  Start-Process whkd -WindowStyle hidden
-}
-                ";
-                match powershell_script::run(script) {
-                    Ok(_) => {
-                        println!("{script}");
-                    }
-                    Err(error) => {
-                        eprintln!("Error: {error}");
-                    }
-                }
+            if arg.whkd && !is_running(&mut system, WHKD_EXE) {
+                let mut command = detached_command(WHKD_EXE);
+                spawn_and_log(&mut command);
             }
 
             if arg.ahk {
