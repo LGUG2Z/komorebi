@@ -1464,13 +1464,13 @@ enum SubCommand {
 
 /// Spawns the command and logs the command ran or any errors.
 ///
-/// This macro takes a command (of type `std::process::Command`), attempts to spawn it,
+/// Takes a command (`std::process::Command`), attempts to spawn it,
 /// and logs the result. If the command spawns successfully, it retrieves the command
 /// string representation using `get_command_string` and logs it. If any step fails,
 /// an error message is logged.
 ///
 /// # Parameters
-/// - `command`: An expression of type `std::process::Command` representing the command to spawn.
+/// - `command`: A `Command` instance configured to run the specified program.
 ///
 /// # Behavior
 /// - If spawning succeeds, the command string is retrieved and printed.
@@ -1482,44 +1482,39 @@ enum SubCommand {
 /// use std::process::Command;
 ///
 /// let command = Command::new("ls");
-/// spawn_and_log!(command);
+/// spawn_and_log(&mut command);
 /// ```
-macro_rules! spawn_and_log {
-    ($command:expr) => {
-        match $command.spawn() {
+fn spawn_and_log(command: &mut Command) {
+    match command.spawn() {
+        Err(error) => eprintln!("Error: {error}"),
+        Ok(_) => match get_command_string(command) {
+            Ok(command_str) => println!("{command_str}"),
             Err(error) => eprintln!("Error: {error}"),
-            Ok(_) => match get_command_string(&$command) {
-                Ok(command_str) => println!("{command_str}"),
-                Err(error) => eprintln!("Error: {error}"),
-            },
-        }
-    };
+        },
+    }
 }
 
-/// A macro to terminate processes matching a given name and handle the result.
+/// Terminate processes matching a given name and handle the result.
 ///
-/// This macro encapsulates the logic for calling `terminate_matching_processes` with a mutable reference
-/// to the `system` and a reference to the `process_name`. It matches the result of the function call:
-/// - If successful (`Ok(_)`), it prints a message indicating that the process has been stopped.
-/// - If an error occurs (`Err(error)`), it prints an error message containing the details of the error.
+/// Depending on the result of the `terminate_process_and_log` call:
+/// - Successful (`Ok(_)`), prints a message indicating the number of processes that has been stopped.
+/// - Error occurs (`Err(error)`), prints an error message containing the details of the error.
 ///
 /// # Arguments
 ///
 /// * `system` - A mutable reference to a `System` object. This object is responsible
 ///   for managing and querying system information, such as running processes.
-/// * `$process_name`: The name of the process to terminate. This is used to identify the target process.
+/// * `process_name`: The name of the process to terminate. This is used to identify the target process.
 ///   processes whose names match this string exactly will be terminated.
-macro_rules! terminate_process {
-    ($system:expr, $process_name:expr) => {
-        match terminate_matching_processes(&mut $system, &$process_name) {
-            Ok(count) => {
-                println!("{} {} processes stopped", count, &$process_name);
-            }
-            Err(error) => {
-                eprintln!("Error: {}", error);
-            }
+fn terminate_process_and_log(system: &mut System, process_name: &str) {
+    match terminate_matching_processes(system, process_name) {
+        Ok(count) => {
+            println!("{} {} processes stopped", count, process_name);
         }
-    };
+        Err(error) => {
+            eprintln!("Error: {}", error);
+        }
+    }
 }
 
 // print_query is a helper that queries komorebi and prints the response.
@@ -2358,7 +2353,7 @@ fn main() -> Result<()> {
             let komorebi_exe_path = exec.unwrap_or(KOMOREBI_EXE);
             let mut command = detached_command(komorebi_exe_path);
             command.args(&flags);
-            spawn_and_log!(command);
+            spawn_and_log(&mut command);
 
             let mut system = System::new_all();
             let mut attempts = 0;
@@ -2367,7 +2362,7 @@ fn main() -> Result<()> {
             while !running && attempts <= 2 {
                 let mut command = detached_command(komorebi_exe_path);
                 command.args(&flags);
-                spawn_and_log!(command);
+                spawn_and_log(&mut command);
 
                 print!("Waiting for {} to start...", KOMOREBI_EXE);
                 std::thread::sleep(Duration::from_secs(3));
@@ -2425,7 +2420,7 @@ if (!(Get-Process whkd -ErrorAction SilentlyContinue))
                 let config_ahk = dunce::simplified(&config_ahk);
                 let mut command = detached_command(&ahk);
                 command.arg(config_ahk);
-                spawn_and_log!(command);
+                spawn_and_log(&mut command);
             }
 
             let static_config = arg.config.clone().map_or_else(
@@ -2447,18 +2442,18 @@ if (!(Get-Process whkd -ErrorAction SilentlyContinue))
                         for config_file_path in &mut *display_bar_configurations {
                             let mut command = detached_command(KOMOREBI_BAR_EXE);
                             command.arg("--config").arg(&config_file_path);
-                            spawn_and_log!(command);
+                            spawn_and_log(&mut command);
                         }
                     } else if !is_running(&mut system, KOMOREBI_BAR_EXE) {
                         let mut command = detached_command(KOMOREBI_BAR_EXE);
-                        spawn_and_log!(command);
+                        spawn_and_log(&mut command);
                     }
                 }
             }
 
             if arg.masir && !is_running(&mut system, MASIR_EXE) {
                 let mut command = detached_command(MASIR_EXE);
-                spawn_and_log!(command);
+                spawn_and_log(&mut command);
             }
 
             println!("\nThank you for using komorebi!\n");
@@ -2529,15 +2524,15 @@ if (!(Get-Process whkd -ErrorAction SilentlyContinue))
         SubCommand::Stop(arg) => {
             let mut system = System::new_all();
             if arg.whkd {
-                terminate_process!(&mut system, WHKD_EXE);
+                terminate_process_and_log(&mut system, WHKD_EXE);
             }
 
             if arg.bar {
-                terminate_process!(&mut system, KOMOREBI_BAR_EXE);
+                terminate_process_and_log(&mut system, KOMOREBI_BAR_EXE);
             }
 
             if arg.masir {
-                terminate_process!(&mut system, MASIR_EXE);
+                terminate_process_and_log(&mut system, MASIR_EXE);
             }
 
             if arg.ahk {
@@ -2584,15 +2579,15 @@ if (!(Get-Process whkd -ErrorAction SilentlyContinue))
         SubCommand::Kill(arg) => {
             let mut system = System::new_all();
             if arg.whkd {
-                terminate_process!(&mut system, WHKD_EXE);
+                terminate_process_and_log(&mut system, WHKD_EXE);
             }
 
             if arg.bar {
-                terminate_process!(&mut system, KOMOREBI_BAR_EXE);
+                terminate_process_and_log(&mut system, KOMOREBI_BAR_EXE);
             }
 
             if arg.masir {
-                terminate_process!(&mut system, MASIR_EXE);
+                terminate_process_and_log(&mut system, MASIR_EXE);
             }
 
             if arg.ahk {
