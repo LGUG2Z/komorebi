@@ -136,21 +136,19 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
     let receiver = event_rx();
 
     'receiver: for notification in receiver {
-        if !ACTIVE.load_consume() {
-            if matches!(
+        if !ACTIVE.load_consume()
+            && matches!(
                 notification,
                 MonitorNotification::ResumingFromSuspendedState
                     | MonitorNotification::SessionUnlocked
-            ) {
-                tracing::debug!(
-                    "reactivating reconciliator - system has resumed from suspended state or session has been unlocked"
-                );
+            )
+        {
+            tracing::debug!(
+                "reactivating reconciliator - system has resumed from suspended state or session has been unlocked"
+            );
 
-                ACTIVE.store(true, Ordering::SeqCst);
-                border_manager::send_notification(None);
-            }
-
-            continue 'receiver;
+            ACTIVE.store(true, Ordering::SeqCst);
+            border_manager::send_notification(None);
         }
 
         let mut wm = wm.lock();
@@ -163,10 +161,6 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                     "deactivating reconciliator until system resumes from suspended state or session is unlocked"
                 );
                 ACTIVE.store(false, Ordering::SeqCst);
-            }
-            MonitorNotification::ResumingFromSuspendedState
-            | MonitorNotification::SessionUnlocked => {
-                // this is only handled above if the reconciliator is paused
             }
             MonitorNotification::WorkAreaChanged => {
                 tracing::debug!("handling work area changed notification");
@@ -247,7 +241,12 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                     }
                 }
             }
-            MonitorNotification::DisplayConnectionChange => {
+            // this is handled above if the reconciliator is paused but we should still check if
+            // there were any changes to the connected monitors while the system was
+            // suspended/locked.
+            MonitorNotification::ResumingFromSuspendedState
+            | MonitorNotification::SessionUnlocked
+            | MonitorNotification::DisplayConnectionChange => {
                 tracing::debug!("handling display connection change notification");
                 let mut monitor_cache = MONITOR_CACHE
                     .get_or_init(|| Mutex::new(HashMap::new()))
