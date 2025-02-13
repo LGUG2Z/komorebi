@@ -182,7 +182,7 @@ lazy_static! {
     static ref TCP_CONNECTIONS: Arc<Mutex<HashMap<String, TcpStream>>> =
         Arc::new(Mutex::new(HashMap::new()));
     static ref HIDING_BEHAVIOUR: Arc<Mutex<HidingBehaviour>> =
-        Arc::new(Mutex::new(HidingBehaviour::Minimize));
+        Arc::new(Mutex::new(HidingBehaviour::Cloak));
     pub static ref HOME_DIR: PathBuf = {
         std::env::var("KOMOREBI_CONFIG_HOME").map_or_else(|_| dirs::home_dir().expect("there is no home directory"), |home_path| {
             let home = PathBuf::from(&home_path);
