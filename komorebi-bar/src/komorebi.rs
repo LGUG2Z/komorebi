@@ -14,13 +14,14 @@ use eframe::egui::vec2;
 use eframe::egui::Color32;
 use eframe::egui::ColorImage;
 use eframe::egui::Context;
+use eframe::egui::CornerRadius;
 use eframe::egui::Frame;
 use eframe::egui::Image;
 use eframe::egui::Label;
 use eframe::egui::Margin;
-use eframe::egui::Rounding;
 use eframe::egui::Sense;
 use eframe::egui::Stroke;
+use eframe::egui::StrokeKind;
 use eframe::egui::TextureHandle;
 use eframe::egui::TextureOptions;
 use eframe::egui::Ui;
@@ -171,9 +172,9 @@ impl BarWidget for Komorebi {
                                         container_information.icons.iter().flatten().collect();
 
                                     if !icons.is_empty() {
-                                        Frame::none()
+                                        Frame::NONE
                                             .inner_margin(Margin::same(
-                                                ui.style().spacing.button_padding.y,
+                                                ui.style().spacing.button_padding.y as i8,
                                             ))
                                             .show(ui, |ui| {
                                                 for icon in icons {
@@ -203,11 +204,11 @@ impl BarWidget for Komorebi {
                                         ctx.style().visuals.selection.stroke.color,
                                     );
                                     let mut rect = response.rect;
-                                    let rounding = Rounding::same(rect.width() * 0.1);
+                                    let rounding = CornerRadius::same((rect.width() * 0.1) as u8);
                                     rect = rect.shrink(stroke.width);
                                     let c = rect.center();
                                     let r = rect.width() / 2.0;
-                                    painter.rect_stroke(rect, rounding, stroke);
+                                    painter.rect_stroke(rect, rounding, stroke, StrokeKind::Middle);
                                     painter.line_segment([c - vec2(r, r), c + vec2(r, r)], stroke);
 
                                     response.on_hover_text(ws.to_string())
@@ -393,9 +394,9 @@ impl BarWidget for Komorebi {
                                             && i == focused_window_idx)
                                     {
                                         if let Some(img) = icon {
-                                            Frame::none()
+                                            Frame::NONE
                                                 .inner_margin(Margin::same(
-                                                    ui.style().spacing.button_padding.y,
+                                                    ui.style().spacing.button_padding.y as i8,
                                                 ))
                                                 .show(ui, |ui| {
                                                     let response = ui.add(
