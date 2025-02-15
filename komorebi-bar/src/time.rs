@@ -6,13 +6,14 @@ use crate::widget::BarWidget;
 use eframe::egui::text::LayoutJob;
 use eframe::egui::Align;
 use eframe::egui::Context;
+use eframe::egui::CornerRadius;
 use eframe::egui::Label;
-use eframe::egui::Rounding;
 use eframe::egui::Sense;
 use eframe::egui::Stroke;
 use eframe::egui::TextFormat;
 use eframe::egui::Ui;
 use eframe::egui::Vec2;
+use eframe::epaint::StrokeKind;
 use schemars::JsonSchema;
 use serde::Deserialize;
 use serde::Serialize;
@@ -158,14 +159,14 @@ impl Time {
         let color = ctx.style().visuals.text_color();
         let stroke = Stroke::new(1.0, color);
 
-        let round_all = Rounding::same(response.rect.width() * 0.1);
-        let round_top = Rounding {
+        let round_all = CornerRadius::same((response.rect.width() * 0.1) as u8);
+        let round_top = CornerRadius {
             nw: round_all.nw,
             ne: round_all.ne,
             ..Default::default()
         };
-        let round_none = Rounding::ZERO;
-        let round_bottom = Rounding {
+        let round_none = CornerRadius::ZERO;
+        let round_bottom = CornerRadius {
             sw: round_all.nw,
             se: round_all.ne,
             ..Default::default()
@@ -175,14 +176,19 @@ impl Time {
             let mut rect = response.rect.shrink(stroke.width);
             rect.set_height(rect.height() - height * 2.0);
             rect = rect.translate(Vec2::new(0.0, height * 2.0));
-            painter.rect_stroke(rect, round_all, stroke);
+            painter.rect_stroke(rect, round_all, stroke, StrokeKind::Outside);
         } else if max_power == 3 {
             let mut rect = response.rect.shrink(stroke.width);
             rect.set_height(rect.height() - height);
             rect = rect.translate(Vec2::new(0.0, height));
-            painter.rect_stroke(rect, round_all, stroke);
+            painter.rect_stroke(rect, round_all, stroke, StrokeKind::Outside);
         } else {
-            painter.rect_stroke(response.rect.shrink(stroke.width), round_all, stroke);
+            painter.rect_stroke(
+                response.rect.shrink(stroke.width),
+                round_all,
+                stroke,
+                StrokeKind::Outside,
+            );
         }
 
         let mut rect_bin = response.rect;
