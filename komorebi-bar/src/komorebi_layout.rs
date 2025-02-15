@@ -4,12 +4,13 @@ use crate::render::RenderConfig;
 use crate::selected_frame::SelectableFrame;
 use eframe::egui::vec2;
 use eframe::egui::Context;
+use eframe::egui::CornerRadius;
 use eframe::egui::FontId;
 use eframe::egui::Frame;
 use eframe::egui::Label;
-use eframe::egui::Rounding;
 use eframe::egui::Sense;
 use eframe::egui::Stroke;
+use eframe::egui::StrokeKind;
 use eframe::egui::Ui;
 use eframe::egui::Vec2;
 use komorebi_client::SocketMessage;
@@ -129,11 +130,11 @@ impl KomorebiLayout {
         let color = ctx.style().visuals.selection.stroke.color;
         let stroke = Stroke::new(1.0, color);
         let mut rect = response.rect;
-        let rounding = Rounding::same(rect.width() * 0.1);
+        let rounding = CornerRadius::same((rect.width() * 0.1) as u8);
         rect = rect.shrink(stroke.width);
         let c = rect.center();
         let r = rect.width() / 2.0;
-        painter.rect_stroke(rect, rounding, stroke);
+        painter.rect_stroke(rect, rounding, stroke, StrokeKind::Middle);
 
         match self {
             KomorebiLayout::Default(layout) => match layout {
@@ -189,7 +190,7 @@ impl KomorebiLayout {
                     rect.width() * 0.35 + stroke.width,
                 ));
                 painter.rect_filled(rect_left, rounding, color);
-                painter.rect_stroke(rect_right, rounding, stroke);
+                painter.rect_stroke(rect_right, rounding, stroke, StrokeKind::Middle);
             }
             KomorebiLayout::Paused => {
                 let mut rect_left = response.rect;
@@ -251,7 +252,7 @@ impl KomorebiLayout {
 
             if show_options {
                 if let Some(workspace_idx) = workspace_idx {
-                    Frame::none().show(ui, |ui| {
+                    Frame::NONE.show(ui, |ui| {
                         ui.add(
                             Label::new(egui_phosphor::regular::ARROW_FAT_LINES_RIGHT.to_string())
                                 .selectable(false),
