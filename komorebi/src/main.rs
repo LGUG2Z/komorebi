@@ -176,7 +176,7 @@ fn main() -> Result<()> {
     let session_id = WindowsApi::process_id_to_session_id()?;
     SESSION_ID.store(session_id, Ordering::SeqCst);
 
-    let mut system = sysinfo::System::new_all();
+    let mut system = sysinfo::System::new();
     system.refresh_processes(ProcessesToUpdate::All, true);
 
     let matched_procs: Vec<&Process> = system.processes_by_name("komorebi.exe".as_ref()).collect();
