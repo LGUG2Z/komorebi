@@ -571,6 +571,7 @@ impl Komobar {
 
         fallbacks.insert("Microsoft YaHei", "C:\\Windows\\Fonts\\msyh.ttc"); // chinese
         fallbacks.insert("Malgun Gothic", "C:\\Windows\\Fonts\\malgun.ttf"); // korean
+        fallbacks.insert("Leelawadee UI", "C:\\Windows\\Fonts\\LeelawUI.ttf"); // thai
 
         for (name, path) in fallbacks {
             if let Ok(bytes) = std::fs::read(path) {
