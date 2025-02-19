@@ -60,9 +60,9 @@ use std::sync::Arc;
 
 pub struct Komobar {
     pub hwnd: Option<isize>,
-    pub monitor_index: usize,
+    pub monitor_index: Option<usize>,
     pub disabled: bool,
-    pub config: Arc<KomobarConfig>,
+    pub config: KomobarConfig,
     pub render_config: Rc<RefCell<RenderConfig>>,
     pub komorebi_notification_state: Option<Rc<RefCell<KomorebiNotificationState>>>,
     pub left_widgets: Vec<Box<dyn BarWidget>>,
@@ -195,46 +195,45 @@ impl Komobar {
     pub fn apply_config(
         &mut self,
         ctx: &Context,
-        config: &KomobarConfig,
         previous_notification_state: Option<Rc<RefCell<KomorebiNotificationState>>>,
     ) {
         MAX_LABEL_WIDTH.store(
-            config.max_label_width.unwrap_or(400.0) as i32,
+            self.config.max_label_width.unwrap_or(400.0) as i32,
             Ordering::SeqCst,
         );
 
-        if let Some(font_family) = &config.font_family {
+        if let Some(font_family) = &self.config.font_family {
             tracing::info!("attempting to add custom font family: {font_family}");
             Self::add_custom_font(ctx, font_family);
         }
 
         // Update the `size_rect` so that the bar position can be changed on the EGUI update
         // function
-        self.update_size_rect(config);
+        self.update_size_rect();
 
-        self.try_apply_theme(config, ctx);
+        self.try_apply_theme(ctx);
 
-        if let Some(font_size) = &config.font_size {
+        if let Some(font_size) = &self.config.font_size {
             tracing::info!("attempting to set custom font size: {font_size}");
             Self::set_font_size(ctx, *font_size);
         }
 
-        self.render_config.replace(config.new_renderconfig(
+        self.render_config.replace((&self.config).new_renderconfig(
             ctx,
             *self.bg_color.borrow(),
-            config.icon_scale,
+            self.config.icon_scale,
         ));
 
         let mut komorebi_notification_state = previous_notification_state;
         let mut komorebi_widgets = Vec::new();
 
-        for (idx, widget_config) in config.left_widgets.iter().enumerate() {
+        for (idx, widget_config) in self.config.left_widgets.iter().enumerate() {
             if let WidgetConfig::Komorebi(config) = widget_config {
                 komorebi_widgets.push((Komorebi::from(config), idx, Alignment::Left));
             }
         }
 
-        if let Some(center_widgets) = &config.center_widgets {
+        if let Some(center_widgets) = &self.config.center_widgets {
             for (idx, widget_config) in center_widgets.iter().enumerate() {
                 if let WidgetConfig::Komorebi(config) = widget_config {
                     komorebi_widgets.push((Komorebi::from(config), idx, Alignment::Center));
@@ -242,20 +241,21 @@ impl Komobar {
             }
         }
 
-        for (idx, widget_config) in config.right_widgets.iter().enumerate() {
+        for (idx, widget_config) in self.config.right_widgets.iter().enumerate() {
             if let WidgetConfig::Komorebi(config) = widget_config {
                 komorebi_widgets.push((Komorebi::from(config), idx, Alignment::Right));
             }
         }
 
-        let mut left_widgets = config
+        let mut left_widgets = self
+            .config
             .left_widgets
             .iter()
             .filter(|config| config.enabled())
             .map(|config| config.as_boxed_bar_widget())
             .collect::<Vec<Box<dyn BarWidget>>>();
 
-        let mut center_widgets = match &config.center_widgets {
+        let mut center_widgets = match &self.config.center_widgets {
             Some(center_widgets) => center_widgets
                 .iter()
                 .filter(|config| config.enabled())
@@ -264,7 +264,8 @@ impl Komobar {
             None => vec![],
         };
 
-        let mut right_widgets = config
+        let mut right_widgets = self
+            .config
             .right_widgets
             .iter()
             .filter(|config| config.enabled())
@@ -306,89 +307,93 @@ impl Komobar {
         self.center_widgets = center_widgets;
         self.right_widgets = right_widgets;
 
-        let (usr_monitor_index, config_work_area_offset) = match &config.monitor {
+        let (usr_monitor_index, config_work_area_offset) = match &self.config.monitor {
             MonitorConfigOrIndex::MonitorConfig(monitor_config) => {
                 (monitor_config.index, monitor_config.work_area_offset)
             }
             MonitorConfigOrIndex::Index(idx) => (*idx, None),
         };
-        let monitor_index = if let Some(state) = &self.komorebi_notification_state {
+        let monitor_index = self.komorebi_notification_state.as_ref().and_then(|state| {
             state
                 .borrow()
                 .monitor_usr_idx_map
                 .get(&usr_monitor_index)
-                .map_or(usr_monitor_index, |i| *i)
-        } else {
-            usr_monitor_index
-        };
+                .copied()
+        });
 
         self.monitor_index = monitor_index;
 
-        if let (prev_rect, Some(new_rect)) = (&self.work_area_offset, &config_work_area_offset) {
-            if new_rect != prev_rect {
-                self.work_area_offset = *new_rect;
-                if let Err(error) = komorebi_client::send_message(
-                    &SocketMessage::MonitorWorkAreaOffset(self.monitor_index, *new_rect),
-                ) {
-                    tracing::error!(
-                        "error applying work area offset to monitor '{}': {}",
-                        self.monitor_index,
-                        error,
-                    );
-                } else {
-                    tracing::info!(
-                        "work area offset applied to monitor: {}",
-                        self.monitor_index
-                    );
+        if let Some(monitor_index) = self.monitor_index {
+            if let (prev_rect, Some(new_rect)) = (&self.work_area_offset, &config_work_area_offset)
+            {
+                if new_rect != prev_rect {
+                    self.work_area_offset = *new_rect;
+                    if let Err(error) = komorebi_client::send_message(
+                        &SocketMessage::MonitorWorkAreaOffset(monitor_index, *new_rect),
+                    ) {
+                        tracing::error!(
+                            "error applying work area offset to monitor '{}': {}",
+                            monitor_index,
+                            error,
+                        );
+                    } else {
+                        tracing::info!("work area offset applied to monitor: {}", monitor_index);
+                    }
                 }
-            }
-        } else if let Some(height) = config.height.or(Some(BAR_HEIGHT)) {
-            // We only add the `bottom_margin` to the work_area_offset since the top margin is
-            // already considered on the `size_rect.top`
-            let bottom_margin = config
-                .margin
-                .as_ref()
-                .map_or(0, |v| v.to_individual(0.0).bottom as i32);
-            let new_rect = komorebi_client::Rect {
-                left: 0,
-                top: (height as i32)
-                    + (self.size_rect.top - MONITOR_TOP.load(Ordering::SeqCst))
-                    + bottom_margin,
-                right: 0,
-                bottom: (height as i32)
-                    + (self.size_rect.top - MONITOR_TOP.load(Ordering::SeqCst))
-                    + bottom_margin,
-            };
+            } else if let Some(height) = self.config.height.or(Some(BAR_HEIGHT)) {
+                // We only add the `bottom_margin` to the work_area_offset since the top margin is
+                // already considered on the `size_rect.top`
+                let bottom_margin = self
+                    .config
+                    .margin
+                    .as_ref()
+                    .map_or(0, |v| v.to_individual(0.0).bottom as i32);
+                let new_rect = komorebi_client::Rect {
+                    left: 0,
+                    top: (height as i32)
+                        + (self.size_rect.top - MONITOR_TOP.load(Ordering::SeqCst))
+                        + bottom_margin,
+                    right: 0,
+                    bottom: (height as i32)
+                        + (self.size_rect.top - MONITOR_TOP.load(Ordering::SeqCst))
+                        + bottom_margin,
+                };
 
-            if new_rect != self.work_area_offset {
-                self.work_area_offset = new_rect;
-                if let Err(error) = komorebi_client::send_message(
-                    &SocketMessage::MonitorWorkAreaOffset(self.monitor_index, new_rect),
-                ) {
-                    tracing::error!(
-                        "error applying work area offset to monitor '{}': {}",
-                        self.monitor_index,
-                        error,
-                    );
-                } else {
-                    tracing::info!(
-                        "work area offset applied to monitor: {}",
-                        self.monitor_index
-                    );
+                if new_rect != self.work_area_offset {
+                    self.work_area_offset = new_rect;
+                    if let Err(error) = komorebi_client::send_message(
+                        &SocketMessage::MonitorWorkAreaOffset(monitor_index, new_rect),
+                    ) {
+                        tracing::error!(
+                            "error applying work area offset to monitor '{}': {}",
+                            monitor_index,
+                            error,
+                        );
+                    } else {
+                        tracing::info!(
+                            "work area offset applied to monitor: {}\n, {:#?}",
+                            monitor_index,
+                            new_rect
+                        );
+                    }
                 }
             }
+        } else if self.komorebi_notification_state.is_some() && !self.disabled {
+            tracing::warn!("couldn't find the monitor index of this bar! Disabling the bar until the monitor connects...");
+            self.disabled = true;
+        } else {
+            tracing::warn!("couldn't find the monitor index of this bar, if the bar is starting up this is normal until it receives the first state from komorebi.");
+            self.disabled = true;
         }
 
         tracing::info!("widget configuration options applied");
 
         self.komorebi_notification_state = komorebi_notification_state;
-
-        self.config = config.clone().into();
     }
 
     /// Updates the `size_rect` field. Returns a bool indicating if the field was changed or not
-    fn update_size_rect(&mut self, config: &KomobarConfig) {
-        let position = config.position.clone().unwrap_or(PositionConfig {
+    fn update_size_rect(&mut self) {
+        let position = self.config.position.clone().unwrap_or(PositionConfig {
             start: Some(Position {
                 x: MONITOR_LEFT.load(Ordering::SeqCst) as f32,
                 y: MONITOR_TOP.load(Ordering::SeqCst) as f32,
@@ -409,11 +414,11 @@ impl Komobar {
             y: BAR_HEIGHT,
         });
 
-        if let Some(height) = config.height {
+        if let Some(height) = self.config.height {
             end.y = height;
         }
 
-        let margin = get_individual_spacing(0.0, &config.margin);
+        let margin = get_individual_spacing(0.0, &self.config.margin);
 
         start.y += margin.top;
         start.x += margin.left;
@@ -431,16 +436,16 @@ impl Komobar {
         };
     }
 
-    fn try_apply_theme(&mut self, config: &KomobarConfig, ctx: &Context) {
-        match config.theme {
+    fn try_apply_theme(&mut self, ctx: &Context) {
+        match self.config.theme {
             Some(theme) => {
                 apply_theme(
                     ctx,
                     theme,
                     self.bg_color.clone(),
                     self.bg_color_with_alpha.clone(),
-                    config.transparency_alpha,
-                    config.grouping,
+                    self.config.transparency_alpha,
+                    self.config.grouping,
                     self.render_config.clone(),
                 );
             }
@@ -458,8 +463,8 @@ impl Komobar {
                     },
                 );
 
-                let bar_transparency_alpha = config.transparency_alpha;
-                let bar_grouping = config.grouping;
+                let bar_transparency_alpha = self.config.transparency_alpha;
+                let bar_grouping = self.config.grouping;
                 let config = home_dir.join("komorebi.json");
                 match komorebi_client::StaticConfig::read(&config) {
                     Ok(config) => {
@@ -521,13 +526,13 @@ impl Komobar {
         cc: &eframe::CreationContext<'_>,
         rx_gui: Receiver<KomorebiEvent>,
         rx_config: Receiver<KomobarConfig>,
-        config: Arc<KomobarConfig>,
+        config: KomobarConfig,
     ) -> Self {
         let mut komobar = Self {
             hwnd: process_hwnd(),
-            monitor_index: 0,
+            monitor_index: None,
             disabled: false,
-            config: config.clone(),
+            config,
             render_config: Rc::new(RefCell::new(RenderConfig::new())),
             komorebi_notification_state: None,
             left_widgets: vec![],
@@ -543,9 +548,9 @@ impl Komobar {
             applied_theme_on_first_frame: false,
         };
 
-        komobar.apply_config(&cc.egui_ctx, &config, None);
+        komobar.apply_config(&cc.egui_ctx, None);
         // needs a double apply the first time for some reason
-        komobar.apply_config(&cc.egui_ctx, &config, None);
+        komobar.apply_config(&cc.egui_ctx, None);
 
         komobar
     }
@@ -626,12 +631,29 @@ impl Komobar {
             let window = komorebi_client::Window::from(hwnd);
             match window.set_position(&self.size_rect, false) {
                 Ok(_) => {
-                    tracing::info!("updated bar position");
+                    tracing::info!("updated bar position: {:#?}", &self.size_rect);
                 }
                 Err(error) => {
                     tracing::error!("{}", error.to_string())
                 }
             }
+        }
+    }
+
+    fn update_monitor_coordinates(&mut self, monitor_size: &komorebi_client::Rect) {
+        // Store the new monitor coordinates
+        MONITOR_TOP.store(monitor_size.top, Ordering::SeqCst);
+        MONITOR_LEFT.store(monitor_size.left, Ordering::SeqCst);
+        MONITOR_RIGHT.store(monitor_size.right, Ordering::SeqCst);
+
+        // Since the `config.position` is changed on `main.rs` we need to update it here.
+        // If the user had set up some `start` position, that will be overriden here
+        // since we have no way to know what was that value since it might have been
+        // changed on `main.rs`. However if the users use the new configs this won't be
+        // a problem for them.
+        if let Some(start) = self.config.position.as_mut().and_then(|p| p.start.as_mut()) {
+            start.x = monitor_size.left as f32;
+            start.y = monitor_size.top as f32;
         }
     }
 }
@@ -648,19 +670,12 @@ impl eframe::App for Komobar {
 
         if self.scale_factor != ctx.native_pixels_per_point().unwrap_or(1.0) {
             self.scale_factor = ctx.native_pixels_per_point().unwrap_or(1.0);
-            self.apply_config(
-                ctx,
-                &self.config.clone(),
-                self.komorebi_notification_state.clone(),
-            );
+            self.apply_config(ctx, self.komorebi_notification_state.clone());
         }
 
         if let Ok(updated_config) = self.rx_config.try_recv() {
-            self.apply_config(
-                ctx,
-                &updated_config,
-                self.komorebi_notification_state.clone(),
-            );
+            self.config = updated_config;
+            self.apply_config(ctx, self.komorebi_notification_state.clone());
         }
 
         match self.rx_gui.try_recv() {
@@ -678,25 +693,27 @@ impl eframe::App for Komobar {
                     MonitorConfigOrIndex::MonitorConfig(monitor_config) => monitor_config.index,
                     MonitorConfigOrIndex::Index(idx) => *idx,
                 };
-                let monitor_index = state
-                    .monitor_usr_idx_map
-                    .get(&usr_monitor_index)
-                    .map_or(usr_monitor_index, |i| *i);
+                let monitor_index = state.monitor_usr_idx_map.get(&usr_monitor_index).copied();
                 self.monitor_index = monitor_index;
+                let mut should_apply_config = false;
 
-                if self.monitor_index >= state.monitors.elements().len() {
-                    // Monitor for this bar got disconnected lets disable the bar until it
-                    // reconnects
-                    self.disabled = true;
-                    tracing::warn!(
-                        "This bar's monitor got disconnected. The bar will be disabled until it reconnects..."
-                    );
+                if self.monitor_index.is_none()
+                    || self
+                        .monitor_index
+                        .is_some_and(|idx| idx >= state.monitors.elements().len())
+                {
+                    if !self.disabled {
+                        // Monitor for this bar got disconnected lets disable the bar until it
+                        // reconnects
+                        self.disabled = true;
+                        tracing::warn!(
+                            "This bar's monitor got disconnected. The bar will be disabled until it reconnects..."
+                        );
+                    }
                     return;
                 } else {
                     if self.disabled {
-                        tracing::info!(
-                            "This bar's monitor reconnected. The bar will be enabled again!"
-                        );
+                        tracing::info!("Found this bar's monitor. The bar will be enabled!");
 
                         // Restore the bar in case it has been minimized when the monitor
                         // disconnected
@@ -707,39 +724,50 @@ impl eframe::App for Komobar {
                             }
                         }
 
-                        // Reposition the Bar
-                        self.position_bar();
+                        should_apply_config = true;
                     }
                     self.disabled = false;
                 }
 
-                let should_apply_config = if matches!(
+                if matches!(
                     notification.event,
                     NotificationEvent::Monitor(MonitorNotification::DisplayConnectionChange)
                 ) {
-                    // Store the monitor coordinates in case they've changed
-                    MONITOR_RIGHT.store(
-                        state.monitors.elements()[self.monitor_index].size().right,
-                        Ordering::SeqCst,
-                    );
+                    let monitor_index = self.monitor_index.expect("should have a monitor index");
 
-                    MONITOR_TOP.store(
-                        state.monitors.elements()[self.monitor_index].size().top,
-                        Ordering::SeqCst,
-                    );
+                    let monitor_size = state.monitors.elements()[monitor_index].size();
 
-                    MONITOR_LEFT.store(
-                        state.monitors.elements()[self.monitor_index].size().left,
-                        Ordering::SeqCst,
-                    );
+                    self.update_monitor_coordinates(monitor_size);
 
-                    true
-                } else {
-                    false
-                };
+                    should_apply_config = true;
+                }
 
                 if self.disabled {
                     return;
+                }
+
+                // Check if monitor coordinates/size has changed
+                if let Some(monitor_index) = self.monitor_index {
+                    let monitor_size = state.monitors.elements()[monitor_index].size();
+                    let top = MONITOR_TOP.load(Ordering::SeqCst);
+                    let left = MONITOR_LEFT.load(Ordering::SeqCst);
+                    let right = MONITOR_RIGHT.load(Ordering::SeqCst);
+                    let rect = komorebi_client::Rect {
+                        top,
+                        left,
+                        bottom: monitor_size.bottom,
+                        right,
+                    };
+                    if *monitor_size != rect {
+                        tracing::info!(
+                            "Monitor coordinates/size has changed, storing new coordinates: {:#?}",
+                            monitor_size
+                        );
+
+                        self.update_monitor_coordinates(monitor_size);
+
+                        should_apply_config = true;
+                    }
                 }
 
                 if let Some(komorebi_notification_state) = &self.komorebi_notification_state {
@@ -759,30 +787,25 @@ impl eframe::App for Komobar {
                 }
 
                 if should_apply_config {
-                    self.apply_config(
-                        ctx,
-                        &self.config.clone(),
-                        self.komorebi_notification_state.clone(),
-                    );
+                    self.apply_config(ctx, self.komorebi_notification_state.clone());
+
+                    // Reposition the Bar
+                    self.position_bar();
                 }
             }
             Ok(KomorebiEvent::Reconnect) => {
-                if let Err(error) =
-                    komorebi_client::send_message(&SocketMessage::MonitorWorkAreaOffset(
-                        self.monitor_index,
-                        self.work_area_offset,
-                    ))
-                {
-                    tracing::error!(
-                        "error applying work area offset to monitor '{}': {}",
-                        self.monitor_index,
-                        error,
-                    );
-                } else {
-                    tracing::info!(
-                        "work area offset applied to monitor: {}",
-                        self.monitor_index
-                    );
+                if let Some(monitor_index) = self.monitor_index {
+                    if let Err(error) = komorebi_client::send_message(
+                        &SocketMessage::MonitorWorkAreaOffset(monitor_index, self.work_area_offset),
+                    ) {
+                        tracing::error!(
+                            "error applying work area offset to monitor '{}': {}",
+                            monitor_index,
+                            error,
+                        );
+                    } else {
+                        tracing::info!("work area offset applied to monitor: {}", monitor_index);
+                    }
                 }
             }
         }
@@ -794,7 +817,7 @@ impl eframe::App for Komobar {
         }
 
         if !self.applied_theme_on_first_frame {
-            self.try_apply_theme(&self.config.clone(), ctx);
+            self.try_apply_theme(ctx);
             self.applied_theme_on_first_frame = true;
         }
 

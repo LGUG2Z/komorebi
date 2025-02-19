@@ -38,7 +38,6 @@ use std::path::PathBuf;
 use std::sync::atomic::AtomicI32;
 use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering;
-use std::sync::Arc;
 use std::sync::LazyLock;
 use std::sync::Mutex;
 use std::time::Duration;
@@ -338,7 +337,6 @@ fn main() -> color_eyre::Result<()> {
 
     tracing::info!("watching configuration file for changes");
 
-    let config_arc = Arc::new(config);
     eframe::run_native(
         "komorebi-bar",
         native_options,
@@ -426,7 +424,7 @@ fn main() -> color_eyre::Result<()> {
                 }
             });
 
-            Ok(Box::new(Komobar::new(cc, rx_gui, rx_config, config_arc)))
+            Ok(Box::new(Komobar::new(cc, rx_gui, rx_config, config)))
         }),
     )
     .map_err(|error| color_eyre::eyre::Error::msg(error.to_string()))
