@@ -275,6 +275,7 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
 
                 if initial_monitor_count == attached_devices.len() {
                     tracing::debug!("monitor counts match, reconciliation not required");
+                    drop(wm);
                     continue 'receiver;
                 }
 
@@ -282,6 +283,7 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                     tracing::debug!(
                         "no devices found, skipping reconciliation to avoid breaking state"
                     );
+                    drop(wm);
                     continue 'receiver;
                 }
 
@@ -310,25 +312,58 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
 
                             newly_removed_displays.push(id.clone());
 
-                            for workspace in m.workspaces() {
-                                for container in workspace.containers() {
-                                    for window in container.windows() {
+                            let focused_workspace_idx = m.focused_workspace_idx();
+
+                            for (idx, workspace) in m.workspaces().iter().enumerate() {
+                                let is_focused_workspace = idx == focused_workspace_idx;
+                                let focused_container_idx = workspace.focused_container_idx();
+                                for (c_idx, container) in workspace.containers().iter().enumerate()
+                                {
+                                    let focused_window_idx = container.focused_window_idx();
+                                    for (w_idx, window) in container.windows().iter().enumerate() {
                                         windows_to_remove.push(window.hwnd);
+                                        if is_focused_workspace
+                                            && c_idx == focused_container_idx
+                                            && w_idx == focused_window_idx
+                                        {
+                                            // Minimize the focused window since Windows might try
+                                            // to move it to another monitor if it was focused.
+                                            if window.is_focused() {
+                                                window.minimize();
+                                            }
+                                        }
                                     }
                                 }
 
                                 if let Some(maximized) = workspace.maximized_window() {
                                     windows_to_remove.push(maximized.hwnd);
+                                    // Minimize the focused window since Windows might try
+                                    // to move it to another monitor if it was focused.
+                                    if maximized.is_focused() {
+                                        maximized.minimize();
+                                    }
                                 }
 
                                 if let Some(container) = workspace.monocle_container() {
                                     for window in container.windows() {
                                         windows_to_remove.push(window.hwnd);
                                     }
+                                    if let Some(window) = container.focused_window() {
+                                        // Minimize the focused window since Windows might try
+                                        // to move it to another monitor if it was focused.
+                                        if window.is_focused() {
+                                            window.minimize();
+                                        }
+                                    }
                                 }
 
                                 for window in workspace.floating_windows() {
                                     windows_to_remove.push(window.hwnd);
+                                    // Minimize the focused window since Windows might try
+                                    // to move it to another monitor if it was focused.
+                                    if window.is_focused() {
+                                        window.minimize();
+                                    }
                                 }
                             }
 
@@ -453,8 +488,12 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                                             empty_containers.push(idx);
                                         }
 
-                                        if is_focused_workspace && idx == focused_container_idx {
+                                        if is_focused_workspace {
                                             if let Some(window) = container.focused_window() {
+                                                tracing::debug!(
+                                                    "restoring window: {}",
+                                                    window.hwnd
+                                                );
                                                 WindowsApi::restore_window(window.hwnd);
                                             } else {
                                                 // If the focused window was moved or removed by

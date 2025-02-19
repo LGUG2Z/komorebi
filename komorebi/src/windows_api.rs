@@ -49,6 +49,8 @@ use windows::Win32::Graphics::Gdi::MONITORENUMPROC;
 use windows::Win32::Graphics::Gdi::MONITORINFOEXW;
 use windows::Win32::Graphics::Gdi::MONITOR_DEFAULTTONEAREST;
 use windows::Win32::System::LibraryLoader::GetModuleHandleW;
+use windows::Win32::System::Power::RegisterPowerSettingNotification;
+use windows::Win32::System::Power::HPOWERNOTIFY;
 use windows::Win32::System::RemoteDesktop::ProcessIdToSessionId;
 use windows::Win32::System::RemoteDesktop::WTSRegisterSessionNotification;
 use windows::Win32::System::Threading::GetCurrentProcessId;
@@ -93,6 +95,7 @@ use windows::Win32::UI::WindowsAndMessaging::MoveWindow;
 use windows::Win32::UI::WindowsAndMessaging::PostMessageW;
 use windows::Win32::UI::WindowsAndMessaging::RealGetWindowClassW;
 use windows::Win32::UI::WindowsAndMessaging::RegisterClassW;
+use windows::Win32::UI::WindowsAndMessaging::RegisterDeviceNotificationW;
 use windows::Win32::UI::WindowsAndMessaging::SetCursorPos;
 use windows::Win32::UI::WindowsAndMessaging::SetForegroundWindow;
 use windows::Win32::UI::WindowsAndMessaging::SetLayeredWindowAttributes;
@@ -102,11 +105,14 @@ use windows::Win32::UI::WindowsAndMessaging::ShowWindow;
 use windows::Win32::UI::WindowsAndMessaging::SystemParametersInfoW;
 use windows::Win32::UI::WindowsAndMessaging::WindowFromPoint;
 use windows::Win32::UI::WindowsAndMessaging::CW_USEDEFAULT;
+use windows::Win32::UI::WindowsAndMessaging::DEV_BROADCAST_DEVICEINTERFACE_W;
 use windows::Win32::UI::WindowsAndMessaging::GWL_EXSTYLE;
 use windows::Win32::UI::WindowsAndMessaging::GWL_STYLE;
 use windows::Win32::UI::WindowsAndMessaging::GW_HWNDNEXT;
+use windows::Win32::UI::WindowsAndMessaging::HDEVNOTIFY;
 use windows::Win32::UI::WindowsAndMessaging::HWND_TOP;
 use windows::Win32::UI::WindowsAndMessaging::LWA_ALPHA;
+use windows::Win32::UI::WindowsAndMessaging::REGISTER_NOTIFICATION_FLAGS;
 use windows::Win32::UI::WindowsAndMessaging::SET_WINDOW_POS_FLAGS;
 use windows::Win32::UI::WindowsAndMessaging::SHOW_WINDOW_CMD;
 use windows::Win32::UI::WindowsAndMessaging::SPIF_SENDCHANGE;
@@ -1208,6 +1214,26 @@ impl WindowsApi {
             )?
         }
         .process()
+    }
+
+    pub fn register_power_setting_notification(
+        hwnd: isize,
+        guid: &windows_core::GUID,
+        flags: REGISTER_NOTIFICATION_FLAGS,
+    ) -> WindowsCrateResult<HPOWERNOTIFY> {
+        unsafe { RegisterPowerSettingNotification(HWND(as_ptr!(hwnd)), guid, flags) }
+    }
+
+    pub fn register_device_notification(
+        hwnd: isize,
+        mut filter: DEV_BROADCAST_DEVICEINTERFACE_W,
+        flags: REGISTER_NOTIFICATION_FLAGS,
+    ) -> WindowsCrateResult<HDEVNOTIFY> {
+        unsafe {
+            let state_ptr: *const core::ffi::c_void =
+                &mut filter as *mut _ as *const core::ffi::c_void;
+            RegisterDeviceNotificationW(HWND(as_ptr!(hwnd)), state_ptr, flags)
+        }
     }
 
     pub fn invalidate_rect(hwnd: isize, rect: Option<&Rect>, erase: bool) -> bool {
