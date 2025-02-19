@@ -127,6 +127,7 @@ nav:
       - cli/send-to-monitor-workspace.md
       - cli/move-to-monitor-workspace.md
       - cli/focus-monitor.md
+      - cli/focus-monitor-at-cursor.md
       - cli/focus-last-workspace.md
       - cli/focus-workspace.md
       - cli/focus-workspaces.md
