@@ -1835,6 +1835,9 @@ impl WindowManager {
             | SocketMessage::IdentifyBorderOverflowApplication(_, _) => {}
         };
 
+        // Update list of known_hwnds and their monitor/workspace index pair
+        self.update_known_hwnds();
+
         notify_subscribers(
             Notification {
                 event: NotificationEvent::Socket(message.clone()),
