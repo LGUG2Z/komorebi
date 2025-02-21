@@ -1155,6 +1155,8 @@ enum SubCommand {
     /// Set offsets for a monitor to exclude parts of the work area from tiling
     #[clap(arg_required_else_help = true)]
     MonitorWorkAreaOffset(MonitorWorkAreaOffset),
+    /// Toggle application of the window-based work area offset for the focused workspace
+    ToggleWindowBasedWorkAreaOffset,
     /// Set container padding on the focused workspace
     #[clap(arg_required_else_help = true)]
     FocusedWorkspaceContainerPadding(FocusedWorkspaceContainerPadding),
@@ -1877,6 +1879,9 @@ fn main() -> Result<()> {
                 right: arg.right,
                 bottom: arg.bottom,
             }))?;
+        }
+        SubCommand::ToggleWindowBasedWorkAreaOffset => {
+            send_message(&SocketMessage::ToggleWindowBasedWorkAreaOffset)?;
         }
         SubCommand::ContainerPadding(arg) => {
             send_message(&SocketMessage::ContainerPadding(

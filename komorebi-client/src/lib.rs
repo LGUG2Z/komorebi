@@ -65,6 +65,7 @@ pub use komorebi::StaticConfig;
 pub use komorebi::SubscribeOptions;
 pub use komorebi::TabsConfig;
 pub use komorebi::WindowContainerBehaviour;
+pub use komorebi::WindowsApi;
 pub use komorebi::WorkspaceConfig;
 
 use komorebi::DATA_DIR;

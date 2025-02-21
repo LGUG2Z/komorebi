@@ -120,8 +120,8 @@ impl From<u32> for Rgb {
     fn from(value: u32) -> Self {
         Self {
             r: value & 0xff,
-            g: value >> 8 & 0xff,
-            b: value >> 16 & 0xff,
+            g: (value >> 8) & 0xff,
+            b: (value >> 16) & 0xff,
         }
     }
 }

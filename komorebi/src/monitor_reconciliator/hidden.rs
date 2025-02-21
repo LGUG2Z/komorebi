@@ -2,21 +2,33 @@ use std::sync::mpsc;
 use std::time::Duration;
 
 use windows::core::PCWSTR;
+use windows::Win32::Devices::Display::GUID_DEVINTERFACE_DISPLAY_ADAPTER;
+use windows::Win32::Devices::Display::GUID_DEVINTERFACE_MONITOR;
+use windows::Win32::Devices::Display::GUID_DEVINTERFACE_VIDEO_OUTPUT_ARRIVAL;
 use windows::Win32::Foundation::HWND;
 use windows::Win32::Foundation::LPARAM;
 use windows::Win32::Foundation::LRESULT;
 use windows::Win32::Foundation::WPARAM;
+use windows::Win32::System::Power::POWERBROADCAST_SETTING;
+use windows::Win32::System::SystemServices::GUID_LIDSWITCH_STATE_CHANGE;
 use windows::Win32::UI::WindowsAndMessaging::DefWindowProcW;
 use windows::Win32::UI::WindowsAndMessaging::DispatchMessageW;
 use windows::Win32::UI::WindowsAndMessaging::GetMessageW;
 use windows::Win32::UI::WindowsAndMessaging::TranslateMessage;
 use windows::Win32::UI::WindowsAndMessaging::CS_HREDRAW;
 use windows::Win32::UI::WindowsAndMessaging::CS_VREDRAW;
+use windows::Win32::UI::WindowsAndMessaging::DBT_CONFIGCHANGED;
+use windows::Win32::UI::WindowsAndMessaging::DBT_DEVICEARRIVAL;
+use windows::Win32::UI::WindowsAndMessaging::DBT_DEVICEREMOVECOMPLETE;
 use windows::Win32::UI::WindowsAndMessaging::DBT_DEVNODES_CHANGED;
+use windows::Win32::UI::WindowsAndMessaging::DBT_DEVTYP_DEVICEINTERFACE;
+use windows::Win32::UI::WindowsAndMessaging::DEV_BROADCAST_DEVICEINTERFACE_W;
 use windows::Win32::UI::WindowsAndMessaging::MSG;
 use windows::Win32::UI::WindowsAndMessaging::PBT_APMRESUMEAUTOMATIC;
 use windows::Win32::UI::WindowsAndMessaging::PBT_APMRESUMESUSPEND;
 use windows::Win32::UI::WindowsAndMessaging::PBT_APMSUSPEND;
+use windows::Win32::UI::WindowsAndMessaging::PBT_POWERSETTINGCHANGE;
+use windows::Win32::UI::WindowsAndMessaging::REGISTER_NOTIFICATION_FLAGS;
 use windows::Win32::UI::WindowsAndMessaging::SPI_SETWORKAREA;
 use windows::Win32::UI::WindowsAndMessaging::WM_DEVICECHANGE;
 use windows::Win32::UI::WindowsAndMessaging::WM_DISPLAYCHANGE;
@@ -92,7 +104,56 @@ impl Hidden {
 
         let hwnd = hwnd_receiver.recv()?;
 
+        // Register Session Lock/Unlock events
         WindowsApi::wts_register_session_notification(hwnd)?;
+
+        // Register Laptop lid open/close events
+        WindowsApi::register_power_setting_notification(
+            hwnd,
+            &GUID_LIDSWITCH_STATE_CHANGE,
+            REGISTER_NOTIFICATION_FLAGS(0),
+        )?;
+
+        // Register device interface events for multiple display related devices. Some of this
+        // device interfaces might not be needed but it doesn't hurt to have them in case some user
+        // uses some output device as monitor that falls into one of these device interface class
+        // GUID.
+        let monitor_filter = DEV_BROADCAST_DEVICEINTERFACE_W {
+            dbcc_size: std::mem::size_of::<DEV_BROADCAST_DEVICEINTERFACE_W>() as u32,
+            dbcc_devicetype: DBT_DEVTYP_DEVICEINTERFACE.0,
+            dbcc_reserved: 0,
+            dbcc_classguid: GUID_DEVINTERFACE_MONITOR,
+            dbcc_name: [0; 1],
+        };
+        let display_adapter_filter = DEV_BROADCAST_DEVICEINTERFACE_W {
+            dbcc_size: std::mem::size_of::<DEV_BROADCAST_DEVICEINTERFACE_W>() as u32,
+            dbcc_devicetype: DBT_DEVTYP_DEVICEINTERFACE.0,
+            dbcc_reserved: 0,
+            dbcc_classguid: GUID_DEVINTERFACE_DISPLAY_ADAPTER,
+            dbcc_name: [0; 1],
+        };
+        let video_output_filter = DEV_BROADCAST_DEVICEINTERFACE_W {
+            dbcc_size: std::mem::size_of::<DEV_BROADCAST_DEVICEINTERFACE_W>() as u32,
+            dbcc_devicetype: DBT_DEVTYP_DEVICEINTERFACE.0,
+            dbcc_reserved: 0,
+            dbcc_classguid: GUID_DEVINTERFACE_VIDEO_OUTPUT_ARRIVAL,
+            dbcc_name: [0; 1],
+        };
+        WindowsApi::register_device_notification(
+            hwnd,
+            monitor_filter,
+            REGISTER_NOTIFICATION_FLAGS(0),
+        )?;
+        WindowsApi::register_device_notification(
+            hwnd,
+            display_adapter_filter,
+            REGISTER_NOTIFICATION_FLAGS(0),
+        )?;
+        WindowsApi::register_device_notification(
+            hwnd,
+            video_output_filter,
+            REGISTER_NOTIFICATION_FLAGS(0),
+        )?;
 
         Ok(Self { hwnd })
     }
@@ -126,6 +187,35 @@ impl Hidden {
                             monitor_reconciliator::send_notification(
                                 monitor_reconciliator::MonitorNotification::EnteringSuspendedState,
                             );
+                            LRESULT(0)
+                        }
+                        // Monitor change power status
+                        PBT_POWERSETTINGCHANGE => {
+                            if let POWERBROADCAST_SETTING {
+                                PowerSetting: GUID_LIDSWITCH_STATE_CHANGE,
+                                DataLength: _,
+                                Data: [0],
+                            } = *(lparam.0 as *const POWERBROADCAST_SETTING)
+                            {
+                                tracing::debug!(
+                                    "WM_POWERBROADCAST event received - laptop lid closed"
+                                );
+                                monitor_reconciliator::send_notification(
+                                    monitor_reconciliator::MonitorNotification::DisplayConnectionChange,
+                                );
+                            } else if let POWERBROADCAST_SETTING {
+                                PowerSetting: GUID_LIDSWITCH_STATE_CHANGE,
+                                DataLength: _,
+                                Data: [1],
+                            } = *(lparam.0 as *const POWERBROADCAST_SETTING)
+                            {
+                                tracing::debug!(
+                                    "WM_POWERBROADCAST event received - laptop lid opened"
+                                );
+                                monitor_reconciliator::send_notification(
+                                    monitor_reconciliator::MonitorNotification::DisplayConnectionChange,
+                                );
+                            }
                             LRESULT(0)
                         }
                         _ => LRESULT(0),
@@ -188,10 +278,15 @@ impl Hidden {
                 // Original idea from https://stackoverflow.com/a/33762334
                 WM_DEVICECHANGE => {
                     #[allow(clippy::cast_possible_truncation)]
-                    if wparam.0 as u32 == DBT_DEVNODES_CHANGED {
+                    let event = wparam.0 as u32;
+                    if event == DBT_DEVNODES_CHANGED
+                        || event == DBT_CONFIGCHANGED
+                        || event == DBT_DEVICEARRIVAL
+                        || event == DBT_DEVICEREMOVECOMPLETE
+                    {
                         tracing::debug!(
-                                "WM_DEVICECHANGE event received with DBT_DEVNODES_CHANGED - display added or removed"
-                            );
+                            "WM_DEVICECHANGE event received with one of [DBT_DEVNODES_CHANGED, DBT_CONFIGCHANGED, DBT_DEVICEARRIVAL, DBT_DEVICEREMOVECOMPLETE] - display added or removed"
+                        );
                         monitor_reconciliator::send_notification(
                             monitor_reconciliator::MonitorNotification::DisplayConnectionChange,
                         );

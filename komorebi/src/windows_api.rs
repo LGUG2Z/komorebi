@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::collections::VecDeque;
 use std::convert::TryFrom;
 use std::ffi::c_void;
@@ -48,6 +49,8 @@ use windows::Win32::Graphics::Gdi::MONITORENUMPROC;
 use windows::Win32::Graphics::Gdi::MONITORINFOEXW;
 use windows::Win32::Graphics::Gdi::MONITOR_DEFAULTTONEAREST;
 use windows::Win32::System::LibraryLoader::GetModuleHandleW;
+use windows::Win32::System::Power::RegisterPowerSettingNotification;
+use windows::Win32::System::Power::HPOWERNOTIFY;
 use windows::Win32::System::RemoteDesktop::ProcessIdToSessionId;
 use windows::Win32::System::RemoteDesktop::WTSRegisterSessionNotification;
 use windows::Win32::System::Threading::GetCurrentProcessId;
@@ -92,6 +95,7 @@ use windows::Win32::UI::WindowsAndMessaging::MoveWindow;
 use windows::Win32::UI::WindowsAndMessaging::PostMessageW;
 use windows::Win32::UI::WindowsAndMessaging::RealGetWindowClassW;
 use windows::Win32::UI::WindowsAndMessaging::RegisterClassW;
+use windows::Win32::UI::WindowsAndMessaging::RegisterDeviceNotificationW;
 use windows::Win32::UI::WindowsAndMessaging::SetCursorPos;
 use windows::Win32::UI::WindowsAndMessaging::SetForegroundWindow;
 use windows::Win32::UI::WindowsAndMessaging::SetLayeredWindowAttributes;
@@ -101,11 +105,14 @@ use windows::Win32::UI::WindowsAndMessaging::ShowWindow;
 use windows::Win32::UI::WindowsAndMessaging::SystemParametersInfoW;
 use windows::Win32::UI::WindowsAndMessaging::WindowFromPoint;
 use windows::Win32::UI::WindowsAndMessaging::CW_USEDEFAULT;
+use windows::Win32::UI::WindowsAndMessaging::DEV_BROADCAST_DEVICEINTERFACE_W;
 use windows::Win32::UI::WindowsAndMessaging::GWL_EXSTYLE;
 use windows::Win32::UI::WindowsAndMessaging::GWL_STYLE;
 use windows::Win32::UI::WindowsAndMessaging::GW_HWNDNEXT;
+use windows::Win32::UI::WindowsAndMessaging::HDEVNOTIFY;
 use windows::Win32::UI::WindowsAndMessaging::HWND_TOP;
 use windows::Win32::UI::WindowsAndMessaging::LWA_ALPHA;
+use windows::Win32::UI::WindowsAndMessaging::REGISTER_NOTIFICATION_FLAGS;
 use windows::Win32::UI::WindowsAndMessaging::SET_WINDOW_POS_FLAGS;
 use windows::Win32::UI::WindowsAndMessaging::SHOW_WINDOW_CMD;
 use windows::Win32::UI::WindowsAndMessaging::SPIF_SENDCHANGE;
@@ -143,6 +150,7 @@ use crate::ring::Ring;
 use crate::set_window_position::SetWindowPosition;
 use crate::windows_callbacks;
 use crate::Window;
+use crate::WindowManager;
 use crate::DISPLAY_INDEX_PREFERENCES;
 use crate::MONITOR_INDEX_PREFERENCES;
 
@@ -252,7 +260,10 @@ impl WindowsApi {
             .collect::<Vec<_>>())
     }
 
-    pub fn load_monitor_information(monitors: &mut Ring<Monitor>) -> Result<()> {
+    pub fn load_monitor_information(wm: &mut WindowManager) -> Result<()> {
+        let monitors = &mut wm.monitors;
+        let monitor_usr_idx_map = &mut wm.monitor_usr_idx_map;
+
         'read: for display in win32_display_data::connected_displays_all().flatten() {
             let path = display.device_path.clone();
 
@@ -296,7 +307,8 @@ impl WindowsApi {
 
             let display_index_preferences = DISPLAY_INDEX_PREFERENCES.lock();
             for (index, id) in &*display_index_preferences {
-                if id.eq(m.device_id()) {
+                if m.serial_number_id().as_ref().is_some_and(|sn| sn == id) || id.eq(m.device_id())
+                {
                     index_preference = Option::from(index);
                 }
             }
@@ -324,6 +336,40 @@ impl WindowsApi {
         monitors
             .elements_mut()
             .retain(|m| m.name().ne("PLACEHOLDER"));
+
+        // Rebuild monitor index map
+        *monitor_usr_idx_map = HashMap::new();
+        let mut added_monitor_idxs = Vec::new();
+        for (index, id) in &*DISPLAY_INDEX_PREFERENCES.lock() {
+            if let Some(m_idx) = monitors.elements().iter().position(|m| {
+                m.serial_number_id().as_ref().is_some_and(|sn| sn == id) || m.device_id() == id
+            }) {
+                monitor_usr_idx_map.insert(*index, m_idx);
+                added_monitor_idxs.push(m_idx);
+            }
+        }
+
+        let max_usr_idx = monitors
+            .elements()
+            .len()
+            .max(monitor_usr_idx_map.keys().max().map_or(0, |v| *v));
+
+        let mut available_usr_idxs = (0..max_usr_idx)
+            .filter(|i| !monitor_usr_idx_map.contains_key(i))
+            .collect::<Vec<_>>();
+
+        let not_added_monitor_idxs = (0..monitors.elements().len())
+            .filter(|i| !added_monitor_idxs.contains(i))
+            .collect::<Vec<_>>();
+
+        for i in not_added_monitor_idxs {
+            if let Some(next_usr_idx) = available_usr_idxs.first() {
+                monitor_usr_idx_map.insert(*next_usr_idx, i);
+                available_usr_idxs.remove(0);
+            } else if let Some(idx) = monitor_usr_idx_map.keys().max() {
+                monitor_usr_idx_map.insert(*idx, i);
+            }
+        }
 
         Ok(())
     }
@@ -1168,6 +1214,26 @@ impl WindowsApi {
             )?
         }
         .process()
+    }
+
+    pub fn register_power_setting_notification(
+        hwnd: isize,
+        guid: &windows_core::GUID,
+        flags: REGISTER_NOTIFICATION_FLAGS,
+    ) -> WindowsCrateResult<HPOWERNOTIFY> {
+        unsafe { RegisterPowerSettingNotification(HWND(as_ptr!(hwnd)), guid, flags) }
+    }
+
+    pub fn register_device_notification(
+        hwnd: isize,
+        mut filter: DEV_BROADCAST_DEVICEINTERFACE_W,
+        flags: REGISTER_NOTIFICATION_FLAGS,
+    ) -> WindowsCrateResult<HDEVNOTIFY> {
+        unsafe {
+            let state_ptr: *const core::ffi::c_void =
+                &mut filter as *mut _ as *const core::ffi::c_void;
+            RegisterDeviceNotificationW(HWND(as_ptr!(hwnd)), state_ptr, flags)
+        }
     }
 
     pub fn invalidate_rect(hwnd: isize, rect: Option<&Rect>, erase: bool) -> bool {

@@ -1458,6 +1458,14 @@ impl WindowManager {
                     self.retile_all(false)?;
                 }
             }
+            SocketMessage::ToggleWindowBasedWorkAreaOffset => {
+                let workspace = self.focused_workspace_mut()?;
+                workspace.set_apply_window_based_work_area_offset(
+                    !workspace.apply_window_based_work_area_offset(),
+                );
+
+                self.retile_all(false)?;
+            }
             SocketMessage::QuickSave => {
                 let workspace = self.focused_workspace()?;
                 let resize = workspace.resize_dimensions();
