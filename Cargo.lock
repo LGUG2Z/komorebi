@@ -2691,7 +2691,7 @@ dependencies = [
  "which",
  "win32-display-data",
  "windows 0.58.0",
- "windows-core 0.58.0",
+ "windows-core 0.59.0",
  "windows-implement 0.58.0",
  "windows-interface 0.58.0",
  "winput",
@@ -2869,7 +2869,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fc2f4eb4bc735547cfed7c0a4922cbd04a4655978c09b54f1f7b228750664c34"
 dependencies = [
  "cfg-if 1.0.0",
- "windows-targets 0.52.6",
+ "windows-targets 0.48.5",
 ]
 
 [[package]]
