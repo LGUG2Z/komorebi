@@ -185,6 +185,7 @@ pub enum SocketMessage {
     StackbarFontFamily(Option<String>),
     WorkAreaOffset(Rect),
     MonitorWorkAreaOffset(usize, Rect),
+    ToggleWindowBasedWorkAreaOffset,
     ResizeDelta(i32),
     InitialWorkspaceRule(ApplicationIdentifier, String, usize, usize),
     InitialNamedWorkspaceRule(ApplicationIdentifier, String, String),

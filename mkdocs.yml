@@ -144,6 +144,7 @@ nav:
       - cli/invisible-borders.md
       - cli/global-work-area-offset.md
       - cli/monitor-work-area-offset.md
+      - cli/toggle-window-based-work-area-offset.md
       - cli/focused-workspace-container-padding.md
       - cli/focused-workspace-padding.md
       - cli/adjust-container-padding.md
