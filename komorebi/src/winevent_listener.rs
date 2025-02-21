@@ -3,7 +3,6 @@ use std::time::Duration;
 
 use crossbeam_channel::Receiver;
 use crossbeam_channel::Sender;
-use windows::Win32::Foundation::HWND;
 use windows::Win32::UI::Accessibility::SetWinEventHook;
 use windows::Win32::UI::WindowsAndMessaging::DispatchMessageW;
 use windows::Win32::UI::WindowsAndMessaging::GetMessageW;
@@ -41,7 +40,7 @@ pub fn start() {
 
             loop {
                 unsafe {
-                    if !GetMessageW(&mut msg, HWND(std::ptr::null_mut()), 0, 0).as_bool() {
+                    if !GetMessageW(&mut msg, None, 0, 0).as_bool() {
                         tracing::debug!("windows event processing thread shutdown");
                         break;
                     };

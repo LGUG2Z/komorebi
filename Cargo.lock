@@ -2690,10 +2690,10 @@ dependencies = [
  "uds_windows",
  "which",
  "win32-display-data",
- "windows 0.58.0",
- "windows-core 0.58.0",
- "windows-implement 0.58.0",
- "windows-interface 0.58.0",
+ "windows 0.59.0",
+ "windows-core 0.59.0",
+ "windows-implement 0.59.0",
+ "windows-interface 0.59.0",
  "winput",
  "winreg",
 ]
@@ -2728,7 +2728,7 @@ dependencies = [
  "sysinfo",
  "tracing",
  "tracing-subscriber",
- "windows 0.58.0",
+ "windows 0.59.0",
  "windows-icons",
 ]
 
@@ -2750,7 +2750,7 @@ dependencies = [
  "komorebi-client",
  "random_word",
  "serde_json_lenient",
- "windows 0.58.0",
+ "windows 0.59.0",
 ]
 
 [[package]]
@@ -2789,7 +2789,7 @@ dependencies = [
  "sysinfo",
  "thiserror 2.0.11",
  "which",
- "windows 0.58.0",
+ "windows 0.59.0",
 ]
 
 [[package]]
@@ -5926,12 +5926,12 @@ dependencies = [
 [[package]]
 name = "win32-display-data"
 version = "0.1.0"
-source = "git+https://github.com/LGUG2Z/win32-display-data?rev=3ff53fb6f53ec3ec4f9941a0409fba5e36decc46#3ff53fb6f53ec3ec4f9941a0409fba5e36decc46"
+source = "git+https://github.com/LGUG2Z/win32-display-data?rev=14406d46a94d4e29ffe8a789539e453fa15cf3d3#14406d46a94d4e29ffe8a789539e453fa15cf3d3"
 dependencies = [
  "itertools",
  "serde",
  "thiserror 1.0.69",
- "windows 0.58.0",
+ "windows 0.59.0",
  "wmi",
 ]
 

@@ -1,4 +1,5 @@
 use crate::border_manager::window_kind_colour;
+use crate::border_manager::RenderTarget;
 use crate::border_manager::WindowKind;
 use crate::border_manager::BORDER_OFFSET;
 use crate::border_manager::BORDER_WIDTH;
@@ -32,7 +33,6 @@ use windows::Win32::Graphics::Direct2D::Common::D2D_RECT_F;
 use windows::Win32::Graphics::Direct2D::Common::D2D_SIZE_U;
 use windows::Win32::Graphics::Direct2D::D2D1CreateFactory;
 use windows::Win32::Graphics::Direct2D::ID2D1Factory;
-use windows::Win32::Graphics::Direct2D::ID2D1HwndRenderTarget;
 use windows::Win32::Graphics::Direct2D::ID2D1SolidColorBrush;
 use windows::Win32::Graphics::Direct2D::D2D1_ANTIALIAS_MODE_PER_PRIMITIVE;
 use windows::Win32::Graphics::Direct2D::D2D1_BRUSH_PROPERTIES;
@@ -70,11 +70,25 @@ use windows::Win32::UI::WindowsAndMessaging::WM_PAINT;
 use windows::Win32::UI::WindowsAndMessaging::WNDCLASSW;
 use windows_core::PCWSTR;
 
+pub struct RenderFactory(ID2D1Factory);
+unsafe impl Sync for RenderFactory {}
+unsafe impl Send for RenderFactory {}
+
+impl Deref for RenderFactory {
+    type Target = ID2D1Factory;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
 #[allow(clippy::expect_used)]
-static RENDER_FACTORY: LazyLock<ID2D1Factory> = unsafe {
+static RENDER_FACTORY: LazyLock<RenderFactory> = unsafe {
     LazyLock::new(|| {
-        D2D1CreateFactory::<ID2D1Factory>(D2D1_FACTORY_TYPE_MULTI_THREADED, None)
-            .expect("creating RENDER_FACTORY failed")
+        RenderFactory(
+            D2D1CreateFactory::<ID2D1Factory>(D2D1_FACTORY_TYPE_MULTI_THREADED, None)
+                .expect("creating RENDER_FACTORY failed"),
+        )
     })
 };
 
@@ -100,7 +114,7 @@ pub extern "system" fn border_hwnds(hwnd: HWND, lparam: LPARAM) -> BOOL {
 #[derive(Debug, Clone)]
 pub struct Border {
     pub hwnd: isize,
-    pub render_target: OnceLock<ID2D1HwndRenderTarget>,
+    pub render_target: OnceLock<RenderTarget>,
     pub tracking_hwnd: isize,
     pub window_rect: Rect,
     pub window_kind: WindowKind,
@@ -180,7 +194,7 @@ impl Border {
 
             loop {
                 unsafe {
-                    if !GetMessageW(&mut msg, HWND::default(), 0, 0).as_bool() {
+                    if !GetMessageW(&mut msg, None, 0, 0).as_bool() {
                         tracing::debug!("border window event processing thread shutdown");
                         break;
                     };
@@ -261,7 +275,11 @@ impl Border {
 
                 render_target.SetAntialiasMode(D2D1_ANTIALIAS_MODE_PER_PRIMITIVE);
 
-                if border.render_target.set(render_target.clone()).is_err() {
+                if border
+                    .render_target
+                    .set(RenderTarget(render_target.clone()))
+                    .is_err()
+                {
                     return Err(anyhow!("could not store border render target"));
                 }
 
@@ -275,7 +293,7 @@ impl Border {
                 };
 
                 let mut render_targets = RENDER_TARGETS.lock();
-                render_targets.insert(border.hwnd, render_target);
+                render_targets.insert(border.hwnd, RenderTarget(render_target));
                 Ok(border.clone())
             },
             Err(error) => Err(error.into()),
@@ -300,7 +318,7 @@ impl Border {
 
     // this triggers WM_PAINT in the callback below
     pub fn invalidate(&self) {
-        let _ = unsafe { InvalidateRect(self.hwnd(), None, false) };
+        let _ = unsafe { InvalidateRect(Option::from(self.hwnd()), None, false) };
     }
 
     pub extern "system" fn callback(
@@ -508,7 +526,7 @@ impl Border {
                             }
                         }
                     }
-                    let _ = ValidateRect(window, None);
+                    let _ = ValidateRect(Option::from(window), None);
                     LRESULT(0)
                 }
                 WM_DESTROY => {
