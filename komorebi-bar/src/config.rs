@@ -125,6 +125,12 @@ impl KomobarConfig {
             }
         }
     }
+
+    pub fn has_komorebi_show_all_icons(widgets: &[WidgetConfig]) -> bool {
+        widgets
+            .iter()
+            .any(|w| matches!(w, WidgetConfig::Komorebi(config) if config.workspaces.is_some_and(|w| w.enable && w.show_all_icons.is_some_and(|s| s))))
+    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
