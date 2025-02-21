@@ -2692,7 +2692,7 @@ dependencies = [
  "win32-display-data",
  "windows 0.58.0",
  "windows-core 0.58.0",
- "windows-implement 0.58.0",
+ "windows-implement 0.59.0",
  "windows-interface 0.58.0",
  "winput",
  "winreg",
