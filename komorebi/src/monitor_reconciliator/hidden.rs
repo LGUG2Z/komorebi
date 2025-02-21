@@ -87,7 +87,7 @@ impl Hidden {
 
             loop {
                 unsafe {
-                    if !GetMessageW(&mut msg, HWND::default(), 0, 0).as_bool() {
+                    if !GetMessageW(&mut msg, None, 0, 0).as_bool() {
                         tracing::debug!("hidden window event processing thread shutdown");
                         break;
                     };

@@ -1,7 +1,7 @@
+use core::ffi::c_void;
 use std::collections::HashMap;
 use std::collections::VecDeque;
 use std::convert::TryFrom;
-use std::ffi::c_void;
 use std::mem::size_of;
 
 use color_eyre::eyre::anyhow;
@@ -236,16 +236,9 @@ impl WindowsApi {
         callback: MONITORENUMPROC,
         callback_data_address: isize,
     ) -> Result<()> {
-        unsafe {
-            EnumDisplayMonitors(
-                HDC(std::ptr::null_mut()),
-                None,
-                callback,
-                LPARAM(callback_data_address),
-            )
-        }
-        .ok()
-        .process()
+        unsafe { EnumDisplayMonitors(None, None, callback, LPARAM(callback_data_address)) }
+            .ok()
+            .process()
     }
 
     pub fn valid_hmonitors() -> Result<Vec<(String, isize)>> {
@@ -519,7 +512,7 @@ impl WindowsApi {
         unsafe {
             SetWindowPos(
                 hwnd,
-                position,
+                Option::from(position),
                 layout.left,
                 layout.top,
                 layout.right,
@@ -557,7 +550,7 @@ impl WindowsApi {
     }
 
     fn post_message(hwnd: HWND, message: u32, wparam: WPARAM, lparam: LPARAM) -> Result<()> {
-        unsafe { PostMessageW(hwnd, message, wparam, lparam) }.process()
+        unsafe { PostMessageW(Option::from(hwnd), message, wparam, lparam) }.process()
     }
 
     pub fn close_window(hwnd: isize) -> Result<()> {
@@ -600,7 +593,7 @@ impl WindowsApi {
             // Error ignored, as the operation is not always necessary.
             let _ = SetWindowPos(
                 HWND(as_ptr!(hwnd)),
-                HWND_TOP,
+                Option::from(HWND_TOP),
                 0,
                 0,
                 0,
@@ -616,7 +609,7 @@ impl WindowsApi {
 
     #[allow(dead_code)]
     pub fn top_window() -> Result<isize> {
-        unsafe { GetTopWindow(HWND::default())? }.process()
+        unsafe { GetTopWindow(None)? }.process()
     }
 
     pub fn desktop_window() -> Result<isize> {
@@ -932,7 +925,7 @@ impl WindowsApi {
     }
 
     pub fn is_window(hwnd: isize) -> bool {
-        unsafe { IsWindow(HWND(as_ptr!(hwnd))) }.into()
+        unsafe { IsWindow(Option::from(HWND(as_ptr!(hwnd)))) }.into()
     }
 
     pub fn is_window_visible(hwnd: isize) -> bool {
@@ -1160,7 +1153,7 @@ impl WindowsApi {
                 CW_USEDEFAULT,
                 None,
                 None,
-                HINSTANCE(as_ptr!(instance)),
+                Option::from(HINSTANCE(as_ptr!(instance))),
                 Some(border as _),
             )?
         }
@@ -1209,7 +1202,7 @@ impl WindowsApi {
                 CW_USEDEFAULT,
                 None,
                 None,
-                HINSTANCE(as_ptr!(instance)),
+                Option::from(HINSTANCE(as_ptr!(instance))),
                 None,
             )?
         }
@@ -1221,7 +1214,7 @@ impl WindowsApi {
         guid: &windows_core::GUID,
         flags: REGISTER_NOTIFICATION_FLAGS,
     ) -> WindowsCrateResult<HPOWERNOTIFY> {
-        unsafe { RegisterPowerSettingNotification(HWND(as_ptr!(hwnd)), guid, flags) }
+        unsafe { RegisterPowerSettingNotification(HANDLE::from(HWND(as_ptr!(hwnd))), guid, flags) }
     }
 
     pub fn register_device_notification(
@@ -1230,15 +1223,14 @@ impl WindowsApi {
         flags: REGISTER_NOTIFICATION_FLAGS,
     ) -> WindowsCrateResult<HDEVNOTIFY> {
         unsafe {
-            let state_ptr: *const core::ffi::c_void =
-                &mut filter as *mut _ as *const core::ffi::c_void;
-            RegisterDeviceNotificationW(HWND(as_ptr!(hwnd)), state_ptr, flags)
+            let state_ptr: *const c_void = &mut filter as *mut _ as *const c_void;
+            RegisterDeviceNotificationW(HANDLE::from(HWND(as_ptr!(hwnd))), state_ptr, flags)
         }
     }
 
     pub fn invalidate_rect(hwnd: isize, rect: Option<&Rect>, erase: bool) -> bool {
         let rect = rect.map(|rect| &rect.rect() as *const RECT);
-        unsafe { InvalidateRect(HWND(as_ptr!(hwnd)), rect, erase) }.as_bool()
+        unsafe { InvalidateRect(Option::from(HWND(as_ptr!(hwnd))), rect, erase) }.as_bool()
     }
 
     pub fn alt_is_pressed() -> bool {
