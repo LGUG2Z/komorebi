@@ -291,7 +291,7 @@ fn main() -> Result<()> {
     transparency_manager::listen_for_notifications(wm.clone());
     workspace_reconciliator::listen_for_notifications(wm.clone());
     monitor_reconciliator::listen_for_notifications(wm.clone())?;
-    reaper::watch_for_orphans(wm.clone());
+    reaper::listen_for_notifications(wm.clone());
     focus_manager::listen_for_notifications(wm.clone());
     theme_manager::listen_for_notifications();
 
