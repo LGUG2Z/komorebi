@@ -33,7 +33,7 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 paste = "1"
 sysinfo = "0.33"
 uds_windows = "1"
-win32-display-data = { git = "https://github.com/LGUG2Z/win32-display-data", rev = "75286e77c068a89d12adcd6404c9c4874a60acf5" }
+win32-display-data = { git = "https://github.com/LGUG2Z/win32-display-data", rev = "3ff53fb6f53ec3ec4f9941a0409fba5e36decc46" }
 windows-implement = { version = "0.58" }
 windows-interface = { version = "0.58" }
 windows-core = { version = "0.58" }
@@ -45,6 +45,7 @@ version = "0.58"
 features = [
     "implement",
     "Foundation_Numerics",
+    "Win32_Devices",
     "Win32_System_Com",
     "Win32_UI_Shell_Common", # for IObjectArray
     "Win32_Foundation",
@@ -55,6 +56,7 @@ features = [
     "Win32_Graphics_Direct2D_Common",
     "Win32_Graphics_Dxgi_Common",
     "Win32_System_LibraryLoader",
+    "Win32_System_Power",
     "Win32_System_RemoteDesktop",
     "Win32_System_Threading",
     "Win32_UI_Accessibility",

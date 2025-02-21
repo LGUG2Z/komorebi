@@ -38,6 +38,7 @@ use serde::Deserialize;
 use serde::Serialize;
 use std::cell::RefCell;
 use std::collections::BTreeMap;
+use std::collections::HashMap;
 use std::path::PathBuf;
 use std::rc::Rc;
 use std::sync::atomic::Ordering;
@@ -121,6 +122,7 @@ impl From<&KomorebiConfig> for Komorebi {
                 focused_container_information: KomorebiNotificationStateContainerInformation::EMPTY,
                 stack_accent: None,
                 monitor_index: MONITOR_INDEX.load(Ordering::SeqCst),
+                monitor_usr_idx_map: HashMap::new(),
             })),
             workspaces: value.workspaces,
             layout: value.layout.clone(),
@@ -483,6 +485,7 @@ pub struct KomorebiNotificationState {
     pub work_area_offset: Option<Rect>,
     pub stack_accent: Option<Color32>,
     pub monitor_index: usize,
+    pub monitor_usr_idx_map: HashMap<usize, usize>,
 }
 
 impl KomorebiNotificationState {
@@ -494,7 +497,7 @@ impl KomorebiNotificationState {
     pub fn handle_notification(
         &mut self,
         ctx: &Context,
-        monitor_index: usize,
+        monitor_index: Option<usize>,
         notification: komorebi_client::Notification,
         bg_color: Rc<RefCell<Color32>>,
         bg_color_with_alpha: Rc<RefCell<Color32>>,
@@ -552,6 +555,16 @@ impl KomorebiNotificationState {
             },
         }
 
+        self.monitor_usr_idx_map = notification.state.monitor_usr_idx_map.clone();
+
+        if monitor_index.is_none()
+            || monitor_index.is_some_and(|idx| idx >= notification.state.monitors.elements().len())
+        {
+            // The bar's monitor is diconnected, so the bar is disabled no need to check anything
+            // any further otherwise we'll get `OutOfBounds` panics.
+            return;
+        }
+        let monitor_index = monitor_index.expect("should have a monitor index");
         self.monitor_index = monitor_index;
 
         self.mouse_follows_focus = notification.state.mouse_follows_focus;

@@ -38,7 +38,6 @@ use std::path::PathBuf;
 use std::sync::atomic::AtomicI32;
 use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering;
-use std::sync::Arc;
 use std::sync::LazyLock;
 use std::sync::Mutex;
 use std::time::Duration;
@@ -238,12 +237,16 @@ fn main() -> color_eyre::Result<()> {
         &SocketMessage::State,
     )?)?;
 
-    let (monitor_index, work_area_offset) = match &config.monitor {
+    let (usr_monitor_index, work_area_offset) = match &config.monitor {
         MonitorConfigOrIndex::MonitorConfig(monitor_config) => {
             (monitor_config.index, monitor_config.work_area_offset)
         }
         MonitorConfigOrIndex::Index(idx) => (*idx, None),
     };
+    let monitor_index = state
+        .monitor_usr_idx_map
+        .get(&usr_monitor_index)
+        .map_or(usr_monitor_index, |i| *i);
 
     MONITOR_RIGHT.store(
         state.monitors.elements()[monitor_index].size().right,
@@ -334,7 +337,6 @@ fn main() -> color_eyre::Result<()> {
 
     tracing::info!("watching configuration file for changes");
 
-    let config_arc = Arc::new(config);
     eframe::run_native(
         "komorebi-bar",
         native_options,
@@ -422,7 +424,7 @@ fn main() -> color_eyre::Result<()> {
                 }
             });
 
-            Ok(Box::new(Komobar::new(cc, rx_gui, rx_config, config_arc)))
+            Ok(Box::new(Komobar::new(cc, rx_gui, rx_config, config)))
         }),
     )
     .map_err(|error| color_eyre::eyre::Error::msg(error.to_string()))

@@ -16,6 +16,7 @@ use crate::core::BorderImplementation;
 use crate::core::StackbarLabel;
 use crate::core::StackbarMode;
 use crate::current_virtual_desktop;
+use crate::monitor;
 use crate::monitor::Monitor;
 use crate::monitor_reconciliator;
 use crate::ring::Ring;
@@ -176,6 +177,7 @@ impl From<&Workspace> for WorkspaceConfig {
                 Layout::Custom(_) => {}
             }
         }
+        let layout_rules = (!layout_rules.is_empty()).then_some(layout_rules);
 
         let mut window_container_behaviour_rules = HashMap::new();
         for (threshold, behaviour) in value.window_container_behaviour_rules().iter().flatten() {
@@ -206,19 +208,32 @@ impl From<&Workspace> for WorkspaceConfig {
                 .name()
                 .clone()
                 .unwrap_or_else(|| String::from("unnamed")),
-            layout: match value.layout() {
-                Layout::Default(layout) => Option::from(*layout),
-                // TODO: figure out how we might resolve file references in the future
-                Layout::Custom(_) => None,
-            },
-            custom_layout: None,
-            layout_rules: Option::from(layout_rules),
-            // TODO: figure out how we might resolve file references in the future
-            custom_layout_rules: None,
+            layout: value
+                .tile()
+                .then_some(match value.layout() {
+                    Layout::Default(layout) => Option::from(*layout),
+                    Layout::Custom(_) => None,
+                })
+                .flatten(),
+            custom_layout: value
+                .workspace_config()
+                .as_ref()
+                .and_then(|c| c.custom_layout.clone()),
+            layout_rules,
+            custom_layout_rules: value
+                .workspace_config()
+                .as_ref()
+                .and_then(|c| c.custom_layout_rules.clone()),
             container_padding,
             workspace_padding,
-            initial_workspace_rules: None,
-            workspace_rules: None,
+            initial_workspace_rules: value
+                .workspace_config()
+                .as_ref()
+                .and_then(|c| c.initial_workspace_rules.clone()),
+            workspace_rules: value
+                .workspace_config()
+                .as_ref()
+                .and_then(|c| c.workspace_rules.clone()),
             apply_window_based_work_area_offset: Some(value.apply_window_based_work_area_offset()),
             window_container_behaviour: *value.window_container_behaviour(),
             window_container_behaviour_rules: Option::from(window_container_behaviour_rules),
@@ -260,7 +275,7 @@ impl From<&Monitor> for MonitorConfig {
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize, JsonSchema, PartialEq)]
-/// The `komorebi.json` static configuration file reference for `v0.1.34`
+/// The `komorebi.json` static configuration file reference for `v0.1.35`
 pub struct StaticConfig {
     /// DEPRECATED from v0.1.22: no longer required
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -1164,6 +1179,7 @@ impl StaticConfig {
 
         let mut wm = WindowManager {
             monitors: Ring::default(),
+            monitor_usr_idx_map: HashMap::new(),
             incoming_events: incoming,
             command_listener: listener,
             is_paused: false,
@@ -1192,6 +1208,7 @@ impl StaticConfig {
             pending_move_op: Arc::new(None),
             already_moved_window_handles: Arc::new(Mutex::new(HashSet::new())),
             uncloack_to_ignore: 0,
+            known_hwnds: Vec::new(),
             always_on_top: None,
         };
 
@@ -1226,32 +1243,78 @@ impl StaticConfig {
         let value = Self::read(path)?;
         let mut wm = wm.lock();
 
-        if let Some(monitors) = value.monitors {
-            for (i, monitor) in monitors.iter().enumerate() {
-                {
-                    let display_index_preferences = DISPLAY_INDEX_PREFERENCES.lock();
-                    if let Some(device_id) = display_index_preferences.get(&i) {
-                        monitor_reconciliator::insert_in_monitor_cache(device_id, monitor.clone());
+        let configs_with_preference: Vec<_> =
+            DISPLAY_INDEX_PREFERENCES.lock().keys().copied().collect();
+        let mut configs_used = Vec::new();
+
+        let mut workspace_matching_rules = WORKSPACE_MATCHING_RULES.lock();
+        workspace_matching_rules.clear();
+        drop(workspace_matching_rules);
+
+        for (i, monitor) in wm.monitors_mut().iter_mut().enumerate() {
+            let preferred_config_idx = {
+                let display_index_preferences = DISPLAY_INDEX_PREFERENCES.lock();
+                let c_idx = display_index_preferences.iter().find_map(|(c_idx, id)| {
+                    (monitor
+                        .serial_number_id()
+                        .as_ref()
+                        .is_some_and(|sn| sn == id)
+                        || monitor.device_id() == id)
+                        .then_some(*c_idx)
+                });
+                c_idx
+            };
+            let idx = preferred_config_idx.or({
+                // Monitor without preferred config idx.
+                // Get index of first config that is not a preferred config of some other monitor
+                // and that has not been used yet. This might return `None` as well, in that case
+                // this monitor won't have a config tied to it and will use the default values.
+                let m_config_count = value
+                    .monitors
+                    .as_ref()
+                    .map(|ms| ms.len())
+                    .unwrap_or_default();
+                (0..m_config_count)
+                    .find(|i| !configs_with_preference.contains(i) && !configs_used.contains(i))
+            });
+            if let Some(monitor_config) = value
+                .monitors
+                .as_ref()
+                .and_then(|ms| idx.and_then(|i| ms.get(i)))
+            {
+                if let Some(used_config_idx) = idx {
+                    configs_used.push(used_config_idx);
+                }
+
+                monitor.ensure_workspace_count(monitor_config.workspaces.len());
+                monitor.set_work_area_offset(monitor_config.work_area_offset);
+                monitor.set_window_based_work_area_offset(
+                    monitor_config.window_based_work_area_offset,
+                );
+                monitor.set_window_based_work_area_offset_limit(
+                    monitor_config
+                        .window_based_work_area_offset_limit
+                        .unwrap_or(1),
+                );
+
+                for (j, ws) in monitor.workspaces_mut().iter_mut().enumerate() {
+                    if let Some(workspace_config) = monitor_config.workspaces.get(j) {
+                        ws.load_static_config(workspace_config)?;
                     }
                 }
 
-                if let Some(m) = wm.monitors_mut().get_mut(i) {
-                    m.ensure_workspace_count(monitor.workspaces.len());
-                    m.set_work_area_offset(monitor.work_area_offset);
-                    m.set_window_based_work_area_offset(monitor.window_based_work_area_offset);
-                    m.set_window_based_work_area_offset_limit(
-                        monitor.window_based_work_area_offset_limit.unwrap_or(1),
-                    );
-
-                    for (j, ws) in m.workspaces_mut().iter_mut().enumerate() {
-                        if let Some(workspace_config) = monitor.workspaces.get(j) {
-                            ws.load_static_config(workspace_config)?;
-                        }
-                    }
+                // Check if this monitor config is the preferred config for this monitor and store
+                // a copy of the monitor itself on the monitor cache if it is.
+                if idx == preferred_config_idx {
+                    let id = monitor
+                        .serial_number_id()
+                        .as_ref()
+                        .map_or(monitor.device_id(), |sn| sn);
+                    monitor_reconciliator::insert_in_monitor_cache(id, monitor.clone());
                 }
 
                 let mut workspace_matching_rules = WORKSPACE_MATCHING_RULES.lock();
-                for (j, ws) in monitor.workspaces.iter().enumerate() {
+                for (j, ws) in monitor_config.workspaces.iter().enumerate() {
                     if let Some(rules) = &ws.workspace_rules {
                         for r in rules {
                             workspace_matching_rules.push(WorkspaceMatchingRule {
@@ -1277,6 +1340,56 @@ impl StaticConfig {
             }
         }
 
+        // Check for configs that should be tied to a specific display that isn't loaded right now
+        // and cache a monitor with those configs with the specific `serial_number_id` so that when
+        // those devices are connected later we can use the correct config from the cache.
+        if configs_with_preference.len() > configs_used.len() {
+            for i in configs_with_preference
+                .iter()
+                .filter(|i| !configs_used.contains(i))
+            {
+                let id = {
+                    let display_index_preferences = DISPLAY_INDEX_PREFERENCES.lock();
+                    display_index_preferences.get(i).cloned()
+                };
+                if let (Some(id), Some(monitor_config)) =
+                    (id, value.monitors.as_ref().and_then(|ms| ms.get(*i)))
+                {
+                    // The name, device, device_id and serial_number_id can be empty here since
+                    // once the monitor with this preferred index actually connects the
+                    // `load_monitor_information` function will update these fields.
+                    let mut m = monitor::new(
+                        0,
+                        Rect::default(),
+                        Rect::default(),
+                        "".into(),
+                        "".into(),
+                        "".into(),
+                        None,
+                    );
+
+                    m.ensure_workspace_count(monitor_config.workspaces.len());
+                    m.set_work_area_offset(monitor_config.work_area_offset);
+                    m.set_window_based_work_area_offset(
+                        monitor_config.window_based_work_area_offset,
+                    );
+                    m.set_window_based_work_area_offset_limit(
+                        monitor_config
+                            .window_based_work_area_offset_limit
+                            .unwrap_or(1),
+                    );
+
+                    for (j, ws) in m.workspaces_mut().iter_mut().enumerate() {
+                        if let Some(workspace_config) = monitor_config.workspaces.get(j) {
+                            ws.load_static_config(workspace_config)?;
+                        }
+                    }
+
+                    monitor_reconciliator::insert_in_monitor_cache(&id, m);
+                }
+            }
+        }
+
         wm.enforce_workspace_rules()?;
 
         if value.border == Some(true) {
@@ -1291,29 +1404,80 @@ impl StaticConfig {
 
         value.apply_globals()?;
 
-        if let Some(monitors) = value.monitors {
-            let mut workspace_matching_rules = WORKSPACE_MATCHING_RULES.lock();
-            workspace_matching_rules.clear();
+        let configs_with_preference: Vec<_> =
+            DISPLAY_INDEX_PREFERENCES.lock().keys().copied().collect();
+        let mut configs_used = Vec::new();
 
-            for (i, monitor) in monitors.iter().enumerate() {
-                if let Some(m) = wm.monitors_mut().get_mut(i) {
-                    m.ensure_workspace_count(monitor.workspaces.len());
-                    if m.work_area_offset().is_none() {
-                        m.set_work_area_offset(monitor.work_area_offset);
-                    }
-                    m.set_window_based_work_area_offset(monitor.window_based_work_area_offset);
-                    m.set_window_based_work_area_offset_limit(
-                        monitor.window_based_work_area_offset_limit.unwrap_or(1),
-                    );
+        let mut workspace_matching_rules = WORKSPACE_MATCHING_RULES.lock();
+        workspace_matching_rules.clear();
+        drop(workspace_matching_rules);
 
-                    for (j, ws) in m.workspaces_mut().iter_mut().enumerate() {
-                        if let Some(workspace_config) = monitor.workspaces.get(j) {
-                            ws.load_static_config(workspace_config)?;
-                        }
+        for (i, monitor) in wm.monitors_mut().iter_mut().enumerate() {
+            let preferred_config_idx = {
+                let display_index_preferences = DISPLAY_INDEX_PREFERENCES.lock();
+                let c_idx = display_index_preferences.iter().find_map(|(c_idx, id)| {
+                    (monitor
+                        .serial_number_id()
+                        .as_ref()
+                        .is_some_and(|sn| sn == id)
+                        || monitor.device_id() == id)
+                        .then_some(*c_idx)
+                });
+                c_idx
+            };
+            let idx = preferred_config_idx.or({
+                // Monitor without preferred config idx.
+                // Get index of first config that is not a preferred config of some other monitor
+                // and that has not been used yet. This might return `None` as well, in that case
+                // this monitor won't have a config tied to it and will use the default values.
+                let m_config_count = value
+                    .monitors
+                    .as_ref()
+                    .map(|ms| ms.len())
+                    .unwrap_or_default();
+                (0..m_config_count)
+                    .find(|i| !configs_with_preference.contains(i) && !configs_used.contains(i))
+            });
+            if let Some(monitor_config) = value
+                .monitors
+                .as_ref()
+                .and_then(|ms| idx.and_then(|i| ms.get(i)))
+            {
+                if let Some(used_config_idx) = idx {
+                    configs_used.push(used_config_idx);
+                }
+
+                monitor.ensure_workspace_count(monitor_config.workspaces.len());
+                if monitor.work_area_offset().is_none() {
+                    monitor.set_work_area_offset(monitor_config.work_area_offset);
+                }
+                monitor.set_window_based_work_area_offset(
+                    monitor_config.window_based_work_area_offset,
+                );
+                monitor.set_window_based_work_area_offset_limit(
+                    monitor_config
+                        .window_based_work_area_offset_limit
+                        .unwrap_or(1),
+                );
+
+                for (j, ws) in monitor.workspaces_mut().iter_mut().enumerate() {
+                    if let Some(workspace_config) = monitor_config.workspaces.get(j) {
+                        ws.load_static_config(workspace_config)?;
                     }
                 }
 
-                for (j, ws) in monitor.workspaces.iter().enumerate() {
+                // Check if this monitor config is the preferred config for this monitor and store
+                // a copy of the monitor itself on the monitor cache if it is.
+                if idx == preferred_config_idx {
+                    let id = monitor
+                        .serial_number_id()
+                        .as_ref()
+                        .map_or(monitor.device_id(), |sn| sn);
+                    monitor_reconciliator::insert_in_monitor_cache(id, monitor.clone());
+                }
+
+                let mut workspace_matching_rules = WORKSPACE_MATCHING_RULES.lock();
+                for (j, ws) in monitor_config.workspaces.iter().enumerate() {
                     if let Some(rules) = &ws.workspace_rules {
                         for r in rules {
                             workspace_matching_rules.push(WorkspaceMatchingRule {
@@ -1335,6 +1499,56 @@ impl StaticConfig {
                             });
                         }
                     }
+                }
+            }
+        }
+
+        // Check for configs that should be tied to a specific display that isn't loaded right now
+        // and cache a monitor with those configs with the specific `serial_number_id` so that when
+        // those devices are connected later we can use the correct config from the cache.
+        if configs_with_preference.len() > configs_used.len() {
+            for i in configs_with_preference
+                .iter()
+                .filter(|i| !configs_used.contains(i))
+            {
+                let id = {
+                    let display_index_preferences = DISPLAY_INDEX_PREFERENCES.lock();
+                    display_index_preferences.get(i).cloned()
+                };
+                if let (Some(id), Some(monitor_config)) =
+                    (id, value.monitors.as_ref().and_then(|ms| ms.get(*i)))
+                {
+                    // The name, device, device_id and serial_number_id can be empty here since
+                    // once the monitor with this preferred index actually connects the
+                    // `load_monitor_information` function will update these fields.
+                    let mut m = monitor::new(
+                        0,
+                        Rect::default(),
+                        Rect::default(),
+                        "".into(),
+                        "".into(),
+                        "".into(),
+                        None,
+                    );
+
+                    m.ensure_workspace_count(monitor_config.workspaces.len());
+                    m.set_work_area_offset(monitor_config.work_area_offset);
+                    m.set_window_based_work_area_offset(
+                        monitor_config.window_based_work_area_offset,
+                    );
+                    m.set_window_based_work_area_offset_limit(
+                        monitor_config
+                            .window_based_work_area_offset_limit
+                            .unwrap_or(1),
+                    );
+
+                    for (j, ws) in m.workspaces_mut().iter_mut().enumerate() {
+                        if let Some(workspace_config) = monitor_config.workspaces.get(j) {
+                            ws.load_static_config(workspace_config)?;
+                        }
+                    }
+
+                    monitor_reconciliator::insert_in_monitor_cache(&id, m);
                 }
             }
         }

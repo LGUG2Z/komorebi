@@ -13,7 +13,7 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
-/// The `komorebi.bar.json` configuration file reference for `v0.1.34`
+/// The `komorebi.bar.json` configuration file reference for `v0.1.35`
 pub struct KomobarConfig {
     /// Bar height (default: 50)
     pub height: Option<f32>,

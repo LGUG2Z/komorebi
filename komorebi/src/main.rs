@@ -268,8 +268,14 @@ fn main() -> Result<()> {
     let dumped_state = temp_dir().join("komorebi.state.json");
 
     if !opts.clean_state && dumped_state.is_file() {
-        let state: State = serde_json::from_str(&std::fs::read_to_string(&dumped_state)?)?;
-        wm.lock().apply_state(state);
+        if let Ok(state) = serde_json::from_str(&std::fs::read_to_string(&dumped_state)?) {
+            wm.lock().apply_state(state);
+        } else {
+            tracing::warn!(
+                "cannot apply state from {}; state struct is not up to date",
+                dumped_state.display()
+            );
+        }
     }
 
     wm.lock().retile_all(false)?;
