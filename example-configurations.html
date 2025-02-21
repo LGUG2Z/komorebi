@@ -1595,6 +1595,10 @@
       
         
       
+        
+      
+        
+      
     
     
       
@@ -2732,6 +2736,27 @@
   
   <span class="md-ellipsis">
     focus-monitor
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="cli/focus-monitor-at-cursor.html" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    focus-monitor-at-cursor
   </span>
   
 
@@ -4533,6 +4558,27 @@
   
   
     <li class="md-nav__item">
+      <a href="cli/stackbar-mode.html" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    stackbar-mode
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="cli/transparency.html" class="md-nav__link">
         
   
@@ -5244,7 +5290,7 @@ the example files have been downloaded. For most new users this will be in the
 seven preconfigured workspaces on the primary monitor each with a different
 layout.</p>
 <div class="highlight"><pre><span></span><code><span class="p">{</span>
-<span class="w">  </span><span class="nt">&quot;$schema&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;https://raw.githubusercontent.com/LGUG2Z/komorebi/v0.1.32/schema.json&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;$schema&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;https://raw.githubusercontent.com/LGUG2Z/komorebi/v0.1.34/schema.json&quot;</span><span class="p">,</span>
 <span class="w">  </span><span class="nt">&quot;app_specific_configuration_path&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;$Env:USERPROFILE/applications.json&quot;</span><span class="p">,</span>
 <span class="w">  </span><span class="nt">&quot;window_hiding_behaviour&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Cloak&quot;</span><span class="p">,</span>
 <span class="w">  </span><span class="nt">&quot;cross_monitor_move_behaviour&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Insert&quot;</span><span class="p">,</span>
@@ -5334,7 +5380,7 @@ solo developer.</p>
 <h3 id="border-colours">Border colours</h3>
 <p>If you choose to use the active window border, you can set different colours to
 give you visual queues when you are focused on a single window, a stack of
-windows, or a window that is in monocole mode.</p>
+windows, or a window that is in monocle mode.</p>
 <p>The example colours given are blue single, green for stack and pink for
 monocle.</p>
 <h3 id="layouts">Layouts</h3>
@@ -5534,16 +5580,8 @@ the sample configuration above.</p>
 <p>The example status bar configuration sets some sane defaults and provides
 a number of pre-configured widgets on the primary monitor.</p>
 <div class="highlight"><pre><span></span><code><span class="p">{</span>
-<span class="w">  </span><span class="nt">&quot;$schema&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;https://raw.githubusercontent.com/LGUG2Z/komorebi/v0.1.32/schema.bar.json&quot;</span><span class="p">,</span>
-<span class="w">  </span><span class="nt">&quot;monitor&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
-<span class="w">    </span><span class="nt">&quot;index&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span>
-<span class="w">    </span><span class="nt">&quot;work_area_offset&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
-<span class="w">      </span><span class="nt">&quot;left&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span>
-<span class="w">      </span><span class="nt">&quot;top&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">40</span><span class="p">,</span>
-<span class="w">      </span><span class="nt">&quot;right&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span>
-<span class="w">      </span><span class="nt">&quot;bottom&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">40</span>
-<span class="w">    </span><span class="p">}</span>
-<span class="w">  </span><span class="p">},</span>
+<span class="w">  </span><span class="nt">&quot;$schema&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;https://raw.githubusercontent.com/LGUG2Z/komorebi/v0.1.34/schema.bar.json&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;monitor&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span>
 <span class="w">  </span><span class="nt">&quot;font_family&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;JetBrains Mono&quot;</span><span class="p">,</span>
 <span class="w">  </span><span class="nt">&quot;theme&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="nt">&quot;palette&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Base16&quot;</span><span class="p">,</span>
@@ -5568,6 +5606,11 @@ a number of pre-configured widgets on the primary monitor.</p>
 <span class="w">    </span><span class="p">}</span>
 <span class="w">  </span><span class="p">],</span>
 <span class="w">  </span><span class="nt">&quot;right_widgets&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">      </span><span class="nt">&quot;Update&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="nt">&quot;enable&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span>
+<span class="w">      </span><span class="p">}</span>
+<span class="w">    </span><span class="p">},</span>
 <span class="w">    </span><span class="p">{</span>
 <span class="w">      </span><span class="nt">&quot;Media&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
 <span class="w">        </span><span class="nt">&quot;enable&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span>
@@ -5616,7 +5659,7 @@ in <code>komorebi.json</code>, the theme will be applied to both komorebi's bord
 stackbars as well as the status bar.</p>
 <p>If set in <code>komorebi.bar.json</code>, the theme will only be applied to the status bar.</p>
 <p>All <a href="https://catppuccin.com/">Catppuccin palette variants</a>
-and <a href="https://tinted-theming.github.io/base16-gallery/">most Base16 palette variants</a>
+and <a href="https://tinted-theming.github.io/tinted-gallery/">most Base16 palette variants</a>
 are available as themes.</p>
 
 

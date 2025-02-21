@@ -1356,6 +1356,10 @@
       
         
       
+        
+      
+        
+      
     
     
       
@@ -2493,6 +2497,27 @@
   
   <span class="md-ellipsis">
     focus-monitor
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cli/focus-monitor-at-cursor.html" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    focus-monitor-at-cursor
   </span>
   
 
@@ -4294,6 +4319,27 @@
   
   
     <li class="md-nav__item">
+      <a href="../cli/stackbar-mode.html" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    stackbar-mode
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../cli/transparency.html" class="md-nav__link">
         
   
@@ -4784,6 +4830,12 @@ directory, you can specify a custom directory by setting the
 <code>~/.config/komorebi</code> directory.</p>
 <p>The next time you run <code>komorebic start</code>, any files created by or loaded by
 <em>komorebi</em> will be placed or expected to exist in this folder.</p>
+<p>After setting <code>$Env:KOMOREBI_CONFIG_HOME</code>, make sure to update the path in komorebi.json:</p>
+<div class="highlight"><pre><span></span><code><span class="p">{</span>
+<span class="w">  </span><span class="nt">&quot;app_specific_configuration_path&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;$Env:KOMOREBI_CONFIG_HOME/applications.json&quot;</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>This ensures that komorebi can locate all configuration files correctly.</p>
 <p><a href="https://www.youtube.com/watch?v=C_KWUqQ6kko"><img alt="Watch the tutorial
 video" src="https://img.youtube.com/vi/C_KWUqQ6kko/hqdefault.jpg" /></a></p>
 
