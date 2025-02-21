@@ -1209,6 +1209,7 @@ impl StaticConfig {
             already_moved_window_handles: Arc::new(Mutex::new(HashSet::new())),
             uncloack_to_ignore: 0,
             known_hwnds: Vec::new(),
+            always_on_top: None,
         };
 
         match value.focus_follows_mouse {

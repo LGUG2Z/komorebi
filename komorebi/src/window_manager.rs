@@ -118,6 +118,7 @@ pub struct WindowManager {
     pub already_moved_window_handles: Arc<Mutex<HashSet<isize>>>,
     pub uncloack_to_ignore: usize,
     pub known_hwnds: Vec<isize>,
+    pub always_on_top: Option<Vec<isize>>,
 }
 
 #[allow(clippy::struct_excessive_bools)]
@@ -366,6 +367,7 @@ impl WindowManager {
             already_moved_window_handles: Arc::new(Mutex::new(HashSet::new())),
             uncloack_to_ignore: 0,
             known_hwnds: Vec::new(),
+            always_on_top: None,
         })
     }
 
@@ -1624,6 +1626,302 @@ impl WindowManager {
         self.swap_monitor_workspaces(focused_monitor_idx, idx)?;
 
         self.update_focused_workspace(mouse_follows_focus, true)
+    }
+
+    #[tracing::instrument(skip(self))]
+    pub fn focus_window_from_exe(
+        &mut self,
+        exe: &Option<String>,
+        hwnd: Option<isize>,
+    ) -> Result<()> {
+        let mut monitor_idx = 0;
+        let mut workspace_idx = 0;
+        let mut hwnd_from_exe: isize = 0;
+        let mut bool = false;
+        let mouse_follows_focus = self.mouse_follows_focus;
+        let offset = self.work_area_offset;
+
+        'outer: for (i, m) in self.monitors.elements().iter().enumerate() {
+            for (j, w) in m.workspaces().iter().enumerate() {
+                if let Some(hwnd) = hwnd {
+                    if w.contains_managed_window(hwnd) {
+                        monitor_idx = i;
+                        workspace_idx = j;
+                        hwnd_from_exe = hwnd;
+                        bool = true;
+                        break 'outer;
+                    }
+                }
+                if let Some(exe) = exe {
+                    if let Some(hwndexe) = w.hwnd_from_exe(&exe) {
+                        monitor_idx = i;
+                        workspace_idx = j;
+                        hwnd_from_exe = hwndexe;
+                        bool = true;
+                        if !hwnd.is_some() {
+                            break 'outer;
+                        }
+                    }
+                }
+            }
+        }
+
+        if bool {
+            if self.focused_monitor_idx() != monitor_idx {
+                self.focus_monitor(monitor_idx)?;
+            }
+            if self.focused_workspace_idx()? != workspace_idx {
+                self.focused_monitor_mut()
+                    .ok_or_else(|| anyhow!("there is no monitor"))?
+                    .focus_workspace(workspace_idx)?;
+            }
+            let target_monitor = self
+                .focused_monitor_mut()
+                .ok_or_else(|| anyhow!("there is no monitor"))?;
+            target_monitor
+                .workspaces_mut()
+                .get_mut(workspace_idx)
+                .ok_or_else(|| anyhow!("there is no workspace"))?
+                .focus_container_by_window(hwnd_from_exe)?;
+            target_monitor.load_focused_workspace(mouse_follows_focus)?;
+            target_monitor.update_focused_workspace(offset)?;
+            self.update_focused_workspace(self.mouse_follows_focus, true)?;
+        } else {
+            Err(anyhow!("there is no window with that exe"))?
+        }
+        Ok(())
+    }
+
+    #[tracing::instrument(skip(self))]
+    pub fn display_monitor_workspace(
+        &mut self,
+        monitor_idx: usize,
+        workspace_idx: usize,
+    ) -> Result<()> {
+        let monitor = self
+            .monitors_mut()
+            .get_mut(monitor_idx)
+            .ok_or_else(|| anyhow!("There is no monitor"))?;
+
+        monitor.focus_workspace(workspace_idx)?;
+        monitor.load_focused_workspace(false)?;
+
+        let focused_workspace_idx = self.focused_workspace_idx()?;
+        self.focus_workspace(focused_workspace_idx)?;
+
+        Ok(())
+    }
+
+    #[tracing::instrument(skip(self))]
+    pub fn send_always_on_top(
+        &mut self,
+        monitor_idx: Option<usize>,
+        workspace_idx: Option<usize>,
+        follows: Option<bool>,
+    ) -> Result<()> {
+        let mut contains_always_on_top = false;
+        let last_window = if let Ok(window) = self.focused_window() {
+            window.hwnd
+        } else {
+            if self.focused_workspace()?.floating_windows().len() > 0 {
+                self.focused_workspace()?.floating_windows()[0].hwnd
+            } else {
+                return Ok(());
+            }
+        };
+        let aot = self.always_on_top.clone();
+        let mut windows_vec = vec![];
+
+        let flw_contains = if let Some(aot) = self.always_on_top.as_ref() {
+            if aot.len() == 0 {
+                return Ok(());
+            }
+            if let Some(flw) = follows {
+                if let Ok(fc) = self.focused_container() {
+                    let contains = fc.windows().iter().any(|w| aot.contains(&w.hwnd));
+                    if flw && contains {
+                        windows_vec = fc.windows().into_iter().map(|w| w.hwnd).collect::<Vec<_>>();
+                        true
+                    } else if !flw && !contains {
+                        return Ok(());
+                    } else if !flw && contains {
+                        Err(anyhow!("cannot send an always on top window"))?
+                    } else {
+                        false
+                    }
+                } else {
+                    false
+                }
+            } else {
+                false
+            }
+        } else {
+            return Ok(());
+        };
+        self.check_aot_windows()?;
+
+        aot.ok_or_else(|| anyhow!("there is no always on Top windows"))?
+            .iter()
+            .filter(|&&window| {
+                let mut is_window = false;
+                if flw_contains {
+                    if windows_vec.contains(&&window) {
+                        is_window = true;
+                    }
+                }
+                !is_window
+            })
+            .try_for_each(|&window| {
+                if let Some(monitor_idx) = monitor_idx {
+                    if self
+                        .monitors()
+                        .get(monitor_idx)
+                        .ok_or_else(|| anyhow!("there is no monitor at this index"))?
+                        .focused_workspace()
+                        .unwrap()
+                        .contains_managed_window(window)
+                    {
+                        let idx = self
+                            .monitors()
+                            .get(monitor_idx)
+                            .ok_or_else(|| anyhow!("there is no monitor at this index"))?
+                            .focused_workspace()
+                            .unwrap()
+                            .container_idx_for_window(window)
+                            .ok_or_else(|| anyhow!("there is no container at this index"))?;
+
+                        let con = self
+                            .monitors_mut()
+                            .get_mut(monitor_idx)
+                            .ok_or_else(|| anyhow!("there is no monitor at this index"))?
+                            .focused_workspace_mut()
+                            .unwrap()
+                            .remove_container_by_idx(idx)
+                            .unwrap();
+
+                        self.monitors_mut()
+                            .get_mut(monitor_idx)
+                            .ok_or_else(|| anyhow!("there is no monitor at this index"))?
+                            .add_container(con, workspace_idx)?;
+                    }
+                } else {
+                    if self
+                        .focused_workspace()
+                        .unwrap()
+                        .contains_managed_window(window)
+                    {
+                        let idx = self
+                            .focused_workspace()
+                            .unwrap()
+                            .container_idx_for_window(window);
+                        let con = self
+                            .focused_workspace_mut()
+                            .unwrap()
+                            .remove_container_by_idx(idx.unwrap())
+                            .ok_or_else(|| anyhow!("there is no container at this index"))?;
+
+                        self.focused_monitor_mut()
+                            .ok_or_else(|| anyhow!("there is no focused monitor"))?
+                            .add_container(con, workspace_idx)?;
+
+                        contains_always_on_top = true;
+
+                        //self.update_focused_workspace(mff, false).unwrap()
+                    } else if self
+                        .focused_workspace()?
+                        .floating_windows()
+                        .iter()
+                        .any(|w| w.hwnd == window)
+                    {
+                        let idx = self
+                            .focused_workspace_mut()?
+                            .floating_windows()
+                            .iter()
+                            .position(|x| x.hwnd == window)
+                            .unwrap();
+                        let float_window = self
+                            .focused_workspace_mut()?
+                            .floating_windows_mut()
+                            .remove(idx);
+                        self.focused_monitor_mut()
+                            .ok_or_else(|| anyhow!("there is no focused workspace"))?
+                            .workspaces_mut()
+                            .get_mut(workspace_idx.unwrap())
+                            .ok_or_else(|| anyhow!("there is no workspace at this index"))?
+                            .floating_windows_mut()
+                            .push(float_window);
+                    }
+                }
+
+                Ok::<(), color_eyre::eyre::Error>(())
+            })?;
+
+        if contains_always_on_top
+            && self.focused_workspace()?.containers().len() != 0
+            && self
+                .focused_workspace()?
+                .contains_managed_window(last_window)
+        {
+            self.focused_workspace_mut()?
+                .focus_container_by_window(last_window)?;
+        }
+        Ok(())
+    }
+
+    pub fn check_aot_windows(&mut self) -> Result<()> {
+        let mut not_contains = vec![];
+        if self.always_on_top.is_none() {
+            return Ok(());
+        }
+        for (i, hwnd) in self
+            .always_on_top
+            .as_ref()
+            .ok_or_else(|| anyhow!("there is no always on top windows"))?
+            .iter()
+            .enumerate()
+        {
+            let mut not_contains_bool = true;
+            'monitor: for monitor in self.monitors.elements().iter() {
+                for workspace in monitor.workspaces().iter() {
+                    if workspace.contains_managed_window(*hwnd) {
+                        not_contains_bool = false;
+                        break 'monitor;
+                    }
+                }
+            }
+
+            if not_contains_bool {
+                not_contains.push(i);
+            }
+        }
+        not_contains.iter().for_each(|&i| {
+            self.always_on_top.as_mut().unwrap().remove(i);
+        });
+        Ok(())
+    }
+
+    pub fn toggle_always_on_top(&mut self) -> Result<()> {
+        self.check_aot_windows()?;
+
+        let focused_con = self.focused_container().unwrap().clone();
+
+        focused_con.windows().iter().try_for_each(|window| {
+            if let Some(always_on_top) = self.always_on_top.as_mut() {
+                if always_on_top.contains(&window.hwnd) {
+                    let idx = always_on_top
+                        .iter()
+                        .position(|x| *x == window.hwnd)
+                        .unwrap();
+                    always_on_top.remove(idx);
+                } else {
+                    always_on_top.push(window.hwnd.clone())
+                }
+            } else {
+                self.always_on_top = Some(vec![window.hwnd.clone()])
+            }
+            Ok::<(), color_eyre::eyre::Error>(())
+        })?;
+        Ok(())
     }
 
     #[tracing::instrument(skip(self))]
