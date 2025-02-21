@@ -34,7 +34,7 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 serde_yaml = { workspace = true }
 shadow-rs = { workspace = true }
-strum = { version = "0.26", features = ["derive"] }
+strum = { workspace = true }
 sysinfo = { workspace = true }
 tracing = { workspace = true }
 tracing-appender = { workspace = true }
