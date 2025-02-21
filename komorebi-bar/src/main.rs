@@ -42,7 +42,6 @@ use std::sync::LazyLock;
 use std::sync::Mutex;
 use std::time::Duration;
 use tracing_subscriber::EnvFilter;
-use windows::Win32::Foundation::BOOL;
 use windows::Win32::Foundation::HWND;
 use windows::Win32::Foundation::LPARAM;
 use windows::Win32::System::Threading::GetCurrentProcessId;
@@ -51,6 +50,7 @@ use windows::Win32::UI::HiDpi::SetProcessDpiAwarenessContext;
 use windows::Win32::UI::HiDpi::DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2;
 use windows::Win32::UI::WindowsAndMessaging::EnumThreadWindows;
 use windows::Win32::UI::WindowsAndMessaging::GetWindowThreadProcessId;
+use windows_core::BOOL;
 
 pub static MAX_LABEL_WIDTH: AtomicI32 = AtomicI32::new(400);
 pub static MONITOR_LEFT: AtomicI32 = AtomicI32::new(0);

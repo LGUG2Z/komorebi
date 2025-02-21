@@ -123,7 +123,7 @@ impl Stackbar {
                     0,
                     None,
                     None,
-                    HINSTANCE(windows_api::as_ptr!(instance)),
+                    Option::from(HINSTANCE(windows_api::as_ptr!(instance))),
                     None,
                 )?;
 
@@ -133,7 +133,7 @@ impl Stackbar {
                 let mut msg: MSG = MSG::default();
 
                 loop {
-                    if !GetMessageW(&mut msg, HWND::default(), 0, 0).as_bool() {
+                    if !GetMessageW(&mut msg, None, 0, 0).as_bool() {
                         tracing::debug!("stackbar window event processing thread shutdown");
                         break;
                     };
@@ -183,13 +183,13 @@ impl Stackbar {
         WindowsApi::position_window(self.hwnd, &layout, false)?;
 
         unsafe {
-            let hdc = GetDC(self.hwnd());
+            let hdc = GetDC(Option::from(self.hwnd()));
 
             let hpen = CreatePen(PS_SOLID, 0, COLORREF(background));
             let hbrush = CreateSolidBrush(COLORREF(background));
 
-            SelectObject(hdc, hpen);
-            SelectObject(hdc, hbrush);
+            SelectObject(hdc, hpen.into());
+            SelectObject(hdc, hbrush.into());
             SetBkColor(hdc, COLORREF(background));
 
             let mut logfont = LOGFONTW {
@@ -209,14 +209,14 @@ impl Stackbar {
             let logical_height = -MulDiv(
                 STACKBAR_FONT_SIZE.load(Ordering::SeqCst),
                 72,
-                GetDeviceCaps(hdc, LOGPIXELSY),
+                GetDeviceCaps(Option::from(hdc), LOGPIXELSY),
             );
 
             logfont.lfHeight = logical_height;
 
             let hfont = CreateFontIndirectW(&logfont);
 
-            SelectObject(hdc, hfont);
+            SelectObject(hdc, hfont.into());
 
             for (i, window) in container.windows().iter().enumerate() {
                 if window.hwnd == container.focused_window().copied().unwrap_or_default().hwnd {
@@ -283,13 +283,13 @@ impl Stackbar {
                 );
             }
 
-            ReleaseDC(self.hwnd(), hdc);
+            ReleaseDC(Option::from(self.hwnd()), hdc);
             // TODO: error handling
-            let _ = DeleteObject(hpen);
+            let _ = DeleteObject(hpen.into());
             // TODO: error handling
-            let _ = DeleteObject(hbrush);
+            let _ = DeleteObject(hbrush.into());
             // TODO: error handling
-            let _ = DeleteObject(hfont);
+            let _ = DeleteObject(hfont.into());
         }
 
         Ok(())

@@ -13,11 +13,11 @@ use windows::core::HRESULT;
 use windows::core::HSTRING;
 use windows::core::PCWSTR;
 use windows::core::PWSTR;
-use windows::Win32::Foundation::BOOL;
 use windows::Win32::Foundation::HWND;
 use windows::Win32::Foundation::RECT;
 use windows::Win32::Foundation::SIZE;
 use windows::Win32::UI::Shell::Common::IObjectArray;
+use windows_core::BOOL;
 
 type DesktopID = GUID;
 

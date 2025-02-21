@@ -34,4 +34,5 @@ sysinfo = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
 windows = { workspace = true }
+windows-core = { workspace = true }
 windows-icons = { git = "https://github.com/LGUG2Z/windows-icons", rev = "d67cc9920aa9b4883393e411fb4fa2ddd4c498b5" }

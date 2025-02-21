@@ -215,7 +215,7 @@ impl KomorebiGui {
 extern "system" fn enum_window(
     hwnd: windows::Win32::Foundation::HWND,
     lparam: windows::Win32::Foundation::LPARAM,
-) -> windows::Win32::Foundation::BOOL {
+) -> windows_core::BOOL {
     let windows = unsafe { &mut *(lparam.0 as *mut Vec<Window>) };
     let window = Window::from(hwnd.0 as isize);
 
