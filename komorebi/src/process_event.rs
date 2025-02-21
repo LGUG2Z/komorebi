@@ -1,4 +1,3 @@
-use std::fs::OpenOptions;
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
 use std::time::Duration;
@@ -33,7 +32,6 @@ use crate::workspace_reconciliator::ALT_TAB_HWND_INSTANT;
 use crate::Notification;
 use crate::NotificationEvent;
 use crate::State;
-use crate::DATA_DIR;
 use crate::FLOATING_APPLICATIONS;
 use crate::HIDDEN_HWNDS;
 use crate::REGEX_IDENTIFIERS;
@@ -307,30 +305,28 @@ impl WindowManager {
 
                     let mut needs_reconciliation = false;
 
-                    for (i, monitors) in self.monitors().iter().enumerate() {
-                        for (j, workspace) in monitors.workspaces().iter().enumerate() {
-                            if workspace.contains_window(window.hwnd) && focused_pair != (i, j) {
-                                // At this point we know we are going to send a notification to the workspace reconciliator
-                                // So we get the topmost window returned by EnumWindows, which is almost always the window
-                                // that has been selected by alt-tab
-                                if let Ok(alt_tab_windows) = WindowsApi::alt_tab_windows() {
-                                    if let Some(first) =
-                                        alt_tab_windows.iter().find(|w| w.title().is_ok())
-                                    {
-                                        // If our record of this HWND hasn't been updated in over a minute
-                                        let mut instant = ALT_TAB_HWND_INSTANT.lock();
-                                        if instant.elapsed().gt(&Duration::from_secs(1)) {
-                                            // Update our record with the HWND we just found
-                                            ALT_TAB_HWND.store(Some(first.hwnd));
-                                            // Update the timestamp of our record
-                                            *instant = Instant::now();
-                                        }
+                    if let Some((m_idx, w_idx)) = self.known_hwnds.get(&window.hwnd) {
+                        if focused_pair != (*m_idx, *w_idx) {
+                            // At this point we know we are going to send a notification to the workspace reconciliator
+                            // So we get the topmost window returned by EnumWindows, which is almost always the window
+                            // that has been selected by alt-tab
+                            if let Ok(alt_tab_windows) = WindowsApi::alt_tab_windows() {
+                                if let Some(first) =
+                                    alt_tab_windows.iter().find(|w| w.title().is_ok())
+                                {
+                                    // If our record of this HWND hasn't been updated in over a minute
+                                    let mut instant = ALT_TAB_HWND_INSTANT.lock();
+                                    if instant.elapsed().gt(&Duration::from_secs(1)) {
+                                        // Update our record with the HWND we just found
+                                        ALT_TAB_HWND.store(Some(first.hwnd));
+                                        // Update the timestamp of our record
+                                        *instant = Instant::now();
                                     }
                                 }
-
-                                workspace_reconciliator::send_notification(i, j);
-                                needs_reconciliation = true;
                             }
+
+                            workspace_reconciliator::send_notification(*m_idx, *w_idx);
+                            needs_reconciliation = true;
                         }
                     }
 
@@ -341,11 +337,14 @@ impl WindowManager {
                     // duplicates across multiple workspaces, as it results in ghost layout tiles.
                     let mut proceed = true;
 
-                    for (i, monitor) in self.monitors().iter().enumerate() {
-                        for (j, workspace) in monitor.workspaces().iter().enumerate() {
-                            if workspace.contains_window(window.hwnd)
-                                && i != self.focused_monitor_idx()
-                                && j != monitor.focused_workspace_idx()
+                    if let Some((m_idx, w_idx)) = self.known_hwnds.get(&window.hwnd) {
+                        if let Some(focused_workspace_idx) = self
+                            .monitors()
+                            .get(*m_idx)
+                            .map(|m| m.focused_workspace_idx())
+                        {
+                            if *m_idx != self.focused_monitor_idx()
+                                && *w_idx != focused_workspace_idx
                             {
                                 tracing::debug!(
                                     "ignoring show event for window already associated with another workspace"
@@ -504,15 +503,9 @@ impl WindowManager {
                 // This will be true if we have moved to another monitor
                 let mut moved_across_monitors = false;
 
-                for (i, monitors) in self.monitors().iter().enumerate() {
-                    for workspace in monitors.workspaces() {
-                        if workspace.contains_window(window.hwnd) && i != target_monitor_idx {
-                            moved_across_monitors = true;
-                            break;
-                        }
-                    }
-                    if moved_across_monitors {
-                        break;
+                if let Some((m_idx, _)) = self.known_hwnds.get(&window.hwnd) {
+                    if *m_idx != target_monitor_idx {
+                        moved_across_monitors = true;
                     }
                 }
 
@@ -716,42 +709,8 @@ impl WindowManager {
             window.center(&self.focused_monitor_work_area()?)?;
         }
 
-        tracing::trace!("updating list of known hwnds");
-        let mut known_hwnds = vec![];
-        for monitor in self.monitors() {
-            for workspace in monitor.workspaces() {
-                for container in workspace.containers() {
-                    for window in container.windows() {
-                        known_hwnds.push(window.hwnd);
-                    }
-                }
-
-                for window in workspace.floating_windows() {
-                    known_hwnds.push(window.hwnd);
-                }
-
-                if let Some(window) = workspace.maximized_window() {
-                    known_hwnds.push(window.hwnd);
-                }
-
-                if let Some(container) = workspace.monocle_container() {
-                    for window in container.windows() {
-                        known_hwnds.push(window.hwnd);
-                    }
-                }
-            }
-        }
-
-        let hwnd_json = DATA_DIR.join("komorebi.hwnd.json");
-        let file = OpenOptions::new()
-            .write(true)
-            .truncate(true)
-            .create(true)
-            .open(hwnd_json)?;
-
-        serde_json::to_writer_pretty(&file, &known_hwnds)?;
-
-        self.known_hwnds = known_hwnds;
+        // Update list of known_hwnds and their monitor/workspace index pair
+        self.update_known_hwnds();
 
         notify_subscribers(
             Notification {

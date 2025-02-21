@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::collections::HashSet;
 use std::collections::VecDeque;
 use std::env::temp_dir;
+use std::fs::OpenOptions;
 use std::io::ErrorKind;
 use std::net::Shutdown;
 use std::num::NonZeroUsize;
@@ -117,7 +118,8 @@ pub struct WindowManager {
     pub pending_move_op: Arc<Option<(usize, usize, isize)>>,
     pub already_moved_window_handles: Arc<Mutex<HashSet<isize>>>,
     pub uncloack_to_ignore: usize,
-    pub known_hwnds: Vec<isize>,
+    /// Maps each known window hwnd to the (monitor, workspace) index pair managing it
+    pub known_hwnds: HashMap<isize, (usize, usize)>,
 }
 
 #[allow(clippy::struct_excessive_bools)]
@@ -365,7 +367,7 @@ impl WindowManager {
             pending_move_op: Arc::new(None),
             already_moved_window_handles: Arc::new(Mutex::new(HashSet::new())),
             uncloack_to_ignore: 0,
-            known_hwnds: Vec::new(),
+            known_hwnds: HashMap::new(),
         })
     }
 
@@ -3301,5 +3303,67 @@ impl WindowManager {
         self.focused_container_mut()?
             .focused_window_mut()
             .ok_or_else(|| anyhow!("there is no window"))
+    }
+
+    /// Updates the list of `known_hwnds` and their monitor/workspace index pair
+    ///
+    /// [`known_hwnds`]: `Self.known_hwnds`
+    pub fn update_known_hwnds(&mut self) {
+        tracing::trace!("updating list of known hwnds");
+        let mut known_hwnds = HashMap::new();
+        for (m_idx, monitor) in self.monitors().iter().enumerate() {
+            for (w_idx, workspace) in monitor.workspaces().iter().enumerate() {
+                for container in workspace.containers() {
+                    for window in container.windows() {
+                        known_hwnds.insert(window.hwnd, (m_idx, w_idx));
+                    }
+                }
+
+                for window in workspace.floating_windows() {
+                    known_hwnds.insert(window.hwnd, (m_idx, w_idx));
+                }
+
+                if let Some(window) = workspace.maximized_window() {
+                    known_hwnds.insert(window.hwnd, (m_idx, w_idx));
+                }
+
+                if let Some(container) = workspace.monocle_container() {
+                    for window in container.windows() {
+                        known_hwnds.insert(window.hwnd, (m_idx, w_idx));
+                    }
+                }
+            }
+        }
+
+        if self.known_hwnds != known_hwnds {
+            // Update reaper cache
+            {
+                let mut reaper_cache = crate::reaper::HWNDS_CACHE.lock();
+                *reaper_cache = known_hwnds.clone();
+            }
+
+            // Save to file
+            let hwnd_json = DATA_DIR.join("komorebi.hwnd.json");
+            match OpenOptions::new()
+                .write(true)
+                .truncate(true)
+                .create(true)
+                .open(hwnd_json)
+            {
+                Ok(file) => {
+                    if let Err(error) =
+                        serde_json::to_writer_pretty(&file, &known_hwnds.keys().collect::<Vec<_>>())
+                    {
+                        tracing::error!("Failed to save list of known_hwnds on file: {}", error);
+                    }
+                }
+                Err(error) => {
+                    tracing::error!("Failed to save list of known_hwnds on file: {}", error);
+                }
+            }
+
+            // Store new hwnds
+            self.known_hwnds = known_hwnds;
+        }
     }
 }

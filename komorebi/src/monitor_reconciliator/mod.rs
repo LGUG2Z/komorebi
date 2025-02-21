@@ -385,7 +385,7 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                     }
 
                     // Update known_hwnds
-                    wm.known_hwnds.retain(|i| !windows_to_remove.contains(i));
+                    wm.known_hwnds.retain(|i, _| !windows_to_remove.contains(i));
 
                     if !newly_removed_displays.is_empty() {
                         // After we have cached them, remove them from our state
@@ -481,7 +481,7 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                                     {
                                         container.windows_mut().retain(|window| {
                                             window.exe().is_ok()
-                                                && !known_hwnds.contains(&window.hwnd)
+                                                && !known_hwnds.contains_key(&window.hwnd)
                                         });
 
                                         if container.windows().is_empty() {
@@ -519,7 +519,7 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
 
                                     if let Some(window) = workspace.maximized_window() {
                                         if window.exe().is_err()
-                                            || known_hwnds.contains(&window.hwnd)
+                                            || known_hwnds.contains_key(&window.hwnd)
                                         {
                                             workspace.set_maximized_window(None);
                                         } else if is_focused_workspace {
@@ -530,7 +530,7 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                                     if let Some(container) = workspace.monocle_container_mut() {
                                         container.windows_mut().retain(|window| {
                                             window.exe().is_ok()
-                                                && !known_hwnds.contains(&window.hwnd)
+                                                && !known_hwnds.contains_key(&window.hwnd)
                                         });
 
                                         if container.windows().is_empty() {
@@ -552,7 +552,8 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                                     }
 
                                     workspace.floating_windows_mut().retain(|window| {
-                                        window.exe().is_ok() && !known_hwnds.contains(&window.hwnd)
+                                        window.exe().is_ok()
+                                            && !known_hwnds.contains_key(&window.hwnd)
                                     });
 
                                     if is_focused_workspace {
