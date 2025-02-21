@@ -44,6 +44,7 @@ which = { workspace = true }
 win32-display-data = { workspace = true }
 windows = { workspace = true }
 windows-core = { workspace = true }
+windows-numerics = { workspace = true }
 windows-implement = { workspace = true }
 windows-interface = { workspace = true }
 winput = "0.2"
