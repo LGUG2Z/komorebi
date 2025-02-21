@@ -260,7 +260,7 @@ impl From<&Monitor> for MonitorConfig {
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize, JsonSchema, PartialEq)]
-/// The `komorebi.json` static configuration file reference for `v0.1.34`
+/// The `komorebi.json` static configuration file reference for `v0.1.35`
 pub struct StaticConfig {
     /// DEPRECATED from v0.1.22: no longer required
     #[serde(skip_serializing_if = "Option::is_none")]
