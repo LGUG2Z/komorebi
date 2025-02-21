@@ -2780,7 +2780,6 @@ dependencies = [
  "lazy_static",
  "miette",
  "paste",
- "powershell_script",
  "reqwest",
  "schemars",
  "serde",
@@ -3976,12 +3975,6 @@ name = "powerfmt"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "439ee305def115ba05938db6eb1644ff94165c5ab5e9420d1c1bcedbba909391"
-
-[[package]]
-name = "powershell_script"
-version = "1.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bef8336090917f3d3a044256bc0e5c51d5420e5d09dfa1df4868083c5231a454"
 
 [[package]]
 name = "ppv-lite86"
