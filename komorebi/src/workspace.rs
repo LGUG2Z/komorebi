@@ -54,47 +54,47 @@ use crate::REMOVE_TITLEBARS;
 )]
 pub struct Workspace {
     #[getset(get = "pub", set = "pub")]
-    name: Option<String>,
-    containers: Ring<Container>,
+    pub name: Option<String>,
+    pub containers: Ring<Container>,
     #[getset(get = "pub", get_mut = "pub", set = "pub")]
-    monocle_container: Option<Container>,
+    pub monocle_container: Option<Container>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[getset(get_copy = "pub", set = "pub")]
-    monocle_container_restore_idx: Option<usize>,
+    pub monocle_container_restore_idx: Option<usize>,
     #[getset(get = "pub", get_mut = "pub", set = "pub")]
-    maximized_window: Option<Window>,
+    pub maximized_window: Option<Window>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[getset(get_copy = "pub", set = "pub")]
-    maximized_window_restore_idx: Option<usize>,
+    pub maximized_window_restore_idx: Option<usize>,
     #[getset(get = "pub", get_mut = "pub")]
-    floating_windows: Vec<Window>,
+    pub floating_windows: Vec<Window>,
     #[getset(get = "pub", get_mut = "pub", set = "pub")]
-    layout: Layout,
+    pub layout: Layout,
     #[getset(get = "pub", get_mut = "pub", set = "pub")]
-    layout_rules: Vec<(usize, Layout)>,
+    pub layout_rules: Vec<(usize, Layout)>,
     #[getset(get_copy = "pub", set = "pub")]
-    layout_flip: Option<Axis>,
+    pub layout_flip: Option<Axis>,
     #[getset(get_copy = "pub", set = "pub")]
-    workspace_padding: Option<i32>,
+    pub workspace_padding: Option<i32>,
     #[getset(get_copy = "pub", set = "pub")]
-    container_padding: Option<i32>,
+    pub container_padding: Option<i32>,
     #[getset(get = "pub", set = "pub")]
-    latest_layout: Vec<Rect>,
+    pub latest_layout: Vec<Rect>,
     #[getset(get = "pub", get_mut = "pub", set = "pub")]
-    resize_dimensions: Vec<Option<Rect>>,
+    pub resize_dimensions: Vec<Option<Rect>>,
     #[getset(get = "pub", set = "pub")]
-    tile: bool,
+    pub tile: bool,
     #[getset(get_copy = "pub", set = "pub")]
-    apply_window_based_work_area_offset: bool,
+    pub apply_window_based_work_area_offset: bool,
     #[getset(get = "pub", get_mut = "pub", set = "pub")]
-    window_container_behaviour: Option<WindowContainerBehaviour>,
+    pub window_container_behaviour: Option<WindowContainerBehaviour>,
     #[getset(get = "pub", get_mut = "pub", set = "pub")]
-    window_container_behaviour_rules: Option<Vec<(usize, WindowContainerBehaviour)>>,
+    pub window_container_behaviour_rules: Option<Vec<(usize, WindowContainerBehaviour)>>,
     #[getset(get = "pub", get_mut = "pub", set = "pub")]
-    float_override: Option<bool>,
+    pub float_override: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[getset(get = "pub", set = "pub")]
-    workspace_config: Option<WorkspaceConfig>,
+    pub workspace_config: Option<WorkspaceConfig>,
 }
 
 impl_ring_elements!(Workspace, Container);
