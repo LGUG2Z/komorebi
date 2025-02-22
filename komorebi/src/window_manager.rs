@@ -284,8 +284,67 @@ impl AsRef<Self> for WindowManager {
 
 impl From<&WindowManager> for State {
     fn from(wm: &WindowManager) -> Self {
+        // This is used to remove any information that doesn't need to be passed on to subscribers
+        // or to be shown with the `komorebic state` command. Currently it is only removing the
+        // `workspace_config` field from every workspace, but more stripping can be added later if
+        // needed.
+        let mut stripped_monitors = Ring::default();
+        *stripped_monitors.elements_mut() = wm
+            .monitors()
+            .iter()
+            .map(|monitor| Monitor {
+                id: monitor.id,
+                name: monitor.name.clone(),
+                device: monitor.device.clone(),
+                device_id: monitor.device_id.clone(),
+                serial_number_id: monitor.serial_number_id.clone(),
+                size: monitor.size,
+                work_area_size: monitor.work_area_size,
+                work_area_offset: monitor.work_area_offset,
+                window_based_work_area_offset: monitor.window_based_work_area_offset,
+                window_based_work_area_offset_limit: monitor.window_based_work_area_offset_limit,
+                workspaces: {
+                    let mut ws = Ring::default();
+                    *ws.elements_mut() = monitor
+                        .workspaces()
+                        .iter()
+                        .map(|workspace| Workspace {
+                            name: workspace.name.clone(),
+                            containers: workspace.containers.clone(),
+                            monocle_container: workspace.monocle_container.clone(),
+                            monocle_container_restore_idx: workspace.monocle_container_restore_idx,
+                            maximized_window: workspace.maximized_window,
+                            maximized_window_restore_idx: workspace.maximized_window_restore_idx,
+                            floating_windows: workspace.floating_windows.clone(),
+                            layout: workspace.layout.clone(),
+                            layout_rules: workspace.layout_rules.clone(),
+                            layout_flip: workspace.layout_flip,
+                            workspace_padding: workspace.workspace_padding,
+                            container_padding: workspace.container_padding,
+                            latest_layout: workspace.latest_layout.clone(),
+                            resize_dimensions: workspace.resize_dimensions.clone(),
+                            tile: workspace.tile,
+                            apply_window_based_work_area_offset: workspace
+                                .apply_window_based_work_area_offset,
+                            window_container_behaviour: workspace.window_container_behaviour,
+                            window_container_behaviour_rules: workspace
+                                .window_container_behaviour_rules
+                                .clone(),
+                            float_override: workspace.float_override,
+                            workspace_config: None,
+                        })
+                        .collect::<VecDeque<_>>();
+                    ws.focus(monitor.workspaces.focused_idx());
+                    ws
+                },
+                last_focused_workspace: monitor.last_focused_workspace,
+                workspace_names: monitor.workspace_names.clone(),
+            })
+            .collect::<VecDeque<_>>();
+        stripped_monitors.focus(wm.monitors.focused_idx());
+
         Self {
-            monitors: wm.monitors.clone(),
+            monitors: stripped_monitors,
             monitor_usr_idx_map: wm.monitor_usr_idx_map.clone(),
             is_paused: wm.is_paused,
             work_area_offset: wm.work_area_offset,
