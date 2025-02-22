@@ -504,6 +504,19 @@
                       }
                     }
                   },
+                  "workspace_layer": {
+                    "description": "Configure the Workspace Layer widget",
+                    "type": "object",
+                    "required": [
+                      "enable"
+                    ],
+                    "properties": {
+                      "enable": {
+                        "description": "Enable the Komorebi Workspace Layer widget",
+                        "type": "boolean"
+                      }
+                    }
+                  },
                   "workspaces": {
                     "description": "Configure the Workspaces widget",
                     "type": "object",
@@ -1811,6 +1824,19 @@
                       }
                     }
                   },
+                  "workspace_layer": {
+                    "description": "Configure the Workspace Layer widget",
+                    "type": "object",
+                    "required": [
+                      "enable"
+                    ],
+                    "properties": {
+                      "enable": {
+                        "description": "Enable the Komorebi Workspace Layer widget",
+                        "type": "boolean"
+                      }
+                    }
+                  },
                   "workspaces": {
                     "description": "Configure the Workspaces widget",
                     "type": "object",
@@ -3048,6 +3074,19 @@
                             }
                           ]
                         }
+                      }
+                    }
+                  },
+                  "workspace_layer": {
+                    "description": "Configure the Workspace Layer widget",
+                    "type": "object",
+                    "required": [
+                      "enable"
+                    ],
+                    "properties": {
+                      "enable": {
+                        "description": "Enable the Komorebi Workspace Layer widget",
+                        "type": "boolean"
                       }
                     }
                   },

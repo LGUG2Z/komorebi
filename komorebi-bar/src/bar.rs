@@ -369,12 +369,6 @@ impl Komobar {
                             monitor_index,
                             error,
                         );
-                    } else {
-                        tracing::info!(
-                            "work area offset applied to monitor: {}\n, {:#?}",
-                            monitor_index,
-                            new_rect
-                        );
                     }
                 }
             }
@@ -629,13 +623,8 @@ impl Komobar {
     pub fn position_bar(&self) {
         if let Some(hwnd) = self.hwnd {
             let window = komorebi_client::Window::from(hwnd);
-            match window.set_position(&self.size_rect, false) {
-                Ok(_) => {
-                    tracing::info!("updated bar position: {:#?}", &self.size_rect);
-                }
-                Err(error) => {
-                    tracing::error!("{}", error.to_string())
-                }
+            if let Err(error) = window.set_position(&self.size_rect, false) {
+                tracing::error!("{}", error.to_string())
             }
         }
     }

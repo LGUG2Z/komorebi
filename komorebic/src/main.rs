@@ -1269,6 +1269,8 @@ enum SubCommand {
     /// mode, for the currently focused workspace. If there was no override value set for the
     /// workspace previously it takes the opposite of the global value.
     ToggleWorkspaceFloatOverride,
+    /// Toggle between the Tiling and Floating layers on the focused workspace
+    ToggleWorkspaceLayer,
     /// Toggle window tiling on the focused workspace
     TogglePause,
     /// Toggle window tiling on the focused workspace
@@ -2853,6 +2855,9 @@ if (Get-Command Get-CimInstance -ErrorAction SilentlyContinue) {
         }
         SubCommand::ToggleWorkspaceFloatOverride => {
             send_message(&SocketMessage::ToggleWorkspaceFloatOverride)?;
+        }
+        SubCommand::ToggleWorkspaceLayer => {
+            send_message(&SocketMessage::ToggleWorkspaceLayer)?;
         }
         SubCommand::WindowHidingBehaviour(arg) => {
             send_message(&SocketMessage::WindowHidingBehaviour(arg.hiding_behaviour))?;

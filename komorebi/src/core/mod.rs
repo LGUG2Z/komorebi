@@ -149,6 +149,7 @@ pub enum SocketMessage {
     NamedWorkspaceLayoutCustomRule(String, usize, PathBuf),
     ClearWorkspaceLayoutRules(usize, usize),
     ClearNamedWorkspaceLayoutRules(String),
+    ToggleWorkspaceLayer,
     // Configuration
     ReloadConfiguration,
     ReplaceConfiguration(PathBuf),
