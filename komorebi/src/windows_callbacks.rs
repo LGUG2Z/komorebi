@@ -8,7 +8,6 @@ use crate::window_manager_event::WindowManagerEvent;
 use crate::windows_api::WindowsApi;
 use crate::winevent::WinEvent;
 use crate::winevent_listener;
-use windows::Win32::Foundation::BOOL;
 use windows::Win32::Foundation::HWND;
 use windows::Win32::Foundation::LPARAM;
 use windows::Win32::Foundation::WPARAM;
@@ -21,6 +20,7 @@ use windows::Win32::UI::WindowsAndMessaging::OBJID_WINDOW;
 use windows::Win32::UI::WindowsAndMessaging::WS_CHILD;
 use windows::Win32::UI::WindowsAndMessaging::WS_EX_NOACTIVATE;
 use windows::Win32::UI::WindowsAndMessaging::WS_EX_TOOLWINDOW;
+use windows_core::BOOL;
 
 pub extern "system" fn enum_window(hwnd: HWND, lparam: LPARAM) -> BOOL {
     let containers = unsafe { &mut *(lparam.0 as *mut VecDeque<Container>) };

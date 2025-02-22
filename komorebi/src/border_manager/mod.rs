@@ -23,6 +23,7 @@ use serde::Deserialize;
 use serde::Serialize;
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
+use std::ops::Deref;
 use std::sync::atomic::AtomicBool;
 use std::sync::atomic::AtomicI32;
 use std::sync::atomic::AtomicU32;
@@ -57,8 +58,19 @@ lazy_static! {
     static ref BORDER_STATE: Mutex<HashMap<String, Border>> = Mutex::new(HashMap::new());
     static ref WINDOWS_BORDERS: Mutex<HashMap<isize, Border>> = Mutex::new(HashMap::new());
     static ref FOCUS_STATE: Mutex<HashMap<isize, WindowKind>> = Mutex::new(HashMap::new());
-    static ref RENDER_TARGETS: Mutex<HashMap<isize, ID2D1HwndRenderTarget>> =
-        Mutex::new(HashMap::new());
+    static ref RENDER_TARGETS: Mutex<HashMap<isize, RenderTarget>> = Mutex::new(HashMap::new());
+}
+
+#[derive(Debug, Clone)]
+pub struct RenderTarget(pub ID2D1HwndRenderTarget);
+unsafe impl Send for RenderTarget {}
+
+impl Deref for RenderTarget {
+    type Target = ID2D1HwndRenderTarget;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
 }
 
 pub struct Notification(pub Option<isize>);
