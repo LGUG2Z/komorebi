@@ -28,13 +28,22 @@ build-targets *targets:
     "{{ targets }}" -split ' ' | ForEach-Object { just build-target $_ }
 
 build-target target:
-    cargo +stable build --release --package {{ target }} --locked
+    cargo +stable build --package {{ target }} --locked --profile release-jeezy
 
 build:
     just build-targets komorebic komorebic-no-console komorebi komorebi-bar komorebi-gui
 
+copy-target target:
+    cp .\target\release-jeezy\{{ target }}.exe $Env:USERPROFILE\.cargo\bin
+
+copy-targets *targets:
+    "{{ targets }}" -split ' ' | ForEach-Object { just copy-target $_ }
+
+copy:
+    just copy-targets komorebic komorebic-no-console komorebi komorebi-bar komorebi-gui
+
 run target:
-    cargo +stable run --bin {{ target }} --locked
+    cargo +stable run --bin {{ target }} --locked --profile dev-jeezy
 
 warn target $RUST_LOG="warn":
     just run {{ target }}
