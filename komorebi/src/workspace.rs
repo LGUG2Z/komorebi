@@ -92,7 +92,7 @@ pub struct Workspace {
     window_container_behaviour_rules: Option<Vec<(usize, WindowContainerBehaviour)>>,
     #[getset(get = "pub", get_mut = "pub", set = "pub")]
     float_override: Option<bool>,
-    #[serde(skip)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     #[getset(get = "pub", set = "pub")]
     workspace_config: Option<WorkspaceConfig>,
 }
