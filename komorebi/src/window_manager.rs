@@ -337,6 +337,7 @@ impl From<&WindowManager> for State {
                                 .clone(),
                             float_override: workspace.float_override,
                             layer: workspace.layer,
+                            globals: workspace.globals,
                             workspace_config: None,
                         })
                         .collect::<VecDeque<_>>();
@@ -345,6 +346,8 @@ impl From<&WindowManager> for State {
                 },
                 last_focused_workspace: monitor.last_focused_workspace,
                 workspace_names: monitor.workspace_names.clone(),
+                container_padding: monitor.container_padding,
+                workspace_padding: monitor.workspace_padding,
             })
             .collect::<VecDeque<_>>();
         stripped_monitors.focus(wm.monitors.focused_idx());
@@ -979,17 +982,14 @@ impl WindowManager {
         let offset = self.work_area_offset;
 
         for monitor in self.monitors_mut() {
-            let work_area = *monitor.work_area_size();
-            let window_based_work_area_offset = (
-                monitor.window_based_work_area_offset_limit(),
-                monitor.window_based_work_area_offset(),
-            );
-
             let offset = if monitor.work_area_offset().is_some() {
                 monitor.work_area_offset()
             } else {
                 offset
             };
+
+            let focused_workspace_idx = monitor.focused_workspace_idx();
+            monitor.update_workspace_globals(focused_workspace_idx, offset);
 
             let workspace = monitor
                 .focused_workspace_mut()
@@ -1002,7 +1002,7 @@ impl WindowManager {
                 }
             }
 
-            workspace.update(&work_area, offset, window_based_work_area_offset)?;
+            workspace.update()?;
         }
 
         Ok(())
@@ -1704,6 +1704,7 @@ impl WindowManager {
             return Ok(());
         }
         let mouse_follows_focus = self.mouse_follows_focus;
+        let offset = self.work_area_offset;
         let first_focused_workspace = {
             let first_monitor = self
                 .monitors()
@@ -1748,11 +1749,13 @@ impl WindowManager {
 
         // Set the focused workspaces for the first and second monitors
         if let Some(first_monitor) = self.monitors_mut().get_mut(first_idx) {
+            first_monitor.update_workspaces_globals(offset);
             first_monitor.focus_workspace(second_focused_workspace)?;
             first_monitor.load_focused_workspace(mouse_follows_focus)?;
         }
 
         if let Some(second_monitor) = self.monitors_mut().get_mut(second_idx) {
+            second_monitor.update_workspaces_globals(offset);
             second_monitor.focus_workspace(first_focused_workspace)?;
             second_monitor.load_focused_workspace(mouse_follows_focus)?;
         }
@@ -1920,13 +1923,22 @@ impl WindowManager {
     pub fn remove_focused_workspace(&mut self) -> Option<Workspace> {
         let focused_monitor: &mut Monitor = self.focused_monitor_mut()?;
         let focused_workspace_idx = focused_monitor.focused_workspace_idx();
-        focused_monitor.remove_workspace_by_idx(focused_workspace_idx)
+        let workspace = focused_monitor.remove_workspace_by_idx(focused_workspace_idx);
+        if let Err(error) = focused_monitor.focus_workspace(focused_workspace_idx.saturating_sub(1))
+        {
+            tracing::error!(
+                "Error focusing previous workspace while removing the focused workspace: {}",
+                error
+            );
+        }
+        workspace
     }
 
     #[tracing::instrument(skip(self))]
     pub fn move_workspace_to_monitor(&mut self, idx: usize) -> Result<()> {
         tracing::info!("moving workspace");
         let mouse_follows_focus = self.mouse_follows_focus;
+        let offset = self.work_area_offset;
         let workspace = self
             .remove_focused_workspace()
             .ok_or_else(|| anyhow!("there is no workspace"))?;
@@ -1938,6 +1950,7 @@ impl WindowManager {
                 .ok_or_else(|| anyhow!("there is no monitor"))?;
 
             target_monitor.workspaces_mut().push_back(workspace);
+            target_monitor.update_workspaces_globals(offset);
             target_monitor.focus_workspace(target_monitor.workspaces().len().saturating_sub(1))?;
             target_monitor.load_focused_workspace(mouse_follows_focus)?;
         }
@@ -3074,7 +3087,6 @@ impl WindowManager {
     ) -> Result<()> {
         tracing::info!("setting workspace layout");
 
-        let offset = self.work_area_offset;
         let focused_monitor_idx = self.focused_monitor_idx();
 
         let monitor = self
@@ -3082,18 +3094,7 @@ impl WindowManager {
             .get_mut(monitor_idx)
             .ok_or_else(|| anyhow!("there is no monitor"))?;
 
-        let work_area = *monitor.work_area_size();
-        let window_based_work_area_offset = (
-            monitor.window_based_work_area_offset_limit(),
-            monitor.window_based_work_area_offset(),
-        );
-
         let focused_workspace_idx = monitor.focused_workspace_idx();
-        let offset = if monitor.work_area_offset().is_some() {
-            monitor.work_area_offset()
-        } else {
-            offset
-        };
 
         let workspace = monitor
             .workspaces_mut()
@@ -3107,7 +3108,7 @@ impl WindowManager {
 
         // If this is the focused workspace on a non-focused screen, let's update it
         if focused_monitor_idx != monitor_idx && focused_workspace_idx == workspace_idx {
-            workspace.update(&work_area, offset, window_based_work_area_offset)?;
+            workspace.update()?;
             Ok(())
         } else {
             Ok(self.update_focused_workspace(false, false)?)
@@ -3127,7 +3128,6 @@ impl WindowManager {
     {
         tracing::info!("setting workspace layout");
 
-        let offset = self.work_area_offset;
         let focused_monitor_idx = self.focused_monitor_idx();
 
         let monitor = self
@@ -3135,18 +3135,7 @@ impl WindowManager {
             .get_mut(monitor_idx)
             .ok_or_else(|| anyhow!("there is no monitor"))?;
 
-        let work_area = *monitor.work_area_size();
-        let window_based_work_area_offset = (
-            monitor.window_based_work_area_offset_limit(),
-            monitor.window_based_work_area_offset(),
-        );
-
         let focused_workspace_idx = monitor.focused_workspace_idx();
-        let offset = if monitor.work_area_offset().is_some() {
-            monitor.work_area_offset()
-        } else {
-            offset
-        };
 
         let workspace = monitor
             .workspaces_mut()
@@ -3162,7 +3151,7 @@ impl WindowManager {
 
         // If this is the focused workspace on a non-focused screen, let's update it
         if focused_monitor_idx != monitor_idx && focused_workspace_idx == workspace_idx {
-            workspace.update(&work_area, offset, window_based_work_area_offset)?;
+            workspace.update()?;
             Ok(())
         } else {
             Ok(self.update_focused_workspace(false, false)?)
@@ -3177,7 +3166,6 @@ impl WindowManager {
     ) -> Result<()> {
         tracing::info!("setting workspace layout");
 
-        let offset = self.work_area_offset;
         let focused_monitor_idx = self.focused_monitor_idx();
 
         let monitor = self
@@ -3185,18 +3173,7 @@ impl WindowManager {
             .get_mut(monitor_idx)
             .ok_or_else(|| anyhow!("there is no monitor"))?;
 
-        let work_area = *monitor.work_area_size();
-        let window_based_work_area_offset = (
-            monitor.window_based_work_area_offset_limit(),
-            monitor.window_based_work_area_offset(),
-        );
-
         let focused_workspace_idx = monitor.focused_workspace_idx();
-        let offset = if monitor.work_area_offset().is_some() {
-            monitor.work_area_offset()
-        } else {
-            offset
-        };
 
         let workspace = monitor
             .workspaces_mut()
@@ -3208,7 +3185,7 @@ impl WindowManager {
 
         // If this is the focused workspace on a non-focused screen, let's update it
         if focused_monitor_idx != monitor_idx && focused_workspace_idx == workspace_idx {
-            workspace.update(&work_area, offset, window_based_work_area_offset)?;
+            workspace.update()?;
             Ok(())
         } else {
             Ok(self.update_focused_workspace(false, false)?)
@@ -3224,7 +3201,6 @@ impl WindowManager {
     ) -> Result<()> {
         tracing::info!("setting workspace layout");
 
-        let offset = self.work_area_offset;
         let focused_monitor_idx = self.focused_monitor_idx();
 
         let monitor = self
@@ -3232,18 +3208,7 @@ impl WindowManager {
             .get_mut(monitor_idx)
             .ok_or_else(|| anyhow!("there is no monitor"))?;
 
-        let work_area = *monitor.work_area_size();
-        let window_based_work_area_offset = (
-            monitor.window_based_work_area_offset_limit(),
-            monitor.window_based_work_area_offset(),
-        );
-
         let focused_workspace_idx = monitor.focused_workspace_idx();
-        let offset = if monitor.work_area_offset().is_some() {
-            monitor.work_area_offset()
-        } else {
-            offset
-        };
 
         let workspace = monitor
             .workspaces_mut()
@@ -3254,7 +3219,7 @@ impl WindowManager {
 
         // If this is the focused workspace on a non-focused screen, let's update it
         if focused_monitor_idx != monitor_idx && focused_workspace_idx == workspace_idx {
-            workspace.update(&work_area, offset, window_based_work_area_offset)?;
+            workspace.update()?;
             Ok(())
         } else {
             Ok(self.update_focused_workspace(false, false)?)
@@ -3273,7 +3238,6 @@ impl WindowManager {
     {
         tracing::info!("setting workspace layout");
         let layout = CustomLayout::from_path(path)?;
-        let offset = self.work_area_offset;
         let focused_monitor_idx = self.focused_monitor_idx();
 
         let monitor = self
@@ -3281,18 +3245,7 @@ impl WindowManager {
             .get_mut(monitor_idx)
             .ok_or_else(|| anyhow!("there is no monitor"))?;
 
-        let work_area = *monitor.work_area_size();
-        let window_based_work_area_offset = (
-            monitor.window_based_work_area_offset_limit(),
-            monitor.window_based_work_area_offset(),
-        );
-
         let focused_workspace_idx = monitor.focused_workspace_idx();
-        let offset = if monitor.work_area_offset().is_some() {
-            monitor.work_area_offset()
-        } else {
-            offset
-        };
 
         let workspace = monitor
             .workspaces_mut()
@@ -3304,7 +3257,7 @@ impl WindowManager {
 
         // If this is the focused workspace on a non-focused screen, let's update it
         if focused_monitor_idx != monitor_idx && focused_workspace_idx == workspace_idx {
-            workspace.update(&work_area, offset, window_based_work_area_offset)?;
+            workspace.update()?;
             Ok(())
         } else {
             Ok(self.update_focused_workspace(false, false)?)
