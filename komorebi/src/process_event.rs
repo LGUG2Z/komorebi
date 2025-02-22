@@ -27,6 +27,7 @@ use crate::window_manager::WindowManager;
 use crate::window_manager_event::WindowManagerEvent;
 use crate::windows_api::WindowsApi;
 use crate::winevent::WinEvent;
+use crate::workspace::WorkspaceLayer;
 use crate::workspace_reconciliator;
 use crate::workspace_reconciliator::ALT_TAB_HWND;
 use crate::workspace_reconciliator::ALT_TAB_HWND_INSTANT;
@@ -282,10 +283,13 @@ impl WindowManager {
                         } else {
                             workspace.focus_container_by_window(window.hwnd)?;
                         }
+
+                        workspace.set_layer(WorkspaceLayer::Tiling);
                     }
                     Some(idx) => {
                         if let Some(window) = workspace.floating_windows().get(idx) {
                             window.focus(false)?;
+                            workspace.set_layer(WorkspaceLayer::Floating);
                         }
                     }
                 }
@@ -394,11 +398,13 @@ impl WindowManager {
 
                             if behaviour.float_override {
                                 workspace.floating_windows_mut().push(window);
+                                workspace.set_layer(WorkspaceLayer::Floating);
                                 self.update_focused_workspace(false, false)?;
                             } else {
                                 match behaviour.current_behaviour {
                                     WindowContainerBehaviour::Create => {
                                         workspace.new_container_for_window(window);
+                                        workspace.set_layer(WorkspaceLayer::Tiling);
                                         self.update_focused_workspace(false, false)?;
                                     }
                                     WindowContainerBehaviour::Append => {
@@ -408,6 +414,7 @@ impl WindowManager {
                                                 anyhow!("there is no focused container")
                                             })?
                                             .add_window(window);
+                                        workspace.set_layer(WorkspaceLayer::Tiling);
                                         self.update_focused_workspace(true, false)?;
                                         stackbar_manager::send_notification();
                                     }
