@@ -33,6 +33,7 @@ use komorebi_client::Rect;
 use komorebi_client::SocketMessage;
 use komorebi_client::Window;
 use komorebi_client::Workspace;
+use komorebi_client::WorkspaceLayer;
 use schemars::JsonSchema;
 use serde::Deserialize;
 use serde::Serialize;
@@ -49,6 +50,8 @@ pub struct KomorebiConfig {
     pub workspaces: Option<KomorebiWorkspacesConfig>,
     /// Configure the Layout widget
     pub layout: Option<KomorebiLayoutConfig>,
+    /// Configure the Workspace Layer widget
+    pub workspace_layer: Option<KomorebiWorkspaceLayerConfig>,
     /// Configure the Focused Window widget
     pub focused_window: Option<KomorebiFocusedWindowConfig>,
     /// Configure the Configuration Switcher widget
@@ -73,6 +76,12 @@ pub struct KomorebiLayoutConfig {
     pub options: Option<Vec<KomorebiLayout>>,
     /// Display format of the current layout
     pub display: Option<DisplayFormat>,
+}
+
+#[derive(Copy, Clone, Debug, Serialize, Deserialize, JsonSchema)]
+pub struct KomorebiWorkspaceLayerConfig {
+    /// Enable the Komorebi Workspace Layer widget
+    pub enable: bool,
 }
 
 #[derive(Copy, Clone, Debug, Serialize, Deserialize, JsonSchema)]
@@ -127,6 +136,7 @@ impl From<&KomorebiConfig> for Komorebi {
             workspaces: value.workspaces,
             layout: value.layout.clone(),
             focused_window: value.focused_window,
+            workspace_layer: value.workspace_layer,
             configuration_switcher,
         }
     }
@@ -138,6 +148,7 @@ pub struct Komorebi {
     pub workspaces: Option<KomorebiWorkspacesConfig>,
     pub layout: Option<KomorebiLayoutConfig>,
     pub focused_window: Option<KomorebiFocusedWindowConfig>,
+    pub workspace_layer: Option<KomorebiWorkspaceLayerConfig>,
     pub configuration_switcher: Option<KomorebiConfigurationSwitcherConfig>,
 }
 
@@ -154,7 +165,7 @@ impl BarWidget for Komorebi {
                     let format = workspaces.display.unwrap_or(DisplayFormat::Text);
 
                     config.apply_on_widget(false, ui, |ui| {
-                        for (i, (ws, container_information)) in
+                        for (i, (ws, container_information, _)) in
                             komorebi_notification_state.workspaces.iter().enumerate()
                         {
                             if SelectableFrame::new(
@@ -277,6 +288,42 @@ impl BarWidget for Komorebi {
 
                 if let Some(update) = update {
                     komorebi_notification_state.selected_workspace = update;
+                }
+            }
+        }
+
+        if let Some(layer_config) = &self.workspace_layer {
+            if layer_config.enable {
+                let layer = komorebi_notification_state
+                    .workspaces
+                    .iter()
+                    .find(|o| komorebi_notification_state.selected_workspace.eq(&o.0))
+                    .map(|(_, _, layer)| layer);
+
+                if let Some(layer) = layer {
+                    let name = layer.to_string();
+                    config.apply_on_widget(false, ui, |ui| {
+                        if SelectableFrame::new(false)
+                            .show(ui, |ui| ui.add(Label::new(name).selectable(false)))
+                            .clicked()
+                            && komorebi_client::send_batch([
+                                SocketMessage::MouseFollowsFocus(false),
+                                SocketMessage::ToggleWorkspaceLayer,
+                                SocketMessage::MouseFollowsFocus(
+                                    komorebi_notification_state.mouse_follows_focus,
+                                ),
+                            ])
+                            .is_err()
+                        {
+                            tracing::error!(
+                                "could not send the following batch of messages to komorebi:\n\
+                                            MouseFollowsFocus(false),
+                                            ToggleWorkspaceLayer,
+                                            MouseFollowsFocus({})",
+                                komorebi_notification_state.mouse_follows_focus,
+                            );
+                        }
+                    });
                 }
             }
         }
@@ -476,7 +523,11 @@ fn img_to_texture(ctx: &Context, rgba_image: &RgbaImage) -> TextureHandle {
 
 #[derive(Clone, Debug)]
 pub struct KomorebiNotificationState {
-    pub workspaces: Vec<(String, KomorebiNotificationStateContainerInformation)>,
+    pub workspaces: Vec<(
+        String,
+        KomorebiNotificationStateContainerInformation,
+        WorkspaceLayer,
+    )>,
     pub selected_workspace: String,
     pub focused_container_information: KomorebiNotificationStateContainerInformation,
     pub layout: KomorebiLayout,
@@ -592,6 +643,7 @@ impl KomorebiNotificationState {
                 workspaces.push((
                     ws.name().to_owned().unwrap_or_else(|| format!("{}", i + 1)),
                     ws.into(),
+                    ws.layer().to_owned(),
                 ));
             }
         }

@@ -1,4 +1,6 @@
 use std::collections::VecDeque;
+use std::fmt::Display;
+use std::fmt::Formatter;
 use std::num::NonZeroUsize;
 use std::sync::atomic::Ordering;
 
@@ -92,9 +94,27 @@ pub struct Workspace {
     pub window_container_behaviour_rules: Option<Vec<(usize, WindowContainerBehaviour)>>,
     #[getset(get = "pub", get_mut = "pub", set = "pub")]
     pub float_override: Option<bool>,
+    #[getset(get = "pub", get_mut = "pub", set = "pub")]
+    pub layer: WorkspaceLayer,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[getset(get = "pub", set = "pub")]
     pub workspace_config: Option<WorkspaceConfig>,
+}
+
+#[derive(Debug, Default, Copy, Clone, Serialize, Deserialize, JsonSchema, PartialEq, Eq)]
+pub enum WorkspaceLayer {
+    #[default]
+    Tiling,
+    Floating,
+}
+
+impl Display for WorkspaceLayer {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            WorkspaceLayer::Tiling => write!(f, "Tiling"),
+            WorkspaceLayer::Floating => write!(f, "Floating"),
+        }
+    }
 }
 
 impl_ring_elements!(Workspace, Container);
@@ -122,6 +142,7 @@ impl Default for Workspace {
             window_container_behaviour_rules: None,
             float_override: None,
             workspace_config: None,
+            layer: Default::default(),
         }
     }
 }

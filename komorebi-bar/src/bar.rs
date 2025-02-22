@@ -365,16 +365,10 @@ impl Komobar {
                         &SocketMessage::MonitorWorkAreaOffset(monitor_index, new_rect),
                     ) {
                         tracing::error!(
-                            "error applying work area offset to monitor '{}': {}",
-                            monitor_index,
-                            error,
+                            "error applying work area offset to monitor '{monitor_index}': {error}"
                         );
                     } else {
-                        tracing::info!(
-                            "work area offset applied to monitor: {}\n, {:#?}",
-                            monitor_index,
-                            new_rect
-                        );
+                        tracing::info!("work area offset applied to monitor: {monitor_index}",);
                     }
                 }
             }
@@ -631,10 +625,10 @@ impl Komobar {
             let window = komorebi_client::Window::from(hwnd);
             match window.set_position(&self.size_rect, false) {
                 Ok(_) => {
-                    tracing::info!("updated bar position: {:#?}", &self.size_rect);
+                    tracing::info!("updated bar position");
                 }
                 Err(error) => {
-                    tracing::error!("{}", error.to_string())
+                    tracing::error!("{error}")
                 }
             }
         }
