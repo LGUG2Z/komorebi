@@ -140,7 +140,7 @@ pub struct WorkspaceConfig {
     /// Container padding (default: global)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub container_padding: Option<i32>,
-    /// Container padding (default: global)
+    /// Workspace padding (default: global)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub workspace_padding: Option<i32>,
     /// Initial workspace application rules
@@ -256,6 +256,12 @@ pub struct MonitorConfig {
     /// Open window limit after which the window based work area offset will no longer be applied (default: 1)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub window_based_work_area_offset_limit: Option<isize>,
+    /// Container padding (default: global)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub container_padding: Option<i32>,
+    /// Workspace padding (default: global)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub workspace_padding: Option<i32>,
 }
 
 impl From<&Monitor> for MonitorConfig {
@@ -265,11 +271,32 @@ impl From<&Monitor> for MonitorConfig {
             workspaces.push(WorkspaceConfig::from(w));
         }
 
+        let default_container_padding = DEFAULT_CONTAINER_PADDING.load(Ordering::SeqCst);
+        let default_workspace_padding = DEFAULT_WORKSPACE_PADDING.load(Ordering::SeqCst);
+
+        let container_padding = value.container_padding().and_then(|container_padding| {
+            if container_padding == default_container_padding {
+                None
+            } else {
+                Option::from(container_padding)
+            }
+        });
+
+        let workspace_padding = value.workspace_padding().and_then(|workspace_padding| {
+            if workspace_padding == default_workspace_padding {
+                None
+            } else {
+                Option::from(workspace_padding)
+            }
+        });
+
         Self {
             workspaces,
             work_area_offset: value.work_area_offset(),
             window_based_work_area_offset: value.window_based_work_area_offset(),
             window_based_work_area_offset_limit: Some(value.window_based_work_area_offset_limit()),
+            container_padding,
+            workspace_padding,
         }
     }
 }
@@ -1250,6 +1277,7 @@ impl StaticConfig {
         workspace_matching_rules.clear();
         drop(workspace_matching_rules);
 
+        let offset = wm.work_area_offset;
         for (i, monitor) in wm.monitors_mut().iter_mut().enumerate() {
             let preferred_config_idx = {
                 let display_index_preferences = DISPLAY_INDEX_PREFERENCES.lock();
@@ -1295,7 +1323,10 @@ impl StaticConfig {
                         .window_based_work_area_offset_limit
                         .unwrap_or(1),
                 );
+                monitor.set_container_padding(monitor_config.container_padding);
+                monitor.set_workspace_padding(monitor_config.workspace_padding);
 
+                monitor.update_workspaces_globals(offset);
                 for (j, ws) in monitor.workspaces_mut().iter_mut().enumerate() {
                     if let Some(workspace_config) = monitor_config.workspaces.get(j) {
                         ws.load_static_config(workspace_config)?;
@@ -1377,6 +1408,10 @@ impl StaticConfig {
                             .window_based_work_area_offset_limit
                             .unwrap_or(1),
                     );
+                    m.set_container_padding(monitor_config.container_padding);
+                    m.set_workspace_padding(monitor_config.workspace_padding);
+
+                    m.update_workspaces_globals(offset);
 
                     for (j, ws) in m.workspaces_mut().iter_mut().enumerate() {
                         if let Some(workspace_config) = monitor_config.workspaces.get(j) {
@@ -1411,6 +1446,7 @@ impl StaticConfig {
         workspace_matching_rules.clear();
         drop(workspace_matching_rules);
 
+        let offset = wm.work_area_offset;
         for (i, monitor) in wm.monitors_mut().iter_mut().enumerate() {
             let preferred_config_idx = {
                 let display_index_preferences = DISPLAY_INDEX_PREFERENCES.lock();
@@ -1458,6 +1494,10 @@ impl StaticConfig {
                         .window_based_work_area_offset_limit
                         .unwrap_or(1),
                 );
+                monitor.set_container_padding(monitor_config.container_padding);
+                monitor.set_workspace_padding(monitor_config.workspace_padding);
+
+                monitor.update_workspaces_globals(offset);
 
                 for (j, ws) in monitor.workspaces_mut().iter_mut().enumerate() {
                     if let Some(workspace_config) = monitor_config.workspaces.get(j) {
@@ -1540,6 +1580,10 @@ impl StaticConfig {
                             .window_based_work_area_offset_limit
                             .unwrap_or(1),
                     );
+                    m.set_container_padding(monitor_config.container_padding);
+                    m.set_workspace_padding(monitor_config.workspace_padding);
+
+                    m.update_workspaces_globals(offset);
 
                     for (j, ws) in m.workspaces_mut().iter_mut().enumerate() {
                         if let Some(workspace_config) = monitor_config.workspaces.get(j) {

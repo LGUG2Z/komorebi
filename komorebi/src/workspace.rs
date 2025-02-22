@@ -95,6 +95,8 @@ pub struct Workspace {
     #[getset(get = "pub", get_mut = "pub", set = "pub")]
     pub float_override: Option<bool>,
     #[getset(get = "pub", get_mut = "pub", set = "pub")]
+    pub globals: WorkspaceGlobals,
+    #[getset(get = "pub", get_mut = "pub", set = "pub")]
     pub layer: WorkspaceLayer,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[getset(get = "pub", set = "pub")]
@@ -141,8 +143,9 @@ impl Default for Workspace {
             window_container_behaviour: None,
             window_container_behaviour_rules: None,
             float_override: None,
-            workspace_config: None,
             layer: Default::default(),
+            globals: Default::default(),
+            workspace_config: None,
         }
     }
 }
@@ -155,21 +158,37 @@ pub enum WorkspaceWindowLocation {
     Floating(usize),         // idx in floating_windows
 }
 
+#[derive(
+    Debug,
+    Default,
+    Copy,
+    Clone,
+    Serialize,
+    Deserialize,
+    Getters,
+    CopyGetters,
+    MutGetters,
+    Setters,
+    JsonSchema,
+    PartialEq,
+)]
+/// Settings setup either by the parent monitor or by the `WindowManager`
+pub struct WorkspaceGlobals {
+    pub container_padding: Option<i32>,
+    pub workspace_padding: Option<i32>,
+    pub work_area: Rect,
+    pub work_area_offset: Option<Rect>,
+    pub window_based_work_area_offset: Option<Rect>,
+    pub window_based_work_area_offset_limit: isize,
+}
+
 impl Workspace {
     pub fn load_static_config(&mut self, config: &WorkspaceConfig) -> Result<()> {
         self.name = Option::from(config.name.clone());
 
-        if config.container_padding.is_some() {
-            self.set_container_padding(config.container_padding);
-        } else {
-            self.set_container_padding(Some(DEFAULT_CONTAINER_PADDING.load(Ordering::SeqCst)));
-        }
+        self.set_container_padding(config.container_padding);
 
-        if config.workspace_padding.is_some() {
-            self.set_workspace_padding(config.workspace_padding);
-        } else {
-            self.set_container_padding(Some(DEFAULT_WORKSPACE_PADDING.load(Ordering::SeqCst)));
-        }
+        self.set_workspace_padding(config.workspace_padding);
 
         if let Some(layout) = &config.layout {
             self.layout = Layout::Default(*layout);
@@ -315,24 +334,29 @@ impl Workspace {
         Ok(())
     }
 
-    pub fn update(
-        &mut self,
-        work_area: &Rect,
-        work_area_offset: Option<Rect>,
-        window_based_work_area_offset: (isize, Option<Rect>),
-    ) -> Result<()> {
+    pub fn update(&mut self) -> Result<()> {
         if !INITIAL_CONFIGURATION_LOADED.load(Ordering::SeqCst) {
             return Ok(());
         }
 
-        let (window_based_work_area_offset_limit, window_based_work_area_offset) =
-            window_based_work_area_offset;
+        let container_padding = self
+            .container_padding()
+            .or(self.globals().container_padding)
+            .unwrap_or_default();
+        let workspace_padding = self
+            .workspace_padding()
+            .or(self.globals().workspace_padding)
+            .unwrap_or_default();
+        let work_area = self.globals().work_area;
+        let work_area_offset = self.globals().work_area_offset;
+        let window_based_work_area_offset = self.globals().window_based_work_area_offset;
+        let window_based_work_area_offset_limit =
+            self.globals().window_based_work_area_offset_limit;
 
-        let container_padding = self.container_padding();
         let mut adjusted_work_area = work_area_offset.map_or_else(
-            || *work_area,
+            || work_area,
             |offset| {
-                let mut with_offset = *work_area;
+                let mut with_offset = work_area;
                 with_offset.left += offset.left;
                 with_offset.top += offset.top;
                 with_offset.right -= offset.right;
@@ -360,7 +384,7 @@ impl Workspace {
             );
         }
 
-        adjusted_work_area.add_padding(self.workspace_padding().unwrap_or_default());
+        adjusted_work_area.add_padding(workspace_padding);
 
         self.enforce_resize_constraints();
 
@@ -394,7 +418,7 @@ impl Workspace {
         if *self.tile() {
             if let Some(container) = self.monocle_container_mut() {
                 if let Some(window) = container.focused_window_mut() {
-                    adjusted_work_area.add_padding(container_padding.unwrap_or_default());
+                    adjusted_work_area.add_padding(container_padding);
                     {
                         let border_offset = BORDER_OFFSET.load(Ordering::SeqCst);
                         adjusted_work_area.add_padding(border_offset);
@@ -413,7 +437,7 @@ impl Workspace {
                             "there must be at least one container to calculate a workspace layout"
                         )
                     })?,
-                    self.container_padding(),
+                    Some(container_padding),
                     self.layout_flip(),
                     self.resize_dimensions(),
                 );
@@ -422,7 +446,6 @@ impl Workspace {
                 let no_titlebar = NO_TITLEBAR.lock().clone();
                 let regex_identifiers = REGEX_IDENTIFIERS.lock().clone();
 
-                let container_padding = self.container_padding().unwrap_or(0);
                 let containers = self.containers_mut();
 
                 for (i, container) in containers.iter_mut().enumerate() {

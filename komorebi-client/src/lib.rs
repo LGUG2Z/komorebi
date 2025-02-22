@@ -48,6 +48,7 @@ pub use komorebi::ring::Ring;
 pub use komorebi::window::Window;
 pub use komorebi::window_manager_event::WindowManagerEvent;
 pub use komorebi::workspace::Workspace;
+pub use komorebi::workspace::WorkspaceGlobals;
 pub use komorebi::workspace::WorkspaceLayer;
 pub use komorebi::AnimationsConfig;
 pub use komorebi::AspectRatio;
