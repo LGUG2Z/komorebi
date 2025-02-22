@@ -1075,6 +1075,11 @@
           "workspaces"
         ],
         "properties": {
+          "container_padding": {
+            "description": "Container padding (default: global)",
+            "type": "integer",
+            "format": "int32"
+          },
           "window_based_work_area_offset": {
             "description": "Window based work area offset (default: None)",
             "type": "object",
@@ -1143,6 +1148,11 @@
                 "format": "int32"
               }
             }
+          },
+          "workspace_padding": {
+            "description": "Workspace padding (default: global)",
+            "type": "integer",
+            "format": "int32"
           },
           "workspaces": {
             "description": "Workspace configurations",
@@ -1346,7 +1356,7 @@
                   }
                 },
                 "workspace_padding": {
-                  "description": "Container padding (default: global)",
+                  "description": "Workspace padding (default: global)",
                   "type": "integer",
                   "format": "int32"
                 },

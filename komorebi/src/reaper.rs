@@ -32,27 +32,13 @@ pub fn find_orphans(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result<()> {
         std::thread::sleep(Duration::from_secs(1));
 
         let mut wm = arc.lock();
-        let offset = wm.work_area_offset;
-
         let mut update_borders = false;
 
         for (i, monitor) in wm.monitors_mut().iter_mut().enumerate() {
-            let work_area = *monitor.work_area_size();
-            let window_based_work_area_offset = (
-                monitor.window_based_work_area_offset_limit(),
-                monitor.window_based_work_area_offset(),
-            );
-
-            let offset = if monitor.work_area_offset().is_some() {
-                monitor.work_area_offset()
-            } else {
-                offset
-            };
-
             for (j, workspace) in monitor.workspaces_mut().iter_mut().enumerate() {
                 let reaped_orphans = workspace.reap_orphans()?;
                 if reaped_orphans.0 > 0 || reaped_orphans.1 > 0 {
-                    workspace.update(&work_area, offset, window_based_work_area_offset)?;
+                    workspace.update()?;
                     update_borders = true;
                     tracing::info!(
                         "reaped {} orphan window(s) and {} orphaned container(s) on monitor: {}, workspace: {}",
