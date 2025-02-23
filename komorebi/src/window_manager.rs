@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::collections::HashSet;
 use std::collections::VecDeque;
 use std::env::temp_dir;
+use std::fs::OpenOptions;
 use std::io::ErrorKind;
 use std::net::Shutdown;
 use std::num::NonZeroUsize;
@@ -117,7 +118,8 @@ pub struct WindowManager {
     pub pending_move_op: Arc<Option<(usize, usize, isize)>>,
     pub already_moved_window_handles: Arc<Mutex<HashSet<isize>>>,
     pub uncloack_to_ignore: usize,
-    pub known_hwnds: Vec<isize>,
+    /// Maps each known window hwnd to the (monitor, workspace) index pair managing it
+    pub known_hwnds: HashMap<isize, (usize, usize)>,
     pub always_on_top: Option<Vec<isize>>,
 }
 
@@ -285,8 +287,67 @@ impl AsRef<Self> for WindowManager {
 
 impl From<&WindowManager> for State {
     fn from(wm: &WindowManager) -> Self {
+        // This is used to remove any information that doesn't need to be passed on to subscribers
+        // or to be shown with the `komorebic state` command. Currently it is only removing the
+        // `workspace_config` field from every workspace, but more stripping can be added later if
+        // needed.
+        let mut stripped_monitors = Ring::default();
+        *stripped_monitors.elements_mut() = wm
+            .monitors()
+            .iter()
+            .map(|monitor| Monitor {
+                id: monitor.id,
+                name: monitor.name.clone(),
+                device: monitor.device.clone(),
+                device_id: monitor.device_id.clone(),
+                serial_number_id: monitor.serial_number_id.clone(),
+                size: monitor.size,
+                work_area_size: monitor.work_area_size,
+                work_area_offset: monitor.work_area_offset,
+                window_based_work_area_offset: monitor.window_based_work_area_offset,
+                window_based_work_area_offset_limit: monitor.window_based_work_area_offset_limit,
+                workspaces: {
+                    let mut ws = Ring::default();
+                    *ws.elements_mut() = monitor
+                        .workspaces()
+                        .iter()
+                        .map(|workspace| Workspace {
+                            name: workspace.name.clone(),
+                            containers: workspace.containers.clone(),
+                            monocle_container: workspace.monocle_container.clone(),
+                            monocle_container_restore_idx: workspace.monocle_container_restore_idx,
+                            maximized_window: workspace.maximized_window,
+                            maximized_window_restore_idx: workspace.maximized_window_restore_idx,
+                            floating_windows: workspace.floating_windows.clone(),
+                            layout: workspace.layout.clone(),
+                            layout_rules: workspace.layout_rules.clone(),
+                            layout_flip: workspace.layout_flip,
+                            workspace_padding: workspace.workspace_padding,
+                            container_padding: workspace.container_padding,
+                            latest_layout: workspace.latest_layout.clone(),
+                            resize_dimensions: workspace.resize_dimensions.clone(),
+                            tile: workspace.tile,
+                            apply_window_based_work_area_offset: workspace
+                                .apply_window_based_work_area_offset,
+                            window_container_behaviour: workspace.window_container_behaviour,
+                            window_container_behaviour_rules: workspace
+                                .window_container_behaviour_rules
+                                .clone(),
+                            float_override: workspace.float_override,
+                            workspace_config: None,
+                        })
+                        .collect::<VecDeque<_>>();
+                    ws.focus(monitor.workspaces.focused_idx());
+                    ws
+                },
+                last_focused_workspace: monitor.last_focused_workspace,
+                workspace_names: monitor.workspace_names.clone(),
+            })
+            .collect::<VecDeque<_>>();
+        stripped_monitors.focus(wm.monitors.focused_idx());
+
         Self {
-            monitors: wm.monitors.clone(),
+            monitors: stripped_monitors,
             monitor_usr_idx_map: wm.monitor_usr_idx_map.clone(),
             is_paused: wm.is_paused,
             work_area_offset: wm.work_area_offset,
@@ -366,7 +427,7 @@ impl WindowManager {
             pending_move_op: Arc::new(None),
             already_moved_window_handles: Arc::new(Mutex::new(HashSet::new())),
             uncloack_to_ignore: 0,
-            known_hwnds: Vec::new(),
+            known_hwnds: HashMap::new(),
             always_on_top: None,
         })
     }
@@ -3599,5 +3660,67 @@ impl WindowManager {
         self.focused_container_mut()?
             .focused_window_mut()
             .ok_or_else(|| anyhow!("there is no window"))
+    }
+
+    /// Updates the list of `known_hwnds` and their monitor/workspace index pair
+    ///
+    /// [`known_hwnds`]: `Self.known_hwnds`
+    pub fn update_known_hwnds(&mut self) {
+        tracing::trace!("updating list of known hwnds");
+        let mut known_hwnds = HashMap::new();
+        for (m_idx, monitor) in self.monitors().iter().enumerate() {
+            for (w_idx, workspace) in monitor.workspaces().iter().enumerate() {
+                for container in workspace.containers() {
+                    for window in container.windows() {
+                        known_hwnds.insert(window.hwnd, (m_idx, w_idx));
+                    }
+                }
+
+                for window in workspace.floating_windows() {
+                    known_hwnds.insert(window.hwnd, (m_idx, w_idx));
+                }
+
+                if let Some(window) = workspace.maximized_window() {
+                    known_hwnds.insert(window.hwnd, (m_idx, w_idx));
+                }
+
+                if let Some(container) = workspace.monocle_container() {
+                    for window in container.windows() {
+                        known_hwnds.insert(window.hwnd, (m_idx, w_idx));
+                    }
+                }
+            }
+        }
+
+        if self.known_hwnds != known_hwnds {
+            // Update reaper cache
+            {
+                let mut reaper_cache = crate::reaper::HWNDS_CACHE.lock();
+                *reaper_cache = known_hwnds.clone();
+            }
+
+            // Save to file
+            let hwnd_json = DATA_DIR.join("komorebi.hwnd.json");
+            match OpenOptions::new()
+                .write(true)
+                .truncate(true)
+                .create(true)
+                .open(hwnd_json)
+            {
+                Ok(file) => {
+                    if let Err(error) =
+                        serde_json::to_writer_pretty(&file, &known_hwnds.keys().collect::<Vec<_>>())
+                    {
+                        tracing::error!("Failed to save list of known_hwnds on file: {}", error);
+                    }
+                }
+                Err(error) => {
+                    tracing::error!("Failed to save list of known_hwnds on file: {}", error);
+                }
+            }
+
+            // Store new hwnds
+            self.known_hwnds = known_hwnds;
+        }
     }
 }
