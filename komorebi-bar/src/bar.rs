@@ -718,6 +718,12 @@ impl eframe::App for Komobar {
                             }
                         }
 
+                        // Reset the current `work_area_offset` so that it gets recalculated and
+                        // properly applied again, since if the monitor has connected for the first
+                        // time it won't have the work_area_offset applied but the bar thinks it
+                        // does.
+                        self.work_area_offset = komorebi_client::Rect::default();
+
                         should_apply_config = true;
                     }
                     self.disabled = false;
