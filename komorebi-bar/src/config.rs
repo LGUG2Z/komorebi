@@ -416,3 +416,90 @@ pub enum DisplayFormat {
     /// Show an icon and text for the selected element, and icons on the rest
     IconAndTextOnSelected,
 }
+
+macro_rules! extend_enum {
+    ($existing_enum:ident, $new_enum:ident, { $($(#[$meta:meta])* $variant:ident),* $(,)? }) => {
+        #[derive(Copy, Clone, Debug, serde::Serialize, serde::Deserialize, schemars::JsonSchema, PartialEq)]
+        pub enum $new_enum {
+            // Add new variants
+            $(
+                $(#[$meta])*
+                $variant,
+            )*
+            // Include a variant that wraps the existing enum and flatten it when deserializing
+            #[serde(untagged)]
+            Existing($existing_enum),
+        }
+
+        // Implement From for the existing enum
+        impl From<$existing_enum> for $new_enum {
+            fn from(value: $existing_enum) -> Self {
+                $new_enum::Existing(value)
+            }
+        }
+    };
+}
+
+extend_enum!(DisplayFormat, WorkspacesDisplayFormat, {
+    /// Show all icons only
+    AllIcons,
+    /// Show both all icons and text
+    AllIconsAndText,
+    /// Show all icons and text for the selected element, and all icons on the rest
+    AllIconsAndTextOnSelected,
+});
+
+#[cfg(test)]
+mod tests {
+    use schemars::JsonSchema;
+    use serde::Deserialize;
+    use serde::Serialize;
+    use serde_json::json;
+
+    #[derive(Copy, Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq)]
+    pub enum OriginalDisplayFormat {
+        /// Show None Of The Things
+        NoneOfTheThings,
+    }
+
+    extend_enum!(OriginalDisplayFormat, ExtendedDisplayFormat, {
+        /// Show Some Of The Things
+        SomeOfTheThings,
+    });
+
+    #[derive(serde::Deserialize)]
+    struct ExampleConfig {
+        #[allow(unused)]
+        format: ExtendedDisplayFormat,
+    }
+
+    #[test]
+    pub fn extend_new_variant() {
+        let raw = json!({
+            "format": "SomeOfTheThings",
+        })
+        .to_string();
+
+        assert!(serde_json::from_str::<ExampleConfig>(&raw).is_ok())
+    }
+
+    #[test]
+    pub fn extend_existing_variant() {
+        let raw = json!({
+            "format": "NoneOfTheThings",
+        })
+        .to_string();
+
+        assert!(serde_json::from_str::<ExampleConfig>(&raw).is_ok())
+    }
+
+    #[test]
+    pub fn extend_invalid_variant() {
+        let raw = json!({
+            "format": "ALLOFTHETHINGS",
+        })
+        .to_string();
+
+        assert!(serde_json::from_str::<ExampleConfig>(&raw).is_err())
+    }
+}
