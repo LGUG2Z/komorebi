@@ -2843,6 +2843,10 @@ impl WindowManager {
             container.hide(None);
         }
 
+        for window in workspace.floating_windows_mut() {
+            window.hide();
+        }
+
         Ok(())
     }
 
@@ -2854,6 +2858,10 @@ impl WindowManager {
 
         for container in workspace.containers_mut() {
             container.restore();
+        }
+
+        for window in workspace.floating_windows_mut() {
+            window.restore();
         }
 
         workspace.reintegrate_monocle_container()
