@@ -529,39 +529,73 @@
                         "description": "Display format of the workspace",
                         "oneOf": [
                           {
-                            "description": "Show only icon",
+                            "description": "Show all icons only",
                             "type": "string",
                             "enum": [
-                              "Icon"
+                              "AllIcons"
                             ]
                           },
                           {
-                            "description": "Show only text",
+                            "description": "Show both all icons and text",
                             "type": "string",
                             "enum": [
-                              "Text"
+                              "AllIconsAndText"
                             ]
                           },
                           {
-                            "description": "Show an icon and text for the selected element, and text on the rest",
+                            "description": "Show all icons and text for the selected element, and all icons on the rest",
                             "type": "string",
                             "enum": [
-                              "TextAndIconOnSelected"
+                              "AllIconsAndTextOnSelected"
                             ]
                           },
                           {
-                            "description": "Show both icon and text",
-                            "type": "string",
-                            "enum": [
-                              "IconAndText"
-                            ]
-                          },
-                          {
-                            "description": "Show an icon and text for the selected element, and icons on the rest",
-                            "type": "string",
-                            "enum": [
-                              "IconAndTextOnSelected"
-                            ]
+                            "type": "object",
+                            "required": [
+                              "Existing"
+                            ],
+                            "properties": {
+                              "Existing": {
+                                "oneOf": [
+                                  {
+                                    "description": "Show only icon",
+                                    "type": "string",
+                                    "enum": [
+                                      "Icon"
+                                    ]
+                                  },
+                                  {
+                                    "description": "Show only text",
+                                    "type": "string",
+                                    "enum": [
+                                      "Text"
+                                    ]
+                                  },
+                                  {
+                                    "description": "Show an icon and text for the selected element, and text on the rest",
+                                    "type": "string",
+                                    "enum": [
+                                      "TextAndIconOnSelected"
+                                    ]
+                                  },
+                                  {
+                                    "description": "Show both icon and text",
+                                    "type": "string",
+                                    "enum": [
+                                      "IconAndText"
+                                    ]
+                                  },
+                                  {
+                                    "description": "Show an icon and text for the selected element, and icons on the rest",
+                                    "type": "string",
+                                    "enum": [
+                                      "IconAndTextOnSelected"
+                                    ]
+                                  }
+                                ]
+                              }
+                            },
+                            "additionalProperties": false
                           }
                         ]
                       },
@@ -1849,39 +1883,73 @@
                         "description": "Display format of the workspace",
                         "oneOf": [
                           {
-                            "description": "Show only icon",
+                            "description": "Show all icons only",
                             "type": "string",
                             "enum": [
-                              "Icon"
+                              "AllIcons"
                             ]
                           },
                           {
-                            "description": "Show only text",
+                            "description": "Show both all icons and text",
                             "type": "string",
                             "enum": [
-                              "Text"
+                              "AllIconsAndText"
                             ]
                           },
                           {
-                            "description": "Show an icon and text for the selected element, and text on the rest",
+                            "description": "Show all icons and text for the selected element, and all icons on the rest",
                             "type": "string",
                             "enum": [
-                              "TextAndIconOnSelected"
+                              "AllIconsAndTextOnSelected"
                             ]
                           },
                           {
-                            "description": "Show both icon and text",
-                            "type": "string",
-                            "enum": [
-                              "IconAndText"
-                            ]
-                          },
-                          {
-                            "description": "Show an icon and text for the selected element, and icons on the rest",
-                            "type": "string",
-                            "enum": [
-                              "IconAndTextOnSelected"
-                            ]
+                            "type": "object",
+                            "required": [
+                              "Existing"
+                            ],
+                            "properties": {
+                              "Existing": {
+                                "oneOf": [
+                                  {
+                                    "description": "Show only icon",
+                                    "type": "string",
+                                    "enum": [
+                                      "Icon"
+                                    ]
+                                  },
+                                  {
+                                    "description": "Show only text",
+                                    "type": "string",
+                                    "enum": [
+                                      "Text"
+                                    ]
+                                  },
+                                  {
+                                    "description": "Show an icon and text for the selected element, and text on the rest",
+                                    "type": "string",
+                                    "enum": [
+                                      "TextAndIconOnSelected"
+                                    ]
+                                  },
+                                  {
+                                    "description": "Show both icon and text",
+                                    "type": "string",
+                                    "enum": [
+                                      "IconAndText"
+                                    ]
+                                  },
+                                  {
+                                    "description": "Show an icon and text for the selected element, and icons on the rest",
+                                    "type": "string",
+                                    "enum": [
+                                      "IconAndTextOnSelected"
+                                    ]
+                                  }
+                                ]
+                              }
+                            },
+                            "additionalProperties": false
                           }
                         ]
                       },
@@ -3102,39 +3170,73 @@
                         "description": "Display format of the workspace",
                         "oneOf": [
                           {
-                            "description": "Show only icon",
+                            "description": "Show all icons only",
                             "type": "string",
                             "enum": [
-                              "Icon"
+                              "AllIcons"
                             ]
                           },
                           {
-                            "description": "Show only text",
+                            "description": "Show both all icons and text",
                             "type": "string",
                             "enum": [
-                              "Text"
+                              "AllIconsAndText"
                             ]
                           },
                           {
-                            "description": "Show an icon and text for the selected element, and text on the rest",
+                            "description": "Show all icons and text for the selected element, and all icons on the rest",
                             "type": "string",
                             "enum": [
-                              "TextAndIconOnSelected"
+                              "AllIconsAndTextOnSelected"
                             ]
                           },
                           {
-                            "description": "Show both icon and text",
-                            "type": "string",
-                            "enum": [
-                              "IconAndText"
-                            ]
-                          },
-                          {
-                            "description": "Show an icon and text for the selected element, and icons on the rest",
-                            "type": "string",
-                            "enum": [
-                              "IconAndTextOnSelected"
-                            ]
+                            "type": "object",
+                            "required": [
+                              "Existing"
+                            ],
+                            "properties": {
+                              "Existing": {
+                                "oneOf": [
+                                  {
+                                    "description": "Show only icon",
+                                    "type": "string",
+                                    "enum": [
+                                      "Icon"
+                                    ]
+                                  },
+                                  {
+                                    "description": "Show only text",
+                                    "type": "string",
+                                    "enum": [
+                                      "Text"
+                                    ]
+                                  },
+                                  {
+                                    "description": "Show an icon and text for the selected element, and text on the rest",
+                                    "type": "string",
+                                    "enum": [
+                                      "TextAndIconOnSelected"
+                                    ]
+                                  },
+                                  {
+                                    "description": "Show both icon and text",
+                                    "type": "string",
+                                    "enum": [
+                                      "IconAndText"
+                                    ]
+                                  },
+                                  {
+                                    "description": "Show an icon and text for the selected element, and icons on the rest",
+                                    "type": "string",
+                                    "enum": [
+                                      "IconAndTextOnSelected"
+                                    ]
+                                  }
+                                ]
+                              }
+                            },
+                            "additionalProperties": false
                           }
                         ]
                       },

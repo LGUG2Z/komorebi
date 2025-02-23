@@ -1,6 +1,7 @@
 use crate::bar::apply_theme;
 use crate::config::DisplayFormat;
 use crate::config::KomobarTheme;
+use crate::config::WorkspacesDisplayFormat;
 use crate::komorebi_layout::KomorebiLayout;
 use crate::render::Grouping;
 use crate::render::RenderConfig;
@@ -65,7 +66,7 @@ pub struct KomorebiWorkspacesConfig {
     /// Hide workspaces without any windows
     pub hide_empty_workspaces: bool,
     /// Display format of the workspace
-    pub display: Option<DisplayFormat>,
+    pub display: Option<WorkspacesDisplayFormat>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
@@ -156,59 +157,61 @@ impl BarWidget for Komorebi {
     fn render(&mut self, ctx: &Context, ui: &mut Ui, config: &mut RenderConfig) {
         let mut komorebi_notification_state = self.komorebi_notification_state.borrow_mut();
         let icon_size = Vec2::splat(config.icon_font_id.size);
+        let text_size = Vec2::splat(config.text_font_id.size);
 
         if let Some(workspaces) = self.workspaces {
             if workspaces.enable {
                 let mut update = None;
 
                 if !komorebi_notification_state.workspaces.is_empty() {
-                    let format = workspaces.display.unwrap_or(DisplayFormat::Text);
+                    let format = workspaces.display.unwrap_or(DisplayFormat::Text.into());
 
                     config.apply_on_widget(false, ui, |ui| {
-                        for (i, (ws, container_information, _)) in
+                        for (i, (ws, containers, _)) in
                             komorebi_notification_state.workspaces.iter().enumerate()
                         {
+                            let is_selected = komorebi_notification_state.selected_workspace.eq(ws);
+
                             if SelectableFrame::new(
-                                komorebi_notification_state.selected_workspace.eq(ws),
+                                is_selected,
                             )
                             .show(ui, |ui| {
                                 let mut has_icon = false;
 
-                                if format == DisplayFormat::Icon
-                                    || format == DisplayFormat::IconAndText
-                                    || format == DisplayFormat::IconAndTextOnSelected
-                                    || (format == DisplayFormat::TextAndIconOnSelected
-                                        && komorebi_notification_state.selected_workspace.eq(ws))
+                                if format == WorkspacesDisplayFormat::AllIcons
+                                    || format == WorkspacesDisplayFormat::AllIconsAndText
+                                    || format == WorkspacesDisplayFormat::AllIconsAndTextOnSelected
+                                    || format == DisplayFormat::Icon.into()
+                                    || format == DisplayFormat::IconAndText.into()
+                                    || format == DisplayFormat::IconAndTextOnSelected.into()
+                                    || (format == DisplayFormat::TextAndIconOnSelected.into() && is_selected)
                                 {
-                                    let icons: Vec<_> =
-                                        container_information.icons.iter().flatten().collect();
+                                    has_icon = containers.iter().any(|(_, container_info)| {
+                                        container_info.icons.iter().any(|icon| icon.is_some())
+                                    });
 
-                                    if !icons.is_empty() {
+                                    if has_icon {
                                         Frame::none()
                                             .inner_margin(Margin::same(
                                                 ui.style().spacing.button_padding.y,
                                             ))
                                             .show(ui, |ui| {
-                                                for icon in icons {
-                                                    ui.add(
-                                                        Image::from(&img_to_texture(ctx, icon))
-                                                            .maintain_aspect_ratio(true)
-                                                            .fit_to_exact_size(icon_size),
-                                                    );
-
-                                                    if !has_icon {
-                                                        has_icon = true;
+                                                for (is_focused, container) in containers {
+                                                    for icon in container.icons.iter().flatten().collect::<Vec<_>>() {
+                                                        ui.add(
+                                                            Image::from(&img_to_texture(ctx, icon))
+                                                                .maintain_aspect_ratio(true)
+                                                                .fit_to_exact_size(if *is_focused { icon_size } else { text_size }),
+                                                        );
                                                     }
                                                 }
                                             });
                                     }
                                 }
 
-                                // draw a custom icon when there is no app icon
-                                if match format {
-                                    DisplayFormat::Icon => !has_icon,
-                                    _ => false,
-                                } {
+                                // draw a custom icon when there is no app icon or text
+                                if !has_icon && (matches!(format, WorkspacesDisplayFormat::AllIcons | WorkspacesDisplayFormat::Existing(DisplayFormat::Icon))
+                                || (!is_selected && matches!(format, WorkspacesDisplayFormat::AllIconsAndTextOnSelected | WorkspacesDisplayFormat::Existing(DisplayFormat::IconAndTextOnSelected)))) {
                                     let (response, painter) =
                                         ui.allocate_painter(icon_size, Sense::hover());
                                     let stroke = Stroke::new(
@@ -224,14 +227,15 @@ impl BarWidget for Komorebi {
                                     painter.line_segment([c - vec2(r, r), c + vec2(r, r)], stroke);
 
                                     response.on_hover_text(ws.to_string())
+                                // add hover text when there are only icons
                                 } else if match format {
-                                    DisplayFormat::Icon => has_icon,
+                                    WorkspacesDisplayFormat::AllIcons | WorkspacesDisplayFormat::Existing(DisplayFormat::Icon) => has_icon,
                                     _ => false,
                                 } {
                                     ui.response().on_hover_text(ws.to_string())
-                                } else if format != DisplayFormat::IconAndTextOnSelected
-                                    || (format == DisplayFormat::IconAndTextOnSelected
-                                        && komorebi_notification_state.selected_workspace.eq(ws))
+                                // add label only
+                                } else if (format != WorkspacesDisplayFormat::AllIconsAndTextOnSelected && format != DisplayFormat::IconAndTextOnSelected.into())
+                                    || (is_selected && matches!(format, WorkspacesDisplayFormat::AllIconsAndTextOnSelected | WorkspacesDisplayFormat::Existing(DisplayFormat::IconAndTextOnSelected)))
                                 {
                                     ui.add(Label::new(ws.to_string()).selectable(false))
                                 } else {
@@ -521,11 +525,12 @@ fn img_to_texture(ctx: &Context, rgba_image: &RgbaImage) -> TextureHandle {
     ctx.load_texture("icon", color_image, TextureOptions::default())
 }
 
+#[allow(clippy::type_complexity)]
 #[derive(Clone, Debug)]
 pub struct KomorebiNotificationState {
     pub workspaces: Vec<(
         String,
-        KomorebiNotificationStateContainerInformation,
+        Vec<(bool, KomorebiNotificationStateContainerInformation)>,
         WorkspaceLayer,
     )>,
     pub selected_workspace: String,
@@ -557,6 +562,8 @@ impl KomorebiNotificationState {
         default_theme: Option<KomobarTheme>,
         render_config: Rc<RefCell<RenderConfig>>,
     ) {
+        let show_all_icons = render_config.borrow().show_all_icons;
+
         match notification.event {
             NotificationEvent::WindowManager(_) => {}
             NotificationEvent::Monitor(_) => {}
@@ -627,6 +634,7 @@ impl KomorebiNotificationState {
         let focused_workspace_idx = monitor.focused_workspace_idx();
 
         let mut workspaces = vec![];
+
         self.selected_workspace = monitor.workspaces()[focused_workspace_idx]
             .name()
             .to_owned()
@@ -642,7 +650,36 @@ impl KomorebiNotificationState {
             if should_show {
                 workspaces.push((
                     ws.name().to_owned().unwrap_or_else(|| format!("{}", i + 1)),
-                    ws.into(),
+                    if show_all_icons {
+                        let mut containers = vec![];
+                        let mut has_monocle = false;
+
+                        // add monocle container
+                        if let Some(container) = ws.monocle_container() {
+                            containers.push((true, container.into()));
+                            has_monocle = true;
+                        }
+
+                        // add all tiled windows
+                        for (i, container) in ws.containers().iter().enumerate() {
+                            containers.push((
+                                !has_monocle && i == ws.focused_container_idx(),
+                                container.into(),
+                            ));
+                        }
+
+                        // add all floating windows
+                        for floating_window in ws.floating_windows() {
+                            containers.push((
+                                !has_monocle && floating_window.is_focused(),
+                                floating_window.into(),
+                            ));
+                        }
+
+                        containers
+                    } else {
+                        vec![(true, ws.into())]
+                    },
                     ws.layer().to_owned(),
                 ));
             }
