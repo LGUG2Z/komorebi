@@ -140,7 +140,7 @@ pub struct WorkspaceConfig {
     /// Container padding (default: global)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub container_padding: Option<i32>,
-    /// Container padding (default: global)
+    /// Workspace padding (default: global)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub workspace_padding: Option<i32>,
     /// Initial workspace application rules
@@ -259,7 +259,7 @@ pub struct MonitorConfig {
     /// Container padding (default: global)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub container_padding: Option<i32>,
-    /// Container padding (default: global)
+    /// Workspace padding (default: global)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub workspace_padding: Option<i32>,
 }
