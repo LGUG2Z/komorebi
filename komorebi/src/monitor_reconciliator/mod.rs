@@ -264,6 +264,7 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                             || attached.device_id().eq(monitor.device_id())
                         {
                             monitor.set_id(attached.id());
+                            monitor.set_device(attached.device().clone());
                             monitor.set_device_id(attached.device_id().clone());
                             monitor.set_serial_number_id(attached.serial_number_id().clone());
                             monitor.set_name(attached.name().clone());
@@ -462,9 +463,31 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
 
                                 tracing::info!("found monitor and workspace configuration for {id} in the monitor cache, applying");
 
-                                // If it does, load the monitor removing any window that has since
-                                // been closed or moved to another workspace
-                                *m = cached.clone();
+                                // If it does, update the cached monitor info with the new one and
+                                // load the cached monitor removing any window that has since been
+                                // closed or moved to another workspace
+                                *m = Monitor {
+                                    // Data that should be the one just read from `win32-display-data`
+                                    id: m.id,
+                                    name: m.name.clone(),
+                                    device: m.device.clone(),
+                                    device_id: m.device_id.clone(),
+                                    serial_number_id: m.serial_number_id.clone(),
+                                    size: m.size,
+                                    work_area_size: m.work_area_size,
+
+                                    // The rest should come from the cached monitor
+                                    work_area_offset: cached.work_area_offset,
+                                    window_based_work_area_offset: cached
+                                        .window_based_work_area_offset,
+                                    window_based_work_area_offset_limit: cached
+                                        .window_based_work_area_offset_limit,
+                                    workspaces: cached.workspaces.clone(),
+                                    last_focused_workspace: cached.last_focused_workspace,
+                                    workspace_names: cached.workspace_names.clone(),
+                                    container_padding: cached.container_padding,
+                                    workspace_padding: cached.workspace_padding,
+                                };
 
                                 let focused_workspace_idx = m.focused_workspace_idx();
 
