@@ -303,7 +303,7 @@ impl Workspace {
         // Maximised windows and floating windows should always be drawn at the top of the Z order
         // when switching to a workspace
         if let Some(window) = to_focus {
-            if self.maximized_window().is_none() && self.floating_windows().is_empty() {
+            if self.maximized_window().is_none() && matches!(self.layer, WorkspaceLayer::Tiling) {
                 window.focus(mouse_follows_focus)?;
             } else if let Some(maximized_window) = self.maximized_window() {
                 maximized_window.focus(mouse_follows_focus)?;
