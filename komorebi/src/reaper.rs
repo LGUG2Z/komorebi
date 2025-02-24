@@ -47,8 +47,11 @@ pub fn send_notification(hwnds: HashMap<isize, (usize, usize)>) {
     }
 }
 
-pub fn listen_for_notifications(wm: Arc<Mutex<WindowManager>>) {
-    watch_for_orphans(wm.clone());
+pub fn listen_for_notifications(
+    wm: Arc<Mutex<WindowManager>>,
+    known_hwnds: HashMap<isize, (usize, usize)>,
+) {
+    watch_for_orphans(known_hwnds);
 
     std::thread::spawn(move || loop {
         match handle_notifications(wm.clone()) {
@@ -138,11 +141,11 @@ fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result<()>
     Ok(())
 }
 
-fn watch_for_orphans(wm: Arc<Mutex<WindowManager>>) {
+fn watch_for_orphans(known_hwnds: HashMap<isize, (usize, usize)>) {
     // Cache current hwnds
     {
         let mut cache = HWNDS_CACHE.lock();
-        *cache = wm.lock().known_hwnds.clone();
+        *cache = known_hwnds;
     }
 
     std::thread::spawn(move || loop {

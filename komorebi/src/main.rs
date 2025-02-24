@@ -244,15 +244,9 @@ fn main() -> Result<()> {
         StaticConfig::postload(config, &wm)?;
     }
 
-    listen_for_commands(wm.clone());
-
     if !opts.await_configuration && !INITIAL_CONFIGURATION_LOADED.load(Ordering::SeqCst) {
         INITIAL_CONFIGURATION_LOADED.store(true, Ordering::SeqCst);
     };
-
-    if let Some(port) = opts.tcp_port {
-        listen_for_commands_tcp(wm.clone(), port);
-    }
 
     if static_config.is_none() {
         std::thread::spawn(|| load_configuration().expect("could not load configuration"));
@@ -280,20 +274,26 @@ fn main() -> Result<()> {
 
     wm.lock().retile_all(false)?;
 
-    listen_for_events(wm.clone());
-
-    if CUSTOM_FFM.load(Ordering::SeqCst) {
-        listen_for_movements(wm.clone());
-    }
-
     border_manager::listen_for_notifications(wm.clone());
     stackbar_manager::listen_for_notifications(wm.clone());
     transparency_manager::listen_for_notifications(wm.clone());
     workspace_reconciliator::listen_for_notifications(wm.clone());
     monitor_reconciliator::listen_for_notifications(wm.clone())?;
-    reaper::listen_for_notifications(wm.clone());
+    reaper::listen_for_notifications(wm.clone(), wm.lock().known_hwnds.clone());
     focus_manager::listen_for_notifications(wm.clone());
     theme_manager::listen_for_notifications();
+
+    listen_for_commands(wm.clone());
+
+    if let Some(port) = opts.tcp_port {
+        listen_for_commands_tcp(wm.clone(), port);
+    }
+
+    listen_for_events(wm.clone());
+
+    if CUSTOM_FFM.load(Ordering::SeqCst) {
+        listen_for_movements(wm.clone());
+    }
 
     let (ctrlc_sender, ctrlc_receiver) = crossbeam_channel::bounded(1);
     ctrlc::set_handler(move || {
