@@ -19,6 +19,7 @@ use eframe::egui::Frame;
 use eframe::egui::Image;
 use eframe::egui::Label;
 use eframe::egui::Margin;
+use eframe::egui::RichText;
 use eframe::egui::Rounding;
 use eframe::egui::Sense;
 use eframe::egui::Stroke;
@@ -216,7 +217,7 @@ impl BarWidget for Komorebi {
                                         ui.allocate_painter(icon_size, Sense::hover());
                                     let stroke = Stroke::new(
                                         1.0,
-                                        ctx.style().visuals.selection.stroke.color,
+                                        if is_selected { ctx.style().visuals.selection.stroke.color} else { ui.style().visuals.text_color() },
                                     );
                                     let mut rect = response.rect;
                                     let rounding = Rounding::same(rect.width() * 0.1);
@@ -237,7 +238,12 @@ impl BarWidget for Komorebi {
                                 } else if (format != WorkspacesDisplayFormat::AllIconsAndTextOnSelected && format != DisplayFormat::IconAndTextOnSelected.into())
                                     || (is_selected && matches!(format, WorkspacesDisplayFormat::AllIconsAndTextOnSelected | WorkspacesDisplayFormat::Existing(DisplayFormat::IconAndTextOnSelected)))
                                 {
-                                    ui.add(Label::new(ws.to_string()).selectable(false))
+                                     if is_selected {
+                                        ui.add(Label::new(RichText::new(ws.to_string()).color(ctx.style().visuals.selection.stroke.color)).selectable(false))
+                                    }
+                                    else {
+                                        ui.add(Label::new(ws.to_string()).selectable(false))
+                                    }
                                 } else {
                                     ui.response()
                                 }
@@ -427,6 +433,7 @@ impl BarWidget for Komorebi {
 
                         for (i, (title, icon)) in iter.enumerate() {
                             let selected = i == focused_window_idx && len != 1;
+                            let text_color = if selected { ctx.style().visuals.selection.stroke.color} else { ui.style().visuals.text_color() };
 
                             if SelectableFrame::new(selected)
                                 .show(ui, |ui| {
@@ -478,7 +485,7 @@ impl BarWidget for Komorebi {
                                                 MAX_LABEL_WIDTH.load(Ordering::SeqCst) as f32,
                                                 available_height,
                                             ),
-                                            Label::new(title).selectable(false).truncate(),
+                                            Label::new(RichText::new( title).color(text_color)).selectable(false).truncate(),
                                         );
                                     }
                                 })
