@@ -285,8 +285,7 @@ impl WindowManager {
                         workspace.set_layer(WorkspaceLayer::Tiling);
                     }
                     Some(idx) => {
-                        if let Some(window) = workspace.floating_windows().get(idx) {
-                            window.focus(false)?;
+                        if let Some(_window) = workspace.floating_windows().get(idx) {
                             workspace.set_layer(WorkspaceLayer::Floating);
                         }
                     }
