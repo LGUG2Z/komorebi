@@ -122,11 +122,15 @@ impl KomorebiLayout {
         }
     }
 
-    fn show_icon(&mut self, font_id: FontId, ctx: &Context, ui: &mut Ui) {
+    fn show_icon(&mut self, is_selected: bool, font_id: FontId, ctx: &Context, ui: &mut Ui) {
         // paint custom icons for the layout
         let size = Vec2::splat(font_id.size);
         let (response, painter) = ui.allocate_painter(size, Sense::hover());
-        let color = ctx.style().visuals.selection.stroke.color;
+        let color = if is_selected {
+            ctx.style().visuals.selection.stroke.color
+        } else {
+            ui.style().visuals.text_color()
+        };
         let stroke = Stroke::new(1.0, color);
         let mut rect = response.rect;
         let rounding = Rounding::same(rect.width() * 0.1);
@@ -236,7 +240,7 @@ impl KomorebiLayout {
             let layout_frame = SelectableFrame::new(false)
                 .show(ui, |ui| {
                     if let DisplayFormat::Icon | DisplayFormat::IconAndText = format {
-                        self.show_icon(font_id.clone(), ctx, ui);
+                        self.show_icon(false, font_id.clone(), ctx, ui);
                     }
 
                     if let DisplayFormat::Text | DisplayFormat::IconAndText = format {
@@ -279,8 +283,12 @@ impl KomorebiLayout {
                         ]);
 
                         for layout_option in &mut layout_options {
-                            if SelectableFrame::new(self == layout_option)
-                                .show(ui, |ui| layout_option.show_icon(font_id.clone(), ctx, ui))
+                            let is_selected = self == layout_option;
+
+                            if SelectableFrame::new(is_selected)
+                                .show(ui, |ui| {
+                                    layout_option.show_icon(is_selected, font_id.clone(), ctx, ui)
+                                })
                                 .on_hover_text(match layout_option {
                                     KomorebiLayout::Default(layout) => layout.to_string(),
                                     KomorebiLayout::Monocle => "Toggle monocle".to_string(),
