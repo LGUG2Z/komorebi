@@ -5,6 +5,7 @@ use crate::core::BorderImplementation;
 use crate::core::BorderStyle;
 use crate::core::WindowKind;
 use crate::ring::Ring;
+use crate::workspace::WorkspaceLayer;
 use crate::workspace_reconciliator::ALT_TAB_HWND;
 use crate::Colour;
 use crate::Rgb;
@@ -166,6 +167,7 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
     let mut previous_pending_move_op = None;
     let mut previous_is_paused = false;
     let mut previous_notification: Option<Notification> = None;
+    let mut previous_layer = WorkspaceLayer::default();
 
     'receiver: for notification in receiver {
         // Check the wm state every time we receive a notification
@@ -182,6 +184,9 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
             .iter()
             .map(|w| w.hwnd)
             .collect::<Vec<_>>();
+        let workspace_layer = *state.monitors.elements()[focused_monitor_idx].workspaces()
+            [focused_workspace_idx]
+            .layer();
         let foreground_window = WindowsApi::foreground_window().unwrap_or_default();
 
         drop(state);
@@ -507,9 +512,13 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                                 }
                             };
 
+                            let layer_changed = previous_layer != workspace_layer;
+
                             let should_invalidate = match last_focus_state {
                                 None => true,
-                                Some(last_focus_state) => last_focus_state != new_focus_state,
+                                Some(last_focus_state) => {
+                                    (last_focus_state != new_focus_state) || layer_changed
+                                }
                             };
 
                             if new_border || should_invalidate {
@@ -561,9 +570,13 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
 
                                 let rect = WindowsApi::window_rect(window.hwnd)?;
 
+                                let layer_changed = previous_layer != workspace_layer;
+
                                 let should_invalidate = match last_focus_state {
                                     None => true,
-                                    Some(last_focus_state) => last_focus_state != new_focus_state,
+                                    Some(last_focus_state) => {
+                                        last_focus_state != new_focus_state || layer_changed
+                                    }
                                 };
 
                                 if new_border {
@@ -587,6 +600,7 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
         previous_pending_move_op = pending_move_op;
         previous_is_paused = is_paused;
         previous_notification = Some(notification);
+        previous_layer = workspace_layer;
     }
 
     Ok(())
