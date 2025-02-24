@@ -736,6 +736,30 @@ impl Window {
         self.update_style(&style)
     }
 
+    /// Raise the window to the top of the Z order, but do not activate or focus
+    /// it. Use raise_and_focus_window to activate and focus a window.
+    /// It also checks if there is a border attached to this window and if it is
+    /// it raises it as well.
+    pub fn raise(self) -> Result<()> {
+        WindowsApi::raise_window(self.hwnd)?;
+        if let Some(border) = crate::border_manager::window_border(self.hwnd) {
+            WindowsApi::raise_window(border.hwnd)?;
+        }
+        Ok(())
+    }
+
+    /// Lower the window to the bottom of the Z order, but do not activate or focus
+    /// it.
+    /// It also checks if there is a border attached to this window and if it is
+    /// it lowers it as well.
+    pub fn lower(self) -> Result<()> {
+        WindowsApi::lower_window(self.hwnd)?;
+        if let Some(border) = crate::border_manager::window_border(self.hwnd) {
+            WindowsApi::lower_window(border.hwnd)?;
+        }
+        Ok(())
+    }
+
     #[tracing::instrument(fields(exe, title), skip(debug))]
     pub fn should_manage(
         self,

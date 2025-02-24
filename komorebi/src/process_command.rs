@@ -1049,24 +1049,45 @@ impl WindowManager {
                 let mouse_follows_focus = self.mouse_follows_focus;
                 let workspace = self.focused_workspace_mut()?;
 
+                let mut to_focus = None;
                 match workspace.layer() {
                     WorkspaceLayer::Tiling => {
                         workspace.set_layer(WorkspaceLayer::Floating);
 
-                        if let Some(first) = workspace.floating_windows().first() {
-                            first.focus(mouse_follows_focus)?;
+                        for (i, window) in workspace.floating_windows().iter().enumerate() {
+                            if i == 0 {
+                                to_focus = Some(*window);
+                            }
+                            window.raise()?;
+                        }
+
+                        for container in workspace.containers() {
+                            if let Some(window) = container.focused_window() {
+                                window.lower()?;
+                            }
                         }
                     }
                     WorkspaceLayer::Floating => {
                         workspace.set_layer(WorkspaceLayer::Tiling);
 
-                        if let Some(container) = workspace.focused_container() {
+                        let focused_container_idx = workspace.focused_container_idx();
+                        for (i, container) in workspace.containers_mut().iter_mut().enumerate() {
                             if let Some(window) = container.focused_window() {
-                                window.focus(mouse_follows_focus)?;
+                                if i == focused_container_idx {
+                                    to_focus = Some(*window);
+                                }
+                                window.raise()?;
                             }
+                        }
+
+                        for window in workspace.floating_windows() {
+                            window.lower()?;
                         }
                     }
                 };
+                if let Some(window) = to_focus {
+                    window.focus(mouse_follows_focus)?;
+                }
             }
             SocketMessage::Stop => {
                 self.stop(false)?;
