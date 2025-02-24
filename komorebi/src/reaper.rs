@@ -47,8 +47,11 @@ pub fn send_notification(hwnds: HashMap<isize, (usize, usize)>) {
     }
 }
 
-pub fn listen_for_notifications(wm: Arc<Mutex<WindowManager>>) {
-    watch_for_orphans(wm.clone());
+pub fn listen_for_notifications(
+    wm: Arc<Mutex<WindowManager>>,
+    known_hwnds: HashMap<isize, (usize, usize)>,
+) {
+    watch_for_orphans(known_hwnds);
 
     std::thread::spawn(move || loop {
         match handle_notifications(wm.clone()) {
@@ -70,24 +73,12 @@ fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result<()>
     for notification in receiver {
         let orphan_hwnds = notification.0;
         let mut wm = wm.lock();
-        let offset = wm.work_area_offset;
 
         let mut update_borders = false;
 
         for (hwnd, (m_idx, w_idx)) in orphan_hwnds.iter() {
             if let Some(monitor) = wm.monitors_mut().get_mut(*m_idx) {
                 let focused_workspace_idx = monitor.focused_workspace_idx();
-                let work_area = *monitor.work_area_size();
-                let window_based_work_area_offset = (
-                    monitor.window_based_work_area_offset_limit(),
-                    monitor.window_based_work_area_offset(),
-                );
-
-                let offset = if monitor.work_area_offset().is_some() {
-                    monitor.work_area_offset()
-                } else {
-                    offset
-                };
 
                 if let Some(workspace) = monitor.workspaces_mut().get_mut(*w_idx) {
                     // Remove orphan window
@@ -105,7 +96,7 @@ fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result<()>
                         // If this is not a focused workspace there is no need to update the
                         // workspace or the borders. That will already be done when the user
                         // changes to this workspace.
-                        workspace.update(&work_area, offset, window_based_work_area_offset)?;
+                        workspace.update()?;
                         update_borders = true;
                     }
                     tracing::info!(
@@ -150,11 +141,11 @@ fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result<()>
     Ok(())
 }
 
-fn watch_for_orphans(wm: Arc<Mutex<WindowManager>>) {
+fn watch_for_orphans(known_hwnds: HashMap<isize, (usize, usize)>) {
     // Cache current hwnds
     {
         let mut cache = HWNDS_CACHE.lock();
-        *cache = wm.lock().known_hwnds.clone();
+        *cache = known_hwnds;
     }
 
     std::thread::spawn(move || loop {

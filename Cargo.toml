@@ -72,5 +72,15 @@ features = [
     "Media_Control"
 ]
 
-[profile.release]
-lto = true
+[profile.dev-jeezy]
+inherits = "dev"
+debug = false
+opt-level = 1
+
+[profile.dev-jeezy.package."*"]
+opt-level = 3
+
+[profile.release-jeezy]
+inherits = "release"
+incremental = true
+codegen-units = 256

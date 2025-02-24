@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::collections::VecDeque;
+use std::sync::atomic::Ordering;
 
 use color_eyre::eyre::anyhow;
 use color_eyre::eyre::bail;
@@ -21,6 +22,8 @@ use crate::DefaultLayout;
 use crate::Layout;
 use crate::OperationDirection;
 use crate::WindowsApi;
+use crate::DEFAULT_CONTAINER_PADDING;
+use crate::DEFAULT_WORKSPACE_PADDING;
 
 #[derive(
     Debug,
@@ -61,6 +64,10 @@ pub struct Monitor {
     pub last_focused_workspace: Option<usize>,
     #[getset(get_mut = "pub")]
     pub workspace_names: HashMap<usize, String>,
+    #[getset(get_copy = "pub", set = "pub")]
+    pub container_padding: Option<i32>,
+    #[getset(get_copy = "pub", set = "pub")]
+    pub workspace_padding: Option<i32>,
 }
 
 impl_ring_elements!(Monitor, Workspace);
@@ -114,6 +121,8 @@ pub fn new(
         workspaces,
         last_focused_workspace: None,
         workspace_names: HashMap::default(),
+        container_padding: None,
+        workspace_padding: None,
     }
 }
 
@@ -153,6 +162,8 @@ impl Monitor {
             workspaces: Default::default(),
             last_focused_workspace: None,
             workspace_names: Default::default(),
+            container_padding: None,
+            workspace_padding: None,
         }
     }
 
@@ -173,6 +184,52 @@ impl Monitor {
         }
 
         Ok(())
+    }
+
+    /// Updates the `globals` field of all workspaces
+    pub fn update_workspaces_globals(&mut self, offset: Option<Rect>) {
+        let container_padding = self
+            .container_padding()
+            .or(Some(DEFAULT_CONTAINER_PADDING.load(Ordering::SeqCst)));
+        let workspace_padding = self
+            .workspace_padding()
+            .or(Some(DEFAULT_WORKSPACE_PADDING.load(Ordering::SeqCst)));
+        let work_area = *self.work_area_size();
+        let offset = self.work_area_offset.or(offset);
+        let window_based_work_area_offset = self.window_based_work_area_offset();
+        let limit = self.window_based_work_area_offset_limit();
+
+        for workspace in self.workspaces_mut() {
+            workspace.globals_mut().container_padding = container_padding;
+            workspace.globals_mut().workspace_padding = workspace_padding;
+            workspace.globals_mut().work_area = work_area;
+            workspace.globals_mut().work_area_offset = offset;
+            workspace.globals_mut().window_based_work_area_offset = window_based_work_area_offset;
+            workspace.globals_mut().window_based_work_area_offset_limit = limit;
+        }
+    }
+
+    /// Updates the `globals` field of workspace with index `workspace_idx`
+    pub fn update_workspace_globals(&mut self, workspace_idx: usize, offset: Option<Rect>) {
+        let container_padding = self
+            .container_padding()
+            .or(Some(DEFAULT_CONTAINER_PADDING.load(Ordering::SeqCst)));
+        let workspace_padding = self
+            .workspace_padding()
+            .or(Some(DEFAULT_WORKSPACE_PADDING.load(Ordering::SeqCst)));
+        let work_area = *self.work_area_size();
+        let offset = self.work_area_offset.or(offset);
+        let window_based_work_area_offset = self.window_based_work_area_offset();
+        let limit = self.window_based_work_area_offset_limit();
+
+        if let Some(workspace) = self.workspaces_mut().get_mut(workspace_idx) {
+            workspace.globals_mut().container_padding = container_padding;
+            workspace.globals_mut().workspace_padding = workspace_padding;
+            workspace.globals_mut().work_area = work_area;
+            workspace.globals_mut().work_area_offset = offset;
+            workspace.globals_mut().window_based_work_area_offset = window_based_work_area_offset;
+            workspace.globals_mut().window_based_work_area_offset_limit = limit;
+        }
     }
 
     pub fn add_container(
@@ -401,21 +458,17 @@ impl Monitor {
     }
 
     pub fn update_focused_workspace(&mut self, offset: Option<Rect>) -> Result<()> {
-        let work_area = *self.work_area_size();
-        let window_based_work_area_offset = (
-            self.window_based_work_area_offset_limit(),
-            self.window_based_work_area_offset(),
-        );
-
         let offset = if self.work_area_offset().is_some() {
             self.work_area_offset()
         } else {
             offset
         };
 
+        let focused_workspace_idx = self.focused_workspace_idx();
+        self.update_workspace_globals(focused_workspace_idx, offset);
         self.focused_workspace_mut()
             .ok_or_else(|| anyhow!("there is no workspace"))?
-            .update(&work_area, offset, window_based_work_area_offset)?;
+            .update()?;
 
         Ok(())
     }

@@ -66,6 +66,7 @@ use crate::window_manager;
 use crate::window_manager::WindowManager;
 use crate::windows_api::WindowsApi;
 use crate::winevent_listener;
+use crate::workspace::WorkspaceLayer;
 use crate::workspace::WorkspaceWindowLocation;
 use crate::GlobalState;
 use crate::Notification;
@@ -299,16 +300,40 @@ impl WindowManager {
                 }
             }
             SocketMessage::FocusWindow(direction) => {
-                self.focus_container_in_direction(direction)?;
+                let focused_workspace = self.focused_workspace()?;
+                match focused_workspace.layer() {
+                    WorkspaceLayer::Tiling => {
+                        self.focus_container_in_direction(direction)?;
+                    }
+                    WorkspaceLayer::Floating => {
+                        self.focus_floating_window_in_direction(direction)?;
+                    }
+                }
             }
             SocketMessage::FocusExe(ref exe, hwnd) => {
                 self.focus_window_from_exe(exe, hwnd)?;
             }
             SocketMessage::MoveWindow(direction) => {
-                self.move_container_in_direction(direction)?;
+                let focused_workspace = self.focused_workspace()?;
+                match focused_workspace.layer() {
+                    WorkspaceLayer::Tiling => {
+                        self.move_container_in_direction(direction)?;
+                    }
+                    WorkspaceLayer::Floating => {
+                        self.move_floating_window_in_direction(direction)?;
+                    }
+                }
             }
             SocketMessage::CycleFocusWindow(direction) => {
-                self.focus_container_in_cycle_direction(direction)?;
+                let focused_workspace = self.focused_workspace()?;
+                match focused_workspace.layer() {
+                    WorkspaceLayer::Tiling => {
+                        self.focus_container_in_cycle_direction(direction)?;
+                    }
+                    WorkspaceLayer::Floating => {
+                        self.focus_floating_window_in_cycle_direction(direction)?;
+                    }
+                }
             }
             SocketMessage::CycleMoveWindow(direction) => {
                 self.move_container_in_cycle_direction(direction)?;
@@ -1066,6 +1091,29 @@ impl WindowManager {
                     self.focus_monitor(monitor_idx)?;
                     self.focus_workspace(workspace_idx)?;
                 }
+            }
+            SocketMessage::ToggleWorkspaceLayer => {
+                let mouse_follows_focus = self.mouse_follows_focus;
+                let workspace = self.focused_workspace_mut()?;
+
+                match workspace.layer() {
+                    WorkspaceLayer::Tiling => {
+                        workspace.set_layer(WorkspaceLayer::Floating);
+
+                        if let Some(first) = workspace.floating_windows().first() {
+                            first.focus(mouse_follows_focus)?;
+                        }
+                    }
+                    WorkspaceLayer::Floating => {
+                        workspace.set_layer(WorkspaceLayer::Tiling);
+
+                        if let Some(container) = workspace.focused_container() {
+                            if let Some(window) = container.focused_window() {
+                                window.focus(mouse_follows_focus)?;
+                            }
+                        }
+                    }
+                };
             }
             SocketMessage::Stop => {
                 self.stop(false)?;
