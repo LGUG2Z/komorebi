@@ -39,11 +39,14 @@ copy-target target:
 copy-targets *targets:
     "{{ targets }}" -split ' ' | ForEach-Object { just copy-target $_ }
 
+wpm target:
+    just build-target {{ target }} && wpmctl stop {{ target }}; just copy-target {{ target }} && wpmctl start {{ target }}
+
 copy:
     just copy-targets komorebic komorebic-no-console komorebi komorebi-bar komorebi-gui
 
 run target:
-    cargo +stable run --bin {{ target }} --locked --profile dev-jeezy
+    cargo +stable run --bin {{ target }} --locked
 
 warn target $RUST_LOG="warn":
     just run {{ target }}
