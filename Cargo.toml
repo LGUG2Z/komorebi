@@ -33,12 +33,12 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 paste = "1"
 sysinfo = "0.33"
 uds_windows = "1"
-win32-display-data = { git = "https://github.com/LGUG2Z/win32-display-data", rev = "376523b9e1321e033b0b0ed0e6fa75a072b46ad9" }
+win32-display-data = { git = "https://github.com/LGUG2Z/win32-display-data", rev = "55cebdebfbd68dbd14945a1ba90f6b05b7be2893" }
 windows-numerics = { version = "0.1" }
 windows-implement = { version = "0.59" }
 windows-interface = { version = "0.59" }
 windows-core = { version = "0.60" }
-shadow-rs = "0.38"
+shadow-rs = "1"
 which = "7"
 
 [workspace.dependencies.windows]
