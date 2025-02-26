@@ -113,6 +113,7 @@ pub fn destroy_all_borders() -> color_eyre::Result<()> {
 
     borders.clear();
     BORDERS_MONITORS.lock().clear();
+    WINDOWS_BORDERS.lock().clear();
     FOCUS_STATE.lock().clear();
     RENDER_TARGETS.lock().clear();
 
@@ -300,6 +301,7 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                 let mut borders = BORDER_STATE.lock();
                 let mut borders_monitors = BORDERS_MONITORS.lock();
                 let mut windows_borders = WINDOWS_BORDERS.lock();
+                let mut focus_state = FOCUS_STATE.lock();
 
                 // If borders are disabled
                 if !BORDER_ENABLED.load_consume()
@@ -314,7 +316,9 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                     }
 
                     borders.clear();
+                    borders_monitors.clear();
                     windows_borders.clear();
+                    focus_state.clear();
 
                     previous_is_paused = is_paused;
                     continue 'receiver;
@@ -325,19 +329,15 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                     if let Some(ws) = m.focused_workspace() {
                         // Workspaces with tiling disabled don't have borders
                         if !ws.tile() {
-                            let mut to_remove = vec![];
-                            for (id, border) in borders.iter() {
-                                if borders_monitors.get(id).copied().unwrap_or_default()
-                                    == monitor_idx
-                                {
-                                    border.destroy()?;
-                                    to_remove.push(id.clone());
-                                }
-                            }
-
-                            for id in &to_remove {
-                                borders.remove(id);
-                            }
+                            // Remove all borders on this monitor
+                            remove_borders(
+                                &mut borders,
+                                &mut windows_borders,
+                                &mut focus_state,
+                                &mut borders_monitors,
+                                monitor_idx,
+                                |_, _| true,
+                            )?;
 
                             continue 'monitors;
                         }
@@ -366,10 +366,7 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                                 WindowKind::Monocle
                             };
                             border.window_kind = new_focus_state;
-                            {
-                                let mut focus_state = FOCUS_STATE.lock();
-                                focus_state.insert(border.hwnd, new_focus_state);
-                            }
+                            focus_state.insert(border.hwnd, new_focus_state);
 
                             let reference_hwnd =
                                 monocle.focused_window().copied().unwrap_or_default().hwnd;
@@ -389,20 +386,15 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                             );
 
                             let border_hwnd = border.hwnd;
-                            let mut to_remove = vec![];
-                            for (id, b) in borders.iter() {
-                                if borders_monitors.get(id).copied().unwrap_or_default()
-                                    == monitor_idx
-                                    && border_hwnd != b.hwnd
-                                {
-                                    b.destroy()?;
-                                    to_remove.push(id.clone());
-                                }
-                            }
-
-                            for id in &to_remove {
-                                borders.remove(id);
-                            }
+                            // Remove all borders on this monitor except monocle
+                            remove_borders(
+                                &mut borders,
+                                &mut windows_borders,
+                                &mut focus_state,
+                                &mut borders_monitors,
+                                monitor_idx,
+                                |_, b| border_hwnd != b.hwnd,
+                            )?;
 
                             continue 'monitors;
                         }
@@ -414,24 +406,20 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                             && WindowsApi::is_zoomed(foreground_hwnd);
 
                         if is_maximized {
-                            let mut to_remove = vec![];
-                            for (id, border) in borders.iter() {
-                                if borders_monitors.get(id).copied().unwrap_or_default()
-                                    == monitor_idx
-                                {
-                                    border.destroy()?;
-                                    to_remove.push(id.clone());
-                                }
-                            }
-
-                            for id in &to_remove {
-                                borders.remove(id);
-                            }
+                            // Remove all borders on this monitor
+                            remove_borders(
+                                &mut borders,
+                                &mut windows_borders,
+                                &mut focus_state,
+                                &mut borders_monitors,
+                                monitor_idx,
+                                |_, _| true,
+                            )?;
 
                             continue 'monitors;
                         }
 
-                        // Destroy any borders not associated with the focused workspace
+                        // Collect focused workspace container and floating windows ID's
                         let mut container_and_floating_window_ids = ws
                             .containers()
                             .iter()
@@ -442,30 +430,61 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                             container_and_floating_window_ids.push(w.hwnd.to_string());
                         }
 
-                        let mut to_remove = vec![];
-                        for (id, border) in borders.iter() {
-                            if borders_monitors.get(id).copied().unwrap_or_default() == monitor_idx
-                                && !container_and_floating_window_ids.contains(id)
-                            {
-                                border.destroy()?;
-                                to_remove.push(id.clone());
-                            }
-                        }
-
-                        for id in &to_remove {
-                            borders.remove(id);
-                        }
+                        // Remove any borders not associated with the focused workspace
+                        remove_borders(
+                            &mut borders,
+                            &mut windows_borders,
+                            &mut focus_state,
+                            &mut borders_monitors,
+                            monitor_idx,
+                            |id, _| !container_and_floating_window_ids.contains(id),
+                        )?;
 
                         'containers: for (idx, c) in ws.containers().iter().enumerate() {
+                            // In case this container is a stack we need to check it's
+                            // unfocused windows to remove any attached border
+                            let is_stack = c.windows().len() > 1;
+                            if is_stack {
+                                let focused_window_idx = c.focused_window_idx();
+                                let potential_stacked_border_handles = c
+                                    .windows()
+                                    .iter()
+                                    .enumerate()
+                                    .flat_map(|(i, w)| {
+                                        if i != focused_window_idx {
+                                            windows_borders.get(&w.hwnd).map(|b| b.hwnd)
+                                        } else {
+                                            None
+                                        }
+                                    })
+                                    .collect::<Vec<_>>();
+
+                                if !potential_stacked_border_handles.is_empty() {
+                                    tracing::debug!(
+                                        "purging stacked borders: {:?}",
+                                        potential_stacked_border_handles
+                                    );
+                                    remove_borders(
+                                        &mut borders,
+                                        &mut windows_borders,
+                                        &mut focus_state,
+                                        &mut borders_monitors,
+                                        monitor_idx,
+                                        |_, b| potential_stacked_border_handles.contains(&b.hwnd),
+                                    )?;
+                                }
+                            }
+
+                            let focused_window_hwnd =
+                                c.focused_window().map(|w| w.hwnd).unwrap_or_default();
+
                             // Get the border entry for this container from the map or create one
                             let mut new_border = false;
                             let border = match borders.entry(c.id().clone()) {
                                 Entry::Occupied(entry) => entry.into_mut(),
                                 Entry::Vacant(entry) => {
-                                    if let Ok(border) = Border::create(
-                                        c.id(),
-                                        c.focused_window().copied().unwrap_or_default().hwnd,
-                                    ) {
+                                    if let Ok(border) = Border::create(c.id(), focused_window_hwnd)
+                                    {
                                         new_border = true;
                                         entry.insert(border)
                                     } else {
@@ -479,9 +498,7 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
 
                             let new_focus_state = if idx != ws.focused_container_idx()
                                 || monitor_idx != focused_monitor_idx
-                                || c.focused_window()
-                                    .map(|w| w.hwnd != foreground_window)
-                                    .unwrap_or_default()
+                                || focused_window_hwnd != foreground_window
                             {
                                 WindowKind::Unfocused
                             } else if c.windows().len() > 1 {
@@ -491,23 +508,54 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                             };
                             border.window_kind = new_focus_state;
 
-                            // Update the focused state for all containers on this workspace
-                            {
-                                let mut focus_state = FOCUS_STATE.lock();
-                                last_focus_state = focus_state.insert(border.hwnd, new_focus_state);
-                            }
+                            last_focus_state = focus_state.get(&border.hwnd).copied();
 
-                            let reference_hwnd =
-                                c.focused_window().copied().unwrap_or_default().hwnd;
+                            // If this container's border was previously tracking a different
+                            // window, then we need to destroy that border and create a new one
+                            // tracking the correct window.
+                            if border.tracking_hwnd != focused_window_hwnd {
+                                // Create new border
+                                if let Ok(b) = Border::create(
+                                    c.id(),
+                                    c.focused_window().copied().unwrap_or_default().hwnd,
+                                ) {
+                                    // Destroy previously stacked border window and remove its hwnd
+                                    // and tracking_hwnd.
+                                    border.destroy()?;
+                                    focus_state.remove(&border.hwnd);
+                                    if let Some(previous) =
+                                        windows_borders.get(&border.tracking_hwnd)
+                                    {
+                                        // Only remove the border from `windows_borders` if it
+                                        // still is the same border, if it isn't then it means it
+                                        // was already updated by another border for that window
+                                        // and in that case we don't want to remove it.
+                                        if previous.hwnd == border.hwnd {
+                                            windows_borders.remove(&border.tracking_hwnd);
+                                        }
+                                    }
+
+                                    // Replace with new border
+                                    new_border = true;
+                                    *border = b;
+                                } else {
+                                    continue 'monitors;
+                                }
+                            }
 
                             // avoid getting into a thread restart loop if we try to look up
                             // rect info for a window that has been destroyed by the time
                             // we get here
-                            let rect = match WindowsApi::window_rect(reference_hwnd) {
+                            let rect = match WindowsApi::window_rect(focused_window_hwnd) {
                                 Ok(rect) => rect,
                                 Err(_) => {
-                                    let _ = border.destroy();
-                                    borders.remove(c.id());
+                                    remove_border(
+                                        c.id(),
+                                        &mut borders,
+                                        &mut windows_borders,
+                                        &mut focus_state,
+                                        &mut borders_monitors,
+                                    )?;
                                     continue 'containers;
                                 }
                             };
@@ -522,7 +570,7 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                             };
 
                             if new_border || should_invalidate {
-                                border.set_position(&rect, reference_hwnd)?;
+                                border.set_position(&rect, focused_window_hwnd)?;
                             }
 
                             if should_invalidate {
@@ -534,6 +582,7 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                                 c.focused_window().cloned().unwrap_or_default().hwnd,
                                 border.clone(),
                             );
+                            focus_state.insert(border.hwnd, new_focus_state);
                         }
 
                         {
@@ -562,11 +611,7 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                                 }
 
                                 border.window_kind = new_focus_state;
-                                {
-                                    let mut focus_state = FOCUS_STATE.lock();
-                                    last_focus_state =
-                                        focus_state.insert(border.hwnd, new_focus_state);
-                                }
+                                last_focus_state = focus_state.get(&border.hwnd).copied();
 
                                 let rect = WindowsApi::window_rect(window.hwnd)?;
 
@@ -589,6 +634,7 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
 
                                 borders_monitors.insert(window.hwnd.to_string(), monitor_idx);
                                 windows_borders.insert(window.hwnd, border.clone());
+                                focus_state.insert(border.hwnd, new_focus_state);
                             }
                         }
                     }
@@ -602,6 +648,52 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
         previous_notification = Some(notification);
         previous_layer = workspace_layer;
     }
+
+    Ok(())
+}
+
+/// Removes all borders from monitor with index `monitor_idx` filtered by
+/// `condition`. This condition is a function that will take a reference to
+/// the container id and the border and returns a bool, if true that border
+/// will be removed.
+fn remove_borders(
+    borders: &mut HashMap<String, Border>,
+    windows_borders: &mut HashMap<isize, Border>,
+    focus_state: &mut HashMap<isize, WindowKind>,
+    borders_monitors: &mut HashMap<String, usize>,
+    monitor_idx: usize,
+    condition: impl Fn(&String, &Border) -> bool,
+) -> color_eyre::Result<()> {
+    let mut to_remove = vec![];
+    for (id, border) in borders.iter() {
+        if borders_monitors.get(id).copied().unwrap_or_default() == monitor_idx
+            && condition(id, border)
+        {
+            to_remove.push(id.clone());
+        }
+    }
+
+    for id in &to_remove {
+        remove_border(id, borders, windows_borders, focus_state, borders_monitors)?;
+    }
+
+    Ok(())
+}
+
+/// Removes the border with `id` and all its related info from all maps
+fn remove_border(
+    id: &str,
+    borders: &mut HashMap<String, Border>,
+    windows_borders: &mut HashMap<isize, Border>,
+    focus_state: &mut HashMap<isize, WindowKind>,
+    borders_monitors: &mut HashMap<String, usize>,
+) -> color_eyre::Result<()> {
+    if let Some(removed_border) = borders.remove(id) {
+        removed_border.destroy()?;
+        windows_borders.remove(&removed_border.tracking_hwnd);
+        focus_state.remove(&removed_border.hwnd);
+    }
+    borders_monitors.remove(id);
 
     Ok(())
 }
