@@ -475,13 +475,11 @@ impl Border {
                             });
 
                             // Get window kind and color
-
                             (*border_pointer).window_kind = FOCUS_STATE
                                 .lock()
                                 .get(&(window.0 as isize))
                                 .copied()
                                 .unwrap_or(WindowKind::Unfocused);
-
                             let window_kind = (*border_pointer).window_kind;
                             if let Some(brush) = (*border_pointer).brushes.get(&window_kind) {
                                 render_target.BeginDraw();
