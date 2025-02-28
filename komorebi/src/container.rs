@@ -63,6 +63,17 @@ impl Container {
         }
     }
 
+    pub fn load_focused_window_ignore_borders(&mut self) {
+        let focused_idx = self.focused_window_idx();
+        for (i, window) in self.windows_mut().iter_mut().enumerate() {
+            if i == focused_idx {
+                window.restore_with_border(false);
+            } else {
+                window.hide_with_border(false);
+            }
+        }
+    }
+
     pub fn hwnd_from_exe(&self, exe: &str) -> Option<isize> {
         for window in self.windows() {
             if let Ok(window_exe) = window.exe() {

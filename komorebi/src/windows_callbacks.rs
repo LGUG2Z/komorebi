@@ -105,12 +105,16 @@ pub extern "system" fn win_event_hook(
         WinEvent::ObjectLocationChange | WinEvent::ObjectDestroy
     ) && !has_filtered_style(hwnd)
     {
-        let border_window = border_manager::window_border(hwnd.0 as isize);
+        let border_info = border_manager::window_border(hwnd.0 as isize);
 
-        if let Some(border) = border_window {
+        if let Some(border_info) = border_info {
             unsafe {
-                let _ =
-                    SendNotifyMessageW(border.hwnd(), event, WPARAM(0), LPARAM(hwnd.0 as isize));
+                let _ = SendNotifyMessageW(
+                    border_info.hwnd(),
+                    event,
+                    WPARAM(0),
+                    LPARAM(hwnd.0 as isize),
+                );
             }
         }
     }

@@ -2530,7 +2530,7 @@ impl WindowManager {
         let next_idx = direction.next_idx(current_idx, len);
 
         container.focus_window(next_idx);
-        container.load_focused_window();
+        container.load_focused_window_ignore_borders();
 
         self.update_focused_workspace(self.mouse_follows_focus, true)
     }
@@ -2563,7 +2563,7 @@ impl WindowManager {
         container.windows_mut().swap(current_idx, next_idx);
 
         container.focus_window(next_idx);
-        container.load_focused_window();
+        container.load_focused_window_ignore_borders();
 
         self.update_focused_workspace(self.mouse_follows_focus, true)
     }

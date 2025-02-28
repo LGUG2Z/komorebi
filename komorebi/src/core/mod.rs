@@ -291,13 +291,14 @@ pub enum BorderImplementation {
 }
 
 #[derive(
-    Copy, Clone, Debug, Serialize, Deserialize, Display, EnumString, ValueEnum, PartialEq, Eq, Hash,
+    Copy, Clone, Debug,Default, Serialize, Deserialize, Display, EnumString, ValueEnum, PartialEq, Eq, Hash,
 )]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub enum WindowKind {
     Single,
     Stack,
     Monocle,
+    #[default]
     Unfocused,
     Floating,
 }

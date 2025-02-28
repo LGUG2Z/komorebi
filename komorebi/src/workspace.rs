@@ -13,6 +13,7 @@ use getset::Setters;
 use serde::Deserialize;
 use serde::Serialize;
 
+use crate::border_manager;
 use crate::core::Axis;
 use crate::core::CustomLayout;
 use crate::core::CycleDirection;
@@ -846,6 +847,8 @@ impl Workspace {
     }
 
     pub fn remove_window(&mut self, hwnd: isize) -> Result<()> {
+        border_manager::delete_border(hwnd);
+
         if self.floating_windows().iter().any(|w| w.hwnd == hwnd) {
             self.floating_windows_mut().retain(|w| w.hwnd != hwnd);
             return Ok(());
