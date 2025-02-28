@@ -11,11 +11,11 @@ use interfaces::IServiceProvider;
 use std::ffi::c_void;
 
 use windows::Win32::Foundation::HWND;
+use windows::Win32::System::Com::CLSCTX_ALL;
+use windows::Win32::System::Com::COINIT_MULTITHREADED;
 use windows::Win32::System::Com::CoCreateInstance;
 use windows::Win32::System::Com::CoInitializeEx;
 use windows::Win32::System::Com::CoUninitialize;
-use windows::Win32::System::Com::CLSCTX_ALL;
-use windows::Win32::System::Com::COINIT_MULTITHREADED;
 use windows_core::Interface;
 
 struct ComInit();
@@ -64,7 +64,7 @@ fn get_iapplication_view_collection(provider: &IServiceProvider) -> IApplication
     })
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn SetCloak(hwnd: HWND, cloak_type: u32, flags: i32) {
     COM_INIT.with(|_| {
         let provider = get_iservice_provider();

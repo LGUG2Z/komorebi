@@ -1,9 +1,9 @@
 use std::sync::Arc;
 
 use parking_lot::Mutex;
+use winput::Action;
 use winput::message_loop;
 use winput::message_loop::Event;
-use winput::Action;
 
 use crate::core::FocusFollowsMouseImplementation;
 

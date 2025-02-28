@@ -1,6 +1,6 @@
+use crate::DEFAULT_PADDING;
 use crate::render::Grouping;
 use crate::widget::WidgetConfig;
-use crate::DEFAULT_PADDING;
 use eframe::egui::Pos2;
 use eframe::egui::TextBuffer;
 use eframe::egui::Vec2;
@@ -115,7 +115,9 @@ impl KomobarConfig {
         }
 
         if display {
-            println!("\nYour bar configuration file contains some options that have been renamed or deprecated:\n");
+            println!(
+                "\nYour bar configuration file contains some options that have been renamed or deprecated:\n"
+            );
             for (canonical, aliases) in map {
                 for alias in aliases {
                     if raw.contains(alias) {

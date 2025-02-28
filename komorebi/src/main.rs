@@ -10,27 +10,32 @@
 use std::env::temp_dir;
 use std::net::Shutdown;
 use std::path::PathBuf;
-use std::sync::atomic::Ordering;
 use std::sync::Arc;
+use std::sync::atomic::Ordering;
 #[cfg(feature = "deadlock_detection")]
 use std::time::Duration;
 
 use clap::Parser;
 use color_eyre::Result;
 use crossbeam_utils::Backoff;
-use komorebi::animation::AnimationEngine;
 use komorebi::animation::ANIMATION_ENABLED_GLOBAL;
 use komorebi::animation::ANIMATION_ENABLED_PER_ANIMATION;
+use komorebi::animation::AnimationEngine;
+use parking_lot::Mutex;
 #[cfg(feature = "deadlock_detection")]
 use parking_lot::deadlock;
-use parking_lot::Mutex;
 use sysinfo::Process;
 use sysinfo::ProcessesToUpdate;
 use tracing_appender::non_blocking::WorkerGuard;
-use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::EnvFilter;
+use tracing_subscriber::layer::SubscriberExt;
 use uds_windows::UnixStream;
 
+use komorebi::CUSTOM_FFM;
+use komorebi::DATA_DIR;
+use komorebi::HOME_DIR;
+use komorebi::INITIAL_CONFIGURATION_LOADED;
+use komorebi::SESSION_ID;
 use komorebi::border_manager;
 use komorebi::focus_manager;
 use komorebi::load_configuration;
@@ -49,23 +54,20 @@ use komorebi::window_manager::WindowManager;
 use komorebi::windows_api::WindowsApi;
 use komorebi::winevent_listener;
 use komorebi::workspace_reconciliator;
-use komorebi::CUSTOM_FFM;
-use komorebi::DATA_DIR;
-use komorebi::HOME_DIR;
-use komorebi::INITIAL_CONFIGURATION_LOADED;
-use komorebi::SESSION_ID;
 
 shadow_rs::shadow!(build);
 
 fn setup() -> Result<(WorkerGuard, WorkerGuard)> {
     if std::env::var("RUST_LIB_BACKTRACE").is_err() {
-        std::env::set_var("RUST_LIB_BACKTRACE", "1");
+        // TODO: Audit that the environment access only happens in single-threaded code.
+        unsafe { std::env::set_var("RUST_LIB_BACKTRACE", "1") };
     }
 
     color_eyre::install()?;
 
     if std::env::var("RUST_LOG").is_err() {
-        std::env::set_var("RUST_LOG", "info");
+        // TODO: Audit that the environment access only happens in single-threaded code.
+        unsafe { std::env::set_var("RUST_LOG", "info") };
     }
 
     let appender = tracing_appender::rolling::daily(std::env::temp_dir(), "komorebi_plaintext.log");
@@ -124,20 +126,22 @@ fn setup() -> Result<(WorkerGuard, WorkerGuard)> {
 #[tracing::instrument]
 fn detect_deadlocks() {
     // Create a background thread which checks for deadlocks every 10s
-    std::thread::spawn(move || loop {
-        tracing::info!("running deadlock detector");
-        std::thread::sleep(Duration::from_secs(5));
-        let deadlocks = deadlock::check_deadlock();
-        if deadlocks.is_empty() {
-            continue;
-        }
+    std::thread::spawn(move || {
+        loop {
+            tracing::info!("running deadlock detector");
+            std::thread::sleep(Duration::from_secs(5));
+            let deadlocks = deadlock::check_deadlock();
+            if deadlocks.is_empty() {
+                continue;
+            }
 
-        tracing::error!("{} deadlocks detected", deadlocks.len());
-        for (i, threads) in deadlocks.iter().enumerate() {
-            tracing::error!("deadlock #{}", i);
-            for t in threads {
-                tracing::error!("thread id: {:#?}", t.thread_id());
-                tracing::error!("{:#?}", t.backtrace());
+            tracing::error!("{} deadlocks detected", deadlocks.len());
+            for (i, threads) in deadlocks.iter().enumerate() {
+                tracing::error!("deadlock #{}", i);
+                for t in threads {
+                    tracing::error!("thread id: {:#?}", t.thread_id());
+                    tracing::error!("{:#?}", t.backtrace());
+                }
             }
         }
     });
@@ -192,7 +196,9 @@ fn main() -> Result<()> {
         }
 
         if len > 1 {
-            tracing::error!("komorebi.exe is already running, please exit the existing process before starting a new one");
+            tracing::error!(
+                "komorebi.exe is already running, please exit the existing process before starting a new one"
+            );
             std::process::exit(1);
         }
     }

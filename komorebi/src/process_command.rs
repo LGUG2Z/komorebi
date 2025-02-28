@@ -8,26 +8,22 @@ use std::net::TcpListener;
 use std::net::TcpStream;
 use std::num::NonZeroUsize;
 use std::str::FromStr;
-use std::sync::atomic::Ordering;
 use std::sync::Arc;
+use std::sync::atomic::Ordering;
 use std::time::Duration;
 
-use color_eyre::eyre::anyhow;
 use color_eyre::Result;
+use color_eyre::eyre::anyhow;
 use miow::pipe::connect;
 use net2::TcpStreamExt;
 use parking_lot::Mutex;
-use schemars::gen::SchemaSettings;
+use schemars::r#gen::SchemaSettings;
 use schemars::schema_for;
 use uds_windows::UnixStream;
 
 use crate::animation::ANIMATION_DURATION_PER_ANIMATION;
 use crate::animation::ANIMATION_ENABLED_PER_ANIMATION;
 use crate::animation::ANIMATION_STYLE_PER_ANIMATION;
-use crate::core::config_generation::ApplicationConfiguration;
-use crate::core::config_generation::IdWithIdentifier;
-use crate::core::config_generation::MatchingRule;
-use crate::core::config_generation::MatchingStrategy;
 use crate::core::ApplicationIdentifier;
 use crate::core::Axis;
 use crate::core::BorderImplementation;
@@ -41,7 +37,34 @@ use crate::core::SocketMessage;
 use crate::core::StateQuery;
 use crate::core::WindowContainerBehaviour;
 use crate::core::WindowKind;
+use crate::core::config_generation::ApplicationConfiguration;
+use crate::core::config_generation::IdWithIdentifier;
+use crate::core::config_generation::MatchingRule;
+use crate::core::config_generation::MatchingStrategy;
 
+use crate::CUSTOM_FFM;
+use crate::DATA_DIR;
+use crate::DISPLAY_INDEX_PREFERENCES;
+use crate::GlobalState;
+use crate::HIDING_BEHAVIOUR;
+use crate::IGNORE_IDENTIFIERS;
+use crate::INITIAL_CONFIGURATION_LOADED;
+use crate::LAYERED_WHITELIST;
+use crate::MANAGE_IDENTIFIERS;
+use crate::MONITOR_INDEX_PREFERENCES;
+use crate::NO_TITLEBAR;
+use crate::Notification;
+use crate::NotificationEvent;
+use crate::OBJECT_NAME_CHANGE_ON_LAUNCH;
+use crate::REMOVE_TITLEBARS;
+use crate::SUBSCRIPTION_PIPES;
+use crate::SUBSCRIPTION_SOCKET_OPTIONS;
+use crate::SUBSCRIPTION_SOCKETS;
+use crate::State;
+use crate::TCP_CONNECTIONS;
+use crate::TRAY_AND_MULTI_WINDOW_IDENTIFIERS;
+use crate::WINDOWS_11;
+use crate::WORKSPACE_MATCHING_RULES;
 use crate::animation::ANIMATION_DURATION_GLOBAL;
 use crate::animation::ANIMATION_ENABLED_GLOBAL;
 use crate::animation::ANIMATION_FPS;
@@ -68,29 +91,6 @@ use crate::windows_api::WindowsApi;
 use crate::winevent_listener;
 use crate::workspace::WorkspaceLayer;
 use crate::workspace::WorkspaceWindowLocation;
-use crate::GlobalState;
-use crate::Notification;
-use crate::NotificationEvent;
-use crate::State;
-use crate::CUSTOM_FFM;
-use crate::DATA_DIR;
-use crate::DISPLAY_INDEX_PREFERENCES;
-use crate::HIDING_BEHAVIOUR;
-use crate::IGNORE_IDENTIFIERS;
-use crate::INITIAL_CONFIGURATION_LOADED;
-use crate::LAYERED_WHITELIST;
-use crate::MANAGE_IDENTIFIERS;
-use crate::MONITOR_INDEX_PREFERENCES;
-use crate::NO_TITLEBAR;
-use crate::OBJECT_NAME_CHANGE_ON_LAUNCH;
-use crate::REMOVE_TITLEBARS;
-use crate::SUBSCRIPTION_PIPES;
-use crate::SUBSCRIPTION_SOCKETS;
-use crate::SUBSCRIPTION_SOCKET_OPTIONS;
-use crate::TCP_CONNECTIONS;
-use crate::TRAY_AND_MULTI_WINDOW_IDENTIFIERS;
-use crate::WINDOWS_11;
-use crate::WORKSPACE_MATCHING_RULES;
 use stackbar_manager::STACKBAR_FOCUSED_TEXT_COLOUR;
 use stackbar_manager::STACKBAR_LABEL;
 use stackbar_manager::STACKBAR_MODE;
@@ -101,42 +101,44 @@ use stackbar_manager::STACKBAR_UNFOCUSED_TEXT_COLOUR;
 
 #[tracing::instrument]
 pub fn listen_for_commands(wm: Arc<Mutex<WindowManager>>) {
-    std::thread::spawn(move || loop {
-        let wm = wm.clone();
+    std::thread::spawn(move || {
+        loop {
+            let wm = wm.clone();
 
-        let _ = std::thread::spawn(move || {
-            let listener = wm
-                .lock()
-                .command_listener
-                .try_clone()
-                .expect("could not clone unix listener");
+            let _ = std::thread::spawn(move || {
+                let listener = wm
+                    .lock()
+                    .command_listener
+                    .try_clone()
+                    .expect("could not clone unix listener");
 
-            tracing::info!("listening on komorebi.sock");
-            for client in listener.incoming() {
-                match client {
-                    Ok(stream) => {
-                        let wm_clone = wm.clone();
-                        std::thread::spawn(move || {
-                            match stream.set_read_timeout(Some(Duration::from_secs(1))) {
-                                Ok(()) => {}
-                                Err(error) => tracing::error!("{}", error),
-                            }
-                            match read_commands_uds(&wm_clone, stream) {
-                                Ok(()) => {}
-                                Err(error) => tracing::error!("{}", error),
-                            }
-                        });
-                    }
-                    Err(error) => {
-                        tracing::error!("{}", error);
-                        break;
+                tracing::info!("listening on komorebi.sock");
+                for client in listener.incoming() {
+                    match client {
+                        Ok(stream) => {
+                            let wm_clone = wm.clone();
+                            std::thread::spawn(move || {
+                                match stream.set_read_timeout(Some(Duration::from_secs(1))) {
+                                    Ok(()) => {}
+                                    Err(error) => tracing::error!("{}", error),
+                                }
+                                match read_commands_uds(&wm_clone, stream) {
+                                    Ok(()) => {}
+                                    Err(error) => tracing::error!("{}", error),
+                                }
+                            });
+                        }
+                        Err(error) => {
+                            tracing::error!("{}", error);
+                            break;
+                        }
                     }
                 }
-            }
-        })
-        .join();
+            })
+            .join();
 
-        tracing::error!("restarting failed thread");
+            tracing::error!("restarting failed thread");
+        }
     });
 }
 
@@ -1214,7 +1216,7 @@ impl WindowManager {
                 let container_len = workspace.containers().len();
                 let no_layout_rules = workspace.layout_rules().is_empty();
 
-                if let Layout::Custom(ref mut custom) = workspace.layout_mut() {
+                if let Layout::Custom(custom) = workspace.layout_mut() {
                     if matches!(axis, Axis::Horizontal) {
                         #[allow(clippy::cast_precision_loss)]
                         let percentage = custom
@@ -1376,7 +1378,9 @@ impl WindowManager {
                                     self.focus_follows_mouse = None;
                                 }
                                 Some(FocusFollowsMouseImplementation::Windows) => {
-                                    tracing::warn!("ignoring command that could mix different focus follows mouse implementations");
+                                    tracing::warn!(
+                                        "ignoring command that could mix different focus follows mouse implementations"
+                                    );
                                 }
                             }
                         }
@@ -1400,7 +1404,9 @@ impl WindowManager {
                                     self.focus_follows_mouse = None;
                                 }
                                 Some(FocusFollowsMouseImplementation::Komorebi) => {
-                                    tracing::warn!("ignoring command that could mix different focus follows mouse implementations");
+                                    tracing::warn!(
+                                        "ignoring command that could mix different focus follows mouse implementations"
+                                    );
                                 }
                             }
                         }
@@ -1642,33 +1648,41 @@ impl WindowManager {
             }
             SocketMessage::ToggleWorkspaceWindowContainerBehaviour => {
                 let current_global_behaviour = self.window_management_behaviour.current_behaviour;
-                if let Some(behaviour) = self
+                match self
                     .focused_workspace_mut()?
                     .window_container_behaviour_mut()
                 {
-                    match behaviour {
+                    Some(behaviour) => match behaviour {
                         WindowContainerBehaviour::Create => {
                             *behaviour = WindowContainerBehaviour::Append
                         }
                         WindowContainerBehaviour::Append => {
                             *behaviour = WindowContainerBehaviour::Create
                         }
+                    },
+                    _ => {
+                        self.focused_workspace_mut()?
+                            .set_window_container_behaviour(Some(match current_global_behaviour {
+                                WindowContainerBehaviour::Create => {
+                                    WindowContainerBehaviour::Append
+                                }
+                                WindowContainerBehaviour::Append => {
+                                    WindowContainerBehaviour::Create
+                                }
+                            }));
                     }
-                } else {
-                    self.focused_workspace_mut()?
-                        .set_window_container_behaviour(Some(match current_global_behaviour {
-                            WindowContainerBehaviour::Create => WindowContainerBehaviour::Append,
-                            WindowContainerBehaviour::Append => WindowContainerBehaviour::Create,
-                        }));
                 };
             }
             SocketMessage::ToggleWorkspaceFloatOverride => {
                 let current_global_override = self.window_management_behaviour.float_override;
-                if let Some(float_override) = self.focused_workspace_mut()?.float_override_mut() {
-                    *float_override = !*float_override;
-                } else {
-                    self.focused_workspace_mut()?
-                        .set_float_override(Some(!current_global_override));
+                match self.focused_workspace_mut()?.float_override_mut() {
+                    Some(float_override) => {
+                        *float_override = !*float_override;
+                    }
+                    _ => {
+                        self.focused_workspace_mut()?
+                            .set_float_override(Some(!current_global_override));
+                    }
                 };
             }
             SocketMessage::WindowHidingBehaviour(behaviour) => {
@@ -1852,8 +1866,8 @@ impl WindowManager {
                     s.inline_subschemas = true;
                 });
 
-                let gen = settings.into_generator();
-                let socket_message = gen.into_root_schema_for::<StaticConfig>();
+                let r#gen = settings.into_generator();
+                let socket_message = r#gen.into_root_schema_for::<StaticConfig>();
                 let schema = serde_json::to_string_pretty(&socket_message)?;
 
                 reply.write_all(schema.as_bytes())?;

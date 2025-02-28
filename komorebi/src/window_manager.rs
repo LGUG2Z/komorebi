@@ -8,16 +8,16 @@ use std::net::Shutdown;
 use std::num::NonZeroUsize;
 use std::path::Path;
 use std::path::PathBuf;
-use std::sync::atomic::Ordering;
 use std::sync::Arc;
+use std::sync::atomic::Ordering;
 
+use color_eyre::Result;
 use color_eyre::eyre::anyhow;
 use color_eyre::eyre::bail;
-use color_eyre::Result;
 use crossbeam_channel::Receiver;
-use hotwatch::notify::ErrorKind as NotifyErrorKind;
 use hotwatch::EventKind;
 use hotwatch::Hotwatch;
+use hotwatch::notify::ErrorKind as NotifyErrorKind;
 use parking_lot::Mutex;
 use schemars::JsonSchema;
 use serde::Deserialize;
@@ -25,11 +25,9 @@ use serde::Serialize;
 use uds_windows::UnixListener;
 use uds_windows::UnixStream;
 
-use crate::animation::AnimationEngine;
 use crate::animation::ANIMATION_ENABLED_GLOBAL;
 use crate::animation::ANIMATION_ENABLED_PER_ANIMATION;
-use crate::core::config_generation::MatchingRule;
-use crate::core::custom_layout::CustomLayout;
+use crate::animation::AnimationEngine;
 use crate::core::Arrangement;
 use crate::core::Axis;
 use crate::core::BorderImplementation;
@@ -47,7 +45,30 @@ use crate::core::Sizing;
 use crate::core::StackbarLabel;
 use crate::core::WindowContainerBehaviour;
 use crate::core::WindowManagementBehaviour;
+use crate::core::config_generation::MatchingRule;
+use crate::core::custom_layout::CustomLayout;
 
+use crate::BorderColours;
+use crate::CUSTOM_FFM;
+use crate::Colour;
+use crate::CrossBoundaryBehaviour;
+use crate::DATA_DIR;
+use crate::DISPLAY_INDEX_PREFERENCES;
+use crate::HIDING_BEHAVIOUR;
+use crate::HOME_DIR;
+use crate::IGNORE_IDENTIFIERS;
+use crate::LAYERED_WHITELIST;
+use crate::MANAGE_IDENTIFIERS;
+use crate::MONITOR_INDEX_PREFERENCES;
+use crate::NO_TITLEBAR;
+use crate::OBJECT_NAME_CHANGE_ON_LAUNCH;
+use crate::REGEX_IDENTIFIERS;
+use crate::REMOVE_TITLEBARS;
+use crate::Rgb;
+use crate::SUBSCRIPTION_SOCKETS;
+use crate::TRANSPARENCY_BLACKLIST;
+use crate::TRAY_AND_MULTI_WINDOW_IDENTIFIERS;
+use crate::WORKSPACE_MATCHING_RULES;
 use crate::border_manager;
 use crate::border_manager::BORDER_OFFSET;
 use crate::border_manager::BORDER_WIDTH;
@@ -78,27 +99,6 @@ use crate::windows_api::WindowsApi;
 use crate::winevent_listener;
 use crate::workspace::Workspace;
 use crate::workspace::WorkspaceLayer;
-use crate::BorderColours;
-use crate::Colour;
-use crate::CrossBoundaryBehaviour;
-use crate::Rgb;
-use crate::CUSTOM_FFM;
-use crate::DATA_DIR;
-use crate::DISPLAY_INDEX_PREFERENCES;
-use crate::HIDING_BEHAVIOUR;
-use crate::HOME_DIR;
-use crate::IGNORE_IDENTIFIERS;
-use crate::LAYERED_WHITELIST;
-use crate::MANAGE_IDENTIFIERS;
-use crate::MONITOR_INDEX_PREFERENCES;
-use crate::NO_TITLEBAR;
-use crate::OBJECT_NAME_CHANGE_ON_LAUNCH;
-use crate::REGEX_IDENTIFIERS;
-use crate::REMOVE_TITLEBARS;
-use crate::SUBSCRIPTION_SOCKETS;
-use crate::TRANSPARENCY_BLACKLIST;
-use crate::TRAY_AND_MULTI_WINDOW_IDENTIFIERS;
-use crate::WORKSPACE_MATCHING_RULES;
 
 #[derive(Debug)]
 pub struct WindowManager {
@@ -1317,32 +1317,41 @@ impl WindowManager {
             .update_focused_workspace(offset)?;
 
         if follow_focus {
-            if let Some(window) = self.focused_workspace()?.maximized_window() {
-                if trigger_focus {
-                    window.focus(self.mouse_follows_focus)?;
-                }
-            } else if let Some(container) = self.focused_workspace()?.monocle_container() {
-                if let Some(window) = container.focused_window() {
+            match self.focused_workspace()?.maximized_window() {
+                Some(window) => {
                     if trigger_focus {
                         window.focus(self.mouse_follows_focus)?;
                     }
                 }
-            } else if let Ok(window) = self.focused_window_mut() {
-                if trigger_focus {
-                    window.focus(self.mouse_follows_focus)?;
-                }
-            } else {
-                let desktop_window = Window::from(WindowsApi::desktop_window()?);
-
-                let rect = self.focused_monitor_size()?;
-                WindowsApi::center_cursor_in_rect(&rect)?;
-
-                match WindowsApi::raise_and_focus_window(desktop_window.hwnd) {
-                    Ok(()) => {}
-                    Err(error) => {
-                        tracing::warn!("{} {}:{}", error, file!(), line!());
+                _ => match self.focused_workspace()?.monocle_container() {
+                    Some(container) => {
+                        if let Some(window) = container.focused_window() {
+                            if trigger_focus {
+                                window.focus(self.mouse_follows_focus)?;
+                            }
+                        }
                     }
-                }
+                    _ => match self.focused_window_mut() {
+                        Ok(window) => {
+                            if trigger_focus {
+                                window.focus(self.mouse_follows_focus)?;
+                            }
+                        }
+                        _ => {
+                            let desktop_window = Window::from(WindowsApi::desktop_window()?);
+
+                            let rect = self.focused_monitor_size()?;
+                            WindowsApi::center_cursor_in_rect(&rect)?;
+
+                            match WindowsApi::raise_and_focus_window(desktop_window.hwnd) {
+                                Ok(()) => {}
+                                Err(error) => {
+                                    tracing::warn!("{} {}:{}", error, file!(), line!());
+                                }
+                            }
+                        }
+                    },
+                },
             }
         } else {
             if self.focused_workspace()?.is_empty() {
@@ -2511,12 +2520,10 @@ impl WindowManager {
 
         tracing::info!("cycling container windows");
 
-        let container =
-            if let Some(container) = self.focused_workspace_mut()?.monocle_container_mut() {
-                container
-            } else {
-                self.focused_container_mut()?
-            };
+        let container = match self.focused_workspace_mut()?.monocle_container_mut() {
+            Some(container) => container,
+            _ => self.focused_container_mut()?,
+        };
 
         let len = NonZeroUsize::new(container.windows().len())
             .ok_or_else(|| anyhow!("there must be at least one window in a container"))?;
@@ -2543,12 +2550,10 @@ impl WindowManager {
 
         tracing::info!("cycling container window index");
 
-        let container =
-            if let Some(container) = self.focused_workspace_mut()?.monocle_container_mut() {
-                container
-            } else {
-                self.focused_container_mut()?
-            };
+        let container = match self.focused_workspace_mut()?.monocle_container_mut() {
+            Some(container) => container,
+            _ => self.focused_container_mut()?,
+        };
 
         let len = NonZeroUsize::new(container.windows().len())
             .ok_or_else(|| anyhow!("there must be at least one window in a container"))?;
@@ -2573,12 +2578,10 @@ impl WindowManager {
 
         tracing::info!("focusing container window at index {idx}");
 
-        let container =
-            if let Some(container) = self.focused_workspace_mut()?.monocle_container_mut() {
-                container
-            } else {
-                self.focused_container_mut()?
-            };
+        let container = match self.focused_workspace_mut()?.monocle_container_mut() {
+            Some(container) => container,
+            _ => self.focused_container_mut()?,
+        };
 
         let len = NonZeroUsize::new(container.windows().len())
             .ok_or_else(|| anyhow!("there must be at least one window in a container"))?;

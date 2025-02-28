@@ -1,7 +1,7 @@
 #![deny(clippy::unwrap_used, clippy::expect_used)]
 
-use crate::border_manager;
 use crate::WindowManager;
+use crate::border_manager;
 use crossbeam_channel::Receiver;
 use crossbeam_channel::Sender;
 use crossbeam_utils::atomic::AtomicCell;
@@ -51,16 +51,18 @@ pub fn send_notification(monitor_idx: usize, workspace_idx: usize) {
 }
 
 pub fn listen_for_notifications(wm: Arc<Mutex<WindowManager>>) {
-    std::thread::spawn(move || loop {
-        match handle_notifications(wm.clone()) {
-            Ok(()) => {
-                tracing::warn!("restarting finished thread");
-            }
-            Err(error) => {
-                if cfg!(debug_assertions) {
-                    tracing::error!("restarting failed thread: {:?}", error)
-                } else {
-                    tracing::error!("restarting failed thread: {}", error)
+    std::thread::spawn(move || {
+        loop {
+            match handle_notifications(wm.clone()) {
+                Ok(()) => {
+                    tracing::warn!("restarting finished thread");
+                }
+                Err(error) => {
+                    if cfg!(debug_assertions) {
+                        tracing::error!("restarting failed thread: {:?}", error)
+                    } else {
+                        tracing::error!("restarting failed thread: {}", error)
+                    }
                 }
             }
         }

@@ -1,3 +1,6 @@
+use crate::ICON_CACHE;
+use crate::MAX_LABEL_WIDTH;
+use crate::MONITOR_INDEX;
 use crate::bar::apply_theme;
 use crate::config::DisplayFormat;
 use crate::config::KomobarTheme;
@@ -8,10 +11,6 @@ use crate::render::RenderConfig;
 use crate::selected_frame::SelectableFrame;
 use crate::ui::CustomUi;
 use crate::widget::BarWidget;
-use crate::ICON_CACHE;
-use crate::MAX_LABEL_WIDTH;
-use crate::MONITOR_INDEX;
-use eframe::egui::vec2;
 use eframe::egui::Color32;
 use eframe::egui::ColorImage;
 use eframe::egui::Context;
@@ -28,6 +27,7 @@ use eframe::egui::TextureHandle;
 use eframe::egui::TextureOptions;
 use eframe::egui::Ui;
 use eframe::egui::Vec2;
+use eframe::egui::vec2;
 use image::RgbaImage;
 use komorebi_client::Container;
 use komorebi_client::NotificationEvent;
@@ -599,9 +599,13 @@ impl KomorebiNotificationState {
                                 grouping,
                                 render_config,
                             );
-                            tracing::info!("removed theme from updated komorebi.json and applied default theme");
+                            tracing::info!(
+                                "removed theme from updated komorebi.json and applied default theme"
+                            );
                         } else {
-                            tracing::warn!("theme was removed from updated komorebi.json but there was no default theme to apply");
+                            tracing::warn!(
+                                "theme was removed from updated komorebi.json but there was no default theme to apply"
+                            );
                         }
                     }
                 }

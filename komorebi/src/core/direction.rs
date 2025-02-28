@@ -1,9 +1,9 @@
+use super::DefaultLayout;
+use super::OperationDirection;
 use super::custom_layout::Column;
 use super::custom_layout::ColumnSplit;
 use super::custom_layout::ColumnSplitWithCapacity;
 use super::custom_layout::CustomLayout;
-use super::DefaultLayout;
-use super::OperationDirection;
 
 pub trait Direction {
     fn index_in_direction(

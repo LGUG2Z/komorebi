@@ -1,10 +1,10 @@
-use std::sync::atomic::Ordering;
 use std::sync::Arc;
+use std::sync::atomic::Ordering;
 use std::time::Duration;
 use std::time::Instant;
 
-use color_eyre::eyre::anyhow;
 use color_eyre::Result;
+use color_eyre::eyre::anyhow;
 use crossbeam_utils::atomic::AtomicConsume;
 use parking_lot::Mutex;
 
@@ -13,6 +13,13 @@ use crate::core::Rect;
 use crate::core::Sizing;
 use crate::core::WindowContainerBehaviour;
 
+use crate::FLOATING_APPLICATIONS;
+use crate::HIDDEN_HWNDS;
+use crate::Notification;
+use crate::NotificationEvent;
+use crate::REGEX_IDENTIFIERS;
+use crate::State;
+use crate::TRAY_AND_MULTI_WINDOW_IDENTIFIERS;
 use crate::border_manager;
 use crate::border_manager::BORDER_OFFSET;
 use crate::border_manager::BORDER_WIDTH;
@@ -20,8 +27,8 @@ use crate::current_virtual_desktop;
 use crate::notify_subscribers;
 use crate::stackbar_manager;
 use crate::transparency_manager;
-use crate::window::should_act;
 use crate::window::RuleDebug;
+use crate::window::should_act;
 use crate::window_manager::WindowManager;
 use crate::window_manager_event::WindowManagerEvent;
 use crate::windows_api::WindowsApi;
@@ -30,13 +37,6 @@ use crate::workspace::WorkspaceLayer;
 use crate::workspace_reconciliator;
 use crate::workspace_reconciliator::ALT_TAB_HWND;
 use crate::workspace_reconciliator::ALT_TAB_HWND_INSTANT;
-use crate::Notification;
-use crate::NotificationEvent;
-use crate::State;
-use crate::FLOATING_APPLICATIONS;
-use crate::HIDDEN_HWNDS;
-use crate::REGEX_IDENTIFIERS;
-use crate::TRAY_AND_MULTI_WINDOW_IDENTIFIERS;
 
 #[tracing::instrument]
 pub fn listen_for_events(wm: Arc<Mutex<WindowManager>>) {
@@ -661,7 +661,7 @@ impl WindowManager {
                         let mut ops = vec![];
 
                         macro_rules! resize_op {
-                            ($coordinate:expr, $comparator:tt, $direction:expr) => {{
+                            ($coordinate:expr_2021, $comparator:tt, $direction:expr_2021) => {{
                                 let adjusted = $coordinate * 2;
                                 let sizing = if adjusted $comparator 0 {
                                     Sizing::Decrease

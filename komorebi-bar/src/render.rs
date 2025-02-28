@@ -14,9 +14,9 @@ use eframe::egui::Ui;
 use schemars::JsonSchema;
 use serde::Deserialize;
 use serde::Serialize;
+use std::sync::Arc;
 use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering;
-use std::sync::Arc;
 
 static SHOW_KOMOREBI_LAYOUT_OPTIONS: AtomicUsize = AtomicUsize::new(0);
 

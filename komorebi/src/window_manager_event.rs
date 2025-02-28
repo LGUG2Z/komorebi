@@ -5,12 +5,12 @@ use schemars::JsonSchema;
 use serde::Deserialize;
 use serde::Serialize;
 
-use crate::window::should_act;
-use crate::window::Window;
-use crate::winevent::WinEvent;
 use crate::OBJECT_NAME_CHANGE_ON_LAUNCH;
 use crate::OBJECT_NAME_CHANGE_TITLE_IGNORE_LIST;
 use crate::REGEX_IDENTIFIERS;
+use crate::window::Window;
+use crate::window::should_act;
+use crate::winevent::WinEvent;
 
 #[derive(Debug, Copy, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(tag = "type", content = "content")]

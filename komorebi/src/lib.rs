@@ -40,12 +40,12 @@ use std::io::Write;
 use std::net::TcpStream;
 use std::path::PathBuf;
 use std::process::Command;
+use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
 use std::sync::atomic::AtomicI32;
 use std::sync::atomic::AtomicU32;
 use std::sync::atomic::AtomicU64;
 use std::sync::atomic::Ordering;
-use std::sync::Arc;
 
 pub use colour::*;
 pub use core::*;
@@ -71,8 +71,8 @@ use serde::Deserialize;
 use serde::Serialize;
 use uds_windows::UnixStream;
 use which::which;
-use winreg::enums::HKEY_CURRENT_USER;
 use winreg::RegKey;
+use winreg::enums::HKEY_CURRENT_USER;
 
 lazy_static! {
     static ref HIDDEN_HWNDS: Arc<Mutex<Vec<isize>>> = Arc::new(Mutex::new(vec![]));

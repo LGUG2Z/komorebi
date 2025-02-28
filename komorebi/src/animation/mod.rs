@@ -4,9 +4,9 @@ use crate::core::animation::AnimationStyle;
 use lazy_static::lazy_static;
 use prefix::AnimationPrefix;
 use std::collections::HashMap;
+use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
 use std::sync::atomic::AtomicU64;
-use std::sync::Arc;
 
 use parking_lot::Mutex;
 

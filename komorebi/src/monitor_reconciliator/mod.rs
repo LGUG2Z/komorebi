@@ -1,5 +1,11 @@
 #![deny(clippy::unwrap_used, clippy::expect_used)]
 
+use crate::Notification;
+use crate::NotificationEvent;
+use crate::State;
+use crate::WORKSPACE_MATCHING_RULES;
+use crate::WindowManager;
+use crate::WindowsApi;
 use crate::border_manager;
 use crate::config_generation::WorkspaceMatchingRule;
 use crate::core::Rect;
@@ -7,12 +13,6 @@ use crate::monitor;
 use crate::monitor::Monitor;
 use crate::monitor_reconciliator::hidden::Hidden;
 use crate::notify_subscribers;
-use crate::Notification;
-use crate::NotificationEvent;
-use crate::State;
-use crate::WindowManager;
-use crate::WindowsApi;
-use crate::WORKSPACE_MATCHING_RULES;
 use crossbeam_channel::Receiver;
 use crossbeam_channel::Sender;
 use crossbeam_utils::atomic::AtomicConsume;
@@ -21,10 +21,10 @@ use schemars::JsonSchema;
 use serde::Deserialize;
 use serde::Serialize;
 use std::collections::HashMap;
-use std::sync::atomic::AtomicBool;
-use std::sync::atomic::Ordering;
 use std::sync::Arc;
 use std::sync::OnceLock;
+use std::sync::atomic::AtomicBool;
+use std::sync::atomic::Ordering;
 
 pub mod hidden;
 
@@ -112,16 +112,18 @@ pub fn listen_for_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Re
 
     tracing::info!("created hidden window to listen for monitor-related events");
 
-    std::thread::spawn(move || loop {
-        match handle_notifications(wm.clone()) {
-            Ok(()) => {
-                tracing::warn!("restarting finished thread");
-            }
-            Err(error) => {
-                if cfg!(debug_assertions) {
-                    tracing::error!("restarting failed thread: {:?}", error)
-                } else {
-                    tracing::error!("restarting failed thread: {}", error)
+    std::thread::spawn(move || {
+        loop {
+            match handle_notifications(wm.clone()) {
+                Ok(()) => {
+                    tracing::warn!("restarting finished thread");
+                }
+                Err(error) => {
+                    if cfg!(debug_assertions) {
+                        tracing::error!("restarting failed thread: {:?}", error)
+                    } else {
+                        tracing::error!("restarting failed thread: {}", error)
+                    }
                 }
             }
         }
@@ -461,7 +463,9 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                                 cache_hit = true;
                                 cached_id = id.clone();
 
-                                tracing::info!("found monitor and workspace configuration for {id} in the monitor cache, applying");
+                                tracing::info!(
+                                    "found monitor and workspace configuration for {id} in the monitor cache, applying"
+                                );
 
                                 // If it does, update the cached monitor info with the new one and
                                 // load the cached monitor removing any window that has since been

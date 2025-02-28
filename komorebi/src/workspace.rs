@@ -4,8 +4,8 @@ use std::fmt::Formatter;
 use std::num::NonZeroUsize;
 use std::sync::atomic::Ordering;
 
-use color_eyre::eyre::anyhow;
 use color_eyre::Result;
+use color_eyre::eyre::anyhow;
 use getset::CopyGetters;
 use getset::Getters;
 use getset::MutGetters;
@@ -22,6 +22,13 @@ use crate::core::Layout;
 use crate::core::OperationDirection;
 use crate::core::Rect;
 
+use crate::DEFAULT_CONTAINER_PADDING;
+use crate::DEFAULT_WORKSPACE_PADDING;
+use crate::INITIAL_CONFIGURATION_LOADED;
+use crate::NO_TITLEBAR;
+use crate::REGEX_IDENTIFIERS;
+use crate::REMOVE_TITLEBARS;
+use crate::WindowContainerBehaviour;
 use crate::border_manager::BORDER_OFFSET;
 use crate::border_manager::BORDER_WIDTH;
 use crate::container::Container;
@@ -33,13 +40,6 @@ use crate::static_config::WorkspaceConfig;
 use crate::window::Window;
 use crate::window::WindowDetails;
 use crate::windows_api::WindowsApi;
-use crate::WindowContainerBehaviour;
-use crate::DEFAULT_CONTAINER_PADDING;
-use crate::DEFAULT_WORKSPACE_PADDING;
-use crate::INITIAL_CONFIGURATION_LOADED;
-use crate::NO_TITLEBAR;
-use crate::REGEX_IDENTIFIERS;
-use crate::REMOVE_TITLEBARS;
 
 #[allow(clippy::struct_field_names)]
 #[derive(

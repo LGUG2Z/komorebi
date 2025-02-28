@@ -1,7 +1,6 @@
 use std::sync::mpsc;
 use std::time::Duration;
 
-use windows::core::PCWSTR;
 use windows::Win32::Devices::Display::GUID_DEVINTERFACE_DISPLAY_ADAPTER;
 use windows::Win32::Devices::Display::GUID_DEVINTERFACE_MONITOR;
 use windows::Win32::Devices::Display::GUID_DEVINTERFACE_VIDEO_OUTPUT_ARRIVAL;
@@ -11,10 +10,6 @@ use windows::Win32::Foundation::LRESULT;
 use windows::Win32::Foundation::WPARAM;
 use windows::Win32::System::Power::POWERBROADCAST_SETTING;
 use windows::Win32::System::SystemServices::GUID_LIDSWITCH_STATE_CHANGE;
-use windows::Win32::UI::WindowsAndMessaging::DefWindowProcW;
-use windows::Win32::UI::WindowsAndMessaging::DispatchMessageW;
-use windows::Win32::UI::WindowsAndMessaging::GetMessageW;
-use windows::Win32::UI::WindowsAndMessaging::TranslateMessage;
 use windows::Win32::UI::WindowsAndMessaging::CS_HREDRAW;
 use windows::Win32::UI::WindowsAndMessaging::CS_VREDRAW;
 use windows::Win32::UI::WindowsAndMessaging::DBT_CONFIGCHANGED;
@@ -23,6 +18,9 @@ use windows::Win32::UI::WindowsAndMessaging::DBT_DEVICEREMOVECOMPLETE;
 use windows::Win32::UI::WindowsAndMessaging::DBT_DEVNODES_CHANGED;
 use windows::Win32::UI::WindowsAndMessaging::DBT_DEVTYP_DEVICEINTERFACE;
 use windows::Win32::UI::WindowsAndMessaging::DEV_BROADCAST_DEVICEINTERFACE_W;
+use windows::Win32::UI::WindowsAndMessaging::DefWindowProcW;
+use windows::Win32::UI::WindowsAndMessaging::DispatchMessageW;
+use windows::Win32::UI::WindowsAndMessaging::GetMessageW;
 use windows::Win32::UI::WindowsAndMessaging::MSG;
 use windows::Win32::UI::WindowsAndMessaging::PBT_APMRESUMEAUTOMATIC;
 use windows::Win32::UI::WindowsAndMessaging::PBT_APMRESUMESUSPEND;
@@ -30,6 +28,7 @@ use windows::Win32::UI::WindowsAndMessaging::PBT_APMSUSPEND;
 use windows::Win32::UI::WindowsAndMessaging::PBT_POWERSETTINGCHANGE;
 use windows::Win32::UI::WindowsAndMessaging::REGISTER_NOTIFICATION_FLAGS;
 use windows::Win32::UI::WindowsAndMessaging::SPI_SETWORKAREA;
+use windows::Win32::UI::WindowsAndMessaging::TranslateMessage;
 use windows::Win32::UI::WindowsAndMessaging::WM_DEVICECHANGE;
 use windows::Win32::UI::WindowsAndMessaging::WM_DISPLAYCHANGE;
 use windows::Win32::UI::WindowsAndMessaging::WM_POWERBROADCAST;
@@ -38,10 +37,11 @@ use windows::Win32::UI::WindowsAndMessaging::WM_WTSSESSION_CHANGE;
 use windows::Win32::UI::WindowsAndMessaging::WNDCLASSW;
 use windows::Win32::UI::WindowsAndMessaging::WTS_SESSION_LOCK;
 use windows::Win32::UI::WindowsAndMessaging::WTS_SESSION_UNLOCK;
+use windows::core::PCWSTR;
 
+use crate::WindowsApi;
 use crate::monitor_reconciliator;
 use crate::windows_api;
-use crate::WindowsApi;
 
 // This is a hidden window specifically spawned to listen to system-wide events related to monitors
 #[derive(Debug, Clone, Copy)]
@@ -224,14 +224,18 @@ impl Hidden {
                 WM_WTSSESSION_CHANGE => {
                     match wparam.0 as u32 {
                         WTS_SESSION_LOCK => {
-                            tracing::debug!("WM_WTSSESSION_CHANGE event received with WTS_SESSION_LOCK - screen locked");
+                            tracing::debug!(
+                                "WM_WTSSESSION_CHANGE event received with WTS_SESSION_LOCK - screen locked"
+                            );
 
                             monitor_reconciliator::send_notification(
                                 monitor_reconciliator::MonitorNotification::SessionLocked,
                             );
                         }
                         WTS_SESSION_UNLOCK => {
-                            tracing::debug!("WM_WTSSESSION_CHANGE event received with WTS_SESSION_UNLOCK - screen unlocked");
+                            tracing::debug!(
+                                "WM_WTSSESSION_CHANGE event received with WTS_SESSION_UNLOCK - screen unlocked"
+                            );
 
                             monitor_reconciliator::send_notification(
                                 monitor_reconciliator::MonitorNotification::SessionUnlocked,
@@ -251,7 +255,8 @@ impl Hidden {
                 // and resolution changes here
                 WM_DISPLAYCHANGE => {
                     tracing::debug!(
-                        "WM_DISPLAYCHANGE event received with wparam: {}- work area or display resolution changed", wparam.0
+                        "WM_DISPLAYCHANGE event received with wparam: {}- work area or display resolution changed",
+                        wparam.0
                     );
 
                     monitor_reconciliator::send_notification(
@@ -265,8 +270,8 @@ impl Hidden {
                     #[allow(clippy::cast_possible_truncation)]
                     if wparam.0 as u32 == SPI_SETWORKAREA.0 {
                         tracing::debug!(
-                                "WM_SETTINGCHANGE event received with SPI_SETWORKAREA - work area changed (probably butterytaskbar or something similar)"
-                            );
+                            "WM_SETTINGCHANGE event received with SPI_SETWORKAREA - work area changed (probably butterytaskbar or something similar)"
+                        );
 
                         monitor_reconciliator::send_notification(
                             monitor_reconciliator::MonitorNotification::WorkAreaChanged,

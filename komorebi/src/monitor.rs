@@ -2,9 +2,9 @@ use std::collections::HashMap;
 use std::collections::VecDeque;
 use std::sync::atomic::Ordering;
 
+use color_eyre::Result;
 use color_eyre::eyre::anyhow;
 use color_eyre::eyre::bail;
-use color_eyre::Result;
 use getset::CopyGetters;
 use getset::Getters;
 use getset::MutGetters;
@@ -15,15 +15,15 @@ use serde::Serialize;
 
 use crate::core::Rect;
 
-use crate::container::Container;
-use crate::ring::Ring;
-use crate::workspace::Workspace;
+use crate::DEFAULT_CONTAINER_PADDING;
+use crate::DEFAULT_WORKSPACE_PADDING;
 use crate::DefaultLayout;
 use crate::Layout;
 use crate::OperationDirection;
 use crate::WindowsApi;
-use crate::DEFAULT_CONTAINER_PADDING;
-use crate::DEFAULT_WORKSPACE_PADDING;
+use crate::container::Container;
+use crate::ring::Ring;
+use crate::workspace::Workspace;
 
 #[derive(
     Debug,

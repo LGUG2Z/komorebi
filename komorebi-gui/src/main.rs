@@ -1,9 +1,9 @@
 #![warn(clippy::all)]
 
 use eframe::egui;
-use eframe::egui::color_picker::Alpha;
 use eframe::egui::Color32;
 use eframe::egui::ViewportBuilder;
+use eframe::egui::color_picker::Alpha;
 use komorebi_client::BorderStyle;
 use komorebi_client::Colour;
 use komorebi_client::DefaultLayout;
@@ -101,7 +101,7 @@ impl From<&komorebi_client::Workspace> for WorkspaceConfig {
         let name = value
             .name()
             .to_owned()
-            .unwrap_or_else(|| random_word::gen(random_word::Lang::En).to_string());
+            .unwrap_or_else(|| random_word::r#gen(random_word::Lang::En).to_string());
 
         Self {
             layout,
@@ -248,10 +248,11 @@ impl eframe::App for KomorebiGui {
                     ui.collapsing("Window Rules", |ui| {
                         let window = Window::from(self.debug_hwnd);
 
-                        let label = if let (Ok(title), Ok(exe)) = (window.title(), window.exe()) {
-                            format!("{title} ({exe})")
-                        } else {
-                            String::from("Select a Window")
+                        let label = match (window.title(), window.exe()) {
+                            (Ok(title), Ok(exe)) => {
+                                format!("{title} ({exe})")
+                            }
+                            _ => String::from("Select a Window"),
                         };
 
                         if ui.button("Refresh Windows").clicked() {

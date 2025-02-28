@@ -1,4 +1,28 @@
-use crate::animation::PerAnimationPrefixConfig;
+use crate::AspectRatio;
+use crate::Axis;
+use crate::CrossBoundaryBehaviour;
+use crate::DATA_DIR;
+use crate::DEFAULT_CONTAINER_PADDING;
+use crate::DEFAULT_WORKSPACE_PADDING;
+use crate::DISPLAY_INDEX_PREFERENCES;
+use crate::FLOATING_APPLICATIONS;
+use crate::FLOATING_WINDOW_TOGGLE_ASPECT_RATIO;
+use crate::HIDING_BEHAVIOUR;
+use crate::IGNORE_IDENTIFIERS;
+use crate::LAYERED_WHITELIST;
+use crate::MANAGE_IDENTIFIERS;
+use crate::MONITOR_INDEX_PREFERENCES;
+use crate::NO_TITLEBAR;
+use crate::OBJECT_NAME_CHANGE_ON_LAUNCH;
+use crate::OBJECT_NAME_CHANGE_TITLE_IGNORE_LIST;
+use crate::PredefinedAspectRatio;
+use crate::REGEX_IDENTIFIERS;
+use crate::SLOW_APPLICATION_COMPENSATION_TIME;
+use crate::SLOW_APPLICATION_IDENTIFIERS;
+use crate::TRANSPARENCY_BLACKLIST;
+use crate::TRAY_AND_MULTI_WINDOW_IDENTIFIERS;
+use crate::WINDOWS_11;
+use crate::WORKSPACE_MATCHING_RULES;
 use crate::animation::ANIMATION_DURATION_GLOBAL;
 use crate::animation::ANIMATION_DURATION_PER_ANIMATION;
 use crate::animation::ANIMATION_ENABLED_GLOBAL;
@@ -7,10 +31,11 @@ use crate::animation::ANIMATION_FPS;
 use crate::animation::ANIMATION_STYLE_GLOBAL;
 use crate::animation::ANIMATION_STYLE_PER_ANIMATION;
 use crate::animation::DEFAULT_ANIMATION_FPS;
+use crate::animation::PerAnimationPrefixConfig;
 use crate::border_manager;
-use crate::border_manager::ZOrder;
 use crate::border_manager::IMPLEMENTATION;
 use crate::border_manager::STYLE;
+use crate::border_manager::ZOrder;
 use crate::colour::Colour;
 use crate::core::BorderImplementation;
 use crate::core::StackbarLabel;
@@ -36,41 +61,10 @@ use crate::window_manager::WindowManager;
 use crate::window_manager_event::WindowManagerEvent;
 use crate::windows_api::WindowsApi;
 use crate::workspace::Workspace;
-use crate::AspectRatio;
-use crate::Axis;
-use crate::CrossBoundaryBehaviour;
-use crate::PredefinedAspectRatio;
-use crate::DATA_DIR;
-use crate::DEFAULT_CONTAINER_PADDING;
-use crate::DEFAULT_WORKSPACE_PADDING;
-use crate::DISPLAY_INDEX_PREFERENCES;
-use crate::FLOATING_APPLICATIONS;
-use crate::FLOATING_WINDOW_TOGGLE_ASPECT_RATIO;
-use crate::HIDING_BEHAVIOUR;
-use crate::IGNORE_IDENTIFIERS;
-use crate::LAYERED_WHITELIST;
-use crate::MANAGE_IDENTIFIERS;
-use crate::MONITOR_INDEX_PREFERENCES;
-use crate::NO_TITLEBAR;
-use crate::OBJECT_NAME_CHANGE_ON_LAUNCH;
-use crate::OBJECT_NAME_CHANGE_TITLE_IGNORE_LIST;
-use crate::REGEX_IDENTIFIERS;
-use crate::SLOW_APPLICATION_COMPENSATION_TIME;
-use crate::SLOW_APPLICATION_IDENTIFIERS;
-use crate::TRANSPARENCY_BLACKLIST;
-use crate::TRAY_AND_MULTI_WINDOW_IDENTIFIERS;
-use crate::WINDOWS_11;
-use crate::WORKSPACE_MATCHING_RULES;
 
 use crate::asc::ApplicationSpecificConfiguration;
 use crate::asc::AscApplicationRulesOrSchema;
 use crate::config_generation::WorkspaceMatchingRule;
-use crate::core::config_generation::ApplicationConfiguration;
-use crate::core::config_generation::ApplicationConfigurationGenerator;
-use crate::core::config_generation::ApplicationOptions;
-use crate::core::config_generation::MatchingRule;
-use crate::core::config_generation::MatchingStrategy;
-use crate::core::resolve_home_path;
 use crate::core::AnimationStyle;
 use crate::core::BorderStyle;
 use crate::core::DefaultLayout;
@@ -83,6 +77,12 @@ use crate::core::Rect;
 use crate::core::SocketMessage;
 use crate::core::WindowContainerBehaviour;
 use crate::core::WindowManagementBehaviour;
+use crate::core::config_generation::ApplicationConfiguration;
+use crate::core::config_generation::ApplicationConfigurationGenerator;
+use crate::core::config_generation::ApplicationOptions;
+use crate::core::config_generation::MatchingRule;
+use crate::core::config_generation::MatchingStrategy;
+use crate::core::resolve_home_path;
 use color_eyre::Result;
 use crossbeam_channel::Receiver;
 use hotwatch::EventKind;
@@ -97,8 +97,8 @@ use std::collections::HashSet;
 use std::io::ErrorKind;
 use std::io::Write;
 use std::path::PathBuf;
-use std::sync::atomic::Ordering;
 use std::sync::Arc;
+use std::sync::atomic::Ordering;
 use uds_windows::UnixListener;
 use uds_windows::UnixStream;
 
@@ -555,7 +555,9 @@ impl StaticConfig {
         }
 
         if display {
-            println!("\nEnd-of-life features will not receive any further bug fixes or updates; they should not be used\n")
+            println!(
+                "\nEnd-of-life features will not receive any further bug fixes or updates; they should not be used\n"
+            )
         }
     }
 
@@ -580,7 +582,9 @@ impl StaticConfig {
         }
 
         if display {
-            println!("\nYour configuration file contains some options that have been renamed or deprecated:\n");
+            println!(
+                "\nYour configuration file contains some options that have been renamed or deprecated:\n"
+            );
             for (canonical, aliases) in map {
                 for alias in aliases {
                     if raw.contains(alias) {

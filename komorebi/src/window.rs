@@ -1,8 +1,7 @@
-use crate::animation::lerp::Lerp;
-use crate::animation::prefix::new_animation_key;
-use crate::animation::prefix::AnimationPrefix;
-use crate::animation::AnimationEngine;
-use crate::animation::RenderDispatcher;
+use crate::AnimationStyle;
+use crate::FLOATING_WINDOW_TOGGLE_ASPECT_RATIO;
+use crate::SLOW_APPLICATION_COMPENSATION_TIME;
+use crate::SLOW_APPLICATION_IDENTIFIERS;
 use crate::animation::ANIMATION_DURATION_GLOBAL;
 use crate::animation::ANIMATION_DURATION_PER_ANIMATION;
 use crate::animation::ANIMATION_ENABLED_GLOBAL;
@@ -10,14 +9,15 @@ use crate::animation::ANIMATION_ENABLED_PER_ANIMATION;
 use crate::animation::ANIMATION_MANAGER;
 use crate::animation::ANIMATION_STYLE_GLOBAL;
 use crate::animation::ANIMATION_STYLE_PER_ANIMATION;
+use crate::animation::AnimationEngine;
+use crate::animation::RenderDispatcher;
+use crate::animation::lerp::Lerp;
+use crate::animation::prefix::AnimationPrefix;
+use crate::animation::prefix::new_animation_key;
 use crate::com::SetCloak;
 use crate::focus_manager;
 use crate::stackbar_manager;
 use crate::windows_api;
-use crate::AnimationStyle;
-use crate::FLOATING_WINDOW_TOGGLE_ASPECT_RATIO;
-use crate::SLOW_APPLICATION_COMPENSATION_TIME;
-use crate::SLOW_APPLICATION_IDENTIFIERS;
 use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::fmt::Display;
@@ -31,15 +31,15 @@ use std::time::Duration;
 use crate::core::config_generation::IdWithIdentifier;
 use crate::core::config_generation::MatchingRule;
 use crate::core::config_generation::MatchingStrategy;
-use color_eyre::eyre;
 use color_eyre::Result;
+use color_eyre::eyre;
 use crossbeam_utils::atomic::AtomicConsume;
 use regex::Regex;
 use schemars::JsonSchema;
-use serde::ser::SerializeStruct;
 use serde::Deserialize;
 use serde::Serialize;
 use serde::Serializer;
+use serde::ser::SerializeStruct;
 use strum::Display;
 use strum::EnumString;
 use windows::Win32::Foundation::HWND;
@@ -48,11 +48,6 @@ use crate::core::ApplicationIdentifier;
 use crate::core::HidingBehaviour;
 use crate::core::Rect;
 
-use crate::styles::ExtendedWindowStyle;
-use crate::styles::WindowStyle;
-use crate::transparency_manager;
-use crate::window_manager_event::WindowManagerEvent;
-use crate::windows_api::WindowsApi;
 use crate::FLOATING_APPLICATIONS;
 use crate::HIDDEN_HWNDS;
 use crate::HIDING_BEHAVIOUR;
@@ -63,6 +58,11 @@ use crate::NO_TITLEBAR;
 use crate::PERMAIGNORE_CLASSES;
 use crate::REGEX_IDENTIFIERS;
 use crate::WSL2_UI_PROCESSES;
+use crate::styles::ExtendedWindowStyle;
+use crate::styles::WindowStyle;
+use crate::transparency_manager;
+use crate::window_manager_event::WindowManagerEvent;
+use crate::windows_api::WindowsApi;
 
 pub static MINIMUM_WIDTH: AtomicI32 = AtomicI32::new(0);
 pub static MINIMUM_HEIGHT: AtomicI32 = AtomicI32::new(0);
@@ -886,7 +886,7 @@ fn window_is_eligible(
     let regex_identifiers = REGEX_IDENTIFIERS.lock();
 
     let ignore_identifiers = IGNORE_IDENTIFIERS.lock();
-    let should_ignore = if let Some(rule) = should_act(
+    let should_ignore = match should_act(
         title,
         exe_name,
         class,
@@ -894,14 +894,15 @@ fn window_is_eligible(
         &ignore_identifiers,
         &regex_identifiers,
     ) {
-        debug.matches_ignore_identifier = Some(rule);
-        true
-    } else {
-        false
+        Some(rule) => {
+            debug.matches_ignore_identifier = Some(rule);
+            true
+        }
+        _ => false,
     };
 
     let manage_identifiers = MANAGE_IDENTIFIERS.lock();
-    let managed_override = if let Some(rule) = should_act(
+    let managed_override = match should_act(
         title,
         exe_name,
         class,
@@ -909,10 +910,11 @@ fn window_is_eligible(
         &manage_identifiers,
         &regex_identifiers,
     ) {
-        debug.matches_managed_override = Some(rule);
-        true
-    } else {
-        false
+        Some(rule) => {
+            debug.matches_managed_override = Some(rule);
+            true
+        }
+        _ => false,
     };
 
     let floating_identifiers = FLOATING_APPLICATIONS.lock();
@@ -932,7 +934,7 @@ fn window_is_eligible(
     }
 
     let layered_whitelist = LAYERED_WHITELIST.lock();
-    let mut allow_layered = if let Some(rule) = should_act(
+    let mut allow_layered = match should_act(
         title,
         exe_name,
         class,
@@ -940,10 +942,11 @@ fn window_is_eligible(
         &layered_whitelist,
         &regex_identifiers,
     ) {
-        debug.matches_layered_whitelist = Some(rule);
-        true
-    } else {
-        false
+        Some(rule) => {
+            debug.matches_layered_whitelist = Some(rule);
+            true
+        }
+        _ => false,
     };
 
     let known_layered_hwnds = transparency_manager::known_hwnds();
@@ -970,7 +973,7 @@ fn window_is_eligible(
     };
 
     let titlebars_removed = NO_TITLEBAR.lock();
-    let allow_titlebar_removed = if let Some(rule) = should_act(
+    let allow_titlebar_removed = match should_act(
         title,
         exe_name,
         class,
@@ -978,10 +981,11 @@ fn window_is_eligible(
         &titlebars_removed,
         &regex_identifiers,
     ) {
-        debug.matches_no_titlebar = Some(rule);
-        true
-    } else {
-        false
+        Some(rule) => {
+            debug.matches_no_titlebar = Some(rule);
+            true
+        }
+        _ => false,
     };
 
     {
