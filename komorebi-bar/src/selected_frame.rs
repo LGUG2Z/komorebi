@@ -1,8 +1,10 @@
+use eframe::egui::Color32;
 use eframe::egui::CursorIcon;
 use eframe::egui::Frame;
 use eframe::egui::Margin;
 use eframe::egui::Response;
 use eframe::egui::Sense;
+use eframe::egui::Stroke;
 use eframe::egui::Ui;
 
 /// Same as SelectableLabel, but supports all content
@@ -23,26 +25,34 @@ impl SelectableFrame {
                 let response = ui.interact(ui.max_rect(), ui.unique_id(), Sense::click());
 
                 if ui.is_rect_visible(response.rect) {
+                    // take into account the stroke width
                     let inner_margin = Margin::symmetric(
-                        ui.style().spacing.button_padding.x as i8,
-                        ui.style().spacing.button_padding.y as i8,
+                        ui.style().spacing.button_padding.x as i8 - 1,
+                        ui.style().spacing.button_padding.y as i8 - 1,
                     );
 
-                    if selected
-                        || response.hovered()
-                        || response.highlighted()
-                        || response.has_focus()
-                    {
+                    // since the stroke is drawn inside the frame, we always reserve space for it
+                    if response.hovered() || response.highlighted() || response.has_focus() {
                         let visuals = ui.style().interact_selectable(&response, selected);
 
                         Frame::NONE
-                            .stroke(visuals.bg_stroke)
+                            .stroke(Stroke::new(1.0, visuals.bg_stroke.color))
+                            .corner_radius(visuals.corner_radius)
+                            .fill(visuals.bg_fill)
+                            .inner_margin(inner_margin)
+                            .show(ui, add_contents);
+                    } else if selected {
+                        let visuals = ui.style().interact_selectable(&response, selected);
+
+                        Frame::NONE
+                            .stroke(Stroke::new(1.0, visuals.bg_fill))
                             .corner_radius(visuals.corner_radius)
                             .fill(visuals.bg_fill)
                             .inner_margin(inner_margin)
                             .show(ui, add_contents);
                     } else {
                         Frame::NONE
+                            .stroke(Stroke::new(1.0, Color32::TRANSPARENT))
                             .inner_margin(inner_margin)
                             .show(ui, add_contents);
                     }
