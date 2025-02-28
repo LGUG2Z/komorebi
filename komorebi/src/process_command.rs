@@ -232,6 +232,14 @@ impl WindowManager {
                 self.focus_container_in_direction(direction)?;
                 self.promote_container_to_front()?
             }
+            SocketMessage::DisplayMonitorWorkspaceNumber(monitor_idx, workspace_idx) => {
+                self.send_always_on_top(
+                    Option::from(monitor_idx),
+                    Option::from(workspace_idx),
+                    None,
+                )?;
+                self.display_monitor_workspace(monitor_idx, workspace_idx)?;
+            }
             SocketMessage::EagerFocus(ref exe) => {
                 let focused_monitor_idx = self.focused_monitor_idx();
                 let focused_workspace_idx = self.focused_workspace_idx()?;
@@ -302,6 +310,9 @@ impl WindowManager {
                     }
                 }
             }
+            SocketMessage::FocusExe(ref exe, hwnd) => {
+                self.focus_window_from_exe(exe, hwnd)?;
+            }
             SocketMessage::MoveWindow(direction) => {
                 let focused_workspace = self.focused_workspace()?;
                 match focused_workspace.layer() {
@@ -365,6 +376,7 @@ impl WindowManager {
             SocketMessage::ToggleFloat => self.toggle_float()?,
             SocketMessage::ToggleMonocle => self.toggle_monocle()?,
             SocketMessage::ToggleMaximize => self.toggle_maximize()?,
+            SocketMessage::ToggleAlwaysOnTop => self.toggle_always_on_top()?,
             SocketMessage::ContainerPadding(monitor_idx, workspace_idx, size) => {
                 self.set_container_padding(monitor_idx, workspace_idx, size)?;
             }
@@ -609,6 +621,7 @@ impl WindowManager {
             }
             SocketMessage::MoveContainerToWorkspaceNumber(workspace_idx) => {
                 self.move_container_to_workspace(workspace_idx, true, None)?;
+                self.send_always_on_top(None, Some(workspace_idx), Some(true))?;
             }
             SocketMessage::CycleMoveContainerToWorkspace(direction) => {
                 let focused_monitor = self
@@ -625,8 +638,10 @@ impl WindowManager {
                 );
 
                 self.move_container_to_workspace(workspace_idx, true, None)?;
+                self.send_always_on_top(None, Some(workspace_idx), Some(true))?;
             }
             SocketMessage::MoveContainerToMonitorNumber(monitor_idx) => {
+                self.send_always_on_top(Some(monitor_idx), None, Some(true))?;
                 let direction = self.direction_from_monitor_idx(monitor_idx);
                 self.move_container_to_monitor(monitor_idx, None, true, direction)?;
             }
@@ -640,11 +655,14 @@ impl WindowManager {
                         .ok_or_else(|| anyhow!("there must be at least one monitor"))?,
                 );
 
+                self.send_always_on_top(Some(monitor_idx), None, Some(true))?;
+
                 let direction = self.direction_from_monitor_idx(monitor_idx);
                 self.move_container_to_monitor(monitor_idx, None, true, direction)?;
             }
             SocketMessage::SendContainerToWorkspaceNumber(workspace_idx) => {
                 self.move_container_to_workspace(workspace_idx, false, None)?;
+                self.send_always_on_top(None, Some(workspace_idx), Some(false))?;
             }
             SocketMessage::CycleSendContainerToWorkspace(direction) => {
                 let focused_monitor = self
@@ -661,8 +679,10 @@ impl WindowManager {
                 );
 
                 self.move_container_to_workspace(workspace_idx, false, None)?;
+                self.send_always_on_top(None, Some(workspace_idx), Some(false))?;
             }
             SocketMessage::SendContainerToMonitorNumber(monitor_idx) => {
+                self.send_always_on_top(Some(monitor_idx), None, Some(false))?;
                 let direction = self.direction_from_monitor_idx(monitor_idx);
                 self.move_container_to_monitor(monitor_idx, None, false, direction)?;
             }
@@ -673,10 +693,13 @@ impl WindowManager {
                         .ok_or_else(|| anyhow!("there must be at least one monitor"))?,
                 );
 
+                self.send_always_on_top(Some(monitor_idx), None, Some(false))?;
+
                 let direction = self.direction_from_monitor_idx(monitor_idx);
                 self.move_container_to_monitor(monitor_idx, None, false, direction)?;
             }
             SocketMessage::SendContainerToMonitorWorkspaceNumber(monitor_idx, workspace_idx) => {
+                self.send_always_on_top(Some(monitor_idx), Some(workspace_idx), Some(false))?;
                 let direction = self.direction_from_monitor_idx(monitor_idx);
                 self.move_container_to_monitor(
                     monitor_idx,
@@ -686,6 +709,7 @@ impl WindowManager {
                 )?;
             }
             SocketMessage::MoveContainerToMonitorWorkspaceNumber(monitor_idx, workspace_idx) => {
+                self.send_always_on_top(Some(monitor_idx), Some(workspace_idx), Some(true))?;
                 let direction = self.direction_from_monitor_idx(monitor_idx);
                 self.move_container_to_monitor(
                     monitor_idx,
@@ -698,6 +722,7 @@ impl WindowManager {
                 if let Some((monitor_idx, workspace_idx)) =
                     self.monitor_workspace_index_by_name(workspace)
                 {
+                    self.send_always_on_top(Some(monitor_idx), Some(workspace_idx), Some(false))?;
                     let direction = self.direction_from_monitor_idx(monitor_idx);
                     self.move_container_to_monitor(
                         monitor_idx,
@@ -711,6 +736,7 @@ impl WindowManager {
                 if let Some((monitor_idx, workspace_idx)) =
                     self.monitor_workspace_index_by_name(workspace)
                 {
+                    self.send_always_on_top(Some(monitor_idx), Some(workspace_idx), Some(true))?;
                     let direction = self.direction_from_monitor_idx(monitor_idx);
                     self.move_container_to_monitor(
                         monitor_idx,
@@ -902,6 +928,8 @@ impl WindowManager {
                         .ok_or_else(|| anyhow!("there must be at least one workspace"))?,
                 );
 
+                self.send_always_on_top(None, Option::from(workspace_idx), None)?;
+
                 self.focus_workspace(workspace_idx)?;
             }
             SocketMessage::CloseWorkspace => {
@@ -971,6 +999,7 @@ impl WindowManager {
 
                 if let Some(monitor) = self.focused_monitor_mut() {
                     if let Some(last_focused_workspace) = monitor.last_focused_workspace() {
+                        self.send_always_on_top(None, Option::from(last_focused_workspace), None)?;
                         self.focus_workspace(last_focused_workspace)?;
                     }
                 }
@@ -996,6 +1025,7 @@ impl WindowManager {
                 }
 
                 if self.focused_workspace_idx().unwrap_or_default() != workspace_idx {
+                    self.send_always_on_top(None, Option::from(workspace_idx), None)?;
                     self.focus_workspace(workspace_idx)?;
                 }
             }
@@ -1017,6 +1047,16 @@ impl WindowManager {
 
                 let focused_monitor_idx = self.focused_monitor_idx();
 
+                for i in 0..self.monitors.elements().len() {
+                    if i != focused_monitor_idx {
+                        self.send_always_on_top(
+                            Option::from(i),
+                            Option::from(workspace_idx),
+                            None,
+                        )?;
+                    }
+                }
+
                 for (i, monitor) in self.monitors_mut().iter_mut().enumerate() {
                     if i != focused_monitor_idx {
                         monitor.focus_workspace(workspace_idx)?;
@@ -1024,6 +1064,11 @@ impl WindowManager {
                     }
                 }
 
+                self.send_always_on_top(
+                    Option::from(focused_monitor_idx),
+                    Some(workspace_idx),
+                    None,
+                )?;
                 self.focus_workspace(workspace_idx)?;
             }
             SocketMessage::FocusMonitorWorkspaceNumber(monitor_idx, workspace_idx) => {
@@ -1033,6 +1078,7 @@ impl WindowManager {
                 let focused_pair = (focused_monitor_idx, focused_workspace_idx);
 
                 if focused_pair != (monitor_idx, workspace_idx) {
+                    self.send_always_on_top(Option::from(monitor_idx), Some(workspace_idx), None)?;
                     self.focus_monitor(monitor_idx)?;
                     self.focus_workspace(workspace_idx)?;
                 }
@@ -1041,6 +1087,7 @@ impl WindowManager {
                 if let Some((monitor_idx, workspace_idx)) =
                     self.monitor_workspace_index_by_name(name)
                 {
+                    self.send_always_on_top(Option::from(monitor_idx), Some(workspace_idx), None)?;
                     self.focus_monitor(monitor_idx)?;
                     self.focus_workspace(workspace_idx)?;
                 }
