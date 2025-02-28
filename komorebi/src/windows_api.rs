@@ -1160,7 +1160,7 @@ impl WindowsApi {
     pub fn create_border_window(
         name: PCWSTR,
         instance: isize,
-        border: *const Border,
+        border: *mut Border,
     ) -> Result<isize> {
         unsafe {
             CreateWindowExW(

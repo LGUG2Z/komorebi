@@ -313,6 +313,7 @@ pub enum BorderImplementation {
     Copy,
     Clone,
     Debug,
+    Default,
     Serialize,
     Deserialize,
     Display,
@@ -327,6 +328,7 @@ pub enum WindowKind {
     Single,
     Stack,
     Monocle,
+    #[default]
     Unfocused,
     Floating,
 }
