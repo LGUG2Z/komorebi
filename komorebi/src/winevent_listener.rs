@@ -5,11 +5,11 @@ use crossbeam_channel::Receiver;
 use crossbeam_channel::Sender;
 use windows::Win32::UI::Accessibility::SetWinEventHook;
 use windows::Win32::UI::WindowsAndMessaging::DispatchMessageW;
-use windows::Win32::UI::WindowsAndMessaging::GetMessageW;
-use windows::Win32::UI::WindowsAndMessaging::TranslateMessage;
 use windows::Win32::UI::WindowsAndMessaging::EVENT_MAX;
 use windows::Win32::UI::WindowsAndMessaging::EVENT_MIN;
+use windows::Win32::UI::WindowsAndMessaging::GetMessageW;
 use windows::Win32::UI::WindowsAndMessaging::MSG;
+use windows::Win32::UI::WindowsAndMessaging::TranslateMessage;
 use windows::Win32::UI::WindowsAndMessaging::WINEVENT_OUTOFCONTEXT;
 use windows::Win32::UI::WindowsAndMessaging::WINEVENT_SKIPOWNPROCESS;
 

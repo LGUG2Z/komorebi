@@ -6,16 +6,16 @@ use std::path::PathBuf;
 use std::str::FromStr;
 
 use clap::ValueEnum;
-use color_eyre::eyre::anyhow;
 use color_eyre::Result;
+use color_eyre::eyre::anyhow;
 use schemars::JsonSchema;
 use serde::Deserialize;
 use serde::Serialize;
 use strum::Display;
 use strum::EnumString;
 
-use crate::animation::prefix::AnimationPrefix;
 use crate::KomorebiTheme;
+use crate::animation::prefix::AnimationPrefix;
 pub use animation::AnimationStyle;
 pub use arrangement::Arrangement;
 pub use arrangement::Axis;

@@ -5,9 +5,9 @@ use std::ops::Deref;
 use std::ops::DerefMut;
 use std::path::Path;
 
+use color_eyre::Result;
 use color_eyre::eyre::anyhow;
 use color_eyre::eyre::bail;
-use color_eyre::Result;
 use schemars::JsonSchema;
 use serde::Deserialize;
 use serde::Serialize;

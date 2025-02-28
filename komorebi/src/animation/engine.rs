@@ -8,10 +8,10 @@ use std::sync::atomic::Ordering;
 use std::time::Duration;
 use std::time::Instant;
 
-use super::RenderDispatcher;
 use super::ANIMATION_DURATION_GLOBAL;
 use super::ANIMATION_FPS;
 use super::ANIMATION_MANAGER;
+use super::RenderDispatcher;
 
 #[derive(Debug, Default, Clone, Copy, Serialize, Deserialize, JsonSchema, PartialEq)]
 pub struct AnimationEngine;
