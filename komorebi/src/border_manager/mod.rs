@@ -281,6 +281,17 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                         .unwrap_or_default())
                 });
 
+                // when the focused window has an `Unfocused` border kind, usually this happens if
+                // we focus an admin window and then refocus the previously focused window. For
+                // komorebi it will have the same state has before, however the previously focused
+                // window changed its border to unfocused so now we need to update it again.
+                if !should_process_notification
+                    && window_border(notification.0.unwrap_or_default())
+                        .is_some_and(|b| b.window_kind == WindowKind::Unfocused)
+                {
+                    should_process_notification = true;
+                }
+
                 if !should_process_notification && switch_focus_to_from_floating_window {
                     should_process_notification = true;
                 }
