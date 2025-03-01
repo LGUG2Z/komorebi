@@ -85,6 +85,10 @@ pub struct KomorebiLayoutConfig {
 pub struct KomorebiWorkspaceLayerConfig {
     /// Enable the Komorebi Workspace Layer widget
     pub enable: bool,
+    /// Display format of the current layer
+    pub display: Option<DisplayFormat>,
+    /// Show the widget event if the layer is Tiling
+    pub show_when_tiling: Option<bool>,
 }
 
 #[derive(Copy, Clone, Debug, Serialize, Deserialize, JsonSchema)]
@@ -312,29 +316,106 @@ impl BarWidget for Komorebi {
                     .map(|(_, _, layer)| layer);
 
                 if let Some(layer) = layer {
-                    let name = layer.to_string();
-                    config.apply_on_widget(false, ui, |ui| {
-                        if SelectableFrame::new(false)
-                            .show(ui, |ui| ui.add(Label::new(name).selectable(false)))
-                            .clicked()
-                            && komorebi_client::send_batch([
-                                SocketMessage::MouseFollowsFocus(false),
-                                SocketMessage::ToggleWorkspaceLayer,
-                                SocketMessage::MouseFollowsFocus(
+                    if (layer_config.show_when_tiling.unwrap_or_default()
+                        && matches!(layer, WorkspaceLayer::Tiling))
+                        || matches!(layer, WorkspaceLayer::Floating)
+                    {
+                        let display_format = layer_config.display.unwrap_or(DisplayFormat::Text);
+                        let size = Vec2::splat(config.icon_font_id.size);
+
+                        config.apply_on_widget(false, ui, |ui| {
+                            let layer_frame = SelectableFrame::new(false)
+                                .show(ui, |ui| {
+                                    if display_format != DisplayFormat::Text {
+                                        if matches!(layer, WorkspaceLayer::Tiling) {
+                                            let (response, painter) =
+                                                ui.allocate_painter(size, Sense::hover());
+                                            let color = ui.style().visuals.text_color();
+                                            let stroke = Stroke::new(1.0, color);
+                                            let mut rect = response.rect;
+                                            let corner =
+                                                CornerRadius::same((rect.width() * 0.1) as u8);
+                                            rect = rect.shrink(stroke.width);
+
+                                            // tiling
+                                            let mut rect_left = response.rect;
+                                            rect_left.set_width(rect.width() * 0.48);
+                                            rect_left.set_height(rect.height() * 0.98);
+                                            let mut rect_right = rect_left;
+                                            rect_left = rect_left.translate(Vec2::new(
+                                                rect.width() * 0.01 + stroke.width,
+                                                rect.width() * 0.01 + stroke.width,
+                                            ));
+                                            rect_right = rect_right.translate(Vec2::new(
+                                                rect.width() * 0.51 + stroke.width,
+                                                rect.width() * 0.01 + stroke.width,
+                                            ));
+                                            painter.rect_filled(rect_left, corner, color);
+                                            painter.rect_stroke(
+                                                rect_right,
+                                                corner,
+                                                stroke,
+                                                StrokeKind::Outside,
+                                            );
+                                        } else {
+                                            let (response, painter) =
+                                                ui.allocate_painter(size, Sense::hover());
+                                            let color = ui.style().visuals.text_color();
+                                            let stroke = Stroke::new(1.0, color);
+                                            let mut rect = response.rect;
+                                            let corner =
+                                                CornerRadius::same((rect.width() * 0.1) as u8);
+                                            rect = rect.shrink(stroke.width);
+
+                                            // floating
+                                            let mut rect_left = response.rect;
+                                            rect_left.set_width(rect.width() * 0.65);
+                                            rect_left.set_height(rect.height() * 0.65);
+                                            let mut rect_right = rect_left;
+                                            rect_left = rect_left.translate(Vec2::new(
+                                                rect.width() * 0.01 + stroke.width,
+                                                rect.width() * 0.01 + stroke.width,
+                                            ));
+                                            rect_right = rect_right.translate(Vec2::new(
+                                                rect.width() * 0.34 + stroke.width,
+                                                rect.width() * 0.34 + stroke.width,
+                                            ));
+                                            painter.rect_filled(rect_left, corner, color);
+                                            painter.rect_stroke(
+                                                rect_right,
+                                                corner,
+                                                stroke,
+                                                StrokeKind::Outside,
+                                            );
+                                        }
+                                    }
+
+                                    if display_format != DisplayFormat::Icon {
+                                        ui.add(Label::new(layer.to_string()).selectable(false));
+                                    }
+                                })
+                                .on_hover_text(layer.to_string());
+
+                            if layer_frame.clicked()
+                                && komorebi_client::send_batch([
+                                    SocketMessage::MouseFollowsFocus(false),
+                                    SocketMessage::ToggleWorkspaceLayer,
+                                    SocketMessage::MouseFollowsFocus(
+                                        komorebi_notification_state.mouse_follows_focus,
+                                    ),
+                                ])
+                                .is_err()
+                            {
+                                tracing::error!(
+                                    "could not send the following batch of messages to komorebi:\n\
+                                                MouseFollowsFocus(false),
+                                                ToggleWorkspaceLayer,
+                                                MouseFollowsFocus({})",
                                     komorebi_notification_state.mouse_follows_focus,
-                                ),
-                            ])
-                            .is_err()
-                        {
-                            tracing::error!(
-                                "could not send the following batch of messages to komorebi:\n\
-                                            MouseFollowsFocus(false),
-                                            ToggleWorkspaceLayer,
-                                            MouseFollowsFocus({})",
-                                komorebi_notification_state.mouse_follows_focus,
-                            );
-                        }
-                    });
+                                );
+                            }
+                        });
+                    }
                 }
             }
         }

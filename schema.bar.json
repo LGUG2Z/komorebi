@@ -511,8 +511,52 @@
                       "enable"
                     ],
                     "properties": {
+                      "display": {
+                        "description": "Display format of the current layer",
+                        "oneOf": [
+                          {
+                            "description": "Show only icon",
+                            "type": "string",
+                            "enum": [
+                              "Icon"
+                            ]
+                          },
+                          {
+                            "description": "Show only text",
+                            "type": "string",
+                            "enum": [
+                              "Text"
+                            ]
+                          },
+                          {
+                            "description": "Show an icon and text for the selected element, and text on the rest",
+                            "type": "string",
+                            "enum": [
+                              "TextAndIconOnSelected"
+                            ]
+                          },
+                          {
+                            "description": "Show both icon and text",
+                            "type": "string",
+                            "enum": [
+                              "IconAndText"
+                            ]
+                          },
+                          {
+                            "description": "Show an icon and text for the selected element, and icons on the rest",
+                            "type": "string",
+                            "enum": [
+                              "IconAndTextOnSelected"
+                            ]
+                          }
+                        ]
+                      },
                       "enable": {
                         "description": "Enable the Komorebi Workspace Layer widget",
+                        "type": "boolean"
+                      },
+                      "show_when_tiling": {
+                        "description": "Show the widget event if the layer is Tiling",
                         "type": "boolean"
                       }
                     }
@@ -1865,8 +1909,52 @@
                       "enable"
                     ],
                     "properties": {
+                      "display": {
+                        "description": "Display format of the current layer",
+                        "oneOf": [
+                          {
+                            "description": "Show only icon",
+                            "type": "string",
+                            "enum": [
+                              "Icon"
+                            ]
+                          },
+                          {
+                            "description": "Show only text",
+                            "type": "string",
+                            "enum": [
+                              "Text"
+                            ]
+                          },
+                          {
+                            "description": "Show an icon and text for the selected element, and text on the rest",
+                            "type": "string",
+                            "enum": [
+                              "TextAndIconOnSelected"
+                            ]
+                          },
+                          {
+                            "description": "Show both icon and text",
+                            "type": "string",
+                            "enum": [
+                              "IconAndText"
+                            ]
+                          },
+                          {
+                            "description": "Show an icon and text for the selected element, and icons on the rest",
+                            "type": "string",
+                            "enum": [
+                              "IconAndTextOnSelected"
+                            ]
+                          }
+                        ]
+                      },
                       "enable": {
                         "description": "Enable the Komorebi Workspace Layer widget",
+                        "type": "boolean"
+                      },
+                      "show_when_tiling": {
+                        "description": "Show the widget event if the layer is Tiling",
                         "type": "boolean"
                       }
                     }
@@ -3152,8 +3240,52 @@
                       "enable"
                     ],
                     "properties": {
+                      "display": {
+                        "description": "Display format of the current layer",
+                        "oneOf": [
+                          {
+                            "description": "Show only icon",
+                            "type": "string",
+                            "enum": [
+                              "Icon"
+                            ]
+                          },
+                          {
+                            "description": "Show only text",
+                            "type": "string",
+                            "enum": [
+                              "Text"
+                            ]
+                          },
+                          {
+                            "description": "Show an icon and text for the selected element, and text on the rest",
+                            "type": "string",
+                            "enum": [
+                              "TextAndIconOnSelected"
+                            ]
+                          },
+                          {
+                            "description": "Show both icon and text",
+                            "type": "string",
+                            "enum": [
+                              "IconAndText"
+                            ]
+                          },
+                          {
+                            "description": "Show an icon and text for the selected element, and icons on the rest",
+                            "type": "string",
+                            "enum": [
+                              "IconAndTextOnSelected"
+                            ]
+                          }
+                        ]
+                      },
                       "enable": {
                         "description": "Enable the Komorebi Workspace Layer widget",
+                        "type": "boolean"
+                      },
+                      "show_when_tiling": {
+                        "description": "Show the widget event if the layer is Tiling",
                         "type": "boolean"
                       }
                     }
