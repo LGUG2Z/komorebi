@@ -4,6 +4,7 @@
 pub use komorebi::animation::prefix::AnimationPrefix;
 pub use komorebi::animation::PerAnimationPrefixConfig;
 pub use komorebi::asc::ApplicationSpecificConfiguration;
+pub use komorebi::border_manager::BorderInfo;
 pub use komorebi::colour::Colour;
 pub use komorebi::colour::Rgb;
 pub use komorebi::config_generation::ApplicationConfiguration;

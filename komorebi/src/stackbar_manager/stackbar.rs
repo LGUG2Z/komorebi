@@ -350,7 +350,7 @@ impl Stackbar {
                                 }
 
                                 // Restore the window corresponding to the tab we have clicked
-                                window.restore();
+                                window.restore_with_border(false);
                                 if let Err(err) = window.focus(false) {
                                     tracing::error!(
                                         "stackbar WMLBUTTONDOWN focus error: hwnd {} ({})",
@@ -361,7 +361,7 @@ impl Stackbar {
                             } else {
                                 // Hide any windows in the stack that don't correspond to the window
                                 // we have clicked
-                                window.hide();
+                                window.hide_with_border(false);
                             }
                         }
                     }
