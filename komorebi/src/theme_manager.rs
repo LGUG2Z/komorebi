@@ -1,18 +1,18 @@
 #![deny(clippy::unwrap_used, clippy::expect_used)]
 
+use crate::Colour;
+use crate::KomorebiTheme;
 use crate::border_manager;
 use crate::stackbar_manager;
 use crate::stackbar_manager::STACKBAR_FOCUSED_TEXT_COLOUR;
 use crate::stackbar_manager::STACKBAR_TAB_BACKGROUND_COLOUR;
 use crate::stackbar_manager::STACKBAR_UNFOCUSED_TEXT_COLOUR;
-use crate::Colour;
-use crate::KomorebiTheme;
 use crossbeam_channel::Receiver;
 use crossbeam_channel::Sender;
 use crossbeam_utils::atomic::AtomicCell;
 use std::ops::Deref;
-use std::sync::atomic::Ordering;
 use std::sync::OnceLock;
+use std::sync::atomic::Ordering;
 
 pub struct Notification(KomorebiTheme);
 
@@ -50,13 +50,15 @@ pub fn send_notification(theme: KomorebiTheme) {
 }
 
 pub fn listen_for_notifications() {
-    std::thread::spawn(move || loop {
-        match handle_notifications() {
-            Ok(()) => {
-                tracing::warn!("restarting finished thread");
-            }
-            Err(error) => {
-                tracing::warn!("restarting failed thread: {}", error);
+    std::thread::spawn(move || {
+        loop {
+            match handle_notifications() {
+                Ok(()) => {
+                    tracing::warn!("restarting finished thread");
+                }
+                Err(error) => {
+                    tracing::warn!("restarting failed thread: {}", error);
+                }
             }
         }
     });

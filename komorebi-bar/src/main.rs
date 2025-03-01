@@ -30,24 +30,24 @@ use hotwatch::Hotwatch;
 use image::RgbaImage;
 use komorebi_client::SocketMessage;
 use komorebi_client::SubscribeOptions;
-use schemars::gen::SchemaSettings;
+use schemars::r#gen::SchemaSettings;
 use std::collections::HashMap;
 use std::io::BufReader;
 use std::io::Read;
 use std::path::PathBuf;
+use std::sync::LazyLock;
+use std::sync::Mutex;
 use std::sync::atomic::AtomicI32;
 use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering;
-use std::sync::LazyLock;
-use std::sync::Mutex;
 use std::time::Duration;
 use tracing_subscriber::EnvFilter;
 use windows::Win32::Foundation::HWND;
 use windows::Win32::Foundation::LPARAM;
 use windows::Win32::System::Threading::GetCurrentProcessId;
 use windows::Win32::System::Threading::GetCurrentThreadId;
-use windows::Win32::UI::HiDpi::SetProcessDpiAwarenessContext;
 use windows::Win32::UI::HiDpi::DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2;
+use windows::Win32::UI::HiDpi::SetProcessDpiAwarenessContext;
 use windows::Win32::UI::WindowsAndMessaging::EnumThreadWindows;
 use windows::Win32::UI::WindowsAndMessaging::GetWindowThreadProcessId;
 use windows_core::BOOL;
@@ -132,8 +132,8 @@ fn main() -> color_eyre::Result<()> {
             s.inline_subschemas = true;
         });
 
-        let gen = settings.into_generator();
-        let socket_message = gen.into_root_schema_for::<KomobarConfig>();
+        let r#gen = settings.into_generator();
+        let socket_message = r#gen.into_root_schema_for::<KomobarConfig>();
         let schema = serde_json::to_string_pretty(&socket_message)?;
 
         println!("{schema}");
@@ -149,13 +149,15 @@ fn main() -> color_eyre::Result<()> {
     }
 
     if std::env::var("RUST_LIB_BACKTRACE").is_err() {
-        std::env::set_var("RUST_LIB_BACKTRACE", "1");
+        // TODO: Audit that the environment access only happens in single-threaded code.
+        unsafe { std::env::set_var("RUST_LIB_BACKTRACE", "1") };
     }
 
     color_eyre::install()?;
 
     if std::env::var("RUST_LOG").is_err() {
-        std::env::set_var("RUST_LOG", "info");
+        // TODO: Audit that the environment access only happens in single-threaded code.
+        unsafe { std::env::set_var("RUST_LOG", "info") };
     }
 
     tracing::subscriber::set_global_default(
@@ -349,7 +351,7 @@ fn main() -> color_eyre::Result<()> {
 
             let ctx_komorebi = cc.egui_ctx.clone();
             std::thread::spawn(move || {
-                let subscriber_name = format!("komorebi-bar-{}", random_word::gen(random_word::Lang::En));
+                let subscriber_name = format!("komorebi-bar-{}", random_word::r#gen(random_word::Lang::En));
 
                 let listener = komorebi_client::subscribe_with_options(&subscriber_name, SubscribeOptions {
                     filter_state_changes: true,

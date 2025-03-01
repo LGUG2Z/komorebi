@@ -1,10 +1,10 @@
 use hex_color::HexColor;
 use komorebi_themes::Color32;
-use schemars::gen::SchemaGenerator;
+use schemars::JsonSchema;
+use schemars::r#gen::SchemaGenerator;
 use schemars::schema::InstanceType;
 use schemars::schema::Schema;
 use schemars::schema::SchemaObject;
-use schemars::JsonSchema;
 use serde::Deserialize;
 use serde::Serialize;
 
