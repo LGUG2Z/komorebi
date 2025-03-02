@@ -1533,7 +1533,7 @@ impl WindowManager {
                     !workspace.apply_window_based_work_area_offset(),
                 );
 
-                self.retile_all(false)?;
+                self.retile_all(true)?;
             }
             SocketMessage::QuickSave => {
                 let workspace = self.focused_workspace()?;
