@@ -1,6 +1,5 @@
 use clap::ValueEnum;
 use color_eyre::Result;
-use schemars::JsonSchema;
 use serde::Deserialize;
 use serde::Serialize;
 use strum::Display;
@@ -8,9 +7,8 @@ use strum::EnumString;
 
 use super::ApplicationIdentifier;
 
-#[derive(
-    Clone, Copy, Debug, Serialize, Deserialize, Display, EnumString, ValueEnum, JsonSchema,
-)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, Display, EnumString, ValueEnum)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[strum(serialize_all = "snake_case")]
 #[serde(rename_all = "snake_case")]
 pub enum ApplicationOptions {
@@ -52,14 +50,16 @@ impl ApplicationOptions {
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[serde(untagged)]
 pub enum MatchingRule {
     Simple(IdWithIdentifier),
     Composite(Vec<IdWithIdentifier>),
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct WorkspaceMatchingRule {
     pub monitor_index: usize,
     pub workspace_index: usize,
@@ -67,7 +67,8 @@ pub struct WorkspaceMatchingRule {
     pub initial_only: bool,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct IdWithIdentifier {
     pub kind: ApplicationIdentifier,
     pub id: String,
@@ -75,7 +76,8 @@ pub struct IdWithIdentifier {
     pub matching_strategy: Option<MatchingStrategy>,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, Display, JsonSchema)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, Display)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub enum MatchingStrategy {
     Legacy,
     Equals,
@@ -89,7 +91,8 @@ pub enum MatchingStrategy {
     DoesNotContain,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct IdWithIdentifierAndComment {
     pub kind: ApplicationIdentifier,
     pub id: String,
@@ -109,7 +112,8 @@ impl From<IdWithIdentifierAndComment> for IdWithIdentifier {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct ApplicationConfiguration {
     pub name: String,
     pub identifier: IdWithIdentifier,
@@ -133,7 +137,8 @@ impl ApplicationConfiguration {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct ApplicationConfigurationGenerator;
 
 impl ApplicationConfigurationGenerator {

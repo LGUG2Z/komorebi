@@ -66,7 +66,6 @@ use color_eyre::Result;
 use os_info::Version;
 use parking_lot::Mutex;
 use regex::Regex;
-use schemars::JsonSchema;
 use serde::Deserialize;
 use serde::Serialize;
 use uds_windows::UnixStream;
@@ -280,7 +279,8 @@ pub fn current_virtual_desktop() -> Option<Vec<u8>> {
     current
 }
 
-#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Serialize, Deserialize)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[serde(untagged)]
 pub enum NotificationEvent {
     WindowManager(WindowManagerEvent),
@@ -288,7 +288,8 @@ pub enum NotificationEvent {
     Monitor(MonitorNotification),
 }
 
-#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Serialize, Deserialize)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct Notification {
     pub event: NotificationEvent,
     pub state: State,

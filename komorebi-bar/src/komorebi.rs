@@ -37,7 +37,6 @@ use komorebi_client::SocketMessage;
 use komorebi_client::Window;
 use komorebi_client::Workspace;
 use komorebi_client::WorkspaceLayer;
-use schemars::JsonSchema;
 use serde::Deserialize;
 use serde::Serialize;
 use std::cell::RefCell;
@@ -47,7 +46,8 @@ use std::path::PathBuf;
 use std::rc::Rc;
 use std::sync::atomic::Ordering;
 
-#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct KomorebiConfig {
     /// Configure the Workspaces widget
     pub workspaces: Option<KomorebiWorkspacesConfig>,
@@ -61,7 +61,8 @@ pub struct KomorebiConfig {
     pub configuration_switcher: Option<KomorebiConfigurationSwitcherConfig>,
 }
 
-#[derive(Copy, Clone, Debug, Serialize, Deserialize, JsonSchema)]
+#[derive(Copy, Clone, Debug, Serialize, Deserialize)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct KomorebiWorkspacesConfig {
     /// Enable the Komorebi Workspaces widget
     pub enable: bool,
@@ -71,7 +72,8 @@ pub struct KomorebiWorkspacesConfig {
     pub display: Option<WorkspacesDisplayFormat>,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct KomorebiLayoutConfig {
     /// Enable the Komorebi Layout widget
     pub enable: bool,
@@ -81,7 +83,8 @@ pub struct KomorebiLayoutConfig {
     pub display: Option<DisplayFormat>,
 }
 
-#[derive(Copy, Clone, Debug, Serialize, Deserialize, JsonSchema)]
+#[derive(Copy, Clone, Debug, Serialize, Deserialize)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct KomorebiWorkspaceLayerConfig {
     /// Enable the Komorebi Workspace Layer widget
     pub enable: bool,
@@ -91,7 +94,8 @@ pub struct KomorebiWorkspaceLayerConfig {
     pub show_when_tiling: Option<bool>,
 }
 
-#[derive(Copy, Clone, Debug, Serialize, Deserialize, JsonSchema)]
+#[derive(Copy, Clone, Debug, Serialize, Deserialize)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct KomorebiFocusedWindowConfig {
     /// Enable the Komorebi Focused Window widget
     pub enable: bool,
@@ -101,7 +105,8 @@ pub struct KomorebiFocusedWindowConfig {
     pub display: Option<DisplayFormat>,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct KomorebiConfigurationSwitcherConfig {
     /// Enable the Komorebi Configurations widget
     pub enable: bool,

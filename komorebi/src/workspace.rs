@@ -10,7 +10,6 @@ use getset::CopyGetters;
 use getset::Getters;
 use getset::MutGetters;
 use getset::Setters;
-use schemars::JsonSchema;
 use serde::Deserialize;
 use serde::Serialize;
 
@@ -43,17 +42,9 @@ use crate::REMOVE_TITLEBARS;
 
 #[allow(clippy::struct_field_names)]
 #[derive(
-    Debug,
-    Clone,
-    Serialize,
-    Deserialize,
-    Getters,
-    CopyGetters,
-    MutGetters,
-    Setters,
-    JsonSchema,
-    PartialEq,
+    Debug, Clone, Serialize, Deserialize, Getters, CopyGetters, MutGetters, Setters, PartialEq,
 )]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct Workspace {
     #[getset(get = "pub", set = "pub")]
     pub name: Option<String>,
@@ -103,7 +94,8 @@ pub struct Workspace {
     pub workspace_config: Option<WorkspaceConfig>,
 }
 
-#[derive(Debug, Default, Copy, Clone, Serialize, Deserialize, JsonSchema, PartialEq, Eq)]
+#[derive(Debug, Default, Copy, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub enum WorkspaceLayer {
     #[default]
     Tiling,
@@ -169,9 +161,9 @@ pub enum WorkspaceWindowLocation {
     CopyGetters,
     MutGetters,
     Setters,
-    JsonSchema,
     PartialEq,
 )]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 /// Settings setup either by the parent monitor or by the `WindowManager`
 pub struct WorkspaceGlobals {
     pub container_padding: Option<i32>,

@@ -1,3 +1,8 @@
+use color_eyre::eyre::anyhow;
+use color_eyre::Result;
+use miow::pipe::connect;
+use net2::TcpStreamExt;
+use parking_lot::Mutex;
 use std::collections::HashMap;
 use std::fs::File;
 use std::fs::OpenOptions;
@@ -11,20 +16,11 @@ use std::str::FromStr;
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
 use std::time::Duration;
-
-use color_eyre::eyre::anyhow;
-use color_eyre::Result;
-use miow::pipe::connect;
-use net2::TcpStreamExt;
-use parking_lot::Mutex;
-use schemars::gen::SchemaSettings;
-use schemars::schema_for;
 use uds_windows::UnixStream;
 
 use crate::animation::ANIMATION_DURATION_PER_ANIMATION;
 use crate::animation::ANIMATION_ENABLED_PER_ANIMATION;
 use crate::animation::ANIMATION_STYLE_PER_ANIMATION;
-use crate::core::config_generation::ApplicationConfiguration;
 use crate::core::config_generation::IdWithIdentifier;
 use crate::core::config_generation::MatchingRule;
 use crate::core::config_generation::MatchingStrategy;
@@ -1828,35 +1824,49 @@ impl WindowManager {
                 *STACKBAR_FONT_FAMILY.lock() = font_family.clone();
             }
             SocketMessage::ApplicationSpecificConfigurationSchema => {
-                let asc = schema_for!(Vec<ApplicationConfiguration>);
-                let schema = serde_json::to_string_pretty(&asc)?;
+                #[cfg(feature = "schemars")]
+                {
+                    let asc = schemars::schema_for!(
+                        Vec<crate::core::config_generation::ApplicationConfiguration>
+                    );
+                    let schema = serde_json::to_string_pretty(&asc)?;
 
-                reply.write_all(schema.as_bytes())?;
+                    reply.write_all(schema.as_bytes())?;
+                }
             }
             SocketMessage::NotificationSchema => {
-                let notification = schema_for!(Notification);
-                let schema = serde_json::to_string_pretty(&notification)?;
+                #[cfg(feature = "schemars")]
+                {
+                    let notification = schemars::schema_for!(Notification);
+                    let schema = serde_json::to_string_pretty(&notification)?;
 
-                reply.write_all(schema.as_bytes())?;
+                    reply.write_all(schema.as_bytes())?;
+                }
             }
             SocketMessage::SocketSchema => {
-                let socket_message = schema_for!(SocketMessage);
-                let schema = serde_json::to_string_pretty(&socket_message)?;
+                #[cfg(feature = "schemars")]
+                {
+                    let socket_message = schemars::schema_for!(SocketMessage);
+                    let schema = serde_json::to_string_pretty(&socket_message)?;
 
-                reply.write_all(schema.as_bytes())?;
+                    reply.write_all(schema.as_bytes())?;
+                }
             }
             SocketMessage::StaticConfigSchema => {
-                let settings = SchemaSettings::default().with(|s| {
-                    s.option_nullable = false;
-                    s.option_add_null_type = false;
-                    s.inline_subschemas = true;
-                });
+                #[cfg(feature = "schemars")]
+                {
+                    let settings = schemars::gen::SchemaSettings::default().with(|s| {
+                        s.option_nullable = false;
+                        s.option_add_null_type = false;
+                        s.inline_subschemas = true;
+                    });
 
-                let gen = settings.into_generator();
-                let socket_message = gen.into_root_schema_for::<StaticConfig>();
-                let schema = serde_json::to_string_pretty(&socket_message)?;
+                    let gen = settings.into_generator();
+                    let socket_message = gen.into_root_schema_for::<StaticConfig>();
+                    let schema = serde_json::to_string_pretty(&socket_message)?;
 
-                reply.write_all(schema.as_bytes())?;
+                    reply.write_all(schema.as_bytes())?;
+                }
             }
             SocketMessage::GenerateStaticConfig => {
                 let config = serde_json::to_string_pretty(&StaticConfig::from(&*self))?;

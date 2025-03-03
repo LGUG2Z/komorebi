@@ -10,13 +10,13 @@ use eframe::egui::Label;
 use eframe::egui::TextFormat;
 use eframe::egui::Ui;
 use eframe::egui::Vec2;
-use schemars::JsonSchema;
 use serde::Deserialize;
 use serde::Serialize;
 use std::sync::atomic::Ordering;
 use windows::Media::Control::GlobalSystemMediaTransportControlsSessionManager;
 
-#[derive(Copy, Clone, Debug, Serialize, Deserialize, JsonSchema)]
+#[derive(Copy, Clone, Debug, Serialize, Deserialize)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct MediaConfig {
     /// Enable the Media widget
     pub enable: bool,

@@ -8,7 +8,6 @@ use eframe::egui::Context;
 use eframe::egui::Label;
 use eframe::egui::TextFormat;
 use eframe::egui::Ui;
-use schemars::JsonSchema;
 use serde::Deserialize;
 use serde::Serialize;
 use std::process::Command;
@@ -16,7 +15,8 @@ use std::time::Duration;
 use std::time::Instant;
 use sysinfo::Disks;
 
-#[derive(Copy, Clone, Debug, Serialize, Deserialize, JsonSchema)]
+#[derive(Copy, Clone, Debug, Serialize, Deserialize)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct StorageConfig {
     /// Enable the Storage widget
     pub enable: bool,

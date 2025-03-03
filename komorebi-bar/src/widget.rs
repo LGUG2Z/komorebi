@@ -23,7 +23,6 @@ use crate::update::Update;
 use crate::update::UpdateConfig;
 use eframe::egui::Context;
 use eframe::egui::Ui;
-use schemars::JsonSchema;
 use serde::Deserialize;
 use serde::Serialize;
 
@@ -31,7 +30,8 @@ pub trait BarWidget {
     fn render(&mut self, ctx: &Context, ui: &mut Ui, config: &mut RenderConfig);
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub enum WidgetConfig {
     Battery(BatteryConfig),
     Cpu(CpuConfig),

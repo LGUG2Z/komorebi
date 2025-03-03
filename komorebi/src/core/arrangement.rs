@@ -1,7 +1,6 @@
 use std::num::NonZeroUsize;
 
 use clap::ValueEnum;
-use schemars::JsonSchema;
 use serde::Deserialize;
 use serde::Serialize;
 use strum::Display;
@@ -603,18 +602,8 @@ impl Arrangement for CustomLayout {
     }
 }
 
-#[derive(
-    Clone,
-    Copy,
-    Debug,
-    Serialize,
-    Deserialize,
-    Display,
-    EnumString,
-    ValueEnum,
-    JsonSchema,
-    PartialEq,
-)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, Display, EnumString, ValueEnum, PartialEq)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub enum Axis {
     Horizontal,
     Vertical,

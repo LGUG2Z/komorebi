@@ -21,7 +21,7 @@ miette = { version = "7", features = ["fancy"] }
 paste = { workspace = true }
 powershell_script = "1.0"
 reqwest = { version = "0.12", features = ["blocking"] }
-schemars = { workspace = true }
+schemars = { workspace = true, optional = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 shadow-rs = { workspace = true }
@@ -33,6 +33,10 @@ windows = { workspace = true }
 [build-dependencies]
 reqwest = { version = "0.12", features = ["blocking"] }
 shadow-rs = { workspace = true }
+
+[features]
+default = ["schemars"]
+schemars = ["dep:schemars"]
 
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(FALSE)'] }

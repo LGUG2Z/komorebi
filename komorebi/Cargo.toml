@@ -29,7 +29,7 @@ os_info = "3.10"
 parking_lot = "0.12"
 paste = { workspace = true }
 regex = "1"
-schemars = { workspace = true }
+schemars = { workspace = true, optional = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 serde_yaml = { workspace = true }
@@ -57,4 +57,6 @@ shadow-rs = { workspace = true }
 reqwest = { version = "0.12", features = ["blocking"] }
 
 [features]
+default = ["schemars"]
 deadlock_detection = ["parking_lot/deadlock_detection"]
+schemars = ["dep:schemars"]

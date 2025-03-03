@@ -6,13 +6,13 @@ use eframe::egui::TextBuffer;
 use eframe::egui::Vec2;
 use komorebi_client::KomorebiTheme;
 use komorebi_client::Rect;
-use schemars::JsonSchema;
 use serde::Deserialize;
 use serde::Serialize;
 use std::collections::HashMap;
 use std::path::PathBuf;
 
-#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 /// The `komorebi.bar.json` configuration file reference for `v0.1.35`
 pub struct KomobarConfig {
     /// Bar height (default: 50)
@@ -136,7 +136,8 @@ impl KomobarConfig {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct PositionConfig {
     /// The desired starting position of the bar (0,0 = top left of the screen)
     #[serde(alias = "position")]
@@ -146,13 +147,15 @@ pub struct PositionConfig {
     pub end: Option<Position>,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct FrameConfig {
     /// Margin inside the painted frame
     pub inner_margin: Position,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[serde(untagged)]
 pub enum MonitorConfigOrIndex {
     /// The monitor index where you want the bar to show
@@ -161,7 +164,8 @@ pub enum MonitorConfigOrIndex {
     MonitorConfig(MonitorConfig),
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct MonitorConfig {
     /// Komorebi monitor index of the monitor on which to render the bar
     pub index: usize,
@@ -172,7 +176,8 @@ pub struct MonitorConfig {
 pub type Padding = SpacingKind;
 pub type Margin = SpacingKind;
 
-#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[serde(untagged)]
 // WARNING: To any developer messing with this code in the future: The order here matters!
 // `Grouped` needs to come last, otherwise serde might mistaken an `IndividualSpacingConfig` for a
@@ -223,20 +228,23 @@ impl SpacingKind {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct GroupedSpacingConfig {
     pub vertical: Option<GroupedSpacingOptions>,
     pub horizontal: Option<GroupedSpacingOptions>,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[serde(untagged)]
 pub enum GroupedSpacingOptions {
     Symmetrical(f32),
     Split(f32, f32),
 }
 
-#[derive(Copy, Clone, Debug, Serialize, Deserialize, JsonSchema)]
+#[derive(Copy, Clone, Debug, Serialize, Deserialize)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct IndividualSpacingConfig {
     pub top: f32,
     pub bottom: f32,
@@ -338,7 +346,8 @@ impl KomobarConfig {
     }
 }
 
-#[derive(Copy, Clone, Debug, Serialize, Deserialize, JsonSchema)]
+#[derive(Copy, Clone, Debug, Serialize, Deserialize)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct Position {
     /// X coordinate
     pub x: f32,
@@ -364,7 +373,8 @@ impl From<Position> for Pos2 {
     }
 }
 
-#[derive(Copy, Clone, Debug, Serialize, Deserialize, JsonSchema)]
+#[derive(Copy, Clone, Debug, Serialize, Deserialize)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[serde(tag = "palette")]
 pub enum KomobarTheme {
     /// A theme from catppuccin-egui
@@ -400,7 +410,8 @@ impl From<KomorebiTheme> for KomobarTheme {
     }
 }
 
-#[derive(Copy, Clone, Debug, Serialize, Deserialize, JsonSchema)]
+#[derive(Copy, Clone, Debug, Serialize, Deserialize)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub enum LabelPrefix {
     /// Show no prefix
     None,
@@ -412,7 +423,8 @@ pub enum LabelPrefix {
     IconAndText,
 }
 
-#[derive(Copy, Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq)]
+#[derive(Copy, Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub enum DisplayFormat {
     /// Show only icon
     Icon,
@@ -428,7 +440,8 @@ pub enum DisplayFormat {
 
 macro_rules! extend_enum {
     ($existing_enum:ident, $new_enum:ident, { $($(#[$meta:meta])* $variant:ident),* $(,)? }) => {
-        #[derive(Copy, Clone, Debug, serde::Serialize, serde::Deserialize, schemars::JsonSchema, PartialEq)]
+        #[derive(Copy, Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq)]
+        #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
         pub enum $new_enum {
             // Add new variants
             $(
@@ -460,12 +473,11 @@ extend_enum!(DisplayFormat, WorkspacesDisplayFormat, {
 
 #[cfg(test)]
 mod tests {
-    use schemars::JsonSchema;
     use serde::Deserialize;
     use serde::Serialize;
     use serde_json::json;
 
-    #[derive(Copy, Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq)]
+    #[derive(Copy, Clone, Debug, Serialize, Deserialize, PartialEq)]
     pub enum OriginalDisplayFormat {
         /// Show None Of The Things
         NoneOfTheThings,

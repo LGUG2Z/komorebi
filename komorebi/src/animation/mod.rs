@@ -18,11 +18,12 @@ pub mod prefix;
 pub mod render_dispatcher;
 pub use render_dispatcher::RenderDispatcher;
 pub mod style;
-use schemars::JsonSchema;
+
 use serde::Deserialize;
 use serde::Serialize;
 
-#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[serde(untagged)]
 pub enum PerAnimationPrefixConfig<T> {
     Prefix(HashMap<AnimationPrefix, T>),
