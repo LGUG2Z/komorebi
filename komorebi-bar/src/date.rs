@@ -9,12 +9,12 @@ use eframe::egui::Label;
 use eframe::egui::TextFormat;
 use eframe::egui::Ui;
 use eframe::egui::WidgetText;
-use schemars::JsonSchema;
 use serde::Deserialize;
 use serde::Serialize;
 
 /// Custom format with additive modifiers for integer format specifiers
-#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct CustomModifiers {
     /// Custom format (https://docs.rs/chrono/latest/chrono/format/strftime/index.html)
     format: String,
@@ -55,7 +55,8 @@ impl CustomModifiers {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct DateConfig {
     /// Enable the Date widget
     pub enable: bool,
@@ -75,7 +76,8 @@ impl From<DateConfig> for Date {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub enum DateFormat {
     /// Month/Date/Year format (09/08/24)
     MonthDateYear,

@@ -2,14 +2,14 @@ use std::collections::VecDeque;
 
 use getset::Getters;
 use nanoid::nanoid;
-use schemars::JsonSchema;
 use serde::Deserialize;
 use serde::Serialize;
 
 use crate::ring::Ring;
 use crate::window::Window;
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Getters, JsonSchema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Getters)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct Container {
     #[getset(get = "pub")]
     id: String,

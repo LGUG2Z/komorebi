@@ -9,7 +9,6 @@ use getset::CopyGetters;
 use getset::Getters;
 use getset::MutGetters;
 use getset::Setters;
-use schemars::JsonSchema;
 use serde::Deserialize;
 use serde::Serialize;
 
@@ -26,17 +25,9 @@ use crate::DEFAULT_CONTAINER_PADDING;
 use crate::DEFAULT_WORKSPACE_PADDING;
 
 #[derive(
-    Debug,
-    Clone,
-    Serialize,
-    Deserialize,
-    Getters,
-    CopyGetters,
-    MutGetters,
-    Setters,
-    JsonSchema,
-    PartialEq,
+    Debug, Clone, Serialize, Deserialize, Getters, CopyGetters, MutGetters, Setters, PartialEq,
 )]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct Monitor {
     #[getset(get_copy = "pub", set = "pub")]
     pub id: isize,

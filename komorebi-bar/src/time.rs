@@ -14,11 +14,11 @@ use eframe::egui::TextFormat;
 use eframe::egui::Ui;
 use eframe::egui::Vec2;
 use eframe::epaint::StrokeKind;
-use schemars::JsonSchema;
 use serde::Deserialize;
 use serde::Serialize;
 
-#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct TimeConfig {
     /// Enable the Time widget
     pub enable: bool,
@@ -38,7 +38,8 @@ impl From<TimeConfig> for Time {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub enum TimeFormat {
     /// Twelve-hour format (with seconds)
     TwelveHour,

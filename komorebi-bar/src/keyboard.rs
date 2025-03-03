@@ -8,7 +8,6 @@ use eframe::egui::Label;
 use eframe::egui::TextFormat;
 use eframe::egui::Ui;
 use eframe::egui::WidgetText;
-use schemars::JsonSchema;
 use serde::Deserialize;
 use serde::Serialize;
 use std::time::Duration;
@@ -23,7 +22,8 @@ use windows::Win32::UI::WindowsAndMessaging::GetWindowThreadProcessId;
 const DEFAULT_DATA_REFRESH_INTERVAL: u64 = 1;
 const ERROR_TEXT: &str = "Error";
 
-#[derive(Copy, Clone, Debug, Serialize, Deserialize, JsonSchema)]
+#[derive(Copy, Clone, Debug, Serialize, Deserialize)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct KeyboardConfig {
     /// Enable the Input widget
     pub enable: bool,

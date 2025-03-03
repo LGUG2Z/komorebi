@@ -1,7 +1,6 @@
 use std::fmt::Display;
 use std::fmt::Formatter;
 
-use schemars::JsonSchema;
 use serde::Deserialize;
 use serde::Serialize;
 
@@ -12,7 +11,8 @@ use crate::OBJECT_NAME_CHANGE_ON_LAUNCH;
 use crate::OBJECT_NAME_CHANGE_TITLE_IGNORE_LIST;
 use crate::REGEX_IDENTIFIERS;
 
-#[derive(Debug, Copy, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Copy, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[serde(tag = "type", content = "content")]
 pub enum WindowManagerEvent {
     Destroy(WinEvent, Window),

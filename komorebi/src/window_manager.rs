@@ -19,7 +19,6 @@ use hotwatch::notify::ErrorKind as NotifyErrorKind;
 use hotwatch::EventKind;
 use hotwatch::Hotwatch;
 use parking_lot::Mutex;
-use schemars::JsonSchema;
 use serde::Deserialize;
 use serde::Serialize;
 use uds_windows::UnixListener;
@@ -126,7 +125,8 @@ pub struct WindowManager {
 }
 
 #[allow(clippy::struct_excessive_bools)]
-#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Serialize, Deserialize)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct State {
     pub monitors: Ring<Monitor>,
     pub monitor_usr_idx_map: HashMap<usize, usize>,
@@ -191,7 +191,8 @@ impl State {
 }
 
 #[allow(clippy::struct_excessive_bools)]
-#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Serialize, Deserialize)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct GlobalState {
     pub border_enabled: bool,
     pub border_colours: BorderColours,

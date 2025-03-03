@@ -1,14 +1,19 @@
 use hex_color::HexColor;
 use komorebi_themes::Color32;
+#[cfg(feature = "schemars")]
 use schemars::gen::SchemaGenerator;
+#[cfg(feature = "schemars")]
 use schemars::schema::InstanceType;
+#[cfg(feature = "schemars")]
 use schemars::schema::Schema;
+#[cfg(feature = "schemars")]
 use schemars::schema::SchemaObject;
-use schemars::JsonSchema;
+
 use serde::Deserialize;
 use serde::Serialize;
 
-#[derive(Debug, Copy, Clone, Serialize, Deserialize, JsonSchema, PartialEq)]
+#[derive(Debug, Copy, Clone, Serialize, Deserialize, PartialEq)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[serde(untagged)]
 pub enum Colour {
     /// Colour represented as RGB
@@ -54,7 +59,8 @@ impl From<Colour> for Color32 {
 #[derive(Debug, Copy, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Hex(HexColor);
 
-impl JsonSchema for Hex {
+#[cfg(feature = "schemars")]
+impl schemars::JsonSchema for Hex {
     fn schema_name() -> String {
         String::from("Hex")
     }
@@ -78,7 +84,8 @@ impl From<Colour> for u32 {
     }
 }
 
-#[derive(Debug, Copy, Clone, Serialize, Deserialize, JsonSchema, PartialEq)]
+#[derive(Debug, Copy, Clone, Serialize, Deserialize, PartialEq)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct Rgb {
     /// Red
     pub r: u32,

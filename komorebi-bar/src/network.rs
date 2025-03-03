@@ -9,7 +9,6 @@ use eframe::egui::Label;
 use eframe::egui::TextFormat;
 use eframe::egui::Ui;
 use num_derive::FromPrimitive;
-use schemars::JsonSchema;
 use serde::Deserialize;
 use serde::Serialize;
 use std::fmt;
@@ -18,7 +17,8 @@ use std::time::Duration;
 use std::time::Instant;
 use sysinfo::Networks;
 
-#[derive(Copy, Clone, Debug, Serialize, Deserialize, JsonSchema)]
+#[derive(Copy, Clone, Debug, Serialize, Deserialize)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct NetworkConfig {
     /// Enable the Network widget
     pub enable: bool,

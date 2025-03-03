@@ -19,7 +19,6 @@ use crossbeam_utils::atomic::AtomicCell;
 use crossbeam_utils::atomic::AtomicConsume;
 use lazy_static::lazy_static;
 use parking_lot::Mutex;
-use schemars::JsonSchema;
 use serde::Deserialize;
 use serde::Serialize;
 use std::collections::hash_map::Entry;
@@ -698,7 +697,8 @@ fn remove_border(
     Ok(())
 }
 
-#[derive(Debug, Copy, Clone, Display, Serialize, Deserialize, JsonSchema, PartialEq)]
+#[derive(Debug, Copy, Clone, Display, Serialize, Deserialize, PartialEq)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub enum ZOrder {
     Top,
     NoTopMost,

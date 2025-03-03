@@ -11,13 +11,42 @@ use crate::animation::ANIMATION_MANAGER;
 use crate::animation::ANIMATION_STYLE_GLOBAL;
 use crate::animation::ANIMATION_STYLE_PER_ANIMATION;
 use crate::com::SetCloak;
+use crate::core::config_generation::IdWithIdentifier;
+use crate::core::config_generation::MatchingRule;
+use crate::core::config_generation::MatchingStrategy;
+use crate::core::ApplicationIdentifier;
+use crate::core::HidingBehaviour;
+use crate::core::Rect;
 use crate::focus_manager;
 use crate::stackbar_manager;
+use crate::styles::ExtendedWindowStyle;
+use crate::styles::WindowStyle;
+use crate::transparency_manager;
+use crate::window_manager_event::WindowManagerEvent;
 use crate::windows_api;
+use crate::windows_api::WindowsApi;
 use crate::AnimationStyle;
+use crate::FLOATING_APPLICATIONS;
 use crate::FLOATING_WINDOW_TOGGLE_ASPECT_RATIO;
+use crate::HIDDEN_HWNDS;
+use crate::HIDING_BEHAVIOUR;
+use crate::IGNORE_IDENTIFIERS;
+use crate::LAYERED_WHITELIST;
+use crate::MANAGE_IDENTIFIERS;
+use crate::NO_TITLEBAR;
+use crate::PERMAIGNORE_CLASSES;
+use crate::REGEX_IDENTIFIERS;
 use crate::SLOW_APPLICATION_COMPENSATION_TIME;
 use crate::SLOW_APPLICATION_IDENTIFIERS;
+use crate::WSL2_UI_PROCESSES;
+use color_eyre::eyre;
+use color_eyre::Result;
+use crossbeam_utils::atomic::AtomicConsume;
+use regex::Regex;
+use serde::ser::SerializeStruct;
+use serde::Deserialize;
+use serde::Serialize;
+use serde::Serializer;
 use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::fmt::Display;
@@ -27,47 +56,15 @@ use std::sync::atomic::AtomicI32;
 use std::sync::atomic::Ordering;
 use std::thread;
 use std::time::Duration;
-
-use crate::core::config_generation::IdWithIdentifier;
-use crate::core::config_generation::MatchingRule;
-use crate::core::config_generation::MatchingStrategy;
-use color_eyre::eyre;
-use color_eyre::Result;
-use crossbeam_utils::atomic::AtomicConsume;
-use regex::Regex;
-use schemars::JsonSchema;
-use serde::ser::SerializeStruct;
-use serde::Deserialize;
-use serde::Serialize;
-use serde::Serializer;
 use strum::Display;
 use strum::EnumString;
 use windows::Win32::Foundation::HWND;
 
-use crate::core::ApplicationIdentifier;
-use crate::core::HidingBehaviour;
-use crate::core::Rect;
-
-use crate::styles::ExtendedWindowStyle;
-use crate::styles::WindowStyle;
-use crate::transparency_manager;
-use crate::window_manager_event::WindowManagerEvent;
-use crate::windows_api::WindowsApi;
-use crate::FLOATING_APPLICATIONS;
-use crate::HIDDEN_HWNDS;
-use crate::HIDING_BEHAVIOUR;
-use crate::IGNORE_IDENTIFIERS;
-use crate::LAYERED_WHITELIST;
-use crate::MANAGE_IDENTIFIERS;
-use crate::NO_TITLEBAR;
-use crate::PERMAIGNORE_CLASSES;
-use crate::REGEX_IDENTIFIERS;
-use crate::WSL2_UI_PROCESSES;
-
 pub static MINIMUM_WIDTH: AtomicI32 = AtomicI32::new(0);
 pub static MINIMUM_HEIGHT: AtomicI32 = AtomicI32::new(0);
 
-#[derive(Debug, Default, Clone, Copy, Deserialize, JsonSchema, PartialEq)]
+#[derive(Debug, Default, Clone, Copy, Deserialize, PartialEq)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct Window {
     pub hwnd: isize,
 }
@@ -87,7 +84,8 @@ impl From<HWND> for Window {
 }
 
 #[allow(clippy::module_name_repetitions)]
-#[derive(Debug, Clone, Serialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct WindowDetails {
     pub title: String,
     pub exe: String,
@@ -299,9 +297,8 @@ impl RenderDispatcher for TransparencyRenderDispatcher {
     }
 }
 
-#[derive(
-    Copy, Clone, Debug, Display, EnumString, Serialize, Deserialize, JsonSchema, PartialEq,
-)]
+#[derive(Copy, Clone, Debug, Display, EnumString, Serialize, Deserialize, PartialEq)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[serde(untagged)]
 pub enum AspectRatio {
     /// A predefined aspect ratio
@@ -316,9 +313,8 @@ impl Default for AspectRatio {
     }
 }
 
-#[derive(
-    Copy, Clone, Debug, Default, Display, EnumString, Serialize, Deserialize, JsonSchema, PartialEq,
-)]
+#[derive(Copy, Clone, Debug, Default, Display, EnumString, Serialize, Deserialize, PartialEq)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub enum PredefinedAspectRatio {
     /// 21:9
     Ultrawide,

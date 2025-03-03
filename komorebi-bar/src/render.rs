@@ -11,7 +11,6 @@ use eframe::egui::Margin;
 use eframe::egui::Shadow;
 use eframe::egui::TextStyle;
 use eframe::egui::Ui;
-use schemars::JsonSchema;
 use serde::Deserialize;
 use serde::Serialize;
 use std::sync::atomic::AtomicUsize;
@@ -20,7 +19,8 @@ use std::sync::Arc;
 
 static SHOW_KOMOREBI_LAYOUT_OPTIONS: AtomicUsize = AtomicUsize::new(0);
 
-#[derive(Copy, Clone, Debug, Serialize, Deserialize, JsonSchema)]
+#[derive(Copy, Clone, Debug, Serialize, Deserialize)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[serde(tag = "kind")]
 pub enum Grouping {
     /// No grouping is applied
@@ -339,7 +339,8 @@ impl RenderConfig {
     }
 }
 
-#[derive(Copy, Clone, Debug, Serialize, Deserialize, JsonSchema)]
+#[derive(Copy, Clone, Debug, Serialize, Deserialize)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct GroupingConfig {
     /// Styles for the grouping
     pub style: Option<GroupingStyle>,
@@ -349,7 +350,8 @@ pub struct GroupingConfig {
     pub rounding: Option<RoundingConfig>,
 }
 
-#[derive(Copy, Clone, Debug, Serialize, Deserialize, JsonSchema)]
+#[derive(Copy, Clone, Debug, Serialize, Deserialize)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub enum GroupingStyle {
     #[serde(alias = "CtByte")]
     Default,
@@ -369,7 +371,8 @@ pub enum GroupingStyle {
     DefaultWithGlowB0O1S2,
 }
 
-#[derive(Copy, Clone, Debug, Serialize, Deserialize, JsonSchema)]
+#[derive(Copy, Clone, Debug, Serialize, Deserialize)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[serde(untagged)]
 pub enum RoundingConfig {
     /// All 4 corners are the same    

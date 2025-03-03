@@ -14,7 +14,6 @@ use eframe::egui::StrokeKind;
 use eframe::egui::Ui;
 use eframe::egui::Vec2;
 use komorebi_client::SocketMessage;
-use schemars::JsonSchema;
 use serde::de::Error;
 use serde::Deserialize;
 use serde::Deserializer;
@@ -23,7 +22,8 @@ use serde_json::from_str;
 use std::fmt::Display;
 use std::fmt::Formatter;
 
-#[derive(Copy, Clone, Debug, Serialize, JsonSchema, PartialEq)]
+#[derive(Copy, Clone, Debug, Serialize, PartialEq)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[serde(untagged)]
 pub enum KomorebiLayout {
     Default(komorebi_client::DefaultLayout),
