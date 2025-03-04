@@ -7,14 +7,35 @@ use crate::animation::ANIMATION_FPS;
 use crate::animation::ANIMATION_STYLE_GLOBAL;
 use crate::animation::ANIMATION_STYLE_PER_ANIMATION;
 use crate::animation::DEFAULT_ANIMATION_FPS;
+use crate::asc::ApplicationSpecificConfiguration;
+use crate::asc::AscApplicationRulesOrSchema;
 use crate::border_manager;
 use crate::border_manager::ZOrder;
 use crate::border_manager::IMPLEMENTATION;
 use crate::border_manager::STYLE;
 use crate::colour::Colour;
+use crate::config_generation::WorkspaceMatchingRule;
+use crate::core::config_generation::ApplicationConfiguration;
+use crate::core::config_generation::ApplicationConfigurationGenerator;
+use crate::core::config_generation::ApplicationOptions;
+use crate::core::config_generation::MatchingRule;
+use crate::core::config_generation::MatchingStrategy;
+use crate::core::resolve_home_path;
+use crate::core::AnimationStyle;
 use crate::core::BorderImplementation;
+use crate::core::BorderStyle;
+use crate::core::DefaultLayout;
+use crate::core::FocusFollowsMouseImplementation;
+use crate::core::HidingBehaviour;
+use crate::core::Layout;
+use crate::core::MoveBehaviour;
+use crate::core::OperationBehaviour;
+use crate::core::Rect;
+use crate::core::SocketMessage;
 use crate::core::StackbarLabel;
 use crate::core::StackbarMode;
+use crate::core::WindowContainerBehaviour;
+use crate::core::WindowManagementBehaviour;
 use crate::current_virtual_desktop;
 use crate::monitor;
 use crate::monitor::Monitor;
@@ -61,35 +82,12 @@ use crate::TRANSPARENCY_BLACKLIST;
 use crate::TRAY_AND_MULTI_WINDOW_IDENTIFIERS;
 use crate::WINDOWS_11;
 use crate::WORKSPACE_MATCHING_RULES;
-
-use crate::asc::ApplicationSpecificConfiguration;
-use crate::asc::AscApplicationRulesOrSchema;
-use crate::config_generation::WorkspaceMatchingRule;
-use crate::core::config_generation::ApplicationConfiguration;
-use crate::core::config_generation::ApplicationConfigurationGenerator;
-use crate::core::config_generation::ApplicationOptions;
-use crate::core::config_generation::MatchingRule;
-use crate::core::config_generation::MatchingStrategy;
-use crate::core::resolve_home_path;
-use crate::core::AnimationStyle;
-use crate::core::BorderStyle;
-use crate::core::DefaultLayout;
-use crate::core::FocusFollowsMouseImplementation;
-use crate::core::HidingBehaviour;
-use crate::core::Layout;
-use crate::core::MoveBehaviour;
-use crate::core::OperationBehaviour;
-use crate::core::Rect;
-use crate::core::SocketMessage;
-use crate::core::WindowContainerBehaviour;
-use crate::core::WindowManagementBehaviour;
 use color_eyre::Result;
 use crossbeam_channel::Receiver;
 use hotwatch::EventKind;
 use hotwatch::Hotwatch;
 use parking_lot::Mutex;
 use regex::Regex;
-use schemars::JsonSchema;
 use serde::Deserialize;
 use serde::Serialize;
 use std::collections::HashMap;
@@ -102,7 +100,8 @@ use std::sync::Arc;
 use uds_windows::UnixListener;
 use uds_windows::UnixStream;
 
-#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct BorderColours {
     /// Border colour when the container contains a single window
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -121,7 +120,8 @@ pub struct BorderColours {
     pub unfocused: Option<Colour>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct WorkspaceConfig {
     /// Name
     pub name: String,
@@ -243,7 +243,8 @@ impl From<&Workspace> for WorkspaceConfig {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct MonitorConfig {
     /// Workspace configurations
     pub workspaces: Vec<WorkspaceConfig>,
@@ -301,7 +302,8 @@ impl From<&Monitor> for MonitorConfig {
     }
 }
 
-#[derive(Clone, Debug, Default, Serialize, Deserialize, JsonSchema, PartialEq)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 /// The `komorebi.json` static configuration file reference for `v0.1.35`
 pub struct StaticConfig {
     /// DEPRECATED from v0.1.22: no longer required
@@ -449,7 +451,8 @@ pub struct StaticConfig {
     pub floating_window_aspect_ratio: Option<AspectRatio>,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct AnimationsConfig {
     /// Enable or disable animations (default: false)
     pub enabled: PerAnimationPrefixConfig<bool>,
@@ -464,7 +467,8 @@ pub struct AnimationsConfig {
     pub fps: Option<u64>,
 }
 
-#[derive(Copy, Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq)]
+#[derive(Copy, Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[serde(tag = "palette")]
 pub enum KomorebiTheme {
     /// A theme from catppuccin-egui
@@ -614,7 +618,8 @@ impl StaticConfig {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct TabsConfig {
     /// Width of a stackbar tab
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -636,7 +641,8 @@ pub struct TabsConfig {
     pub font_size: Option<i32>,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct StackbarConfig {
     /// Stackbar height
     #[serde(skip_serializing_if = "Option::is_none")]

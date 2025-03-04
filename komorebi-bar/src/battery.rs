@@ -8,7 +8,6 @@ use eframe::egui::Context;
 use eframe::egui::Label;
 use eframe::egui::TextFormat;
 use eframe::egui::Ui;
-use schemars::JsonSchema;
 use serde::Deserialize;
 use serde::Serialize;
 use starship_battery::units::ratio::percent;
@@ -18,7 +17,8 @@ use std::process::Command;
 use std::time::Duration;
 use std::time::Instant;
 
-#[derive(Copy, Clone, Debug, Serialize, Deserialize, JsonSchema)]
+#[derive(Copy, Clone, Debug, Serialize, Deserialize)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct BatteryConfig {
     /// Enable the Battery widget
     pub enable: bool,

@@ -8,13 +8,13 @@ use std::path::Path;
 use color_eyre::eyre::anyhow;
 use color_eyre::eyre::bail;
 use color_eyre::Result;
-use schemars::JsonSchema;
 use serde::Deserialize;
 use serde::Serialize;
 
 use super::Rect;
 
-#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct CustomLayout(Vec<Column>);
 
 impl Deref for CustomLayout {
@@ -250,7 +250,8 @@ impl CustomLayout {
     }
 }
 
-#[derive(Clone, Copy, Debug, Serialize, Deserialize, JsonSchema, PartialEq)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[serde(tag = "column", content = "configuration")]
 pub enum Column {
     Primary(Option<ColumnWidth>),
@@ -258,18 +259,21 @@ pub enum Column {
     Tertiary(ColumnSplit),
 }
 
-#[derive(Clone, Copy, Debug, Serialize, Deserialize, JsonSchema, PartialEq)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub enum ColumnWidth {
     WidthPercentage(f32),
 }
 
-#[derive(Clone, Copy, Debug, Serialize, Deserialize, JsonSchema, PartialEq)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub enum ColumnSplit {
     Horizontal,
     Vertical,
 }
 
-#[derive(Clone, Copy, Debug, Serialize, Deserialize, JsonSchema, PartialEq)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub enum ColumnSplitWithCapacity {
     Horizontal(usize),
     Vertical(usize),

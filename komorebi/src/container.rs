@@ -2,14 +2,14 @@ use std::collections::VecDeque;
 
 use getset::Getters;
 use nanoid::nanoid;
-use schemars::JsonSchema;
 use serde::Deserialize;
 use serde::Serialize;
 
 use crate::ring::Ring;
 use crate::window::Window;
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Getters, JsonSchema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Getters)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct Container {
     #[getset(get = "pub")]
     id: String,
@@ -59,6 +59,17 @@ impl Container {
                 window.restore();
             } else {
                 window.hide();
+            }
+        }
+    }
+
+    pub fn load_focused_window_ignore_borders(&mut self) {
+        let focused_idx = self.focused_window_idx();
+        for (i, window) in self.windows_mut().iter_mut().enumerate() {
+            if i == focused_idx {
+                window.restore_with_border(false);
+            } else {
+                window.hide_with_border(false);
             }
         }
     }

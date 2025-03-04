@@ -30,7 +30,6 @@ use hotwatch::Hotwatch;
 use image::RgbaImage;
 use komorebi_client::SocketMessage;
 use komorebi_client::SubscribeOptions;
-use schemars::gen::SchemaSettings;
 use std::collections::HashMap;
 use std::io::BufReader;
 use std::io::Read;
@@ -125,8 +124,9 @@ fn main() -> color_eyre::Result<()> {
 
     let opts: Opts = Opts::parse();
 
+    #[cfg(feature = "schemars")]
     if opts.schema {
-        let settings = SchemaSettings::default().with(|s| {
+        let settings = schemars::gen::SchemaSettings::default().with(|s| {
             s.option_nullable = false;
             s.option_add_null_type = false;
             s.inline_subschemas = true;

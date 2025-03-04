@@ -19,7 +19,6 @@ use hotwatch::notify::ErrorKind as NotifyErrorKind;
 use hotwatch::EventKind;
 use hotwatch::Hotwatch;
 use parking_lot::Mutex;
-use schemars::JsonSchema;
 use serde::Deserialize;
 use serde::Serialize;
 use uds_windows::UnixListener;
@@ -127,7 +126,8 @@ pub struct WindowManager {
 }
 
 #[allow(clippy::struct_excessive_bools)]
-#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Serialize, Deserialize)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct State {
     pub monitors: Ring<Monitor>,
     pub monitor_usr_idx_map: HashMap<usize, usize>,
@@ -192,7 +192,8 @@ impl State {
 }
 
 #[allow(clippy::struct_excessive_bools)]
-#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Serialize, Deserialize)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct GlobalState {
     pub border_enabled: bool,
     pub border_colours: BorderColours,
@@ -2827,7 +2828,7 @@ impl WindowManager {
         let next_idx = direction.next_idx(current_idx, len);
 
         container.focus_window(next_idx);
-        container.load_focused_window();
+        container.load_focused_window_ignore_borders();
 
         self.update_focused_workspace(self.mouse_follows_focus, true)
     }
@@ -2860,7 +2861,7 @@ impl WindowManager {
         container.windows_mut().swap(current_idx, next_idx);
 
         container.focus_window(next_idx);
-        container.load_focused_window();
+        container.load_focused_window_ignore_borders();
 
         self.update_focused_workspace(self.mouse_follows_focus, true)
     }
@@ -2981,12 +2982,16 @@ impl WindowManager {
                 anyhow!("this is not a valid direction from the current position")
             })?;
 
+            let mut changed_focus = false;
+
             let adjusted_new_index = if new_idx > current_container_idx
                 && !matches!(
                     workspace.layout(),
                     Layout::Default(DefaultLayout::Grid)
                         | Layout::Default(DefaultLayout::UltrawideVerticalStack)
                 ) {
+                workspace.focus_container(new_idx);
+                changed_focus = true;
                 new_idx.saturating_sub(1)
             } else {
                 new_idx
@@ -3003,9 +3008,19 @@ impl WindowManager {
             if let Some(current) = workspace.focused_container() {
                 if current.windows().len() > 1 && !target_container_is_stack {
                     workspace.focus_container(adjusted_new_index);
+                    changed_focus = true;
                     workspace.move_window_to_container(current_container_idx)?;
                 } else {
                     workspace.move_window_to_container(adjusted_new_index)?;
+                }
+            }
+
+            if changed_focus {
+                if let Some(container) = workspace.focused_container_mut() {
+                    container.load_focused_window();
+                    if let Some(window) = container.focused_window() {
+                        window.focus(self.mouse_follows_focus)?;
+                    }
                 }
             }
 

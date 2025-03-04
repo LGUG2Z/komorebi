@@ -1,3 +1,8 @@
+use color_eyre::eyre::anyhow;
+use color_eyre::Result;
+use miow::pipe::connect;
+use net2::TcpStreamExt;
+use parking_lot::Mutex;
 use std::collections::HashMap;
 use std::fs::File;
 use std::fs::OpenOptions;
@@ -11,20 +16,11 @@ use std::str::FromStr;
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
 use std::time::Duration;
-
-use color_eyre::eyre::anyhow;
-use color_eyre::Result;
-use miow::pipe::connect;
-use net2::TcpStreamExt;
-use parking_lot::Mutex;
-use schemars::gen::SchemaSettings;
-use schemars::schema_for;
 use uds_windows::UnixStream;
 
 use crate::animation::ANIMATION_DURATION_PER_ANIMATION;
 use crate::animation::ANIMATION_ENABLED_PER_ANIMATION;
 use crate::animation::ANIMATION_STYLE_PER_ANIMATION;
-use crate::core::config_generation::ApplicationConfiguration;
 use crate::core::config_generation::IdWithIdentifier;
 use crate::core::config_generation::MatchingRule;
 use crate::core::config_generation::MatchingStrategy;
@@ -1096,24 +1092,45 @@ impl WindowManager {
                 let mouse_follows_focus = self.mouse_follows_focus;
                 let workspace = self.focused_workspace_mut()?;
 
+                let mut to_focus = None;
                 match workspace.layer() {
                     WorkspaceLayer::Tiling => {
                         workspace.set_layer(WorkspaceLayer::Floating);
 
-                        if let Some(first) = workspace.floating_windows().first() {
-                            first.focus(mouse_follows_focus)?;
+                        for (i, window) in workspace.floating_windows().iter().enumerate() {
+                            if i == 0 {
+                                to_focus = Some(*window);
+                            }
+                            window.raise()?;
+                        }
+
+                        for container in workspace.containers() {
+                            if let Some(window) = container.focused_window() {
+                                window.lower()?;
+                            }
                         }
                     }
                     WorkspaceLayer::Floating => {
                         workspace.set_layer(WorkspaceLayer::Tiling);
 
-                        if let Some(container) = workspace.focused_container() {
+                        let focused_container_idx = workspace.focused_container_idx();
+                        for (i, container) in workspace.containers_mut().iter_mut().enumerate() {
                             if let Some(window) = container.focused_window() {
-                                window.focus(mouse_follows_focus)?;
+                                if i == focused_container_idx {
+                                    to_focus = Some(*window);
+                                }
+                                window.raise()?;
                             }
+                        }
+
+                        for window in workspace.floating_windows() {
+                            window.lower()?;
                         }
                     }
                 };
+                if let Some(window) = to_focus {
+                    window.focus(mouse_follows_focus)?;
+                }
             }
             SocketMessage::Stop => {
                 self.stop(false)?;
@@ -1559,7 +1576,7 @@ impl WindowManager {
                     !workspace.apply_window_based_work_area_offset(),
                 );
 
-                self.retile_all(false)?;
+                self.retile_all(true)?;
             }
             SocketMessage::QuickSave => {
                 let workspace = self.focused_workspace()?;
@@ -1854,35 +1871,49 @@ impl WindowManager {
                 *STACKBAR_FONT_FAMILY.lock() = font_family.clone();
             }
             SocketMessage::ApplicationSpecificConfigurationSchema => {
-                let asc = schema_for!(Vec<ApplicationConfiguration>);
-                let schema = serde_json::to_string_pretty(&asc)?;
+                #[cfg(feature = "schemars")]
+                {
+                    let asc = schemars::schema_for!(
+                        Vec<crate::core::config_generation::ApplicationConfiguration>
+                    );
+                    let schema = serde_json::to_string_pretty(&asc)?;
 
-                reply.write_all(schema.as_bytes())?;
+                    reply.write_all(schema.as_bytes())?;
+                }
             }
             SocketMessage::NotificationSchema => {
-                let notification = schema_for!(Notification);
-                let schema = serde_json::to_string_pretty(&notification)?;
+                #[cfg(feature = "schemars")]
+                {
+                    let notification = schemars::schema_for!(Notification);
+                    let schema = serde_json::to_string_pretty(&notification)?;
 
-                reply.write_all(schema.as_bytes())?;
+                    reply.write_all(schema.as_bytes())?;
+                }
             }
             SocketMessage::SocketSchema => {
-                let socket_message = schema_for!(SocketMessage);
-                let schema = serde_json::to_string_pretty(&socket_message)?;
+                #[cfg(feature = "schemars")]
+                {
+                    let socket_message = schemars::schema_for!(SocketMessage);
+                    let schema = serde_json::to_string_pretty(&socket_message)?;
 
-                reply.write_all(schema.as_bytes())?;
+                    reply.write_all(schema.as_bytes())?;
+                }
             }
             SocketMessage::StaticConfigSchema => {
-                let settings = SchemaSettings::default().with(|s| {
-                    s.option_nullable = false;
-                    s.option_add_null_type = false;
-                    s.inline_subschemas = true;
-                });
+                #[cfg(feature = "schemars")]
+                {
+                    let settings = schemars::gen::SchemaSettings::default().with(|s| {
+                        s.option_nullable = false;
+                        s.option_add_null_type = false;
+                        s.inline_subschemas = true;
+                    });
 
-                let gen = settings.into_generator();
-                let socket_message = gen.into_root_schema_for::<StaticConfig>();
-                let schema = serde_json::to_string_pretty(&socket_message)?;
+                    let gen = settings.into_generator();
+                    let socket_message = gen.into_root_schema_for::<StaticConfig>();
+                    let schema = serde_json::to_string_pretty(&socket_message)?;
 
-                reply.write_all(schema.as_bytes())?;
+                    reply.write_all(schema.as_bytes())?;
+                }
             }
             SocketMessage::GenerateStaticConfig => {
                 let config = serde_json::to_string_pretty(&StaticConfig::from(&*self))?;

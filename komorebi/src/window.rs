@@ -10,14 +10,44 @@ use crate::animation::ANIMATION_ENABLED_PER_ANIMATION;
 use crate::animation::ANIMATION_MANAGER;
 use crate::animation::ANIMATION_STYLE_GLOBAL;
 use crate::animation::ANIMATION_STYLE_PER_ANIMATION;
+use crate::border_manager;
 use crate::com::SetCloak;
+use crate::core::config_generation::IdWithIdentifier;
+use crate::core::config_generation::MatchingRule;
+use crate::core::config_generation::MatchingStrategy;
+use crate::core::ApplicationIdentifier;
+use crate::core::HidingBehaviour;
+use crate::core::Rect;
 use crate::focus_manager;
 use crate::stackbar_manager;
+use crate::styles::ExtendedWindowStyle;
+use crate::styles::WindowStyle;
+use crate::transparency_manager;
+use crate::window_manager_event::WindowManagerEvent;
 use crate::windows_api;
+use crate::windows_api::WindowsApi;
 use crate::AnimationStyle;
+use crate::FLOATING_APPLICATIONS;
 use crate::FLOATING_WINDOW_TOGGLE_ASPECT_RATIO;
+use crate::HIDDEN_HWNDS;
+use crate::HIDING_BEHAVIOUR;
+use crate::IGNORE_IDENTIFIERS;
+use crate::LAYERED_WHITELIST;
+use crate::MANAGE_IDENTIFIERS;
+use crate::NO_TITLEBAR;
+use crate::PERMAIGNORE_CLASSES;
+use crate::REGEX_IDENTIFIERS;
 use crate::SLOW_APPLICATION_COMPENSATION_TIME;
 use crate::SLOW_APPLICATION_IDENTIFIERS;
+use crate::WSL2_UI_PROCESSES;
+use color_eyre::eyre;
+use color_eyre::Result;
+use crossbeam_utils::atomic::AtomicConsume;
+use regex::Regex;
+use serde::ser::SerializeStruct;
+use serde::Deserialize;
+use serde::Serialize;
+use serde::Serializer;
 use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::fmt::Display;
@@ -27,47 +57,15 @@ use std::sync::atomic::AtomicI32;
 use std::sync::atomic::Ordering;
 use std::thread;
 use std::time::Duration;
-
-use crate::core::config_generation::IdWithIdentifier;
-use crate::core::config_generation::MatchingRule;
-use crate::core::config_generation::MatchingStrategy;
-use color_eyre::eyre;
-use color_eyre::Result;
-use crossbeam_utils::atomic::AtomicConsume;
-use regex::Regex;
-use schemars::JsonSchema;
-use serde::ser::SerializeStruct;
-use serde::Deserialize;
-use serde::Serialize;
-use serde::Serializer;
 use strum::Display;
 use strum::EnumString;
 use windows::Win32::Foundation::HWND;
 
-use crate::core::ApplicationIdentifier;
-use crate::core::HidingBehaviour;
-use crate::core::Rect;
-
-use crate::styles::ExtendedWindowStyle;
-use crate::styles::WindowStyle;
-use crate::transparency_manager;
-use crate::window_manager_event::WindowManagerEvent;
-use crate::windows_api::WindowsApi;
-use crate::FLOATING_APPLICATIONS;
-use crate::HIDDEN_HWNDS;
-use crate::HIDING_BEHAVIOUR;
-use crate::IGNORE_IDENTIFIERS;
-use crate::LAYERED_WHITELIST;
-use crate::MANAGE_IDENTIFIERS;
-use crate::NO_TITLEBAR;
-use crate::PERMAIGNORE_CLASSES;
-use crate::REGEX_IDENTIFIERS;
-use crate::WSL2_UI_PROCESSES;
-
 pub static MINIMUM_WIDTH: AtomicI32 = AtomicI32::new(0);
 pub static MINIMUM_HEIGHT: AtomicI32 = AtomicI32::new(0);
 
-#[derive(Debug, Default, Clone, Copy, Deserialize, JsonSchema, PartialEq)]
+#[derive(Debug, Default, Clone, Copy, Deserialize, PartialEq)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct Window {
     pub hwnd: isize,
 }
@@ -87,7 +85,8 @@ impl From<HWND> for Window {
 }
 
 #[allow(clippy::module_name_repetitions)]
-#[derive(Debug, Clone, Serialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct WindowDetails {
     pub title: String,
     pub exe: String,
@@ -299,9 +298,8 @@ impl RenderDispatcher for TransparencyRenderDispatcher {
     }
 }
 
-#[derive(
-    Copy, Clone, Debug, Display, EnumString, Serialize, Deserialize, JsonSchema, PartialEq,
-)]
+#[derive(Copy, Clone, Debug, Display, EnumString, Serialize, Deserialize, PartialEq)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[serde(untagged)]
 pub enum AspectRatio {
     /// A predefined aspect ratio
@@ -316,9 +314,8 @@ impl Default for AspectRatio {
     }
 }
 
-#[derive(
-    Copy, Clone, Debug, Default, Display, EnumString, Serialize, Deserialize, JsonSchema, PartialEq,
-)]
+#[derive(Copy, Clone, Debug, Default, Display, EnumString, Serialize, Deserialize, PartialEq)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub enum PredefinedAspectRatio {
     /// 21:9
     Ultrawide,
@@ -480,7 +477,7 @@ impl Window {
         WindowsApi::is_window_visible(self.hwnd)
     }
 
-    pub fn hide(self) {
+    pub fn hide_with_border(self, hide_border: bool) {
         let mut programmatically_hidden_hwnds = HIDDEN_HWNDS.lock();
         if !programmatically_hidden_hwnds.contains(&self.hwnd) {
             programmatically_hidden_hwnds.push(self.hwnd);
@@ -492,9 +489,16 @@ impl Window {
             HidingBehaviour::Minimize => WindowsApi::minimize_window(self.hwnd),
             HidingBehaviour::Cloak => SetCloak(self.hwnd(), 1, 2),
         }
+        if hide_border {
+            border_manager::hide_border(self.hwnd);
+        }
     }
 
-    pub fn restore(self) {
+    pub fn hide(self) {
+        self.hide_with_border(true);
+    }
+
+    pub fn restore_with_border(self, restore_border: bool) {
         let mut programmatically_hidden_hwnds = HIDDEN_HWNDS.lock();
         if let Some(idx) = programmatically_hidden_hwnds
             .iter()
@@ -510,6 +514,13 @@ impl Window {
             }
             HidingBehaviour::Cloak => SetCloak(self.hwnd(), 1, 0),
         }
+        if restore_border {
+            border_manager::show_border(self.hwnd);
+        }
+    }
+
+    pub fn restore(self) {
+        self.restore_with_border(true);
     }
 
     pub fn minimize(self) {
@@ -734,6 +745,30 @@ impl Window {
         style.insert(WindowStyle::CAPTION);
         style.insert(WindowStyle::THICKFRAME);
         self.update_style(&style)
+    }
+
+    /// Raise the window to the top of the Z order, but do not activate or focus
+    /// it. Use raise_and_focus_window to activate and focus a window.
+    /// It also checks if there is a border attached to this window and if it is
+    /// it raises it as well.
+    pub fn raise(self) -> Result<()> {
+        WindowsApi::raise_window(self.hwnd)?;
+        if let Some(border_info) = crate::border_manager::window_border(self.hwnd) {
+            WindowsApi::raise_window(border_info.border_hwnd)?;
+        }
+        Ok(())
+    }
+
+    /// Lower the window to the bottom of the Z order, but do not activate or focus
+    /// it.
+    /// It also checks if there is a border attached to this window and if it is
+    /// it lowers it as well.
+    pub fn lower(self) -> Result<()> {
+        WindowsApi::lower_window(self.hwnd)?;
+        if let Some(border_info) = crate::border_manager::window_border(self.hwnd) {
+            WindowsApi::lower_window(border_info.border_hwnd)?;
+        }
+        Ok(())
     }
 
     #[tracing::instrument(fields(exe, title), skip(debug))]

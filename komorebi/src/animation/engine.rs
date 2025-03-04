@@ -1,7 +1,5 @@
 use color_eyre::Result;
 
-use schemars::JsonSchema;
-
 use serde::Deserialize;
 use serde::Serialize;
 use std::sync::atomic::Ordering;
@@ -13,7 +11,8 @@ use super::ANIMATION_DURATION_GLOBAL;
 use super::ANIMATION_FPS;
 use super::ANIMATION_MANAGER;
 
-#[derive(Debug, Default, Clone, Copy, Serialize, Deserialize, JsonSchema, PartialEq)]
+#[derive(Debug, Default, Clone, Copy, Serialize, Deserialize, PartialEq)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct AnimationEngine;
 
 impl AnimationEngine {

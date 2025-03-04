@@ -109,6 +109,7 @@ use windows::Win32::UI::WindowsAndMessaging::GWL_EXSTYLE;
 use windows::Win32::UI::WindowsAndMessaging::GWL_STYLE;
 use windows::Win32::UI::WindowsAndMessaging::GW_HWNDNEXT;
 use windows::Win32::UI::WindowsAndMessaging::HDEVNOTIFY;
+use windows::Win32::UI::WindowsAndMessaging::HWND_BOTTOM;
 use windows::Win32::UI::WindowsAndMessaging::HWND_TOP;
 use windows::Win32::UI::WindowsAndMessaging::LWA_ALPHA;
 use windows::Win32::UI::WindowsAndMessaging::REGISTER_NOTIFICATION_FLAGS;
@@ -477,12 +478,32 @@ impl WindowsApi {
         unsafe { BringWindowToTop(HWND(as_ptr!(hwnd))) }.process()
     }
 
-    // Raise the window to the top of the Z order, but do not activate or focus
-    // it. Use raise_and_focus_window to activate and focus a window.
+    /// Raise the window to the top of the Z order, but do not activate or focus
+    /// it. Use raise_and_focus_window to activate and focus a window.
     pub fn raise_window(hwnd: isize) -> Result<()> {
-        let flags = SetWindowPosition::NO_MOVE | SetWindowPosition::NO_ACTIVATE;
+        let flags = SetWindowPosition::NO_MOVE
+            | SetWindowPosition::NO_SIZE
+            | SetWindowPosition::NO_ACTIVATE
+            | SetWindowPosition::SHOW_WINDOW;
 
         let position = HWND_TOP;
+        Self::set_window_pos(
+            HWND(as_ptr!(hwnd)),
+            &Rect::default(),
+            position,
+            flags.bits(),
+        )
+    }
+
+    /// Lower the window to the bottom of the Z order, but do not activate or focus
+    /// it.
+    pub fn lower_window(hwnd: isize) -> Result<()> {
+        let flags = SetWindowPosition::NO_MOVE
+            | SetWindowPosition::NO_SIZE
+            | SetWindowPosition::NO_ACTIVATE
+            | SetWindowPosition::SHOW_WINDOW;
+
+        let position = HWND_BOTTOM;
         Self::set_window_pos(
             HWND(as_ptr!(hwnd)),
             &Rect::default(),
@@ -1139,7 +1160,7 @@ impl WindowsApi {
     pub fn create_border_window(
         name: PCWSTR,
         instance: isize,
-        border: *const Border,
+        border: *mut Border,
     ) -> Result<isize> {
         unsafe {
             CreateWindowExW(

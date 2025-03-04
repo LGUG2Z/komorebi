@@ -3,16 +3,14 @@ use crate::config::KomobarConfig;
 use crate::config::MonitorConfigOrIndex;
 use eframe::egui::Color32;
 use eframe::egui::Context;
+use eframe::egui::CornerRadius;
 use eframe::egui::FontId;
 use eframe::egui::Frame;
 use eframe::egui::InnerResponse;
 use eframe::egui::Margin;
-use eframe::egui::Rounding;
 use eframe::egui::Shadow;
 use eframe::egui::TextStyle;
 use eframe::egui::Ui;
-use eframe::egui::Vec2;
-use schemars::JsonSchema;
 use serde::Deserialize;
 use serde::Serialize;
 use std::sync::atomic::AtomicUsize;
@@ -21,7 +19,8 @@ use std::sync::Arc;
 
 static SHOW_KOMOREBI_LAYOUT_OPTIONS: AtomicUsize = AtomicUsize::new(0);
 
-#[derive(Copy, Clone, Debug, Serialize, Deserialize, JsonSchema)]
+#[derive(Copy, Clone, Debug, Serialize, Deserialize)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[serde(tag = "kind")]
 pub enum Grouping {
     /// No grouping is applied
@@ -148,10 +147,10 @@ impl RenderConfig {
             return self.define_group_frame(
                 //TODO: this outer margin can be a config
                 Some(Margin {
-                    left: 10.0,
-                    right: 10.0,
-                    top: 6.0,
-                    bottom: 6.0,
+                    left: 10,
+                    right: 10,
+                    top: 6,
+                    bottom: 6,
                 }),
                 config,
                 ui_style,
@@ -204,11 +203,11 @@ impl RenderConfig {
         ui: &mut Ui,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> InnerResponse<R> {
-        Frame::none()
+        Frame::NONE
             .outer_margin(outer_margin.unwrap_or(Margin::ZERO))
             .inner_margin(match self.more_inner_margin {
-                true => Margin::symmetric(5.0, 0.0),
-                false => Margin::same(0.0),
+                true => Margin::symmetric(5, 0),
+                false => Margin::same(0),
             })
             .show(ui, add_contents)
     }
@@ -233,13 +232,13 @@ impl RenderConfig {
         Frame::group(ui_style)
             .outer_margin(outer_margin.unwrap_or(Margin::ZERO))
             .inner_margin(match self.more_inner_margin {
-                true => Margin::symmetric(6.0, 1.0),
-                false => Margin::symmetric(1.0, 1.0),
+                true => Margin::symmetric(6, 1),
+                false => Margin::symmetric(1, 1),
             })
             .stroke(ui_style.visuals.widgets.noninteractive.bg_stroke)
-            .rounding(match config.rounding {
+            .corner_radius(match config.rounding {
                 Some(rounding) => rounding.into(),
-                None => ui_style.visuals.widgets.noninteractive.rounding,
+                None => ui_style.visuals.widgets.noninteractive.corner_radius,
             })
             .fill(
                 self.background_color
@@ -250,27 +249,27 @@ impl RenderConfig {
                     // new styles can be added if needed here
                     GroupingStyle::Default => Shadow::NONE,
                     GroupingStyle::DefaultWithShadowB4O1S3 => Shadow {
-                        blur: 4.0,
-                        offset: Vec2::new(1.0, 1.0),
-                        spread: 3.0,
+                        blur: 4,
+                        offset: [1, 1],
+                        spread: 3,
                         color: Color32::BLACK.try_apply_alpha(config.transparency_alpha),
                     },
                     GroupingStyle::DefaultWithShadowB4O0S3 => Shadow {
-                        blur: 4.0,
-                        offset: Vec2::new(0.0, 0.0),
-                        spread: 3.0,
+                        blur: 4,
+                        offset: [0, 0],
+                        spread: 3,
                         color: Color32::BLACK.try_apply_alpha(config.transparency_alpha),
                     },
                     GroupingStyle::DefaultWithShadowB0O1S3 => Shadow {
-                        blur: 0.0,
-                        offset: Vec2::new(1.0, 1.0),
-                        spread: 3.0,
+                        blur: 0,
+                        offset: [1, 1],
+                        spread: 3,
                         color: Color32::BLACK.try_apply_alpha(config.transparency_alpha),
                     },
                     GroupingStyle::DefaultWithGlowB3O1S2 => Shadow {
-                        blur: 3.0,
-                        offset: Vec2::new(1.0, 1.0),
-                        spread: 2.0,
+                        blur: 3,
+                        offset: [1, 1],
+                        spread: 2,
                         color: ui_style
                             .visuals
                             .selection
@@ -279,9 +278,9 @@ impl RenderConfig {
                             .try_apply_alpha(config.transparency_alpha),
                     },
                     GroupingStyle::DefaultWithGlowB3O0S2 => Shadow {
-                        blur: 3.0,
-                        offset: Vec2::new(0.0, 0.0),
-                        spread: 2.0,
+                        blur: 3,
+                        offset: [0, 0],
+                        spread: 2,
                         color: ui_style
                             .visuals
                             .selection
@@ -290,9 +289,9 @@ impl RenderConfig {
                             .try_apply_alpha(config.transparency_alpha),
                     },
                     GroupingStyle::DefaultWithGlowB0O1S2 => Shadow {
-                        blur: 0.0,
-                        offset: Vec2::new(1.0, 1.0),
-                        spread: 2.0,
+                        blur: 0,
+                        offset: [1, 1],
+                        spread: 2,
                         color: ui_style
                             .visuals
                             .selection
@@ -308,9 +307,9 @@ impl RenderConfig {
     fn widget_outer_margin(&mut self, ui: &mut Ui) -> Margin {
         let spacing = if self.applied_on_widget {
             // Remove the default item spacing from the margin
-            self.spacing - ui.spacing().item_spacing.x
+            (self.spacing - ui.spacing().item_spacing.x) as i8
         } else {
-            0.0
+            0
         };
 
         if !self.applied_on_widget {
@@ -322,25 +321,26 @@ impl RenderConfig {
                 Some(align) => match align {
                     Alignment::Left => spacing,
                     Alignment::Center => spacing,
-                    Alignment::Right => 0.0,
+                    Alignment::Right => 0,
                 },
-                None => 0.0,
+                None => 0,
             },
             right: match self.alignment {
                 Some(align) => match align {
-                    Alignment::Left => 0.0,
-                    Alignment::Center => 0.0,
+                    Alignment::Left => 0,
+                    Alignment::Center => 0,
                     Alignment::Right => spacing,
                 },
-                None => 0.0,
+                None => 0,
             },
-            top: 0.0,
-            bottom: 0.0,
+            top: 0,
+            bottom: 0,
         }
     }
 }
 
-#[derive(Copy, Clone, Debug, Serialize, Deserialize, JsonSchema)]
+#[derive(Copy, Clone, Debug, Serialize, Deserialize)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct GroupingConfig {
     /// Styles for the grouping
     pub style: Option<GroupingStyle>,
@@ -350,7 +350,8 @@ pub struct GroupingConfig {
     pub rounding: Option<RoundingConfig>,
 }
 
-#[derive(Copy, Clone, Debug, Serialize, Deserialize, JsonSchema)]
+#[derive(Copy, Clone, Debug, Serialize, Deserialize)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub enum GroupingStyle {
     #[serde(alias = "CtByte")]
     Default,
@@ -370,7 +371,8 @@ pub enum GroupingStyle {
     DefaultWithGlowB0O1S2,
 }
 
-#[derive(Copy, Clone, Debug, Serialize, Deserialize, JsonSchema)]
+#[derive(Copy, Clone, Debug, Serialize, Deserialize)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[serde(untagged)]
 pub enum RoundingConfig {
     /// All 4 corners are the same    
@@ -379,16 +381,19 @@ pub enum RoundingConfig {
     Individual([f32; 4]),
 }
 
-impl From<RoundingConfig> for Rounding {
+impl From<RoundingConfig> for CornerRadius {
     fn from(value: RoundingConfig) -> Self {
         match value {
-            RoundingConfig::Same(value) => Rounding::same(value),
-            RoundingConfig::Individual(values) => Self {
-                nw: values[0],
-                ne: values[1],
-                sw: values[2],
-                se: values[3],
-            },
+            RoundingConfig::Same(value) => Self::same(value as u8),
+            RoundingConfig::Individual(values) => {
+                let values = values.map(|f| f as u8);
+                Self {
+                    nw: values[0],
+                    ne: values[1],
+                    sw: values[2],
+                    se: values[3],
+                }
+            }
         }
     }
 }

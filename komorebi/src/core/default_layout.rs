@@ -1,5 +1,4 @@
 use clap::ValueEnum;
-use schemars::JsonSchema;
 use serde::Deserialize;
 use serde::Serialize;
 use strum::Display;
@@ -10,18 +9,9 @@ use super::Rect;
 use super::Sizing;
 
 #[derive(
-    Clone,
-    Copy,
-    Debug,
-    Serialize,
-    Deserialize,
-    Eq,
-    PartialEq,
-    Display,
-    EnumString,
-    ValueEnum,
-    JsonSchema,
+    Clone, Copy, Debug, Serialize, Deserialize, Eq, PartialEq, Display, EnumString, ValueEnum,
 )]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub enum DefaultLayout {
     BSP,
     Columns,

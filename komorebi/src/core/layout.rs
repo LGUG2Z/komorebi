@@ -1,4 +1,3 @@
-use schemars::JsonSchema;
 use serde::Deserialize;
 use serde::Serialize;
 
@@ -7,7 +6,8 @@ use super::CustomLayout;
 use super::DefaultLayout;
 use super::Direction;
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub enum Layout {
     Default(DefaultLayout),
     Custom(CustomLayout),

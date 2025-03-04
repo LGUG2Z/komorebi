@@ -15,14 +15,15 @@ use eframe::egui::vec2;
 use eframe::egui::Color32;
 use eframe::egui::ColorImage;
 use eframe::egui::Context;
+use eframe::egui::CornerRadius;
 use eframe::egui::Frame;
 use eframe::egui::Image;
 use eframe::egui::Label;
 use eframe::egui::Margin;
 use eframe::egui::RichText;
-use eframe::egui::Rounding;
 use eframe::egui::Sense;
 use eframe::egui::Stroke;
+use eframe::egui::StrokeKind;
 use eframe::egui::TextureHandle;
 use eframe::egui::TextureOptions;
 use eframe::egui::Ui;
@@ -36,7 +37,6 @@ use komorebi_client::SocketMessage;
 use komorebi_client::Window;
 use komorebi_client::Workspace;
 use komorebi_client::WorkspaceLayer;
-use schemars::JsonSchema;
 use serde::Deserialize;
 use serde::Serialize;
 use std::cell::RefCell;
@@ -46,7 +46,8 @@ use std::path::PathBuf;
 use std::rc::Rc;
 use std::sync::atomic::Ordering;
 
-#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct KomorebiConfig {
     /// Configure the Workspaces widget
     pub workspaces: Option<KomorebiWorkspacesConfig>,
@@ -60,7 +61,8 @@ pub struct KomorebiConfig {
     pub configuration_switcher: Option<KomorebiConfigurationSwitcherConfig>,
 }
 
-#[derive(Copy, Clone, Debug, Serialize, Deserialize, JsonSchema)]
+#[derive(Copy, Clone, Debug, Serialize, Deserialize)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct KomorebiWorkspacesConfig {
     /// Enable the Komorebi Workspaces widget
     pub enable: bool,
@@ -70,7 +72,8 @@ pub struct KomorebiWorkspacesConfig {
     pub display: Option<WorkspacesDisplayFormat>,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct KomorebiLayoutConfig {
     /// Enable the Komorebi Layout widget
     pub enable: bool,
@@ -80,13 +83,19 @@ pub struct KomorebiLayoutConfig {
     pub display: Option<DisplayFormat>,
 }
 
-#[derive(Copy, Clone, Debug, Serialize, Deserialize, JsonSchema)]
+#[derive(Copy, Clone, Debug, Serialize, Deserialize)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct KomorebiWorkspaceLayerConfig {
     /// Enable the Komorebi Workspace Layer widget
     pub enable: bool,
+    /// Display format of the current layer
+    pub display: Option<DisplayFormat>,
+    /// Show the widget event if the layer is Tiling
+    pub show_when_tiling: Option<bool>,
 }
 
-#[derive(Copy, Clone, Debug, Serialize, Deserialize, JsonSchema)]
+#[derive(Copy, Clone, Debug, Serialize, Deserialize)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct KomorebiFocusedWindowConfig {
     /// Enable the Komorebi Focused Window widget
     pub enable: bool,
@@ -96,7 +105,8 @@ pub struct KomorebiFocusedWindowConfig {
     pub display: Option<DisplayFormat>,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct KomorebiConfigurationSwitcherConfig {
     /// Enable the Komorebi Configurations widget
     pub enable: bool,
@@ -192,9 +202,9 @@ impl BarWidget for Komorebi {
                                     });
 
                                     if has_icon {
-                                        Frame::none()
+                                        Frame::NONE
                                             .inner_margin(Margin::same(
-                                                ui.style().spacing.button_padding.y,
+                                                ui.style().spacing.button_padding.y as i8,
                                             ))
                                             .show(ui, |ui| {
                                                 for (is_focused, container) in containers {
@@ -220,11 +230,11 @@ impl BarWidget for Komorebi {
                                         if is_selected { ctx.style().visuals.selection.stroke.color} else { ui.style().visuals.text_color() },
                                     );
                                     let mut rect = response.rect;
-                                    let rounding = Rounding::same(rect.width() * 0.1);
+                                    let rounding = CornerRadius::same((rect.width() * 0.1) as u8);
                                     rect = rect.shrink(stroke.width);
                                     let c = rect.center();
                                     let r = rect.width() / 2.0;
-                                    painter.rect_stroke(rect, rounding, stroke);
+                                    painter.rect_stroke(rect, rounding, stroke, StrokeKind::Outside);
                                     painter.line_segment([c - vec2(r, r), c + vec2(r, r)], stroke);
 
                                     response.on_hover_text(ws.to_string())
@@ -311,29 +321,106 @@ impl BarWidget for Komorebi {
                     .map(|(_, _, layer)| layer);
 
                 if let Some(layer) = layer {
-                    let name = layer.to_string();
-                    config.apply_on_widget(false, ui, |ui| {
-                        if SelectableFrame::new(false)
-                            .show(ui, |ui| ui.add(Label::new(name).selectable(false)))
-                            .clicked()
-                            && komorebi_client::send_batch([
-                                SocketMessage::MouseFollowsFocus(false),
-                                SocketMessage::ToggleWorkspaceLayer,
-                                SocketMessage::MouseFollowsFocus(
+                    if (layer_config.show_when_tiling.unwrap_or_default()
+                        && matches!(layer, WorkspaceLayer::Tiling))
+                        || matches!(layer, WorkspaceLayer::Floating)
+                    {
+                        let display_format = layer_config.display.unwrap_or(DisplayFormat::Text);
+                        let size = Vec2::splat(config.icon_font_id.size);
+
+                        config.apply_on_widget(false, ui, |ui| {
+                            let layer_frame = SelectableFrame::new(false)
+                                .show(ui, |ui| {
+                                    if display_format != DisplayFormat::Text {
+                                        if matches!(layer, WorkspaceLayer::Tiling) {
+                                            let (response, painter) =
+                                                ui.allocate_painter(size, Sense::hover());
+                                            let color = ui.style().visuals.text_color();
+                                            let stroke = Stroke::new(1.0, color);
+                                            let mut rect = response.rect;
+                                            let corner =
+                                                CornerRadius::same((rect.width() * 0.1) as u8);
+                                            rect = rect.shrink(stroke.width);
+
+                                            // tiling
+                                            let mut rect_left = response.rect;
+                                            rect_left.set_width(rect.width() * 0.48);
+                                            rect_left.set_height(rect.height() * 0.98);
+                                            let mut rect_right = rect_left;
+                                            rect_left = rect_left.translate(Vec2::new(
+                                                rect.width() * 0.01 + stroke.width,
+                                                rect.width() * 0.01 + stroke.width,
+                                            ));
+                                            rect_right = rect_right.translate(Vec2::new(
+                                                rect.width() * 0.51 + stroke.width,
+                                                rect.width() * 0.01 + stroke.width,
+                                            ));
+                                            painter.rect_filled(rect_left, corner, color);
+                                            painter.rect_stroke(
+                                                rect_right,
+                                                corner,
+                                                stroke,
+                                                StrokeKind::Outside,
+                                            );
+                                        } else {
+                                            let (response, painter) =
+                                                ui.allocate_painter(size, Sense::hover());
+                                            let color = ui.style().visuals.text_color();
+                                            let stroke = Stroke::new(1.0, color);
+                                            let mut rect = response.rect;
+                                            let corner =
+                                                CornerRadius::same((rect.width() * 0.1) as u8);
+                                            rect = rect.shrink(stroke.width);
+
+                                            // floating
+                                            let mut rect_left = response.rect;
+                                            rect_left.set_width(rect.width() * 0.65);
+                                            rect_left.set_height(rect.height() * 0.65);
+                                            let mut rect_right = rect_left;
+                                            rect_left = rect_left.translate(Vec2::new(
+                                                rect.width() * 0.01 + stroke.width,
+                                                rect.width() * 0.01 + stroke.width,
+                                            ));
+                                            rect_right = rect_right.translate(Vec2::new(
+                                                rect.width() * 0.34 + stroke.width,
+                                                rect.width() * 0.34 + stroke.width,
+                                            ));
+                                            painter.rect_filled(rect_left, corner, color);
+                                            painter.rect_stroke(
+                                                rect_right,
+                                                corner,
+                                                stroke,
+                                                StrokeKind::Outside,
+                                            );
+                                        }
+                                    }
+
+                                    if display_format != DisplayFormat::Icon {
+                                        ui.add(Label::new(layer.to_string()).selectable(false));
+                                    }
+                                })
+                                .on_hover_text(layer.to_string());
+
+                            if layer_frame.clicked()
+                                && komorebi_client::send_batch([
+                                    SocketMessage::MouseFollowsFocus(false),
+                                    SocketMessage::ToggleWorkspaceLayer,
+                                    SocketMessage::MouseFollowsFocus(
+                                        komorebi_notification_state.mouse_follows_focus,
+                                    ),
+                                ])
+                                .is_err()
+                            {
+                                tracing::error!(
+                                    "could not send the following batch of messages to komorebi:\n\
+                                                MouseFollowsFocus(false),
+                                                ToggleWorkspaceLayer,
+                                                MouseFollowsFocus({})",
                                     komorebi_notification_state.mouse_follows_focus,
-                                ),
-                            ])
-                            .is_err()
-                        {
-                            tracing::error!(
-                                "could not send the following batch of messages to komorebi:\n\
-                                            MouseFollowsFocus(false),
-                                            ToggleWorkspaceLayer,
-                                            MouseFollowsFocus({})",
-                                komorebi_notification_state.mouse_follows_focus,
-                            );
-                        }
-                    });
+                                );
+                            }
+                        });
+                    }
                 }
             }
         }
@@ -453,9 +540,9 @@ impl BarWidget for Komorebi {
                                             && i == focused_window_idx)
                                     {
                                         if let Some(img) = icon {
-                                            Frame::none()
+                                            Frame::NONE
                                                 .inner_margin(Margin::same(
-                                                    ui.style().spacing.button_padding.y,
+                                                    ui.style().spacing.button_padding.y as i8,
                                                 ))
                                                 .show(ui, |ui| {
                                                     let response = ui.add(

@@ -26,15 +26,12 @@ use komorebi_client::resolve_home_path;
 use komorebi_client::send_message;
 use komorebi_client::send_query;
 use komorebi_client::ApplicationSpecificConfiguration;
-use komorebi_client::Notification;
 use lazy_static::lazy_static;
 use miette::NamedSource;
 use miette::Report;
 use miette::SourceOffset;
 use miette::SourceSpan;
 use paste::paste;
-use schemars::gen::SchemaSettings;
-use schemars::schema_for;
 use serde::Deserialize;
 use sysinfo::ProcessesToUpdate;
 use which::which;
@@ -3010,31 +3007,43 @@ if (Get-Command Get-CimInstance -ErrorAction SilentlyContinue) {
             );
         }
         SubCommand::ApplicationSpecificConfigurationSchema => {
-            let asc = schema_for!(ApplicationSpecificConfiguration);
-            let schema = serde_json::to_string_pretty(&asc)?;
-            println!("{schema}");
+            #[cfg(feature = "schemars")]
+            {
+                let asc = schemars::schema_for!(ApplicationSpecificConfiguration);
+                let schema = serde_json::to_string_pretty(&asc)?;
+                println!("{schema}");
+            }
         }
         SubCommand::NotificationSchema => {
-            let notification = schema_for!(Notification);
-            let schema = serde_json::to_string_pretty(&notification)?;
-            println!("{schema}");
+            #[cfg(feature = "schemars")]
+            {
+                let notification = schemars::schema_for!(komorebi_client::Notification);
+                let schema = serde_json::to_string_pretty(&notification)?;
+                println!("{schema}");
+            }
         }
         SubCommand::SocketSchema => {
-            let socket_message = schema_for!(SocketMessage);
-            let schema = serde_json::to_string_pretty(&socket_message)?;
-            println!("{schema}");
+            #[cfg(feature = "schemars")]
+            {
+                let socket_message = schemars::schema_for!(SocketMessage);
+                let schema = serde_json::to_string_pretty(&socket_message)?;
+                println!("{schema}");
+            }
         }
         SubCommand::StaticConfigSchema => {
-            let settings = SchemaSettings::default().with(|s| {
-                s.option_nullable = false;
-                s.option_add_null_type = false;
-                s.inline_subschemas = true;
-            });
+            #[cfg(feature = "schemars")]
+            {
+                let settings = schemars::gen::SchemaSettings::default().with(|s| {
+                    s.option_nullable = false;
+                    s.option_add_null_type = false;
+                    s.inline_subschemas = true;
+                });
 
-            let gen = settings.into_generator();
-            let socket_message = gen.into_root_schema_for::<StaticConfig>();
-            let schema = serde_json::to_string_pretty(&socket_message)?;
-            println!("{schema}");
+                let gen = settings.into_generator();
+                let socket_message = gen.into_root_schema_for::<StaticConfig>();
+                let schema = serde_json::to_string_pretty(&socket_message)?;
+                println!("{schema}");
+            }
         }
         SubCommand::GenerateStaticConfig => {
             print_query(&SocketMessage::GenerateStaticConfig);

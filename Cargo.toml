@@ -17,8 +17,8 @@ chrono = "0.4"
 crossbeam-channel = "0.5"
 crossbeam-utils = "0.8"
 color-eyre = "0.6"
-eframe = "0.30"
-egui_extras = "0.30"
+eframe = "0.31"
+egui_extras = "0.31"
 dirs = "6"
 dunce = "1"
 hotwatch = "0.5"
@@ -27,6 +27,7 @@ lazy_static = "1"
 serde = { version = "1", features = ["derive"] }
 serde_json = { package = "serde_json_lenient", version = "0.2" }
 serde_yaml = "0.9"
+strum = { version = "0.27", features = ["derive"] }
 tracing = "0.1"
 tracing-appender = "0.2"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
@@ -71,16 +72,3 @@ features = [
     "Media",
     "Media_Control"
 ]
-
-[profile.dev-jeezy]
-inherits = "dev"
-debug = false
-opt-level = 1
-
-[profile.dev-jeezy.package."*"]
-opt-level = 3
-
-[profile.release-jeezy]
-inherits = "release"
-incremental = true
-codegen-units = 256

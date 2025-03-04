@@ -178,11 +178,11 @@ pub fn apply_theme(
     {
         if let Some(rounding) = config.rounding {
             ctx.style_mut(|style| {
-                style.visuals.widgets.noninteractive.rounding = rounding.into();
-                style.visuals.widgets.inactive.rounding = rounding.into();
-                style.visuals.widgets.hovered.rounding = rounding.into();
-                style.visuals.widgets.active.rounding = rounding.into();
-                style.visuals.widgets.open.rounding = rounding.into();
+                style.visuals.widgets.noninteractive.corner_radius = rounding.into();
+                style.visuals.widgets.inactive.corner_radius = rounding.into();
+                style.visuals.widgets.hovered.corner_radius = rounding.into();
+                style.visuals.widgets.active.corner_radius = rounding.into();
+                style.visuals.widgets.open.corner_radius = rounding.into();
             });
         }
     }
@@ -502,11 +502,12 @@ impl Komobar {
                         {
                             if let Some(rounding) = config.rounding {
                                 ctx.style_mut(|style| {
-                                    style.visuals.widgets.noninteractive.rounding = rounding.into();
-                                    style.visuals.widgets.inactive.rounding = rounding.into();
-                                    style.visuals.widgets.hovered.rounding = rounding.into();
-                                    style.visuals.widgets.active.rounding = rounding.into();
-                                    style.visuals.widgets.open.rounding = rounding.into();
+                                    style.visuals.widgets.noninteractive.corner_radius =
+                                        rounding.into();
+                                    style.visuals.widgets.inactive.corner_radius = rounding.into();
+                                    style.visuals.widgets.hovered.corner_radius = rounding.into();
+                                    style.visuals.widgets.active.corner_radius = rounding.into();
+                                    style.visuals.widgets.open.corner_radius = rounding.into();
                                 });
                             }
                         }
@@ -839,26 +840,26 @@ impl eframe::App for Komobar {
         let frame = match &self.config.padding {
             None => {
                 if let Some(frame) = &self.config.frame {
-                    Frame::none()
+                    Frame::NONE
                         .inner_margin(Margin::symmetric(
-                            frame.inner_margin.x,
-                            frame.inner_margin.y,
+                            frame.inner_margin.x as i8,
+                            frame.inner_margin.y as i8,
                         ))
                         .fill(*self.bg_color_with_alpha.borrow())
                 } else {
-                    Frame::none()
-                        .inner_margin(Margin::same(0.0))
+                    Frame::NONE
+                        .inner_margin(Margin::same(0))
                         .fill(*self.bg_color_with_alpha.borrow())
                 }
             }
             Some(padding) => {
                 let padding = padding.to_individual(DEFAULT_PADDING);
-                Frame::none()
+                Frame::NONE
                     .inner_margin(Margin {
-                        top: padding.top,
-                        bottom: padding.bottom,
-                        left: padding.left,
-                        right: padding.right,
+                        top: padding.top as i8,
+                        bottom: padding.bottom as i8,
+                        left: padding.left as i8,
+                        right: padding.right as i8,
                     })
                     .fill(*self.bg_color_with_alpha.borrow())
             }
@@ -871,13 +872,13 @@ impl eframe::App for Komobar {
         CentralPanel::default().frame(frame).show(ctx, |ui| {
             // Apply grouping logic for the bar as a whole
             let area_frame = if let Some(frame) = &self.config.frame {
-                Frame::none()
-                    .inner_margin(Margin::symmetric(0.0, frame.inner_margin.y))
-                    .outer_margin(Margin::same(0.0))
+                Frame::NONE
+                    .inner_margin(Margin::symmetric(0, frame.inner_margin.y as i8))
+                    .outer_margin(Margin::same(0))
             } else {
-                Frame::none()
-                    .inner_margin(Margin::same(0.0))
-                    .outer_margin(Margin::same(0.0))
+                Frame::NONE
+                    .inner_margin(Margin::same(0))
+                    .outer_margin(Margin::same(0))
             };
 
             let available_height = ui.max_rect().max.y;
@@ -897,13 +898,13 @@ impl eframe::App for Komobar {
                             .as_ref()
                             .map(|s| s.to_individual(DEFAULT_PADDING))
                         {
-                            left_area_frame.inner_margin.left = padding.left;
-                            left_area_frame.inner_margin.top = padding.top;
-                            left_area_frame.inner_margin.bottom = padding.bottom;
+                            left_area_frame.inner_margin.left = padding.left as i8;
+                            left_area_frame.inner_margin.top = padding.top as i8;
+                            left_area_frame.inner_margin.bottom = padding.bottom as i8;
                         } else if let Some(frame) = &self.config.frame {
-                            left_area_frame.inner_margin.left = frame.inner_margin.x;
-                            left_area_frame.inner_margin.top = frame.inner_margin.y;
-                            left_area_frame.inner_margin.bottom = frame.inner_margin.y;
+                            left_area_frame.inner_margin.left = frame.inner_margin.x as i8;
+                            left_area_frame.inner_margin.top = frame.inner_margin.y as i8;
+                            left_area_frame.inner_margin.bottom = frame.inner_margin.y as i8;
                         }
 
                         left_area_frame.show(ui, |ui| {
@@ -933,13 +934,13 @@ impl eframe::App for Komobar {
                             .as_ref()
                             .map(|s| s.to_individual(DEFAULT_PADDING))
                         {
-                            right_area_frame.inner_margin.right = padding.right;
-                            right_area_frame.inner_margin.top = padding.top;
-                            right_area_frame.inner_margin.bottom = padding.bottom;
+                            right_area_frame.inner_margin.right = padding.right as i8;
+                            right_area_frame.inner_margin.top = padding.top as i8;
+                            right_area_frame.inner_margin.bottom = padding.bottom as i8;
                         } else if let Some(frame) = &self.config.frame {
-                            right_area_frame.inner_margin.right = frame.inner_margin.x;
-                            right_area_frame.inner_margin.top = frame.inner_margin.y;
-                            right_area_frame.inner_margin.bottom = frame.inner_margin.y;
+                            right_area_frame.inner_margin.right = frame.inner_margin.x as i8;
+                            right_area_frame.inner_margin.top = frame.inner_margin.y as i8;
+                            right_area_frame.inner_margin.bottom = frame.inner_margin.y as i8;
                         }
 
                         right_area_frame.show(ui, |ui| {
@@ -977,11 +978,11 @@ impl eframe::App for Komobar {
                             .as_ref()
                             .map(|s| s.to_individual(DEFAULT_PADDING))
                         {
-                            center_area_frame.inner_margin.top = padding.top;
-                            center_area_frame.inner_margin.bottom = padding.bottom;
+                            center_area_frame.inner_margin.top = padding.top as i8;
+                            center_area_frame.inner_margin.bottom = padding.bottom as i8;
                         } else if let Some(frame) = &self.config.frame {
-                            center_area_frame.inner_margin.top = frame.inner_margin.y;
-                            center_area_frame.inner_margin.bottom = frame.inner_margin.y;
+                            center_area_frame.inner_margin.top = frame.inner_margin.y as i8;
+                            center_area_frame.inner_margin.bottom = frame.inner_margin.y as i8;
                         }
 
                         center_area_frame.show(ui, |ui| {
