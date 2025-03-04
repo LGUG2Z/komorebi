@@ -478,6 +478,7 @@ mod tests {
     use serde_json::json;
 
     #[derive(Copy, Clone, Debug, Serialize, Deserialize, PartialEq)]
+    #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
     pub enum OriginalDisplayFormat {
         /// Show None Of The Things
         NoneOfTheThings,
