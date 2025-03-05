@@ -136,6 +136,7 @@ nav:
       - cli/close-workspace.md
       - cli/cycle-monitor.md
       - cli/cycle-workspace.md
+      - cli/cycle-empty-workspace.md
       - cli/move-workspace-to-monitor.md
       - cli/cycle-move-workspace-to-monitor.md
       - cli/swap-workspaces-with-monitor.md
