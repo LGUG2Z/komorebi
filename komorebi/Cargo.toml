@@ -55,6 +55,7 @@ shadow-rs = { workspace = true }
 
 [dev-dependencies]
 reqwest = { version = "0.12", features = ["blocking"] }
+uuid = { version = "1", features = ["v4"] }
 
 [features]
 default = ["schemars"]
