@@ -52,19 +52,12 @@ impl Container {
         }
     }
 
+    /// Hides the unfocused windows of the container and restores the focused one. This function
+    /// is used to make sure we update the window that should be shown on a stack. If the container
+    /// isn't a stack this function won't change anything.
     pub fn load_focused_window(&mut self) {
         let focused_idx = self.focused_window_idx();
-        for (i, window) in self.windows_mut().iter_mut().enumerate() {
-            if i == focused_idx {
-                window.restore();
-            } else {
-                window.hide();
-            }
-        }
-    }
 
-    pub fn load_focused_window_ignore_borders(&mut self) {
-        let focused_idx = self.focused_window_idx();
         for (i, window) in self.windows_mut().iter_mut().enumerate() {
             if i == focused_idx {
                 window.restore_with_border(false);
@@ -109,14 +102,13 @@ impl Container {
     }
 
     pub fn idx_for_window(&self, hwnd: isize) -> Option<usize> {
-        let mut idx = None;
         for (i, window) in self.windows().iter().enumerate() {
             if window.hwnd == hwnd {
-                idx = Option::from(i);
+                return Option::from(i);
             }
         }
 
-        idx
+        None
     }
 
     pub fn remove_window_by_idx(&mut self, idx: usize) -> Option<Window> {

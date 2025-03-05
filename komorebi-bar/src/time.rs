@@ -110,36 +110,37 @@ impl Time {
         let full_height = size;
         let height = full_height / 4.0;
         let width = height;
+        let offset = height / 2.0 - height / 8.0;
 
         let (response, painter) =
-            ui.allocate_painter(Vec2::new(width, full_height), Sense::hover());
+            ui.allocate_painter(Vec2::new(width, full_height + offset * 2.0), Sense::hover());
         let color = ctx.style().visuals.text_color();
 
         let c = response.rect.center();
         let r = height / 2.0 - 0.5;
 
         if number == 1 || number == 3 || number == 5 || number == 7 || number == 9 {
-            painter.circle_filled(c + Vec2::new(0.0, height * 1.50), r, color);
+            painter.circle_filled(c + Vec2::new(0.0, height * 1.50 + offset), r, color);
         } else {
-            painter.circle_filled(c + Vec2::new(0.0, height * 1.50), r / 2.5, color);
+            painter.circle_filled(c + Vec2::new(0.0, height * 1.50 + offset), r / 2.5, color);
         }
 
         if number == 2 || number == 3 || number == 6 || number == 7 {
-            painter.circle_filled(c + Vec2::new(0.0, height * 0.50), r, color);
+            painter.circle_filled(c + Vec2::new(0.0, height * 0.50 + offset), r, color);
         } else {
-            painter.circle_filled(c + Vec2::new(0.0, height * 0.50), r / 2.5, color);
+            painter.circle_filled(c + Vec2::new(0.0, height * 0.50 + offset), r / 2.5, color);
         }
 
         if number == 4 || number == 5 || number == 6 || number == 7 {
-            painter.circle_filled(c + Vec2::new(0.0, -height * 0.50), r, color);
+            painter.circle_filled(c + Vec2::new(0.0, -height * 0.50 + offset), r, color);
         } else if max_power > 2 {
-            painter.circle_filled(c + Vec2::new(0.0, -height * 0.50), r / 2.5, color);
+            painter.circle_filled(c + Vec2::new(0.0, -height * 0.50 + offset), r / 2.5, color);
         }
 
         if number == 8 || number == 9 {
-            painter.circle_filled(c + Vec2::new(0.0, -height * 1.50), r, color);
+            painter.circle_filled(c + Vec2::new(0.0, -height * 1.50 + offset), r, color);
         } else if max_power > 3 {
-            painter.circle_filled(c + Vec2::new(0.0, -height * 1.50), r / 2.5, color);
+            painter.circle_filled(c + Vec2::new(0.0, -height * 1.50 + offset), r / 2.5, color);
         }
     }
 
@@ -154,9 +155,10 @@ impl Time {
         let full_height = size;
         let height = full_height / 4.0;
         let width = height * 1.5;
+        let offset = height / 2.0 - height / 8.0;
 
         let (response, painter) =
-            ui.allocate_painter(Vec2::new(width, full_height), Sense::hover());
+            ui.allocate_painter(Vec2::new(width, full_height + offset * 2.0), Sense::hover());
         let color = ctx.style().visuals.text_color();
         let stroke = Stroke::new(1.0, color);
 
@@ -174,22 +176,25 @@ impl Time {
         };
 
         if max_power == 2 {
-            let mut rect = response.rect.shrink(stroke.width);
+            let mut rect = response
+                .rect
+                .shrink2(Vec2::new(stroke.width, stroke.width + offset));
             rect.set_height(rect.height() - height * 2.0);
-            rect = rect.translate(Vec2::new(0.0, height * 2.0));
+            rect = rect.translate(Vec2::new(0.0, height * 2.0 + offset));
             painter.rect_stroke(rect, round_all, stroke, StrokeKind::Outside);
         } else if max_power == 3 {
-            let mut rect = response.rect.shrink(stroke.width);
+            let mut rect = response
+                .rect
+                .shrink2(Vec2::new(stroke.width, stroke.width + offset));
             rect.set_height(rect.height() - height);
-            rect = rect.translate(Vec2::new(0.0, height));
+            rect = rect.translate(Vec2::new(0.0, height + offset));
             painter.rect_stroke(rect, round_all, stroke, StrokeKind::Outside);
         } else {
-            painter.rect_stroke(
-                response.rect.shrink(stroke.width),
-                round_all,
-                stroke,
-                StrokeKind::Outside,
-            );
+            let mut rect = response
+                .rect
+                .shrink2(Vec2::new(stroke.width, stroke.width + offset));
+            rect = rect.translate(Vec2::new(0.0, 0.0 + offset));
+            painter.rect_stroke(rect, round_all, stroke, StrokeKind::Outside);
         }
 
         let mut rect_bin = response.rect;
@@ -198,7 +203,7 @@ impl Time {
         if number == 1 || number == 5 || number == 9 {
             rect_bin.set_height(height);
             painter.rect_filled(
-                rect_bin.translate(Vec2::new(0.0, height * 3.0)),
+                rect_bin.translate(Vec2::new(stroke.width, height * 3.0 + offset * 2.0)),
                 round_bottom,
                 color,
             );
@@ -206,7 +211,7 @@ impl Time {
         if number == 2 {
             rect_bin.set_height(height);
             painter.rect_filled(
-                rect_bin.translate(Vec2::new(0.0, height * 2.0)),
+                rect_bin.translate(Vec2::new(stroke.width, height * 2.0 + offset * 2.0)),
                 if max_power == 2 {
                     round_top
                 } else {
@@ -218,7 +223,7 @@ impl Time {
         if number == 3 {
             rect_bin.set_height(height * 2.0);
             painter.rect_filled(
-                rect_bin.translate(Vec2::new(0.0, height * 2.0)),
+                rect_bin.translate(Vec2::new(stroke.width, height * 2.0 + offset * 2.0)),
                 round_bottom,
                 color,
             );
@@ -226,7 +231,7 @@ impl Time {
         if number == 4 || number == 5 {
             rect_bin.set_height(height);
             painter.rect_filled(
-                rect_bin.translate(Vec2::new(0.0, height * 1.0)),
+                rect_bin.translate(Vec2::new(stroke.width, height * 1.0 + offset * 2.0)),
                 if max_power == 3 {
                     round_top
                 } else {
@@ -238,7 +243,7 @@ impl Time {
         if number == 6 {
             rect_bin.set_height(height * 2.0);
             painter.rect_filled(
-                rect_bin.translate(Vec2::new(0.0, height * 1.0)),
+                rect_bin.translate(Vec2::new(stroke.width, height * 1.0 + offset * 2.0)),
                 if max_power == 3 {
                     round_top
                 } else {
@@ -250,7 +255,7 @@ impl Time {
         if number == 7 {
             rect_bin.set_height(height * 3.0);
             painter.rect_filled(
-                rect_bin.translate(Vec2::new(0.0, height)),
+                rect_bin.translate(Vec2::new(stroke.width, height + offset * 2.0)),
                 if max_power == 3 {
                     round_all
                 } else {
@@ -261,7 +266,11 @@ impl Time {
         }
         if number == 8 || number == 9 {
             rect_bin.set_height(height);
-            painter.rect_filled(rect_bin.translate(Vec2::new(0.0, 0.0)), round_top, color);
+            painter.rect_filled(
+                rect_bin.translate(Vec2::new(stroke.width, 0.0 + offset * 2.0)),
+                round_top,
+                color,
+            );
         }
     }
 }
