@@ -2069,3 +2069,74 @@ pub fn read_commands_tcp(
 
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::monitor;
+    use crate::window_manager::WindowManager;
+    use crate::Rect;
+    use crate::SocketMessage;
+    use crate::WindowManagerEvent;
+    use crate::DATA_DIR;
+    use crossbeam_channel::bounded;
+    use crossbeam_channel::Receiver;
+    use crossbeam_channel::Sender;
+    use std::io::BufRead;
+    use std::io::BufReader;
+    use std::io::Write;
+    use std::str::FromStr;
+    use std::time::Duration;
+    use uds_windows::UnixStream;
+    use uuid::Uuid;
+
+    fn send_socket_message(socket: &str, message: SocketMessage) {
+        let socket = DATA_DIR.join(socket);
+        let mut stream = UnixStream::connect(socket).unwrap();
+        stream
+            .set_write_timeout(Some(Duration::from_secs(1)))
+            .unwrap();
+        stream
+            .write_all(serde_json::to_string(&message).unwrap().as_bytes())
+            .unwrap();
+    }
+
+    #[test]
+    fn test_receive_socket_message() {
+        let (_sender, receiver): (Sender<WindowManagerEvent>, Receiver<WindowManagerEvent>) =
+            bounded(1);
+        let socket_name = format!("komorebi-test-{}.sock", Uuid::new_v4());
+        let socket_path = DATA_DIR.join(&socket_name);
+        let mut wm = WindowManager::new(receiver, Some(socket_path.clone())).unwrap();
+        let m = monitor::new(
+            0,
+            Rect::default(),
+            Rect::default(),
+            "TestMonitor".to_string(),
+            "TestDevice".to_string(),
+            "TestDeviceID".to_string(),
+            Some("TestMonitorID".to_string()),
+        );
+
+        wm.monitors_mut().push_back(m);
+
+        // send a message
+        send_socket_message(&socket_name, SocketMessage::FocusWorkspaceNumber(5));
+
+        let (stream, _) = wm.command_listener.accept().unwrap();
+        let reader = BufReader::new(stream.try_clone().unwrap());
+        let next = reader.lines().next();
+
+        // read and deserialize the message
+        let message_string = next.unwrap().unwrap();
+        let message = SocketMessage::from_str(&message_string).unwrap();
+        assert!(matches!(message, SocketMessage::FocusWorkspaceNumber(5)));
+
+        // process the message
+        wm.process_command(message, stream).unwrap();
+
+        // check the updated window manager state
+        assert_eq!(wm.focused_workspace_idx().unwrap(), 5);
+
+        std::fs::remove_file(socket_path).unwrap();
+    }
+}
