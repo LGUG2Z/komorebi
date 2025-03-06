@@ -40,7 +40,6 @@ tracing = { workspace = true }
 tracing-appender = { workspace = true }
 tracing-subscriber = { workspace = true }
 uds_windows = { workspace = true }
-uuid = { version = "1", features = ["v4"] }
 which = { workspace = true }
 win32-display-data = { workspace = true }
 windows = { workspace = true }
@@ -56,6 +55,7 @@ shadow-rs = { workspace = true }
 
 [dev-dependencies]
 reqwest = { version = "0.12", features = ["blocking"] }
+uuid = { version = "1", features = ["v4"] }
 
 [features]
 default = ["schemars"]

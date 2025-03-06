@@ -5,9 +5,10 @@ mod window_manager_tests {
     use crossbeam_channel::Receiver;
     use crossbeam_channel::Sender;
     use komorebi::monitor;
+    use komorebi::window_manager::WindowManager;
     use komorebi::Rect;
     use komorebi::WindowManagerEvent;
-    use komorebi::{window_manager::WindowManager, DATA_DIR};
+    use komorebi::DATA_DIR;
     use uuid::Uuid;
 
     #[test]
@@ -43,7 +44,7 @@ mod window_manager_tests {
 
         wm.monitors.elements_mut().push_back(m);
 
-        let monitor_idx = {
+        let workspace_idx = {
             let monitor = wm
                 .focused_monitor_mut()
                 .ok_or_else(|| anyhow!("there is no workspace"))
@@ -57,11 +58,22 @@ mod window_manager_tests {
                 .ok_or_else(|| anyhow!("there is no workspace"))
                 .unwrap();
             monitor
-                .focus_workspace(monitor_idx)
+                .focus_workspace(workspace_idx)
                 .expect("failed to focus workspace");
         }
 
-        assert_eq!(wm.focused_workspace_idx().unwrap(), 1);
+        {
+            let monitor = wm
+                .focused_monitor_mut()
+                .ok_or_else(|| anyhow!("there is no workspace"))
+                .unwrap();
+            monitor
+                .focus_workspace(workspace_idx + 1)
+                .expect("failed to focus workspace");
+            assert_eq!(monitor.workspaces().len(), 3)
+        }
+
+        assert_eq!(wm.focused_workspace_idx().unwrap(), 2);
 
         wm.focus_workspace(0).ok();
 

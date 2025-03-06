@@ -398,7 +398,10 @@ impl EnforceWorkspaceRuleOp {
 
 impl WindowManager {
     #[tracing::instrument]
-    pub fn new(incoming: Receiver<WindowManagerEvent>, custom_socket_path: Option<PathBuf>) -> Result<Self> {
+    pub fn new(
+        incoming: Receiver<WindowManagerEvent>,
+        custom_socket_path: Option<PathBuf>,
+    ) -> Result<Self> {
         let socket = custom_socket_path.unwrap_or_else(|| DATA_DIR.join("komorebi.sock"));
 
         match std::fs::remove_file(&socket) {
