@@ -3660,3 +3660,81 @@ impl WindowManager {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::monitor;
+    use crate::window_manager::WindowManager;
+    use crate::Rect;
+    use crate::WindowManagerEvent;
+    use crate::DATA_DIR;
+    use crossbeam_channel::bounded;
+    use crossbeam_channel::Receiver;
+    use crossbeam_channel::Sender;
+    use uuid::Uuid;
+
+    #[test]
+    fn test_create_window_manager() {
+        let (_sender, receiver): (Sender<WindowManagerEvent>, Receiver<WindowManagerEvent>) =
+            bounded(1);
+        let socket_name = format!("komorebi-test-{}.sock", Uuid::new_v4());
+        let socket = Some(DATA_DIR.join(socket_name));
+        let wm = WindowManager::new(receiver, socket.clone());
+        assert!(wm.is_ok());
+
+        if let Some(ref socket_path) = socket {
+            let _ = std::fs::remove_file(socket_path);
+        }
+    }
+
+    #[test]
+    fn test_focus_workspace() {
+        let (_sender, receiver): (Sender<WindowManagerEvent>, Receiver<WindowManagerEvent>) =
+            bounded(1);
+        let socket_name = format!("komorebi-test-{}.sock", Uuid::new_v4());
+        let socket_path = DATA_DIR.join(&socket_name);
+        let mut wm = WindowManager::new(receiver, Some(socket_path.clone())).unwrap();
+        let m = monitor::new(
+            0,
+            Rect::default(),
+            Rect::default(),
+            "TestMonitor".to_string(),
+            "TestDevice".to_string(),
+            "TestDeviceID".to_string(),
+            Some("TestMonitorID".to_string()),
+        );
+
+        // a new monitor should have a single workspace
+        assert_eq!(m.workspaces().len(), 1);
+
+        // the next index on the monitor should be the not-yet-created second workspace
+        let new_workspace_index = m.new_workspace_idx();
+        assert_eq!(new_workspace_index, 1);
+
+        // add the monitor to the window manager
+        wm.monitors_mut().push_back(m);
+
+        {
+            // focusing a workspace which doesn't yet exist should create it
+            let monitor = wm.focused_monitor_mut().unwrap();
+            monitor.focus_workspace(new_workspace_index).unwrap();
+            assert_eq!(monitor.workspaces().len(), 2);
+        }
+        assert_eq!(wm.focused_workspace_idx().unwrap(), 1);
+
+        {
+            // focusing a workspace many indices ahead should create all workspaces
+            // required along the way
+            let monitor = wm.focused_monitor_mut().unwrap();
+            monitor.focus_workspace(new_workspace_index + 2).unwrap();
+            assert_eq!(monitor.workspaces().len(), 4);
+        }
+        assert_eq!(wm.focused_workspace_idx().unwrap(), 3);
+
+        // we should be able to successfully focus an existing workspace too
+        wm.focus_workspace(0).unwrap();
+        assert_eq!(wm.focused_workspace_idx().unwrap(), 0);
+
+        std::fs::remove_file(socket_path).unwrap();
+    }
+}
