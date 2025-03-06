@@ -235,6 +235,7 @@ fn main() -> Result<()> {
     } else {
         Arc::new(Mutex::new(WindowManager::new(
             winevent_listener::event_rx(),
+            None,
         )?))
     };
 

@@ -155,6 +155,7 @@ gen_enum_subcommand_args! {
     CycleMoveToMonitor: CycleDirection,
     CycleMonitor: CycleDirection,
     CycleWorkspace: CycleDirection,
+    CycleEmptyWorkspace: CycleDirection,
     CycleMoveWorkspaceToMonitor: CycleDirection,
     Stack: OperationDirection,
     CycleStack: CycleDirection,
@@ -1152,6 +1153,9 @@ enum SubCommand {
     /// Focus the workspace in the given cycle direction
     #[clap(arg_required_else_help = true)]
     CycleWorkspace(CycleWorkspace),
+    /// Focus the next empty workspace in the given cycle direction (if one exists)
+    #[clap(arg_required_else_help = true)]
+    CycleEmptyWorkspace(CycleWorkspace),
     /// Move the focused workspace to the specified monitor
     #[clap(arg_required_else_help = true)]
     MoveWorkspaceToMonitor(MoveWorkspaceToMonitor),
@@ -2660,6 +2664,11 @@ if (Get-Command Get-CimInstance -ErrorAction SilentlyContinue) {
         }
         SubCommand::CycleWorkspace(arg) => {
             send_message(&SocketMessage::CycleFocusWorkspace(arg.cycle_direction))?;
+        }
+        SubCommand::CycleEmptyWorkspace(arg) => {
+            send_message(&SocketMessage::CycleFocusEmptyWorkspace(
+                arg.cycle_direction,
+            ))?;
         }
         SubCommand::NewWorkspace => {
             send_message(&SocketMessage::NewWorkspace)?;

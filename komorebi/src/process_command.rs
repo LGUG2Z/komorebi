@@ -205,7 +205,9 @@ impl WindowManager {
         let initial_state = State::from(self.as_ref());
 
         match message {
-            SocketMessage::CycleFocusWorkspace(_) | SocketMessage::FocusWorkspaceNumber(_) => {
+            SocketMessage::CycleFocusEmptyWorkspace(_)
+            | SocketMessage::CycleFocusWorkspace(_)
+            | SocketMessage::FocusWorkspaceNumber(_) => {
                 if let Some(monitor) = self.focused_monitor_mut() {
                     let idx = monitor.focused_workspace_idx();
                     monitor.set_last_focused_workspace(Option::from(idx));
@@ -927,6 +929,55 @@ impl WindowManager {
                 self.send_always_on_top(None, Option::from(workspace_idx), None)?;
 
                 self.focus_workspace(workspace_idx)?;
+            }
+            SocketMessage::CycleFocusEmptyWorkspace(direction) => {
+                // This is to ensure that even on an empty workspace on a secondary monitor, the
+                // secondary monitor where the cursor is focused will be used as the target for
+                // the workspace switch op
+                if let Some(monitor_idx) = self.monitor_idx_from_current_pos() {
+                    if monitor_idx != self.focused_monitor_idx() {
+                        if let Some(monitor) = self.monitors().get(monitor_idx) {
+                            if let Some(workspace) = monitor.focused_workspace() {
+                                if workspace.is_empty() {
+                                    self.focus_monitor(monitor_idx)?;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                let focused_monitor = self
+                    .focused_monitor()
+                    .ok_or_else(|| anyhow!("there is no monitor"))?;
+
+                let focused_workspace_idx = focused_monitor.focused_workspace_idx();
+                let workspaces = focused_monitor.workspaces().len();
+
+                let mut empty_workspaces = vec![];
+
+                for (idx, w) in focused_monitor.workspaces().iter().enumerate() {
+                    if w.is_empty() {
+                        empty_workspaces.push(idx);
+                    }
+                }
+
+                if !empty_workspaces.is_empty() {
+                    let mut workspace_idx = direction.next_idx(
+                        focused_workspace_idx,
+                        NonZeroUsize::new(workspaces)
+                            .ok_or_else(|| anyhow!("there must be at least one workspace"))?,
+                    );
+
+                    while !empty_workspaces.contains(&workspace_idx) {
+                        workspace_idx = direction.next_idx(
+                            workspace_idx,
+                            NonZeroUsize::new(workspaces)
+                                .ok_or_else(|| anyhow!("there must be at least one workspace"))?,
+                        );
+                    }
+
+                    self.focus_workspace(workspace_idx)?;
+                }
             }
             SocketMessage::CloseWorkspace => {
                 // This is to ensure that even on an empty workspace on a secondary monitor, the
@@ -2064,4 +2115,75 @@ pub fn read_commands_tcp(
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::monitor;
+    use crate::window_manager::WindowManager;
+    use crate::Rect;
+    use crate::SocketMessage;
+    use crate::WindowManagerEvent;
+    use crate::DATA_DIR;
+    use crossbeam_channel::bounded;
+    use crossbeam_channel::Receiver;
+    use crossbeam_channel::Sender;
+    use std::io::BufRead;
+    use std::io::BufReader;
+    use std::io::Write;
+    use std::str::FromStr;
+    use std::time::Duration;
+    use uds_windows::UnixStream;
+    use uuid::Uuid;
+
+    fn send_socket_message(socket: &str, message: SocketMessage) {
+        let socket = DATA_DIR.join(socket);
+        let mut stream = UnixStream::connect(socket).unwrap();
+        stream
+            .set_write_timeout(Some(Duration::from_secs(1)))
+            .unwrap();
+        stream
+            .write_all(serde_json::to_string(&message).unwrap().as_bytes())
+            .unwrap();
+    }
+
+    #[test]
+    fn test_receive_socket_message() {
+        let (_sender, receiver): (Sender<WindowManagerEvent>, Receiver<WindowManagerEvent>) =
+            bounded(1);
+        let socket_name = format!("komorebi-test-{}.sock", Uuid::new_v4());
+        let socket_path = DATA_DIR.join(&socket_name);
+        let mut wm = WindowManager::new(receiver, Some(socket_path.clone())).unwrap();
+        let m = monitor::new(
+            0,
+            Rect::default(),
+            Rect::default(),
+            "TestMonitor".to_string(),
+            "TestDevice".to_string(),
+            "TestDeviceID".to_string(),
+            Some("TestMonitorID".to_string()),
+        );
+
+        wm.monitors_mut().push_back(m);
+
+        // send a message
+        send_socket_message(&socket_name, SocketMessage::FocusWorkspaceNumber(5));
+
+        let (stream, _) = wm.command_listener.accept().unwrap();
+        let reader = BufReader::new(stream.try_clone().unwrap());
+        let next = reader.lines().next();
+
+        // read and deserialize the message
+        let message_string = next.unwrap().unwrap();
+        let message = SocketMessage::from_str(&message_string).unwrap();
+        assert!(matches!(message, SocketMessage::FocusWorkspaceNumber(5)));
+
+        // process the message
+        wm.process_command(message, stream).unwrap();
+
+        // check the updated window manager state
+        assert_eq!(wm.focused_workspace_idx().unwrap(), 5);
+
+        std::fs::remove_file(socket_path).unwrap();
+    }
 }

@@ -125,6 +125,7 @@ pub enum SocketMessage {
     Load(PathBuf),
     CycleFocusMonitor(CycleDirection),
     CycleFocusWorkspace(CycleDirection),
+    CycleFocusEmptyWorkspace(CycleDirection),
     FocusMonitorNumber(usize),
     FocusMonitorAtCursor,
     FocusLastWorkspace,
