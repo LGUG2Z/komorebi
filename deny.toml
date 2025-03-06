@@ -1,0 +1,95 @@
+[graph]
+targets = [
+    "x86_64-pc-windows-msvc",
+    "i686-pc-windows-msvc",
+    "aarch64-pc-windows-msvc",
+]
+all-features = false
+no-default-features = false
+
+[output]
+feature-depth = 1
+
+[advisories]
+ignore = [
+    { id = "RUSTSEC-2020-0016", reason = "local tcp connectivity is an opt-in feature, and there is no upgrade path for TcpStreamExt" },
+]
+
+[licenses]
+allow = [
+    "0BSD",
+    "Apache-2.0",
+    "Artistic-2.0",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "BSL-1.0",
+    "CC0-1.0",
+    "ISC",
+    "MIT",
+    "MIT-0",
+    "MPL-2.0",
+    "OFL-1.1",
+    "Ubuntu-font-1.0",
+    "Unicode-3.0",
+    "Zlib",
+    "LicenseRef-Komorebi-1.0"
+]
+confidence-threshold = 0.8
+
+[[licenses.clarify]]
+crate = "komorebi"
+expression = "LicenseRef-Komorebi-1.0"
+license-files = []
+
+[[licenses.clarify]]
+crate = "komorebi-client"
+expression = "LicenseRef-Komorebi-1.0"
+license-files = []
+
+[[licenses.clarify]]
+crate = "komorebic"
+expression = "LicenseRef-Komorebi-1.0"
+license-files = []
+
+[[licenses.clarify]]
+crate = "komorebic-no-console"
+expression = "LicenseRef-Komorebi-1.0"
+license-files = []
+
+[[licenses.clarify]]
+crate = "komorebi-themes"
+expression = "LicenseRef-Komorebi-1.0"
+license-files = []
+
+[[licenses.clarify]]
+crate = "komorebi-gui"
+expression = "LicenseRef-Komorebi-1.0"
+license-files = []
+
+[[licenses.clarify]]
+crate = "komorebi-bar"
+expression = "LicenseRef-Komorebi-1.0"
+license-files = []
+
+[[licenses.clarify]]
+crate = "base16-egui-themes"
+expression = "MIT"
+license-files = []
+
+[bans]
+multiple-versions = "allow"
+wildcards = "allow"
+highlight = "all"
+workspace-default-features = "allow"
+external-default-features = "allow"
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]
+allow-git = [
+    "https://github.com/LGUG2Z/base16-egui-themes",
+    "https://github.com/LGUG2Z/catppuccin-egui",
+    "https://github.com/LGUG2Z/windows-icons",
+    "https://github.com/LGUG2Z/win32-display-data",
+]
