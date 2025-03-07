@@ -1283,6 +1283,8 @@ enum SubCommand {
     ToggleMonocle,
     /// Toggle native maximization for the focused window
     ToggleMaximize,
+    /// Toggle a lock for the focused container, ensuring it will not be displaced by any new windows
+    ToggleLock,
     /// Restore all hidden windows (debugging command)
     RestoreWindows,
     /// Force komorebi to manage the focused window
@@ -1946,6 +1948,9 @@ fn main() -> Result<()> {
         }
         SubCommand::ToggleMaximize => {
             send_message(&SocketMessage::ToggleMaximize)?;
+        }
+        SubCommand::ToggleLock => {
+            send_message(&SocketMessage::ToggleLock)?;
         }
         SubCommand::WorkspaceLayout(arg) => {
             send_message(&SocketMessage::WorkspaceLayout(

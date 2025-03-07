@@ -9,6 +9,7 @@ pub mod colour;
 pub mod container;
 pub mod core;
 pub mod focus_manager;
+pub mod locked_deque;
 pub mod monitor;
 pub mod monitor_reconciliator;
 pub mod process_command;

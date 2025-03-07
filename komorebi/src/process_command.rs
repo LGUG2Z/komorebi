@@ -1,4 +1,5 @@
 use color_eyre::eyre::anyhow;
+use color_eyre::eyre::OptionExt;
 use color_eyre::Result;
 use miow::pipe::connect;
 use net2::TcpStreamExt;
@@ -359,6 +360,41 @@ impl WindowManager {
             SocketMessage::Minimize => {
                 Window::from(WindowsApi::foreground_window()?).minimize();
             }
+            SocketMessage::LockMonitorWorkspaceContainer(
+                monitor_idx,
+                workspace_idx,
+                container_idx,
+            ) => {
+                let monitor = self
+                    .monitors_mut()
+                    .get_mut(monitor_idx)
+                    .ok_or_eyre("no monitor at the given index")?;
+
+                let workspace = monitor
+                    .workspaces_mut()
+                    .get_mut(workspace_idx)
+                    .ok_or_eyre("no workspace at the given index")?;
+
+                workspace.locked_containers.insert(container_idx);
+            }
+            SocketMessage::UnlockMonitorWorkspaceContainer(
+                monitor_idx,
+                workspace_idx,
+                container_idx,
+            ) => {
+                let monitor = self
+                    .monitors_mut()
+                    .get_mut(monitor_idx)
+                    .ok_or_eyre("no monitor at the given index")?;
+
+                let workspace = monitor
+                    .workspaces_mut()
+                    .get_mut(workspace_idx)
+                    .ok_or_eyre("no workspace at the given index")?;
+
+                workspace.locked_containers.remove(&container_idx);
+            }
+            SocketMessage::ToggleLock => self.toggle_lock()?,
             SocketMessage::ToggleFloat => self.toggle_float()?,
             SocketMessage::ToggleMonocle => self.toggle_monocle()?,
             SocketMessage::ToggleMaximize => self.toggle_maximize()?,
@@ -1782,6 +1818,10 @@ impl WindowManager {
                 }
                 WindowKind::Unfocused => {
                     border_manager::UNFOCUSED.store(Rgb::new(r, g, b).into(), Ordering::SeqCst);
+                }
+                WindowKind::UnfocusedLocked => {
+                    border_manager::UNFOCUSED_LOCKED
+                        .store(Rgb::new(r, g, b).into(), Ordering::SeqCst);
                 }
                 WindowKind::Floating => {
                     border_manager::FLOATING.store(Rgb::new(r, g, b).into(), Ordering::SeqCst);
