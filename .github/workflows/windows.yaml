@@ -55,8 +55,7 @@ jobs:
           key: ${{ matrix.platform.target }}
       - run: cargo +nightly fmt --check
       - run: cargo clippy
-      # sockets don't work properly on the windows runner
-      - run: cargo test -- --skip window_manager --skip process_command
+      - run: cargo test
       - uses: houseabsolute/actions-rust-cross@v1
         with:
           command: "build"
