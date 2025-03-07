@@ -84,6 +84,9 @@ pub enum SocketMessage {
     PromoteFocus,
     PromoteWindow(OperationDirection),
     EagerFocus(String),
+    LockMonitorWorkspaceContainer(usize, usize, usize),
+    UnlockMonitorWorkspaceContainer(usize, usize, usize),
+    ToggleLock,
     ToggleFloat,
     ToggleMonocle,
     ToggleMaximize,
@@ -312,6 +315,7 @@ pub enum WindowKind {
     Monocle,
     #[default]
     Unfocused,
+    UnfocusedLocked,
     Floating,
 }
 

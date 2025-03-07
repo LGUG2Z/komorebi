@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::collections::VecDeque;
 use std::fmt::Display;
 use std::fmt::Formatter;
@@ -25,6 +26,7 @@ use crate::core::Rect;
 use crate::border_manager::BORDER_OFFSET;
 use crate::border_manager::BORDER_WIDTH;
 use crate::container::Container;
+use crate::locked_deque::LockedDeque;
 use crate::ring::Ring;
 use crate::should_act;
 use crate::stackbar_manager;
@@ -90,6 +92,8 @@ pub struct Workspace {
     pub globals: WorkspaceGlobals,
     #[getset(get = "pub", get_mut = "pub", set = "pub")]
     pub layer: WorkspaceLayer,
+    #[getset(get = "pub", get_mut = "pub", set = "pub")]
+    pub locked_containers: HashSet<usize>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[getset(get = "pub", set = "pub")]
     pub workspace_config: Option<WorkspaceConfig>,
@@ -139,6 +143,7 @@ impl Default for Workspace {
             layer: Default::default(),
             globals: Default::default(),
             workspace_config: None,
+            locked_containers: Default::default(),
         }
     }
 }
@@ -912,9 +917,10 @@ impl Workspace {
             .ok_or_else(|| anyhow!("there is no window"))?;
 
         if container.windows().is_empty() {
-            self.containers_mut()
-                .remove(container_idx)
-                .ok_or_else(|| anyhow!("there is no container"))?;
+            let mut locked_containers = self.locked_containers().clone();
+            let mut ld = LockedDeque::new(self.containers_mut(), &mut locked_containers);
+            ld.remove(container_idx);
+            self.locked_containers = locked_containers;
 
             // Whenever a container is empty, we need to remove any resize dimensions for it too
             if self.resize_dimensions().get(container_idx).is_some() {
@@ -1045,7 +1051,7 @@ impl Workspace {
     }
 
     pub fn new_container_for_window(&mut self, window: Window) {
-        let next_idx = if self.containers().is_empty() {
+        let mut next_idx = if self.containers().is_empty() {
             0
         } else {
             self.focused_container_idx() + 1
@@ -1057,7 +1063,10 @@ impl Workspace {
         if next_idx > self.containers().len() {
             self.containers_mut().push_back(container);
         } else {
-            self.containers_mut().insert(next_idx, container);
+            let mut locked_containers = self.locked_containers().clone();
+            let mut ld = LockedDeque::new(self.containers_mut(), &mut locked_containers);
+            next_idx = ld.insert(next_idx, container);
+            self.locked_containers = locked_containers;
         }
 
         if next_idx > self.resize_dimensions().len() {
@@ -1639,6 +1648,82 @@ impl Workspace {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    use crate::container::Container;
+    use crate::Window;
+    use std::collections::HashMap;
+    use std::collections::HashSet;
+
+    #[test]
+    fn test_locked_containers_with_new_window() {
+        let mut ws = Workspace::default();
+
+        let mut state = HashMap::new();
+        let mut locked = HashSet::new();
+
+        // add 3 containers
+        for i in 0..4 {
+            let container = Container::default();
+            state.insert(i, container.id().to_string());
+            ws.add_container_to_back(container);
+        }
+        assert_eq!(ws.containers().len(), 4);
+
+        // set index 3 locked
+        locked.insert(3);
+        ws.locked_containers = locked;
+
+        // focus container at index 2
+        ws.focus_container(2);
+
+        // simulate a new window being launched on this workspace
+        ws.new_container_for_window(Window::from(123));
+
+        // new length should be 5, with the focus on the new window at index 4
+        assert_eq!(ws.containers().len(), 5);
+        assert_eq!(ws.focused_container_idx(), 4);
+        assert_eq!(
+            ws.focused_container()
+                .unwrap()
+                .focused_window()
+                .unwrap()
+                .hwnd,
+            123
+        );
+
+        // when inserting a new container at index 0, index 3's container should not change
+        ws.focus_container(0);
+        ws.new_container_for_window(Window::from(234));
+        assert_eq!(
+            ws.containers()[3].id().to_string(),
+            state.get(&3).unwrap().to_string()
+        );
+    }
+
+    #[test]
+    fn test_locked_containers_remove_window() {
+        let mut ws = Workspace::default();
+
+        let mut locked = HashSet::new();
+
+        // add 4 containers
+        for i in 0..4 {
+            let mut container = Container::default();
+            container.windows_mut().push_back(Window::from(i));
+            ws.add_container_to_back(container);
+        }
+        assert_eq!(ws.containers().len(), 4);
+
+        // set index 1 locked
+        locked.insert(1);
+        ws.locked_containers = locked;
+
+        ws.remove_window(0).unwrap();
+        assert_eq!(ws.containers()[0].focused_window().unwrap().hwnd, 2);
+        // index 1 should still be the same
+        assert_eq!(ws.containers()[1].focused_window().unwrap().hwnd, 1);
+        assert_eq!(ws.containers()[2].focused_window().unwrap().hwnd, 3);
+    }
 
     #[test]
     fn test_contains_window() {

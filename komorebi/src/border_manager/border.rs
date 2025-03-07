@@ -272,6 +272,7 @@ impl Border {
                     WindowKind::Monocle,
                     WindowKind::Unfocused,
                     WindowKind::Floating,
+                    WindowKind::UnfocusedLocked,
                 ] {
                     let color = window_kind_colour(window_kind);
                     let color = D2D1_COLOR_F {

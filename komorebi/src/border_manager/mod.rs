@@ -48,6 +48,8 @@ lazy_static! {
         AtomicU32::new(u32::from(Colour::Rgb(Rgb::new(66, 165, 245))));
     pub static ref UNFOCUSED: AtomicU32 =
         AtomicU32::new(u32::from(Colour::Rgb(Rgb::new(128, 128, 128))));
+    pub static ref UNFOCUSED_LOCKED: AtomicU32 =
+        AtomicU32::new(u32::from(Colour::Rgb(Rgb::new(158, 8, 8))));
     pub static ref MONOCLE: AtomicU32 =
         AtomicU32::new(u32::from(Colour::Rgb(Rgb::new(255, 51, 153))));
     pub static ref STACK: AtomicU32 = AtomicU32::new(u32::from(Colour::Rgb(Rgb::new(0, 165, 66))));
@@ -149,6 +151,7 @@ pub fn destroy_all_borders() -> color_eyre::Result<()> {
 fn window_kind_colour(focus_kind: WindowKind) -> u32 {
     match focus_kind {
         WindowKind::Unfocused => UNFOCUSED.load(Ordering::Relaxed),
+        WindowKind::UnfocusedLocked => UNFOCUSED_LOCKED.load(Ordering::Relaxed),
         WindowKind::Single => FOCUSED.load(Ordering::Relaxed),
         WindowKind::Stack => STACK.load(Ordering::Relaxed),
         WindowKind::Monocle => MONOCLE.load(Ordering::Relaxed),
@@ -229,7 +232,11 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                             let window_kind = if idx != ws.focused_container_idx()
                                 || monitor_idx != focused_monitor_idx
                             {
-                                WindowKind::Unfocused
+                                if ws.locked_containers().contains(&idx) {
+                                    WindowKind::UnfocusedLocked
+                                } else {
+                                    WindowKind::Unfocused
+                                }
                             } else if c.windows().len() > 1 {
                                 WindowKind::Stack
                             } else {
@@ -493,7 +500,11 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                                 || monitor_idx != focused_monitor_idx
                                 || focused_window_hwnd != foreground_window
                             {
-                                WindowKind::Unfocused
+                                if ws.locked_containers().contains(&idx) {
+                                    WindowKind::UnfocusedLocked
+                                } else {
+                                    WindowKind::Unfocused
+                                }
                             } else if c.windows().len() > 1 {
                                 WindowKind::Stack
                             } else {
