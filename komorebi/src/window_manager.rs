@@ -339,6 +339,7 @@ impl From<&WindowManager> for State {
                             float_override: workspace.float_override,
                             layer: workspace.layer,
                             globals: workspace.globals,
+                            locked_containers: workspace.locked_containers.clone(),
                             workspace_config: None,
                         })
                         .collect::<VecDeque<_>>();
@@ -2848,6 +2849,20 @@ impl WindowManager {
         }
 
         self.update_focused_workspace(is_floating_window, true)
+    }
+
+    #[tracing::instrument(skip(self))]
+    pub fn toggle_lock(&mut self) -> Result<()> {
+        let workspace = self.focused_workspace_mut()?;
+        let index = workspace.focused_container_idx();
+
+        if workspace.locked_containers().contains(&index) {
+            workspace.locked_containers_mut().remove(&index);
+        } else {
+            workspace.locked_containers_mut().insert(index);
+        }
+
+        Ok(())
     }
 
     #[tracing::instrument(skip(self))]

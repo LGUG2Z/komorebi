@@ -76,6 +76,7 @@ pub fn handle_notifications() -> color_eyre::Result<()> {
             monocle_border,
             floating_border,
             unfocused_border,
+            unfocused_locked_border,
             stackbar_focused_text,
             stackbar_unfocused_text,
             stackbar_background,
@@ -87,6 +88,7 @@ pub fn handle_notifications() -> color_eyre::Result<()> {
                 monocle_border,
                 floating_border,
                 unfocused_border,
+                unfocused_locked_border,
                 stackbar_focused_text,
                 stackbar_unfocused_text,
                 stackbar_background,
@@ -112,6 +114,10 @@ pub fn handle_notifications() -> color_eyre::Result<()> {
                     .unwrap_or(komorebi_themes::CatppuccinValue::Base)
                     .color32(name.as_theme());
 
+                let unfocused_locked_border = unfocused_locked_border
+                    .unwrap_or(komorebi_themes::CatppuccinValue::Red)
+                    .color32(name.as_theme());
+
                 let stackbar_focused_text = stackbar_focused_text
                     .unwrap_or(komorebi_themes::CatppuccinValue::Green)
                     .color32(name.as_theme());
@@ -130,6 +136,7 @@ pub fn handle_notifications() -> color_eyre::Result<()> {
                     monocle_border,
                     floating_border,
                     unfocused_border,
+                    unfocused_locked_border,
                     stackbar_focused_text,
                     stackbar_unfocused_text,
                     stackbar_background,
@@ -142,6 +149,7 @@ pub fn handle_notifications() -> color_eyre::Result<()> {
                 monocle_border,
                 floating_border,
                 unfocused_border,
+                unfocused_locked_border,
                 stackbar_focused_text,
                 stackbar_unfocused_text,
                 stackbar_background,
@@ -161,6 +169,10 @@ pub fn handle_notifications() -> color_eyre::Result<()> {
 
                 let unfocused_border = unfocused_border
                     .unwrap_or(komorebi_themes::Base16Value::Base01)
+                    .color32(*name);
+
+                let unfocused_locked_border = unfocused_locked_border
+                    .unwrap_or(komorebi_themes::Base16Value::Base08)
                     .color32(*name);
 
                 let floating_border = floating_border
@@ -185,6 +197,7 @@ pub fn handle_notifications() -> color_eyre::Result<()> {
                     monocle_border,
                     floating_border,
                     unfocused_border,
+                    unfocused_locked_border,
                     stackbar_focused_text,
                     stackbar_unfocused_text,
                     stackbar_background,
@@ -198,6 +211,10 @@ pub fn handle_notifications() -> color_eyre::Result<()> {
         border_manager::FLOATING.store(u32::from(Colour::from(floating_border)), Ordering::SeqCst);
         border_manager::UNFOCUSED
             .store(u32::from(Colour::from(unfocused_border)), Ordering::SeqCst);
+        border_manager::UNFOCUSED_LOCKED.store(
+            u32::from(Colour::from(unfocused_locked_border)),
+            Ordering::SeqCst,
+        );
 
         STACKBAR_TAB_BACKGROUND_COLOUR.store(
             u32::from(Colour::from(stackbar_background)),
