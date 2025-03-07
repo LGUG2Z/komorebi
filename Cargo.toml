@@ -13,6 +13,7 @@ members = [
 
 [workspace.dependencies]
 clap = { version = "4", features = ["derive", "wrap_help"] }
+chrono-tz = "0.10"
 chrono = "0.4"
 crossbeam-channel = "0.5"
 crossbeam-utils = "0.8"
