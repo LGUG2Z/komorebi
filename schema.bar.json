@@ -265,6 +265,10 @@
                         ]
                       }
                     ]
+                  },
+                  "timezone": {
+                    "description": "TimeZone (https://docs.rs/chrono-tz/latest/chrono_tz/enum.Tz.html)\n\nUse a custom format to display additional information, i.e.: ```json { \"Date\": { \"enable\": true, \"format\": { \"Custom\": \"%D %Z (Tokyo)\" }, \"timezone\": \"Asia/Tokyo\" } } ```",
+                    "type": "string"
                   }
                 }
               }
@@ -988,6 +992,10 @@
                         ]
                       }
                     ]
+                  },
+                  "timezone": {
+                    "description": "TimeZone (https://docs.rs/chrono-tz/latest/chrono_tz/enum.Tz.html)\n\nUse a custom format to display additional information, i.e.: ```json { \"Time\": { \"enable\": true, \"format\": { \"Custom\": \"%T %Z (Tokyo)\" }, \"timezone\": \"Asia/Tokyo\" } } ```",
+                    "type": "string"
                   }
                 }
               }
@@ -1663,6 +1671,10 @@
                         ]
                       }
                     ]
+                  },
+                  "timezone": {
+                    "description": "TimeZone (https://docs.rs/chrono-tz/latest/chrono_tz/enum.Tz.html)\n\nUse a custom format to display additional information, i.e.: ```json { \"Date\": { \"enable\": true, \"format\": { \"Custom\": \"%D %Z (Tokyo)\" }, \"timezone\": \"Asia/Tokyo\" } } ```",
+                    "type": "string"
                   }
                 }
               }
@@ -2386,6 +2398,10 @@
                         ]
                       }
                     ]
+                  },
+                  "timezone": {
+                    "description": "TimeZone (https://docs.rs/chrono-tz/latest/chrono_tz/enum.Tz.html)\n\nUse a custom format to display additional information, i.e.: ```json { \"Time\": { \"enable\": true, \"format\": { \"Custom\": \"%T %Z (Tokyo)\" }, \"timezone\": \"Asia/Tokyo\" } } ```",
+                    "type": "string"
                   }
                 }
               }
@@ -2994,6 +3010,10 @@
                         ]
                       }
                     ]
+                  },
+                  "timezone": {
+                    "description": "TimeZone (https://docs.rs/chrono-tz/latest/chrono_tz/enum.Tz.html)\n\nUse a custom format to display additional information, i.e.: ```json { \"Date\": { \"enable\": true, \"format\": { \"Custom\": \"%D %Z (Tokyo)\" }, \"timezone\": \"Asia/Tokyo\" } } ```",
+                    "type": "string"
                   }
                 }
               }
@@ -3717,6 +3737,10 @@
                         ]
                       }
                     ]
+                  },
+                  "timezone": {
+                    "description": "TimeZone (https://docs.rs/chrono-tz/latest/chrono_tz/enum.Tz.html)\n\nUse a custom format to display additional information, i.e.: ```json { \"Time\": { \"enable\": true, \"format\": { \"Custom\": \"%T %Z (Tokyo)\" }, \"timezone\": \"Asia/Tokyo\" } } ```",
+                    "type": "string"
                   }
                 }
               }
