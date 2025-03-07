@@ -3667,10 +3667,10 @@ mod tests {
     use crate::window_manager::WindowManager;
     use crate::Rect;
     use crate::WindowManagerEvent;
-    use crate::DATA_DIR;
     use crossbeam_channel::bounded;
     use crossbeam_channel::Receiver;
     use crossbeam_channel::Sender;
+    use std::path::PathBuf;
     use uuid::Uuid;
 
     #[test]
@@ -3678,13 +3678,11 @@ mod tests {
         let (_sender, receiver): (Sender<WindowManagerEvent>, Receiver<WindowManagerEvent>) =
             bounded(1);
         let socket_name = format!("komorebi-test-{}.sock", Uuid::new_v4());
-        let socket = Some(DATA_DIR.join(socket_name));
-        let wm = WindowManager::new(receiver, socket.clone());
+        let socket_path = PathBuf::from(socket_name);
+        let wm = WindowManager::new(receiver, Some(socket_path.clone()).clone());
         assert!(wm.is_ok());
 
-        if let Some(ref socket_path) = socket {
-            let _ = std::fs::remove_file(socket_path);
-        }
+        std::fs::remove_file(socket_path).unwrap();
     }
 
     #[test]
@@ -3692,7 +3690,7 @@ mod tests {
         let (_sender, receiver): (Sender<WindowManagerEvent>, Receiver<WindowManagerEvent>) =
             bounded(1);
         let socket_name = format!("komorebi-test-{}.sock", Uuid::new_v4());
-        let socket_path = DATA_DIR.join(&socket_name);
+        let socket_path = PathBuf::from(socket_name);
         let mut wm = WindowManager::new(receiver, Some(socket_path.clone())).unwrap();
         let m = monitor::new(
             0,
