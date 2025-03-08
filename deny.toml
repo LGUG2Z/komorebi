@@ -39,13 +39,6 @@ confidence-threshold = 0.8
 [[licenses.clarify]]
 crate = "komorebi"
 expression = "LicenseRef-Komorebi-1.0"
-license-files = [
-    { path = "LICENSE.md", hash = 0x001c7e6c },
-]
-
-[[licenses.clarify]]
-crate = "komorebi"
-expression = "LicenseRef-Komorebi-1.0"
 license-files = []
 
 [[licenses.clarify]]
