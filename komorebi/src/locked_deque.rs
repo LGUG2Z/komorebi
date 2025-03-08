@@ -1,13 +1,13 @@
-use std::collections::HashSet;
+use std::collections::BTreeSet;
 use std::collections::VecDeque;
 
 pub struct LockedDeque<'a, T> {
     deque: &'a mut VecDeque<T>,
-    locked_indices: &'a mut HashSet<usize>,
+    locked_indices: &'a mut BTreeSet<usize>,
 }
 
-impl<'a, T: Clone + PartialEq> LockedDeque<'a, T> {
-    pub fn new(deque: &'a mut VecDeque<T>, locked_indices: &'a mut HashSet<usize>) -> Self {
+impl<'a, T: PartialEq> LockedDeque<'a, T> {
+    pub fn new(deque: &'a mut VecDeque<T>, locked_indices: &'a mut BTreeSet<usize>) -> Self {
         Self {
             deque,
             locked_indices,
@@ -23,156 +23,105 @@ impl<'a, T: Clone + PartialEq> LockedDeque<'a, T> {
     }
 }
 
-fn insert_respecting_locks<T: Clone>(
+pub fn insert_respecting_locks<T>(
     deque: &mut VecDeque<T>,
-    locked_indices: &mut HashSet<usize>,
-    index: usize,
+    locked_idx: &mut BTreeSet<usize>,
+    idx: usize,
     value: T,
 ) -> usize {
-    if deque.is_empty() {
+    if idx == deque.len() {
         deque.push_back(value);
-        return 0;
+        return idx;
     }
 
-    // Find the actual insertion point (first unlocked index >= requested index)
-    let mut actual_index = index;
-    while actual_index < deque.len() && locked_indices.contains(&actual_index) {
-        actual_index += 1;
-    }
-
-    // If we're inserting at the end, just push_back
-    if actual_index >= deque.len() {
-        deque.push_back(value);
-        return actual_index;
-    }
-
-    // Store original values at locked positions
-    let locked_values: Vec<(usize, T)> = locked_indices
-        .iter()
-        .filter_map(|&idx| {
-            if idx < deque.len() {
-                Some((idx, deque[idx].clone()))
-            } else {
-                None
-            }
-        })
-        .collect();
-
-    // Store all original values
-    let original_values: Vec<T> = deque.iter().cloned().collect();
-
-    // Create a new deque with the correct final size
     let mut new_deque = VecDeque::with_capacity(deque.len() + 1);
-    for _ in 0..deque.len() + 1 {
-        new_deque.push_back(value.clone()); // Temporary placeholder
-    }
+    let mut temp_locked_deque = VecDeque::new();
+    let mut j = 0;
+    let mut corrected_idx = idx;
 
-    // First, place the new value at the insertion point
-    new_deque[actual_index] = value.clone();
-
-    // Then, place all locked values at their original positions
-    for (idx, val) in &locked_values {
-        new_deque[*idx] = val.clone();
-    }
-
-    // Now, fill in all remaining positions with values from the original deque,
-    // accounting for the shift caused by insertion
-    let mut orig_idx = 0;
-    #[allow(clippy::needless_range_loop)]
-    for new_idx in 0..new_deque.len() {
-        // Skip positions that are already filled (insertion point and locked positions)
-        if new_idx == actual_index || locked_indices.contains(&new_idx) {
-            continue;
+    for (i, el) in deque.drain(..).enumerate() {
+        if i == idx {
+            corrected_idx = j;
         }
-
-        // Skip original elements that were at locked positions
-        while orig_idx < original_values.len() && locked_indices.contains(&orig_idx) {
-            orig_idx += 1;
-        }
-
-        // If we still have original elements to place
-        if orig_idx < original_values.len() {
-            new_deque[new_idx] = original_values[orig_idx].clone();
-            orig_idx += 1;
+        if locked_idx.contains(&i) {
+            temp_locked_deque.push_back(el);
+        } else {
+            new_deque.push_back(el);
+            j += 1;
         }
     }
 
-    // Update the original deque
+    new_deque.insert(corrected_idx, value);
+
+    for (locked_el, locked_idx) in temp_locked_deque.into_iter().zip(locked_idx.iter()) {
+        new_deque.insert(*locked_idx, locked_el);
+        if *locked_idx <= corrected_idx {
+            corrected_idx += 1;
+        }
+    }
+
     *deque = new_deque;
 
-    actual_index
+    corrected_idx
 }
 
-fn remove_respecting_locks<T: Clone>(
+pub fn remove_respecting_locks<T>(
     deque: &mut VecDeque<T>,
-    locked_indices: &mut HashSet<usize>,
-    index: usize,
+    locked_idx: &mut BTreeSet<usize>,
+    idx: usize,
 ) -> Option<T> {
-    if index >= deque.len() {
+    if idx >= deque.len() {
         return None;
     }
 
-    let removed = deque[index].clone();
+    let final_size = deque.len() - 1;
 
-    // If removing a locked index, just remove it and unlock
-    if locked_indices.contains(&index) {
-        locked_indices.remove(&index);
-        deque.remove(index);
+    let mut new_deque = VecDeque::with_capacity(final_size);
+    let mut temp_locked_deque = VecDeque::new();
+    let mut removed = None;
+    let mut removed_locked_idx = None;
 
-        // Update locked indices after the removal point
-        let new_locked: HashSet<usize> = locked_indices
-            .iter()
-            .map(|&idx| if idx > index { idx - 1 } else { idx })
-            .collect();
-        *locked_indices = new_locked;
-
-        return Some(removed);
-    }
-
-    // Let's build a new deque with the correct order
-    let mut result = VecDeque::with_capacity(deque.len() - 1);
-
-    // 1. First include all elements before the removal index
-    #[allow(clippy::needless_range_loop)]
-    for i in 0..index {
-        result.push_back(deque[i].clone());
-    }
-
-    // 2. Then for each element after the removal index
-    #[allow(clippy::needless_range_loop)]
-    for i in (index + 1)..deque.len() {
-        // If the previous index was locked, we need to swap this element
-        // with the previous one in our result
-        if locked_indices.contains(&(i - 1)) {
-            // Insert this element before the locked element
-            if !result.is_empty() {
-                let locked_element = result.pop_back().unwrap();
-                result.push_back(deque[i].clone());
-                result.push_back(locked_element);
-            } else {
-                // This shouldn't happen with valid inputs
-                result.push_back(deque[i].clone());
-            }
+    for (i, el) in deque.drain(..).enumerate() {
+        if i == idx {
+            removed = Some(el);
+            removed_locked_idx = locked_idx.contains(&i).then_some(i);
+        } else if locked_idx.contains(&i) {
+            temp_locked_deque.push_back(el);
         } else {
-            // Normal case, just add the element
-            result.push_back(deque[i].clone());
+            new_deque.push_back(el);
         }
     }
 
-    // Update the original deque
-    *deque = result;
+    if let Some(i) = removed_locked_idx {
+        let mut above = locked_idx.split_off(&i);
+        above.pop_first();
+        locked_idx.extend(above.into_iter().map(|i| i - 1));
+    }
 
-    // Important: Keep the same locked indices (don't update them)
-    // Only remove any that are now out of bounds
-    locked_indices.retain(|&idx| idx < deque.len());
+    while locked_idx.last().is_some_and(|i| *i >= final_size) {
+        locked_idx.pop_last();
+    }
 
-    Some(removed)
+    let extra_invalid_idx = (new_deque.len()
+        ..(new_deque.len() + temp_locked_deque.len() - locked_idx.len()))
+        .collect::<Vec<_>>();
+
+    for (locked_el, locked_idx) in temp_locked_deque
+        .into_iter()
+        .zip(locked_idx.iter().chain(extra_invalid_idx.iter()))
+    {
+        new_deque.insert(*locked_idx, locked_el);
+    }
+
+    *deque = new_deque;
+
+    removed
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::collections::HashSet;
+    use std::collections::BTreeSet;
     use std::collections::VecDeque;
 
     #[test]
@@ -180,7 +129,7 @@ mod tests {
         // Test case 1: Basic insertion with locked index
         {
             let mut deque = VecDeque::from(vec![0, 1, 2, 3, 4]);
-            let mut locked = HashSet::new();
+            let mut locked = BTreeSet::new();
             locked.insert(2); // Lock index 2
 
             // Insert at index 0, should shift elements while keeping index 2 locked
@@ -192,7 +141,7 @@ mod tests {
         // Test case 2: Insert at a locked index
         {
             let mut deque = VecDeque::from(vec![0, 1, 2, 3, 4]);
-            let mut locked = HashSet::new();
+            let mut locked = BTreeSet::new();
             locked.insert(2); // Lock index 2
 
             // Try to insert at locked index 2, should insert at index 3 instead
@@ -204,7 +153,7 @@ mod tests {
         // Test case 3: Multiple locked indices
         {
             let mut deque = VecDeque::from(vec![0, 1, 2, 3, 4]);
-            let mut locked = HashSet::new();
+            let mut locked = BTreeSet::new();
             locked.insert(1); // Lock index 1
             locked.insert(3); // Lock index 3
 
@@ -217,7 +166,7 @@ mod tests {
         // Test case 4: Insert at end
         {
             let mut deque = VecDeque::from(vec![0, 1, 2, 3, 4]);
-            let mut locked = HashSet::new();
+            let mut locked = BTreeSet::new();
             locked.insert(2); // Lock index 2
 
             // Insert at end of deque
@@ -229,7 +178,7 @@ mod tests {
         // Test case 5: Empty deque
         {
             let mut deque = VecDeque::new();
-            let mut locked = HashSet::new();
+            let mut locked = BTreeSet::new();
 
             // Insert into empty deque
             let actual_index = insert_respecting_locks(&mut deque, &mut locked, 0, 99);
@@ -240,7 +189,7 @@ mod tests {
         // Test case 6: All indices locked
         {
             let mut deque = VecDeque::from(vec![0, 1, 2, 3, 4]);
-            let mut locked = HashSet::new();
+            let mut locked = BTreeSet::new();
             for i in 0..5 {
                 locked.insert(i); // Lock all indices
             }
@@ -254,7 +203,7 @@ mod tests {
         // Test case 7: Consecutive locked indices
         {
             let mut deque = VecDeque::from(vec![0, 1, 2, 3, 4]);
-            let mut locked = HashSet::new();
+            let mut locked = BTreeSet::new();
             locked.insert(2); // Lock index 2
             locked.insert(3); // Lock index 3
 
@@ -270,7 +219,7 @@ mod tests {
         // Test case 1: Remove a non-locked index before a locked index
         {
             let mut deque = VecDeque::from(vec![0, 1, 2, 3, 4]);
-            let mut locked = HashSet::new();
+            let mut locked = BTreeSet::new();
             locked.insert(2); // Lock index 2
 
             let removed = remove_respecting_locks(&mut deque, &mut locked, 0);
@@ -282,7 +231,7 @@ mod tests {
         // Test case 2: Remove a locked index
         {
             let mut deque = VecDeque::from(vec![0, 1, 2, 3, 4]);
-            let mut locked = HashSet::new();
+            let mut locked = BTreeSet::new();
             locked.insert(2); // Lock index 2
 
             let removed = remove_respecting_locks(&mut deque, &mut locked, 2);
@@ -294,7 +243,7 @@ mod tests {
         // Test case 3: Remove an index after a locked index
         {
             let mut deque = VecDeque::from(vec![0, 1, 2, 3, 4]);
-            let mut locked = HashSet::new();
+            let mut locked = BTreeSet::new();
             locked.insert(1); // Lock index 1
 
             let removed = remove_respecting_locks(&mut deque, &mut locked, 3);
@@ -306,7 +255,7 @@ mod tests {
         // Test case 4: Multiple locked indices
         {
             let mut deque = VecDeque::from(vec![0, 1, 2, 3, 4]);
-            let mut locked = HashSet::new();
+            let mut locked = BTreeSet::new();
             locked.insert(1); // Lock index 1
             locked.insert(3); // Lock index 3
 
@@ -319,7 +268,7 @@ mod tests {
         // Test case 5: Remove the last element
         {
             let mut deque = VecDeque::from(vec![0, 1, 2, 3, 4]);
-            let mut locked = HashSet::new();
+            let mut locked = BTreeSet::new();
             locked.insert(2); // Lock index 2
 
             let removed = remove_respecting_locks(&mut deque, &mut locked, 4);
@@ -331,7 +280,7 @@ mod tests {
         // Test case 6: Invalid index
         {
             let mut deque = VecDeque::from(vec![0, 1, 2, 3, 4]);
-            let mut locked = HashSet::new();
+            let mut locked = BTreeSet::new();
             locked.insert(2); // Lock index 2
 
             let removed = remove_respecting_locks(&mut deque, &mut locked, 10);
@@ -343,7 +292,7 @@ mod tests {
         // Test case 7: Remove enough elements to make a locked index invalid
         {
             let mut deque = VecDeque::from(vec![0, 1, 2]);
-            let mut locked = HashSet::new();
+            let mut locked = BTreeSet::new();
             locked.insert(2); // Lock index 2
 
             remove_respecting_locks(&mut deque, &mut locked, 0);
@@ -354,7 +303,7 @@ mod tests {
         // Test case 8: Removing an element before multiple locked indices
         {
             let mut deque = VecDeque::from(vec![0, 1, 2, 3, 4, 5]);
-            let mut locked = HashSet::new();
+            let mut locked = BTreeSet::new();
             locked.insert(2); // Lock index 2
             locked.insert(4); // Lock index 4
 
