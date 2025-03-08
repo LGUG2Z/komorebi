@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::BTreeSet;
 use std::collections::VecDeque;
 use std::fmt::Display;
 use std::fmt::Formatter;
@@ -93,7 +93,7 @@ pub struct Workspace {
     #[getset(get = "pub", get_mut = "pub", set = "pub")]
     pub layer: WorkspaceLayer,
     #[getset(get = "pub", get_mut = "pub", set = "pub")]
-    pub locked_containers: HashSet<usize>,
+    pub locked_containers: BTreeSet<usize>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[getset(get = "pub", set = "pub")]
     pub workspace_config: Option<WorkspaceConfig>,
@@ -1655,15 +1655,15 @@ mod tests {
 
     use crate::container::Container;
     use crate::Window;
+    use std::collections::BTreeSet;
     use std::collections::HashMap;
-    use std::collections::HashSet;
 
     #[test]
     fn test_locked_containers_with_new_window() {
         let mut ws = Workspace::default();
 
         let mut state = HashMap::new();
-        let mut locked = HashSet::new();
+        let mut locked = BTreeSet::new();
 
         // add 3 containers
         for i in 0..4 {
@@ -1708,7 +1708,7 @@ mod tests {
     fn test_locked_containers_remove_window() {
         let mut ws = Workspace::default();
 
-        let mut locked = HashSet::new();
+        let mut locked = BTreeSet::new();
 
         // add 4 containers
         for i in 0..4 {
@@ -1733,7 +1733,7 @@ mod tests {
     fn test_locked_containers_toggle_float() {
         let mut ws = Workspace::default();
 
-        let mut locked = HashSet::new();
+        let mut locked = BTreeSet::new();
 
         // add 4 containers
         for i in 0..4 {
@@ -1778,7 +1778,7 @@ mod tests {
     fn test_locked_containers_stack() {
         let mut ws = Workspace::default();
 
-        let mut locked = HashSet::new();
+        let mut locked = BTreeSet::new();
 
         // add 6 containers
         for i in 0..6 {
