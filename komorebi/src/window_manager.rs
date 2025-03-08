@@ -3663,35 +3663,42 @@ impl WindowManager {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
     use crate::monitor;
-    use crate::window_manager::WindowManager;
-    use crate::Rect;
-    use crate::WindowManagerEvent;
     use crossbeam_channel::bounded;
-    use crossbeam_channel::Receiver;
     use crossbeam_channel::Sender;
     use std::path::PathBuf;
     use uuid::Uuid;
 
-    #[test]
-    fn test_create_window_manager() {
+    fn setup_window_manager() -> (WindowManager, Option<PathBuf>) {
         let (_sender, receiver): (Sender<WindowManagerEvent>, Receiver<WindowManagerEvent>) =
             bounded(1);
+
+        // Temporary socket path for testing
         let socket_name = format!("komorebi-test-{}.sock", Uuid::new_v4());
         let socket_path = PathBuf::from(socket_name);
-        let wm = WindowManager::new(receiver, Some(socket_path.clone()).clone());
+
+        // Create a new WindowManager instance
+        let wm = WindowManager::new(receiver, Some(socket_path.clone()));
+
+        // Window Manager should be created successfully
         assert!(wm.is_ok());
 
-        std::fs::remove_file(socket_path).unwrap();
+        (wm.unwrap(), Some(socket_path))
+    }
+
+    #[test]
+    fn test_create_window_manager() {
+        let (_wm, socket_path) = setup_window_manager();
+
+        // Clean up the socket file
+        std::fs::remove_file(socket_path.unwrap()).unwrap();
     }
 
     #[test]
     fn test_focus_workspace() {
-        let (_sender, receiver): (Sender<WindowManagerEvent>, Receiver<WindowManagerEvent>) =
-            bounded(1);
-        let socket_name = format!("komorebi-test-{}.sock", Uuid::new_v4());
-        let socket_path = PathBuf::from(socket_name);
-        let mut wm = WindowManager::new(receiver, Some(socket_path.clone())).unwrap();
+        let (mut wm, socket_path) = setup_window_manager();
+
         let m = monitor::new(
             0,
             Rect::default(),
@@ -3733,6 +3740,181 @@ mod tests {
         wm.focus_workspace(0).unwrap();
         assert_eq!(wm.focused_workspace_idx().unwrap(), 0);
 
-        std::fs::remove_file(socket_path).unwrap();
+        std::fs::remove_file(socket_path.unwrap()).unwrap();
+    }
+
+    #[test]
+    fn test_set_workspace_name() {
+        let (mut wm, socket_path) = setup_window_manager();
+
+        let m = monitor::new(
+            0,
+            Rect::default(),
+            Rect::default(),
+            "TestMonitor".to_string(),
+            "TestDevice".to_string(),
+            "TestDeviceID".to_string(),
+            Some("TestMonitorID".to_string()),
+        );
+
+        // a new monitor should have a single workspace
+        assert_eq!(m.workspaces().len(), 1);
+
+        // create a new workspace
+        let new_workspace_index = m.new_workspace_idx();
+        assert_eq!(new_workspace_index, 1);
+
+        // add the monitor to the window manager
+        wm.monitors_mut().push_back(m);
+
+        {
+            // focusing a workspace which doesn't yet exist should create it
+            let monitor = wm.focused_monitor_mut().unwrap();
+            monitor.focus_workspace(new_workspace_index).unwrap();
+            assert_eq!(monitor.workspaces().len(), 2);
+        }
+        assert_eq!(wm.focused_workspace_idx().unwrap(), 1);
+
+        // set the name of the first workspace
+        wm.set_workspace_name(0, 0, "workspace1".to_string())
+            .unwrap();
+
+        // monitor_workspace_index_by_name should return the index of the workspace with the name "workspace1"
+        let workspace_index = wm.monitor_workspace_index_by_name("workspace1").unwrap();
+
+        // workspace index 0 should now have the name "workspace1"
+        assert_eq!(workspace_index.1, 0);
+
+        // Clean up the socket file
+        std::fs::remove_file(socket_path.unwrap()).unwrap();
+    }
+
+    #[test]
+    fn test_switch_focus_monitors() {
+        let (mut wm, socket_path) = setup_window_manager();
+
+        {
+            // Create a first monitor
+            let m = monitor::new(
+                0,
+                Rect::default(),
+                Rect::default(),
+                "TestMonitor".to_string(),
+                "TestDevice".to_string(),
+                "TestDeviceID".to_string(),
+                Some("TestMonitorID".to_string()),
+            );
+
+            // monitor should have a single workspace
+            assert_eq!(m.workspaces().len(), 1);
+
+            // add the monitor to the window manager
+            wm.monitors_mut().push_back(m);
+        }
+        assert_eq!(wm.monitors().len(), 1);
+
+        {
+            // Create a second monitor
+            let m = monitor::new(
+                1,
+                Rect::default(),
+                Rect::default(),
+                "TestMonitor2".to_string(),
+                "TestDevice2".to_string(),
+                "TestDeviceID2".to_string(),
+                Some("TestMonitorID2".to_string()),
+            );
+
+            // monitor should have a single workspace
+            assert_eq!(m.workspaces().len(), 1);
+
+            // add the monitor to the window manager
+            wm.monitors_mut().push_back(m);
+        }
+        assert_eq!(wm.monitors().len(), 2);
+
+        {
+            // Create a third monitor
+            let m = monitor::new(
+                2,
+                Rect::default(),
+                Rect::default(),
+                "TestMonitor3".to_string(),
+                "TestDevice3".to_string(),
+                "TestDeviceID3".to_string(),
+                Some("TestMonitorID3".to_string()),
+            );
+
+            // monitor should have a single workspace
+            assert_eq!(m.workspaces().len(), 1);
+
+            // add the monitor to the window manager
+            wm.monitors_mut().push_back(m);
+        }
+        assert_eq!(wm.monitors().len(), 3);
+
+        {
+            // Set the first monitor as focused and check if it is focused
+            wm.focus_monitor(0).unwrap();
+            let current_monitor_idx = wm.monitors.focused_idx();
+            assert_eq!(current_monitor_idx, 0);
+        }
+
+        {
+            // Set the second monitor as focused and check if it is focused
+            wm.focus_monitor(1).unwrap();
+            let current_monitor_idx = wm.monitors.focused_idx();
+            assert_eq!(current_monitor_idx, 1);
+        }
+
+        {
+            // Set the third monitor as focused and check if it is focused
+            wm.focus_monitor(2).unwrap();
+            let current_monitor_idx = wm.monitors.focused_idx();
+            assert_eq!(current_monitor_idx, 2);
+        }
+
+        // Switch back to the first monitor
+        wm.focus_monitor(0).unwrap();
+        let current_monitor_idx = wm.monitors.focused_idx();
+        assert_eq!(current_monitor_idx, 0);
+
+        // Clean up the socket file
+        std::fs::remove_file(socket_path.unwrap()).unwrap();
+    }
+
+    #[test]
+    fn test_focused_monitor_size() {
+        let (mut wm, socket_path) = setup_window_manager();
+
+        {
+            // Create a first monitor
+            let m = monitor::new(
+                0,
+                Rect::default(),
+                Rect::default(),
+                "TestMonitor".to_string(),
+                "TestDevice".to_string(),
+                "TestDeviceID".to_string(),
+                Some("TestMonitorID".to_string()),
+            );
+
+            // monitor should have a single workspace
+            assert_eq!(m.workspaces().len(), 1);
+
+            // add the monitor to the window manager
+            wm.monitors_mut().push_back(m);
+        }
+        assert_eq!(wm.monitors().len(), 1);
+
+        {
+            // Set the first monitor as focused and check if it is focused
+            wm.focus_monitor(0).unwrap();
+            let current_monitor_size = wm.focused_monitor_size().unwrap();
+            assert_eq!(current_monitor_size, Rect::default());
+        }
+
+        // Clean up the socket file
+        std::fs::remove_file(socket_path.unwrap()).unwrap();
     }
 }
