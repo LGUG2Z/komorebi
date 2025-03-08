@@ -811,9 +811,8 @@ impl Workspace {
             ),
         };
 
-        self.containers_mut().insert(primary_idx, container);
-        self.resize_dimensions_mut().insert(primary_idx, resize);
-
+        let insertion_idx = self.insert_container_at_idx(primary_idx, container);
+        self.resize_dimensions_mut()[insertion_idx] = resize;
         self.focus_container(primary_idx);
 
         Ok(())
@@ -829,21 +828,38 @@ impl Workspace {
         self.focus_first_container();
     }
 
-    pub fn insert_container_at_idx(&mut self, idx: usize, container: Container) {
-        self.containers_mut().insert(idx, container);
-        self.focus_container(idx);
+    // this fn respects locked container indexes - we should use it for pretty much everything
+    // except monocle and maximize toggles
+    pub fn insert_container_at_idx(&mut self, idx: usize, container: Container) -> usize {
+        let mut locked_containers = self.locked_containers().clone();
+        let mut ld = LockedDeque::new(self.containers_mut(), &mut locked_containers);
+        let insertion_idx = ld.insert(idx, container);
+        self.locked_containers = locked_containers;
+
+        if insertion_idx > self.resize_dimensions().len() {
+            self.resize_dimensions_mut().push(None);
+        } else {
+            self.resize_dimensions_mut().insert(insertion_idx, None);
+        }
+
+        self.focus_container(insertion_idx);
+
+        insertion_idx
     }
 
+    // this fn respects locked container indexes - we should use it for pretty much everything
+    // except monocle and maximize toggles
     pub fn remove_container_by_idx(&mut self, idx: usize) -> Option<Container> {
+        let mut locked_containers = self.locked_containers().clone();
+        let mut ld = LockedDeque::new(self.containers_mut(), &mut locked_containers);
+        let container = ld.remove(idx);
+        self.locked_containers = locked_containers;
+
         if idx < self.resize_dimensions().len() {
             self.resize_dimensions_mut().remove(idx);
         }
 
-        if idx < self.containers().len() {
-            return self.containers_mut().remove(idx);
-        }
-
-        None
+        container
     }
 
     fn container_idx_for_window(&self, hwnd: isize) -> Option<usize> {
@@ -917,16 +933,7 @@ impl Workspace {
             .ok_or_else(|| anyhow!("there is no window"))?;
 
         if container.windows().is_empty() {
-            let mut locked_containers = self.locked_containers().clone();
-            let mut ld = LockedDeque::new(self.containers_mut(), &mut locked_containers);
-            ld.remove(container_idx);
-            self.locked_containers = locked_containers;
-
-            // Whenever a container is empty, we need to remove any resize dimensions for it too
-            if self.resize_dimensions().get(container_idx).is_some() {
-                self.resize_dimensions_mut().remove(container_idx);
-            }
-
+            self.remove_container_by_idx(container_idx);
             self.focus_previous_container();
         } else {
             container.load_focused_window();
@@ -963,6 +970,7 @@ impl Workspace {
             len,
         )
     }
+
     pub fn new_idx_for_cycle_direction(&self, direction: CycleDirection) -> Option<usize> {
         Option::from(direction.next_idx(
             self.focused_container_idx(),
@@ -970,6 +978,7 @@ impl Workspace {
         ))
     }
 
+    // this is what we use for stacking
     pub fn move_window_to_container(&mut self, target_container_idx: usize) -> Result<()> {
         let focused_idx = self.focused_container_idx();
 
@@ -983,8 +992,7 @@ impl Workspace {
 
         // This is a little messy
         let adjusted_target_container_index = if container.windows().is_empty() {
-            self.containers_mut().remove(focused_idx);
-            self.resize_dimensions_mut().remove(focused_idx);
+            self.remove_container_by_idx(focused_idx);
 
             if focused_idx < target_container_idx {
                 target_container_idx.saturating_sub(1)
@@ -1023,8 +1031,7 @@ impl Workspace {
             .ok_or_else(|| anyhow!("there is no window"))?;
 
         if container.windows().is_empty() {
-            self.containers_mut().remove(focused_container_idx);
-            self.resize_dimensions_mut().remove(focused_container_idx);
+            self.remove_container_by_idx(focused_container_idx);
         } else {
             container.load_focused_window();
         }
@@ -1044,14 +1051,14 @@ impl Workspace {
 
         let mut container = Container::default();
         container.add_window(window);
-        self.containers_mut().insert(focused_idx, container);
-        self.resize_dimensions_mut().insert(focused_idx, None);
+
+        self.insert_container_at_idx(focused_idx, container);
 
         Ok(())
     }
 
     pub fn new_container_for_window(&mut self, window: Window) {
-        let mut next_idx = if self.containers().is_empty() {
+        let next_idx = if self.containers().is_empty() {
             0
         } else {
             self.focused_container_idx() + 1
@@ -1060,22 +1067,7 @@ impl Workspace {
         let mut container = Container::default();
         container.add_window(window);
 
-        if next_idx > self.containers().len() {
-            self.containers_mut().push_back(container);
-        } else {
-            let mut locked_containers = self.locked_containers().clone();
-            let mut ld = LockedDeque::new(self.containers_mut(), &mut locked_containers);
-            next_idx = ld.insert(next_idx, container);
-            self.locked_containers = locked_containers;
-        }
-
-        if next_idx > self.resize_dimensions().len() {
-            self.resize_dimensions_mut().push(None);
-        } else {
-            self.resize_dimensions_mut().insert(next_idx, None);
-        }
-
-        self.focus_container(next_idx);
+        self.insert_container_at_idx(next_idx, container);
     }
 
     pub fn new_floating_window(&mut self) -> Result<()> {
@@ -1109,8 +1101,7 @@ impl Workspace {
                 .ok_or_else(|| anyhow!("there is no window"))?;
 
             if container.windows().is_empty() {
-                self.containers_mut().remove(focused_idx);
-                self.resize_dimensions_mut().remove(focused_idx);
+                self.remove_container_by_idx(focused_idx);
 
                 if focused_idx == self.containers().len() {
                     self.focus_container(focused_idx.saturating_sub(1));
@@ -1382,6 +1373,10 @@ impl Workspace {
 
     pub fn new_monocle_container(&mut self) -> Result<()> {
         let focused_idx = self.focused_container_idx();
+
+        // we shouldn't use remove_container_by_idx here because it doesn't make sense for
+        // monocle and maximized toggles which take over the whole screen before being reinserted
+        // at the same index to respect locked container indexes
         let container = self
             .containers_mut()
             .remove(focused_idx)
@@ -1419,6 +1414,9 @@ impl Workspace {
                 .resize(restore_idx, Container::default());
         }
 
+        // we shouldn't use insert_container_at_index here because it doesn't make sense for
+        // monocle and maximized toggles which take over the whole screen before being reinserted
+        // at the same index to respect locked container indexes
         self.containers_mut().insert(restore_idx, container);
         self.focus_container(restore_idx);
         self.focused_container_mut()
@@ -1490,6 +1488,9 @@ impl Workspace {
             .ok_or_else(|| anyhow!("there is no window"))?;
 
         if container.windows().is_empty() {
+            // we shouldn't use remove_container_by_idx here because it doesn't make sense for
+            // monocle and maximized toggles which take over the whole screen before being reinserted
+            // at the same index to respect locked container indexes
             self.containers_mut().remove(focused_idx);
             if self.resize_dimensions().get(focused_idx).is_some() {
                 self.resize_dimensions_mut().remove(focused_idx);
@@ -1529,8 +1530,11 @@ impl Workspace {
 
         let mut container = Container::default();
         container.windows_mut().push_back(window);
-        self.containers_mut().insert(restore_idx, container);
 
+        // we shouldn't use insert_container_at_index here because it doesn't make sense for
+        // monocle and maximized toggles which take over the whole screen before being reinserted
+        // at the same index to respect locked container indexes
+        self.containers_mut().insert(restore_idx, container);
         self.focus_container(restore_idx);
 
         self.focused_container_mut()
@@ -1723,6 +1727,94 @@ mod tests {
         // index 1 should still be the same
         assert_eq!(ws.containers()[1].focused_window().unwrap().hwnd, 1);
         assert_eq!(ws.containers()[2].focused_window().unwrap().hwnd, 3);
+    }
+
+    #[test]
+    fn test_locked_containers_toggle_float() {
+        let mut ws = Workspace::default();
+
+        let mut locked = HashSet::new();
+
+        // add 4 containers
+        for i in 0..4 {
+            let mut container = Container::default();
+            container.windows_mut().push_back(Window::from(i));
+            ws.add_container_to_back(container);
+        }
+        assert_eq!(ws.containers().len(), 4);
+
+        // set index 1 locked
+        locked.insert(1);
+        ws.locked_containers = locked;
+
+        // set index 0 focused
+        ws.focus_container(0);
+
+        // float index 0
+        ws.new_floating_window().unwrap();
+
+        assert_eq!(ws.containers()[0].focused_window().unwrap().hwnd, 2);
+        // index 1 should still be the same
+        assert_eq!(ws.containers()[1].focused_window().unwrap().hwnd, 1);
+        assert_eq!(ws.containers()[2].focused_window().unwrap().hwnd, 3);
+
+        // unfloat - have to do this semi-manually becuase of calls to WindowsApi in
+        // new_container_for_floating_window which usually handles unfloating
+        let window = ws.floating_windows_mut().pop().unwrap();
+        let mut container = Container::default();
+        container.add_window(window);
+        ws.insert_container_at_idx(ws.focused_container_idx(), container);
+
+        // all indexes should be at their original position
+        for i in 0..4 {
+            assert_eq!(
+                ws.containers()[i].focused_window().unwrap().hwnd,
+                i as isize
+            );
+        }
+    }
+
+    #[test]
+    fn test_locked_containers_stack() {
+        let mut ws = Workspace::default();
+
+        let mut locked = HashSet::new();
+
+        // add 6 containers
+        for i in 0..6 {
+            let mut container = Container::default();
+            container.windows_mut().push_back(Window::from(i));
+            ws.add_container_to_back(container);
+        }
+        assert_eq!(ws.containers().len(), 6);
+
+        // set index 4 locked
+        locked.insert(4);
+        ws.locked_containers = locked;
+
+        // set index 3 focused
+        ws.focus_container(3);
+
+        // stack index 3 on top of index 2
+        ws.move_window_to_container(2).unwrap();
+
+        assert_eq!(ws.containers()[0].focused_window().unwrap().hwnd, 0);
+        assert_eq!(ws.containers()[1].focused_window().unwrap().hwnd, 1);
+        assert_eq!(ws.containers()[2].windows().len(), 2);
+        assert_eq!(ws.containers()[3].focused_window().unwrap().hwnd, 5);
+        // index 4 should still be the same
+        assert_eq!(ws.containers()[4].focused_window().unwrap().hwnd, 4);
+
+        // unstack
+        ws.new_container_for_focused_window().unwrap();
+
+        // all indexes should be at their original position
+        for i in 0..6 {
+            assert_eq!(
+                ws.containers()[i].focused_window().unwrap().hwnd,
+                i as isize
+            )
+        }
     }
 
     #[test]
