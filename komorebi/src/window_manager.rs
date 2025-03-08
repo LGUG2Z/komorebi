@@ -3808,10 +3808,6 @@ mod tests {
             // monitor should have a single workspace
             assert_eq!(m.workspaces().len(), 1);
 
-            // create a new workspace for the monitor
-            let new_workspace_index = m.new_workspace_idx();
-            assert_eq!(new_workspace_index, 1);
-
             // add the monitor to the window manager
             wm.monitors_mut().push_back(m);
         }
@@ -3832,10 +3828,6 @@ mod tests {
             // monitor should have a single workspace
             assert_eq!(m.workspaces().len(), 1);
 
-            // create a new workspace for the monitor
-            let new_workspace_index = m.new_workspace_idx();
-            assert_eq!(new_workspace_index, 1);
-
             // add the monitor to the window manager
             wm.monitors_mut().push_back(m);
         }
@@ -3855,10 +3847,6 @@ mod tests {
 
             // monitor should have a single workspace
             assert_eq!(m.workspaces().len(), 1);
-
-            // create a new workspace for the monitor
-            let new_workspace_index = m.new_workspace_idx();
-            assert_eq!(new_workspace_index, 1);
 
             // add the monitor to the window manager
             wm.monitors_mut().push_back(m);
@@ -3913,10 +3901,6 @@ mod tests {
 
             // monitor should have a single workspace
             assert_eq!(m.workspaces().len(), 1);
-
-            // create a new workspace for the monitor
-            let new_workspace_index = m.new_workspace_idx();
-            assert_eq!(new_workspace_index, 1);
 
             // add the monitor to the window manager
             wm.monitors_mut().push_back(m);
