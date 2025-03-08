@@ -2729,6 +2729,7 @@ dependencies = [
  "image",
  "komorebi-client",
  "komorebi-themes",
+ "lazy_static",
  "netdev",
  "num",
  "num-derive",

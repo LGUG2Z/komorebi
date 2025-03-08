@@ -896,6 +896,10 @@
                   "format"
                 ],
                 "properties": {
+                  "changing_icon": {
+                    "description": "Change the icon depending on the time. The default icon is used between 8:30 and 12:00. (default: false)",
+                    "type": "boolean"
+                  },
                   "enable": {
                     "description": "Enable the Time widget",
                     "type": "boolean"
@@ -2302,6 +2306,10 @@
                   "format"
                 ],
                 "properties": {
+                  "changing_icon": {
+                    "description": "Change the icon depending on the time. The default icon is used between 8:30 and 12:00. (default: false)",
+                    "type": "boolean"
+                  },
                   "enable": {
                     "description": "Enable the Time widget",
                     "type": "boolean"
@@ -3641,6 +3649,10 @@
                   "format"
                 ],
                 "properties": {
+                  "changing_icon": {
+                    "description": "Change the icon depending on the time. The default icon is used between 8:30 and 12:00. (default: false)",
+                    "type": "boolean"
+                  },
                   "enable": {
                     "description": "Enable the Time widget",
                     "type": "boolean"
