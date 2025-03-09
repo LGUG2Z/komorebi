@@ -2124,20 +2124,19 @@ mod tests {
     use crate::Rect;
     use crate::SocketMessage;
     use crate::WindowManagerEvent;
-    use crate::DATA_DIR;
     use crossbeam_channel::bounded;
     use crossbeam_channel::Receiver;
     use crossbeam_channel::Sender;
     use std::io::BufRead;
     use std::io::BufReader;
     use std::io::Write;
+    use std::path::PathBuf;
     use std::str::FromStr;
     use std::time::Duration;
     use uds_windows::UnixStream;
     use uuid::Uuid;
 
-    fn send_socket_message(socket: &str, message: SocketMessage) {
-        let socket = DATA_DIR.join(socket);
+    fn send_socket_message(socket: &PathBuf, message: SocketMessage) {
         let mut stream = UnixStream::connect(socket).unwrap();
         stream
             .set_write_timeout(Some(Duration::from_secs(1)))
@@ -2152,7 +2151,7 @@ mod tests {
         let (_sender, receiver): (Sender<WindowManagerEvent>, Receiver<WindowManagerEvent>) =
             bounded(1);
         let socket_name = format!("komorebi-test-{}.sock", Uuid::new_v4());
-        let socket_path = DATA_DIR.join(&socket_name);
+        let socket_path = PathBuf::from(&socket_name);
         let mut wm = WindowManager::new(receiver, Some(socket_path.clone())).unwrap();
         let m = monitor::new(
             0,
@@ -2167,7 +2166,7 @@ mod tests {
         wm.monitors_mut().push_back(m);
 
         // send a message
-        send_socket_message(&socket_name, SocketMessage::FocusWorkspaceNumber(5));
+        send_socket_message(&socket_path, SocketMessage::FocusWorkspaceNumber(5));
 
         let (stream, _) = wm.command_listener.accept().unwrap();
         let reader = BufReader::new(stream.try_clone().unwrap());

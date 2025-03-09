@@ -3,6 +3,7 @@ use crate::config::LabelPrefix;
 use crate::render::RenderConfig;
 use crate::selected_frame::SelectableFrame;
 use crate::widget::BarWidget;
+use chrono_tz::Tz;
 use eframe::egui::text::LayoutJob;
 use eframe::egui::Align;
 use eframe::egui::Context;
@@ -26,6 +27,19 @@ pub struct TimeConfig {
     pub format: TimeFormat,
     /// Display label prefix
     pub label_prefix: Option<LabelPrefix>,
+    /// TimeZone (https://docs.rs/chrono-tz/latest/chrono_tz/enum.Tz.html)
+    ///
+    /// Use a custom format to display additional information, i.e.:
+    /// ```json
+    /// {
+    ///     "Time": {
+    ///         "enable": true,
+    ///         "format": { "Custom": "%T %Z (Tokyo)" },
+    ///         "timezone": "Asia/Tokyo"
+    ///      }
+    ///}
+    /// ```
+    pub timezone: Option<String>,
 }
 
 impl From<TimeConfig> for Time {
@@ -34,6 +48,7 @@ impl From<TimeConfig> for Time {
             enable: value.enable,
             format: value.format,
             label_prefix: value.label_prefix.unwrap_or(LabelPrefix::Icon),
+            timezone: value.timezone,
         }
     }
 }
@@ -88,15 +103,27 @@ pub struct Time {
     pub enable: bool,
     pub format: TimeFormat,
     label_prefix: LabelPrefix,
+    timezone: Option<String>,
 }
 
 impl Time {
     fn output(&mut self) -> String {
-        chrono::Local::now()
-            .format(&self.format.fmt_string())
-            .to_string()
-            .trim()
-            .to_string()
+        match &self.timezone {
+            Some(timezone) => match timezone.parse::<Tz>() {
+                Ok(tz) => chrono::Local::now()
+                    .with_timezone(&tz)
+                    .format(&self.format.fmt_string())
+                    .to_string()
+                    .trim()
+                    .to_string(),
+                Err(_) => format!("Invalid timezone: {}", timezone),
+            },
+            None => chrono::Local::now()
+                .format(&self.format.fmt_string())
+                .to_string()
+                .trim()
+                .to_string(),
+        }
     }
 
     fn paint_binary_circle(

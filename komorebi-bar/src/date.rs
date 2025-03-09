@@ -2,6 +2,7 @@ use crate::config::LabelPrefix;
 use crate::render::RenderConfig;
 use crate::selected_frame::SelectableFrame;
 use crate::widget::BarWidget;
+use chrono_tz::Tz;
 use eframe::egui::text::LayoutJob;
 use eframe::egui::Align;
 use eframe::egui::Context;
@@ -64,6 +65,19 @@ pub struct DateConfig {
     pub format: DateFormat,
     /// Display label prefix
     pub label_prefix: Option<LabelPrefix>,
+    /// TimeZone (https://docs.rs/chrono-tz/latest/chrono_tz/enum.Tz.html)
+    ///
+    /// Use a custom format to display additional information, i.e.:
+    /// ```json
+    /// {
+    ///     "Date": {
+    ///         "enable": true,
+    ///         "format": { "Custom": "%D %Z (Tokyo)" },
+    ///         "timezone": "Asia/Tokyo"
+    ///      }
+    ///}
+    /// ```
+    pub timezone: Option<String>,
 }
 
 impl From<DateConfig> for Date {
@@ -72,6 +86,7 @@ impl From<DateConfig> for Date {
             enable: value.enable,
             format: value.format,
             label_prefix: value.label_prefix.unwrap_or(LabelPrefix::Icon),
+            timezone: value.timezone,
         }
     }
 }
@@ -121,13 +136,27 @@ pub struct Date {
     pub enable: bool,
     pub format: DateFormat,
     label_prefix: LabelPrefix,
+    timezone: Option<String>,
 }
 
 impl Date {
     fn output(&mut self) -> String {
-        let formatted = chrono::Local::now()
-            .format(&self.format.fmt_string())
-            .to_string();
+        let formatted = match &self.timezone {
+            Some(timezone) => match timezone.parse::<Tz>() {
+                Ok(tz) => chrono::Local::now()
+                    .with_timezone(&tz)
+                    .format(&self.format.fmt_string())
+                    .to_string()
+                    .trim()
+                    .to_string(),
+                Err(_) => format!("Invalid timezone: {}", timezone),
+            },
+            None => chrono::Local::now()
+                .format(&self.format.fmt_string())
+                .to_string()
+                .trim()
+                .to_string(),
+        };
 
         // if custom modifiers are used, apply them
         match &self.format {
