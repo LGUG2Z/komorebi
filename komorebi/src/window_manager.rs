@@ -3921,4 +3921,59 @@ mod tests {
             assert_eq!(current_monitor_size, Rect::default());
         }
     }
+
+
+    #[test]
+    fn test_focus_container_in_cycle_direction() {
+        let (mut wm, _test_context) = setup_window_manager();
+
+        // Create a first monitor
+        let mut m = monitor::new(
+            0,
+            Rect::default(),
+            Rect::default(),
+            "TestMonitor".to_string(),
+            "TestDevice".to_string(),
+            "TestDeviceID".to_string(),
+            Some("TestMonitorID".to_string()),
+        );
+
+        let workspace = m.focused_workspace_mut().unwrap();
+        workspace.set_layer(WorkspaceLayer::Tiling);
+
+        for i in 0..4 {
+            let mut container = Container::default();
+            container.windows_mut().push_back(Window::from(i));
+            workspace.add_container_to_back(container);
+        }
+        assert_eq!(workspace.containers().len(), 4);
+
+        workspace.focus_container(0);
+
+        // add the monitor to the window manager
+        wm.monitors_mut().push_back(m);
+
+        // container focus should be on the second container
+        wm.focus_container_in_cycle_direction(CycleDirection::Next)
+            .ok();
+        assert_eq!(wm.focused_container_idx().unwrap(), 1);
+
+        // container focus should be on the third container
+        wm.focus_container_in_cycle_direction(CycleDirection::Next)
+            .ok();
+        assert_eq!(wm.focused_container_idx().unwrap(), 2);
+
+        // container focus should be on the second container
+        wm.focus_container_in_cycle_direction(CycleDirection::Previous)
+            .ok();
+        assert_eq!(wm.focused_container_idx().unwrap(), 1);
+
+        // container focus should be on the first container
+        wm.focus_container_in_cycle_direction(CycleDirection::Previous)
+            .ok();
+        assert_eq!(wm.focused_container_idx().unwrap(), 0);
+    }
+
+    // TODO: test_transfer_window
+    // TODO: test_transfer_container
 }
