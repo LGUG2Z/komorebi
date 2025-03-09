@@ -3670,7 +3670,20 @@ mod tests {
     use std::path::PathBuf;
     use uuid::Uuid;
 
-    fn setup_window_manager() -> (WindowManager, Option<PathBuf>) {
+    struct TestContext {
+        socket_path: Option<PathBuf>,
+    }
+
+    impl Drop for TestContext {
+        fn drop(&mut self) {
+            if let Some(socket_path) = &self.socket_path {
+                // Clean up the socket file
+                std::fs::remove_file(socket_path).unwrap();
+            }
+        }
+    }
+
+    fn setup_window_manager() -> (WindowManager, TestContext) {
         let (_sender, receiver): (Sender<WindowManagerEvent>, Receiver<WindowManagerEvent>) =
             bounded(1);
 
@@ -3684,20 +3697,22 @@ mod tests {
         // Window Manager should be created successfully
         assert!(wm.is_ok());
 
-        (wm.unwrap(), Some(socket_path))
+        (
+            wm.unwrap(),
+            TestContext {
+                socket_path: Some(socket_path),
+            },
+        )
     }
 
     #[test]
     fn test_create_window_manager() {
-        let (_wm, socket_path) = setup_window_manager();
-
-        // Clean up the socket file
-        std::fs::remove_file(socket_path.unwrap()).unwrap();
+        let (_wm, _test_context) = setup_window_manager();
     }
 
     #[test]
     fn test_focus_workspace() {
-        let (mut wm, socket_path) = setup_window_manager();
+        let (mut wm, _test_context) = setup_window_manager();
 
         let m = monitor::new(
             0,
@@ -3739,13 +3754,11 @@ mod tests {
         // we should be able to successfully focus an existing workspace too
         wm.focus_workspace(0).unwrap();
         assert_eq!(wm.focused_workspace_idx().unwrap(), 0);
-
-        std::fs::remove_file(socket_path.unwrap()).unwrap();
     }
 
     #[test]
     fn test_set_workspace_name() {
-        let (mut wm, socket_path) = setup_window_manager();
+        let (mut wm, _test_context) = setup_window_manager();
 
         let m = monitor::new(
             0,
@@ -3784,14 +3797,11 @@ mod tests {
 
         // workspace index 0 should now have the name "workspace1"
         assert_eq!(workspace_index.1, 0);
-
-        // Clean up the socket file
-        std::fs::remove_file(socket_path.unwrap()).unwrap();
     }
 
     #[test]
     fn test_switch_focus_monitors() {
-        let (mut wm, socket_path) = setup_window_manager();
+        let (mut wm, _test_context) = setup_window_manager();
 
         {
             // Create a first monitor
@@ -3878,14 +3888,11 @@ mod tests {
         wm.focus_monitor(0).unwrap();
         let current_monitor_idx = wm.monitors.focused_idx();
         assert_eq!(current_monitor_idx, 0);
-
-        // Clean up the socket file
-        std::fs::remove_file(socket_path.unwrap()).unwrap();
     }
 
     #[test]
     fn test_focused_monitor_size() {
-        let (mut wm, socket_path) = setup_window_manager();
+        let (mut wm, _test_context) = setup_window_manager();
 
         {
             // Create a first monitor
@@ -3913,8 +3920,5 @@ mod tests {
             let current_monitor_size = wm.focused_monitor_size().unwrap();
             assert_eq!(current_monitor_size, Rect::default());
         }
-
-        // Clean up the socket file
-        std::fs::remove_file(socket_path.unwrap()).unwrap();
     }
 }
