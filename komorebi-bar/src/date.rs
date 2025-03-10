@@ -2,6 +2,7 @@ use crate::config::LabelPrefix;
 use crate::render::RenderConfig;
 use crate::selected_frame::SelectableFrame;
 use crate::widget::BarWidget;
+use chrono::Local;
 use chrono_tz::Tz;
 use eframe::egui::text::LayoutJob;
 use eframe::egui::Align;
@@ -39,7 +40,7 @@ impl CustomModifiers {
             }
 
             // get the strftime value of modifier
-            let formatted_modifier = chrono::Local::now().format(modifier).to_string();
+            let formatted_modifier = Local::now().format(modifier).to_string();
 
             // find the gotten value in the original output
             if let Some(pos) = modified_output.find(&formatted_modifier) {
@@ -143,7 +144,7 @@ impl Date {
     fn output(&mut self) -> String {
         let formatted = match &self.timezone {
             Some(timezone) => match timezone.parse::<Tz>() {
-                Ok(tz) => chrono::Local::now()
+                Ok(tz) => Local::now()
                     .with_timezone(&tz)
                     .format(&self.format.fmt_string())
                     .to_string()
@@ -151,7 +152,7 @@ impl Date {
                     .to_string(),
                 Err(_) => format!("Invalid timezone: {}", timezone),
             },
-            None => chrono::Local::now()
+            None => Local::now()
                 .format(&self.format.fmt_string())
                 .to_string()
                 .trim()
