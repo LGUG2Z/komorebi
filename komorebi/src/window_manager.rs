@@ -2535,6 +2535,10 @@ impl WindowManager {
         container.focus_window(next_idx);
         container.load_focused_window();
 
+        if let Some(window) = container.focused_window() {
+            window.focus(self.mouse_follows_focus)?;
+        }
+
         self.update_focused_workspace(self.mouse_follows_focus, true)
     }
 
@@ -2568,6 +2572,10 @@ impl WindowManager {
         container.focus_window(next_idx);
         container.load_focused_window();
 
+        if let Some(window) = container.focused_window() {
+            window.focus(self.mouse_follows_focus)?;
+        }
+
         self.update_focused_workspace(self.mouse_follows_focus, true)
     }
 
@@ -2597,6 +2605,10 @@ impl WindowManager {
 
         container.focus_window(idx);
         container.load_focused_window();
+
+        if let Some(window) = container.focused_window() {
+            window.focus(self.mouse_follows_focus)?;
+        }
 
         self.update_focused_workspace(self.mouse_follows_focus, true)
     }
