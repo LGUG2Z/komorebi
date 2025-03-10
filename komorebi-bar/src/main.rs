@@ -349,7 +349,7 @@ fn main() -> color_eyre::Result<()> {
 
             let ctx_komorebi = cc.egui_ctx.clone();
             std::thread::spawn(move || {
-                let subscriber_name = format!("komorebi-bar-{}", random_word::gen(random_word::Lang::En));
+                let subscriber_name = format!("komorebi-bar-{}", random_word::get(random_word::Lang::En));
 
                 let listener = komorebi_client::subscribe_with_options(&subscriber_name, SubscribeOptions {
                     filter_state_changes: true,

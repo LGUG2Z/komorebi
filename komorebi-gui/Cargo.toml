@@ -10,7 +10,7 @@ komorebi-client = { path = "../komorebi-client" }
 
 eframe = { workspace = true }
 egui_extras = { workspace = true }
-random_word = { version = "0.4", features = ["en"] }
+random_word = { version = "0.5", features = ["en"] }
 serde_json = { workspace = true }
 windows-core = { workspace = true }
 windows = { workspace = true }
