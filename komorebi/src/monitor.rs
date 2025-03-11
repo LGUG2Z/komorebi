@@ -17,6 +17,7 @@ use crate::core::Rect;
 use crate::container::Container;
 use crate::ring::Ring;
 use crate::workspace::Workspace;
+use crate::workspace::WorkspaceLayer;
 use crate::DefaultLayout;
 use crate::Layout;
 use crate::OperationDirection;
@@ -382,6 +383,7 @@ impl Monitor {
             };
 
             target_workspace.floating_windows_mut().push(window);
+            target_workspace.set_layer(WorkspaceLayer::Floating);
         } else {
             let container = workspace
                 .remove_focused_container()
@@ -397,6 +399,8 @@ impl Monitor {
                 }
                 Some(workspace) => workspace,
             };
+
+            target_workspace.set_layer(WorkspaceLayer::Tiling);
 
             if let Some(direction) = direction {
                 self.add_container_with_direction(
