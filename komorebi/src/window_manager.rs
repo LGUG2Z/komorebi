@@ -4027,23 +4027,148 @@ mod tests {
 
             wm.monitors_mut().push_back(m);
         }
+
         // Should contain 2 monitors
         assert_eq!(wm.monitors().len(), 2);
 
-        // Monitor 0, Workspace 0, Window 0
-        let origin = (0, 0, 0);
+        {
+            // Monitor 0, Workspace 0, Window 0
+            let origin = (0, 0, 0);
 
-        // Monitor 1, Workspace 0, Window 0
-        let target = (1, 0, 0);
+            // Monitor 1, Workspace 0, Window 0
+            let target = (1, 0, 0);
 
-        // Transfer the window from monitor 0 to monitor 1
-        wm.transfer_window(origin, target).unwrap();
-        wm.focus_monitor(1).unwrap();
+            // Transfer the window from monitor 0 to monitor 1
+            wm.transfer_window(origin, target).unwrap();
 
-        // Monitor 2 should contain 2 containers
-        let workspace = wm.focused_workspace_mut().unwrap();
-        assert_eq!(workspace.containers().len(), 2);
+            // Monitor 1 should contain 0 containers
+            let workspace = wm.focused_workspace_mut().unwrap();
+            assert_eq!(workspace.containers().len(), 0);
+
+            // Monitor 2 should contain 2 containers
+            wm.focus_monitor(1).unwrap();
+            let workspace = wm.focused_workspace_mut().unwrap();
+            assert_eq!(workspace.containers().len(), 2);
+        }
+
+        {
+            // Monitor 1, Workspace 0, Window 0
+            let origin = (1, 0, 0);
+
+            // Monitor 0, Workspace 0, Window 0
+            let target = (0, 0, 0);
+
+            // Transfer the window from monitor 1 back to monitor 0
+            wm.transfer_window(origin, target).unwrap();
+
+            // Monitor 2 should contain 1 containers
+            let workspace = wm.focused_workspace_mut().unwrap();
+            assert_eq!(workspace.containers().len(), 1);
+
+            // Monitor 1 should contain 1 containers
+            wm.focus_monitor(0).unwrap();
+            let workspace = wm.focused_workspace_mut().unwrap();
+            assert_eq!(workspace.containers().len(), 1);
+        }
     }
 
-    // TODO: transfer_container
+    #[test]
+    fn test_transfer_container() {
+        let (mut wm, _context) = setup_window_manager();
+
+        {
+            // Create a first monitor
+            let mut m = monitor::new(
+                0,
+                Rect::default(),
+                Rect::default(),
+                "TestMonitor".to_string(),
+                "TestDevice".to_string(),
+                "TestDeviceID".to_string(),
+                Some("TestMonitorID".to_string()),
+            );
+
+            // Create a container
+            let workspace = m.focused_workspace_mut().unwrap();
+            let mut container = Container::default();
+
+            // Add a window to the container
+            container.windows_mut().push_back(Window::from(0));
+            workspace.add_container_to_back(container);
+
+            // Should contain 1 container
+            assert_eq!(workspace.containers().len(), 1);
+
+            wm.monitors_mut().push_back(m);
+        }
+
+        {
+            // Create a second monitor
+            let mut m = monitor::new(
+                1,
+                Rect::default(),
+                Rect::default(),
+                "TestMonitor2".to_string(),
+                "TestDevice2".to_string(),
+                "TestDeviceID2".to_string(),
+                Some("TestMonitorID2".to_string()),
+            );
+
+            // Create a container
+            let workspace = m.focused_workspace_mut().unwrap();
+            let mut container = Container::default();
+
+            // Add a window to the container
+            container.windows_mut().push_back(Window::from(1));
+            workspace.add_container_to_back(container);
+
+            // Should contain 1 container
+            assert_eq!(workspace.containers().len(), 1);
+
+            wm.monitors_mut().push_back(m);
+        }
+
+        // Should contain 2 monitors
+        assert_eq!(wm.monitors().len(), 2);
+
+        {
+            // Monitor 0, Workspace 0, Window 0
+            let origin = (0, 0, 0);
+
+            // Monitor 1, Workspace 0, Window 0
+            let target = (1, 0, 0);
+
+            // Transfer the window from monitor 0 to monitor 1
+            wm.transfer_container(origin, target).unwrap();
+
+            // Monitor 1 should contain 0 containers
+            let workspace = wm.focused_workspace_mut().unwrap();
+            assert_eq!(workspace.containers().len(), 0);
+
+            // Monitor 2 should contain 2 containers
+            wm.focus_monitor(1).unwrap();
+            let workspace = wm.focused_workspace_mut().unwrap();
+            assert_eq!(workspace.containers().len(), 2);
+        }
+
+        {
+            // Monitor 1, Workspace 0, Window 0
+            let origin = (1, 0, 0);
+
+            // Monitor 0, Workspace 0, Window 0
+            let target = (0, 0, 0);
+
+            // Transfer the window from monitor 1 back to monitor 0
+            wm.transfer_container(origin, target).unwrap();
+
+            // Monitor 2 should contain 1 containers
+            let workspace = wm.focused_workspace_mut().unwrap();
+            assert_eq!(workspace.containers().len(), 1);
+
+            // Monitor 1 should contain 1 containers
+            wm.focus_monitor(0).unwrap();
+            let workspace = wm.focused_workspace_mut().unwrap();
+            assert_eq!(workspace.containers().len(), 1);
+        }
+    }
 }
