@@ -101,7 +101,7 @@ impl From<&komorebi_client::Workspace> for WorkspaceConfig {
         let name = value
             .name()
             .to_owned()
-            .unwrap_or_else(|| random_word::gen(random_word::Lang::En).to_string());
+            .unwrap_or_else(|| random_word::get(random_word::Lang::En).to_string());
 
         Self {
             layout,
