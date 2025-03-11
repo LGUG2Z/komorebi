@@ -1854,6 +1854,7 @@ impl WindowManager {
 
         if let Some(window) = floating_window {
             target_workspace.floating_windows_mut().push(window);
+            target_workspace.set_layer(WorkspaceLayer::Floating);
             Window::from(window.hwnd)
                 .move_to_area(&current_area, target_monitor.work_area_size())?;
         } else if let Some(container) = container {
@@ -1862,6 +1863,8 @@ impl WindowManager {
                 .iter()
                 .map(|w| w.hwnd)
                 .collect::<Vec<_>>();
+
+            target_workspace.set_layer(WorkspaceLayer::Tiling);
 
             if let Some(direction) = move_direction {
                 target_monitor.add_container_with_direction(container, workspace_idx, direction)?;
