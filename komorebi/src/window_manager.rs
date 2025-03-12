@@ -1436,9 +1436,12 @@ impl WindowManager {
                             }
                             (OperationDirection::Right, Sizing::Increase) => {
                                 if rect.left + rect.right + delta * 2
-                                    > focused_monitor_work_area.right
+                                    > focused_monitor_work_area.left
+                                        + focused_monitor_work_area.right
                                 {
-                                    rect.right = focused_monitor_work_area.right - rect.left;
+                                    rect.right = focused_monitor_work_area.left
+                                        + focused_monitor_work_area.right
+                                        - rect.left;
                                 } else {
                                     rect.right += delta * 2;
                                 }
@@ -1458,9 +1461,12 @@ impl WindowManager {
                             }
                             (OperationDirection::Down, Sizing::Increase) => {
                                 if rect.top + rect.bottom + delta * 2
-                                    > focused_monitor_work_area.bottom
+                                    > focused_monitor_work_area.top
+                                        + focused_monitor_work_area.bottom
                                 {
-                                    rect.bottom = focused_monitor_work_area.bottom - rect.top;
+                                    rect.bottom = focused_monitor_work_area.top
+                                        + focused_monitor_work_area.bottom
+                                        - rect.top;
                                 } else {
                                     rect.bottom += delta * 2;
                                 }
@@ -2196,8 +2202,12 @@ impl WindowManager {
                         }
                     }
                     OperationDirection::Right => {
-                        if rect.left + delta + rect.right > focused_monitor_work_area.right {
-                            rect.left = focused_monitor_work_area.right - rect.right;
+                        if rect.left + delta + rect.right
+                            > focused_monitor_work_area.left + focused_monitor_work_area.right
+                        {
+                            rect.left = focused_monitor_work_area.left
+                                + focused_monitor_work_area.right
+                                - rect.right;
                         } else {
                             rect.left += delta;
                         }
@@ -2210,8 +2220,12 @@ impl WindowManager {
                         }
                     }
                     OperationDirection::Down => {
-                        if rect.top + delta + rect.bottom > focused_monitor_work_area.bottom {
-                            rect.top = focused_monitor_work_area.bottom - rect.bottom;
+                        if rect.top + delta + rect.bottom
+                            > focused_monitor_work_area.top + focused_monitor_work_area.bottom
+                        {
+                            rect.top = focused_monitor_work_area.top
+                                + focused_monitor_work_area.bottom
+                                - rect.bottom;
                         } else {
                             rect.top += delta;
                         }
