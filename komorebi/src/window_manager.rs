@@ -1417,10 +1417,10 @@ impl WindowManager {
                 focused_monitor_work_area.left += border_width;
                 focused_monitor_work_area.top += border_offset;
                 focused_monitor_work_area.top += border_width;
-                focused_monitor_work_area.right -= border_offset;
-                focused_monitor_work_area.right -= border_width;
-                focused_monitor_work_area.bottom -= border_offset;
-                focused_monitor_work_area.bottom -= border_width;
+                focused_monitor_work_area.right -= border_offset * 2;
+                focused_monitor_work_area.right -= border_width * 2;
+                focused_monitor_work_area.bottom -= border_offset * 2;
+                focused_monitor_work_area.bottom -= border_width * 2;
 
                 for window in workspace.floating_windows().iter() {
                     if window.hwnd == focused_hwnd {
@@ -1438,9 +1438,12 @@ impl WindowManager {
                             }
                             (OperationDirection::Right, Sizing::Increase) => {
                                 if rect.left + rect.right + delta * 2
-                                    > focused_monitor_work_area.right
+                                    > focused_monitor_work_area.left
+                                        + focused_monitor_work_area.right
                                 {
-                                    rect.right = focused_monitor_work_area.right - rect.left;
+                                    rect.right = focused_monitor_work_area.left
+                                        + focused_monitor_work_area.right
+                                        - rect.left;
                                 } else {
                                     rect.right += delta * 2;
                                 }
@@ -1460,9 +1463,12 @@ impl WindowManager {
                             }
                             (OperationDirection::Down, Sizing::Increase) => {
                                 if rect.top + rect.bottom + delta * 2
-                                    > focused_monitor_work_area.bottom
+                                    > focused_monitor_work_area.top
+                                        + focused_monitor_work_area.bottom
                                 {
-                                    rect.bottom = focused_monitor_work_area.bottom - rect.top;
+                                    rect.bottom = focused_monitor_work_area.top
+                                        + focused_monitor_work_area.bottom
+                                        - rect.top;
                                 } else {
                                     rect.bottom += delta * 2;
                                 }
@@ -2152,6 +2158,7 @@ impl WindowManager {
 
         if let Some(window) = floating_window {
             target_workspace.floating_windows_mut().push(window);
+            target_workspace.set_layer(WorkspaceLayer::Floating);
             Window::from(window.hwnd)
                 .move_to_area(&current_area, target_monitor.work_area_size())?;
         } else if let Some(container) = container {
@@ -2160,6 +2167,8 @@ impl WindowManager {
                 .iter()
                 .map(|w| w.hwnd)
                 .collect::<Vec<_>>();
+
+            target_workspace.set_layer(WorkspaceLayer::Tiling);
 
             if let Some(direction) = move_direction {
                 target_monitor.add_container_with_direction(container, workspace_idx, direction)?;
@@ -2470,10 +2479,10 @@ impl WindowManager {
         focused_monitor_work_area.left += border_width;
         focused_monitor_work_area.top += border_offset;
         focused_monitor_work_area.top += border_width;
-        focused_monitor_work_area.right -= border_offset;
-        focused_monitor_work_area.right -= border_width;
-        focused_monitor_work_area.bottom -= border_offset;
-        focused_monitor_work_area.bottom -= border_width;
+        focused_monitor_work_area.right -= border_offset * 2;
+        focused_monitor_work_area.right -= border_width * 2;
+        focused_monitor_work_area.bottom -= border_offset * 2;
+        focused_monitor_work_area.bottom -= border_width * 2;
 
         let focused_workspace = self.focused_workspace()?;
         let delta = self.resize_delta;
@@ -2491,8 +2500,12 @@ impl WindowManager {
                         }
                     }
                     OperationDirection::Right => {
-                        if rect.left + delta + rect.right > focused_monitor_work_area.right {
-                            rect.left = focused_monitor_work_area.right - rect.right;
+                        if rect.left + delta + rect.right
+                            > focused_monitor_work_area.left + focused_monitor_work_area.right
+                        {
+                            rect.left = focused_monitor_work_area.left
+                                + focused_monitor_work_area.right
+                                - rect.right;
                         } else {
                             rect.left += delta;
                         }
@@ -2505,8 +2518,12 @@ impl WindowManager {
                         }
                     }
                     OperationDirection::Down => {
-                        if rect.top + delta + rect.bottom > focused_monitor_work_area.bottom {
-                            rect.top = focused_monitor_work_area.bottom - rect.bottom;
+                        if rect.top + delta + rect.bottom
+                            > focused_monitor_work_area.top + focused_monitor_work_area.bottom
+                        {
+                            rect.top = focused_monitor_work_area.top
+                                + focused_monitor_work_area.bottom
+                                - rect.bottom;
                         } else {
                             rect.top += delta;
                         }
