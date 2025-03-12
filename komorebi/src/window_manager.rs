@@ -1415,10 +1415,10 @@ impl WindowManager {
                 focused_monitor_work_area.left += border_width;
                 focused_monitor_work_area.top += border_offset;
                 focused_monitor_work_area.top += border_width;
-                focused_monitor_work_area.right -= border_offset;
-                focused_monitor_work_area.right -= border_width;
-                focused_monitor_work_area.bottom -= border_offset;
-                focused_monitor_work_area.bottom -= border_width;
+                focused_monitor_work_area.right -= border_offset * 2;
+                focused_monitor_work_area.right -= border_width * 2;
+                focused_monitor_work_area.bottom -= border_offset * 2;
+                focused_monitor_work_area.bottom -= border_width * 2;
 
                 for window in workspace.floating_windows().iter() {
                     if window.hwnd == focused_hwnd {
@@ -2181,10 +2181,10 @@ impl WindowManager {
         focused_monitor_work_area.left += border_width;
         focused_monitor_work_area.top += border_offset;
         focused_monitor_work_area.top += border_width;
-        focused_monitor_work_area.right -= border_offset;
-        focused_monitor_work_area.right -= border_width;
-        focused_monitor_work_area.bottom -= border_offset;
-        focused_monitor_work_area.bottom -= border_width;
+        focused_monitor_work_area.right -= border_offset * 2;
+        focused_monitor_work_area.right -= border_width * 2;
+        focused_monitor_work_area.bottom -= border_offset * 2;
+        focused_monitor_work_area.bottom -= border_width * 2;
 
         let focused_workspace = self.focused_workspace()?;
         let delta = self.resize_delta;
