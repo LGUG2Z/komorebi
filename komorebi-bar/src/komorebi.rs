@@ -403,6 +403,7 @@ impl BarWidget for Komorebi {
 
                             if layer_frame.clicked()
                                 && komorebi_client::send_batch([
+                                    SocketMessage::FocusMonitorAtCursor,
                                     SocketMessage::MouseFollowsFocus(false),
                                     SocketMessage::ToggleWorkspaceLayer,
                                     SocketMessage::MouseFollowsFocus(
