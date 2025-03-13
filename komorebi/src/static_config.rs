@@ -740,7 +740,7 @@ impl From<&WindowManager> for StaticConfig {
                     .collect::<Vec<_>>(),
             ),
             monitor_index_preferences: Option::from(MONITOR_INDEX_PREFERENCES.lock().clone()),
-            display_index_preferences: Option::from(DISPLAY_INDEX_PREFERENCES.lock().clone()),
+            display_index_preferences: Option::from(DISPLAY_INDEX_PREFERENCES.read().clone()),
             stackbar: None,
             animation: None,
             theme: None,
@@ -768,7 +768,7 @@ impl StaticConfig {
         }
 
         if let Some(display_index_preferences) = &self.display_index_preferences {
-            let mut preferences = DISPLAY_INDEX_PREFERENCES.lock();
+            let mut preferences = DISPLAY_INDEX_PREFERENCES.write();
             preferences.clone_from(display_index_preferences);
         }
 
@@ -1276,7 +1276,7 @@ impl StaticConfig {
         let mut wm = wm.lock();
 
         let configs_with_preference: Vec<_> =
-            DISPLAY_INDEX_PREFERENCES.lock().keys().copied().collect();
+            DISPLAY_INDEX_PREFERENCES.read().keys().copied().collect();
         let mut configs_used = Vec::new();
 
         let mut workspace_matching_rules = WORKSPACE_MATCHING_RULES.lock();
@@ -1286,7 +1286,7 @@ impl StaticConfig {
         let offset = wm.work_area_offset;
         for (i, monitor) in wm.monitors_mut().iter_mut().enumerate() {
             let preferred_config_idx = {
-                let display_index_preferences = DISPLAY_INDEX_PREFERENCES.lock();
+                let display_index_preferences = DISPLAY_INDEX_PREFERENCES.read();
                 let c_idx = display_index_preferences.iter().find_map(|(c_idx, id)| {
                     (monitor
                         .serial_number_id()
@@ -1385,7 +1385,7 @@ impl StaticConfig {
                 .filter(|i| !configs_used.contains(i))
             {
                 let id = {
-                    let display_index_preferences = DISPLAY_INDEX_PREFERENCES.lock();
+                    let display_index_preferences = DISPLAY_INDEX_PREFERENCES.read();
                     display_index_preferences.get(i).cloned()
                 };
                 if let (Some(id), Some(monitor_config)) =
@@ -1445,7 +1445,7 @@ impl StaticConfig {
         value.apply_globals()?;
 
         let configs_with_preference: Vec<_> =
-            DISPLAY_INDEX_PREFERENCES.lock().keys().copied().collect();
+            DISPLAY_INDEX_PREFERENCES.read().keys().copied().collect();
         let mut configs_used = Vec::new();
 
         let mut workspace_matching_rules = WORKSPACE_MATCHING_RULES.lock();
@@ -1455,7 +1455,7 @@ impl StaticConfig {
         let offset = wm.work_area_offset;
         for (i, monitor) in wm.monitors_mut().iter_mut().enumerate() {
             let preferred_config_idx = {
-                let display_index_preferences = DISPLAY_INDEX_PREFERENCES.lock();
+                let display_index_preferences = DISPLAY_INDEX_PREFERENCES.read();
                 let c_idx = display_index_preferences.iter().find_map(|(c_idx, id)| {
                     (monitor
                         .serial_number_id()
@@ -1557,7 +1557,7 @@ impl StaticConfig {
                 .filter(|i| !configs_used.contains(i))
             {
                 let id = {
-                    let display_index_preferences = DISPLAY_INDEX_PREFERENCES.lock();
+                    let display_index_preferences = DISPLAY_INDEX_PREFERENCES.read();
                     display_index_preferences.get(i).cloned()
                 };
                 if let (Some(id), Some(monitor_config)) =

@@ -12,6 +12,7 @@ use crate::NotificationEvent;
 use crate::State;
 use crate::WindowManager;
 use crate::WindowsApi;
+use crate::DISPLAY_INDEX_PREFERENCES;
 use crate::WORKSPACE_MATCHING_RULES;
 use crossbeam_channel::Receiver;
 use crossbeam_channel::Sender;
@@ -66,11 +67,20 @@ pub fn send_notification(notification: MonitorNotification) {
 }
 
 pub fn insert_in_monitor_cache(serial_or_device_id: &str, monitor: Monitor) {
+    let dip = DISPLAY_INDEX_PREFERENCES.read();
+    let mut dip_ids = dip.values();
+    let preferred_id = if dip_ids.any(|id| id == monitor.device_id()) {
+        monitor.device_id().clone()
+    } else if dip_ids.any(|id| Some(id) == monitor.serial_number_id().as_ref()) {
+        monitor.serial_number_id().clone().unwrap_or_default()
+    } else {
+        serial_or_device_id.to_string()
+    };
     let mut monitor_cache = MONITOR_CACHE
         .get_or_init(|| Mutex::new(HashMap::new()))
         .lock();
 
-    monitor_cache.insert(serial_or_device_id.to_string(), monitor);
+    monitor_cache.insert(preferred_id, monitor);
 }
 
 pub fn attached_display_devices() -> color_eyre::Result<Vec<Monitor>> {
@@ -380,8 +390,18 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                                 workspace_rules.remove(i);
                             }
 
-                            // Let's add their state to the cache for later
-                            monitor_cache.insert(id, m.clone());
+                            // Let's add their state to the cache for later, make sure to use what
+                            // the user set as preference as the id.
+                            let dip = DISPLAY_INDEX_PREFERENCES.read();
+                            let mut dip_ids = dip.values();
+                            let preferred_id = if dip_ids.any(|id| id == m.device_id()) {
+                                m.device_id().clone()
+                            } else if dip_ids.any(|id| Some(id) == m.serial_number_id().as_ref()) {
+                                m.serial_number_id().clone().unwrap_or_default()
+                            } else {
+                                id
+                            };
+                            monitor_cache.insert(preferred_id, m.clone());
                         }
                     }
 
