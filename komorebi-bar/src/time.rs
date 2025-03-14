@@ -20,6 +20,8 @@ use eframe::epaint::StrokeKind;
 use lazy_static::lazy_static;
 use serde::Deserialize;
 use serde::Serialize;
+use std::time::Duration;
+use std::time::Instant;
 
 lazy_static! {
     static ref TIME_RANGES: Vec<(&'static str, NaiveTime)> = {
@@ -96,12 +98,21 @@ pub struct TimeConfig {
 
 impl From<TimeConfig> for Time {
     fn from(value: TimeConfig) -> Self {
+        // using 1 second made the widget look "less accurate" and lagging (especially having multiple with seconds).
+        // This is still better than getting an update every frame
+        let data_refresh_interval = 500;
+
         Self {
             enable: value.enable,
             format: value.format,
             label_prefix: value.label_prefix.unwrap_or(LabelPrefix::Icon),
             timezone: value.timezone,
             changing_icon: value.changing_icon.unwrap_or_default(),
+            data_refresh_interval_millis: data_refresh_interval,
+            last_state: TimeOutput::new(),
+            last_updated: Instant::now()
+                .checked_sub(Duration::from_millis(data_refresh_interval))
+                .unwrap(),
         }
     }
 }
@@ -152,20 +163,56 @@ impl TimeFormat {
 }
 
 #[derive(Clone, Debug)]
+struct TimeOutput {
+    label: String,
+    icon: String,
+}
+
+impl TimeOutput {
+    fn new() -> Self {
+        Self {
+            label: String::new(),
+            icon: String::new(),
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
 pub struct Time {
     pub enable: bool,
     pub format: TimeFormat,
     label_prefix: LabelPrefix,
     timezone: Option<String>,
     changing_icon: bool,
+    data_refresh_interval_millis: u64,
+    last_state: TimeOutput,
+    last_updated: Instant,
 }
 
 impl Time {
-    fn output(&mut self) -> (String, String) {
-        let (formatted, current_time) = match &self.timezone {
-            Some(timezone) => match timezone.parse::<Tz>() {
-                Ok(tz) => {
-                    let dt = Local::now().with_timezone(&tz);
+    fn output(&mut self) -> TimeOutput {
+        let mut output = self.last_state.clone();
+        let now = Instant::now();
+
+        if now.duration_since(self.last_updated)
+            > Duration::from_millis(self.data_refresh_interval_millis)
+        {
+            let (formatted, current_time) = match &self.timezone {
+                Some(timezone) => match timezone.parse::<Tz>() {
+                    Ok(tz) => {
+                        let dt = Local::now().with_timezone(&tz);
+                        (
+                            dt.format(&self.format.fmt_string())
+                                .to_string()
+                                .trim()
+                                .to_string(),
+                            Some(dt.time()),
+                        )
+                    }
+                    Err(_) => (format!("Invalid timezone: {:?}", timezone), None),
+                },
+                None => {
+                    let dt = Local::now();
                     (
                         dt.format(&self.format.fmt_string())
                             .to_string()
@@ -174,38 +221,35 @@ impl Time {
                         Some(dt.time()),
                     )
                 }
-                Err(_) => (format!("Invalid timezone: {:?}", timezone), None),
-            },
-            None => {
-                let dt = Local::now();
-                (
-                    dt.format(&self.format.fmt_string())
-                        .to_string()
-                        .trim()
-                        .to_string(),
-                    Some(dt.time()),
-                )
+            };
+
+            if current_time.is_none() {
+                return TimeOutput {
+                    label: formatted,
+                    icon: egui_phosphor::regular::WARNING_CIRCLE.to_string(),
+                };
             }
-        };
 
-        if current_time.is_none() {
-            return (
-                formatted,
-                egui_phosphor::regular::WARNING_CIRCLE.to_string(),
-            );
+            let current_range = match &self.changing_icon {
+                true => TIME_RANGES
+                    .iter()
+                    .rev()
+                    .find(|&(_, start)| current_time.unwrap() > *start)
+                    .cloned(),
+                false => None,
+            }
+            .unwrap_or((egui_phosphor::regular::CLOCK, NaiveTime::default()));
+
+            output = TimeOutput {
+                label: formatted,
+                icon: current_range.0.to_string(),
+            };
+
+            self.last_state.clone_from(&output);
+            self.last_updated = now;
         }
 
-        let current_range = match &self.changing_icon {
-            true => TIME_RANGES
-                .iter()
-                .rev()
-                .find(|&(_, start)| current_time.unwrap() > *start)
-                .cloned(),
-            false => None,
-        }
-        .unwrap_or((egui_phosphor::regular::CLOCK, NaiveTime::default()));
-
-        (formatted, current_range.0.to_string())
+        output
     }
 
     fn paint_binary_circle(
@@ -388,13 +432,13 @@ impl BarWidget for Time {
     fn render(&mut self, ctx: &Context, ui: &mut Ui, config: &mut RenderConfig) {
         if self.enable {
             let mut output = self.output();
-            if !output.0.is_empty() {
-                let use_binary_circle = output.0.starts_with('c');
-                let use_binary_rectangle = output.0.starts_with('r');
+            if !output.label.is_empty() {
+                let use_binary_circle = output.label.starts_with('c');
+                let use_binary_rectangle = output.label.starts_with('r');
 
                 let mut layout_job = LayoutJob::simple(
                     match self.label_prefix {
-                        LabelPrefix::Icon | LabelPrefix::IconAndText => output.1,
+                        LabelPrefix::Icon | LabelPrefix::IconAndText => output.icon,
                         LabelPrefix::None | LabelPrefix::Text => String::new(),
                     },
                     config.icon_font_id.clone(),
@@ -403,12 +447,12 @@ impl BarWidget for Time {
                 );
 
                 if let LabelPrefix::Text | LabelPrefix::IconAndText = self.label_prefix {
-                    output.0.insert_str(0, "TIME: ");
+                    output.label.insert_str(0, "TIME: ");
                 }
 
                 if !use_binary_circle && !use_binary_rectangle {
                     layout_job.append(
-                        &output.0,
+                        &output.label,
                         10.0,
                         TextFormat {
                             font_id: config.text_font_id.clone(),
@@ -431,9 +475,9 @@ impl BarWidget for Time {
 
                             if use_binary_circle || use_binary_rectangle {
                                 let ordered_output = if is_reversed {
-                                    output.0.chars().rev().collect()
+                                    output.label.chars().rev().collect()
                                 } else {
-                                    output.0
+                                    output.label
                                 };
 
                                 for (section_index, section) in
