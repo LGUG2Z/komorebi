@@ -302,6 +302,16 @@ impl From<&Monitor> for MonitorConfig {
     }
 }
 
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+#[serde(untagged)]
+pub enum AppSpecificConfigurationPath {
+    /// A single applications.json file
+    Single(PathBuf),
+    /// Multiple applications.json files
+    Multiple(Vec<PathBuf>),
+}
+
 #[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 /// The `komorebi.json` static configuration file reference for `v0.1.35`
@@ -342,7 +352,7 @@ pub struct StaticConfig {
     pub mouse_follows_focus: Option<bool>,
     /// Path to applications.json from komorebi-application-specific-configurations (default: None)
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub app_specific_configuration_path: Option<PathBuf>,
+    pub app_specific_configuration_path: Option<AppSpecificConfigurationPath>,
     /// Width of the window border (default: 8)
     #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(alias = "active_window_border_width")]
@@ -1004,140 +1014,35 @@ impl StaticConfig {
         }
 
         if let Some(path) = &self.app_specific_configuration_path {
-            match path.extension() {
-                None => {}
-                Some(ext) => match ext.to_string_lossy().to_string().as_str() {
-                    "yaml" => {
-                        tracing::info!("loading applications.yaml from: {}", path.display());
-                        let path = resolve_home_path(path)?;
-                        let content = std::fs::read_to_string(path)?;
-                        let asc = ApplicationConfigurationGenerator::load(&content)?;
-
-                        for mut entry in asc {
-                            if let Some(rules) = &mut entry.ignore_identifiers {
-                                populate_rules(
-                                    rules,
-                                    &mut ignore_identifiers,
-                                    &mut regex_identifiers,
-                                )?;
-                            }
-
-                            if let Some(ref options) = entry.options {
-                                let options = options.clone();
-                                for o in options {
-                                    match o {
-                                        ApplicationOptions::ObjectNameChange => {
-                                            populate_option(
-                                                &mut entry,
-                                                &mut object_name_change_identifiers,
-                                                &mut regex_identifiers,
-                                            )?;
-                                        }
-                                        ApplicationOptions::Layered => {
-                                            populate_option(
-                                                &mut entry,
-                                                &mut layered_identifiers,
-                                                &mut regex_identifiers,
-                                            )?;
-                                        }
-                                        ApplicationOptions::TrayAndMultiWindow => {
-                                            populate_option(
-                                                &mut entry,
-                                                &mut tray_and_multi_window_identifiers,
-                                                &mut regex_identifiers,
-                                            )?;
-                                        }
-                                        ApplicationOptions::Force => {
-                                            populate_option(
-                                                &mut entry,
-                                                &mut manage_identifiers,
-                                                &mut regex_identifiers,
-                                            )?;
-                                        }
-                                        ApplicationOptions::BorderOverflow => {} // deprecated
-                                    }
-                                }
-                            }
-                        }
+            match path {
+                AppSpecificConfigurationPath::Single(path) => handle_asc_file(
+                    path,
+                    &mut ignore_identifiers,
+                    &mut object_name_change_identifiers,
+                    &mut layered_identifiers,
+                    &mut tray_and_multi_window_identifiers,
+                    &mut manage_identifiers,
+                    &mut floating_applications,
+                    &mut transparency_blacklist,
+                    &mut slow_application_identifiers,
+                    &mut regex_identifiers,
+                )?,
+                AppSpecificConfigurationPath::Multiple(paths) => {
+                    for path in paths {
+                        handle_asc_file(
+                            path,
+                            &mut ignore_identifiers,
+                            &mut object_name_change_identifiers,
+                            &mut layered_identifiers,
+                            &mut tray_and_multi_window_identifiers,
+                            &mut manage_identifiers,
+                            &mut floating_applications,
+                            &mut transparency_blacklist,
+                            &mut slow_application_identifiers,
+                            &mut regex_identifiers,
+                        )?
                     }
-                    "json" => {
-                        tracing::info!("loading applications.json from: {}", path.display());
-                        let path = resolve_home_path(path)?;
-                        let mut asc = ApplicationSpecificConfiguration::load(&path)?;
-
-                        for entry in asc.values_mut() {
-                            match entry {
-                                AscApplicationRulesOrSchema::Schema(_) => {}
-                                AscApplicationRulesOrSchema::AscApplicationRules(entry) => {
-                                    if let Some(rules) = &mut entry.ignore {
-                                        populate_rules(
-                                            rules,
-                                            &mut ignore_identifiers,
-                                            &mut regex_identifiers,
-                                        )?;
-                                    }
-
-                                    if let Some(rules) = &mut entry.manage {
-                                        populate_rules(
-                                            rules,
-                                            &mut manage_identifiers,
-                                            &mut regex_identifiers,
-                                        )?;
-                                    }
-
-                                    if let Some(rules) = &mut entry.floating {
-                                        populate_rules(
-                                            rules,
-                                            &mut floating_applications,
-                                            &mut regex_identifiers,
-                                        )?;
-                                    }
-
-                                    if let Some(rules) = &mut entry.transparency_ignore {
-                                        populate_rules(
-                                            rules,
-                                            &mut transparency_blacklist,
-                                            &mut regex_identifiers,
-                                        )?;
-                                    }
-
-                                    if let Some(rules) = &mut entry.tray_and_multi_window {
-                                        populate_rules(
-                                            rules,
-                                            &mut tray_and_multi_window_identifiers,
-                                            &mut regex_identifiers,
-                                        )?;
-                                    }
-
-                                    if let Some(rules) = &mut entry.layered {
-                                        populate_rules(
-                                            rules,
-                                            &mut layered_identifiers,
-                                            &mut regex_identifiers,
-                                        )?;
-                                    }
-
-                                    if let Some(rules) = &mut entry.object_name_change {
-                                        populate_rules(
-                                            rules,
-                                            &mut object_name_change_identifiers,
-                                            &mut regex_identifiers,
-                                        )?;
-                                    }
-
-                                    if let Some(rules) = &mut entry.slow_application {
-                                        populate_rules(
-                                            rules,
-                                            &mut slow_application_identifiers,
-                                            &mut regex_identifiers,
-                                        )?;
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    _ => {}
-                },
+                }
             }
         }
 
@@ -1153,7 +1058,16 @@ impl StaticConfig {
         let mut value: Self = serde_json::from_str(&content)?;
 
         if let Some(path) = &mut value.app_specific_configuration_path {
-            *path = resolve_home_path(&*path)?;
+            match path {
+                AppSpecificConfigurationPath::Single(path) => {
+                    *path = resolve_home_path(&*path)?;
+                }
+                AppSpecificConfigurationPath::Multiple(paths) => {
+                    for path in paths {
+                        *path = resolve_home_path(&*path)?;
+                    }
+                }
+            }
         }
 
         if let Some(monitors) = &mut value.monitors {
@@ -1717,6 +1631,134 @@ fn populate_rules(
             }
             identifiers.push(matching_rule.clone());
         }
+    }
+
+    Ok(())
+}
+
+#[allow(clippy::too_many_arguments)]
+fn handle_asc_file(
+    path: &PathBuf,
+    ignore_identifiers: &mut Vec<MatchingRule>,
+    object_name_change_identifiers: &mut Vec<MatchingRule>,
+    layered_identifiers: &mut Vec<MatchingRule>,
+    tray_and_multi_window_identifiers: &mut Vec<MatchingRule>,
+    manage_identifiers: &mut Vec<MatchingRule>,
+    floating_applications: &mut Vec<MatchingRule>,
+    transparency_blacklist: &mut Vec<MatchingRule>,
+    slow_application_identifiers: &mut Vec<MatchingRule>,
+    regex_identifiers: &mut HashMap<String, Regex>,
+) -> Result<()> {
+    match path.extension() {
+        None => {}
+        Some(ext) => match ext.to_string_lossy().to_string().as_str() {
+            "yaml" => {
+                tracing::info!("loading applications.yaml from: {}", path.display());
+                let path = resolve_home_path(path)?;
+                let content = std::fs::read_to_string(path)?;
+                let asc = ApplicationConfigurationGenerator::load(&content)?;
+
+                for mut entry in asc {
+                    if let Some(rules) = &mut entry.ignore_identifiers {
+                        populate_rules(rules, ignore_identifiers, regex_identifiers)?;
+                    }
+
+                    if let Some(ref options) = entry.options {
+                        let options = options.clone();
+                        for o in options {
+                            match o {
+                                ApplicationOptions::ObjectNameChange => {
+                                    populate_option(
+                                        &mut entry,
+                                        object_name_change_identifiers,
+                                        regex_identifiers,
+                                    )?;
+                                }
+                                ApplicationOptions::Layered => {
+                                    populate_option(
+                                        &mut entry,
+                                        layered_identifiers,
+                                        regex_identifiers,
+                                    )?;
+                                }
+                                ApplicationOptions::TrayAndMultiWindow => {
+                                    populate_option(
+                                        &mut entry,
+                                        tray_and_multi_window_identifiers,
+                                        regex_identifiers,
+                                    )?;
+                                }
+                                ApplicationOptions::Force => {
+                                    populate_option(
+                                        &mut entry,
+                                        manage_identifiers,
+                                        regex_identifiers,
+                                    )?;
+                                }
+                                ApplicationOptions::BorderOverflow => {} // deprecated
+                            }
+                        }
+                    }
+                }
+            }
+            "json" => {
+                tracing::info!("loading applications.json from: {}", path.display());
+                let path = resolve_home_path(path)?;
+                let mut asc = ApplicationSpecificConfiguration::load(&path)?;
+
+                for entry in asc.values_mut() {
+                    match entry {
+                        AscApplicationRulesOrSchema::Schema(_) => {}
+                        AscApplicationRulesOrSchema::AscApplicationRules(entry) => {
+                            if let Some(rules) = &mut entry.ignore {
+                                populate_rules(rules, ignore_identifiers, regex_identifiers)?;
+                            }
+
+                            if let Some(rules) = &mut entry.manage {
+                                populate_rules(rules, manage_identifiers, regex_identifiers)?;
+                            }
+
+                            if let Some(rules) = &mut entry.floating {
+                                populate_rules(rules, floating_applications, regex_identifiers)?;
+                            }
+
+                            if let Some(rules) = &mut entry.transparency_ignore {
+                                populate_rules(rules, transparency_blacklist, regex_identifiers)?;
+                            }
+
+                            if let Some(rules) = &mut entry.tray_and_multi_window {
+                                populate_rules(
+                                    rules,
+                                    tray_and_multi_window_identifiers,
+                                    regex_identifiers,
+                                )?;
+                            }
+
+                            if let Some(rules) = &mut entry.layered {
+                                populate_rules(rules, layered_identifiers, regex_identifiers)?;
+                            }
+
+                            if let Some(rules) = &mut entry.object_name_change {
+                                populate_rules(
+                                    rules,
+                                    object_name_change_identifiers,
+                                    regex_identifiers,
+                                )?;
+                            }
+
+                            if let Some(rules) = &mut entry.slow_application {
+                                populate_rules(
+                                    rules,
+                                    slow_application_identifiers,
+                                    regex_identifiers,
+                                )?;
+                            }
+                        }
+                    }
+                }
+            }
+            _ => {}
+        },
     }
 
     Ok(())

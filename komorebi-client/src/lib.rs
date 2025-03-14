@@ -52,6 +52,7 @@ pub use komorebi::workspace::Workspace;
 pub use komorebi::workspace::WorkspaceGlobals;
 pub use komorebi::workspace::WorkspaceLayer;
 pub use komorebi::AnimationsConfig;
+pub use komorebi::AppSpecificConfigurationPath;
 pub use komorebi::AspectRatio;
 pub use komorebi::BorderColours;
 pub use komorebi::CrossBoundaryBehaviour;

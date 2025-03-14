@@ -131,7 +131,19 @@
     },
     "app_specific_configuration_path": {
       "description": "Path to applications.json from komorebi-application-specific-configurations (default: None)",
-      "type": "string"
+      "anyOf": [
+        {
+          "description": "A single applications.json file",
+          "type": "string"
+        },
+        {
+          "description": "Multiple applications.json files",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      ]
     },
     "bar_configurations": {
       "description": "Komorebi status bar configuration files for multiple instances on different monitors",
