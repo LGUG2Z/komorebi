@@ -94,6 +94,7 @@ pub struct Workspace {
     pub window_container_behaviour_rules: Option<Vec<(usize, WindowContainerBehaviour)>>,
     #[getset(get = "pub", get_mut = "pub", set = "pub")]
     pub float_override: Option<bool>,
+    #[serde(skip)]
     #[getset(get = "pub", get_mut = "pub", set = "pub")]
     pub globals: WorkspaceGlobals,
     #[getset(get = "pub", get_mut = "pub", set = "pub")]
