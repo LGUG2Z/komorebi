@@ -1199,7 +1199,7 @@ impl WindowManager {
                 );
             }
             SocketMessage::DisplayIndexPreference(index_preference, ref display) => {
-                let mut display_index_preferences = DISPLAY_INDEX_PREFERENCES.lock();
+                let mut display_index_preferences = DISPLAY_INDEX_PREFERENCES.write();
                 display_index_preferences.insert(index_preference, display.clone());
             }
             SocketMessage::EnsureWorkspaces(monitor_idx, workspace_count) => {

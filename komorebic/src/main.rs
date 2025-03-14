@@ -25,6 +25,7 @@ use fs_tail::TailedFile;
 use komorebi_client::resolve_home_path;
 use komorebi_client::send_message;
 use komorebi_client::send_query;
+use komorebi_client::AppSpecificConfigurationPath;
 use komorebi_client::ApplicationSpecificConfiguration;
 use lazy_static::lazy_static;
 use miette::NamedSource;
@@ -1685,11 +1686,12 @@ fn main() -> Result<()> {
                         None => {
                             println!("Application specific configuration file path has not been set. Try running 'komorebic fetch-asc'\n");
                         }
-                        Some(path) => {
+                        Some(AppSpecificConfigurationPath::Single(path)) => {
                             if !Path::exists(Path::new(&path)) {
                                 println!("Application specific configuration file path '{}' does not exist. Try running 'komorebic fetch-asc'\n", path.display());
                             }
                         }
+                        _ => {}
                     }
                 }
 

@@ -273,7 +273,7 @@ impl Default for GlobalState {
             tray_and_multi_window_identifiers: TRAY_AND_MULTI_WINDOW_IDENTIFIERS.lock().clone(),
             name_change_on_launch_identifiers: OBJECT_NAME_CHANGE_ON_LAUNCH.lock().clone(),
             monitor_index_preferences: MONITOR_INDEX_PREFERENCES.lock().clone(),
-            display_index_preferences: DISPLAY_INDEX_PREFERENCES.lock().clone(),
+            display_index_preferences: DISPLAY_INDEX_PREFERENCES.read().clone(),
             workspace_rules: WORKSPACE_MATCHING_RULES.lock().clone(),
             window_hiding_behaviour: *HIDING_BEHAVIOUR.lock(),
             configuration_dir: HOME_DIR.clone(),

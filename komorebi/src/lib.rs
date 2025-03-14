@@ -65,6 +65,7 @@ use crate::core::config_generation::WorkspaceMatchingRule;
 use color_eyre::Result;
 use os_info::Version;
 use parking_lot::Mutex;
+use parking_lot::RwLock;
 use regex::Regex;
 use serde::Deserialize;
 use serde::Serialize;
@@ -131,8 +132,8 @@ lazy_static! {
     static ref TRANSPARENCY_BLACKLIST: Arc<Mutex<Vec<MatchingRule>>> = Arc::new(Mutex::new(Vec::new()));
     static ref MONITOR_INDEX_PREFERENCES: Arc<Mutex<HashMap<usize, Rect>>> =
         Arc::new(Mutex::new(HashMap::new()));
-    static ref DISPLAY_INDEX_PREFERENCES: Arc<Mutex<HashMap<usize, String>>> =
-        Arc::new(Mutex::new(HashMap::new()));
+    static ref DISPLAY_INDEX_PREFERENCES: Arc<RwLock<HashMap<usize, String>>> =
+        Arc::new(RwLock::new(HashMap::new()));
     static ref WORKSPACE_MATCHING_RULES: Arc<Mutex<Vec<WorkspaceMatchingRule>>> =
         Arc::new(Mutex::new(Vec::new()));
     static ref REGEX_IDENTIFIERS: Arc<Mutex<HashMap<String, Regex>>> =

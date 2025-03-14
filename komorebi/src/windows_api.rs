@@ -299,7 +299,7 @@ impl WindowsApi {
                 }
             }
 
-            let display_index_preferences = DISPLAY_INDEX_PREFERENCES.lock();
+            let display_index_preferences = DISPLAY_INDEX_PREFERENCES.read();
             for (index, id) in &*display_index_preferences {
                 if m.serial_number_id().as_ref().is_some_and(|sn| sn == id) || id.eq(m.device_id())
                 {
@@ -334,7 +334,7 @@ impl WindowsApi {
         // Rebuild monitor index map
         *monitor_usr_idx_map = HashMap::new();
         let mut added_monitor_idxs = Vec::new();
-        for (index, id) in &*DISPLAY_INDEX_PREFERENCES.lock() {
+        for (index, id) in &*DISPLAY_INDEX_PREFERENCES.read() {
             if let Some(m_idx) = monitors.elements().iter().position(|m| {
                 m.serial_number_id().as_ref().is_some_and(|sn| sn == id) || m.device_id() == id
             }) {

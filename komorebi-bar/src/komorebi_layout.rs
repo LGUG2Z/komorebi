@@ -105,12 +105,22 @@ impl KomorebiLayout {
                 }
             }
             KomorebiLayout::Monocle => {
-                if komorebi_client::send_message(&SocketMessage::ToggleMonocle).is_err() {
+                if komorebi_client::send_batch([
+                    SocketMessage::FocusMonitorAtCursor,
+                    SocketMessage::ToggleMonocle,
+                ])
+                .is_err()
+                {
                     tracing::error!("could not send message to komorebi: ToggleMonocle");
                 }
             }
             KomorebiLayout::Floating => {
-                if komorebi_client::send_message(&SocketMessage::ToggleTiling).is_err() {
+                if komorebi_client::send_batch([
+                    SocketMessage::FocusMonitorAtCursor,
+                    SocketMessage::ToggleTiling,
+                ])
+                .is_err()
+                {
                     tracing::error!("could not send message to komorebi: ToggleTiling");
                 }
             }
