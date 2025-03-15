@@ -1,7 +1,7 @@
 use crate::config::LabelPrefix;
 use crate::render::RenderConfig;
 use crate::selected_frame::SelectableFrame;
-use crate::widget::BarWidget;
+use crate::widgets::widget::BarWidget;
 use eframe::egui::text::LayoutJob;
 use eframe::egui::Align;
 use eframe::egui::Context;
@@ -10,38 +10,34 @@ use eframe::egui::TextFormat;
 use eframe::egui::Ui;
 use serde::Deserialize;
 use serde::Serialize;
-use starship_battery::units::ratio::percent;
-use starship_battery::Manager;
-use starship_battery::State;
 use std::process::Command;
 use std::time::Duration;
 use std::time::Instant;
+use sysinfo::RefreshKind;
+use sysinfo::System;
 
 #[derive(Copy, Clone, Debug, Serialize, Deserialize)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
-pub struct BatteryConfig {
-    /// Enable the Battery widget
+pub struct MemoryConfig {
+    /// Enable the Memory widget
     pub enable: bool,
-    /// Hide the widget if the battery is at full charge
-    pub hide_on_full_charge: Option<bool>,
     /// Data refresh interval (default: 10 seconds)
     pub data_refresh_interval: Option<u64>,
     /// Display label prefix
     pub label_prefix: Option<LabelPrefix>,
 }
 
-impl From<BatteryConfig> for Battery {
-    fn from(value: BatteryConfig) -> Self {
+impl From<MemoryConfig> for Memory {
+    fn from(value: MemoryConfig) -> Self {
         let data_refresh_interval = value.data_refresh_interval.unwrap_or(10);
 
         Self {
             enable: value.enable,
-            hide_on_full_charge: value.hide_on_full_charge.unwrap_or(false),
-            manager: Manager::new().unwrap(),
-            last_state: String::new(),
+            system: System::new_with_specifics(
+                RefreshKind::default().without_cpu().without_processes(),
+            ),
             data_refresh_interval,
-            label_prefix: value.label_prefix.unwrap_or(LabelPrefix::Icon),
-            state: BatteryState::Discharging,
+            label_prefix: value.label_prefix.unwrap_or(LabelPrefix::IconAndText),
             last_updated: Instant::now()
                 .checked_sub(Duration::from_secs(data_refresh_interval))
                 .unwrap(),
@@ -49,74 +45,43 @@ impl From<BatteryConfig> for Battery {
     }
 }
 
-pub enum BatteryState {
-    Charging,
-    Discharging,
-}
-
-pub struct Battery {
+pub struct Memory {
     pub enable: bool,
-    hide_on_full_charge: bool,
-    manager: Manager,
-    pub state: BatteryState,
+    system: System,
     data_refresh_interval: u64,
     label_prefix: LabelPrefix,
-    last_state: String,
     last_updated: Instant,
 }
 
-impl Battery {
+impl Memory {
     fn output(&mut self) -> String {
-        let mut output = self.last_state.clone();
-
         let now = Instant::now();
         if now.duration_since(self.last_updated) > Duration::from_secs(self.data_refresh_interval) {
-            output.clear();
-
-            if let Ok(mut batteries) = self.manager.batteries() {
-                if let Some(Ok(first)) = batteries.nth(0) {
-                    let percentage = first.state_of_charge().get::<percent>();
-
-                    if percentage == 100.0 && self.hide_on_full_charge {
-                        output = String::new()
-                    } else {
-                        match first.state() {
-                            State::Charging => self.state = BatteryState::Charging,
-                            State::Discharging => self.state = BatteryState::Discharging,
-                            _ => {}
-                        }
-
-                        output = match self.label_prefix {
-                            LabelPrefix::Text | LabelPrefix::IconAndText => {
-                                format!("BAT: {percentage:.0}%")
-                            }
-                            LabelPrefix::None | LabelPrefix::Icon => format!("{percentage:.0}%"),
-                        }
-                    }
-                }
-            }
-
-            self.last_state.clone_from(&output);
+            self.system.refresh_memory();
             self.last_updated = now;
         }
 
-        output
+        let used = self.system.used_memory();
+        let total = self.system.total_memory();
+        match self.label_prefix {
+            LabelPrefix::Text | LabelPrefix::IconAndText => {
+                format!("RAM: {}%", (used * 100) / total)
+            }
+            LabelPrefix::None | LabelPrefix::Icon => format!("{}%", (used * 100) / total),
+        }
     }
 }
 
-impl BarWidget for Battery {
+impl BarWidget for Memory {
     fn render(&mut self, ctx: &Context, ui: &mut Ui, config: &mut RenderConfig) {
         if self.enable {
             let output = self.output();
             if !output.is_empty() {
-                let emoji = match self.state {
-                    BatteryState::Charging => egui_phosphor::regular::BATTERY_CHARGING,
-                    BatteryState::Discharging => egui_phosphor::regular::BATTERY_FULL,
-                };
-
                 let mut layout_job = LayoutJob::simple(
                     match self.label_prefix {
-                        LabelPrefix::Icon | LabelPrefix::IconAndText => emoji.to_string(),
+                        LabelPrefix::Icon | LabelPrefix::IconAndText => {
+                            egui_phosphor::regular::MEMORY.to_string()
+                        }
                         LabelPrefix::None | LabelPrefix::Text => String::new(),
                     },
                     config.icon_font_id.clone(),
@@ -140,9 +105,8 @@ impl BarWidget for Battery {
                         .show(ui, |ui| ui.add(Label::new(layout_job).selectable(false)))
                         .clicked()
                     {
-                        if let Err(error) = Command::new("cmd.exe")
-                            .args(["/C", "start", "ms-settings:batterysaver"])
-                            .spawn()
+                        if let Err(error) =
+                            Command::new("cmd.exe").args(["/C", "taskmgr.exe"]).spawn()
                         {
                             eprintln!("{}", error)
                         }

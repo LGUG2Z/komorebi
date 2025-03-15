@@ -1,7 +1,7 @@
 use crate::config::LabelPrefix;
 use crate::render::RenderConfig;
 use crate::selected_frame::SelectableFrame;
-use crate::widget::BarWidget;
+use crate::widgets::widget::BarWidget;
 use eframe::egui::text::LayoutJob;
 use eframe::egui::Align;
 use eframe::egui::Context;
@@ -13,30 +13,48 @@ use serde::Serialize;
 use std::process::Command;
 use std::time::Duration;
 use std::time::Instant;
-use sysinfo::RefreshKind;
-use sysinfo::System;
 
 #[derive(Copy, Clone, Debug, Serialize, Deserialize)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
-pub struct MemoryConfig {
-    /// Enable the Memory widget
+pub struct UpdateConfig {
+    /// Enable the Update widget
     pub enable: bool,
-    /// Data refresh interval (default: 10 seconds)
+    /// Data refresh interval (default: 12 hours)
     pub data_refresh_interval: Option<u64>,
     /// Display label prefix
     pub label_prefix: Option<LabelPrefix>,
 }
 
-impl From<MemoryConfig> for Memory {
-    fn from(value: MemoryConfig) -> Self {
-        let data_refresh_interval = value.data_refresh_interval.unwrap_or(10);
+impl From<UpdateConfig> for Update {
+    fn from(value: UpdateConfig) -> Self {
+        let data_refresh_interval = value.data_refresh_interval.unwrap_or(12);
+
+        let mut latest_version = String::new();
+
+        let client = reqwest::blocking::Client::new();
+        if let Ok(response) = client
+            .get("https://api.github.com/repos/LGUG2Z/komorebi/releases/latest")
+            .header("User-Agent", "komorebi-bar-version-checker")
+            .send()
+        {
+            #[derive(Deserialize)]
+            struct Release {
+                tag_name: String,
+            }
+
+            if let Ok(release) =
+                serde_json::from_str::<Release>(&response.text().unwrap_or_default())
+            {
+                let trimmed = release.tag_name.trim_start_matches("v");
+                latest_version = trimmed.to_string();
+            }
+        }
 
         Self {
             enable: value.enable,
-            system: System::new_with_specifics(
-                RefreshKind::default().without_cpu().without_processes(),
-            ),
             data_refresh_interval,
+            installed_version: env!("CARGO_PKG_VERSION").to_string(),
+            latest_version,
             label_prefix: value.label_prefix.unwrap_or(LabelPrefix::IconAndText),
             last_updated: Instant::now()
                 .checked_sub(Duration::from_secs(data_refresh_interval))
@@ -45,34 +63,52 @@ impl From<MemoryConfig> for Memory {
     }
 }
 
-pub struct Memory {
+pub struct Update {
     pub enable: bool,
-    system: System,
     data_refresh_interval: u64,
+    installed_version: String,
+    latest_version: String,
     label_prefix: LabelPrefix,
     last_updated: Instant,
 }
 
-impl Memory {
+impl Update {
     fn output(&mut self) -> String {
         let now = Instant::now();
-        if now.duration_since(self.last_updated) > Duration::from_secs(self.data_refresh_interval) {
-            self.system.refresh_memory();
+        if now.duration_since(self.last_updated)
+            > Duration::from_secs((self.data_refresh_interval * 60) * 60)
+        {
+            let client = reqwest::blocking::Client::new();
+            if let Ok(response) = client
+                .get("https://api.github.com/repos/LGUG2Z/komorebi/releases/latest")
+                .header("User-Agent", "komorebi-bar-version-checker")
+                .send()
+            {
+                #[derive(Deserialize)]
+                struct Release {
+                    tag_name: String,
+                }
+
+                if let Ok(release) =
+                    serde_json::from_str::<Release>(&response.text().unwrap_or_default())
+                {
+                    let trimmed = release.tag_name.trim_start_matches("v");
+                    self.latest_version = trimmed.to_string();
+                }
+            }
+
             self.last_updated = now;
         }
 
-        let used = self.system.used_memory();
-        let total = self.system.total_memory();
-        match self.label_prefix {
-            LabelPrefix::Text | LabelPrefix::IconAndText => {
-                format!("RAM: {}%", (used * 100) / total)
-            }
-            LabelPrefix::None | LabelPrefix::Icon => format!("{}%", (used * 100) / total),
+        if self.latest_version > self.installed_version {
+            format!("Update available! v{}", self.latest_version)
+        } else {
+            String::new()
         }
     }
 }
 
-impl BarWidget for Memory {
+impl BarWidget for Update {
     fn render(&mut self, ctx: &Context, ui: &mut Ui, config: &mut RenderConfig) {
         if self.enable {
             let output = self.output();
@@ -80,7 +116,7 @@ impl BarWidget for Memory {
                 let mut layout_job = LayoutJob::simple(
                     match self.label_prefix {
                         LabelPrefix::Icon | LabelPrefix::IconAndText => {
-                            egui_phosphor::regular::MEMORY.to_string()
+                            egui_phosphor::regular::ROCKET_LAUNCH.to_string()
                         }
                         LabelPrefix::None | LabelPrefix::Text => String::new(),
                     },
@@ -105,8 +141,12 @@ impl BarWidget for Memory {
                         .show(ui, |ui| ui.add(Label::new(layout_job).selectable(false)))
                         .clicked()
                     {
-                        if let Err(error) =
-                            Command::new("cmd.exe").args(["/C", "taskmgr.exe"]).spawn()
+                        if let Err(error) = Command::new("explorer.exe")
+                            .args([format!(
+                                "https://github.com/LGUG2Z/komorebi/releases/v{}",
+                                self.latest_version
+                            )])
+                            .spawn()
                         {
                             eprintln!("{}", error)
                         }

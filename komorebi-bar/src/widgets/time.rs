@@ -2,7 +2,7 @@ use crate::bar::Alignment;
 use crate::config::LabelPrefix;
 use crate::render::RenderConfig;
 use crate::selected_frame::SelectableFrame;
-use crate::widget::BarWidget;
+use crate::widgets::widget::BarWidget;
 use chrono::Local;
 use chrono::NaiveTime;
 use chrono_tz::Tz;
