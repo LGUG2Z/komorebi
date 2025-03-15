@@ -4415,4 +4415,73 @@ mod tests {
             assert_eq!(container.windows().len(), 3);
         }
     }
+
+    #[test]
+    fn test_move_workspace_to_monitor() {
+        let (mut wm, _context) = setup_window_manager();
+
+        {
+            let mut m = monitor::new(
+                0,
+                Rect::default(),
+                Rect::default(),
+                "TestMonitor".to_string(),
+                "TestDevice".to_string(),
+                "TestDeviceID".to_string(),
+                Some("TestMonitorID".to_string()),
+            );
+
+            // Add another workspace
+            let new_workspace_index = m.new_workspace_idx();
+            m.focus_workspace(new_workspace_index).unwrap();
+
+            // Should have 2 workspaces
+            assert_eq!(m.workspaces().len(), 2);
+
+            // Add monitor to workspace
+            wm.monitors_mut().push_back(m);
+        }
+
+        {
+            let m = monitor::new(
+                1,
+                Rect::default(),
+                Rect::default(),
+                "TestMonitor2".to_string(),
+                "TestDevice2".to_string(),
+                "TestDeviceID2".to_string(),
+                Some("TestMonitorID2".to_string()),
+            );
+
+            // Should contain 1 workspace
+            assert_eq!(m.workspaces().len(), 1);
+
+            // Add monitor to workspace
+            wm.monitors_mut().push_back(m);
+        }
+
+        // Should contain 2 monitors
+        assert_eq!(wm.monitors().len(), 2);
+
+        // Move a workspace from Monitor 0 to Monitor 1
+        wm.move_workspace_to_monitor(1).ok();
+
+        {
+            // Should be focused on Monitor 1
+            assert_eq!(wm.focused_monitor_idx(), 1);
+
+            // Should contain 2 workspaces
+            let monitor = wm.focused_monitor_mut().unwrap();
+            assert_eq!(monitor.workspaces().len(), 2);
+        }
+
+        {
+            // Switch to Monitor 0
+            wm.focus_monitor(0).unwrap();
+
+            // Should contain 1 workspace
+            let monitor = wm.focused_monitor_mut().unwrap();
+            assert_eq!(monitor.workspaces().len(), 1);
+        }
+    }
 }
