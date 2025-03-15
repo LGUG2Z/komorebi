@@ -4236,8 +4236,6 @@ mod tests {
     }
 
     #[test]
-
-    #[test]
     fn test_remove_window_from_container() {
         let (mut wm, _context) = setup_window_manager();
 
