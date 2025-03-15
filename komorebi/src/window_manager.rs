@@ -3768,6 +3768,57 @@ mod tests {
     }
 
     #[test]
+    fn test_remove_focused_workspace() {
+        let (mut wm, _context) = setup_window_manager();
+
+        let m = monitor::new(
+            0,
+            Rect::default(),
+            Rect::default(),
+            "TestMonitor".to_string(),
+            "TestDevice".to_string(),
+            "TestDeviceID".to_string(),
+            Some("TestMonitorID".to_string()),
+        );
+
+        // a new monitor should have a single workspace
+        assert_eq!(m.workspaces().len(), 1);
+
+        // the next index on the monitor should be the not-yet-created second workspace
+        let new_workspace_index = m.new_workspace_idx();
+        assert_eq!(new_workspace_index, 1);
+
+        // add the monitor to the window manager
+        wm.monitors_mut().push_back(m);
+
+        {
+            // focus a workspace which doesn't yet exist should create it
+            let monitor = wm.focused_monitor_mut().unwrap();
+            monitor.focus_workspace(new_workspace_index + 1).unwrap();
+
+            // Monitor focused workspace should be 2
+            assert_eq!(monitor.focused_workspace_idx(), 2);
+
+            // Should have 3 Workspaces
+            assert_eq!(monitor.workspaces().len(), 3);
+        }
+
+        // Remove the focused workspace
+        wm.remove_focused_workspace().unwrap();
+
+        {
+            let monitor = wm.focused_monitor_mut().unwrap();
+            monitor.focus_workspace(new_workspace_index).unwrap();
+
+            // Should be focused on workspace 1
+            assert_eq!(monitor.focused_workspace_idx(), 1);
+
+            // Should have 2 Workspaces
+            assert_eq!(monitor.workspaces().len(), 2);
+        }
+    }
+
+    #[test]
     fn test_set_workspace_name() {
         let (mut wm, _test_context) = setup_window_manager();
 
@@ -4185,7 +4236,9 @@ mod tests {
     }
 
     #[test]
-    fn remove_window_from_container() {
+
+    #[test]
+    fn test_remove_window_from_container() {
         let (mut wm, _context) = setup_window_manager();
 
         {
