@@ -4183,4 +4183,68 @@ mod tests {
             assert_eq!(workspace.containers().len(), 1);
         }
     }
+
+    #[test]
+    fn remove_window_from_container() {
+        let (mut wm, _context) = setup_window_manager();
+
+        {
+            // Create a first monitor
+            let mut m = monitor::new(
+                0,
+                Rect::default(),
+                Rect::default(),
+                "TestMonitor1".to_string(),
+                "TestDevice1".to_string(),
+                "TestDeviceID1".to_string(),
+                Some("TestMonitorID1".to_string()),
+            );
+
+            // Create a container
+            let mut container = Container::default();
+
+            // Add three windows to the container
+            for i in 0..3 {
+                container.windows_mut().push_back(Window::from(i));
+            }
+            // Should have 3 windows in the container
+            assert_eq!(container.windows().len(), 3);
+
+            // Focus last window
+            container.focus_window(2);
+
+            // Should have 2 windows in the container
+            assert_eq!(container.focused_window_idx(), 2);
+
+            // Add the container to a workspace
+            let workspace = m.focused_workspace_mut().unwrap();
+            workspace.add_container_to_back(container);
+
+            // Add monitor to the window manager
+            wm.monitors_mut().push_back(m);
+        }
+
+        // Remove the focused window from the container
+        wm.remove_window_from_container().ok();
+
+        {
+            // Should have 2 containers in the workspace
+            let workspace = wm.focused_workspace_mut().unwrap();
+            assert_eq!(workspace.containers().len(), 2);
+
+            // Should contain 1 window in the new container
+            let container = workspace.focused_container_mut().unwrap();
+            assert_eq!(container.windows().len(), 1);
+        }
+
+        {
+            // Switch to the old container
+            let workspace = wm.focused_workspace_mut().unwrap();
+            workspace.focus_container(0);
+
+            // Should contain 2 windows in the old container
+            let container = workspace.focused_container_mut().unwrap();
+            assert_eq!(container.windows().len(), 2);
+        }
+    }
 }
