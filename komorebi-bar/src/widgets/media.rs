@@ -1,7 +1,7 @@
 use crate::render::RenderConfig;
 use crate::selected_frame::SelectableFrame;
 use crate::ui::CustomUi;
-use crate::widget::BarWidget;
+use crate::widgets::widget::BarWidget;
 use crate::MAX_LABEL_WIDTH;
 use eframe::egui::text::LayoutJob;
 use eframe::egui::Align;

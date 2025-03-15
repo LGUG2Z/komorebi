@@ -1,5 +1,5 @@
 use crate::render::Grouping;
-use crate::widget::WidgetConfig;
+use crate::widgets::widget::WidgetConfig;
 use crate::DEFAULT_PADDING;
 use eframe::egui::Pos2;
 use eframe::egui::TextBuffer;
