@@ -71,6 +71,7 @@ nav:
       - common-workflows/dynamic-layout-switching.md
       - common-workflows/set-display-index.md
       - common-workflows/multiple-bar-instances.md
+      - common-workflows/multi-monitor-setup.md
   - Configuration reference: https://komorebi.lgug2z.com/schema
   - Bar reference: https://komorebi-bar.lgug2z.com/schema
   - CLI reference:

@@ -13,6 +13,8 @@ use eframe::egui::Ui;
 use eframe::egui::WidgetText;
 use serde::Deserialize;
 use serde::Serialize;
+use std::time::Duration;
+use std::time::Instant;
 
 /// Custom format with additive modifiers for integer format specifiers
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -83,11 +85,18 @@ pub struct DateConfig {
 
 impl From<DateConfig> for Date {
     fn from(value: DateConfig) -> Self {
+        let data_refresh_interval = 1;
+
         Self {
             enable: value.enable,
             format: value.format,
             label_prefix: value.label_prefix.unwrap_or(LabelPrefix::Icon),
             timezone: value.timezone,
+            data_refresh_interval,
+            last_state: String::new(),
+            last_updated: Instant::now()
+                .checked_sub(Duration::from_secs(data_refresh_interval))
+                .unwrap(),
         }
     }
 }
@@ -138,32 +147,45 @@ pub struct Date {
     pub format: DateFormat,
     label_prefix: LabelPrefix,
     timezone: Option<String>,
+    data_refresh_interval: u64,
+    last_state: String,
+    last_updated: Instant,
 }
 
 impl Date {
     fn output(&mut self) -> String {
-        let formatted = match &self.timezone {
-            Some(timezone) => match timezone.parse::<Tz>() {
-                Ok(tz) => Local::now()
-                    .with_timezone(&tz)
+        let mut output = self.last_state.clone();
+        let now = Instant::now();
+
+        if now.duration_since(self.last_updated) > Duration::from_secs(self.data_refresh_interval) {
+            let formatted = match &self.timezone {
+                Some(timezone) => match timezone.parse::<Tz>() {
+                    Ok(tz) => Local::now()
+                        .with_timezone(&tz)
+                        .format(&self.format.fmt_string())
+                        .to_string()
+                        .trim()
+                        .to_string(),
+                    Err(_) => format!("Invalid timezone: {}", timezone),
+                },
+                None => Local::now()
                     .format(&self.format.fmt_string())
                     .to_string()
                     .trim()
                     .to_string(),
-                Err(_) => format!("Invalid timezone: {}", timezone),
-            },
-            None => Local::now()
-                .format(&self.format.fmt_string())
-                .to_string()
-                .trim()
-                .to_string(),
-        };
+            };
 
-        // if custom modifiers are used, apply them
-        match &self.format {
-            DateFormat::CustomModifiers(custom) => custom.apply(&formatted),
-            _ => formatted,
+            // if custom modifiers are used, apply them
+            output = match &self.format {
+                DateFormat::CustomModifiers(custom) => custom.apply(&formatted),
+                _ => formatted,
+            };
+
+            self.last_state.clone_from(&output);
+            self.last_updated = now;
         }
+
+        output
     }
 }
 
