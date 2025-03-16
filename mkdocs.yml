@@ -55,6 +55,12 @@ nav:
       - Installation: installation.md
       - Example configurations: example-configurations.md
       - Troubleshooting: troubleshooting.md
+  - Usage:
+      - usage/focusing-windows.md
+      - usage/moving-windows.md
+      - usage/stacking-windows.md
+      - usage/focusing-workspaces.md
+      - usage/moving-windows-across-workspaces.md
   - Common workflows:
       - common-workflows/komorebi-config-home.md
       - common-workflows/autostart.md
