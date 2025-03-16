@@ -1,21 +1,9 @@
 mod bar;
-mod battery;
 mod config;
-mod cpu;
-mod date;
-mod keyboard;
-mod komorebi;
-mod komorebi_layout;
-mod media;
-mod memory;
-mod network;
 mod render;
 mod selected_frame;
-mod storage;
-mod time;
 mod ui;
-mod update;
-mod widget;
+mod widgets;
 
 use crate::bar::Komobar;
 use crate::config::KomobarConfig;

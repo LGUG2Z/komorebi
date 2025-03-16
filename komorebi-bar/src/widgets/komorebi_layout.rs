@@ -1,7 +1,7 @@
 use crate::config::DisplayFormat;
-use crate::komorebi::KomorebiLayoutConfig;
 use crate::render::RenderConfig;
 use crate::selected_frame::SelectableFrame;
+use crate::widgets::komorebi::KomorebiLayoutConfig;
 use eframe::egui::vec2;
 use eframe::egui::Context;
 use eframe::egui::CornerRadius;
