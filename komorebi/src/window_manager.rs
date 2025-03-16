@@ -4568,4 +4568,45 @@ mod tests {
             assert_eq!(monitor.workspaces().len(), 1);
         }
     }
+
+    #[test]
+    fn test_toggle_tiling() {
+        let (mut wm, _context) = setup_window_manager();
+
+        {
+            let mut m = monitor::new(
+                0,
+                Rect::default(),
+                Rect::default(),
+                "TestMonitor".to_string(),
+                "TestDevice".to_string(),
+                "TestDeviceID".to_string(),
+                Some("TestMonitorID".to_string()),
+            );
+
+            // Set Workspace Layer to Tiling
+            let workspace = m.focused_workspace_mut().unwrap();
+            workspace.set_layer(WorkspaceLayer::Tiling);
+
+            // Tiling state should be true
+            assert!(*workspace.tile());
+
+            // Add monitor to workspace
+            wm.monitors_mut().push_back(m);
+        }
+
+        {
+            // Tiling state should be false
+            wm.toggle_tiling().unwrap();
+            let workspace = wm.focused_workspace_mut().unwrap();
+            assert!(!*workspace.tile());
+        }
+
+        {
+            // Tiling state should be true
+            wm.toggle_tiling().unwrap();
+            let workspace = wm.focused_workspace_mut().unwrap();
+            assert!(*workspace.tile());
+        }
+    }
 }
