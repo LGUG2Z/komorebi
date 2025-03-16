@@ -14,6 +14,8 @@ use crate::widgets::komorebi::KomorebiNotificationState;
 use crate::widgets::widget::BarWidget;
 use crate::widgets::widget::WidgetConfig;
 use crate::KomorebiEvent;
+use crate::AUTO_SELECT_FILL_COLOUR;
+use crate::AUTO_SELECT_TEXT_COLOUR;
 use crate::BAR_HEIGHT;
 use crate::DEFAULT_PADDING;
 use crate::MAX_LABEL_WIDTH;
@@ -43,6 +45,7 @@ use eframe::egui::Vec2;
 use eframe::egui::Visuals;
 use font_loader::system_fonts;
 use font_loader::system_fonts::FontPropertyBuilder;
+use komorebi_client::Colour;
 use komorebi_client::KomorebiTheme;
 use komorebi_client::MonitorNotification;
 use komorebi_client::NotificationEvent;
@@ -87,71 +90,82 @@ pub fn apply_theme(
     grouping: Option<Grouping>,
     render_config: Rc<RefCell<RenderConfig>>,
 ) {
-    match theme {
+    let (auto_select_fill, auto_select_text) = match theme {
         KomobarTheme::Catppuccin {
             name: catppuccin,
             accent: catppuccin_value,
-        } => match catppuccin {
-            Catppuccin::Frappe => {
-                catppuccin_egui::set_theme(ctx, catppuccin_egui::FRAPPE);
-                let catppuccin_value = catppuccin_value.unwrap_or_default();
-                let accent = catppuccin_value.color32(catppuccin.as_theme());
+            auto_select_fill: catppuccin_auto_select_fill,
+            auto_select_text: catppuccin_auto_select_text,
+        } => {
+            match catppuccin {
+                Catppuccin::Frappe => {
+                    catppuccin_egui::set_theme(ctx, catppuccin_egui::FRAPPE);
+                    let catppuccin_value = catppuccin_value.unwrap_or_default();
+                    let accent = catppuccin_value.color32(catppuccin.as_theme());
 
-                ctx.style_mut(|style| {
-                    style.visuals.selection.stroke.color = accent;
-                    style.visuals.widgets.hovered.fg_stroke.color = accent;
-                    style.visuals.widgets.active.fg_stroke.color = accent;
-                    style.visuals.override_text_color = None;
-                });
+                    ctx.style_mut(|style| {
+                        style.visuals.selection.stroke.color = accent;
+                        style.visuals.widgets.hovered.fg_stroke.color = accent;
+                        style.visuals.widgets.active.fg_stroke.color = accent;
+                        style.visuals.override_text_color = None;
+                    });
 
-                bg_color.replace(catppuccin_egui::FRAPPE.base);
+                    bg_color.replace(catppuccin_egui::FRAPPE.base);
+                }
+                Catppuccin::Latte => {
+                    catppuccin_egui::set_theme(ctx, catppuccin_egui::LATTE);
+                    let catppuccin_value = catppuccin_value.unwrap_or_default();
+                    let accent = catppuccin_value.color32(catppuccin.as_theme());
+
+                    ctx.style_mut(|style| {
+                        style.visuals.selection.stroke.color = accent;
+                        style.visuals.widgets.hovered.fg_stroke.color = accent;
+                        style.visuals.widgets.active.fg_stroke.color = accent;
+                        style.visuals.override_text_color = None;
+                    });
+
+                    bg_color.replace(catppuccin_egui::LATTE.base);
+                }
+                Catppuccin::Macchiato => {
+                    catppuccin_egui::set_theme(ctx, catppuccin_egui::MACCHIATO);
+                    let catppuccin_value = catppuccin_value.unwrap_or_default();
+                    let accent = catppuccin_value.color32(catppuccin.as_theme());
+
+                    ctx.style_mut(|style| {
+                        style.visuals.selection.stroke.color = accent;
+                        style.visuals.widgets.hovered.fg_stroke.color = accent;
+                        style.visuals.widgets.active.fg_stroke.color = accent;
+                        style.visuals.override_text_color = None;
+                    });
+
+                    bg_color.replace(catppuccin_egui::MACCHIATO.base);
+                }
+                Catppuccin::Mocha => {
+                    catppuccin_egui::set_theme(ctx, catppuccin_egui::MOCHA);
+                    let catppuccin_value = catppuccin_value.unwrap_or_default();
+                    let accent = catppuccin_value.color32(catppuccin.as_theme());
+
+                    ctx.style_mut(|style| {
+                        style.visuals.selection.stroke.color = accent;
+                        style.visuals.widgets.hovered.fg_stroke.color = accent;
+                        style.visuals.widgets.active.fg_stroke.color = accent;
+                        style.visuals.override_text_color = None;
+                    });
+
+                    bg_color.replace(catppuccin_egui::MOCHA.base);
+                }
             }
-            Catppuccin::Latte => {
-                catppuccin_egui::set_theme(ctx, catppuccin_egui::LATTE);
-                let catppuccin_value = catppuccin_value.unwrap_or_default();
-                let accent = catppuccin_value.color32(catppuccin.as_theme());
 
-                ctx.style_mut(|style| {
-                    style.visuals.selection.stroke.color = accent;
-                    style.visuals.widgets.hovered.fg_stroke.color = accent;
-                    style.visuals.widgets.active.fg_stroke.color = accent;
-                    style.visuals.override_text_color = None;
-                });
-
-                bg_color.replace(catppuccin_egui::LATTE.base);
-            }
-            Catppuccin::Macchiato => {
-                catppuccin_egui::set_theme(ctx, catppuccin_egui::MACCHIATO);
-                let catppuccin_value = catppuccin_value.unwrap_or_default();
-                let accent = catppuccin_value.color32(catppuccin.as_theme());
-
-                ctx.style_mut(|style| {
-                    style.visuals.selection.stroke.color = accent;
-                    style.visuals.widgets.hovered.fg_stroke.color = accent;
-                    style.visuals.widgets.active.fg_stroke.color = accent;
-                    style.visuals.override_text_color = None;
-                });
-
-                bg_color.replace(catppuccin_egui::MACCHIATO.base);
-            }
-            Catppuccin::Mocha => {
-                catppuccin_egui::set_theme(ctx, catppuccin_egui::MOCHA);
-                let catppuccin_value = catppuccin_value.unwrap_or_default();
-                let accent = catppuccin_value.color32(catppuccin.as_theme());
-
-                ctx.style_mut(|style| {
-                    style.visuals.selection.stroke.color = accent;
-                    style.visuals.widgets.hovered.fg_stroke.color = accent;
-                    style.visuals.widgets.active.fg_stroke.color = accent;
-                    style.visuals.override_text_color = None;
-                });
-
-                bg_color.replace(catppuccin_egui::MOCHA.base);
-            }
-        },
+            (
+                catppuccin_auto_select_fill.map(|c| c.color32(catppuccin.as_theme())),
+                catppuccin_auto_select_text.map(|c| c.color32(catppuccin.as_theme())),
+            )
+        }
         KomobarTheme::Base16 {
             name: base16,
             accent: base16_value,
+            auto_select_fill: base16_auto_select_fill,
+            auto_select_text: base16_auto_select_text,
         } => {
             ctx.set_style(base16.style());
             let base16_value = base16_value.unwrap_or_default();
@@ -164,8 +178,22 @@ pub fn apply_theme(
             });
 
             bg_color.replace(base16.background());
+
+            (
+                base16_auto_select_fill.map(|c| c.color32(base16)),
+                base16_auto_select_text.map(|c| c.color32(base16)),
+            )
         }
-    }
+    };
+
+    AUTO_SELECT_FILL_COLOUR.store(
+        auto_select_fill.map_or(0, |c| Colour::from(c).into()),
+        Ordering::SeqCst,
+    );
+    AUTO_SELECT_TEXT_COLOUR.store(
+        auto_select_text.map_or(0, |c| Colour::from(c).into()),
+        Ordering::SeqCst,
+    );
 
     // Apply transparency_alpha
     let theme_color = *bg_color.borrow();

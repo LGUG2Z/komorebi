@@ -23,6 +23,7 @@ use std::io::BufReader;
 use std::io::Read;
 use std::path::PathBuf;
 use std::sync::atomic::AtomicI32;
+use std::sync::atomic::AtomicU32;
 use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering;
 use std::sync::LazyLock;
@@ -46,6 +47,9 @@ pub static MONITOR_RIGHT: AtomicI32 = AtomicI32::new(0);
 pub static MONITOR_INDEX: AtomicUsize = AtomicUsize::new(0);
 pub static BAR_HEIGHT: f32 = 50.0;
 pub static DEFAULT_PADDING: f32 = 10.0;
+
+pub static AUTO_SELECT_FILL_COLOUR: AtomicU32 = AtomicU32::new(0);
+pub static AUTO_SELECT_TEXT_COLOUR: AtomicU32 = AtomicU32::new(0);
 
 pub static ICON_CACHE: LazyLock<Mutex<HashMap<isize, RgbaImage>>> =
     LazyLock::new(|| Mutex::new(HashMap::new()));
