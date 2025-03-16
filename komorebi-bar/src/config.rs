@@ -382,18 +382,24 @@ pub enum KomobarTheme {
         /// Name of the Catppuccin theme (theme previews: https://github.com/catppuccin/catppuccin)
         name: komorebi_themes::Catppuccin,
         accent: Option<komorebi_themes::CatppuccinValue>,
+        auto_select_fill: Option<komorebi_themes::CatppuccinValue>,
+        auto_select_text: Option<komorebi_themes::CatppuccinValue>,
     },
     /// A theme from base16-egui-themes
     Base16 {
         /// Name of the Base16 theme (theme previews: https://tinted-theming.github.io/tinted-gallery/)
         name: komorebi_themes::Base16,
         accent: Option<komorebi_themes::Base16Value>,
+        auto_select_fill: Option<komorebi_themes::Base16Value>,
+        auto_select_text: Option<komorebi_themes::Base16Value>,
     },
     /// A custom Base16 theme
     Custom {
         /// Colours of the custom Base16 theme palette
         colours: Box<komorebi_themes::Base16ColourPalette>,
         accent: Option<komorebi_themes::Base16Value>,
+        auto_select_fill: Option<komorebi_themes::Base16Value>,
+        auto_select_text: Option<komorebi_themes::Base16Value>,
     },
 }
 
@@ -405,12 +411,16 @@ impl From<KomorebiTheme> for KomobarTheme {
             } => Self::Catppuccin {
                 name,
                 accent: bar_accent,
+                auto_select_fill: None,
+                auto_select_text: None,
             },
             KomorebiTheme::Base16 {
                 name, bar_accent, ..
             } => Self::Base16 {
                 name,
                 accent: bar_accent,
+                auto_select_fill: None,
+                auto_select_text: None,
             },
             KomorebiTheme::Custom {
                 colours,
@@ -419,6 +429,8 @@ impl From<KomorebiTheme> for KomobarTheme {
             } => Self::Custom {
                 colours,
                 accent: bar_accent,
+                auto_select_fill: None,
+                auto_select_text: None,
             },
         }
     }
