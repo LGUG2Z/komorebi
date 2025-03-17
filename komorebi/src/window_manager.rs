@@ -4313,6 +4313,147 @@ mod tests {
     }
 
     #[test]
+    fn cycle_container_window_in_direction() {
+        let (mut wm, _context) = setup_window_manager();
+
+        {
+            let mut m = monitor::new(
+                0,
+                Rect::default(),
+                Rect::default(),
+                "TestMonitor".to_string(),
+                "TestDevice".to_string(),
+                "TestDeviceID".to_string(),
+                Some("TestMonitorID".to_string()),
+            );
+
+            let workspace = m.focused_workspace_mut().unwrap();
+
+            {
+                let mut container = Container::default();
+
+                for i in 0..3 {
+                    container.windows_mut().push_back(Window::from(i));
+                }
+
+                // Should have 3 windows in the container
+                assert_eq!(container.windows().len(), 3);
+
+                // Add container to workspace
+                workspace.add_container_to_back(container);
+            }
+
+            // Add monitor to the window manager
+            wm.monitors_mut().push_back(m);
+        }
+
+        // Cycle to the next window
+        wm.cycle_container_window_in_direction(CycleDirection::Next)
+            .ok();
+
+        {
+            // Should be on Window 1
+            let workspace = wm.focused_workspace_mut().unwrap();
+            let container = workspace.focused_container_mut().unwrap();
+            println!("Window: {:?}", container.focused_window());
+            assert_eq!(container.focused_window_idx(), 1);
+        }
+
+        // Cycle to the next window
+        wm.cycle_container_window_in_direction(CycleDirection::Next)
+            .ok();
+
+        {
+            // Should be on Window 2
+            let workspace = wm.focused_workspace_mut().unwrap();
+            let container = workspace.focused_container_mut().unwrap();
+            println!("Window: {:?}", container.focused_window());
+            assert_eq!(container.focused_window_idx(), 2);
+        }
+
+        // Cycle to the previous window
+        wm.cycle_container_window_in_direction(CycleDirection::Previous)
+            .ok();
+
+        {
+            // Should be on Window 1
+            let workspace = wm.focused_workspace_mut().unwrap();
+            let container = workspace.focused_container_mut().unwrap();
+            println!("Window: {:?}", container.focused_window());
+            assert_eq!(container.focused_window_idx(), 1);
+        }
+    }
+
+    #[test]
+    fn test_cycle_container_window_index_in_direction() {
+        let (mut wm, _context) = setup_window_manager();
+
+        {
+            let mut m = monitor::new(
+                0,
+                Rect::default(),
+                Rect::default(),
+                "TestMonitor".to_string(),
+                "TestDevice".to_string(),
+                "TestDeviceID".to_string(),
+                Some("TestMonitorID".to_string()),
+            );
+
+            let workspace = m.focused_workspace_mut().unwrap();
+
+            {
+                let mut container = Container::default();
+
+                for i in 0..3 {
+                    container.windows_mut().push_back(Window::from(i));
+                }
+
+                // Should have 3 windows in the container
+                assert_eq!(container.windows().len(), 3);
+
+                // Add container to workspace
+                workspace.add_container_to_back(container);
+            }
+
+            // Add monitor to the window manager
+            wm.monitors_mut().push_back(m);
+        }
+
+        // Cycle to the next window
+        wm.cycle_container_window_index_in_direction(CycleDirection::Next)
+            .ok();
+
+        {
+            // Should be on Window 1
+            let workspace = wm.focused_workspace_mut().unwrap();
+            let container = workspace.focused_container_mut().unwrap();
+            assert_eq!(container.focused_window_idx(), 1);
+        }
+
+        // Cycle to the next window
+        wm.cycle_container_window_index_in_direction(CycleDirection::Next)
+            .ok();
+
+        {
+            // Should be on Window 2
+            let workspace = wm.focused_workspace_mut().unwrap();
+            let container = workspace.focused_container_mut().unwrap();
+            assert_eq!(container.focused_window_idx(), 2);
+        }
+
+        // Cycle to the Previous window
+        wm.cycle_container_window_index_in_direction(CycleDirection::Previous)
+            .ok();
+
+        {
+            // Should be on Window 1
+            let workspace = wm.focused_workspace_mut().unwrap();
+            let container = workspace.focused_container_mut().unwrap();
+            assert_eq!(container.focused_window_idx(), 1);
+        }
+    }
+
+    #[test]
     fn test_swap_containers() {
         let (mut wm, _context) = setup_window_manager();
 
