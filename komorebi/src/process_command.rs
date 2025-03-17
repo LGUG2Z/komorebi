@@ -250,9 +250,11 @@ impl WindowManager {
                 if let Some((monitor_idx, workspace_idx)) = monitor_workspace_indices {
                     if monitor_idx != focused_monitor_idx {
                         self.focus_monitor(monitor_idx)?;
-                    }
-
-                    if workspace_idx != focused_workspace_idx {
+                        let focused_ws_idx = self.focused_workspace_idx()?;
+                        if focused_ws_idx != workspace_idx {
+                            self.focus_workspace(workspace_idx)?;
+                        }
+                    } else if workspace_idx != focused_workspace_idx {
                         self.focus_workspace(workspace_idx)?;
                     }
                 }
