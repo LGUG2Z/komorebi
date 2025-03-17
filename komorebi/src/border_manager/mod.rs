@@ -403,6 +403,9 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                                 }
                             }
 
+                            // Update the border's monitor idx in case it changed
+                            border.monitor_idx = Some(monitor_idx);
+
                             let rect = WindowsApi::window_rect(focused_window_hwnd)?;
                             border.window_rect = rect;
 
@@ -517,6 +520,9 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                                 }
                             }
 
+                            // Update the border's monitor idx in case it changed
+                            border.monitor_idx = Some(monitor_idx);
+
                             // avoid getting into a thread restart loop if we try to look up
                             // rect info for a window that has been destroyed by the time
                             // we get here
@@ -572,6 +578,9 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                                 };
 
                                 border.window_kind = new_focus_state;
+
+                                // Update the border's monitor idx in case it changed
+                                border.monitor_idx = Some(monitor_idx);
 
                                 let rect = WindowsApi::window_rect(window.hwnd)?;
                                 border.window_rect = rect;
