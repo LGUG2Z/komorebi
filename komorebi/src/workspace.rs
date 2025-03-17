@@ -88,7 +88,7 @@ pub struct Workspace {
     pub float_override: Option<bool>,
     #[getset(get = "pub", get_mut = "pub", set = "pub")]
     pub globals: WorkspaceGlobals,
-    #[getset(get = "pub", get_mut = "pub")]
+    #[getset(get = "pub", get_mut = "pub", set = "pub")]
     pub layer: WorkspaceLayer,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[getset(get = "pub", set = "pub")]
@@ -591,19 +591,6 @@ impl Workspace {
         }
 
         Ok((hwnds.len() + floating_hwnds.len(), container_ids.len()))
-    }
-
-    pub fn set_layer(&mut self, layer: WorkspaceLayer) {
-        self.layer = layer;
-
-        match layer {
-            WorkspaceLayer::Tiling => {
-                self.float_override = None;
-            }
-            WorkspaceLayer::Floating => {
-                self.float_override = Some(true);
-            }
-        }
     }
 
     pub fn container_for_window(&self, hwnd: isize) -> Option<&Container> {
