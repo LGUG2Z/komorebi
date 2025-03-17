@@ -282,7 +282,7 @@ impl Workspace {
     }
 
     pub fn restore(&mut self, mouse_follows_focus: bool) -> Result<()> {
-        if let Some(container) = self.monocle_container_mut() {
+        if let Some(container) = self.monocle_container() {
             if let Some(window) = container.focused_window() {
                 container.restore();
                 window.focus(mouse_follows_focus)?;
@@ -318,10 +318,16 @@ impl Workspace {
             if self.maximized_window().is_none() && matches!(self.layer, WorkspaceLayer::Tiling) {
                 window.focus(mouse_follows_focus)?;
             } else if let Some(maximized_window) = self.maximized_window() {
+                maximized_window.restore();
                 maximized_window.focus(mouse_follows_focus)?;
             } else if let Some(floating_window) = self.floating_windows().first() {
                 floating_window.focus(mouse_follows_focus)?;
             }
+        } else if let Some(maximized_window) = self.maximized_window() {
+            maximized_window.restore();
+            maximized_window.focus(mouse_follows_focus)?;
+        } else if let Some(floating_window) = self.floating_windows().first() {
+            floating_window.focus(mouse_follows_focus)?;
         }
 
         Ok(())
