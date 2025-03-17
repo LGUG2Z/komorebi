@@ -404,6 +404,8 @@ impl WindowManager {
                             if behaviour.float_override {
                                 workspace.floating_windows_mut().push(window);
                                 workspace.set_layer(WorkspaceLayer::Floating);
+                                let mut floating_window = window;
+                                floating_window.center(&workspace.globals().work_area)?;
                                 self.update_focused_workspace(false, false)?;
                             } else {
                                 match behaviour.current_behaviour {

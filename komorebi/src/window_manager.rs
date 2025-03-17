@@ -4713,4 +4713,198 @@ mod tests {
             assert_eq!(container.windows().len(), 3);
         }
     }
+
+    #[test]
+    fn test_swap_monitor_workspaces() {
+        let (mut wm, _context) = setup_window_manager();
+
+        {
+            // Create a first monitor
+            let mut m = monitor::new(
+                0,
+                Rect::default(),
+                Rect::default(),
+                "TestMonitor".to_string(),
+                "TestDevice".to_string(),
+                "TestDeviceID".to_string(),
+                Some("TestMonitorID".to_string()),
+            );
+
+            // Create a container
+            let mut container = Container::default();
+
+            // Add three windows to the container
+            for i in 0..3 {
+                container.windows_mut().push_back(Window::from(i));
+            }
+
+            // Should have 3 windows in the container
+            assert_eq!(container.windows().len(), 3);
+
+            // Add the container to the workspace
+            let workspace = m.focused_workspace_mut().unwrap();
+            workspace.add_container_to_back(container);
+
+            // Add monitor to the window manager
+            wm.monitors_mut().push_back(m);
+        }
+
+        {
+            // Create a second monitor
+            let mut m = monitor::new(
+                1,
+                Rect::default(),
+                Rect::default(),
+                "TestMonitor2".to_string(),
+                "TestDevice2".to_string(),
+                "TestDeviceID2".to_string(),
+                Some("TestMonitorID2".to_string()),
+            );
+
+            // Create a container
+            let workspace = m.focused_workspace_mut().unwrap();
+            let mut container = Container::default();
+
+            // Add a window to the container
+            container.windows_mut().push_back(Window::from(1));
+            workspace.add_container_to_back(container);
+
+            // Should contain 1 container
+            assert_eq!(workspace.containers().len(), 1);
+
+            // Add the monitor to the window manager
+            wm.monitors_mut().push_back(m);
+        }
+
+        // Swap the workspaces between Monitor 0 and Monitor 1
+        wm.swap_monitor_workspaces(0, 1).ok();
+
+        {
+            // The focused workspace container in Monitor 0 should contain 3 containers
+            let workspace = wm.focused_workspace_mut().unwrap();
+            let container = workspace.focused_container_mut().unwrap();
+            assert_eq!(container.windows().len(), 1);
+        }
+
+        // Switch to Monitor 1
+        wm.focus_monitor(1).unwrap();
+        assert_eq!(wm.focused_monitor_idx(), 1);
+
+        {
+            // The focused workspace container in Monitor 1 should contain 3 containers
+            let workspace = wm.focused_workspace_mut().unwrap();
+            let container = workspace.focused_container_mut().unwrap();
+            assert_eq!(container.windows().len(), 3);
+        }
+    }
+
+    #[test]
+    fn test_move_workspace_to_monitor() {
+        let (mut wm, _context) = setup_window_manager();
+
+        {
+            let mut m = monitor::new(
+                0,
+                Rect::default(),
+                Rect::default(),
+                "TestMonitor".to_string(),
+                "TestDevice".to_string(),
+                "TestDeviceID".to_string(),
+                Some("TestMonitorID".to_string()),
+            );
+
+            // Add another workspace
+            let new_workspace_index = m.new_workspace_idx();
+            m.focus_workspace(new_workspace_index).unwrap();
+
+            // Should have 2 workspaces
+            assert_eq!(m.workspaces().len(), 2);
+
+            // Add monitor to workspace
+            wm.monitors_mut().push_back(m);
+        }
+
+        {
+            let m = monitor::new(
+                1,
+                Rect::default(),
+                Rect::default(),
+                "TestMonitor2".to_string(),
+                "TestDevice2".to_string(),
+                "TestDeviceID2".to_string(),
+                Some("TestMonitorID2".to_string()),
+            );
+
+            // Should contain 1 workspace
+            assert_eq!(m.workspaces().len(), 1);
+
+            // Add monitor to workspace
+            wm.monitors_mut().push_back(m);
+        }
+
+        // Should contain 2 monitors
+        assert_eq!(wm.monitors().len(), 2);
+
+        // Move a workspace from Monitor 0 to Monitor 1
+        wm.move_workspace_to_monitor(1).ok();
+
+        {
+            // Should be focused on Monitor 1
+            assert_eq!(wm.focused_monitor_idx(), 1);
+
+            // Should contain 2 workspaces
+            let monitor = wm.focused_monitor_mut().unwrap();
+            assert_eq!(monitor.workspaces().len(), 2);
+        }
+
+        {
+            // Switch to Monitor 0
+            wm.focus_monitor(0).unwrap();
+
+            // Should contain 1 workspace
+            let monitor = wm.focused_monitor_mut().unwrap();
+            assert_eq!(monitor.workspaces().len(), 1);
+        }
+    }
+
+    #[test]
+    fn test_toggle_tiling() {
+        let (mut wm, _context) = setup_window_manager();
+
+        {
+            let mut m = monitor::new(
+                0,
+                Rect::default(),
+                Rect::default(),
+                "TestMonitor".to_string(),
+                "TestDevice".to_string(),
+                "TestDeviceID".to_string(),
+                Some("TestMonitorID".to_string()),
+            );
+
+            // Set Workspace Layer to Tiling
+            let workspace = m.focused_workspace_mut().unwrap();
+            workspace.set_layer(WorkspaceLayer::Tiling);
+
+            // Tiling state should be true
+            assert!(*workspace.tile());
+
+            // Add monitor to workspace
+            wm.monitors_mut().push_back(m);
+        }
+
+        {
+            // Tiling state should be false
+            wm.toggle_tiling().unwrap();
+            let workspace = wm.focused_workspace_mut().unwrap();
+            assert!(!*workspace.tile());
+        }
+
+        {
+            // Tiling state should be true
+            wm.toggle_tiling().unwrap();
+            let workspace = wm.focused_workspace_mut().unwrap();
+            assert!(*workspace.tile());
+        }
+    }
 }
