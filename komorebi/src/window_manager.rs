@@ -634,11 +634,16 @@ impl WindowManager {
                         self.window_management_behaviour.current_behaviour
                     };
 
-                let float_override = if let Some(float_override) = workspace.float_override() {
+                let mut float_override = if let Some(float_override) = workspace.float_override() {
                     *float_override
                 } else {
                     self.window_management_behaviour.float_override
                 };
+
+                // If the workspace layer is `Floating`, then consider it as if it had float
+                // override so that new windows spawn as floating
+                float_override =
+                    float_override || matches!(workspace.layer, WorkspaceLayer::Floating);
 
                 return WindowManagementBehaviour {
                     current_behaviour,
