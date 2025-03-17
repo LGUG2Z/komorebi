@@ -4750,7 +4750,4 @@ mod tests {
             assert!(*workspace.tile());
         }
     }
-
-    // TODO:
-    // fn move_container_in_cycle_direction () {}
 }
