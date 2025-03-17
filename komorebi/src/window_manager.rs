@@ -1383,26 +1383,6 @@ impl WindowManager {
                     }
                 }
             }
-
-            // This is to correctly restore and focus when switching to a workspace which
-            // contains a managed maximized window
-            if let Some(window) = self.focused_workspace()?.maximized_window() {
-                window.restore();
-                if trigger_focus {
-                    window.focus(self.mouse_follows_focus)?;
-                }
-            }
-
-            // This is to correctly remove focus from the previous when changing focused workspace
-            // to a workspace which only contains floating windows and no other kind of managed window
-            if self.focused_workspace()?.containers().is_empty()
-                && self.focused_workspace()?.monocle_container().is_none()
-                && self.focused_workspace()?.maximized_window().is_none()
-            {
-                if let Some(window) = self.focused_workspace()?.floating_windows().first() {
-                    window.focus(self.mouse_follows_focus)?;
-                }
-            }
         }
 
         Ok(())
