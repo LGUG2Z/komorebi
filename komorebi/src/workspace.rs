@@ -1652,6 +1652,9 @@ mod tests {
         // Add container
         workspace.add_container_to_back(container);
 
+        // Should be true
+        assert!(workspace.contains_window(0));
+
         // Should be false
         assert!(!workspace.is_empty())
     }
