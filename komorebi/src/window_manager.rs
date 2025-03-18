@@ -4355,7 +4355,6 @@ mod tests {
             // Should be on Window 1
             let workspace = wm.focused_workspace_mut().unwrap();
             let container = workspace.focused_container_mut().unwrap();
-            println!("Window: {:?}", container.focused_window());
             assert_eq!(container.focused_window_idx(), 1);
         }
 
@@ -4367,7 +4366,6 @@ mod tests {
             // Should be on Window 2
             let workspace = wm.focused_workspace_mut().unwrap();
             let container = workspace.focused_container_mut().unwrap();
-            println!("Window: {:?}", container.focused_window());
             assert_eq!(container.focused_window_idx(), 2);
         }
 
@@ -4379,7 +4377,6 @@ mod tests {
             // Should be on Window 1
             let workspace = wm.focused_workspace_mut().unwrap();
             let container = workspace.focused_container_mut().unwrap();
-            println!("Window: {:?}", container.focused_window());
             assert_eq!(container.focused_window_idx(), 1);
         }
     }
