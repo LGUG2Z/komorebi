@@ -140,3 +140,114 @@ impl Container {
         self.windows.focus(idx);
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_contains_window() {
+        let mut container = Container::default();
+
+        for i in 0..3 {
+            container.add_window(Window::from(i));
+        }
+
+        // Should return true for existing windows
+        assert!(container.contains_window(1));
+        assert_eq!(container.idx_for_window(1), Some(1));
+
+        // Should return false since window 4 doesn't exist
+        assert!(!container.contains_window(4));
+        assert_eq!(container.idx_for_window(4), None);
+    }
+
+    #[test]
+    fn test_remove_window_by_idx() {
+        let mut container = Container::default();
+
+        for i in 0..3 {
+            container.add_window(Window::from(i));
+        }
+
+        // Remove window 1
+        container.remove_window_by_idx(1);
+
+        // Should only have 2 windows left
+        assert_eq!(container.windows().len(), 2);
+
+        // Should return false since window 1 was removed
+        assert!(!container.contains_window(1));
+    }
+
+    #[test]
+    fn test_remove_focused_window() {
+        let mut container = Container::default();
+
+        for i in 0..3 {
+            container.add_window(Window::from(i));
+        }
+
+        // Should be focused on the last created window
+        assert_eq!(container.focused_window_idx(), 2);
+
+        // Remove the focused window
+        container.remove_focused_window();
+
+        // Should be focused on the window before the removed one
+        assert_eq!(container.focused_window_idx(), 1);
+
+        // Should only have 2 windows left
+        assert_eq!(container.windows().len(), 2);
+    }
+
+    #[test]
+    fn test_add_window() {
+        let mut container = Container::default();
+
+        container.add_window(Window::from(1));
+
+        assert_eq!(container.windows().len(), 1);
+        assert_eq!(container.focused_window_idx(), 0);
+        assert!(container.contains_window(1));
+    }
+
+    #[test]
+    fn test_focus_window() {
+        let mut container = Container::default();
+
+        for i in 0..3 {
+            container.add_window(Window::from(i));
+        }
+
+        // Should focus on the last created window
+        assert_eq!(container.focused_window_idx(), 2);
+
+        // focus on the window at index 1
+        container.focus_window(1);
+
+        // Should be focused on window 1
+        assert_eq!(container.focused_window_idx(), 1);
+
+        // focus on the window at index 0
+        container.focus_window(0);
+
+        // Should be focused on window 0
+        assert_eq!(container.focused_window_idx(), 0);
+    }
+
+    #[test]
+    fn test_idx_for_window() {
+        let mut container = Container::default();
+
+        for i in 0..3 {
+            container.add_window(Window::from(i));
+        }
+
+        // Should return the index of the window
+        assert_eq!(container.idx_for_window(1), Some(1));
+
+        // Should return None since window 4 doesn't exist
+        assert_eq!(container.idx_for_window(4), None);
+    }
+}
