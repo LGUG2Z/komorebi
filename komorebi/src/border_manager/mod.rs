@@ -501,10 +501,10 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                                 || focused_window_hwnd != foreground_window
                             {
                                 if ws.locked_containers().contains(&idx) {
-                                        WindowKind::UnfocusedLocked
-                                    } else {
-                                        WindowKind::Unfocused
-                                    }
+                                    WindowKind::UnfocusedLocked
+                                } else {
+                                    WindowKind::Unfocused
+                                }
                             } else if c.windows().len() > 1 {
                                 WindowKind::Stack
                             } else {
