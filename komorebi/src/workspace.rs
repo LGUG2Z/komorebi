@@ -1652,6 +1652,9 @@ mod tests {
         // Add container
         workspace.add_container_to_back(container);
 
+        // Should be true
+        assert!(workspace.contains_window(0));
+
         // Should be false
         assert!(!workspace.is_empty())
     }
@@ -1790,7 +1793,7 @@ mod tests {
             workspace.add_container_to_back(container);
         }
 
-        // Should have 4 containers
+        // Should have 3 containers
         assert_eq!(workspace.containers().len(), 3);
 
         // Should be focused on the last container
@@ -1810,5 +1813,284 @@ mod tests {
         assert!(!workspace
             .containers()
             .contains(&container_to_remove.unwrap()));
+    }
+
+    #[test]
+    fn test_remove_container() {
+        let mut workspace = Workspace::default();
+
+        for i in 0..3 {
+            let mut container = Container::default();
+            container.windows_mut().push_back(Window::from(i));
+            workspace.add_container_to_back(container);
+        }
+
+        // Should have 3 containers
+        assert_eq!(workspace.containers().len(), 3);
+
+        // Should be focused on the last container
+        assert_eq!(workspace.focused_container_idx(), 2);
+
+        // Store the container at index 2 before removal
+        let container_to_remove = workspace.containers().get(2).cloned();
+
+        // Remove the container at index 2
+        workspace.remove_container(2);
+
+        // Should be focused on the previous container which is index 1
+        assert_eq!(workspace.focused_container_idx(), 1);
+
+        // Should have 2 containers
+        assert_eq!(workspace.containers().len(), 2);
+
+        // Ensure the container at index 1 before removal is no longer present
+        assert!(container_to_remove.is_some());
+        assert!(!workspace
+            .containers()
+            .contains(&container_to_remove.unwrap()));
+    }
+
+    #[test]
+    fn test_focus_container() {
+        let mut workspace = Workspace::default();
+
+        for i in 0..3 {
+            let mut container = Container::default();
+            container.windows_mut().push_back(Window::from(i));
+            workspace.add_container_to_back(container);
+        }
+
+        // Should have 3 containers
+        assert_eq!(workspace.containers().len(), 3);
+
+        // Should be focused on the last container
+        assert_eq!(workspace.focused_container_idx(), 2);
+
+        // Focus on container 1
+        workspace.focus_container(1);
+        assert_eq!(workspace.focused_container_idx(), 1);
+
+        // Focus on container 0
+        workspace.focus_container(0);
+        assert_eq!(workspace.focused_container_idx(), 0);
+
+        // Focus on container 2
+        workspace.focus_container(2);
+        assert_eq!(workspace.focused_container_idx(), 2);
+    }
+
+    #[test]
+    fn test_focus_previous_container() {
+        let mut workspace = Workspace::default();
+
+        for i in 0..3 {
+            let mut container = Container::default();
+            container.windows_mut().push_back(Window::from(i));
+            workspace.add_container_to_back(container);
+        }
+
+        // Should have 3 containers
+        assert_eq!(workspace.containers().len(), 3);
+
+        // Should be focused on the last container
+        assert_eq!(workspace.focused_container_idx(), 2);
+
+        // Focus on the previous container
+        workspace.focus_previous_container();
+
+        // Should be focused on container 1
+        assert_eq!(workspace.focused_container_idx(), 1);
+    }
+
+    #[test]
+    fn test_focus_last_container() {
+        let mut workspace = Workspace::default();
+
+        for i in 0..3 {
+            let mut container = Container::default();
+            container.windows_mut().push_back(Window::from(i));
+            workspace.add_container_to_back(container);
+        }
+
+        // Should have 3 containers
+        assert_eq!(workspace.containers().len(), 3);
+
+        // Change focus to the first container for the test
+        workspace.focus_container(0);
+        assert_eq!(workspace.focused_container_idx(), 0);
+
+        // Focus on the last container
+        workspace.focus_last_container();
+
+        // Should be focused on container 1
+        assert_eq!(workspace.focused_container_idx(), 2);
+    }
+
+    #[test]
+    fn test_focus_first_container() {
+        let mut workspace = Workspace::default();
+
+        for i in 0..3 {
+            let mut container = Container::default();
+            container.windows_mut().push_back(Window::from(i));
+            workspace.add_container_to_back(container);
+        }
+
+        // Should have 3 containers
+        assert_eq!(workspace.containers().len(), 3);
+
+        // Should be focused on the last container
+        assert_eq!(workspace.focused_container_idx(), 2);
+
+        // Focus on the first container
+        workspace.focus_first_container();
+
+        // Should be focused on container 1
+        assert_eq!(workspace.focused_container_idx(), 0);
+    }
+
+    #[test]
+    fn test_swap_containers() {
+        let mut workspace = Workspace::default();
+
+        {
+            let mut container = Container::default();
+            for i in 0..3 {
+                container.windows_mut().push_back(Window::from(i));
+            }
+            workspace.add_container_to_back(container);
+        }
+
+        {
+            let mut container = Container::default();
+            container.windows_mut().push_back(Window::from(1));
+            workspace.add_container_to_back(container);
+        }
+
+        // Should have 2 containers
+        assert_eq!(workspace.containers().len(), 2);
+
+        {
+            // Should be focused on container 1
+            assert_eq!(workspace.focused_container_idx(), 1);
+
+            // Should have 1 window
+            let container = workspace.focused_container_mut().unwrap();
+            assert_eq!(container.windows().len(), 1);
+        }
+
+        // Swap containers 0 and 1
+        workspace.swap_containers(0, 1);
+
+        {
+            // Should be focused on container 0
+            assert_eq!(workspace.focused_container_idx(), 1);
+
+            let container = workspace.focused_container_mut().unwrap();
+            assert_eq!(container.windows().len(), 3);
+        }
+    }
+
+    #[test]
+    fn test_new_container_for_window() {
+        let mut workspace = Workspace::default();
+
+        {
+            let mut container = Container::default();
+            container.windows_mut().push_back(Window::from(1));
+            workspace.add_container_to_back(container);
+        }
+
+        // Add new window to container
+        workspace.new_container_for_window(Window::from(2));
+
+        // Container 0 should have 1 window
+        let container = workspace.focused_container_mut().unwrap();
+        assert_eq!(container.windows().len(), 1);
+
+        // Should return true that window 2 exists
+        assert!(workspace.contains_window(2));
+    }
+
+    #[test]
+    fn test_move_window_to_container() {
+        let mut workspace = Workspace::default();
+
+        {
+            // Container with 0 windows
+            let container = Container::default();
+            workspace.add_container_to_back(container);
+        }
+
+        {
+            // Container with 3 windows
+            let mut container = Container::default();
+            for i in 0..3 {
+                container.windows_mut().push_back(Window::from(i));
+            }
+            workspace.add_container_to_back(container);
+        }
+
+        // Move A Window from container 1 to container 0
+        workspace.move_window_to_container(0).unwrap();
+
+        // Focus on container 0
+        workspace.focus_container(0);
+
+        // Container 0 should have 1 window
+        let container = workspace.focused_container_mut().unwrap();
+        assert_eq!(container.windows().len(), 1);
+    }
+
+    #[test]
+    fn test_remove_window() {
+        let mut workspace = Workspace::default();
+
+        {
+            // Container with 1 window
+            let mut container = Container::default();
+            for i in 0..3 {
+                container.windows_mut().push_back(Window::from(i));
+            }
+            workspace.add_container_to_back(container);
+        }
+
+        // Remove window 1
+        workspace.remove_window(1).ok();
+
+        // Should have 2 windows
+        let container = workspace.focused_container_mut().unwrap();
+        assert_eq!(container.windows().len(), 2);
+
+        // Check that window 1 is removed
+        assert!(!workspace.contains_window(1));
+    }
+
+    #[test]
+    fn test_new_container_for_focused_window() {
+        let mut workspace = Workspace::default();
+
+        {
+            // Container with 1 window
+            let mut container = Container::default();
+            for i in 0..3 {
+                container.windows_mut().push_back(Window::from(i));
+            }
+            workspace.add_container_to_back(container);
+        }
+
+        // Add focused window to new container
+        workspace.new_container_for_focused_window().ok();
+
+        // Should have 2 containers
+        assert_eq!(workspace.containers().len(), 2);
+
+        {
+            // Inspect new container. Should contain 1 window. Window name should be 0
+            workspace.focus_container(1);
+            let container = workspace.focused_container_mut().unwrap();
+            assert_eq!(container.windows().len(), 1);
+            assert!(workspace.contains_window(0));
+        }
     }
 }
