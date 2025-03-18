@@ -340,52 +340,225 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                     continue 'receiver;
                 }
 
-                // we may need multiple render passes if a window is moved from a monitor
-                // with a higher index to a monitor with a lower index
-                //
-                // this is because the border on the window will be removed in a later iteration
-                // (due to the higher monitor index), but without an extra render pass, we will
-                // never render a new border for it on the earlier monitor index which has already
-                // been processed
-                let mut render_pass_required = true;
-                let mut render_pass_count = 0;
+                'monitors: for (monitor_idx, m) in monitors.elements().iter().enumerate() {
+                    // Only operate on the focused workspace of each monitor
+                    if let Some(ws) = m.focused_workspace() {
+                        // Workspaces with tiling disabled don't have borders
+                        if !ws.tile() {
+                            // Remove all borders on this monitor
+                            remove_borders(
+                                &mut borders,
+                                &mut windows_borders,
+                                monitor_idx,
+                                |_, _| true,
+                            )?;
 
-                while render_pass_required {
-                    render_pass_count += 1;
+                            continue 'monitors;
+                        }
 
-                    tracing::debug!("executing render pass {render_pass_count}");
+                        // Handle the monocle container separately
+                        if let Some(monocle) = ws.monocle_container() {
+                            let mut new_border = false;
+                            let focused_window_hwnd =
+                                monocle.focused_window().map(|w| w.hwnd).unwrap_or_default();
+                            let id = monocle.id().clone();
+                            let border = match borders.entry(id.clone()) {
+                                Entry::Occupied(entry) => entry.into_mut(),
+                                Entry::Vacant(entry) => {
+                                    if let Ok(border) = Border::create(
+                                        monocle.id(),
+                                        focused_window_hwnd,
+                                        monitor_idx,
+                                    ) {
+                                        new_border = true;
+                                        entry.insert(border)
+                                    } else {
+                                        continue 'monitors;
+                                    }
+                                }
+                            };
 
-                    // optimistically assume this will be the last render pass
-                    render_pass_required = false;
+                            let new_focus_state = if monitor_idx != focused_monitor_idx {
+                                WindowKind::Unfocused
+                            } else {
+                                WindowKind::Monocle
+                            };
+                            border.window_kind = new_focus_state;
 
-                    'monitors: for (monitor_idx, m) in monitors.elements().iter().enumerate() {
-                        // Only operate on the focused workspace of each monitor
-                        if let Some(ws) = m.focused_workspace() {
-                            // Workspaces with tiling disabled don't have borders
-                            if !ws.tile() {
-                                // Remove all borders on this monitor
-                                remove_borders(
-                                    &mut borders,
-                                    &mut windows_borders,
-                                    monitor_idx,
-                                    |_, _| true,
-                                )?;
-
-                                continue 'monitors;
+                            // Update the borders tracking_hwnd in case it changed and remove the
+                            // old `tracking_hwnd` from `WINDOWS_BORDERS` if needed.
+                            if border.tracking_hwnd != focused_window_hwnd {
+                                if let Some(previous) = windows_borders.get(&border.tracking_hwnd) {
+                                    // Only remove the border from `windows_borders` if it
+                                    // still corresponds to the same border, if doesn't then
+                                    // it means it was already updated by another border for
+                                    // that window and in that case we don't want to remove it.
+                                    if previous == &id {
+                                        windows_borders.remove(&border.tracking_hwnd);
+                                    }
+                                }
+                                border.tracking_hwnd = focused_window_hwnd;
+                                if !WindowsApi::is_window_visible(border.hwnd) {
+                                    WindowsApi::restore_window(border.hwnd);
+                                }
                             }
 
-                            // Handle the monocle container separately
-                            if let Some(monocle) = ws.monocle_container() {
+                            // Update the border's monitor idx in case it changed
+                            border.monitor_idx = Some(monitor_idx);
+
+                            let rect = WindowsApi::window_rect(focused_window_hwnd)?;
+                            border.window_rect = rect;
+
+                            if new_border {
+                                border.set_position(&rect, focused_window_hwnd)?;
+                            }
+
+                            border.invalidate();
+
+                            windows_borders.insert(focused_window_hwnd, id);
+
+                            let border_hwnd = border.hwnd;
+                            // Remove all borders on this monitor except monocle
+                            remove_borders(
+                                &mut borders,
+                                &mut windows_borders,
+                                monitor_idx,
+                                |_, b| border_hwnd != b.hwnd,
+                            )?;
+
+                            continue 'monitors;
+                        }
+
+                        let foreground_hwnd = WindowsApi::foreground_window().unwrap_or_default();
+                        let foreground_monitor_id =
+                            WindowsApi::monitor_from_window(foreground_hwnd);
+                        let is_maximized = foreground_monitor_id == m.id()
+                            && WindowsApi::is_zoomed(foreground_hwnd);
+
+                        if is_maximized {
+                            // Remove all borders on this monitor
+                            remove_borders(
+                                &mut borders,
+                                &mut windows_borders,
+                                monitor_idx,
+                                |_, _| true,
+                            )?;
+
+                            continue 'monitors;
+                        }
+
+                        // Collect focused workspace container and floating windows ID's
+                        let mut container_and_floating_window_ids = ws
+                            .containers()
+                            .iter()
+                            .map(|c| c.id().clone())
+                            .collect::<Vec<_>>();
+
+                        for w in ws.floating_windows() {
+                            container_and_floating_window_ids.push(w.hwnd.to_string());
+                        }
+
+                        // Remove any borders not associated with the focused workspace
+                        remove_borders(
+                            &mut borders,
+                            &mut windows_borders,
+                            monitor_idx,
+                            |id, _| !container_and_floating_window_ids.contains(id),
+                        )?;
+
+                        'containers: for (idx, c) in ws.containers().iter().enumerate() {
+                            let focused_window_hwnd =
+                                c.focused_window().map(|w| w.hwnd).unwrap_or_default();
+                            let id = c.id().clone();
+
+                            // Get the border entry for this container from the map or create one
+                            let mut new_border = false;
+                            let border = match borders.entry(id.clone()) {
+                                Entry::Occupied(entry) => entry.into_mut(),
+                                Entry::Vacant(entry) => {
+                                    if let Ok(border) =
+                                        Border::create(c.id(), focused_window_hwnd, monitor_idx)
+                                    {
+                                        new_border = true;
+                                        entry.insert(border)
+                                    } else {
+                                        continue 'monitors;
+                                    }
+                                }
+                            };
+
+                            let last_focus_state = border.window_kind;
+
+                            let new_focus_state = if idx != ws.focused_container_idx()
+                                || monitor_idx != focused_monitor_idx
+                                || focused_window_hwnd != foreground_window
+                            {
+                                WindowKind::Unfocused
+                            } else if c.windows().len() > 1 {
+                                WindowKind::Stack
+                            } else {
+                                WindowKind::Single
+                            };
+
+                            border.window_kind = new_focus_state;
+
+                            // Update the borders `tracking_hwnd` in case it changed and remove the
+                            // old `tracking_hwnd` from `WINDOWS_BORDERS` if needed.
+                            if border.tracking_hwnd != focused_window_hwnd {
+                                if let Some(previous) = windows_borders.get(&border.tracking_hwnd) {
+                                    // Only remove the border from `windows_borders` if it
+                                    // still corresponds to the same border, if doesn't then
+                                    // it means it was already updated by another border for
+                                    // that window and in that case we don't want to remove it.
+                                    if previous == &id {
+                                        windows_borders.remove(&border.tracking_hwnd);
+                                    }
+                                }
+                                border.tracking_hwnd = focused_window_hwnd;
+                                if !WindowsApi::is_window_visible(border.hwnd) {
+                                    WindowsApi::restore_window(border.hwnd);
+                                }
+                            }
+
+                            // Update the border's monitor idx in case it changed
+                            border.monitor_idx = Some(monitor_idx);
+
+                            // avoid getting into a thread restart loop if we try to look up
+                            // rect info for a window that has been destroyed by the time
+                            // we get here
+                            let rect = match WindowsApi::window_rect(focused_window_hwnd) {
+                                Ok(rect) => rect,
+                                Err(_) => {
+                                    remove_border(c.id(), &mut borders, &mut windows_borders)?;
+                                    continue 'containers;
+                                }
+                            };
+                            border.window_rect = rect;
+
+                            let layer_changed = previous_layer != workspace_layer;
+
+                            let should_invalidate = new_border
+                                || (last_focus_state != new_focus_state)
+                                || layer_changed;
+
+                            if should_invalidate {
+                                border.set_position(&rect, focused_window_hwnd)?;
+                                border.invalidate();
+                            }
+
+                            windows_borders.insert(focused_window_hwnd, id);
+                        }
+
+                        {
+                            for window in ws.floating_windows() {
                                 let mut new_border = false;
-                                let focused_window_hwnd =
-                                    monocle.focused_window().map(|w| w.hwnd).unwrap_or_default();
-                                let id = monocle.id().clone();
+                                let id = window.hwnd.to_string();
                                 let border = match borders.entry(id.clone()) {
                                     Entry::Occupied(entry) => entry.into_mut(),
                                     Entry::Vacant(entry) => {
                                         if let Ok(border) = Border::create(
-                                            monocle.id(),
-                                            focused_window_hwnd,
+                                            &window.hwnd.to_string(),
+                                            window.hwnd,
                                             monitor_idx,
                                         ) {
                                             new_border = true;
@@ -396,165 +569,20 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                                     }
                                 };
 
-                                let new_focus_state = if monitor_idx != focused_monitor_idx {
-                                    WindowKind::Unfocused
-                                } else {
-                                    WindowKind::Monocle
-                                };
-                                border.window_kind = new_focus_state;
-
-                                // Update the borders tracking_hwnd in case it changed and remove the
-                                // old `tracking_hwnd` from `WINDOWS_BORDERS` if needed.
-                                if border.tracking_hwnd != focused_window_hwnd {
-                                    if let Some(previous) =
-                                        windows_borders.get(&border.tracking_hwnd)
-                                    {
-                                        // Only remove the border from `windows_borders` if it
-                                        // still corresponds to the same border, if doesn't then
-                                        // it means it was already updated by another border for
-                                        // that window and in that case we don't want to remove it.
-                                        if previous == &id {
-                                            windows_borders.remove(&border.tracking_hwnd);
-                                        }
-                                    }
-                                    border.tracking_hwnd = focused_window_hwnd;
-                                    if !WindowsApi::is_window_visible(border.hwnd) {
-                                        WindowsApi::restore_window(border.hwnd);
-                                    }
-                                }
-
-                                let rect = WindowsApi::window_rect(focused_window_hwnd)?;
-                                border.window_rect = rect;
-
-                                if new_border {
-                                    border.set_position(&rect, focused_window_hwnd)?;
-                                }
-
-                                border.invalidate();
-
-                                windows_borders.insert(focused_window_hwnd, id);
-
-                                let border_hwnd = border.hwnd;
-                                // Remove all borders on this monitor except monocle
-                                remove_borders(
-                                    &mut borders,
-                                    &mut windows_borders,
-                                    monitor_idx,
-                                    |_, b| border_hwnd != b.hwnd,
-                                )?;
-
-                                continue 'monitors;
-                            }
-
-                            let foreground_hwnd =
-                                WindowsApi::foreground_window().unwrap_or_default();
-                            let foreground_monitor_id =
-                                WindowsApi::monitor_from_window(foreground_hwnd);
-                            let is_maximized = foreground_monitor_id == m.id()
-                                && WindowsApi::is_zoomed(foreground_hwnd);
-
-                            if is_maximized {
-                                // Remove all borders on this monitor
-                                remove_borders(
-                                    &mut borders,
-                                    &mut windows_borders,
-                                    monitor_idx,
-                                    |_, _| true,
-                                )?;
-
-                                continue 'monitors;
-                            }
-
-                            // Collect focused workspace container and floating windows ID's
-                            let mut container_and_floating_window_ids = ws
-                                .containers()
-                                .iter()
-                                .map(|c| c.id().clone())
-                                .collect::<Vec<_>>();
-
-                            for w in ws.floating_windows() {
-                                container_and_floating_window_ids.push(w.hwnd.to_string());
-                            }
-
-                            // Remove any borders not associated with the focused workspace
-                            let removed = remove_borders(
-                                &mut borders,
-                                &mut windows_borders,
-                                monitor_idx,
-                                |id, _| !container_and_floating_window_ids.contains(id),
-                            )?;
-
-                            if removed > 0 && monitor_idx > 0 {
-                                render_pass_required = true;
-                                tracing::debug!("another rendering pass required");
-                            }
-
-                            'containers: for (idx, c) in ws.containers().iter().enumerate() {
-                                let focused_window_hwnd =
-                                    c.focused_window().map(|w| w.hwnd).unwrap_or_default();
-                                let id = c.id().clone();
-
-                                // Get the border entry for this container from the map or create one
-                                let mut new_border = false;
-                                let border = match borders.entry(id.clone()) {
-                                    Entry::Occupied(entry) => entry.into_mut(),
-                                    Entry::Vacant(entry) => {
-                                        if let Ok(border) =
-                                            Border::create(c.id(), focused_window_hwnd, monitor_idx)
-                                        {
-                                            new_border = true;
-                                            entry.insert(border)
-                                        } else {
-                                            continue 'monitors;
-                                        }
-                                    }
-                                };
-
                                 let last_focus_state = border.window_kind;
 
-                                let new_focus_state = if idx != ws.focused_container_idx()
-                                    || monitor_idx != focused_monitor_idx
-                                    || focused_window_hwnd != foreground_window
-                                {
-                                    WindowKind::Unfocused
-                                } else if c.windows().len() > 1 {
-                                    WindowKind::Stack
+                                let new_focus_state = if foreground_window == window.hwnd {
+                                    WindowKind::Floating
                                 } else {
-                                    WindowKind::Single
+                                    WindowKind::Unfocused
                                 };
 
                                 border.window_kind = new_focus_state;
 
-                                // Update the borders `tracking_hwnd` in case it changed and remove the
-                                // old `tracking_hwnd` from `WINDOWS_BORDERS` if needed.
-                                if border.tracking_hwnd != focused_window_hwnd {
-                                    if let Some(previous) =
-                                        windows_borders.get(&border.tracking_hwnd)
-                                    {
-                                        // Only remove the border from `windows_borders` if it
-                                        // still corresponds to the same border, if doesn't then
-                                        // it means it was already updated by another border for
-                                        // that window and in that case we don't want to remove it.
-                                        if previous == &id {
-                                            windows_borders.remove(&border.tracking_hwnd);
-                                        }
-                                    }
-                                    border.tracking_hwnd = focused_window_hwnd;
-                                    if !WindowsApi::is_window_visible(border.hwnd) {
-                                        WindowsApi::restore_window(border.hwnd);
-                                    }
-                                }
+                                // Update the border's monitor idx in case it changed
+                                border.monitor_idx = Some(monitor_idx);
 
-                                // avoid getting into a thread restart loop if we try to look up
-                                // rect info for a window that has been destroyed by the time
-                                // we get here
-                                let rect = match WindowsApi::window_rect(focused_window_hwnd) {
-                                    Ok(rect) => rect,
-                                    Err(_) => {
-                                        remove_border(c.id(), &mut borders, &mut windows_borders)?;
-                                        continue 'containers;
-                                    }
-                                };
+                                let rect = WindowsApi::window_rect(window.hwnd)?;
                                 border.window_rect = rect;
 
                                 let layer_changed = previous_layer != workspace_layer;
@@ -564,59 +592,11 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                                     || layer_changed;
 
                                 if should_invalidate {
-                                    border.set_position(&rect, focused_window_hwnd)?;
+                                    border.set_position(&rect, window.hwnd)?;
                                     border.invalidate();
                                 }
 
-                                windows_borders.insert(focused_window_hwnd, id);
-                            }
-
-                            {
-                                for window in ws.floating_windows() {
-                                    let mut new_border = false;
-                                    let id = window.hwnd.to_string();
-                                    let border = match borders.entry(id.clone()) {
-                                        Entry::Occupied(entry) => entry.into_mut(),
-                                        Entry::Vacant(entry) => {
-                                            if let Ok(border) = Border::create(
-                                                &window.hwnd.to_string(),
-                                                window.hwnd,
-                                                monitor_idx,
-                                            ) {
-                                                new_border = true;
-                                                entry.insert(border)
-                                            } else {
-                                                continue 'monitors;
-                                            }
-                                        }
-                                    };
-
-                                    let last_focus_state = border.window_kind;
-
-                                    let new_focus_state = if foreground_window == window.hwnd {
-                                        WindowKind::Floating
-                                    } else {
-                                        WindowKind::Unfocused
-                                    };
-
-                                    border.window_kind = new_focus_state;
-
-                                    let rect = WindowsApi::window_rect(window.hwnd)?;
-                                    border.window_rect = rect;
-
-                                    let layer_changed = previous_layer != workspace_layer;
-
-                                    let should_invalidate = new_border
-                                        || (last_focus_state != new_focus_state)
-                                        || layer_changed;
-
-                                    if should_invalidate {
-                                        border.set_position(&rect, window.hwnd)?;
-                                        border.invalidate();
-                                    }
-
-                                    windows_borders.insert(window.hwnd, id);
-                                }
+                                windows_borders.insert(window.hwnd, id);
                             }
                         }
                     }
@@ -643,7 +623,7 @@ fn remove_borders(
     windows_borders: &mut HashMap<isize, String>,
     monitor_idx: usize,
     condition: impl Fn(&String, &Border) -> bool,
-) -> color_eyre::Result<usize> {
+) -> color_eyre::Result<()> {
     let mut to_remove = vec![];
     for (id, border) in borders.iter() {
         // if border is on this monitor
@@ -658,13 +638,11 @@ fn remove_borders(
         }
     }
 
-    let len = to_remove.len();
-
     for id in &to_remove {
         remove_border(id, borders, windows_borders)?;
     }
 
-    Ok(len)
+    Ok(())
 }
 
 /// Removes the border with `id` and all its related info from all maps

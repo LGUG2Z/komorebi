@@ -51,18 +51,22 @@ use windows::Win32::UI::WindowsAndMessaging::DispatchMessageW;
 use windows::Win32::UI::WindowsAndMessaging::GetMessageW;
 use windows::Win32::UI::WindowsAndMessaging::GetSystemMetrics;
 use windows::Win32::UI::WindowsAndMessaging::GetWindowLongPtrW;
+use windows::Win32::UI::WindowsAndMessaging::LoadCursorW;
 use windows::Win32::UI::WindowsAndMessaging::PostQuitMessage;
+use windows::Win32::UI::WindowsAndMessaging::SetCursor;
 use windows::Win32::UI::WindowsAndMessaging::SetWindowLongPtrW;
 use windows::Win32::UI::WindowsAndMessaging::TranslateMessage;
 use windows::Win32::UI::WindowsAndMessaging::CREATESTRUCTW;
 use windows::Win32::UI::WindowsAndMessaging::EVENT_OBJECT_DESTROY;
 use windows::Win32::UI::WindowsAndMessaging::EVENT_OBJECT_LOCATIONCHANGE;
 use windows::Win32::UI::WindowsAndMessaging::GWLP_USERDATA;
+use windows::Win32::UI::WindowsAndMessaging::IDC_ARROW;
 use windows::Win32::UI::WindowsAndMessaging::MSG;
 use windows::Win32::UI::WindowsAndMessaging::SM_CXVIRTUALSCREEN;
 use windows::Win32::UI::WindowsAndMessaging::WM_CREATE;
 use windows::Win32::UI::WindowsAndMessaging::WM_DESTROY;
 use windows::Win32::UI::WindowsAndMessaging::WM_PAINT;
+use windows::Win32::UI::WindowsAndMessaging::WM_SETCURSOR;
 use windows::Win32::UI::WindowsAndMessaging::WNDCLASSW;
 use windows_core::BOOL;
 use windows_core::PCWSTR;
@@ -336,6 +340,16 @@ impl Border {
     ) -> LRESULT {
         unsafe {
             match message {
+                WM_SETCURSOR => match LoadCursorW(None, IDC_ARROW) {
+                    Ok(cursor) => {
+                        SetCursor(Some(cursor));
+                        LRESULT(0)
+                    }
+                    Err(error) => {
+                        tracing::error!("{error}");
+                        LRESULT(1)
+                    }
+                },
                 WM_CREATE => {
                     let mut border_pointer: *mut Border =
                         GetWindowLongPtrW(window, GWLP_USERDATA) as _;
