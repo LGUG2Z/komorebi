@@ -258,6 +258,26 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
             | MonitorNotification::SessionUnlocked
             | MonitorNotification::DisplayConnectionChange => {
                 tracing::debug!("handling display connection change notification");
+                let mut has_duplicate_serial_ids = false;
+
+                {
+                    let mut serial_id_tracker = vec![];
+
+                    for m in wm.monitors() {
+                        if let Some(id) = m.serial_number_id() {
+                            serial_id_tracker.push(id);
+                        }
+                    }
+
+                    serial_id_tracker.sort();
+                    let before_dedup = serial_id_tracker.len();
+                    serial_id_tracker.dedup();
+                    let after_dedup = serial_id_tracker.len();
+                    if before_dedup != after_dedup {
+                        has_duplicate_serial_ids = true;
+                    }
+                }
+
                 let mut monitor_cache = MONITOR_CACHE
                     .get_or_init(|| Mutex::new(HashMap::new()))
                     .lock();
@@ -270,8 +290,9 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                 // Make sure that in our state any attached displays have the latest Win32 data
                 for monitor in wm.monitors_mut() {
                     for attached in &attached_devices {
-                        if attached.serial_number_id().eq(monitor.serial_number_id())
-                            || attached.device_id().eq(monitor.device_id())
+                        // Acer monitors are dumb and can have the same serial ID, so check by device ID first
+                        if attached.device_id().eq(monitor.device_id())
+                            || attached.serial_number_id().eq(monitor.serial_number_id())
                         {
                             monitor.set_id(attached.id());
                             monitor.set_device(attached.device().clone());
@@ -313,13 +334,17 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
 
                     for (m_idx, m) in wm.monitors().iter().enumerate() {
                         if !attached_devices.iter().any(|attached| {
-                            attached.serial_number_id().eq(m.serial_number_id())
-                                || attached.device_id().eq(m.device_id())
+                            // Acer monitors are dumb and can have the same serial ID, so check by device ID first
+                            attached.device_id().eq(m.device_id())
+                                || attached.serial_number_id().eq(m.serial_number_id())
                         }) {
-                            let id = m
-                                .serial_number_id()
-                                .as_ref()
-                                .map_or(m.device_id().clone(), |sn| sn.clone());
+                            let id = if has_duplicate_serial_ids {
+                                m.device_id().clone()
+                            } else {
+                                m.serial_number_id()
+                                    .as_ref()
+                                    .map_or(m.device_id().clone(), |sn| sn.clone())
+                            };
 
                             newly_removed_displays.push(id.clone());
 

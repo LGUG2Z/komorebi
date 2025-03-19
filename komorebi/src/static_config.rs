@@ -1199,6 +1199,8 @@ impl StaticConfig {
 
         let offset = wm.work_area_offset;
         for (i, monitor) in wm.monitors_mut().iter_mut().enumerate() {
+            let mut prefers_device_id = false;
+
             let preferred_config_idx = {
                 let display_index_preferences = DISPLAY_INDEX_PREFERENCES.read();
                 let c_idx = display_index_preferences.iter().find_map(|(c_idx, id)| {
@@ -1209,6 +1211,15 @@ impl StaticConfig {
                         || monitor.device_id() == id)
                         .then_some(*c_idx)
                 });
+
+                if let Some(c_idx) = c_idx {
+                    if let Some(id) = display_index_preferences.get(&c_idx) {
+                        if id.contains("UID") {
+                            prefers_device_id = true;
+                        }
+                    }
+                }
+
                 c_idx
             };
             let idx = preferred_config_idx.or({
@@ -1256,10 +1267,16 @@ impl StaticConfig {
                 // Check if this monitor config is the preferred config for this monitor and store
                 // a copy of the monitor itself on the monitor cache if it is.
                 if idx == preferred_config_idx {
-                    let id = monitor
-                        .serial_number_id()
-                        .as_ref()
-                        .map_or(monitor.device_id(), |sn| sn);
+                    // Don't even consider the serial ID if the user prefers the device ID
+                    let id = if prefers_device_id {
+                        monitor.device_id()
+                    } else {
+                        monitor
+                            .serial_number_id()
+                            .as_ref()
+                            .map_or(monitor.device_id(), |sn| sn)
+                    };
+
                     monitor_reconciliator::insert_in_monitor_cache(id, monitor.clone());
                 }
 
@@ -1368,6 +1385,8 @@ impl StaticConfig {
 
         let offset = wm.work_area_offset;
         for (i, monitor) in wm.monitors_mut().iter_mut().enumerate() {
+            let mut prefers_device_id = false;
+
             let preferred_config_idx = {
                 let display_index_preferences = DISPLAY_INDEX_PREFERENCES.read();
                 let c_idx = display_index_preferences.iter().find_map(|(c_idx, id)| {
@@ -1378,6 +1397,15 @@ impl StaticConfig {
                         || monitor.device_id() == id)
                         .then_some(*c_idx)
                 });
+
+                if let Some(c_idx) = c_idx {
+                    if let Some(id) = display_index_preferences.get(&c_idx) {
+                        if id.contains("UID") {
+                            prefers_device_id = true;
+                        }
+                    }
+                }
+
                 c_idx
             };
             let idx = preferred_config_idx.or({
@@ -1428,10 +1456,16 @@ impl StaticConfig {
                 // Check if this monitor config is the preferred config for this monitor and store
                 // a copy of the monitor itself on the monitor cache if it is.
                 if idx == preferred_config_idx {
-                    let id = monitor
-                        .serial_number_id()
-                        .as_ref()
-                        .map_or(monitor.device_id(), |sn| sn);
+                    // Don't even consider the serial ID if the user prefers the device ID
+                    let id = if prefers_device_id {
+                        monitor.device_id()
+                    } else {
+                        monitor
+                            .serial_number_id()
+                            .as_ref()
+                            .map_or(monitor.device_id(), |sn| sn)
+                    };
+
                     monitor_reconciliator::insert_in_monitor_cache(id, monitor.clone());
                 }
 
