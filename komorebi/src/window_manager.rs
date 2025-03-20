@@ -84,6 +84,7 @@ use crate::Rgb;
 use crate::CUSTOM_FFM;
 use crate::DATA_DIR;
 use crate::DISPLAY_INDEX_PREFERENCES;
+use crate::DUPLICATE_MONITOR_SERIAL_IDS;
 use crate::HIDING_BEHAVIOUR;
 use crate::HOME_DIR;
 use crate::IGNORE_IDENTIFIERS;
@@ -218,6 +219,7 @@ pub struct GlobalState {
     pub name_change_on_launch_identifiers: Vec<MatchingRule>,
     pub monitor_index_preferences: HashMap<usize, Rect>,
     pub display_index_preferences: HashMap<usize, String>,
+    pub ignored_duplicate_monitor_serial_ids: Vec<String>,
     pub workspace_rules: Vec<WorkspaceMatchingRule>,
     pub window_hiding_behaviour: HidingBehaviour,
     pub configuration_dir: PathBuf,
@@ -273,6 +275,7 @@ impl Default for GlobalState {
             name_change_on_launch_identifiers: OBJECT_NAME_CHANGE_ON_LAUNCH.lock().clone(),
             monitor_index_preferences: MONITOR_INDEX_PREFERENCES.lock().clone(),
             display_index_preferences: DISPLAY_INDEX_PREFERENCES.read().clone(),
+            ignored_duplicate_monitor_serial_ids: DUPLICATE_MONITOR_SERIAL_IDS.read().clone(),
             workspace_rules: WORKSPACE_MATCHING_RULES.lock().clone(),
             window_hiding_behaviour: *HIDING_BEHAVIOUR.lock(),
             configuration_dir: HOME_DIR.clone(),

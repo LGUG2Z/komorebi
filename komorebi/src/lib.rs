@@ -173,6 +173,8 @@ lazy_static! {
             matching_strategy: Option::from(MatchingStrategy::Equals),
         }),
     ]));
+    static ref DUPLICATE_MONITOR_SERIAL_IDS: Arc<RwLock<Vec<String>>> =
+        Arc::new(RwLock::new(Vec::new()));
     static ref SUBSCRIPTION_PIPES: Arc<Mutex<HashMap<String, File>>> =
         Arc::new(Mutex::new(HashMap::new()));
     pub static ref SUBSCRIPTION_SOCKETS: Arc<Mutex<HashMap<String, PathBuf>>> =
