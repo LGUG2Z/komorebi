@@ -258,7 +258,8 @@ impl WindowsApi {
         let monitors = &mut wm.monitors;
         let monitor_usr_idx_map = &mut wm.monitor_usr_idx_map;
 
-        'read: for display in win32_display_data::connected_displays_all().flatten() {
+        let mut added_serial_number_ids = vec![];
+        'read: for mut display in win32_display_data::connected_displays_all().flatten() {
             let path = display.device_path.clone();
 
             let (device, device_id) = if path.is_empty() {
@@ -278,6 +279,16 @@ impl WindowsApi {
             for monitor in monitors.elements() {
                 if device_id.eq(monitor.device_id()) {
                     continue 'read;
+                }
+            }
+
+            if let Some(sn_id) = display.serial_number_id.as_ref() {
+                if !added_serial_number_ids.contains(sn_id) {
+                    added_serial_number_ids.push(sn_id.clone());
+                } else {
+                    // This is probably some stupid Acer monitor with duplicated serial number id,
+                    // so lets just remove the serial_number_id for the duplicated ones
+                    display.serial_number_id = None;
                 }
             }
 

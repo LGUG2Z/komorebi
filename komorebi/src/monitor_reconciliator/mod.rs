@@ -84,9 +84,10 @@ pub fn insert_in_monitor_cache(serial_or_device_id: &str, monitor: Monitor) {
 }
 
 pub fn attached_display_devices() -> color_eyre::Result<Vec<Monitor>> {
+    let mut added_serial_number_ids = vec![];
     Ok(win32_display_data::connected_displays_all()
         .flatten()
-        .map(|display| {
+        .map(|mut display| {
             let path = display.device_path;
 
             let (device, device_id) = if path.is_empty() {
@@ -102,6 +103,16 @@ pub fn attached_display_devices() -> color_eyre::Result<Vec<Monitor>> {
 
             let name = display.device_name.trim_start_matches(r"\\.\").to_string();
             let name = name.split('\\').collect::<Vec<_>>()[0].to_string();
+
+            if let Some(sn_id) = display.serial_number_id.as_ref() {
+                if !added_serial_number_ids.contains(sn_id) {
+                    added_serial_number_ids.push(sn_id.clone());
+                } else {
+                    // This is probably some stupid Acer monitor with duplicated serial number id,
+                    // so lets just remove the serial_number_id for the duplicated ones
+                    display.serial_number_id = None;
+                }
+            }
 
             monitor::new(
                 display.hmonitor,
