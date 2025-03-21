@@ -402,7 +402,7 @@ impl WindowManager {
                                     matches!(workspace.layer, WorkspaceLayer::Floating)
                                         && !should_float
                                         && workspace.tile;
-                                workspace.floating_windows_mut().push(window);
+                                workspace.floating_windows_mut().push_back(window);
                                 workspace.set_layer(WorkspaceLayer::Floating);
                                 if center_spawned_floats {
                                     let mut floating_window = window;
@@ -630,7 +630,7 @@ impl WindowManager {
                                 window.focus(self.mouse_follows_focus)?;
                             }
                         } else if window_management_behaviour.float_override {
-                            workspace.floating_windows_mut().push(window);
+                            workspace.floating_windows_mut().push_back(window);
                             self.update_focused_workspace(false, false)?;
                         } else {
                             match window_management_behaviour.current_behaviour {
