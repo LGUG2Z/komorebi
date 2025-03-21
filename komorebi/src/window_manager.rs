@@ -1984,37 +1984,326 @@ impl WindowManager {
 
         if len > 1 {
             let focused_hwnd = WindowsApi::foreground_window()?;
-            for (idx, window) in focused_workspace.floating_windows().iter().enumerate() {
-                if window.hwnd == focused_hwnd {
-                    match direction {
-                        OperationDirection::Left => {}
-                        OperationDirection::Right => {}
-                        OperationDirection::Up => {
-                            if idx == len - 1 {
-                                target_idx = Some(0)
-                            } else {
-                                target_idx = Some(idx + 1)
-                            }
-                        }
-                        OperationDirection::Down => {
-                            if idx == 0 {
-                                target_idx = Some(len - 1)
-                            } else {
-                                target_idx = Some(idx - 1)
-                            }
-                        }
+            let focused_rect = WindowsApi::window_rect(focused_hwnd)?;
+            let vectors = focused_workspace
+                .floating_windows()
+                .iter()
+                .enumerate()
+                .flat_map(|(idx, w)| {
+                    (w.hwnd != focused_hwnd)
+                        .then_some(WindowsApi::window_rect(w.hwnd).ok().map(|r| (idx, r)))
+                })
+                .flatten()
+                .map(|(idx, r)| {
+                    (
+                        idx,
+                        (
+                            // (r.left as f32 + r.right as f32 / 2.0
+                            //     - (focused_rect.left as f32 + focused_rect.right as f32 / 2.0)),
+                            // (r.top as f32 + r.bottom as f32 / 2.0
+                            //     - (focused_rect.top as f32 + focused_rect.bottom as f32 / 2.0)),
+                            (r.left - focused_rect.left) as f32,
+                            (r.top - focused_rect.top) as f32,
+                        ),
+                    )
+                })
+                .collect::<Vec<_>>();
+            // let mut angles_and_dist = vectors
+            //     .into_iter()
+            //     .map(|(idx, (x, y))| (idx, y.atan2(x), x.hypot(y)))
+            //     .collect::<Vec<_>>();
+            // angles_and_dist.sort_by_key(|(_, _, d)| (*d * 1000.0).trunc() as i32);
+            // dbg!(&angles_and_dist);
+            match direction {
+                OperationDirection::Left => {
+                    // let vectors = focused_workspace
+                    //     .floating_windows()
+                    //     .iter()
+                    //     .enumerate()
+                    //     .flat_map(|(idx, w)| {
+                    //         (w.hwnd != focused_hwnd)
+                    //             .then_some(WindowsApi::window_rect(w.hwnd).ok().map(|r| (idx, r)))
+                    //     })
+                    //     .flatten()
+                    //     .map(|(idx, r)| {
+                    //         (
+                    //             idx,
+                    //             (
+                    //                 (r.left + r.right - (focused_rect.left + focused_rect.right))
+                    //                     as f32,
+                    //                 (r.top + r.bottom / 2
+                    //                     - (focused_rect.top + focused_rect.bottom / 2))
+                    //                     as f32,
+                    //             ),
+                    //         )
+                    //     })
+                    //     .collect::<Vec<_>>();
+                    let mut angles_and_dist = vectors
+                        .into_iter()
+                        .map(|(idx, (x, y))| (idx, y.atan2(x), f32::abs(x)))
+                        .collect::<Vec<_>>();
+                    angles_and_dist.sort_by_key(|(_, _, d)| (*d * 1000.0).trunc() as i32);
+                    dbg!(&angles_and_dist);
+                    if let Some((idx, angle, dist)) = angles_and_dist.iter().find(|(_, a, _)| {
+                        *a >= (1.0 * std::f32::consts::FRAC_PI_2)
+                            || *a <= (-1.0 * std::f32::consts::FRAC_PI_2)
+                    }) {
+                        println!("a: {angle}, d: {dist}");
+                        target_idx = Some(*idx);
                     }
                 }
-            }
-
-            if target_idx.is_none() {
-                target_idx = Some(0);
-            }
+                OperationDirection::Right => {
+                    // let vectors = focused_workspace
+                    //     .floating_windows()
+                    //     .iter()
+                    //     .enumerate()
+                    //     .flat_map(|(idx, w)| {
+                    //         (w.hwnd != focused_hwnd)
+                    //             .then_some(WindowsApi::window_rect(w.hwnd).ok().map(|r| (idx, r)))
+                    //     })
+                    //     .flatten()
+                    //     .map(|(idx, r)| {
+                    //         (
+                    //             idx,
+                    //             (
+                    //                 (r.left - focused_rect.left) as f32,
+                    //                 (r.top + r.bottom / 2
+                    //                     - (focused_rect.top + focused_rect.bottom / 2))
+                    //                     as f32,
+                    //             ),
+                    //         )
+                    //     })
+                    //     .collect::<Vec<_>>();
+                    let mut angles_and_dist = vectors
+                        .into_iter()
+                        .map(|(idx, (x, y))| (idx, y.atan2(x), f32::abs(x)))
+                        .collect::<Vec<_>>();
+                    angles_and_dist.sort_by_key(|(_, _, d)| (*d * 1000.0).trunc() as i32);
+                    dbg!(&angles_and_dist);
+                    if let Some((idx, angle, dist)) = angles_and_dist.iter().find(|(_, a, _)| {
+                        *a >= (-1.0 * std::f32::consts::FRAC_PI_2)
+                            && *a <= (1.0 * std::f32::consts::FRAC_PI_2)
+                    }) {
+                        println!("a: {angle}, d: {dist}");
+                        target_idx = Some(*idx);
+                    }
+                }
+                OperationDirection::Up => {
+                    // let vectors = focused_workspace
+                    //     .floating_windows()
+                    //     .iter()
+                    //     .enumerate()
+                    //     .flat_map(|(idx, w)| {
+                    //         (w.hwnd != focused_hwnd)
+                    //             .then_some(WindowsApi::window_rect(w.hwnd).ok().map(|r| (idx, r)))
+                    //     })
+                    //     .flatten()
+                    //     .map(|(idx, r)| {
+                    //         (
+                    //             idx,
+                    //             (
+                    //                 (r.left + r.right / 2
+                    //                     - (focused_rect.left + focused_rect.right / 2))
+                    //                     as f32,
+                    //                 (r.top + r.bottom - (focused_rect.top + focused_rect.bottom))
+                    //                     as f32,
+                    //             ),
+                    //         )
+                    //     })
+                    //     .collect::<Vec<_>>();
+                    let mut angles_and_dist = vectors
+                        .into_iter()
+                        .map(|(idx, (x, y))| (idx, y.atan2(x), f32::abs(y)))
+                        .collect::<Vec<_>>();
+                    angles_and_dist.sort_by_key(|(_, _, d)| (*d * 1000.0).trunc() as i32);
+                    dbg!(&angles_and_dist);
+                    if let Some((idx, angle, dist)) = angles_and_dist
+                        .iter()
+                        .find(|(_, a, _)| *a >= (-1.0 * std::f32::consts::PI) && *a <= 0.0)
+                    {
+                        println!("a: {angle}, d: {dist}");
+                        target_idx = Some(*idx);
+                    }
+                }
+                OperationDirection::Down => {
+                    // let vectors = focused_workspace
+                    //     .floating_windows()
+                    //     .iter()
+                    //     .enumerate()
+                    //     .flat_map(|(idx, w)| {
+                    //         (w.hwnd != focused_hwnd)
+                    //             .then_some(WindowsApi::window_rect(w.hwnd).ok().map(|r| (idx, r)))
+                    //     })
+                    //     .flatten()
+                    //     .map(|(idx, r)| {
+                    //         (
+                    //             idx,
+                    //             (
+                    //                 (r.left + r.right / 2
+                    //                     - (focused_rect.left + focused_rect.right / 2))
+                    //                     as f32,
+                    //                 (r.top - focused_rect.top) as f32,
+                    //             ),
+                    //         )
+                    //     })
+                    //     .collect::<Vec<_>>();
+                    let mut angles_and_dist = vectors
+                        .into_iter()
+                        .map(|(idx, (x, y))| (idx, y.atan2(x), f32::abs(y)))
+                        .collect::<Vec<_>>();
+                    angles_and_dist.sort_by_key(|(_, _, d)| (*d * 1000.0).trunc() as i32);
+                    dbg!(&angles_and_dist);
+                    if let Some((idx, angle, dist)) = angles_and_dist
+                        .iter()
+                        .find(|(_, a, _)| *a >= 0.0 && *a <= std::f32::consts::PI)
+                    {
+                        println!("a: {angle}, d: {dist}");
+                        target_idx = Some(*idx);
+                    }
+                }
+            };
         }
 
         if let Some(idx) = target_idx {
+            focused_workspace.floating_windows.focus(idx);
             if let Some(window) = focused_workspace.floating_windows().get(idx) {
                 window.focus(mouse_follows_focus)?;
+            }
+            return Ok(());
+        }
+
+        let mut cross_monitor_monocle_or_max = false;
+
+        let workspace_idx = self.focused_workspace_idx()?;
+
+        // this is for when we are scrolling across workspaces like PaperWM
+        if matches!(
+            self.cross_boundary_behaviour,
+            CrossBoundaryBehaviour::Workspace
+        ) && matches!(
+            direction,
+            OperationDirection::Left | OperationDirection::Right
+        ) {
+            let workspace_count = if let Some(monitor) = self.focused_monitor() {
+                monitor.workspaces().len()
+            } else {
+                1
+            };
+
+            let next_idx = match direction {
+                OperationDirection::Left => match workspace_idx {
+                    0 => workspace_count - 1,
+                    n => n - 1,
+                },
+                OperationDirection::Right => match workspace_idx {
+                    n if n == workspace_count - 1 => 0,
+                    n => n + 1,
+                },
+                _ => workspace_idx,
+            };
+
+            self.focus_workspace(next_idx)?;
+
+            if let Ok(focused_workspace) = self.focused_workspace_mut() {
+                if focused_workspace.monocle_container().is_none() {
+                    match direction {
+                        OperationDirection::Left => match focused_workspace.layout() {
+                            Layout::Default(layout) => {
+                                let target_index =
+                                    layout.rightmost_index(focused_workspace.containers().len());
+                                focused_workspace.focus_container(target_index);
+                            }
+                            Layout::Custom(_) => {
+                                focused_workspace.focus_container(
+                                    focused_workspace.containers().len().saturating_sub(1),
+                                );
+                            }
+                        },
+                        OperationDirection::Right => match focused_workspace.layout() {
+                            Layout::Default(layout) => {
+                                let target_index =
+                                    layout.leftmost_index(focused_workspace.containers().len());
+                                focused_workspace.focus_container(target_index);
+                            }
+                            Layout::Custom(_) => {
+                                focused_workspace.focus_container(0);
+                            }
+                        },
+                        _ => {}
+                    };
+                }
+            }
+
+            return Ok(());
+        }
+
+        // if there is no floating_window in that direction for this workspace
+        let monitor_idx = self
+            .monitor_idx_in_direction(direction)
+            .ok_or_else(|| anyhow!("there is no container or monitor in this direction"))?;
+
+        self.focus_monitor(monitor_idx)?;
+        let mouse_follows_focus = self.mouse_follows_focus;
+
+        if let Ok(focused_workspace) = self.focused_workspace_mut() {
+            if let Some(window) = focused_workspace.maximized_window() {
+                window.focus(mouse_follows_focus)?;
+                cross_monitor_monocle_or_max = true;
+            } else if let Some(monocle) = focused_workspace.monocle_container() {
+                if let Some(window) = monocle.focused_window() {
+                    window.focus(mouse_follows_focus)?;
+                    cross_monitor_monocle_or_max = true;
+                }
+            } else if focused_workspace.layer() == &WorkspaceLayer::Tiling {
+                match direction {
+                    OperationDirection::Left => match focused_workspace.layout() {
+                        Layout::Default(layout) => {
+                            let target_index =
+                                layout.rightmost_index(focused_workspace.containers().len());
+                            focused_workspace.focus_container(target_index);
+                        }
+                        Layout::Custom(_) => {
+                            focused_workspace.focus_container(
+                                focused_workspace.containers().len().saturating_sub(1),
+                            );
+                        }
+                    },
+                    OperationDirection::Right => match focused_workspace.layout() {
+                        Layout::Default(layout) => {
+                            let target_index =
+                                layout.leftmost_index(focused_workspace.containers().len());
+                            focused_workspace.focus_container(target_index);
+                        }
+                        Layout::Custom(_) => {
+                            focused_workspace.focus_container(0);
+                        }
+                    },
+                    _ => {}
+                };
+            }
+        }
+
+        if !cross_monitor_monocle_or_max {
+            let ws = self.focused_workspace_mut()?;
+            if ws.is_empty() {
+                // This is to remove focus from the previous monitor
+                let desktop_window = Window::from(WindowsApi::desktop_window()?);
+
+                match WindowsApi::raise_and_focus_window(desktop_window.hwnd) {
+                    Ok(()) => {}
+                    Err(error) => {
+                        tracing::warn!("{} {}:{}", error, file!(), line!());
+                    }
+                }
+            } else if ws.layer() == &WorkspaceLayer::Floating && !ws.floating_windows().is_empty() {
+                if let Some(window) = ws.focused_floating_window() {
+                    window.focus(self.mouse_follows_focus)?;
+                }
+            } else {
+                ws.set_layer(WorkspaceLayer::Tiling);
+                if let Ok(focused_window) = self.focused_window() {
+                    focused_window.focus(self.mouse_follows_focus)?;
+                }
             }
         }
 
