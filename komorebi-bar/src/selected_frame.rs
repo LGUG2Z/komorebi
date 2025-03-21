@@ -10,15 +10,29 @@ use eframe::egui::Ui;
 /// Same as SelectableLabel, but supports all content
 pub struct SelectableFrame {
     selected: bool,
+    selected_fill: Option<Color32>,
 }
 
 impl SelectableFrame {
     pub fn new(selected: bool) -> Self {
-        Self { selected }
+        Self {
+            selected,
+            selected_fill: None,
+        }
+    }
+
+    pub fn new_auto(selected: bool, selected_fill: Option<Color32>) -> Self {
+        Self {
+            selected,
+            selected_fill,
+        }
     }
 
     pub fn show<R>(self, ui: &mut Ui, add_contents: impl FnOnce(&mut Ui) -> R) -> Response {
-        let Self { selected } = self;
+        let Self {
+            selected,
+            selected_fill,
+        } = self;
 
         Frame::NONE
             .show(ui, |ui| {
@@ -32,7 +46,16 @@ impl SelectableFrame {
                     );
 
                     // since the stroke is drawn inside the frame, we always reserve space for it
-                    if response.hovered() || response.highlighted() || response.has_focus() {
+                    if selected && response.hovered() {
+                        let visuals = ui.style().interact_selectable(&response, selected);
+
+                        Frame::NONE
+                            .stroke(Stroke::new(1.0, visuals.bg_stroke.color))
+                            .corner_radius(visuals.corner_radius)
+                            .fill(selected_fill.unwrap_or(visuals.bg_fill))
+                            .inner_margin(inner_margin)
+                            .show(ui, add_contents);
+                    } else if response.hovered() || response.highlighted() || response.has_focus() {
                         let visuals = ui.style().interact_selectable(&response, selected);
 
                         Frame::NONE
@@ -47,7 +70,7 @@ impl SelectableFrame {
                         Frame::NONE
                             .stroke(Stroke::new(1.0, visuals.bg_fill))
                             .corner_radius(visuals.corner_radius)
-                            .fill(visuals.bg_fill)
+                            .fill(selected_fill.unwrap_or(visuals.bg_fill))
                             .inner_margin(inner_margin)
                             .show(ui, add_contents);
                     } else {
