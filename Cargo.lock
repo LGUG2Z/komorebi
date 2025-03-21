@@ -6085,7 +6085,7 @@ dependencies = [
 [[package]]
 name = "win32-display-data"
 version = "0.1.0"
-source = "git+https://github.com/LGUG2Z/win32-display-data?rev=93949750b1f123fb79827ba4d66ffcab68055654#93949750b1f123fb79827ba4d66ffcab68055654"
+source = "git+https://github.com/LGUG2Z/win32-display-data?rev=a28c6559a9de2f92c142a714947a9b081776caca#a28c6559a9de2f92c142a714947a9b081776caca"
 dependencies = [
  "itertools 0.14.0",
  "serde",
