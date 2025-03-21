@@ -71,6 +71,9 @@ showcases the many awesome projects that exist in the _komorebi_ ecosystem.
 
 ## Licensing for Personal Use
 
+`komorebi` is [educational source
+software](https://lgug2z.com/articles/educational-source-software/).
+
 `komorebi` is licensed under the [Komorebi 1.0.0
 license](https://github.com/LGUG2Z/komorebi-license), which is a fork of the
 [PolyForm Strict 1.0.0
@@ -99,7 +102,8 @@ me on GitHub.
 [GitHub Sponsors is enabled for this
 project](https://github.com/sponsors/LGUG2Z). Sponsors can claim custom roles on
 the Discord server, get shout outs at the end of _komorebi_-related videos on
-YouTube, and gain the ability to submit feature requests on the issue tracker.
+YouTube, gain the ability to submit feature requests on the issue tracker, and
+receive releases of komorebi with "easter eggs" on physical media.
 
 If you would like to tip or sponsor the project but are unable to use GitHub
 Sponsors, you may also sponsor through [Ko-fi](https://ko-fi.com/lgug2z), or
@@ -389,7 +393,7 @@ every `WindowManagerEvent` and `SocketMessage` handled by `komorebi` in a Rust c
 Below is a simple example of how to use `komorebi-client` in a basic Rust application.
 
 ```rust
-// komorebi-client = { git = "https://github.com/LGUG2Z/komorebi", tag = "v0.1.34"}
+// komorebi-client = { git = "https://github.com/LGUG2Z/komorebi", tag = "v0.1.35"}
 
 use anyhow::Result;
 use komorebi_client::Notification;
