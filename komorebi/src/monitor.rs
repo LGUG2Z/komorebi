@@ -370,20 +370,20 @@ impl Monitor {
             .position(|w| w.hwnd == foreground_hwnd);
 
         if let Some(idx) = floating_window_index {
-            let window = workspace.floating_windows_mut().remove(idx);
+            if let Some(window) = workspace.floating_windows_mut().remove(idx) {
+                let workspaces = self.workspaces_mut();
+                #[allow(clippy::option_if_let_else)]
+                let target_workspace = match workspaces.get_mut(target_workspace_idx) {
+                    None => {
+                        workspaces.resize(target_workspace_idx + 1, Workspace::default());
+                        workspaces.get_mut(target_workspace_idx).unwrap()
+                    }
+                    Some(workspace) => workspace,
+                };
 
-            let workspaces = self.workspaces_mut();
-            #[allow(clippy::option_if_let_else)]
-            let target_workspace = match workspaces.get_mut(target_workspace_idx) {
-                None => {
-                    workspaces.resize(target_workspace_idx + 1, Workspace::default());
-                    workspaces.get_mut(target_workspace_idx).unwrap()
-                }
-                Some(workspace) => workspace,
-            };
-
-            target_workspace.floating_windows_mut().push(window);
-            target_workspace.set_layer(WorkspaceLayer::Floating);
+                target_workspace.floating_windows_mut().push_back(window);
+                target_workspace.set_layer(WorkspaceLayer::Floating);
+            }
         } else {
             let container = workspace
                 .remove_focused_container()
