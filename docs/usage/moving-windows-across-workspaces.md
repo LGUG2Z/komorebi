@@ -47,7 +47,7 @@ alt + shift + oem_6     : komorebic cycle-send-to-workspace next # oem_6 is ]
 ```
 
 Windows can be moved or sent to the focused workspace on a another monitor using the [
-`komorebic move-to-monitor`](../cli/move-to-monitor.md) and [`komorebic send-to-monitor`](../cli/send-to-monitor)
+`komorebic move-to-monitor`](../cli/move-to-monitor.md) and [`komorebic send-to-monitor`](../cli/send-to-monitor.md)
 commands.
 
 Windows can be moved or sent to the focused workspace on a monitor in a cycle direction (previous, next) using the [

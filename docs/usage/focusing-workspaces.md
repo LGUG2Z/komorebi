@@ -56,4 +56,4 @@ alt + 3                 : komorebic focus-workspaces 2
 ```
 
 The last focused workspace on the focused monitor can be re-focused using the [
-`komorebic focus-last-workspace`](../cli/focus-last-workspace) command.
+`komorebic focus-last-workspace`](../cli/focus-last-workspace.md) command.
