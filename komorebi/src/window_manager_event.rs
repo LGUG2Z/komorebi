@@ -29,6 +29,7 @@ pub enum WindowManagerEvent {
     Unmanage(Window),
     Raise(Window),
     TitleUpdate(WinEvent, Window),
+    LocationChange(WinEvent, Window),
 }
 
 impl Display for WindowManagerEvent {
@@ -79,6 +80,9 @@ impl Display for WindowManagerEvent {
             Self::TitleUpdate(winevent, window) => {
                 write!(f, "TitleUpdate (WinEvent: {winevent}, Window: {window})")
             }
+            Self::LocationChange(winevent, window) => {
+                write!(f, "LocationChange (WinEvent: {winevent}, Window: {window})")
+            }
         }
     }
 }
@@ -99,7 +103,8 @@ impl WindowManagerEvent {
             | Self::Raise(window)
             | Self::Manage(window)
             | Self::Unmanage(window)
-            | Self::TitleUpdate(_, window) => window,
+            | Self::TitleUpdate(_, window)
+            | Self::LocationChange(_, window) => window,
         }
     }
 
@@ -123,6 +128,7 @@ impl WindowManagerEvent {
             WindowManagerEvent::Unmanage(_) => "Unmanage",
             WindowManagerEvent::Raise(_) => "Raise",
             WindowManagerEvent::TitleUpdate(_, _) => "TitleUpdate",
+            WindowManagerEvent::LocationChange(_, _) => "LocationChange",
         }
     }
 
@@ -138,6 +144,7 @@ impl WindowManagerEvent {
             | WindowManagerEvent::MoveResizeStart(event, _)
             | WindowManagerEvent::MoveResizeEnd(event, _)
             | WindowManagerEvent::MouseCapture(event, _)
+            | WindowManagerEvent::LocationChange(event, _)
             | WindowManagerEvent::TitleUpdate(event, _) => Some(event.to_string()),
             WindowManagerEvent::Manage(_)
             | WindowManagerEvent::Unmanage(_)
@@ -213,6 +220,7 @@ impl WindowManagerEvent {
                     Option::from(Self::TitleUpdate(winevent, window))
                 }
             }
+            WinEvent::ObjectLocationChange => Option::from(Self::LocationChange(winevent, window)),
             _ => None,
         }
     }
