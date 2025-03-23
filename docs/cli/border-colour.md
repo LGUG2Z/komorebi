@@ -18,7 +18,7 @@ Arguments:
 Options:
   -w, --window-kind <WINDOW_KIND>
           [default: single]
-          [possible values: single, stack, monocle, unfocused, floating]
+          [possible values: single, stack, monocle, unfocused, unfocused-locked, floating]
 
   -h, --help
           Print help

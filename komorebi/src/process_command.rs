@@ -640,6 +640,67 @@ impl WindowManager {
             SocketMessage::AdjustWorkspacePadding(sizing, adjustment) => {
                 self.adjust_workspace_padding(sizing, adjustment)?;
             }
+            SocketMessage::MoveContainerToLastWorkspace => {
+                // This is to ensure that even on an empty workspace on a secondary monitor, the
+                // secondary monitor where the cursor is focused will be used as the target for
+                // the workspace switch op
+                if let Some(monitor_idx) = self.monitor_idx_from_current_pos() {
+                    if monitor_idx != self.focused_monitor_idx() {
+                        if let Some(monitor) = self.monitors().get(monitor_idx) {
+                            if let Some(workspace) = monitor.focused_workspace() {
+                                if workspace.is_empty() {
+                                    self.focus_monitor(monitor_idx)?;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                let idx = self
+                    .focused_monitor()
+                    .ok_or_else(|| anyhow!("there is no monitor"))?
+                    .focused_workspace_idx();
+
+                if let Some(monitor) = self.focused_monitor_mut() {
+                    if let Some(last_focused_workspace) = monitor.last_focused_workspace() {
+                        self.move_container_to_workspace(last_focused_workspace, true, None)?;
+                    }
+                }
+
+                self.focused_monitor_mut()
+                    .ok_or_else(|| anyhow!("there is no monitor"))?
+                    .set_last_focused_workspace(Option::from(idx));
+            }
+            SocketMessage::SendContainerToLastWorkspace => {
+                // This is to ensure that even on an empty workspace on a secondary monitor, the
+                // secondary monitor where the cursor is focused will be used as the target for
+                // the workspace switch op
+                if let Some(monitor_idx) = self.monitor_idx_from_current_pos() {
+                    if monitor_idx != self.focused_monitor_idx() {
+                        if let Some(monitor) = self.monitors().get(monitor_idx) {
+                            if let Some(workspace) = monitor.focused_workspace() {
+                                if workspace.is_empty() {
+                                    self.focus_monitor(monitor_idx)?;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                let idx = self
+                    .focused_monitor()
+                    .ok_or_else(|| anyhow!("there is no monitor"))?
+                    .focused_workspace_idx();
+
+                if let Some(monitor) = self.focused_monitor_mut() {
+                    if let Some(last_focused_workspace) = monitor.last_focused_workspace() {
+                        self.move_container_to_workspace(last_focused_workspace, false, None)?;
+                    }
+                }
+                self.focused_monitor_mut()
+                    .ok_or_else(|| anyhow!("there is no monitor"))?
+                    .set_last_focused_workspace(Option::from(idx));
+            }
             SocketMessage::MoveContainerToWorkspaceNumber(workspace_idx) => {
                 self.move_container_to_workspace(workspace_idx, true, None)?;
             }

@@ -62,6 +62,8 @@ pub enum SocketMessage {
     UnstackAll,
     ResizeWindowEdge(OperationDirection, Sizing),
     ResizeWindowAxis(Axis, Sizing),
+    MoveContainerToLastWorkspace,
+    SendContainerToLastWorkspace,
     MoveContainerToMonitorNumber(usize),
     CycleMoveContainerToMonitor(CycleDirection),
     MoveContainerToWorkspaceNumber(usize),
