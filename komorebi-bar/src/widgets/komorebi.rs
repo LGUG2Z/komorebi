@@ -837,11 +837,11 @@ impl From<&Container> for KomorebiNotificationStateContainerInformation {
         for window in windows {
             let mut icon_cache = ICON_CACHE.lock().unwrap();
             let mut update_cache = false;
-            let exe = window.exe().unwrap_or_default();
+            let hwnd = window.hwnd;
 
-            match icon_cache.get(&exe) {
+            match icon_cache.get(&hwnd) {
                 None => {
-                    icons.push(windows_icons::get_icon_by_process_id(window.process_id()));
+                    icons.push(windows_icons::get_icon_by_hwnd(window.hwnd));
                     update_cache = true;
                 }
                 Some(icon) => {
@@ -851,7 +851,7 @@ impl From<&Container> for KomorebiNotificationStateContainerInformation {
 
             if update_cache {
                 if let Some(Some(icon)) = icons.last() {
-                    icon_cache.insert(exe, icon.clone());
+                    icon_cache.insert(hwnd, icon.clone());
                 }
             }
         }
@@ -873,11 +873,11 @@ impl From<&Window> for KomorebiNotificationStateContainerInformation {
         let mut icon_cache = ICON_CACHE.lock().unwrap();
         let mut update_cache = false;
         let mut icons = vec![];
-        let exe = value.exe().unwrap_or_default();
+        let hwnd = value.hwnd;
 
-        match icon_cache.get(&exe) {
+        match icon_cache.get(&hwnd) {
             None => {
-                icons.push(windows_icons::get_icon_by_process_id(value.process_id()));
+                icons.push(windows_icons::get_icon_by_hwnd(value.hwnd));
                 update_cache = true;
             }
             Some(icon) => {
@@ -887,7 +887,7 @@ impl From<&Window> for KomorebiNotificationStateContainerInformation {
 
         if update_cache {
             if let Some(Some(icon)) = icons.last() {
-                icon_cache.insert(exe, icon.clone());
+                icon_cache.insert(hwnd, icon.clone());
             }
         }
 

@@ -4473,6 +4473,11 @@ dependencies = [
 ]
 
 [[package]]
+name = "roxmltree"
+version = "0.20.0"
+source = "git+https://github.com/RazrFalcon/roxmltree?tag=v0.20.0#6dffb22cb4113a168928ca9a2eec3c2961820a98"
+
+[[package]]
 name = "rustc-demangle"
 version = "0.1.24"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6273,10 +6278,13 @@ dependencies = [
 [[package]]
 name = "windows-icons"
 version = "0.1.0"
-source = "git+https://github.com/LGUG2Z/windows-icons?rev=d67cc9920aa9b4883393e411fb4fa2ddd4c498b5#d67cc9920aa9b4883393e411fb4fa2ddd4c498b5"
+source = "git+https://github.com/LGUG2Z/windows-icons?rev=e12e7bf2b91c49987a5e7de2e16e8556960ca1f5#e12e7bf2b91c49987a5e7de2e16e8556960ca1f5"
 dependencies = [
  "base64",
  "image",
+ "regex",
+ "roxmltree",
+ "sysinfo",
  "winapi",
  "windows 0.58.0",
 ]
