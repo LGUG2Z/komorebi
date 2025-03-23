@@ -29,7 +29,7 @@ use std::sync::OnceLock;
 
 pub mod hidden;
 
-#[derive(Debug, Copy, Clone, Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, Serialize, Deserialize, PartialEq)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[serde(tag = "type", content = "content")]
 pub enum MonitorNotification {
@@ -726,4 +726,56 @@ where
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_send_notification() {
+        // Create a monitor notification
+        let notification = MonitorNotification::ResolutionScalingChanged;
+
+        // Use the send_notification function to send the notification
+        send_notification(notification);
+
+        // Receive the notification from the channel
+        let received = event_rx().try_recv();
+
+        // Check if we received the notification and if it matches what we sent
+        if let Ok(received_notification) = received {
+            assert_eq!(
+                received_notification,
+                MonitorNotification::ResolutionScalingChanged
+            );
+        } else {
+            panic!("Failed to receive notification");
+        }
+    }
+
+    #[test]
+    fn test_insert_in_monitor_cache() {
+        let m = monitor::new(
+            0,
+            Rect::default(),
+            Rect::default(),
+            "Test Monitor".to_string(),
+            "Test Device".to_string(),
+            "Test Device ID".to_string(),
+            Some("TestMonitorID".to_string()),
+        );
+
+        // Insert the monitor into the cache
+        insert_in_monitor_cache("TestMonitorID", m.clone());
+
+        // Retrieve the monitor from the cache
+        let cache = MONITOR_CACHE
+            .get_or_init(|| Mutex::new(HashMap::new()))
+            .lock();
+        let retrieved_monitor = cache.get("TestMonitorID");
+
+        // Check that the monitor was inserted correctly and matches the expected value
+        assert_eq!(retrieved_monitor, Some(&m));
+    }
 }
