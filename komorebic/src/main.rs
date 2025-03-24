@@ -1104,6 +1104,10 @@ enum SubCommand {
     /// Move the focused window to the specified monitor workspace
     #[clap(arg_required_else_help = true)]
     MoveToMonitorWorkspace(MoveToMonitorWorkspace),
+    /// Send the focused window to the last focused monitor workspace
+    SendToLastWorkspace,
+    /// Move the focused window to the last focused monitor workspace
+    MoveToLastWorkspace,
     /// Focus the specified monitor
     #[clap(arg_required_else_help = true)]
     FocusMonitor(FocusMonitor),
@@ -1856,6 +1860,12 @@ fn main() -> Result<()> {
             send_message(&SocketMessage::CycleMoveWorkspaceToMonitor(
                 arg.cycle_direction,
             ))?;
+        }
+        SubCommand::MoveToLastWorkspace => {
+            send_message(&SocketMessage::MoveContainerToLastWorkspace)?;
+        }
+        SubCommand::SendToLastWorkspace => {
+            send_message(&SocketMessage::SendContainerToLastWorkspace)?;
         }
         SubCommand::SwapWorkspacesWithMonitor(arg) => {
             send_message(&SocketMessage::SwapWorkspacesToMonitorNumber(arg.target))?;

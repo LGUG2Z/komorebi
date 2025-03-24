@@ -133,6 +133,8 @@ nav:
       - cli/cycle-send-to-workspace.md
       - cli/send-to-monitor-workspace.md
       - cli/move-to-monitor-workspace.md
+      - cli/send-to-last-workspace.md
+      - cli/move-to-last-workspace.md
       - cli/focus-monitor.md
       - cli/focus-monitor-at-cursor.md
       - cli/focus-last-workspace.md
@@ -191,6 +193,7 @@ nav:
       - cli/toggle-float.md
       - cli/toggle-monocle.md
       - cli/toggle-maximize.md
+      - cli/toggle-lock.md
       - cli/restore-windows.md
       - cli/manage.md
       - cli/unmanage.md

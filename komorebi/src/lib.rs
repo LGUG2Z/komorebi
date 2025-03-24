@@ -53,6 +53,7 @@ pub use core::*;
 pub use process_command::*;
 pub use process_event::*;
 pub use static_config::*;
+pub use win32_display_data;
 pub use window::*;
 pub use window_manager::*;
 pub use window_manager_event::*;

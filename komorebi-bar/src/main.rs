@@ -47,7 +47,7 @@ pub static MONITOR_INDEX: AtomicUsize = AtomicUsize::new(0);
 pub static BAR_HEIGHT: f32 = 50.0;
 pub static DEFAULT_PADDING: f32 = 10.0;
 
-pub static ICON_CACHE: LazyLock<Mutex<HashMap<String, RgbaImage>>> =
+pub static ICON_CACHE: LazyLock<Mutex<HashMap<isize, RgbaImage>>> =
     LazyLock::new(|| Mutex::new(HashMap::new()));
 
 #[derive(Parser)]
