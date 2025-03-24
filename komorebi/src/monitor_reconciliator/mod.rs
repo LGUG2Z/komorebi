@@ -731,6 +731,49 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::window_manager_event::WindowManagerEvent;
+    use crossbeam_channel::bounded;
+    use crossbeam_channel::Sender;
+    use std::path::PathBuf;
+    use uuid::Uuid;
+    struct TestContext {
+        socket_path: Option<PathBuf>,
+    }
+
+    impl Drop for TestContext {
+        fn drop(&mut self) {
+            if let Some(socket_path) = &self.socket_path {
+                // Clean up the socket file
+                if let Err(e) = std::fs::remove_file(socket_path) {
+                    tracing::warn!("Failed to remove socket file: {}", e);
+                }
+            }
+        }
+    }
+
+    fn setup_window_manager() -> (WindowManager, TestContext) {
+        let (_sender, receiver): (Sender<WindowManagerEvent>, Receiver<WindowManagerEvent>) =
+            bounded(1);
+
+        // Temporary socket path for testing
+        let socket_name = format!("komorebi-test-{}.sock", Uuid::new_v4());
+        let socket_path = PathBuf::from(socket_name);
+
+        // Create a new WindowManager instance
+        let wm = match WindowManager::new(receiver, Some(socket_path.clone())) {
+            Ok(manager) => manager,
+            Err(e) => {
+                panic!("Failed to create WindowManager: {}", e);
+            }
+        };
+
+        (
+            wm,
+            TestContext {
+                socket_path: Some(socket_path),
+            },
+        )
+    }
 
     #[test]
     fn test_send_notification() {
@@ -744,14 +787,44 @@ mod tests {
         let received = event_rx().try_recv();
 
         // Check if we received the notification and if it matches what we sent
-        if let Ok(received_notification) = received {
-            assert_eq!(
-                received_notification,
-                MonitorNotification::ResolutionScalingChanged
-            );
-        } else {
-            panic!("Failed to receive notification");
+        match received {
+            Ok(notification) => {
+                assert_eq!(notification, MonitorNotification::ResolutionScalingChanged);
+            }
+            Err(e) => panic!("Failed to receive MonitorNotification: {}", e),
         }
+    }
+
+    #[test]
+    fn test_channel_bounded_capacity() {
+        let (_, receiver) = channel();
+
+        // Fill the channel to its capacity (20 messages)
+        for _ in 0..20 {
+            send_notification(MonitorNotification::WorkAreaChanged);
+        }
+
+        // Attempt to send another message (should be dropped)
+        send_notification(MonitorNotification::ResolutionScalingChanged);
+
+        // Verify the channel contains only the first 20 messages
+        for _ in 0..20 {
+            let notification = match receiver.try_recv() {
+                Ok(notification) => notification,
+                Err(e) => panic!("Failed to receive MonitorNotification: {}", e),
+            };
+            assert_eq!(
+                notification,
+                MonitorNotification::WorkAreaChanged,
+                "Unexpected notification in the channel"
+            );
+        }
+
+        // Verify that no additional messages are in the channel
+        assert!(
+            receiver.try_recv().is_err(),
+            "Channel should be empty after consuming all messages"
+        );
     }
 
     #[test]
@@ -777,5 +850,79 @@ mod tests {
 
         // Check that the monitor was inserted correctly and matches the expected value
         assert_eq!(retrieved_monitor, Some(&m));
+    }
+
+    #[test]
+    fn test_insert_two_monitors_cache() {
+        let m1 = monitor::new(
+            0,
+            Rect::default(),
+            Rect::default(),
+            "Test Monitor".to_string(),
+            "Test Device".to_string(),
+            "Test Device ID".to_string(),
+            Some("TestMonitorID".to_string()),
+        );
+
+        let m2 = monitor::new(
+            0,
+            Rect::default(),
+            Rect::default(),
+            "Test Monitor 2".to_string(),
+            "Test Device 2".to_string(),
+            "Test Device ID 2".to_string(),
+            Some("TestMonitorID2".to_string()),
+        );
+
+        // Insert the first monitor into the cache
+        insert_in_monitor_cache("TestMonitorID", m1.clone());
+
+        // Insert the second monitor into the cache
+        insert_in_monitor_cache("TestMonitorID2", m2.clone());
+
+        // Retrieve the cache to check if the first and second monitors are present
+        let cache = MONITOR_CACHE
+            .get_or_init(|| Mutex::new(HashMap::new()))
+            .lock();
+
+        // Check if Monitor 1 was found in the cache
+        assert_eq!(
+            cache.get("TestMonitorID"),
+            Some(&m1),
+            "Monitor cache should contain monitor 1"
+        );
+
+        // Check if Monitor 2 was found in the cache
+        assert_eq!(
+            cache.get("TestMonitorID2"),
+            Some(&m2),
+            "Monitor cache should contain monitor 2"
+        );
+    }
+
+    #[test]
+    fn test_listen_for_notifications() {
+        // Create a WindowManager instance for testing
+        let (wm, _test_context) = setup_window_manager();
+
+        // Start the notification listener
+        let result = listen_for_notifications(Arc::new(Mutex::new(wm)));
+
+        // Check if the listener started successfully
+        assert!(result.is_ok(), "Failed to start notification listener");
+
+        // Test sending a notification
+        send_notification(MonitorNotification::DisplayConnectionChange);
+
+        // Receive the notification from the channel
+        let received = event_rx().try_recv();
+
+        // Check if we received the notification and if it matches what we sent
+        match received {
+            Ok(notification) => {
+                assert_eq!(notification, MonitorNotification::DisplayConnectionChange);
+            }
+            Err(e) => panic!("Failed to receive MonitorNotification: {}", e),
+        }
     }
 }
