@@ -319,6 +319,7 @@ impl From<&WindowManager> for State {
                         .iter()
                         .map(|workspace| Workspace {
                             name: workspace.name.clone(),
+                            id: workspace.id.clone(),
                             containers: workspace.containers.clone(),
                             monocle_container: workspace.monocle_container.clone(),
                             monocle_container_restore_idx: workspace.monocle_container_restore_idx,

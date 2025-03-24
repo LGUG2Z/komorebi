@@ -53,7 +53,7 @@ pub struct Workspace {
     #[getset(get = "pub", set = "pub")]
     pub name: Option<String>,
     #[getset(get = "pub")]
-    id: String,
+    pub id: String,
     pub containers: Ring<Container>,
     #[getset(get = "pub", get_mut = "pub", set = "pub")]
     pub monocle_container: Option<Container>,
