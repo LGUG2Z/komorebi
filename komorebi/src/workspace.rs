@@ -11,6 +11,7 @@ use getset::CopyGetters;
 use getset::Getters;
 use getset::MutGetters;
 use getset::Setters;
+use nanoid::nanoid;
 use serde::Deserialize;
 use serde::Serialize;
 
@@ -51,6 +52,8 @@ use crate::REMOVE_TITLEBARS;
 pub struct Workspace {
     #[getset(get = "pub", set = "pub")]
     pub name: Option<String>,
+    #[getset(get = "pub")]
+    id: String,
     pub containers: Ring<Container>,
     #[getset(get = "pub", get_mut = "pub", set = "pub")]
     pub monocle_container: Option<Container>,
@@ -122,6 +125,7 @@ impl Default for Workspace {
     fn default() -> Self {
         Self {
             name: None,
+            id: nanoid!(),
             containers: Ring::default(),
             monocle_container: None,
             maximized_window: None,
