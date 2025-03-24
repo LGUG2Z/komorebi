@@ -84,6 +84,7 @@ use crate::Rgb;
 use crate::CUSTOM_FFM;
 use crate::DATA_DIR;
 use crate::DISPLAY_INDEX_PREFERENCES;
+use crate::DUPLICATE_MONITOR_SERIAL_IDS;
 use crate::HIDING_BEHAVIOUR;
 use crate::HOME_DIR;
 use crate::IGNORE_IDENTIFIERS;
@@ -219,6 +220,7 @@ pub struct GlobalState {
     pub name_change_on_launch_identifiers: Vec<MatchingRule>,
     pub monitor_index_preferences: HashMap<usize, Rect>,
     pub display_index_preferences: HashMap<usize, String>,
+    pub ignored_duplicate_monitor_serial_ids: Vec<String>,
     pub workspace_rules: Vec<WorkspaceMatchingRule>,
     pub window_hiding_behaviour: HidingBehaviour,
     pub configuration_dir: PathBuf,
@@ -274,6 +276,7 @@ impl Default for GlobalState {
             name_change_on_launch_identifiers: OBJECT_NAME_CHANGE_ON_LAUNCH.lock().clone(),
             monitor_index_preferences: MONITOR_INDEX_PREFERENCES.lock().clone(),
             display_index_preferences: DISPLAY_INDEX_PREFERENCES.read().clone(),
+            ignored_duplicate_monitor_serial_ids: DUPLICATE_MONITOR_SERIAL_IDS.read().clone(),
             workspace_rules: WORKSPACE_MATCHING_RULES.lock().clone(),
             window_hiding_behaviour: *HIDING_BEHAVIOUR.lock(),
             configuration_dir: HOME_DIR.clone(),
@@ -340,6 +343,7 @@ impl From<&WindowManager> for State {
                             float_override: workspace.float_override,
                             layer: workspace.layer,
                             globals: workspace.globals,
+                            locked_containers: workspace.locked_containers.clone(),
                             workspace_config: None,
                         })
                         .collect::<VecDeque<_>>();
@@ -3145,6 +3149,20 @@ impl WindowManager {
     }
 
     #[tracing::instrument(skip(self))]
+    pub fn toggle_lock(&mut self) -> Result<()> {
+        let workspace = self.focused_workspace_mut()?;
+        let index = workspace.focused_container_idx();
+
+        if workspace.locked_containers().contains(&index) {
+            workspace.locked_containers_mut().remove(&index);
+        } else {
+            workspace.locked_containers_mut().insert(index);
+        }
+
+        Ok(())
+    }
+
+    #[tracing::instrument(skip(self))]
     pub fn float_window(&mut self) -> Result<()> {
         tracing::info!("floating window");
 
@@ -4653,7 +4671,6 @@ mod tests {
             // Should be on Window 1
             let workspace = wm.focused_workspace_mut().unwrap();
             let container = workspace.focused_container_mut().unwrap();
-            println!("Window: {:?}", container.focused_window());
             assert_eq!(container.focused_window_idx(), 1);
         }
 
@@ -4665,7 +4682,6 @@ mod tests {
             // Should be on Window 2
             let workspace = wm.focused_workspace_mut().unwrap();
             let container = workspace.focused_container_mut().unwrap();
-            println!("Window: {:?}", container.focused_window());
             assert_eq!(container.focused_window_idx(), 2);
         }
 
@@ -4677,7 +4693,6 @@ mod tests {
             // Should be on Window 1
             let workspace = wm.focused_workspace_mut().unwrap();
             let container = workspace.focused_container_mut().unwrap();
-            println!("Window: {:?}", container.focused_window());
             assert_eq!(container.focused_window_idx(), 1);
         }
     }

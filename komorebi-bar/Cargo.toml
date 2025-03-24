@@ -1,6 +1,6 @@
 [package]
 name = "komorebi-bar"
-version = "0.1.35"
+version = "0.1.36"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -37,7 +37,7 @@ tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
 windows = { workspace = true }
 windows-core = { workspace = true }
-windows-icons = { git = "https://github.com/LGUG2Z/windows-icons", rev = "d67cc9920aa9b4883393e411fb4fa2ddd4c498b5" }
+windows-icons = { git = "https://github.com/LGUG2Z/windows-icons", rev = "0c9d7ee1b807347c507d3a9862dd007b4d3f4354" }
 
 [features]
 default = ["schemars"]

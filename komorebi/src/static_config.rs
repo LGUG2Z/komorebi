@@ -314,7 +314,7 @@ pub enum AppSpecificConfigurationPath {
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
-/// The `komorebi.json` static configuration file reference for `v0.1.35`
+/// The `komorebi.json` static configuration file reference for `v0.1.36`
 pub struct StaticConfig {
     /// DEPRECATED from v0.1.22: no longer required
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -500,6 +500,9 @@ pub enum KomorebiTheme {
         /// Border colour when the container is unfocused (default: Base)
         #[serde(skip_serializing_if = "Option::is_none")]
         unfocused_border: Option<komorebi_themes::CatppuccinValue>,
+        /// Border colour when the container is unfocused and locked (default: Red)
+        #[serde(skip_serializing_if = "Option::is_none")]
+        unfocused_locked_border: Option<komorebi_themes::CatppuccinValue>,
         /// Stackbar focused tab text colour (default: Green)
         #[serde(skip_serializing_if = "Option::is_none")]
         stackbar_focused_text: Option<komorebi_themes::CatppuccinValue>,
@@ -532,6 +535,9 @@ pub enum KomorebiTheme {
         /// Border colour when the container is unfocused (default: Base01)
         #[serde(skip_serializing_if = "Option::is_none")]
         unfocused_border: Option<komorebi_themes::Base16Value>,
+        /// Border colour when the container is unfocused and locked (default: Base08)
+        #[serde(skip_serializing_if = "Option::is_none")]
+        unfocused_locked_border: Option<komorebi_themes::Base16Value>,
         /// Stackbar focused tab text colour (default: Base0B)
         #[serde(skip_serializing_if = "Option::is_none")]
         stackbar_focused_text: Option<komorebi_themes::Base16Value>,

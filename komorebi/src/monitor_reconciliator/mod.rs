@@ -13,6 +13,7 @@ use crate::State;
 use crate::WindowManager;
 use crate::WindowsApi;
 use crate::DISPLAY_INDEX_PREFERENCES;
+use crate::DUPLICATE_MONITOR_SERIAL_IDS;
 use crate::WORKSPACE_MATCHING_RULES;
 use crossbeam_channel::Receiver;
 use crossbeam_channel::Sender;
@@ -83,10 +84,35 @@ pub fn insert_in_monitor_cache(serial_or_device_id: &str, monitor: Monitor) {
     monitor_cache.insert(preferred_id, monitor);
 }
 
-pub fn attached_display_devices() -> color_eyre::Result<Vec<Monitor>> {
-    Ok(win32_display_data::connected_displays_all()
-        .flatten()
-        .map(|display| {
+pub fn attached_display_devices<F, I>(display_provider: F) -> color_eyre::Result<Vec<Monitor>>
+where
+    F: Fn() -> I + Copy,
+    I: Iterator<Item = Result<win32_display_data::Device, win32_display_data::Error>>,
+{
+    let all_displays = display_provider().flatten().collect::<Vec<_>>();
+
+    let mut serial_id_map = HashMap::new();
+
+    for d in &all_displays {
+        if let Some(id) = &d.serial_number_id {
+            *serial_id_map.entry(id.clone()).or_insert(0) += 1;
+        }
+    }
+
+    for d in &all_displays {
+        if let Some(id) = &d.serial_number_id {
+            if serial_id_map.get(id).copied().unwrap_or_default() > 1 {
+                let mut dupes = DUPLICATE_MONITOR_SERIAL_IDS.write();
+                if !dupes.contains(id) {
+                    (*dupes).push(id.clone());
+                }
+            }
+        }
+    }
+
+    Ok(all_displays
+        .into_iter()
+        .map(|mut display| {
             let path = display.device_path;
 
             let (device, device_id) = if path.is_empty() {
@@ -102,6 +128,13 @@ pub fn attached_display_devices() -> color_eyre::Result<Vec<Monitor>> {
 
             let name = display.device_name.trim_start_matches(r"\\.\").to_string();
             let name = name.split('\\').collect::<Vec<_>>()[0].to_string();
+
+            if let Some(id) = &display.serial_number_id {
+                let dupes = DUPLICATE_MONITOR_SERIAL_IDS.read();
+                if dupes.contains(id) {
+                    display.serial_number_id = None;
+                }
+            }
 
             monitor::new(
                 display.hmonitor,
@@ -123,7 +156,7 @@ pub fn listen_for_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Re
     tracing::info!("created hidden window to listen for monitor-related events");
 
     std::thread::spawn(move || loop {
-        match handle_notifications(wm.clone()) {
+        match handle_notifications(wm.clone(), win32_display_data::connected_displays_all) {
             Ok(()) => {
                 tracing::warn!("restarting finished thread");
             }
@@ -140,7 +173,14 @@ pub fn listen_for_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Re
     Ok(())
 }
 
-pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result<()> {
+pub fn handle_notifications<F, I>(
+    wm: Arc<Mutex<WindowManager>>,
+    display_provider: F,
+) -> color_eyre::Result<()>
+where
+    F: Fn() -> I + Copy,
+    I: Iterator<Item = Result<win32_display_data::Device, win32_display_data::Error>>,
+{
     tracing::info!("listening");
 
     let receiver = event_rx();
@@ -265,14 +305,20 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                 let initial_monitor_count = wm.monitors().len();
 
                 // Get the currently attached display devices
-                let attached_devices = attached_display_devices()?;
+                let attached_devices = attached_display_devices(display_provider)?;
 
                 // Make sure that in our state any attached displays have the latest Win32 data
                 for monitor in wm.monitors_mut() {
                     for attached in &attached_devices {
-                        if attached.serial_number_id().eq(monitor.serial_number_id())
-                            || attached.device_id().eq(monitor.device_id())
+                        let serial_number_ids_match = if let (Some(attached_snid), Some(m_snid)) =
+                            (attached.serial_number_id(), monitor.serial_number_id())
                         {
+                            attached_snid.eq(m_snid)
+                        } else {
+                            false
+                        };
+
+                        if serial_number_ids_match || attached.device_id().eq(monitor.device_id()) {
                             monitor.set_id(attached.id());
                             monitor.set_device(attached.device().clone());
                             monitor.set_device_id(attached.device_id().clone());

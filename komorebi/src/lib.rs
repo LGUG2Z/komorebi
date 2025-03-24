@@ -9,6 +9,7 @@ pub mod colour;
 pub mod container;
 pub mod core;
 pub mod focus_manager;
+pub mod locked_deque;
 pub mod monitor;
 pub mod monitor_reconciliator;
 pub mod process_command;
@@ -52,6 +53,7 @@ pub use core::*;
 pub use process_command::*;
 pub use process_event::*;
 pub use static_config::*;
+pub use win32_display_data;
 pub use window::*;
 pub use window_manager::*;
 pub use window_manager_event::*;
@@ -173,6 +175,8 @@ lazy_static! {
             matching_strategy: Option::from(MatchingStrategy::Equals),
         }),
     ]));
+    static ref DUPLICATE_MONITOR_SERIAL_IDS: Arc<RwLock<Vec<String>>> =
+        Arc::new(RwLock::new(Vec::new()));
     static ref SUBSCRIPTION_PIPES: Arc<Mutex<HashMap<String, File>>> =
         Arc::new(Mutex::new(HashMap::new()));
     pub static ref SUBSCRIPTION_SOCKETS: Arc<Mutex<HashMap<String, PathBuf>>> =

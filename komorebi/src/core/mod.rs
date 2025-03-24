@@ -64,6 +64,8 @@ pub enum SocketMessage {
     DisplayMonitorWorkspaceNumber(usize, usize),
     ResizeWindowEdge(OperationDirection, Sizing),
     ResizeWindowAxis(Axis, Sizing),
+    MoveContainerToLastWorkspace,
+    SendContainerToLastWorkspace,
     MoveContainerToMonitorNumber(usize),
     CycleMoveContainerToMonitor(CycleDirection),
     MoveContainerToWorkspaceNumber(usize),
@@ -86,6 +88,9 @@ pub enum SocketMessage {
     PromoteFocus,
     PromoteWindow(OperationDirection),
     EagerFocus(String),
+    LockMonitorWorkspaceContainer(usize, usize, usize),
+    UnlockMonitorWorkspaceContainer(usize, usize, usize),
+    ToggleLock,
     ToggleFloat,
     ToggleMonocle,
     ToggleMaximize,
@@ -315,6 +320,7 @@ pub enum WindowKind {
     Monocle,
     #[default]
     Unfocused,
+    UnfocusedLocked,
     Floating,
 }
 

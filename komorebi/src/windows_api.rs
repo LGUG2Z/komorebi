@@ -153,6 +153,7 @@ use crate::windows_callbacks;
 use crate::Window;
 use crate::WindowManager;
 use crate::DISPLAY_INDEX_PREFERENCES;
+use crate::DUPLICATE_MONITOR_SERIAL_IDS;
 use crate::MONITOR_INDEX_PREFERENCES;
 
 macro_rules! as_ptr {
@@ -258,7 +259,30 @@ impl WindowsApi {
         let monitors = &mut wm.monitors;
         let monitor_usr_idx_map = &mut wm.monitor_usr_idx_map;
 
-        'read: for display in win32_display_data::connected_displays_all().flatten() {
+        let all_displays = win32_display_data::connected_displays_all()
+            .flatten()
+            .collect::<Vec<_>>();
+
+        let mut serial_id_map = HashMap::new();
+
+        for d in &all_displays {
+            if let Some(id) = &d.serial_number_id {
+                *serial_id_map.entry(id.clone()).or_insert(0) += 1;
+            }
+        }
+
+        for d in &all_displays {
+            if let Some(id) = &d.serial_number_id {
+                if serial_id_map.get(id).copied().unwrap_or_default() > 1 {
+                    let mut dupes = DUPLICATE_MONITOR_SERIAL_IDS.write();
+                    if !dupes.contains(id) {
+                        (*dupes).push(id.clone());
+                    }
+                }
+            }
+        }
+
+        'read: for mut display in all_displays {
             let path = display.device_path.clone();
 
             let (device, device_id) = if path.is_empty() {
@@ -278,6 +302,13 @@ impl WindowsApi {
             for monitor in monitors.elements() {
                 if device_id.eq(monitor.device_id()) {
                     continue 'read;
+                }
+            }
+
+            if let Some(id) = &display.serial_number_id {
+                let dupes = DUPLICATE_MONITOR_SERIAL_IDS.read();
+                if dupes.contains(id) {
+                    display.serial_number_id = None;
                 }
             }
 
@@ -972,7 +1003,7 @@ impl WindowsApi {
     }
 
     pub fn monitor(hmonitor: isize) -> Result<Monitor> {
-        for display in win32_display_data::connected_displays_all().flatten() {
+        for mut display in win32_display_data::connected_displays_all().flatten() {
             if display.hmonitor == hmonitor {
                 let path = display.device_path;
 
@@ -989,6 +1020,13 @@ impl WindowsApi {
 
                 let name = display.device_name.trim_start_matches(r"\\.\").to_string();
                 let name = name.split('\\').collect::<Vec<_>>()[0].to_string();
+
+                if let Some(id) = &display.serial_number_id {
+                    let dupes = DUPLICATE_MONITOR_SERIAL_IDS.read();
+                    if dupes.contains(id) {
+                        display.serial_number_id = None;
+                    }
+                }
 
                 let monitor = monitor::new(
                     hmonitor,

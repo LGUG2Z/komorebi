@@ -1127,6 +1127,10 @@ enum SubCommand {
     /// Move the focused window to the specified monitor workspace
     #[clap(arg_required_else_help = true)]
     MoveToMonitorWorkspace(MoveToMonitorWorkspace),
+    /// Send the focused window to the last focused monitor workspace
+    SendToLastWorkspace,
+    /// Move the focused window to the last focused monitor workspace
+    MoveToLastWorkspace,
     /// Focus the specified monitor
     #[clap(arg_required_else_help = true)]
     FocusMonitor(FocusMonitor),
@@ -1306,6 +1310,8 @@ enum SubCommand {
     ToggleMonocle,
     /// Toggle native maximization for the focused window
     ToggleMaximize,
+    /// Toggle a lock for the focused container, ensuring it will not be displaced by any new windows
+    ToggleLock,
     /// Toggle Always on top mode for the focused window
     ToggleAlwaysOnTop,
     /// Restore all hidden windows (debugging command)
@@ -1889,6 +1895,12 @@ fn main() -> Result<()> {
                 arg.cycle_direction,
             ))?;
         }
+        SubCommand::MoveToLastWorkspace => {
+            send_message(&SocketMessage::MoveContainerToLastWorkspace)?;
+        }
+        SubCommand::SendToLastWorkspace => {
+            send_message(&SocketMessage::SendContainerToLastWorkspace)?;
+        }
         SubCommand::SwapWorkspacesWithMonitor(arg) => {
             send_message(&SocketMessage::SwapWorkspacesToMonitorNumber(arg.target))?;
         }
@@ -1980,6 +1992,9 @@ fn main() -> Result<()> {
         }
         SubCommand::ToggleMaximize => {
             send_message(&SocketMessage::ToggleMaximize)?;
+        }
+        SubCommand::ToggleLock => {
+            send_message(&SocketMessage::ToggleLock)?;
         }
         SubCommand::ToggleAlwaysOnTop => {
             send_message(&SocketMessage::ToggleAlwaysOnTop)?;
