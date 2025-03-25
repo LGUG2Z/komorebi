@@ -2,6 +2,7 @@
 #![allow(clippy::missing_errors_doc, clippy::doc_markdown)]
 
 use chrono::Utc;
+use komorebi_client::ExpandEnvVars;
 use std::fs::File;
 use std::fs::OpenOptions;
 use std::io::BufRead;
@@ -22,7 +23,6 @@ use color_eyre::eyre::bail;
 use color_eyre::Result;
 use dirs::data_local_dir;
 use fs_tail::TailedFile;
-use komorebi_client::resolve_home_path;
 use komorebi_client::send_message;
 use komorebi_client::send_query;
 use komorebi_client::AppSpecificConfigurationPath;
@@ -1681,7 +1681,7 @@ fn main() -> Result<()> {
                 // errors
                 let _ = serde_json::from_str::<StaticConfig>(&config_source)?;
 
-                let path = resolve_home_path(static_config)?;
+                let path = static_config.expand_vars();
                 let raw = std::fs::read_to_string(path)?;
                 StaticConfig::aliases(&raw);
                 StaticConfig::deprecated(&raw);
@@ -1979,13 +1979,13 @@ fn main() -> Result<()> {
             send_message(&SocketMessage::WorkspaceLayoutCustom(
                 arg.monitor,
                 arg.workspace,
-                resolve_home_path(arg.path)?,
+                arg.path.expand_vars(),
             ))?;
         }
         SubCommand::NamedWorkspaceCustomLayout(arg) => {
             send_message(&SocketMessage::NamedWorkspaceLayoutCustom(
                 arg.workspace,
-                resolve_home_path(arg.path)?,
+                arg.path.expand_vars(),
             ))?;
         }
         SubCommand::WorkspaceLayoutRule(arg) => {
@@ -2008,14 +2008,14 @@ fn main() -> Result<()> {
                 arg.monitor,
                 arg.workspace,
                 arg.at_container_count,
-                resolve_home_path(arg.path)?,
+                arg.path.expand_vars(),
             ))?;
         }
         SubCommand::NamedWorkspaceCustomLayoutRule(arg) => {
             send_message(&SocketMessage::NamedWorkspaceLayoutCustomRule(
                 arg.workspace,
                 arg.at_container_count,
-                resolve_home_path(arg.path)?,
+                arg.path.expand_vars(),
             ))?;
         }
         SubCommand::ClearWorkspaceLayoutRules(arg) => {
@@ -2088,7 +2088,7 @@ fn main() -> Result<()> {
 
             let mut flags = vec![];
             if let Some(config) = &arg.config {
-                let path = resolve_home_path(config)?;
+                let path = config.expand_vars();
                 if !path.is_file() {
                     bail!("could not find file: {}", path.display());
                 }
@@ -2166,7 +2166,7 @@ fn main() -> Result<()> {
             if !running {
                 println!("\nRunning komorebi.exe directly for detailed error output\n");
                 if let Some(config) = arg.config {
-                    let path = resolve_home_path(config)?;
+                    let path = config.expand_vars();
                     if let Ok(output) = Command::new("komorebi.exe")
                         .arg(format!("'--config=\"{}\"'", path.display()))
                         .output()
@@ -2311,7 +2311,7 @@ if (!(Get-Process masir -ErrorAction SilentlyContinue))
             );
 
             if let Some(config) = &static_config {
-                let path = resolve_home_path(config)?;
+                let path = config.expand_vars();
                 let raw = std::fs::read_to_string(path)?;
                 StaticConfig::aliases(&raw);
                 StaticConfig::deprecated(&raw);
@@ -2605,9 +2605,7 @@ if (Get-Command Get-CimInstance -ErrorAction SilentlyContinue) {
             send_message(&SocketMessage::CycleLayout(arg.cycle_direction))?;
         }
         SubCommand::LoadCustomLayout(arg) => {
-            send_message(&SocketMessage::ChangeLayoutCustom(resolve_home_path(
-                arg.path,
-            )?))?;
+            send_message(&SocketMessage::ChangeLayoutCustom(arg.path.expand_vars()))?;
         }
         SubCommand::FlipLayout(arg) => {
             send_message(&SocketMessage::FlipLayout(arg.axis))?;
@@ -2784,10 +2782,10 @@ if (Get-Command Get-CimInstance -ErrorAction SilentlyContinue) {
             send_message(&SocketMessage::QuickLoad)?;
         }
         SubCommand::SaveResize(arg) => {
-            send_message(&SocketMessage::Save(resolve_home_path(arg.path)?))?;
+            send_message(&SocketMessage::Save(arg.path.expand_vars()))?;
         }
         SubCommand::LoadResize(arg) => {
-            send_message(&SocketMessage::Load(resolve_home_path(arg.path)?))?;
+            send_message(&SocketMessage::Load(arg.path.expand_vars()))?;
         }
         SubCommand::SubscribeSocket(arg) => {
             send_message(&SocketMessage::AddSubscriberSocket(arg.socket))?;
@@ -2899,9 +2897,9 @@ if (Get-Command Get-CimInstance -ErrorAction SilentlyContinue) {
             ))?;
         }
         SubCommand::AhkAppSpecificConfiguration(arg) => {
-            let content = std::fs::read_to_string(resolve_home_path(arg.path)?)?;
+            let content = std::fs::read_to_string(arg.path.expand_vars())?;
             let lines = if let Some(override_path) = arg.override_path {
-                let override_content = std::fs::read_to_string(resolve_home_path(override_path)?)?;
+                let override_content = std::fs::read_to_string(override_path.expand_vars())?;
 
                 ApplicationConfigurationGenerator::generate_ahk(
                     &content,
@@ -2926,9 +2924,9 @@ if (Get-Command Get-CimInstance -ErrorAction SilentlyContinue) {
             );
         }
         SubCommand::PwshAppSpecificConfiguration(arg) => {
-            let content = std::fs::read_to_string(resolve_home_path(arg.path)?)?;
+            let content = std::fs::read_to_string(arg.path.expand_vars())?;
             let lines = if let Some(override_path) = arg.override_path {
-                let override_content = std::fs::read_to_string(resolve_home_path(override_path)?)?;
+                let override_content = std::fs::read_to_string(override_path.expand_vars())?;
 
                 ApplicationConfigurationGenerator::generate_pwsh(
                     &content,
@@ -2953,7 +2951,7 @@ if (Get-Command Get-CimInstance -ErrorAction SilentlyContinue) {
             );
         }
         SubCommand::ConvertAppSpecificConfiguration(arg) => {
-            let file_path = resolve_home_path(arg.path)?;
+            let file_path = arg.path.expand_vars();
             let content = std::fs::read_to_string(&file_path)?;
             let mut asc = ApplicationConfigurationGenerator::load(&content)?;
             asc.sort_by(|a, b| a.name.cmp(&b.name));
@@ -2961,7 +2959,7 @@ if (Get-Command Get-CimInstance -ErrorAction SilentlyContinue) {
             println!("{}", serde_json::to_string_pretty(&v2)?);
         }
         SubCommand::FormatAppSpecificConfiguration(arg) => {
-            let file_path = resolve_home_path(arg.path)?;
+            let file_path = arg.path.expand_vars();
             let content = std::fs::read_to_string(&file_path)?;
             let formatted_content = ApplicationConfigurationGenerator::format(&content)?;
 

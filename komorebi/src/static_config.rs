@@ -20,7 +20,6 @@ use crate::core::config_generation::ApplicationConfigurationGenerator;
 use crate::core::config_generation::ApplicationOptions;
 use crate::core::config_generation::MatchingRule;
 use crate::core::config_generation::MatchingStrategy;
-use crate::core::resolve_home_path;
 use crate::core::AnimationStyle;
 use crate::core::BorderImplementation;
 use crate::core::BorderStyle;
@@ -60,6 +59,7 @@ use crate::workspace::Workspace;
 use crate::AspectRatio;
 use crate::Axis;
 use crate::CrossBoundaryBehaviour;
+use crate::ExpandEnvVars;
 use crate::PredefinedAspectRatio;
 use crate::DATA_DIR;
 use crate::DEFAULT_CONTAINER_PADDING;
@@ -1066,11 +1066,11 @@ impl StaticConfig {
         if let Some(path) = &mut value.app_specific_configuration_path {
             match path {
                 AppSpecificConfigurationPath::Single(path) => {
-                    *path = resolve_home_path(&*path)?;
+                    *path = path.expand_vars();
                 }
                 AppSpecificConfigurationPath::Multiple(paths) => {
                     for path in paths {
-                        *path = resolve_home_path(&*path)?;
+                        *path = path.expand_vars();
                     }
                 }
             }
@@ -1080,12 +1080,12 @@ impl StaticConfig {
             for m in monitors {
                 for w in &mut m.workspaces {
                     if let Some(path) = &mut w.custom_layout {
-                        *path = resolve_home_path(&*path)?;
+                        *path = path.expand_vars();
                     }
 
                     if let Some(map) = &mut w.custom_layout_rules {
                         for path in map.values_mut() {
-                            *path = resolve_home_path(&*path)?;
+                            *path = path.expand_vars();
                         }
                     }
                 }
@@ -1094,7 +1094,7 @@ impl StaticConfig {
 
         if let Some(bar_configurations) = &mut value.bar_configurations {
             for path in bar_configurations {
-                *path = resolve_home_path(&*path)?;
+                *path = path.expand_vars();
             }
         }
 
@@ -1660,7 +1660,7 @@ fn handle_asc_file(
         Some(ext) => match ext.to_string_lossy().to_string().as_str() {
             "yaml" => {
                 tracing::info!("loading applications.yaml from: {}", path.display());
-                let path = resolve_home_path(path)?;
+                let path = path.expand_vars();
                 let content = std::fs::read_to_string(path)?;
                 let asc = ApplicationConfigurationGenerator::load(&content)?;
 
@@ -1709,7 +1709,7 @@ fn handle_asc_file(
             }
             "json" => {
                 tracing::info!("loading applications.json from: {}", path.display());
-                let path = resolve_home_path(path)?;
+                let path = path.expand_vars();
                 let mut asc = ApplicationSpecificConfiguration::load(&path)?;
 
                 for entry in asc.values_mut() {
