@@ -494,7 +494,7 @@ impl<T: AsRef<Path>> ExpandEnvVars for T {
                     // if component is a variable, get the value from the environment
                     if let Some(var) = var {
                         let var = unsafe { OsStr::from_encoded_bytes_unchecked(var) };
-                        if let Ok(value) = std::env::var(var) {
+                        if let Some(value) = std::env::var_os(var) {
                             out.push(value);
                             continue;
                         }
