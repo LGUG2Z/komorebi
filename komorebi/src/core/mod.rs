@@ -7,7 +7,6 @@ use std::path::PathBuf;
 use std::str::FromStr;
 
 use clap::ValueEnum;
-use color_eyre::eyre::anyhow;
 use color_eyre::Result;
 use serde::Deserialize;
 use serde::Serialize;
