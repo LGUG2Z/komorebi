@@ -76,6 +76,12 @@ macro_rules! impl_ring_elements {
             }
         }
     };
+    // This allows passing a different name to be used for the functions. For instance, the
+    // `floating_windows` ring calls this as:
+    // ```rust
+    // impl_ring_elements!(Workspace, Window, "floating_window");
+    // ```
+    // Which allows using the `Window` element but name the functions as `floating_window`
     ($name:ty, $element:ident, $el_name:literal) => {
         paste::paste! {
             impl $name {
