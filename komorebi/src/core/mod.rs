@@ -1,12 +1,10 @@
 #![warn(clippy::all)]
 #![allow(clippy::missing_errors_doc, clippy::use_self, clippy::doc_markdown)]
 
-use std::path::Path;
 use std::path::PathBuf;
 use std::str::FromStr;
 
 use clap::ValueEnum;
-use color_eyre::eyre::anyhow;
 use color_eyre::Result;
 use serde::Deserialize;
 use serde::Serialize;
@@ -28,7 +26,10 @@ pub use default_layout::DefaultLayout;
 pub use direction::Direction;
 pub use layout::Layout;
 pub use operation_direction::OperationDirection;
+pub use pathext::replace_env_in_path;
+pub use pathext::resolve_option_hashmap_usize_path;
 pub use pathext::PathExt;
+pub use pathext::ResolvedPathBuf;
 pub use rect::Rect;
 
 pub mod animation;
@@ -44,6 +45,8 @@ pub mod operation_direction;
 pub mod pathext;
 pub mod rect;
 
+// serde_as must be before derive
+#[serde_with::serde_as]
 #[derive(Clone, Debug, Serialize, Deserialize, Display)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[serde(tag = "type", content = "content")]
@@ -105,7 +108,7 @@ pub enum SocketMessage {
     AdjustWorkspacePadding(Sizing, i32),
     ChangeLayout(DefaultLayout),
     CycleLayout(CycleDirection),
-    ChangeLayoutCustom(PathBuf),
+    ChangeLayoutCustom(#[serde_as(as = "ResolvedPathBuf")] PathBuf),
     FlipLayout(Axis),
     ToggleWorkspaceWindowContainerBehaviour,
     ToggleWorkspaceFloatOverride,
@@ -123,8 +126,8 @@ pub enum SocketMessage {
     RetileWithResizeDimensions,
     QuickSave,
     QuickLoad,
-    Save(PathBuf),
-    Load(PathBuf),
+    Save(#[serde_as(as = "ResolvedPathBuf")] PathBuf),
+    Load(#[serde_as(as = "ResolvedPathBuf")] PathBuf),
     CycleFocusMonitor(CycleDirection),
     CycleFocusWorkspace(CycleDirection),
     CycleFocusEmptyWorkspace(CycleDirection),
@@ -147,19 +150,24 @@ pub enum SocketMessage {
     WorkspaceName(usize, usize, String),
     WorkspaceLayout(usize, usize, DefaultLayout),
     NamedWorkspaceLayout(String, DefaultLayout),
-    WorkspaceLayoutCustom(usize, usize, PathBuf),
-    NamedWorkspaceLayoutCustom(String, PathBuf),
+    WorkspaceLayoutCustom(usize, usize, #[serde_as(as = "ResolvedPathBuf")] PathBuf),
+    NamedWorkspaceLayoutCustom(String, #[serde_as(as = "ResolvedPathBuf")] PathBuf),
     WorkspaceLayoutRule(usize, usize, usize, DefaultLayout),
     NamedWorkspaceLayoutRule(String, usize, DefaultLayout),
-    WorkspaceLayoutCustomRule(usize, usize, usize, PathBuf),
-    NamedWorkspaceLayoutCustomRule(String, usize, PathBuf),
+    WorkspaceLayoutCustomRule(
+        usize,
+        usize,
+        usize,
+        #[serde_as(as = "ResolvedPathBuf")] PathBuf,
+    ),
+    NamedWorkspaceLayoutCustomRule(String, usize, #[serde_as(as = "ResolvedPathBuf")] PathBuf),
     ClearWorkspaceLayoutRules(usize, usize),
     ClearNamedWorkspaceLayoutRules(String),
     ToggleWorkspaceLayer,
     // Configuration
     ReloadConfiguration,
-    ReplaceConfiguration(PathBuf),
-    ReloadStaticConfiguration(PathBuf),
+    ReplaceConfiguration(#[serde_as(as = "ResolvedPathBuf")] PathBuf),
+    ReloadStaticConfiguration(#[serde_as(as = "ResolvedPathBuf")] PathBuf),
     WatchConfiguration(bool),
     CompleteConfiguration,
     AltFocusHack(bool),
@@ -458,45 +466,28 @@ impl Sizing {
     }
 }
 
-pub fn resolve_home_path<P: AsRef<Path>>(path: P) -> Result<PathBuf> {
-    let mut resolved_path = PathBuf::new();
-    let mut resolved = false;
-    for c in path.as_ref().components() {
-        match c {
-            std::path::Component::Normal(c)
-                if (c == "~" || c == "$Env:USERPROFILE" || c == "$HOME") && !resolved =>
-            {
-                let home = dirs::home_dir().ok_or_else(|| anyhow!("there is no home directory"))?;
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-                resolved_path.extend(home.components());
-                resolved = true;
-            }
+    #[test]
+    fn deserializes() {
+        // Set a variable for testing
+        std::env::set_var("VAR", "VALUE");
 
-            std::path::Component::Normal(c) if (c == "$Env:KOMOREBI_CONFIG_HOME") && !resolved => {
-                let komorebi_config_home =
-                    PathBuf::from(std::env::var("KOMOREBI_CONFIG_HOME").ok().ok_or_else(|| {
-                        anyhow!("there is no KOMOREBI_CONFIG_HOME environment variable set")
-                    })?);
+        let json = r#"{"type":"WorkspaceLayoutCustomRule","content":[0,0,0,"/path/%VAR%/d"]}"#;
+        let message: SocketMessage = serde_json::from_str(json).unwrap();
 
-                resolved_path.extend(komorebi_config_home.components());
-                resolved = true;
-            }
+        let SocketMessage::WorkspaceLayoutCustomRule(
+            _workspace_index,
+            _workspace_number,
+            _monitor_index,
+            path,
+        ) = message
+        else {
+            panic!("Expected WorkspaceLayoutCustomRule");
+        };
 
-            _ => resolved_path.push(c),
-        }
+        assert_eq!(path, PathBuf::from("/path/VALUE/d"));
     }
-
-    let parent = resolved_path
-        .parent()
-        .ok_or_else(|| anyhow!("cannot parse parent directory"))?;
-
-    Ok(if parent.is_dir() {
-        let file = resolved_path
-            .components()
-            .next_back()
-            .ok_or_else(|| anyhow!("cannot parse filename"))?;
-        dunce::canonicalize(parent)?.join(file)
-    } else {
-        resolved_path
-    })
 }
