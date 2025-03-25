@@ -1747,7 +1747,7 @@ mod tests {
 
         // unfloat - have to do this semi-manually becuase of calls to WindowsApi in
         // new_container_for_floating_window which usually handles unfloating
-        let window = ws.floating_windows_mut().pop().unwrap();
+        let window = ws.floating_windows_mut().pop_back().unwrap();
         let mut container = Container::default();
         container.add_window(window);
         ws.insert_container_at_idx(ws.focused_container_idx(), container);
