@@ -437,7 +437,7 @@ pub struct StaticConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(alias = "active_window_border_offset")]
     pub border_offset: Option<i32>,
-    /// Display an active window border (default: false)
+    /// Display an active window border (default: true)
     #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(alias = "active_window_border")]
     pub border: Option<bool>,
