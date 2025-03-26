@@ -1,25 +1,14 @@
-#![allow(dead_code)]
-#![allow(unused_imports)]
-
 use crate::config::LabelPrefix;
 use crate::render::RenderConfig;
 use crate::selected_frame::SelectableFrame;
 use crate::widgets::widget::BarWidget;
 use eframe::egui::text::LayoutJob;
-use eframe::egui::Align;
 use eframe::egui::Context;
 use eframe::egui::Label;
 use eframe::egui::TextFormat;
 use eframe::egui::Ui;
-use num_derive::FromPrimitive;
 use serde::Deserialize;
 use serde::Serialize;
-use std::fmt;
-use std::process::Command;
-use std::time::Duration;
-use std::time::Instant;
-use sysinfo::Networks;
-use windows::core::Result;
 use windows::Win32::UI::Input::KeyboardAndMouse::SendInput;
 use windows::Win32::UI::Input::KeyboardAndMouse::INPUT;
 use windows::Win32::UI::Input::KeyboardAndMouse::INPUT_0;
@@ -92,7 +81,6 @@ impl StartMenu {
 impl BarWidget for StartMenu {
     fn render(&mut self, ctx: &Context, ui: &mut Ui, config: &mut RenderConfig) {
         if self.enable {
-            // widget spacing: make sure to use the same config to call the apply_on_widget function
             let mut render_config = config.clone();
             let mut layout_job = LayoutJob::simple(
                 match self.label_prefix {
@@ -106,16 +94,20 @@ impl BarWidget for StartMenu {
                 100.0,
             );
 
-            layout_job.append(
-                &String::from("Start"),
-                10.0,
-                TextFormat {
-                    font_id: config.text_font_id.clone(),
-                    color: ctx.style().visuals.text_color(),
-                    valign: Align::Center,
-                    ..Default::default()
-                },
-            );
+            match self.label_prefix {
+                LabelPrefix::Text | LabelPrefix::IconAndText => {
+                    layout_job.append(
+                        &String::from("Start"),
+                        10.0,
+                        TextFormat {
+                            font_id: config.text_font_id.clone(),
+                            color: ctx.style().visuals.text_color(),
+                            ..Default::default()
+                        },
+                    );
+                }
+                _ => (),
+            };
 
             render_config.apply_on_widget(false, ui, |ui| {
                 if SelectableFrame::new(false)
@@ -126,7 +118,6 @@ impl BarWidget for StartMenu {
                 }
             });
 
-            // widget spacing: pass on the config that was use for calling the apply_on_widget function
             *config = render_config.clone();
         }
     }
