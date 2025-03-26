@@ -7,6 +7,7 @@ mod komorebi_layout;
 pub mod media;
 pub mod memory;
 pub mod network;
+pub mod startmenu;
 pub mod storage;
 pub mod time;
 pub mod update;

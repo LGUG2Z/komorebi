@@ -746,6 +746,60 @@
           {
             "type": "object",
             "required": [
+              "StartMenu"
+            ],
+            "properties": {
+              "StartMenu": {
+                "type": "object",
+                "required": [
+                  "enable"
+                ],
+                "properties": {
+                  "enable": {
+                    "description": "Enable the Network widget",
+                    "type": "boolean"
+                  },
+                  "label_prefix": {
+                    "description": "Display label prefix",
+                    "oneOf": [
+                      {
+                        "description": "Show no prefix",
+                        "type": "string",
+                        "enum": [
+                          "None"
+                        ]
+                      },
+                      {
+                        "description": "Show an icon",
+                        "type": "string",
+                        "enum": [
+                          "Icon"
+                        ]
+                      },
+                      {
+                        "description": "Show text",
+                        "type": "string",
+                        "enum": [
+                          "Text"
+                        ]
+                      },
+                      {
+                        "description": "Show an icon and text",
+                        "type": "string",
+                        "enum": [
+                          "IconAndText"
+                        ]
+                      }
+                    ]
+                  }
+                }
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
               "Network"
             ],
             "properties": {

@@ -15,6 +15,8 @@ use crate::widgets::memory::Memory;
 use crate::widgets::memory::MemoryConfig;
 use crate::widgets::network::Network;
 use crate::widgets::network::NetworkConfig;
+use crate::widgets::startmenu::StartMenu;
+use crate::widgets::startmenu::StartMenuConfig;
 use crate::widgets::storage::Storage;
 use crate::widgets::storage::StorageConfig;
 use crate::widgets::time::Time;
@@ -44,6 +46,7 @@ pub enum WidgetConfig {
     Storage(StorageConfig),
     Time(TimeConfig),
     Update(UpdateConfig),
+    StartMenu(StartMenuConfig),
 }
 
 impl WidgetConfig {
@@ -60,6 +63,7 @@ impl WidgetConfig {
             WidgetConfig::Storage(config) => Box::new(Storage::from(*config)),
             WidgetConfig::Time(config) => Box::new(Time::from(config.clone())),
             WidgetConfig::Update(config) => Box::new(Update::from(*config)),
+            WidgetConfig::StartMenu(config) => Box::new(StartMenu::from(*config)),
         }
     }
 
@@ -84,6 +88,7 @@ impl WidgetConfig {
             WidgetConfig::Storage(config) => config.enable,
             WidgetConfig::Time(config) => config.enable,
             WidgetConfig::Update(config) => config.enable,
+            WidgetConfig::StartMenu(config) => config.enable,
         }
     }
 }
