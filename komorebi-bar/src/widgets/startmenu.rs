@@ -96,7 +96,9 @@ impl BarWidget for StartMenu {
             let mut render_config = config.clone();
             let mut layout_job = LayoutJob::simple(
                 match self.label_prefix {
-                    LabelPrefix::Icon | LabelPrefix::IconAndText => egui_phosphor::regular::YIN_YANG.to_string(),
+                    LabelPrefix::Icon | LabelPrefix::IconAndText => {
+                        egui_phosphor::regular::YIN_YANG.to_string()
+                    }
                     LabelPrefix::None | LabelPrefix::Text => String::new(),
                 },
                 config.icon_font_id.clone(),

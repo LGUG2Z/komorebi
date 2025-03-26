@@ -49,7 +49,9 @@ impl From<NetworkConfig> for Network {
             default_interface: String::new(),
             data_refresh_interval,
             label_prefix: value.label_prefix.unwrap_or(LabelPrefix::Icon),
-            network_activity_fill_characters: value.network_activity_fill_characters.unwrap_or_default(),
+            network_activity_fill_characters: value
+                .network_activity_fill_characters
+                .unwrap_or_default(),
             last_state_total_activity: vec![],
             last_state_activity: vec![],
             last_updated_network_activity: Instant::now()
@@ -88,7 +90,9 @@ impl Network {
         let mut total_activity = self.last_state_total_activity.clone();
         let now = Instant::now();
 
-        if now.duration_since(self.last_updated_network_activity) > Duration::from_secs(self.data_refresh_interval) {
+        if now.duration_since(self.last_updated_network_activity)
+            > Duration::from_secs(self.data_refresh_interval)
+        {
             activity.clear();
             total_activity.clear();
 
@@ -103,8 +107,14 @@ impl Network {
                             if self.show_activity {
                                 activity.push(NetworkReading::new(
                                     NetworkReadingFormat::Speed,
-                                    Self::to_pretty_bytes(data.received(), self.data_refresh_interval),
-                                    Self::to_pretty_bytes(data.transmitted(), self.data_refresh_interval),
+                                    Self::to_pretty_bytes(
+                                        data.received(),
+                                        self.data_refresh_interval,
+                                    ),
+                                    Self::to_pretty_bytes(
+                                        data.transmitted(),
+                                        self.data_refresh_interval,
+                                    ),
                                 ));
                             }
 
@@ -128,7 +138,12 @@ impl Network {
         (activity, total_activity)
     }
 
-    fn reading_to_label(&self, ctx: &Context, reading: NetworkReading, config: RenderConfig) -> Label {
+    fn reading_to_label(
+        &self,
+        ctx: &Context,
+        reading: NetworkReading,
+        config: RenderConfig,
+    ) -> Label {
         let (text_down, text_up) = match self.label_prefix {
             LabelPrefix::None | LabelPrefix::Icon => match reading.format {
                 NetworkReadingFormat::Speed => (
@@ -182,7 +197,9 @@ impl Network {
         // icon
         let mut layout_job = LayoutJob::simple(
             match self.label_prefix {
-                LabelPrefix::Icon | LabelPrefix::IconAndText => egui_phosphor::regular::ARROW_FAT_DOWN.to_string(),
+                LabelPrefix::Icon | LabelPrefix::IconAndText => {
+                    egui_phosphor::regular::ARROW_FAT_DOWN.to_string()
+                }
                 LabelPrefix::None | LabelPrefix::Text => String::new(),
             },
             icon_format.font_id.clone(),
@@ -200,7 +217,9 @@ impl Network {
         // icon
         layout_job.append(
             &match self.label_prefix {
-                LabelPrefix::Icon | LabelPrefix::IconAndText => egui_phosphor::regular::ARROW_FAT_UP.to_string(),
+                LabelPrefix::Icon | LabelPrefix::IconAndText => {
+                    egui_phosphor::regular::ARROW_FAT_UP.to_string()
+                }
                 LabelPrefix::None | LabelPrefix::Text => String::new(),
             },
             0.0,
@@ -269,7 +288,9 @@ impl BarWidget for Network {
                 if !self.default_interface.is_empty() {
                     let mut layout_job = LayoutJob::simple(
                         match self.label_prefix {
-                            LabelPrefix::Icon | LabelPrefix::IconAndText => egui_phosphor::regular::WIFI_HIGH.to_string(),
+                            LabelPrefix::Icon | LabelPrefix::IconAndText => {
+                                egui_phosphor::regular::WIFI_HIGH.to_string()
+                            }
                             LabelPrefix::None | LabelPrefix::Text => String::new(),
                         },
                         config.icon_font_id.clone(),
@@ -297,7 +318,8 @@ impl BarWidget for Network {
                             .show(ui, |ui| ui.add(Label::new(layout_job).selectable(false)))
                             .clicked()
                         {
-                            if let Err(error) = Command::new("cmd.exe").args(["/C", "ncpa"]).spawn() {
+                            if let Err(error) = Command::new("cmd.exe").args(["/C", "ncpa"]).spawn()
+                            {
                                 eprintln!("{}", error)
                             }
                         }
