@@ -12,11 +12,15 @@ use getset::Setters;
 use serde::Deserialize;
 use serde::Serialize;
 
+use crate::border_manager::BORDER_ENABLED;
+use crate::border_manager::BORDER_OFFSET;
+use crate::border_manager::BORDER_WIDTH;
 use crate::core::Rect;
 
 use crate::container::Container;
 use crate::ring::Ring;
 use crate::workspace::Workspace;
+use crate::workspace::WorkspaceGlobals;
 use crate::workspace::WorkspaceLayer;
 use crate::DefaultLayout;
 use crate::Layout;
@@ -203,18 +207,32 @@ impl Monitor {
         let workspace_padding = self
             .workspace_padding()
             .or(Some(DEFAULT_WORKSPACE_PADDING.load(Ordering::SeqCst)));
+        let (border_width, border_offset) = {
+            let border_enabled = BORDER_ENABLED.load(Ordering::SeqCst);
+            if border_enabled {
+                let border_width = BORDER_WIDTH.load(Ordering::SeqCst);
+                let border_offset = BORDER_OFFSET.load(Ordering::SeqCst);
+                (border_width, border_offset)
+            } else {
+                (0, 0)
+            }
+        };
         let work_area = *self.work_area_size();
-        let offset = self.work_area_offset.or(offset);
+        let work_area_offset = self.work_area_offset.or(offset);
         let window_based_work_area_offset = self.window_based_work_area_offset();
-        let limit = self.window_based_work_area_offset_limit();
+        let window_based_work_area_offset_limit = self.window_based_work_area_offset_limit();
 
         for workspace in self.workspaces_mut() {
-            workspace.globals_mut().container_padding = container_padding;
-            workspace.globals_mut().workspace_padding = workspace_padding;
-            workspace.globals_mut().work_area = work_area;
-            workspace.globals_mut().work_area_offset = offset;
-            workspace.globals_mut().window_based_work_area_offset = window_based_work_area_offset;
-            workspace.globals_mut().window_based_work_area_offset_limit = limit;
+            workspace.globals = WorkspaceGlobals {
+                container_padding,
+                workspace_padding,
+                border_width,
+                border_offset,
+                work_area,
+                work_area_offset,
+                window_based_work_area_offset,
+                window_based_work_area_offset_limit,
+            }
         }
     }
 
@@ -226,18 +244,32 @@ impl Monitor {
         let workspace_padding = self
             .workspace_padding()
             .or(Some(DEFAULT_WORKSPACE_PADDING.load(Ordering::SeqCst)));
+        let (border_width, border_offset) = {
+            let border_enabled = BORDER_ENABLED.load(Ordering::SeqCst);
+            if border_enabled {
+                let border_width = BORDER_WIDTH.load(Ordering::SeqCst);
+                let border_offset = BORDER_OFFSET.load(Ordering::SeqCst);
+                (border_width, border_offset)
+            } else {
+                (0, 0)
+            }
+        };
         let work_area = *self.work_area_size();
-        let offset = self.work_area_offset.or(offset);
+        let work_area_offset = self.work_area_offset.or(offset);
         let window_based_work_area_offset = self.window_based_work_area_offset();
-        let limit = self.window_based_work_area_offset_limit();
+        let window_based_work_area_offset_limit = self.window_based_work_area_offset_limit();
 
         if let Some(workspace) = self.workspaces_mut().get_mut(workspace_idx) {
-            workspace.globals_mut().container_padding = container_padding;
-            workspace.globals_mut().workspace_padding = workspace_padding;
-            workspace.globals_mut().work_area = work_area;
-            workspace.globals_mut().work_area_offset = offset;
-            workspace.globals_mut().window_based_work_area_offset = window_based_work_area_offset;
-            workspace.globals_mut().window_based_work_area_offset_limit = limit;
+            workspace.globals = WorkspaceGlobals {
+                container_padding,
+                workspace_padding,
+                border_width,
+                border_offset,
+                work_area,
+                work_area_offset,
+                window_based_work_area_offset,
+                window_based_work_area_offset_limit,
+            }
         }
     }
 
