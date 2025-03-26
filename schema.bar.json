@@ -3,7 +3,11 @@
 	"title": "KomobarConfig",
 	"description": "The `komorebi.bar.json` configuration file reference for `v0.1.35`",
 	"type": "object",
-	"required": ["left_widgets", "monitor", "right_widgets"],
+	"required": [
+		"left_widgets",
+		"monitor",
+		"right_widgets"
+	],
 	"properties": {
 		"center_widgets": {
 			"description": "Center widgets (ordered left-to-right)",
@@ -12,11 +16,15 @@
 				"oneOf": [
 					{
 						"type": "object",
-						"required": ["Battery"],
+						"required": [
+							"Battery"
+						],
 						"properties": {
 							"Battery": {
 								"type": "object",
-								"required": ["enable"],
+								"required": [
+									"enable"
+								],
 								"properties": {
 									"data_refresh_interval": {
 										"description": "Data refresh interval (default: 10 seconds)",
@@ -38,22 +46,30 @@
 											{
 												"description": "Show no prefix",
 												"type": "string",
-												"enum": ["None"]
+												"enum": [
+													"None"
+												]
 											},
 											{
 												"description": "Show an icon",
 												"type": "string",
-												"enum": ["Icon"]
+												"enum": [
+													"Icon"
+												]
 											},
 											{
 												"description": "Show text",
 												"type": "string",
-												"enum": ["Text"]
+												"enum": [
+													"Text"
+												]
 											},
 											{
 												"description": "Show an icon and text",
 												"type": "string",
-												"enum": ["IconAndText"]
+												"enum": [
+													"IconAndText"
+												]
 											}
 										]
 									}
@@ -64,11 +80,15 @@
 					},
 					{
 						"type": "object",
-						"required": ["Cpu"],
+						"required": [
+							"Cpu"
+						],
 						"properties": {
 							"Cpu": {
 								"type": "object",
-								"required": ["enable"],
+								"required": [
+									"enable"
+								],
 								"properties": {
 									"data_refresh_interval": {
 										"description": "Data refresh interval (default: 10 seconds)",
@@ -86,22 +106,30 @@
 											{
 												"description": "Show no prefix",
 												"type": "string",
-												"enum": ["None"]
+												"enum": [
+													"None"
+												]
 											},
 											{
 												"description": "Show an icon",
 												"type": "string",
-												"enum": ["Icon"]
+												"enum": [
+													"Icon"
+												]
 											},
 											{
 												"description": "Show text",
 												"type": "string",
-												"enum": ["Text"]
+												"enum": [
+													"Text"
+												]
 											},
 											{
 												"description": "Show an icon and text",
 												"type": "string",
-												"enum": ["IconAndText"]
+												"enum": [
+													"IconAndText"
+												]
 											}
 										]
 									}
@@ -112,11 +140,16 @@
 					},
 					{
 						"type": "object",
-						"required": ["Date"],
+						"required": [
+							"Date"
+						],
 						"properties": {
 							"Date": {
 								"type": "object",
-								"required": ["enable", "format"],
+								"required": [
+									"enable",
+									"format"
+								],
 								"properties": {
 									"enable": {
 										"description": "Enable the Date widget",
@@ -128,27 +161,37 @@
 											{
 												"description": "Month/Date/Year format (09/08/24)",
 												"type": "string",
-												"enum": ["MonthDateYear"]
+												"enum": [
+													"MonthDateYear"
+												]
 											},
 											{
 												"description": "Year-Month-Date format (2024-09-08)",
 												"type": "string",
-												"enum": ["YearMonthDate"]
+												"enum": [
+													"YearMonthDate"
+												]
 											},
 											{
 												"description": "Date-Month-Year format (8-Sep-2024)",
 												"type": "string",
-												"enum": ["DateMonthYear"]
+												"enum": [
+													"DateMonthYear"
+												]
 											},
 											{
 												"description": "Day Date Month Year format (8 September 2024)",
 												"type": "string",
-												"enum": ["DayDateMonthYear"]
+												"enum": [
+													"DayDateMonthYear"
+												]
 											},
 											{
 												"description": "Custom format (https://docs.rs/chrono/latest/chrono/format/strftime/index.html)",
 												"type": "object",
-												"required": ["Custom"],
+												"required": [
+													"Custom"
+												],
 												"properties": {
 													"Custom": {
 														"type": "string"
@@ -159,12 +202,17 @@
 											{
 												"description": "Custom format with modifiers",
 												"type": "object",
-												"required": ["CustomModifiers"],
+												"required": [
+													"CustomModifiers"
+												],
 												"properties": {
 													"CustomModifiers": {
 														"description": "Custom format with additive modifiers for integer format specifiers",
 														"type": "object",
-														"required": ["format", "modifiers"],
+														"required": [
+															"format",
+															"modifiers"
+														],
 														"properties": {
 															"format": {
 																"description": "Custom format (https://docs.rs/chrono/latest/chrono/format/strftime/index.html)",
@@ -191,22 +239,30 @@
 											{
 												"description": "Show no prefix",
 												"type": "string",
-												"enum": ["None"]
+												"enum": [
+													"None"
+												]
 											},
 											{
 												"description": "Show an icon",
 												"type": "string",
-												"enum": ["Icon"]
+												"enum": [
+													"Icon"
+												]
 											},
 											{
 												"description": "Show text",
 												"type": "string",
-												"enum": ["Text"]
+												"enum": [
+													"Text"
+												]
 											},
 											{
 												"description": "Show an icon and text",
 												"type": "string",
-												"enum": ["IconAndText"]
+												"enum": [
+													"IconAndText"
+												]
 											}
 										]
 									},
@@ -221,11 +277,15 @@
 					},
 					{
 						"type": "object",
-						"required": ["Keyboard"],
+						"required": [
+							"Keyboard"
+						],
 						"properties": {
 							"Keyboard": {
 								"type": "object",
-								"required": ["enable"],
+								"required": [
+									"enable"
+								],
 								"properties": {
 									"data_refresh_interval": {
 										"description": "Data refresh interval (default: 1 second)",
@@ -243,22 +303,30 @@
 											{
 												"description": "Show no prefix",
 												"type": "string",
-												"enum": ["None"]
+												"enum": [
+													"None"
+												]
 											},
 											{
 												"description": "Show an icon",
 												"type": "string",
-												"enum": ["Icon"]
+												"enum": [
+													"Icon"
+												]
 											},
 											{
 												"description": "Show text",
 												"type": "string",
-												"enum": ["Text"]
+												"enum": [
+													"Text"
+												]
 											},
 											{
 												"description": "Show an icon and text",
 												"type": "string",
-												"enum": ["IconAndText"]
+												"enum": [
+													"IconAndText"
+												]
 											}
 										]
 									}
@@ -269,7 +337,9 @@
 					},
 					{
 						"type": "object",
-						"required": ["Komorebi"],
+						"required": [
+							"Komorebi"
+						],
 						"properties": {
 							"Komorebi": {
 								"type": "object",
@@ -277,7 +347,10 @@
 									"configuration_switcher": {
 										"description": "Configure the Configuration Switcher widget",
 										"type": "object",
-										"required": ["configurations", "enable"],
+										"required": [
+											"configurations",
+											"enable"
+										],
 										"properties": {
 											"configurations": {
 												"description": "A map of display friendly name => path to configuration.json",
@@ -295,7 +368,9 @@
 									"focused_window": {
 										"description": "Configure the Focused Window widget",
 										"type": "object",
-										"required": ["enable"],
+										"required": [
+											"enable"
+										],
 										"properties": {
 											"display": {
 												"description": "Display format of the currently focused window",
@@ -303,27 +378,37 @@
 													{
 														"description": "Show only icon",
 														"type": "string",
-														"enum": ["Icon"]
+														"enum": [
+															"Icon"
+														]
 													},
 													{
 														"description": "Show only text",
 														"type": "string",
-														"enum": ["Text"]
+														"enum": [
+															"Text"
+														]
 													},
 													{
 														"description": "Show an icon and text for the selected element, and text on the rest",
 														"type": "string",
-														"enum": ["TextAndIconOnSelected"]
+														"enum": [
+															"TextAndIconOnSelected"
+														]
 													},
 													{
 														"description": "Show both icon and text",
 														"type": "string",
-														"enum": ["IconAndText"]
+														"enum": [
+															"IconAndText"
+														]
 													},
 													{
 														"description": "Show an icon and text for the selected element, and icons on the rest",
 														"type": "string",
-														"enum": ["IconAndTextOnSelected"]
+														"enum": [
+															"IconAndTextOnSelected"
+														]
 													}
 												]
 											},
@@ -340,7 +425,9 @@
 									"layout": {
 										"description": "Configure the Layout widget",
 										"type": "object",
-										"required": ["enable"],
+										"required": [
+											"enable"
+										],
 										"properties": {
 											"display": {
 												"description": "Display format of the current layout",
@@ -348,27 +435,37 @@
 													{
 														"description": "Show only icon",
 														"type": "string",
-														"enum": ["Icon"]
+														"enum": [
+															"Icon"
+														]
 													},
 													{
 														"description": "Show only text",
 														"type": "string",
-														"enum": ["Text"]
+														"enum": [
+															"Text"
+														]
 													},
 													{
 														"description": "Show an icon and text for the selected element, and text on the rest",
 														"type": "string",
-														"enum": ["TextAndIconOnSelected"]
+														"enum": [
+															"TextAndIconOnSelected"
+														]
 													},
 													{
 														"description": "Show both icon and text",
 														"type": "string",
-														"enum": ["IconAndText"]
+														"enum": [
+															"IconAndText"
+														]
 													},
 													{
 														"description": "Show an icon and text for the selected element, and icons on the rest",
 														"type": "string",
-														"enum": ["IconAndTextOnSelected"]
+														"enum": [
+															"IconAndTextOnSelected"
+														]
 													}
 												]
 											},
@@ -414,7 +511,9 @@
 									"workspace_layer": {
 										"description": "Configure the Workspace Layer widget",
 										"type": "object",
-										"required": ["enable"],
+										"required": [
+											"enable"
+										],
 										"properties": {
 											"display": {
 												"description": "Display format of the current layer",
@@ -422,27 +521,37 @@
 													{
 														"description": "Show only icon",
 														"type": "string",
-														"enum": ["Icon"]
+														"enum": [
+															"Icon"
+														]
 													},
 													{
 														"description": "Show only text",
 														"type": "string",
-														"enum": ["Text"]
+														"enum": [
+															"Text"
+														]
 													},
 													{
 														"description": "Show an icon and text for the selected element, and text on the rest",
 														"type": "string",
-														"enum": ["TextAndIconOnSelected"]
+														"enum": [
+															"TextAndIconOnSelected"
+														]
 													},
 													{
 														"description": "Show both icon and text",
 														"type": "string",
-														"enum": ["IconAndText"]
+														"enum": [
+															"IconAndText"
+														]
 													},
 													{
 														"description": "Show an icon and text for the selected element, and icons on the rest",
 														"type": "string",
-														"enum": ["IconAndTextOnSelected"]
+														"enum": [
+															"IconAndTextOnSelected"
+														]
 													}
 												]
 											},
@@ -459,7 +568,10 @@
 									"workspaces": {
 										"description": "Configure the Workspaces widget",
 										"type": "object",
-										"required": ["enable", "hide_empty_workspaces"],
+										"required": [
+											"enable",
+											"hide_empty_workspaces"
+										],
 										"properties": {
 											"display": {
 												"description": "Display format of the workspace",
@@ -467,48 +579,66 @@
 													{
 														"description": "Show all icons only",
 														"type": "string",
-														"enum": ["AllIcons"]
+														"enum": [
+															"AllIcons"
+														]
 													},
 													{
 														"description": "Show both all icons and text",
 														"type": "string",
-														"enum": ["AllIconsAndText"]
+														"enum": [
+															"AllIconsAndText"
+														]
 													},
 													{
 														"description": "Show all icons and text for the selected element, and all icons on the rest",
 														"type": "string",
-														"enum": ["AllIconsAndTextOnSelected"]
+														"enum": [
+															"AllIconsAndTextOnSelected"
+														]
 													},
 													{
 														"type": "object",
-														"required": ["Existing"],
+														"required": [
+															"Existing"
+														],
 														"properties": {
 															"Existing": {
 																"oneOf": [
 																	{
 																		"description": "Show only icon",
 																		"type": "string",
-																		"enum": ["Icon"]
+																		"enum": [
+																			"Icon"
+																		]
 																	},
 																	{
 																		"description": "Show only text",
 																		"type": "string",
-																		"enum": ["Text"]
+																		"enum": [
+																			"Text"
+																		]
 																	},
 																	{
 																		"description": "Show an icon and text for the selected element, and text on the rest",
 																		"type": "string",
-																		"enum": ["TextAndIconOnSelected"]
+																		"enum": [
+																			"TextAndIconOnSelected"
+																		]
 																	},
 																	{
 																		"description": "Show both icon and text",
 																		"type": "string",
-																		"enum": ["IconAndText"]
+																		"enum": [
+																			"IconAndText"
+																		]
 																	},
 																	{
 																		"description": "Show an icon and text for the selected element, and icons on the rest",
 																		"type": "string",
-																		"enum": ["IconAndTextOnSelected"]
+																		"enum": [
+																			"IconAndTextOnSelected"
+																		]
 																	}
 																]
 															}
@@ -534,11 +664,15 @@
 					},
 					{
 						"type": "object",
-						"required": ["Media"],
+						"required": [
+							"Media"
+						],
 						"properties": {
 							"Media": {
 								"type": "object",
-								"required": ["enable"],
+								"required": [
+									"enable"
+								],
 								"properties": {
 									"enable": {
 										"description": "Enable the Media widget",
@@ -551,11 +685,15 @@
 					},
 					{
 						"type": "object",
-						"required": ["Memory"],
+						"required": [
+							"Memory"
+						],
 						"properties": {
 							"Memory": {
 								"type": "object",
-								"required": ["enable"],
+								"required": [
+									"enable"
+								],
 								"properties": {
 									"data_refresh_interval": {
 										"description": "Data refresh interval (default: 10 seconds)",
@@ -573,22 +711,30 @@
 											{
 												"description": "Show no prefix",
 												"type": "string",
-												"enum": ["None"]
+												"enum": [
+													"None"
+												]
 											},
 											{
 												"description": "Show an icon",
 												"type": "string",
-												"enum": ["Icon"]
+												"enum": [
+													"Icon"
+												]
 											},
 											{
 												"description": "Show text",
 												"type": "string",
-												"enum": ["Text"]
+												"enum": [
+													"Text"
+												]
 											},
 											{
 												"description": "Show an icon and text",
 												"type": "string",
-												"enum": ["IconAndText"]
+												"enum": [
+													"IconAndText"
+												]
 											}
 										]
 									}
@@ -599,14 +745,18 @@
 					},
 					{
 						"type": "object",
-						"required": ["StartMenu"],
+						"required": [
+							"StartMenu"
+						],
 						"properties": {
 							"StartMenu": {
 								"type": "object",
-								"required": ["enable"],
+								"required": [
+									"enable"
+								],
 								"properties": {
 									"enable": {
-										"description": "Enable the Network widget",
+										"description": "Enable the start menu button widget",
 										"type": "boolean"
 									},
 									"label_prefix": {
@@ -615,22 +765,30 @@
 											{
 												"description": "Show no prefix",
 												"type": "string",
-												"enum": ["None"]
+												"enum": [
+													"None"
+												]
 											},
 											{
 												"description": "Show an icon",
 												"type": "string",
-												"enum": ["Icon"]
+												"enum": [
+													"Icon"
+												]
 											},
 											{
 												"description": "Show text",
 												"type": "string",
-												"enum": ["Text"]
+												"enum": [
+													"Text"
+												]
 											},
 											{
 												"description": "Show an icon and text",
 												"type": "string",
-												"enum": ["IconAndText"]
+												"enum": [
+													"IconAndText"
+												]
 											}
 										]
 									}
@@ -641,7 +799,9 @@
 					},
 					{
 						"type": "object",
-						"required": ["Network"],
+						"required": [
+							"Network"
+						],
 						"properties": {
 							"Network": {
 								"type": "object",
@@ -667,22 +827,30 @@
 											{
 												"description": "Show no prefix",
 												"type": "string",
-												"enum": ["None"]
+												"enum": [
+													"None"
+												]
 											},
 											{
 												"description": "Show an icon",
 												"type": "string",
-												"enum": ["Icon"]
+												"enum": [
+													"Icon"
+												]
 											},
 											{
 												"description": "Show text",
 												"type": "string",
-												"enum": ["Text"]
+												"enum": [
+													"Text"
+												]
 											},
 											{
 												"description": "Show an icon and text",
 												"type": "string",
-												"enum": ["IconAndText"]
+												"enum": [
+													"IconAndText"
+												]
 											}
 										]
 									},
@@ -711,11 +879,15 @@
 					},
 					{
 						"type": "object",
-						"required": ["Storage"],
+						"required": [
+							"Storage"
+						],
 						"properties": {
 							"Storage": {
 								"type": "object",
-								"required": ["enable"],
+								"required": [
+									"enable"
+								],
 								"properties": {
 									"data_refresh_interval": {
 										"description": "Data refresh interval (default: 10 seconds)",
@@ -733,22 +905,30 @@
 											{
 												"description": "Show no prefix",
 												"type": "string",
-												"enum": ["None"]
+												"enum": [
+													"None"
+												]
 											},
 											{
 												"description": "Show an icon",
 												"type": "string",
-												"enum": ["Icon"]
+												"enum": [
+													"Icon"
+												]
 											},
 											{
 												"description": "Show text",
 												"type": "string",
-												"enum": ["Text"]
+												"enum": [
+													"Text"
+												]
 											},
 											{
 												"description": "Show an icon and text",
 												"type": "string",
-												"enum": ["IconAndText"]
+												"enum": [
+													"IconAndText"
+												]
 											}
 										]
 									}
@@ -759,11 +939,16 @@
 					},
 					{
 						"type": "object",
-						"required": ["Time"],
+						"required": [
+							"Time"
+						],
 						"properties": {
 							"Time": {
 								"type": "object",
-								"required": ["enable", "format"],
+								"required": [
+									"enable",
+									"format"
+								],
 								"properties": {
 									"changing_icon": {
 										"description": "Change the icon depending on the time. The default icon is used between 8:30 and 12:00. (default: false)",
@@ -779,37 +964,51 @@
 											{
 												"description": "Twelve-hour format (with seconds)",
 												"type": "string",
-												"enum": ["TwelveHour"]
+												"enum": [
+													"TwelveHour"
+												]
 											},
 											{
 												"description": "Twelve-hour format (without seconds)",
 												"type": "string",
-												"enum": ["TwelveHourWithoutSeconds"]
+												"enum": [
+													"TwelveHourWithoutSeconds"
+												]
 											},
 											{
 												"description": "Twenty-four-hour format (with seconds)",
 												"type": "string",
-												"enum": ["TwentyFourHour"]
+												"enum": [
+													"TwentyFourHour"
+												]
 											},
 											{
 												"description": "Twenty-four-hour format (without seconds)",
 												"type": "string",
-												"enum": ["TwentyFourHourWithoutSeconds"]
+												"enum": [
+													"TwentyFourHourWithoutSeconds"
+												]
 											},
 											{
 												"description": "Twenty-four-hour format displayed as a binary clock with circles (with seconds) (https://en.wikipedia.org/wiki/Binary_clock)",
 												"type": "string",
-												"enum": ["BinaryCircle"]
+												"enum": [
+													"BinaryCircle"
+												]
 											},
 											{
 												"description": "Twenty-four-hour format displayed as a binary clock with rectangles (with seconds) (https://en.wikipedia.org/wiki/Binary_clock)",
 												"type": "string",
-												"enum": ["BinaryRectangle"]
+												"enum": [
+													"BinaryRectangle"
+												]
 											},
 											{
 												"description": "Custom format (https://docs.rs/chrono/latest/chrono/format/strftime/index.html)",
 												"type": "object",
-												"required": ["Custom"],
+												"required": [
+													"Custom"
+												],
 												"properties": {
 													"Custom": {
 														"type": "string"
@@ -825,22 +1024,30 @@
 											{
 												"description": "Show no prefix",
 												"type": "string",
-												"enum": ["None"]
+												"enum": [
+													"None"
+												]
 											},
 											{
 												"description": "Show an icon",
 												"type": "string",
-												"enum": ["Icon"]
+												"enum": [
+													"Icon"
+												]
 											},
 											{
 												"description": "Show text",
 												"type": "string",
-												"enum": ["Text"]
+												"enum": [
+													"Text"
+												]
 											},
 											{
 												"description": "Show an icon and text",
 												"type": "string",
-												"enum": ["IconAndText"]
+												"enum": [
+													"IconAndText"
+												]
 											}
 										]
 									},
@@ -855,11 +1062,15 @@
 					},
 					{
 						"type": "object",
-						"required": ["Update"],
+						"required": [
+							"Update"
+						],
 						"properties": {
 							"Update": {
 								"type": "object",
-								"required": ["enable"],
+								"required": [
+									"enable"
+								],
 								"properties": {
 									"data_refresh_interval": {
 										"description": "Data refresh interval (default: 12 hours)",
@@ -877,22 +1088,30 @@
 											{
 												"description": "Show no prefix",
 												"type": "string",
-												"enum": ["None"]
+												"enum": [
+													"None"
+												]
 											},
 											{
 												"description": "Show an icon",
 												"type": "string",
-												"enum": ["Icon"]
+												"enum": [
+													"Icon"
+												]
 											},
 											{
 												"description": "Show text",
 												"type": "string",
-												"enum": ["Text"]
+												"enum": [
+													"Text"
+												]
 											},
 											{
 												"description": "Show an icon and text",
 												"type": "string",
-												"enum": ["IconAndText"]
+												"enum": [
+													"IconAndText"
+												]
 											}
 										]
 									}
@@ -916,12 +1135,17 @@
 		"frame": {
 			"description": "Frame options (see: https://docs.rs/egui/latest/egui/containers/frame/struct.Frame.html)",
 			"type": "object",
-			"required": ["inner_margin"],
+			"required": [
+				"inner_margin"
+			],
 			"properties": {
 				"inner_margin": {
 					"description": "Margin inside the painted frame",
 					"type": "object",
-					"required": ["x", "y"],
+					"required": [
+						"x",
+						"y"
+					],
 					"properties": {
 						"x": {
 							"description": "X coordinate",
@@ -943,22 +1167,30 @@
 				{
 					"description": "No grouping is applied",
 					"type": "object",
-					"required": ["kind"],
+					"required": [
+						"kind"
+					],
 					"properties": {
 						"kind": {
 							"type": "string",
-							"enum": ["None"]
+							"enum": [
+								"None"
+							]
 						}
 					}
 				},
 				{
 					"description": "Widgets are grouped as a whole",
 					"type": "object",
-					"required": ["kind"],
+					"required": [
+						"kind"
+					],
 					"properties": {
 						"kind": {
 							"type": "string",
-							"enum": ["Bar"]
+							"enum": [
+								"Bar"
+							]
 						},
 						"rounding": {
 							"description": "Rounding values for the 4 corners. Can be a single or 4 values.",
@@ -985,37 +1217,51 @@
 							"oneOf": [
 								{
 									"type": "string",
-									"enum": ["Default"]
+									"enum": [
+										"Default"
+									]
 								},
 								{
 									"description": "A shadow is added under the default group. (blur: 4, offset: x-1 y-1, spread: 3)",
 									"type": "string",
-									"enum": ["DefaultWithShadowB4O1S3"]
+									"enum": [
+										"DefaultWithShadowB4O1S3"
+									]
 								},
 								{
 									"description": "A shadow is added under the default group. (blur: 4, offset: x-0 y-0, spread: 3)",
 									"type": "string",
-									"enum": ["DefaultWithShadowB4O0S3"]
+									"enum": [
+										"DefaultWithShadowB4O0S3"
+									]
 								},
 								{
 									"description": "A shadow is added under the default group. (blur: 0, offset: x-1 y-1, spread: 3)",
 									"type": "string",
-									"enum": ["DefaultWithShadowB0O1S3"]
+									"enum": [
+										"DefaultWithShadowB0O1S3"
+									]
 								},
 								{
 									"description": "A glow is added under the default group. (blur: 3, offset: x-1 y-1, spread: 2)",
 									"type": "string",
-									"enum": ["DefaultWithGlowB3O1S2"]
+									"enum": [
+										"DefaultWithGlowB3O1S2"
+									]
 								},
 								{
 									"description": "A glow is added under the default group. (blur: 3, offset: x-0 y-0, spread: 2)",
 									"type": "string",
-									"enum": ["DefaultWithGlowB3O0S2"]
+									"enum": [
+										"DefaultWithGlowB3O0S2"
+									]
 								},
 								{
 									"description": "A glow is added under the default group. (blur: 0, offset: x-1 y-1, spread: 2)",
 									"type": "string",
-									"enum": ["DefaultWithGlowB0O1S2"]
+									"enum": [
+										"DefaultWithGlowB0O1S2"
+									]
 								}
 							]
 						},
@@ -1030,11 +1276,15 @@
 				{
 					"description": "Widgets are grouped by alignment",
 					"type": "object",
-					"required": ["kind"],
+					"required": [
+						"kind"
+					],
 					"properties": {
 						"kind": {
 							"type": "string",
-							"enum": ["Alignment"]
+							"enum": [
+								"Alignment"
+							]
 						},
 						"rounding": {
 							"description": "Rounding values for the 4 corners. Can be a single or 4 values.",
@@ -1061,37 +1311,51 @@
 							"oneOf": [
 								{
 									"type": "string",
-									"enum": ["Default"]
+									"enum": [
+										"Default"
+									]
 								},
 								{
 									"description": "A shadow is added under the default group. (blur: 4, offset: x-1 y-1, spread: 3)",
 									"type": "string",
-									"enum": ["DefaultWithShadowB4O1S3"]
+									"enum": [
+										"DefaultWithShadowB4O1S3"
+									]
 								},
 								{
 									"description": "A shadow is added under the default group. (blur: 4, offset: x-0 y-0, spread: 3)",
 									"type": "string",
-									"enum": ["DefaultWithShadowB4O0S3"]
+									"enum": [
+										"DefaultWithShadowB4O0S3"
+									]
 								},
 								{
 									"description": "A shadow is added under the default group. (blur: 0, offset: x-1 y-1, spread: 3)",
 									"type": "string",
-									"enum": ["DefaultWithShadowB0O1S3"]
+									"enum": [
+										"DefaultWithShadowB0O1S3"
+									]
 								},
 								{
 									"description": "A glow is added under the default group. (blur: 3, offset: x-1 y-1, spread: 2)",
 									"type": "string",
-									"enum": ["DefaultWithGlowB3O1S2"]
+									"enum": [
+										"DefaultWithGlowB3O1S2"
+									]
 								},
 								{
 									"description": "A glow is added under the default group. (blur: 3, offset: x-0 y-0, spread: 2)",
 									"type": "string",
-									"enum": ["DefaultWithGlowB3O0S2"]
+									"enum": [
+										"DefaultWithGlowB3O0S2"
+									]
 								},
 								{
 									"description": "A glow is added under the default group. (blur: 0, offset: x-1 y-1, spread: 2)",
 									"type": "string",
-									"enum": ["DefaultWithGlowB0O1S2"]
+									"enum": [
+										"DefaultWithGlowB0O1S2"
+									]
 								}
 							]
 						},
@@ -1106,11 +1370,15 @@
 				{
 					"description": "Widgets are grouped individually",
 					"type": "object",
-					"required": ["kind"],
+					"required": [
+						"kind"
+					],
 					"properties": {
 						"kind": {
 							"type": "string",
-							"enum": ["Widget"]
+							"enum": [
+								"Widget"
+							]
 						},
 						"rounding": {
 							"description": "Rounding values for the 4 corners. Can be a single or 4 values.",
@@ -1137,37 +1405,51 @@
 							"oneOf": [
 								{
 									"type": "string",
-									"enum": ["Default"]
+									"enum": [
+										"Default"
+									]
 								},
 								{
 									"description": "A shadow is added under the default group. (blur: 4, offset: x-1 y-1, spread: 3)",
 									"type": "string",
-									"enum": ["DefaultWithShadowB4O1S3"]
+									"enum": [
+										"DefaultWithShadowB4O1S3"
+									]
 								},
 								{
 									"description": "A shadow is added under the default group. (blur: 4, offset: x-0 y-0, spread: 3)",
 									"type": "string",
-									"enum": ["DefaultWithShadowB4O0S3"]
+									"enum": [
+										"DefaultWithShadowB4O0S3"
+									]
 								},
 								{
 									"description": "A shadow is added under the default group. (blur: 0, offset: x-1 y-1, spread: 3)",
 									"type": "string",
-									"enum": ["DefaultWithShadowB0O1S3"]
+									"enum": [
+										"DefaultWithShadowB0O1S3"
+									]
 								},
 								{
 									"description": "A glow is added under the default group. (blur: 3, offset: x-1 y-1, spread: 2)",
 									"type": "string",
-									"enum": ["DefaultWithGlowB3O1S2"]
+									"enum": [
+										"DefaultWithGlowB3O1S2"
+									]
 								},
 								{
 									"description": "A glow is added under the default group. (blur: 3, offset: x-0 y-0, spread: 2)",
 									"type": "string",
-									"enum": ["DefaultWithGlowB3O0S2"]
+									"enum": [
+										"DefaultWithGlowB3O0S2"
+									]
 								},
 								{
 									"description": "A glow is added under the default group. (blur: 0, offset: x-1 y-1, spread: 2)",
 									"type": "string",
-									"enum": ["DefaultWithGlowB0O1S2"]
+									"enum": [
+										"DefaultWithGlowB0O1S2"
+									]
 								}
 							]
 						},
@@ -1198,11 +1480,15 @@
 				"oneOf": [
 					{
 						"type": "object",
-						"required": ["Battery"],
+						"required": [
+							"Battery"
+						],
 						"properties": {
 							"Battery": {
 								"type": "object",
-								"required": ["enable"],
+								"required": [
+									"enable"
+								],
 								"properties": {
 									"data_refresh_interval": {
 										"description": "Data refresh interval (default: 10 seconds)",
@@ -1224,22 +1510,30 @@
 											{
 												"description": "Show no prefix",
 												"type": "string",
-												"enum": ["None"]
+												"enum": [
+													"None"
+												]
 											},
 											{
 												"description": "Show an icon",
 												"type": "string",
-												"enum": ["Icon"]
+												"enum": [
+													"Icon"
+												]
 											},
 											{
 												"description": "Show text",
 												"type": "string",
-												"enum": ["Text"]
+												"enum": [
+													"Text"
+												]
 											},
 											{
 												"description": "Show an icon and text",
 												"type": "string",
-												"enum": ["IconAndText"]
+												"enum": [
+													"IconAndText"
+												]
 											}
 										]
 									}
@@ -1250,11 +1544,15 @@
 					},
 					{
 						"type": "object",
-						"required": ["Cpu"],
+						"required": [
+							"Cpu"
+						],
 						"properties": {
 							"Cpu": {
 								"type": "object",
-								"required": ["enable"],
+								"required": [
+									"enable"
+								],
 								"properties": {
 									"data_refresh_interval": {
 										"description": "Data refresh interval (default: 10 seconds)",
@@ -1272,22 +1570,30 @@
 											{
 												"description": "Show no prefix",
 												"type": "string",
-												"enum": ["None"]
+												"enum": [
+													"None"
+												]
 											},
 											{
 												"description": "Show an icon",
 												"type": "string",
-												"enum": ["Icon"]
+												"enum": [
+													"Icon"
+												]
 											},
 											{
 												"description": "Show text",
 												"type": "string",
-												"enum": ["Text"]
+												"enum": [
+													"Text"
+												]
 											},
 											{
 												"description": "Show an icon and text",
 												"type": "string",
-												"enum": ["IconAndText"]
+												"enum": [
+													"IconAndText"
+												]
 											}
 										]
 									}
@@ -1298,11 +1604,16 @@
 					},
 					{
 						"type": "object",
-						"required": ["Date"],
+						"required": [
+							"Date"
+						],
 						"properties": {
 							"Date": {
 								"type": "object",
-								"required": ["enable", "format"],
+								"required": [
+									"enable",
+									"format"
+								],
 								"properties": {
 									"enable": {
 										"description": "Enable the Date widget",
@@ -1314,27 +1625,37 @@
 											{
 												"description": "Month/Date/Year format (09/08/24)",
 												"type": "string",
-												"enum": ["MonthDateYear"]
+												"enum": [
+													"MonthDateYear"
+												]
 											},
 											{
 												"description": "Year-Month-Date format (2024-09-08)",
 												"type": "string",
-												"enum": ["YearMonthDate"]
+												"enum": [
+													"YearMonthDate"
+												]
 											},
 											{
 												"description": "Date-Month-Year format (8-Sep-2024)",
 												"type": "string",
-												"enum": ["DateMonthYear"]
+												"enum": [
+													"DateMonthYear"
+												]
 											},
 											{
 												"description": "Day Date Month Year format (8 September 2024)",
 												"type": "string",
-												"enum": ["DayDateMonthYear"]
+												"enum": [
+													"DayDateMonthYear"
+												]
 											},
 											{
 												"description": "Custom format (https://docs.rs/chrono/latest/chrono/format/strftime/index.html)",
 												"type": "object",
-												"required": ["Custom"],
+												"required": [
+													"Custom"
+												],
 												"properties": {
 													"Custom": {
 														"type": "string"
@@ -1345,12 +1666,17 @@
 											{
 												"description": "Custom format with modifiers",
 												"type": "object",
-												"required": ["CustomModifiers"],
+												"required": [
+													"CustomModifiers"
+												],
 												"properties": {
 													"CustomModifiers": {
 														"description": "Custom format with additive modifiers for integer format specifiers",
 														"type": "object",
-														"required": ["format", "modifiers"],
+														"required": [
+															"format",
+															"modifiers"
+														],
 														"properties": {
 															"format": {
 																"description": "Custom format (https://docs.rs/chrono/latest/chrono/format/strftime/index.html)",
@@ -1377,22 +1703,30 @@
 											{
 												"description": "Show no prefix",
 												"type": "string",
-												"enum": ["None"]
+												"enum": [
+													"None"
+												]
 											},
 											{
 												"description": "Show an icon",
 												"type": "string",
-												"enum": ["Icon"]
+												"enum": [
+													"Icon"
+												]
 											},
 											{
 												"description": "Show text",
 												"type": "string",
-												"enum": ["Text"]
+												"enum": [
+													"Text"
+												]
 											},
 											{
 												"description": "Show an icon and text",
 												"type": "string",
-												"enum": ["IconAndText"]
+												"enum": [
+													"IconAndText"
+												]
 											}
 										]
 									},
@@ -1407,11 +1741,15 @@
 					},
 					{
 						"type": "object",
-						"required": ["Keyboard"],
+						"required": [
+							"Keyboard"
+						],
 						"properties": {
 							"Keyboard": {
 								"type": "object",
-								"required": ["enable"],
+								"required": [
+									"enable"
+								],
 								"properties": {
 									"data_refresh_interval": {
 										"description": "Data refresh interval (default: 1 second)",
@@ -1429,22 +1767,30 @@
 											{
 												"description": "Show no prefix",
 												"type": "string",
-												"enum": ["None"]
+												"enum": [
+													"None"
+												]
 											},
 											{
 												"description": "Show an icon",
 												"type": "string",
-												"enum": ["Icon"]
+												"enum": [
+													"Icon"
+												]
 											},
 											{
 												"description": "Show text",
 												"type": "string",
-												"enum": ["Text"]
+												"enum": [
+													"Text"
+												]
 											},
 											{
 												"description": "Show an icon and text",
 												"type": "string",
-												"enum": ["IconAndText"]
+												"enum": [
+													"IconAndText"
+												]
 											}
 										]
 									}
@@ -1455,7 +1801,9 @@
 					},
 					{
 						"type": "object",
-						"required": ["Komorebi"],
+						"required": [
+							"Komorebi"
+						],
 						"properties": {
 							"Komorebi": {
 								"type": "object",
@@ -1463,7 +1811,10 @@
 									"configuration_switcher": {
 										"description": "Configure the Configuration Switcher widget",
 										"type": "object",
-										"required": ["configurations", "enable"],
+										"required": [
+											"configurations",
+											"enable"
+										],
 										"properties": {
 											"configurations": {
 												"description": "A map of display friendly name => path to configuration.json",
@@ -1481,7 +1832,9 @@
 									"focused_window": {
 										"description": "Configure the Focused Window widget",
 										"type": "object",
-										"required": ["enable"],
+										"required": [
+											"enable"
+										],
 										"properties": {
 											"display": {
 												"description": "Display format of the currently focused window",
@@ -1489,27 +1842,37 @@
 													{
 														"description": "Show only icon",
 														"type": "string",
-														"enum": ["Icon"]
+														"enum": [
+															"Icon"
+														]
 													},
 													{
 														"description": "Show only text",
 														"type": "string",
-														"enum": ["Text"]
+														"enum": [
+															"Text"
+														]
 													},
 													{
 														"description": "Show an icon and text for the selected element, and text on the rest",
 														"type": "string",
-														"enum": ["TextAndIconOnSelected"]
+														"enum": [
+															"TextAndIconOnSelected"
+														]
 													},
 													{
 														"description": "Show both icon and text",
 														"type": "string",
-														"enum": ["IconAndText"]
+														"enum": [
+															"IconAndText"
+														]
 													},
 													{
 														"description": "Show an icon and text for the selected element, and icons on the rest",
 														"type": "string",
-														"enum": ["IconAndTextOnSelected"]
+														"enum": [
+															"IconAndTextOnSelected"
+														]
 													}
 												]
 											},
@@ -1526,7 +1889,9 @@
 									"layout": {
 										"description": "Configure the Layout widget",
 										"type": "object",
-										"required": ["enable"],
+										"required": [
+											"enable"
+										],
 										"properties": {
 											"display": {
 												"description": "Display format of the current layout",
@@ -1534,27 +1899,37 @@
 													{
 														"description": "Show only icon",
 														"type": "string",
-														"enum": ["Icon"]
+														"enum": [
+															"Icon"
+														]
 													},
 													{
 														"description": "Show only text",
 														"type": "string",
-														"enum": ["Text"]
+														"enum": [
+															"Text"
+														]
 													},
 													{
 														"description": "Show an icon and text for the selected element, and text on the rest",
 														"type": "string",
-														"enum": ["TextAndIconOnSelected"]
+														"enum": [
+															"TextAndIconOnSelected"
+														]
 													},
 													{
 														"description": "Show both icon and text",
 														"type": "string",
-														"enum": ["IconAndText"]
+														"enum": [
+															"IconAndText"
+														]
 													},
 													{
 														"description": "Show an icon and text for the selected element, and icons on the rest",
 														"type": "string",
-														"enum": ["IconAndTextOnSelected"]
+														"enum": [
+															"IconAndTextOnSelected"
+														]
 													}
 												]
 											},
@@ -1600,7 +1975,9 @@
 									"workspace_layer": {
 										"description": "Configure the Workspace Layer widget",
 										"type": "object",
-										"required": ["enable"],
+										"required": [
+											"enable"
+										],
 										"properties": {
 											"display": {
 												"description": "Display format of the current layer",
@@ -1608,27 +1985,37 @@
 													{
 														"description": "Show only icon",
 														"type": "string",
-														"enum": ["Icon"]
+														"enum": [
+															"Icon"
+														]
 													},
 													{
 														"description": "Show only text",
 														"type": "string",
-														"enum": ["Text"]
+														"enum": [
+															"Text"
+														]
 													},
 													{
 														"description": "Show an icon and text for the selected element, and text on the rest",
 														"type": "string",
-														"enum": ["TextAndIconOnSelected"]
+														"enum": [
+															"TextAndIconOnSelected"
+														]
 													},
 													{
 														"description": "Show both icon and text",
 														"type": "string",
-														"enum": ["IconAndText"]
+														"enum": [
+															"IconAndText"
+														]
 													},
 													{
 														"description": "Show an icon and text for the selected element, and icons on the rest",
 														"type": "string",
-														"enum": ["IconAndTextOnSelected"]
+														"enum": [
+															"IconAndTextOnSelected"
+														]
 													}
 												]
 											},
@@ -1645,7 +2032,10 @@
 									"workspaces": {
 										"description": "Configure the Workspaces widget",
 										"type": "object",
-										"required": ["enable", "hide_empty_workspaces"],
+										"required": [
+											"enable",
+											"hide_empty_workspaces"
+										],
 										"properties": {
 											"display": {
 												"description": "Display format of the workspace",
@@ -1653,48 +2043,66 @@
 													{
 														"description": "Show all icons only",
 														"type": "string",
-														"enum": ["AllIcons"]
+														"enum": [
+															"AllIcons"
+														]
 													},
 													{
 														"description": "Show both all icons and text",
 														"type": "string",
-														"enum": ["AllIconsAndText"]
+														"enum": [
+															"AllIconsAndText"
+														]
 													},
 													{
 														"description": "Show all icons and text for the selected element, and all icons on the rest",
 														"type": "string",
-														"enum": ["AllIconsAndTextOnSelected"]
+														"enum": [
+															"AllIconsAndTextOnSelected"
+														]
 													},
 													{
 														"type": "object",
-														"required": ["Existing"],
+														"required": [
+															"Existing"
+														],
 														"properties": {
 															"Existing": {
 																"oneOf": [
 																	{
 																		"description": "Show only icon",
 																		"type": "string",
-																		"enum": ["Icon"]
+																		"enum": [
+																			"Icon"
+																		]
 																	},
 																	{
 																		"description": "Show only text",
 																		"type": "string",
-																		"enum": ["Text"]
+																		"enum": [
+																			"Text"
+																		]
 																	},
 																	{
 																		"description": "Show an icon and text for the selected element, and text on the rest",
 																		"type": "string",
-																		"enum": ["TextAndIconOnSelected"]
+																		"enum": [
+																			"TextAndIconOnSelected"
+																		]
 																	},
 																	{
 																		"description": "Show both icon and text",
 																		"type": "string",
-																		"enum": ["IconAndText"]
+																		"enum": [
+																			"IconAndText"
+																		]
 																	},
 																	{
 																		"description": "Show an icon and text for the selected element, and icons on the rest",
 																		"type": "string",
-																		"enum": ["IconAndTextOnSelected"]
+																		"enum": [
+																			"IconAndTextOnSelected"
+																		]
 																	}
 																]
 															}
@@ -1720,11 +2128,15 @@
 					},
 					{
 						"type": "object",
-						"required": ["Media"],
+						"required": [
+							"Media"
+						],
 						"properties": {
 							"Media": {
 								"type": "object",
-								"required": ["enable"],
+								"required": [
+									"enable"
+								],
 								"properties": {
 									"enable": {
 										"description": "Enable the Media widget",
@@ -1737,11 +2149,15 @@
 					},
 					{
 						"type": "object",
-						"required": ["Memory"],
+						"required": [
+							"Memory"
+						],
 						"properties": {
 							"Memory": {
 								"type": "object",
-								"required": ["enable"],
+								"required": [
+									"enable"
+								],
 								"properties": {
 									"data_refresh_interval": {
 										"description": "Data refresh interval (default: 10 seconds)",
@@ -1759,22 +2175,30 @@
 											{
 												"description": "Show no prefix",
 												"type": "string",
-												"enum": ["None"]
+												"enum": [
+													"None"
+												]
 											},
 											{
 												"description": "Show an icon",
 												"type": "string",
-												"enum": ["Icon"]
+												"enum": [
+													"Icon"
+												]
 											},
 											{
 												"description": "Show text",
 												"type": "string",
-												"enum": ["Text"]
+												"enum": [
+													"Text"
+												]
 											},
 											{
 												"description": "Show an icon and text",
 												"type": "string",
-												"enum": ["IconAndText"]
+												"enum": [
+													"IconAndText"
+												]
 											}
 										]
 									}
@@ -1785,7 +2209,9 @@
 					},
 					{
 						"type": "object",
-						"required": ["Network"],
+						"required": [
+							"Network"
+						],
 						"properties": {
 							"Network": {
 								"type": "object",
@@ -1811,22 +2237,30 @@
 											{
 												"description": "Show no prefix",
 												"type": "string",
-												"enum": ["None"]
+												"enum": [
+													"None"
+												]
 											},
 											{
 												"description": "Show an icon",
 												"type": "string",
-												"enum": ["Icon"]
+												"enum": [
+													"Icon"
+												]
 											},
 											{
 												"description": "Show text",
 												"type": "string",
-												"enum": ["Text"]
+												"enum": [
+													"Text"
+												]
 											},
 											{
 												"description": "Show an icon and text",
 												"type": "string",
-												"enum": ["IconAndText"]
+												"enum": [
+													"IconAndText"
+												]
 											}
 										]
 									},
@@ -1855,14 +2289,18 @@
 					},
 					{
 						"type": "object",
-						"required": ["StartMenu"],
+						"required": [
+							"StartMenu"
+						],
 						"properties": {
 							"StartMenu": {
 								"type": "object",
-								"required": ["enable"],
+								"required": [
+									"enable"
+								],
 								"properties": {
 									"enable": {
-										"description": "Enable the Network widget",
+										"description": "Enable the start menu button widget",
 										"type": "boolean"
 									},
 									"label_prefix": {
@@ -1871,22 +2309,30 @@
 											{
 												"description": "Show no prefix",
 												"type": "string",
-												"enum": ["None"]
+												"enum": [
+													"None"
+												]
 											},
 											{
 												"description": "Show an icon",
 												"type": "string",
-												"enum": ["Icon"]
+												"enum": [
+													"Icon"
+												]
 											},
 											{
 												"description": "Show text",
 												"type": "string",
-												"enum": ["Text"]
+												"enum": [
+													"Text"
+												]
 											},
 											{
 												"description": "Show an icon and text",
 												"type": "string",
-												"enum": ["IconAndText"]
+												"enum": [
+													"IconAndText"
+												]
 											}
 										]
 									}
@@ -1897,11 +2343,15 @@
 					},
 					{
 						"type": "object",
-						"required": ["Storage"],
+						"required": [
+							"Storage"
+						],
 						"properties": {
 							"Storage": {
 								"type": "object",
-								"required": ["enable"],
+								"required": [
+									"enable"
+								],
 								"properties": {
 									"data_refresh_interval": {
 										"description": "Data refresh interval (default: 10 seconds)",
@@ -1919,22 +2369,30 @@
 											{
 												"description": "Show no prefix",
 												"type": "string",
-												"enum": ["None"]
+												"enum": [
+													"None"
+												]
 											},
 											{
 												"description": "Show an icon",
 												"type": "string",
-												"enum": ["Icon"]
+												"enum": [
+													"Icon"
+												]
 											},
 											{
 												"description": "Show text",
 												"type": "string",
-												"enum": ["Text"]
+												"enum": [
+													"Text"
+												]
 											},
 											{
 												"description": "Show an icon and text",
 												"type": "string",
-												"enum": ["IconAndText"]
+												"enum": [
+													"IconAndText"
+												]
 											}
 										]
 									}
@@ -1945,11 +2403,16 @@
 					},
 					{
 						"type": "object",
-						"required": ["Time"],
+						"required": [
+							"Time"
+						],
 						"properties": {
 							"Time": {
 								"type": "object",
-								"required": ["enable", "format"],
+								"required": [
+									"enable",
+									"format"
+								],
 								"properties": {
 									"changing_icon": {
 										"description": "Change the icon depending on the time. The default icon is used between 8:30 and 12:00. (default: false)",
@@ -1965,37 +2428,51 @@
 											{
 												"description": "Twelve-hour format (with seconds)",
 												"type": "string",
-												"enum": ["TwelveHour"]
+												"enum": [
+													"TwelveHour"
+												]
 											},
 											{
 												"description": "Twelve-hour format (without seconds)",
 												"type": "string",
-												"enum": ["TwelveHourWithoutSeconds"]
+												"enum": [
+													"TwelveHourWithoutSeconds"
+												]
 											},
 											{
 												"description": "Twenty-four-hour format (with seconds)",
 												"type": "string",
-												"enum": ["TwentyFourHour"]
+												"enum": [
+													"TwentyFourHour"
+												]
 											},
 											{
 												"description": "Twenty-four-hour format (without seconds)",
 												"type": "string",
-												"enum": ["TwentyFourHourWithoutSeconds"]
+												"enum": [
+													"TwentyFourHourWithoutSeconds"
+												]
 											},
 											{
 												"description": "Twenty-four-hour format displayed as a binary clock with circles (with seconds) (https://en.wikipedia.org/wiki/Binary_clock)",
 												"type": "string",
-												"enum": ["BinaryCircle"]
+												"enum": [
+													"BinaryCircle"
+												]
 											},
 											{
 												"description": "Twenty-four-hour format displayed as a binary clock with rectangles (with seconds) (https://en.wikipedia.org/wiki/Binary_clock)",
 												"type": "string",
-												"enum": ["BinaryRectangle"]
+												"enum": [
+													"BinaryRectangle"
+												]
 											},
 											{
 												"description": "Custom format (https://docs.rs/chrono/latest/chrono/format/strftime/index.html)",
 												"type": "object",
-												"required": ["Custom"],
+												"required": [
+													"Custom"
+												],
 												"properties": {
 													"Custom": {
 														"type": "string"
@@ -2011,22 +2488,30 @@
 											{
 												"description": "Show no prefix",
 												"type": "string",
-												"enum": ["None"]
+												"enum": [
+													"None"
+												]
 											},
 											{
 												"description": "Show an icon",
 												"type": "string",
-												"enum": ["Icon"]
+												"enum": [
+													"Icon"
+												]
 											},
 											{
 												"description": "Show text",
 												"type": "string",
-												"enum": ["Text"]
+												"enum": [
+													"Text"
+												]
 											},
 											{
 												"description": "Show an icon and text",
 												"type": "string",
-												"enum": ["IconAndText"]
+												"enum": [
+													"IconAndText"
+												]
 											}
 										]
 									},
@@ -2041,11 +2526,15 @@
 					},
 					{
 						"type": "object",
-						"required": ["Update"],
+						"required": [
+							"Update"
+						],
 						"properties": {
 							"Update": {
 								"type": "object",
-								"required": ["enable"],
+								"required": [
+									"enable"
+								],
 								"properties": {
 									"data_refresh_interval": {
 										"description": "Data refresh interval (default: 12 hours)",
@@ -2063,22 +2552,30 @@
 											{
 												"description": "Show no prefix",
 												"type": "string",
-												"enum": ["None"]
+												"enum": [
+													"None"
+												]
 											},
 											{
 												"description": "Show an icon",
 												"type": "string",
-												"enum": ["Icon"]
+												"enum": [
+													"Icon"
+												]
 											},
 											{
 												"description": "Show text",
 												"type": "string",
-												"enum": ["Text"]
+												"enum": [
+													"Text"
+												]
 											},
 											{
 												"description": "Show an icon and text",
 												"type": "string",
-												"enum": ["IconAndText"]
+												"enum": [
+													"IconAndText"
+												]
 											}
 										]
 									}
@@ -2099,7 +2596,12 @@
 				},
 				{
 					"type": "object",
-					"required": ["bottom", "left", "right", "top"],
+					"required": [
+						"bottom",
+						"left",
+						"right",
+						"top"
+					],
 					"properties": {
 						"bottom": {
 							"type": "number",
@@ -2189,7 +2691,9 @@
 				{
 					"description": "The full monitor options with the index and an optional work_area_offset",
 					"type": "object",
-					"required": ["index"],
+					"required": [
+						"index"
+					],
 					"properties": {
 						"index": {
 							"description": "Komorebi monitor index of the monitor on which to render the bar",
@@ -2200,7 +2704,12 @@
 						"work_area_offset": {
 							"description": "Automatically apply a work area offset for this monitor to accommodate the bar",
 							"type": "object",
-							"required": ["bottom", "left", "right", "top"],
+							"required": [
+								"bottom",
+								"left",
+								"right",
+								"top"
+							],
 							"properties": {
 								"bottom": {
 									"description": "The bottom point in a Win32 Rect",
@@ -2237,7 +2746,12 @@
 				},
 				{
 					"type": "object",
-					"required": ["bottom", "left", "right", "top"],
+					"required": [
+						"bottom",
+						"left",
+						"right",
+						"top"
+					],
 					"properties": {
 						"bottom": {
 							"type": "number",
@@ -2317,7 +2831,10 @@
 				"end": {
 					"description": "The desired size of the bar from the starting position (usually monitor width x desired height)",
 					"type": "object",
-					"required": ["x", "y"],
+					"required": [
+						"x",
+						"y"
+					],
 					"properties": {
 						"x": {
 							"description": "X coordinate",
@@ -2334,7 +2851,10 @@
 				"start": {
 					"description": "The desired starting position of the bar (0,0 = top left of the screen)",
 					"type": "object",
-					"required": ["x", "y"],
+					"required": [
+						"x",
+						"y"
+					],
 					"properties": {
 						"x": {
 							"description": "X coordinate",
@@ -2357,11 +2877,15 @@
 				"oneOf": [
 					{
 						"type": "object",
-						"required": ["Battery"],
+						"required": [
+							"Battery"
+						],
 						"properties": {
 							"Battery": {
 								"type": "object",
-								"required": ["enable"],
+								"required": [
+									"enable"
+								],
 								"properties": {
 									"data_refresh_interval": {
 										"description": "Data refresh interval (default: 10 seconds)",
@@ -2383,22 +2907,30 @@
 											{
 												"description": "Show no prefix",
 												"type": "string",
-												"enum": ["None"]
+												"enum": [
+													"None"
+												]
 											},
 											{
 												"description": "Show an icon",
 												"type": "string",
-												"enum": ["Icon"]
+												"enum": [
+													"Icon"
+												]
 											},
 											{
 												"description": "Show text",
 												"type": "string",
-												"enum": ["Text"]
+												"enum": [
+													"Text"
+												]
 											},
 											{
 												"description": "Show an icon and text",
 												"type": "string",
-												"enum": ["IconAndText"]
+												"enum": [
+													"IconAndText"
+												]
 											}
 										]
 									}
@@ -2409,11 +2941,15 @@
 					},
 					{
 						"type": "object",
-						"required": ["Cpu"],
+						"required": [
+							"Cpu"
+						],
 						"properties": {
 							"Cpu": {
 								"type": "object",
-								"required": ["enable"],
+								"required": [
+									"enable"
+								],
 								"properties": {
 									"data_refresh_interval": {
 										"description": "Data refresh interval (default: 10 seconds)",
@@ -2431,22 +2967,30 @@
 											{
 												"description": "Show no prefix",
 												"type": "string",
-												"enum": ["None"]
+												"enum": [
+													"None"
+												]
 											},
 											{
 												"description": "Show an icon",
 												"type": "string",
-												"enum": ["Icon"]
+												"enum": [
+													"Icon"
+												]
 											},
 											{
 												"description": "Show text",
 												"type": "string",
-												"enum": ["Text"]
+												"enum": [
+													"Text"
+												]
 											},
 											{
 												"description": "Show an icon and text",
 												"type": "string",
-												"enum": ["IconAndText"]
+												"enum": [
+													"IconAndText"
+												]
 											}
 										]
 									}
@@ -2457,11 +3001,16 @@
 					},
 					{
 						"type": "object",
-						"required": ["Date"],
+						"required": [
+							"Date"
+						],
 						"properties": {
 							"Date": {
 								"type": "object",
-								"required": ["enable", "format"],
+								"required": [
+									"enable",
+									"format"
+								],
 								"properties": {
 									"enable": {
 										"description": "Enable the Date widget",
@@ -2473,27 +3022,37 @@
 											{
 												"description": "Month/Date/Year format (09/08/24)",
 												"type": "string",
-												"enum": ["MonthDateYear"]
+												"enum": [
+													"MonthDateYear"
+												]
 											},
 											{
 												"description": "Year-Month-Date format (2024-09-08)",
 												"type": "string",
-												"enum": ["YearMonthDate"]
+												"enum": [
+													"YearMonthDate"
+												]
 											},
 											{
 												"description": "Date-Month-Year format (8-Sep-2024)",
 												"type": "string",
-												"enum": ["DateMonthYear"]
+												"enum": [
+													"DateMonthYear"
+												]
 											},
 											{
 												"description": "Day Date Month Year format (8 September 2024)",
 												"type": "string",
-												"enum": ["DayDateMonthYear"]
+												"enum": [
+													"DayDateMonthYear"
+												]
 											},
 											{
 												"description": "Custom format (https://docs.rs/chrono/latest/chrono/format/strftime/index.html)",
 												"type": "object",
-												"required": ["Custom"],
+												"required": [
+													"Custom"
+												],
 												"properties": {
 													"Custom": {
 														"type": "string"
@@ -2504,12 +3063,17 @@
 											{
 												"description": "Custom format with modifiers",
 												"type": "object",
-												"required": ["CustomModifiers"],
+												"required": [
+													"CustomModifiers"
+												],
 												"properties": {
 													"CustomModifiers": {
 														"description": "Custom format with additive modifiers for integer format specifiers",
 														"type": "object",
-														"required": ["format", "modifiers"],
+														"required": [
+															"format",
+															"modifiers"
+														],
 														"properties": {
 															"format": {
 																"description": "Custom format (https://docs.rs/chrono/latest/chrono/format/strftime/index.html)",
@@ -2536,22 +3100,30 @@
 											{
 												"description": "Show no prefix",
 												"type": "string",
-												"enum": ["None"]
+												"enum": [
+													"None"
+												]
 											},
 											{
 												"description": "Show an icon",
 												"type": "string",
-												"enum": ["Icon"]
+												"enum": [
+													"Icon"
+												]
 											},
 											{
 												"description": "Show text",
 												"type": "string",
-												"enum": ["Text"]
+												"enum": [
+													"Text"
+												]
 											},
 											{
 												"description": "Show an icon and text",
 												"type": "string",
-												"enum": ["IconAndText"]
+												"enum": [
+													"IconAndText"
+												]
 											}
 										]
 									},
@@ -2566,11 +3138,15 @@
 					},
 					{
 						"type": "object",
-						"required": ["Keyboard"],
+						"required": [
+							"Keyboard"
+						],
 						"properties": {
 							"Keyboard": {
 								"type": "object",
-								"required": ["enable"],
+								"required": [
+									"enable"
+								],
 								"properties": {
 									"data_refresh_interval": {
 										"description": "Data refresh interval (default: 1 second)",
@@ -2588,22 +3164,30 @@
 											{
 												"description": "Show no prefix",
 												"type": "string",
-												"enum": ["None"]
+												"enum": [
+													"None"
+												]
 											},
 											{
 												"description": "Show an icon",
 												"type": "string",
-												"enum": ["Icon"]
+												"enum": [
+													"Icon"
+												]
 											},
 											{
 												"description": "Show text",
 												"type": "string",
-												"enum": ["Text"]
+												"enum": [
+													"Text"
+												]
 											},
 											{
 												"description": "Show an icon and text",
 												"type": "string",
-												"enum": ["IconAndText"]
+												"enum": [
+													"IconAndText"
+												]
 											}
 										]
 									}
@@ -2614,7 +3198,9 @@
 					},
 					{
 						"type": "object",
-						"required": ["Komorebi"],
+						"required": [
+							"Komorebi"
+						],
 						"properties": {
 							"Komorebi": {
 								"type": "object",
@@ -2622,7 +3208,10 @@
 									"configuration_switcher": {
 										"description": "Configure the Configuration Switcher widget",
 										"type": "object",
-										"required": ["configurations", "enable"],
+										"required": [
+											"configurations",
+											"enable"
+										],
 										"properties": {
 											"configurations": {
 												"description": "A map of display friendly name => path to configuration.json",
@@ -2640,7 +3229,9 @@
 									"focused_window": {
 										"description": "Configure the Focused Window widget",
 										"type": "object",
-										"required": ["enable"],
+										"required": [
+											"enable"
+										],
 										"properties": {
 											"display": {
 												"description": "Display format of the currently focused window",
@@ -2648,27 +3239,37 @@
 													{
 														"description": "Show only icon",
 														"type": "string",
-														"enum": ["Icon"]
+														"enum": [
+															"Icon"
+														]
 													},
 													{
 														"description": "Show only text",
 														"type": "string",
-														"enum": ["Text"]
+														"enum": [
+															"Text"
+														]
 													},
 													{
 														"description": "Show an icon and text for the selected element, and text on the rest",
 														"type": "string",
-														"enum": ["TextAndIconOnSelected"]
+														"enum": [
+															"TextAndIconOnSelected"
+														]
 													},
 													{
 														"description": "Show both icon and text",
 														"type": "string",
-														"enum": ["IconAndText"]
+														"enum": [
+															"IconAndText"
+														]
 													},
 													{
 														"description": "Show an icon and text for the selected element, and icons on the rest",
 														"type": "string",
-														"enum": ["IconAndTextOnSelected"]
+														"enum": [
+															"IconAndTextOnSelected"
+														]
 													}
 												]
 											},
@@ -2685,7 +3286,9 @@
 									"layout": {
 										"description": "Configure the Layout widget",
 										"type": "object",
-										"required": ["enable"],
+										"required": [
+											"enable"
+										],
 										"properties": {
 											"display": {
 												"description": "Display format of the current layout",
@@ -2693,27 +3296,37 @@
 													{
 														"description": "Show only icon",
 														"type": "string",
-														"enum": ["Icon"]
+														"enum": [
+															"Icon"
+														]
 													},
 													{
 														"description": "Show only text",
 														"type": "string",
-														"enum": ["Text"]
+														"enum": [
+															"Text"
+														]
 													},
 													{
 														"description": "Show an icon and text for the selected element, and text on the rest",
 														"type": "string",
-														"enum": ["TextAndIconOnSelected"]
+														"enum": [
+															"TextAndIconOnSelected"
+														]
 													},
 													{
 														"description": "Show both icon and text",
 														"type": "string",
-														"enum": ["IconAndText"]
+														"enum": [
+															"IconAndText"
+														]
 													},
 													{
 														"description": "Show an icon and text for the selected element, and icons on the rest",
 														"type": "string",
-														"enum": ["IconAndTextOnSelected"]
+														"enum": [
+															"IconAndTextOnSelected"
+														]
 													}
 												]
 											},
@@ -2759,7 +3372,9 @@
 									"workspace_layer": {
 										"description": "Configure the Workspace Layer widget",
 										"type": "object",
-										"required": ["enable"],
+										"required": [
+											"enable"
+										],
 										"properties": {
 											"display": {
 												"description": "Display format of the current layer",
@@ -2767,27 +3382,37 @@
 													{
 														"description": "Show only icon",
 														"type": "string",
-														"enum": ["Icon"]
+														"enum": [
+															"Icon"
+														]
 													},
 													{
 														"description": "Show only text",
 														"type": "string",
-														"enum": ["Text"]
+														"enum": [
+															"Text"
+														]
 													},
 													{
 														"description": "Show an icon and text for the selected element, and text on the rest",
 														"type": "string",
-														"enum": ["TextAndIconOnSelected"]
+														"enum": [
+															"TextAndIconOnSelected"
+														]
 													},
 													{
 														"description": "Show both icon and text",
 														"type": "string",
-														"enum": ["IconAndText"]
+														"enum": [
+															"IconAndText"
+														]
 													},
 													{
 														"description": "Show an icon and text for the selected element, and icons on the rest",
 														"type": "string",
-														"enum": ["IconAndTextOnSelected"]
+														"enum": [
+															"IconAndTextOnSelected"
+														]
 													}
 												]
 											},
@@ -2804,7 +3429,10 @@
 									"workspaces": {
 										"description": "Configure the Workspaces widget",
 										"type": "object",
-										"required": ["enable", "hide_empty_workspaces"],
+										"required": [
+											"enable",
+											"hide_empty_workspaces"
+										],
 										"properties": {
 											"display": {
 												"description": "Display format of the workspace",
@@ -2812,48 +3440,66 @@
 													{
 														"description": "Show all icons only",
 														"type": "string",
-														"enum": ["AllIcons"]
+														"enum": [
+															"AllIcons"
+														]
 													},
 													{
 														"description": "Show both all icons and text",
 														"type": "string",
-														"enum": ["AllIconsAndText"]
+														"enum": [
+															"AllIconsAndText"
+														]
 													},
 													{
 														"description": "Show all icons and text for the selected element, and all icons on the rest",
 														"type": "string",
-														"enum": ["AllIconsAndTextOnSelected"]
+														"enum": [
+															"AllIconsAndTextOnSelected"
+														]
 													},
 													{
 														"type": "object",
-														"required": ["Existing"],
+														"required": [
+															"Existing"
+														],
 														"properties": {
 															"Existing": {
 																"oneOf": [
 																	{
 																		"description": "Show only icon",
 																		"type": "string",
-																		"enum": ["Icon"]
+																		"enum": [
+																			"Icon"
+																		]
 																	},
 																	{
 																		"description": "Show only text",
 																		"type": "string",
-																		"enum": ["Text"]
+																		"enum": [
+																			"Text"
+																		]
 																	},
 																	{
 																		"description": "Show an icon and text for the selected element, and text on the rest",
 																		"type": "string",
-																		"enum": ["TextAndIconOnSelected"]
+																		"enum": [
+																			"TextAndIconOnSelected"
+																		]
 																	},
 																	{
 																		"description": "Show both icon and text",
 																		"type": "string",
-																		"enum": ["IconAndText"]
+																		"enum": [
+																			"IconAndText"
+																		]
 																	},
 																	{
 																		"description": "Show an icon and text for the selected element, and icons on the rest",
 																		"type": "string",
-																		"enum": ["IconAndTextOnSelected"]
+																		"enum": [
+																			"IconAndTextOnSelected"
+																		]
 																	}
 																]
 															}
@@ -2879,11 +3525,15 @@
 					},
 					{
 						"type": "object",
-						"required": ["Media"],
+						"required": [
+							"Media"
+						],
 						"properties": {
 							"Media": {
 								"type": "object",
-								"required": ["enable"],
+								"required": [
+									"enable"
+								],
 								"properties": {
 									"enable": {
 										"description": "Enable the Media widget",
@@ -2896,11 +3546,15 @@
 					},
 					{
 						"type": "object",
-						"required": ["Memory"],
+						"required": [
+							"Memory"
+						],
 						"properties": {
 							"Memory": {
 								"type": "object",
-								"required": ["enable"],
+								"required": [
+									"enable"
+								],
 								"properties": {
 									"data_refresh_interval": {
 										"description": "Data refresh interval (default: 10 seconds)",
@@ -2918,22 +3572,30 @@
 											{
 												"description": "Show no prefix",
 												"type": "string",
-												"enum": ["None"]
+												"enum": [
+													"None"
+												]
 											},
 											{
 												"description": "Show an icon",
 												"type": "string",
-												"enum": ["Icon"]
+												"enum": [
+													"Icon"
+												]
 											},
 											{
 												"description": "Show text",
 												"type": "string",
-												"enum": ["Text"]
+												"enum": [
+													"Text"
+												]
 											},
 											{
 												"description": "Show an icon and text",
 												"type": "string",
-												"enum": ["IconAndText"]
+												"enum": [
+													"IconAndText"
+												]
 											}
 										]
 									}
@@ -2944,7 +3606,9 @@
 					},
 					{
 						"type": "object",
-						"required": ["Network"],
+						"required": [
+							"Network"
+						],
 						"properties": {
 							"Network": {
 								"type": "object",
@@ -2970,22 +3634,30 @@
 											{
 												"description": "Show no prefix",
 												"type": "string",
-												"enum": ["None"]
+												"enum": [
+													"None"
+												]
 											},
 											{
 												"description": "Show an icon",
 												"type": "string",
-												"enum": ["Icon"]
+												"enum": [
+													"Icon"
+												]
 											},
 											{
 												"description": "Show text",
 												"type": "string",
-												"enum": ["Text"]
+												"enum": [
+													"Text"
+												]
 											},
 											{
 												"description": "Show an icon and text",
 												"type": "string",
-												"enum": ["IconAndText"]
+												"enum": [
+													"IconAndText"
+												]
 											}
 										]
 									},
@@ -3014,14 +3686,18 @@
 					},
 					{
 						"type": "object",
-						"required": ["StartMenu"],
+						"required": [
+							"StartMenu"
+						],
 						"properties": {
 							"StartMenu": {
 								"type": "object",
-								"required": ["enable"],
+								"required": [
+									"enable"
+								],
 								"properties": {
 									"enable": {
-										"description": "Enable the Network widget",
+										"description": "Enable the start menu button widget",
 										"type": "boolean"
 									},
 									"label_prefix": {
@@ -3030,22 +3706,30 @@
 											{
 												"description": "Show no prefix",
 												"type": "string",
-												"enum": ["None"]
+												"enum": [
+													"None"
+												]
 											},
 											{
 												"description": "Show an icon",
 												"type": "string",
-												"enum": ["Icon"]
+												"enum": [
+													"Icon"
+												]
 											},
 											{
 												"description": "Show text",
 												"type": "string",
-												"enum": ["Text"]
+												"enum": [
+													"Text"
+												]
 											},
 											{
 												"description": "Show an icon and text",
 												"type": "string",
-												"enum": ["IconAndText"]
+												"enum": [
+													"IconAndText"
+												]
 											}
 										]
 									}
@@ -3056,11 +3740,15 @@
 					},
 					{
 						"type": "object",
-						"required": ["Storage"],
+						"required": [
+							"Storage"
+						],
 						"properties": {
 							"Storage": {
 								"type": "object",
-								"required": ["enable"],
+								"required": [
+									"enable"
+								],
 								"properties": {
 									"data_refresh_interval": {
 										"description": "Data refresh interval (default: 10 seconds)",
@@ -3078,22 +3766,30 @@
 											{
 												"description": "Show no prefix",
 												"type": "string",
-												"enum": ["None"]
+												"enum": [
+													"None"
+												]
 											},
 											{
 												"description": "Show an icon",
 												"type": "string",
-												"enum": ["Icon"]
+												"enum": [
+													"Icon"
+												]
 											},
 											{
 												"description": "Show text",
 												"type": "string",
-												"enum": ["Text"]
+												"enum": [
+													"Text"
+												]
 											},
 											{
 												"description": "Show an icon and text",
 												"type": "string",
-												"enum": ["IconAndText"]
+												"enum": [
+													"IconAndText"
+												]
 											}
 										]
 									}
@@ -3104,11 +3800,16 @@
 					},
 					{
 						"type": "object",
-						"required": ["Time"],
+						"required": [
+							"Time"
+						],
 						"properties": {
 							"Time": {
 								"type": "object",
-								"required": ["enable", "format"],
+								"required": [
+									"enable",
+									"format"
+								],
 								"properties": {
 									"changing_icon": {
 										"description": "Change the icon depending on the time. The default icon is used between 8:30 and 12:00. (default: false)",
@@ -3124,37 +3825,51 @@
 											{
 												"description": "Twelve-hour format (with seconds)",
 												"type": "string",
-												"enum": ["TwelveHour"]
+												"enum": [
+													"TwelveHour"
+												]
 											},
 											{
 												"description": "Twelve-hour format (without seconds)",
 												"type": "string",
-												"enum": ["TwelveHourWithoutSeconds"]
+												"enum": [
+													"TwelveHourWithoutSeconds"
+												]
 											},
 											{
 												"description": "Twenty-four-hour format (with seconds)",
 												"type": "string",
-												"enum": ["TwentyFourHour"]
+												"enum": [
+													"TwentyFourHour"
+												]
 											},
 											{
 												"description": "Twenty-four-hour format (without seconds)",
 												"type": "string",
-												"enum": ["TwentyFourHourWithoutSeconds"]
+												"enum": [
+													"TwentyFourHourWithoutSeconds"
+												]
 											},
 											{
 												"description": "Twenty-four-hour format displayed as a binary clock with circles (with seconds) (https://en.wikipedia.org/wiki/Binary_clock)",
 												"type": "string",
-												"enum": ["BinaryCircle"]
+												"enum": [
+													"BinaryCircle"
+												]
 											},
 											{
 												"description": "Twenty-four-hour format displayed as a binary clock with rectangles (with seconds) (https://en.wikipedia.org/wiki/Binary_clock)",
 												"type": "string",
-												"enum": ["BinaryRectangle"]
+												"enum": [
+													"BinaryRectangle"
+												]
 											},
 											{
 												"description": "Custom format (https://docs.rs/chrono/latest/chrono/format/strftime/index.html)",
 												"type": "object",
-												"required": ["Custom"],
+												"required": [
+													"Custom"
+												],
 												"properties": {
 													"Custom": {
 														"type": "string"
@@ -3170,22 +3885,30 @@
 											{
 												"description": "Show no prefix",
 												"type": "string",
-												"enum": ["None"]
+												"enum": [
+													"None"
+												]
 											},
 											{
 												"description": "Show an icon",
 												"type": "string",
-												"enum": ["Icon"]
+												"enum": [
+													"Icon"
+												]
 											},
 											{
 												"description": "Show text",
 												"type": "string",
-												"enum": ["Text"]
+												"enum": [
+													"Text"
+												]
 											},
 											{
 												"description": "Show an icon and text",
 												"type": "string",
-												"enum": ["IconAndText"]
+												"enum": [
+													"IconAndText"
+												]
 											}
 										]
 									},
@@ -3200,11 +3923,15 @@
 					},
 					{
 						"type": "object",
-						"required": ["Update"],
+						"required": [
+							"Update"
+						],
 						"properties": {
 							"Update": {
 								"type": "object",
-								"required": ["enable"],
+								"required": [
+									"enable"
+								],
 								"properties": {
 									"data_refresh_interval": {
 										"description": "Data refresh interval (default: 12 hours)",
@@ -3222,22 +3949,30 @@
 											{
 												"description": "Show no prefix",
 												"type": "string",
-												"enum": ["None"]
+												"enum": [
+													"None"
+												]
 											},
 											{
 												"description": "Show an icon",
 												"type": "string",
-												"enum": ["Icon"]
+												"enum": [
+													"Icon"
+												]
 											},
 											{
 												"description": "Show text",
 												"type": "string",
-												"enum": ["Text"]
+												"enum": [
+													"Text"
+												]
 											},
 											{
 												"description": "Show an icon and text",
 												"type": "string",
-												"enum": ["IconAndText"]
+												"enum": [
+													"IconAndText"
+												]
 											}
 										]
 									}
@@ -3255,7 +3990,10 @@
 				{
 					"description": "A theme from catppuccin-egui",
 					"type": "object",
-					"required": ["name", "palette"],
+					"required": [
+						"name",
+						"palette"
+					],
 					"properties": {
 						"accent": {
 							"type": "string",
@@ -3291,18 +4029,28 @@
 						"name": {
 							"description": "Name of the Catppuccin theme (theme previews: https://github.com/catppuccin/catppuccin)",
 							"type": "string",
-							"enum": ["Frappe", "Latte", "Macchiato", "Mocha"]
+							"enum": [
+								"Frappe",
+								"Latte",
+								"Macchiato",
+								"Mocha"
+							]
 						},
 						"palette": {
 							"type": "string",
-							"enum": ["Catppuccin"]
+							"enum": [
+								"Catppuccin"
+							]
 						}
 					}
 				},
 				{
 					"description": "A theme from base16-egui-themes",
 					"type": "object",
-					"required": ["name", "palette"],
+					"required": [
+						"name",
+						"palette"
+					],
 					"properties": {
 						"accent": {
 							"type": "string",
@@ -3602,7 +4350,9 @@
 						},
 						"palette": {
 							"type": "string",
-							"enum": ["Base16"]
+							"enum": [
+								"Base16"
+							]
 						}
 					}
 				}
