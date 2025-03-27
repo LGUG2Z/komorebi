@@ -29,7 +29,7 @@ use std::sync::OnceLock;
 
 pub mod hidden;
 
-#[derive(Debug, Copy, Clone, Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, Serialize, Deserialize, PartialEq)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[serde(tag = "type", content = "content")]
 pub enum MonitorNotification {
@@ -726,4 +726,305 @@ where
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::window_manager_event::WindowManagerEvent;
+    use crossbeam_channel::bounded;
+    use crossbeam_channel::Sender;
+    use std::path::PathBuf;
+    use uuid::Uuid;
+    use windows::Win32::Devices::Display::DISPLAYCONFIG_VIDEO_OUTPUT_TECHNOLOGY;
+    // NOTE: Using RECT instead of RECT since I get a mismatched type error. Can be updated if
+    // needed.
+    use windows::Win32::Foundation::RECT;
+
+    // Creating a Mock Display Provider
+    #[derive(Clone)]
+    struct MockDevice {
+        hmonitor: isize,
+        device_path: String,
+        device_name: String,
+        device_description: String,
+        serial_number_id: Option<String>,
+        size: RECT,
+        work_area_size: RECT,
+        device_key: String,
+        output_technology: Option<DISPLAYCONFIG_VIDEO_OUTPUT_TECHNOLOGY>,
+    }
+
+    impl From<MockDevice> for win32_display_data::Device {
+        fn from(mock: MockDevice) -> Self {
+            win32_display_data::Device {
+                hmonitor: mock.hmonitor,
+                device_path: mock.device_path,
+                device_name: mock.device_name,
+                device_description: mock.device_description,
+                serial_number_id: mock.serial_number_id,
+                size: mock.size,
+                work_area_size: mock.work_area_size,
+                device_key: mock.device_key,
+                output_technology: mock.output_technology,
+            }
+        }
+    }
+
+    // Creating a Window Manager Instance
+    struct TestContext {
+        socket_path: Option<PathBuf>,
+    }
+
+    impl Drop for TestContext {
+        fn drop(&mut self) {
+            if let Some(socket_path) = &self.socket_path {
+                // Clean up the socket file
+                if let Err(e) = std::fs::remove_file(socket_path) {
+                    tracing::warn!("Failed to remove socket file: {}", e);
+                }
+            }
+        }
+    }
+
+    fn setup_window_manager() -> (WindowManager, TestContext) {
+        let (_sender, receiver): (Sender<WindowManagerEvent>, Receiver<WindowManagerEvent>) =
+            bounded(1);
+
+        // Temporary socket path for testing
+        let socket_name = format!("komorebi-test-{}.sock", Uuid::new_v4());
+        let socket_path = PathBuf::from(socket_name);
+
+        // Create a new WindowManager instance
+        let wm = match WindowManager::new(receiver, Some(socket_path.clone())) {
+            Ok(manager) => manager,
+            Err(e) => {
+                panic!("Failed to create WindowManager: {}", e);
+            }
+        };
+
+        (
+            wm,
+            TestContext {
+                socket_path: Some(socket_path),
+            },
+        )
+    }
+
+    #[test]
+    fn test_send_notification() {
+        // Create a monitor notification
+        let notification = MonitorNotification::ResolutionScalingChanged;
+
+        // Use the send_notification function to send the notification
+        send_notification(notification);
+
+        // Receive the notification from the channel
+        let received = event_rx().try_recv();
+
+        // Check if we received the notification and if it matches what we sent
+        match received {
+            Ok(notification) => {
+                assert_eq!(notification, MonitorNotification::ResolutionScalingChanged);
+            }
+            Err(e) => panic!("Failed to receive MonitorNotification: {}", e),
+        }
+    }
+
+    #[test]
+    fn test_channel_bounded_capacity() {
+        let (_, receiver) = channel();
+
+        // Fill the channel to its capacity (20 messages)
+        for _ in 0..20 {
+            send_notification(MonitorNotification::WorkAreaChanged);
+        }
+
+        // Attempt to send another message (should be dropped)
+        send_notification(MonitorNotification::ResolutionScalingChanged);
+
+        // Verify the channel contains only the first 20 messages
+        for _ in 0..20 {
+            let notification = match receiver.try_recv() {
+                Ok(notification) => notification,
+                Err(e) => panic!("Failed to receive MonitorNotification: {}", e),
+            };
+            assert_eq!(
+                notification,
+                MonitorNotification::WorkAreaChanged,
+                "Unexpected notification in the channel"
+            );
+        }
+
+        // Verify that no additional messages are in the channel
+        assert!(
+            receiver.try_recv().is_err(),
+            "Channel should be empty after consuming all messages"
+        );
+    }
+
+    #[test]
+    fn test_insert_in_monitor_cache() {
+        let m = monitor::new(
+            0,
+            Rect::default(),
+            Rect::default(),
+            "Test Monitor".to_string(),
+            "Test Device".to_string(),
+            "Test Device ID".to_string(),
+            Some("TestMonitorID".to_string()),
+        );
+
+        // Insert the monitor into the cache
+        insert_in_monitor_cache("TestMonitorID", m.clone());
+
+        // Retrieve the monitor from the cache
+        let cache = MONITOR_CACHE
+            .get_or_init(|| Mutex::new(HashMap::new()))
+            .lock();
+        let retrieved_monitor = cache.get("TestMonitorID");
+
+        // Check that the monitor was inserted correctly and matches the expected value
+        assert_eq!(retrieved_monitor, Some(&m));
+    }
+
+    #[test]
+    fn test_insert_two_monitors_cache() {
+        let m1 = monitor::new(
+            0,
+            Rect::default(),
+            Rect::default(),
+            "Test Monitor".to_string(),
+            "Test Device".to_string(),
+            "Test Device ID".to_string(),
+            Some("TestMonitorID".to_string()),
+        );
+
+        let m2 = monitor::new(
+            0,
+            Rect::default(),
+            Rect::default(),
+            "Test Monitor 2".to_string(),
+            "Test Device 2".to_string(),
+            "Test Device ID 2".to_string(),
+            Some("TestMonitorID2".to_string()),
+        );
+
+        // Insert the first monitor into the cache
+        insert_in_monitor_cache("TestMonitorID", m1.clone());
+
+        // Insert the second monitor into the cache
+        insert_in_monitor_cache("TestMonitorID2", m2.clone());
+
+        // Retrieve the cache to check if the first and second monitors are present
+        let cache = MONITOR_CACHE
+            .get_or_init(|| Mutex::new(HashMap::new()))
+            .lock();
+
+        // Check if Monitor 1 was found in the cache
+        assert_eq!(
+            cache.get("TestMonitorID"),
+            Some(&m1),
+            "Monitor cache should contain monitor 1"
+        );
+
+        // Check if Monitor 2 was found in the cache
+        assert_eq!(
+            cache.get("TestMonitorID2"),
+            Some(&m2),
+            "Monitor cache should contain monitor 2"
+        );
+    }
+
+    #[test]
+    fn test_listen_for_notifications() {
+        // Create a WindowManager instance for testing
+        let (wm, _test_context) = setup_window_manager();
+
+        // Start the notification listener
+        let result = listen_for_notifications(Arc::new(Mutex::new(wm)));
+
+        // Check if the listener started successfully
+        assert!(result.is_ok(), "Failed to start notification listener");
+
+        // Test sending a notification
+        send_notification(MonitorNotification::DisplayConnectionChange);
+
+        // Receive the notification from the channel
+        let received = event_rx().try_recv();
+
+        // Check if we received the notification and if it matches what we sent
+        match received {
+            Ok(notification) => {
+                assert_eq!(notification, MonitorNotification::DisplayConnectionChange);
+            }
+            Err(e) => panic!("Failed to receive MonitorNotification: {}", e),
+        }
+    }
+
+    #[test]
+    fn test_attached_display_devices() {
+        // Define mock display data
+        let mock_monitor = MockDevice {
+            hmonitor: 1,
+            device_path: String::from(
+                "\\\\?\\DISPLAY#ABC123#4&123456&0&UID0#{saucepackets-4321-5678-2468-abc123456789}",
+            ),
+            device_name: String::from("\\\\.\\DISPLAY1"),
+            device_description: String::from("Display description"),
+            serial_number_id: Some(String::from("SaucePackets123")),
+            device_key: String::from("Mock Key"),
+            size: RECT {
+                left: 0,
+                top: 0,
+                right: 1920,
+                bottom: 1080,
+            },
+            work_area_size: RECT {
+                left: 0,
+                top: 0,
+                right: 1920,
+                bottom: 1080,
+            },
+            output_technology: Some(DISPLAYCONFIG_VIDEO_OUTPUT_TECHNOLOGY(0)),
+        };
+
+        // Create a closure to simulate the display provider
+        let display_provider = || {
+            vec![Ok::<win32_display_data::Device, win32_display_data::Error>(
+                win32_display_data::Device::from(mock_monitor.clone()),
+            )]
+            .into_iter()
+        };
+
+        // Should contain the mock monitor
+        let result = attached_display_devices(display_provider).ok();
+        if let Some(monitors) = result {
+            // Check Number of monitors
+            assert_eq!(monitors.len(), 1, "Expected one monitor");
+
+            // hmonitor
+            assert_eq!(monitors[0].id(), 1);
+
+            // device name
+            assert_eq!(monitors[0].name(), &String::from("DISPLAY1"));
+
+            // Device
+            assert_eq!(monitors[0].device(), &String::from("ABC123"));
+
+            // Device ID
+            assert_eq!(
+                monitors[0].device_id(),
+                &String::from("ABC123-4&123456&0&UID0")
+            );
+
+            // Check monitor serial number id
+            assert_eq!(
+                monitors[0].serial_number_id,
+                Some(String::from("SaucePackets123")),
+            );
+        } else {
+            panic!("No monitors found");
+        }
+    }
 }

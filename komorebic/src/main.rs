@@ -1312,6 +1312,8 @@ enum SubCommand {
     ToggleMaximize,
     /// Toggle a lock for the focused container, ensuring it will not be displaced by any new windows
     ToggleLock,
+    /// Toggle a lock for the focused container, ensuring it will not be displaced by any new windows
+    ToggleLock,
     /// Toggle Always on top mode for the focused window
     ToggleAlwaysOnTop,
     /// Restore all hidden windows (debugging command)
@@ -1992,6 +1994,9 @@ fn main() -> Result<()> {
         }
         SubCommand::ToggleMaximize => {
             send_message(&SocketMessage::ToggleMaximize)?;
+        }
+        SubCommand::ToggleLock => {
+            send_message(&SocketMessage::ToggleLock)?;
         }
         SubCommand::ToggleLock => {
             send_message(&SocketMessage::ToggleLock)?;
