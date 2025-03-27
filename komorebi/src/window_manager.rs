@@ -2009,7 +2009,7 @@ impl WindowManager {
                             .get_mut(workspace_idx.unwrap())
                             .ok_or_else(|| anyhow!("there is no workspace at this index"))?
                             .floating_windows_mut()
-                            .push(float_window);
+                            .push_back(float_window.unwrap());
                     }
                 }
 
