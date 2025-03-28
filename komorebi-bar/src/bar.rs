@@ -455,8 +455,8 @@ impl Komobar {
                             "$Env:KOMOREBI_CONFIG_HOME is set to '{}', which is not a valid directory",
                             home.to_string_lossy()
                         );
-                        
-                        home 
+
+                        home
 
                     },
                 );
