@@ -156,7 +156,14 @@ pub fn listen_for_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Re
     tracing::info!("created hidden window to listen for monitor-related events");
 
     std::thread::spawn(move || loop {
-        match handle_notifications(wm.clone(), win32_display_data::connected_displays_all) {
+        match handle_notifications(
+            wm.clone(),
+            NotificationHandler {
+                display_provider: win32_display_data::connected_displays_all,
+                monitor_fn: WindowsApi::monitor,
+                load_monitor_information_fn: WindowsApi::load_monitor_information,
+            },
+        ) {
             Ok(()) => {
                 tracing::warn!("restarting finished thread");
             }
@@ -173,9 +180,19 @@ pub fn listen_for_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Re
     Ok(())
 }
 
+pub struct NotificationHandler<F, I>
+where
+    F: Fn() -> I + Copy,
+    I: Iterator<Item = Result<win32_display_data::Device, win32_display_data::Error>>,
+{
+    pub display_provider: F,
+    pub monitor_fn: fn(isize) -> color_eyre::Result<Monitor>,
+    pub load_monitor_information_fn: fn(&mut WindowManager) -> color_eyre::Result<()>,
+}
+
 pub fn handle_notifications<F, I>(
     wm: Arc<Mutex<WindowManager>>,
-    display_provider: F,
+    notification_handler: NotificationHandler<F, I>,
 ) -> color_eyre::Result<()>
 where
     F: Fn() -> I + Copy,
@@ -219,7 +236,7 @@ where
                     let mut should_update = false;
 
                     // Update work areas as necessary
-                    if let Ok(reference) = WindowsApi::monitor(monitor.id()) {
+                    if let Ok(reference) = (notification_handler.monitor_fn)(monitor.id()) {
                         if reference.work_area_size() != monitor.work_area_size() {
                             monitor.set_work_area_size(Rect {
                                 left: reference.work_area_size().left,
@@ -251,7 +268,7 @@ where
                     let mut should_update = false;
 
                     // Update sizes and work areas as necessary
-                    if let Ok(reference) = WindowsApi::monitor(monitor.id()) {
+                    if let Ok(reference) = (notification_handler.monitor_fn)(monitor.id()) {
                         if reference.work_area_size() != monitor.work_area_size() {
                             monitor.set_work_area_size(Rect {
                                 left: reference.work_area_size().left,
@@ -305,7 +322,8 @@ where
                 let initial_monitor_count = wm.monitors().len();
 
                 // Get the currently attached display devices
-                let attached_devices = attached_display_devices(display_provider)?;
+                let attached_devices =
+                    attached_display_devices(notification_handler.display_provider)?;
 
                 // Make sure that in our state any attached displays have the latest Win32 data
                 for monitor in wm.monitors_mut() {
@@ -496,7 +514,7 @@ where
 
                 // Check for and add any new monitors that may have been plugged in
                 // Monitor and display index preferences get applied in this function
-                WindowsApi::load_monitor_information(&mut wm)?;
+                (notification_handler.load_monitor_information_fn)(&mut wm)?;
 
                 let post_addition_monitor_count = wm.monitors().len();
 
@@ -579,11 +597,13 @@ where
 
                                         if is_focused_workspace {
                                             if let Some(window) = container.focused_window() {
-                                                tracing::debug!(
-                                                    "restoring window: {}",
-                                                    window.hwnd
-                                                );
-                                                WindowsApi::restore_window(window.hwnd);
+                                                if !cfg!(test) {
+                                                    tracing::debug!(
+                                                        "restoring window: {}",
+                                                        window.hwnd
+                                                    );
+                                                    WindowsApi::restore_window(window.hwnd);
+                                                }
                                             } else {
                                                 // If the focused window was moved or removed by
                                                 // the user after the disconnect then focus the
@@ -591,7 +611,9 @@ where
                                                 container.focus_window(0);
 
                                                 if let Some(window) = container.focused_window() {
-                                                    WindowsApi::restore_window(window.hwnd);
+                                                    if !cfg!(test) {
+                                                        WindowsApi::restore_window(window.hwnd);
+                                                    }
                                                 }
                                             }
                                         }
@@ -611,7 +633,7 @@ where
                                             || known_hwnds.contains_key(&window.hwnd)
                                         {
                                             workspace.set_maximized_window(None);
-                                        } else if is_focused_workspace {
+                                        } else if is_focused_workspace && !cfg!(test) {
                                             WindowsApi::restore_window(window.hwnd);
                                         }
                                     }
@@ -626,7 +648,9 @@ where
                                             workspace.set_monocle_container(None);
                                         } else if is_focused_workspace {
                                             if let Some(window) = container.focused_window() {
-                                                WindowsApi::restore_window(window.hwnd);
+                                                if !cfg!(test) {
+                                                    WindowsApi::restore_window(window.hwnd);
+                                                }
                                             } else {
                                                 // If the focused window was moved or removed by
                                                 // the user after the disconnect then focus the
@@ -634,7 +658,9 @@ where
                                                 container.focus_window(0);
 
                                                 if let Some(window) = container.focused_window() {
-                                                    WindowsApi::restore_window(window.hwnd);
+                                                    if !cfg!(test) {
+                                                        WindowsApi::restore_window(window.hwnd);
+                                                    }
                                                 }
                                             }
                                         }
@@ -647,7 +673,9 @@ where
 
                                     if is_focused_workspace {
                                         for window in workspace.floating_windows() {
-                                            WindowsApi::restore_window(window.hwnd);
+                                            if !cfg!(test) {
+                                                WindowsApi::restore_window(window.hwnd);
+                                            }
                                         }
                                     }
 
