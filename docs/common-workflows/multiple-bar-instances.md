@@ -16,4 +16,5 @@ array in your `komorebi.json` configuration file.
 You may also use `$Env:USERPROFILE` or `$Env:KOMOREBI_CONFIG_HOME` when specifying the paths.
 
 The main difference between different `komorebi.bar.json` files will be the value of `monitor.index` which is used to
-target the monitor for each instance of `komorebi-bar`.
+target the monitor for each instance of `komorebi-bar`. `komorebi` will need to be started with the `--bar` option by 
+running `komorebic start --bar` for this to take effect.
