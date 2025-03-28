@@ -74,6 +74,12 @@ impl<P: AsRef<Path>> PathExt for P {
     }
 }
 
+/// Replace environment variables in a path. This is a wrapper around
+/// [`PathExt::replace_env`] to be used in Clap arguments parsing.
+pub fn replace_env_in_path(input: &str) -> Result<PathBuf, std::convert::Infallible> {
+    Ok(input.replace_env())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

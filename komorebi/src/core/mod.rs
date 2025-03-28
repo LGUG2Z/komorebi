@@ -27,6 +27,7 @@ pub use default_layout::DefaultLayout;
 pub use direction::Direction;
 pub use layout::Layout;
 pub use operation_direction::OperationDirection;
+pub use pathext::replace_env_in_path;
 pub use pathext::PathExt;
 pub use rect::Rect;
 

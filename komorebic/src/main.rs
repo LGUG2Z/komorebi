@@ -2,6 +2,7 @@
 #![allow(clippy::missing_errors_doc, clippy::doc_markdown)]
 
 use chrono::Utc;
+use komorebi_client::replace_env_in_path;
 use komorebi_client::PathExt;
 use std::fs::File;
 use std::fs::OpenOptions;
@@ -89,7 +90,7 @@ lazy_static! {
                 let whkd_config_home = home_path.replace_env();
 
                 assert!(
-                    whkd_config_home.as_path().is_dir(),
+                    whkd_config_home.is_dir(),
                     "$Env:WHKD_CONFIG_HOME is set to '{}', which is not a valid directory",
                     whkd_config_home.to_string_lossy()
                 );
@@ -98,11 +99,6 @@ lazy_static! {
             },
         )
     };
-}
-
-/// Utility function to replace environment variables in a path for clap arguments
-fn replace_env_in_path(input: &str) -> Result<PathBuf> {
-    Ok(input.replace_env())
 }
 
 shadow_rs::shadow!(build);

@@ -16,6 +16,8 @@ use font_loader::system_fonts;
 use hotwatch::EventKind;
 use hotwatch::Hotwatch;
 use image::RgbaImage;
+use komorebi_client::replace_env_in_path;
+use komorebi_client::PathExt;
 use komorebi_client::SocketMessage;
 use komorebi_client::SubscribeOptions;
 use std::collections::HashMap;
@@ -61,6 +63,7 @@ struct Opts {
     fonts: bool,
     /// Path to a JSON or YAML configuration file
     #[clap(short, long)]
+    #[clap(value_parser = replace_env_in_path)]
     config: Option<PathBuf>,
     /// Write an example komorebi.bar.json to disk
     #[clap(long)]
@@ -155,13 +158,15 @@ fn main() -> color_eyre::Result<()> {
     let home_dir: PathBuf = std::env::var("KOMOREBI_CONFIG_HOME").map_or_else(
         |_| dirs::home_dir().expect("there is no home directory"),
         |home_path| {
-            let home = PathBuf::from(&home_path);
+            let home = home_path.replace_env();
 
-            if home.as_path().is_dir() {
-                home
-            } else {
-                panic!("$Env:KOMOREBI_CONFIG_HOME is set to '{home_path}', which is not a valid directory");
-            }
+            assert!(
+                home.is_dir(),
+                "$Env:KOMOREBI_CONFIG_HOME is set to '{}', which is not a valid directory",
+                home.to_string_lossy()
+            );
+
+            home
         },
     );
 
@@ -170,7 +175,7 @@ fn main() -> color_eyre::Result<()> {
         std::fs::write(home_dir.join("komorebi.bar.json"), komorebi_bar_json)?;
         println!(
             "Example komorebi.bar.json file written to {}",
-            home_dir.as_path().display()
+            home_dir.display()
         );
 
         std::process::exit(0);
@@ -178,16 +183,11 @@ fn main() -> color_eyre::Result<()> {
 
     let default_config_path = home_dir.join("komorebi.bar.json");
 
-    let config_path = opts.config.map_or_else(
-        || {
-            if !default_config_path.is_file() {
-                None
-            } else {
-                Some(default_config_path.clone())
-            }
-        },
-        Option::from,
-    );
+    let config_path = opts.config.or_else(|| {
+        default_config_path
+            .is_file()
+            .then_some(default_config_path.clone())
+    });
 
     let mut config = match config_path {
         None => {
@@ -197,17 +197,14 @@ fn main() -> color_eyre::Result<()> {
             std::fs::write(&default_config_path, komorebi_bar_json)?;
             tracing::info!(
                 "created example configuration file: {}",
-                default_config_path.as_path().display()
+                default_config_path.display()
             );
 
             KomobarConfig::read(&default_config_path)?
         }
         Some(ref config) => {
             if !opts.aliases {
-                tracing::info!(
-                    "found configuration file: {}",
-                    config.as_path().to_string_lossy()
-                );
+                tracing::info!("found configuration file: {}", config.to_string_lossy());
             }
 
             KomobarConfig::read(config)?
@@ -309,7 +306,7 @@ fn main() -> color_eyre::Result<()> {
             Ok(updated) => {
                 tracing::info!(
                     "configuration file updated: {}",
-                    config_path_cl.as_path().to_string_lossy()
+                    config_path_cl.to_string_lossy()
                 );
 
                 if let Err(error) = tx_config.send(updated) {
