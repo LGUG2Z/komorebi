@@ -122,6 +122,7 @@ pub struct BorderColours {
     pub unfocused: Option<Colour>,
 }
 
+// serde_as must be before derive
 #[serde_with::serde_as]
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]

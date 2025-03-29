@@ -45,6 +45,7 @@ pub mod operation_direction;
 pub mod pathext;
 pub mod rect;
 
+// serde_as must be before derive
 #[serde_with::serde_as]
 #[derive(Clone, Debug, Serialize, Deserialize, Display)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]

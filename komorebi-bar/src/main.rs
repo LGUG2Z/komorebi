@@ -163,7 +163,7 @@ fn main() -> color_eyre::Result<()> {
             assert!(
                 home.is_dir(),
                 "$Env:KOMOREBI_CONFIG_HOME is set to '{}', which is not a valid directory",
-                home.to_string_lossy()
+                home_path
             );
 
             home
@@ -204,7 +204,7 @@ fn main() -> color_eyre::Result<()> {
         }
         Some(ref config) => {
             if !opts.aliases {
-                tracing::info!("found configuration file: {}", config.to_string_lossy());
+                tracing::info!("found configuration file: {}", config.display());
             }
 
             KomobarConfig::read(config)?
@@ -304,10 +304,7 @@ fn main() -> color_eyre::Result<()> {
     hotwatch.watch(config_path, move |event| match event.kind {
         EventKind::Modify(_) | EventKind::Remove(_) => match KomobarConfig::read(&config_path_cl) {
             Ok(updated) => {
-                tracing::info!(
-                    "configuration file updated: {}",
-                    config_path_cl.to_string_lossy()
-                );
+                tracing::info!("configuration file updated: {}", config_path_cl.display());
 
                 if let Err(error) = tx_config.send(updated) {
                     tracing::error!("could not send configuration update to gui: {error}")

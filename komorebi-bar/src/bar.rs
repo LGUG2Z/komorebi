@@ -453,7 +453,7 @@ impl Komobar {
                         assert!(
                             home.is_dir(),
                             "$Env:KOMOREBI_CONFIG_HOME is set to '{}', which is not a valid directory",
-                            home.to_string_lossy()
+                            home_path
                         );
 
                         home

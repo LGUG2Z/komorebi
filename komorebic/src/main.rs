@@ -92,7 +92,7 @@ lazy_static! {
                 assert!(
                     whkd_config_home.is_dir(),
                     "$Env:WHKD_CONFIG_HOME is set to '{}', which is not a valid directory",
-                    whkd_config_home.to_string_lossy()
+                    home_path
                 );
 
                 whkd_config_home

@@ -193,7 +193,8 @@ lazy_static! {
 
             assert!(
                 home.is_dir(),
-                "$Env:KOMOREBI_CONFIG_HOME is set to '{home_path}', which is not a valid directory",
+                "$Env:KOMOREBI_CONFIG_HOME is set to '{}', which is not a valid directory",
+                home_path
             );
 
 
