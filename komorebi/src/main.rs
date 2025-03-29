@@ -16,6 +16,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use clap::Parser;
+use clap::ValueEnum;
 use color_eyre::Result;
 use crossbeam_utils::Backoff;
 use komorebi::animation::AnimationEngine;
@@ -24,6 +25,7 @@ use komorebi::animation::ANIMATION_ENABLED_PER_ANIMATION;
 #[cfg(feature = "deadlock_detection")]
 use parking_lot::deadlock;
 use parking_lot::Mutex;
+use serde::Deserialize;
 use sysinfo::Process;
 use sysinfo::ProcessesToUpdate;
 use tracing_appender::non_blocking::WorkerGuard;
@@ -57,7 +59,7 @@ use komorebi::SESSION_ID;
 
 shadow_rs::shadow!(build);
 
-fn setup() -> Result<(WorkerGuard, WorkerGuard)> {
+fn setup(log_level: LogLevel) -> Result<(WorkerGuard, WorkerGuard)> {
     if std::env::var("RUST_LIB_BACKTRACE").is_err() {
         std::env::set_var("RUST_LIB_BACKTRACE", "1");
     }
@@ -65,7 +67,16 @@ fn setup() -> Result<(WorkerGuard, WorkerGuard)> {
     color_eyre::install()?;
 
     if std::env::var("RUST_LOG").is_err() {
-        std::env::set_var("RUST_LOG", "info");
+        std::env::set_var(
+            "RUST_LOG",
+            match log_level {
+                LogLevel::Error => "error",
+                LogLevel::Warn => "warn",
+                LogLevel::Info => "info",
+                LogLevel::Debug => "debug",
+                LogLevel::Trace => "trace",
+            },
+        );
     }
 
     let appender = tracing_appender::rolling::daily(std::env::temp_dir(), "komorebi_plaintext.log");
@@ -143,6 +154,17 @@ fn detect_deadlocks() {
     });
 }
 
+#[derive(Default, Deserialize, ValueEnum, Clone)]
+#[serde(rename_all = "snake_case")]
+enum LogLevel {
+    Error,
+    Warn,
+    #[default]
+    Info,
+    Debug,
+    Trace,
+}
+
 #[derive(Parser)]
 #[clap(author, about, version = build::CLAP_LONG_VERSION)]
 struct Opts {
@@ -161,6 +183,9 @@ struct Opts {
     /// Do not attempt to auto-apply a dumped state temp file from a previously running instance of komorebi
     #[clap(long)]
     clean_state: bool,
+    /// Level of log output verbosity
+    #[clap(long, value_enum, default_value_t=LogLevel::Info)]
+    log_level: LogLevel,
 }
 
 #[tracing::instrument]
@@ -198,7 +223,7 @@ fn main() -> Result<()> {
     }
 
     // File logging worker guard has to have an assignment in the main fn to work
-    let (_guard, _color_guard) = setup()?;
+    let (_guard, _color_guard) = setup(opts.log_level)?;
 
     WindowsApi::foreground_lock_timeout()?;
 
