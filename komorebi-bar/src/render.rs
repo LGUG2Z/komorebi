@@ -1,6 +1,8 @@
 use crate::bar::Alignment;
 use crate::config::KomobarConfig;
 use crate::config::MonitorConfigOrIndex;
+use crate::AUTO_SELECT_FILL_COLOUR;
+use crate::AUTO_SELECT_TEXT_COLOUR;
 use eframe::egui::Color32;
 use eframe::egui::Context;
 use eframe::egui::CornerRadius;
@@ -11,8 +13,11 @@ use eframe::egui::Margin;
 use eframe::egui::Shadow;
 use eframe::egui::TextStyle;
 use eframe::egui::Ui;
+use komorebi_client::Colour;
+use komorebi_client::Rgb;
 use serde::Deserialize;
 use serde::Serialize;
+use std::num::NonZeroU32;
 use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
@@ -55,6 +60,10 @@ pub struct RenderConfig {
     pub icon_font_id: FontId,
     /// Show all icons on the workspace section of the Komorebi widget
     pub show_all_icons: bool,
+    /// Background color of the selected frame
+    pub auto_select_fill: Option<Color32>,
+    /// Text color of the selected frame
+    pub auto_select_text: Option<Color32>,
 }
 
 pub trait RenderExt {
@@ -108,6 +117,10 @@ impl RenderExt for &KomobarConfig {
             text_font_id,
             icon_font_id,
             show_all_icons,
+            auto_select_fill: NonZeroU32::new(AUTO_SELECT_FILL_COLOUR.load(Ordering::SeqCst))
+                .map(|c| Colour::Rgb(Rgb::from(c.get())).into()),
+            auto_select_text: NonZeroU32::new(AUTO_SELECT_TEXT_COLOUR.load(Ordering::SeqCst))
+                .map(|c| Colour::Rgb(Rgb::from(c.get())).into()),
         }
     }
 }
@@ -133,6 +146,8 @@ impl RenderConfig {
             text_font_id: FontId::default(),
             icon_font_id: FontId::default(),
             show_all_icons: false,
+            auto_select_fill: None,
+            auto_select_text: None,
         }
     }
 

@@ -1,9 +1,11 @@
+use crate::bar::Alignment;
 use crate::config::LabelPrefix;
 use crate::render::RenderConfig;
 use crate::selected_frame::SelectableFrame;
 use crate::widgets::widget::BarWidget;
 use eframe::egui::text::LayoutJob;
 use eframe::egui::Align;
+use eframe::egui::Color32;
 use eframe::egui::Context;
 use eframe::egui::Label;
 use eframe::egui::TextFormat;
@@ -22,18 +24,36 @@ use sysinfo::Networks;
 pub struct NetworkConfig {
     /// Enable the Network widget
     pub enable: bool,
-    /// Show total data transmitted
-    pub show_total_data_transmitted: bool,
-    /// Show network activity
-    pub show_network_activity: bool,
+    /// Show total received and transmitted activity
+    #[serde(alias = "show_total_data_transmitted")]
+    pub show_total_activity: bool,
+    /// Show received and transmitted activity
+    #[serde(alias = "show_network_activity")]
+    pub show_activity: bool,
     /// Show default interface
     pub show_default_interface: Option<bool>,
-    /// Characters to reserve for network activity data
-    pub network_activity_fill_characters: Option<usize>,
+    /// Characters to reserve for received and transmitted activity
+    #[serde(alias = "network_activity_fill_characters")]
+    pub activity_left_padding: Option<usize>,
     /// Data refresh interval (default: 10 seconds)
     pub data_refresh_interval: Option<u64>,
     /// Display label prefix
     pub label_prefix: Option<LabelPrefix>,
+    /// Select when the value is over a limit (1MiB is 1048576 bytes (1024*1024))
+    pub auto_select: Option<NetworkSelectConfig>,
+}
+
+#[derive(Copy, Clone, Debug, Serialize, Deserialize)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+pub struct NetworkSelectConfig {
+    /// Select the total received data when it's over this value
+    pub total_received_over: Option<u64>,
+    /// Select the total transmitted data when it's over this value
+    pub total_transmitted_over: Option<u64>,
+    /// Select the received data when it's over this value
+    pub received_over: Option<u64>,
+    /// Select the transmitted data when it's over this value
+    pub transmitted_over: Option<u64>,
 }
 
 impl From<NetworkConfig> for Network {
@@ -42,16 +62,15 @@ impl From<NetworkConfig> for Network {
 
         Self {
             enable: value.enable,
-            show_total_activity: value.show_total_data_transmitted,
-            show_activity: value.show_network_activity,
+            show_total_activity: value.show_total_activity,
+            show_activity: value.show_activity,
             show_default_interface: value.show_default_interface.unwrap_or(true),
             networks_network_activity: Networks::new_with_refreshed_list(),
             default_interface: String::new(),
             data_refresh_interval,
             label_prefix: value.label_prefix.unwrap_or(LabelPrefix::Icon),
-            network_activity_fill_characters: value
-                .network_activity_fill_characters
-                .unwrap_or_default(),
+            auto_select: value.auto_select,
+            activity_left_padding: value.activity_left_padding.unwrap_or_default(),
             last_state_total_activity: vec![],
             last_state_activity: vec![],
             last_updated_network_activity: Instant::now()
@@ -69,11 +88,12 @@ pub struct Network {
     networks_network_activity: Networks,
     data_refresh_interval: u64,
     label_prefix: LabelPrefix,
+    auto_select: Option<NetworkSelectConfig>,
     default_interface: String,
     last_state_total_activity: Vec<NetworkReading>,
     last_state_activity: Vec<NetworkReading>,
     last_updated_network_activity: Instant,
-    network_activity_fill_characters: usize,
+    activity_left_padding: usize,
 }
 
 impl Network {
@@ -105,24 +125,32 @@ impl Network {
                     for (interface_name, data) in &self.networks_network_activity {
                         if friendly_name.eq(interface_name) {
                             if self.show_activity {
+                                let received = Self::to_pretty_bytes(
+                                    data.received(),
+                                    self.data_refresh_interval,
+                                );
+                                let transmitted = Self::to_pretty_bytes(
+                                    data.transmitted(),
+                                    self.data_refresh_interval,
+                                );
+
                                 activity.push(NetworkReading::new(
                                     NetworkReadingFormat::Speed,
-                                    Self::to_pretty_bytes(
-                                        data.received(),
-                                        self.data_refresh_interval,
-                                    ),
-                                    Self::to_pretty_bytes(
-                                        data.transmitted(),
-                                        self.data_refresh_interval,
-                                    ),
+                                    ReadingValue::from(received),
+                                    ReadingValue::from(transmitted),
                                 ));
                             }
 
                             if self.show_total_activity {
+                                let total_received =
+                                    Self::to_pretty_bytes(data.total_received(), 1);
+                                let total_transmitted =
+                                    Self::to_pretty_bytes(data.total_transmitted(), 1);
+
                                 total_activity.push(NetworkReading::new(
                                     NetworkReadingFormat::Total,
-                                    Self::to_pretty_bytes(data.total_received(), 1),
-                                    Self::to_pretty_bytes(data.total_transmitted(), 1),
+                                    ReadingValue::from(total_received),
+                                    ReadingValue::from(total_transmitted),
                                 ))
                             }
                         }
@@ -138,105 +166,121 @@ impl Network {
         (activity, total_activity)
     }
 
-    fn reading_to_label(
+    fn reading_to_labels(
         &self,
+        select_received: bool,
+        select_transmitted: bool,
         ctx: &Context,
-        reading: NetworkReading,
+        reading: &NetworkReading,
         config: RenderConfig,
-    ) -> Label {
+    ) -> (Label, Label) {
         let (text_down, text_up) = match self.label_prefix {
             LabelPrefix::None | LabelPrefix::Icon => match reading.format {
                 NetworkReadingFormat::Speed => (
                     format!(
                         "{: >width$}/s ",
-                        reading.received_text,
-                        width = self.network_activity_fill_characters
+                        reading.received.pretty,
+                        width = self.activity_left_padding
                     ),
                     format!(
                         "{: >width$}/s",
-                        reading.transmitted_text,
-                        width = self.network_activity_fill_characters
+                        reading.transmitted.pretty,
+                        width = self.activity_left_padding
                     ),
                 ),
                 NetworkReadingFormat::Total => (
-                    format!("{} ", reading.received_text),
-                    reading.transmitted_text,
+                    format!("{} ", reading.received.pretty),
+                    reading.transmitted.pretty.clone(),
                 ),
             },
             LabelPrefix::Text | LabelPrefix::IconAndText => match reading.format {
                 NetworkReadingFormat::Speed => (
                     format!(
                         "DOWN: {: >width$}/s ",
-                        reading.received_text,
-                        width = self.network_activity_fill_characters
+                        reading.received.pretty,
+                        width = self.activity_left_padding
                     ),
                     format!(
                         "UP: {: >width$}/s",
-                        reading.transmitted_text,
-                        width = self.network_activity_fill_characters
+                        reading.transmitted.pretty,
+                        width = self.activity_left_padding
                     ),
                 ),
                 NetworkReadingFormat::Total => (
-                    format!("\u{2211}DOWN: {}/s ", reading.received_text),
-                    format!("\u{2211}UP: {}/s", reading.transmitted_text),
+                    format!("\u{2211}DOWN: {}/s ", reading.received.pretty),
+                    format!("\u{2211}UP: {}/s", reading.transmitted.pretty),
                 ),
             },
         };
 
-        let icon_format = TextFormat::simple(
-            config.icon_font_id.clone(),
-            ctx.style().visuals.selection.stroke.color,
-        );
-        let text_format = TextFormat {
-            font_id: config.text_font_id.clone(),
-            color: ctx.style().visuals.text_color(),
-            valign: Align::Center,
-            ..Default::default()
-        };
+        let auto_text_color_received = config.auto_select_text.filter(|_| select_received);
+        let auto_text_color_transmitted = config.auto_select_text.filter(|_| select_transmitted);
 
         // icon
-        let mut layout_job = LayoutJob::simple(
+        let mut layout_job_down = LayoutJob::simple(
             match self.label_prefix {
                 LabelPrefix::Icon | LabelPrefix::IconAndText => {
-                    egui_phosphor::regular::ARROW_FAT_DOWN.to_string()
+                    if select_received {
+                        egui_phosphor::regular::ARROW_FAT_LINES_DOWN.to_string()
+                    } else {
+                        egui_phosphor::regular::ARROW_FAT_DOWN.to_string()
+                    }
                 }
                 LabelPrefix::None | LabelPrefix::Text => String::new(),
             },
-            icon_format.font_id.clone(),
-            icon_format.color,
+            config.icon_font_id.clone(),
+            auto_text_color_received.unwrap_or(ctx.style().visuals.selection.stroke.color),
             100.0,
         );
 
         // text
-        layout_job.append(
+        layout_job_down.append(
             &text_down,
             ctx.style().spacing.item_spacing.x,
-            text_format.clone(),
+            TextFormat {
+                font_id: config.text_font_id.clone(),
+                color: auto_text_color_received.unwrap_or(ctx.style().visuals.text_color()),
+                valign: Align::Center,
+                ..Default::default()
+            },
         );
 
         // icon
-        layout_job.append(
-            &match self.label_prefix {
+        let mut layout_job_up = LayoutJob::simple(
+            match self.label_prefix {
                 LabelPrefix::Icon | LabelPrefix::IconAndText => {
-                    egui_phosphor::regular::ARROW_FAT_UP.to_string()
+                    if select_transmitted {
+                        egui_phosphor::regular::ARROW_FAT_LINES_UP.to_string()
+                    } else {
+                        egui_phosphor::regular::ARROW_FAT_UP.to_string()
+                    }
                 }
                 LabelPrefix::None | LabelPrefix::Text => String::new(),
             },
-            0.0,
-            icon_format.clone(),
+            config.icon_font_id.clone(),
+            auto_text_color_transmitted.unwrap_or(ctx.style().visuals.selection.stroke.color),
+            100.0,
         );
 
         // text
-        layout_job.append(
+        layout_job_up.append(
             &text_up,
             ctx.style().spacing.item_spacing.x,
-            text_format.clone(),
+            TextFormat {
+                font_id: config.text_font_id.clone(),
+                color: auto_text_color_transmitted.unwrap_or(ctx.style().visuals.text_color()),
+                valign: Align::Center,
+                ..Default::default()
+            },
         );
 
-        Label::new(layout_job).selectable(false)
+        (
+            Label::new(layout_job_down).selectable(false),
+            Label::new(layout_job_up).selectable(false),
+        )
     }
 
-    fn to_pretty_bytes(input_in_bytes: u64, timespan_in_s: u64) -> String {
+    fn to_pretty_bytes(input_in_bytes: u64, timespan_in_s: u64) -> (u64, String) {
         let input = input_in_bytes as f32 / timespan_in_s as f32;
         let mut magnitude = input.log(1024f32) as u32;
 
@@ -248,10 +292,30 @@ impl Network {
         let base: Option<DataUnit> = num::FromPrimitive::from_u32(magnitude);
         let result = input / ((1u64) << (magnitude * 10)) as f32;
 
-        match base {
-            Some(DataUnit::B) => format!("{result:.1} B"),
-            Some(unit) => format!("{result:.1} {unit}iB"),
-            None => String::from("Unknown data unit"),
+        (
+            input as u64,
+            match base {
+                Some(DataUnit::B) => format!("{result:.1} B"),
+                Some(unit) => format!("{result:.1} {unit}iB"),
+                None => String::from("Unknown data unit"),
+            },
+        )
+    }
+
+    fn show_frame<R>(
+        &self,
+        selected: bool,
+        auto_focus_fill: Option<Color32>,
+        ui: &mut Ui,
+        add_contents: impl FnOnce(&mut Ui) -> R,
+    ) {
+        if SelectableFrame::new_auto(selected, auto_focus_fill)
+            .show(ui, add_contents)
+            .clicked()
+        {
+            if let Err(error) = Command::new("cmd.exe").args(["/C", "ncpa"]).spawn() {
+                eprintln!("{}", error);
+            }
         }
     }
 }
@@ -259,6 +323,8 @@ impl Network {
 impl BarWidget for Network {
     fn render(&mut self, ctx: &Context, ui: &mut Ui, config: &mut RenderConfig) {
         if self.enable {
+            let is_reversed = matches!(config.alignment, Some(Alignment::Right));
+
             // widget spacing: make sure to use the same config to call the apply_on_widget function
             let mut render_config = config.clone();
 
@@ -266,17 +332,102 @@ impl BarWidget for Network {
                 let (activity, total_activity) = self.network_activity();
 
                 if self.show_total_activity {
-                    for reading in total_activity {
-                        render_config.apply_on_widget(true, ui, |ui| {
-                            ui.add(self.reading_to_label(ctx, reading, config.clone()));
+                    for reading in &total_activity {
+                        render_config.apply_on_widget(false, ui, |ui| {
+                            let select_received = self.auto_select.is_some_and(|f| {
+                                f.total_received_over
+                                    .is_some_and(|o| reading.received.value > o)
+                            });
+                            let select_transmitted = self.auto_select.is_some_and(|f| {
+                                f.total_transmitted_over
+                                    .is_some_and(|o| reading.transmitted.value > o)
+                            });
+
+                            let labels = self.reading_to_labels(
+                                select_received,
+                                select_transmitted,
+                                ctx,
+                                reading,
+                                config.clone(),
+                            );
+
+                            if is_reversed {
+                                self.show_frame(
+                                    select_transmitted,
+                                    config.auto_select_fill,
+                                    ui,
+                                    |ui| ui.add(labels.1),
+                                );
+                                self.show_frame(
+                                    select_received,
+                                    config.auto_select_fill,
+                                    ui,
+                                    |ui| ui.add(labels.0),
+                                );
+                            } else {
+                                self.show_frame(
+                                    select_received,
+                                    config.auto_select_fill,
+                                    ui,
+                                    |ui| ui.add(labels.0),
+                                );
+                                self.show_frame(
+                                    select_transmitted,
+                                    config.auto_select_fill,
+                                    ui,
+                                    |ui| ui.add(labels.1),
+                                );
+                            }
                         });
                     }
                 }
 
                 if self.show_activity {
-                    for reading in activity {
-                        render_config.apply_on_widget(true, ui, |ui| {
-                            ui.add(self.reading_to_label(ctx, reading, config.clone()));
+                    for reading in &activity {
+                        render_config.apply_on_widget(false, ui, |ui| {
+                            let select_received = self.auto_select.is_some_and(|f| {
+                                f.received_over.is_some_and(|o| reading.received.value > o)
+                            });
+                            let select_transmitted = self.auto_select.is_some_and(|f| {
+                                f.transmitted_over
+                                    .is_some_and(|o| reading.transmitted.value > o)
+                            });
+
+                            let labels = self.reading_to_labels(
+                                select_received,
+                                select_transmitted,
+                                ctx,
+                                reading,
+                                config.clone(),
+                            );
+
+                            if is_reversed {
+                                self.show_frame(
+                                    select_transmitted,
+                                    config.auto_select_fill,
+                                    ui,
+                                    |ui| ui.add(labels.1),
+                                );
+                                self.show_frame(
+                                    select_received,
+                                    config.auto_select_fill,
+                                    ui,
+                                    |ui| ui.add(labels.0),
+                                );
+                            } else {
+                                self.show_frame(
+                                    select_received,
+                                    config.auto_select_fill,
+                                    ui,
+                                    |ui| ui.add(labels.0),
+                                );
+                                self.show_frame(
+                                    select_transmitted,
+                                    config.auto_select_fill,
+                                    ui,
+                                    |ui| ui.add(labels.1),
+                                );
+                            }
                         });
                     }
                 }
@@ -314,15 +465,9 @@ impl BarWidget for Network {
                     );
 
                     render_config.apply_on_widget(false, ui, |ui| {
-                        if SelectableFrame::new(false)
-                            .show(ui, |ui| ui.add(Label::new(layout_job).selectable(false)))
-                            .clicked()
-                        {
-                            if let Err(error) = Command::new("cmd.exe").args(["/C", "ncpa"]).spawn()
-                            {
-                                eprintln!("{}", error)
-                            }
-                        }
+                        self.show_frame(false, None, ui, |ui| {
+                            ui.add(Label::new(layout_job).selectable(false))
+                        });
                     });
                 }
             }
@@ -340,18 +485,37 @@ enum NetworkReadingFormat {
 }
 
 #[derive(Clone)]
+struct ReadingValue {
+    value: u64,
+    pretty: String,
+}
+
+impl From<(u64, String)> for ReadingValue {
+    fn from(value: (u64, String)) -> Self {
+        Self {
+            value: value.0,
+            pretty: value.1,
+        }
+    }
+}
+
+#[derive(Clone)]
 struct NetworkReading {
-    pub format: NetworkReadingFormat,
-    pub received_text: String,
-    pub transmitted_text: String,
+    format: NetworkReadingFormat,
+    received: ReadingValue,
+    transmitted: ReadingValue,
 }
 
 impl NetworkReading {
-    pub fn new(format: NetworkReadingFormat, received: String, transmitted: String) -> Self {
-        NetworkReading {
+    fn new(
+        format: NetworkReadingFormat,
+        received: ReadingValue,
+        transmitted: ReadingValue,
+    ) -> Self {
+        Self {
             format,
-            received_text: received,
-            transmitted_text: transmitted,
+            received,
+            transmitted,
         }
     }
 }
