@@ -1748,7 +1748,8 @@ fn handle_asc_file(
 mod tests {
     use std::path::PathBuf;
 
-    use crate::{StaticConfig, WorkspaceConfig};
+    use crate::StaticConfig;
+    use crate::WorkspaceConfig;
 
     #[test]
     fn backwards_compat() {
