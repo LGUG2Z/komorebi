@@ -50,7 +50,6 @@ use komorebi::window_manager::State;
 use komorebi::window_manager::WindowManager;
 use komorebi::windows_api::WindowsApi;
 use komorebi::winevent_listener;
-use komorebi::workspace_reconciliator;
 use komorebi::CUSTOM_FFM;
 use komorebi::DATA_DIR;
 use komorebi::HOME_DIR;
@@ -303,7 +302,6 @@ fn main() -> Result<()> {
     border_manager::listen_for_notifications(wm.clone());
     stackbar_manager::listen_for_notifications(wm.clone());
     transparency_manager::listen_for_notifications(wm.clone());
-    workspace_reconciliator::listen_for_notifications(wm.clone());
     monitor_reconciliator::listen_for_notifications(wm.clone())?;
     reaper::listen_for_notifications(wm.clone(), wm.lock().known_hwnds.clone());
     focus_manager::listen_for_notifications(wm.clone());
