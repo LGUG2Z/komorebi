@@ -39,6 +39,7 @@ use crate::current_virtual_desktop;
 use crate::monitor;
 use crate::monitor::Monitor;
 use crate::monitor_reconciliator;
+use crate::resolve_option_hashmap_usize_path;
 use crate::ring::Ring;
 use crate::stackbar_manager::STACKBAR_FOCUSED_TEXT_COLOUR;
 use crate::stackbar_manager::STACKBAR_FONT_FAMILY;
@@ -59,8 +60,8 @@ use crate::workspace::Workspace;
 use crate::AspectRatio;
 use crate::Axis;
 use crate::CrossBoundaryBehaviour;
-use crate::PathExt;
 use crate::PredefinedAspectRatio;
+use crate::ResolvedPathBuf;
 use crate::DATA_DIR;
 use crate::DEFAULT_CONTAINER_PADDING;
 use crate::DEFAULT_WORKSPACE_PADDING;
@@ -120,6 +121,7 @@ pub struct BorderColours {
     pub unfocused: Option<Colour>,
 }
 
+#[serde_with::serde_as]
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct WorkspaceConfig {
@@ -130,12 +132,14 @@ pub struct WorkspaceConfig {
     pub layout: Option<DefaultLayout>,
     /// END OF LIFE FEATURE: Custom Layout (default: None)
     #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde_as(as = "Option<ResolvedPathBuf>")]
     pub custom_layout: Option<PathBuf>,
     /// Layout rules in the format of threshold => layout (default: None)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub layout_rules: Option<HashMap<usize, DefaultLayout>>,
     /// END OF LIFE FEATURE: Custom layout rules (default: None)
     #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(deserialize_with = "resolve_option_hashmap_usize_path")]
     pub custom_layout_rules: Option<HashMap<usize, PathBuf>>,
     /// Container padding (default: global)
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -302,16 +306,18 @@ impl From<&Monitor> for MonitorConfig {
     }
 }
 
+#[serde_with::serde_as]
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[serde(untagged)]
 pub enum AppSpecificConfigurationPath {
     /// A single applications.json file
-    Single(PathBuf),
+    Single(#[serde_as(as = "ResolvedPathBuf")] PathBuf),
     /// Multiple applications.json files
-    Multiple(Vec<PathBuf>),
+    Multiple(#[serde_as(as = "Vec<ResolvedPathBuf>")] Vec<PathBuf>),
 }
 
+#[serde_with::serde_as]
 #[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 /// The `komorebi.json` static configuration file reference for `v0.1.36`
@@ -452,6 +458,7 @@ pub struct StaticConfig {
     /// Komorebi status bar configuration files for multiple instances on different monitors
     // this option is a little special because it is only consumed by komorebic
     #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde_as(as = "Option<Vec<ResolvedPathBuf>>")]
     pub bar_configurations: Option<Vec<PathBuf>>,
     /// HEAVILY DISCOURAGED: Identify applications for which komorebi should forcibly remove title bars
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -1061,44 +1068,7 @@ impl StaticConfig {
 
     pub fn read(path: &PathBuf) -> Result<Self> {
         let content = std::fs::read_to_string(path)?;
-        let mut value: Self = serde_json::from_str(&content)?;
-
-        if let Some(path) = &mut value.app_specific_configuration_path {
-            match path {
-                AppSpecificConfigurationPath::Single(path) => {
-                    *path = path.replace_env();
-                }
-                AppSpecificConfigurationPath::Multiple(paths) => {
-                    for path in paths {
-                        *path = path.replace_env();
-                    }
-                }
-            }
-        }
-
-        if let Some(monitors) = &mut value.monitors {
-            for m in monitors {
-                for w in &mut m.workspaces {
-                    if let Some(path) = &mut w.custom_layout {
-                        *path = path.replace_env();
-                    }
-
-                    if let Some(map) = &mut w.custom_layout_rules {
-                        for path in map.values_mut() {
-                            *path = path.replace_env();
-                        }
-                    }
-                }
-            }
-        }
-
-        if let Some(bar_configurations) = &mut value.bar_configurations {
-            for path in bar_configurations {
-                *path = path.replace_env();
-            }
-        }
-
-        Ok(value)
+        serde_json::from_str(&content).map_err(Into::into)
     }
 
     #[allow(clippy::too_many_lines)]
@@ -1660,7 +1630,6 @@ fn handle_asc_file(
         Some(ext) => match ext.to_string_lossy().to_string().as_str() {
             "yaml" => {
                 tracing::info!("loading applications.yaml from: {}", path.display());
-                let path = path.replace_env();
                 let content = std::fs::read_to_string(path)?;
                 let asc = ApplicationConfigurationGenerator::load(&content)?;
 
@@ -1709,8 +1678,7 @@ fn handle_asc_file(
             }
             "json" => {
                 tracing::info!("loading applications.json from: {}", path.display());
-                let path = path.replace_env();
-                let mut asc = ApplicationSpecificConfiguration::load(&path)?;
+                let mut asc = ApplicationSpecificConfiguration::load(path)?;
 
                 for entry in asc.values_mut() {
                     match entry {

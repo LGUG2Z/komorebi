@@ -1,8 +1,12 @@
+use std::collections::HashMap;
 use std::env;
 use std::ffi::OsStr;
 use std::path::Component;
 use std::path::Path;
 use std::path::PathBuf;
+
+use serde::Deserialize;
+use serde::Serialize;
 
 /// Path extension trait
 pub trait PathExt {
@@ -80,22 +84,86 @@ pub fn replace_env_in_path(input: &str) -> Result<PathBuf, std::convert::Infalli
     Ok(input.replace_env())
 }
 
+/// A wrapper around [`PathBuf`] that has a custom [Deserialize] implementation
+/// that uses [`PathExt::replace_env`] to resolve environment variables
+#[derive(Clone, Debug)]
+pub struct ResolvedPathBuf(PathBuf);
+
+impl ResolvedPathBuf {
+    /// Create a new [`ResolvedPathBuf`] from a [`PathBuf`]
+    pub fn new(path: PathBuf) -> Self {
+        Self(path.replace_env())
+    }
+}
+
+impl From<ResolvedPathBuf> for PathBuf {
+    fn from(path: ResolvedPathBuf) -> Self {
+        path.0
+    }
+}
+
+impl serde_with::SerializeAs<PathBuf> for ResolvedPathBuf {
+    fn serialize_as<S>(path: &PathBuf, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        path.serialize(serializer)
+    }
+}
+
+impl<'de> serde_with::DeserializeAs<'de, PathBuf> for ResolvedPathBuf {
+    fn deserialize_as<D>(deserializer: D) -> Result<PathBuf, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let path = PathBuf::deserialize(deserializer)?;
+        Ok(path.replace_env())
+    }
+}
+
+#[cfg(feature = "schemars")]
+impl serde_with::schemars_0_8::JsonSchemaAs<PathBuf> for ResolvedPathBuf {
+    fn schema_name() -> String {
+        "PathBuf".to_owned()
+    }
+
+    fn json_schema(gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
+        <PathBuf as schemars::JsonSchema>::json_schema(gen)
+    }
+}
+
+/// Custom deserializer for [`Option<HashMap<usize, PathBuf>>`] that uses
+/// [`PathExt::replace_env`] to resolve environment variables in the paths.
+///
+/// This is used in `WorkspaceConfig` struct because we can't use
+/// #[serde_with::serde_as] as it doesn't handle [`Option<HashMap<usize, ResolvedPathBuf>>`]
+/// quite well and generated compiler errors that can't be fixed because of Rust's orphan rule.
+pub fn resolve_option_hashmap_usize_path<'de, D>(
+    deserializer: D,
+) -> Result<Option<HashMap<usize, PathBuf>>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let map = Option::<HashMap<usize, PathBuf>>::deserialize(deserializer)?;
+    Ok(map.map(|map| map.into_iter().map(|(k, v)| (k, v.replace_env())).collect()))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
+    // helper functions
+    fn expected<P: AsRef<Path>>(p: P) -> PathBuf {
+        // Ensure that the path is using the correct path separator for the OS.
+        p.as_ref().components().collect::<PathBuf>()
+    }
+
+    fn resolve<P: AsRef<Path>>(p: P) -> PathBuf {
+        p.replace_env()
+    }
+
     #[test]
     fn resolves_env_vars() {
-        // helper functions
-        fn expected<P: AsRef<Path>>(p: P) -> PathBuf {
-            // Ensure that the path is using the correct path separator for the OS.
-            p.as_ref().components().collect::<PathBuf>()
-        }
-
-        fn resolve<P: AsRef<Path>>(p: P) -> PathBuf {
-            p.replace_env()
-        }
-
         // Set a variable for testing
         std::env::set_var("VAR", "VALUE");
 

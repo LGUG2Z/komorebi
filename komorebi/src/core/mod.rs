@@ -1,7 +1,6 @@
 #![warn(clippy::all)]
 #![allow(clippy::missing_errors_doc, clippy::use_self, clippy::doc_markdown)]
 
-use std::path::Path;
 use std::path::PathBuf;
 use std::str::FromStr;
 
@@ -28,7 +27,9 @@ pub use direction::Direction;
 pub use layout::Layout;
 pub use operation_direction::OperationDirection;
 pub use pathext::replace_env_in_path;
+pub use pathext::resolve_option_hashmap_usize_path;
 pub use pathext::PathExt;
+pub use pathext::ResolvedPathBuf;
 pub use rect::Rect;
 
 pub mod animation;
@@ -44,6 +45,7 @@ pub mod operation_direction;
 pub mod pathext;
 pub mod rect;
 
+#[serde_with::serde_as]
 #[derive(Clone, Debug, Serialize, Deserialize, Display)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[serde(tag = "type", content = "content")]
@@ -105,7 +107,7 @@ pub enum SocketMessage {
     AdjustWorkspacePadding(Sizing, i32),
     ChangeLayout(DefaultLayout),
     CycleLayout(CycleDirection),
-    ChangeLayoutCustom(PathBuf),
+    ChangeLayoutCustom(#[serde_as(as = "ResolvedPathBuf")] PathBuf),
     FlipLayout(Axis),
     ToggleWorkspaceWindowContainerBehaviour,
     ToggleWorkspaceFloatOverride,
@@ -123,8 +125,8 @@ pub enum SocketMessage {
     RetileWithResizeDimensions,
     QuickSave,
     QuickLoad,
-    Save(PathBuf),
-    Load(PathBuf),
+    Save(#[serde_as(as = "ResolvedPathBuf")] PathBuf),
+    Load(#[serde_as(as = "ResolvedPathBuf")] PathBuf),
     CycleFocusMonitor(CycleDirection),
     CycleFocusWorkspace(CycleDirection),
     CycleFocusEmptyWorkspace(CycleDirection),
@@ -147,19 +149,24 @@ pub enum SocketMessage {
     WorkspaceName(usize, usize, String),
     WorkspaceLayout(usize, usize, DefaultLayout),
     NamedWorkspaceLayout(String, DefaultLayout),
-    WorkspaceLayoutCustom(usize, usize, PathBuf),
-    NamedWorkspaceLayoutCustom(String, PathBuf),
+    WorkspaceLayoutCustom(usize, usize, #[serde_as(as = "ResolvedPathBuf")] PathBuf),
+    NamedWorkspaceLayoutCustom(String, #[serde_as(as = "ResolvedPathBuf")] PathBuf),
     WorkspaceLayoutRule(usize, usize, usize, DefaultLayout),
     NamedWorkspaceLayoutRule(String, usize, DefaultLayout),
-    WorkspaceLayoutCustomRule(usize, usize, usize, PathBuf),
-    NamedWorkspaceLayoutCustomRule(String, usize, PathBuf),
+    WorkspaceLayoutCustomRule(
+        usize,
+        usize,
+        usize,
+        #[serde_as(as = "ResolvedPathBuf")] PathBuf,
+    ),
+    NamedWorkspaceLayoutCustomRule(String, usize, #[serde_as(as = "ResolvedPathBuf")] PathBuf),
     ClearWorkspaceLayoutRules(usize, usize),
     ClearNamedWorkspaceLayoutRules(String),
     ToggleWorkspaceLayer,
     // Configuration
     ReloadConfiguration,
-    ReplaceConfiguration(PathBuf),
-    ReloadStaticConfiguration(PathBuf),
+    ReplaceConfiguration(#[serde_as(as = "ResolvedPathBuf")] PathBuf),
+    ReloadStaticConfiguration(#[serde_as(as = "ResolvedPathBuf")] PathBuf),
     WatchConfiguration(bool),
     CompleteConfiguration,
     AltFocusHack(bool),
@@ -441,6 +448,28 @@ impl Sizing {
     }
 }
 
-pub fn resolve_home_path<P: AsRef<Path>>(path: P) -> Result<PathBuf> {
-    Ok(path.replace_env())
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn deserializes() {
+        // Set a variable for testing
+        std::env::set_var("VAR", "VALUE");
+
+        let json = r#"{"type":"WorkspaceLayoutCustomRule","content":[0,0,0,"/path/%VAR%/d"]}"#;
+        let message: SocketMessage = serde_json::from_str(json).unwrap();
+
+        let SocketMessage::WorkspaceLayoutCustomRule(
+            _workspace_index,
+            _workspace_number,
+            _monitor_index,
+            path,
+        ) = message
+        else {
+            panic!("Expected WorkspaceLayoutCustomRule");
+        };
+
+        assert_eq!(path, PathBuf::from("/path/VALUE/d"));
+    }
 }

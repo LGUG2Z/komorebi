@@ -1684,7 +1684,6 @@ fn main() -> Result<()> {
                             println!("Application specific configuration file path has not been set. Try running 'komorebic fetch-asc'\n");
                         }
                         Some(AppSpecificConfigurationPath::Single(path)) => {
-                            let path = path.replace_env();
                             if !path.exists() {
                                 println!("Application specific configuration file path '{}' does not exist. Try running 'komorebic fetch-asc'\n", path.display());
                             }
@@ -1995,13 +1994,13 @@ fn main() -> Result<()> {
             send_message(&SocketMessage::WorkspaceLayoutCustom(
                 arg.monitor,
                 arg.workspace,
-                arg.path.replace_env(),
+                arg.path,
             ))?;
         }
         SubCommand::NamedWorkspaceCustomLayout(arg) => {
             send_message(&SocketMessage::NamedWorkspaceLayoutCustom(
                 arg.workspace,
-                arg.path.replace_env(),
+                arg.path,
             ))?;
         }
         SubCommand::WorkspaceLayoutRule(arg) => {
@@ -2024,14 +2023,14 @@ fn main() -> Result<()> {
                 arg.monitor,
                 arg.workspace,
                 arg.at_container_count,
-                arg.path.replace_env(),
+                arg.path,
             ))?;
         }
         SubCommand::NamedWorkspaceCustomLayoutRule(arg) => {
             send_message(&SocketMessage::NamedWorkspaceLayoutCustomRule(
                 arg.workspace,
                 arg.at_container_count,
-                arg.path.replace_env(),
+                arg.path,
             ))?;
         }
         SubCommand::ClearWorkspaceLayoutRules(arg) => {
@@ -2237,7 +2236,6 @@ if (!(Get-Process whkd -ErrorAction SilentlyContinue))
                     let mut config = StaticConfig::read(config)?;
                     if let Some(display_bar_configurations) = &mut config.bar_configurations {
                         for config_file_path in &mut *display_bar_configurations {
-                            let config_file_path = config_file_path.replace_env();
                             let script = format!(
                                 r#"Start-Process "komorebi-bar" '"--config" "{}"' -WindowStyle hidden"#,
                                 config_file_path.to_string_lossy()
@@ -2602,7 +2600,7 @@ if (Get-Command Get-CimInstance -ErrorAction SilentlyContinue) {
             send_message(&SocketMessage::CycleLayout(arg.cycle_direction))?;
         }
         SubCommand::LoadCustomLayout(arg) => {
-            send_message(&SocketMessage::ChangeLayoutCustom(arg.path.replace_env()))?;
+            send_message(&SocketMessage::ChangeLayoutCustom(arg.path))?;
         }
         SubCommand::FlipLayout(arg) => {
             send_message(&SocketMessage::FlipLayout(arg.axis))?;
@@ -2779,10 +2777,10 @@ if (Get-Command Get-CimInstance -ErrorAction SilentlyContinue) {
             send_message(&SocketMessage::QuickLoad)?;
         }
         SubCommand::SaveResize(arg) => {
-            send_message(&SocketMessage::Save(arg.path.replace_env()))?;
+            send_message(&SocketMessage::Save(arg.path))?;
         }
         SubCommand::LoadResize(arg) => {
-            send_message(&SocketMessage::Load(arg.path.replace_env()))?;
+            send_message(&SocketMessage::Load(arg.path))?;
         }
         SubCommand::SubscribeSocket(arg) => {
             send_message(&SocketMessage::AddSubscriberSocket(arg.socket))?;

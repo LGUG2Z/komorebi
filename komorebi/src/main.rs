@@ -21,6 +21,7 @@ use crossbeam_utils::Backoff;
 use komorebi::animation::AnimationEngine;
 use komorebi::animation::ANIMATION_ENABLED_GLOBAL;
 use komorebi::animation::ANIMATION_ENABLED_PER_ANIMATION;
+use komorebi::replace_env_in_path;
 #[cfg(feature = "deadlock_detection")]
 use parking_lot::deadlock;
 use parking_lot::Mutex;
@@ -157,6 +158,7 @@ struct Opts {
     tcp_port: Option<usize>,
     /// Path to a static configuration JSON file
     #[clap(short, long)]
+    #[clap(value_parser = replace_env_in_path)]
     config: Option<PathBuf>,
     /// Do not attempt to auto-apply a dumped state temp file from a previously running instance of komorebi
     #[clap(long)]
