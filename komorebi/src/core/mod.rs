@@ -385,6 +385,18 @@ pub enum WindowContainerBehaviour {
     Append,
 }
 
+#[derive(
+    Clone, Copy, Debug, Default, Serialize, Deserialize, Display, EnumString, ValueEnum, PartialEq,
+)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+pub enum FloatingLayerBehaviour {
+    /// Tile new windows (unless they match a float rule)
+    #[default]
+    Tile,
+    /// Float new windows
+    Float,
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, Display, EnumString, ValueEnum)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub enum MoveBehaviour {

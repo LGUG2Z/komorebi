@@ -841,7 +841,12 @@ impl From<&Container> for KomorebiNotificationStateContainerInformation {
 
             match icon_cache.get(&hwnd) {
                 None => {
-                    icons.push(windows_icons::get_icon_by_hwnd(window.hwnd));
+                    let icon = match windows_icons::get_icon_by_hwnd(window.hwnd) {
+                        None => windows_icons_fallback::get_icon_by_process_id(window.process_id()),
+                        Some(icon) => Some(icon),
+                    };
+
+                    icons.push(icon);
                     update_cache = true;
                 }
                 Some(icon) => {
@@ -877,7 +882,12 @@ impl From<&Window> for KomorebiNotificationStateContainerInformation {
 
         match icon_cache.get(&hwnd) {
             None => {
-                icons.push(windows_icons::get_icon_by_hwnd(value.hwnd));
+                let icon = match windows_icons::get_icon_by_hwnd(hwnd) {
+                    None => windows_icons_fallback::get_icon_by_process_id(value.process_id()),
+                    Some(icon) => Some(icon),
+                };
+
+                icons.push(icon);
                 update_cache = true;
             }
             Some(icon) => {

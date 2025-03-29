@@ -1197,11 +1197,33 @@ impl WindowManager {
                     WorkspaceLayer::Tiling => {
                         workspace.set_layer(WorkspaceLayer::Floating);
 
-                        for (i, window) in workspace.floating_windows().iter().enumerate() {
-                            if i == 0 {
+                        let focused_idx = workspace.focused_floating_window_idx();
+                        let mut window_idx_pairs = workspace
+                            .floating_windows_mut()
+                            .make_contiguous()
+                            .iter()
+                            .enumerate()
+                            .collect::<Vec<_>>();
+
+                        // Sort by window area
+                        window_idx_pairs.sort_by_key(|(_, w)| {
+                            let rect = WindowsApi::window_rect(w.hwnd).unwrap_or_default();
+                            rect.right * rect.bottom
+                        });
+                        window_idx_pairs.reverse();
+
+                        for (i, window) in window_idx_pairs {
+                            if i == focused_idx {
                                 to_focus = Some(*window);
+                            } else {
+                                window.raise()?;
                             }
-                            window.raise()?;
+                        }
+
+                        if let Some(focused_window) = &to_focus {
+                            // The focused window should be the last one raised to make sure it is
+                            // on top
+                            focused_window.raise()?;
                         }
 
                         for container in workspace.containers() {
@@ -1223,7 +1245,19 @@ impl WindowManager {
                             }
                         }
 
-                        for window in workspace.floating_windows() {
+                        let mut window_idx_pairs = workspace
+                            .floating_windows_mut()
+                            .make_contiguous()
+                            .iter()
+                            .collect::<Vec<_>>();
+
+                        // Sort by window area
+                        window_idx_pairs.sort_by_key(|w| {
+                            let rect = WindowsApi::window_rect(w.hwnd).unwrap_or_default();
+                            rect.right * rect.bottom
+                        });
+
+                        for window in window_idx_pairs {
                             window.lower()?;
                         }
                     }

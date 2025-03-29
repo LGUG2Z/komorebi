@@ -22,6 +22,7 @@ use crate::core::DefaultLayout;
 use crate::core::Layout;
 use crate::core::OperationDirection;
 use crate::core::Rect;
+use crate::FloatingLayerBehaviour;
 
 use crate::border_manager::BORDER_OFFSET;
 use crate::border_manager::BORDER_WIDTH;
@@ -62,8 +63,7 @@ pub struct Workspace {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[getset(get_copy = "pub", set = "pub")]
     pub maximized_window_restore_idx: Option<usize>,
-    #[getset(get = "pub", get_mut = "pub")]
-    pub floating_windows: Vec<Window>,
+    pub floating_windows: Ring<Window>,
     #[getset(get = "pub", get_mut = "pub", set = "pub")]
     pub layout: Layout,
     #[getset(get = "pub", get_mut = "pub", set = "pub")]
@@ -93,6 +93,8 @@ pub struct Workspace {
     #[getset(get = "pub", get_mut = "pub", set = "pub")]
     pub layer: WorkspaceLayer,
     #[getset(get = "pub", get_mut = "pub", set = "pub")]
+    pub floating_layer_behaviour: FloatingLayerBehaviour,
+    #[getset(get = "pub", get_mut = "pub", set = "pub")]
     pub locked_containers: BTreeSet<usize>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[getset(get = "pub", set = "pub")]
@@ -117,6 +119,7 @@ impl Display for WorkspaceLayer {
 }
 
 impl_ring_elements!(Workspace, Container);
+impl_ring_elements!(Workspace, Window, "floating_window");
 
 impl Default for Workspace {
     fn default() -> Self {
@@ -127,7 +130,7 @@ impl Default for Workspace {
             maximized_window: None,
             maximized_window_restore_idx: None,
             monocle_container_restore_idx: None,
-            floating_windows: Vec::default(),
+            floating_windows: Ring::default(),
             layout: Layout::Default(DefaultLayout::BSP),
             layout_rules: vec![],
             layout_flip: None,
@@ -141,6 +144,7 @@ impl Default for Workspace {
             window_container_behaviour_rules: None,
             float_override: None,
             layer: Default::default(),
+            floating_layer_behaviour: Default::default(),
             globals: Default::default(),
             workspace_config: None,
             locked_containers: Default::default(),
@@ -250,6 +254,7 @@ impl Workspace {
 
         self.set_float_override(config.float_override);
         self.set_layout_flip(config.layout_flip);
+        self.set_floating_layer_behaviour(config.floating_layer_behaviour.unwrap_or_default());
 
         self.set_workspace_config(Some(config.clone()));
 
@@ -325,13 +330,13 @@ impl Workspace {
             } else if let Some(maximized_window) = self.maximized_window() {
                 maximized_window.restore();
                 maximized_window.focus(mouse_follows_focus)?;
-            } else if let Some(floating_window) = self.floating_windows().first() {
+            } else if let Some(floating_window) = self.focused_floating_window() {
                 floating_window.focus(mouse_follows_focus)?;
             }
         } else if let Some(maximized_window) = self.maximized_window() {
             maximized_window.restore();
             maximized_window.focus(mouse_follows_focus)?;
-        } else if let Some(floating_window) = self.floating_windows().first() {
+        } else if let Some(floating_window) = self.focused_floating_window() {
             floating_window.focus(mouse_follows_focus)?;
         }
 
@@ -1113,7 +1118,7 @@ impl Workspace {
             window
         };
 
-        self.floating_windows_mut().push(window);
+        self.floating_windows_mut().push_back(window);
 
         Ok(())
     }
@@ -1431,24 +1436,11 @@ impl Workspace {
 
     pub fn new_maximized_window(&mut self) -> Result<()> {
         let focused_idx = self.focused_container_idx();
-        let foreground_hwnd = WindowsApi::foreground_window()?;
-        let mut floating_window = None;
 
-        if !self.floating_windows().is_empty() {
-            let mut focused_floating_window_idx = None;
-            for (i, w) in self.floating_windows().iter().enumerate() {
-                if w.hwnd == foreground_hwnd {
-                    focused_floating_window_idx = Option::from(i);
-                }
-            }
-
-            if let Some(idx) = focused_floating_window_idx {
-                floating_window = Option::from(self.floating_windows_mut().remove(idx));
-            }
-        }
-
-        if let Some(floating_window) = floating_window {
-            self.set_maximized_window(Option::from(floating_window));
+        if matches!(self.layer, WorkspaceLayer::Floating) {
+            let floating_window_idx = self.focused_floating_window_idx();
+            let floating_window = self.floating_windows_mut().remove(floating_window_idx);
+            self.set_maximized_window(floating_window);
             self.set_maximized_window_restore_idx(Option::from(focused_idx));
             if let Some(window) = self.maximized_window() {
                 window.maximize();
@@ -1563,7 +1555,7 @@ impl Workspace {
         let hwnd = WindowsApi::foreground_window().ok()?;
 
         let mut idx = None;
-        for (i, window) in self.floating_windows.iter().enumerate() {
+        for (i, window) in self.floating_windows().iter().enumerate() {
             if hwnd == window.hwnd {
                 idx = Option::from(i);
             }
@@ -1572,8 +1564,8 @@ impl Workspace {
         match idx {
             None => None,
             Some(idx) => {
-                if self.floating_windows.get(idx).is_some() {
-                    Option::from(self.floating_windows_mut().remove(idx))
+                if self.floating_windows().get(idx).is_some() {
+                    self.floating_windows_mut().remove(idx)
                 } else {
                     None
                 }
@@ -1760,7 +1752,7 @@ mod tests {
 
         // unfloat - have to do this semi-manually becuase of calls to WindowsApi in
         // new_container_for_floating_window which usually handles unfloating
-        let window = ws.floating_windows_mut().pop().unwrap();
+        let window = ws.floating_windows_mut().pop_back().unwrap();
         let mut container = Container::default();
         container.add_window(window);
         ws.insert_container_at_idx(ws.focused_container_idx(), container);

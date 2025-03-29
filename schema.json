@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "StaticConfig",
-  "description": "The `komorebi.json` static configuration file reference for `v0.1.35`",
+  "description": "The `komorebi.json` static configuration file reference for `v0.1.36`",
   "type": "object",
   "properties": {
     "animation": {
@@ -1198,6 +1198,25 @@
                 "float_override": {
                   "description": "Enable or disable float override, which makes it so every new window opens in floating mode (default: false)",
                   "type": "boolean"
+                },
+                "floating_layer_behaviour": {
+                  "description": "Determine what happens to a new window when the Floating workspace layer is active (default: Tile)",
+                  "oneOf": [
+                    {
+                      "description": "Tile new windows (unless they match a float rule)",
+                      "type": "string",
+                      "enum": [
+                        "Tile"
+                      ]
+                    },
+                    {
+                      "description": "Float new windows",
+                      "type": "string",
+                      "enum": [
+                        "Float"
+                      ]
+                    }
+                  ]
                 },
                 "initial_workspace_rules": {
                   "description": "Initial workspace application rules",

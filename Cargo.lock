@@ -2806,7 +2806,8 @@ dependencies = [
  "tracing-subscriber",
  "windows 0.61.1",
  "windows-core 0.61.0",
- "windows-icons",
+ "windows-icons 0.1.0 (git+https://github.com/LGUG2Z/windows-icons?rev=0c9d7ee1b807347c507d3a9862dd007b4d3f4354)",
+ "windows-icons 0.1.0 (git+https://github.com/LGUG2Z/windows-icons?rev=d67cc9920aa9b4883393e411fb4fa2ddd4c498b5)",
 ]
 
 [[package]]
@@ -6378,6 +6379,17 @@ dependencies = [
  "regex",
  "roxmltree",
  "sysinfo",
+ "winapi",
+ "windows 0.58.0",
+]
+
+[[package]]
+name = "windows-icons"
+version = "0.1.0"
+source = "git+https://github.com/LGUG2Z/windows-icons?rev=d67cc9920aa9b4883393e411fb4fa2ddd4c498b5#d67cc9920aa9b4883393e411fb4fa2ddd4c498b5"
+dependencies = [
+ "base64",
+ "image",
  "winapi",
  "windows 0.58.0",
 ]

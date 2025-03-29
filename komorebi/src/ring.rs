@@ -76,4 +76,36 @@ macro_rules! impl_ring_elements {
             }
         }
     };
+    // This allows passing a different name to be used for the functions. For instance, the
+    // `floating_windows` ring calls this as:
+    // ```rust
+    // impl_ring_elements!(Workspace, Window, "floating_window");
+    // ```
+    // Which allows using the `Window` element but name the functions as `floating_window`
+    ($name:ty, $element:ident, $el_name:literal) => {
+        paste::paste! {
+            impl $name {
+                pub const fn [<$el_name:lower s>](&self) -> &VecDeque<$element> {
+                    self.[<$el_name:lower s>].elements()
+                }
+
+                pub fn [<$el_name:lower s_mut>](&mut self) -> &mut VecDeque<$element> {
+                    self.[<$el_name:lower s>].elements_mut()
+                }
+
+                #[allow(dead_code)]
+                pub fn [<focused_ $el_name:lower>](&self) -> Option<&$element> {
+                    self.[<$el_name:lower s>].focused()
+                }
+
+                pub const fn [<focused_ $el_name:lower _idx>](&self) -> usize {
+                    self.[<$el_name:lower s>].focused_idx()
+                }
+
+                pub fn [<focused_ $el_name:lower _mut>](&mut self) -> Option<&mut $element> {
+                    self.[<$el_name:lower s>].focused_mut()
+                }
+            }
+        }
+    };
 }
