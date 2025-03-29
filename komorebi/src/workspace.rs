@@ -2289,8 +2289,12 @@ mod tests {
         // Should be focused on workspace 0
         assert_eq!(workspace.focused_container_idx(), 0);
 
-        // Should be focused on window 1
+        // Should be focused on window 1 and hwnd should be 1
         let focused_container = workspace.focused_container_mut().unwrap();
+        assert_eq!(
+            focused_container.focused_window(),
+            Some(&Window { hwnd: 1 })
+        );
         assert_eq!(focused_container.focused_window_idx(), 1);
     }
 
@@ -2324,5 +2328,33 @@ mod tests {
 
         // Should return false since window was never added
         assert!(!workspace.contains_managed_window(5));
+    }
+
+    #[test]
+    fn test_new_floating_window() {
+        let mut workspace = Workspace::default();
+
+        {
+            // Container with 3 windows
+            let mut container = Container::default();
+            for i in 0..3 {
+                container.windows_mut().push_back(Window::from(i));
+            }
+            workspace.add_container_to_back(container);
+        }
+
+        // Add window to floating_windows
+        workspace.new_floating_window().ok();
+
+        // Should have 1 floating window
+        assert_eq!(workspace.floating_windows().len(), 1);
+
+        // Should have only 2 windows now
+        let container = workspace.focused_container_mut().unwrap();
+        assert_eq!(container.windows().len(), 2);
+
+        // Should contain hwnd 0 since this is the first window in the container
+        let floating_windows = workspace.floating_windows_mut();
+        assert!(floating_windows.contains(&Window { hwnd: 0 }));
     }
 }
