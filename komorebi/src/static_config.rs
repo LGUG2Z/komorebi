@@ -141,7 +141,7 @@ pub struct WorkspaceConfig {
     pub layout_rules: Option<HashMap<usize, DefaultLayout>>,
     /// END OF LIFE FEATURE: Custom layout rules (default: None)
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[serde(deserialize_with = "resolve_option_hashmap_usize_path")]
+    #[serde(deserialize_with = "resolve_option_hashmap_usize_path", default)]
     pub custom_layout_rules: Option<HashMap<usize, PathBuf>>,
     /// Container padding (default: global)
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -1746,7 +1746,9 @@ fn handle_asc_file(
 
 #[cfg(test)]
 mod tests {
-    use crate::StaticConfig;
+    use std::path::PathBuf;
+
+    use crate::{StaticConfig, WorkspaceConfig};
 
     #[test]
     fn backwards_compat() {
@@ -1774,5 +1776,41 @@ mod tests {
             println!("{version}");
             StaticConfig::read_raw(&config).unwrap();
         }
+    }
+
+    #[test]
+    fn deserialize_custom_layout_rules() {
+        // set an environment variable for testing
+        std::env::set_var("VAR", "VALUE");
+
+        let config = r#"
+        {
+            "name": "Test",
+            "custom_layout_rules": {
+                "1": "path/to/dir",
+                "2": "path/to/%VAR%"
+            }
+        }
+        "#;
+        let config = serde_json::from_str::<WorkspaceConfig>(config).unwrap();
+
+        let custom_layout_rules = config.custom_layout_rules.unwrap();
+
+        assert_eq!(
+            custom_layout_rules.get(&1).unwrap(),
+            &PathBuf::from("path/to/dir")
+        );
+        assert_eq!(
+            custom_layout_rules.get(&2).unwrap(),
+            &PathBuf::from("path/to/VALUE")
+        );
+
+        let config = r#"
+        {
+            "name": "Test",
+        }
+        "#;
+        let config = serde_json::from_str::<WorkspaceConfig>(config).unwrap();
+        assert_eq!(config.custom_layout_rules, None);
     }
 }
