@@ -2262,4 +2262,67 @@ mod tests {
             assert!(workspace.contains_window(0));
         }
     }
+
+    #[test]
+    fn test_focus_container_by_window() {
+        let mut workspace = Workspace::default();
+
+        {
+            // Container with 3 windows
+            let mut container = Container::default();
+            for i in 0..3 {
+                container.windows_mut().push_back(Window::from(i));
+            }
+            workspace.add_container_to_back(container);
+        }
+
+        {
+            // Container with 1 window
+            let mut container = Container::default();
+            container.windows_mut().push_back(Window::from(4));
+            workspace.add_container_to_back(container);
+        }
+
+        // Focus container by window
+        workspace.focus_container_by_window(1).unwrap();
+
+        // Should be focused on workspace 0
+        assert_eq!(workspace.focused_container_idx(), 0);
+
+        // Should be focused on window 1
+        let focused_container = workspace.focused_container_mut().unwrap();
+        assert_eq!(focused_container.focused_window_idx(), 1);
+    }
+
+    #[test]
+    fn test_contains_managed_window() {
+        let mut workspace = Workspace::default();
+
+        {
+            // Container with 3 windows
+            let mut container = Container::default();
+            for i in 0..3 {
+                container.windows_mut().push_back(Window::from(i));
+            }
+            workspace.add_container_to_back(container);
+        }
+
+        {
+            // Container with 1 window
+            let mut container = Container::default();
+            container.windows_mut().push_back(Window::from(4));
+            workspace.add_container_to_back(container);
+        }
+
+        // Should return true, window is in container 1
+        assert!(workspace.contains_managed_window(4));
+
+        // Should return true, all the windows are in container 0
+        for i in 0..3 {
+            assert!(workspace.contains_managed_window(i));
+        }
+
+        // Should return false since window was never added
+        assert!(!workspace.contains_managed_window(5));
+    }
 }
