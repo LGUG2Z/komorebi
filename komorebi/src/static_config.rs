@@ -60,6 +60,7 @@ use crate::workspace::Workspace;
 use crate::AspectRatio;
 use crate::Axis;
 use crate::CrossBoundaryBehaviour;
+use crate::FloatingLayerBehaviour;
 use crate::PredefinedAspectRatio;
 use crate::DATA_DIR;
 use crate::DEFAULT_CONTAINER_PADDING;
@@ -164,6 +165,9 @@ pub struct WorkspaceConfig {
     /// Specify an axis on which to flip the selected layout (default: None)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub layout_flip: Option<Axis>,
+    /// Determine what happens to a new window when the Floating workspace layer is active (default: Tile)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub floating_layer_behaviour: Option<FloatingLayerBehaviour>,
 }
 
 impl From<&Workspace> for WorkspaceConfig {
@@ -239,6 +243,7 @@ impl From<&Workspace> for WorkspaceConfig {
             window_container_behaviour_rules: Option::from(window_container_behaviour_rules),
             float_override: *value.float_override(),
             layout_flip: value.layout_flip(),
+            floating_layer_behaviour: Option::from(*value.floating_layer_behaviour()),
         }
     }
 }

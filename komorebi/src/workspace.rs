@@ -22,6 +22,7 @@ use crate::core::DefaultLayout;
 use crate::core::Layout;
 use crate::core::OperationDirection;
 use crate::core::Rect;
+use crate::FloatingLayerBehaviour;
 
 use crate::border_manager::BORDER_OFFSET;
 use crate::border_manager::BORDER_WIDTH;
@@ -92,6 +93,8 @@ pub struct Workspace {
     #[getset(get = "pub", get_mut = "pub", set = "pub")]
     pub layer: WorkspaceLayer,
     #[getset(get = "pub", get_mut = "pub", set = "pub")]
+    pub floating_layer_behaviour: FloatingLayerBehaviour,
+    #[getset(get = "pub", get_mut = "pub", set = "pub")]
     pub locked_containers: BTreeSet<usize>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[getset(get = "pub", set = "pub")]
@@ -141,6 +144,7 @@ impl Default for Workspace {
             window_container_behaviour_rules: None,
             float_override: None,
             layer: Default::default(),
+            floating_layer_behaviour: Default::default(),
             globals: Default::default(),
             workspace_config: None,
             locked_containers: Default::default(),
@@ -250,6 +254,7 @@ impl Workspace {
 
         self.set_float_override(config.float_override);
         self.set_layout_flip(config.layout_flip);
+        self.set_floating_layer_behaviour(config.floating_layer_behaviour.unwrap_or_default());
 
         self.set_workspace_config(Some(config.clone()));
 

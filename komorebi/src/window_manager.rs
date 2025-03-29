@@ -80,6 +80,7 @@ use crate::workspace::WorkspaceLayer;
 use crate::BorderColours;
 use crate::Colour;
 use crate::CrossBoundaryBehaviour;
+use crate::FloatingLayerBehaviour;
 use crate::Rgb;
 use crate::CUSTOM_FFM;
 use crate::DATA_DIR;
@@ -342,6 +343,7 @@ impl From<&WindowManager> for State {
                                 .clone(),
                             float_override: workspace.float_override,
                             layer: workspace.layer,
+                            floating_layer_behaviour: workspace.floating_layer_behaviour,
                             globals: workspace.globals,
                             locked_containers: workspace.locked_containers.clone(),
                             workspace_config: None,
@@ -646,10 +648,14 @@ impl WindowManager {
                     self.window_management_behaviour.float_override
                 };
 
-                // If the workspace layer is `Floating`, then consider it as if it had float
-                // override so that new windows spawn as floating
-                float_override =
-                    float_override || matches!(workspace.layer, WorkspaceLayer::Floating);
+                // If the workspace layer is `Floating` and the floating layer behaviour is `Float`,
+                // then consider it as if it had float override so that new windows spawn as floating
+                float_override = float_override
+                    || (matches!(workspace.layer, WorkspaceLayer::Floating)
+                        && matches!(
+                            workspace.floating_layer_behaviour,
+                            FloatingLayerBehaviour::Float
+                        ));
 
                 return WindowManagementBehaviour {
                     current_behaviour,
