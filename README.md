@@ -74,7 +74,7 @@ showcases the many awesome projects that exist in the _komorebi_ ecosystem.
 `komorebi` is [educational source
 software](https://lgug2z.com/articles/educational-source-software/).
 
-`komorebi` is licensed under the [Komorebi 1.0.0
+`komorebi` is licensed under the [Komorebi 2.0.0
 license](https://github.com/LGUG2Z/komorebi-license), which is a fork of the
 [PolyForm Strict 1.0.0
 license](https://polyformproject.org/licenses/strict/1.0.0). On a high level
@@ -85,7 +85,7 @@ hard-forks) based on the software.
 Anyone is free to make their own fork of `komorebi` with changes intended either
 for personal use or for integration back upstream via pull requests.
 
-The [Komorebi 1.0.0 License](https://github.com/LGUG2Z/komorebi-license) does
+The [Komorebi 2.0.0 License](https://github.com/LGUG2Z/komorebi-license) does
 not permit any kind of commercial use (i.e. using `komorebi` at work).
 
 ## Sponsorship for Personal Use
@@ -146,7 +146,8 @@ video will answer the majority of your questions.
 
 [@amnweb](https://github.com/amnweb) showing _komorebi_ `v0.1.28` running on Windows 11 with window borders,
 unfocused window transparency and animations enabled, using a custom status bar integrated using
-_komorebi_'s [Window Manager Event Subscriptions](https://github.com/LGUG2Z/komorebi?tab=readme-ov-file#window-manager-event-subscriptions).
+_komorebi_'
+s [Window Manager Event Subscriptions](https://github.com/LGUG2Z/komorebi?tab=readme-ov-file#window-manager-event-subscriptions).
 
 https://github.com/LGUG2Z/komorebi/assets/13164844/21be8dc4-fa76-4f70-9b37-1d316f4b40c2
 
