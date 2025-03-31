@@ -296,8 +296,8 @@ impl WindowManager {
                     tracing::info!("ignoring uncloak after monocle move by mouse across monitors");
                     self.uncloack_to_ignore = self.uncloack_to_ignore.saturating_sub(1);
                 } else {
-                    let focused_monitor_idx = self.focused_monitor_idx();
-                    let focused_workspace_idx =
+                    let mut focused_monitor_idx = self.focused_monitor_idx();
+                    let mut focused_workspace_idx =
                         self.focused_workspace_idx_for_monitor_idx(focused_monitor_idx)?;
 
                     let mut needs_reconciliation = None;
@@ -346,6 +346,18 @@ impl WindowManager {
                     }
 
                     if proceed {
+                        if matches!(event, WindowManagerEvent::Show(_, _)) {
+                            let initial_monitor_idx = initial_state.monitors.focused_idx();
+                            if focused_monitor_idx != initial_monitor_idx {
+                                tracing::info!("assuming focused monitor index should be {initial_monitor_idx} for WindowManagerEvent::Show");
+                                self.focus_monitor(initial_monitor_idx)?;
+                            }
+
+                            focused_monitor_idx = self.focused_monitor_idx();
+                            focused_workspace_idx =
+                                self.focused_workspace_idx_for_monitor_idx(focused_monitor_idx)?;
+                        }
+
                         let mut behaviour = self.window_management_behaviour(
                             focused_monitor_idx,
                             focused_workspace_idx,
