@@ -119,6 +119,9 @@ pub struct BorderColours {
     /// Border colour when the container is unfocused
     #[serde(skip_serializing_if = "Option::is_none")]
     pub unfocused: Option<Colour>,
+    /// Border colour when the container is unfocused and locked
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub unfocused_locked: Option<Colour>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -700,6 +703,9 @@ impl From<&WindowManager> for StaticConfig {
                 unfocused: Option::from(Colour::from(
                     border_manager::UNFOCUSED.load(Ordering::SeqCst),
                 )),
+                unfocused_locked: Option::from(Colour::from(
+                    border_manager::UNFOCUSED_LOCKED.load(Ordering::SeqCst),
+                )),
             })
         };
 
@@ -880,6 +886,11 @@ impl StaticConfig {
 
             if let Some(unfocused) = colours.unfocused {
                 border_manager::UNFOCUSED.store(u32::from(unfocused), Ordering::SeqCst);
+            }
+
+            if let Some(unfocused_locked) = colours.unfocused_locked {
+                border_manager::UNFOCUSED_LOCKED
+                    .store(u32::from(unfocused_locked), Ordering::SeqCst);
             }
         }
 
