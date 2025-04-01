@@ -178,9 +178,10 @@ impl BarWidget for Komorebi {
                     let format = workspaces.display.unwrap_or(DisplayFormat::Text.into());
 
                     config.apply_on_widget(false, ui, |ui| {
-                        for (i, (ws, containers, _)) in
+                        for (i, (ws, containers, _, should_show)) in
                             komorebi_notification_state.workspaces.iter().enumerate()
                         {
+                            if *should_show {
                             let is_selected = komorebi_notification_state.selected_workspace.eq(ws);
 
                             if SelectableFrame::new(
@@ -302,6 +303,7 @@ impl BarWidget for Komorebi {
                                     );
                                 }
                             }
+                            }
                         }
                     });
                 }
@@ -318,7 +320,7 @@ impl BarWidget for Komorebi {
                     .workspaces
                     .iter()
                     .find(|o| komorebi_notification_state.selected_workspace.eq(&o.0))
-                    .map(|(_, _, layer)| layer);
+                    .map(|(_, _, layer, _)| layer);
 
                 if let Some(layer) = layer {
                     if (layer_config.show_when_tiling.unwrap_or_default()
@@ -627,6 +629,7 @@ pub struct KomorebiNotificationState {
         String,
         Vec<(bool, KomorebiNotificationStateContainerInformation)>,
         WorkspaceLayer,
+        bool,
     )>,
     pub selected_workspace: String,
     pub focused_container_information: KomorebiNotificationStateContainerInformation,
@@ -742,42 +745,41 @@ impl KomorebiNotificationState {
                 true
             };
 
-            if should_show {
-                workspaces.push((
-                    ws.name().to_owned().unwrap_or_else(|| format!("{}", i + 1)),
-                    if show_all_icons {
-                        let mut containers = vec![];
-                        let mut has_monocle = false;
+            workspaces.push((
+                ws.name().to_owned().unwrap_or_else(|| format!("{}", i + 1)),
+                if show_all_icons {
+                    let mut containers = vec![];
+                    let mut has_monocle = false;
 
-                        // add monocle container
-                        if let Some(container) = ws.monocle_container() {
-                            containers.push((true, container.into()));
-                            has_monocle = true;
-                        }
+                    // add monocle container
+                    if let Some(container) = ws.monocle_container() {
+                        containers.push((true, container.into()));
+                        has_monocle = true;
+                    }
 
-                        // add all tiled windows
-                        for (i, container) in ws.containers().iter().enumerate() {
-                            containers.push((
-                                !has_monocle && i == ws.focused_container_idx(),
-                                container.into(),
-                            ));
-                        }
+                    // add all tiled windows
+                    for (i, container) in ws.containers().iter().enumerate() {
+                        containers.push((
+                            !has_monocle && i == ws.focused_container_idx(),
+                            container.into(),
+                        ));
+                    }
 
-                        // add all floating windows
-                        for floating_window in ws.floating_windows() {
-                            containers.push((
-                                !has_monocle && floating_window.is_focused(),
-                                floating_window.into(),
-                            ));
-                        }
+                    // add all floating windows
+                    for floating_window in ws.floating_windows() {
+                        containers.push((
+                            !has_monocle && floating_window.is_focused(),
+                            floating_window.into(),
+                        ));
+                    }
 
-                        containers
-                    } else {
-                        vec![(true, ws.into())]
-                    },
-                    ws.layer().to_owned(),
-                ));
-            }
+                    containers
+                } else {
+                    vec![(true, ws.into())]
+                },
+                ws.layer().to_owned(),
+                should_show,
+            ));
         }
 
         self.workspaces = workspaces;

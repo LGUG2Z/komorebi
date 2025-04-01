@@ -249,6 +249,9 @@ impl Default for GlobalState {
                 unfocused: Option::from(Colour::Rgb(Rgb::from(
                     border_manager::UNFOCUSED.load(Ordering::SeqCst),
                 ))),
+                unfocused_locked: Option::from(Colour::Rgb(Rgb::from(
+                    border_manager::UNFOCUSED_LOCKED.load(Ordering::SeqCst),
+                ))),
             },
             border_style: STYLE.load(),
             border_offset: border_manager::BORDER_OFFSET.load(Ordering::SeqCst),
