@@ -613,6 +613,9 @@ impl Workspace {
         self.containers().get(self.container_idx_for_window(hwnd)?)
     }
 
+    /// If there is a container which holds the window with `hwnd` it will focus that container.
+    /// This function will only emit a focus on the window if it isn't the focused window of that
+    /// container already.
     pub fn focus_container_by_window(&mut self, hwnd: isize) -> Result<()> {
         let container_idx = self
             .container_idx_for_window(hwnd)
@@ -867,7 +870,7 @@ impl Workspace {
         container
     }
 
-    pub(crate) fn container_idx_for_window(&self, hwnd: isize) -> Option<usize> {
+    pub fn container_idx_for_window(&self, hwnd: isize) -> Option<usize> {
         let mut idx = None;
         for (i, x) in self.containers().iter().enumerate() {
             if x.contains_window(hwnd) {

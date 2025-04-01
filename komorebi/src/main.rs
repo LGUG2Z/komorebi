@@ -50,14 +50,11 @@ use komorebi::window_manager::State;
 use komorebi::window_manager::WindowManager;
 use komorebi::windows_api::WindowsApi;
 use komorebi::winevent_listener;
-use komorebi::workspace_reconciliator;
 use komorebi::CUSTOM_FFM;
 use komorebi::DATA_DIR;
 use komorebi::HOME_DIR;
 use komorebi::INITIAL_CONFIGURATION_LOADED;
 use komorebi::SESSION_ID;
-
-shadow_rs::shadow!(build);
 
 fn setup(log_level: LogLevel) -> Result<(WorkerGuard, WorkerGuard)> {
     if std::env::var("RUST_LIB_BACKTRACE").is_err() {
@@ -166,7 +163,7 @@ enum LogLevel {
 }
 
 #[derive(Parser)]
-#[clap(author, about, version = build::CLAP_LONG_VERSION)]
+#[clap(author, about, version = komorebi::build::CLAP_LONG_VERSION)]
 struct Opts {
     /// Allow the use of komorebi's custom focus-follows-mouse implementation
     #[clap(short, long = "ffm")]
@@ -303,7 +300,6 @@ fn main() -> Result<()> {
     border_manager::listen_for_notifications(wm.clone());
     stackbar_manager::listen_for_notifications(wm.clone());
     transparency_manager::listen_for_notifications(wm.clone());
-    workspace_reconciliator::listen_for_notifications(wm.clone());
     monitor_reconciliator::listen_for_notifications(wm.clone())?;
     reaper::listen_for_notifications(wm.clone(), wm.lock().known_hwnds.clone());
     focus_manager::listen_for_notifications(wm.clone());
