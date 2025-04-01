@@ -787,7 +787,7 @@ impl KomorebiNotificationState {
                 SocketMessage::Theme(theme) => {
                     apply_theme(
                         ctx,
-                        KomobarTheme::from(theme),
+                        KomobarTheme::from(*theme),
                         bg_color,
                         bg_color_with_alpha.clone(),
                         transparency_alpha,

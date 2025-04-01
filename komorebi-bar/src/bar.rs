@@ -49,6 +49,7 @@ use komorebi_client::NotificationEvent;
 use komorebi_client::SocketMessage;
 use komorebi_themes::catppuccin_egui;
 use komorebi_themes::Base16Value;
+use komorebi_themes::Base16Wrapper;
 use komorebi_themes::Catppuccin;
 use komorebi_themes::CatppuccinValue;
 use std::cell::RefCell;
@@ -155,7 +156,7 @@ pub fn apply_theme(
         } => {
             ctx.set_style(base16.style());
             let base16_value = base16_value.unwrap_or_default();
-            let accent = base16_value.color32(base16);
+            let accent = base16_value.color32(Base16Wrapper::Base16(base16));
 
             ctx.style_mut(|style| {
                 style.visuals.selection.stroke.color = accent;
@@ -164,6 +165,23 @@ pub fn apply_theme(
             });
 
             bg_color.replace(base16.background());
+        }
+        KomobarTheme::Custom {
+            colours,
+            accent: base16_value,
+        } => {
+            let background = colours.background();
+            ctx.set_style(colours.style());
+            let base16_value = base16_value.unwrap_or_default();
+            let accent = base16_value.color32(Base16Wrapper::Custom(colours));
+
+            ctx.style_mut(|style| {
+                style.visuals.selection.stroke.color = accent;
+                style.visuals.widgets.hovered.fg_stroke.color = accent;
+                style.visuals.widgets.active.fg_stroke.color = accent;
+            });
+
+            bg_color.replace(background);
         }
     }
 
@@ -431,11 +449,11 @@ impl Komobar {
     }
 
     fn try_apply_theme(&mut self, ctx: &Context) {
-        match self.config.theme {
+        match &self.config.theme {
             Some(theme) => {
                 apply_theme(
                     ctx,
-                    theme,
+                    theme.clone(),
                     self.bg_color.clone(),
                     self.bg_color_with_alpha.clone(),
                     self.config.transparency_alpha,
@@ -463,6 +481,26 @@ impl Komobar {
                 match komorebi_client::StaticConfig::read(&config) {
                     Ok(config) => {
                         if let Some(theme) = config.theme {
+                            let stack_accent = match theme {
+                                KomorebiTheme::Catppuccin {
+                                    name, stack_border, ..
+                                } => stack_border
+                                    .unwrap_or(CatppuccinValue::Green)
+                                    .color32(name.as_theme()),
+                                KomorebiTheme::Base16 {
+                                    name, stack_border, ..
+                                } => stack_border
+                                    .unwrap_or(Base16Value::Base0B)
+                                    .color32(Base16Wrapper::Base16(name)),
+                                KomorebiTheme::Custom {
+                                    ref colours,
+                                    stack_border,
+                                    ..
+                                } => stack_border
+                                    .unwrap_or(Base16Value::Base0B)
+                                    .color32(Base16Wrapper::Custom(colours.clone())),
+                            };
+
                             apply_theme(
                                 ctx,
                                 KomobarTheme::from(theme),
@@ -472,17 +510,6 @@ impl Komobar {
                                 bar_grouping,
                                 self.render_config.clone(),
                             );
-
-                            let stack_accent = match theme {
-                                KomorebiTheme::Catppuccin {
-                                    name, stack_border, ..
-                                } => stack_border
-                                    .unwrap_or(CatppuccinValue::Green)
-                                    .color32(name.as_theme()),
-                                KomorebiTheme::Base16 {
-                                    name, stack_border, ..
-                                } => stack_border.unwrap_or(Base16Value::Base0B).color32(name),
-                            };
 
                             if let Some(state) = &self.komorebi_notification_state {
                                 state.borrow_mut().stack_accent = Some(stack_accent);
@@ -782,7 +809,7 @@ impl eframe::App for Komobar {
                             self.bg_color_with_alpha.clone(),
                             self.config.transparency_alpha,
                             self.config.grouping,
-                            self.config.theme,
+                            self.config.theme.clone(),
                             self.render_config.clone(),
                         );
                 }

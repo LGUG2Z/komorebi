@@ -4364,6 +4364,675 @@
               ]
             }
           }
+        },
+        {
+          "description": "A custom Base16 theme",
+          "type": "object",
+          "required": [
+            "colours",
+            "palette"
+          ],
+          "properties": {
+            "accent": {
+              "type": "string",
+              "enum": [
+                "Base00",
+                "Base01",
+                "Base02",
+                "Base03",
+                "Base04",
+                "Base05",
+                "Base06",
+                "Base07",
+                "Base08",
+                "Base09",
+                "Base0A",
+                "Base0B",
+                "Base0C",
+                "Base0D",
+                "Base0E",
+                "Base0F"
+              ]
+            },
+            "colours": {
+              "description": "Colours of the custom Base16 theme palette",
+              "type": "object",
+              "required": [
+                "base_00",
+                "base_01",
+                "base_02",
+                "base_03",
+                "base_04",
+                "base_05",
+                "base_06",
+                "base_07",
+                "base_08",
+                "base_09",
+                "base_0a",
+                "base_0b",
+                "base_0c",
+                "base_0d",
+                "base_0e",
+                "base_0f"
+              ],
+              "properties": {
+                "base_00": {
+                  "anyOf": [
+                    {
+                      "description": "Colour represented as RGB",
+                      "type": "object",
+                      "required": [
+                        "b",
+                        "g",
+                        "r"
+                      ],
+                      "properties": {
+                        "b": {
+                          "description": "Blue",
+                          "type": "integer",
+                          "format": "uint32",
+                          "minimum": 0.0
+                        },
+                        "g": {
+                          "description": "Green",
+                          "type": "integer",
+                          "format": "uint32",
+                          "minimum": 0.0
+                        },
+                        "r": {
+                          "description": "Red",
+                          "type": "integer",
+                          "format": "uint32",
+                          "minimum": 0.0
+                        }
+                      }
+                    },
+                    {
+                      "description": "Colour represented as Hex",
+                      "type": "string",
+                      "format": "color-hex"
+                    }
+                  ]
+                },
+                "base_01": {
+                  "anyOf": [
+                    {
+                      "description": "Colour represented as RGB",
+                      "type": "object",
+                      "required": [
+                        "b",
+                        "g",
+                        "r"
+                      ],
+                      "properties": {
+                        "b": {
+                          "description": "Blue",
+                          "type": "integer",
+                          "format": "uint32",
+                          "minimum": 0.0
+                        },
+                        "g": {
+                          "description": "Green",
+                          "type": "integer",
+                          "format": "uint32",
+                          "minimum": 0.0
+                        },
+                        "r": {
+                          "description": "Red",
+                          "type": "integer",
+                          "format": "uint32",
+                          "minimum": 0.0
+                        }
+                      }
+                    },
+                    {
+                      "description": "Colour represented as Hex",
+                      "type": "string",
+                      "format": "color-hex"
+                    }
+                  ]
+                },
+                "base_02": {
+                  "anyOf": [
+                    {
+                      "description": "Colour represented as RGB",
+                      "type": "object",
+                      "required": [
+                        "b",
+                        "g",
+                        "r"
+                      ],
+                      "properties": {
+                        "b": {
+                          "description": "Blue",
+                          "type": "integer",
+                          "format": "uint32",
+                          "minimum": 0.0
+                        },
+                        "g": {
+                          "description": "Green",
+                          "type": "integer",
+                          "format": "uint32",
+                          "minimum": 0.0
+                        },
+                        "r": {
+                          "description": "Red",
+                          "type": "integer",
+                          "format": "uint32",
+                          "minimum": 0.0
+                        }
+                      }
+                    },
+                    {
+                      "description": "Colour represented as Hex",
+                      "type": "string",
+                      "format": "color-hex"
+                    }
+                  ]
+                },
+                "base_03": {
+                  "anyOf": [
+                    {
+                      "description": "Colour represented as RGB",
+                      "type": "object",
+                      "required": [
+                        "b",
+                        "g",
+                        "r"
+                      ],
+                      "properties": {
+                        "b": {
+                          "description": "Blue",
+                          "type": "integer",
+                          "format": "uint32",
+                          "minimum": 0.0
+                        },
+                        "g": {
+                          "description": "Green",
+                          "type": "integer",
+                          "format": "uint32",
+                          "minimum": 0.0
+                        },
+                        "r": {
+                          "description": "Red",
+                          "type": "integer",
+                          "format": "uint32",
+                          "minimum": 0.0
+                        }
+                      }
+                    },
+                    {
+                      "description": "Colour represented as Hex",
+                      "type": "string",
+                      "format": "color-hex"
+                    }
+                  ]
+                },
+                "base_04": {
+                  "anyOf": [
+                    {
+                      "description": "Colour represented as RGB",
+                      "type": "object",
+                      "required": [
+                        "b",
+                        "g",
+                        "r"
+                      ],
+                      "properties": {
+                        "b": {
+                          "description": "Blue",
+                          "type": "integer",
+                          "format": "uint32",
+                          "minimum": 0.0
+                        },
+                        "g": {
+                          "description": "Green",
+                          "type": "integer",
+                          "format": "uint32",
+                          "minimum": 0.0
+                        },
+                        "r": {
+                          "description": "Red",
+                          "type": "integer",
+                          "format": "uint32",
+                          "minimum": 0.0
+                        }
+                      }
+                    },
+                    {
+                      "description": "Colour represented as Hex",
+                      "type": "string",
+                      "format": "color-hex"
+                    }
+                  ]
+                },
+                "base_05": {
+                  "anyOf": [
+                    {
+                      "description": "Colour represented as RGB",
+                      "type": "object",
+                      "required": [
+                        "b",
+                        "g",
+                        "r"
+                      ],
+                      "properties": {
+                        "b": {
+                          "description": "Blue",
+                          "type": "integer",
+                          "format": "uint32",
+                          "minimum": 0.0
+                        },
+                        "g": {
+                          "description": "Green",
+                          "type": "integer",
+                          "format": "uint32",
+                          "minimum": 0.0
+                        },
+                        "r": {
+                          "description": "Red",
+                          "type": "integer",
+                          "format": "uint32",
+                          "minimum": 0.0
+                        }
+                      }
+                    },
+                    {
+                      "description": "Colour represented as Hex",
+                      "type": "string",
+                      "format": "color-hex"
+                    }
+                  ]
+                },
+                "base_06": {
+                  "anyOf": [
+                    {
+                      "description": "Colour represented as RGB",
+                      "type": "object",
+                      "required": [
+                        "b",
+                        "g",
+                        "r"
+                      ],
+                      "properties": {
+                        "b": {
+                          "description": "Blue",
+                          "type": "integer",
+                          "format": "uint32",
+                          "minimum": 0.0
+                        },
+                        "g": {
+                          "description": "Green",
+                          "type": "integer",
+                          "format": "uint32",
+                          "minimum": 0.0
+                        },
+                        "r": {
+                          "description": "Red",
+                          "type": "integer",
+                          "format": "uint32",
+                          "minimum": 0.0
+                        }
+                      }
+                    },
+                    {
+                      "description": "Colour represented as Hex",
+                      "type": "string",
+                      "format": "color-hex"
+                    }
+                  ]
+                },
+                "base_07": {
+                  "anyOf": [
+                    {
+                      "description": "Colour represented as RGB",
+                      "type": "object",
+                      "required": [
+                        "b",
+                        "g",
+                        "r"
+                      ],
+                      "properties": {
+                        "b": {
+                          "description": "Blue",
+                          "type": "integer",
+                          "format": "uint32",
+                          "minimum": 0.0
+                        },
+                        "g": {
+                          "description": "Green",
+                          "type": "integer",
+                          "format": "uint32",
+                          "minimum": 0.0
+                        },
+                        "r": {
+                          "description": "Red",
+                          "type": "integer",
+                          "format": "uint32",
+                          "minimum": 0.0
+                        }
+                      }
+                    },
+                    {
+                      "description": "Colour represented as Hex",
+                      "type": "string",
+                      "format": "color-hex"
+                    }
+                  ]
+                },
+                "base_08": {
+                  "anyOf": [
+                    {
+                      "description": "Colour represented as RGB",
+                      "type": "object",
+                      "required": [
+                        "b",
+                        "g",
+                        "r"
+                      ],
+                      "properties": {
+                        "b": {
+                          "description": "Blue",
+                          "type": "integer",
+                          "format": "uint32",
+                          "minimum": 0.0
+                        },
+                        "g": {
+                          "description": "Green",
+                          "type": "integer",
+                          "format": "uint32",
+                          "minimum": 0.0
+                        },
+                        "r": {
+                          "description": "Red",
+                          "type": "integer",
+                          "format": "uint32",
+                          "minimum": 0.0
+                        }
+                      }
+                    },
+                    {
+                      "description": "Colour represented as Hex",
+                      "type": "string",
+                      "format": "color-hex"
+                    }
+                  ]
+                },
+                "base_09": {
+                  "anyOf": [
+                    {
+                      "description": "Colour represented as RGB",
+                      "type": "object",
+                      "required": [
+                        "b",
+                        "g",
+                        "r"
+                      ],
+                      "properties": {
+                        "b": {
+                          "description": "Blue",
+                          "type": "integer",
+                          "format": "uint32",
+                          "minimum": 0.0
+                        },
+                        "g": {
+                          "description": "Green",
+                          "type": "integer",
+                          "format": "uint32",
+                          "minimum": 0.0
+                        },
+                        "r": {
+                          "description": "Red",
+                          "type": "integer",
+                          "format": "uint32",
+                          "minimum": 0.0
+                        }
+                      }
+                    },
+                    {
+                      "description": "Colour represented as Hex",
+                      "type": "string",
+                      "format": "color-hex"
+                    }
+                  ]
+                },
+                "base_0a": {
+                  "anyOf": [
+                    {
+                      "description": "Colour represented as RGB",
+                      "type": "object",
+                      "required": [
+                        "b",
+                        "g",
+                        "r"
+                      ],
+                      "properties": {
+                        "b": {
+                          "description": "Blue",
+                          "type": "integer",
+                          "format": "uint32",
+                          "minimum": 0.0
+                        },
+                        "g": {
+                          "description": "Green",
+                          "type": "integer",
+                          "format": "uint32",
+                          "minimum": 0.0
+                        },
+                        "r": {
+                          "description": "Red",
+                          "type": "integer",
+                          "format": "uint32",
+                          "minimum": 0.0
+                        }
+                      }
+                    },
+                    {
+                      "description": "Colour represented as Hex",
+                      "type": "string",
+                      "format": "color-hex"
+                    }
+                  ]
+                },
+                "base_0b": {
+                  "anyOf": [
+                    {
+                      "description": "Colour represented as RGB",
+                      "type": "object",
+                      "required": [
+                        "b",
+                        "g",
+                        "r"
+                      ],
+                      "properties": {
+                        "b": {
+                          "description": "Blue",
+                          "type": "integer",
+                          "format": "uint32",
+                          "minimum": 0.0
+                        },
+                        "g": {
+                          "description": "Green",
+                          "type": "integer",
+                          "format": "uint32",
+                          "minimum": 0.0
+                        },
+                        "r": {
+                          "description": "Red",
+                          "type": "integer",
+                          "format": "uint32",
+                          "minimum": 0.0
+                        }
+                      }
+                    },
+                    {
+                      "description": "Colour represented as Hex",
+                      "type": "string",
+                      "format": "color-hex"
+                    }
+                  ]
+                },
+                "base_0c": {
+                  "anyOf": [
+                    {
+                      "description": "Colour represented as RGB",
+                      "type": "object",
+                      "required": [
+                        "b",
+                        "g",
+                        "r"
+                      ],
+                      "properties": {
+                        "b": {
+                          "description": "Blue",
+                          "type": "integer",
+                          "format": "uint32",
+                          "minimum": 0.0
+                        },
+                        "g": {
+                          "description": "Green",
+                          "type": "integer",
+                          "format": "uint32",
+                          "minimum": 0.0
+                        },
+                        "r": {
+                          "description": "Red",
+                          "type": "integer",
+                          "format": "uint32",
+                          "minimum": 0.0
+                        }
+                      }
+                    },
+                    {
+                      "description": "Colour represented as Hex",
+                      "type": "string",
+                      "format": "color-hex"
+                    }
+                  ]
+                },
+                "base_0d": {
+                  "anyOf": [
+                    {
+                      "description": "Colour represented as RGB",
+                      "type": "object",
+                      "required": [
+                        "b",
+                        "g",
+                        "r"
+                      ],
+                      "properties": {
+                        "b": {
+                          "description": "Blue",
+                          "type": "integer",
+                          "format": "uint32",
+                          "minimum": 0.0
+                        },
+                        "g": {
+                          "description": "Green",
+                          "type": "integer",
+                          "format": "uint32",
+                          "minimum": 0.0
+                        },
+                        "r": {
+                          "description": "Red",
+                          "type": "integer",
+                          "format": "uint32",
+                          "minimum": 0.0
+                        }
+                      }
+                    },
+                    {
+                      "description": "Colour represented as Hex",
+                      "type": "string",
+                      "format": "color-hex"
+                    }
+                  ]
+                },
+                "base_0e": {
+                  "anyOf": [
+                    {
+                      "description": "Colour represented as RGB",
+                      "type": "object",
+                      "required": [
+                        "b",
+                        "g",
+                        "r"
+                      ],
+                      "properties": {
+                        "b": {
+                          "description": "Blue",
+                          "type": "integer",
+                          "format": "uint32",
+                          "minimum": 0.0
+                        },
+                        "g": {
+                          "description": "Green",
+                          "type": "integer",
+                          "format": "uint32",
+                          "minimum": 0.0
+                        },
+                        "r": {
+                          "description": "Red",
+                          "type": "integer",
+                          "format": "uint32",
+                          "minimum": 0.0
+                        }
+                      }
+                    },
+                    {
+                      "description": "Colour represented as Hex",
+                      "type": "string",
+                      "format": "color-hex"
+                    }
+                  ]
+                },
+                "base_0f": {
+                  "anyOf": [
+                    {
+                      "description": "Colour represented as RGB",
+                      "type": "object",
+                      "required": [
+                        "b",
+                        "g",
+                        "r"
+                      ],
+                      "properties": {
+                        "b": {
+                          "description": "Blue",
+                          "type": "integer",
+                          "format": "uint32",
+                          "minimum": 0.0
+                        },
+                        "g": {
+                          "description": "Green",
+                          "type": "integer",
+                          "format": "uint32",
+                          "minimum": 0.0
+                        },
+                        "r": {
+                          "description": "Red",
+                          "type": "integer",
+                          "format": "uint32",
+                          "minimum": 0.0
+                        }
+                      }
+                    },
+                    {
+                      "description": "Colour represented as Hex",
+                      "type": "string",
+                      "format": "color-hex"
+                    }
+                  ]
+                }
+              }
+            },
+            "palette": {
+              "type": "string",
+              "enum": [
+                "Custom"
+              ]
+            }
+          }
         }
       ]
     },

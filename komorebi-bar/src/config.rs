@@ -373,7 +373,7 @@ impl From<Position> for Pos2 {
     }
 }
 
-#[derive(Copy, Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[serde(tag = "palette")]
 pub enum KomobarTheme {
@@ -387,6 +387,12 @@ pub enum KomobarTheme {
     Base16 {
         /// Name of the Base16 theme (theme previews: https://tinted-theming.github.io/tinted-gallery/)
         name: komorebi_themes::Base16,
+        accent: Option<komorebi_themes::Base16Value>,
+    },
+    /// A custom Base16 theme
+    Custom {
+        /// Colours of the custom Base16 theme palette
+        colours: Box<komorebi_themes::Base16ColourPalette>,
         accent: Option<komorebi_themes::Base16Value>,
     },
 }
@@ -404,6 +410,14 @@ impl From<KomorebiTheme> for KomobarTheme {
                 name, bar_accent, ..
             } => Self::Base16 {
                 name,
+                accent: bar_accent,
+            },
+            KomorebiTheme::Custom {
+                colours,
+                bar_accent,
+                ..
+            } => Self::Custom {
+                colours,
                 accent: bar_accent,
             },
         }

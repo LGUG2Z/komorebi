@@ -2092,8 +2092,8 @@ impl WindowManager {
 
                 reply.write_all(schema.as_bytes())?;
             }
-            SocketMessage::Theme(theme) => {
-                theme_manager::send_notification(theme);
+            SocketMessage::Theme(ref theme) => {
+                theme_manager::send_notification(*theme.clone());
             }
             // Deprecated commands
             SocketMessage::AltFocusHack(_)

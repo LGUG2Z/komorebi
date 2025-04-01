@@ -9,12 +9,20 @@ use serde::Serialize;
 use strum::Display;
 use strum::IntoEnumIterator;
 
+use crate::colour::Colour;
 pub use base16_egui_themes::Base16;
 pub use catppuccin_egui;
+use eframe::egui::style::Selection;
+use eframe::egui::style::WidgetVisuals;
+use eframe::egui::style::Widgets;
 pub use eframe::egui::Color32;
+use eframe::egui::Shadow;
+use eframe::egui::Stroke;
+use eframe::egui::Style;
+use eframe::egui::Visuals;
 use serde_variant::to_variant_name;
 
-#[derive(Copy, Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq)]
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq)]
 #[serde(tag = "type")]
 pub enum Theme {
     /// A theme from catppuccin-egui
@@ -27,6 +35,140 @@ pub enum Theme {
         name: Base16,
         accent: Option<Base16Value>,
     },
+    /// A custom base16 palette
+    Custom {
+        palette: Box<Base16ColourPalette>,
+        accent: Option<Base16Value>,
+    },
+}
+
+#[derive(Copy, Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq)]
+pub struct Base16ColourPalette {
+    pub base_00: Colour,
+    pub base_01: Colour,
+    pub base_02: Colour,
+    pub base_03: Colour,
+    pub base_04: Colour,
+    pub base_05: Colour,
+    pub base_06: Colour,
+    pub base_07: Colour,
+    pub base_08: Colour,
+    pub base_09: Colour,
+    pub base_0a: Colour,
+    pub base_0b: Colour,
+    pub base_0c: Colour,
+    pub base_0d: Colour,
+    pub base_0e: Colour,
+    pub base_0f: Colour,
+}
+
+impl Base16ColourPalette {
+    pub fn background(self) -> Color32 {
+        self.base_01.into()
+    }
+    pub fn style(self) -> Style {
+        let original = Style::default();
+        Style {
+            visuals: Visuals {
+                widgets: Widgets {
+                    noninteractive: WidgetVisuals {
+                        bg_fill: self.base_01.into(),
+                        weak_bg_fill: self.base_01.into(),
+                        bg_stroke: Stroke {
+                            color: self.base_02.into(),
+                            ..original.visuals.widgets.noninteractive.bg_stroke
+                        },
+                        fg_stroke: Stroke {
+                            color: self.base_05.into(),
+                            ..original.visuals.widgets.noninteractive.fg_stroke
+                        },
+                        ..original.visuals.widgets.noninteractive
+                    },
+                    inactive: WidgetVisuals {
+                        bg_fill: self.base_02.into(),
+                        weak_bg_fill: self.base_02.into(),
+                        bg_stroke: Stroke {
+                            color: Color32::from_rgba_premultiplied(0, 0, 0, 0),
+                            ..original.visuals.widgets.inactive.bg_stroke
+                        },
+                        fg_stroke: Stroke {
+                            color: self.base_05.into(),
+                            ..original.visuals.widgets.inactive.fg_stroke
+                        },
+                        ..original.visuals.widgets.inactive
+                    },
+                    hovered: WidgetVisuals {
+                        bg_fill: self.base_02.into(),
+                        weak_bg_fill: self.base_02.into(),
+                        bg_stroke: Stroke {
+                            color: self.base_03.into(),
+                            ..original.visuals.widgets.hovered.bg_stroke
+                        },
+                        fg_stroke: Stroke {
+                            color: self.base_06.into(),
+                            ..original.visuals.widgets.hovered.fg_stroke
+                        },
+                        ..original.visuals.widgets.hovered
+                    },
+                    active: WidgetVisuals {
+                        bg_fill: self.base_02.into(),
+                        weak_bg_fill: self.base_02.into(),
+                        bg_stroke: Stroke {
+                            color: self.base_03.into(),
+                            ..original.visuals.widgets.hovered.bg_stroke
+                        },
+                        fg_stroke: Stroke {
+                            color: self.base_06.into(),
+                            ..original.visuals.widgets.hovered.fg_stroke
+                        },
+                        ..original.visuals.widgets.active
+                    },
+                    open: WidgetVisuals {
+                        bg_fill: self.base_01.into(),
+                        weak_bg_fill: self.base_01.into(),
+                        bg_stroke: Stroke {
+                            color: self.base_02.into(),
+                            ..original.visuals.widgets.open.bg_stroke
+                        },
+                        fg_stroke: Stroke {
+                            color: self.base_06.into(),
+                            ..original.visuals.widgets.open.fg_stroke
+                        },
+                        ..original.visuals.widgets.open
+                    },
+                },
+                selection: Selection {
+                    bg_fill: self.base_02.into(),
+                    stroke: Stroke {
+                        color: self.base_06.into(),
+                        ..original.visuals.selection.stroke
+                    },
+                },
+                hyperlink_color: self.base_08.into(),
+                faint_bg_color: Color32::from_rgba_premultiplied(0, 0, 0, 0),
+                extreme_bg_color: self.base_00.into(),
+                code_bg_color: self.base_02.into(),
+                warn_fg_color: self.base_0c.into(),
+                error_fg_color: self.base_0b.into(),
+                window_shadow: Shadow {
+                    color: Color32::from_rgba_premultiplied(0, 0, 0, 96),
+                    ..original.visuals.window_shadow
+                },
+                window_fill: self.base_01.into(),
+                window_stroke: Stroke {
+                    color: self.base_02.into(),
+                    ..original.visuals.window_stroke
+                },
+                panel_fill: self.base_01.into(),
+                popup_shadow: Shadow {
+                    color: Color32::from_rgba_premultiplied(0, 0, 0, 96),
+                    ..original.visuals.popup_shadow
+                },
+                ..original.visuals
+            },
+            ..original
+        }
+    }
 }
 
 impl Theme {
@@ -47,6 +189,7 @@ impl Theme {
                         .to_string()
                 })
                 .collect(),
+            Theme::Custom { .. } => vec!["Custom".to_string()],
         }
     }
 }
@@ -72,25 +215,50 @@ pub enum Base16Value {
     Base0F,
 }
 
+pub enum Base16Wrapper {
+    Base16(Base16),
+    Custom(Box<Base16ColourPalette>),
+}
+
 impl Base16Value {
-    pub fn color32(&self, theme: Base16) -> Color32 {
-        match self {
-            Base16Value::Base00 => theme.base00(),
-            Base16Value::Base01 => theme.base01(),
-            Base16Value::Base02 => theme.base02(),
-            Base16Value::Base03 => theme.base03(),
-            Base16Value::Base04 => theme.base04(),
-            Base16Value::Base05 => theme.base05(),
-            Base16Value::Base06 => theme.base06(),
-            Base16Value::Base07 => theme.base07(),
-            Base16Value::Base08 => theme.base08(),
-            Base16Value::Base09 => theme.base09(),
-            Base16Value::Base0A => theme.base0a(),
-            Base16Value::Base0B => theme.base0b(),
-            Base16Value::Base0C => theme.base0c(),
-            Base16Value::Base0D => theme.base0d(),
-            Base16Value::Base0E => theme.base0e(),
-            Base16Value::Base0F => theme.base0f(),
+    pub fn color32(&self, theme: Base16Wrapper) -> Color32 {
+        match theme {
+            Base16Wrapper::Base16(theme) => match self {
+                Base16Value::Base00 => theme.base00(),
+                Base16Value::Base01 => theme.base01(),
+                Base16Value::Base02 => theme.base02(),
+                Base16Value::Base03 => theme.base03(),
+                Base16Value::Base04 => theme.base04(),
+                Base16Value::Base05 => theme.base05(),
+                Base16Value::Base06 => theme.base06(),
+                Base16Value::Base07 => theme.base07(),
+                Base16Value::Base08 => theme.base08(),
+                Base16Value::Base09 => theme.base09(),
+                Base16Value::Base0A => theme.base0a(),
+                Base16Value::Base0B => theme.base0b(),
+                Base16Value::Base0C => theme.base0c(),
+                Base16Value::Base0D => theme.base0d(),
+                Base16Value::Base0E => theme.base0e(),
+                Base16Value::Base0F => theme.base0f(),
+            },
+            Base16Wrapper::Custom(colours) => match self {
+                Base16Value::Base00 => colours.base_00.into(),
+                Base16Value::Base01 => colours.base_01.into(),
+                Base16Value::Base02 => colours.base_02.into(),
+                Base16Value::Base03 => colours.base_03.into(),
+                Base16Value::Base04 => colours.base_04.into(),
+                Base16Value::Base05 => colours.base_05.into(),
+                Base16Value::Base06 => colours.base_06.into(),
+                Base16Value::Base07 => colours.base_07.into(),
+                Base16Value::Base08 => colours.base_08.into(),
+                Base16Value::Base09 => colours.base_09.into(),
+                Base16Value::Base0A => colours.base_0a.into(),
+                Base16Value::Base0B => colours.base_0b.into(),
+                Base16Value::Base0C => colours.base_0c.into(),
+                Base16Value::Base0D => colours.base_0d.into(),
+                Base16Value::Base0E => colours.base_0e.into(),
+                Base16Value::Base0F => colours.base_0f.into(),
+            },
         }
     }
 }

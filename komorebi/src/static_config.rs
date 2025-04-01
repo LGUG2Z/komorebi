@@ -485,7 +485,7 @@ pub struct AnimationsConfig {
     pub fps: Option<u64>,
 }
 
-#[derive(Copy, Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[serde(tag = "palette")]
 pub enum KomorebiTheme {
@@ -528,6 +528,41 @@ pub enum KomorebiTheme {
     Base16 {
         /// Name of the Base16 theme (theme previews: https://tinted-theming.github.io/tinted-gallery/)
         name: komorebi_themes::Base16,
+        /// Border colour when the container contains a single window (default: Base0D)
+        #[serde(skip_serializing_if = "Option::is_none")]
+        single_border: Option<komorebi_themes::Base16Value>,
+        /// Border colour when the container contains multiple windows (default: Base0B)
+        #[serde(skip_serializing_if = "Option::is_none")]
+        stack_border: Option<komorebi_themes::Base16Value>,
+        /// Border colour when the container is in monocle mode (default: Base0F)
+        #[serde(skip_serializing_if = "Option::is_none")]
+        monocle_border: Option<komorebi_themes::Base16Value>,
+        /// Border colour when the window is floating (default: Base09)
+        #[serde(skip_serializing_if = "Option::is_none")]
+        floating_border: Option<komorebi_themes::Base16Value>,
+        /// Border colour when the container is unfocused (default: Base01)
+        #[serde(skip_serializing_if = "Option::is_none")]
+        unfocused_border: Option<komorebi_themes::Base16Value>,
+        /// Border colour when the container is unfocused and locked (default: Base08)
+        #[serde(skip_serializing_if = "Option::is_none")]
+        unfocused_locked_border: Option<komorebi_themes::Base16Value>,
+        /// Stackbar focused tab text colour (default: Base0B)
+        #[serde(skip_serializing_if = "Option::is_none")]
+        stackbar_focused_text: Option<komorebi_themes::Base16Value>,
+        /// Stackbar unfocused tab text colour (default: Base05)
+        #[serde(skip_serializing_if = "Option::is_none")]
+        stackbar_unfocused_text: Option<komorebi_themes::Base16Value>,
+        /// Stackbar tab background colour (default: Base01)
+        #[serde(skip_serializing_if = "Option::is_none")]
+        stackbar_background: Option<komorebi_themes::Base16Value>,
+        /// Komorebi status bar accent (default: Base0D)
+        #[serde(skip_serializing_if = "Option::is_none")]
+        bar_accent: Option<komorebi_themes::Base16Value>,
+    },
+    /// A custom Base16 theme
+    Custom {
+        /// Colours of the custom Base16 theme palette
+        colours: Box<komorebi_themes::Base16ColourPalette>,
         /// Border colour when the container contains a single window (default: Base0D)
         #[serde(skip_serializing_if = "Option::is_none")]
         single_border: Option<komorebi_themes::Base16Value>,
@@ -1032,7 +1067,7 @@ impl StaticConfig {
         }
 
         if let Some(theme) = &self.theme {
-            theme_manager::send_notification(*theme);
+            theme_manager::send_notification(theme.clone());
         }
 
         if let Some(path) = &self.app_specific_configuration_path {

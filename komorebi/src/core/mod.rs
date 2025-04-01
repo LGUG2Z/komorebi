@@ -163,7 +163,7 @@ pub enum SocketMessage {
     WatchConfiguration(bool),
     CompleteConfiguration,
     AltFocusHack(bool),
-    Theme(KomorebiTheme),
+    Theme(Box<KomorebiTheme>),
     Animation(bool, Option<AnimationPrefix>),
     AnimationDuration(u64, Option<AnimationPrefix>),
     AnimationFps(u64),
