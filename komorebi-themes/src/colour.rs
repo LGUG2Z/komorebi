@@ -1,5 +1,4 @@
 use hex_color::HexColor;
-use komorebi_themes::Color32;
 #[cfg(feature = "schemars")]
 use schemars::gen::SchemaGenerator;
 #[cfg(feature = "schemars")]
@@ -9,6 +8,7 @@ use schemars::schema::Schema;
 #[cfg(feature = "schemars")]
 use schemars::schema::SchemaObject;
 
+use crate::Color32;
 use serde::Deserialize;
 use serde::Serialize;
 

@@ -1,6 +1,8 @@
 #![warn(clippy::all)]
 #![allow(clippy::missing_errors_doc)]
 
+pub mod colour;
+
 use schemars::JsonSchema;
 use serde::Deserialize;
 use serde::Serialize;

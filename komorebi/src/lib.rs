@@ -5,7 +5,6 @@ pub mod border_manager;
 pub mod com;
 #[macro_use]
 pub mod ring;
-pub mod colour;
 pub mod container;
 pub mod core;
 pub mod focus_manager;
@@ -47,8 +46,8 @@ use std::sync::atomic::AtomicU64;
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
 
-pub use colour::*;
 pub use core::*;
+pub use komorebi_themes::colour::*;
 pub use process_command::*;
 pub use process_event::*;
 pub use static_config::*;

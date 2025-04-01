@@ -19,7 +19,6 @@ ctrlc = { version = "3", features = ["termination"] }
 dirs = { workspace = true }
 dunce = { workspace = true }
 getset = "0.1"
-hex_color = { version = "3", features = ["serde"] }
 hotwatch = { workspace = true }
 lazy_static = { workspace = true }
 miow = "0.6"

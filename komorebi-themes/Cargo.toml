@@ -8,7 +8,12 @@ base16-egui-themes = { git = "https://github.com/LGUG2Z/base16-egui-themes", rev
 catppuccin-egui = { git = "https://github.com/LGUG2Z/catppuccin-egui", rev = "bdaff30959512c4f7ee7304117076a48633d777f", default-features = false, features = ["egui31"] }
 #catppuccin-egui = { version = "5", default-features = false, features = ["egui30"] }
 eframe = { workspace = true }
-schemars = { workspace = true }
+schemars = { workspace = true, optional = true }
 serde = { workspace = true }
 serde_variant = "0.1"
 strum = { workspace = true }
+hex_color = { version = "3", features = ["serde"] }
+
+[features]
+default = ["schemars"]
+schemars = ["dep:schemars"]
