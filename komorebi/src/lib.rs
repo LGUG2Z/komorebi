@@ -239,6 +239,8 @@ pub static REMOVE_TITLEBARS: AtomicBool = AtomicBool::new(false);
 
 pub static SLOW_APPLICATION_COMPENSATION_TIME: AtomicU64 = AtomicU64::new(20);
 
+shadow_rs::shadow!(build);
+
 #[must_use]
 pub fn current_virtual_desktop() -> Option<Vec<u8>> {
     let hkcu = RegKey::predef(HKEY_CURRENT_USER);

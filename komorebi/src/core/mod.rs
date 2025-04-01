@@ -329,6 +329,7 @@ pub enum StateQuery {
     FocusedContainerIndex,
     FocusedWindowIndex,
     FocusedWorkspaceName,
+    Version,
 }
 
 #[derive(

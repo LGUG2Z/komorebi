@@ -56,8 +56,6 @@ use komorebi::HOME_DIR;
 use komorebi::INITIAL_CONFIGURATION_LOADED;
 use komorebi::SESSION_ID;
 
-shadow_rs::shadow!(build);
-
 fn setup(log_level: LogLevel) -> Result<(WorkerGuard, WorkerGuard)> {
     if std::env::var("RUST_LIB_BACKTRACE").is_err() {
         std::env::set_var("RUST_LIB_BACKTRACE", "1");
@@ -165,7 +163,7 @@ enum LogLevel {
 }
 
 #[derive(Parser)]
-#[clap(author, about, version = build::CLAP_LONG_VERSION)]
+#[clap(author, about, version = komorebi::build::CLAP_LONG_VERSION)]
 struct Opts {
     /// Allow the use of komorebi's custom focus-follows-mouse implementation
     #[clap(short, long = "ffm")]

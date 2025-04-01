@@ -46,6 +46,7 @@ use crate::animation::ANIMATION_STYLE_GLOBAL;
 use crate::border_manager;
 use crate::border_manager::IMPLEMENTATION;
 use crate::border_manager::STYLE;
+use crate::build;
 use crate::colour::Rgb;
 use crate::config_generation::WorkspaceMatchingRule;
 use crate::current_virtual_desktop;
@@ -1377,6 +1378,7 @@ impl WindowManager {
                             .focused_workspace_name()
                             .unwrap_or_else(|| focused_monitor.focused_workspace_idx().to_string())
                     }
+                    StateQuery::Version => build::RUST_VERSION.to_string(),
                 };
 
                 reply.write_all(response.as_bytes())?;
