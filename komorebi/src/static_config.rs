@@ -1220,6 +1220,8 @@ impl StaticConfig {
         drop(workspace_matching_rules);
 
         let offset = wm.work_area_offset;
+
+        let mut existing_names: HashSet<String> = HashSet::new();
         for (i, monitor) in wm.monitors_mut().iter_mut().enumerate() {
             let preferred_config_idx = {
                 let display_index_preferences = DISPLAY_INDEX_PREFERENCES.read();
@@ -1271,7 +1273,7 @@ impl StaticConfig {
                 monitor.update_workspaces_globals(offset);
                 for (j, ws) in monitor.workspaces_mut().iter_mut().enumerate() {
                     if let Some(workspace_config) = monitor_config.workspaces.get(j) {
-                        ws.load_static_config(workspace_config)?;
+                        ws.load_static_config(workspace_config, &mut existing_names)?;
                     }
                 }
 
@@ -1357,7 +1359,7 @@ impl StaticConfig {
 
                     for (j, ws) in m.workspaces_mut().iter_mut().enumerate() {
                         if let Some(workspace_config) = monitor_config.workspaces.get(j) {
-                            ws.load_static_config(workspace_config)?;
+                            ws.load_static_config(workspace_config, &mut existing_names)?;
                         }
                     }
 
@@ -1389,6 +1391,8 @@ impl StaticConfig {
         drop(workspace_matching_rules);
 
         let offset = wm.work_area_offset;
+
+        let mut existing_names: HashSet<String> = HashSet::new();
         for (i, monitor) in wm.monitors_mut().iter_mut().enumerate() {
             let preferred_config_idx = {
                 let display_index_preferences = DISPLAY_INDEX_PREFERENCES.read();
@@ -1443,7 +1447,7 @@ impl StaticConfig {
 
                 for (j, ws) in monitor.workspaces_mut().iter_mut().enumerate() {
                     if let Some(workspace_config) = monitor_config.workspaces.get(j) {
-                        ws.load_static_config(workspace_config)?;
+                        ws.load_static_config(workspace_config, &mut existing_names)?;
                     }
                 }
 
@@ -1529,7 +1533,7 @@ impl StaticConfig {
 
                     for (j, ws) in m.workspaces_mut().iter_mut().enumerate() {
                         if let Some(workspace_config) = monitor_config.workspaces.get(j) {
-                            ws.load_static_config(workspace_config)?;
+                            ws.load_static_config(workspace_config, &mut existing_names)?;
                         }
                     }
 

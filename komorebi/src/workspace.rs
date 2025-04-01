@@ -1,4 +1,5 @@
 use std::collections::BTreeSet;
+use std::collections::HashSet;
 use std::collections::VecDeque;
 use std::fmt::Display;
 use std::fmt::Formatter;
@@ -185,8 +186,27 @@ pub struct WorkspaceGlobals {
 }
 
 impl Workspace {
-    pub fn load_static_config(&mut self, config: &WorkspaceConfig) -> Result<()> {
-        self.name = Option::from(config.name.clone());
+    pub fn load_static_config(
+        &mut self,
+        config: &WorkspaceConfig,
+        existing_names: &mut HashSet<String>,
+    ) -> Result<()> {
+        self.name = if config.name.is_empty() {
+            Some(String::new())
+        } else if existing_names.insert(config.name.clone()) {
+            Some(config.name.clone())
+        } else {
+            let base_name = &config.name;
+            let mut suffix = 1;
+
+            Some(loop {
+                let candidate = format!("{}_{}", base_name, suffix);
+                if existing_names.insert(candidate.clone()) {
+                    break candidate;
+                }
+                suffix += 1;
+            })
+        };
 
         self.set_container_padding(config.container_padding);
 
