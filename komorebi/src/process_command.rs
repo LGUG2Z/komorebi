@@ -1378,6 +1378,19 @@ impl WindowManager {
                             .unwrap_or_else(|| focused_monitor.focused_workspace_idx().to_string())
                     }
                     StateQuery::Version => build::RUST_VERSION.to_string(),
+                    StateQuery::FocusedWorkspaceLayout => {
+                        let focused_monitor = self
+                            .focused_monitor()
+                            .ok_or_else(|| anyhow!("there is no monitor"))?;
+
+                        focused_monitor.focused_workspace_layout().map_or_else(
+                            || "None".to_string(),
+                            |layout| match layout {
+                                Layout::Default(default_layout) => default_layout.to_string(),
+                                Layout::Custom(_) => "Custom".to_string(),
+                            },
+                        )
+                    }
                 };
 
                 reply.write_all(response.as_bytes())?;
