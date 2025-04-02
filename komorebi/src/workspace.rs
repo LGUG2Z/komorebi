@@ -302,9 +302,9 @@ impl Workspace {
         }
     }
 
-    pub fn apply_wallpaper(&self) -> Result<()> {
+    pub fn apply_wallpaper(&self, hmonitor: isize) -> Result<()> {
         if let Some(wallpaper) = &self.wallpaper {
-            if let Err(error) = WindowsApi::set_wallpaper(&wallpaper.path) {
+            if let Err(error) = WindowsApi::set_wallpaper(&wallpaper.path, hmonitor) {
                 tracing::error!("failed to set wallpaper: {error}");
             }
 
@@ -419,12 +419,12 @@ impl Workspace {
         Ok(())
     }
 
-    pub fn restore(&mut self, mouse_follows_focus: bool) -> Result<()> {
+    pub fn restore(&mut self, mouse_follows_focus: bool, hmonitor: isize) -> Result<()> {
         if let Some(container) = self.monocle_container() {
             if let Some(window) = container.focused_window() {
                 container.restore();
                 window.focus(mouse_follows_focus)?;
-                return self.apply_wallpaper();
+                return self.apply_wallpaper(hmonitor);
             }
         }
 
@@ -468,7 +468,7 @@ impl Workspace {
             floating_window.focus(mouse_follows_focus)?;
         }
 
-        self.apply_wallpaper()
+        self.apply_wallpaper(hmonitor)
     }
 
     pub fn update(&mut self) -> Result<()> {

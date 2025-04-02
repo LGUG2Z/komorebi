@@ -1014,6 +1014,7 @@ impl WindowManager {
             let focused_workspace_idx = monitor.focused_workspace_idx();
             monitor.update_workspace_globals(focused_workspace_idx, offset);
 
+            let hmonitor = monitor.id();
             let workspace = monitor
                 .focused_workspace_mut()
                 .ok_or_else(|| anyhow!("there is no workspace"))?;
@@ -1022,6 +1023,12 @@ impl WindowManager {
             if !preserve_resize_dimensions {
                 for resize in workspace.resize_dimensions_mut() {
                     *resize = None;
+                }
+            }
+
+            if workspace.wallpaper().is_some() {
+                if let Err(error) = workspace.apply_wallpaper(hmonitor) {
+                    tracing::error!("failed to apply wallpaper: {}", error);
                 }
             }
 

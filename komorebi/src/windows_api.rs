@@ -1008,6 +1008,16 @@ impl WindowsApi {
         Ok(ex_info)
     }
 
+    pub fn monitor_device_path(hmonitor: isize) -> Option<String> {
+        for display in win32_display_data::connected_displays_all().flatten() {
+            if display.hmonitor == hmonitor {
+                return Some(display.device_path.clone());
+            }
+        }
+
+        None
+    }
+
     pub fn monitor(hmonitor: isize) -> Result<Monitor> {
         for mut display in win32_display_data::connected_displays_all().flatten() {
             if display.hmonitor == hmonitor {
@@ -1352,7 +1362,7 @@ impl WindowsApi {
         unsafe { WTSRegisterSessionNotification(HWND(as_ptr!(hwnd)), 1) }.process()
     }
 
-    pub fn set_wallpaper(path: &Path) -> Result<()> {
+    pub fn set_wallpaper(path: &Path, hmonitor: isize) -> Result<()> {
         let path = path.canonicalize()?;
 
         let wallpaper: IDesktopWallpaper =
@@ -1363,9 +1373,15 @@ impl WindowsApi {
             wallpaper.SetPosition(DWPOS_FILL)?;
         }
 
+        let monitor_id = if let Some(path) = Self::monitor_device_path(hmonitor) {
+            PCWSTR::from_raw(HSTRING::from(path).as_ptr())
+        } else {
+            PCWSTR::null()
+        };
+
         // Set the wallpaper
         unsafe {
-            wallpaper.SetWallpaper(PCWSTR::null(), PCWSTR::from_raw(wallpaper_path.as_ptr()))?;
+            wallpaper.SetWallpaper(monitor_id, PCWSTR::from_raw(wallpaper_path.as_ptr()))?;
         }
         Ok(())
     }
