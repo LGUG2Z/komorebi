@@ -9,13 +9,11 @@ use crate::core::Rect;
 use crate::windows_api;
 use crate::WindowsApi;
 use crate::WINDOWS_11;
-use color_eyre::eyre::anyhow;
 use std::collections::HashMap;
 use std::ops::Deref;
 use std::sync::atomic::Ordering;
 use std::sync::mpsc;
 use std::sync::LazyLock;
-use std::sync::OnceLock;
 use windows::Win32::Foundation::FALSE;
 use windows::Win32::Foundation::HWND;
 use windows::Win32::Foundation::LPARAM;
@@ -118,7 +116,7 @@ pub struct Border {
     pub hwnd: isize,
     pub id: String,
     pub monitor_idx: Option<usize>,
-    pub render_target: OnceLock<RenderTarget>,
+    pub render_target: Option<RenderTarget>,
     pub tracking_hwnd: isize,
     pub window_rect: Rect,
     pub window_kind: WindowKind,
@@ -136,7 +134,7 @@ impl From<isize> for Border {
             hwnd: value,
             id: String::new(),
             monitor_idx: None,
-            render_target: OnceLock::new(),
+            render_target: None,
             tracking_hwnd: 0,
             window_rect: Rect::default(),
             window_kind: WindowKind::Unfocused,
@@ -184,7 +182,7 @@ impl Border {
                 hwnd: 0,
                 id: container_id,
                 monitor_idx: Some(monitor_idx),
-                render_target: OnceLock::new(),
+                render_target: None,
                 tracking_hwnd,
                 window_rect: WindowsApi::window_rect(tracking_hwnd).unwrap_or_default(),
                 window_kind: WindowKind::Unfocused,
@@ -243,8 +241,14 @@ impl Border {
             let _ = DwmEnableBlurBehindWindow(border.hwnd(), &bh);
         }
 
+        border.update_brushes()?;
+
+        Ok(border)
+    }
+
+    pub fn update_brushes(&mut self) -> color_eyre::Result<()> {
         let hwnd_render_target_properties = D2D1_HWND_RENDER_TARGET_PROPERTIES {
-            hwnd: HWND(windows_api::as_ptr!(border.hwnd)),
+            hwnd: HWND(windows_api::as_ptr!(self.hwnd)),
             pixelSize: Default::default(),
             presentOptions: D2D1_PRESENT_OPTIONS_IMMEDIATELY,
         };
@@ -265,7 +269,7 @@ impl Border {
                 .CreateHwndRenderTarget(&render_target_properties, &hwnd_render_target_properties)
         } {
             Ok(render_target) => unsafe {
-                border.brush_properties = *BRUSH_PROPERTIES.deref();
+                self.brush_properties = *BRUSH_PROPERTIES.deref();
                 for window_kind in [
                     WindowKind::Single,
                     WindowKind::Stack,
@@ -283,24 +287,18 @@ impl Border {
                     };
 
                     if let Ok(brush) =
-                        render_target.CreateSolidColorBrush(&color, Some(&border.brush_properties))
+                        render_target.CreateSolidColorBrush(&color, Some(&self.brush_properties))
                     {
-                        border.brushes.insert(window_kind, brush);
+                        self.brushes.insert(window_kind, brush);
                     }
                 }
 
                 render_target.SetAntialiasMode(D2D1_ANTIALIAS_MODE_PER_PRIMITIVE);
 
-                if border
-                    .render_target
-                    .set(RenderTarget(render_target.clone()))
-                    .is_err()
-                {
-                    return Err(anyhow!("could not store border render target"));
-                }
+                self.render_target = Some(RenderTarget(render_target));
 
-                border.rounded_rect = {
-                    let radius = 8.0 + border.width as f32 / 2.0;
+                self.rounded_rect = {
+                    let radius = 8.0 + self.width as f32 / 2.0;
                     D2D1_ROUNDED_RECT {
                         rect: Default::default(),
                         radiusX: radius,
@@ -308,7 +306,7 @@ impl Border {
                     }
                 };
 
-                Ok(border)
+                Ok(())
             },
             Err(error) => Err(error.into()),
         }
@@ -395,7 +393,7 @@ impl Border {
                     }
 
                     if !rect.is_same_size_as(&old_rect) {
-                        if let Some(render_target) = (*border_pointer).render_target.get() {
+                        if let Some(render_target) = (*border_pointer).render_target.as_ref() {
                             let border_width = (*border_pointer).width;
                             let border_offset = (*border_pointer).offset;
 
@@ -477,7 +475,7 @@ impl Border {
                             tracing::error!("failed to update border position {error}");
                         }
 
-                        if let Some(render_target) = (*border_pointer).render_target.get() {
+                        if let Some(render_target) = (*border_pointer).render_target.as_ref() {
                             (*border_pointer).width = BORDER_WIDTH.load(Ordering::Relaxed);
                             (*border_pointer).offset = BORDER_OFFSET.load(Ordering::Relaxed);
 
