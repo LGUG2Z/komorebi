@@ -13,6 +13,7 @@ serde = { workspace = true }
 serde_variant = "0.1"
 strum = { workspace = true }
 hex_color = { version = "3", features = ["serde"] }
+flavours = { git = "https://github.com/LGUG2Z/flavours", version = "0.7.2" }
 
 [features]
 default = ["schemars"]

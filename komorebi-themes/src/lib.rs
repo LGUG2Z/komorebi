@@ -2,6 +2,10 @@
 #![allow(clippy::missing_errors_doc)]
 
 pub mod colour;
+mod generator;
+
+pub use generator::generate_base16_palette;
+pub use generator::ThemeVariant;
 
 use schemars::JsonSchema;
 use serde::Deserialize;

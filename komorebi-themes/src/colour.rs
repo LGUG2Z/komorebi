@@ -57,7 +57,7 @@ impl From<Colour> for Color32 {
 }
 
 #[derive(Debug, Copy, Clone, Serialize, Deserialize, PartialEq)]
-pub struct Hex(HexColor);
+pub struct Hex(pub HexColor);
 
 #[cfg(feature = "schemars")]
 impl schemars::JsonSchema for Hex {

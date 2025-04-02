@@ -1,20 +1,16 @@
 use std::collections::BTreeSet;
 use std::collections::VecDeque;
+use std::ffi::OsStr;
 use std::fmt::Display;
 use std::fmt::Formatter;
+use std::io::Write;
 use std::num::NonZeroUsize;
 use std::sync::atomic::Ordering;
 
-use color_eyre::eyre::anyhow;
-use color_eyre::Result;
-use getset::CopyGetters;
-use getset::Getters;
-use getset::MutGetters;
-use getset::Setters;
-use serde::Deserialize;
-use serde::Serialize;
-
 use crate::border_manager;
+use crate::border_manager::BORDER_OFFSET;
+use crate::border_manager::BORDER_WIDTH;
+use crate::container::Container;
 use crate::core::Axis;
 use crate::core::CustomLayout;
 use crate::core::CycleDirection;
@@ -22,11 +18,6 @@ use crate::core::DefaultLayout;
 use crate::core::Layout;
 use crate::core::OperationDirection;
 use crate::core::Rect;
-use crate::FloatingLayerBehaviour;
-
-use crate::border_manager::BORDER_OFFSET;
-use crate::border_manager::BORDER_WIDTH;
-use crate::container::Container;
 use crate::locked_deque::LockedDeque;
 use crate::ring::Ring;
 use crate::should_act;
@@ -36,13 +27,28 @@ use crate::static_config::WorkspaceConfig;
 use crate::window::Window;
 use crate::window::WindowDetails;
 use crate::windows_api::WindowsApi;
+use crate::FloatingLayerBehaviour;
+use crate::KomorebiTheme;
+use crate::SocketMessage;
+use crate::Wallpaper;
 use crate::WindowContainerBehaviour;
+use crate::DATA_DIR;
 use crate::DEFAULT_CONTAINER_PADDING;
 use crate::DEFAULT_WORKSPACE_PADDING;
 use crate::INITIAL_CONFIGURATION_LOADED;
 use crate::NO_TITLEBAR;
 use crate::REGEX_IDENTIFIERS;
 use crate::REMOVE_TITLEBARS;
+use color_eyre::eyre::anyhow;
+use color_eyre::Result;
+use getset::CopyGetters;
+use getset::Getters;
+use getset::MutGetters;
+use getset::Setters;
+use komorebi_themes::Base16ColourPalette;
+use serde::Deserialize;
+use serde::Serialize;
+use uds_windows::UnixStream;
 
 #[allow(clippy::struct_field_names)]
 #[derive(
@@ -96,6 +102,8 @@ pub struct Workspace {
     pub floating_layer_behaviour: FloatingLayerBehaviour,
     #[getset(get = "pub", get_mut = "pub", set = "pub")]
     pub locked_containers: BTreeSet<usize>,
+    #[getset(get = "pub", get_mut = "pub", set = "pub")]
+    pub wallpaper: Option<Wallpaper>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[getset(get = "pub", set = "pub")]
     pub workspace_config: Option<WorkspaceConfig>,
@@ -148,6 +156,7 @@ impl Default for Workspace {
             globals: Default::default(),
             workspace_config: None,
             locked_containers: Default::default(),
+            wallpaper: None,
         }
     }
 }
@@ -255,6 +264,7 @@ impl Workspace {
         self.set_float_override(config.float_override);
         self.set_layout_flip(config.layout_flip);
         self.set_floating_layer_behaviour(config.floating_layer_behaviour.unwrap_or_default());
+        self.set_wallpaper(config.wallpaper.clone());
 
         self.set_workspace_config(Some(config.clone()));
 
@@ -291,12 +301,129 @@ impl Workspace {
         }
     }
 
+    pub fn apply_wallpaper(&self) -> Result<()> {
+        if let Some(wallpaper) = &self.wallpaper {
+            if let Err(error) = WindowsApi::set_wallpaper(&wallpaper.path) {
+                tracing::error!("failed to set wallpaper: {error}");
+            }
+
+            // if !cfg!(debug_assertions) && wallpaper.generate_theme.unwrap_or(true) {
+            if wallpaper.generate_theme.unwrap_or(true) {
+                let variant = wallpaper
+                    .theme_options
+                    .as_ref()
+                    .and_then(|t| t.theme_variant)
+                    .unwrap_or_default();
+
+                let cached_palette = DATA_DIR.join(format!(
+                    "{}.base16.{variant}.json",
+                    wallpaper
+                        .path
+                        .file_name()
+                        .unwrap_or(OsStr::new("tmp"))
+                        .to_string_lossy()
+                ));
+
+                let mut base16_palette = None;
+
+                if cached_palette.is_file() {
+                    tracing::info!(
+                        "colour palette for wallpaper {} found in cache",
+                        cached_palette.display()
+                    );
+
+                    // this code is VERY slow on debug builds - should only be a one-time issue when loading
+                    // an uncached wallpaper
+                    if let Ok(palette) = serde_json::from_str::<Base16ColourPalette>(
+                        &std::fs::read_to_string(&cached_palette)?,
+                    ) {
+                        base16_palette = Some(palette);
+                    }
+                };
+
+                if base16_palette.is_none() {
+                    base16_palette =
+                        komorebi_themes::generate_base16_palette(&wallpaper.path, variant).ok();
+
+                    std::fs::write(
+                        &cached_palette,
+                        serde_json::to_string_pretty(&base16_palette)?,
+                    )?;
+
+                    tracing::info!(
+                        "colour palette for wallpaper {} cached",
+                        cached_palette.display()
+                    );
+                }
+
+                if let Some(palette) = base16_palette {
+                    let komorebi_theme = KomorebiTheme::Custom {
+                        colours: Box::new(palette),
+                        single_border: wallpaper
+                            .theme_options
+                            .as_ref()
+                            .and_then(|o| o.single_border),
+                        stack_border: wallpaper
+                            .theme_options
+                            .as_ref()
+                            .and_then(|o| o.stack_border),
+                        monocle_border: wallpaper
+                            .theme_options
+                            .as_ref()
+                            .and_then(|o| o.monocle_border),
+                        floating_border: wallpaper
+                            .theme_options
+                            .as_ref()
+                            .and_then(|o| o.floating_border),
+                        unfocused_border: wallpaper
+                            .theme_options
+                            .as_ref()
+                            .and_then(|o| o.unfocused_border),
+                        unfocused_locked_border: wallpaper
+                            .theme_options
+                            .as_ref()
+                            .and_then(|o| o.unfocused_locked_border),
+                        stackbar_focused_text: wallpaper
+                            .theme_options
+                            .as_ref()
+                            .and_then(|o| o.stackbar_focused_text),
+                        stackbar_unfocused_text: wallpaper
+                            .theme_options
+                            .as_ref()
+                            .and_then(|o| o.stackbar_unfocused_text),
+                        stackbar_background: wallpaper
+                            .theme_options
+                            .as_ref()
+                            .and_then(|o| o.stackbar_background),
+                        bar_accent: wallpaper.theme_options.as_ref().and_then(|o| o.bar_accent),
+                    };
+
+                    let bytes = SocketMessage::Theme(Box::new(komorebi_theme)).as_bytes()?;
+
+                    let socket = DATA_DIR.join("komorebi.sock");
+                    match UnixStream::connect(socket) {
+                        Ok(mut stream) => {
+                            if let Err(error) = stream.write_all(&bytes) {
+                                tracing::error!("failed to send theme update message: {error}")
+                            }
+                        }
+                        Err(error) => {
+                            tracing::error!("{error}")
+                        }
+                    }
+                }
+            }
+        }
+
+        Ok(())
+    }
+
     pub fn restore(&mut self, mouse_follows_focus: bool) -> Result<()> {
         if let Some(container) = self.monocle_container() {
             if let Some(window) = container.focused_window() {
                 container.restore();
                 window.focus(mouse_follows_focus)?;
-                return Ok(());
+                return self.apply_wallpaper();
             }
         }
 
@@ -340,7 +467,7 @@ impl Workspace {
             floating_window.focus(mouse_follows_focus)?;
         }
 
-        Ok(())
+        self.apply_wallpaper()
     }
 
     pub fn update(&mut self) -> Result<()> {
@@ -559,13 +686,13 @@ impl Workspace {
 
         for window in self.visible_windows().into_iter().flatten() {
             if !window.is_window()
-                // This one is a hack because WINWORD.EXE is an absolute trainwreck of an app
-                // when multiple docs are open, it keeps open an invisible window, with WS_EX_LAYERED
-                // (A STYLE THAT THE REGULAR WINDOWS NEED IN ORDER TO BE MANAGED!) when one of the
-                // docs is closed
-                //
-                // I hate every single person who worked on Microsoft Office 365, especially Word
-                || !window.is_visible()
+            // This one is a hack because WINWORD.EXE is an absolute trainwreck of an app
+            // when multiple docs are open, it keeps open an invisible window, with WS_EX_LAYERED
+            // (A STYLE THAT THE REGULAR WINDOWS NEED IN ORDER TO BE MANAGED!) when one of the
+            // docs is closed
+            //
+            // I hate every single person who worked on Microsoft Office 365, especially Word
+            || !window.is_visible()
             {
                 hwnds.push(window.hwnd);
             }
