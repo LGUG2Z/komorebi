@@ -177,9 +177,10 @@ impl Monitor {
 
     pub fn load_focused_workspace(&mut self, mouse_follows_focus: bool) -> Result<()> {
         let focused_idx = self.focused_workspace_idx();
+        let hmonitor = self.id();
         for (i, workspace) in self.workspaces_mut().iter_mut().enumerate() {
             if i == focused_idx {
-                workspace.restore(mouse_follows_focus)?;
+                workspace.restore(mouse_follows_focus, hmonitor)?;
             } else {
                 workspace.hide(None);
             }
