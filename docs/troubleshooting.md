@@ -148,6 +148,3 @@ To solve this the user can do the following:
 8. Restart the Komorebi Bar with "komorebic stop --bar; komorebic start --bar"
 
 This should resolve the issue and your Komorebi Bar should render with the proper transparency.
-  
-
-
