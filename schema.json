@@ -354,6 +354,45 @@
               "format": "color-hex"
             }
           ]
+        },
+        "unfocused_locked": {
+          "description": "Border colour when the container is unfocused and locked",
+          "anyOf": [
+            {
+              "description": "Colour represented as RGB",
+              "type": "object",
+              "required": [
+                "b",
+                "g",
+                "r"
+              ],
+              "properties": {
+                "b": {
+                  "description": "Blue",
+                  "type": "integer",
+                  "format": "uint32",
+                  "minimum": 0.0
+                },
+                "g": {
+                  "description": "Green",
+                  "type": "integer",
+                  "format": "uint32",
+                  "minimum": 0.0
+                },
+                "r": {
+                  "description": "Red",
+                  "type": "integer",
+                  "format": "uint32",
+                  "minimum": 0.0
+                }
+              }
+            },
+            {
+              "description": "Colour represented as Hex",
+              "type": "string",
+              "format": "color-hex"
+            }
+          ]
         }
       }
     },
