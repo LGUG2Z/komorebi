@@ -295,7 +295,7 @@ pub fn handle_notifications() -> color_eyre::Result<()> {
 
         CURRENT_THEME.store(Some(notification.0));
 
-        border_manager::send_notification(None);
+        border_manager::send_force_update();
         stackbar_manager::send_notification();
     }
 

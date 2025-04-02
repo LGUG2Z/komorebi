@@ -1715,6 +1715,29 @@ impl WindowManager {
         Ok(())
     }
 
+    /// Check for an existing wallpaper definition on the workspace/monitor index pair and apply it
+    /// if it exists
+    #[tracing::instrument(skip(self))]
+    pub fn apply_wallpaper_for_monitor_workspace(
+        &mut self,
+        monitor_idx: usize,
+        workspace_idx: usize,
+    ) -> Result<()> {
+        let monitor = self
+            .monitors_mut()
+            .get_mut(monitor_idx)
+            .ok_or_else(|| anyhow!("there is no monitor"))?;
+
+        let hmonitor = monitor.id();
+
+        let workspace = monitor
+            .workspaces()
+            .get(workspace_idx)
+            .ok_or_else(|| anyhow!("there is no workspace"))?;
+
+        workspace.apply_wallpaper(hmonitor)
+    }
+
     pub fn update_focused_workspace_by_monitor_idx(&mut self, idx: usize) -> Result<()> {
         let offset = self.work_area_offset;
 

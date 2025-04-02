@@ -73,7 +73,10 @@ impl Deref for RenderTarget {
     }
 }
 
-pub struct Notification(pub Option<isize>);
+pub enum Notification {
+    Update(Option<isize>),
+    ForceUpdate,
+}
 
 #[derive(Debug, Default, Clone, Copy, PartialEq)]
 pub struct BorderInfo {
@@ -111,7 +114,13 @@ pub fn window_border(hwnd: isize) -> Option<BorderInfo> {
 }
 
 pub fn send_notification(hwnd: Option<isize>) {
-    if event_tx().try_send(Notification(hwnd)).is_err() {
+    if event_tx().try_send(Notification::Update(hwnd)).is_err() {
+        tracing::warn!("channel is full; dropping notification")
+    }
+}
+
+pub fn send_force_update() {
+    if event_tx().try_send(Notification::ForceUpdate).is_err() {
         tracing::warn!("channel is full; dropping notification")
     }
 }
@@ -175,7 +184,7 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
     tracing::info!("listening");
 
     let receiver = event_rx();
-    event_tx().send(Notification(None))?;
+    event_tx().send(Notification::Update(None))?;
 
     let mut previous_snapshot = Ring::default();
     let mut previous_pending_move_op = None;
@@ -261,64 +270,75 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                 }
             }
             BorderImplementation::Komorebi => {
-                let mut should_process_notification = true;
+                let should_process_notification = match notification {
+                    Notification::Update(notification_hwnd) => {
+                        let mut should_process_notification = true;
 
-                if monitors == previous_snapshot
-                    // handle the window dragging edge case
-                    && pending_move_op == previous_pending_move_op
-                {
-                    should_process_notification = false;
-                }
+                        if monitors == previous_snapshot
+                        // handle the window dragging edge case
+                        && pending_move_op == previous_pending_move_op
+                        {
+                            should_process_notification = false;
+                        }
 
-                // handle the pause edge case
-                if is_paused && !previous_is_paused {
-                    should_process_notification = true;
-                }
-
-                // handle the unpause edge case
-                if previous_is_paused && !is_paused {
-                    should_process_notification = true;
-                }
-
-                // handle the retile edge case
-                if !should_process_notification && BORDER_STATE.lock().is_empty() {
-                    should_process_notification = true;
-                }
-
-                // when we switch focus to/from a floating window
-                let switch_focus_to_from_floating_window = floating_window_hwnds.iter().any(|fw| {
-                    // if we switch focus to a floating window
-                    fw == &notification.0.unwrap_or_default() ||
-                    // if there is any floating window with a `WindowKind::Floating` border
-                    // that no longer is the foreground window then we need to update that
-                    // border.
-                    (fw != &foreground_window
-                        && window_border(*fw)
-                        .is_some_and(|b| b.window_kind == WindowKind::Floating))
-                });
-
-                // when the focused window has an `Unfocused` border kind, usually this happens if
-                // we focus an admin window and then refocus the previously focused window. For
-                // komorebi it will have the same state has before, however the previously focused
-                // window changed its border to unfocused so now we need to update it again.
-                if !should_process_notification
-                    && window_border(notification.0.unwrap_or_default())
-                        .is_some_and(|b| b.window_kind == WindowKind::Unfocused)
-                {
-                    should_process_notification = true;
-                }
-
-                if !should_process_notification && switch_focus_to_from_floating_window {
-                    should_process_notification = true;
-                }
-
-                if !should_process_notification {
-                    if let Some(ref previous) = previous_notification {
-                        if previous.0.unwrap_or_default() != notification.0.unwrap_or_default() {
+                        // handle the pause edge case
+                        if is_paused && !previous_is_paused {
                             should_process_notification = true;
                         }
+
+                        // handle the unpause edge case
+                        if previous_is_paused && !is_paused {
+                            should_process_notification = true;
+                        }
+
+                        // handle the retile edge case
+                        if !should_process_notification && BORDER_STATE.lock().is_empty() {
+                            should_process_notification = true;
+                        }
+
+                        // when we switch focus to/from a floating window
+                        let switch_focus_to_from_floating_window =
+                            floating_window_hwnds.iter().any(|fw| {
+                                // if we switch focus to a floating window
+                                fw == &notification_hwnd.unwrap_or_default() ||
+                        // if there is any floating window with a `WindowKind::Floating` border
+                        // that no longer is the foreground window then we need to update that
+                        // border.
+                        (fw != &foreground_window
+                            && window_border(*fw)
+                            .is_some_and(|b| b.window_kind == WindowKind::Floating))
+                            });
+
+                        // when the focused window has an `Unfocused` border kind, usually this happens if
+                        // we focus an admin window and then refocus the previously focused window. For
+                        // komorebi it will have the same state has before, however the previously focused
+                        // window changed its border to unfocused so now we need to update it again.
+                        if !should_process_notification
+                            && window_border(notification_hwnd.unwrap_or_default())
+                                .is_some_and(|b| b.window_kind == WindowKind::Unfocused)
+                        {
+                            should_process_notification = true;
+                        }
+
+                        if !should_process_notification && switch_focus_to_from_floating_window {
+                            should_process_notification = true;
+                        }
+
+                        if !should_process_notification {
+                            if let Some(Notification::Update(ref previous)) = previous_notification
+                            {
+                                if previous.unwrap_or_default()
+                                    != notification_hwnd.unwrap_or_default()
+                                {
+                                    should_process_notification = true;
+                                }
+                            }
+                        }
+
+                        should_process_notification
                     }
-                }
+                    Notification::ForceUpdate => true,
+                };
 
                 if !should_process_notification {
                     tracing::trace!("monitor state matches latest snapshot, skipping notification");
@@ -415,6 +435,11 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
 
                             if new_border {
                                 border.set_position(&rect, focused_window_hwnd)?;
+                            } else if matches!(notification, Notification::ForceUpdate) {
+                                // Update the border brushes if there was a forced update
+                                // notification and this is not a new border (new border's
+                                // already have their brushes updated on creation)
+                                border.update_brushes()?;
                             }
 
                             border.invalidate();
@@ -544,12 +569,20 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                             border.window_rect = rect;
 
                             let layer_changed = previous_layer != workspace_layer;
+                            let forced_update = matches!(notification, Notification::ForceUpdate);
 
                             let should_invalidate = new_border
                                 || (last_focus_state != new_focus_state)
-                                || layer_changed;
+                                || layer_changed
+                                || forced_update;
 
                             if should_invalidate {
+                                if forced_update && !new_border {
+                                    // Update the border brushes if there was a forced update
+                                    // notification and this is not a new border (new border's
+                                    // already have their brushes updated on creation)
+                                    border.update_brushes()?;
+                                }
                                 border.set_position(&rect, focused_window_hwnd)?;
                                 border.invalidate();
                             }
@@ -594,12 +627,21 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                                 border.window_rect = rect;
 
                                 let layer_changed = previous_layer != workspace_layer;
+                                let forced_update =
+                                    matches!(notification, Notification::ForceUpdate);
 
                                 let should_invalidate = new_border
                                     || (last_focus_state != new_focus_state)
-                                    || layer_changed;
+                                    || layer_changed
+                                    || forced_update;
 
                                 if should_invalidate {
+                                    if forced_update && !new_border {
+                                        // Update the border brushes if there was a forced update
+                                        // notification and this is not a new border (new border's
+                                        // already have their brushes updated on creation)
+                                        border.update_brushes()?;
+                                    }
                                     border.set_position(&rect, window.hwnd)?;
                                     border.invalidate();
                                 }

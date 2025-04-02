@@ -1678,6 +1678,8 @@ impl StaticConfig {
 
         for i in 0..monitor_count {
             wm.update_focused_workspace_by_monitor_idx(i)?;
+            let ws_idx = wm.focused_workspace_idx_for_monitor_idx(i)?;
+            wm.apply_wallpaper_for_monitor_workspace(i, ws_idx)?;
         }
 
         Ok(())
