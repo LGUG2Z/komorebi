@@ -369,7 +369,7 @@ pub struct StaticConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(alias = "active_window_border_offset")]
     pub border_offset: Option<i32>,
-    /// Display an active window border (default: false)
+    /// Display an active window border (default: true)
     #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(alias = "active_window_border")]
     pub border: Option<bool>,
@@ -862,10 +862,7 @@ impl StaticConfig {
 
         border_manager::BORDER_WIDTH.store(self.border_width.unwrap_or(8), Ordering::SeqCst);
         border_manager::BORDER_OFFSET.store(self.border_offset.unwrap_or(-1), Ordering::SeqCst);
-
-        if let Some(enabled) = &self.border {
-            border_manager::BORDER_ENABLED.store(*enabled, Ordering::SeqCst);
-        }
+        border_manager::BORDER_ENABLED.store(self.border.unwrap_or(true), Ordering::SeqCst);
 
         if let Some(colours) = &self.border_colours {
             if let Some(single) = colours.single {
