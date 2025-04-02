@@ -365,15 +365,15 @@
                       }
                     }
                   },
-                  "focused_window": {
-                    "description": "Configure the Focused Window widget",
+                  "focused_container": {
+                    "description": "Configure the Focused Container widget",
                     "type": "object",
                     "required": [
                       "enable"
                     ],
                     "properties": {
                       "display": {
-                        "description": "Display format of the currently focused window",
+                        "description": "Display format of the currently focused container",
                         "oneOf": [
                           {
                             "description": "Show only icon",
@@ -413,11 +413,11 @@
                         ]
                       },
                       "enable": {
-                        "description": "Enable the Komorebi Focused Window widget",
+                        "description": "Enable the Komorebi Focused Container widget",
                         "type": "boolean"
                       },
                       "show_icon": {
-                        "description": "DEPRECATED: use 'display' instead (Show the icon of the currently focused window)",
+                        "description": "DEPRECATED: use 'display' instead (Show the icon of the currently focused container)",
                         "type": "boolean"
                       }
                     }
@@ -505,6 +505,63 @@
                             }
                           ]
                         }
+                      }
+                    }
+                  },
+                  "locked_container": {
+                    "description": "Configure the Locked Container widget",
+                    "type": "object",
+                    "required": [
+                      "enable"
+                    ],
+                    "properties": {
+                      "display": {
+                        "description": "Display format of the current locked state",
+                        "oneOf": [
+                          {
+                            "description": "Show only icon",
+                            "type": "string",
+                            "enum": [
+                              "Icon"
+                            ]
+                          },
+                          {
+                            "description": "Show only text",
+                            "type": "string",
+                            "enum": [
+                              "Text"
+                            ]
+                          },
+                          {
+                            "description": "Show an icon and text for the selected element, and text on the rest",
+                            "type": "string",
+                            "enum": [
+                              "TextAndIconOnSelected"
+                            ]
+                          },
+                          {
+                            "description": "Show both icon and text",
+                            "type": "string",
+                            "enum": [
+                              "IconAndText"
+                            ]
+                          },
+                          {
+                            "description": "Show an icon and text for the selected element, and icons on the rest",
+                            "type": "string",
+                            "enum": [
+                              "IconAndTextOnSelected"
+                            ]
+                          }
+                        ]
+                      },
+                      "enable": {
+                        "description": "Enable the Komorebi Locked Container widget",
+                        "type": "boolean"
+                      },
+                      "show_when_unlocked": {
+                        "description": "Show the widget event if the layer is unlocked",
+                        "type": "boolean"
                       }
                     }
                   },
@@ -1775,15 +1832,15 @@
                       }
                     }
                   },
-                  "focused_window": {
-                    "description": "Configure the Focused Window widget",
+                  "focused_container": {
+                    "description": "Configure the Focused Container widget",
                     "type": "object",
                     "required": [
                       "enable"
                     ],
                     "properties": {
                       "display": {
-                        "description": "Display format of the currently focused window",
+                        "description": "Display format of the currently focused container",
                         "oneOf": [
                           {
                             "description": "Show only icon",
@@ -1823,11 +1880,11 @@
                         ]
                       },
                       "enable": {
-                        "description": "Enable the Komorebi Focused Window widget",
+                        "description": "Enable the Komorebi Focused Container widget",
                         "type": "boolean"
                       },
                       "show_icon": {
-                        "description": "DEPRECATED: use 'display' instead (Show the icon of the currently focused window)",
+                        "description": "DEPRECATED: use 'display' instead (Show the icon of the currently focused container)",
                         "type": "boolean"
                       }
                     }
@@ -1915,6 +1972,63 @@
                             }
                           ]
                         }
+                      }
+                    }
+                  },
+                  "locked_container": {
+                    "description": "Configure the Locked Container widget",
+                    "type": "object",
+                    "required": [
+                      "enable"
+                    ],
+                    "properties": {
+                      "display": {
+                        "description": "Display format of the current locked state",
+                        "oneOf": [
+                          {
+                            "description": "Show only icon",
+                            "type": "string",
+                            "enum": [
+                              "Icon"
+                            ]
+                          },
+                          {
+                            "description": "Show only text",
+                            "type": "string",
+                            "enum": [
+                              "Text"
+                            ]
+                          },
+                          {
+                            "description": "Show an icon and text for the selected element, and text on the rest",
+                            "type": "string",
+                            "enum": [
+                              "TextAndIconOnSelected"
+                            ]
+                          },
+                          {
+                            "description": "Show both icon and text",
+                            "type": "string",
+                            "enum": [
+                              "IconAndText"
+                            ]
+                          },
+                          {
+                            "description": "Show an icon and text for the selected element, and icons on the rest",
+                            "type": "string",
+                            "enum": [
+                              "IconAndTextOnSelected"
+                            ]
+                          }
+                        ]
+                      },
+                      "enable": {
+                        "description": "Enable the Komorebi Locked Container widget",
+                        "type": "boolean"
+                      },
+                      "show_when_unlocked": {
+                        "description": "Show the widget event if the layer is unlocked",
+                        "type": "boolean"
                       }
                     }
                   },
@@ -3118,15 +3232,15 @@
                       }
                     }
                   },
-                  "focused_window": {
-                    "description": "Configure the Focused Window widget",
+                  "focused_container": {
+                    "description": "Configure the Focused Container widget",
                     "type": "object",
                     "required": [
                       "enable"
                     ],
                     "properties": {
                       "display": {
-                        "description": "Display format of the currently focused window",
+                        "description": "Display format of the currently focused container",
                         "oneOf": [
                           {
                             "description": "Show only icon",
@@ -3166,11 +3280,11 @@
                         ]
                       },
                       "enable": {
-                        "description": "Enable the Komorebi Focused Window widget",
+                        "description": "Enable the Komorebi Focused Container widget",
                         "type": "boolean"
                       },
                       "show_icon": {
-                        "description": "DEPRECATED: use 'display' instead (Show the icon of the currently focused window)",
+                        "description": "DEPRECATED: use 'display' instead (Show the icon of the currently focused container)",
                         "type": "boolean"
                       }
                     }
@@ -3258,6 +3372,63 @@
                             }
                           ]
                         }
+                      }
+                    }
+                  },
+                  "locked_container": {
+                    "description": "Configure the Locked Container widget",
+                    "type": "object",
+                    "required": [
+                      "enable"
+                    ],
+                    "properties": {
+                      "display": {
+                        "description": "Display format of the current locked state",
+                        "oneOf": [
+                          {
+                            "description": "Show only icon",
+                            "type": "string",
+                            "enum": [
+                              "Icon"
+                            ]
+                          },
+                          {
+                            "description": "Show only text",
+                            "type": "string",
+                            "enum": [
+                              "Text"
+                            ]
+                          },
+                          {
+                            "description": "Show an icon and text for the selected element, and text on the rest",
+                            "type": "string",
+                            "enum": [
+                              "TextAndIconOnSelected"
+                            ]
+                          },
+                          {
+                            "description": "Show both icon and text",
+                            "type": "string",
+                            "enum": [
+                              "IconAndText"
+                            ]
+                          },
+                          {
+                            "description": "Show an icon and text for the selected element, and icons on the rest",
+                            "type": "string",
+                            "enum": [
+                              "IconAndTextOnSelected"
+                            ]
+                          }
+                        ]
+                      },
+                      "enable": {
+                        "description": "Enable the Komorebi Locked Container widget",
+                        "type": "boolean"
+                      },
+                      "show_when_unlocked": {
+                        "description": "Show the widget event if the layer is unlocked",
+                        "type": "boolean"
                       }
                     }
                   },
