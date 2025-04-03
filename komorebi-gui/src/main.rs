@@ -41,7 +41,9 @@ struct BorderColours {
     single: Color32,
     stack: Color32,
     monocle: Color32,
+    floating: Color32,
     unfocused: Color32,
+    unfocused_locked: Color32,
 }
 
 struct BorderConfig {
@@ -154,7 +156,9 @@ impl KomorebiGui {
             single: colour32(global_state.border_colours.single),
             stack: colour32(global_state.border_colours.stack),
             monocle: colour32(global_state.border_colours.monocle),
+            floating: colour32(global_state.border_colours.floating),
             unfocused: colour32(global_state.border_colours.unfocused),
+            unfocused_locked: colour32(global_state.border_colours.unfocused_locked),
         };
 
         let border_config = BorderConfig {
@@ -377,6 +381,22 @@ impl eframe::App for KomorebiGui {
                             }
                         });
 
+                        ui.collapsing("Floating", |ui| {
+                            if egui::color_picker::color_picker_color32(
+                                ui,
+                                &mut self.border_config.border_colours.floating,
+                                Alpha::Opaque,
+                            ) {
+                                komorebi_client::send_message(&SocketMessage::BorderColour(
+                                    WindowKind::Floating,
+                                    self.border_config.border_colours.floating.r() as u32,
+                                    self.border_config.border_colours.floating.g() as u32,
+                                    self.border_config.border_colours.floating.b() as u32,
+                                ))
+                                .unwrap();
+                            }
+                        });
+
                         ui.collapsing("Unfocused", |ui| {
                             if egui::color_picker::color_picker_color32(
                                 ui,
@@ -388,6 +408,22 @@ impl eframe::App for KomorebiGui {
                                     self.border_config.border_colours.unfocused.r() as u32,
                                     self.border_config.border_colours.unfocused.g() as u32,
                                     self.border_config.border_colours.unfocused.b() as u32,
+                                ))
+                                .unwrap();
+                            }
+                        });
+
+                        ui.collapsing("Unfocused Locked", |ui| {
+                            if egui::color_picker::color_picker_color32(
+                                ui,
+                                &mut self.border_config.border_colours.unfocused_locked,
+                                Alpha::Opaque,
+                            ) {
+                                komorebi_client::send_message(&SocketMessage::BorderColour(
+                                    WindowKind::UnfocusedLocked,
+                                    self.border_config.border_colours.unfocused_locked.r() as u32,
+                                    self.border_config.border_colours.unfocused_locked.g() as u32,
+                                    self.border_config.border_colours.unfocused_locked.b() as u32,
                                 ))
                                 .unwrap();
                             }

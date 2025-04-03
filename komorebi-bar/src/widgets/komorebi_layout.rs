@@ -251,7 +251,7 @@ impl KomorebiLayout {
             let layout_frame = SelectableFrame::new(false)
                 .show(ui, |ui| {
                     if let DisplayFormat::Icon | DisplayFormat::IconAndText = format {
-                        self.show_icon(false, font_id.clone(), ctx, ui);
+                        self.show_icon(true, font_id.clone(), ctx, ui);
                     }
 
                     if let DisplayFormat::Text | DisplayFormat::IconAndText = format {

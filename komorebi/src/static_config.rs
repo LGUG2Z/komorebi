@@ -13,7 +13,6 @@ use crate::border_manager;
 use crate::border_manager::ZOrder;
 use crate::border_manager::IMPLEMENTATION;
 use crate::border_manager::STYLE;
-use crate::colour::Colour;
 use crate::config_generation::WorkspaceMatchingRule;
 use crate::core::config_generation::ApplicationConfiguration;
 use crate::core::config_generation::ApplicationConfigurationGenerator;
@@ -88,6 +87,7 @@ use color_eyre::Result;
 use crossbeam_channel::Receiver;
 use hotwatch::EventKind;
 use hotwatch::Hotwatch;
+use komorebi_themes::colour::Colour;
 use parking_lot::Mutex;
 use regex::Regex;
 use serde::Deserialize;
@@ -120,6 +120,60 @@ pub struct BorderColours {
     /// Border colour when the container is unfocused
     #[serde(skip_serializing_if = "Option::is_none")]
     pub unfocused: Option<Colour>,
+    /// Border colour when the container is unfocused and locked
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub unfocused_locked: Option<Colour>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+pub struct ThemeOptions {
+    /// Specify Light or Dark variant for theme generation (default: Dark)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub theme_variant: Option<komorebi_themes::ThemeVariant>,
+    /// Border colour when the container contains a single window (default: Base0D)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub single_border: Option<komorebi_themes::Base16Value>,
+    /// Border colour when the container contains multiple windows (default: Base0B)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub stack_border: Option<komorebi_themes::Base16Value>,
+    /// Border colour when the container is in monocle mode (default: Base0F)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub monocle_border: Option<komorebi_themes::Base16Value>,
+    /// Border colour when the window is floating (default: Base09)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub floating_border: Option<komorebi_themes::Base16Value>,
+    /// Border colour when the container is unfocused (default: Base01)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub unfocused_border: Option<komorebi_themes::Base16Value>,
+    /// Border colour when the container is unfocused and locked (default: Base08)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub unfocused_locked_border: Option<komorebi_themes::Base16Value>,
+    /// Stackbar focused tab text colour (default: Base0B)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub stackbar_focused_text: Option<komorebi_themes::Base16Value>,
+    /// Stackbar unfocused tab text colour (default: Base05)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub stackbar_unfocused_text: Option<komorebi_themes::Base16Value>,
+    /// Stackbar tab background colour (default: Base01)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub stackbar_background: Option<komorebi_themes::Base16Value>,
+    /// Komorebi status bar accent (default: Base0D)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub bar_accent: Option<komorebi_themes::Base16Value>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+pub struct Wallpaper {
+    /// Path to the wallpaper image file
+    pub path: PathBuf,
+    /// Generate and apply Base16 theme for this wallpaper (default: true)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub generate_theme: Option<bool>,
+    /// Specify Light or Dark variant for theme generation (default: Dark)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub theme_options: Option<ThemeOptions>,
 }
 
 // serde_as must be before derive
@@ -173,6 +227,9 @@ pub struct WorkspaceConfig {
     /// Determine what happens to a new window when the Floating workspace layer is active (default: Tile)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub floating_layer_behaviour: Option<FloatingLayerBehaviour>,
+    /// Specify a wallpaper for this workspace
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub wallpaper: Option<Wallpaper>,
 }
 
 impl From<&Workspace> for WorkspaceConfig {
@@ -249,6 +306,7 @@ impl From<&Workspace> for WorkspaceConfig {
             float_override: *value.float_override(),
             layout_flip: value.layout_flip(),
             floating_layer_behaviour: Option::from(*value.floating_layer_behaviour()),
+            wallpaper: None,
         }
     }
 }
@@ -490,7 +548,7 @@ pub struct AnimationsConfig {
     pub fps: Option<u64>,
 }
 
-#[derive(Copy, Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[serde(tag = "palette")]
 pub enum KomorebiTheme {
@@ -533,6 +591,41 @@ pub enum KomorebiTheme {
     Base16 {
         /// Name of the Base16 theme (theme previews: https://tinted-theming.github.io/tinted-gallery/)
         name: komorebi_themes::Base16,
+        /// Border colour when the container contains a single window (default: Base0D)
+        #[serde(skip_serializing_if = "Option::is_none")]
+        single_border: Option<komorebi_themes::Base16Value>,
+        /// Border colour when the container contains multiple windows (default: Base0B)
+        #[serde(skip_serializing_if = "Option::is_none")]
+        stack_border: Option<komorebi_themes::Base16Value>,
+        /// Border colour when the container is in monocle mode (default: Base0F)
+        #[serde(skip_serializing_if = "Option::is_none")]
+        monocle_border: Option<komorebi_themes::Base16Value>,
+        /// Border colour when the window is floating (default: Base09)
+        #[serde(skip_serializing_if = "Option::is_none")]
+        floating_border: Option<komorebi_themes::Base16Value>,
+        /// Border colour when the container is unfocused (default: Base01)
+        #[serde(skip_serializing_if = "Option::is_none")]
+        unfocused_border: Option<komorebi_themes::Base16Value>,
+        /// Border colour when the container is unfocused and locked (default: Base08)
+        #[serde(skip_serializing_if = "Option::is_none")]
+        unfocused_locked_border: Option<komorebi_themes::Base16Value>,
+        /// Stackbar focused tab text colour (default: Base0B)
+        #[serde(skip_serializing_if = "Option::is_none")]
+        stackbar_focused_text: Option<komorebi_themes::Base16Value>,
+        /// Stackbar unfocused tab text colour (default: Base05)
+        #[serde(skip_serializing_if = "Option::is_none")]
+        stackbar_unfocused_text: Option<komorebi_themes::Base16Value>,
+        /// Stackbar tab background colour (default: Base01)
+        #[serde(skip_serializing_if = "Option::is_none")]
+        stackbar_background: Option<komorebi_themes::Base16Value>,
+        /// Komorebi status bar accent (default: Base0D)
+        #[serde(skip_serializing_if = "Option::is_none")]
+        bar_accent: Option<komorebi_themes::Base16Value>,
+    },
+    /// A custom Base16 theme
+    Custom {
+        /// Colours of the custom Base16 theme palette
+        colours: Box<komorebi_themes::Base16ColourPalette>,
         /// Border colour when the container contains a single window (default: Base0D)
         #[serde(skip_serializing_if = "Option::is_none")]
         single_border: Option<komorebi_themes::Base16Value>,
@@ -707,6 +800,9 @@ impl From<&WindowManager> for StaticConfig {
                 )),
                 unfocused: Option::from(Colour::from(
                     border_manager::UNFOCUSED.load(Ordering::SeqCst),
+                )),
+                unfocused_locked: Option::from(Colour::from(
+                    border_manager::UNFOCUSED_LOCKED.load(Ordering::SeqCst),
                 )),
             })
         };
@@ -889,6 +985,11 @@ impl StaticConfig {
             if let Some(unfocused) = colours.unfocused {
                 border_manager::UNFOCUSED.store(u32::from(unfocused), Ordering::SeqCst);
             }
+
+            if let Some(unfocused_locked) = colours.unfocused_locked {
+                border_manager::UNFOCUSED_LOCKED
+                    .store(u32::from(unfocused_locked), Ordering::SeqCst);
+            }
         }
 
         STYLE.store(self.border_style.unwrap_or_default());
@@ -1029,7 +1130,7 @@ impl StaticConfig {
         }
 
         if let Some(theme) = &self.theme {
-            theme_manager::send_notification(*theme);
+            theme_manager::send_notification(theme.clone());
         }
 
         if let Some(path) = &self.app_specific_configuration_path {

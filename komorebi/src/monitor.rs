@@ -165,6 +165,16 @@ impl Monitor {
             .unwrap_or(None)
     }
 
+    pub fn focused_workspace_layout(&self) -> Option<Layout> {
+        self.focused_workspace().and_then(|workspace| {
+            if *workspace.tile() {
+                Some(workspace.layout().clone())
+            } else {
+                None
+            }
+        })
+    }
+
     pub fn load_focused_workspace(&mut self, mouse_follows_focus: bool) -> Result<()> {
         let focused_idx = self.focused_workspace_idx();
         for (i, workspace) in self.workspaces_mut().iter_mut().enumerate() {

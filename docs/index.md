@@ -34,7 +34,7 @@ showcases the many awesome projects that exist in the `komorebi` ecosystem.
 
 ## Licensing for Personal Use
 
-`komorebi` is licensed under the [Komorebi 1.0.0 license](https://github.com/LGUG2Z/komorebi-license), which is a fork
+`komorebi` is licensed under the [Komorebi 2.0.0 license](https://github.com/LGUG2Z/komorebi-license), which is a fork
 of the [PolyForm Strict 1.0.0 license](https://polyformproject.org/licenses/strict/1.0.0). On a high level this means
 that you are free to do whatever you want with `komorebi` for personal use other than redistribution, or distribution of
 new works (i.e. hard-forks) based on the software.
@@ -42,7 +42,7 @@ new works (i.e. hard-forks) based on the software.
 Anyone is free to make their own fork of `komorebi` with changes intended either for personal use or for integration
 back upstream via pull requests.
 
-The [Komorebi 1.0.0 License](https://github.com/LGUG2Z/komorebi-license) does not permit any kind of commercial use (
+The [Komorebi 2.0.0 License](https://github.com/LGUG2Z/komorebi-license) does not permit any kind of commercial use (
 i.e. using `komorebi` at work).
 
 ## Sponsorship for Personal Use

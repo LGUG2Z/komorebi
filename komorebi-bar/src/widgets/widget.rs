@@ -72,7 +72,7 @@ impl WidgetConfig {
             WidgetConfig::Komorebi(config) => {
                 config.workspaces.as_ref().is_some_and(|w| w.enable)
                     || config.layout.as_ref().is_some_and(|w| w.enable)
-                    || config.focused_window.as_ref().is_some_and(|w| w.enable)
+                    || config.focused_container.as_ref().is_some_and(|w| w.enable)
                     || config
                         .configuration_switcher
                         .as_ref()

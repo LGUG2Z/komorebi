@@ -14,6 +14,8 @@ use crate::widgets::komorebi::KomorebiNotificationState;
 use crate::widgets::widget::BarWidget;
 use crate::widgets::widget::WidgetConfig;
 use crate::KomorebiEvent;
+use crate::AUTO_SELECT_FILL_COLOUR;
+use crate::AUTO_SELECT_TEXT_COLOUR;
 use crate::BAR_HEIGHT;
 use crate::DEFAULT_PADDING;
 use crate::MAX_LABEL_WIDTH;
@@ -43,6 +45,7 @@ use eframe::egui::Vec2;
 use eframe::egui::Visuals;
 use font_loader::system_fonts;
 use font_loader::system_fonts::FontPropertyBuilder;
+use komorebi_client::Colour;
 use komorebi_client::KomorebiTheme;
 use komorebi_client::MonitorNotification;
 use komorebi_client::NotificationEvent;
@@ -50,6 +53,7 @@ use komorebi_client::PathExt;
 use komorebi_client::SocketMessage;
 use komorebi_themes::catppuccin_egui;
 use komorebi_themes::Base16Value;
+use komorebi_themes::Base16Wrapper;
 use komorebi_themes::Catppuccin;
 use komorebi_themes::CatppuccinValue;
 use std::cell::RefCell;
@@ -88,75 +92,86 @@ pub fn apply_theme(
     grouping: Option<Grouping>,
     render_config: Rc<RefCell<RenderConfig>>,
 ) {
-    match theme {
+    let (auto_select_fill, auto_select_text) = match theme {
         KomobarTheme::Catppuccin {
             name: catppuccin,
             accent: catppuccin_value,
-        } => match catppuccin {
-            Catppuccin::Frappe => {
-                catppuccin_egui::set_theme(ctx, catppuccin_egui::FRAPPE);
-                let catppuccin_value = catppuccin_value.unwrap_or_default();
-                let accent = catppuccin_value.color32(catppuccin.as_theme());
+            auto_select_fill: catppuccin_auto_select_fill,
+            auto_select_text: catppuccin_auto_select_text,
+        } => {
+            match catppuccin {
+                Catppuccin::Frappe => {
+                    catppuccin_egui::set_theme(ctx, catppuccin_egui::FRAPPE);
+                    let catppuccin_value = catppuccin_value.unwrap_or_default();
+                    let accent = catppuccin_value.color32(catppuccin.as_theme());
 
-                ctx.style_mut(|style| {
-                    style.visuals.selection.stroke.color = accent;
-                    style.visuals.widgets.hovered.fg_stroke.color = accent;
-                    style.visuals.widgets.active.fg_stroke.color = accent;
-                    style.visuals.override_text_color = None;
-                });
+                    ctx.style_mut(|style| {
+                        style.visuals.selection.stroke.color = accent;
+                        style.visuals.widgets.hovered.fg_stroke.color = accent;
+                        style.visuals.widgets.active.fg_stroke.color = accent;
+                        style.visuals.override_text_color = None;
+                    });
 
-                bg_color.replace(catppuccin_egui::FRAPPE.base);
+                    bg_color.replace(catppuccin_egui::FRAPPE.base);
+                }
+                Catppuccin::Latte => {
+                    catppuccin_egui::set_theme(ctx, catppuccin_egui::LATTE);
+                    let catppuccin_value = catppuccin_value.unwrap_or_default();
+                    let accent = catppuccin_value.color32(catppuccin.as_theme());
+
+                    ctx.style_mut(|style| {
+                        style.visuals.selection.stroke.color = accent;
+                        style.visuals.widgets.hovered.fg_stroke.color = accent;
+                        style.visuals.widgets.active.fg_stroke.color = accent;
+                        style.visuals.override_text_color = None;
+                    });
+
+                    bg_color.replace(catppuccin_egui::LATTE.base);
+                }
+                Catppuccin::Macchiato => {
+                    catppuccin_egui::set_theme(ctx, catppuccin_egui::MACCHIATO);
+                    let catppuccin_value = catppuccin_value.unwrap_or_default();
+                    let accent = catppuccin_value.color32(catppuccin.as_theme());
+
+                    ctx.style_mut(|style| {
+                        style.visuals.selection.stroke.color = accent;
+                        style.visuals.widgets.hovered.fg_stroke.color = accent;
+                        style.visuals.widgets.active.fg_stroke.color = accent;
+                        style.visuals.override_text_color = None;
+                    });
+
+                    bg_color.replace(catppuccin_egui::MACCHIATO.base);
+                }
+                Catppuccin::Mocha => {
+                    catppuccin_egui::set_theme(ctx, catppuccin_egui::MOCHA);
+                    let catppuccin_value = catppuccin_value.unwrap_or_default();
+                    let accent = catppuccin_value.color32(catppuccin.as_theme());
+
+                    ctx.style_mut(|style| {
+                        style.visuals.selection.stroke.color = accent;
+                        style.visuals.widgets.hovered.fg_stroke.color = accent;
+                        style.visuals.widgets.active.fg_stroke.color = accent;
+                        style.visuals.override_text_color = None;
+                    });
+
+                    bg_color.replace(catppuccin_egui::MOCHA.base);
+                }
             }
-            Catppuccin::Latte => {
-                catppuccin_egui::set_theme(ctx, catppuccin_egui::LATTE);
-                let catppuccin_value = catppuccin_value.unwrap_or_default();
-                let accent = catppuccin_value.color32(catppuccin.as_theme());
 
-                ctx.style_mut(|style| {
-                    style.visuals.selection.stroke.color = accent;
-                    style.visuals.widgets.hovered.fg_stroke.color = accent;
-                    style.visuals.widgets.active.fg_stroke.color = accent;
-                    style.visuals.override_text_color = None;
-                });
-
-                bg_color.replace(catppuccin_egui::LATTE.base);
-            }
-            Catppuccin::Macchiato => {
-                catppuccin_egui::set_theme(ctx, catppuccin_egui::MACCHIATO);
-                let catppuccin_value = catppuccin_value.unwrap_or_default();
-                let accent = catppuccin_value.color32(catppuccin.as_theme());
-
-                ctx.style_mut(|style| {
-                    style.visuals.selection.stroke.color = accent;
-                    style.visuals.widgets.hovered.fg_stroke.color = accent;
-                    style.visuals.widgets.active.fg_stroke.color = accent;
-                    style.visuals.override_text_color = None;
-                });
-
-                bg_color.replace(catppuccin_egui::MACCHIATO.base);
-            }
-            Catppuccin::Mocha => {
-                catppuccin_egui::set_theme(ctx, catppuccin_egui::MOCHA);
-                let catppuccin_value = catppuccin_value.unwrap_or_default();
-                let accent = catppuccin_value.color32(catppuccin.as_theme());
-
-                ctx.style_mut(|style| {
-                    style.visuals.selection.stroke.color = accent;
-                    style.visuals.widgets.hovered.fg_stroke.color = accent;
-                    style.visuals.widgets.active.fg_stroke.color = accent;
-                    style.visuals.override_text_color = None;
-                });
-
-                bg_color.replace(catppuccin_egui::MOCHA.base);
-            }
-        },
+            (
+                catppuccin_auto_select_fill.map(|c| c.color32(catppuccin.as_theme())),
+                catppuccin_auto_select_text.map(|c| c.color32(catppuccin.as_theme())),
+            )
+        }
         KomobarTheme::Base16 {
             name: base16,
             accent: base16_value,
+            auto_select_fill: base16_auto_select_fill,
+            auto_select_text: base16_auto_select_text,
         } => {
             ctx.set_style(base16.style());
             let base16_value = base16_value.unwrap_or_default();
-            let accent = base16_value.color32(base16);
+            let accent = base16_value.color32(Base16Wrapper::Base16(base16));
 
             ctx.style_mut(|style| {
                 style.visuals.selection.stroke.color = accent;
@@ -165,8 +180,46 @@ pub fn apply_theme(
             });
 
             bg_color.replace(base16.background());
+
+            (
+                base16_auto_select_fill.map(|c| c.color32(Base16Wrapper::Base16(base16))),
+                base16_auto_select_text.map(|c| c.color32(Base16Wrapper::Base16(base16))),
+            )
         }
-    }
+        KomobarTheme::Custom {
+            colours,
+            accent: base16_value,
+            auto_select_fill: base16_auto_select_fill,
+            auto_select_text: base16_auto_select_text,
+        } => {
+            let background = colours.background();
+            ctx.set_style(colours.style());
+            let base16_value = base16_value.unwrap_or_default();
+            let accent = base16_value.color32(Base16Wrapper::Custom(colours.clone()));
+
+            ctx.style_mut(|style| {
+                style.visuals.selection.stroke.color = accent;
+                style.visuals.widgets.hovered.fg_stroke.color = accent;
+                style.visuals.widgets.active.fg_stroke.color = accent;
+            });
+
+            bg_color.replace(background);
+
+            (
+                base16_auto_select_fill.map(|c| c.color32(Base16Wrapper::Custom(colours.clone()))),
+                base16_auto_select_text.map(|c| c.color32(Base16Wrapper::Custom(colours.clone()))),
+            )
+        }
+    };
+
+    AUTO_SELECT_FILL_COLOUR.store(
+        auto_select_fill.map_or(0, |c| Colour::from(c).into()),
+        Ordering::SeqCst,
+    );
+    AUTO_SELECT_TEXT_COLOUR.store(
+        auto_select_text.map_or(0, |c| Colour::from(c).into()),
+        Ordering::SeqCst,
+    );
 
     // Apply transparency_alpha
     let theme_color = *bg_color.borrow();
@@ -432,11 +485,11 @@ impl Komobar {
     }
 
     fn try_apply_theme(&mut self, ctx: &Context) {
-        match self.config.theme {
+        match &self.config.theme {
             Some(theme) => {
                 apply_theme(
                     ctx,
-                    theme,
+                    theme.clone(),
                     self.bg_color.clone(),
                     self.bg_color_with_alpha.clone(),
                     self.config.transparency_alpha,
@@ -467,6 +520,26 @@ impl Komobar {
                 match komorebi_client::StaticConfig::read(&config) {
                     Ok(config) => {
                         if let Some(theme) = config.theme {
+                            let stack_accent = match theme {
+                                KomorebiTheme::Catppuccin {
+                                    name, stack_border, ..
+                                } => stack_border
+                                    .unwrap_or(CatppuccinValue::Green)
+                                    .color32(name.as_theme()),
+                                KomorebiTheme::Base16 {
+                                    name, stack_border, ..
+                                } => stack_border
+                                    .unwrap_or(Base16Value::Base0B)
+                                    .color32(Base16Wrapper::Base16(name)),
+                                KomorebiTheme::Custom {
+                                    ref colours,
+                                    stack_border,
+                                    ..
+                                } => stack_border
+                                    .unwrap_or(Base16Value::Base0B)
+                                    .color32(Base16Wrapper::Custom(colours.clone())),
+                            };
+
                             apply_theme(
                                 ctx,
                                 KomobarTheme::from(theme),
@@ -476,17 +549,6 @@ impl Komobar {
                                 bar_grouping,
                                 self.render_config.clone(),
                             );
-
-                            let stack_accent = match theme {
-                                KomorebiTheme::Catppuccin {
-                                    name, stack_border, ..
-                                } => stack_border
-                                    .unwrap_or(CatppuccinValue::Green)
-                                    .color32(name.as_theme()),
-                                KomorebiTheme::Base16 {
-                                    name, stack_border, ..
-                                } => stack_border.unwrap_or(Base16Value::Base0B).color32(name),
-                            };
 
                             if let Some(state) = &self.komorebi_notification_state {
                                 state.borrow_mut().stack_accent = Some(stack_accent);
@@ -786,7 +848,7 @@ impl eframe::App for Komobar {
                             self.bg_color_with_alpha.clone(),
                             self.config.transparency_alpha,
                             self.config.grouping,
-                            self.config.theme,
+                            self.config.theme.clone(),
                             self.render_config.clone(),
                         );
                 }

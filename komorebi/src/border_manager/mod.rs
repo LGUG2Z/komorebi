@@ -7,9 +7,6 @@ use crate::core::WindowKind;
 use crate::ring::Ring;
 use crate::windows_api;
 use crate::workspace::WorkspaceLayer;
-use crate::workspace_reconciliator::ALT_TAB_HWND;
-use crate::Colour;
-use crate::Rgb;
 use crate::WindowManager;
 use crate::WindowsApi;
 use border::border_hwnds;
@@ -18,6 +15,8 @@ use crossbeam_channel::Receiver;
 use crossbeam_channel::Sender;
 use crossbeam_utils::atomic::AtomicCell;
 use crossbeam_utils::atomic::AtomicConsume;
+use komorebi_themes::colour::Colour;
+use komorebi_themes::colour::Rgb;
 use lazy_static::lazy_static;
 use parking_lot::Mutex;
 use serde::Deserialize;
@@ -333,8 +332,6 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                 if !BORDER_ENABLED.load_consume()
                     // Or if the wm is paused
                     || is_paused
-                    // Or if we are handling an alt-tab across workspaces
-                    || ALT_TAB_HWND.load().is_some()
                 {
                     // Destroy the borders we know about
                     for (_, border) in borders.drain() {

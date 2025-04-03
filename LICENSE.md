@@ -1,6 +1,6 @@
 # Komorebi License
 
-Version 1.0.0
+Version 2.0.0
 
 ## Acceptance
 
@@ -13,9 +13,20 @@ your licenses.
 The licensor grants you a copyright license for the software
 to do everything you might do with the software that would
 otherwise infringe the licensor's copyright in it for any
-permitted purpose. However, you may only make changes according
+permitted purpose. However, you may only distribute the source
+code of the software according to the [Distribution License](
+#distribution-license), you may only make changes according
 to the [Changes License](#changes-license), and you may not
-distribute the software or new works based on the software.
+otherwise distribute the software or new works based on the
+software.
+
+## Distribution License
+
+The licensor grants you an additional copyright license to
+distribute copies of the source code of the software. Your
+license to distribute covers distributing the source code of
+the software with changes permitted by the [Changes License](
+#changes-license).
 
 ## Changes License
 
@@ -45,7 +56,7 @@ law. These terms do not limit them.
 
 These terms do not allow you to sublicense or transfer any of
 your licenses to anyone else, or prevent the licensor from
-granting licenses to anyone else.  These terms do not imply
+granting licenses to anyone else. These terms do not imply
 any other licenses.
 
 ## Patent Defense
@@ -63,7 +74,7 @@ violated any of these terms, or done anything with the software
 not covered by your licenses, your licenses can nonetheless
 continue if you come into full compliance with these terms,
 and take practical steps to correct past violations, within
-32 days of receiving notice.  Otherwise, all your licenses
+32 days of receiving notice. Otherwise, all your licenses
 end immediately.
 
 ## No Liability
@@ -88,11 +99,10 @@ organizations that have control over, are under the control of,
 or are under common control with that organization.  **Control**
 means ownership of substantially all the assets of an entity,
 or the power to direct its management and policies by vote,
-contract, or otherwise.  Control can be direct or indirect.
+contract, or otherwise. Control can be direct or indirect.
 
 **Your licenses** are all the licenses granted to you for the
 software under these terms.
 
 **Use** means anything you do with the software requiring one
 of your licenses.
-

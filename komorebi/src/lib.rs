@@ -5,7 +5,6 @@ pub mod border_manager;
 pub mod com;
 #[macro_use]
 pub mod ring;
-pub mod colour;
 pub mod container;
 pub mod core;
 pub mod focus_manager;
@@ -30,7 +29,6 @@ pub mod windows_callbacks;
 pub mod winevent;
 pub mod winevent_listener;
 pub mod workspace;
-pub mod workspace_reconciliator;
 
 use lazy_static::lazy_static;
 use monitor_reconciliator::MonitorNotification;
@@ -48,8 +46,8 @@ use std::sync::atomic::AtomicU64;
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
 
-pub use colour::*;
 pub use core::*;
+pub use komorebi_themes::colour::*;
 pub use process_command::*;
 pub use process_event::*;
 pub use static_config::*;
@@ -240,6 +238,8 @@ pub static SESSION_ID: AtomicU32 = AtomicU32::new(0);
 pub static REMOVE_TITLEBARS: AtomicBool = AtomicBool::new(false);
 
 pub static SLOW_APPLICATION_COMPENSATION_TIME: AtomicU64 = AtomicU64::new(20);
+
+shadow_rs::shadow!(build);
 
 #[must_use]
 pub fn current_virtual_desktop() -> Option<Vec<u8>> {

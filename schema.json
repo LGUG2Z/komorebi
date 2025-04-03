@@ -354,6 +354,45 @@
               "format": "color-hex"
             }
           ]
+        },
+        "unfocused_locked": {
+          "description": "Border colour when the container is unfocused and locked",
+          "anyOf": [
+            {
+              "description": "Colour represented as RGB",
+              "type": "object",
+              "required": [
+                "b",
+                "g",
+                "r"
+              ],
+              "properties": {
+                "b": {
+                  "description": "Blue",
+                  "type": "integer",
+                  "format": "uint32",
+                  "minimum": 0.0
+                },
+                "g": {
+                  "description": "Green",
+                  "type": "integer",
+                  "format": "uint32",
+                  "minimum": 0.0
+                },
+                "r": {
+                  "description": "Red",
+                  "type": "integer",
+                  "format": "uint32",
+                  "minimum": 0.0
+                }
+              }
+            },
+            {
+              "description": "Colour represented as Hex",
+              "type": "string",
+              "format": "color-hex"
+            }
+          ]
         }
       }
     },
@@ -1344,6 +1383,257 @@
                 "name": {
                   "description": "Name",
                   "type": "string"
+                },
+                "wallpaper": {
+                  "description": "Specify a wallpaper for this workspace",
+                  "type": "object",
+                  "required": [
+                    "path"
+                  ],
+                  "properties": {
+                    "generate_theme": {
+                      "description": "Generate and apply Base16 theme for this wallpaper (default: true)",
+                      "type": "boolean"
+                    },
+                    "path": {
+                      "description": "Path to the wallpaper image file",
+                      "type": "string"
+                    },
+                    "theme_options": {
+                      "description": "Specify Light or Dark variant for theme generation (default: Dark)",
+                      "type": "object",
+                      "properties": {
+                        "bar_accent": {
+                          "description": "Komorebi status bar accent (default: Base0D)",
+                          "type": "string",
+                          "enum": [
+                            "Base00",
+                            "Base01",
+                            "Base02",
+                            "Base03",
+                            "Base04",
+                            "Base05",
+                            "Base06",
+                            "Base07",
+                            "Base08",
+                            "Base09",
+                            "Base0A",
+                            "Base0B",
+                            "Base0C",
+                            "Base0D",
+                            "Base0E",
+                            "Base0F"
+                          ]
+                        },
+                        "floating_border": {
+                          "description": "Border colour when the window is floating (default: Base09)",
+                          "type": "string",
+                          "enum": [
+                            "Base00",
+                            "Base01",
+                            "Base02",
+                            "Base03",
+                            "Base04",
+                            "Base05",
+                            "Base06",
+                            "Base07",
+                            "Base08",
+                            "Base09",
+                            "Base0A",
+                            "Base0B",
+                            "Base0C",
+                            "Base0D",
+                            "Base0E",
+                            "Base0F"
+                          ]
+                        },
+                        "monocle_border": {
+                          "description": "Border colour when the container is in monocle mode (default: Base0F)",
+                          "type": "string",
+                          "enum": [
+                            "Base00",
+                            "Base01",
+                            "Base02",
+                            "Base03",
+                            "Base04",
+                            "Base05",
+                            "Base06",
+                            "Base07",
+                            "Base08",
+                            "Base09",
+                            "Base0A",
+                            "Base0B",
+                            "Base0C",
+                            "Base0D",
+                            "Base0E",
+                            "Base0F"
+                          ]
+                        },
+                        "single_border": {
+                          "description": "Border colour when the container contains a single window (default: Base0D)",
+                          "type": "string",
+                          "enum": [
+                            "Base00",
+                            "Base01",
+                            "Base02",
+                            "Base03",
+                            "Base04",
+                            "Base05",
+                            "Base06",
+                            "Base07",
+                            "Base08",
+                            "Base09",
+                            "Base0A",
+                            "Base0B",
+                            "Base0C",
+                            "Base0D",
+                            "Base0E",
+                            "Base0F"
+                          ]
+                        },
+                        "stack_border": {
+                          "description": "Border colour when the container contains multiple windows (default: Base0B)",
+                          "type": "string",
+                          "enum": [
+                            "Base00",
+                            "Base01",
+                            "Base02",
+                            "Base03",
+                            "Base04",
+                            "Base05",
+                            "Base06",
+                            "Base07",
+                            "Base08",
+                            "Base09",
+                            "Base0A",
+                            "Base0B",
+                            "Base0C",
+                            "Base0D",
+                            "Base0E",
+                            "Base0F"
+                          ]
+                        },
+                        "stackbar_background": {
+                          "description": "Stackbar tab background colour (default: Base01)",
+                          "type": "string",
+                          "enum": [
+                            "Base00",
+                            "Base01",
+                            "Base02",
+                            "Base03",
+                            "Base04",
+                            "Base05",
+                            "Base06",
+                            "Base07",
+                            "Base08",
+                            "Base09",
+                            "Base0A",
+                            "Base0B",
+                            "Base0C",
+                            "Base0D",
+                            "Base0E",
+                            "Base0F"
+                          ]
+                        },
+                        "stackbar_focused_text": {
+                          "description": "Stackbar focused tab text colour (default: Base0B)",
+                          "type": "string",
+                          "enum": [
+                            "Base00",
+                            "Base01",
+                            "Base02",
+                            "Base03",
+                            "Base04",
+                            "Base05",
+                            "Base06",
+                            "Base07",
+                            "Base08",
+                            "Base09",
+                            "Base0A",
+                            "Base0B",
+                            "Base0C",
+                            "Base0D",
+                            "Base0E",
+                            "Base0F"
+                          ]
+                        },
+                        "stackbar_unfocused_text": {
+                          "description": "Stackbar unfocused tab text colour (default: Base05)",
+                          "type": "string",
+                          "enum": [
+                            "Base00",
+                            "Base01",
+                            "Base02",
+                            "Base03",
+                            "Base04",
+                            "Base05",
+                            "Base06",
+                            "Base07",
+                            "Base08",
+                            "Base09",
+                            "Base0A",
+                            "Base0B",
+                            "Base0C",
+                            "Base0D",
+                            "Base0E",
+                            "Base0F"
+                          ]
+                        },
+                        "theme_variant": {
+                          "description": "Specify Light or Dark variant for theme generation (default: Dark)",
+                          "type": "string",
+                          "enum": [
+                            "Dark",
+                            "Light"
+                          ]
+                        },
+                        "unfocused_border": {
+                          "description": "Border colour when the container is unfocused (default: Base01)",
+                          "type": "string",
+                          "enum": [
+                            "Base00",
+                            "Base01",
+                            "Base02",
+                            "Base03",
+                            "Base04",
+                            "Base05",
+                            "Base06",
+                            "Base07",
+                            "Base08",
+                            "Base09",
+                            "Base0A",
+                            "Base0B",
+                            "Base0C",
+                            "Base0D",
+                            "Base0E",
+                            "Base0F"
+                          ]
+                        },
+                        "unfocused_locked_border": {
+                          "description": "Border colour when the container is unfocused and locked (default: Base08)",
+                          "type": "string",
+                          "enum": [
+                            "Base00",
+                            "Base01",
+                            "Base02",
+                            "Base03",
+                            "Base04",
+                            "Base05",
+                            "Base06",
+                            "Base07",
+                            "Base08",
+                            "Base09",
+                            "Base0A",
+                            "Base0B",
+                            "Base0C",
+                            "Base0D",
+                            "Base0E",
+                            "Base0F"
+                          ]
+                        }
+                      }
+                    }
+                  }
                 },
                 "window_container_behaviour": {
                   "description": "Determine what happens when a new window is opened (default: Create)",
@@ -2618,6 +2908,874 @@
               "type": "string",
               "enum": [
                 "Base16"
+              ]
+            },
+            "single_border": {
+              "description": "Border colour when the container contains a single window (default: Base0D)",
+              "type": "string",
+              "enum": [
+                "Base00",
+                "Base01",
+                "Base02",
+                "Base03",
+                "Base04",
+                "Base05",
+                "Base06",
+                "Base07",
+                "Base08",
+                "Base09",
+                "Base0A",
+                "Base0B",
+                "Base0C",
+                "Base0D",
+                "Base0E",
+                "Base0F"
+              ]
+            },
+            "stack_border": {
+              "description": "Border colour when the container contains multiple windows (default: Base0B)",
+              "type": "string",
+              "enum": [
+                "Base00",
+                "Base01",
+                "Base02",
+                "Base03",
+                "Base04",
+                "Base05",
+                "Base06",
+                "Base07",
+                "Base08",
+                "Base09",
+                "Base0A",
+                "Base0B",
+                "Base0C",
+                "Base0D",
+                "Base0E",
+                "Base0F"
+              ]
+            },
+            "stackbar_background": {
+              "description": "Stackbar tab background colour (default: Base01)",
+              "type": "string",
+              "enum": [
+                "Base00",
+                "Base01",
+                "Base02",
+                "Base03",
+                "Base04",
+                "Base05",
+                "Base06",
+                "Base07",
+                "Base08",
+                "Base09",
+                "Base0A",
+                "Base0B",
+                "Base0C",
+                "Base0D",
+                "Base0E",
+                "Base0F"
+              ]
+            },
+            "stackbar_focused_text": {
+              "description": "Stackbar focused tab text colour (default: Base0B)",
+              "type": "string",
+              "enum": [
+                "Base00",
+                "Base01",
+                "Base02",
+                "Base03",
+                "Base04",
+                "Base05",
+                "Base06",
+                "Base07",
+                "Base08",
+                "Base09",
+                "Base0A",
+                "Base0B",
+                "Base0C",
+                "Base0D",
+                "Base0E",
+                "Base0F"
+              ]
+            },
+            "stackbar_unfocused_text": {
+              "description": "Stackbar unfocused tab text colour (default: Base05)",
+              "type": "string",
+              "enum": [
+                "Base00",
+                "Base01",
+                "Base02",
+                "Base03",
+                "Base04",
+                "Base05",
+                "Base06",
+                "Base07",
+                "Base08",
+                "Base09",
+                "Base0A",
+                "Base0B",
+                "Base0C",
+                "Base0D",
+                "Base0E",
+                "Base0F"
+              ]
+            },
+            "unfocused_border": {
+              "description": "Border colour when the container is unfocused (default: Base01)",
+              "type": "string",
+              "enum": [
+                "Base00",
+                "Base01",
+                "Base02",
+                "Base03",
+                "Base04",
+                "Base05",
+                "Base06",
+                "Base07",
+                "Base08",
+                "Base09",
+                "Base0A",
+                "Base0B",
+                "Base0C",
+                "Base0D",
+                "Base0E",
+                "Base0F"
+              ]
+            },
+            "unfocused_locked_border": {
+              "description": "Border colour when the container is unfocused and locked (default: Base08)",
+              "type": "string",
+              "enum": [
+                "Base00",
+                "Base01",
+                "Base02",
+                "Base03",
+                "Base04",
+                "Base05",
+                "Base06",
+                "Base07",
+                "Base08",
+                "Base09",
+                "Base0A",
+                "Base0B",
+                "Base0C",
+                "Base0D",
+                "Base0E",
+                "Base0F"
+              ]
+            }
+          }
+        },
+        {
+          "description": "A custom Base16 theme",
+          "type": "object",
+          "required": [
+            "colours",
+            "palette"
+          ],
+          "properties": {
+            "bar_accent": {
+              "description": "Komorebi status bar accent (default: Base0D)",
+              "type": "string",
+              "enum": [
+                "Base00",
+                "Base01",
+                "Base02",
+                "Base03",
+                "Base04",
+                "Base05",
+                "Base06",
+                "Base07",
+                "Base08",
+                "Base09",
+                "Base0A",
+                "Base0B",
+                "Base0C",
+                "Base0D",
+                "Base0E",
+                "Base0F"
+              ]
+            },
+            "colours": {
+              "description": "Colours of the custom Base16 theme palette",
+              "type": "object",
+              "required": [
+                "base_00",
+                "base_01",
+                "base_02",
+                "base_03",
+                "base_04",
+                "base_05",
+                "base_06",
+                "base_07",
+                "base_08",
+                "base_09",
+                "base_0a",
+                "base_0b",
+                "base_0c",
+                "base_0d",
+                "base_0e",
+                "base_0f"
+              ],
+              "properties": {
+                "base_00": {
+                  "anyOf": [
+                    {
+                      "description": "Colour represented as RGB",
+                      "type": "object",
+                      "required": [
+                        "b",
+                        "g",
+                        "r"
+                      ],
+                      "properties": {
+                        "b": {
+                          "description": "Blue",
+                          "type": "integer",
+                          "format": "uint32",
+                          "minimum": 0.0
+                        },
+                        "g": {
+                          "description": "Green",
+                          "type": "integer",
+                          "format": "uint32",
+                          "minimum": 0.0
+                        },
+                        "r": {
+                          "description": "Red",
+                          "type": "integer",
+                          "format": "uint32",
+                          "minimum": 0.0
+                        }
+                      }
+                    },
+                    {
+                      "description": "Colour represented as Hex",
+                      "type": "string",
+                      "format": "color-hex"
+                    }
+                  ]
+                },
+                "base_01": {
+                  "anyOf": [
+                    {
+                      "description": "Colour represented as RGB",
+                      "type": "object",
+                      "required": [
+                        "b",
+                        "g",
+                        "r"
+                      ],
+                      "properties": {
+                        "b": {
+                          "description": "Blue",
+                          "type": "integer",
+                          "format": "uint32",
+                          "minimum": 0.0
+                        },
+                        "g": {
+                          "description": "Green",
+                          "type": "integer",
+                          "format": "uint32",
+                          "minimum": 0.0
+                        },
+                        "r": {
+                          "description": "Red",
+                          "type": "integer",
+                          "format": "uint32",
+                          "minimum": 0.0
+                        }
+                      }
+                    },
+                    {
+                      "description": "Colour represented as Hex",
+                      "type": "string",
+                      "format": "color-hex"
+                    }
+                  ]
+                },
+                "base_02": {
+                  "anyOf": [
+                    {
+                      "description": "Colour represented as RGB",
+                      "type": "object",
+                      "required": [
+                        "b",
+                        "g",
+                        "r"
+                      ],
+                      "properties": {
+                        "b": {
+                          "description": "Blue",
+                          "type": "integer",
+                          "format": "uint32",
+                          "minimum": 0.0
+                        },
+                        "g": {
+                          "description": "Green",
+                          "type": "integer",
+                          "format": "uint32",
+                          "minimum": 0.0
+                        },
+                        "r": {
+                          "description": "Red",
+                          "type": "integer",
+                          "format": "uint32",
+                          "minimum": 0.0
+                        }
+                      }
+                    },
+                    {
+                      "description": "Colour represented as Hex",
+                      "type": "string",
+                      "format": "color-hex"
+                    }
+                  ]
+                },
+                "base_03": {
+                  "anyOf": [
+                    {
+                      "description": "Colour represented as RGB",
+                      "type": "object",
+                      "required": [
+                        "b",
+                        "g",
+                        "r"
+                      ],
+                      "properties": {
+                        "b": {
+                          "description": "Blue",
+                          "type": "integer",
+                          "format": "uint32",
+                          "minimum": 0.0
+                        },
+                        "g": {
+                          "description": "Green",
+                          "type": "integer",
+                          "format": "uint32",
+                          "minimum": 0.0
+                        },
+                        "r": {
+                          "description": "Red",
+                          "type": "integer",
+                          "format": "uint32",
+                          "minimum": 0.0
+                        }
+                      }
+                    },
+                    {
+                      "description": "Colour represented as Hex",
+                      "type": "string",
+                      "format": "color-hex"
+                    }
+                  ]
+                },
+                "base_04": {
+                  "anyOf": [
+                    {
+                      "description": "Colour represented as RGB",
+                      "type": "object",
+                      "required": [
+                        "b",
+                        "g",
+                        "r"
+                      ],
+                      "properties": {
+                        "b": {
+                          "description": "Blue",
+                          "type": "integer",
+                          "format": "uint32",
+                          "minimum": 0.0
+                        },
+                        "g": {
+                          "description": "Green",
+                          "type": "integer",
+                          "format": "uint32",
+                          "minimum": 0.0
+                        },
+                        "r": {
+                          "description": "Red",
+                          "type": "integer",
+                          "format": "uint32",
+                          "minimum": 0.0
+                        }
+                      }
+                    },
+                    {
+                      "description": "Colour represented as Hex",
+                      "type": "string",
+                      "format": "color-hex"
+                    }
+                  ]
+                },
+                "base_05": {
+                  "anyOf": [
+                    {
+                      "description": "Colour represented as RGB",
+                      "type": "object",
+                      "required": [
+                        "b",
+                        "g",
+                        "r"
+                      ],
+                      "properties": {
+                        "b": {
+                          "description": "Blue",
+                          "type": "integer",
+                          "format": "uint32",
+                          "minimum": 0.0
+                        },
+                        "g": {
+                          "description": "Green",
+                          "type": "integer",
+                          "format": "uint32",
+                          "minimum": 0.0
+                        },
+                        "r": {
+                          "description": "Red",
+                          "type": "integer",
+                          "format": "uint32",
+                          "minimum": 0.0
+                        }
+                      }
+                    },
+                    {
+                      "description": "Colour represented as Hex",
+                      "type": "string",
+                      "format": "color-hex"
+                    }
+                  ]
+                },
+                "base_06": {
+                  "anyOf": [
+                    {
+                      "description": "Colour represented as RGB",
+                      "type": "object",
+                      "required": [
+                        "b",
+                        "g",
+                        "r"
+                      ],
+                      "properties": {
+                        "b": {
+                          "description": "Blue",
+                          "type": "integer",
+                          "format": "uint32",
+                          "minimum": 0.0
+                        },
+                        "g": {
+                          "description": "Green",
+                          "type": "integer",
+                          "format": "uint32",
+                          "minimum": 0.0
+                        },
+                        "r": {
+                          "description": "Red",
+                          "type": "integer",
+                          "format": "uint32",
+                          "minimum": 0.0
+                        }
+                      }
+                    },
+                    {
+                      "description": "Colour represented as Hex",
+                      "type": "string",
+                      "format": "color-hex"
+                    }
+                  ]
+                },
+                "base_07": {
+                  "anyOf": [
+                    {
+                      "description": "Colour represented as RGB",
+                      "type": "object",
+                      "required": [
+                        "b",
+                        "g",
+                        "r"
+                      ],
+                      "properties": {
+                        "b": {
+                          "description": "Blue",
+                          "type": "integer",
+                          "format": "uint32",
+                          "minimum": 0.0
+                        },
+                        "g": {
+                          "description": "Green",
+                          "type": "integer",
+                          "format": "uint32",
+                          "minimum": 0.0
+                        },
+                        "r": {
+                          "description": "Red",
+                          "type": "integer",
+                          "format": "uint32",
+                          "minimum": 0.0
+                        }
+                      }
+                    },
+                    {
+                      "description": "Colour represented as Hex",
+                      "type": "string",
+                      "format": "color-hex"
+                    }
+                  ]
+                },
+                "base_08": {
+                  "anyOf": [
+                    {
+                      "description": "Colour represented as RGB",
+                      "type": "object",
+                      "required": [
+                        "b",
+                        "g",
+                        "r"
+                      ],
+                      "properties": {
+                        "b": {
+                          "description": "Blue",
+                          "type": "integer",
+                          "format": "uint32",
+                          "minimum": 0.0
+                        },
+                        "g": {
+                          "description": "Green",
+                          "type": "integer",
+                          "format": "uint32",
+                          "minimum": 0.0
+                        },
+                        "r": {
+                          "description": "Red",
+                          "type": "integer",
+                          "format": "uint32",
+                          "minimum": 0.0
+                        }
+                      }
+                    },
+                    {
+                      "description": "Colour represented as Hex",
+                      "type": "string",
+                      "format": "color-hex"
+                    }
+                  ]
+                },
+                "base_09": {
+                  "anyOf": [
+                    {
+                      "description": "Colour represented as RGB",
+                      "type": "object",
+                      "required": [
+                        "b",
+                        "g",
+                        "r"
+                      ],
+                      "properties": {
+                        "b": {
+                          "description": "Blue",
+                          "type": "integer",
+                          "format": "uint32",
+                          "minimum": 0.0
+                        },
+                        "g": {
+                          "description": "Green",
+                          "type": "integer",
+                          "format": "uint32",
+                          "minimum": 0.0
+                        },
+                        "r": {
+                          "description": "Red",
+                          "type": "integer",
+                          "format": "uint32",
+                          "minimum": 0.0
+                        }
+                      }
+                    },
+                    {
+                      "description": "Colour represented as Hex",
+                      "type": "string",
+                      "format": "color-hex"
+                    }
+                  ]
+                },
+                "base_0a": {
+                  "anyOf": [
+                    {
+                      "description": "Colour represented as RGB",
+                      "type": "object",
+                      "required": [
+                        "b",
+                        "g",
+                        "r"
+                      ],
+                      "properties": {
+                        "b": {
+                          "description": "Blue",
+                          "type": "integer",
+                          "format": "uint32",
+                          "minimum": 0.0
+                        },
+                        "g": {
+                          "description": "Green",
+                          "type": "integer",
+                          "format": "uint32",
+                          "minimum": 0.0
+                        },
+                        "r": {
+                          "description": "Red",
+                          "type": "integer",
+                          "format": "uint32",
+                          "minimum": 0.0
+                        }
+                      }
+                    },
+                    {
+                      "description": "Colour represented as Hex",
+                      "type": "string",
+                      "format": "color-hex"
+                    }
+                  ]
+                },
+                "base_0b": {
+                  "anyOf": [
+                    {
+                      "description": "Colour represented as RGB",
+                      "type": "object",
+                      "required": [
+                        "b",
+                        "g",
+                        "r"
+                      ],
+                      "properties": {
+                        "b": {
+                          "description": "Blue",
+                          "type": "integer",
+                          "format": "uint32",
+                          "minimum": 0.0
+                        },
+                        "g": {
+                          "description": "Green",
+                          "type": "integer",
+                          "format": "uint32",
+                          "minimum": 0.0
+                        },
+                        "r": {
+                          "description": "Red",
+                          "type": "integer",
+                          "format": "uint32",
+                          "minimum": 0.0
+                        }
+                      }
+                    },
+                    {
+                      "description": "Colour represented as Hex",
+                      "type": "string",
+                      "format": "color-hex"
+                    }
+                  ]
+                },
+                "base_0c": {
+                  "anyOf": [
+                    {
+                      "description": "Colour represented as RGB",
+                      "type": "object",
+                      "required": [
+                        "b",
+                        "g",
+                        "r"
+                      ],
+                      "properties": {
+                        "b": {
+                          "description": "Blue",
+                          "type": "integer",
+                          "format": "uint32",
+                          "minimum": 0.0
+                        },
+                        "g": {
+                          "description": "Green",
+                          "type": "integer",
+                          "format": "uint32",
+                          "minimum": 0.0
+                        },
+                        "r": {
+                          "description": "Red",
+                          "type": "integer",
+                          "format": "uint32",
+                          "minimum": 0.0
+                        }
+                      }
+                    },
+                    {
+                      "description": "Colour represented as Hex",
+                      "type": "string",
+                      "format": "color-hex"
+                    }
+                  ]
+                },
+                "base_0d": {
+                  "anyOf": [
+                    {
+                      "description": "Colour represented as RGB",
+                      "type": "object",
+                      "required": [
+                        "b",
+                        "g",
+                        "r"
+                      ],
+                      "properties": {
+                        "b": {
+                          "description": "Blue",
+                          "type": "integer",
+                          "format": "uint32",
+                          "minimum": 0.0
+                        },
+                        "g": {
+                          "description": "Green",
+                          "type": "integer",
+                          "format": "uint32",
+                          "minimum": 0.0
+                        },
+                        "r": {
+                          "description": "Red",
+                          "type": "integer",
+                          "format": "uint32",
+                          "minimum": 0.0
+                        }
+                      }
+                    },
+                    {
+                      "description": "Colour represented as Hex",
+                      "type": "string",
+                      "format": "color-hex"
+                    }
+                  ]
+                },
+                "base_0e": {
+                  "anyOf": [
+                    {
+                      "description": "Colour represented as RGB",
+                      "type": "object",
+                      "required": [
+                        "b",
+                        "g",
+                        "r"
+                      ],
+                      "properties": {
+                        "b": {
+                          "description": "Blue",
+                          "type": "integer",
+                          "format": "uint32",
+                          "minimum": 0.0
+                        },
+                        "g": {
+                          "description": "Green",
+                          "type": "integer",
+                          "format": "uint32",
+                          "minimum": 0.0
+                        },
+                        "r": {
+                          "description": "Red",
+                          "type": "integer",
+                          "format": "uint32",
+                          "minimum": 0.0
+                        }
+                      }
+                    },
+                    {
+                      "description": "Colour represented as Hex",
+                      "type": "string",
+                      "format": "color-hex"
+                    }
+                  ]
+                },
+                "base_0f": {
+                  "anyOf": [
+                    {
+                      "description": "Colour represented as RGB",
+                      "type": "object",
+                      "required": [
+                        "b",
+                        "g",
+                        "r"
+                      ],
+                      "properties": {
+                        "b": {
+                          "description": "Blue",
+                          "type": "integer",
+                          "format": "uint32",
+                          "minimum": 0.0
+                        },
+                        "g": {
+                          "description": "Green",
+                          "type": "integer",
+                          "format": "uint32",
+                          "minimum": 0.0
+                        },
+                        "r": {
+                          "description": "Red",
+                          "type": "integer",
+                          "format": "uint32",
+                          "minimum": 0.0
+                        }
+                      }
+                    },
+                    {
+                      "description": "Colour represented as Hex",
+                      "type": "string",
+                      "format": "color-hex"
+                    }
+                  ]
+                }
+              }
+            },
+            "floating_border": {
+              "description": "Border colour when the window is floating (default: Base09)",
+              "type": "string",
+              "enum": [
+                "Base00",
+                "Base01",
+                "Base02",
+                "Base03",
+                "Base04",
+                "Base05",
+                "Base06",
+                "Base07",
+                "Base08",
+                "Base09",
+                "Base0A",
+                "Base0B",
+                "Base0C",
+                "Base0D",
+                "Base0E",
+                "Base0F"
+              ]
+            },
+            "monocle_border": {
+              "description": "Border colour when the container is in monocle mode (default: Base0F)",
+              "type": "string",
+              "enum": [
+                "Base00",
+                "Base01",
+                "Base02",
+                "Base03",
+                "Base04",
+                "Base05",
+                "Base06",
+                "Base07",
+                "Base08",
+                "Base09",
+                "Base0A",
+                "Base0B",
+                "Base0C",
+                "Base0D",
+                "Base0E",
+                "Base0F"
+              ]
+            },
+            "palette": {
+              "type": "string",
+              "enum": [
+                "Custom"
               ]
             },
             "single_border": {

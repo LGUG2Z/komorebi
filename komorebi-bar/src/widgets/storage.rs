@@ -1,3 +1,4 @@
+use crate::bar::Alignment;
 use crate::config::LabelPrefix;
 use crate::render::RenderConfig;
 use crate::selected_frame::SelectableFrame;
@@ -24,6 +25,10 @@ pub struct StorageConfig {
     pub data_refresh_interval: Option<u64>,
     /// Display label prefix
     pub label_prefix: Option<LabelPrefix>,
+    /// Select when the current percentage is over this value [[1-100]]
+    pub auto_select_over: Option<u8>,
+    /// Hide when the current percentage is under this value [[1-100]]
+    pub auto_hide_under: Option<u8>,
 }
 
 impl From<StorageConfig> for Storage {
@@ -33,9 +38,16 @@ impl From<StorageConfig> for Storage {
             disks: Disks::new_with_refreshed_list(),
             data_refresh_interval: value.data_refresh_interval.unwrap_or(10),
             label_prefix: value.label_prefix.unwrap_or(LabelPrefix::IconAndText),
+            auto_select_over: value.auto_select_over.map(|o| o.clamp(1, 100)),
+            auto_hide_under: value.auto_hide_under.map(|o| o.clamp(1, 100)),
             last_updated: Instant::now(),
         }
     }
+}
+
+struct StorageDisk {
+    label: String,
+    selected: bool,
 }
 
 pub struct Storage {
@@ -43,11 +55,13 @@ pub struct Storage {
     disks: Disks,
     data_refresh_interval: u64,
     label_prefix: LabelPrefix,
+    auto_select_over: Option<u8>,
+    auto_hide_under: Option<u8>,
     last_updated: Instant,
 }
 
 impl Storage {
-    fn output(&mut self) -> Vec<String> {
+    fn output(&mut self) -> Vec<StorageDisk> {
         let now = Instant::now();
         if now.duration_since(self.last_updated) > Duration::from_secs(self.data_refresh_interval) {
             self.disks.refresh(true);
@@ -61,17 +75,26 @@ impl Storage {
             let total = disk.total_space();
             let available = disk.available_space();
             let used = total - available;
+            let percentage = ((used * 100) / total) as u8;
 
-            disks.push(match self.label_prefix {
-                LabelPrefix::Text | LabelPrefix::IconAndText => {
-                    format!("{} {}%", mount.to_string_lossy(), (used * 100) / total)
-                }
-                LabelPrefix::None | LabelPrefix::Icon => format!("{}%", (used * 100) / total),
-            })
+            let hide = self.auto_hide_under.is_some_and(|u| percentage <= u);
+
+            if !hide {
+                let selected = self.auto_select_over.is_some_and(|o| percentage >= o);
+
+                disks.push(StorageDisk {
+                    label: match self.label_prefix {
+                        LabelPrefix::Text | LabelPrefix::IconAndText => {
+                            format!("{} {}%", mount.to_string_lossy(), percentage)
+                        }
+                        LabelPrefix::None | LabelPrefix::Icon => format!("{}%", percentage),
+                    },
+                    selected,
+                })
+            }
         }
 
-        disks.sort();
-        disks.reverse();
+        disks.sort_by(|a, b| a.label.cmp(&b.label));
 
         disks
     }
@@ -80,7 +103,16 @@ impl Storage {
 impl BarWidget for Storage {
     fn render(&mut self, ctx: &Context, ui: &mut Ui, config: &mut RenderConfig) {
         if self.enable {
-            for output in self.output() {
+            let mut output = self.output();
+            let is_reversed = matches!(config.alignment, Some(Alignment::Right));
+
+            if is_reversed {
+                output.reverse();
+            }
+
+            for output in output {
+                let auto_text_color = config.auto_select_text.filter(|_| output.selected);
+
                 let mut layout_job = LayoutJob::simple(
                     match self.label_prefix {
                         LabelPrefix::Icon | LabelPrefix::IconAndText => {
@@ -89,23 +121,25 @@ impl BarWidget for Storage {
                         LabelPrefix::None | LabelPrefix::Text => String::new(),
                     },
                     config.icon_font_id.clone(),
-                    ctx.style().visuals.selection.stroke.color,
+                    auto_text_color.unwrap_or(ctx.style().visuals.selection.stroke.color),
                     100.0,
                 );
 
                 layout_job.append(
-                    &output,
+                    &output.label,
                     10.0,
                     TextFormat {
                         font_id: config.text_font_id.clone(),
-                        color: ctx.style().visuals.text_color(),
+                        color: auto_text_color.unwrap_or(ctx.style().visuals.text_color()),
                         valign: Align::Center,
                         ..Default::default()
                     },
                 );
 
+                let auto_focus_fill = config.auto_select_fill;
+
                 config.apply_on_widget(false, ui, |ui| {
-                    if SelectableFrame::new(false)
+                    if SelectableFrame::new_auto(output.selected, auto_focus_fill)
                         .show(ui, |ui| ui.add(Label::new(layout_job).selectable(false)))
                         .clicked()
                     {
@@ -113,7 +147,7 @@ impl BarWidget for Storage {
                             .args([
                                 "/C",
                                 "explorer.exe",
-                                output.split(' ').collect::<Vec<&str>>()[0],
+                                output.label.split(' ').collect::<Vec<&str>>()[0],
                             ])
                             .spawn()
                         {
