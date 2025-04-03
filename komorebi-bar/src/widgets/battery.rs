@@ -55,6 +55,10 @@ impl From<BatteryConfig> for Battery {
 pub enum BatteryState {
     Charging,
     Discharging,
+    High,
+    Medium,
+    Low,
+    Warning,
 }
 
 #[derive(Clone, Debug)]
@@ -85,14 +89,22 @@ impl Battery {
 
             if let Ok(mut batteries) = self.manager.batteries() {
                 if let Some(Ok(first)) = batteries.nth(0) {
-                    let percentage = first.state_of_charge().get::<percent>() as u8;
+                    let percentage = first.state_of_charge().get::<percent>().round() as u8;
 
                     if percentage == 100 && self.hide_on_full_charge {
                         output = None
                     } else {
                         match first.state() {
                             State::Charging => self.state = BatteryState::Charging,
-                            State::Discharging => self.state = BatteryState::Discharging,
+                            State::Discharging => {
+                                self.state = match percentage {
+                                    p if p > 75 => BatteryState::Discharging,
+                                    p if p > 50 => BatteryState::High,
+                                    p if p > 25 => BatteryState::Medium,
+                                    p if p > 10 => BatteryState::Low,
+                                    _ => BatteryState::Warning,
+                                }
+                            }
                             _ => {}
                         }
 
@@ -129,6 +141,10 @@ impl BarWidget for Battery {
                 let emoji = match self.state {
                     BatteryState::Charging => egui_phosphor::regular::BATTERY_CHARGING,
                     BatteryState::Discharging => egui_phosphor::regular::BATTERY_FULL,
+                    BatteryState::High => egui_phosphor::regular::BATTERY_HIGH,
+                    BatteryState::Medium => egui_phosphor::regular::BATTERY_MEDIUM,
+                    BatteryState::Low => egui_phosphor::regular::BATTERY_LOW,
+                    BatteryState::Warning => egui_phosphor::regular::BATTERY_WARNING,
                 };
 
                 let auto_text_color = config.auto_select_text.filter(|_| output.selected);
