@@ -553,6 +553,7 @@ where
                                     workspace_names: cached.workspace_names.clone(),
                                     container_padding: cached.container_padding,
                                     workspace_padding: cached.workspace_padding,
+                                    wallpaper: cached.wallpaper.clone(),
                                 };
 
                                 let focused_workspace_idx = m.focused_workspace_idx();
