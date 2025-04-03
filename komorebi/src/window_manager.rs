@@ -239,23 +239,28 @@ impl WindowManager {
             let mouse_follows_focus = self.mouse_follows_focus;
             for (monitor_idx, monitor) in self.monitors_mut().iter_mut().enumerate() {
                 let mut focused_workspace = 0;
-                for (workspace_idx, workspace) in monitor.workspaces_mut().iter_mut().enumerate() {
-                    if let Some(state_monitor) = state.monitors.elements().get(monitor_idx)
-                        && let Some(state_workspace) = state_monitor.workspaces().get(workspace_idx)
-                    {
-                        // to make sure padding and layout_options changes get applied for users after a quick restart
-                        let container_padding = workspace.container_padding;
-                        let workspace_padding = workspace.workspace_padding;
-                        let layout_options = workspace.layout_options;
+                if let Some(state_monitor) = state.monitors.elements().get(monitor_idx) {
+                    monitor
+                        .workspaces_mut()
+                        .resize(state_monitor.workspaces().len(), Workspace::default());
 
-                        *workspace = state_workspace.clone();
+                    for (workspace_idx, workspace) in monitor.workspaces_mut().iter_mut().enumerate() {
+                        if let Some(state_workspace) = state_monitor.workspaces().get(workspace_idx)
+                        {
+                            // to make sure padding and layout_options changes get applied for users after a quick restart
+                            let container_padding = workspace.container_padding;
+                            let workspace_padding = workspace.workspace_padding;
+                            let layout_options = workspace.layout_options;
 
-                        workspace.container_padding = container_padding;
-                        workspace.workspace_padding = workspace_padding;
-                        workspace.layout_options = layout_options;
+                            *workspace = state_workspace.clone();
 
-                        if state_monitor.focused_workspace_idx() == workspace_idx {
-                            focused_workspace = workspace_idx;
+                            workspace.container_padding = container_padding;
+                            workspace.workspace_padding = workspace_padding;
+                            workspace.layout_options = layout_options;
+
+                            if state_monitor.focused_workspace_idx() == workspace_idx {
+                                focused_workspace = workspace_idx;
+                            }
                         }
                     }
                 }
