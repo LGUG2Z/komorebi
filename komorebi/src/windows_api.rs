@@ -939,7 +939,7 @@ impl WindowsApi {
     pub fn exe(handle: HANDLE) -> Result<String> {
         Ok(Self::exe_path(handle)?
             .split('\\')
-            .last()
+            .next_back()
             .ok_or_else(|| anyhow!("there is no last element"))?
             .to_string())
     }

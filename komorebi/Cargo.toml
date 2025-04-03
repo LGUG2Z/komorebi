@@ -48,6 +48,7 @@ windows-implement = { workspace = true }
 windows-interface = { workspace = true }
 winput = "0.2"
 winreg = "0.55"
+serde_with = { version = "3.12", features = ["schemars_0_8"] }
 
 [build-dependencies]
 shadow-rs = { workspace = true }

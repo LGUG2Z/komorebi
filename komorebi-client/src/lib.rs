@@ -12,7 +12,7 @@ pub use komorebi::config_generation::MatchingRule;
 pub use komorebi::config_generation::MatchingStrategy;
 pub use komorebi::container::Container;
 pub use komorebi::core::config_generation::ApplicationConfigurationGenerator;
-pub use komorebi::core::resolve_home_path;
+pub use komorebi::core::replace_env_in_path;
 pub use komorebi::core::AnimationStyle;
 pub use komorebi::core::ApplicationIdentifier;
 pub use komorebi::core::Arrangement;
