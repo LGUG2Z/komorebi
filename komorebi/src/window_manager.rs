@@ -359,6 +359,7 @@ impl From<&WindowManager> for State {
                 workspace_names: monitor.workspace_names.clone(),
                 container_padding: monitor.container_padding,
                 workspace_padding: monitor.workspace_padding,
+                wallpaper: monitor.wallpaper.clone(),
             })
             .collect::<VecDeque<_>>();
         stripped_monitors.focus(wm.monitors.focused_idx());
@@ -1015,6 +1016,7 @@ impl WindowManager {
             monitor.update_workspace_globals(focused_workspace_idx, offset);
 
             let hmonitor = monitor.id();
+            let monitor_wp = monitor.wallpaper.clone();
             let workspace = monitor
                 .focused_workspace_mut()
                 .ok_or_else(|| anyhow!("there is no workspace"))?;
@@ -1026,8 +1028,8 @@ impl WindowManager {
                 }
             }
 
-            if workspace.wallpaper().is_some() {
-                if let Err(error) = workspace.apply_wallpaper(hmonitor) {
+            if workspace.wallpaper().is_some() || monitor_wp.is_some() {
+                if let Err(error) = workspace.apply_wallpaper(hmonitor, &monitor_wp) {
                     tracing::error!("failed to apply wallpaper: {}", error);
                 }
             }
@@ -1729,13 +1731,14 @@ impl WindowManager {
             .ok_or_else(|| anyhow!("there is no monitor"))?;
 
         let hmonitor = monitor.id();
+        let monitor_wp = monitor.wallpaper.clone();
 
         let workspace = monitor
             .workspaces()
             .get(workspace_idx)
             .ok_or_else(|| anyhow!("there is no workspace"))?;
 
-        workspace.apply_wallpaper(hmonitor)
+        workspace.apply_wallpaper(hmonitor, &monitor_wp)
     }
 
     pub fn update_focused_workspace_by_monitor_idx(&mut self, idx: usize) -> Result<()> {

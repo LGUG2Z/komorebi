@@ -1385,4 +1385,23 @@ impl WindowsApi {
         }
         Ok(())
     }
+
+    pub fn get_wallpaper(hmonitor: isize) -> Result<String> {
+        let wallpaper: IDesktopWallpaper =
+            unsafe { CoCreateInstance(&DesktopWallpaper, None, CLSCTX_ALL)? };
+
+        let monitor_id = if let Some(path) = Self::monitor_device_path(hmonitor) {
+            PCWSTR::from_raw(HSTRING::from(path).as_ptr())
+        } else {
+            PCWSTR::null()
+        };
+
+        // Set the wallpaper
+        unsafe {
+            wallpaper
+                .GetWallpaper(monitor_id)
+                .and_then(|pwstr| pwstr.to_string().map_err(|e| e.into()))
+        }
+        .process()
+    }
 }

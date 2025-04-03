@@ -326,6 +326,9 @@ pub struct MonitorConfig {
     /// Workspace padding (default: global)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub workspace_padding: Option<i32>,
+    /// Specify a wallpaper for this monitor
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub wallpaper: Option<Wallpaper>,
 }
 
 impl From<&Monitor> for MonitorConfig {
@@ -361,6 +364,7 @@ impl From<&Monitor> for MonitorConfig {
             window_based_work_area_offset_limit: Some(value.window_based_work_area_offset_limit()),
             container_padding,
             workspace_padding,
+            wallpaper: value.wallpaper().clone(),
         }
     }
 }
@@ -1357,6 +1361,7 @@ impl StaticConfig {
                 );
                 monitor.set_container_padding(monitor_config.container_padding);
                 monitor.set_workspace_padding(monitor_config.workspace_padding);
+                monitor.set_wallpaper(monitor_config.wallpaper.clone());
 
                 monitor.update_workspaces_globals(offset);
                 for (j, ws) in monitor.workspaces_mut().iter_mut().enumerate() {

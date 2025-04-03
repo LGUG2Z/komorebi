@@ -302,13 +302,12 @@ impl Workspace {
         }
     }
 
-    pub fn apply_wallpaper(&self, hmonitor: isize) -> Result<()> {
-        if let Some(wallpaper) = &self.wallpaper {
+    pub fn apply_wallpaper(&self, hmonitor: isize, monitor_wp: &Option<Wallpaper>) -> Result<()> {
+        if let Some(wallpaper) = self.wallpaper.as_ref().or(monitor_wp.as_ref()) {
             if let Err(error) = WindowsApi::set_wallpaper(&wallpaper.path, hmonitor) {
                 tracing::error!("failed to set wallpaper: {error}");
             }
 
-            // if !cfg!(debug_assertions) && wallpaper.generate_theme.unwrap_or(true) {
             if wallpaper.generate_theme.unwrap_or(true) {
                 let variant = wallpaper
                     .theme_options
@@ -419,12 +418,17 @@ impl Workspace {
         Ok(())
     }
 
-    pub fn restore(&mut self, mouse_follows_focus: bool, hmonitor: isize) -> Result<()> {
+    pub fn restore(
+        &mut self,
+        mouse_follows_focus: bool,
+        hmonitor: isize,
+        monitor_wp: &Option<Wallpaper>,
+    ) -> Result<()> {
         if let Some(container) = self.monocle_container() {
             if let Some(window) = container.focused_window() {
                 container.restore();
                 window.focus(mouse_follows_focus)?;
-                return self.apply_wallpaper(hmonitor);
+                return self.apply_wallpaper(hmonitor, monitor_wp);
             }
         }
 
@@ -468,7 +472,7 @@ impl Workspace {
             floating_window.focus(mouse_follows_focus)?;
         }
 
-        self.apply_wallpaper(hmonitor)
+        self.apply_wallpaper(hmonitor, monitor_wp)
     }
 
     pub fn update(&mut self) -> Result<()> {

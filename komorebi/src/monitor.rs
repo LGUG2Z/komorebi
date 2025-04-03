@@ -21,6 +21,7 @@ use crate::workspace::WorkspaceLayer;
 use crate::DefaultLayout;
 use crate::Layout;
 use crate::OperationDirection;
+use crate::Wallpaper;
 use crate::WindowsApi;
 use crate::DEFAULT_CONTAINER_PADDING;
 use crate::DEFAULT_WORKSPACE_PADDING;
@@ -60,6 +61,8 @@ pub struct Monitor {
     pub container_padding: Option<i32>,
     #[getset(get_copy = "pub", set = "pub")]
     pub workspace_padding: Option<i32>,
+    #[getset(get = "pub", get_mut = "pub", set = "pub")]
+    pub wallpaper: Option<Wallpaper>,
 }
 
 impl_ring_elements!(Monitor, Workspace);
@@ -115,6 +118,7 @@ pub fn new(
         workspace_names: HashMap::default(),
         container_padding: None,
         workspace_padding: None,
+        wallpaper: None,
     }
 }
 
@@ -156,6 +160,7 @@ impl Monitor {
             workspace_names: Default::default(),
             container_padding: None,
             workspace_padding: None,
+            wallpaper: None,
         }
     }
 
@@ -178,9 +183,10 @@ impl Monitor {
     pub fn load_focused_workspace(&mut self, mouse_follows_focus: bool) -> Result<()> {
         let focused_idx = self.focused_workspace_idx();
         let hmonitor = self.id();
+        let monitor_wp = self.wallpaper.clone();
         for (i, workspace) in self.workspaces_mut().iter_mut().enumerate() {
             if i == focused_idx {
-                workspace.restore(mouse_follows_focus, hmonitor)?;
+                workspace.restore(mouse_follows_focus, hmonitor, &monitor_wp)?;
             } else {
                 workspace.hide(None);
             }
