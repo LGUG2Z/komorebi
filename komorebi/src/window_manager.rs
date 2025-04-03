@@ -520,7 +520,9 @@ impl WindowManager {
             for (monitor_idx, monitor) in self.monitors_mut().iter_mut().enumerate() {
                 let mut focused_workspace = 0;
                 if let Some(state_monitor) = state.monitors.elements().get(monitor_idx) {
-                    monitor.ensure_workspace_count(state_monitor.workspaces().len());
+                    monitor
+                        .workspaces_mut()
+                        .resize(state_monitor.workspaces().len(), Workspace::default());
 
                     for (workspace_idx, workspace) in
                         monitor.workspaces_mut().iter_mut().enumerate()
