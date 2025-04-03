@@ -2491,29 +2491,48 @@ mod tests {
     fn test_visible_windows() {
         let mut workspace = Workspace::default();
 
-        // Create a default Container with 2 windows
-        let mut container = Container::default();
-        container.windows_mut().push_back(Window::from(100));
-        container.windows_mut().push_back(Window::from(200));
-        workspace.add_container_to_back(container);
+        {
+            // Create and add a default Container with 2 windows
+            let mut container = Container::default();
+            container.windows_mut().push_back(Window::from(100));
+            container.windows_mut().push_back(Window::from(200));
+            workspace.add_container_to_back(container);
+        }
 
         {
-            // visible_windows should return None and the focused window
+            // visible_windows should return None and 100
             let visible_windows = workspace.visible_windows();
             assert_eq!(visible_windows.len(), 2);
             assert!(visible_windows[0].is_none());
             assert_eq!(visible_windows[1].unwrap().hwnd, 100);
         }
 
-        // Maximize the second window
+        {
+            // Create and add a default Container with 1 window
+            let mut container = Container::default();
+            container.windows_mut().push_back(Window::from(300));
+            workspace.add_container_to_back(container);
+        }
+
+        {
+            // visible_windows should return None, 100, and 300
+            let visible_windows = workspace.visible_windows();
+            assert_eq!(visible_windows.len(), 3);
+            assert!(visible_windows[0].is_none());
+            assert_eq!(visible_windows[1].unwrap().hwnd, 100);
+            assert_eq!(visible_windows[2].unwrap().hwnd, 300);
+        }
+
+        // Maximize window 200
         workspace.set_maximized_window(Some(Window { hwnd: 200 }));
 
         {
-            // visible_windows should return the maximized window and the focused window
+            // visible_windows should return 200, 100, and 300
             let visible_windows = workspace.visible_windows();
-            assert_eq!(visible_windows.len(), 2);
+            assert_eq!(visible_windows.len(), 3);
             assert_eq!(visible_windows[0].unwrap().hwnd, 200);
             assert_eq!(visible_windows[1].unwrap().hwnd, 100);
+            assert_eq!(visible_windows[2].unwrap().hwnd, 300);
         }
     }
 }
