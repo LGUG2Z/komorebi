@@ -89,6 +89,7 @@ nav:
       - cli/configuration.md
       - cli/bar-configuration.md
       - cli/whkdrc.md
+      - cli/data-directory.md
       - cli/state.md
       - cli/global-state.md
       - cli/gui.md

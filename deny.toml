@@ -13,7 +13,8 @@ feature-depth = 1
 [advisories]
 ignore = [
     { id = "RUSTSEC-2020-0016", reason = "local tcp connectivity is an opt-in feature, and there is no upgrade path for TcpStreamExt" },
-    { id = "RUSTSEC-2024-0436", reason = "paste being unmaintained is not an issue in our use" }
+    { id = "RUSTSEC-2024-0436", reason = "paste being unmaintained is not an issue in our use" },
+    { id = "RUSTSEC-2024-0320", reason = "not using any yaml features from this library" }
 ]
 
 [licenses]
@@ -93,4 +94,6 @@ allow-git = [
     "https://github.com/LGUG2Z/catppuccin-egui",
     "https://github.com/LGUG2Z/windows-icons",
     "https://github.com/LGUG2Z/win32-display-data",
+    "https://github.com/LGUG2Z/flavours",
+    "https://github.com/LGUG2Z/base16_color_scheme",
 ]

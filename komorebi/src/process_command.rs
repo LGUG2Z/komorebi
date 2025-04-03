@@ -1,6 +1,7 @@
 use color_eyre::eyre::anyhow;
 use color_eyre::eyre::OptionExt;
 use color_eyre::Result;
+use komorebi_themes::colour::Rgb;
 use miow::pipe::connect;
 use net2::TcpStreamExt;
 use parking_lot::Mutex;
@@ -19,9 +20,18 @@ use std::sync::Arc;
 use std::time::Duration;
 use uds_windows::UnixStream;
 
+use crate::animation::ANIMATION_DURATION_GLOBAL;
 use crate::animation::ANIMATION_DURATION_PER_ANIMATION;
+use crate::animation::ANIMATION_ENABLED_GLOBAL;
 use crate::animation::ANIMATION_ENABLED_PER_ANIMATION;
+use crate::animation::ANIMATION_FPS;
+use crate::animation::ANIMATION_STYLE_GLOBAL;
 use crate::animation::ANIMATION_STYLE_PER_ANIMATION;
+use crate::border_manager;
+use crate::border_manager::IMPLEMENTATION;
+use crate::border_manager::STYLE;
+use crate::build;
+use crate::config_generation::WorkspaceMatchingRule;
 use crate::core::config_generation::IdWithIdentifier;
 use crate::core::config_generation::MatchingRule;
 use crate::core::config_generation::MatchingStrategy;
@@ -38,17 +48,6 @@ use crate::core::SocketMessage;
 use crate::core::StateQuery;
 use crate::core::WindowContainerBehaviour;
 use crate::core::WindowKind;
-
-use crate::animation::ANIMATION_DURATION_GLOBAL;
-use crate::animation::ANIMATION_ENABLED_GLOBAL;
-use crate::animation::ANIMATION_FPS;
-use crate::animation::ANIMATION_STYLE_GLOBAL;
-use crate::border_manager;
-use crate::border_manager::IMPLEMENTATION;
-use crate::border_manager::STYLE;
-use crate::build;
-use crate::colour::Rgb;
-use crate::config_generation::WorkspaceMatchingRule;
 use crate::current_virtual_desktop;
 use crate::monitor::MonitorInformation;
 use crate::notify_subscribers;
@@ -1426,6 +1425,19 @@ impl WindowManager {
                             .unwrap_or_else(|| focused_monitor.focused_workspace_idx().to_string())
                     }
                     StateQuery::Version => build::RUST_VERSION.to_string(),
+                    StateQuery::FocusedWorkspaceLayout => {
+                        let focused_monitor = self
+                            .focused_monitor()
+                            .ok_or_else(|| anyhow!("there is no monitor"))?;
+
+                        focused_monitor.focused_workspace_layout().map_or_else(
+                            || "None".to_string(),
+                            |layout| match layout {
+                                Layout::Default(default_layout) => default_layout.to_string(),
+                                Layout::Custom(_) => "Custom".to_string(),
+                            },
+                        )
+                    }
                 };
 
                 reply.write_all(response.as_bytes())?;
@@ -2140,8 +2152,8 @@ impl WindowManager {
 
                 reply.write_all(schema.as_bytes())?;
             }
-            SocketMessage::Theme(theme) => {
-                theme_manager::send_notification(theme);
+            SocketMessage::Theme(ref theme) => {
+                theme_manager::send_notification(*theme.clone());
             }
             // Deprecated commands
             SocketMessage::AltFocusHack(_)

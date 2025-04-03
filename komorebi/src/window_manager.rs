@@ -349,6 +349,7 @@ impl From<&WindowManager> for State {
                             floating_layer_behaviour: workspace.floating_layer_behaviour,
                             globals: workspace.globals,
                             locked_containers: workspace.locked_containers.clone(),
+                            wallpaper: workspace.wallpaper.clone(),
                             workspace_config: None,
                         })
                         .collect::<VecDeque<_>>();

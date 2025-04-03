@@ -1,13 +1,13 @@
+use color_eyre::eyre::anyhow;
+use color_eyre::eyre::bail;
+use color_eyre::eyre::Error;
+use color_eyre::Result;
 use core::ffi::c_void;
 use std::collections::HashMap;
 use std::collections::VecDeque;
 use std::convert::TryFrom;
 use std::mem::size_of;
-
-use color_eyre::eyre::anyhow;
-use color_eyre::eyre::bail;
-use color_eyre::eyre::Error;
-use color_eyre::Result;
+use std::path::Path;
 use windows::core::Result as WindowsCrateResult;
 use windows::core::PCWSTR;
 use windows::core::PWSTR;
@@ -47,6 +47,8 @@ use windows::Win32::Graphics::Gdi::HMONITOR;
 use windows::Win32::Graphics::Gdi::MONITORENUMPROC;
 use windows::Win32::Graphics::Gdi::MONITORINFOEXW;
 use windows::Win32::Graphics::Gdi::MONITOR_DEFAULTTONEAREST;
+use windows::Win32::System::Com::CoCreateInstance;
+use windows::Win32::System::Com::CLSCTX_ALL;
 use windows::Win32::System::LibraryLoader::GetModuleHandleW;
 use windows::Win32::System::Power::RegisterPowerSettingNotification;
 use windows::Win32::System::Power::HPOWERNOTIFY;
@@ -72,6 +74,9 @@ use windows::Win32::UI::Input::KeyboardAndMouse::MOUSEEVENTF_LEFTUP;
 use windows::Win32::UI::Input::KeyboardAndMouse::MOUSEINPUT;
 use windows::Win32::UI::Input::KeyboardAndMouse::VK_LBUTTON;
 use windows::Win32::UI::Input::KeyboardAndMouse::VK_MENU;
+use windows::Win32::UI::Shell::DesktopWallpaper;
+use windows::Win32::UI::Shell::IDesktopWallpaper;
+use windows::Win32::UI::Shell::DWPOS_FILL;
 use windows::Win32::UI::WindowsAndMessaging::AllowSetForegroundWindow;
 use windows::Win32::UI::WindowsAndMessaging::BringWindowToTop;
 use windows::Win32::UI::WindowsAndMessaging::CreateWindowExW;
@@ -141,6 +146,7 @@ use windows::Win32::UI::WindowsAndMessaging::WS_EX_TOPMOST;
 use windows::Win32::UI::WindowsAndMessaging::WS_POPUP;
 use windows::Win32::UI::WindowsAndMessaging::WS_SYSMENU;
 use windows_core::BOOL;
+use windows_core::HSTRING;
 
 use crate::core::Rect;
 
@@ -1344,5 +1350,23 @@ impl WindowsApi {
 
     pub fn wts_register_session_notification(hwnd: isize) -> Result<()> {
         unsafe { WTSRegisterSessionNotification(HWND(as_ptr!(hwnd)), 1) }.process()
+    }
+
+    pub fn set_wallpaper(path: &Path) -> Result<()> {
+        let path = path.canonicalize()?;
+
+        let wallpaper: IDesktopWallpaper =
+            unsafe { CoCreateInstance(&DesktopWallpaper, None, CLSCTX_ALL)? };
+
+        let wallpaper_path = HSTRING::from(path.to_str().unwrap_or_default());
+        unsafe {
+            wallpaper.SetPosition(DWPOS_FILL)?;
+        }
+
+        // Set the wallpaper
+        unsafe {
+            wallpaper.SetWallpaper(PCWSTR::null(), PCWSTR::from_raw(wallpaper_path.as_ptr()))?;
+        }
+        Ok(())
     }
 }
