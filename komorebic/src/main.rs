@@ -978,6 +978,9 @@ enum SubCommand {
     /// Show the path to whkdrc
     #[clap(alias = "whkd")]
     Whkdrc,
+    /// Show the path to komorebi's data directory in %LOCALAPPDATA%
+    #[clap(alias = "datadir")]
+    DataDirectory,
     /// Show a JSON representation of the current window manager state
     State,
     /// Show a JSON representation of the current global state
@@ -1752,6 +1755,12 @@ fn main() -> Result<()> {
 
             if whkdrc.exists() {
                 println!("{}", whkdrc.display());
+            }
+        }
+        SubCommand::DataDirectory => {
+            let dir = &*DATA_DIR;
+            if dir.exists() {
+                println!("{}", dir.display());
             }
         }
         SubCommand::Log => {
