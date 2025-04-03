@@ -490,7 +490,7 @@ pub fn resolve_home_path<P: AsRef<Path>>(path: P) -> Result<PathBuf> {
     Ok(if parent.is_dir() {
         let file = resolved_path
             .components()
-            .last()
+            .next_back()
             .ok_or_else(|| anyhow!("cannot parse filename"))?;
         dunce::canonicalize(parent)?.join(file)
     } else {
