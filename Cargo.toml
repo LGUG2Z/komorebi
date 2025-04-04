@@ -33,6 +33,7 @@ strum = { version = "0.27", features = ["derive"] }
 tracing = "0.1"
 tracing-appender = "0.2"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+parking_lot = "0.12"
 paste = "1"
 sysinfo = "0.34"
 uds_windows = "1"
