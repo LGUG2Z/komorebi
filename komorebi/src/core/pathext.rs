@@ -10,9 +10,9 @@ use serde::Serialize;
 
 /// Path extension trait
 pub trait PathExt {
-    /// Resolve environment variables components in a path.
+    /// Resolve environment variable components in a path.
     ///
-    /// Resolves the follwing formats:
+    /// Resolves the following formats:
     /// - CMD: `%variable%`
     /// - PowerShell: `$Env:variable`
     /// - Bash: `$variable`.

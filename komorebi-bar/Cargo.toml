@@ -26,6 +26,7 @@ netdev = "0.34"
 num = "0.4"
 num-derive = "0.4"
 num-traits = "0.2"
+parking_lot = { workspace = true }
 random_word = { version = "0.5", features = ["en"] }
 reqwest = { version = "0.12", features = ["blocking"] }
 schemars = { workspace = true, optional = true }
