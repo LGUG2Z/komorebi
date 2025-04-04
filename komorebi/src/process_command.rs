@@ -1682,6 +1682,65 @@ impl WindowManager {
                     // Set self to the new wm instance
                     *self = wm;
 
+                    // check if there are any bars
+                    let mut system = sysinfo::System::new_all();
+                    system.refresh_processes(sysinfo::ProcessesToUpdate::All, true);
+
+                    let has_bar = system
+                        .processes_by_name("komorebi-bar.exe".as_ref())
+                        .next()
+                        .is_some();
+
+                    // stop bar(s)
+                    if has_bar {
+                        let script = r"
+Stop-Process -Name:komorebi-bar -ErrorAction SilentlyContinue
+                ";
+                        match powershell_script::run(script) {
+                            Ok(_) => {
+                                println!("{script}");
+
+                                // start new bar(s)
+                                let mut config = StaticConfig::read(config)?;
+                                if let Some(display_bar_configurations) =
+                                    &mut config.bar_configurations
+                                {
+                                    for config_file_path in &mut *display_bar_configurations {
+                                        let script = r#"Start-Process "komorebi-bar" '"--config" "CONFIGFILE"' -WindowStyle hidden"#
+                            .replace("CONFIGFILE", &config_file_path.to_string_lossy());
+
+                                        match powershell_script::run(&script) {
+                                            Ok(_) => {
+                                                println!("{script}");
+                                            }
+                                            Err(error) => {
+                                                println!("Error: {error}");
+                                            }
+                                        }
+                                    }
+                                } else {
+                                    let script = r"
+if (!(Get-Process komorebi-bar -ErrorAction SilentlyContinue))
+{
+  Start-Process komorebi-bar -WindowStyle hidden
+}
+                ";
+                                    match powershell_script::run(script) {
+                                        Ok(_) => {
+                                            println!("{script}");
+                                        }
+                                        Err(error) => {
+                                            println!("Error: {error}");
+                                        }
+                                    }
+                                }
+                            }
+                            Err(error) => {
+                                println!("Error: {error}");
+                            }
+                        }
+                    }
+
                     force_update_borders = true;
                 }
             }
