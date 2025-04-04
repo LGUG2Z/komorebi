@@ -488,6 +488,8 @@ impl Monitor {
 
 #[cfg(test)]
 mod tests {
+    use crate::Window;
+
     use super::*;
 
     #[test]
@@ -619,5 +621,70 @@ mod tests {
 
         // Should be the last workspace index: 1
         assert_eq!(new_workspace_index, 1);
+    }
+
+    #[test]
+    fn test_move_container_to_workspace() {
+        let mut m = Monitor::new(
+            0,
+            Rect::default(),
+            Rect::default(),
+            "TestMonitor".to_string(),
+            "TestDevice".to_string(),
+            "TestDeviceID".to_string(),
+            Some("TestMonitorID".to_string()),
+        );
+
+        let new_workspace_index = m.new_workspace_idx();
+        assert_eq!(new_workspace_index, 1);
+
+        {
+            // Create workspace 1 and add 3 containers
+            let workspace = m.focused_workspace_mut().unwrap();
+            for i in 0..3 {
+                let mut container = Container::default();
+                container.windows_mut().push_back(Window::from(i));
+                workspace.add_container_to_back(container);
+            }
+
+            // Should have 3 containers in workspace 1
+            assert_eq!(m.focused_workspace().unwrap().containers().len(), 3);
+        }
+
+        // Create and focus workspace 2
+        m.focus_workspace(new_workspace_index).unwrap();
+
+        // Focus workspace 1
+        m.focus_workspace(0).unwrap();
+
+        // Move container to workspace 2
+        m.move_container_to_workspace(1, true, None).unwrap();
+
+        // Should be focused on workspace 2
+        assert_eq!(m.focused_workspace_idx(), 1);
+
+        // Workspace 2 should have 1 container now
+        assert_eq!(m.focused_workspace().unwrap().containers().len(), 1);
+
+        // Move to workspace 1
+        m.focus_workspace(0).unwrap();
+
+        // Workspace 1 should have 2 containers
+        assert_eq!(m.focused_workspace().unwrap().containers().len(), 2);
+
+        // Move a another container from workspace 1 to workspace 2 without following
+        m.move_container_to_workspace(1, false, None).unwrap();
+
+        // Should have 1 container
+        assert_eq!(m.focused_workspace().unwrap().containers().len(), 1);
+
+        // Should still be focused on workspace 1
+        assert_eq!(m.focused_workspace_idx(), 0);
+
+        // Switch to workspace 2
+        m.focus_workspace(1).unwrap();
+
+        // Workspace 2 should now have 2 containers
+        assert_eq!(m.focused_workspace().unwrap().containers().len(), 2);
     }
 }
