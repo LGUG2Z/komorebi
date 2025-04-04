@@ -2989,6 +2989,7 @@ dependencies = [
  "num",
  "num-derive",
  "num-traits",
+ "parking_lot",
  "random_word",
  "reqwest",
  "schemars",
