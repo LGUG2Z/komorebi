@@ -3094,7 +3094,7 @@ impl WindowManager {
     }
 
     #[tracing::instrument(skip(self))]
-    pub fn toggle_float(&mut self) -> Result<()> {
+    pub fn toggle_float(&mut self, force_float: bool) -> Result<()> {
         let hwnd = WindowsApi::foreground_window()?;
         let workspace = self.focused_workspace_mut()?;
 
@@ -3106,7 +3106,7 @@ impl WindowManager {
             }
         }
 
-        if is_floating_window {
+        if is_floating_window && !force_float {
             workspace.set_layer(WorkspaceLayer::Tiling);
             self.unfloat_window()?;
         } else {

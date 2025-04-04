@@ -202,6 +202,9 @@ pub enum SocketMessage {
     ClearNamedWorkspaceRules(String),
     ClearAllWorkspaceRules,
     EnforceWorkspaceRules,
+    SessionFloatRule,
+    SessionFloatRules,
+    ClearSessionFloatRules,
     #[serde(alias = "FloatRule")]
     IgnoreRule(ApplicationIdentifier, String),
     ManageRule(ApplicationIdentifier, String),

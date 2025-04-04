@@ -72,6 +72,7 @@ use crate::State;
 use crate::CUSTOM_FFM;
 use crate::DATA_DIR;
 use crate::DISPLAY_INDEX_PREFERENCES;
+use crate::FLOATING_APPLICATIONS;
 use crate::HIDING_BEHAVIOUR;
 use crate::IGNORE_IDENTIFIERS;
 use crate::INITIAL_CONFIGURATION_LOADED;
@@ -81,6 +82,7 @@ use crate::MONITOR_INDEX_PREFERENCES;
 use crate::NO_TITLEBAR;
 use crate::OBJECT_NAME_CHANGE_ON_LAUNCH;
 use crate::REMOVE_TITLEBARS;
+use crate::SESSION_FLOATING_APPLICATIONS;
 use crate::SUBSCRIPTION_PIPES;
 use crate::SUBSCRIPTION_SOCKETS;
 use crate::SUBSCRIPTION_SOCKET_OPTIONS;
@@ -396,7 +398,7 @@ impl WindowManager {
                 workspace.locked_containers.remove(&container_idx);
             }
             SocketMessage::ToggleLock => self.toggle_lock()?,
-            SocketMessage::ToggleFloat => self.toggle_float()?,
+            SocketMessage::ToggleFloat => self.toggle_float(false)?,
             SocketMessage::ToggleMonocle => self.toggle_monocle()?,
             SocketMessage::ToggleMaximize => self.toggle_maximize()?,
             SocketMessage::ContainerPadding(monitor_idx, workspace_idx, size) => {
@@ -542,6 +544,53 @@ impl WindowManager {
                         matching_strategy: Option::from(MatchingStrategy::Legacy),
                     }));
                 }
+            }
+            SocketMessage::SessionFloatRule => {
+                let foreground_window = WindowsApi::foreground_window()?;
+                let window = Window::from(foreground_window);
+                if let (Ok(exe), Ok(title), Ok(class)) =
+                    (window.exe(), window.title(), window.class())
+                {
+                    let rule = MatchingRule::Composite(vec![
+                        IdWithIdentifier {
+                            kind: ApplicationIdentifier::Exe,
+                            id: exe,
+                            matching_strategy: Option::from(MatchingStrategy::Equals),
+                        },
+                        IdWithIdentifier {
+                            kind: ApplicationIdentifier::Title,
+                            id: title,
+                            matching_strategy: Option::from(MatchingStrategy::Equals),
+                        },
+                        IdWithIdentifier {
+                            kind: ApplicationIdentifier::Class,
+                            id: class,
+                            matching_strategy: Option::from(MatchingStrategy::Equals),
+                        },
+                    ]);
+
+                    let mut floating_applications = FLOATING_APPLICATIONS.lock();
+                    floating_applications.push(rule.clone());
+                    let mut session_floating_applications = SESSION_FLOATING_APPLICATIONS.lock();
+                    session_floating_applications.push(rule.clone());
+
+                    self.toggle_float(true)?;
+                }
+            }
+            SocketMessage::SessionFloatRules => {
+                let session_floating_applications = SESSION_FLOATING_APPLICATIONS.lock();
+                let rules = match serde_json::to_string_pretty(&*session_floating_applications) {
+                    Ok(rules) => rules,
+                    Err(error) => error.to_string(),
+                };
+
+                reply.write_all(rules.as_bytes())?;
+            }
+            SocketMessage::ClearSessionFloatRules => {
+                let mut floating_applications = FLOATING_APPLICATIONS.lock();
+                let mut session_floating_applications = SESSION_FLOATING_APPLICATIONS.lock();
+                floating_applications.retain(|r| !session_floating_applications.contains(r));
+                session_floating_applications.clear()
             }
             SocketMessage::IgnoreRule(identifier, ref id) => {
                 let mut ignore_identifiers = IGNORE_IDENTIFIERS.lock();

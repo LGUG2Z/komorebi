@@ -206,6 +206,9 @@ nav:
       - cli/cross-monitor-move-behaviour.md
       - cli/toggle-cross-monitor-move-behaviour.md
       - cli/unmanaged-window-operation-behaviour.md
+      - cli/session-float-rule.md
+      - cli/session-float-rules.md
+      - cli/clear-session-float-rules.md
       - cli/ignore-rule.md
       - cli/manage-rule.md
       - cli/initial-workspace-rule.md

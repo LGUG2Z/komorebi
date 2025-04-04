@@ -1323,6 +1323,12 @@ enum SubCommand {
     /// Set the operation behaviour when the focused window is not managed
     #[clap(arg_required_else_help = true)]
     UnmanagedWindowOperationBehaviour(UnmanagedWindowOperationBehaviour),
+    /// Add a rule to float the foreground window for the rest of this session
+    SessionFloatRule,
+    /// Show all session float rules
+    SessionFloatRules,
+    /// Clear all session float rules
+    ClearSessionFloatRules,
     /// Add a rule to ignore the specified application
     #[clap(arg_required_else_help = true)]
     #[clap(alias = "float-rule")]
@@ -2534,6 +2540,15 @@ if (Get-Command Get-CimInstance -ErrorAction SilentlyContinue) {
                     }
                 }
             }
+        }
+        SubCommand::SessionFloatRule => {
+            send_message(&SocketMessage::SessionFloatRule)?;
+        }
+        SubCommand::SessionFloatRules => {
+            print_query(&SocketMessage::SessionFloatRules);
+        }
+        SubCommand::ClearSessionFloatRules => {
+            send_message(&SocketMessage::ClearSessionFloatRules)?;
         }
         SubCommand::IgnoreRule(arg) => {
             send_message(&SocketMessage::IgnoreRule(arg.identifier, arg.id))?;
