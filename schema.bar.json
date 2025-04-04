@@ -2863,6 +2863,324 @@
         }
       ]
     },
+    "mouse": {
+      "description": "Options for mouse interaction on the bar",
+      "type": "object",
+      "properties": {
+        "horizontal_scroll_threshold": {
+          "description": "Defines how many points a user needs to scroll horizontally to make a \"tick\" on a mouse/touchpad/touchscreen (default: 30)",
+          "type": "number",
+          "format": "float"
+        },
+        "on_extra1_click": {
+          "description": "Command to send on extra1/back button click",
+          "oneOf": [
+            {
+              "type": "string",
+              "enum": [
+                "CycleFocusWorkspaceNext",
+                "CycleFocusWorkspacePrevious",
+                "NewWorkspace",
+                "CloseWorkspace"
+              ]
+            },
+            {
+              "type": "object",
+              "required": [
+                "Custom"
+              ],
+              "properties": {
+                "Custom": {
+                  "type": "object",
+                  "required": [
+                    "command"
+                  ],
+                  "properties": {
+                    "command": {
+                      "type": "string"
+                    }
+                  }
+                }
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
+        "on_extra2_click": {
+          "description": "Command to send on extra2/forward button click",
+          "oneOf": [
+            {
+              "type": "string",
+              "enum": [
+                "CycleFocusWorkspaceNext",
+                "CycleFocusWorkspacePrevious",
+                "NewWorkspace",
+                "CloseWorkspace"
+              ]
+            },
+            {
+              "type": "object",
+              "required": [
+                "Custom"
+              ],
+              "properties": {
+                "Custom": {
+                  "type": "object",
+                  "required": [
+                    "command"
+                  ],
+                  "properties": {
+                    "command": {
+                      "type": "string"
+                    }
+                  }
+                }
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
+        "on_middle_click": {
+          "description": "Command to send on middle button click",
+          "oneOf": [
+            {
+              "type": "string",
+              "enum": [
+                "CycleFocusWorkspaceNext",
+                "CycleFocusWorkspacePrevious",
+                "NewWorkspace",
+                "CloseWorkspace"
+              ]
+            },
+            {
+              "type": "object",
+              "required": [
+                "Custom"
+              ],
+              "properties": {
+                "Custom": {
+                  "type": "object",
+                  "required": [
+                    "command"
+                  ],
+                  "properties": {
+                    "command": {
+                      "type": "string"
+                    }
+                  }
+                }
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
+        "on_primary_click": {
+          "description": "Command to send on primary/left button click",
+          "oneOf": [
+            {
+              "type": "string",
+              "enum": [
+                "CycleFocusWorkspaceNext",
+                "CycleFocusWorkspacePrevious",
+                "NewWorkspace",
+                "CloseWorkspace"
+              ]
+            },
+            {
+              "type": "object",
+              "required": [
+                "Custom"
+              ],
+              "properties": {
+                "Custom": {
+                  "type": "object",
+                  "required": [
+                    "command"
+                  ],
+                  "properties": {
+                    "command": {
+                      "type": "string"
+                    }
+                  }
+                }
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
+        "on_scroll_down": {
+          "oneOf": [
+            {
+              "type": "string",
+              "enum": [
+                "CycleFocusWorkspaceNext",
+                "CycleFocusWorkspacePrevious",
+                "NewWorkspace",
+                "CloseWorkspace"
+              ]
+            },
+            {
+              "type": "object",
+              "required": [
+                "Custom"
+              ],
+              "properties": {
+                "Custom": {
+                  "type": "object",
+                  "required": [
+                    "command"
+                  ],
+                  "properties": {
+                    "command": {
+                      "type": "string"
+                    }
+                  }
+                }
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
+        "on_scroll_left": {
+          "oneOf": [
+            {
+              "type": "string",
+              "enum": [
+                "CycleFocusWorkspaceNext",
+                "CycleFocusWorkspacePrevious",
+                "NewWorkspace",
+                "CloseWorkspace"
+              ]
+            },
+            {
+              "type": "object",
+              "required": [
+                "Custom"
+              ],
+              "properties": {
+                "Custom": {
+                  "type": "object",
+                  "required": [
+                    "command"
+                  ],
+                  "properties": {
+                    "command": {
+                      "type": "string"
+                    }
+                  }
+                }
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
+        "on_scroll_right": {
+          "oneOf": [
+            {
+              "type": "string",
+              "enum": [
+                "CycleFocusWorkspaceNext",
+                "CycleFocusWorkspacePrevious",
+                "NewWorkspace",
+                "CloseWorkspace"
+              ]
+            },
+            {
+              "type": "object",
+              "required": [
+                "Custom"
+              ],
+              "properties": {
+                "Custom": {
+                  "type": "object",
+                  "required": [
+                    "command"
+                  ],
+                  "properties": {
+                    "command": {
+                      "type": "string"
+                    }
+                  }
+                }
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
+        "on_scroll_up": {
+          "oneOf": [
+            {
+              "type": "string",
+              "enum": [
+                "CycleFocusWorkspaceNext",
+                "CycleFocusWorkspacePrevious",
+                "NewWorkspace",
+                "CloseWorkspace"
+              ]
+            },
+            {
+              "type": "object",
+              "required": [
+                "Custom"
+              ],
+              "properties": {
+                "Custom": {
+                  "type": "object",
+                  "required": [
+                    "command"
+                  ],
+                  "properties": {
+                    "command": {
+                      "type": "string"
+                    }
+                  }
+                }
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
+        "on_secondary_click": {
+          "description": "Command to send on secondary/right button click",
+          "oneOf": [
+            {
+              "type": "string",
+              "enum": [
+                "CycleFocusWorkspaceNext",
+                "CycleFocusWorkspacePrevious",
+                "NewWorkspace",
+                "CloseWorkspace"
+              ]
+            },
+            {
+              "type": "object",
+              "required": [
+                "Custom"
+              ],
+              "properties": {
+                "Custom": {
+                  "type": "object",
+                  "required": [
+                    "command"
+                  ],
+                  "properties": {
+                    "command": {
+                      "type": "string"
+                    }
+                  }
+                }
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
+        "vertical_scroll_threshold": {
+          "description": "Defines how many points a user needs to scroll vertically to make a \"tick\" on a mouse/touchpad/touchscreen (default: 30)",
+          "type": "number",
+          "format": "float"
+        }
+      }
+    },
     "padding": {
       "description": "Bar padding. Use one value for all sides or use a grouped padding for horizontal and/or vertical definition which can each take a single value for a symmetric padding or two values for each side, i.e.: ```json \"padding\": { \"horizontal\": 10 } ``` or: ```json \"padding\": { \"horizontal\": [left, right] } ``` You can also set individual padding on each side like this: ```json \"padding\": { \"top\": 10, \"bottom\": 10, \"left\": 10, \"right\": 10, } ``` By default, padding is set to 10 on all sides.",
       "anyOf": [

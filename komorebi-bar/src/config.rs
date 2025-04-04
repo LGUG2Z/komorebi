@@ -4,12 +4,16 @@ use crate::DEFAULT_PADDING;
 use eframe::egui::Pos2;
 use eframe::egui::TextBuffer;
 use eframe::egui::Vec2;
+use komorebi_client::CycleDirection;
 use komorebi_client::KomorebiTheme;
+use komorebi_client::PathExt;
 use komorebi_client::Rect;
+use komorebi_client::SocketMessage;
 use serde::Deserialize;
 use serde::Serialize;
 use std::collections::HashMap;
 use std::path::PathBuf;
+use std::process::Command;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
@@ -90,6 +94,8 @@ pub struct KomobarConfig {
     pub widget_spacing: Option<f32>,
     /// Visual grouping for widgets
     pub grouping: Option<Grouping>,
+    /// Options for mouse interaction on the bar
+    pub mouse: Option<MouseConfig>,
     /// Left side widgets (ordered left-to-right)
     pub left_widgets: Vec<WidgetConfig>,
     /// Center widgets (ordered left-to-right)
@@ -323,6 +329,88 @@ pub fn get_individual_spacing(
         .map_or(IndividualSpacingConfig::all(default), |s| {
             s.to_individual(default)
         })
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+pub enum MouseCommand {
+    CycleFocusWorkspaceNext,
+    CycleFocusWorkspacePrevious,
+    NewWorkspace,
+    CloseWorkspace,
+    #[serde(untagged)]
+    Command(String),
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+pub struct MouseConfig {
+    /// Command to send on primary/left button click
+    pub on_primary_click: Option<MouseCommand>,
+    /// Command to send on secondary/right button click
+    pub on_secondary_click: Option<MouseCommand>,
+    /// Command to send on middle button click
+    pub on_middle_click: Option<MouseCommand>,
+    /// Command to send on extra1/back button click
+    pub on_extra1_click: Option<MouseCommand>,
+    /// Command to send on extra2/forward button click
+    pub on_extra2_click: Option<MouseCommand>,
+
+    /// Defines how many points a user needs to scroll vertically to make a "tick" on a mouse/touchpad/touchscreen (default: 30)
+    pub vertical_scroll_threshold: Option<f32>,
+    // Command to send on scrolling up (every tick)
+    pub on_scroll_up: Option<MouseCommand>,
+    // Command to send on scrolling down (every tick)
+    pub on_scroll_down: Option<MouseCommand>,
+
+    /// Defines how many points a user needs to scroll horizontally to make a "tick" on a mouse/touchpad/touchscreen (default: 30)
+    pub horizontal_scroll_threshold: Option<f32>,
+    // Command to send on scrolling left (every tick)
+    pub on_scroll_left: Option<MouseCommand>,
+    // Command to send on scrolling right (every tick)
+    pub on_scroll_right: Option<MouseCommand>,
+}
+
+impl MouseCommand {
+    pub fn execute(&self, mouse_follows_focus: bool) {
+        let message = match self {
+            MouseCommand::CycleFocusWorkspaceNext => {
+                Some(SocketMessage::CycleFocusWorkspace(CycleDirection::Next))
+            }
+            MouseCommand::CycleFocusWorkspacePrevious => {
+                Some(SocketMessage::CycleFocusWorkspace(CycleDirection::Previous))
+            }
+            MouseCommand::NewWorkspace => Some(SocketMessage::NewWorkspace),
+            MouseCommand::CloseWorkspace => Some(SocketMessage::CloseWorkspace),
+            MouseCommand::Command(cmd) => {
+                let cmd_no_env = cmd.replace_env();
+
+                Command::new("powershell")
+                    .args([
+                        "-NoProfile",
+                        "-Command",
+                        cmd_no_env.to_str().expect("Invalid command"),
+                    ])
+                    .status()
+                    .unwrap_or_else(|e| panic!("Failed to execute '{}': {}", cmd, e));
+
+                None
+            }
+        };
+
+        if let Some(command) = message {
+            if komorebi_client::send_batch([
+                SocketMessage::FocusMonitorAtCursor,
+                SocketMessage::MouseFollowsFocus(false),
+                command,
+                SocketMessage::MouseFollowsFocus(mouse_follows_focus),
+            ])
+            .is_err()
+            {
+                tracing::error!("could not send command");
+            }
+        }
+    }
 }
 
 impl KomobarConfig {
