@@ -4627,7 +4627,7 @@
       "description": "Which Windows signal to use when hiding windows (default: Cloak)",
       "oneOf": [
         {
-          "description": "Use the SW_HIDE flag to hide windows when switching workspaces (has issues with Electron apps)",
+          "description": "END OF LIFE FEATURE: Use the SW_HIDE flag to hide windows when switching workspaces (has issues with Electron apps)",
           "type": "string",
           "enum": [
             "Hide"
