@@ -488,8 +488,6 @@ impl Monitor {
 
 #[cfg(test)]
 mod tests {
-    use crate::Window;
-
     use super::*;
 
     #[test]
@@ -641,9 +639,8 @@ mod tests {
         {
             // Create workspace 1 and add 3 containers
             let workspace = m.focused_workspace_mut().unwrap();
-            for i in 0..3 {
-                let mut container = Container::default();
-                container.windows_mut().push_back(Window::from(i));
+            for _ in 0..3 {
+                let container = Container::default();
                 workspace.add_container_to_back(container);
             }
 
@@ -686,5 +683,54 @@ mod tests {
 
         // Workspace 2 should now have 2 containers
         assert_eq!(m.focused_workspace().unwrap().containers().len(), 2);
+    }
+
+    #[test]
+    fn test_ensure_workspace_count_workspace_contains_two_workspaces() {
+        let mut m = Monitor::new(
+            0,
+            Rect::default(),
+            Rect::default(),
+            "TestMonitor".to_string(),
+            "TestDevice".to_string(),
+            "TestDeviceID".to_string(),
+            Some("TestMonitorID".to_string()),
+        );
+
+        // Create and focus another workspace
+        let new_workspace_index = m.new_workspace_idx();
+        m.focus_workspace(new_workspace_index).unwrap();
+
+        // Should have 2 workspaces now
+        assert_eq!(m.workspaces().len(), 2, "Monitor should have 2 workspaces");
+
+        // Ensure the monitor has at least 5 workspaces
+        m.ensure_workspace_count(5);
+
+        // Monitor should have 5 workspaces
+        assert_eq!(m.workspaces().len(), 5, "Monitor should have 5 workspaces");
+    }
+
+    #[test]
+    fn test_ensure_workspace_count_only_default_workspace() {
+        let mut m = Monitor::new(
+            0,
+            Rect::default(),
+            Rect::default(),
+            "TestMonitor".to_string(),
+            "TestDevice".to_string(),
+            "TestDeviceID".to_string(),
+            Some("TestMonitorID".to_string()),
+        );
+
+        // Ensure the monitor has at least 5 workspaces
+        m.ensure_workspace_count(5);
+
+        // Monitor should have 5 workspaces
+        assert_eq!(m.workspaces().len(), 5, "Monitor should have 5 workspaces");
+
+        // Try to call the ensure workspace count again to ensure it doesn't change
+        m.ensure_workspace_count(3);
+        assert_eq!(m.workspaces().len(), 5, "Monitor should have 5 workspaces");
     }
 }
