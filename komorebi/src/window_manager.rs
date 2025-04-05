@@ -5017,4 +5017,56 @@ mod tests {
             assert!(*workspace.tile());
         }
     }
+
+    #[test]
+    fn test_toggle_lock() {
+        let (mut wm, _context) = setup_window_manager();
+
+        {
+            // Add monitor with default workspace to
+            let mut m = monitor::new(
+                0,
+                Rect::default(),
+                Rect::default(),
+                "TestMonitor".to_string(),
+                "TestDevice".to_string(),
+                "TestDeviceID".to_string(),
+                Some("TestMonitorID".to_string()),
+            );
+
+            let workspace = m.focused_workspace_mut().unwrap();
+
+            // Create containers to add to the workspace
+            for _ in 0..3 {
+                let container = Container::default();
+                workspace.add_container_to_back(container);
+            }
+
+            wm.monitors_mut().push_back(m);
+        }
+
+        {
+            // Ensure container 2 is not locked
+            let workspace = wm.focused_workspace_mut().unwrap();
+            assert!(!workspace.locked_containers().contains(&2));
+        }
+
+        // Toggle lock on focused container
+        wm.toggle_lock().unwrap();
+
+        {
+            // Ensure container 2 is locked
+            let workspace = wm.focused_workspace_mut().unwrap();
+            assert!(workspace.locked_containers().contains(&2));
+        }
+
+        // Toggle lock on focused container
+        wm.toggle_lock().unwrap();
+
+        {
+            // Ensure container 2 is not locked
+            let workspace = wm.focused_workspace_mut().unwrap();
+            assert!(!workspace.locked_containers().contains(&2));
+        }
+    }
 }
