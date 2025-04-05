@@ -46,6 +46,7 @@ use eframe::egui::Visuals;
 use font_loader::system_fonts;
 use font_loader::system_fonts::FontPropertyBuilder;
 use komorebi_client::Colour;
+use komorebi_client::CycleDirection;
 use komorebi_client::KomorebiTheme;
 use komorebi_client::MonitorNotification;
 use komorebi_client::NotificationEvent;
@@ -80,6 +81,8 @@ pub struct Komobar {
     pub size_rect: komorebi_client::Rect,
     pub work_area_offset: komorebi_client::Rect,
     applied_theme_on_first_frame: bool,
+    accumulated_scroll: f32,
+    mouse_follows_focus: bool,
 }
 
 pub fn apply_theme(
@@ -366,15 +369,19 @@ impl Komobar {
             }
             MonitorConfigOrIndex::Index(idx) => (*idx, None),
         };
-        let monitor_index = self.komorebi_notification_state.as_ref().and_then(|state| {
-            state
-                .borrow()
-                .monitor_usr_idx_map
-                .get(&usr_monitor_index)
-                .copied()
+
+        let mapped_state = self.komorebi_notification_state.as_ref().map(|state| {
+            let state = state.borrow();
+            (
+                state.monitor_usr_idx_map.get(&usr_monitor_index).copied(),
+                state.mouse_follows_focus,
+            )
         });
 
-        self.monitor_index = monitor_index;
+        if let Some(state) = mapped_state {
+            self.monitor_index = state.0;
+            self.mouse_follows_focus = state.1;
+        }
 
         if let Some(monitor_index) = self.monitor_index {
             if let (prev_rect, Some(new_rect)) = (&self.work_area_offset, &config_work_area_offset)
@@ -603,6 +610,8 @@ impl Komobar {
             size_rect: komorebi_client::Rect::default(),
             work_area_offset: komorebi_client::Rect::default(),
             applied_theme_on_first_frame: false,
+            accumulated_scroll: 0.0,
+            mouse_follows_focus: false,
         };
 
         komobar.apply_config(&cc.egui_ctx, None);
@@ -932,6 +941,46 @@ impl eframe::App for Komobar {
         let frame = render_config.change_frame_on_bar(frame, &ctx.style());
 
         CentralPanel::default().frame(frame).show(ctx, |ui| {
+            // Processes the scroll delta and calls `events` when a tick threshold is reached.
+            // The callback receives an `i32` representing the scroll direction (1 for up, -1 for down).
+            {
+                // Accumulate the scroll delta from each frame.
+                self.accumulated_scroll +=
+                    ui.input(|input| input.smooth_scroll_delta.x + input.smooth_scroll_delta.y);
+
+                // Define the threshold for one "tick" of scrolling.
+                const SCROLL_THRESHOLD: f32 = 35.0;
+
+                // When the accumulated scroll passes the threshold, trigger a tick.
+                if self.accumulated_scroll.abs() >= SCROLL_THRESHOLD {
+                    // Determine the scroll direction.
+                    if self.accumulated_scroll > 0.0 {
+                        if komorebi_client::send_batch([
+                            SocketMessage::FocusMonitorAtCursor,
+                            SocketMessage::MouseFollowsFocus(false),
+                            SocketMessage::CycleFocusWorkspace(CycleDirection::Next),
+                            SocketMessage::MouseFollowsFocus(self.mouse_follows_focus),
+                        ])
+                        .is_err()
+                        {
+                            tracing::error!("could not send CycleFocusWorkspace Next");
+                        }
+                    } else if komorebi_client::send_batch([
+                        SocketMessage::FocusMonitorAtCursor,
+                        SocketMessage::MouseFollowsFocus(false),
+                        SocketMessage::CycleFocusWorkspace(CycleDirection::Previous),
+                        SocketMessage::MouseFollowsFocus(self.mouse_follows_focus),
+                    ])
+                    .is_err()
+                    {
+                        tracing::error!("could not send CycleFocusWorkspace Previous");
+                    }
+
+                    // Remove one tick's worth of scroll from the accumulator, preserving any excess.
+                    self.accumulated_scroll -= SCROLL_THRESHOLD * self.accumulated_scroll.signum();
+                }
+            }
+
             // Apply grouping logic for the bar as a whole
             let area_frame = if let Some(frame) = &self.config.frame {
                 Frame::NONE
