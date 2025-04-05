@@ -5069,4 +5069,82 @@ mod tests {
             assert!(!workspace.locked_containers().contains(&2));
         }
     }
+
+    #[test]
+    fn test_float_window() {
+        let (mut wm, _context) = setup_window_manager();
+
+        {
+            // Create a monitor
+            let mut m = monitor::new(
+                0,
+                Rect::default(),
+                Rect::default(),
+                "TestMonitor".to_string(),
+                "TestDevice".to_string(),
+                "TestDeviceID".to_string(),
+                Some("TestMonitorID".to_string()),
+            );
+
+            // Create a container
+            let mut container = Container::default();
+
+            // Add three windows to the container
+            for i in 0..3 {
+                container.windows_mut().push_back(Window::from(i));
+            }
+
+            // Should have 3 windows in the container
+            assert_eq!(container.windows().len(), 3);
+
+            // Add the container to the workspace
+            let workspace = m.focused_workspace_mut().unwrap();
+            workspace.add_container_to_back(container);
+
+            // Add monitor to the window manager
+            wm.monitors_mut().push_back(m);
+        }
+
+        // Add focused window to floating window list
+        wm.float_window().ok();
+
+        {
+            let workspace = wm.focused_workspace().unwrap();
+            let floating_windows = workspace.floating_windows();
+            let container = workspace.focused_container().unwrap();
+
+            // Hwnd 0 should be added to floating_windows
+            assert_eq!(floating_windows[0].hwnd, 0);
+
+            // Should have a length of 1
+            assert_eq!(floating_windows.len(), 1);
+
+            // Should have 2 windows in the container
+            assert_eq!(container.windows().len(), 2);
+
+            // Should be focused on window 1
+            assert_eq!(container.focused_window(), Some(&Window { hwnd: 1 }));
+        }
+
+        // Add focused window to floating window list
+        wm.float_window().ok();
+
+        {
+            let workspace = wm.focused_workspace().unwrap();
+            let floating_windows = workspace.floating_windows();
+            let container = workspace.focused_container().unwrap();
+
+            // Hwnd 1 should be added to floating_windows
+            assert_eq!(floating_windows[1].hwnd, 1);
+
+            // Should have a length of 2
+            assert_eq!(floating_windows.len(), 2);
+
+            // Should have 1 window in the container
+            assert_eq!(container.windows().len(), 1);
+
+            // Should be focused on window 2
+            assert_eq!(container.focused_window(), Some(&Window { hwnd: 2 }));
+        }
+    }
 }
