@@ -2172,6 +2172,9 @@ impl WindowManager {
             SocketMessage::Theme(ref theme) => {
                 theme_manager::send_notification(*theme.clone());
             }
+            SocketMessage::ApplyState(ref state) => {
+                self.apply_state(state.clone());
+            }
             // Deprecated commands
             SocketMessage::AltFocusHack(_)
             | SocketMessage::IdentifyBorderOverflowApplication(_, _) => {}
