@@ -7,6 +7,7 @@ use std::fs::OpenOptions;
 use std::io::BufRead;
 use std::io::BufReader;
 use std::io::Write;
+use std::os::windows::process::CommandExt;
 use std::path::Path;
 use std::path::PathBuf;
 use std::process::Command;
@@ -35,8 +36,14 @@ use miette::SourceSpan;
 use paste::paste;
 use serde::Deserialize;
 use sysinfo::ProcessesToUpdate;
+use sysinfo::System;
 use which::which;
+use windows::Win32::Foundation::CloseHandle;
 use windows::Win32::Foundation::HWND;
+use windows::Win32::System::Threading::OpenProcess;
+use windows::Win32::System::Threading::TerminateProcess;
+use windows::Win32::System::Threading::DETACHED_PROCESS;
+use windows::Win32::System::Threading::PROCESS_TERMINATE;
 use windows::Win32::UI::WindowsAndMessaging::ShowWindow;
 use windows::Win32::UI::WindowsAndMessaging::SHOW_WINDOW_CMD;
 use windows::Win32::UI::WindowsAndMessaging::SW_RESTORE;
@@ -103,6 +110,11 @@ lazy_static! {
 }
 
 shadow_rs::shadow!(build);
+
+const KOMOREBI_EXE: &str = "komorebi.exe";
+const KOMOREBI_BAR_EXE: &str = "komorebi-bar.exe";
+const WHKD_EXE: &str = "whkd.exe";
+const MASIR_EXE: &str = "masir.exe";
 
 #[derive(thiserror::Error, Debug, miette::Diagnostic)]
 #[error("{message}")]
@@ -1471,6 +1483,61 @@ enum SubCommand {
     DisableAutostart,
 }
 
+/// Spawns the command and logs the command ran or any errors.
+///
+/// Takes a command (`std::process::Command`), attempts to spawn it,
+/// and logs the result. If the command spawns successfully, it retrieves the command
+/// string representation using `get_command_string` and logs it. If any step fails,
+/// an error message is logged.
+///
+/// # Parameters
+/// - `command`: A `Command` instance configured to run the specified program.
+///
+/// # Behavior
+/// - If spawning succeeds, the command string is retrieved and printed.
+/// - If spawning the command fails, an error message is printed.
+/// - If retrieving the command string fails, an error message is printed.
+///
+/// # Example
+/// ```
+/// use std::process::Command;
+///
+/// let command = Command::new("ls");
+/// spawn_and_log(&mut command);
+/// ```
+fn spawn_and_log(command: &mut Command) {
+    match command.spawn() {
+        Err(error) => eprintln!("Error: {error}"),
+        Ok(_) => match get_command_string(command) {
+            Ok(command_str) => println!("{command_str}"),
+            Err(error) => eprintln!("Error: {error}"),
+        },
+    }
+}
+
+/// Terminate processes matching a given name and handle the result.
+///
+/// Depending on the result of the `terminate_process_and_log` call:
+/// - Successful (`Ok(_)`), prints a message indicating the number of processes that has been stopped.
+/// - Error occurs (`Err(error)`), prints an error message containing the details of the error.
+///
+/// # Arguments
+///
+/// * `system` - A mutable reference to a `System` object. This object is responsible
+///   for managing and querying system information, such as running processes.
+/// * `process_name`: The name of the process to terminate. This is used to identify the target process.
+///   processes whose names match this string exactly will be terminated.
+fn terminate_process_and_log(system: &mut System, process_name: &str) {
+    match terminate_matching_processes(system, process_name) {
+        Ok(count) => {
+            println!("{} {} processes stopped", count, process_name);
+        }
+        Err(error) => {
+            eprintln!("Error: {}", error);
+        }
+    }
+}
+
 // print_query is a helper that queries komorebi and prints the response.
 // panics on error.
 fn print_query(message: &SocketMessage) {
@@ -1478,6 +1545,201 @@ fn print_query(message: &SocketMessage) {
         Ok(response) => println!("{response}"),
         Err(error) => panic!("{}", error),
     }
+}
+
+/// Constructs a runnable command string from a given `Command` instance.
+///
+/// This function takes a reference to a `Command` object and attempts to construct
+/// a string representation of the command, which can be copy pasted into a shell to
+/// be run.
+///
+/// # Arguments
+///
+/// * `command` - A reference to a `Command` object, which contains information about
+///               the program and its arguments.
+///
+/// # Returns
+///
+/// * `Ok(String)` - A `String` containing the full command, including the program name
+///                  and all arguments, separated by spaces.
+/// * `Err(&'static str)` - An error message if either the program name or any argument
+///                         contains invalid Unicode characters.
+///
+/// # Errors
+///
+/// This function will return an error if the program name or any argument contains
+/// invalid Unicode characters.
+fn get_command_string(command: &Command) -> Result<String, &'static str> {
+    let mut command_str = String::new();
+
+    if let Some(program) = command.get_program().to_str() {
+        command_str.push_str(program);
+    } else {
+        return Err("Program name contains invalid Unicode");
+    }
+
+    for arg in command.get_args() {
+        command_str.push(' ');
+        if let Some(arg_str) = arg.to_str() {
+            command_str.push_str(arg_str);
+        } else {
+            return Err("Argument contains invalid Unicode");
+        }
+    }
+
+    Ok(command_str.to_string())
+}
+
+/// Creates a new `Command` instance configured to run in a detached process.
+///
+/// This function initializes a new `Command` with the specified program and configures it
+/// to run as a detached process. A detached process runs independently of the parent process,
+/// meaning it will not terminate when the parent process exits.
+///
+/// # Arguments
+///
+/// * `program` - A string slice (`&str`) specifying the path or name of the program to execute.
+///
+/// # Returns
+///
+/// * `Command` - A `Command` instance configured to run the specified program as a detached process.
+fn detached_command(program: &str) -> Command {
+    let mut command = Command::new(program);
+    command.creation_flags(DETACHED_PROCESS.0);
+    command
+}
+
+/// Checks if a process with the given name is currently running on the system.
+///
+/// This function queries the system's processes using the provided `System` object
+/// and checks if any process matches the specified `process_name`. It returns `true`
+/// if at least one matching process is found, and `false` otherwise.
+///
+/// # Arguments
+///
+/// * `system` - A mutable reference to a `System` object. This object is responsible
+///   for managing and querying system information, such as running processes.
+/// * `process_name` - A string slice representing the name of the process to check.
+///   The function will search for processes whose names match this string.
+///
+/// # Returns
+///
+/// * `true` if at least one process with the specified name is running.
+/// * `false` if no such process is found.
+///
+/// # Notes
+///
+/// * The `System` object must be refreshed (e.g., via `refresh_processes`) as needed before
+///   calling this function to ensure the process list is up-to-date.
+/// * The `process_name` parameter is case-sensitive and must match the process name exactly.
+fn is_running(system: &mut System, process_name: &str) -> bool {
+    system
+        .processes_by_exact_name(process_name.as_ref())
+        .next()
+        .is_some()
+}
+
+/// Terminates a process identified by its Process ID (PID).
+///
+/// # Arguments
+///
+/// * `pid` - A `u32` representing the Process ID (PID) of the process to be terminated.
+///
+/// # Returns
+///
+/// * `Ok(())` - If the process was successfully terminated.
+/// * `Err(&'static str)` - If an error occurred during the operation. Possible errors include:
+///     - `"Failed to open process handle"`: The process could not be opened with the required access rights.
+///     - `"Failed to terminate process"`: The attempt to terminate the process failed.
+fn terminate_process(pid: u32) -> Result<(), &'static str> {
+    let handle = unsafe { OpenProcess(PROCESS_TERMINATE, false, pid) };
+
+    let handle = match handle {
+        Ok(handle) => handle,
+        Err(_) => return Err("Failed to open process handle"),
+    };
+
+    // Terminate the process
+    let result = unsafe { TerminateProcess(handle, 1) };
+    if result.is_err() {
+        unsafe { CloseHandle(handle).ok() };
+        return Err("Failed to terminate process");
+    }
+
+    unsafe { CloseHandle(handle).ok() };
+    Ok(())
+}
+
+/// Terminates all processes with a specific name.
+///
+/// This function iterates over all running processes in the system and terminates those whose names
+/// exactly match the provided `process_name`. It uses the `terminate_process` function to terminate
+/// each matching process.
+///
+/// # Arguments
+///
+/// * `system` - A mutable reference to a `System` object, which is used to query and manage system processes.
+/// * `process_name` - A string slice (`&str`) representing the exact name of the processes to be terminated.
+///
+/// # Returns
+///
+/// * `Ok(u32)` - The number of processes successfully terminated.
+/// * `Err(E)` - An error if something goes wrong during the operation. The specific error type depends on
+///              the implementation of `terminate_process`.
+///
+/// # Notes
+///
+/// - Remember to refresh the system processes if needed before calling this function to ensure the process
+///   list is up-to-date.
+fn terminate_matching_processes(system: &mut System, process_name: &str) -> Result<u32> {
+    let mut terminated_count = 0;
+    system
+        .processes_by_exact_name(process_name.as_ref())
+        .for_each(|process| {
+            if terminate_process(process.pid().as_u32()).is_ok() {
+                terminated_count += 1;
+            }
+        });
+    Ok(terminated_count)
+}
+
+const AHK_EXE_NAMES: [&str; 4] = [
+    "AutoHotkey.exe",
+    "AutoHotkey64.exe",
+    "AutoHotkey32.exe",
+    "AutoHotkeyUX.exe",
+];
+
+fn terminate_ahk_processes(system: &mut System) -> Result<u32> {
+    let mut terminated_count = 0;
+    let mut ahk_pids: Vec<u32> = vec![];
+    for (pid, process) in system.processes() {
+        let pname = match process.name().to_str() {
+            Some(name) => name,
+            None => continue,
+        };
+        if AHK_EXE_NAMES.contains(&pname) {
+            if let Some(last_arg) = process.cmd().last() {
+                if let Some(last_arg_str) = last_arg.to_str() {
+                    // Check if the last argument is komorebi.ahk
+                    // It can either be komorebi.ahk or komorebi.ahk" depending on whether the path has spaces
+                    if last_arg_str.ends_with("komorebi.ahk")
+                        || last_arg_str.ends_with("komorebi.ahk\"")
+                    {
+                        ahk_pids.push(pid.as_u32());
+                    }
+                }
+            }
+        }
+    }
+
+    for pid in ahk_pids {
+        if terminate_process(pid).is_ok() {
+            terminated_count += 1;
+        }
+    }
+
+    Ok(terminated_count)
 }
 
 fn startup_dir() -> Result<PathBuf> {
@@ -2128,109 +2390,66 @@ fn main() -> Result<()> {
                 flags.push("'--clean-state'".to_string());
             }
 
-            let script = if flags.is_empty() {
-                format!(
-                    "Start-Process '{}' -WindowStyle hidden",
-                    exec.unwrap_or("komorebi.exe")
-                )
-            } else {
-                let argument_list = flags.join(",");
-                format!(
-                    "Start-Process '{}' -ArgumentList {argument_list} -WindowStyle hidden",
-                    exec.unwrap_or("komorebi.exe")
-                )
-            };
+            let komorebi_exe_path = exec.unwrap_or(KOMOREBI_EXE);
+            let mut command = detached_command(komorebi_exe_path);
+            command.args(&flags);
+            spawn_and_log(&mut command);
 
-            let mut system = sysinfo::System::new_all();
+            let mut system = System::new();
             system.refresh_processes(ProcessesToUpdate::All, true);
-
             let mut attempts = 0;
-            let mut running = system
-                .processes_by_name("komorebi.exe".as_ref())
-                .next()
-                .is_some();
+            let mut running = is_running(&mut system, KOMOREBI_EXE);
 
             while !running && attempts <= 2 {
-                match powershell_script::run(&script) {
-                    Ok(_) => {
-                        println!("{script}");
-                    }
-                    Err(error) => {
-                        println!("Error: {error}");
-                    }
-                }
+                let mut command = detached_command(komorebi_exe_path);
+                command.args(&flags);
+                spawn_and_log(&mut command);
 
-                print!("Waiting for komorebi.exe to start...");
+                print!("Waiting for {} to start...", KOMOREBI_EXE);
                 std::thread::sleep(Duration::from_secs(3));
 
                 system.refresh_processes(ProcessesToUpdate::All, true);
 
-                if system
-                    .processes_by_name("komorebi.exe".as_ref())
-                    .next()
-                    .is_some()
-                {
+                if is_running(&mut system, KOMOREBI_EXE) {
                     println!("Started!");
                     running = true;
                 } else {
-                    println!("komorebi.exe did not start... Trying again");
+                    println!("{} did not start... Trying again", KOMOREBI_EXE);
                     attempts += 1;
                 }
             }
 
             if !running {
-                println!("\nRunning komorebi.exe directly for detailed error output\n");
+                println!(
+                    "\nRunning {} directly for detailed error output\n",
+                    KOMOREBI_EXE
+                );
                 if let Some(config) = arg.config {
                     let path = resolve_home_path(config)?;
-                    if let Ok(output) = Command::new("komorebi.exe")
+                    if let Ok(output) = Command::new(KOMOREBI_EXE)
                         .arg(format!("'--config=\"{}\"'", path.display()))
                         .output()
                     {
                         println!("{}", String::from_utf8(output.stderr)?);
                     }
-                } else if let Ok(output) = Command::new("komorebi.exe").output() {
+                } else if let Ok(output) = Command::new(KOMOREBI_EXE).output() {
                     println!("{}", String::from_utf8(output.stderr)?);
                 }
 
                 return Ok(());
             }
 
-            if arg.whkd {
-                let script = r"
-if (!(Get-Process whkd -ErrorAction SilentlyContinue))
-{
-  Start-Process whkd -WindowStyle hidden
-}
-                ";
-                match powershell_script::run(script) {
-                    Ok(_) => {
-                        println!("{script}");
-                    }
-                    Err(error) => {
-                        println!("Error: {error}");
-                    }
-                }
+            if arg.whkd && !is_running(&mut system, WHKD_EXE) {
+                let mut command = detached_command(WHKD_EXE);
+                spawn_and_log(&mut command);
             }
 
             if arg.ahk {
                 let config_ahk = HOME_DIR.join("komorebi.ahk");
                 let config_ahk = dunce::simplified(&config_ahk);
-
-                let script = format!(
-                    r#"
-  Start-Process '"{ahk}"' '"{config}"' -WindowStyle hidden
-                "#,
-                    config = config_ahk.display()
-                );
-
-                match powershell_script::run(&script) {
-                    Ok(_) => {
-                        println!("{script}");
-                    }
-                    Err(error) => {
-                        println!("Error: {error}");
-                    }
-                }
+                let mut command = detached_command(&ahk);
+                command.arg(config_ahk);
+                spawn_and_log(&mut command);
             }
 
             let static_config = arg.config.clone().map_or_else(
@@ -2250,52 +2469,20 @@ if (!(Get-Process whkd -ErrorAction SilentlyContinue))
                     let mut config = StaticConfig::read(config)?;
                     if let Some(display_bar_configurations) = &mut config.bar_configurations {
                         for config_file_path in &mut *display_bar_configurations {
-                            let script = r#"Start-Process "komorebi-bar" '"--config" "CONFIGFILE"' -WindowStyle hidden"#
-                            .replace("CONFIGFILE", &config_file_path.to_string_lossy());
-
-                            match powershell_script::run(&script) {
-                                Ok(_) => {
-                                    println!("{script}");
-                                }
-                                Err(error) => {
-                                    println!("Error: {error}");
-                                }
-                            }
+                            let mut command = detached_command(KOMOREBI_BAR_EXE);
+                            command.arg("--config").arg(&config_file_path);
+                            spawn_and_log(&mut command);
                         }
-                    } else {
-                        let script = r"
-if (!(Get-Process komorebi-bar -ErrorAction SilentlyContinue))
-{
-  Start-Process komorebi-bar -WindowStyle hidden
-}
-                ";
-                        match powershell_script::run(script) {
-                            Ok(_) => {
-                                println!("{script}");
-                            }
-                            Err(error) => {
-                                println!("Error: {error}");
-                            }
-                        }
+                    } else if !is_running(&mut system, KOMOREBI_BAR_EXE) {
+                        let mut command = detached_command(KOMOREBI_BAR_EXE);
+                        spawn_and_log(&mut command);
                     }
                 }
             }
 
-            if arg.masir {
-                let script = r"
-if (!(Get-Process masir -ErrorAction SilentlyContinue))
-{
-  Start-Process masir -WindowStyle hidden
-}
-                ";
-                match powershell_script::run(script) {
-                    Ok(_) => {
-                        println!("{script}");
-                    }
-                    Err(error) => {
-                        println!("Error: {error}");
-                    }
-                }
+            if arg.masir && !is_running(&mut system, MASIR_EXE) {
+                let mut command = detached_command(MASIR_EXE);
+                spawn_and_log(&mut command);
             }
 
             println!("\nThank you for using komorebi!\n");
@@ -2334,7 +2521,7 @@ if (!(Get-Process masir -ErrorAction SilentlyContinue))
             }
 
             if bar_config.is_some() {
-                let output = Command::new("komorebi-bar.exe").arg("--aliases").output()?;
+                let output = Command::new(KOMOREBI_BAR_EXE).arg("--aliases").output()?;
                 let stdout = String::from_utf8(output.stdout)?;
                 println!("{stdout}");
             }
@@ -2364,73 +2551,27 @@ if (!(Get-Process masir -ErrorAction SilentlyContinue))
             }
         }
         SubCommand::Stop(arg) => {
+            let mut system = System::new();
+            system.refresh_processes(ProcessesToUpdate::All, true);
             if arg.whkd {
-                let script = r"
-Stop-Process -Name:whkd -ErrorAction SilentlyContinue
-                ";
-                match powershell_script::run(script) {
-                    Ok(_) => {
-                        println!("{script}");
-                    }
-                    Err(error) => {
-                        println!("Error: {error}");
-                    }
-                }
+                terminate_process_and_log(&mut system, WHKD_EXE);
             }
 
             if arg.bar {
-                let script = r"
-Stop-Process -Name:komorebi-bar -ErrorAction SilentlyContinue
-                ";
-                match powershell_script::run(script) {
-                    Ok(_) => {
-                        println!("{script}");
-                    }
-                    Err(error) => {
-                        println!("Error: {error}");
-                    }
-                }
+                terminate_process_and_log(&mut system, KOMOREBI_BAR_EXE);
             }
 
             if arg.masir {
-                let script = r"
-Stop-Process -Name:masir -ErrorAction SilentlyContinue
-                ";
-                match powershell_script::run(script) {
-                    Ok(_) => {
-                        println!("{script}");
-                    }
-                    Err(error) => {
-                        println!("Error: {error}");
-                    }
-                }
+                terminate_process_and_log(&mut system, MASIR_EXE);
             }
 
             if arg.ahk {
-                let script = r#"
-if (Get-Command Get-CimInstance -ErrorAction SilentlyContinue) {
-    (Get-CimInstance Win32_Process | Where-Object {
-        ($_.CommandLine -like '*komorebi.ahk"') -and
-        ($_.Name -in @('AutoHotkey.exe', 'AutoHotkey64.exe', 'AutoHotkey32.exe', 'AutoHotkeyUX.exe'))
-    } | Select-Object -First 1) | ForEach-Object {
-        Stop-Process -Id $_.ProcessId -ErrorAction SilentlyContinue
-    }
-} else {
-    (Get-WmiObject Win32_Process | Where-Object {
-        ($_.CommandLine -like '*komorebi.ahk"') -and
-        ($_.Name -in @('AutoHotkey.exe', 'AutoHotkey64.exe', 'AutoHotkey32.exe', 'AutoHotkeyUX.exe'))
-    } | Select-Object -First 1) | ForEach-Object {
-        Stop-Process -Id $_.ProcessId -ErrorAction SilentlyContinue
-    }
-}
-"#;
-
-                match powershell_script::run(script) {
-                    Ok(_) => {
-                        println!("{script}");
+                match terminate_ahk_processes(&mut system) {
+                    Ok(count) => {
+                        println!("{count} AutoHotkey processes stopped");
                     }
                     Err(error) => {
-                        println!("Error: {error}");
+                        eprintln!("Error: {error}");
                     }
                 }
             }
@@ -2440,18 +2581,14 @@ if (Get-Command Get-CimInstance -ErrorAction SilentlyContinue) {
             } else {
                 send_message(&SocketMessage::Stop)?;
             }
-            let mut system = sysinfo::System::new_all();
-            system.refresh_processes(ProcessesToUpdate::All, true);
 
-            if system.processes_by_name("komorebi.exe".as_ref()).count() >= 1 {
+            let komorebi_exe = KOMOREBI_EXE;
+            if system.processes_by_name(komorebi_exe.as_ref()).count() >= 1 {
                 println!("komorebi is still running, attempting to force-quit");
 
-                let script = r"
-Stop-Process -Name:komorebi -ErrorAction SilentlyContinue
-                ";
-                match powershell_script::run(script) {
+                match terminate_matching_processes(&mut system, komorebi_exe) {
                     Ok(_) => {
-                        println!("{script}");
+                        println!("{komorebi_exe} stopped");
 
                         let hwnd_json = DATA_DIR.join("komorebi.hwnd.json");
 
@@ -2464,79 +2601,33 @@ Stop-Process -Name:komorebi -ErrorAction SilentlyContinue
                         }
                     }
                     Err(error) => {
-                        println!("Error: {error}");
+                        eprintln!("Error: {error}");
                     }
                 }
             }
         }
         SubCommand::Kill(arg) => {
+            let mut system = System::new();
+            system.refresh_processes(ProcessesToUpdate::All, true);
             if arg.whkd {
-                let script = r"
-Stop-Process -Name:whkd -ErrorAction SilentlyContinue
-                ";
-                match powershell_script::run(script) {
-                    Ok(_) => {
-                        println!("{script}");
-                    }
-                    Err(error) => {
-                        println!("Error: {error}");
-                    }
-                }
+                terminate_process_and_log(&mut system, WHKD_EXE);
             }
 
             if arg.bar {
-                let script = r"
-Stop-Process -Name:komorebi-bar -ErrorAction SilentlyContinue
-                ";
-                match powershell_script::run(script) {
-                    Ok(_) => {
-                        println!("{script}");
-                    }
-                    Err(error) => {
-                        println!("Error: {error}");
-                    }
-                }
+                terminate_process_and_log(&mut system, KOMOREBI_BAR_EXE);
             }
 
             if arg.masir {
-                let script = r"
-Stop-Process -Name:masir -ErrorAction SilentlyContinue
-                ";
-                match powershell_script::run(script) {
-                    Ok(_) => {
-                        println!("{script}");
-                    }
-                    Err(error) => {
-                        println!("Error: {error}");
-                    }
-                }
+                terminate_process_and_log(&mut system, MASIR_EXE);
             }
 
             if arg.ahk {
-                let script = r#"
-if (Get-Command Get-CimInstance -ErrorAction SilentlyContinue) {
-    (Get-CimInstance Win32_Process | Where-Object {
-        ($_.CommandLine -like '*komorebi.ahk"') -and
-        ($_.Name -in @('AutoHotkey.exe', 'AutoHotkey64.exe', 'AutoHotkey32.exe', 'AutoHotkeyUX.exe'))
-    } | Select-Object -First 1) | ForEach-Object {
-        Stop-Process -Id $_.ProcessId -ErrorAction SilentlyContinue
-    }
-} else {
-    (Get-WmiObject Win32_Process | Where-Object {
-        ($_.CommandLine -like '*komorebi.ahk"') -and
-        ($_.Name -in @('AutoHotkey.exe', 'AutoHotkey64.exe', 'AutoHotkey32.exe', 'AutoHotkeyUX.exe'))
-    } | Select-Object -First 1) | ForEach-Object {
-        Stop-Process -Id $_.ProcessId -ErrorAction SilentlyContinue
-    }
-}
-"#;
-
-                match powershell_script::run(script) {
-                    Ok(_) => {
-                        println!("{script}");
+                match terminate_ahk_processes(&mut system) {
+                    Ok(count) => {
+                        println!("{count} AutoHotkey processes stopped");
                     }
                     Err(error) => {
-                        println!("Error: {error}");
+                        eprintln!("Error: {error}");
                     }
                 }
             }
