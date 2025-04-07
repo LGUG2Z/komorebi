@@ -480,6 +480,9 @@ impl Workspace {
             return Ok(());
         }
 
+        // make sure we are never holding on to empty containers
+        self.containers_mut().retain(|c| !c.windows().is_empty());
+
         let container_padding = self
             .container_padding()
             .or(self.globals().container_padding)
