@@ -105,11 +105,10 @@ fn event_rx() -> Receiver<Notification> {
 }
 
 pub fn window_border(hwnd: isize) -> Option<BorderInfo> {
-    WINDOWS_BORDERS.lock().get(&hwnd).and_then(|id| {
-        BORDER_STATE.lock().get(id).map(|b| BorderInfo {
-            border_hwnd: b.hwnd,
-            window_kind: b.window_kind,
-        })
+    let id = WINDOWS_BORDERS.lock().get(&hwnd)?.clone();
+    BORDER_STATE.lock().get(&id).map(|b| BorderInfo {
+        border_hwnd: b.hwnd,
+        window_kind: b.window_kind,
     })
 }
 
@@ -135,6 +134,8 @@ pub fn destroy_all_borders() -> color_eyre::Result<()> {
     for (_, border) in borders.drain() {
         let _ = destroy_border(border);
     }
+
+    drop(borders);
 
     WINDOWS_BORDERS.lock().clear();
 
