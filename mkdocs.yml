@@ -49,37 +49,40 @@ plugins:
 
 nav:
   - Komorebi:
-      - index.md
-      - Design: design.md
-  - Getting started:
-      - Installation: installation.md
-      - Example configurations: example-configurations.md
-      - Troubleshooting: troubleshooting.md
-  - Usage:
-      - usage/focusing-windows.md
-      - usage/moving-windows.md
-      - usage/stacking-windows.md
-      - usage/focusing-workspaces.md
-      - usage/moving-windows-across-workspaces.md
-  - Common workflows:
-      - common-workflows/komorebi-config-home.md
-      - common-workflows/autostart.md
-      - common-workflows/animations.md
-      - common-workflows/autohotkey.md
-      - common-workflows/borders.md
-      - common-workflows/stackbar.md
-      - common-workflows/remove-gaps.md
-      - common-workflows/ignore-windows.md
-      - common-workflows/force-manage-windows.md
-      - common-workflows/floating-applications.md
-      - common-workflows/tray-and-multi-window-applications.md
-      - common-workflows/mouse-follows-focus.md
-      - common-workflows/dynamic-layout-switching.md
-      - common-workflows/set-display-index.md
-      - common-workflows/multiple-bar-instances.md
-      - common-workflows/multi-monitor-setup.md
-  - Configuration reference: https://komorebi.lgug2z.com/schema
-  - Bar reference: https://komorebi-bar.lgug2z.com/schema
+      - About:
+          - index.md
+          - design.md
+      - Getting started:
+          - Installation: installation.md
+          - Example configurations: example-configurations.md
+          - Troubleshooting: troubleshooting.md
+      - Usage:
+          - usage/focusing-windows.md
+          - usage/moving-windows.md
+          - usage/stacking-windows.md
+          - usage/focusing-workspaces.md
+          - usage/moving-windows-across-workspaces.md
+      - Komorebi Configuration:
+          - Schema: https://komorebi.lgug2z.com/schema
+      - Komorebi Bar Configuration:
+          - Schema: https://komorebi-bar.lgug2z.com/schema
+      - Common workflows:
+          - common-workflows/komorebi-config-home.md
+          - common-workflows/autostart.md
+          - common-workflows/animations.md
+          - common-workflows/autohotkey.md
+          - common-workflows/borders.md
+          - common-workflows/stackbar.md
+          - common-workflows/remove-gaps.md
+          - common-workflows/ignore-windows.md
+          - common-workflows/force-manage-windows.md
+          - common-workflows/floating-applications.md
+          - common-workflows/tray-and-multi-window-applications.md
+          - common-workflows/mouse-follows-focus.md
+          - common-workflows/dynamic-layout-switching.md
+          - common-workflows/set-display-index.md
+          - common-workflows/multiple-bar-instances.md
+          - common-workflows/multi-monitor-setup.md
   - CLI reference:
       - cli/quickstart.md
       - cli/start.md

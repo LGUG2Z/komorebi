@@ -8,8 +8,6 @@ use std::num::NonZeroUsize;
 use std::sync::atomic::Ordering;
 
 use crate::border_manager;
-use crate::border_manager::BORDER_OFFSET;
-use crate::border_manager::BORDER_WIDTH;
 use crate::container::Container;
 use crate::core::Axis;
 use crate::core::CustomLayout;
@@ -188,6 +186,8 @@ pub enum WorkspaceWindowLocation {
 pub struct WorkspaceGlobals {
     pub container_padding: Option<i32>,
     pub workspace_padding: Option<i32>,
+    pub border_width: i32,
+    pub border_offset: i32,
     pub work_area: Rect,
     pub work_area_offset: Option<Rect>,
     pub window_based_work_area_offset: Option<Rect>,
@@ -480,6 +480,9 @@ impl Workspace {
             return Ok(());
         }
 
+        // make sure we are never holding on to empty containers
+        self.containers_mut().retain(|c| !c.windows().is_empty());
+
         let container_padding = self
             .container_padding()
             .or(self.globals().container_padding)
@@ -488,6 +491,8 @@ impl Workspace {
             .workspace_padding()
             .or(self.globals().workspace_padding)
             .unwrap_or_default();
+        let border_width = self.globals().border_width;
+        let border_offset = self.globals().border_offset;
         let work_area = self.globals().work_area;
         let work_area_offset = self.globals().work_area_offset;
         let window_based_work_area_offset = self.globals().window_based_work_area_offset;
@@ -560,12 +565,8 @@ impl Workspace {
             if let Some(container) = self.monocle_container_mut() {
                 if let Some(window) = container.focused_window_mut() {
                     adjusted_work_area.add_padding(container_padding);
-                    {
-                        let border_offset = BORDER_OFFSET.load(Ordering::SeqCst);
-                        adjusted_work_area.add_padding(border_offset);
-                        let width = BORDER_WIDTH.load(Ordering::SeqCst);
-                        adjusted_work_area.add_padding(width);
-                    }
+                    adjusted_work_area.add_padding(border_offset);
+                    adjusted_work_area.add_padding(border_width);
                     window.set_position(&adjusted_work_area, true)?;
                 };
             } else if let Some(window) = self.maximized_window_mut() {
@@ -593,13 +594,8 @@ impl Workspace {
                     let window_count = container.windows().len();
 
                     if let Some(layout) = layouts.get_mut(i) {
-                        {
-                            let border_offset = BORDER_OFFSET.load(Ordering::SeqCst);
-                            layout.add_padding(border_offset);
-
-                            let width = BORDER_WIDTH.load(Ordering::SeqCst);
-                            layout.add_padding(width);
-                        }
+                        layout.add_padding(border_offset);
+                        layout.add_padding(border_width);
 
                         if stackbar_manager::should_have_stackbar(window_count) {
                             let tab_height = STACKBAR_TAB_HEIGHT.load(Ordering::SeqCst);

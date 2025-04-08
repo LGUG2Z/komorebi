@@ -27,6 +27,7 @@ net2 = "0.2"
 os_info = "3.10"
 parking_lot = "0.12"
 paste = { workspace = true }
+powershell_script = "1.0"
 regex = "1"
 schemars = { workspace = true, optional = true }
 serde = { workspace = true }
@@ -48,6 +49,7 @@ windows-implement = { workspace = true }
 windows-interface = { workspace = true }
 winput = "0.2"
 winreg = "0.55"
+serde_with = { version = "3.12", features = ["schemars_0_8"] }
 
 [build-dependencies]
 shadow-rs = { workspace = true }

@@ -2,12 +2,13 @@
 #![allow(clippy::missing_errors_doc, clippy::doc_markdown)]
 
 use chrono::Utc;
+use komorebi_client::replace_env_in_path;
+use komorebi_client::PathExt;
 use std::fs::File;
 use std::fs::OpenOptions;
 use std::io::BufRead;
 use std::io::BufReader;
 use std::io::Write;
-use std::path::Path;
 use std::path::PathBuf;
 use std::process::Command;
 use std::sync::atomic::AtomicBool;
@@ -22,7 +23,6 @@ use color_eyre::eyre::bail;
 use color_eyre::Result;
 use dirs::data_local_dir;
 use fs_tail::TailedFile;
-use komorebi_client::resolve_home_path;
 use komorebi_client::send_message;
 use komorebi_client::send_query;
 use komorebi_client::AppSpecificConfigurationPath;
@@ -64,8 +64,7 @@ lazy_static! {
         std::env::var("KOMOREBI_CONFIG_HOME").map_or_else(
             |_| dirs::home_dir().expect("there is no home directory"),
             |home_path| {
-                let home = PathBuf::from(&home_path);
-
+                let home = home_path.replace_env();
                 if home.as_path().is_dir() {
                     HAS_CUSTOM_CONFIG_HOME.store(true, Ordering::SeqCst);
                     home
@@ -88,12 +87,12 @@ lazy_static! {
                     .join(".config")
             },
             |home_path| {
-                let whkd_config_home = PathBuf::from(&home_path);
+                let whkd_config_home = home_path.replace_env();
 
                 assert!(
-                    whkd_config_home.as_path().is_dir(),
+                    whkd_config_home.is_dir(),
                     "$Env:WHKD_CONFIG_HOME is set to '{}', which is not a valid directory",
-                    whkd_config_home.to_string_lossy()
+                    home_path
                 );
 
                 whkd_config_home
@@ -299,6 +298,7 @@ pub struct WorkspaceCustomLayout {
     workspace: usize,
 
     /// JSON or YAML file from which the custom layout definition should be loaded
+    #[clap(value_parser = replace_env_in_path)]
     path: PathBuf,
 }
 
@@ -308,6 +308,7 @@ pub struct NamedWorkspaceCustomLayout {
     workspace: String,
 
     /// JSON or YAML file from which the custom layout definition should be loaded
+    #[clap(value_parser = replace_env_in_path)]
     path: PathBuf,
 }
 
@@ -350,6 +351,7 @@ pub struct WorkspaceCustomLayoutRule {
     at_container_count: usize,
 
     /// JSON or YAML file from which the custom layout definition should be loaded
+    #[clap(value_parser = replace_env_in_path)]
     path: PathBuf,
 }
 
@@ -362,6 +364,7 @@ pub struct NamedWorkspaceCustomLayoutRule {
     at_container_count: usize,
 
     /// JSON or YAML file from which the custom layout definition should be loaded
+    #[clap(value_parser = replace_env_in_path)]
     path: PathBuf,
 }
 
@@ -770,6 +773,7 @@ struct Start {
     ffm: bool,
     /// Path to a static configuration JSON file
     #[clap(short, long)]
+    #[clap(value_parser = replace_env_in_path)]
     config: Option<PathBuf>,
     /// Wait for 'komorebic complete-configuration' to be sent before processing events
     #[clap(short, long)]
@@ -832,18 +836,21 @@ struct Kill {
 #[derive(Parser)]
 struct SaveResize {
     /// File to which the resize layout dimensions should be saved
+    #[clap(value_parser = replace_env_in_path)]
     path: PathBuf,
 }
 
 #[derive(Parser)]
 struct LoadResize {
     /// File from which the resize layout dimensions should be loaded
+    #[clap(value_parser = replace_env_in_path)]
     path: PathBuf,
 }
 
 #[derive(Parser)]
 struct LoadCustomLayout {
     /// JSON or YAML file from which the custom layout definition should be loaded
+    #[clap(value_parser = replace_env_in_path)]
     path: PathBuf,
 }
 
@@ -874,28 +881,34 @@ struct UnsubscribePipe {
 #[derive(Parser)]
 struct AhkAppSpecificConfiguration {
     /// YAML file from which the application-specific configurations should be loaded
+    #[clap(value_parser = replace_env_in_path)]
     path: PathBuf,
     /// Optional YAML file of overrides to apply over the first file
+    #[clap(value_parser = replace_env_in_path)]
     override_path: Option<PathBuf>,
 }
 
 #[derive(Parser)]
 struct PwshAppSpecificConfiguration {
     /// YAML file from which the application-specific configurations should be loaded
+    #[clap(value_parser = replace_env_in_path)]
     path: PathBuf,
     /// Optional YAML file of overrides to apply over the first file
+    #[clap(value_parser = replace_env_in_path)]
     override_path: Option<PathBuf>,
 }
 
 #[derive(Parser)]
 struct FormatAppSpecificConfiguration {
     /// YAML file from which the application-specific configurations should be loaded
+    #[clap(value_parser = replace_env_in_path)]
     path: PathBuf,
 }
 
 #[derive(Parser)]
 struct ConvertAppSpecificConfiguration {
     /// YAML file from which the application-specific configurations should be loaded
+    #[clap(value_parser = replace_env_in_path)]
     path: PathBuf,
 }
 
@@ -909,6 +922,7 @@ struct AltFocusHack {
 struct EnableAutostart {
     /// Path to a static configuration JSON file
     #[clap(action, short, long)]
+    #[clap(value_parser = replace_env_in_path)]
     config: Option<PathBuf>,
     /// Enable komorebi's custom focus-follows-mouse implementation
     #[clap(hide = true)]
@@ -932,12 +946,14 @@ struct EnableAutostart {
 struct Check {
     /// Path to a static configuration JSON file
     #[clap(action, short, long)]
+    #[clap(value_parser = replace_env_in_path)]
     komorebi_config: Option<PathBuf>,
 }
 
 #[derive(Parser)]
 struct ReplaceConfiguration {
     /// Static configuration JSON file from which the configuration should be loaded
+    #[clap(value_parser = replace_env_in_path)]
     path: PathBuf,
 }
 
@@ -1677,7 +1693,7 @@ fn main() -> Result<()> {
                             println!("Application specific configuration file path has not been set. Try running 'komorebic fetch-asc'\n");
                         }
                         Some(AppSpecificConfigurationPath::Single(path)) => {
-                            if !Path::exists(Path::new(&path)) {
+                            if !path.exists() {
                                 println!("Application specific configuration file path '{}' does not exist. Try running 'komorebic fetch-asc'\n", path.display());
                             }
                         }
@@ -1690,8 +1706,7 @@ fn main() -> Result<()> {
                 // errors
                 let _ = serde_json::from_str::<StaticConfig>(&config_source)?;
 
-                let path = resolve_home_path(static_config)?;
-                let raw = std::fs::read_to_string(path)?;
+                let raw = std::fs::read_to_string(static_config)?;
                 StaticConfig::aliases(&raw);
                 StaticConfig::deprecated(&raw);
                 StaticConfig::end_of_life(&raw);
@@ -1994,13 +2009,13 @@ fn main() -> Result<()> {
             send_message(&SocketMessage::WorkspaceLayoutCustom(
                 arg.monitor,
                 arg.workspace,
-                resolve_home_path(arg.path)?,
+                arg.path,
             ))?;
         }
         SubCommand::NamedWorkspaceCustomLayout(arg) => {
             send_message(&SocketMessage::NamedWorkspaceLayoutCustom(
                 arg.workspace,
-                resolve_home_path(arg.path)?,
+                arg.path,
             ))?;
         }
         SubCommand::WorkspaceLayoutRule(arg) => {
@@ -2023,14 +2038,14 @@ fn main() -> Result<()> {
                 arg.monitor,
                 arg.workspace,
                 arg.at_container_count,
-                resolve_home_path(arg.path)?,
+                arg.path,
             ))?;
         }
         SubCommand::NamedWorkspaceCustomLayoutRule(arg) => {
             send_message(&SocketMessage::NamedWorkspaceLayoutCustomRule(
                 arg.workspace,
                 arg.at_container_count,
-                resolve_home_path(arg.path)?,
+                arg.path,
             ))?;
         }
         SubCommand::ClearWorkspaceLayoutRules(arg) => {
@@ -2103,13 +2118,12 @@ fn main() -> Result<()> {
 
             let mut flags = vec![];
             if let Some(config) = &arg.config {
-                let path = resolve_home_path(config)?;
-                if !path.is_file() {
-                    bail!("could not find file: {}", path.display());
+                if !config.is_file() {
+                    bail!("could not find file: {}", config.display());
                 }
 
-                // we don't need to replace UNC prefix here as `resolve_home_path` already did
-                flags.push(format!("'--config=\"{}\"'", path.display()));
+                let config = dunce::simplified(config);
+                flags.push(format!("'--config=\"{}\"'", config.display()));
             }
 
             if arg.ffm {
@@ -2128,17 +2142,12 @@ fn main() -> Result<()> {
                 flags.push("'--clean-state'".to_string());
             }
 
+            let exec = exec.unwrap_or("komorebi.exe");
             let script = if flags.is_empty() {
-                format!(
-                    "Start-Process '{}' -WindowStyle hidden",
-                    exec.unwrap_or("komorebi.exe")
-                )
+                format!("Start-Process '{exec}' -WindowStyle hidden",)
             } else {
                 let argument_list = flags.join(",");
-                format!(
-                    "Start-Process '{}' -ArgumentList {argument_list} -WindowStyle hidden",
-                    exec.unwrap_or("komorebi.exe")
-                )
+                format!("Start-Process '{exec}' -ArgumentList {argument_list} -WindowStyle hidden",)
             };
 
             let mut system = sysinfo::System::new_all();
@@ -2181,9 +2190,8 @@ fn main() -> Result<()> {
             if !running {
                 println!("\nRunning komorebi.exe directly for detailed error output\n");
                 if let Some(config) = arg.config {
-                    let path = resolve_home_path(config)?;
                     if let Ok(output) = Command::new("komorebi.exe")
-                        .arg(format!("'--config=\"{}\"'", path.display()))
+                        .arg(format!("'--config=\"{}\"'", config.display()))
                         .output()
                     {
                         println!("{}", String::from_utf8(output.stderr)?);
@@ -2233,25 +2241,20 @@ if (!(Get-Process whkd -ErrorAction SilentlyContinue))
                 }
             }
 
-            let static_config = arg.config.clone().map_or_else(
-                || {
-                    let komorebi_json = HOME_DIR.join("komorebi.json");
-                    if komorebi_json.is_file() {
-                        Option::from(komorebi_json)
-                    } else {
-                        None
-                    }
-                },
-                Option::from,
-            );
+            let static_config = arg.config.clone().or_else(|| {
+                let komorebi_json = HOME_DIR.join("komorebi.json");
+                komorebi_json.is_file().then_some(komorebi_json)
+            });
 
             if arg.bar {
                 if let Some(config) = &static_config {
                     let mut config = StaticConfig::read(config)?;
                     if let Some(display_bar_configurations) = &mut config.bar_configurations {
                         for config_file_path in &mut *display_bar_configurations {
-                            let script = r#"Start-Process "komorebi-bar" '"--config" "CONFIGFILE"' -WindowStyle hidden"#
-                            .replace("CONFIGFILE", &config_file_path.to_string_lossy());
+                            let script = format!(
+                                r#"Start-Process "komorebi-bar" '"--config" "{}"' -WindowStyle hidden"#,
+                                config_file_path.to_string_lossy()
+                            );
 
                             match powershell_script::run(&script) {
                                 Ok(_) => {
@@ -2313,21 +2316,13 @@ if (!(Get-Process masir -ErrorAction SilentlyContinue))
             println!("\n# Documentation");
             println!("* Read the docs https://lgug2z.github.io/komorebi - Quickly search through all komorebic commands");
 
-            let bar_config = arg.config.map_or_else(
-                || {
-                    let bar_json = HOME_DIR.join("komorebi.bar.json");
-                    if bar_json.is_file() {
-                        Option::from(bar_json)
-                    } else {
-                        None
-                    }
-                },
-                Option::from,
-            );
+            let bar_config = arg.config.or_else(|| {
+                let bar_json = HOME_DIR.join("komorebi.bar.json");
+                bar_json.is_file().then_some(bar_json)
+            });
 
             if let Some(config) = &static_config {
-                let path = resolve_home_path(config)?;
-                let raw = std::fs::read_to_string(path)?;
+                let raw = std::fs::read_to_string(config)?;
                 StaticConfig::aliases(&raw);
                 StaticConfig::deprecated(&raw);
                 StaticConfig::end_of_life(&raw);
@@ -2629,9 +2624,7 @@ if (Get-Command Get-CimInstance -ErrorAction SilentlyContinue) {
             send_message(&SocketMessage::CycleLayout(arg.cycle_direction))?;
         }
         SubCommand::LoadCustomLayout(arg) => {
-            send_message(&SocketMessage::ChangeLayoutCustom(resolve_home_path(
-                arg.path,
-            )?))?;
+            send_message(&SocketMessage::ChangeLayoutCustom(arg.path))?;
         }
         SubCommand::FlipLayout(arg) => {
             send_message(&SocketMessage::FlipLayout(arg.axis))?;
@@ -2808,10 +2801,10 @@ if (Get-Command Get-CimInstance -ErrorAction SilentlyContinue) {
             send_message(&SocketMessage::QuickLoad)?;
         }
         SubCommand::SaveResize(arg) => {
-            send_message(&SocketMessage::Save(resolve_home_path(arg.path)?))?;
+            send_message(&SocketMessage::Save(arg.path))?;
         }
         SubCommand::LoadResize(arg) => {
-            send_message(&SocketMessage::Load(resolve_home_path(arg.path)?))?;
+            send_message(&SocketMessage::Load(arg.path))?;
         }
         SubCommand::SubscribeSocket(arg) => {
             send_message(&SocketMessage::AddSubscriberSocket(arg.socket))?;
@@ -2923,9 +2916,9 @@ if (Get-Command Get-CimInstance -ErrorAction SilentlyContinue) {
             ))?;
         }
         SubCommand::AhkAppSpecificConfiguration(arg) => {
-            let content = std::fs::read_to_string(resolve_home_path(arg.path)?)?;
+            let content = std::fs::read_to_string(arg.path)?;
             let lines = if let Some(override_path) = arg.override_path {
-                let override_content = std::fs::read_to_string(resolve_home_path(override_path)?)?;
+                let override_content = std::fs::read_to_string(override_path)?;
 
                 ApplicationConfigurationGenerator::generate_ahk(
                     &content,
@@ -2950,9 +2943,9 @@ if (Get-Command Get-CimInstance -ErrorAction SilentlyContinue) {
             );
         }
         SubCommand::PwshAppSpecificConfiguration(arg) => {
-            let content = std::fs::read_to_string(resolve_home_path(arg.path)?)?;
+            let content = std::fs::read_to_string(arg.path)?;
             let lines = if let Some(override_path) = arg.override_path {
-                let override_content = std::fs::read_to_string(resolve_home_path(override_path)?)?;
+                let override_content = std::fs::read_to_string(override_path)?;
 
                 ApplicationConfigurationGenerator::generate_pwsh(
                     &content,
@@ -2977,23 +2970,21 @@ if (Get-Command Get-CimInstance -ErrorAction SilentlyContinue) {
             );
         }
         SubCommand::ConvertAppSpecificConfiguration(arg) => {
-            let file_path = resolve_home_path(arg.path)?;
-            let content = std::fs::read_to_string(&file_path)?;
+            let content = std::fs::read_to_string(arg.path)?;
             let mut asc = ApplicationConfigurationGenerator::load(&content)?;
             asc.sort_by(|a, b| a.name.cmp(&b.name));
             let v2 = ApplicationSpecificConfiguration::from(asc);
             println!("{}", serde_json::to_string_pretty(&v2)?);
         }
         SubCommand::FormatAppSpecificConfiguration(arg) => {
-            let file_path = resolve_home_path(arg.path)?;
-            let content = std::fs::read_to_string(&file_path)?;
+            let content = std::fs::read_to_string(&arg.path)?;
             let formatted_content = ApplicationConfigurationGenerator::format(&content)?;
 
             let mut file = OpenOptions::new()
                 .write(true)
                 .create(true)
                 .truncate(true)
-                .open(file_path)?;
+                .open(arg.path)?;
 
             file.write_all(formatted_content.as_bytes())?;
 
