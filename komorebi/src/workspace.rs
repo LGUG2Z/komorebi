@@ -97,8 +97,8 @@ pub struct Workspace {
     pub globals: WorkspaceGlobals,
     #[getset(get = "pub", get_mut = "pub", set = "pub")]
     pub layer: WorkspaceLayer,
-    #[getset(get = "pub", get_mut = "pub", set = "pub")]
-    pub floating_layer_behaviour: FloatingLayerBehaviour,
+    #[getset(get_copy = "pub", get_mut = "pub", set = "pub")]
+    pub floating_layer_behaviour: Option<FloatingLayerBehaviour>,
     #[getset(get = "pub", get_mut = "pub", set = "pub")]
     pub locked_containers: BTreeSet<usize>,
     #[getset(get = "pub", get_mut = "pub", set = "pub")]
@@ -192,6 +192,7 @@ pub struct WorkspaceGlobals {
     pub work_area_offset: Option<Rect>,
     pub window_based_work_area_offset: Option<Rect>,
     pub window_based_work_area_offset_limit: isize,
+    pub floating_layer_behaviour: Option<FloatingLayerBehaviour>,
 }
 
 impl Workspace {
@@ -264,7 +265,7 @@ impl Workspace {
 
         self.set_float_override(config.float_override);
         self.set_layout_flip(config.layout_flip);
-        self.set_floating_layer_behaviour(config.floating_layer_behaviour.unwrap_or_default());
+        self.set_floating_layer_behaviour(config.floating_layer_behaviour);
         self.set_wallpaper(config.wallpaper.clone());
 
         self.set_workspace_config(Some(config.clone()));

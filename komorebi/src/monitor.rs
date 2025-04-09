@@ -23,6 +23,7 @@ use crate::workspace::Workspace;
 use crate::workspace::WorkspaceGlobals;
 use crate::workspace::WorkspaceLayer;
 use crate::DefaultLayout;
+use crate::FloatingLayerBehaviour;
 use crate::Layout;
 use crate::OperationDirection;
 use crate::Wallpaper;
@@ -67,6 +68,8 @@ pub struct Monitor {
     pub workspace_padding: Option<i32>,
     #[getset(get = "pub", get_mut = "pub", set = "pub")]
     pub wallpaper: Option<Wallpaper>,
+    #[getset(get_copy = "pub", set = "pub")]
+    pub floating_layer_behaviour: Option<FloatingLayerBehaviour>,
 }
 
 impl_ring_elements!(Monitor, Workspace);
@@ -123,6 +126,7 @@ pub fn new(
         container_padding: None,
         workspace_padding: None,
         wallpaper: None,
+        floating_layer_behaviour: None,
     }
 }
 
@@ -165,6 +169,7 @@ impl Monitor {
             container_padding: None,
             workspace_padding: None,
             wallpaper: None,
+            floating_layer_behaviour: None,
         }
     }
 
@@ -221,6 +226,7 @@ impl Monitor {
         let work_area_offset = self.work_area_offset.or(offset);
         let window_based_work_area_offset = self.window_based_work_area_offset();
         let window_based_work_area_offset_limit = self.window_based_work_area_offset_limit();
+        let floating_layer_behaviour = self.floating_layer_behaviour();
 
         for workspace in self.workspaces_mut() {
             workspace.globals = WorkspaceGlobals {
@@ -232,6 +238,7 @@ impl Monitor {
                 work_area_offset,
                 window_based_work_area_offset,
                 window_based_work_area_offset_limit,
+                floating_layer_behaviour,
             }
         }
     }
@@ -258,6 +265,7 @@ impl Monitor {
         let work_area_offset = self.work_area_offset.or(offset);
         let window_based_work_area_offset = self.window_based_work_area_offset();
         let window_based_work_area_offset_limit = self.window_based_work_area_offset_limit();
+        let floating_layer_behaviour = self.floating_layer_behaviour();
 
         if let Some(workspace) = self.workspaces_mut().get_mut(workspace_idx) {
             workspace.globals = WorkspaceGlobals {
@@ -269,6 +277,7 @@ impl Monitor {
                 work_area_offset,
                 window_based_work_area_offset,
                 window_based_work_area_offset_limit,
+                floating_layer_behaviour,
             }
         }
     }

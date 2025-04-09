@@ -307,7 +307,7 @@ impl From<&Workspace> for WorkspaceConfig {
             window_container_behaviour_rules: Option::from(window_container_behaviour_rules),
             float_override: *value.float_override(),
             layout_flip: value.layout_flip(),
-            floating_layer_behaviour: Option::from(*value.floating_layer_behaviour()),
+            floating_layer_behaviour: value.floating_layer_behaviour(),
             wallpaper: None,
         }
     }
@@ -336,6 +336,9 @@ pub struct MonitorConfig {
     /// Specify a wallpaper for this monitor
     #[serde(skip_serializing_if = "Option::is_none")]
     pub wallpaper: Option<Wallpaper>,
+    /// Determine what happens to a new window when the Floating workspace layer is active (default: Tile)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub floating_layer_behaviour: Option<FloatingLayerBehaviour>,
 }
 
 impl From<&Monitor> for MonitorConfig {
@@ -372,6 +375,7 @@ impl From<&Monitor> for MonitorConfig {
             container_padding,
             workspace_padding,
             wallpaper: value.wallpaper().clone(),
+            floating_layer_behaviour: value.floating_layer_behaviour(),
         }
     }
 }
@@ -1332,6 +1336,7 @@ impl StaticConfig {
                 monitor.set_container_padding(monitor_config.container_padding);
                 monitor.set_workspace_padding(monitor_config.workspace_padding);
                 monitor.set_wallpaper(monitor_config.wallpaper.clone());
+                monitor.set_floating_layer_behaviour(monitor_config.floating_layer_behaviour);
 
                 monitor.update_workspaces_globals(offset);
                 for (j, ws) in monitor.workspaces_mut().iter_mut().enumerate() {
@@ -1417,6 +1422,7 @@ impl StaticConfig {
                     );
                     m.set_container_padding(monitor_config.container_padding);
                     m.set_workspace_padding(monitor_config.workspace_padding);
+                    m.set_floating_layer_behaviour(monitor_config.floating_layer_behaviour);
 
                     m.update_workspaces_globals(offset);
 
@@ -1503,6 +1509,7 @@ impl StaticConfig {
                 );
                 monitor.set_container_padding(monitor_config.container_padding);
                 monitor.set_workspace_padding(monitor_config.workspace_padding);
+                monitor.set_floating_layer_behaviour(monitor_config.floating_layer_behaviour);
 
                 monitor.update_workspaces_globals(offset);
 
@@ -1589,6 +1596,7 @@ impl StaticConfig {
                     );
                     m.set_container_padding(monitor_config.container_padding);
                     m.set_workspace_padding(monitor_config.workspace_padding);
+                    m.set_floating_layer_behaviour(monitor_config.floating_layer_behaviour);
 
                     m.update_workspaces_globals(offset);
 

@@ -360,6 +360,7 @@ impl From<&WindowManager> for State {
                 container_padding: monitor.container_padding,
                 workspace_padding: monitor.workspace_padding,
                 wallpaper: monitor.wallpaper.clone(),
+                floating_layer_behaviour: monitor.floating_layer_behaviour,
             })
             .collect::<VecDeque<_>>();
         stripped_monitors.focus(wm.monitors.focused_idx());
@@ -651,14 +652,18 @@ impl WindowManager {
                     self.window_management_behaviour.float_override
                 };
 
+                let floating_layer_behaviour =
+                    if let Some(behaviour) = workspace.floating_layer_behaviour() {
+                        behaviour
+                    } else {
+                        monitor.floating_layer_behaviour().unwrap_or_default()
+                    };
+
                 // If the workspace layer is `Floating` and the floating layer behaviour is `Float`,
                 // then consider it as if it had float override so that new windows spawn as floating
                 float_override = float_override
                     || (matches!(workspace.layer, WorkspaceLayer::Floating)
-                        && matches!(
-                            workspace.floating_layer_behaviour,
-                            FloatingLayerBehaviour::Float
-                        ));
+                        && matches!(floating_layer_behaviour, FloatingLayerBehaviour::Float));
 
                 return WindowManagementBehaviour {
                     current_behaviour,
