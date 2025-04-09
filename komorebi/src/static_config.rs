@@ -1509,6 +1509,7 @@ impl StaticConfig {
                 );
                 monitor.set_container_padding(monitor_config.container_padding);
                 monitor.set_workspace_padding(monitor_config.workspace_padding);
+                monitor.set_wallpaper(monitor_config.wallpaper.clone());
                 monitor.set_floating_layer_behaviour(monitor_config.floating_layer_behaviour);
 
                 monitor.update_workspaces_globals(offset);
