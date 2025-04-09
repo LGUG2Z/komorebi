@@ -292,7 +292,6 @@ impl BarWidget for Komorebi {
                                             komorebi_notification_state.monitor_index,
                                             i,
                                         ),
-                                        SocketMessage::RetileWithResizeDimensions,
                                         SocketMessage::MouseFollowsFocus(true),
                                     ])
                                         .is_err()
@@ -301,7 +300,6 @@ impl BarWidget for Komorebi {
                                             "could not send the following batch of messages to komorebi:\n
                                             MouseFollowsFocus(false)\n
                                             FocusMonitorWorkspaceNumber({}, {})\n
-                                            RetileWithResizeDimensions
                                             MouseFollowsFocus(true)\n",
                                             komorebi_notification_state.monitor_index,
                                             i,
@@ -312,14 +310,12 @@ impl BarWidget for Komorebi {
                                         komorebi_notification_state.monitor_index,
                                         i,
                                     ),
-                                    SocketMessage::RetileWithResizeDimensions,
                                 ])
                                     .is_err()
                                 {
                                     tracing::error!(
                                         "could not send the following batch of messages to komorebi:\n
-                                        FocusMonitorWorkspaceNumber({}, {})\n
-                                        RetileWithResizeDimensions",
+                                        FocusMonitorWorkspaceNumber({}, {})\n",
                                         komorebi_notification_state.monitor_index,
                                         i,
                                     );
