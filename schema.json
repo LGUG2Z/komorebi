@@ -1131,6 +1131,25 @@
             "type": "integer",
             "format": "int32"
           },
+          "floating_layer_behaviour": {
+            "description": "Determine what happens to a new window when the Floating workspace layer is active (default: Tile)",
+            "oneOf": [
+              {
+                "description": "Tile new windows (unless they match a float rule)",
+                "type": "string",
+                "enum": [
+                  "Tile"
+                ]
+              },
+              {
+                "description": "Float new windows",
+                "type": "string",
+                "enum": [
+                  "Float"
+                ]
+              }
+            ]
+          },
           "wallpaper": {
             "description": "Specify a wallpaper for this monitor",
             "type": "object",
