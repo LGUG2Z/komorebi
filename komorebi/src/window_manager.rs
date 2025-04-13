@@ -5152,4 +5152,94 @@ mod tests {
             assert_eq!(container.focused_window(), Some(&Window { hwnd: 2 }));
         }
     }
+
+    #[test]
+    fn test_maximize_and_unmaximize_window() {
+        let (mut wm, _context) = setup_window_manager();
+
+        {
+            // Create a monitor
+            let mut m = monitor::new(
+                0,
+                Rect::default(),
+                Rect::default(),
+                "TestMonitor".to_string(),
+                "TestDevice".to_string(),
+                "TestDeviceID".to_string(),
+                Some("TestMonitorID".to_string()),
+            );
+
+            // Create a container
+            let mut container = Container::default();
+
+            // Add three windows to the container
+            for i in 0..3 {
+                container.windows_mut().push_back(Window::from(i));
+            }
+
+            // Should have 3 windows in the container
+            assert_eq!(container.windows().len(), 3);
+
+            // Add the container to the workspace
+            let workspace = m.focused_workspace_mut().unwrap();
+            workspace.add_container_to_back(container);
+
+            // Add monitor to the window manager
+            wm.monitors_mut().push_back(m);
+        }
+
+        {
+            // No windows should be maximized
+            let workspace = wm.focused_workspace().unwrap();
+            let maximized_window = workspace.maximized_window();
+            assert_eq!(*maximized_window, None);
+        }
+
+        // Maximize the focused window
+        wm.maximize_window().ok();
+
+        {
+            // Window 0 should be maximized
+            let workspace = wm.focused_workspace().unwrap();
+            let maximized_window = workspace.maximized_window();
+            assert_eq!(*maximized_window, Some(Window::from(0)));
+        }
+
+        wm.unmaximize_window().ok();
+
+        {
+            // No windows should be maximized
+            let workspace = wm.focused_workspace().unwrap();
+            let maximized_window = workspace.maximized_window();
+            assert_eq!(*maximized_window, None);
+        }
+
+        // Focus container at index 1
+        wm.focused_workspace_mut().unwrap().focus_container(1);
+
+        {
+            // Focus the window at index 1
+            let container = wm.focused_container_mut().unwrap();
+            container.focus_window(1);
+        }
+
+        // Maximize the focused window
+        wm.maximize_window().ok();
+
+        {
+            // Window 2 should be maximized
+            let workspace = wm.focused_workspace().unwrap();
+            let maximized_window = workspace.maximized_window();
+            assert_eq!(*maximized_window, Some(Window::from(2)));
+        }
+
+        wm.unmaximize_window().ok();
+
+        {
+            // No windows should be maximized
+            let workspace = wm.focused_workspace().unwrap();
+            let maximized_window = workspace.maximized_window();
+            assert_eq!(*maximized_window, None);
+        }
+    }
 }
