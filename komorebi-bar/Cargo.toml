@@ -1,6 +1,6 @@
 [package]
 name = "komorebi-bar"
-version = "0.1.36"
+version = "0.1.37"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html

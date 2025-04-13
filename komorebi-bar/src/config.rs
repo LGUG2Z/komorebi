@@ -13,7 +13,7 @@ use std::path::PathBuf;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
-/// The `komorebi.bar.json` configuration file reference for `v0.1.36`
+/// The `komorebi.bar.json` configuration file reference for `v0.1.37`
 pub struct KomobarConfig {
     /// Bar height (default: 50)
     pub height: Option<f32>,

@@ -2909,7 +2909,7 @@ checksum = "e2db585e1d738fc771bf08a151420d3ed193d9d895a36df7f6f8a9456b911ddc"
 
 [[package]]
 name = "komorebi"
-version = "0.1.36"
+version = "0.1.37"
 dependencies = [
  "bitflags 2.9.0",
  "clap",
@@ -2958,7 +2958,7 @@ dependencies = [
 
 [[package]]
 name = "komorebi-bar"
-version = "0.1.36"
+version = "0.1.37"
 dependencies = [
  "chrono",
  "chrono-tz",
@@ -2996,7 +2996,7 @@ dependencies = [
 
 [[package]]
 name = "komorebi-client"
-version = "0.1.36"
+version = "0.1.37"
 dependencies = [
  "komorebi",
  "serde_json_lenient",
@@ -3005,7 +3005,7 @@ dependencies = [
 
 [[package]]
 name = "komorebi-gui"
-version = "0.1.36"
+version = "0.1.37"
 dependencies = [
  "eframe",
  "egui_extras",
@@ -3018,7 +3018,7 @@ dependencies = [
 
 [[package]]
 name = "komorebi-themes"
-version = "0.1.36"
+version = "0.1.37"
 dependencies = [
  "base16-egui-themes",
  "catppuccin-egui",
@@ -3033,7 +3033,7 @@ dependencies = [
 
 [[package]]
 name = "komorebic"
-version = "0.1.36"
+version = "0.1.37"
 dependencies = [
  "chrono",
  "clap",
@@ -3059,7 +3059,7 @@ dependencies = [
 
 [[package]]
 name = "komorebic-no-console"
-version = "0.1.36"
+version = "0.1.37"
 
 [[package]]
 name = "kqueue"
