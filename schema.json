@@ -55,74 +55,146 @@
             {
               "type": "object",
               "additionalProperties": {
-                "type": "string",
-                "enum": [
-                  "Linear",
-                  "EaseInSine",
-                  "EaseOutSine",
-                  "EaseInOutSine",
-                  "EaseInQuad",
-                  "EaseOutQuad",
-                  "EaseInOutQuad",
-                  "EaseInCubic",
-                  "EaseInOutCubic",
-                  "EaseInQuart",
-                  "EaseOutQuart",
-                  "EaseInOutQuart",
-                  "EaseInQuint",
-                  "EaseOutQuint",
-                  "EaseInOutQuint",
-                  "EaseInExpo",
-                  "EaseOutExpo",
-                  "EaseInOutExpo",
-                  "EaseInCirc",
-                  "EaseOutCirc",
-                  "EaseInOutCirc",
-                  "EaseInBack",
-                  "EaseOutBack",
-                  "EaseInOutBack",
-                  "EaseInElastic",
-                  "EaseOutElastic",
-                  "EaseInOutElastic",
-                  "EaseInBounce",
-                  "EaseOutBounce",
-                  "EaseInOutBounce"
+                "oneOf": [
+                  {
+                    "type": "string",
+                    "enum": [
+                      "Linear",
+                      "EaseInSine",
+                      "EaseOutSine",
+                      "EaseInOutSine",
+                      "EaseInQuad",
+                      "EaseOutQuad",
+                      "EaseInOutQuad",
+                      "EaseInCubic",
+                      "EaseInOutCubic",
+                      "EaseInQuart",
+                      "EaseOutQuart",
+                      "EaseInOutQuart",
+                      "EaseInQuint",
+                      "EaseOutQuint",
+                      "EaseInOutQuint",
+                      "EaseInExpo",
+                      "EaseOutExpo",
+                      "EaseInOutExpo",
+                      "EaseInCirc",
+                      "EaseOutCirc",
+                      "EaseInOutCirc",
+                      "EaseInBack",
+                      "EaseOutBack",
+                      "EaseInOutBack",
+                      "EaseInElastic",
+                      "EaseOutElastic",
+                      "EaseInOutElastic",
+                      "EaseInBounce",
+                      "EaseOutBounce",
+                      "EaseInOutBounce"
+                    ]
+                  },
+                  {
+                    "type": "object",
+                    "required": [
+                      "CubicBezier"
+                    ],
+                    "properties": {
+                      "CubicBezier": {
+                        "type": "array",
+                        "items": [
+                          {
+                            "type": "number",
+                            "format": "double"
+                          },
+                          {
+                            "type": "number",
+                            "format": "double"
+                          },
+                          {
+                            "type": "number",
+                            "format": "double"
+                          },
+                          {
+                            "type": "number",
+                            "format": "double"
+                          }
+                        ],
+                        "maxItems": 4,
+                        "minItems": 4
+                      }
+                    },
+                    "additionalProperties": false
+                  }
                 ]
               }
             },
             {
-              "type": "string",
-              "enum": [
-                "Linear",
-                "EaseInSine",
-                "EaseOutSine",
-                "EaseInOutSine",
-                "EaseInQuad",
-                "EaseOutQuad",
-                "EaseInOutQuad",
-                "EaseInCubic",
-                "EaseInOutCubic",
-                "EaseInQuart",
-                "EaseOutQuart",
-                "EaseInOutQuart",
-                "EaseInQuint",
-                "EaseOutQuint",
-                "EaseInOutQuint",
-                "EaseInExpo",
-                "EaseOutExpo",
-                "EaseInOutExpo",
-                "EaseInCirc",
-                "EaseOutCirc",
-                "EaseInOutCirc",
-                "EaseInBack",
-                "EaseOutBack",
-                "EaseInOutBack",
-                "EaseInElastic",
-                "EaseOutElastic",
-                "EaseInOutElastic",
-                "EaseInBounce",
-                "EaseOutBounce",
-                "EaseInOutBounce"
+              "oneOf": [
+                {
+                  "type": "string",
+                  "enum": [
+                    "Linear",
+                    "EaseInSine",
+                    "EaseOutSine",
+                    "EaseInOutSine",
+                    "EaseInQuad",
+                    "EaseOutQuad",
+                    "EaseInOutQuad",
+                    "EaseInCubic",
+                    "EaseInOutCubic",
+                    "EaseInQuart",
+                    "EaseOutQuart",
+                    "EaseInOutQuart",
+                    "EaseInQuint",
+                    "EaseOutQuint",
+                    "EaseInOutQuint",
+                    "EaseInExpo",
+                    "EaseOutExpo",
+                    "EaseInOutExpo",
+                    "EaseInCirc",
+                    "EaseOutCirc",
+                    "EaseInOutCirc",
+                    "EaseInBack",
+                    "EaseOutBack",
+                    "EaseInOutBack",
+                    "EaseInElastic",
+                    "EaseOutElastic",
+                    "EaseInOutElastic",
+                    "EaseInBounce",
+                    "EaseOutBounce",
+                    "EaseInOutBounce"
+                  ]
+                },
+                {
+                  "type": "object",
+                  "required": [
+                    "CubicBezier"
+                  ],
+                  "properties": {
+                    "CubicBezier": {
+                      "type": "array",
+                      "items": [
+                        {
+                          "type": "number",
+                          "format": "double"
+                        },
+                        {
+                          "type": "number",
+                          "format": "double"
+                        },
+                        {
+                          "type": "number",
+                          "format": "double"
+                        },
+                        {
+                          "type": "number",
+                          "format": "double"
+                        }
+                      ],
+                      "maxItems": 4,
+                      "minItems": 4
+                    }
+                  },
+                  "additionalProperties": false
+                }
               ]
             }
           ]
