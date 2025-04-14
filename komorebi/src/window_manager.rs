@@ -5244,6 +5244,62 @@ mod tests {
     }
 
     #[test]
+    fn test_toggle_maximize() {
+        let (mut wm, _context) = setup_window_manager();
+
+        {
+            // Create a monitor
+            let mut m = monitor::new(
+                0,
+                Rect::default(),
+                Rect::default(),
+                "TestMonitor".to_string(),
+                "TestDevice".to_string(),
+                "TestDeviceID".to_string(),
+                Some("TestMonitorID".to_string()),
+            );
+
+            // Create a container
+            let mut container = Container::default();
+
+            // Add three windows to the container
+            for i in 0..3 {
+                container.windows_mut().push_back(Window::from(i));
+            }
+
+            // Should have 3 windows in the container
+            assert_eq!(container.windows().len(), 3);
+
+            // Add the container to the workspace
+            let workspace = m.focused_workspace_mut().unwrap();
+            workspace.add_container_to_back(container);
+
+            // Add monitor to the window manager
+            wm.monitors_mut().push_back(m);
+        }
+
+        // Toggle maximize on
+        wm.toggle_maximize().ok();
+
+        {
+            // Window 0 should be maximized
+            let workspace = wm.focused_workspace().unwrap();
+            let maximized_window = workspace.maximized_window();
+            assert_eq!(*maximized_window, Some(Window::from(0)));
+        }
+
+        // Toggle maximize off
+        wm.toggle_maximize().ok();
+
+        {
+            // No windows should be maximized
+            let workspace = wm.focused_workspace().unwrap();
+            let maximized_window = workspace.maximized_window();
+            assert_eq!(*maximized_window, None);
+        }
+    }
+
+    #[test]
     fn test_monocle_on_and_monocle_off() {
         let (mut wm, _context) = setup_window_manager();
 
@@ -5299,6 +5355,77 @@ mod tests {
 
         // Move monocle container to regular container
         wm.monocle_off().ok();
+
+        {
+            // Should have 1 container in the workspace
+            let container = wm.focused_workspace().unwrap();
+            assert_eq!(container.containers().len(), 1);
+            assert_eq!(container.containers()[0].windows()[0].hwnd, 1);
+        }
+
+        {
+            // No windows should be in the monocle container
+            let monocle_container = wm.focused_workspace().unwrap().monocle_container();
+            assert_eq!(*monocle_container, None);
+        }
+    }
+
+    #[test]
+    fn test_toggle_monocle() {
+        let (mut wm, _context) = setup_window_manager();
+
+        {
+            // Create a monitor
+            let mut m = monitor::new(
+                0,
+                Rect::default(),
+                Rect::default(),
+                "TestMonitor".to_string(),
+                "TestDevice".to_string(),
+                "TestDeviceID".to_string(),
+                Some("TestMonitorID".to_string()),
+            );
+
+            // Create a container
+            let mut container = Container::default();
+
+            // Add a window to the container
+            container.windows_mut().push_back(Window::from(1));
+
+            // Should have 1 window in the container
+            assert_eq!(container.windows().len(), 1);
+
+            // Add the container to the workspace
+            let workspace = m.focused_workspace_mut().unwrap();
+            workspace.add_container_to_back(container);
+
+            // Add monitor to the window manager
+            wm.monitors_mut().push_back(m);
+        }
+
+        // Toggle monocle on
+        wm.toggle_monocle().ok();
+
+        {
+            // Container should be a monocle container
+            let monocle_container = wm
+                .focused_workspace()
+                .unwrap()
+                .monocle_container()
+                .as_ref()
+                .unwrap();
+            assert_eq!(monocle_container.windows().len(), 1);
+            assert_eq!(monocle_container.windows()[0].hwnd, 1);
+        }
+
+        {
+            // Should not have any containers
+            let container = wm.focused_workspace().unwrap();
+            assert_eq!(container.containers().len(), 0);
+        }
+
+        // Toggle monocle off
+        wm.toggle_monocle().ok();
 
         {
             // Should have 1 container in the workspace
