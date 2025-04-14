@@ -438,7 +438,7 @@ impl WindowManager {
             work_area_offset: None,
             window_management_behaviour: WindowManagementBehaviour::default(),
             cross_monitor_move_behaviour: MoveBehaviour::Swap,
-            cross_boundary_behaviour: CrossBoundaryBehaviour::Workspace,
+            cross_boundary_behaviour: CrossBoundaryBehaviour::Monitor,
             unmanaged_window_operation_behaviour: OperationBehaviour::Op,
             resize_delta: 50,
             focus_follows_mouse: None,
