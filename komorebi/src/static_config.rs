@@ -1659,42 +1659,12 @@ impl StaticConfig {
 
         wm.enforce_workspace_rules()?;
 
-        if let Some(enabled) = value.border {
-            border_manager::BORDER_ENABLED.store(enabled, Ordering::SeqCst);
-        }
-
-        if let Some(val) = value.window_container_behaviour {
-            wm.window_management_behaviour.current_behaviour = val;
-        }
-
-        if let Some(val) = value.float_override {
-            wm.window_management_behaviour.float_override = val;
-        }
-
-        if let Some(val) = value.floating_layer_behaviour {
-            wm.window_management_behaviour.floating_layer_behaviour = val;
-        }
-
-        if let Some(val) = value.cross_monitor_move_behaviour {
-            wm.cross_monitor_move_behaviour = val;
-        }
-
-        if let Some(val) = value.cross_boundary_behaviour {
-            wm.cross_boundary_behaviour = val;
-        }
-
-        if let Some(val) = value.unmanaged_window_operation_behaviour {
-            wm.unmanaged_window_operation_behaviour = val;
-        }
-
-        if let Some(val) = value.resize_delta {
-            wm.resize_delta = val;
-        }
-
-        if let Some(val) = value.mouse_follows_focus {
-            wm.mouse_follows_focus = val;
-        }
-
+        border_manager::BORDER_ENABLED.store(value.border.unwrap_or(true), Ordering::SeqCst);
+        wm.window_management_behaviour.current_behaviour =
+            value.window_container_behaviour.unwrap_or_default();
+        wm.window_management_behaviour.float_override = value.float_override.unwrap_or_default();
+        wm.window_management_behaviour.floating_layer_behaviour =
+            value.floating_layer_behaviour.unwrap_or_default();
         wm.window_management_behaviour.toggle_float_placement = value
             .toggle_float_placement
             .unwrap_or(Placement::CenterAndResize);
@@ -1704,17 +1674,23 @@ impl StaticConfig {
             value.float_override_placement.unwrap_or(Placement::None);
         wm.window_management_behaviour.float_rule_placement =
             value.float_rule_placement.unwrap_or(Placement::None);
+        wm.cross_monitor_move_behaviour = value.cross_monitor_move_behaviour.unwrap_or_default();
+        wm.cross_boundary_behaviour = value.cross_boundary_behaviour.unwrap_or_default();
+        wm.unmanaged_window_operation_behaviour = value
+            .unmanaged_window_operation_behaviour
+            .unwrap_or_default();
+        wm.resize_delta = value.resize_delta.unwrap_or(50);
+        wm.mouse_follows_focus = value.mouse_follows_focus.unwrap_or(true);
         wm.work_area_offset = value.global_work_area_offset;
+        wm.focus_follows_mouse = value.focus_follows_mouse;
 
-        match value.focus_follows_mouse {
+        match wm.focus_follows_mouse {
             None => WindowsApi::disable_focus_follows_mouse()?,
             Some(FocusFollowsMouseImplementation::Windows) => {
                 WindowsApi::enable_focus_follows_mouse()?;
             }
             Some(FocusFollowsMouseImplementation::Komorebi) => {}
         };
-
-        wm.focus_follows_mouse = value.focus_follows_mouse;
 
         let monitor_count = wm.monitors().len();
 

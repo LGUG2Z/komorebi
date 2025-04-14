@@ -457,10 +457,13 @@ impl Placement {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, Display, EnumString, ValueEnum)]
+#[derive(
+    Clone, Copy, Debug, Default, PartialEq, Serialize, Deserialize, Display, EnumString, ValueEnum,
+)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub enum MoveBehaviour {
     /// Swap the window container with the window container at the edge of the adjacent monitor
+    #[default]
     Swap,
     /// Insert the window container into the focused workspace on the adjacent monitor
     Insert,
@@ -468,12 +471,15 @@ pub enum MoveBehaviour {
     NoOp,
 }
 
-#[derive(Clone, Copy, Debug, Serialize, Deserialize, Display, EnumString, ValueEnum, PartialEq)]
+#[derive(
+    Clone, Copy, Debug, Default, Serialize, Deserialize, Display, EnumString, ValueEnum, PartialEq,
+)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub enum CrossBoundaryBehaviour {
     /// Attempt to perform actions across a workspace boundary
     Workspace,
     /// Attempt to perform actions across a monitor boundary
+    #[default]
     Monitor,
 }
 
@@ -488,10 +494,13 @@ pub enum HidingBehaviour {
     Cloak,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, Display, EnumString, ValueEnum)]
+#[derive(
+    Clone, Copy, Debug, Default, PartialEq, Serialize, Deserialize, Display, EnumString, ValueEnum,
+)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub enum OperationBehaviour {
     /// Process komorebic commands on temporarily unmanaged/floated windows
+    #[default]
     Op,
     /// Ignore komorebic commands on temporarily unmanaged/floated windows
     NoOp,
