@@ -80,7 +80,6 @@ use crate::workspace::WorkspaceLayer;
 use crate::BorderColours;
 use crate::Colour;
 use crate::CrossBoundaryBehaviour;
-use crate::FloatingLayerBehaviour;
 use crate::Rgb;
 use crate::CUSTOM_FFM;
 use crate::DATA_DIR;
@@ -646,7 +645,7 @@ impl WindowManager {
                         self.window_management_behaviour.current_behaviour
                     };
 
-                let mut float_override = if let Some(float_override) = workspace.float_override() {
+                let float_override = if let Some(float_override) = workspace.float_override() {
                     *float_override
                 } else {
                     self.window_management_behaviour.float_override
@@ -656,18 +655,30 @@ impl WindowManager {
                     if let Some(behaviour) = workspace.floating_layer_behaviour() {
                         behaviour
                     } else {
-                        monitor.floating_layer_behaviour().unwrap_or_default()
+                        monitor
+                            .floating_layer_behaviour()
+                            .unwrap_or(self.window_management_behaviour.floating_layer_behaviour)
                     };
 
-                // If the workspace layer is `Floating` and the floating layer behaviour is `Float`,
-                // then consider it as if it had float override so that new windows spawn as floating
-                float_override = float_override
-                    || (matches!(workspace.layer, WorkspaceLayer::Floating)
-                        && matches!(floating_layer_behaviour, FloatingLayerBehaviour::Float));
+                // If the workspace layer is `Floating` and the floating layer behaviour should
+                // float then change floating_layer_override to true so that new windows spawn
+                // as floating
+                let floating_layer_override = matches!(workspace.layer, WorkspaceLayer::Floating)
+                    && floating_layer_behaviour.should_float();
 
                 return WindowManagementBehaviour {
                     current_behaviour,
                     float_override,
+                    floating_layer_override,
+                    floating_layer_behaviour,
+                    toggle_float_placement: self.window_management_behaviour.toggle_float_placement,
+                    floating_layer_placement: self
+                        .window_management_behaviour
+                        .floating_layer_placement,
+                    float_override_placement: self
+                        .window_management_behaviour
+                        .float_override_placement,
+                    float_rule_placement: self.window_management_behaviour.float_rule_placement,
                 };
             }
         }
@@ -675,6 +686,12 @@ impl WindowManager {
         WindowManagementBehaviour {
             current_behaviour: WindowContainerBehaviour::Create,
             float_override: self.window_management_behaviour.float_override,
+            floating_layer_override: self.window_management_behaviour.floating_layer_override,
+            floating_layer_behaviour: self.window_management_behaviour.floating_layer_behaviour,
+            toggle_float_placement: self.window_management_behaviour.toggle_float_placement,
+            floating_layer_placement: self.window_management_behaviour.floating_layer_placement,
+            float_override_placement: self.window_management_behaviour.float_override_placement,
+            float_rule_placement: self.window_management_behaviour.float_rule_placement,
         }
     }
 
@@ -3142,6 +3159,8 @@ impl WindowManager {
 
         let work_area = self.focused_monitor_work_area()?;
 
+        let toggle_float_placement = self.window_management_behaviour.toggle_float_placement;
+
         let workspace = self.focused_workspace_mut()?;
         workspace.new_floating_window()?;
 
@@ -3150,7 +3169,9 @@ impl WindowManager {
             .back_mut()
             .ok_or_else(|| anyhow!("there is no floating window"))?;
 
-        window.center(&work_area)?;
+        if toggle_float_placement.should_center() {
+            window.center(&work_area, toggle_float_placement.should_resize())?;
+        }
         window.focus(self.mouse_follows_focus)?;
 
         Ok(())

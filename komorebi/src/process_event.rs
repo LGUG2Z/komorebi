@@ -346,7 +346,7 @@ impl WindowManager {
                     }
 
                     if proceed {
-                        let mut behaviour = self.window_management_behaviour(
+                        let behaviour = self.window_management_behaviour(
                             focused_monitor_idx,
                             focused_workspace_idx,
                         );
@@ -376,23 +376,32 @@ impl WindowManager {
                                 }
                             }
 
-                            behaviour.float_override = behaviour.float_override
-                                || (should_float
-                                    && !matches!(event, WindowManagerEvent::Manage(_)));
-
-                            if behaviour.float_override {
-                                // Center floating windows if we are already on the `Floating`
-                                // layer and the window doesn't match a `floating_windows` rule and
-                                // the workspace is not a floating workspace
+                            if behaviour.float_override
+                                || behaviour.floating_layer_override
+                                || (should_float && !matches!(event, WindowManagerEvent::Manage(_)))
+                            {
+                                let placement = if behaviour.floating_layer_override {
+                                    // Floating layer override placement
+                                    behaviour.floating_layer_placement
+                                } else if behaviour.float_override {
+                                    // Float override placement
+                                    behaviour.float_override_placement
+                                } else {
+                                    // Float rule placement
+                                    behaviour.float_rule_placement
+                                };
+                                // Center floating windows according to the proper placement if not
+                                // on a floating workspace
                                 let center_spawned_floats =
-                                    matches!(workspace.layer, WorkspaceLayer::Floating)
-                                        && !should_float
-                                        && workspace.tile;
+                                    placement.should_center() && workspace.tile;
                                 workspace.floating_windows_mut().push_back(window);
                                 workspace.set_layer(WorkspaceLayer::Floating);
                                 if center_spawned_floats {
                                     let mut floating_window = window;
-                                    floating_window.center(&workspace.globals().work_area)?;
+                                    floating_window.center(
+                                        &workspace.globals().work_area,
+                                        placement.should_resize(),
+                                    )?;
                                 }
                                 self.update_focused_workspace(false, false)?;
                             } else {
@@ -709,7 +718,7 @@ impl WindowManager {
 
         // If we unmanaged a window, it shouldn't be immediately hidden behind managed windows
         if let WindowManagerEvent::Unmanage(mut window) = event {
-            window.center(&self.focused_monitor_work_area()?)?;
+            window.center(&self.focused_monitor_work_area()?, true)?;
         }
 
         // Update list of known_hwnds and their monitor/workspace index pair

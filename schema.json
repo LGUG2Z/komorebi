@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "StaticConfig",
-  "description": "The `komorebi.json` static configuration file reference for `v0.1.36`",
+  "description": "The `komorebi.json` static configuration file reference for `v0.1.37`",
   "type": "object",
   "properties": {
     "animation": {
@@ -610,6 +610,58 @@
       "description": "Enable or disable float override, which makes it so every new window opens in floating mode (default: false)",
       "type": "boolean"
     },
+    "float_override_placement": {
+      "description": "Determines the `Placement` to be used when spawning a window with float override active (default: None)",
+      "oneOf": [
+        {
+          "description": "Does not change the size or position of the window",
+          "type": "string",
+          "enum": [
+            "None"
+          ]
+        },
+        {
+          "description": "Center the window without changing the size",
+          "type": "string",
+          "enum": [
+            "Center"
+          ]
+        },
+        {
+          "description": "Center the window and resize it according to the `AspectRatio`",
+          "type": "string",
+          "enum": [
+            "CenterAndResize"
+          ]
+        }
+      ]
+    },
+    "float_rule_placement": {
+      "description": "Determines the `Placement` to be used when spawning a window that matches a 'floating_applications' rule (default: None)",
+      "oneOf": [
+        {
+          "description": "Does not change the size or position of the window",
+          "type": "string",
+          "enum": [
+            "None"
+          ]
+        },
+        {
+          "description": "Center the window without changing the size",
+          "type": "string",
+          "enum": [
+            "Center"
+          ]
+        },
+        {
+          "description": "Center the window and resize it according to the `AspectRatio`",
+          "type": "string",
+          "enum": [
+            "CenterAndResize"
+          ]
+        }
+      ]
+    },
     "floating_applications": {
       "description": "Identify applications which should be managed as floating windows",
       "type": "array",
@@ -692,6 +744,51 @@
           }
         ]
       }
+    },
+    "floating_layer_behaviour": {
+      "description": "Determines what happens on a new window when on the `FloatingLayer` (default: Tile)",
+      "oneOf": [
+        {
+          "description": "Tile new windows (unless they match a float rule or float override is active)",
+          "type": "string",
+          "enum": [
+            "Tile"
+          ]
+        },
+        {
+          "description": "Float new windows",
+          "type": "string",
+          "enum": [
+            "Float"
+          ]
+        }
+      ]
+    },
+    "floating_layer_placement": {
+      "description": "Determines the `Placement` to be used when spawning a window on the floating layer with the `FloatingLayerBehaviour` set to `FloatingLayerBehaviour::Float` (default: Center)",
+      "oneOf": [
+        {
+          "description": "Does not change the size or position of the window",
+          "type": "string",
+          "enum": [
+            "None"
+          ]
+        },
+        {
+          "description": "Center the window without changing the size",
+          "type": "string",
+          "enum": [
+            "Center"
+          ]
+        },
+        {
+          "description": "Center the window and resize it according to the `AspectRatio`",
+          "type": "string",
+          "enum": [
+            "CenterAndResize"
+          ]
+        }
+      ]
     },
     "floating_window_aspect_ratio": {
       "description": "Aspect ratio to resize with when toggling floating mode for a window",
@@ -1135,7 +1232,7 @@
             "description": "Determine what happens to a new window when the Floating workspace layer is active (default: Tile)",
             "oneOf": [
               {
-                "description": "Tile new windows (unless they match a float rule)",
+                "description": "Tile new windows (unless they match a float rule or float override is active)",
                 "type": "string",
                 "enum": [
                   "Tile"
@@ -1512,7 +1609,7 @@
                   "description": "Determine what happens to a new window when the Floating workspace layer is active (default: Tile)",
                   "oneOf": [
                     {
-                      "description": "Tile new windows (unless they match a float rule)",
+                      "description": "Tile new windows (unless they match a float rule or float override is active)",
                       "type": "string",
                       "enum": [
                         "Tile"
@@ -4203,6 +4300,32 @@
               ]
             }
           }
+        }
+      ]
+    },
+    "toggle_float_placement": {
+      "description": "Determines the placement of a new window when toggling to float (default: CenterAndResize)",
+      "oneOf": [
+        {
+          "description": "Does not change the size or position of the window",
+          "type": "string",
+          "enum": [
+            "None"
+          ]
+        },
+        {
+          "description": "Center the window without changing the size",
+          "type": "string",
+          "enum": [
+            "Center"
+          ]
+        },
+        {
+          "description": "Center the window and resize it according to the `AspectRatio`",
+          "type": "string",
+          "enum": [
+            "CenterAndResize"
+          ]
         }
       ]
     },
