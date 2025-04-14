@@ -60,6 +60,7 @@ use crate::AspectRatio;
 use crate::Axis;
 use crate::CrossBoundaryBehaviour;
 use crate::FloatingLayerBehaviour;
+use crate::Placement;
 use crate::PredefinedAspectRatio;
 use crate::ResolvedPathBuf;
 use crate::DATA_DIR;
@@ -415,6 +416,25 @@ pub struct StaticConfig {
     /// (default: false)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub float_override: Option<bool>,
+    /// Determines what happens on a new window when on the `FloatingLayer`
+    /// (default: Tile)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub floating_layer_behaviour: Option<FloatingLayerBehaviour>,
+    /// Determines the placement of a new window when toggling to float (default: CenterAndResize)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub toggle_float_placement: Option<Placement>,
+    /// Determines the `Placement` to be used when spawning a window on the floating layer with the
+    /// `FloatingLayerBehaviour` set to `FloatingLayerBehaviour::Float` (default: Center)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub floating_layer_placement: Option<Placement>,
+    /// Determines the `Placement` to be used when spawning a window with float override active
+    /// (default: None)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub float_override_placement: Option<Placement>,
+    /// Determines the `Placement` to be used when spawning a window that matches a
+    /// 'floating_applications' rule (default: None)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub float_rule_placement: Option<Placement>,
     /// Determine what happens when a window is moved across a monitor boundary (default: Swap)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub cross_monitor_move_behaviour: Option<MoveBehaviour>,
@@ -824,6 +844,21 @@ impl From<&WindowManager> for StaticConfig {
                 value.window_management_behaviour.current_behaviour,
             ),
             float_override: Option::from(value.window_management_behaviour.float_override),
+            floating_layer_behaviour: Option::from(
+                value.window_management_behaviour.floating_layer_behaviour,
+            ),
+            toggle_float_placement: Option::from(
+                value.window_management_behaviour.toggle_float_placement,
+            ),
+            floating_layer_placement: Option::from(
+                value.window_management_behaviour.floating_layer_placement,
+            ),
+            float_override_placement: Option::from(
+                value.window_management_behaviour.float_override_placement,
+            ),
+            float_rule_placement: Option::from(
+                value.window_management_behaviour.float_rule_placement,
+            ),
             cross_monitor_move_behaviour: Option::from(value.cross_monitor_move_behaviour),
             cross_boundary_behaviour: Option::from(value.cross_boundary_behaviour),
             unmanaged_window_operation_behaviour: Option::from(
@@ -1227,6 +1262,16 @@ impl StaticConfig {
                     .window_container_behaviour
                     .unwrap_or(WindowContainerBehaviour::Create),
                 float_override: value.float_override.unwrap_or_default(),
+                floating_layer_override: false, // this value is always automatically calculated
+                floating_layer_behaviour: FloatingLayerBehaviour::default(),
+                toggle_float_placement: value
+                    .toggle_float_placement
+                    .unwrap_or(Placement::CenterAndResize),
+                floating_layer_placement: value
+                    .floating_layer_placement
+                    .unwrap_or(Placement::Center),
+                float_override_placement: value.float_override_placement.unwrap_or(Placement::None),
+                float_rule_placement: value.float_rule_placement.unwrap_or(Placement::None),
             },
             cross_monitor_move_behaviour: value
                 .cross_monitor_move_behaviour
@@ -1626,6 +1671,10 @@ impl StaticConfig {
             wm.window_management_behaviour.float_override = val;
         }
 
+        if let Some(val) = value.floating_layer_behaviour {
+            wm.window_management_behaviour.floating_layer_behaviour = val;
+        }
+
         if let Some(val) = value.cross_monitor_move_behaviour {
             wm.cross_monitor_move_behaviour = val;
         }
@@ -1646,6 +1695,15 @@ impl StaticConfig {
             wm.mouse_follows_focus = val;
         }
 
+        wm.window_management_behaviour.toggle_float_placement = value
+            .toggle_float_placement
+            .unwrap_or(Placement::CenterAndResize);
+        wm.window_management_behaviour.floating_layer_placement =
+            value.floating_layer_placement.unwrap_or(Placement::Center);
+        wm.window_management_behaviour.float_override_placement =
+            value.float_override_placement.unwrap_or(Placement::None);
+        wm.window_management_behaviour.float_rule_placement =
+            value.float_rule_placement.unwrap_or(Placement::None);
         wm.work_area_offset = value.global_work_area_offset;
 
         match value.focus_follows_mouse {
