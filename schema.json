@@ -2044,6 +2044,10 @@
       "description": "Enable or disable mouse follows focus (default: true)",
       "type": "boolean"
     },
+    "move_new_windows_to_focused_monitor": {
+      "description": "Whether new windows should automatically be moved to the focused monitor (default: false)",
+      "type": "boolean"
+    },
     "object_name_change_applications": {
       "description": "Identify applications that send EVENT_OBJECT_NAMECHANGE on launch (very rare)",
       "type": "array",

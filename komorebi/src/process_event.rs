@@ -155,6 +155,8 @@ impl WindowManager {
                     if let Ok(class) = window.class() {
                         if class != "OleMainThreadWndClass"
                             && self.focused_monitor_idx() != monitor_idx
+                            && (!matches!(event, WindowManagerEvent::FocusChange(_, _)) || self.monitors().get(monitor_idx).unwrap().focused_workspace().unwrap().contains_window(window.hwnd))
+                            && (!matches!(event, WindowManagerEvent::Show(_, _)) || !self.move_new_windows_to_focused_monitor )
                         {
                             self.focus_monitor(monitor_idx)?;
                         }
@@ -257,32 +259,34 @@ impl WindowManager {
                 }
 
                 let workspace = self.focused_workspace_mut()?;
-                let floating_window_idx = workspace
-                    .floating_windows()
-                    .iter()
-                    .position(|w| w.hwnd == window.hwnd);
+                if workspace.contains_window(window.hwnd) {
+                    let floating_window_idx = workspace
+                        .floating_windows()
+                        .iter()
+                        .position(|w| w.hwnd == window.hwnd);
 
-                match floating_window_idx {
-                    None => {
-                        if let Some(w) = workspace.maximized_window() {
-                            if w.hwnd == window.hwnd {
-                                return Ok(());
+                    match floating_window_idx {
+                        None => {
+                            if let Some(w) = workspace.maximized_window() {
+                                if w.hwnd == window.hwnd {
+                                    return Ok(());
+                                }
                             }
-                        }
 
-                        if let Some(monocle) = workspace.monocle_container() {
-                            if let Some(window) = monocle.focused_window() {
+                            if let Some(monocle) = workspace.monocle_container() {
+                                if let Some(window) = monocle.focused_window() {
+                                    window.focus(false)?;
+                                }
+                            } else {
+                                workspace.focus_container_by_window(window.hwnd)?;
+                            }
+                            
+                            workspace.set_layer(WorkspaceLayer::Tiling);
+                        }
+                        Some(idx) => {
+                            if let Some(window) = workspace.floating_windows().get(idx) {
                                 window.focus(false)?;
                             }
-                        } else {
-                            workspace.focus_container_by_window(window.hwnd)?;
-                        }
-
-                        workspace.set_layer(WorkspaceLayer::Tiling);
-                    }
-                    Some(idx) => {
-                        if let Some(_window) = workspace.floating_windows().get(idx) {
-                            workspace.set_layer(WorkspaceLayer::Floating);
                         }
                     }
                 }
