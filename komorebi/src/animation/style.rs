@@ -355,6 +355,61 @@ impl Ease for EaseInOutBounce {
     }
 }
 
+pub struct CubicBezier {
+    pub x1: f64,
+    pub y1: f64,
+    pub x2: f64,
+    pub y2: f64,
+}
+
+impl CubicBezier {
+    fn x(&self, s: f64) -> f64 {
+        3.0 * self.x1 * s * (1.0 - s).powi(2) + 3.0 * self.x2 * s.powi(2) * (1.0 - s) + s.powi(3)
+    }
+
+    fn y(&self, s: f64) -> f64 {
+        3.0 * self.y1 * s * (1.0 - s).powi(2) + 3.0 * self.y2 * s.powi(2) * (1.0 - s) + s.powi(3)
+    }
+
+    fn dx_ds(&self, s: f64) -> f64 {
+        3.0 * self.x1 * (1.0 - s) * (1.0 - 3.0 * s)
+            + 3.0 * self.x2 * (2.0 * s - 3.0 * s.powi(2))
+            + 3.0 * s.powi(2)
+    }
+
+    fn find_s(&self, t: f64) -> f64 {
+        if t <= 0.0 {
+            return 0.0;
+        }
+
+        if t >= 1.0 {
+            return 1.0;
+        }
+
+        let mut s = t;
+
+        for _ in 0..8 {
+            let x_val = self.x(s);
+            let dx_val = self.dx_ds(s);
+            if dx_val.abs() < 1e-6 {
+                break;
+            }
+            let delta = (x_val - t) / dx_val;
+            s = (s - delta).clamp(0.0, 1.0);
+            if delta.abs() < 1e-6 {
+                break;
+            }
+        }
+
+        s
+    }
+
+    fn evaluate(&self, t: f64) -> f64 {
+        let s = self.find_s(t.clamp(0.0, 1.0));
+        self.y(s)
+    }
+}
+
 pub fn apply_ease_func(t: f64, style: AnimationStyle) -> f64 {
     match style {
         AnimationStyle::Linear => Linear::evaluate(t),
@@ -387,5 +442,6 @@ pub fn apply_ease_func(t: f64, style: AnimationStyle) -> f64 {
         AnimationStyle::EaseInBounce => EaseInBounce::evaluate(t),
         AnimationStyle::EaseOutBounce => EaseOutBounce::evaluate(t),
         AnimationStyle::EaseInOutBounce => EaseInOutBounce::evaluate(t),
+        AnimationStyle::CubicBezier(x1, y1, x2, y2) => CubicBezier { x1, y1, x2, y2 }.evaluate(t),
     }
 }
