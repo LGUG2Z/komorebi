@@ -411,12 +411,18 @@ impl Window {
         Ok(())
     }
 
-    pub fn center(&mut self, work_area: &Rect) -> Result<()> {
-        let (aspect_ratio_width, aspect_ratio_height) = FLOATING_WINDOW_TOGGLE_ASPECT_RATIO
-            .lock()
-            .width_and_height();
-        let target_height = work_area.bottom / 2;
-        let target_width = (target_height * aspect_ratio_width) / aspect_ratio_height;
+    pub fn center(&mut self, work_area: &Rect, resize: bool) -> Result<()> {
+        let (target_width, target_height) = if resize {
+            let (aspect_ratio_width, aspect_ratio_height) = FLOATING_WINDOW_TOGGLE_ASPECT_RATIO
+                .lock()
+                .width_and_height();
+            let target_height = work_area.bottom / 2;
+            let target_width = (target_height * aspect_ratio_width) / aspect_ratio_height;
+            (target_width, target_height)
+        } else {
+            let current_rect = WindowsApi::window_rect(self.hwnd)?;
+            (current_rect.right, current_rect.bottom)
+        };
 
         let x = work_area.left + ((work_area.right - target_width) / 2);
         let y = work_area.top + ((work_area.bottom - target_height) / 2);
