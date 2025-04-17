@@ -236,31 +236,37 @@ impl WindowManager {
             }
             SocketMessage::EagerFocus(ref exe) => {
                 let focused_monitor_idx = self.focused_monitor_idx();
-                let focused_workspace_idx = self.focused_workspace_idx()?;
 
                 let mut window_location = None;
-                let mut monitor_workspace_indices = None;
+                let mut monitor_to_focus = None;
+                let mut needs_workspace_loading = false;
 
-                'search: for (monitor_idx, monitor) in self.monitors().iter().enumerate() {
+                'search: for (monitor_idx, monitor) in self.monitors_mut().iter_mut().enumerate() {
                     for (workspace_idx, workspace) in monitor.workspaces().iter().enumerate() {
                         if let Some(location) = workspace.location_from_exe(exe) {
                             window_location = Some(location);
-                            monitor_workspace_indices = Some((monitor_idx, workspace_idx));
+
+                            if monitor_idx != focused_monitor_idx {
+                                monitor_to_focus = Some(monitor_idx);
+                            }
+
+                            // Focus workspace if it is not already the focused one, without
+                            // loading it so that we don't give focus to the wrong window, we will
+                            // load it later after focusing the wanted window
+                            let focused_ws_idx = monitor.focused_workspace_idx();
+                            if focused_ws_idx != workspace_idx {
+                                monitor.set_last_focused_workspace(Option::from(focused_ws_idx));
+                                monitor.focus_workspace(workspace_idx)?;
+                                needs_workspace_loading = true;
+                            }
+
                             break 'search;
                         }
                     }
                 }
 
-                if let Some((monitor_idx, workspace_idx)) = monitor_workspace_indices {
-                    if monitor_idx != focused_monitor_idx {
-                        self.focus_monitor(monitor_idx)?;
-                        let focused_ws_idx = self.focused_workspace_idx()?;
-                        if focused_ws_idx != workspace_idx {
-                            self.focus_workspace(workspace_idx)?;
-                        }
-                    } else if workspace_idx != focused_workspace_idx {
-                        self.focus_workspace(workspace_idx)?;
-                    }
+                if let Some(monitor_idx) = monitor_to_focus {
+                    self.focus_monitor(monitor_idx)?;
                 }
 
                 if let Some(location) = window_location {
@@ -291,6 +297,13 @@ impl WindowManager {
                             {
                                 window.focus(self.mouse_follows_focus)?;
                             }
+                        }
+                    }
+
+                    if needs_workspace_loading {
+                        let mouse_follows_focus = self.mouse_follows_focus;
+                        if let Some(monitor) = self.focused_monitor_mut() {
+                            monitor.load_focused_workspace(mouse_follows_focus)?;
                         }
                     }
                 }
