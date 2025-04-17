@@ -5461,4 +5461,77 @@ mod tests {
             assert_eq!(*monocle_container, None);
         }
     }
+
+    #[test]
+    fn test_ensure_named_workspace_for_monitor() {
+        let (mut wm, _context) = setup_window_manager();
+
+        {
+            // Create a monitor
+            let m = monitor::new(
+                0,
+                Rect::default(),
+                Rect::default(),
+                "TestMonitor".to_string(),
+                "TestDevice".to_string(),
+                "TestDeviceID".to_string(),
+                Some("TestMonitorID".to_string()),
+            );
+
+            // Add the monitor to the window manager
+            wm.monitors_mut().push_back(m);
+        }
+
+        {
+            // Create a monitor
+            let m = monitor::new(
+                1,
+                Rect::default(),
+                Rect::default(),
+                "TestMonitor1".to_string(),
+                "TestDevice1".to_string(),
+                "TestDeviceID1".to_string(),
+                Some("TestMonitorID1".to_string()),
+            );
+
+            // Add the monitor to the window manager
+            wm.monitors_mut().push_back(m);
+        }
+
+        // Workspace names list
+        let mut workspace_names = vec!["Workspace".to_string(), "Workspace1".to_string()];
+
+        // Ensure workspaces for monitor 1
+        wm.ensure_named_workspaces_for_monitor(1, &workspace_names)
+            .ok();
+
+        {
+            // Monitor 1 should have 2 workspaces with names "Workspace" and "Workspace1"
+            let monitor = wm.monitors().get(1).unwrap();
+            let workspaces = monitor.workspaces();
+            assert_eq!(workspaces.len(), workspace_names.len());
+            for (i, workspace) in workspaces.iter().enumerate() {
+                assert_eq!(workspace.name(), &Some(workspace_names[i].clone()));
+            }
+        }
+
+        // Add more workspaces to list
+        workspace_names.push("Workspace2".to_string());
+        workspace_names.push("Workspace3".to_string());
+
+        // Ensure workspaces for monitor 0
+        wm.ensure_named_workspaces_for_monitor(0, &workspace_names)
+            .ok();
+
+        {
+            // Monitor 0 should have 4 workspaces with names "Workspace", "Workspace1",
+            // "Workspace2" and "Workspace3"
+            let monitor = wm.monitors().front().unwrap();
+            let workspaces = monitor.workspaces();
+            assert_eq!(workspaces.len(), workspace_names.len());
+            for (i, workspace) in workspaces.iter().enumerate() {
+                assert_eq!(workspace.name(), &Some(workspace_names[i].clone()));
+            }
+        }
+    }
 }
