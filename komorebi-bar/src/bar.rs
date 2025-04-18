@@ -38,6 +38,7 @@ use eframe::egui::Frame;
 use eframe::egui::Id;
 use eframe::egui::Layout;
 use eframe::egui::Margin;
+use eframe::egui::PointerButton;
 use eframe::egui::Rgba;
 use eframe::egui::Style;
 use eframe::egui::TextStyle;
@@ -81,6 +82,18 @@ pub struct Komobar {
     pub size_rect: komorebi_client::Rect,
     pub work_area_offset: komorebi_client::Rect,
     applied_theme_on_first_frame: bool,
+    mouse_follows_focus: bool,
+    input_config: InputConfig,
+}
+
+struct InputConfig {
+    accumulated_scroll_delta: Vec2,
+    act_on_vertical_scroll: bool,
+    act_on_horizontal_scroll: bool,
+    vertical_scroll_threshold: f32,
+    horizontal_scroll_threshold: f32,
+    vertical_scroll_max_threshold: f32,
+    horizontal_scroll_max_threshold: f32,
 }
 
 pub fn apply_theme(
@@ -367,15 +380,19 @@ impl Komobar {
             }
             MonitorConfigOrIndex::Index(idx) => (*idx, None),
         };
-        let monitor_index = self.komorebi_notification_state.as_ref().and_then(|state| {
-            state
-                .borrow()
-                .monitor_usr_idx_map
-                .get(&usr_monitor_index)
-                .copied()
+
+        let mapped_state = self.komorebi_notification_state.as_ref().map(|state| {
+            let state = state.borrow();
+            (
+                state.monitor_usr_idx_map.get(&usr_monitor_index).copied(),
+                state.mouse_follows_focus,
+            )
         });
 
-        self.monitor_index = monitor_index;
+        if let Some(state) = mapped_state {
+            self.monitor_index = state.0;
+            self.mouse_follows_focus = state.1;
+        }
 
         if let Some(monitor_index) = self.monitor_index {
             if let (prev_rect, Some(new_rect)) = (&self.work_area_offset, &config_work_area_offset)
@@ -607,7 +624,37 @@ impl Komobar {
             size_rect: komorebi_client::Rect::default(),
             work_area_offset: komorebi_client::Rect::default(),
             applied_theme_on_first_frame: false,
+            mouse_follows_focus: false,
+            input_config: InputConfig {
+                accumulated_scroll_delta: Vec2::new(0.0, 0.0),
+                act_on_vertical_scroll: false,
+                act_on_horizontal_scroll: false,
+                vertical_scroll_threshold: 0.0,
+                horizontal_scroll_threshold: 0.0,
+                vertical_scroll_max_threshold: 0.0,
+                horizontal_scroll_max_threshold: 0.0,
+            },
         };
+
+        if let Some(mouse) = &komobar.config.mouse {
+            komobar.input_config.act_on_vertical_scroll =
+                mouse.on_scroll_up.is_some() || mouse.on_scroll_down.is_some();
+            komobar.input_config.act_on_horizontal_scroll =
+                mouse.on_scroll_left.is_some() || mouse.on_scroll_right.is_some();
+            komobar.input_config.vertical_scroll_threshold = mouse
+                .vertical_scroll_threshold
+                .unwrap_or(30.0)
+                .clamp(10.0, 300.0);
+            komobar.input_config.horizontal_scroll_threshold = mouse
+                .horizontal_scroll_threshold
+                .unwrap_or(30.0)
+                .clamp(10.0, 300.0);
+            // limit how many "ticks" can be accumulated
+            komobar.input_config.vertical_scroll_max_threshold =
+                komobar.input_config.vertical_scroll_threshold * 3.0;
+            komobar.input_config.horizontal_scroll_max_threshold =
+                komobar.input_config.horizontal_scroll_threshold * 3.0;
+        }
 
         komobar.apply_config(&cc.egui_ctx, None);
         // needs a double apply the first time for some reason
@@ -936,6 +983,94 @@ impl eframe::App for Komobar {
         let frame = render_config.change_frame_on_bar(frame, &ctx.style());
 
         CentralPanel::default().frame(frame).show(ctx, |ui| {
+            if let Some(mouse_config) = &self.config.mouse {
+                let command = if ui
+                    .input(|i| i.pointer.button_double_clicked(PointerButton::Primary))
+                {
+                    &mouse_config.on_primary_double_click
+                } else if ui.input(|i| i.pointer.button_clicked(PointerButton::Secondary)) {
+                    &mouse_config.on_secondary_click
+                } else if ui.input(|i| i.pointer.button_clicked(PointerButton::Middle)) {
+                    &mouse_config.on_middle_click
+                } else if ui.input(|i| i.pointer.button_clicked(PointerButton::Extra1)) {
+                    &mouse_config.on_extra1_click
+                } else if ui.input(|i| i.pointer.button_clicked(PointerButton::Extra2)) {
+                    &mouse_config.on_extra2_click
+                } else if self.input_config.act_on_vertical_scroll
+                    || self.input_config.act_on_horizontal_scroll
+                {
+                    let scroll_delta = ui.input(|input| input.smooth_scroll_delta);
+
+                    self.input_config.accumulated_scroll_delta += scroll_delta;
+
+                    if scroll_delta.y != 0.0 && self.input_config.act_on_vertical_scroll {
+                        // Do not store more than the max threshold
+                        self.input_config.accumulated_scroll_delta.y =
+                            self.input_config.accumulated_scroll_delta.y.clamp(
+                                -self.input_config.vertical_scroll_max_threshold,
+                                self.input_config.vertical_scroll_max_threshold,
+                            );
+
+                        // When the accumulated scroll passes the threshold, trigger a tick.
+                        if self.input_config.accumulated_scroll_delta.y.abs()
+                            >= self.input_config.vertical_scroll_threshold
+                        {
+                            let direction_command =
+                                if self.input_config.accumulated_scroll_delta.y > 0.0 {
+                                    &mouse_config.on_scroll_up
+                                } else {
+                                    &mouse_config.on_scroll_down
+                                };
+
+                            // Remove one tick's worth of scroll from the accumulator, preserving any excess.
+                            self.input_config.accumulated_scroll_delta.y -=
+                                self.input_config.vertical_scroll_threshold
+                                    * self.input_config.accumulated_scroll_delta.y.signum();
+
+                            direction_command
+                        } else {
+                            &None
+                        }
+                    } else if scroll_delta.x != 0.0 && self.input_config.act_on_horizontal_scroll {
+                        // Do not store more than the max threshold
+                        self.input_config.accumulated_scroll_delta.x =
+                            self.input_config.accumulated_scroll_delta.x.clamp(
+                                -self.input_config.horizontal_scroll_max_threshold,
+                                self.input_config.horizontal_scroll_max_threshold,
+                            );
+
+                        // When the accumulated scroll passes the threshold, trigger a tick.
+                        if self.input_config.accumulated_scroll_delta.x.abs()
+                            >= self.input_config.horizontal_scroll_threshold
+                        {
+                            let direction_command =
+                                if self.input_config.accumulated_scroll_delta.x > 0.0 {
+                                    &mouse_config.on_scroll_left
+                                } else {
+                                    &mouse_config.on_scroll_right
+                                };
+
+                            // Remove one tick's worth of scroll from the accumulator, preserving any excess.
+                            self.input_config.accumulated_scroll_delta.x -=
+                                self.input_config.horizontal_scroll_threshold
+                                    * self.input_config.accumulated_scroll_delta.x.signum();
+
+                            direction_command
+                        } else {
+                            &None
+                        }
+                    } else {
+                        &None
+                    }
+                } else {
+                    &None
+                };
+
+                if let Some(command) = command {
+                    command.execute(self.mouse_follows_focus);
+                }
+            }
+
             // Apply grouping logic for the bar as a whole
             let area_frame = if let Some(frame) = &self.config.frame {
                 Frame::NONE
