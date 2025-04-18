@@ -5513,4 +5513,43 @@ mod tests {
             }
         }
     }
+
+    #[test]
+    fn test_add_window_handle_to_move_based_on_workspace_rule() {
+        let (wm, _context) = setup_window_manager();
+
+        // Mock Data representing a window and its workspace/movement details
+        let window_title = String::from("TestWindow");
+        let hwnd = 12345;
+        let origin_monitor_idx = 0;
+        let origin_workspace_idx = 0;
+        let target_monitor_idx = 2;
+        let target_workspace_idx = 3;
+        let floating = false;
+
+        // Empty vector to hold workspace rule enforcement operations
+        let mut to_move: Vec<EnforceWorkspaceRuleOp> = Vec::new();
+
+        // Call the function to add a window movement operation based on workspace rules
+        wm.add_window_handle_to_move_based_on_workspace_rule(
+            &window_title,
+            hwnd,
+            origin_monitor_idx,
+            origin_workspace_idx,
+            target_monitor_idx,
+            target_workspace_idx,
+            floating,
+            &mut to_move,
+        );
+
+        // Verify that the vector contains the expected operation with the correct values
+        assert_eq!(to_move.len(), 1);
+        let op = &to_move[0];
+        assert_eq!(op.hwnd, hwnd); // 12345
+        assert_eq!(op.origin_monitor_idx, origin_monitor_idx); // 0
+        assert_eq!(op.origin_workspace_idx, origin_workspace_idx); // 0
+        assert_eq!(op.target_monitor_idx, target_monitor_idx); // 2
+        assert_eq!(op.target_workspace_idx, target_workspace_idx); // 3
+        assert_eq!(op.floating, floating); // false
+    }
 }
