@@ -180,7 +180,9 @@ impl Stackbar {
         layout.top -= workspace_specific_offset + STACKBAR_TAB_HEIGHT.load_consume();
         layout.left -= workspace_specific_offset;
 
-        WindowsApi::position_window(self.hwnd, &layout, false)?;
+        // Async causes the stackbar to disappear or flicker because we modify it right after,
+        // so we have to do a synchronous call
+        WindowsApi::position_window(self.hwnd, &layout, false, false)?;
 
         unsafe {
             let hdc = GetDC(Option::from(self.hwnd()));
