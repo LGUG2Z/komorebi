@@ -105,7 +105,7 @@ use windows::Win32::UI::WindowsAndMessaging::SetForegroundWindow;
 use windows::Win32::UI::WindowsAndMessaging::SetLayeredWindowAttributes;
 use windows::Win32::UI::WindowsAndMessaging::SetWindowLongPtrW;
 use windows::Win32::UI::WindowsAndMessaging::SetWindowPos;
-use windows::Win32::UI::WindowsAndMessaging::ShowWindow;
+use windows::Win32::UI::WindowsAndMessaging::ShowWindowAsync;
 use windows::Win32::UI::WindowsAndMessaging::SystemParametersInfoW;
 use windows::Win32::UI::WindowsAndMessaging::WindowFromPoint;
 use windows::Win32::UI::WindowsAndMessaging::CW_USEDEFAULT;
@@ -125,6 +125,7 @@ use windows::Win32::UI::WindowsAndMessaging::SPI_GETACTIVEWINDOWTRACKING;
 use windows::Win32::UI::WindowsAndMessaging::SPI_GETFOREGROUNDLOCKTIMEOUT;
 use windows::Win32::UI::WindowsAndMessaging::SPI_SETACTIVEWINDOWTRACKING;
 use windows::Win32::UI::WindowsAndMessaging::SPI_SETFOREGROUNDLOCKTIMEOUT;
+use windows::Win32::UI::WindowsAndMessaging::SWP_ASYNCWINDOWPOS;
 use windows::Win32::UI::WindowsAndMessaging::SWP_NOMOVE;
 use windows::Win32::UI::WindowsAndMessaging::SWP_NOSIZE;
 use windows::Win32::UI::WindowsAndMessaging::SWP_SHOWWINDOW;
@@ -473,7 +474,12 @@ impl WindowsApi {
     /// position window resizes the target window to the given layout, adjusting
     /// the layout to account for any window shadow borders (the window painted
     /// region will match layout on completion).
-    pub fn position_window(hwnd: isize, layout: &Rect, top: bool) -> Result<()> {
+    pub fn position_window(
+        hwnd: isize,
+        layout: &Rect,
+        top: bool,
+        async_window_pos: bool,
+    ) -> Result<()> {
         let hwnd = HWND(as_ptr!(hwnd));
 
         let mut flags = SetWindowPosition::NO_ACTIVATE
@@ -484,6 +490,14 @@ impl WindowsApi {
         // If the request is to place the window on top, then HWND_TOP will take
         // effect, otherwise pass NO_Z_ORDER that will cause set_window_pos to
         // ignore the z-order paramter.
+
+        // By default SetWindowPos waits for target window's WindowProc thread
+        // to process the message, so we have to use ASYNC_WINDOW_POS to avoid
+        // blocking our thread in case the target window is not responding.
+        if async_window_pos {
+            flags |= SetWindowPosition::ASYNC_WINDOW_POS;
+        }
+
         if !top {
             flags |= SetWindowPosition::NO_Z_ORDER;
         }
@@ -521,7 +535,8 @@ impl WindowsApi {
         let flags = SetWindowPosition::NO_MOVE
             | SetWindowPosition::NO_SIZE
             | SetWindowPosition::NO_ACTIVATE
-            | SetWindowPosition::SHOW_WINDOW;
+            | SetWindowPosition::SHOW_WINDOW
+            | SetWindowPosition::ASYNC_WINDOW_POS;
 
         let position = HWND_TOP;
         Self::set_window_pos(
@@ -538,7 +553,8 @@ impl WindowsApi {
         let flags = SetWindowPosition::NO_MOVE
             | SetWindowPosition::NO_SIZE
             | SetWindowPosition::NO_ACTIVATE
-            | SetWindowPosition::SHOW_WINDOW;
+            | SetWindowPosition::SHOW_WINDOW
+            | SetWindowPosition::ASYNC_WINDOW_POS;
 
         let position = HWND_BOTTOM;
         Self::set_window_pos(
@@ -555,6 +571,7 @@ impl WindowsApi {
                 | SetWindowPosition::NO_ACTIVATE
                 | SetWindowPosition::NO_REDRAW
                 | SetWindowPosition::SHOW_WINDOW
+                | SetWindowPosition::ASYNC_WINDOW_POS
         };
 
         Self::set_window_pos(
@@ -581,6 +598,7 @@ impl WindowsApi {
         .process()
     }
 
+    /// move_windows calls MoveWindow, but cannot be called with async window pos, so it might hang
     pub fn move_window(hwnd: isize, layout: &Rect, repaint: bool) -> Result<()> {
         let hwnd = HWND(as_ptr!(hwnd));
 
@@ -599,7 +617,7 @@ impl WindowsApi {
         // https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-showwindow
         // TODO: error handling
         unsafe {
-            let _ = ShowWindow(HWND(as_ptr!(hwnd)), command);
+            let _ = ShowWindowAsync(HWND(as_ptr!(hwnd)), command);
         };
     }
 
@@ -656,7 +674,7 @@ impl WindowsApi {
                 0,
                 0,
                 0,
-                SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW,
+                SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW | SWP_ASYNCWINDOWPOS,
             )
             .process();
             SetForegroundWindow(HWND(as_ptr!(hwnd)))
