@@ -33,7 +33,7 @@ tracing = "0.1"
 tracing-appender = "0.2"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 paste = "1"
-sysinfo = "0.33"
+sysinfo = "0.34"
 uds_windows = "1"
 win32-display-data = { git = "https://github.com/LGUG2Z/win32-display-data", rev = "a28c6559a9de2f92c142a714947a9b081776caca" }
 windows-numerics = { version = "0.2" }
