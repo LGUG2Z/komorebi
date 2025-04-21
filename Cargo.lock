@@ -3559,9 +3559,9 @@ dependencies = [
 
 [[package]]
 name = "netdev"
-version = "0.33.0"
+version = "0.34.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ccc812280a9201cb442e008d63d90933612ca7df8c0d4b49cc1825b383ba0add"
+checksum = "1f2cc40be8e7967f3f90b0cd9de6885772468b576c122b91054517e1ff526b8d"
 dependencies = [
  "dlopen2",
  "ipnet",
@@ -3587,9 +3587,9 @@ dependencies = [
 
 [[package]]
 name = "netlink-packet-route"
-version = "0.21.0"
+version = "0.22.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "483325d4bfef65699214858f097d504eb812c38ce7077d165f301ec406c3066e"
+checksum = "fc0e7987b28514adf555dc1f9a5c30dfc3e50750bbaffb1aec41ca7b23dcd8e4"
 dependencies = [
  "anyhow",
  "bitflags 2.9.0",
