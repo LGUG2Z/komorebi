@@ -1,4 +1,6 @@
 use crate::render::RenderConfig;
+use crate::widgets::applications::Applications;
+use crate::widgets::applications::ApplicationsConfig;
 use crate::widgets::battery::Battery;
 use crate::widgets::battery::BatteryConfig;
 use crate::widgets::cpu::Cpu;
@@ -33,6 +35,7 @@ pub trait BarWidget {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub enum WidgetConfig {
+    Applications(ApplicationsConfig),
     Battery(BatteryConfig),
     Cpu(CpuConfig),
     Date(DateConfig),
@@ -49,6 +52,7 @@ pub enum WidgetConfig {
 impl WidgetConfig {
     pub fn as_boxed_bar_widget(&self) -> Box<dyn BarWidget> {
         match self {
+            WidgetConfig::Applications(config) => Box::new(Applications::from(config)),
             WidgetConfig::Battery(config) => Box::new(Battery::from(*config)),
             WidgetConfig::Cpu(config) => Box::new(Cpu::from(*config)),
             WidgetConfig::Date(config) => Box::new(Date::from(config.clone())),
@@ -65,6 +69,7 @@ impl WidgetConfig {
 
     pub fn enabled(&self) -> bool {
         match self {
+            WidgetConfig::Applications(config) => config.enable,
             WidgetConfig::Battery(config) => config.enable,
             WidgetConfig::Cpu(config) => config.enable,
             WidgetConfig::Date(config) => config.enable,

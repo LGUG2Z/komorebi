@@ -17,6 +17,122 @@
           {
             "type": "object",
             "required": [
+              "Applications"
+            ],
+            "properties": {
+              "Applications": {
+                "type": "object",
+                "required": [
+                  "enable",
+                  "items"
+                ],
+                "properties": {
+                  "display": {
+                    "description": "Default display format for all applications (optional). Could be overridden per application. Defaults to `Icon`.",
+                    "oneOf": [
+                      {
+                        "description": "Show only the application icon.",
+                        "type": "string",
+                        "enum": [
+                          "Icon"
+                        ]
+                      },
+                      {
+                        "description": "Show only the application name as text.",
+                        "type": "string",
+                        "enum": [
+                          "Text"
+                        ]
+                      },
+                      {
+                        "description": "Show both the application icon and name.",
+                        "type": "string",
+                        "enum": [
+                          "IconAndText"
+                        ]
+                      }
+                    ]
+                  },
+                  "enable": {
+                    "description": "Enables or disables the applications widget.",
+                    "type": "boolean"
+                  },
+                  "items": {
+                    "description": "List of configured applications to display.",
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "required": [
+                        "command",
+                        "name"
+                      ],
+                      "properties": {
+                        "command": {
+                          "description": "Command to execute (e.g. path to the application or shell command).",
+                          "type": "string"
+                        },
+                        "display": {
+                          "description": "Display format for this application button (optional). Overrides global format if set.",
+                          "oneOf": [
+                            {
+                              "description": "Show only the application icon.",
+                              "type": "string",
+                              "enum": [
+                                "Icon"
+                              ]
+                            },
+                            {
+                              "description": "Show only the application name as text.",
+                              "type": "string",
+                              "enum": [
+                                "Text"
+                              ]
+                            },
+                            {
+                              "description": "Show both the application icon and name.",
+                              "type": "string",
+                              "enum": [
+                                "IconAndText"
+                              ]
+                            }
+                          ]
+                        },
+                        "enable": {
+                          "description": "Whether to enable this application button (optional). Inherits from the global `Applications` setting if omitted.",
+                          "type": "boolean"
+                        },
+                        "icon": {
+                          "description": "Optional icon: a path to an image or a text-based glyph (e.g., from Nerd Fonts). If not set, and if the `command` is a path to an executable, an icon might be extracted from it. Note: glyphs require a compatible `font_family`.",
+                          "type": "string"
+                        },
+                        "name": {
+                          "description": "Display name of the application.",
+                          "type": "string"
+                        },
+                        "show_command_on_hover": {
+                          "description": "Whether to show the launch command on hover (optional). Inherits from the global `Applications` setting if omitted.",
+                          "type": "boolean"
+                        }
+                      }
+                    }
+                  },
+                  "show_command_on_hover": {
+                    "description": "Whether to show the launch command on hover (optional). Could be overridden per application. Defaults to `false` if not set.",
+                    "type": "boolean"
+                  },
+                  "spacing": {
+                    "description": "Horizontal spacing between application buttons.",
+                    "type": "number",
+                    "format": "float"
+                  }
+                }
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
               "Battery"
             ],
             "properties": {
@@ -1544,6 +1660,122 @@
           {
             "type": "object",
             "required": [
+              "Applications"
+            ],
+            "properties": {
+              "Applications": {
+                "type": "object",
+                "required": [
+                  "enable",
+                  "items"
+                ],
+                "properties": {
+                  "display": {
+                    "description": "Default display format for all applications (optional). Could be overridden per application. Defaults to `Icon`.",
+                    "oneOf": [
+                      {
+                        "description": "Show only the application icon.",
+                        "type": "string",
+                        "enum": [
+                          "Icon"
+                        ]
+                      },
+                      {
+                        "description": "Show only the application name as text.",
+                        "type": "string",
+                        "enum": [
+                          "Text"
+                        ]
+                      },
+                      {
+                        "description": "Show both the application icon and name.",
+                        "type": "string",
+                        "enum": [
+                          "IconAndText"
+                        ]
+                      }
+                    ]
+                  },
+                  "enable": {
+                    "description": "Enables or disables the applications widget.",
+                    "type": "boolean"
+                  },
+                  "items": {
+                    "description": "List of configured applications to display.",
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "required": [
+                        "command",
+                        "name"
+                      ],
+                      "properties": {
+                        "command": {
+                          "description": "Command to execute (e.g. path to the application or shell command).",
+                          "type": "string"
+                        },
+                        "display": {
+                          "description": "Display format for this application button (optional). Overrides global format if set.",
+                          "oneOf": [
+                            {
+                              "description": "Show only the application icon.",
+                              "type": "string",
+                              "enum": [
+                                "Icon"
+                              ]
+                            },
+                            {
+                              "description": "Show only the application name as text.",
+                              "type": "string",
+                              "enum": [
+                                "Text"
+                              ]
+                            },
+                            {
+                              "description": "Show both the application icon and name.",
+                              "type": "string",
+                              "enum": [
+                                "IconAndText"
+                              ]
+                            }
+                          ]
+                        },
+                        "enable": {
+                          "description": "Whether to enable this application button (optional). Inherits from the global `Applications` setting if omitted.",
+                          "type": "boolean"
+                        },
+                        "icon": {
+                          "description": "Optional icon: a path to an image or a text-based glyph (e.g., from Nerd Fonts). If not set, and if the `command` is a path to an executable, an icon might be extracted from it. Note: glyphs require a compatible `font_family`.",
+                          "type": "string"
+                        },
+                        "name": {
+                          "description": "Display name of the application.",
+                          "type": "string"
+                        },
+                        "show_command_on_hover": {
+                          "description": "Whether to show the launch command on hover (optional). Inherits from the global `Applications` setting if omitted.",
+                          "type": "boolean"
+                        }
+                      }
+                    }
+                  },
+                  "show_command_on_hover": {
+                    "description": "Whether to show the launch command on hover (optional). Could be overridden per application. Defaults to `false` if not set.",
+                    "type": "boolean"
+                  },
+                  "spacing": {
+                    "description": "Horizontal spacing between application buttons.",
+                    "type": "number",
+                    "format": "float"
+                  }
+                }
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
               "Battery"
             ],
             "properties": {
@@ -3001,6 +3233,122 @@
       "type": "array",
       "items": {
         "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "Applications"
+            ],
+            "properties": {
+              "Applications": {
+                "type": "object",
+                "required": [
+                  "enable",
+                  "items"
+                ],
+                "properties": {
+                  "display": {
+                    "description": "Default display format for all applications (optional). Could be overridden per application. Defaults to `Icon`.",
+                    "oneOf": [
+                      {
+                        "description": "Show only the application icon.",
+                        "type": "string",
+                        "enum": [
+                          "Icon"
+                        ]
+                      },
+                      {
+                        "description": "Show only the application name as text.",
+                        "type": "string",
+                        "enum": [
+                          "Text"
+                        ]
+                      },
+                      {
+                        "description": "Show both the application icon and name.",
+                        "type": "string",
+                        "enum": [
+                          "IconAndText"
+                        ]
+                      }
+                    ]
+                  },
+                  "enable": {
+                    "description": "Enables or disables the applications widget.",
+                    "type": "boolean"
+                  },
+                  "items": {
+                    "description": "List of configured applications to display.",
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "required": [
+                        "command",
+                        "name"
+                      ],
+                      "properties": {
+                        "command": {
+                          "description": "Command to execute (e.g. path to the application or shell command).",
+                          "type": "string"
+                        },
+                        "display": {
+                          "description": "Display format for this application button (optional). Overrides global format if set.",
+                          "oneOf": [
+                            {
+                              "description": "Show only the application icon.",
+                              "type": "string",
+                              "enum": [
+                                "Icon"
+                              ]
+                            },
+                            {
+                              "description": "Show only the application name as text.",
+                              "type": "string",
+                              "enum": [
+                                "Text"
+                              ]
+                            },
+                            {
+                              "description": "Show both the application icon and name.",
+                              "type": "string",
+                              "enum": [
+                                "IconAndText"
+                              ]
+                            }
+                          ]
+                        },
+                        "enable": {
+                          "description": "Whether to enable this application button (optional). Inherits from the global `Applications` setting if omitted.",
+                          "type": "boolean"
+                        },
+                        "icon": {
+                          "description": "Optional icon: a path to an image or a text-based glyph (e.g., from Nerd Fonts). If not set, and if the `command` is a path to an executable, an icon might be extracted from it. Note: glyphs require a compatible `font_family`.",
+                          "type": "string"
+                        },
+                        "name": {
+                          "description": "Display name of the application.",
+                          "type": "string"
+                        },
+                        "show_command_on_hover": {
+                          "description": "Whether to show the launch command on hover (optional). Inherits from the global `Applications` setting if omitted.",
+                          "type": "boolean"
+                        }
+                      }
+                    }
+                  },
+                  "show_command_on_hover": {
+                    "description": "Whether to show the launch command on hover (optional). Could be overridden per application. Defaults to `false` if not set.",
+                    "type": "boolean"
+                  },
+                  "spacing": {
+                    "description": "Horizontal spacing between application buttons.",
+                    "type": "number",
+                    "format": "float"
+                  }
+                }
+              }
+            },
+            "additionalProperties": false
+          },
           {
             "type": "object",
             "required": [
