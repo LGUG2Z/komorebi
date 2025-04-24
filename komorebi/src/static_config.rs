@@ -63,6 +63,7 @@ use crate::FloatingLayerBehaviour;
 use crate::Placement;
 use crate::PredefinedAspectRatio;
 use crate::ResolvedPathBuf;
+use crate::ASYNC_WINDOW_HANDLING_ENABLED;
 use crate::DATA_DIR;
 use crate::DEFAULT_CONTAINER_PADDING;
 use crate::DEFAULT_WORKSPACE_PADDING;
@@ -560,6 +561,9 @@ pub struct StaticConfig {
     /// Aspect ratio to resize with when toggling floating mode for a window
     #[serde(skip_serializing_if = "Option::is_none")]
     pub floating_window_aspect_ratio: Option<AspectRatio>,
+    /// Use asynchronous window handling to avoid blocking the main thread when a window is not responding (default: false)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub async_window_handling: Option<bool>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
@@ -921,6 +925,7 @@ impl From<&WindowManager> for StaticConfig {
             bar_configurations: None,
             remove_titlebar_applications: Option::from(NO_TITLEBAR.lock().clone()),
             floating_window_aspect_ratio: Option::from(*FLOATING_WINDOW_TOGGLE_ASPECT_RATIO.lock()),
+            async_window_handling: Option::from(false),
         }
     }
 }
@@ -1206,6 +1211,10 @@ impl StaticConfig {
                     }
                 }
             }
+        }
+
+        if let Some(async_enabled) = self.async_window_handling {
+            ASYNC_WINDOW_HANDLING_ENABLED.store(async_enabled, Ordering::SeqCst);
         }
 
         Ok(())
