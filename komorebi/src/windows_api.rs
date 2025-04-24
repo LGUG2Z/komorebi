@@ -8,6 +8,7 @@ use std::collections::VecDeque;
 use std::convert::TryFrom;
 use std::mem::size_of;
 use std::path::Path;
+use std::sync::atomic::Ordering;
 use windows::core::Result as WindowsCrateResult;
 use windows::core::PCWSTR;
 use windows::core::PWSTR;
@@ -105,6 +106,7 @@ use windows::Win32::UI::WindowsAndMessaging::SetForegroundWindow;
 use windows::Win32::UI::WindowsAndMessaging::SetLayeredWindowAttributes;
 use windows::Win32::UI::WindowsAndMessaging::SetWindowLongPtrW;
 use windows::Win32::UI::WindowsAndMessaging::SetWindowPos;
+use windows::Win32::UI::WindowsAndMessaging::ShowWindow;
 use windows::Win32::UI::WindowsAndMessaging::ShowWindowAsync;
 use windows::Win32::UI::WindowsAndMessaging::SystemParametersInfoW;
 use windows::Win32::UI::WindowsAndMessaging::WindowFromPoint;
@@ -159,6 +161,7 @@ use crate::set_window_position::SetWindowPosition;
 use crate::windows_callbacks;
 use crate::Window;
 use crate::WindowManager;
+use crate::ASYNC_WINDOW_HANDLING_ENABLED;
 use crate::DISPLAY_INDEX_PREFERENCES;
 use crate::DUPLICATE_MONITOR_SERIAL_IDS;
 use crate::MONITOR_INDEX_PREFERENCES;
@@ -494,7 +497,7 @@ impl WindowsApi {
         // By default SetWindowPos waits for target window's WindowProc thread
         // to process the message, so we have to use ASYNC_WINDOW_POS to avoid
         // blocking our thread in case the target window is not responding.
-        if async_window_pos {
+        if async_window_pos && ASYNC_WINDOW_HANDLING_ENABLED.load(Ordering::SeqCst) {
             flags |= SetWindowPosition::ASYNC_WINDOW_POS;
         }
 
@@ -532,11 +535,14 @@ impl WindowsApi {
     /// Raise the window to the top of the Z order, but do not activate or focus
     /// it. Use raise_and_focus_window to activate and focus a window.
     pub fn raise_window(hwnd: isize) -> Result<()> {
-        let flags = SetWindowPosition::NO_MOVE
+        let mut flags = SetWindowPosition::NO_MOVE
             | SetWindowPosition::NO_SIZE
             | SetWindowPosition::NO_ACTIVATE
-            | SetWindowPosition::SHOW_WINDOW
-            | SetWindowPosition::ASYNC_WINDOW_POS;
+            | SetWindowPosition::SHOW_WINDOW;
+
+        if ASYNC_WINDOW_HANDLING_ENABLED.load(Ordering::SeqCst) {
+            flags |= SetWindowPosition::ASYNC_WINDOW_POS;
+        }
 
         let position = HWND_TOP;
         Self::set_window_pos(
@@ -550,11 +556,14 @@ impl WindowsApi {
     /// Lower the window to the bottom of the Z order, but do not activate or focus
     /// it.
     pub fn lower_window(hwnd: isize) -> Result<()> {
-        let flags = SetWindowPosition::NO_MOVE
+        let mut flags = SetWindowPosition::NO_MOVE
             | SetWindowPosition::NO_SIZE
             | SetWindowPosition::NO_ACTIVATE
-            | SetWindowPosition::SHOW_WINDOW
-            | SetWindowPosition::ASYNC_WINDOW_POS;
+            | SetWindowPosition::SHOW_WINDOW;
+
+        if ASYNC_WINDOW_HANDLING_ENABLED.load(Ordering::SeqCst) {
+            flags |= SetWindowPosition::ASYNC_WINDOW_POS;
+        }
 
         let position = HWND_BOTTOM;
         Self::set_window_pos(
@@ -566,13 +575,14 @@ impl WindowsApi {
     }
 
     pub fn set_border_pos(hwnd: isize, layout: &Rect, position: isize) -> Result<()> {
-        let flags = {
-            SetWindowPosition::NO_SEND_CHANGING
-                | SetWindowPosition::NO_ACTIVATE
-                | SetWindowPosition::NO_REDRAW
-                | SetWindowPosition::SHOW_WINDOW
-                | SetWindowPosition::ASYNC_WINDOW_POS
-        };
+        let mut flags = SetWindowPosition::NO_SEND_CHANGING
+            | SetWindowPosition::NO_ACTIVATE
+            | SetWindowPosition::NO_REDRAW
+            | SetWindowPosition::SHOW_WINDOW;
+
+        if ASYNC_WINDOW_HANDLING_ENABLED.load(Ordering::SeqCst) {
+            flags |= SetWindowPosition::ASYNC_WINDOW_POS;
+        }
 
         Self::set_window_pos(
             HWND(as_ptr!(hwnd)),
@@ -616,9 +626,15 @@ impl WindowsApi {
         // BOOL is returned but does not signify whether or not the operation was succesful
         // https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-showwindow
         // TODO: error handling
-        unsafe {
-            let _ = ShowWindowAsync(HWND(as_ptr!(hwnd)), command);
-        };
+        if ASYNC_WINDOW_HANDLING_ENABLED.load(Ordering::SeqCst) {
+            unsafe {
+                let _ = ShowWindowAsync(HWND(as_ptr!(hwnd)), command);
+            };
+        } else {
+            unsafe {
+                let _ = ShowWindow(HWND(as_ptr!(hwnd)), command);
+            };
+        }
     }
 
     pub fn minimize_window(hwnd: isize) {

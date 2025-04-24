@@ -145,6 +145,10 @@
         }
       ]
     },
+    "async_window_handling": {
+      "description": "Use asynchronous window handling to avoid blocking the main thread when a window is not responding (default: false)",
+      "type": "boolean"
+    },
     "bar_configurations": {
       "description": "Komorebi status bar configuration files for multiple instances on different monitors",
       "type": "array",
