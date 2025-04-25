@@ -123,6 +123,11 @@ impl WindowManager {
                         "ignoring events and commands while not on virtual desktop {:?}",
                         virtual_desktop_id
                     );
+
+                    // TODO: when returning from another VD to the VD associated with komorebi
+                    // if borders are enabled, they will not be drawn again until the user interacts
+                    // with the workspace or forces a retile
+                    border_manager::destroy_all_borders()?;
                     return Ok(());
                 }
             }
