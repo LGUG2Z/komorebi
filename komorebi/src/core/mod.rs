@@ -529,6 +529,16 @@ impl Sizing {
     }
 }
 
+#[derive(
+    Clone, Copy, Debug, Default, Serialize, Deserialize, Display, EnumString, ValueEnum, PartialEq,
+)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+pub enum WindowHandlingBehaviour {
+    #[default]
+    Sync,
+    Async,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

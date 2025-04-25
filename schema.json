@@ -217,10 +217,6 @@
         }
       ]
     },
-    "async_window_handling": {
-      "description": "Use asynchronous window handling to avoid blocking the main thread when a window is not responding (default: false)",
-      "type": "boolean"
-    },
     "bar_configurations": {
       "description": "Komorebi status bar configuration files for multiple instances on different monitors",
       "type": "array",
@@ -4617,6 +4613,14 @@
             "Append"
           ]
         }
+      ]
+    },
+    "window_handling_behaviour": {
+      "description": "Which Windows API behaviour to use when manipulating windows (default: Sync)",
+      "type": "string",
+      "enum": [
+        "Sync",
+        "Async"
       ]
     },
     "window_hiding_behaviour": {

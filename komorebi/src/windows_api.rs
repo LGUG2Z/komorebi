@@ -8,7 +8,6 @@ use std::collections::VecDeque;
 use std::convert::TryFrom;
 use std::mem::size_of;
 use std::path::Path;
-use std::sync::atomic::Ordering;
 use windows::core::Result as WindowsCrateResult;
 use windows::core::PCWSTR;
 use windows::core::PWSTR;
@@ -160,11 +159,12 @@ use crate::ring::Ring;
 use crate::set_window_position::SetWindowPosition;
 use crate::windows_callbacks;
 use crate::Window;
+use crate::WindowHandlingBehaviour;
 use crate::WindowManager;
-use crate::ASYNC_WINDOW_HANDLING_ENABLED;
 use crate::DISPLAY_INDEX_PREFERENCES;
 use crate::DUPLICATE_MONITOR_SERIAL_IDS;
 use crate::MONITOR_INDEX_PREFERENCES;
+use crate::WINDOW_HANDLING_BEHAVIOUR;
 
 macro_rules! as_ptr {
     ($value:expr) => {
@@ -481,7 +481,7 @@ impl WindowsApi {
         hwnd: isize,
         layout: &Rect,
         top: bool,
-        async_window_pos: bool,
+        supports_async: bool,
     ) -> Result<()> {
         let hwnd = HWND(as_ptr!(hwnd));
 
@@ -497,7 +497,12 @@ impl WindowsApi {
         // By default SetWindowPos waits for target window's WindowProc thread
         // to process the message, so we have to use ASYNC_WINDOW_POS to avoid
         // blocking our thread in case the target window is not responding.
-        if async_window_pos && ASYNC_WINDOW_HANDLING_ENABLED.load(Ordering::SeqCst) {
+        if supports_async
+            && matches!(
+                WINDOW_HANDLING_BEHAVIOUR.load(),
+                WindowHandlingBehaviour::Async
+            )
+        {
             flags |= SetWindowPosition::ASYNC_WINDOW_POS;
         }
 
@@ -540,7 +545,10 @@ impl WindowsApi {
             | SetWindowPosition::NO_ACTIVATE
             | SetWindowPosition::SHOW_WINDOW;
 
-        if ASYNC_WINDOW_HANDLING_ENABLED.load(Ordering::SeqCst) {
+        if matches!(
+            WINDOW_HANDLING_BEHAVIOUR.load(),
+            WindowHandlingBehaviour::Async
+        ) {
             flags |= SetWindowPosition::ASYNC_WINDOW_POS;
         }
 
@@ -561,7 +569,10 @@ impl WindowsApi {
             | SetWindowPosition::NO_ACTIVATE
             | SetWindowPosition::SHOW_WINDOW;
 
-        if ASYNC_WINDOW_HANDLING_ENABLED.load(Ordering::SeqCst) {
+        if matches!(
+            WINDOW_HANDLING_BEHAVIOUR.load(),
+            WindowHandlingBehaviour::Async
+        ) {
             flags |= SetWindowPosition::ASYNC_WINDOW_POS;
         }
 
@@ -580,7 +591,10 @@ impl WindowsApi {
             | SetWindowPosition::NO_REDRAW
             | SetWindowPosition::SHOW_WINDOW;
 
-        if ASYNC_WINDOW_HANDLING_ENABLED.load(Ordering::SeqCst) {
+        if matches!(
+            WINDOW_HANDLING_BEHAVIOUR.load(),
+            WindowHandlingBehaviour::Async
+        ) {
             flags |= SetWindowPosition::ASYNC_WINDOW_POS;
         }
 
@@ -626,7 +640,10 @@ impl WindowsApi {
         // BOOL is returned but does not signify whether or not the operation was succesful
         // https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-showwindow
         // TODO: error handling
-        if ASYNC_WINDOW_HANDLING_ENABLED.load(Ordering::SeqCst) {
+        if matches!(
+            WINDOW_HANDLING_BEHAVIOUR.load(),
+            WindowHandlingBehaviour::Async
+        ) {
             unsafe {
                 let _ = ShowWindowAsync(HWND(as_ptr!(hwnd)), command);
             };
