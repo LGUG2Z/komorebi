@@ -481,7 +481,7 @@ impl WindowsApi {
         hwnd: isize,
         layout: &Rect,
         top: bool,
-        supports_async: bool,
+        with_async_window_pos: bool,
     ) -> Result<()> {
         let hwnd = HWND(as_ptr!(hwnd));
 
@@ -497,7 +497,7 @@ impl WindowsApi {
         // By default SetWindowPos waits for target window's WindowProc thread
         // to process the message, so we have to use ASYNC_WINDOW_POS to avoid
         // blocking our thread in case the target window is not responding.
-        if supports_async
+        if with_async_window_pos
             && matches!(
                 WINDOW_HANDLING_BEHAVIOUR.load(),
                 WindowHandlingBehaviour::Async

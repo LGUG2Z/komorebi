@@ -27,7 +27,6 @@ use crate::window_manager_event::WindowManagerEvent;
 use crate::windows_api;
 use crate::windows_api::WindowsApi;
 use crate::AnimationStyle;
-use crate::WindowHandlingBehaviour;
 use crate::FLOATING_APPLICATIONS;
 use crate::FLOATING_WINDOW_TOGGLE_ASPECT_RATIO;
 use crate::HIDDEN_HWNDS;
@@ -40,7 +39,6 @@ use crate::PERMAIGNORE_CLASSES;
 use crate::REGEX_IDENTIFIERS;
 use crate::SLOW_APPLICATION_COMPENSATION_TIME;
 use crate::SLOW_APPLICATION_IDENTIFIERS;
-use crate::WINDOW_HANDLING_BEHAVIOUR;
 use crate::WSL2_UI_PROCESSES;
 use color_eyre::eyre;
 use color_eyre::Result;
@@ -205,22 +203,18 @@ impl RenderDispatcher for MovementRenderDispatcher {
     fn render(&self, progress: f64) -> Result<()> {
         let new_rect = self.start_rect.lerp(self.target_rect, progress, self.style);
 
-        match WINDOW_HANDLING_BEHAVIOUR.load() {
-            WindowHandlingBehaviour::Sync => {
-                WindowsApi::move_window(self.hwnd, &new_rect, false)?;
-            }
-            WindowHandlingBehaviour::Async => {
-                // MoveWindow runs faster than SetWindowPos, but it doesn't support async window pos
-                WindowsApi::position_window(self.hwnd, &new_rect, self.top, true)?;
-            }
-        }
+        // we don't check WINDOW_HANDLING_BEHAVIOUR here because animations
+        // are always run on a separate thread
+        WindowsApi::move_window(self.hwnd, &new_rect, false)?;
         WindowsApi::invalidate_rect(self.hwnd, None, false);
 
         Ok(())
     }
 
     fn post_render(&self) -> Result<()> {
-        WindowsApi::position_window(self.hwnd, &self.target_rect, self.top, true)?;
+        // we don't add the async_window_pos flag here because animations
+        // are always run on a separate thread
+        WindowsApi::position_window(self.hwnd, &self.target_rect, self.top, false)?;
         if ANIMATION_MANAGER
             .lock()
             .count_in_progress(MovementRenderDispatcher::PREFIX)
