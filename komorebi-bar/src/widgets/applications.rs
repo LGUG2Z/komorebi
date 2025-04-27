@@ -19,13 +19,16 @@ use eframe::egui::Ui;
 use eframe::egui::Vec2;
 use image::DynamicImage;
 use image::RgbaImage;
+use komorebi_client::PathExt;
 use serde::Deserialize;
 use serde::Serialize;
 use std::path::Path;
+use std::path::PathBuf;
 use std::process::Command;
 use std::time::Duration;
 use std::time::Instant;
 use tracing;
+use which::which;
 
 /// Minimum interval between consecutive application launches to prevent accidental spamming.
 const MIN_LAUNCH_INTERVAL: Duration = Duration::from_millis(800);
@@ -118,28 +121,41 @@ impl From<&ApplicationsConfig> for Applications {
     fn from(applications_config: &ApplicationsConfig) -> Self {
         // Allow immediate launch by initializing last_launch in the past.
         let last_launch = Instant::now() - 2 * MIN_LAUNCH_INTERVAL;
+        let mut applications_config = applications_config.clone();
         let items = applications_config
             .items
-            .iter()
+            .iter_mut()
             .enumerate()
-            .map(|(index, app_config)| App {
-                enable: app_config.enable.unwrap_or(applications_config.enable),
-                name: app_config
-                    .name
-                    .is_empty()
-                    .then(|| format!("App {}", index + 1))
-                    .unwrap_or_else(|| app_config.name.clone()),
-                icon: Icon::try_from(app_config),
-                command: app_config.command.clone(),
-                display: app_config
-                    .display
-                    .or(applications_config.display)
-                    .unwrap_or_default(),
-                show_command_on_hover: app_config
-                    .show_command_on_hover
-                    .or(applications_config.show_command_on_hover)
-                    .unwrap_or(false),
-                last_launch,
+            .map(|(index, app_config)| {
+                app_config.command = app_config
+                    .command
+                    .replace_env()
+                    .to_string_lossy()
+                    .to_string();
+
+                if let Some(icon) = &mut app_config.icon {
+                    *icon = icon.replace_env().to_string_lossy().to_string();
+                }
+
+                App {
+                    enable: app_config.enable.unwrap_or(applications_config.enable),
+                    name: app_config
+                        .name
+                        .is_empty()
+                        .then(|| format!("App {}", index + 1))
+                        .unwrap_or_else(|| app_config.name.clone()),
+                    icon: Icon::try_from(app_config),
+                    command: app_config.command.clone(),
+                    display: app_config
+                        .display
+                        .or(applications_config.display)
+                        .unwrap_or_default(),
+                    show_command_on_hover: app_config
+                        .show_command_on_hover
+                        .or(applications_config.show_command_on_hover)
+                        .unwrap_or(false),
+                    last_launch,
+                }
             })
             .collect();
 
@@ -258,7 +274,7 @@ impl Icon {
     pub fn try_from(config: &AppConfig) -> Option<Self> {
         if let Some(icon) = config.icon.as_deref().map(str::trim) {
             if !icon.is_empty() {
-                let path = Path::new(icon);
+                let path = Path::new(&icon);
                 if path.is_file() {
                     match image::open(path).as_ref().map(DynamicImage::to_rgba8) {
                         Ok(image) => return Some(Icon::Image(image)),
@@ -272,12 +288,19 @@ impl Icon {
             }
         }
 
-        if Path::new(&config.command).is_file() {
-            return windows_icons::get_icon_by_path(&config.command)
-                .or_else(|| windows_icons_fallback::get_icon_by_path(&config.command))
-                .map(Icon::Image);
+        let binary = PathBuf::from(config.command.split(".exe").next()?);
+        let path = if binary.is_file() {
+            Some(binary)
+        } else {
+            which(binary).ok()
+        };
+
+        match path {
+            Some(path) => windows_icons::get_icon_by_path(&path.to_string_lossy())
+                .or_else(|| windows_icons_fallback::get_icon_by_path(&path.to_string_lossy()))
+                .map(Icon::Image),
+            None => None,
         }
-        None
     }
 
     /// Renders the icon in the given `Ui` context with the specified size.

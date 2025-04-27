@@ -2998,6 +2998,7 @@ dependencies = [
  "sysinfo 0.34.2",
  "tracing",
  "tracing-subscriber",
+ "which",
  "windows 0.61.1",
  "windows-core 0.61.0",
  "windows-icons 0.1.0 (git+https://github.com/LGUG2Z/windows-icons?rev=0c9d7ee1b807347c507d3a9862dd007b4d3f4354)",
