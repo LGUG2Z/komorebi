@@ -228,6 +228,8 @@ lazy_static! {
         Arc::new(Mutex::new(HashMap::new()));
 
     static ref FLOATING_WINDOW_TOGGLE_ASPECT_RATIO: Arc<Mutex<AspectRatio>> = Arc::new(Mutex::new(AspectRatio::Predefined(PredefinedAspectRatio::Widescreen)));
+
+    static ref CURRENT_VIRTUAL_DESKTOP: Arc<Mutex<Option<Vec<u8>>>> = Arc::new(Mutex::new(None));
 }
 
 pub static DEFAULT_WORKSPACE_PADDING: AtomicI32 = AtomicI32::new(10);
@@ -297,6 +299,14 @@ pub enum NotificationEvent {
     WindowManager(WindowManagerEvent),
     Socket(SocketMessage),
     Monitor(MonitorNotification),
+    VirtualDesktop(VirtualDesktopNotification),
+}
+
+#[derive(Debug, Copy, Clone, Serialize, Deserialize, PartialEq)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+pub enum VirtualDesktopNotification {
+    EnteredAssociatedVirtualDesktop,
+    LeftAssociatedVirtualDesktop,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

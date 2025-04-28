@@ -70,6 +70,7 @@ pub use komorebi::State;
 pub use komorebi::StaticConfig;
 pub use komorebi::SubscribeOptions;
 pub use komorebi::TabsConfig;
+pub use komorebi::VirtualDesktopNotification;
 pub use komorebi::WindowContainerBehaviour;
 pub use komorebi::WindowsApi;
 pub use komorebi::WorkspaceConfig;

@@ -718,6 +718,7 @@ impl KomorebiNotificationState {
         let show_all_icons = render_config.borrow().show_all_icons;
 
         match notification.event {
+            NotificationEvent::VirtualDesktop(_) => {}
             NotificationEvent::WindowManager(_) => {}
             NotificationEvent::Monitor(_) => {}
             NotificationEvent::Socket(message) => match message {

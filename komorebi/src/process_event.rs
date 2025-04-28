@@ -28,7 +28,9 @@ use crate::workspace::WorkspaceLayer;
 use crate::Notification;
 use crate::NotificationEvent;
 use crate::State;
+use crate::VirtualDesktopNotification;
 use crate::Window;
+use crate::CURRENT_VIRTUAL_DESKTOP;
 use crate::FLOATING_APPLICATIONS;
 use crate::HIDDEN_HWNDS;
 use crate::REGEX_IDENTIFIERS;
@@ -116,8 +118,17 @@ impl WindowManager {
             }
         }
 
+        let mut last_known_virtual_desktop_id = CURRENT_VIRTUAL_DESKTOP.lock();
+
         if let Some(virtual_desktop_id) = &self.virtual_desktop_id {
-            if let Some(id) = current_virtual_desktop() {
+            let latest_virtual_desktop_id = current_virtual_desktop();
+            if let Some(id) = latest_virtual_desktop_id {
+                // if we are on the vd associated with komorebi
+                let should_retile = id == *virtual_desktop_id
+                    // and we came from a vd not associated with komorebi
+                    && (*last_known_virtual_desktop_id).clone().unwrap_or_default() != id;
+
+                *last_known_virtual_desktop_id = Some(id.clone());
                 if id != *virtual_desktop_id {
                     tracing::info!(
                         "ignoring events and commands while not on virtual desktop {:?}",
@@ -128,7 +139,40 @@ impl WindowManager {
                     // if borders are enabled, they will not be drawn again until the user interacts
                     // with the workspace or forces a retile
                     border_manager::destroy_all_borders()?;
+
+                    // to be consumed by integrating gui applications like bars to know
+                    // when to hide visual components which don't make sense when not on
+                    // komorebi's associated virtual desktop
+                    tracing::debug!("notifying subscribers that we have left komorebi's associated virtual desktop");
+                    notify_subscribers(
+                        Notification {
+                            event: NotificationEvent::VirtualDesktop(
+                                VirtualDesktopNotification::LeftAssociatedVirtualDesktop,
+                            ),
+                            state: self.as_ref().into(),
+                        },
+                        true,
+                    )?;
+
                     return Ok(());
+                }
+
+                if should_retile {
+                    self.retile_all(true)?;
+
+                    // to be consumed by integrating gui applications like bars to know
+                    // when to show visual components associated with komorebi's virtual
+                    // desktop
+                    tracing::error!("notifying subscribers that we are back on komorebi's associated virtual desktop");
+                    notify_subscribers(
+                        Notification {
+                            event: NotificationEvent::VirtualDesktop(
+                                VirtualDesktopNotification::EnteredAssociatedVirtualDesktop,
+                            ),
+                            state: self.as_ref().into(),
+                        },
+                        true,
+                    )?;
                 }
             }
         }
