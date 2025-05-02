@@ -758,6 +758,46 @@ mod tests {
     }
 
     #[test]
+    fn test_move_container_to_nonexistent_workspace() {
+        let mut m = Monitor::new(
+            0,
+            Rect::default(),
+            Rect::default(),
+            "TestMonitor".to_string(),
+            "TestDevice".to_string(),
+            "TestDeviceID".to_string(),
+            Some("TestMonitorID".to_string()),
+        );
+
+        {
+            // Create workspace 1 and add 3 containers
+            let workspace = m.focused_workspace_mut().unwrap();
+            for _ in 0..3 {
+                let container = Container::default();
+                workspace.add_container_to_back(container);
+            }
+
+            // Should have 3 containers in workspace 1
+            assert_eq!(m.focused_workspace().unwrap().containers().len(), 3);
+        }
+
+        // Should only have 1 workspace
+        assert_eq!(m.workspaces().len(), 1);
+
+        // Try to move a container to a workspace that doesn't exist
+        m.move_container_to_workspace(8, true, None).unwrap();
+
+        // Should have 9 workspaces now
+        assert_eq!(m.workspaces().len(), 9);
+
+        // Should be focused on workspace 8
+        assert_eq!(m.focused_workspace_idx(), 8);
+
+        // Should have 1 container in workspace 8
+        assert_eq!(m.focused_workspace().unwrap().containers().len(), 1);
+    }
+
+    #[test]
     fn test_ensure_workspace_count_workspace_contains_two_workspaces() {
         let mut m = Monitor::new(
             0,
