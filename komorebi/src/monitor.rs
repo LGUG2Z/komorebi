@@ -620,6 +620,25 @@ mod tests {
     }
 
     #[test]
+    fn test_remove_nonexistent_workspace() {
+        let mut m = Monitor::new(
+            0,
+            Rect::default(),
+            Rect::default(),
+            "TestMonitor".to_string(),
+            "TestDevice".to_string(),
+            "TestDeviceID".to_string(),
+            Some("TestMonitorID".to_string()),
+        );
+
+        // Try to remove a workspace that doesn't exist
+        let removed_workspace = m.remove_workspace_by_idx(1);
+
+        // Should return None since there is no workspace at index 1
+        assert!(removed_workspace.is_none());
+    }
+
+    #[test]
     fn test_focus_workspace() {
         let mut m = Monitor::new(
             0,
