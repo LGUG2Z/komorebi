@@ -2018,6 +2018,33 @@ mod tests {
     }
 
     #[test]
+    fn test_remove_non_existent_window() {
+        let mut workspace = Workspace::default();
+
+        {
+            // Add a container with one window
+            let mut container = Container::default();
+            container.windows_mut().push_back(Window::from(1));
+            workspace.add_container_to_back(container);
+        }
+
+        // Attempt to remove a non-existent window
+        let result = workspace.remove_window(2);
+
+        // Should return an error
+        assert!(
+            result.is_err(),
+            "Expected an error when removing a non-existent window"
+        );
+
+        // Get focused container. Should be the index of the last container added
+        let container = workspace.focused_container_mut().unwrap();
+
+        // Should still have 1 window
+        assert_eq!(container.windows().len(), 1);
+    }
+
+    #[test]
     fn test_remove_focused_container() {
         let mut workspace = Workspace::default();
 
