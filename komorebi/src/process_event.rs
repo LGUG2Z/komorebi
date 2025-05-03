@@ -163,7 +163,7 @@ impl WindowManager {
                     // to be consumed by integrating gui applications like bars to know
                     // when to show visual components associated with komorebi's virtual
                     // desktop
-                    tracing::error!("notifying subscribers that we are back on komorebi's associated virtual desktop");
+                    tracing::debug!("notifying subscribers that we are back on komorebi's associated virtual desktop");
                     notify_subscribers(
                         Notification {
                             event: NotificationEvent::VirtualDesktop(
