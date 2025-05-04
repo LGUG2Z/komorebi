@@ -88,3 +88,6 @@ schemagen:
     generate-schema-doc ./schema.json --config template_name=js_offline --config minify=false ./static-config-docs/
     generate-schema-doc ./schema.bar.json --config template_name=js_offline --config minify=false ./bar-config-docs/
     mv ./bar-config-docs/schema.bar.html ./bar-config-docs/schema.html
+
+depgen:
+    cargo deny list --format json | jq 'del(.unlicensed)' > dependencies.json
