@@ -1,4 +1,4 @@
-use super::komorebi::img_to_texture;
+use super::ImageIcon;
 use crate::render::RenderConfig;
 use crate::selected_frame::SelectableFrame;
 use crate::widgets::widget::BarWidget;
@@ -17,14 +17,13 @@ use eframe::egui::Stroke;
 use eframe::egui::StrokeKind;
 use eframe::egui::Ui;
 use eframe::egui::Vec2;
-use image::DynamicImage;
-use image::RgbaImage;
 use komorebi_client::PathExt;
 use serde::Deserialize;
 use serde::Serialize;
+use std::borrow::Cow;
 use std::path::Path;
-use std::path::PathBuf;
 use std::process::Command;
+use std::sync::Arc;
 use std::time::Duration;
 use std::time::Instant;
 use tracing;
@@ -119,42 +118,31 @@ impl BarWidget for Applications {
 
 impl From<&ApplicationsConfig> for Applications {
     fn from(applications_config: &ApplicationsConfig) -> Self {
-        // Allow immediate launch by initializing last_launch in the past.
-        let last_launch = Instant::now() - 2 * MIN_LAUNCH_INTERVAL;
-        let mut applications_config = applications_config.clone();
         let items = applications_config
             .items
-            .iter_mut()
+            .iter()
             .enumerate()
-            .map(|(index, app_config)| {
-                app_config.command = app_config
-                    .command
-                    .replace_env()
-                    .to_string_lossy()
-                    .to_string();
-
-                if let Some(icon) = &mut app_config.icon {
-                    *icon = icon.replace_env().to_string_lossy().to_string();
-                }
+            .map(|(index, config)| {
+                let command = UserCommand::new(&config.command);
 
                 App {
-                    enable: app_config.enable.unwrap_or(applications_config.enable),
-                    name: app_config
+                    enable: config.enable.unwrap_or(applications_config.enable),
+                    name: config
                         .name
                         .is_empty()
                         .then(|| format!("App {}", index + 1))
-                        .unwrap_or_else(|| app_config.name.clone()),
-                    icon: Icon::try_from(app_config),
-                    command: app_config.command.clone(),
-                    display: app_config
+                        .unwrap_or_else(|| config.name.clone()),
+                    icon: Icon::try_from_path(config.icon.as_deref())
+                        .or_else(|| Icon::try_from_command(&command)),
+                    command,
+                    display: config
                         .display
                         .or(applications_config.display)
                         .unwrap_or_default(),
-                    show_command_on_hover: app_config
+                    show_command_on_hover: config
                         .show_command_on_hover
                         .or(applications_config.show_command_on_hover)
                         .unwrap_or(false),
-                    last_launch,
                 }
             })
             .collect();
@@ -177,13 +165,11 @@ pub struct App {
     /// Icon to display for this application, if available.
     pub icon: Option<Icon>,
     /// Command to execute when the application is launched.
-    pub command: String,
+    pub command: UserCommand,
     /// Display format (icon, text, or both).
     pub display: DisplayFormat,
     /// Whether to show the launch command on hover.
     pub show_command_on_hover: bool,
-    /// Last time this application was launched (used for cooldown control).
-    pub last_launch: Instant,
 }
 
 impl App {
@@ -205,17 +191,15 @@ impl App {
                     }
 
                     // Add hover text with command information
+                    let response = ui.response();
                     if self.show_command_on_hover {
-                        ui.response()
-                            .on_hover_text(format!("Launch: {}", self.command));
-                    } else {
-                        ui.response();
+                        response.on_hover_text(format!("Launch: {}", self.command.as_ref()));
                     }
                 })
                 .clicked()
         {
             // Launch the application when clicked
-            self.launch_if_ready();
+            self.command.launch_if_ready();
         }
     }
 
@@ -235,84 +219,75 @@ impl App {
     fn draw_name(&self, ui: &mut Ui) {
         ui.add(Label::new(&self.name).selectable(false));
     }
-
-    /// Attempts to launch the specified command in a separate thread if enough time has passed
-    /// since the last launch. This prevents repeated launches from rapid consecutive clicks.
-    ///
-    /// Errors during launch are logged using the `tracing` crate.
-    pub fn launch_if_ready(&mut self) {
-        let now = Instant::now();
-        if now.duration_since(self.last_launch) < MIN_LAUNCH_INTERVAL {
-            return;
-        }
-
-        self.last_launch = now;
-        let command_string = self.command.clone();
-        // Launch the application in a separate thread to avoid blocking the UI
-        std::thread::spawn(move || {
-            if let Err(e) = Command::new("cmd").args(["/C", &command_string]).spawn() {
-                tracing::error!("Failed to launch command '{}': {}", command_string, e);
-            }
-        });
-    }
 }
 
-/// Holds decoded image data to be used as an icon in the UI.
+/// Holds image/text data to be used as an icon in the UI.
+/// This represents source icon data before rendering.
 #[derive(Clone, Debug)]
 pub enum Icon {
     /// RGBA image used for rendering the icon.
-    Image(RgbaImage),
+    Image(ImageIcon),
     /// Text-based icon, e.g. from a font like Nerd Fonts.
     Text(String),
 }
 
 impl Icon {
-    /// Attempts to create an `Icon` from the given `AppConfig`.
-    /// Loads the image from a specified icon path or extracts it from the application's
-    /// executable if the command points to a valid executable file.
+    /// Attempts to create an [`Icon`] from a string path or text glyph/glyphs.
+    ///
+    /// - Environment variables in the path are resolved using [`PathExt::replace_env`].
+    /// - Uses [`ImageIcon::try_load`] to load and cache the icon image based on the resolved path.
+    /// - If the path is invalid but the string is non-empty, it is interpreted as a text-based icon and
+    ///   returned as [`Icon::Text`].
+    /// - Returns `None` if the input is empty, `None`, or image loading fails.
     #[inline]
-    pub fn try_from(config: &AppConfig) -> Option<Self> {
-        if let Some(icon) = config.icon.as_deref().map(str::trim) {
-            if !icon.is_empty() {
-                let path = Path::new(&icon);
-                if path.is_file() {
-                    match image::open(path).as_ref().map(DynamicImage::to_rgba8) {
-                        Ok(image) => return Some(Icon::Image(image)),
-                        Err(err) => {
-                            tracing::error!("Failed to load icon from {}, error: {}", icon, err)
-                        }
-                    }
-                } else {
-                    return Some(Icon::Text(icon.to_owned()));
-                }
+    pub fn try_from_path(icon: Option<&str>) -> Option<Self> {
+        let icon = icon.map(str::trim)?;
+        if icon.is_empty() {
+            return None;
+        }
+
+        let path = icon.replace_env();
+        if !path.is_file() {
+            return Some(Icon::Text(icon.to_owned()));
+        }
+
+        let image_icon = ImageIcon::try_load(path.as_ref(), || match image::open(&path) {
+            Ok(img) => Some(img),
+            Err(err) => {
+                tracing::error!("Failed to load icon from {:?}, error: {}", path, err);
+                None
             }
-        }
+        })?;
 
-        let binary = PathBuf::from(config.command.split(".exe").next()?);
-        let path = if binary.is_file() {
-            Some(binary)
-        } else {
-            which(binary).ok()
-        };
-
-        match path {
-            Some(path) => windows_icons::get_icon_by_path(&path.to_string_lossy())
-                .or_else(|| windows_icons_fallback::get_icon_by_path(&path.to_string_lossy()))
-                .map(Icon::Image),
-            None => None,
-        }
+        Some(Icon::Image(image_icon))
     }
 
-    /// Renders the icon in the given `Ui` context with the specified size.
+    /// Attempts to create an [`Icon`] by extracting an image from the executable path of a [`UserCommand`].
+    ///
+    /// - Uses [`ImageIcon::try_load`] to load and cache the icon image based on the resolved executable path.
+    /// - Returns [`Icon::Image`] if an icon is successfully extracted.
+    /// - Returns `None` if the executable path is unavailable or icon extraction fails.
+    #[inline]
+    pub fn try_from_command(command: &UserCommand) -> Option<Self> {
+        let path = command.get_executable()?;
+        let image_icon = ImageIcon::try_load(path.as_ref(), || {
+            let path_str = path.to_str()?;
+            windows_icons::get_icon_by_path(path_str)
+                .or_else(|| windows_icons_fallback::get_icon_by_path(path_str))
+        })?;
+        Some(Icon::Image(image_icon))
+    }
+
+    /// Renders the icon in the given [`Ui`] using the provided [`IconConfig`].
     #[inline]
     pub fn draw(&self, ctx: &Context, ui: &mut Ui, icon_config: &IconConfig) {
         match self {
-            Icon::Image(image) => {
+            Icon::Image(image_icon) => {
                 Frame::NONE
                     .inner_margin(Margin::same(ui.style().spacing.button_padding.y as i8))
                     .show(ui, |ui| {
                         ui.add(
-                            Image::from(&img_to_texture(ctx, image))
+                            Image::from_texture(&image_icon.texture(ctx))
                                 .maintain_aspect_ratio(true)
                                 .fit_to_exact_size(Vec2::splat(icon_config.size)),
                         );
@@ -353,4 +328,78 @@ pub struct IconConfig {
     pub size: f32,
     /// Color of the icon used for text-based icons
     pub color: Color32,
+}
+
+/// A structure to manage command execution with cooldown prevention.
+#[derive(Clone, Debug)]
+pub struct UserCommand {
+    /// The command string to execute
+    pub command: Arc<str>,
+    /// Last time this command was executed (used for cooldown control)
+    pub last_launch: Instant,
+}
+
+impl AsRef<str> for UserCommand {
+    #[inline]
+    fn as_ref(&self) -> &str {
+        &self.command
+    }
+}
+
+impl UserCommand {
+    /// Creates a new [`UserCommand`] with environment variables in the command path
+    /// resolved using [`PathExt::replace_env`].
+    #[inline]
+    pub fn new(command: &str) -> Self {
+        // Allow immediate launch by initializing last_launch in the past
+        let last_launch = Instant::now() - 2 * MIN_LAUNCH_INTERVAL;
+
+        Self {
+            command: Arc::from(command.replace_env().to_str().unwrap_or_default()),
+            last_launch,
+        }
+    }
+
+    /// Attempts to resolve the executable path from the command string.
+    ///
+    /// Resolution logic:
+    /// - Splits the command by ".exe" and checks if the first part is an existing file.
+    /// - If not, attempts to locate the binary using [`which`] on this name.
+    /// - If still unresolved, takes the first word (separated by whitespace) and attempts
+    ///   to find it in the system `PATH` using [`which`].
+    ///
+    /// Returns `None` if no executable path can be determined.
+    #[inline]
+    pub fn get_executable(&self) -> Option<Cow<'_, Path>> {
+        if let Some(binary) = self.command.split(".exe").next().map(Path::new) {
+            if binary.is_file() {
+                return Some(Cow::Borrowed(binary));
+            } else if let Ok(binary) = which(binary) {
+                return Some(Cow::Owned(binary));
+            }
+        }
+
+        which(self.command.split(' ').next()?).ok().map(Cow::Owned)
+    }
+
+    /// Attempts to launch the specified command in a separate thread if enough time has passed
+    /// since the last launch. This prevents repeated launches from rapid consecutive clicks.
+    ///
+    /// Errors during launch are logged using the `tracing` crate.
+    pub fn launch_if_ready(&mut self) {
+        let now = Instant::now();
+        // Check if enough time has passed since the last launch
+        if now.duration_since(self.last_launch) < MIN_LAUNCH_INTERVAL {
+            return;
+        }
+
+        self.last_launch = now;
+        let command_string = self.command.clone();
+        // Launch the application in a separate thread to avoid blocking the UI
+        std::thread::spawn(move || {
+            if let Err(e) = Command::new("cmd").args(["/C", &command_string]).spawn() {
+                tracing::error!("Failed to launch command '{}': {}", command_string, e);
+            }
+        });
+    }
 }
