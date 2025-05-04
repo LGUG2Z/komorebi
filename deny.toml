@@ -34,43 +34,58 @@ allow = [
     "Ubuntu-font-1.0",
     "Unicode-3.0",
     "Zlib",
-    "LicenseRef-Komorebi-1.0"
+    "LicenseRef-Komorebi-2.0"
 ]
 confidence-threshold = 0.8
 
 [[licenses.clarify]]
 crate = "komorebi"
-expression = "LicenseRef-Komorebi-1.0"
+expression = "LicenseRef-Komorebi-2.0"
 license-files = []
 
 [[licenses.clarify]]
 crate = "komorebi-client"
-expression = "LicenseRef-Komorebi-1.0"
+expression = "LicenseRef-Komorebi-2.0"
 license-files = []
 
 [[licenses.clarify]]
 crate = "komorebic"
-expression = "LicenseRef-Komorebi-1.0"
+expression = "LicenseRef-Komorebi-2.0"
 license-files = []
 
 [[licenses.clarify]]
 crate = "komorebic-no-console"
-expression = "LicenseRef-Komorebi-1.0"
+expression = "LicenseRef-Komorebi-2.0"
 license-files = []
 
 [[licenses.clarify]]
 crate = "komorebi-themes"
-expression = "LicenseRef-Komorebi-1.0"
+expression = "LicenseRef-Komorebi-2.0"
 license-files = []
 
 [[licenses.clarify]]
 crate = "komorebi-gui"
-expression = "LicenseRef-Komorebi-1.0"
+expression = "LicenseRef-Komorebi-2.0"
 license-files = []
 
 [[licenses.clarify]]
 crate = "komorebi-bar"
-expression = "LicenseRef-Komorebi-1.0"
+expression = "LicenseRef-Komorebi-2.0"
+license-files = []
+
+[[licenses.clarify]]
+crate = "komorebi-shortcuts"
+expression = "LicenseRef-Komorebi-2.0"
+license-files = []
+
+[[licenses.clarify]]
+crate = "whkd-core"
+expression = "LicenseRef-Komorebi-2.0"
+license-files = []
+
+[[licenses.clarify]]
+crate = "whkd-parser"
+expression = "LicenseRef-Komorebi-2.0"
 license-files = []
 
 [[licenses.clarify]]
@@ -96,4 +111,5 @@ allow-git = [
     "https://github.com/LGUG2Z/win32-display-data",
     "https://github.com/LGUG2Z/flavours",
     "https://github.com/LGUG2Z/base16_color_scheme",
+    "https://github.com/LGUG2Z/whkd",
 ]

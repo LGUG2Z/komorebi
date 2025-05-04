@@ -36,7 +36,7 @@ shadow-rs = { workspace = true }
 
 [features]
 default = ["schemars"]
-schemars = ["dep:schemars"]
+schemars = ["dep:schemars", "komorebi-client/schemars"]
 
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(FALSE)'] }

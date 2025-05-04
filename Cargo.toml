@@ -8,7 +8,8 @@ members = [
     "komorebic",
     "komorebic-no-console",
     "komorebi-bar",
-    "komorebi-themes"
+    "komorebi-themes",
+    "komorebi-shortcuts"
 ]
 
 [workspace.dependencies]

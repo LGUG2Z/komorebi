@@ -31,7 +31,7 @@ install:
     just install-targets komorebic komorebic-no-console komorebi komorebi-bar komorebi-gui
 
 install-with-jsonschema:
-    just install-targets-with-jsonschema komorebic komorebic-no-console komorebi komorebi-bar komorebi-gui
+    just install-targets-with-jsonschema komorebic komorebic-no-console komorebi komorebi-bar komorebi-gui komorebi-shortcuts
 
 build-targets *targets:
     "{{ targets }}" -split ' ' | ForEach-Object { just build-target $_ }
@@ -40,7 +40,7 @@ build-target target:
     cargo +stable build --package {{ target }} --locked --release --no-default-features
 
 build:
-    just build-targets komorebic komorebic-no-console komorebi komorebi-bar komorebi-gui
+    just build-targets komorebic komorebic-no-console komorebi komorebi-bar komorebi-gui komorebi-shortcuts
 
 copy-target target:
     cp .\target\release\{{ target }}.exe $Env:USERPROFILE\.cargo\bin

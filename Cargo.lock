@@ -181,6 +181,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "allocator-api2"
+version = "0.2.21"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "683d7910e743518b0e34f1186f92494becacb047c7b6bf616c96772180fef923"
+
+[[package]]
 name = "android-activity"
 version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -930,6 +936,16 @@ checksum = "8f10f8c9340e31fc120ff885fcdb54a0b48e474bbd77cab557f0c30a3e569402"
 dependencies = [
  "parse-zoneinfo",
  "phf_codegen 0.11.3",
+]
+
+[[package]]
+name = "chumsky"
+version = "0.9.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8eebd66744a15ded14960ab4ccdbfb51ad3b81f51f3f04a80adac98c985396c9"
+dependencies = [
+ "hashbrown 0.14.5",
+ "stacker",
 ]
 
 [[package]]
@@ -2322,6 +2338,16 @@ checksum = "8a9ee70c43aaf417c914396645a0fa852624801b24ebb7ae78fe8272889ac888"
 
 [[package]]
 name = "hashbrown"
+version = "0.14.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e5274423e17b7c9fc20b6e7e208532f9b19825d82dfd615708b70edd83df41f1"
+dependencies = [
+ "ahash",
+ "allocator-api2",
+]
+
+[[package]]
+name = "hashbrown"
 version = "0.15.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bf151400ff0baff5465007dd2f3e717f3fe502074ca563069ce3a6629d07b289"
@@ -3025,6 +3051,16 @@ dependencies = [
  "serde_json_lenient",
  "windows 0.61.1",
  "windows-core 0.61.0",
+]
+
+[[package]]
+name = "komorebi-shortcuts"
+version = "0.1.0"
+dependencies = [
+ "dirs 6.0.0",
+ "eframe",
+ "whkd-core",
+ "whkd-parser",
 ]
 
 [[package]]
@@ -4618,6 +4654,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "psm"
+version = "0.1.26"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6e944464ec8536cd1beb0bbfd96987eb5e3b72f2ecdafdc5c769a37f1fa2ae1f"
+dependencies = [
+ "cc",
+]
+
+[[package]]
 name = "qoi"
 version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5563,6 +5608,19 @@ name = "stable_deref_trait"
 version = "1.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a8f112729512f8e442d81f95a8a7ddf2b7c6b8a1a6f509a95864142b30cab2d3"
+
+[[package]]
+name = "stacker"
+version = "0.1.21"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cddb07e32ddb770749da91081d8d0ac3a16f1a569a18b20348cd371f5dead06b"
+dependencies = [
+ "cc",
+ "cfg-if 1.0.0",
+ "libc",
+ "psm",
+ "windows-sys 0.52.0",
+]
 
 [[package]]
 name = "starship-battery"
@@ -6750,6 +6808,21 @@ dependencies = [
  "env_home",
  "rustix 1.0.5",
  "winsafe",
+]
+
+[[package]]
+name = "whkd-core"
+version = "0.2.9"
+source = "git+https://github.com/LGUG2Z/whkd?rev=29df24ff2dd715655b0366bd2a598837c699a8e9#29df24ff2dd715655b0366bd2a598837c699a8e9"
+
+[[package]]
+name = "whkd-parser"
+version = "0.2.9"
+source = "git+https://github.com/LGUG2Z/whkd?rev=29df24ff2dd715655b0366bd2a598837c699a8e9#29df24ff2dd715655b0366bd2a598837c699a8e9"
+dependencies = [
+ "chumsky",
+ "thiserror 2.0.12",
+ "whkd-core",
 ]
 
 [[package]]

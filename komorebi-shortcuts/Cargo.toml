@@ -1,0 +1,11 @@
+[package]
+name = "komorebi-shortcuts"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+whkd-parser = { git = "https://github.com/LGUG2Z/whkd", rev = "29df24ff2dd715655b0366bd2a598837c699a8e9" }
+whkd-core = { git = "https://github.com/LGUG2Z/whkd", rev = "29df24ff2dd715655b0366bd2a598837c699a8e9" }
+
+eframe = { workspace = true }
+dirs = { workspace = true }
