@@ -1,3 +1,4 @@
+use super::ImageIcon;
 use crate::bar::apply_theme;
 use crate::config::DisplayFormat;
 use crate::config::KomobarTheme;
@@ -8,14 +9,12 @@ use crate::selected_frame::SelectableFrame;
 use crate::ui::CustomUi;
 use crate::widgets::komorebi_layout::KomorebiLayout;
 use crate::widgets::widget::BarWidget;
-use crate::ICON_CACHE;
 use crate::MAX_LABEL_WIDTH;
 use crate::MONITOR_INDEX;
 use eframe::egui::text::LayoutJob;
 use eframe::egui::vec2;
 use eframe::egui::Align;
 use eframe::egui::Color32;
-use eframe::egui::ColorImage;
 use eframe::egui::Context;
 use eframe::egui::CornerRadius;
 use eframe::egui::Frame;
@@ -27,11 +26,8 @@ use eframe::egui::Sense;
 use eframe::egui::Stroke;
 use eframe::egui::StrokeKind;
 use eframe::egui::TextFormat;
-use eframe::egui::TextureHandle;
-use eframe::egui::TextureOptions;
 use eframe::egui::Ui;
 use eframe::egui::Vec2;
-use image::RgbaImage;
 use komorebi_client::Container;
 use komorebi_client::NotificationEvent;
 use komorebi_client::PathExt;
@@ -233,7 +229,7 @@ impl BarWidget for Komorebi {
                                                 for (is_focused, container) in containers {
                                                     for icon in container.icons.iter().flatten().collect::<Vec<_>>() {
                                                         ui.add(
-                                                            Image::from(&img_to_texture(ctx, icon))
+                                                            Image::from(&icon.texture(ctx))
                                                                 .maintain_aspect_ratio(true)
                                                                 .fit_to_exact_size(if *is_focused { icon_size } else { text_size }),
                                                         );
@@ -604,7 +600,7 @@ impl BarWidget for Komorebi {
                                                 ))
                                                 .show(ui, |ui| {
                                                     let response = ui.add(
-                                                        Image::from(&img_to_texture(ctx, img))
+                                                        Image::from(&img.texture(ctx) )
                                                             .maintain_aspect_ratio(true)
                                                             .fit_to_exact_size(icon_size),
                                                     );
@@ -668,13 +664,6 @@ impl BarWidget for Komorebi {
             }
         }
     }
-}
-
-pub(super) fn img_to_texture(ctx: &Context, rgba_image: &RgbaImage) -> TextureHandle {
-    let size = [rgba_image.width() as usize, rgba_image.height() as usize];
-    let pixels = rgba_image.as_flat_samples();
-    let color_image = ColorImage::from_rgba_unmultiplied(size, pixels.as_slice());
-    ctx.load_texture("icon", color_image, TextureOptions::default())
 }
 
 #[allow(clippy::type_complexity)]
@@ -868,7 +857,7 @@ impl KomorebiNotificationState {
 #[derive(Clone, Debug)]
 pub struct KomorebiNotificationStateContainerInformation {
     pub titles: Vec<String>,
-    pub icons: Vec<Option<RgbaImage>>,
+    pub icons: Vec<Option<ImageIcon>>,
     pub focused_window_idx: usize,
 }
 
@@ -895,34 +884,17 @@ impl From<&Workspace> for KomorebiNotificationStateContainerInformation {
 impl From<&Container> for KomorebiNotificationStateContainerInformation {
     fn from(value: &Container) -> Self {
         let windows = value.windows().iter().collect::<Vec<_>>();
-        let mut icons = vec![];
 
-        for window in windows {
-            let mut icon_cache = ICON_CACHE.lock().unwrap();
-            let mut update_cache = false;
-            let hwnd = window.hwnd;
-
-            match icon_cache.get(&hwnd) {
-                None => {
-                    let icon = match windows_icons::get_icon_by_hwnd(window.hwnd) {
-                        None => windows_icons_fallback::get_icon_by_process_id(window.process_id()),
-                        Some(icon) => Some(icon),
-                    };
-
-                    icons.push(icon);
-                    update_cache = true;
-                }
-                Some(icon) => {
-                    icons.push(Some(icon.clone()));
-                }
-            }
-
-            if update_cache {
-                if let Some(Some(icon)) = icons.last() {
-                    icon_cache.insert(hwnd, icon.clone());
-                }
-            }
-        }
+        let icons = windows
+            .iter()
+            .map(|window| {
+                ImageIcon::try_load(window.hwnd, || {
+                    windows_icons::get_icon_by_hwnd(window.hwnd).or_else(|| {
+                        windows_icons_fallback::get_icon_by_process_id(window.process_id())
+                    })
+                })
+            })
+            .collect::<Vec<_>>();
 
         Self {
             titles: value
@@ -938,35 +910,14 @@ impl From<&Container> for KomorebiNotificationStateContainerInformation {
 
 impl From<&Window> for KomorebiNotificationStateContainerInformation {
     fn from(value: &Window) -> Self {
-        let mut icon_cache = ICON_CACHE.lock().unwrap();
-        let mut update_cache = false;
-        let mut icons = vec![];
-        let hwnd = value.hwnd;
-
-        match icon_cache.get(&hwnd) {
-            None => {
-                let icon = match windows_icons::get_icon_by_hwnd(hwnd) {
-                    None => windows_icons_fallback::get_icon_by_process_id(value.process_id()),
-                    Some(icon) => Some(icon),
-                };
-
-                icons.push(icon);
-                update_cache = true;
-            }
-            Some(icon) => {
-                icons.push(Some(icon.clone()));
-            }
-        }
-
-        if update_cache {
-            if let Some(Some(icon)) = icons.last() {
-                icon_cache.insert(hwnd, icon.clone());
-            }
-        }
+        let icons = ImageIcon::try_load(value.hwnd, || {
+            windows_icons::get_icon_by_hwnd(value.hwnd)
+                .or_else(|| windows_icons_fallback::get_icon_by_process_id(value.process_id()))
+        });
 
         Self {
             titles: vec![value.title().unwrap_or_default()],
-            icons,
+            icons: vec![icons],
             focused_window_idx: 0,
         }
     }
