@@ -2370,6 +2370,25 @@ mod tests {
     }
 
     #[test]
+    fn test_move_window_to_non_existent_container() {
+        let mut workspace = Workspace::default();
+
+        // Add a container with one window
+        let mut container = Container::default();
+        container.windows_mut().push_back(Window::from(1));
+        workspace.add_container_to_back(container);
+
+        // Try to move window to a non-existent container
+        let result = workspace.move_window_to_container(8);
+
+        // Should return an error
+        assert!(
+            result.is_err(),
+            "Expected an error when moving a window to a non-existent container"
+        );
+    }
+
+    #[test]
     fn test_remove_window() {
         let mut workspace = Workspace::default();
 
