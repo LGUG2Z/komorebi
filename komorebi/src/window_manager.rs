@@ -4956,7 +4956,7 @@ mod tests {
             // Should have 2 workspaces
             assert_eq!(m.workspaces().len(), 2);
 
-            // Add monitor to workspace
+            // Add monitor to window manager
             wm.monitors_mut().push_back(m);
         }
 
@@ -5001,6 +5001,42 @@ mod tests {
             let monitor = wm.focused_monitor_mut().unwrap();
             assert_eq!(monitor.workspaces().len(), 1);
         }
+    }
+
+    #[test]
+    fn test_move_workspace_to_nonexistent_monitor() {
+        let (mut wm, _context) = setup_window_manager();
+
+        {
+            let mut m = monitor::new(
+                0,
+                Rect::default(),
+                Rect::default(),
+                "TestMonitor".to_string(),
+                "TestDevice".to_string(),
+                "TestDeviceID".to_string(),
+                Some("TestMonitorID".to_string()),
+            );
+
+            // Add another workspace
+            let new_workspace_index = m.new_workspace_idx();
+            m.focus_workspace(new_workspace_index).unwrap();
+
+            // Should have 2 workspaces
+            assert_eq!(m.workspaces().len(), 2);
+
+            // Add monitor to window manager
+            wm.monitors_mut().push_back(m);
+        }
+
+        // Attempt to move a workspace to a non-existent monitor
+        let result = wm.move_workspace_to_monitor(1);
+
+        // Should be an error since Monitor 1 does not exist
+        assert!(
+            result.is_err(),
+            "Expected an error when moving to a non-existent monitor"
+        );
     }
 
     #[test]
