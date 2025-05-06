@@ -458,6 +458,18 @@ impl Monitor {
                 Some(workspace) => workspace,
             };
 
+            if target_workspace.monocle_container().is_some() {
+                for container in target_workspace.containers_mut() {
+                    container.restore();
+                }
+
+                for window in target_workspace.floating_windows_mut() {
+                    window.restore();
+                }
+
+                target_workspace.reintegrate_monocle_container()?;
+            }
+
             target_workspace.set_layer(WorkspaceLayer::Tiling);
 
             if let Some(direction) = direction {
