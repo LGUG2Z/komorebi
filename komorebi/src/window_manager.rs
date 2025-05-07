@@ -1923,6 +1923,18 @@ impl WindowManager {
             .focused_workspace_mut()
             .ok_or_else(|| anyhow!("there is no focused workspace on target monitor"))?;
 
+        if target_workspace.monocle_container().is_some() {
+            for container in target_workspace.containers_mut() {
+                container.restore();
+            }
+
+            for window in target_workspace.floating_windows_mut() {
+                window.restore();
+            }
+
+            target_workspace.reintegrate_monocle_container()?;
+        }
+
         if let Some(window) = floating_window {
             target_workspace.floating_windows_mut().push_back(window);
             target_workspace.set_layer(WorkspaceLayer::Floating);
