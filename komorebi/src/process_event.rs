@@ -339,11 +339,10 @@ impl WindowManager {
             WindowManagerEvent::Show(_, window)
             | WindowManagerEvent::Manage(window)
             | WindowManagerEvent::Uncloak(_, window) => {
-                if matches!(event, WindowManagerEvent::Uncloak(_, _))
-                    && self.uncloack_to_ignore >= 1
+                if matches!(event, WindowManagerEvent::Uncloak(_, _)) && self.uncloak_to_ignore >= 1
                 {
                     tracing::info!("ignoring uncloak after monocle move by mouse across monitors");
-                    self.uncloack_to_ignore = self.uncloack_to_ignore.saturating_sub(1);
+                    self.uncloak_to_ignore = self.uncloak_to_ignore.saturating_sub(1);
                 } else {
                     let focused_monitor_idx = self.focused_monitor_idx();
                     let focused_workspace_idx =
@@ -402,6 +401,7 @@ impl WindowManager {
                         let workspace = self.focused_workspace_mut()?;
                         let workspace_contains_window = workspace.contains_window(window.hwnd);
                         let monocle_container = workspace.monocle_container().clone();
+                        let mut workspace_layer = *workspace.layer();
 
                         if !workspace_contains_window && needs_reconciliation.is_none() {
                             let floating_applications = FLOATING_APPLICATIONS.lock();
@@ -445,6 +445,7 @@ impl WindowManager {
                                     placement.should_center() && workspace.tile;
                                 workspace.floating_windows_mut().push_back(window);
                                 workspace.set_layer(WorkspaceLayer::Floating);
+                                workspace_layer = *workspace.layer();
                                 if center_spawned_floats {
                                     let mut floating_window = window;
                                     floating_window.center(
@@ -458,6 +459,7 @@ impl WindowManager {
                                     WindowContainerBehaviour::Create => {
                                         workspace.new_container_for_window(window);
                                         workspace.set_layer(WorkspaceLayer::Tiling);
+                                        workspace_layer = *workspace.layer();
                                         self.update_focused_workspace(false, false)?;
                                     }
                                     WindowContainerBehaviour::Append => {
@@ -468,6 +470,7 @@ impl WindowManager {
                                             })?
                                             .add_window(window);
                                         workspace.set_layer(WorkspaceLayer::Tiling);
+                                        workspace_layer = *workspace.layer();
                                         self.update_focused_workspace(true, false)?;
                                         stackbar_manager::send_notification();
                                     }
@@ -500,7 +503,10 @@ impl WindowManager {
                                 }
                             }
 
-                            if !monocle_window_event && monocle_container.is_some() {
+                            if !monocle_window_event
+                                && monocle_container.is_some()
+                                && matches!(workspace_layer, WorkspaceLayer::Tiling)
+                            {
                                 window.hide();
                             }
                         }

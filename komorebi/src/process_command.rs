@@ -1296,6 +1296,12 @@ impl WindowManager {
                                 window.lower()?;
                             }
                         }
+
+                        if let Some(container) = workspace.monocle_container() {
+                            if let Some(window) = container.focused_window() {
+                                window.lower()?;
+                            }
+                        }
                     }
                     WorkspaceLayer::Floating => {
                         workspace.set_layer(WorkspaceLayer::Tiling);

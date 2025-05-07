@@ -120,7 +120,7 @@ pub struct WindowManager {
     pub has_pending_raise_op: bool,
     pub pending_move_op: Arc<Option<(usize, usize, isize)>>,
     pub already_moved_window_handles: Arc<Mutex<HashSet<isize>>>,
-    pub uncloack_to_ignore: usize,
+    pub uncloak_to_ignore: usize,
     /// Maps each known window hwnd to the (monitor, workspace) index pair managing it
     pub known_hwnds: HashMap<isize, (usize, usize)>,
 }
@@ -447,7 +447,7 @@ impl WindowManager {
             has_pending_raise_op: false,
             pending_move_op: Arc::new(None),
             already_moved_window_handles: Arc::new(Mutex::new(HashSet::new())),
-            uncloack_to_ignore: 0,
+            uncloak_to_ignore: 0,
             known_hwnds: HashMap::new(),
         })
     }
@@ -1234,7 +1234,7 @@ impl WindowManager {
                 // That workspace reconciliation would focus the window on the origin monitor.
                 // So we need to ignore the uncloak events produced by the origin workspace
                 // restore to avoid that issue.
-                self.uncloack_to_ignore = uncloack_amount;
+                self.uncloak_to_ignore = uncloack_amount;
             }
         } else if origin_workspace
             .maximized_window()
