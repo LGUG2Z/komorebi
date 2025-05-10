@@ -126,7 +126,7 @@ pub struct WindowManager {
 }
 
 #[allow(clippy::struct_excessive_bools)]
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct State {
     pub monitors: Ring<Monitor>,
@@ -520,8 +520,14 @@ impl WindowManager {
             let mouse_follows_focus = self.mouse_follows_focus;
             for (monitor_idx, monitor) in self.monitors_mut().iter_mut().enumerate() {
                 let mut focused_workspace = 0;
-                for (workspace_idx, workspace) in monitor.workspaces_mut().iter_mut().enumerate() {
-                    if let Some(state_monitor) = state.monitors.elements().get(monitor_idx) {
+                if let Some(state_monitor) = state.monitors.elements().get(monitor_idx) {
+                    monitor
+                        .workspaces_mut()
+                        .resize(state_monitor.workspaces().len(), Workspace::default());
+
+                    for (workspace_idx, workspace) in
+                        monitor.workspaces_mut().iter_mut().enumerate()
+                    {
                         if let Some(state_workspace) = state_monitor.workspaces().get(workspace_idx)
                         {
                             // to make sure padding changes get applied for users after a quick restart
