@@ -47,6 +47,7 @@ use windows::Win32::Graphics::Gdi::MonitorFromPoint;
 use windows::Win32::Graphics::Gdi::MonitorFromWindow;
 use windows::Win32::Graphics::Gdi::Rectangle;
 use windows::Win32::Graphics::Gdi::RoundRect;
+use windows::Win32::Graphics::Gdi::UpdateWindow;
 use windows::Win32::System::Com::CLSCTX_ALL;
 use windows::Win32::System::Com::CoCreateInstance;
 use windows::Win32::System::LibraryLoader::GetModuleHandleW;
@@ -128,6 +129,7 @@ use windows::Win32::UI::WindowsAndMessaging::SWP_NOSIZE;
 use windows::Win32::UI::WindowsAndMessaging::SWP_SHOWWINDOW;
 use windows::Win32::UI::WindowsAndMessaging::SYSTEM_PARAMETERS_INFO_ACTION;
 use windows::Win32::UI::WindowsAndMessaging::SYSTEM_PARAMETERS_INFO_UPDATE_FLAGS;
+use windows::Win32::UI::WindowsAndMessaging::SendMessageW;
 use windows::Win32::UI::WindowsAndMessaging::SetCursorPos;
 use windows::Win32::UI::WindowsAndMessaging::SetForegroundWindow;
 use windows::Win32::UI::WindowsAndMessaging::SetLayeredWindowAttributes;
@@ -138,6 +140,8 @@ use windows::Win32::UI::WindowsAndMessaging::ShowWindowAsync;
 use windows::Win32::UI::WindowsAndMessaging::SystemParametersInfoW;
 use windows::Win32::UI::WindowsAndMessaging::WINDOW_LONG_PTR_INDEX;
 use windows::Win32::UI::WindowsAndMessaging::WM_CLOSE;
+use windows::Win32::UI::WindowsAndMessaging::WM_ENTERSIZEMOVE;
+use windows::Win32::UI::WindowsAndMessaging::WM_EXITSIZEMOVE;
 use windows::Win32::UI::WindowsAndMessaging::WNDCLASSW;
 use windows::Win32::UI::WindowsAndMessaging::WNDENUMPROC;
 use windows::Win32::UI::WindowsAndMessaging::WS_DISABLED;
@@ -1385,6 +1389,24 @@ impl WindowsApi {
     pub fn invalidate_rect(hwnd: isize, rect: Option<&Rect>, erase: bool) -> bool {
         let rect = rect.map(|rect| &rect.rect() as *const RECT);
         unsafe { InvalidateRect(Option::from(HWND(as_ptr!(hwnd))), rect, erase) }.as_bool()
+    }
+
+    pub fn send_enter_size_move(hwnd: isize) -> eyre::Result<()> {
+        unsafe {
+            SendMessageW(HWND(as_ptr!(hwnd)), WM_ENTERSIZEMOVE, None, None);
+            Ok(())
+        }
+    }
+
+    pub fn send_exit_size_move(hwnd: isize) -> eyre::Result<()> {
+        unsafe {
+            SendMessageW(HWND(as_ptr!(hwnd)), WM_EXITSIZEMOVE, None, None);
+            Ok(())
+        }
+    }
+
+    pub fn update_window(hwnd: isize) -> bool {
+        unsafe { UpdateWindow(HWND(as_ptr!(hwnd))) }.as_bool()
     }
 
     pub fn alt_is_pressed() -> bool {
