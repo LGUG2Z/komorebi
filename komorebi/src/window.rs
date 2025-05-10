@@ -60,6 +60,7 @@ use std::time::Duration;
 use strum::Display;
 use strum::EnumString;
 use windows::Win32::Foundation::HWND;
+use windows::Win32::Graphics::Dwm::DwmFlush;
 
 pub static MINIMUM_WIDTH: AtomicI32 = AtomicI32::new(0);
 pub static MINIMUM_HEIGHT: AtomicI32 = AtomicI32::new(0);
@@ -197,6 +198,8 @@ impl RenderDispatcher for MovementRenderDispatcher {
         stackbar_manager::STACKBAR_TEMPORARILY_DISABLED.store(true, Ordering::SeqCst);
         stackbar_manager::send_notification();
 
+        WindowsApi::send_enter_size_move(self.hwnd)?;
+
         Ok(())
     }
 
@@ -205,9 +208,14 @@ impl RenderDispatcher for MovementRenderDispatcher {
 
         // we don't check WINDOW_HANDLING_BEHAVIOUR here because animations
         // are always run on a separate thread
-        WindowsApi::move_window(self.hwnd, &new_rect, false)?;
-        WindowsApi::invalidate_rect(self.hwnd, None, false);
+        WindowsApi::move_window(self.hwnd, &new_rect, true)?;
 
+        // force window redraw
+        WindowsApi::invalidate_rect(self.hwnd, None, true);
+        WindowsApi::update_window(self.hwnd);
+
+        // wait for dwm to flush render queue
+        unsafe { DwmFlush() }?;
         Ok(())
     }
 
@@ -215,6 +223,7 @@ impl RenderDispatcher for MovementRenderDispatcher {
         // we don't add the async_window_pos flag here because animations
         // are always run on a separate thread
         WindowsApi::position_window(self.hwnd, &self.target_rect, self.top, false)?;
+        WindowsApi::send_exit_size_move(self.hwnd)?;
         if ANIMATION_MANAGER
             .lock()
             .count_in_progress(MovementRenderDispatcher::PREFIX)
