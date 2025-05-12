@@ -28,7 +28,7 @@ install-target-with-jsonschema target:
     cargo +stable install --path {{ target }} --locked
 
 install:
-    just install-targets komorebic komorebic-no-console komorebi komorebi-bar komorebi-gui
+    just install-targets komorebic komorebic-no-console komorebi komorebi-bar komorebi-gui komorebi-shortcuts
 
 install-with-jsonschema:
     just install-targets-with-jsonschema komorebic komorebic-no-console komorebi komorebi-bar komorebi-gui komorebi-shortcuts
@@ -52,7 +52,7 @@ wpm target:
     just build-target {{ target }} && wpmctl stop {{ target }}; just copy-target {{ target }} && wpmctl start {{ target }}
 
 copy:
-    just copy-targets komorebic komorebic-no-console komorebi komorebi-bar komorebi-gui
+    just copy-targets komorebic komorebic-no-console komorebi komorebi-bar komorebi-gui komorebi-shortcuts
 
 run target:
     cargo +stable run --bin {{ target }} --locked --no-default-features

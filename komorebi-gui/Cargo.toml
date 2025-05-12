@@ -6,7 +6,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-komorebi-client = { path = "../komorebi-client" }
+komorebi-client = { path = "../komorebi-client", default-features = false }
 
 eframe = { workspace = true }
 egui_extras = { workspace = true }

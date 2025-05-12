@@ -6,8 +6,8 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-komorebi-client = { path = "../komorebi-client" }
-komorebi-themes = { path = "../komorebi-themes" }
+komorebi-client = { path = "../komorebi-client", default-features = false }
+komorebi-themes = { path = "../komorebi-themes", default-features = false }
 
 chrono-tz = { workspace = true }
 chrono = { workspace = true }
@@ -44,4 +44,4 @@ windows-icons-fallback = { package = "windows-icons", git = "https://github.com/
 
 [features]
 default = ["schemars"]
-schemars = ["dep:schemars", "komorebi-client/schemars", "komorebi-themes/schemars"]
+schemars = ["dep:schemars", "komorebi-client/default", "komorebi-themes/default"]
