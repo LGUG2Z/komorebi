@@ -341,6 +341,7 @@ pub enum StateQuery {
     FocusedWindowIndex,
     FocusedWorkspaceName,
     FocusedWorkspaceLayout,
+    FocusedContainerKind,
     Version,
 }
 

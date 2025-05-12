@@ -1456,6 +1456,18 @@ impl WindowManager {
                             },
                         )
                     }
+                    StateQuery::FocusedContainerKind => {
+                        match self.focused_workspace()?.focused_container() {
+                            None => "None".to_string(),
+                            Some(container) => {
+                                if container.windows().len() > 1 {
+                                    "Stack".to_string()
+                                } else {
+                                    "Single".to_string()
+                                }
+                            }
+                        }
+                    }
                 };
 
                 reply.write_all(response.as_bytes())?;
