@@ -25,6 +25,8 @@ use crate::window_manager_event::WindowManagerEvent;
 use crate::windows_api::WindowsApi;
 use crate::winevent::WinEvent;
 use crate::workspace::WorkspaceLayer;
+use crate::DefaultLayout;
+use crate::Layout;
 use crate::Notification;
 use crate::NotificationEvent;
 use crate::State;
@@ -301,7 +303,11 @@ impl WindowManager {
                 // don't want to trigger the full workspace updates when there are no managed
                 // containers - this makes floating windows on empty workspaces go into very
                 // annoying focus change loops which prevents users from interacting with them
-                if !self.focused_workspace()?.containers().is_empty() {
+                if !matches!(
+                    self.focused_workspace()?.layout(),
+                    Layout::Default(DefaultLayout::Scrolling)
+                ) && !self.focused_workspace()?.containers().is_empty()
+                {
                     self.update_focused_workspace(self.mouse_follows_focus, false)?;
                 }
 
@@ -328,6 +334,14 @@ impl WindowManager {
                         }
 
                         workspace.set_layer(WorkspaceLayer::Tiling);
+
+                        if matches!(
+                            self.focused_workspace()?.layout(),
+                            Layout::Default(DefaultLayout::Scrolling)
+                        ) && !self.focused_workspace()?.containers().is_empty()
+                        {
+                            self.update_focused_workspace(self.mouse_follows_focus, false)?;
+                        }
                     }
                     Some(idx) => {
                         if let Some(_window) = workspace.floating_windows().get(idx) {

@@ -392,7 +392,7 @@ impl Border {
                         tracing::error!("failed to update border position {error}");
                     }
 
-                    if !rect.is_same_size_as(&old_rect) {
+                    if !rect.is_same_size_as(&old_rect) || !rect.has_same_position_as(&old_rect) {
                         if let Some(render_target) = (*border_pointer).render_target.as_ref() {
                             let border_width = (*border_pointer).width;
                             let border_offset = (*border_pointer).offset;

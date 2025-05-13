@@ -188,6 +188,12 @@ impl KomorebiLayout {
                     painter.line_segment([c - vec2(r, 0.0), c + vec2(r, 0.0)], stroke);
                     painter.line_segment([c - vec2(0.0, r), c + vec2(0.0, r)], stroke);
                 }
+                // TODO: @CtByte can you think of a nice icon to draw here?
+                komorebi_client::DefaultLayout::Scrolling => {
+                    painter.line_segment([c - vec2(r / 2.0, r), c + vec2(-r / 2.0, r)], stroke);
+                    painter.line_segment([c - vec2(0.0, r), c + vec2(0.0, r)], stroke);
+                    painter.line_segment([c - vec2(-r / 2.0, r), c + vec2(r / 2.0, r)], stroke);
+                }
             },
             KomorebiLayout::Monocle => {}
             KomorebiLayout::Floating => {

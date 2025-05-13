@@ -102,6 +102,7 @@ impl Direction for DefaultLayout {
                 Self::VerticalStack | Self::RightMainVerticalStack => idx != 0 && idx != 1,
                 Self::UltrawideVerticalStack => idx > 2,
                 Self::Grid => !is_grid_edge(op_direction, idx, count),
+                Self::Scrolling => false,
             },
             OperationDirection::Down => match self {
                 Self::BSP => idx != count - 1 && idx % 2 != 0,
@@ -111,6 +112,7 @@ impl Direction for DefaultLayout {
                 Self::HorizontalStack => idx == 0,
                 Self::UltrawideVerticalStack => idx > 1 && idx != count - 1,
                 Self::Grid => !is_grid_edge(op_direction, idx, count),
+                Self::Scrolling => false,
             },
             OperationDirection::Left => match self {
                 Self::BSP => idx != 0,
@@ -120,6 +122,7 @@ impl Direction for DefaultLayout {
                 Self::HorizontalStack => idx != 0 && idx != 1,
                 Self::UltrawideVerticalStack => idx != 1,
                 Self::Grid => !is_grid_edge(op_direction, idx, count),
+                Self::Scrolling => idx != 0,
             },
             OperationDirection::Right => match self {
                 Self::BSP => idx % 2 == 0 && idx != count - 1,
@@ -133,6 +136,7 @@ impl Direction for DefaultLayout {
                     _ => idx < 2,
                 },
                 Self::Grid => !is_grid_edge(op_direction, idx, count),
+                Self::Scrolling => idx != count - 1,
             },
         }
     }
@@ -158,6 +162,7 @@ impl Direction for DefaultLayout {
             | Self::RightMainVerticalStack => idx - 1,
             Self::HorizontalStack => 0,
             Self::Grid => grid_neighbor(op_direction, idx, count),
+            Self::Scrolling => unreachable!(),
         }
     }
 
@@ -176,6 +181,7 @@ impl Direction for DefaultLayout {
             Self::Columns => unreachable!(),
             Self::HorizontalStack => 1,
             Self::Grid => grid_neighbor(op_direction, idx, count),
+            Self::Scrolling => unreachable!(),
         }
     }
 
@@ -203,6 +209,7 @@ impl Direction for DefaultLayout {
                 _ => 0,
             },
             Self::Grid => grid_neighbor(op_direction, idx, count),
+            Self::Scrolling => idx - 1,
         }
     }
 
@@ -223,6 +230,7 @@ impl Direction for DefaultLayout {
                 _ => unreachable!(),
             },
             Self::Grid => grid_neighbor(op_direction, idx, count),
+            Self::Scrolling => idx + 1,
         }
     }
 }

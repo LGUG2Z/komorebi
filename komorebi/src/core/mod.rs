@@ -1,6 +1,7 @@
 #![warn(clippy::all)]
 #![allow(clippy::missing_errors_doc, clippy::use_self, clippy::doc_markdown)]
 
+use std::num::NonZeroUsize;
 use std::path::PathBuf;
 use std::str::FromStr;
 
@@ -108,6 +109,7 @@ pub enum SocketMessage {
     AdjustWorkspacePadding(Sizing, i32),
     ChangeLayout(DefaultLayout),
     CycleLayout(CycleDirection),
+    ScrollingLayoutColumns(NonZeroUsize),
     ChangeLayoutCustom(#[serde_as(as = "ResolvedPathBuf")] PathBuf),
     FlipLayout(Axis),
     ToggleWorkspaceWindowContainerBehaviour,

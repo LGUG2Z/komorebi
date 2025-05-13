@@ -16,6 +16,7 @@ use crate::core::DefaultLayout;
 use crate::core::Layout;
 use crate::core::OperationDirection;
 use crate::core::Rect;
+use crate::default_layout::LayoutOptions;
 use crate::locked_deque::LockedDeque;
 use crate::ring::Ring;
 use crate::should_act;
@@ -70,6 +71,8 @@ pub struct Workspace {
     pub floating_windows: Ring<Window>,
     #[getset(get = "pub", get_mut = "pub", set = "pub")]
     pub layout: Layout,
+    #[getset(get_copy = "pub", set = "pub")]
+    pub layout_options: Option<LayoutOptions>,
     #[getset(get = "pub", get_mut = "pub", set = "pub")]
     pub layout_rules: Vec<(usize, Layout)>,
     #[getset(get_copy = "pub", set = "pub")]
@@ -139,6 +142,7 @@ impl Default for Workspace {
             monocle_container_restore_idx: None,
             floating_windows: Ring::default(),
             layout: Layout::Default(DefaultLayout::BSP),
+            layout_options: None,
             layout_rules: vec![],
             layout_flip: None,
             workspace_padding: Option::from(DEFAULT_WORKSPACE_PADDING.load(Ordering::SeqCst)),
@@ -267,6 +271,7 @@ impl Workspace {
         self.set_layout_flip(config.layout_flip);
         self.set_floating_layer_behaviour(config.floating_layer_behaviour);
         self.set_wallpaper(config.wallpaper.clone());
+        self.set_layout_options(config.layout_options);
 
         self.set_workspace_config(Some(config.clone()));
 
@@ -583,6 +588,9 @@ impl Workspace {
                     Some(container_padding),
                     self.layout_flip(),
                     self.resize_dimensions(),
+                    self.focused_container_idx(),
+                    self.layout_options(),
+                    self.latest_layout(),
                 );
 
                 let should_remove_titlebars = REMOVE_TITLEBARS.load(Ordering::SeqCst);
@@ -1194,6 +1202,9 @@ impl Workspace {
             Layout::Default(DefaultLayout::UltrawideVerticalStack) => {
                 self.enforce_resize_for_ultrawide();
             }
+            Layout::Default(DefaultLayout::Scrolling) => {
+                self.enforce_resize_for_scrolling();
+            }
             _ => self.enforce_no_resize(),
         }
     }
@@ -1421,6 +1432,28 @@ impl Workspace {
         }
     }
 
+    fn enforce_resize_for_scrolling(&mut self) {
+        let resize_dimensions = self.resize_dimensions_mut();
+        match resize_dimensions.len() {
+            0 | 1 => self.enforce_no_resize(),
+            _ => {
+                let len = resize_dimensions.len();
+
+                for (i, rect) in resize_dimensions.iter_mut().enumerate() {
+                    if let Some(rect) = rect {
+                        rect.top = 0;
+                        rect.bottom = 0;
+
+                        if i == 0 {
+                            rect.left = 0;
+                        } else if i == len - 1 {
+                            rect.right = 0;
+                        }
+                    }
+                }
+            }
+        }
+    }
     fn enforce_no_resize(&mut self) {
         for rect in self.resize_dimensions_mut().iter_mut().flatten() {
             rect.left = 0;

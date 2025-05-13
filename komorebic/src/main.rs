@@ -9,6 +9,7 @@ use std::fs::OpenOptions;
 use std::io::BufRead;
 use std::io::BufReader;
 use std::io::Write;
+use std::num::NonZeroUsize;
 use std::path::PathBuf;
 use std::process::Command;
 use std::sync::atomic::AtomicBool;
@@ -964,6 +965,12 @@ struct EagerFocus {
 }
 
 #[derive(Parser)]
+struct ScrollingLayoutColumns {
+    /// Desired number of visible columns
+    count: NonZeroUsize,
+}
+
+#[derive(Parser)]
 #[clap(author, about, version = build::CLAP_LONG_VERSION)]
 struct Opts {
     #[clap(subcommand)]
@@ -1202,6 +1209,9 @@ enum SubCommand {
     /// Cycle between available layouts
     #[clap(arg_required_else_help = true)]
     CycleLayout(CycleLayout),
+    /// Set the number of visible columns for the Scrolling layout on the focused workspace
+    #[clap(arg_required_else_help = true)]
+    ScrollingLayoutColumns(ScrollingLayoutColumns),
     /// Load a custom layout from file for the focused workspace
     #[clap(hide = true)]
     #[clap(arg_required_else_help = true)]
@@ -2624,6 +2634,9 @@ if (Get-Command Get-CimInstance -ErrorAction SilentlyContinue) {
         }
         SubCommand::CycleLayout(arg) => {
             send_message(&SocketMessage::CycleLayout(arg.cycle_direction))?;
+        }
+        SubCommand::ScrollingLayoutColumns(arg) => {
+            send_message(&SocketMessage::ScrollingLayoutColumns(arg.count))?;
         }
         SubCommand::LoadCustomLayout(arg) => {
             send_message(&SocketMessage::ChangeLayoutCustom(arg.path))?;
