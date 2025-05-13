@@ -49,6 +49,8 @@ use crate::core::StateQuery;
 use crate::core::WindowContainerBehaviour;
 use crate::core::WindowKind;
 use crate::current_virtual_desktop;
+use crate::default_layout::LayoutOptions;
+use crate::default_layout::ScrollingLayoutOptions;
 use crate::monitor::MonitorInformation;
 use crate::notify_subscribers;
 use crate::stackbar_manager;
@@ -933,6 +935,27 @@ impl WindowManager {
                 self.retile_all(true)?
             }
             SocketMessage::FlipLayout(layout_flip) => self.flip_layout(layout_flip)?,
+            SocketMessage::ScrollingLayoutColumns(count) => {
+                let focused_workspace = self.focused_workspace_mut()?;
+
+                let options = match focused_workspace.layout_options() {
+                    Some(mut opts) => {
+                        if let Some(scrolling) = &mut opts.scrolling {
+                            scrolling.columns = count.into();
+                        }
+
+                        opts
+                    }
+                    None => LayoutOptions {
+                        scrolling: Some(ScrollingLayoutOptions {
+                            columns: count.into(),
+                        }),
+                    },
+                };
+
+                focused_workspace.set_layout_options(Some(options));
+                self.update_focused_workspace(false, false)?;
+            }
             SocketMessage::ChangeLayout(layout) => self.change_workspace_layout_default(layout)?,
             SocketMessage::CycleLayout(direction) => self.cycle_layout(direction)?,
             SocketMessage::ChangeLayoutCustom(ref path) => {
@@ -1751,7 +1774,7 @@ Stop-Process -Name:komorebi-bar -ErrorAction SilentlyContinue
                                 {
                                     for config_file_path in &mut *display_bar_configurations {
                                         let script = r#"Start-Process "komorebi-bar" '"--config" "CONFIGFILE"' -WindowStyle hidden"#
-                            .replace("CONFIGFILE", &config_file_path.to_string_lossy());
+                                            .replace("CONFIGFILE", &config_file_path.to_string_lossy());
 
                                         match powershell_script::run(&script) {
                                             Ok(_) => {

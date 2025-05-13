@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "StaticConfig",
-  "description": "The `komorebi.json` static configuration file reference for `v0.1.37`",
+  "description": "The `komorebi.json` static configuration file reference for `v0.1.38`",
   "type": "object",
   "properties": {
     "animation": {
@@ -1790,7 +1790,8 @@
                     "HorizontalStack",
                     "UltrawideVerticalStack",
                     "Grid",
-                    "RightMainVerticalStack"
+                    "RightMainVerticalStack",
+                    "Scrolling"
                   ]
                 },
                 "layout_flip": {
@@ -1801,6 +1802,27 @@
                     "Vertical",
                     "HorizontalAndVertical"
                   ]
+                },
+                "layout_options": {
+                  "description": "Layout-specific options (default: None)",
+                  "type": "object",
+                  "properties": {
+                    "scrolling": {
+                      "description": "Options related to the Scrolling layout",
+                      "type": "object",
+                      "required": [
+                        "columns"
+                      ],
+                      "properties": {
+                        "columns": {
+                          "description": "Desired number of visible columns (default: 3)",
+                          "type": "integer",
+                          "format": "uint",
+                          "minimum": 0.0
+                        }
+                      }
+                    }
+                  }
                 },
                 "layout_rules": {
                   "description": "Layout rules in the format of threshold => layout (default: None)",
@@ -1815,7 +1837,8 @@
                       "HorizontalStack",
                       "UltrawideVerticalStack",
                       "Grid",
-                      "RightMainVerticalStack"
+                      "RightMainVerticalStack",
+                      "Scrolling"
                     ]
                   }
                 },

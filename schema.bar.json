@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "KomobarConfig",
-  "description": "The `komorebi.bar.json` configuration file reference for `v0.1.37`",
+  "description": "The `komorebi.bar.json` configuration file reference for `v0.1.38`",
   "type": "object",
   "required": [
     "left_widgets",
@@ -616,7 +616,8 @@
                                 "HorizontalStack",
                                 "UltrawideVerticalStack",
                                 "Grid",
-                                "RightMainVerticalStack"
+                                "RightMainVerticalStack",
+                                "Scrolling"
                               ]
                             },
                             {
@@ -2259,7 +2260,8 @@
                                 "HorizontalStack",
                                 "UltrawideVerticalStack",
                                 "Grid",
-                                "RightMainVerticalStack"
+                                "RightMainVerticalStack",
+                                "Scrolling"
                               ]
                             },
                             {
@@ -4294,7 +4296,8 @@
                                 "HorizontalStack",
                                 "UltrawideVerticalStack",
                                 "Grid",
-                                "RightMainVerticalStack"
+                                "RightMainVerticalStack",
+                                "Scrolling"
                               ]
                             },
                             "type": {
@@ -4323,6 +4326,26 @@
                               "type": "string",
                               "enum": [
                                 "CycleLayout"
+                              ]
+                            }
+                          }
+                        },
+                        {
+                          "type": "object",
+                          "required": [
+                            "content",
+                            "type"
+                          ],
+                          "properties": {
+                            "content": {
+                              "type": "integer",
+                              "format": "uint",
+                              "minimum": 1.0
+                            },
+                            "type": {
+                              "type": "string",
+                              "enum": [
+                                "ScrollingLayoutColumns"
                               ]
                             }
                           }
@@ -5210,7 +5233,8 @@
                                     "HorizontalStack",
                                     "UltrawideVerticalStack",
                                     "Grid",
-                                    "RightMainVerticalStack"
+                                    "RightMainVerticalStack",
+                                    "Scrolling"
                                   ]
                                 }
                               ],
@@ -5248,7 +5272,8 @@
                                     "HorizontalStack",
                                     "UltrawideVerticalStack",
                                     "Grid",
-                                    "RightMainVerticalStack"
+                                    "RightMainVerticalStack",
+                                    "Scrolling"
                                   ]
                                 }
                               ],
@@ -5361,7 +5386,8 @@
                                     "HorizontalStack",
                                     "UltrawideVerticalStack",
                                     "Grid",
-                                    "RightMainVerticalStack"
+                                    "RightMainVerticalStack",
+                                    "Scrolling"
                                   ]
                                 }
                               ],
@@ -5404,7 +5430,8 @@
                                     "HorizontalStack",
                                     "UltrawideVerticalStack",
                                     "Grid",
-                                    "RightMainVerticalStack"
+                                    "RightMainVerticalStack",
+                                    "Scrolling"
                                   ]
                                 }
                               ],
@@ -10365,7 +10392,8 @@
                                 "HorizontalStack",
                                 "UltrawideVerticalStack",
                                 "Grid",
-                                "RightMainVerticalStack"
+                                "RightMainVerticalStack",
+                                "Scrolling"
                               ]
                             },
                             "type": {
@@ -10394,6 +10422,26 @@
                               "type": "string",
                               "enum": [
                                 "CycleLayout"
+                              ]
+                            }
+                          }
+                        },
+                        {
+                          "type": "object",
+                          "required": [
+                            "content",
+                            "type"
+                          ],
+                          "properties": {
+                            "content": {
+                              "type": "integer",
+                              "format": "uint",
+                              "minimum": 1.0
+                            },
+                            "type": {
+                              "type": "string",
+                              "enum": [
+                                "ScrollingLayoutColumns"
                               ]
                             }
                           }
@@ -11281,7 +11329,8 @@
                                     "HorizontalStack",
                                     "UltrawideVerticalStack",
                                     "Grid",
-                                    "RightMainVerticalStack"
+                                    "RightMainVerticalStack",
+                                    "Scrolling"
                                   ]
                                 }
                               ],
@@ -11319,7 +11368,8 @@
                                     "HorizontalStack",
                                     "UltrawideVerticalStack",
                                     "Grid",
-                                    "RightMainVerticalStack"
+                                    "RightMainVerticalStack",
+                                    "Scrolling"
                                   ]
                                 }
                               ],
@@ -11432,7 +11482,8 @@
                                     "HorizontalStack",
                                     "UltrawideVerticalStack",
                                     "Grid",
-                                    "RightMainVerticalStack"
+                                    "RightMainVerticalStack",
+                                    "Scrolling"
                                   ]
                                 }
                               ],
@@ -11475,7 +11526,8 @@
                                     "HorizontalStack",
                                     "UltrawideVerticalStack",
                                     "Grid",
-                                    "RightMainVerticalStack"
+                                    "RightMainVerticalStack",
+                                    "Scrolling"
                                   ]
                                 }
                               ],
@@ -16436,7 +16488,8 @@
                                 "HorizontalStack",
                                 "UltrawideVerticalStack",
                                 "Grid",
-                                "RightMainVerticalStack"
+                                "RightMainVerticalStack",
+                                "Scrolling"
                               ]
                             },
                             "type": {
@@ -16465,6 +16518,26 @@
                               "type": "string",
                               "enum": [
                                 "CycleLayout"
+                              ]
+                            }
+                          }
+                        },
+                        {
+                          "type": "object",
+                          "required": [
+                            "content",
+                            "type"
+                          ],
+                          "properties": {
+                            "content": {
+                              "type": "integer",
+                              "format": "uint",
+                              "minimum": 1.0
+                            },
+                            "type": {
+                              "type": "string",
+                              "enum": [
+                                "ScrollingLayoutColumns"
                               ]
                             }
                           }
@@ -17352,7 +17425,8 @@
                                     "HorizontalStack",
                                     "UltrawideVerticalStack",
                                     "Grid",
-                                    "RightMainVerticalStack"
+                                    "RightMainVerticalStack",
+                                    "Scrolling"
                                   ]
                                 }
                               ],
@@ -17390,7 +17464,8 @@
                                     "HorizontalStack",
                                     "UltrawideVerticalStack",
                                     "Grid",
-                                    "RightMainVerticalStack"
+                                    "RightMainVerticalStack",
+                                    "Scrolling"
                                   ]
                                 }
                               ],
@@ -17503,7 +17578,8 @@
                                     "HorizontalStack",
                                     "UltrawideVerticalStack",
                                     "Grid",
-                                    "RightMainVerticalStack"
+                                    "RightMainVerticalStack",
+                                    "Scrolling"
                                   ]
                                 }
                               ],
@@ -17546,7 +17622,8 @@
                                     "HorizontalStack",
                                     "UltrawideVerticalStack",
                                     "Grid",
-                                    "RightMainVerticalStack"
+                                    "RightMainVerticalStack",
+                                    "Scrolling"
                                   ]
                                 }
                               ],
@@ -22507,7 +22584,8 @@
                                 "HorizontalStack",
                                 "UltrawideVerticalStack",
                                 "Grid",
-                                "RightMainVerticalStack"
+                                "RightMainVerticalStack",
+                                "Scrolling"
                               ]
                             },
                             "type": {
@@ -22536,6 +22614,26 @@
                               "type": "string",
                               "enum": [
                                 "CycleLayout"
+                              ]
+                            }
+                          }
+                        },
+                        {
+                          "type": "object",
+                          "required": [
+                            "content",
+                            "type"
+                          ],
+                          "properties": {
+                            "content": {
+                              "type": "integer",
+                              "format": "uint",
+                              "minimum": 1.0
+                            },
+                            "type": {
+                              "type": "string",
+                              "enum": [
+                                "ScrollingLayoutColumns"
                               ]
                             }
                           }
@@ -23423,7 +23521,8 @@
                                     "HorizontalStack",
                                     "UltrawideVerticalStack",
                                     "Grid",
-                                    "RightMainVerticalStack"
+                                    "RightMainVerticalStack",
+                                    "Scrolling"
                                   ]
                                 }
                               ],
@@ -23461,7 +23560,8 @@
                                     "HorizontalStack",
                                     "UltrawideVerticalStack",
                                     "Grid",
-                                    "RightMainVerticalStack"
+                                    "RightMainVerticalStack",
+                                    "Scrolling"
                                   ]
                                 }
                               ],
@@ -23574,7 +23674,8 @@
                                     "HorizontalStack",
                                     "UltrawideVerticalStack",
                                     "Grid",
-                                    "RightMainVerticalStack"
+                                    "RightMainVerticalStack",
+                                    "Scrolling"
                                   ]
                                 }
                               ],
@@ -23617,7 +23718,8 @@
                                     "HorizontalStack",
                                     "UltrawideVerticalStack",
                                     "Grid",
-                                    "RightMainVerticalStack"
+                                    "RightMainVerticalStack",
+                                    "Scrolling"
                                   ]
                                 }
                               ],
@@ -28578,7 +28680,8 @@
                                 "HorizontalStack",
                                 "UltrawideVerticalStack",
                                 "Grid",
-                                "RightMainVerticalStack"
+                                "RightMainVerticalStack",
+                                "Scrolling"
                               ]
                             },
                             "type": {
@@ -28607,6 +28710,26 @@
                               "type": "string",
                               "enum": [
                                 "CycleLayout"
+                              ]
+                            }
+                          }
+                        },
+                        {
+                          "type": "object",
+                          "required": [
+                            "content",
+                            "type"
+                          ],
+                          "properties": {
+                            "content": {
+                              "type": "integer",
+                              "format": "uint",
+                              "minimum": 1.0
+                            },
+                            "type": {
+                              "type": "string",
+                              "enum": [
+                                "ScrollingLayoutColumns"
                               ]
                             }
                           }
@@ -29494,7 +29617,8 @@
                                     "HorizontalStack",
                                     "UltrawideVerticalStack",
                                     "Grid",
-                                    "RightMainVerticalStack"
+                                    "RightMainVerticalStack",
+                                    "Scrolling"
                                   ]
                                 }
                               ],
@@ -29532,7 +29656,8 @@
                                     "HorizontalStack",
                                     "UltrawideVerticalStack",
                                     "Grid",
-                                    "RightMainVerticalStack"
+                                    "RightMainVerticalStack",
+                                    "Scrolling"
                                   ]
                                 }
                               ],
@@ -29645,7 +29770,8 @@
                                     "HorizontalStack",
                                     "UltrawideVerticalStack",
                                     "Grid",
-                                    "RightMainVerticalStack"
+                                    "RightMainVerticalStack",
+                                    "Scrolling"
                                   ]
                                 }
                               ],
@@ -29688,7 +29814,8 @@
                                     "HorizontalStack",
                                     "UltrawideVerticalStack",
                                     "Grid",
-                                    "RightMainVerticalStack"
+                                    "RightMainVerticalStack",
+                                    "Scrolling"
                                   ]
                                 }
                               ],
@@ -34649,7 +34776,8 @@
                                 "HorizontalStack",
                                 "UltrawideVerticalStack",
                                 "Grid",
-                                "RightMainVerticalStack"
+                                "RightMainVerticalStack",
+                                "Scrolling"
                               ]
                             },
                             "type": {
@@ -34678,6 +34806,26 @@
                               "type": "string",
                               "enum": [
                                 "CycleLayout"
+                              ]
+                            }
+                          }
+                        },
+                        {
+                          "type": "object",
+                          "required": [
+                            "content",
+                            "type"
+                          ],
+                          "properties": {
+                            "content": {
+                              "type": "integer",
+                              "format": "uint",
+                              "minimum": 1.0
+                            },
+                            "type": {
+                              "type": "string",
+                              "enum": [
+                                "ScrollingLayoutColumns"
                               ]
                             }
                           }
@@ -35565,7 +35713,8 @@
                                     "HorizontalStack",
                                     "UltrawideVerticalStack",
                                     "Grid",
-                                    "RightMainVerticalStack"
+                                    "RightMainVerticalStack",
+                                    "Scrolling"
                                   ]
                                 }
                               ],
@@ -35603,7 +35752,8 @@
                                     "HorizontalStack",
                                     "UltrawideVerticalStack",
                                     "Grid",
-                                    "RightMainVerticalStack"
+                                    "RightMainVerticalStack",
+                                    "Scrolling"
                                   ]
                                 }
                               ],
@@ -35716,7 +35866,8 @@
                                     "HorizontalStack",
                                     "UltrawideVerticalStack",
                                     "Grid",
-                                    "RightMainVerticalStack"
+                                    "RightMainVerticalStack",
+                                    "Scrolling"
                                   ]
                                 }
                               ],
@@ -35759,7 +35910,8 @@
                                     "HorizontalStack",
                                     "UltrawideVerticalStack",
                                     "Grid",
-                                    "RightMainVerticalStack"
+                                    "RightMainVerticalStack",
+                                    "Scrolling"
                                   ]
                                 }
                               ],
@@ -40720,7 +40872,8 @@
                                 "HorizontalStack",
                                 "UltrawideVerticalStack",
                                 "Grid",
-                                "RightMainVerticalStack"
+                                "RightMainVerticalStack",
+                                "Scrolling"
                               ]
                             },
                             "type": {
@@ -40749,6 +40902,26 @@
                               "type": "string",
                               "enum": [
                                 "CycleLayout"
+                              ]
+                            }
+                          }
+                        },
+                        {
+                          "type": "object",
+                          "required": [
+                            "content",
+                            "type"
+                          ],
+                          "properties": {
+                            "content": {
+                              "type": "integer",
+                              "format": "uint",
+                              "minimum": 1.0
+                            },
+                            "type": {
+                              "type": "string",
+                              "enum": [
+                                "ScrollingLayoutColumns"
                               ]
                             }
                           }
@@ -41636,7 +41809,8 @@
                                     "HorizontalStack",
                                     "UltrawideVerticalStack",
                                     "Grid",
-                                    "RightMainVerticalStack"
+                                    "RightMainVerticalStack",
+                                    "Scrolling"
                                   ]
                                 }
                               ],
@@ -41674,7 +41848,8 @@
                                     "HorizontalStack",
                                     "UltrawideVerticalStack",
                                     "Grid",
-                                    "RightMainVerticalStack"
+                                    "RightMainVerticalStack",
+                                    "Scrolling"
                                   ]
                                 }
                               ],
@@ -41787,7 +41962,8 @@
                                     "HorizontalStack",
                                     "UltrawideVerticalStack",
                                     "Grid",
-                                    "RightMainVerticalStack"
+                                    "RightMainVerticalStack",
+                                    "Scrolling"
                                   ]
                                 }
                               ],
@@ -41830,7 +42006,8 @@
                                     "HorizontalStack",
                                     "UltrawideVerticalStack",
                                     "Grid",
-                                    "RightMainVerticalStack"
+                                    "RightMainVerticalStack",
+                                    "Scrolling"
                                   ]
                                 }
                               ],
@@ -46791,7 +46968,8 @@
                                 "HorizontalStack",
                                 "UltrawideVerticalStack",
                                 "Grid",
-                                "RightMainVerticalStack"
+                                "RightMainVerticalStack",
+                                "Scrolling"
                               ]
                             },
                             "type": {
@@ -46820,6 +46998,26 @@
                               "type": "string",
                               "enum": [
                                 "CycleLayout"
+                              ]
+                            }
+                          }
+                        },
+                        {
+                          "type": "object",
+                          "required": [
+                            "content",
+                            "type"
+                          ],
+                          "properties": {
+                            "content": {
+                              "type": "integer",
+                              "format": "uint",
+                              "minimum": 1.0
+                            },
+                            "type": {
+                              "type": "string",
+                              "enum": [
+                                "ScrollingLayoutColumns"
                               ]
                             }
                           }
@@ -47707,7 +47905,8 @@
                                     "HorizontalStack",
                                     "UltrawideVerticalStack",
                                     "Grid",
-                                    "RightMainVerticalStack"
+                                    "RightMainVerticalStack",
+                                    "Scrolling"
                                   ]
                                 }
                               ],
@@ -47745,7 +47944,8 @@
                                     "HorizontalStack",
                                     "UltrawideVerticalStack",
                                     "Grid",
-                                    "RightMainVerticalStack"
+                                    "RightMainVerticalStack",
+                                    "Scrolling"
                                   ]
                                 }
                               ],
@@ -47858,7 +48058,8 @@
                                     "HorizontalStack",
                                     "UltrawideVerticalStack",
                                     "Grid",
-                                    "RightMainVerticalStack"
+                                    "RightMainVerticalStack",
+                                    "Scrolling"
                                   ]
                                 }
                               ],
@@ -47901,7 +48102,8 @@
                                     "HorizontalStack",
                                     "UltrawideVerticalStack",
                                     "Grid",
-                                    "RightMainVerticalStack"
+                                    "RightMainVerticalStack",
+                                    "Scrolling"
                                   ]
                                 }
                               ],
@@ -52862,7 +53064,8 @@
                                 "HorizontalStack",
                                 "UltrawideVerticalStack",
                                 "Grid",
-                                "RightMainVerticalStack"
+                                "RightMainVerticalStack",
+                                "Scrolling"
                               ]
                             },
                             "type": {
@@ -52891,6 +53094,26 @@
                               "type": "string",
                               "enum": [
                                 "CycleLayout"
+                              ]
+                            }
+                          }
+                        },
+                        {
+                          "type": "object",
+                          "required": [
+                            "content",
+                            "type"
+                          ],
+                          "properties": {
+                            "content": {
+                              "type": "integer",
+                              "format": "uint",
+                              "minimum": 1.0
+                            },
+                            "type": {
+                              "type": "string",
+                              "enum": [
+                                "ScrollingLayoutColumns"
                               ]
                             }
                           }
@@ -53778,7 +54001,8 @@
                                     "HorizontalStack",
                                     "UltrawideVerticalStack",
                                     "Grid",
-                                    "RightMainVerticalStack"
+                                    "RightMainVerticalStack",
+                                    "Scrolling"
                                   ]
                                 }
                               ],
@@ -53816,7 +54040,8 @@
                                     "HorizontalStack",
                                     "UltrawideVerticalStack",
                                     "Grid",
-                                    "RightMainVerticalStack"
+                                    "RightMainVerticalStack",
+                                    "Scrolling"
                                   ]
                                 }
                               ],
@@ -53929,7 +54154,8 @@
                                     "HorizontalStack",
                                     "UltrawideVerticalStack",
                                     "Grid",
-                                    "RightMainVerticalStack"
+                                    "RightMainVerticalStack",
+                                    "Scrolling"
                                   ]
                                 }
                               ],
@@ -53972,7 +54198,8 @@
                                     "HorizontalStack",
                                     "UltrawideVerticalStack",
                                     "Grid",
-                                    "RightMainVerticalStack"
+                                    "RightMainVerticalStack",
+                                    "Scrolling"
                                   ]
                                 }
                               ],
@@ -58490,7 +58717,8 @@
                                 "HorizontalStack",
                                 "UltrawideVerticalStack",
                                 "Grid",
-                                "RightMainVerticalStack"
+                                "RightMainVerticalStack",
+                                "Scrolling"
                               ]
                             },
                             {

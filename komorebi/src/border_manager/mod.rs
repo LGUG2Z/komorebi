@@ -356,7 +356,7 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                 };
 
                 if !should_process_notification {
-                    tracing::trace!("monitor state matches latest snapshot, skipping notification");
+                    tracing::debug!("monitor state matches latest snapshot, skipping notification");
                     continue 'receiver;
                 }
 

@@ -21,7 +21,22 @@ pub enum DefaultLayout {
     UltrawideVerticalStack,
     Grid,
     RightMainVerticalStack,
+    Scrolling,
     // NOTE: If any new layout is added, please make sure to register the same in `DefaultLayout::cycle`
+}
+
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, Eq, PartialEq)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+pub struct LayoutOptions {
+    /// Options related to the Scrolling layout
+    pub scrolling: Option<ScrollingLayoutOptions>,
+}
+
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, Eq, PartialEq)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+pub struct ScrollingLayoutOptions {
+    /// Desired number of visible columns (default: 3)
+    pub columns: usize,
 }
 
 impl DefaultLayout {
@@ -31,6 +46,7 @@ impl DefaultLayout {
                 n if n > 1 => 1,
                 _ => 0,
             },
+            Self::Scrolling => 0,
             DefaultLayout::BSP
             | DefaultLayout::Columns
             | DefaultLayout::Rows
@@ -53,6 +69,7 @@ impl DefaultLayout {
                 _ => len.saturating_sub(1),
             },
             DefaultLayout::RightMainVerticalStack => 0,
+            DefaultLayout::Scrolling => len.saturating_sub(1),
         }
     }
 
@@ -75,6 +92,7 @@ impl DefaultLayout {
                 | Self::RightMainVerticalStack
                 | Self::HorizontalStack
                 | Self::UltrawideVerticalStack
+                | Self::Scrolling
         ) {
             return None;
         };
@@ -169,13 +187,15 @@ impl DefaultLayout {
             Self::HorizontalStack => Self::UltrawideVerticalStack,
             Self::UltrawideVerticalStack => Self::Grid,
             Self::Grid => Self::RightMainVerticalStack,
-            Self::RightMainVerticalStack => Self::BSP,
+            Self::RightMainVerticalStack => Self::Scrolling,
+            Self::Scrolling => Self::BSP,
         }
     }
 
     #[must_use]
     pub const fn cycle_previous(self) -> Self {
         match self {
+            Self::Scrolling => Self::RightMainVerticalStack,
             Self::RightMainVerticalStack => Self::Grid,
             Self::Grid => Self::UltrawideVerticalStack,
             Self::UltrawideVerticalStack => Self::HorizontalStack,
