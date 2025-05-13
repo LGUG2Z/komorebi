@@ -4293,6 +4293,44 @@ mod tests {
     }
 
     #[test]
+    fn test_switch_focus_to_nonexistent_monitor() {
+        let (mut wm, _test_context) = setup_window_manager();
+
+        {
+            // Create a first monitor
+            let m = monitor::new(
+                0,
+                Rect::default(),
+                Rect::default(),
+                "TestMonitor".to_string(),
+                "TestDevice".to_string(),
+                "TestDeviceID".to_string(),
+                Some("TestMonitorID".to_string()),
+            );
+
+            // monitor should have a single workspace
+            assert_eq!(m.workspaces().len(), 1);
+
+            // add the monitor to the window manager
+            wm.monitors_mut().push_back(m);
+        }
+
+        // Should have 1 monitor and the monitor index should be 0
+        assert_eq!(wm.monitors().len(), 1);
+        assert_eq!(wm.focused_monitor_idx(), 0);
+
+        // Should receive an error when trying to focus a non-existent monitor
+        let result = wm.focus_monitor(1);
+        assert!(
+            result.is_err(),
+            "Expected an error when focusing a non-existent monitor"
+        );
+
+        // Should still be focused on the first monitor
+        assert_eq!(wm.focused_monitor_idx(), 0);
+    }
+
+    #[test]
     fn test_focused_monitor_size() {
         let (mut wm, _test_context) = setup_window_manager();
 
