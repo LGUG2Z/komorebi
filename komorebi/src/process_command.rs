@@ -1281,6 +1281,7 @@ impl WindowManager {
                             if i == focused_idx {
                                 to_focus = Some(*window);
                             } else {
+                                window.restore();
                                 window.raise()?;
                             }
                         }
@@ -1288,6 +1289,7 @@ impl WindowManager {
                         if let Some(focused_window) = &to_focus {
                             // The focused window should be the last one raised to make sure it is
                             // on top
+                            focused_window.restore();
                             focused_window.raise()?;
                         }
 
@@ -1296,34 +1298,51 @@ impl WindowManager {
                                 window.lower()?;
                             }
                         }
+
+                        if let Some(monocle) = workspace.monocle_container() {
+                            if let Some(window) = monocle.focused_window() {
+                                window.lower()?;
+                            }
+                        }
                     }
                     WorkspaceLayer::Floating => {
                         workspace.set_layer(WorkspaceLayer::Tiling);
 
-                        let focused_container_idx = workspace.focused_container_idx();
-                        for (i, container) in workspace.containers_mut().iter_mut().enumerate() {
-                            if let Some(window) = container.focused_window() {
-                                if i == focused_container_idx {
-                                    to_focus = Some(*window);
-                                }
+                        if let Some(monocle) = workspace.monocle_container() {
+                            if let Some(window) = monocle.focused_window() {
+                                to_focus = Some(*window);
                                 window.raise()?;
                             }
-                        }
+                            for window in workspace.floating_windows() {
+                                window.hide();
+                            }
+                        } else {
+                            let focused_container_idx = workspace.focused_container_idx();
+                            for (i, container) in workspace.containers_mut().iter_mut().enumerate()
+                            {
+                                if let Some(window) = container.focused_window() {
+                                    if i == focused_container_idx {
+                                        to_focus = Some(*window);
+                                    }
+                                    window.raise()?;
+                                }
+                            }
 
-                        let mut window_idx_pairs = workspace
-                            .floating_windows_mut()
-                            .make_contiguous()
-                            .iter()
-                            .collect::<Vec<_>>();
+                            let mut window_idx_pairs = workspace
+                                .floating_windows_mut()
+                                .make_contiguous()
+                                .iter()
+                                .collect::<Vec<_>>();
 
-                        // Sort by window area
-                        window_idx_pairs.sort_by_key(|w| {
-                            let rect = WindowsApi::window_rect(w.hwnd).unwrap_or_default();
-                            rect.right * rect.bottom
-                        });
+                            // Sort by window area
+                            window_idx_pairs.sort_by_key(|w| {
+                                let rect = WindowsApi::window_rect(w.hwnd).unwrap_or_default();
+                                rect.right * rect.bottom
+                            });
 
-                        for window in window_idx_pairs {
-                            window.lower()?;
+                            for window in window_idx_pairs {
+                                window.lower()?;
+                            }
                         }
                     }
                 };
