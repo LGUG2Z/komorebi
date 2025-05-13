@@ -12,8 +12,10 @@ use super::custom_layout::ColumnSplitWithCapacity;
 use super::CustomLayout;
 use super::DefaultLayout;
 use super::Rect;
+use crate::default_layout::LayoutOptions;
 
 pub trait Arrangement {
+    #[allow(clippy::too_many_arguments)]
     fn calculate(
         &self,
         area: &Rect,
@@ -21,6 +23,9 @@ pub trait Arrangement {
         container_padding: Option<i32>,
         layout_flip: Option<Axis>,
         resize_dimensions: &[Option<Rect>],
+        focused_idx: usize,
+        layout_options: Option<LayoutOptions>,
+        latest_layout: &[Rect],
     ) -> Vec<Rect>;
 }
 
@@ -33,9 +38,110 @@ impl Arrangement for DefaultLayout {
         container_padding: Option<i32>,
         layout_flip: Option<Axis>,
         resize_dimensions: &[Option<Rect>],
+        focused_idx: usize,
+        layout_options: Option<LayoutOptions>,
+        latest_layout: &[Rect],
     ) -> Vec<Rect> {
         let len = usize::from(len);
         let mut dimensions = match self {
+            Self::Scrolling => {
+                let column_count = layout_options
+                    .and_then(|o| o.scrolling.map(|s| s.columns))
+                    .unwrap_or(3);
+
+                let column_width = area.right / column_count as i32;
+                let mut layouts = Vec::with_capacity(len);
+
+                match len {
+                    // treat < 3 windows the same as the columns layout
+                    len if len < 3 => {
+                        layouts = columns(area, len);
+
+                        let adjustment = calculate_columns_adjustment(resize_dimensions);
+                        layouts.iter_mut().zip(adjustment.iter()).for_each(
+                            |(layout, adjustment)| {
+                                layout.top += adjustment.top;
+                                layout.bottom += adjustment.bottom;
+                                layout.left += adjustment.left;
+                                layout.right += adjustment.right;
+                            },
+                        );
+
+                        if matches!(
+                            layout_flip,
+                            Some(Axis::Horizontal | Axis::HorizontalAndVertical)
+                        ) {
+                            if let 2.. = len {
+                                columns_reverse(&mut layouts);
+                            }
+                        }
+                    }
+                    // treat >= column_count as scrolling
+                    len => {
+                        let visible_columns = area.right / column_width;
+                        let first_visible: isize = if focused_idx == 0 {
+                            // if focused idx is 0, we are at the beginning of the scrolling strip
+                            0
+                        } else {
+                            let previous_first_visible = if latest_layout.is_empty() {
+                                0
+                            } else {
+                                // previous first_visible based on the left position of the first visible window
+                                let left_edge = area.left;
+                                latest_layout
+                                    .iter()
+                                    .position(|rect| rect.left >= left_edge)
+                                    .unwrap_or(0) as isize
+                            };
+
+                            let focused_idx = focused_idx as isize;
+
+                            if focused_idx < previous_first_visible {
+                                // focused window is off the left edge, we need to scroll left
+                                focused_idx
+                            } else if focused_idx
+                                >= previous_first_visible + visible_columns as isize
+                            {
+                                // focused window is off the right edge, we need to scroll right
+                                // and make sure it's the last visible window
+                                (focused_idx + 1 - visible_columns as isize).max(0)
+                            } else {
+                                // focused window is already visible, we don't need to scroll
+                                previous_first_visible
+                            }
+                            .min(
+                                (len as isize)
+                                    .saturating_sub(visible_columns as isize)
+                                    .max(0),
+                            )
+                        };
+
+                        for i in 0..len {
+                            let position = (i as isize) - first_visible;
+                            let left = area.left + (position as i32 * column_width);
+
+                            layouts.push(Rect {
+                                left,
+                                top: area.top,
+                                right: column_width,
+                                bottom: area.bottom,
+                            });
+                        }
+
+                        let adjustment = calculate_scrolling_adjustment(resize_dimensions);
+                        layouts.iter_mut().zip(adjustment.iter()).for_each(
+                            |(layout, adjustment)| {
+                                layout.top += adjustment.top;
+                                layout.bottom += adjustment.bottom;
+                                layout.left += adjustment.left;
+                                layout.right += adjustment.right;
+                            },
+                        );
+                    }
+                }
+
+                layouts
+            }
             Self::BSP => recursive_fibonacci(
                 0,
                 len,
@@ -487,6 +593,9 @@ impl Arrangement for CustomLayout {
         container_padding: Option<i32>,
         _layout_flip: Option<Axis>,
         _resize_dimensions: &[Option<Rect>],
+        _focused_idx: usize,
+        _layout_options: Option<LayoutOptions>,
+        _latest_layout: &[Rect],
     ) -> Vec<Rect> {
         let mut dimensions = vec![];
         let container_count = len.get();
@@ -541,7 +650,7 @@ impl Arrangement for CustomLayout {
                     };
 
                     match column {
-                        Column::Primary(Option::Some(_)) => {
+                        Column::Primary(Some(_)) => {
                             let main_column_area = if idx == 0 {
                                 Self::main_column_area(area, primary_right, None)
                             } else {
@@ -1111,6 +1220,37 @@ fn calculate_ultrawide_adjustment(resize_dimensions: &[Option<Rect>]) -> Vec<Rec
             }
         }
     };
+
+    result
+}
+
+fn calculate_scrolling_adjustment(resize_dimensions: &[Option<Rect>]) -> Vec<Rect> {
+    let len = resize_dimensions.len();
+    let mut result = vec![Rect::default(); len];
+
+    if len <= 1 {
+        return result;
+    }
+
+    for (i, rect) in resize_dimensions.iter().enumerate() {
+        if let Some(rect) = rect {
+            let is_leftmost = i == 0;
+            let is_rightmost = i == len - 1;
+
+            resize_left(&mut result[i], rect.left);
+            resize_right(&mut result[i], rect.right);
+            resize_top(&mut result[i], rect.top);
+            resize_bottom(&mut result[i], rect.bottom);
+
+            if !is_leftmost && rect.left != 0 {
+                resize_right(&mut result[i - 1], rect.left);
+            }
+
+            if !is_rightmost && rect.right != 0 {
+                resize_left(&mut result[i + 1], rect.right);
+            }
+        }
+    }
 
     result
 }

@@ -329,6 +329,7 @@ impl From<&WindowManager> for State {
                             maximized_window_restore_idx: workspace.maximized_window_restore_idx,
                             floating_windows: workspace.floating_windows.clone(),
                             layout: workspace.layout.clone(),
+                            layout_options: workspace.layout_options,
                             layout_rules: workspace.layout_rules.clone(),
                             layout_flip: workspace.layout_flip,
                             workspace_padding: workspace.workspace_padding,
@@ -1579,6 +1580,9 @@ impl WindowManager {
                                 workspace.container_padding(),
                                 workspace.layout_flip(),
                                 &[],
+                                workspace.focused_container_idx(),
+                                workspace.layout_options(),
+                                workspace.latest_layout(),
                             );
 
                             let mut direction = direction;
@@ -3352,7 +3356,15 @@ impl WindowManager {
     pub fn change_workspace_layout_default(&mut self, layout: DefaultLayout) -> Result<()> {
         tracing::info!("changing layout");
 
+        let monitor_count = self.monitors().len();
         let workspace = self.focused_workspace_mut()?;
+
+        if monitor_count > 1 && matches!(layout, DefaultLayout::Scrolling) {
+            tracing::warn!(
+                "scrolling layout is only supported for a single monitor; not changing layout"
+            );
+            return Ok(());
+        }
 
         match workspace.layout() {
             Layout::Default(_) => {}

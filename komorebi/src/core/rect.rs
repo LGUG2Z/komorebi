@@ -41,6 +41,10 @@ impl Rect {
     pub fn is_same_size_as(&self, rhs: &Self) -> bool {
         self.right == rhs.right && self.bottom == rhs.bottom
     }
+
+    pub fn has_same_position_as(&self, rhs: &Self) -> bool {
+        self.left == rhs.left && self.top == rhs.top
+    }
 }
 
 impl Rect {
