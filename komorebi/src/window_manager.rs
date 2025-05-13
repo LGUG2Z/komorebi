@@ -5009,6 +5009,52 @@ mod tests {
     }
 
     #[test]
+    fn test_swap_workspace_with_nonexistent_monitor() {
+        let (mut wm, _context) = setup_window_manager();
+
+        {
+            let mut m = monitor::new(
+                0,
+                Rect::default(),
+                Rect::default(),
+                "TestMonitor".to_string(),
+                "TestDevice".to_string(),
+                "TestDeviceID".to_string(),
+                Some("TestMonitorID".to_string()),
+            );
+
+            // Add another workspace
+            let new_workspace_index = m.new_workspace_idx();
+            m.focus_workspace(new_workspace_index).unwrap();
+
+            // Should have 2 workspaces
+            assert_eq!(m.workspaces().len(), 2);
+
+            // Add monitor to window manager
+            wm.monitors_mut().push_back(m);
+        }
+
+        // Should be an error since Monitor 1 does not exist
+        let result = wm.swap_monitor_workspaces(1, 0);
+        assert!(
+            result.is_err(),
+            "Expected an error when swapping with a non-existent monitor"
+        );
+
+        {
+            // Should still have 2 workspaces in Monitor 0
+            let monitor = wm.monitors().front().unwrap();
+            let workspaces = monitor.workspaces();
+            assert_eq!(
+                workspaces.len(),
+                2,
+                "Expected 2 workspaces after swap attempt"
+            );
+            assert_eq!(wm.focused_monitor_idx(), 0);
+        }
+    }
+
+    #[test]
     fn test_move_workspace_to_monitor() {
         let (mut wm, _context) = setup_window_manager();
 
