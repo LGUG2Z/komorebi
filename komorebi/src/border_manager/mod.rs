@@ -6,6 +6,7 @@ use crate::core::BorderStyle;
 use crate::core::WindowKind;
 use crate::ring::Ring;
 use crate::windows_api;
+use crate::workspace::Workspace;
 use crate::workspace::WorkspaceLayer;
 use crate::WindowManager;
 use crate::WindowsApi;
@@ -212,6 +213,8 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
             [focused_workspace_idx]
             .layer();
         let foreground_window = WindowsApi::foreground_window().unwrap_or_default();
+        let layer_changed = previous_layer != workspace_layer;
+        let forced_update = matches!(notification, Notification::ForceUpdate);
 
         drop(state);
 
@@ -234,6 +237,17 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                                 .unwrap_or_default()
                                 .set_accent(window_kind_colour(window_kind))?;
 
+                            if ws.layer() == &WorkspaceLayer::Floating {
+                                for window in ws.floating_windows() {
+                                    let mut window_kind = WindowKind::Unfocused;
+
+                                    if foreground_window == window.hwnd {
+                                        window_kind = WindowKind::Floating;
+                                    }
+
+                                    window.set_accent(window_kind_colour(window_kind))?;
+                                }
+                            }
                             continue 'monitors;
                         }
 
@@ -448,14 +462,40 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                             windows_borders.insert(focused_window_hwnd, id);
 
                             let border_hwnd = border.hwnd;
-                            // Remove all borders on this monitor except monocle
-                            remove_borders(
-                                &mut borders,
-                                &mut windows_borders,
-                                monitor_idx,
-                                |_, b| border_hwnd != b.hwnd,
-                            )?;
 
+                            if ws.layer() == &WorkspaceLayer::Floating {
+                                handle_floating_borders(
+                                    &mut borders,
+                                    &mut windows_borders,
+                                    ws,
+                                    monitor_idx,
+                                    foreground_window,
+                                    layer_changed,
+                                    forced_update,
+                                )?;
+
+                                // Remove all borders on this monitor except monocle and floating borders
+                                remove_borders(
+                                    &mut borders,
+                                    &mut windows_borders,
+                                    monitor_idx,
+                                    |_, b| {
+                                        border_hwnd != b.hwnd
+                                            && !ws
+                                                .floating_windows()
+                                                .iter()
+                                                .any(|w| w.hwnd == b.tracking_hwnd)
+                                    },
+                                )?;
+                            } else {
+                                // Remove all borders on this monitor except monocle
+                                remove_borders(
+                                    &mut borders,
+                                    &mut windows_borders,
+                                    monitor_idx,
+                                    |_, b| border_hwnd != b.hwnd,
+                                )?;
+                            }
                             continue 'monitors;
                         }
 
@@ -569,9 +609,6 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                             };
                             border.window_rect = rect;
 
-                            let layer_changed = previous_layer != workspace_layer;
-                            let forced_update = matches!(notification, Notification::ForceUpdate);
-
                             let should_invalidate = new_border
                                 || (last_focus_state != new_focus_state)
                                 || layer_changed
@@ -591,65 +628,15 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                             windows_borders.insert(focused_window_hwnd, id);
                         }
 
-                        {
-                            for window in ws.floating_windows() {
-                                let mut new_border = false;
-                                let id = window.hwnd.to_string();
-                                let border = match borders.entry(id.clone()) {
-                                    Entry::Occupied(entry) => entry.into_mut(),
-                                    Entry::Vacant(entry) => {
-                                        if let Ok(border) = Border::create(
-                                            &window.hwnd.to_string(),
-                                            window.hwnd,
-                                            monitor_idx,
-                                        ) {
-                                            new_border = true;
-                                            entry.insert(border)
-                                        } else {
-                                            continue 'monitors;
-                                        }
-                                    }
-                                };
-
-                                let last_focus_state = border.window_kind;
-
-                                let new_focus_state = if foreground_window == window.hwnd {
-                                    WindowKind::Floating
-                                } else {
-                                    WindowKind::Unfocused
-                                };
-
-                                border.window_kind = new_focus_state;
-
-                                // Update the border's monitor idx in case it changed
-                                border.monitor_idx = Some(monitor_idx);
-
-                                let rect = WindowsApi::window_rect(window.hwnd)?;
-                                border.window_rect = rect;
-
-                                let layer_changed = previous_layer != workspace_layer;
-                                let forced_update =
-                                    matches!(notification, Notification::ForceUpdate);
-
-                                let should_invalidate = new_border
-                                    || (last_focus_state != new_focus_state)
-                                    || layer_changed
-                                    || forced_update;
-
-                                if should_invalidate {
-                                    if forced_update && !new_border {
-                                        // Update the border brushes if there was a forced update
-                                        // notification and this is not a new border (new border's
-                                        // already have their brushes updated on creation)
-                                        border.update_brushes()?;
-                                    }
-                                    border.set_position(&rect, window.hwnd)?;
-                                    border.invalidate();
-                                }
-
-                                windows_borders.insert(window.hwnd, id);
-                            }
-                        }
+                        handle_floating_borders(
+                            &mut borders,
+                            &mut windows_borders,
+                            ws,
+                            monitor_idx,
+                            foreground_window,
+                            layer_changed,
+                            forced_update,
+                        )?;
                     }
                 }
             }
@@ -660,6 +647,68 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
         previous_is_paused = is_paused;
         previous_notification = Some(notification);
         previous_layer = workspace_layer;
+    }
+
+    Ok(())
+}
+
+fn handle_floating_borders(
+    borders: &mut HashMap<String, Box<Border>>,
+    windows_borders: &mut HashMap<isize, String>,
+    ws: &Workspace,
+    monitor_idx: usize,
+    foreground_window: isize,
+    layer_changed: bool,
+    forced_update: bool,
+) -> color_eyre::Result<()> {
+    for window in ws.floating_windows() {
+        let mut new_border = false;
+        let id = window.hwnd.to_string();
+        let border = match borders.entry(id.clone()) {
+            Entry::Occupied(entry) => entry.into_mut(),
+            Entry::Vacant(entry) => {
+                if let Ok(border) =
+                    Border::create(&window.hwnd.to_string(), window.hwnd, monitor_idx)
+                {
+                    new_border = true;
+                    entry.insert(border)
+                } else {
+                    return Ok(());
+                }
+            }
+        };
+
+        let last_focus_state = border.window_kind;
+
+        let new_focus_state = if foreground_window == window.hwnd {
+            WindowKind::Floating
+        } else {
+            WindowKind::Unfocused
+        };
+
+        border.window_kind = new_focus_state;
+
+        // Update the border's monitor idx in case it changed
+        border.monitor_idx = Some(monitor_idx);
+
+        let rect = WindowsApi::window_rect(window.hwnd)?;
+        border.window_rect = rect;
+
+        let should_invalidate =
+            new_border || (last_focus_state != new_focus_state) || layer_changed || forced_update;
+
+        if should_invalidate {
+            if forced_update && !new_border {
+                // Update the border brushes if there was a forced update
+                // notification and this is not a new border (new border's
+                // already have their brushes updated on creation)
+                border.update_brushes()?;
+            }
+            border.set_position(&rect, window.hwnd)?;
+            border.invalidate();
+        }
+
+        windows_borders.insert(window.hwnd, id);
     }
 
     Ok(())
