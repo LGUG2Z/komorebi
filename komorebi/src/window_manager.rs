@@ -3131,6 +3131,10 @@ impl WindowManager {
     pub fn toggle_float(&mut self, force_float: bool) -> Result<()> {
         let hwnd = WindowsApi::foreground_window()?;
         let workspace = self.focused_workspace_mut()?;
+        if workspace.monocle_container().is_some() {
+            tracing::warn!("ignoring toggle-float command while workspace has a monocle container");
+            return Ok(());
+        }
 
         let mut is_floating_window = false;
 
