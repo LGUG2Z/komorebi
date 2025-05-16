@@ -29,7 +29,7 @@ pub static STACKBAR_TAB_BACKGROUND_COLOUR: AtomicU32 = AtomicU32::new(3355443); 
 pub static STACKBAR_TAB_HEIGHT: AtomicI32 = AtomicI32::new(40);
 pub static STACKBAR_TAB_WIDTH: AtomicI32 = AtomicI32::new(200);
 pub static STACKBAR_LABEL: AtomicCell<StackbarLabel> = AtomicCell::new(StackbarLabel::Process);
-pub static STACKBAR_MODE: AtomicCell<StackbarMode> = AtomicCell::new(StackbarMode::OnStack);
+pub static STACKBAR_MODE: AtomicCell<StackbarMode> = AtomicCell::new(StackbarMode::Never);
 
 pub static STACKBAR_TEMPORARILY_DISABLED: AtomicBool = AtomicBool::new(false);
 

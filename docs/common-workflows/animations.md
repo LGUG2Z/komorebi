@@ -6,7 +6,10 @@ defined in the `komorebi.json` configuration file.
 ```json
 {
   "animation": {
-    "enabled": true
+    "enabled": true,
+    "duration": 250,
+    "fps": 60,
+    "style": "EaseOutSine"
   }
 }
 ```
