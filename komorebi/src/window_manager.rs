@@ -1314,43 +1314,67 @@ impl WindowManager {
         let (origin_monitor_idx, origin_workspace_idx, origin_container_idx) = origin;
         let (target_monitor_idx, target_workspace_idx, target_container_idx) = target;
 
-        let origin_container = self
+        let origin_container_is_valid = self
             .monitors_mut()
             .get_mut(origin_monitor_idx)
             .ok_or_else(|| anyhow!("there is no monitor at this index"))?
             .workspaces_mut()
             .get_mut(origin_workspace_idx)
             .ok_or_else(|| anyhow!("there is no workspace at this index"))?
-            .remove_container(origin_container_idx)
-            .ok_or_else(|| anyhow!("there is no container at this index"))?;
+            .containers()
+            .get(origin_container_idx)
+            .is_some();
 
-        let target_container = self
+        let target_container_is_valid = self
             .monitors_mut()
             .get_mut(target_monitor_idx)
             .ok_or_else(|| anyhow!("there is no monitor at this index"))?
             .workspaces_mut()
             .get_mut(target_workspace_idx)
             .ok_or_else(|| anyhow!("there is no workspace at this index"))?
-            .remove_container(target_container_idx);
+            .containers()
+            .get(origin_container_idx)
+            .is_some();
 
-        self.monitors_mut()
-            .get_mut(target_monitor_idx)
-            .ok_or_else(|| anyhow!("there is no monitor at this index"))?
-            .workspaces_mut()
-            .get_mut(target_workspace_idx)
-            .ok_or_else(|| anyhow!("there is no workspace at this index"))?
-            .containers_mut()
-            .insert(target_container_idx, origin_container);
-
-        if let Some(target_container) = target_container {
-            self.monitors_mut()
+        if origin_container_is_valid && target_container_is_valid {
+            let origin_container = self
+                .monitors_mut()
                 .get_mut(origin_monitor_idx)
                 .ok_or_else(|| anyhow!("there is no monitor at this index"))?
                 .workspaces_mut()
                 .get_mut(origin_workspace_idx)
                 .ok_or_else(|| anyhow!("there is no workspace at this index"))?
+                .remove_container(origin_container_idx)
+                .ok_or_else(|| anyhow!("there is no container at this index"))?;
+
+            let target_container = self
+                .monitors_mut()
+                .get_mut(target_monitor_idx)
+                .ok_or_else(|| anyhow!("there is no monitor at this index"))?
+                .workspaces_mut()
+                .get_mut(target_workspace_idx)
+                .ok_or_else(|| anyhow!("there is no workspace at this index"))?
+                .remove_container(target_container_idx);
+
+            self.monitors_mut()
+                .get_mut(target_monitor_idx)
+                .ok_or_else(|| anyhow!("there is no monitor at this index"))?
+                .workspaces_mut()
+                .get_mut(target_workspace_idx)
+                .ok_or_else(|| anyhow!("there is no workspace at this index"))?
                 .containers_mut()
-                .insert(origin_container_idx, target_container);
+                .insert(target_container_idx, origin_container);
+
+            if let Some(target_container) = target_container {
+                self.monitors_mut()
+                    .get_mut(origin_monitor_idx)
+                    .ok_or_else(|| anyhow!("there is no monitor at this index"))?
+                    .workspaces_mut()
+                    .get_mut(origin_workspace_idx)
+                    .ok_or_else(|| anyhow!("there is no workspace at this index"))?
+                    .containers_mut()
+                    .insert(origin_container_idx, target_container);
+            }
         }
 
         Ok(())
@@ -4953,6 +4977,71 @@ mod tests {
         {
             // Monitor 1 Workspace 0 container 0 should contain 3 containers
             let workspace = wm.focused_workspace_mut().unwrap();
+            let container = workspace.focused_container_mut().unwrap();
+            assert_eq!(container.windows().len(), 3);
+        }
+    }
+
+    #[test]
+    fn test_swap_container_with_nonexistent_container() {
+        let (mut wm, _context) = setup_window_manager();
+
+        {
+            // Create a first monitor
+            let mut m = monitor::new(
+                0,
+                Rect::default(),
+                Rect::default(),
+                "TestMonitor".to_string(),
+                "TestDevice".to_string(),
+                "TestDeviceID".to_string(),
+                Some("TestMonitorID".to_string()),
+            );
+
+            // Create a container
+            let mut container = Container::default();
+
+            // Add three windows to the container
+            for i in 0..3 {
+                container.windows_mut().push_back(Window::from(i));
+            }
+
+            // Should have 3 windows in the container
+            assert_eq!(container.windows().len(), 3);
+
+            // Add the container to the workspace
+            let workspace = m.focused_workspace_mut().unwrap();
+            workspace.add_container_to_back(container);
+
+            // Add monitor to the window manager
+            wm.monitors_mut().push_back(m);
+        }
+
+        // Monitor 0, Workspace 0, Window 0
+        let origin = (0, 0, 0);
+
+        // Monitor 1, Workspace 0, Window 0
+        let target = (0, 3, 0);
+
+        // Should be focused on the first container
+        assert_eq!(wm.focused_container_idx().unwrap(), 0);
+
+        // Should return an error since there is only one container in the workspace
+        let result = wm.swap_containers(origin, target);
+        assert!(
+            result.is_err(),
+            "Expected an error when swapping with a non-existent container"
+        );
+
+        // Should still be focused on the first container
+        assert_eq!(wm.focused_container_idx().unwrap(), 0);
+
+        {
+            // Should still have 1 container in the workspace
+            let workspace = wm.focused_workspace_mut().unwrap();
+            assert_eq!(workspace.containers().len(), 1);
+
+            // Container should still have 3 windows
             let container = workspace.focused_container_mut().unwrap();
             assert_eq!(container.windows().len(), 3);
         }
