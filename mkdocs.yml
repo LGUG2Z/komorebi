@@ -95,6 +95,7 @@ nav:
       - cli/state.md
       - cli/global-state.md
       - cli/gui.md
+      - cli/toggle-shortcuts.md
       - cli/visible-windows.md
       - cli/monitor-information.md
       - cli/query.md

@@ -2498,7 +2498,7 @@
           ]
         },
         "mode": {
-          "description": "Stackbar mode",
+          "description": "Stackbar mode (default: Never)",
           "type": "string",
           "enum": [
             "Always",

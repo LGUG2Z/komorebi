@@ -8787,6 +8787,7 @@
                                 "FocusedWindowIndex",
                                 "FocusedWorkspaceName",
                                 "FocusedWorkspaceLayout",
+                                "FocusedContainerKind",
                                 "Version"
                               ]
                             },
@@ -14857,6 +14858,7 @@
                                 "FocusedWindowIndex",
                                 "FocusedWorkspaceName",
                                 "FocusedWorkspaceLayout",
+                                "FocusedContainerKind",
                                 "Version"
                               ]
                             },
@@ -20927,6 +20929,7 @@
                                 "FocusedWindowIndex",
                                 "FocusedWorkspaceName",
                                 "FocusedWorkspaceLayout",
+                                "FocusedContainerKind",
                                 "Version"
                               ]
                             },
@@ -26997,6 +27000,7 @@
                                 "FocusedWindowIndex",
                                 "FocusedWorkspaceName",
                                 "FocusedWorkspaceLayout",
+                                "FocusedContainerKind",
                                 "Version"
                               ]
                             },
@@ -33067,6 +33071,7 @@
                                 "FocusedWindowIndex",
                                 "FocusedWorkspaceName",
                                 "FocusedWorkspaceLayout",
+                                "FocusedContainerKind",
                                 "Version"
                               ]
                             },
@@ -39137,6 +39142,7 @@
                                 "FocusedWindowIndex",
                                 "FocusedWorkspaceName",
                                 "FocusedWorkspaceLayout",
+                                "FocusedContainerKind",
                                 "Version"
                               ]
                             },
@@ -45207,6 +45213,7 @@
                                 "FocusedWindowIndex",
                                 "FocusedWorkspaceName",
                                 "FocusedWorkspaceLayout",
+                                "FocusedContainerKind",
                                 "Version"
                               ]
                             },
@@ -51277,6 +51284,7 @@
                                 "FocusedWindowIndex",
                                 "FocusedWorkspaceName",
                                 "FocusedWorkspaceLayout",
+                                "FocusedContainerKind",
                                 "Version"
                               ]
                             },
@@ -57347,6 +57355,7 @@
                                 "FocusedWindowIndex",
                                 "FocusedWorkspaceName",
                                 "FocusedWorkspaceLayout",
+                                "FocusedContainerKind",
                                 "Version"
                               ]
                             },
