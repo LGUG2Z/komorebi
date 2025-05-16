@@ -127,6 +127,7 @@ impl From<&ApplicationsConfig> for Applications {
 
                 App {
                     enable: config.enable.unwrap_or(applications_config.enable),
+                    #[allow(clippy::obfuscated_if_else)]
                     name: config
                         .name
                         .is_empty()

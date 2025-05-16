@@ -807,7 +807,7 @@ pub struct StackbarConfig {
     /// Stackbar label
     #[serde(skip_serializing_if = "Option::is_none")]
     pub label: Option<StackbarLabel>,
-    /// Stackbar mode
+    /// Stackbar mode (default: Never)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub mode: Option<StackbarMode>,
     /// Stackbar tab configuration options

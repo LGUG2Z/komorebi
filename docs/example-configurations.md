@@ -186,6 +186,9 @@ limitations on hotkey bindings that include the `win` key. However, you will sti
 to [modify the registry](https://superuser.com/questions/1059511/how-to-disable-winl-in-windows-10) to prevent
 `win + l` from locking the operating system.
 
+You can toggle an overlay of the current `whkdrc` shortcuts related to `komorebi` at any time when using the example
+configuration with `alt + i`.
+
 ```
 {% include "./whkdrc.sample" %}
 ```

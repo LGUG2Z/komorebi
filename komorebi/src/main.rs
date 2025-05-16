@@ -17,6 +17,7 @@ use std::time::Duration;
 
 use clap::Parser;
 use clap::ValueEnum;
+use color_eyre::eyre::anyhow;
 use color_eyre::Result;
 use crossbeam_utils::Backoff;
 use komorebi::animation::AnimationEngine;
@@ -193,8 +194,28 @@ fn main() -> Result<()> {
     let opts: Opts = Opts::parse();
     CUSTOM_FFM.store(opts.focus_follows_mouse, Ordering::SeqCst);
 
+    let mut set_foreground_window_retries = 5;
+    let mut set_foreground_window_succeeded = false;
+
     let process_id = WindowsApi::current_process_id();
-    WindowsApi::allow_set_foreground_window(process_id)?;
+    while set_foreground_window_retries > 0 && !set_foreground_window_succeeded {
+        match WindowsApi::allow_set_foreground_window(process_id) {
+            Ok(_) => {
+                set_foreground_window_succeeded = true;
+            }
+            Err(error) => {
+                tracing::error!("{error}");
+                set_foreground_window_retries -= 1;
+            }
+        }
+
+        if set_foreground_window_retries == 0 {
+            return Err(anyhow!(
+                "failed call to AllowSetForegroundWindow after 5 retries"
+            ));
+        }
+    }
+
     WindowsApi::set_process_dpi_awareness_context()?;
 
     let session_id = WindowsApi::process_id_to_session_id()?;

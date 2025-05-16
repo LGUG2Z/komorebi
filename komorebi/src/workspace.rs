@@ -660,84 +660,6 @@ impl Workspace {
         Ok(())
     }
 
-    pub fn reap_orphans(&mut self) -> Result<(usize, usize)> {
-        let mut hwnds = vec![];
-        let mut floating_hwnds = vec![];
-        let mut remove_monocle = false;
-        let mut remove_maximized = false;
-
-        if let Some(monocle) = &self.monocle_container {
-            let window_count = monocle.windows().len();
-            let mut orphan_count = 0;
-            for window in monocle.windows() {
-                if !window.is_window() {
-                    hwnds.push(window.hwnd);
-                    orphan_count += 1;
-                }
-            }
-
-            remove_monocle = orphan_count == window_count;
-        }
-
-        if let Some(window) = &self.maximized_window {
-            if !window.is_window() {
-                hwnds.push(window.hwnd);
-                remove_maximized = true;
-            }
-        }
-
-        for window in self.visible_windows().into_iter().flatten() {
-            if !window.is_window()
-            // This one is a hack because WINWORD.EXE is an absolute trainwreck of an app
-            // when multiple docs are open, it keeps open an invisible window, with WS_EX_LAYERED
-            // (A STYLE THAT THE REGULAR WINDOWS NEED IN ORDER TO BE MANAGED!) when one of the
-            // docs is closed
-            //
-            // I hate every single person who worked on Microsoft Office 365, especially Word
-            || !window.is_visible()
-            {
-                hwnds.push(window.hwnd);
-            }
-        }
-
-        for window in self.floating_windows() {
-            if !window.is_window() {
-                floating_hwnds.push(window.hwnd);
-            }
-        }
-
-        for hwnd in &hwnds {
-            tracing::debug!("reaping hwnd: {}", hwnd);
-            self.remove_window(*hwnd)?;
-        }
-
-        for hwnd in &floating_hwnds {
-            tracing::debug!("reaping floating hwnd: {}", hwnd);
-            self.floating_windows_mut()
-                .retain(|w| !floating_hwnds.contains(&w.hwnd));
-        }
-
-        let mut container_ids = vec![];
-        for container in self.containers() {
-            if container.windows().is_empty() {
-                container_ids.push(container.id().clone());
-            }
-        }
-
-        self.containers_mut()
-            .retain(|c| !container_ids.contains(c.id()));
-
-        if remove_monocle {
-            self.set_monocle_container(None);
-        }
-
-        if remove_maximized {
-            self.set_maximized_window(None);
-        }
-
-        Ok((hwnds.len() + floating_hwnds.len(), container_ids.len()))
-    }
-
     pub fn container_for_window(&self, hwnd: isize) -> Option<&Container> {
         self.containers().get(self.container_idx_for_window(hwnd)?)
     }
@@ -2018,6 +1940,33 @@ mod tests {
     }
 
     #[test]
+    fn test_remove_non_existent_window() {
+        let mut workspace = Workspace::default();
+
+        {
+            // Add a container with one window
+            let mut container = Container::default();
+            container.windows_mut().push_back(Window::from(1));
+            workspace.add_container_to_back(container);
+        }
+
+        // Attempt to remove a non-existent window
+        let result = workspace.remove_window(2);
+
+        // Should return an error
+        assert!(
+            result.is_err(),
+            "Expected an error when removing a non-existent window"
+        );
+
+        // Get focused container. Should be the index of the last container added
+        let container = workspace.focused_container_mut().unwrap();
+
+        // Should still have 1 window
+        assert_eq!(container.windows().len(), 1);
+    }
+
+    #[test]
     fn test_remove_focused_container() {
         let mut workspace = Workspace::default();
 
@@ -2340,6 +2289,25 @@ mod tests {
         // Container 0 should have 1 window
         let container = workspace.focused_container_mut().unwrap();
         assert_eq!(container.windows().len(), 1);
+    }
+
+    #[test]
+    fn test_move_window_to_non_existent_container() {
+        let mut workspace = Workspace::default();
+
+        // Add a container with one window
+        let mut container = Container::default();
+        container.windows_mut().push_back(Window::from(1));
+        workspace.add_container_to_back(container);
+
+        // Try to move window to a non-existent container
+        let result = workspace.move_window_to_container(8);
+
+        // Should return an error
+        assert!(
+            result.is_err(),
+            "Expected an error when moving a window to a non-existent container"
+        );
     }
 
     #[test]

@@ -301,7 +301,7 @@ how to map the indices and would use default behaviour which would result in a m
 }
 ```
 
-# Multiple Monitors on different machines
+# Multiple monitors on different machines
 
 You can use the same `komorebi.json` to configure two different setups and then synchronize your config across machines.
 However, if you do this it is important to be aware of a few things.
@@ -392,6 +392,13 @@ above config will still work on both physical configurations.
 This is because komorebi will apply the appropriate config to the loaded monitors and will create a map of the user
 index (the index defined in the user config) to the actual monitor index, and the bar will use that map to know if it
 should be enabled, and where it should be drawn.
+
+# Windows Display Settings
+
+In `Settings > System > Display > Multiple Displays`:
+
+- Disable "Remember windows locations on monitor connection"
+- Enable "Minimize windows when a monitor is disconnected"
 
 ### Things to keep in mind
 

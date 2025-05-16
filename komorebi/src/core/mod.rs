@@ -341,6 +341,7 @@ pub enum StateQuery {
     FocusedWindowIndex,
     FocusedWorkspaceName,
     FocusedWorkspaceLayout,
+    FocusedContainerKind,
     Version,
 }
 
@@ -486,7 +487,7 @@ pub enum CrossBoundaryBehaviour {
 #[derive(Copy, Clone, Debug, Serialize, Deserialize, Display, EnumString, ValueEnum, PartialEq)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub enum HidingBehaviour {
-    /// Use the SW_HIDE flag to hide windows when switching workspaces (has issues with Electron apps)
+    /// END OF LIFE FEATURE: Use the SW_HIDE flag to hide windows when switching workspaces (has issues with Electron apps)
     Hide,
     /// Use the SW_MINIMIZE flag to hide windows when switching workspaces (has issues with frequent workspace switching)
     Minimize,

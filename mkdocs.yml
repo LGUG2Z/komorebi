@@ -80,7 +80,6 @@ nav:
           - common-workflows/tray-and-multi-window-applications.md
           - common-workflows/mouse-follows-focus.md
           - common-workflows/dynamic-layout-switching.md
-          - common-workflows/set-display-index.md
           - common-workflows/multiple-bar-instances.md
           - common-workflows/multi-monitor-setup.md
   - CLI reference:

@@ -160,7 +160,14 @@ lazy_static! {
         })
     ]));
     static ref SESSION_FLOATING_APPLICATIONS: Arc<Mutex<Vec<MatchingRule>>> = Arc::new(Mutex::new(Vec::new()));
-    static ref FLOATING_APPLICATIONS: Arc<Mutex<Vec<MatchingRule>>> = Arc::new(Mutex::new(Vec::new()));
+    static ref FLOATING_APPLICATIONS: Arc<Mutex<Vec<MatchingRule>>> = Arc::new(Mutex::new(vec![
+        MatchingRule::Simple(IdWithIdentifier {
+            kind: ApplicationIdentifier::Exe,
+            id: String::from("komorebi-shortcuts.exe"),
+            matching_strategy: Option::from(MatchingStrategy::Equals),
+        })
+
+    ]));
     static ref PERMAIGNORE_CLASSES: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(vec![
         "Chrome_RenderWidgetHostHWND".to_string(),
     ]));

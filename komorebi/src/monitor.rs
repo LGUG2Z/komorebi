@@ -458,6 +458,18 @@ impl Monitor {
                 Some(workspace) => workspace,
             };
 
+            if target_workspace.monocle_container().is_some() {
+                for container in target_workspace.containers_mut() {
+                    container.restore();
+                }
+
+                for window in target_workspace.floating_windows_mut() {
+                    window.restore();
+                }
+
+                target_workspace.reintegrate_monocle_container()?;
+            }
+
             target_workspace.set_layer(WorkspaceLayer::Tiling);
 
             if let Some(direction) = direction {
@@ -620,6 +632,25 @@ mod tests {
     }
 
     #[test]
+    fn test_remove_nonexistent_workspace() {
+        let mut m = Monitor::new(
+            0,
+            Rect::default(),
+            Rect::default(),
+            "TestMonitor".to_string(),
+            "TestDevice".to_string(),
+            "TestDeviceID".to_string(),
+            Some("TestMonitorID".to_string()),
+        );
+
+        // Try to remove a workspace that doesn't exist
+        let removed_workspace = m.remove_workspace_by_idx(1);
+
+        // Should return None since there is no workspace at index 1
+        assert!(removed_workspace.is_none());
+    }
+
+    #[test]
     fn test_focus_workspace() {
         let mut m = Monitor::new(
             0,
@@ -724,6 +755,46 @@ mod tests {
 
         // Workspace 2 should now have 2 containers
         assert_eq!(m.focused_workspace().unwrap().containers().len(), 2);
+    }
+
+    #[test]
+    fn test_move_container_to_nonexistent_workspace() {
+        let mut m = Monitor::new(
+            0,
+            Rect::default(),
+            Rect::default(),
+            "TestMonitor".to_string(),
+            "TestDevice".to_string(),
+            "TestDeviceID".to_string(),
+            Some("TestMonitorID".to_string()),
+        );
+
+        {
+            // Create workspace 1 and add 3 containers
+            let workspace = m.focused_workspace_mut().unwrap();
+            for _ in 0..3 {
+                let container = Container::default();
+                workspace.add_container_to_back(container);
+            }
+
+            // Should have 3 containers in workspace 1
+            assert_eq!(m.focused_workspace().unwrap().containers().len(), 3);
+        }
+
+        // Should only have 1 workspace
+        assert_eq!(m.workspaces().len(), 1);
+
+        // Try to move a container to a workspace that doesn't exist
+        m.move_container_to_workspace(8, true, None).unwrap();
+
+        // Should have 9 workspaces now
+        assert_eq!(m.workspaces().len(), 9);
+
+        // Should be focused on workspace 8
+        assert_eq!(m.focused_workspace_idx(), 8);
+
+        // Should have 1 container in workspace 8
+        assert_eq!(m.focused_workspace().unwrap().containers().len(), 1);
     }
 
     #[test]

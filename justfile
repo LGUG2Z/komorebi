@@ -28,10 +28,10 @@ install-target-with-jsonschema target:
     cargo +stable install --path {{ target }} --locked
 
 install:
-    just install-targets komorebic komorebic-no-console komorebi komorebi-bar komorebi-gui
+    just install-targets komorebic komorebic-no-console komorebi komorebi-bar komorebi-gui komorebi-shortcuts
 
 install-with-jsonschema:
-    just install-targets-with-jsonschema komorebic komorebic-no-console komorebi komorebi-bar komorebi-gui
+    just install-targets-with-jsonschema komorebic komorebic-no-console komorebi komorebi-bar komorebi-gui komorebi-shortcuts
 
 build-targets *targets:
     "{{ targets }}" -split ' ' | ForEach-Object { just build-target $_ }
@@ -40,7 +40,7 @@ build-target target:
     cargo +stable build --package {{ target }} --locked --release --no-default-features
 
 build:
-    just build-targets komorebic komorebic-no-console komorebi komorebi-bar komorebi-gui
+    just build-targets komorebic komorebic-no-console komorebi komorebi-bar komorebi-gui komorebi-shortcuts
 
 copy-target target:
     cp .\target\release\{{ target }}.exe $Env:USERPROFILE\.cargo\bin
@@ -52,7 +52,7 @@ wpm target:
     just build-target {{ target }} && wpmctl stop {{ target }}; just copy-target {{ target }} && wpmctl start {{ target }}
 
 copy:
-    just copy-targets komorebic komorebic-no-console komorebi komorebi-bar komorebi-gui
+    just copy-targets komorebic komorebic-no-console komorebi komorebi-bar komorebi-gui komorebi-shortcuts
 
 run target:
     cargo +stable run --bin {{ target }} --locked --no-default-features
@@ -88,3 +88,6 @@ schemagen:
     generate-schema-doc ./schema.json --config template_name=js_offline --config minify=false ./static-config-docs/
     generate-schema-doc ./schema.bar.json --config template_name=js_offline --config minify=false ./bar-config-docs/
     mv ./bar-config-docs/schema.bar.html ./bar-config-docs/schema.html
+
+depgen:
+    cargo deny list --format json | jq 'del(.unlicensed)' > dependencies.json
