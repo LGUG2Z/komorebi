@@ -17,7 +17,6 @@ crossbeam-channel = { workspace = true }
 crossbeam-utils = { workspace = true }
 ctrlc = { version = "3", features = ["termination"] }
 dirs = { workspace = true }
-dunce = { workspace = true }
 getset = "0.1"
 hotwatch = { workspace = true }
 lazy_static = { workspace = true }

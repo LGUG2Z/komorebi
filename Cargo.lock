@@ -851,9 +851,9 @@ dependencies = [
 
 [[package]]
 name = "cc"
-version = "1.2.22"
+version = "1.2.23"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "32db95edf998450acc7881c932f94cd9b05c87b4b2599e8bab064753da4acfd1"
+checksum = "5f4ac86a9e5bc1e2b3449ab9d7d3a6a405e3d1bb28d7b9be8614f55846ae3766"
 dependencies = [
  "jobserver",
  "libc",
@@ -2923,7 +2923,6 @@ dependencies = [
  "crossbeam-utils",
  "ctrlc",
  "dirs 6.0.0",
- "dunce",
  "getset",
  "hotwatch",
  "komorebi-themes",
@@ -6787,12 +6786,12 @@ dependencies = [
 [[package]]
 name = "whkd-core"
 version = "0.2.9"
-source = "git+https://github.com/LGUG2Z/whkd?rev=29df24ff2dd715655b0366bd2a598837c699a8e9#29df24ff2dd715655b0366bd2a598837c699a8e9"
+source = "git+https://github.com/LGUG2Z/whkd?rev=v0.2.9#bf68f3df5f6383420e4e1d3b91acbcb46ce35c40"
 
 [[package]]
 name = "whkd-parser"
 version = "0.2.9"
-source = "git+https://github.com/LGUG2Z/whkd?rev=29df24ff2dd715655b0366bd2a598837c699a8e9#29df24ff2dd715655b0366bd2a598837c699a8e9"
+source = "git+https://github.com/LGUG2Z/whkd?rev=v0.2.9#bf68f3df5f6383420e4e1d3b91acbcb46ce35c40"
 dependencies = [
  "chumsky",
  "thiserror 2.0.12",

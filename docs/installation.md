@@ -120,6 +120,7 @@ cargo +stable install --path komorebic --locked
 cargo +stable install --path komorebic-no-console --locked
 cargo +stable install --path komorebi-gui --locked
 cargo +stable install --path komorebi-bar --locked
+cargo +stable install --path komorebi-shortcuts --locked
 ```
 
 If the binaries have been built and added to your `$PATH` correctly, you should
