@@ -1056,8 +1056,6 @@
       
         
       
-        
-      
     
     
       
@@ -1374,27 +1372,6 @@
   
   
     <li class="md-nav__item">
-      <a href="common-workflows/set-display-index.html" class="md-nav__link">
-        
-  
-  <span class="md-ellipsis">
-    Setting a Given Display to a Specific Index
-  </span>
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
       <a href="common-workflows/multiple-bar-instances.html" class="md-nav__link">
         
   
@@ -1453,6 +1430,8 @@
   
     
     
+      
+        
       
         
       
@@ -2070,6 +2049,27 @@
   
   <span class="md-ellipsis">
     gui
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="cli/toggle-shortcuts.html" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    toggle-shortcuts
   </span>
   
 
@@ -5640,15 +5640,17 @@ running <code>komorebic stop</code> and <code>komorebic start</code>.</p>
    state.</p>
 <h2 id="komorebi-bar-does-not-render-transparency-on-nvidia-gpus">Komorebi Bar does not render transparency on Nvidia GPUs</h2>
 <p>Users with Nvidia GPUs may have issues with transparency on the Komorebi Bar.</p>
-<p>To solve this the user can do the following:
-1. Open the Nvidia Control Panel
-2. On the left menu tree, under "3D Settings", select "Manage 3D Settings"
-3. Select the "Program Settings" tab
-4. Press the "Add" button and select "komorebi-bar"
-5. Under "3. Specify the settings for this program:", find the feature labelled, "OpenGL GDI compatibility"
-6. Change the setting to "Prefer compatibility"
-7. At the bottom of the window select "Apply"
-8. Restart the Komorebi Bar with "komorebic stop --bar; komorebic start --bar"</p>
+<p>To solve this the user can do the following:</p>
+<ul>
+<li>Open the Nvidia Control Panel</li>
+<li>On the left menu tree, under "3D Settings", select "Manage 3D Settings"</li>
+<li>Select the "Program Settings" tab</li>
+<li>Press the "Add" button and select "komorebi-bar"</li>
+<li>Under "3. Specify the settings for this program:", find the feature labelled, "OpenGL GDI compatibility"</li>
+<li>Change the setting to "Prefer compatibility"</li>
+<li>At the bottom of the window select "Apply"</li>
+<li>Restart the Komorebi Bar with "komorebic stop --bar; komorebic start --bar"</li>
+</ul>
 <p>This should resolve the issue and your Komorebi Bar should render with the proper transparency.</p>
 
 

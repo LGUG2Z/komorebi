@@ -1196,8 +1196,6 @@
       
         
       
-        
-      
     
     
       
@@ -1514,27 +1512,6 @@
   
   
     <li class="md-nav__item">
-      <a href="common-workflows/set-display-index.html" class="md-nav__link">
-        
-  
-  <span class="md-ellipsis">
-    Setting a Given Display to a Specific Index
-  </span>
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
       <a href="common-workflows/multiple-bar-instances.html" class="md-nav__link">
         
   
@@ -1593,6 +1570,8 @@
   
     
     
+      
+        
       
         
       
@@ -2210,6 +2189,27 @@
   
   <span class="md-ellipsis">
     gui
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="cli/toggle-shortcuts.html" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    toggle-shortcuts
   </span>
   
 
@@ -5835,7 +5835,7 @@ the example files have been downloaded. For most new users this will be in the
 seven preconfigured workspaces on the primary monitor each with a different
 layout.</p>
 <div class="highlight"><pre><span></span><code><span class="p">{</span>
-<span class="w">  </span><span class="nt">&quot;$schema&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;https://raw.githubusercontent.com/LGUG2Z/komorebi/v0.1.36/schema.json&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;$schema&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;https://raw.githubusercontent.com/LGUG2Z/komorebi/v0.1.37/schema.json&quot;</span><span class="p">,</span>
 <span class="w">  </span><span class="nt">&quot;app_specific_configuration_path&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;$Env:USERPROFILE/applications.json&quot;</span><span class="p">,</span>
 <span class="w">  </span><span class="nt">&quot;window_hiding_behaviour&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Cloak&quot;</span><span class="p">,</span>
 <span class="w">  </span><span class="nt">&quot;cross_monitor_move_behaviour&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Insert&quot;</span><span class="p">,</span>
@@ -5995,12 +5995,16 @@ colon.</p>
 limitations on hotkey bindings that include the <code>win</code> key. However, you will still need
 to <a href="https://superuser.com/questions/1059511/how-to-disable-winl-in-windows-10">modify the registry</a> to prevent
 <code>win + l</code> from locking the operating system.</p>
+<p>You can toggle an overlay of the current <code>whkdrc</code> shortcuts related to <code>komorebi</code> at any time when using the example
+configuration with <code>alt + i</code>.</p>
 <div class="highlight"><pre><span></span><code>.shell powershell
 
 # Reload whkd configuration
 # alt + o                 : taskkill /f /im whkd.exe &amp;&amp; start /b whkd # if shell is cmd
 alt + o                 : taskkill /f /im whkd.exe; Start-Process whkd -WindowStyle hidden # if shell is pwsh / powershell
 alt + shift + o         : komorebic reload-configuration
+
+alt + i                 : komorebic toggle-shortcuts
 
 # App shortcuts - these require shell to be pwsh / powershell
 # The apps will be focused if open, or launched if not open
@@ -6118,7 +6122,7 @@ the sample configuration above.</p>
 <p>The example status bar configuration sets some sane defaults and provides
 a number of pre-configured widgets on the primary monitor.</p>
 <div class="highlight"><pre><span></span><code><span class="p">{</span>
-<span class="w">  </span><span class="nt">&quot;$schema&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;https://raw.githubusercontent.com/LGUG2Z/komorebi/v0.1.36/schema.bar.json&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;$schema&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;https://raw.githubusercontent.com/LGUG2Z/komorebi/v0.1.37/schema.bar.json&quot;</span><span class="p">,</span>
 <span class="w">  </span><span class="nt">&quot;monitor&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span>
 <span class="w">  </span><span class="nt">&quot;font_family&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;JetBrains Mono&quot;</span><span class="p">,</span>
 <span class="w">  </span><span class="nt">&quot;theme&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>

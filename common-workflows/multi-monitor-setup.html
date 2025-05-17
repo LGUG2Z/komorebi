@@ -947,8 +947,6 @@
       
         
       
-        
-      
     
     
       
@@ -1265,27 +1263,6 @@
   
   
     <li class="md-nav__item">
-      <a href="set-display-index.html" class="md-nav__link">
-        
-  
-  <span class="md-ellipsis">
-    Setting a Given Display to a Specific Index
-  </span>
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
       <a href="multiple-bar-instances.html" class="md-nav__link">
         
   
@@ -1354,6 +1331,8 @@
   
     
     
+      
+        
       
         
       
@@ -1971,6 +1950,27 @@
   
   <span class="md-ellipsis">
     gui
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cli/toggle-shortcuts.html" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    toggle-shortcuts
   </span>
   
 
@@ -5606,7 +5606,7 @@ how to map the indices and would use default behaviour which would result in a m
 <span class="w">  </span><span class="nt">&quot;1&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">1</span>
 <span class="p">}</span>
 </code></pre></div>
-<h1 id="multiple-monitors-on-different-machines">Multiple Monitors on different machines</h1>
+<h1 id="multiple-monitors-on-different-machines">Multiple monitors on different machines</h1>
 <p>You can use the same <code>komorebi.json</code> to configure two different setups and then synchronize your config across machines.
 However, if you do this it is important to be aware of a few things.</p>
 <p>Firstly, using <code>display_index_preferences</code> is required in this case.</p>
@@ -5681,6 +5681,12 @@ above config will still work on both physical configurations.</p>
 <p>This is because komorebi will apply the appropriate config to the loaded monitors and will create a map of the user
 index (the index defined in the user config) to the actual monitor index, and the bar will use that map to know if it
 should be enabled, and where it should be drawn.</p>
+<h1 id="windows-display-settings">Windows Display Settings</h1>
+<p>In <code>Settings &gt; System &gt; Display &gt; Multiple Displays</code>:</p>
+<ul>
+<li>Disable "Remember windows locations on monitor connection"</li>
+<li>Enable "Minimize windows when a monitor is disconnected"</li>
+</ul>
 <h3 id="things-to-keep-in-mind">Things to keep in mind</h3>
 <ul>
 <li>If you are using a laptop connected to one monitor at work and a different one at home, the work monitor and the home
