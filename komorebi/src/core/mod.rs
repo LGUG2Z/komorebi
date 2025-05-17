@@ -13,6 +13,7 @@ use strum::EnumString;
 
 use crate::animation::prefix::AnimationPrefix;
 use crate::KomorebiTheme;
+use crate::State;
 pub use animation::AnimationStyle;
 pub use arrangement::Arrangement;
 pub use arrangement::Axis;
@@ -242,6 +243,8 @@ pub enum SocketMessage {
     StaticConfigSchema,
     GenerateStaticConfig,
     DebugWindow(isize),
+    // low level commands
+    ApplyState(State),
 }
 
 impl SocketMessage {
