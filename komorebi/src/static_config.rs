@@ -1912,6 +1912,7 @@ mod tests {
     use crate::WorkspaceConfig;
 
     #[test]
+    #[ignore = "this fails on github actions due to rate limiting changes introduced in may 2025"]
     fn backwards_compat() {
         let root = vec!["0.1.17", "0.1.18", "0.1.19"];
         let docs = vec![
