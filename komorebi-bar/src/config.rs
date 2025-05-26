@@ -332,6 +332,7 @@ pub fn get_individual_spacing(
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+#[serde(untagged)]
 pub enum MouseMessage {
     /// Send a message to the komorebi client.
     /// By default, a batch of messages are sent in the following order:
@@ -367,12 +368,10 @@ pub enum MouseMessage {
     ///   }
     /// }
     /// ```
-    #[serde(untagged)]
     Komorebi(KomorebiMouseMessage),
     /// Execute a custom command.
     /// CMD (%variable%), Bash ($variable) and PowerShell ($Env:variable) variables will be resolved.
     /// Example: `komorebic toggle-pause`
-    #[serde(untagged)]
     Command(String),
 }
 
