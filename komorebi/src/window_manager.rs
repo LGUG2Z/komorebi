@@ -4774,6 +4774,44 @@ mod tests {
     }
 
     #[test]
+    fn test_remove_nonexistent_window_from_container() {
+        let (mut wm, _context) = setup_window_manager();
+
+        {
+            // Create a first monitor
+            let mut m = monitor::new(
+                0,
+                Rect::default(),
+                Rect::default(),
+                "TestMonitor1".to_string(),
+                "TestDevice1".to_string(),
+                "TestDeviceID1".to_string(),
+                Some("TestMonitorID1".to_string()),
+            );
+
+            // Create a container
+            let container = Container::default();
+
+            // Should have 3 windows in the container
+            assert_eq!(container.windows().len(), 0);
+
+            // Add the container to a workspace
+            let workspace = m.focused_workspace_mut().unwrap();
+            workspace.add_container_to_back(container);
+
+            // Add monitor to the window manager
+            wm.monitors_mut().push_back(m);
+        }
+
+        // Should receive an error when trying to remove a window from an empty container
+        let result = wm.remove_window_from_container();
+        assert!(
+            result.is_err(),
+            "Expected an error when trying to remove a window from an empty container"
+        );
+    }
+
+    #[test]
     fn cycle_container_window_in_direction() {
         let (mut wm, _context) = setup_window_manager();
 
