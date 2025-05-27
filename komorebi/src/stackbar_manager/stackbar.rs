@@ -58,15 +58,19 @@ use windows::Win32::UI::WindowsAndMessaging::CreateWindowExW;
 use windows::Win32::UI::WindowsAndMessaging::DefWindowProcW;
 use windows::Win32::UI::WindowsAndMessaging::DispatchMessageW;
 use windows::Win32::UI::WindowsAndMessaging::GetMessageW;
+use windows::Win32::UI::WindowsAndMessaging::LoadCursorW;
 use windows::Win32::UI::WindowsAndMessaging::PostQuitMessage;
+use windows::Win32::UI::WindowsAndMessaging::SetCursor;
 use windows::Win32::UI::WindowsAndMessaging::SetLayeredWindowAttributes;
 use windows::Win32::UI::WindowsAndMessaging::TranslateMessage;
 use windows::Win32::UI::WindowsAndMessaging::CS_HREDRAW;
 use windows::Win32::UI::WindowsAndMessaging::CS_VREDRAW;
+use windows::Win32::UI::WindowsAndMessaging::IDC_ARROW;
 use windows::Win32::UI::WindowsAndMessaging::LWA_COLORKEY;
 use windows::Win32::UI::WindowsAndMessaging::MSG;
 use windows::Win32::UI::WindowsAndMessaging::WM_DESTROY;
 use windows::Win32::UI::WindowsAndMessaging::WM_LBUTTONDOWN;
+use windows::Win32::UI::WindowsAndMessaging::WM_SETCURSOR;
 use windows::Win32::UI::WindowsAndMessaging::WNDCLASSW;
 use windows::Win32::UI::WindowsAndMessaging::WS_EX_LAYERED;
 use windows::Win32::UI::WindowsAndMessaging::WS_EX_TOOLWINDOW;
@@ -312,6 +316,16 @@ impl Stackbar {
     ) -> LRESULT {
         unsafe {
             match msg {
+                WM_SETCURSOR => match LoadCursorW(None, IDC_ARROW) {
+                    Ok(cursor) => {
+                        SetCursor(Some(cursor));
+                        LRESULT(0)
+                    }
+                    Err(error) => {
+                        tracing::error!("{error}");
+                        LRESULT(1)
+                    }
+                },
                 WM_LBUTTONDOWN => {
                     let stackbars_containers = STACKBARS_CONTAINERS.lock();
                     if let Some(container) = stackbars_containers.get(&(hwnd.0 as isize)) {
