@@ -5549,6 +5549,40 @@ mod tests {
     }
 
     #[test]
+    fn test_float_nonexistent_window() {
+        let (mut wm, _context) = setup_window_manager();
+
+        {
+            let mut m = monitor::new(
+                0,
+                Rect::default(),
+                Rect::default(),
+                "TestMonitor".to_string(),
+                "TestDevice".to_string(),
+                "TestDeviceID".to_string(),
+                Some("TestMonitorID".to_string()),
+            );
+
+            // Add another workspace
+            let new_workspace_index = m.new_workspace_idx();
+            m.focus_workspace(new_workspace_index).unwrap();
+
+            // Should have 2 workspaces
+            assert_eq!(m.workspaces().len(), 2);
+
+            // Add monitor to window manager
+            wm.monitors_mut().push_back(m);
+        }
+
+        // Should return an error when trying to float a non-existent window
+        let result = wm.float_window();
+        assert!(
+            result.is_err(),
+            "Expected an error when trying to float a non-existent window"
+        );
+    }
+
+    #[test]
     fn test_maximize_and_unmaximize_window() {
         let (mut wm, _context) = setup_window_manager();
 
