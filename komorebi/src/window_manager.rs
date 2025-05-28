@@ -4772,6 +4772,44 @@ mod tests {
     }
 
     #[test]
+    fn test_remove_nonexistent_window_from_container() {
+        let (mut wm, _context) = setup_window_manager();
+
+        {
+            // Create a first monitor
+            let mut m = monitor::new(
+                0,
+                Rect::default(),
+                Rect::default(),
+                "TestMonitor1".to_string(),
+                "TestDevice1".to_string(),
+                "TestDeviceID1".to_string(),
+                Some("TestMonitorID1".to_string()),
+            );
+
+            // Create a container
+            let container = Container::default();
+
+            // Should have 3 windows in the container
+            assert_eq!(container.windows().len(), 0);
+
+            // Add the container to a workspace
+            let workspace = m.focused_workspace_mut().unwrap();
+            workspace.add_container_to_back(container);
+
+            // Add monitor to the window manager
+            wm.monitors_mut().push_back(m);
+        }
+
+        // Should receive an error when trying to remove a window from an empty container
+        let result = wm.remove_window_from_container();
+        assert!(
+            result.is_err(),
+            "Expected an error when trying to remove a window from an empty container"
+        );
+    }
+
+    #[test]
     fn cycle_container_window_in_direction() {
         let (mut wm, _context) = setup_window_manager();
 
@@ -4838,6 +4876,44 @@ mod tests {
             let container = workspace.focused_container_mut().unwrap();
             assert_eq!(container.focused_window_idx(), 1);
         }
+    }
+
+    #[test]
+    fn test_cycle_nonexistent_windows() {
+        let (mut wm, _context) = setup_window_manager();
+
+        {
+            // Create a first monitor
+            let mut m = monitor::new(
+                0,
+                Rect::default(),
+                Rect::default(),
+                "TestMonitor1".to_string(),
+                "TestDevice1".to_string(),
+                "TestDeviceID1".to_string(),
+                Some("TestMonitorID1".to_string()),
+            );
+
+            // Create a container
+            let container = Container::default();
+
+            // Should have 3 windows in the container
+            assert_eq!(container.windows().len(), 0);
+
+            // Add the container to a workspace
+            let workspace = m.focused_workspace_mut().unwrap();
+            workspace.add_container_to_back(container);
+
+            // Add monitor to the window manager
+            wm.monitors_mut().push_back(m);
+        }
+
+        // Should return an error when trying to cycle through windows in an empty container
+        let result = wm.cycle_container_window_in_direction(CycleDirection::Next);
+        assert!(
+            result.is_err(),
+            "Expected an error when cycling through windows in an empty container"
+        );
     }
 
     #[test]
@@ -5467,6 +5543,40 @@ mod tests {
             // Should be focused on window 2
             assert_eq!(container.focused_window(), Some(&Window { hwnd: 2 }));
         }
+    }
+
+    #[test]
+    fn test_float_nonexistent_window() {
+        let (mut wm, _context) = setup_window_manager();
+
+        {
+            let mut m = monitor::new(
+                0,
+                Rect::default(),
+                Rect::default(),
+                "TestMonitor".to_string(),
+                "TestDevice".to_string(),
+                "TestDeviceID".to_string(),
+                Some("TestMonitorID".to_string()),
+            );
+
+            // Add another workspace
+            let new_workspace_index = m.new_workspace_idx();
+            m.focus_workspace(new_workspace_index).unwrap();
+
+            // Should have 2 workspaces
+            assert_eq!(m.workspaces().len(), 2);
+
+            // Add monitor to window manager
+            wm.monitors_mut().push_back(m);
+        }
+
+        // Should return an error when trying to float a non-existent window
+        let result = wm.float_window();
+        assert!(
+            result.is_err(),
+            "Expected an error when trying to float a non-existent window"
+        );
     }
 
     #[test]
