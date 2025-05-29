@@ -1,4 +1,3 @@
-use std::collections::BTreeSet;
 use std::collections::VecDeque;
 use std::ffi::OsStr;
 use std::fmt::Display;
@@ -17,7 +16,7 @@ use crate::core::Layout;
 use crate::core::OperationDirection;
 use crate::core::Rect;
 use crate::default_layout::LayoutOptions;
-use crate::locked_deque::LockedDeque;
+use crate::lockable_sequence::LockableSequence;
 use crate::ring::Ring;
 use crate::should_act;
 use crate::stackbar_manager;
@@ -103,8 +102,6 @@ pub struct Workspace {
     #[getset(get_copy = "pub", get_mut = "pub", set = "pub")]
     pub floating_layer_behaviour: Option<FloatingLayerBehaviour>,
     #[getset(get = "pub", get_mut = "pub", set = "pub")]
-    pub locked_containers: BTreeSet<usize>,
-    #[getset(get = "pub", get_mut = "pub", set = "pub")]
     pub wallpaper: Option<Wallpaper>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[getset(get = "pub", set = "pub")]
@@ -158,7 +155,6 @@ impl Default for Workspace {
             floating_layer_behaviour: Default::default(),
             globals: Default::default(),
             workspace_config: None,
-            locked_containers: Default::default(),
             wallpaper: None,
         }
     }
@@ -898,10 +894,9 @@ impl Workspace {
     // this fn respects locked container indexes - we should use it for pretty much everything
     // except monocle and maximize toggles
     pub fn insert_container_at_idx(&mut self, idx: usize, container: Container) -> usize {
-        let mut locked_containers = self.locked_containers().clone();
-        let mut ld = LockedDeque::new(self.containers_mut(), &mut locked_containers);
-        let insertion_idx = ld.insert(idx, container);
-        self.locked_containers = locked_containers;
+        let insertion_idx = self
+            .containers_mut()
+            .insert_respecting_locks(idx, container);
 
         if insertion_idx > self.resize_dimensions().len() {
             self.resize_dimensions_mut().push(None);
@@ -917,10 +912,7 @@ impl Workspace {
     // this fn respects locked container indexes - we should use it for pretty much everything
     // except monocle and maximize toggles
     pub fn remove_container_by_idx(&mut self, idx: usize) -> Option<Container> {
-        let mut locked_containers = self.locked_containers().clone();
-        let mut ld = LockedDeque::new(self.containers_mut(), &mut locked_containers);
-        let container = ld.remove(idx);
-        self.locked_containers = locked_containers;
+        let container = self.containers_mut().remove_respecting_locks(idx);
 
         if idx < self.resize_dimensions().len() {
             self.resize_dimensions_mut().remove(idx);
@@ -1733,7 +1725,6 @@ mod tests {
     use super::*;
     use crate::container::Container;
     use crate::Window;
-    use std::collections::BTreeSet;
     use std::collections::HashMap;
 
     #[test]
@@ -1741,19 +1732,17 @@ mod tests {
         let mut ws = Workspace::default();
 
         let mut state = HashMap::new();
-        let mut locked = BTreeSet::new();
 
-        // add 3 containers
+        // add 4 containers
         for i in 0..4 {
-            let container = Container::default();
+            let mut container = Container::default();
+            if i == 3 {
+                container.set_locked(true); // set index 3 locked
+            }
             state.insert(i, container.id().to_string());
             ws.add_container_to_back(container);
         }
         assert_eq!(ws.containers().len(), 4);
-
-        // set index 3 locked
-        locked.insert(3);
-        ws.locked_containers = locked;
 
         // focus container at index 2
         ws.focus_container(2);
@@ -1786,19 +1775,16 @@ mod tests {
     fn test_locked_containers_remove_window() {
         let mut ws = Workspace::default();
 
-        let mut locked = BTreeSet::new();
-
         // add 4 containers
         for i in 0..4 {
             let mut container = Container::default();
             container.windows_mut().push_back(Window::from(i));
+            if i == 1 {
+                container.set_locked(true);
+            }
             ws.add_container_to_back(container);
         }
         assert_eq!(ws.containers().len(), 4);
-
-        // set index 1 locked
-        locked.insert(1);
-        ws.locked_containers = locked;
 
         ws.remove_window(0).unwrap();
         assert_eq!(ws.containers()[0].focused_window().unwrap().hwnd, 2);
@@ -1811,19 +1797,16 @@ mod tests {
     fn test_locked_containers_toggle_float() {
         let mut ws = Workspace::default();
 
-        let mut locked = BTreeSet::new();
-
         // add 4 containers
         for i in 0..4 {
             let mut container = Container::default();
             container.windows_mut().push_back(Window::from(i));
+            if i == 1 {
+                container.set_locked(true);
+            }
             ws.add_container_to_back(container);
         }
         assert_eq!(ws.containers().len(), 4);
-
-        // set index 1 locked
-        locked.insert(1);
-        ws.locked_containers = locked;
 
         // set index 0 focused
         ws.focus_container(0);
@@ -1856,19 +1839,16 @@ mod tests {
     fn test_locked_containers_stack() {
         let mut ws = Workspace::default();
 
-        let mut locked = BTreeSet::new();
-
         // add 6 containers
         for i in 0..6 {
             let mut container = Container::default();
             container.windows_mut().push_back(Window::from(i));
+            if i == 4 {
+                container.set_locked(true);
+            }
             ws.add_container_to_back(container);
         }
         assert_eq!(ws.containers().len(), 6);
-
-        // set index 4 locked
-        locked.insert(4);
-        ws.locked_containers = locked;
 
         // set index 3 focused
         ws.focus_container(3);
