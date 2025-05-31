@@ -1640,7 +1640,7 @@ fn main() -> Result<()> {
 
             run_key.set_value("komorebi", &concat_exe)?;
 
-            print!("Autostart enabled!");
+            println!("Autostart enabled!");
 
             println!("NOTE: If your komorebi.json file contains a reference to $Env:KOMOREBI_CONFIG_HOME,");
             println!("you need to add this to System Properties > Environment Variables > User Variables");
