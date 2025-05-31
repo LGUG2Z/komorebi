@@ -10,7 +10,7 @@ use crate::render::Grouping;
 use crate::render::RenderConfig;
 use crate::render::RenderExt;
 use crate::widgets::komorebi::Komorebi;
-use crate::widgets::komorebi::KomorebiNotificationState;
+use crate::widgets::komorebi::KomorebiNotificationStateNew;
 use crate::widgets::widget::BarWidget;
 use crate::widgets::widget::WidgetConfig;
 use crate::KomorebiEvent;
@@ -153,7 +153,7 @@ pub struct Komobar {
     pub disabled: bool,
     pub config: KomobarConfig,
     pub render_config: Rc<RefCell<RenderConfig>>,
-    pub komorebi_notification_state: Option<Rc<RefCell<KomorebiNotificationState>>>,
+    pub komorebi_notification_state: Option<Rc<RefCell<KomorebiNotificationStateNew>>>,
     pub left_widgets: Vec<Box<dyn BarWidget>>,
     pub center_widgets: Vec<Box<dyn BarWidget>>,
     pub right_widgets: Vec<Box<dyn BarWidget>>,
@@ -345,7 +345,7 @@ impl Komobar {
     pub fn apply_config(
         &mut self,
         ctx: &Context,
-        previous_notification_state: Option<Rc<RefCell<KomorebiNotificationState>>>,
+        previous_notification_state: Option<Rc<RefCell<KomorebiNotificationStateNew>>>,
     ) {
         MAX_LABEL_WIDTH.store(
             self.config.max_label_width.unwrap_or(400.0) as i32,
@@ -432,7 +432,7 @@ impl Komobar {
                                 Some(widget.komorebi_notification_state.clone());
                         }
                         Some(ref previous) => {
-                            if widget.workspaces.is_some_and(|w| w.enable) {
+                            if widget.workspaces.as_ref().is_some_and(|w| w.enable) {
                                 previous.borrow_mut().update_from_config(
                                     &widget.komorebi_notification_state.borrow(),
                                 );
@@ -467,8 +467,8 @@ impl Komobar {
         let mapped_state = self.komorebi_notification_state.as_ref().map(|state| {
             let state = state.borrow();
             (
-                state.monitor_usr_idx_map.get(&usr_monitor_index).copied(),
-                state.mouse_follows_focus,
+                state.0.monitor_usr_idx_map.get(&usr_monitor_index).copied(),
+                state.0.mouse_follows_focus,
             )
         });
 
@@ -681,7 +681,7 @@ impl Komobar {
                             );
 
                             if let Some(state) = &self.komorebi_notification_state {
-                                state.borrow_mut().stack_accent = Some(stack_accent);
+                                state.borrow_mut().0.stack_accent = Some(stack_accent);
                             }
                         }
                     }

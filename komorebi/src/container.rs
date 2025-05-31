@@ -1,18 +1,26 @@
 use std::collections::VecDeque;
 
+use getset::CopyGetters;
 use getset::Getters;
+use getset::MutGetters;
+use getset::Setters;
 use nanoid::nanoid;
 use serde::Deserialize;
 use serde::Serialize;
 
 use crate::ring::Ring;
 use crate::window::Window;
+use crate::Lockable;
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Getters)]
+#[derive(
+    Debug, Clone, PartialEq, Serialize, Deserialize, Getters, CopyGetters, MutGetters, Setters,
+)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct Container {
     #[getset(get = "pub")]
     id: String,
+    #[getset(get_copy = "pub", get_mut = "pub", set = "pub")]
+    locked: bool,
     windows: Ring<Window>,
 }
 
@@ -22,8 +30,15 @@ impl Default for Container {
     fn default() -> Self {
         Self {
             id: nanoid!(),
+            locked: false,
             windows: Ring::default(),
         }
+    }
+}
+
+impl Lockable for Container {
+    fn is_locked(&self) -> bool {
+        self.locked
     }
 }
 
