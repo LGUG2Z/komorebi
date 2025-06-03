@@ -5835,6 +5835,41 @@ mod tests {
     }
 
     #[test]
+    fn test_monocle_on_and_off_nonexistent_container() {
+        let (mut wm, _context) = setup_window_manager();
+
+        {
+            // Create a monitor
+            let m = monitor::new(
+                0,
+                Rect::default(),
+                Rect::default(),
+                "TestMonitor".to_string(),
+                "TestDevice".to_string(),
+                "TestDeviceID".to_string(),
+                Some("TestMonitorID".to_string()),
+            );
+
+            // Add monitor to the window manager
+            wm.monitors_mut().push_back(m);
+        }
+
+        // Should return an error when trying to move a non-existent container to monocle
+        let result = wm.monocle_on();
+        assert!(
+            result.is_err(),
+            "Expected an error when trying to move a non-existent container to monocle"
+        );
+
+        // Should return an error when trying to restore a non-existent container from monocle
+        let result = wm.monocle_off();
+        assert!(
+            result.is_err(),
+            "Expected an error when trying to restore a non-existent container from monocle"
+        );
+    }
+
+    #[test]
     fn test_toggle_monocle() {
         let (mut wm, _context) = setup_window_manager();
 
