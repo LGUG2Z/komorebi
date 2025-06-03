@@ -5729,6 +5729,41 @@ mod tests {
     }
 
     #[test]
+    fn test_toggle_maximize_nonexistent_window() {
+        let (mut wm, _context) = setup_window_manager();
+
+        {
+            // Create a monitor
+            let mut m = monitor::new(
+                0,
+                Rect::default(),
+                Rect::default(),
+                "TestMonitor".to_string(),
+                "TestDevice".to_string(),
+                "TestDeviceID".to_string(),
+                Some("TestMonitorID".to_string()),
+            );
+
+            // Create a container
+            let container = Container::default();
+
+            // Add the container to the workspace
+            let workspace = m.focused_workspace_mut().unwrap();
+            workspace.add_container_to_back(container);
+
+            // Add monitor to the window manager
+            wm.monitors_mut().push_back(m);
+        }
+
+        // Should return an error when trying to toggle maximize on a non-existent window
+        let result = wm.toggle_maximize();
+        assert!(
+            result.is_err(),
+            "Expected an error when trying to toggle maximize on a non-existent window"
+        );
+    }
+
+    #[test]
     fn test_monocle_on_and_monocle_off() {
         let (mut wm, _context) = setup_window_manager();
 
