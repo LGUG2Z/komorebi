@@ -5906,6 +5906,34 @@ mod tests {
     }
 
     #[test]
+    fn test_toggle_monocle_nonexistent_container() {
+        let (mut wm, _context) = setup_window_manager();
+
+        {
+            // Create a monitor
+            let m = monitor::new(
+                0,
+                Rect::default(),
+                Rect::default(),
+                "TestMonitor".to_string(),
+                "TestDevice".to_string(),
+                "TestDeviceID".to_string(),
+                Some("TestMonitorID".to_string()),
+            );
+
+            // Add monitor to the window manager
+            wm.monitors_mut().push_back(m);
+        }
+
+        // Should return an error when trying to toggle monocle on a non-existent container
+        let result = wm.toggle_monocle();
+        assert!(
+            result.is_err(),
+            "Expected an error when trying to toggle monocle on a non-existent container"
+        );
+    }
+
+    #[test]
     fn test_ensure_named_workspace_for_monitor() {
         let (mut wm, _context) = setup_window_manager();
 
