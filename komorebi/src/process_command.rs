@@ -349,7 +349,7 @@ impl WindowManager {
             SocketMessage::StackWindow(direction) => self.add_window_to_container(direction)?,
             SocketMessage::UnstackWindow => self.remove_window_from_container()?,
             SocketMessage::StackAll => self.stack_all()?,
-            SocketMessage::UnstackAll => self.unstack_all()?,
+            SocketMessage::UnstackAll => self.unstack_all(true)?,
             SocketMessage::CycleStack(direction) => {
                 self.cycle_container_window_in_direction(direction)?;
             }
