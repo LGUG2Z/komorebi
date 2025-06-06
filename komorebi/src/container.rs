@@ -1,18 +1,27 @@
 use std::collections::VecDeque;
 
+use getset::CopyGetters;
 use getset::Getters;
+use getset::MutGetters;
+use getset::Setters;
 use nanoid::nanoid;
 use serde::Deserialize;
 use serde::Serialize;
 
 use crate::ring::Ring;
 use crate::window::Window;
+use crate::Lockable;
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Getters)]
+#[derive(
+    Debug, Clone, PartialEq, Serialize, Deserialize, Getters, CopyGetters, MutGetters, Setters,
+)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct Container {
     #[getset(get = "pub")]
     id: String,
+    #[serde(default)]
+    #[getset(get_copy = "pub", get_mut = "pub", set = "pub")]
+    locked: bool,
     windows: Ring<Window>,
 }
 
@@ -22,8 +31,15 @@ impl Default for Container {
     fn default() -> Self {
         Self {
             id: nanoid!(),
+            locked: false,
             windows: Ring::default(),
         }
+    }
+}
+
+impl Lockable for Container {
+    fn is_locked(&self) -> bool {
+        self.locked
     }
 }
 
@@ -144,6 +160,7 @@ impl Container {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serde_json;
 
     #[test]
     fn test_contains_window() {
@@ -249,5 +266,41 @@ mod tests {
 
         // Should return None since window 4 doesn't exist
         assert_eq!(container.idx_for_window(4), None);
+    }
+
+    #[test]
+    fn deserializes_with_missing_locked_field_defaults_to_false() {
+        let json = r#"{
+            "id": "test-1",
+            "windows": { "elements": [], "focused": 0 }
+        }"#;
+        let container: Container = serde_json::from_str(json).expect("Should deserialize");
+
+        assert!(!container.locked());
+        assert_eq!(container.id(), "test-1");
+        assert!(container.windows().is_empty());
+
+        let json = r#"{
+            "id": "test-2",
+            "windows": { "elements": [ { "hwnd": 5 }, { "hwnd": 9 } ], "focused": 1 }
+        }"#;
+        let container: Container = serde_json::from_str(json).unwrap();
+        assert_eq!(container.id(), "test-2");
+        assert!(!container.locked());
+        assert_eq!(container.windows(), &[Window::from(5), Window::from(9)]);
+        assert_eq!(container.focused_window_idx(), 1);
+    }
+
+    #[test]
+    fn serializes_and_deserializes() {
+        let mut container = Container::default();
+        container.set_locked(true);
+
+        let serialized = serde_json::to_string(&container).expect("Should serialize");
+        let deserialized: Container =
+            serde_json::from_str(&serialized).expect("Should deserialize");
+
+        assert_eq!(deserialized.locked(), true);
+        assert_eq!(deserialized.id(), container.id());
     }
 }
