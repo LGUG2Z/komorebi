@@ -8220,6 +8220,69 @@
                     {
                       "type": "object",
                       "required": [
+                        "content",
+                        "type"
+                      ],
+                      "properties": {
+                        "content": {
+                          "type": "array",
+                          "items": [
+                            {
+                              "type": "integer",
+                              "format": "uint",
+                              "minimum": 0.0
+                            },
+                            {
+                              "type": "integer",
+                              "format": "uint",
+                              "minimum": 0.0
+                            },
+                            {
+                              "type": "object",
+                              "required": [
+                                "bottom",
+                                "left",
+                                "right",
+                                "top"
+                              ],
+                              "properties": {
+                                "bottom": {
+                                  "description": "The bottom point in a Win32 Rect",
+                                  "type": "integer",
+                                  "format": "int32"
+                                },
+                                "left": {
+                                  "description": "The left point in a Win32 Rect",
+                                  "type": "integer",
+                                  "format": "int32"
+                                },
+                                "right": {
+                                  "description": "The right point in a Win32 Rect",
+                                  "type": "integer",
+                                  "format": "int32"
+                                },
+                                "top": {
+                                  "description": "The top point in a Win32 Rect",
+                                  "type": "integer",
+                                  "format": "int32"
+                                }
+                              }
+                            }
+                          ],
+                          "maxItems": 3,
+                          "minItems": 3
+                        },
+                        "type": {
+                          "type": "string",
+                          "enum": [
+                            "WorkspaceWorkAreaOffset"
+                          ]
+                        }
+                      }
+                    },
+                    {
+                      "type": "object",
+                      "required": [
                         "type"
                       ],
                       "properties": {
@@ -14291,6 +14354,69 @@
                           "type": "string",
                           "enum": [
                             "MonitorWorkAreaOffset"
+                          ]
+                        }
+                      }
+                    },
+                    {
+                      "type": "object",
+                      "required": [
+                        "content",
+                        "type"
+                      ],
+                      "properties": {
+                        "content": {
+                          "type": "array",
+                          "items": [
+                            {
+                              "type": "integer",
+                              "format": "uint",
+                              "minimum": 0.0
+                            },
+                            {
+                              "type": "integer",
+                              "format": "uint",
+                              "minimum": 0.0
+                            },
+                            {
+                              "type": "object",
+                              "required": [
+                                "bottom",
+                                "left",
+                                "right",
+                                "top"
+                              ],
+                              "properties": {
+                                "bottom": {
+                                  "description": "The bottom point in a Win32 Rect",
+                                  "type": "integer",
+                                  "format": "int32"
+                                },
+                                "left": {
+                                  "description": "The left point in a Win32 Rect",
+                                  "type": "integer",
+                                  "format": "int32"
+                                },
+                                "right": {
+                                  "description": "The right point in a Win32 Rect",
+                                  "type": "integer",
+                                  "format": "int32"
+                                },
+                                "top": {
+                                  "description": "The top point in a Win32 Rect",
+                                  "type": "integer",
+                                  "format": "int32"
+                                }
+                              }
+                            }
+                          ],
+                          "maxItems": 3,
+                          "minItems": 3
+                        },
+                        "type": {
+                          "type": "string",
+                          "enum": [
+                            "WorkspaceWorkAreaOffset"
                           ]
                         }
                       }
@@ -20376,6 +20502,69 @@
                     {
                       "type": "object",
                       "required": [
+                        "content",
+                        "type"
+                      ],
+                      "properties": {
+                        "content": {
+                          "type": "array",
+                          "items": [
+                            {
+                              "type": "integer",
+                              "format": "uint",
+                              "minimum": 0.0
+                            },
+                            {
+                              "type": "integer",
+                              "format": "uint",
+                              "minimum": 0.0
+                            },
+                            {
+                              "type": "object",
+                              "required": [
+                                "bottom",
+                                "left",
+                                "right",
+                                "top"
+                              ],
+                              "properties": {
+                                "bottom": {
+                                  "description": "The bottom point in a Win32 Rect",
+                                  "type": "integer",
+                                  "format": "int32"
+                                },
+                                "left": {
+                                  "description": "The left point in a Win32 Rect",
+                                  "type": "integer",
+                                  "format": "int32"
+                                },
+                                "right": {
+                                  "description": "The right point in a Win32 Rect",
+                                  "type": "integer",
+                                  "format": "int32"
+                                },
+                                "top": {
+                                  "description": "The top point in a Win32 Rect",
+                                  "type": "integer",
+                                  "format": "int32"
+                                }
+                              }
+                            }
+                          ],
+                          "maxItems": 3,
+                          "minItems": 3
+                        },
+                        "type": {
+                          "type": "string",
+                          "enum": [
+                            "WorkspaceWorkAreaOffset"
+                          ]
+                        }
+                      }
+                    },
+                    {
+                      "type": "object",
+                      "required": [
                         "type"
                       ],
                       "properties": {
@@ -26447,6 +26636,69 @@
                           "type": "string",
                           "enum": [
                             "MonitorWorkAreaOffset"
+                          ]
+                        }
+                      }
+                    },
+                    {
+                      "type": "object",
+                      "required": [
+                        "content",
+                        "type"
+                      ],
+                      "properties": {
+                        "content": {
+                          "type": "array",
+                          "items": [
+                            {
+                              "type": "integer",
+                              "format": "uint",
+                              "minimum": 0.0
+                            },
+                            {
+                              "type": "integer",
+                              "format": "uint",
+                              "minimum": 0.0
+                            },
+                            {
+                              "type": "object",
+                              "required": [
+                                "bottom",
+                                "left",
+                                "right",
+                                "top"
+                              ],
+                              "properties": {
+                                "bottom": {
+                                  "description": "The bottom point in a Win32 Rect",
+                                  "type": "integer",
+                                  "format": "int32"
+                                },
+                                "left": {
+                                  "description": "The left point in a Win32 Rect",
+                                  "type": "integer",
+                                  "format": "int32"
+                                },
+                                "right": {
+                                  "description": "The right point in a Win32 Rect",
+                                  "type": "integer",
+                                  "format": "int32"
+                                },
+                                "top": {
+                                  "description": "The top point in a Win32 Rect",
+                                  "type": "integer",
+                                  "format": "int32"
+                                }
+                              }
+                            }
+                          ],
+                          "maxItems": 3,
+                          "minItems": 3
+                        },
+                        "type": {
+                          "type": "string",
+                          "enum": [
+                            "WorkspaceWorkAreaOffset"
                           ]
                         }
                       }
@@ -32532,6 +32784,69 @@
                     {
                       "type": "object",
                       "required": [
+                        "content",
+                        "type"
+                      ],
+                      "properties": {
+                        "content": {
+                          "type": "array",
+                          "items": [
+                            {
+                              "type": "integer",
+                              "format": "uint",
+                              "minimum": 0.0
+                            },
+                            {
+                              "type": "integer",
+                              "format": "uint",
+                              "minimum": 0.0
+                            },
+                            {
+                              "type": "object",
+                              "required": [
+                                "bottom",
+                                "left",
+                                "right",
+                                "top"
+                              ],
+                              "properties": {
+                                "bottom": {
+                                  "description": "The bottom point in a Win32 Rect",
+                                  "type": "integer",
+                                  "format": "int32"
+                                },
+                                "left": {
+                                  "description": "The left point in a Win32 Rect",
+                                  "type": "integer",
+                                  "format": "int32"
+                                },
+                                "right": {
+                                  "description": "The right point in a Win32 Rect",
+                                  "type": "integer",
+                                  "format": "int32"
+                                },
+                                "top": {
+                                  "description": "The top point in a Win32 Rect",
+                                  "type": "integer",
+                                  "format": "int32"
+                                }
+                              }
+                            }
+                          ],
+                          "maxItems": 3,
+                          "minItems": 3
+                        },
+                        "type": {
+                          "type": "string",
+                          "enum": [
+                            "WorkspaceWorkAreaOffset"
+                          ]
+                        }
+                      }
+                    },
+                    {
+                      "type": "object",
+                      "required": [
                         "type"
                       ],
                       "properties": {
@@ -38603,6 +38918,69 @@
                           "type": "string",
                           "enum": [
                             "MonitorWorkAreaOffset"
+                          ]
+                        }
+                      }
+                    },
+                    {
+                      "type": "object",
+                      "required": [
+                        "content",
+                        "type"
+                      ],
+                      "properties": {
+                        "content": {
+                          "type": "array",
+                          "items": [
+                            {
+                              "type": "integer",
+                              "format": "uint",
+                              "minimum": 0.0
+                            },
+                            {
+                              "type": "integer",
+                              "format": "uint",
+                              "minimum": 0.0
+                            },
+                            {
+                              "type": "object",
+                              "required": [
+                                "bottom",
+                                "left",
+                                "right",
+                                "top"
+                              ],
+                              "properties": {
+                                "bottom": {
+                                  "description": "The bottom point in a Win32 Rect",
+                                  "type": "integer",
+                                  "format": "int32"
+                                },
+                                "left": {
+                                  "description": "The left point in a Win32 Rect",
+                                  "type": "integer",
+                                  "format": "int32"
+                                },
+                                "right": {
+                                  "description": "The right point in a Win32 Rect",
+                                  "type": "integer",
+                                  "format": "int32"
+                                },
+                                "top": {
+                                  "description": "The top point in a Win32 Rect",
+                                  "type": "integer",
+                                  "format": "int32"
+                                }
+                              }
+                            }
+                          ],
+                          "maxItems": 3,
+                          "minItems": 3
+                        },
+                        "type": {
+                          "type": "string",
+                          "enum": [
+                            "WorkspaceWorkAreaOffset"
                           ]
                         }
                       }
@@ -44688,6 +45066,69 @@
                     {
                       "type": "object",
                       "required": [
+                        "content",
+                        "type"
+                      ],
+                      "properties": {
+                        "content": {
+                          "type": "array",
+                          "items": [
+                            {
+                              "type": "integer",
+                              "format": "uint",
+                              "minimum": 0.0
+                            },
+                            {
+                              "type": "integer",
+                              "format": "uint",
+                              "minimum": 0.0
+                            },
+                            {
+                              "type": "object",
+                              "required": [
+                                "bottom",
+                                "left",
+                                "right",
+                                "top"
+                              ],
+                              "properties": {
+                                "bottom": {
+                                  "description": "The bottom point in a Win32 Rect",
+                                  "type": "integer",
+                                  "format": "int32"
+                                },
+                                "left": {
+                                  "description": "The left point in a Win32 Rect",
+                                  "type": "integer",
+                                  "format": "int32"
+                                },
+                                "right": {
+                                  "description": "The right point in a Win32 Rect",
+                                  "type": "integer",
+                                  "format": "int32"
+                                },
+                                "top": {
+                                  "description": "The top point in a Win32 Rect",
+                                  "type": "integer",
+                                  "format": "int32"
+                                }
+                              }
+                            }
+                          ],
+                          "maxItems": 3,
+                          "minItems": 3
+                        },
+                        "type": {
+                          "type": "string",
+                          "enum": [
+                            "WorkspaceWorkAreaOffset"
+                          ]
+                        }
+                      }
+                    },
+                    {
+                      "type": "object",
+                      "required": [
                         "type"
                       ],
                       "properties": {
@@ -50766,6 +51207,69 @@
                     {
                       "type": "object",
                       "required": [
+                        "content",
+                        "type"
+                      ],
+                      "properties": {
+                        "content": {
+                          "type": "array",
+                          "items": [
+                            {
+                              "type": "integer",
+                              "format": "uint",
+                              "minimum": 0.0
+                            },
+                            {
+                              "type": "integer",
+                              "format": "uint",
+                              "minimum": 0.0
+                            },
+                            {
+                              "type": "object",
+                              "required": [
+                                "bottom",
+                                "left",
+                                "right",
+                                "top"
+                              ],
+                              "properties": {
+                                "bottom": {
+                                  "description": "The bottom point in a Win32 Rect",
+                                  "type": "integer",
+                                  "format": "int32"
+                                },
+                                "left": {
+                                  "description": "The left point in a Win32 Rect",
+                                  "type": "integer",
+                                  "format": "int32"
+                                },
+                                "right": {
+                                  "description": "The right point in a Win32 Rect",
+                                  "type": "integer",
+                                  "format": "int32"
+                                },
+                                "top": {
+                                  "description": "The top point in a Win32 Rect",
+                                  "type": "integer",
+                                  "format": "int32"
+                                }
+                              }
+                            }
+                          ],
+                          "maxItems": 3,
+                          "minItems": 3
+                        },
+                        "type": {
+                          "type": "string",
+                          "enum": [
+                            "WorkspaceWorkAreaOffset"
+                          ]
+                        }
+                      }
+                    },
+                    {
+                      "type": "object",
+                      "required": [
                         "type"
                       ],
                       "properties": {
@@ -56837,6 +57341,69 @@
                           "type": "string",
                           "enum": [
                             "MonitorWorkAreaOffset"
+                          ]
+                        }
+                      }
+                    },
+                    {
+                      "type": "object",
+                      "required": [
+                        "content",
+                        "type"
+                      ],
+                      "properties": {
+                        "content": {
+                          "type": "array",
+                          "items": [
+                            {
+                              "type": "integer",
+                              "format": "uint",
+                              "minimum": 0.0
+                            },
+                            {
+                              "type": "integer",
+                              "format": "uint",
+                              "minimum": 0.0
+                            },
+                            {
+                              "type": "object",
+                              "required": [
+                                "bottom",
+                                "left",
+                                "right",
+                                "top"
+                              ],
+                              "properties": {
+                                "bottom": {
+                                  "description": "The bottom point in a Win32 Rect",
+                                  "type": "integer",
+                                  "format": "int32"
+                                },
+                                "left": {
+                                  "description": "The left point in a Win32 Rect",
+                                  "type": "integer",
+                                  "format": "int32"
+                                },
+                                "right": {
+                                  "description": "The right point in a Win32 Rect",
+                                  "type": "integer",
+                                  "format": "int32"
+                                },
+                                "top": {
+                                  "description": "The top point in a Win32 Rect",
+                                  "type": "integer",
+                                  "format": "int32"
+                                }
+                              }
+                            }
+                          ],
+                          "maxItems": 3,
+                          "minItems": 3
+                        },
+                        "type": {
+                          "type": "string",
+                          "enum": [
+                            "WorkspaceWorkAreaOffset"
                           ]
                         }
                       }

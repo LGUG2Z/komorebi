@@ -2138,6 +2138,38 @@
                     ]
                   }
                 },
+                "work_area_offset": {
+                  "description": "Workspace specific work area offset (default: None)",
+                  "type": "object",
+                  "required": [
+                    "bottom",
+                    "left",
+                    "right",
+                    "top"
+                  ],
+                  "properties": {
+                    "bottom": {
+                      "description": "The bottom point in a Win32 Rect",
+                      "type": "integer",
+                      "format": "int32"
+                    },
+                    "left": {
+                      "description": "The left point in a Win32 Rect",
+                      "type": "integer",
+                      "format": "int32"
+                    },
+                    "right": {
+                      "description": "The right point in a Win32 Rect",
+                      "type": "integer",
+                      "format": "int32"
+                    },
+                    "top": {
+                      "description": "The top point in a Win32 Rect",
+                      "type": "integer",
+                      "format": "int32"
+                    }
+                  }
+                },
                 "workspace_padding": {
                   "description": "Workspace padding (default: global)",
                   "type": "integer",
