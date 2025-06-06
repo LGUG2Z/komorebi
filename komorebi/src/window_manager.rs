@@ -337,6 +337,7 @@ impl From<&WindowManager> for State {
                             latest_layout: workspace.latest_layout.clone(),
                             resize_dimensions: workspace.resize_dimensions.clone(),
                             tile: workspace.tile,
+                            work_area_offset: workspace.work_area_offset,
                             apply_window_based_work_area_offset: workspace
                                 .apply_window_based_work_area_offset,
                             window_container_behaviour: workspace.window_container_behaviour,

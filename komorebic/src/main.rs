@@ -429,6 +429,22 @@ struct MonitorWorkAreaOffset {
 }
 
 #[derive(Parser)]
+struct WorkspaceWorkAreaOffset {
+    /// Monitor index (zero-indexed)
+    monitor: usize,
+    /// Workspace index (zero-indexed)
+    workspace: usize,
+    /// Size of the left work area offset (set right to left * 2 to maintain right padding)
+    left: i32,
+    /// Size of the top work area offset (set bottom to the same value to maintain bottom padding)
+    top: i32,
+    /// Size of the right work area offset
+    right: i32,
+    /// Size of the bottom work area offset
+    bottom: i32,
+}
+
+#[derive(Parser)]
 struct MonitorIndexPreference {
     /// Preferred monitor index (zero-indexed)
     index_preference: usize,
@@ -1188,6 +1204,9 @@ enum SubCommand {
     /// Set offsets for a monitor to exclude parts of the work area from tiling
     #[clap(arg_required_else_help = true)]
     MonitorWorkAreaOffset(MonitorWorkAreaOffset),
+    /// Set offsets for a workspace to exclude parts of the work area from tiling
+    #[clap(arg_required_else_help = true)]
+    WorkspaceWorkAreaOffset(WorkspaceWorkAreaOffset),
     /// Toggle application of the window-based work area offset for the focused workspace
     ToggleWindowBasedWorkAreaOffset,
     /// Set container padding on the focused workspace
@@ -1938,6 +1957,20 @@ fn main() -> Result<()> {
                 bottom: arg.bottom,
             }))?;
         }
+
+        SubCommand::WorkspaceWorkAreaOffset(arg) => {
+            send_message(&SocketMessage::WorkspaceWorkAreaOffset(
+                arg.monitor,
+                arg.workspace,
+                Rect {
+                    left: arg.left,
+                    top: arg.top,
+                    right: arg.right,
+                    bottom: arg.bottom,
+                },
+            ))?;
+        }
+
         SubCommand::ToggleWindowBasedWorkAreaOffset => {
             send_message(&SocketMessage::ToggleWindowBasedWorkAreaOffset)?;
         }
