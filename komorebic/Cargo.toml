@@ -10,6 +10,7 @@ edition = "2021"
 [dependencies]
 komorebi-client = { path = "../komorebi-client", default-features = false }
 
+winreg = "0.55" 
 chrono = { workspace = true }
 clap = { workspace = true }
 color-eyre = { workspace = true }
