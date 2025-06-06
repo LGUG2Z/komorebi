@@ -87,6 +87,8 @@ pub struct Workspace {
     #[getset(get = "pub", set = "pub")]
     pub tile: bool,
     #[getset(get_copy = "pub", set = "pub")]
+    pub work_area_offset: Option<Rect>,
+    #[getset(get_copy = "pub", set = "pub")]
     pub apply_window_based_work_area_offset: bool,
     #[getset(get = "pub", get_mut = "pub", set = "pub")]
     pub window_container_behaviour: Option<WindowContainerBehaviour>,
@@ -147,6 +149,7 @@ impl Default for Workspace {
             latest_layout: vec![],
             resize_dimensions: vec![],
             tile: true,
+            work_area_offset: None,
             apply_window_based_work_area_offset: true,
             window_container_behaviour: None,
             window_container_behaviour_rules: None,
@@ -240,6 +243,8 @@ impl Workspace {
             self.tile = true;
             self.set_layout_rules(all_layout_rules);
         }
+
+        self.set_work_area_offset(config.work_area_offset);
 
         self.set_apply_window_based_work_area_offset(
             config.apply_window_based_work_area_offset.unwrap_or(true),
@@ -496,7 +501,7 @@ impl Workspace {
         let border_width = self.globals().border_width;
         let border_offset = self.globals().border_offset;
         let work_area = self.globals().work_area;
-        let work_area_offset = self.globals().work_area_offset;
+        let work_area_offset = self.work_area_offset().or(self.globals().work_area_offset);
         let window_based_work_area_offset = self.globals().window_based_work_area_offset;
         let window_based_work_area_offset_limit =
             self.globals().window_based_work_area_offset_limit;
