@@ -1,3 +1,4 @@
+use std::collections::vec_deque::IntoIter;
 use std::collections::VecDeque;
 
 use serde::Deserialize;
@@ -16,6 +17,15 @@ impl<T> Default for Ring<T> {
             elements: VecDeque::default(),
             focused: 0,
         }
+    }
+}
+
+impl<T> IntoIterator for Ring<T> {
+    type Item = T;
+    type IntoIter = IntoIter<Self::Item>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.elements.into_iter()
     }
 }
 
