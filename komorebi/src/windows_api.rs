@@ -40,13 +40,19 @@ use windows::Win32::Graphics::Gdi::InvalidateRect;
 use windows::Win32::Graphics::Gdi::MonitorFromPoint;
 use windows::Win32::Graphics::Gdi::MonitorFromWindow;
 use windows::Win32::Graphics::Gdi::Rectangle;
+use windows::Win32::Graphics::Gdi::RedrawWindow;
 use windows::Win32::Graphics::Gdi::RoundRect;
+use windows::Win32::Graphics::Gdi::UpdateWindow;
 use windows::Win32::Graphics::Gdi::HBRUSH;
 use windows::Win32::Graphics::Gdi::HDC;
 use windows::Win32::Graphics::Gdi::HMONITOR;
 use windows::Win32::Graphics::Gdi::MONITORENUMPROC;
 use windows::Win32::Graphics::Gdi::MONITORINFOEXW;
 use windows::Win32::Graphics::Gdi::MONITOR_DEFAULTTONEAREST;
+use windows::Win32::Graphics::Gdi::RDW_ALLCHILDREN;
+use windows::Win32::Graphics::Gdi::RDW_ERASE;
+use windows::Win32::Graphics::Gdi::RDW_INVALIDATE;
+use windows::Win32::Graphics::Gdi::RDW_UPDATENOW;
 use windows::Win32::System::Com::CoCreateInstance;
 use windows::Win32::System::Com::CLSCTX_ALL;
 use windows::Win32::System::LibraryLoader::GetModuleHandleW;
@@ -64,6 +70,7 @@ use windows::Win32::UI::HiDpi::GetDpiForMonitor;
 use windows::Win32::UI::HiDpi::SetProcessDpiAwarenessContext;
 use windows::Win32::UI::HiDpi::DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2;
 use windows::Win32::UI::HiDpi::MDT_EFFECTIVE_DPI;
+use windows::Win32::UI::Input::KeyboardAndMouse::mouse_event;
 use windows::Win32::UI::Input::KeyboardAndMouse::GetKeyState;
 use windows::Win32::UI::Input::KeyboardAndMouse::SendInput;
 use windows::Win32::UI::Input::KeyboardAndMouse::INPUT;
@@ -72,6 +79,7 @@ use windows::Win32::UI::Input::KeyboardAndMouse::INPUT_MOUSE;
 use windows::Win32::UI::Input::KeyboardAndMouse::MOUSEEVENTF_LEFTDOWN;
 use windows::Win32::UI::Input::KeyboardAndMouse::MOUSEEVENTF_LEFTUP;
 use windows::Win32::UI::Input::KeyboardAndMouse::MOUSEINPUT;
+use windows::Win32::UI::Input::KeyboardAndMouse::MOUSE_EVENT_FLAGS;
 use windows::Win32::UI::Input::KeyboardAndMouse::VK_LBUTTON;
 use windows::Win32::UI::Input::KeyboardAndMouse::VK_MENU;
 use windows::Win32::UI::Shell::DesktopWallpaper;
@@ -80,6 +88,7 @@ use windows::Win32::UI::Shell::DWPOS_FILL;
 use windows::Win32::UI::WindowsAndMessaging::AllowSetForegroundWindow;
 use windows::Win32::UI::WindowsAndMessaging::BringWindowToTop;
 use windows::Win32::UI::WindowsAndMessaging::CreateWindowExW;
+use windows::Win32::UI::WindowsAndMessaging::DispatchMessageW;
 use windows::Win32::UI::WindowsAndMessaging::EnumWindows;
 use windows::Win32::UI::WindowsAndMessaging::GetCursorPos;
 use windows::Win32::UI::WindowsAndMessaging::GetDesktopWindow;
@@ -96,10 +105,12 @@ use windows::Win32::UI::WindowsAndMessaging::IsWindow;
 use windows::Win32::UI::WindowsAndMessaging::IsWindowVisible;
 use windows::Win32::UI::WindowsAndMessaging::IsZoomed;
 use windows::Win32::UI::WindowsAndMessaging::MoveWindow;
+use windows::Win32::UI::WindowsAndMessaging::PeekMessageW;
 use windows::Win32::UI::WindowsAndMessaging::PostMessageW;
 use windows::Win32::UI::WindowsAndMessaging::RealGetWindowClassW;
 use windows::Win32::UI::WindowsAndMessaging::RegisterClassW;
 use windows::Win32::UI::WindowsAndMessaging::RegisterDeviceNotificationW;
+use windows::Win32::UI::WindowsAndMessaging::SendMessageW;
 use windows::Win32::UI::WindowsAndMessaging::SetCursorPos;
 use windows::Win32::UI::WindowsAndMessaging::SetForegroundWindow;
 use windows::Win32::UI::WindowsAndMessaging::SetLayeredWindowAttributes;
@@ -108,6 +119,7 @@ use windows::Win32::UI::WindowsAndMessaging::SetWindowPos;
 use windows::Win32::UI::WindowsAndMessaging::ShowWindow;
 use windows::Win32::UI::WindowsAndMessaging::ShowWindowAsync;
 use windows::Win32::UI::WindowsAndMessaging::SystemParametersInfoW;
+use windows::Win32::UI::WindowsAndMessaging::TranslateMessage;
 use windows::Win32::UI::WindowsAndMessaging::WindowFromPoint;
 use windows::Win32::UI::WindowsAndMessaging::CW_USEDEFAULT;
 use windows::Win32::UI::WindowsAndMessaging::DEV_BROADCAST_DEVICEINTERFACE_W;
@@ -118,9 +130,12 @@ use windows::Win32::UI::WindowsAndMessaging::HDEVNOTIFY;
 use windows::Win32::UI::WindowsAndMessaging::HWND_BOTTOM;
 use windows::Win32::UI::WindowsAndMessaging::HWND_TOP;
 use windows::Win32::UI::WindowsAndMessaging::LWA_ALPHA;
+use windows::Win32::UI::WindowsAndMessaging::MSG;
+use windows::Win32::UI::WindowsAndMessaging::PM_REMOVE;
 use windows::Win32::UI::WindowsAndMessaging::REGISTER_NOTIFICATION_FLAGS;
 use windows::Win32::UI::WindowsAndMessaging::SET_WINDOW_POS_FLAGS;
 use windows::Win32::UI::WindowsAndMessaging::SHOW_WINDOW_CMD;
+use windows::Win32::UI::WindowsAndMessaging::SIZE_RESTORED;
 use windows::Win32::UI::WindowsAndMessaging::SPIF_SENDCHANGE;
 use windows::Win32::UI::WindowsAndMessaging::SPI_GETACTIVEWINDOWTRACKING;
 use windows::Win32::UI::WindowsAndMessaging::SPI_GETFOREGROUNDLOCKTIMEOUT;
@@ -139,6 +154,12 @@ use windows::Win32::UI::WindowsAndMessaging::SYSTEM_PARAMETERS_INFO_ACTION;
 use windows::Win32::UI::WindowsAndMessaging::SYSTEM_PARAMETERS_INFO_UPDATE_FLAGS;
 use windows::Win32::UI::WindowsAndMessaging::WINDOW_LONG_PTR_INDEX;
 use windows::Win32::UI::WindowsAndMessaging::WM_CLOSE;
+use windows::Win32::UI::WindowsAndMessaging::WM_DISPLAYCHANGE;
+use windows::Win32::UI::WindowsAndMessaging::WM_ENTERSIZEMOVE;
+use windows::Win32::UI::WindowsAndMessaging::WM_EXITSIZEMOVE;
+use windows::Win32::UI::WindowsAndMessaging::WM_SETREDRAW;
+use windows::Win32::UI::WindowsAndMessaging::WM_SIZE;
+use windows::Win32::UI::WindowsAndMessaging::WM_SYNCPAINT;
 use windows::Win32::UI::WindowsAndMessaging::WNDCLASSW;
 use windows::Win32::UI::WindowsAndMessaging::WNDENUMPROC;
 use windows::Win32::UI::WindowsAndMessaging::WS_DISABLED;
@@ -1357,6 +1378,88 @@ impl WindowsApi {
     pub fn invalidate_rect(hwnd: isize, rect: Option<&Rect>, erase: bool) -> bool {
         let rect = rect.map(|rect| &rect.rect() as *const RECT);
         unsafe { InvalidateRect(Option::from(HWND(as_ptr!(hwnd))), rect, erase) }.as_bool()
+    }
+
+    pub fn update_window(hwnd: isize) -> Result<()> {
+        unsafe {
+            let _ = UpdateWindow(HWND(as_ptr!(hwnd)));
+        };
+        Ok(())
+    }
+
+    pub fn send_enter_size_move(hwnd: isize) -> Result<()> {
+        unsafe {
+            SendMessageW(HWND(as_ptr!(hwnd)), WM_ENTERSIZEMOVE, None, None);
+            Ok(())
+        }
+    }
+
+    pub fn send_exit_size_move(hwnd: isize) -> Result<()> {
+        unsafe {
+            SendMessageW(HWND(as_ptr!(hwnd)), WM_EXITSIZEMOVE, None, None);
+            Ok(())
+        }
+    }
+
+    pub fn send_paint_sync(hwnd: isize) -> Result<()> {
+        unsafe {
+            SendMessageW(HWND(as_ptr!(hwnd)), WM_SYNCPAINT, None, None);
+            Ok(())
+        }
+    }
+
+    pub fn send_set_redraw(hwnd: isize, redraw: bool) -> Result<()> {
+        unsafe {
+            SendMessageW(
+                HWND(as_ptr!(hwnd)),
+                WM_SETREDRAW,
+                Some(WPARAM(!redraw as usize)),
+                None,
+            )
+        };
+        Ok(())
+    }
+
+    pub fn send_size(hwnd: isize, width: u32, height: u32) -> Result<()> {
+        let lparam = LPARAM(((height << 16 | width) as isize).try_into().unwrap());
+        unsafe {
+            SendMessageW(
+                HWND(as_ptr!(hwnd)),
+                WM_SIZE,
+                Some(WPARAM(SIZE_RESTORED as usize)),
+                Some(lparam),
+            );
+            Ok(())
+        }
+    }
+
+    pub fn send_display_change(hwnd: isize) -> Result<()> {
+        unsafe {
+            SendMessageW(HWND(as_ptr!(hwnd)), WM_DISPLAYCHANGE, None, None);
+            Ok(())
+        }
+    }
+    pub fn pump_messages() -> Result<()> {
+        let mut msg = MSG::default();
+        while unsafe { PeekMessageW(&mut msg, None, 0, 0, PM_REMOVE) }.as_bool() {
+            unsafe {
+                let _ = TranslateMessage(&msg);
+                let _ = DispatchMessageW(&msg);
+            }
+        }
+        Ok(())
+    }
+
+    pub fn redraw_window(hwnd: isize) -> bool {
+        unsafe {
+            RedrawWindow(
+                Option::from(HWND(as_ptr!(hwnd))),
+                None,
+                None,
+                RDW_INVALIDATE | RDW_ALLCHILDREN | RDW_ERASE | RDW_UPDATENOW,
+            )
+        }
+        .as_bool()
     }
 
     pub fn alt_is_pressed() -> bool {
