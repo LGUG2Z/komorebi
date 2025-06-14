@@ -1,5 +1,6 @@
 use super::ImageIcon;
 use crate::config::DisplayFormat;
+use crate::config::DisplayFormat::*;
 use crate::config::WorkspacesDisplayFormat;
 use crate::render::RenderConfig;
 use crate::selected_frame::SelectableFrame;
@@ -11,6 +12,7 @@ use crate::MONITOR_INDEX;
 use eframe::egui::text::LayoutJob;
 use eframe::egui::vec2;
 use eframe::egui::Align;
+use eframe::egui::Color32;
 use eframe::egui::Context;
 use eframe::egui::CornerRadius;
 use eframe::egui::Frame;
@@ -148,7 +150,10 @@ impl From<&KomorebiConfig> for Komorebi {
             workspaces_old: cfg.workspaces,
             workspaces: cfg.workspaces.and_then(WorkspacesBar::try_from),
             layout: cfg.layout.clone(),
-            focused_container: cfg.focused_container,
+            focused_container_old: cfg.focused_container,
+            focused_container: cfg
+                .focused_container
+                .and_then(FocusedContainerBar::try_from),
             workspace_layer: cfg.workspace_layer,
             locked_container: cfg.locked_container,
             configuration_switcher,
@@ -162,7 +167,8 @@ pub struct Komorebi {
     pub workspaces_old: Option<KomorebiWorkspacesConfig>,
     pub workspaces: Option<WorkspacesBar>,
     pub layout: Option<KomorebiLayoutConfig>,
-    pub focused_container: Option<KomorebiFocusedContainerConfig>,
+    pub focused_container_old: Option<KomorebiFocusedContainerConfig>,
+    pub focused_container: Option<FocusedContainerBar>,
     pub workspace_layer: Option<KomorebiWorkspaceLayerConfig>,
     pub locked_container: Option<KomorebiLockedContainerConfig>,
     pub configuration_switcher: Option<KomorebiConfigurationSwitcherConfig>,
@@ -510,7 +516,7 @@ impl BarWidget for Komorebi {
             }
         }
 
-        if let Some(focused_container_config) = self.focused_container {
+        if let Some(focused_container_config) = self.focused_container_old {
             if focused_container_config.enable {
                 let monitor_info = &mut self.monitor_info.borrow_mut();
 
@@ -615,6 +621,8 @@ impl BarWidget for Komorebi {
                 }
             }
         }
+
+        self.render_focused_container(ctx, ui, config);
     }
 }
 
@@ -661,6 +669,36 @@ impl Komorebi {
                     .show(ctx, ui, config, layout_config, workspace_idx);
             }
         }
+    }
+
+    fn render_focused_container(&mut self, ctx: &Context, ui: &mut Ui, config: &mut RenderConfig) {
+        let Some(bar) = &self.focused_container else {
+            return;
+        };
+        let monitor_info = &*self.monitor_info.borrow();
+        let Some(container) = monitor_info.focused_container() else {
+            return;
+        };
+        config.apply_on_widget(false, ui, |ui| {
+            let (len, focused_idx) = (container.windows.len(), container.focused_window_idx);
+
+            for (idx, window) in container.windows.iter().enumerate() {
+                let selected = idx == focused_idx && len != 1;
+                let text_color = if selected {
+                    ctx.style().visuals.selection.stroke.color
+                } else {
+                    ui.style().visuals.text_color()
+                };
+
+                let response = SelectableFrame::new(selected).show(ui, |ui| {
+                    (bar.renderer)(bar, ctx, ui, window, text_color, idx == focused_idx)
+                });
+
+                if response.clicked() && !selected {
+                    let _ = Self::send_with_mouse_follow_off(monitor_info, FocusStackWindow(idx));
+                }
+            }
+        });
     }
 
     /// Sends a message to Komorebi, temporarily disabling MouseFollowsFocus if it's enabled.
@@ -805,6 +843,96 @@ impl WorkspacesBar {
             ui.add(Label::new(text).selectable(false))
         } else {
             ui.add(Label::new(&ws.name).selectable(false))
+        }
+    }
+}
+
+/// Structure for displaying the focused container's windows in the bar.
+/// Uses a pre-selected rendering strategy (based on config) for efficient display
+#[derive(Clone, Debug)]
+pub struct FocusedContainerBar {
+    /// Chosen rendering function for this widget
+    renderer: fn(&Self, &Context, &mut Ui, &WindowInfo, Color32, focused: bool),
+    /// Icon size (default: 12.5 * 1.4)
+    icon_size: Vec2,
+}
+
+impl FocusedContainerBar {
+    /// Creates a `FocusedContainerBar` from the given configuration.
+    ///
+    /// Selects a render strategy based on the display format or legacy icon setting.
+    /// Returns `None` if the widget is disabled.
+    fn try_from(value: KomorebiFocusedContainerConfig) -> Option<Self> {
+        if !value.enable {
+            return None;
+        }
+        // Handle legacy setting - convert show_icon to display format
+        let format = value
+            .display
+            .unwrap_or(if value.show_icon.unwrap_or(false) {
+                IconAndText
+            } else {
+                Text
+            });
+
+        // Select renderer strategy based on display format for better performance
+        let renderer: fn(&FocusedContainerBar, &Context, &mut Ui, &WindowInfo, Color32, bool) =
+            match format {
+                Icon => |_self, ctx, ui, info, _color, _focused| {
+                    FocusedContainerBar::show_icon::<true>(_self, ctx, ui, info);
+                },
+                Text => |_self, _ctx, ui, info, color, _focused| {
+                    FocusedContainerBar::show_title(_self, ui, info, color);
+                },
+                IconAndText => |_self, ctx, ui, info, color, _focused| {
+                    FocusedContainerBar::show_icon::<false>(_self, ctx, ui, info);
+                    FocusedContainerBar::show_title(_self, ui, info, color);
+                },
+                IconAndTextOnSelected => |_self, ctx, ui, info, color, focused| {
+                    FocusedContainerBar::show_icon::<false>(_self, ctx, ui, info);
+                    if focused {
+                        FocusedContainerBar::show_title(_self, ui, info, color);
+                    }
+                },
+                TextAndIconOnSelected => |_self, ctx, ui, info, color, focused| {
+                    if focused {
+                        FocusedContainerBar::show_icon::<false>(_self, ctx, ui, info);
+                    }
+                    FocusedContainerBar::show_title(_self, ui, info, color);
+                },
+            };
+
+        Some(FocusedContainerBar {
+            renderer,
+            icon_size: Vec2::splat(12.5 * 1.4),
+        })
+    }
+
+    /// Draws window icon(s) at configured size; adds hover text if HOVEL is true.
+    fn show_icon<const HOVEL: bool>(&self, ctx: &Context, ui: &mut Ui, info: &WindowInfo) {
+        let inner_response = Frame::NONE
+            .inner_margin(Margin::same(ui.style().spacing.button_padding.y as i8))
+            .show(ui, |ui| {
+                for icon in info.icon.iter() {
+                    let img = Image::from(&icon.texture(ctx)).maintain_aspect_ratio(true);
+                    ui.add(img.fit_to_exact_size(self.icon_size));
+                }
+            });
+        if HOVEL {
+            if let Some(title) = &info.title {
+                inner_response.response.on_hover_text(title);
+            }
+        }
+    }
+
+    /// Renders the window title label in color, truncating if needed.
+    fn show_title(&self, ui: &mut Ui, info: &WindowInfo, color: Color32) {
+        if let Some(title) = &info.title {
+            let text = Label::new(RichText::new(title).color(color)).selectable(false);
+
+            let x = MAX_LABEL_WIDTH.load(Ordering::SeqCst) as f32;
+            let y = ui.available_height();
+            CustomUi(ui).add_sized_left_to_right(Vec2::new(x, y), text.truncate());
         }
     }
 }
