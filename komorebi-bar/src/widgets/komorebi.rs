@@ -11,7 +11,6 @@ use crate::MONITOR_INDEX;
 use eframe::egui::text::LayoutJob;
 use eframe::egui::vec2;
 use eframe::egui::Align;
-use eframe::egui::Color32;
 use eframe::egui::Context;
 use eframe::egui::CornerRadius;
 use eframe::egui::Frame;
@@ -633,7 +632,6 @@ pub struct MonitorInfo {
     pub layout: KomorebiLayout,
     pub mouse_follows_focus: bool,
     pub work_area_offset: Option<Rect>,
-    pub stack_accent: Option<Color32>,
     pub monitor_index: usize,
     pub monitor_usr_idx_map: HashMap<usize, usize>,
     pub focused_workspace_idx: Option<usize>,
@@ -648,7 +646,6 @@ impl Default for MonitorInfo {
             layout: KomorebiLayout::Default(komorebi_client::DefaultLayout::BSP),
             mouse_follows_focus: true,
             work_area_offset: None,
-            stack_accent: None,
             monitor_index: MONITOR_INDEX.load(Ordering::SeqCst),
             monitor_usr_idx_map: HashMap::new(),
             focused_workspace_idx: None,
