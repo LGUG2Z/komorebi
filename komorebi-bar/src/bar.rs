@@ -10,7 +10,7 @@ use crate::render::Grouping;
 use crate::render::RenderConfig;
 use crate::render::RenderExt;
 use crate::widgets::komorebi::Komorebi;
-use crate::widgets::komorebi::KomorebiNotificationState;
+use crate::widgets::komorebi::MonitorInfo;
 use crate::widgets::widget::BarWidget;
 use crate::widgets::widget::WidgetConfig;
 use crate::KomorebiEvent;
@@ -47,17 +47,14 @@ use eframe::egui::Visuals;
 use font_loader::system_fonts;
 use font_loader::system_fonts::FontPropertyBuilder;
 use komorebi_client::Colour;
-use komorebi_client::KomorebiTheme;
 use komorebi_client::MonitorNotification;
 use komorebi_client::NotificationEvent;
 use komorebi_client::PathExt;
 use komorebi_client::SocketMessage;
 use komorebi_client::VirtualDesktopNotification;
 use komorebi_themes::catppuccin_egui;
-use komorebi_themes::Base16Value;
 use komorebi_themes::Base16Wrapper;
 use komorebi_themes::Catppuccin;
-use komorebi_themes::CatppuccinValue;
 use lazy_static::lazy_static;
 use parking_lot::Mutex;
 use std::cell::RefCell;
@@ -153,7 +150,7 @@ pub struct Komobar {
     pub disabled: bool,
     pub config: KomobarConfig,
     pub render_config: Rc<RefCell<RenderConfig>>,
-    pub komorebi_notification_state: Option<Rc<RefCell<KomorebiNotificationState>>>,
+    pub monitor_info: Option<Rc<RefCell<MonitorInfo>>>,
     pub left_widgets: Vec<Box<dyn BarWidget>>,
     pub center_widgets: Vec<Box<dyn BarWidget>>,
     pub right_widgets: Vec<Box<dyn BarWidget>>,
@@ -345,7 +342,7 @@ impl Komobar {
     pub fn apply_config(
         &mut self,
         ctx: &Context,
-        previous_notification_state: Option<Rc<RefCell<KomorebiNotificationState>>>,
+        previous_monitor_info: Option<Rc<RefCell<MonitorInfo>>>,
     ) {
         MAX_LABEL_WIDTH.store(
             self.config.max_label_width.unwrap_or(400.0) as i32,
@@ -374,7 +371,7 @@ impl Komobar {
             self.config.icon_scale,
         ));
 
-        let mut komorebi_notification_state = previous_notification_state;
+        let mut monitor_info = previous_monitor_info;
         let mut komorebi_widgets = Vec::new();
 
         for (idx, widget_config) in self.config.left_widgets.iter().enumerate() {
@@ -426,19 +423,18 @@ impl Komobar {
             komorebi_widgets
                 .into_iter()
                 .for_each(|(mut widget, idx, side)| {
-                    match komorebi_notification_state {
+                    match monitor_info {
                         None => {
-                            komorebi_notification_state =
-                                Some(widget.komorebi_notification_state.clone());
+                            monitor_info = Some(widget.monitor_info.clone());
                         }
                         Some(ref previous) => {
-                            if widget.workspaces.is_some_and(|w| w.enable) {
-                                previous.borrow_mut().update_from_config(
-                                    &widget.komorebi_notification_state.borrow(),
-                                );
+                            if widget.workspaces.is_some() {
+                                previous
+                                    .borrow_mut()
+                                    .update_from_self(&widget.monitor_info.borrow());
                             }
 
-                            widget.komorebi_notification_state = previous.clone();
+                            widget.monitor_info = previous.clone();
                         }
                     }
 
@@ -464,17 +460,17 @@ impl Komobar {
             MonitorConfigOrIndex::Index(idx) => (*idx, None),
         };
 
-        let mapped_state = self.komorebi_notification_state.as_ref().map(|state| {
-            let state = state.borrow();
+        let mapped_info = self.monitor_info.as_ref().map(|info| {
+            let monitor = info.borrow();
             (
-                state.monitor_usr_idx_map.get(&usr_monitor_index).copied(),
-                state.mouse_follows_focus,
+                monitor.monitor_usr_idx_map.get(&usr_monitor_index).copied(),
+                monitor.mouse_follows_focus,
             )
         });
 
-        if let Some(state) = mapped_state {
-            self.monitor_index = state.0;
-            self.mouse_follows_focus = state.1;
+        if let Some(info) = mapped_info {
+            self.monitor_index = info.0;
+            self.mouse_follows_focus = info.1;
         }
 
         if let Some(monitor_index) = self.monitor_index {
@@ -526,7 +522,7 @@ impl Komobar {
                     }
                 }
             }
-        } else if self.komorebi_notification_state.is_some() && !self.disabled {
+        } else if self.monitor_info.is_some() && !self.disabled {
             tracing::warn!("couldn't find the monitor index of this bar! Disabling the bar until the monitor connects...");
             self.disabled = true;
         } else {
@@ -566,7 +562,7 @@ impl Komobar {
 
         tracing::info!("widget configuration options applied");
 
-        self.komorebi_notification_state = komorebi_notification_state;
+        self.monitor_info = monitor_info;
     }
 
     /// Updates the `size_rect` field. Returns a bool indicating if the field was changed or not
@@ -649,26 +645,6 @@ impl Komobar {
                 match komorebi_client::StaticConfig::read(&config) {
                     Ok(config) => {
                         if let Some(theme) = config.theme {
-                            let stack_accent = match theme {
-                                KomorebiTheme::Catppuccin {
-                                    name, stack_border, ..
-                                } => stack_border
-                                    .unwrap_or(CatppuccinValue::Green)
-                                    .color32(name.as_theme()),
-                                KomorebiTheme::Base16 {
-                                    name, stack_border, ..
-                                } => stack_border
-                                    .unwrap_or(Base16Value::Base0B)
-                                    .color32(Base16Wrapper::Base16(name)),
-                                KomorebiTheme::Custom {
-                                    ref colours,
-                                    stack_border,
-                                    ..
-                                } => stack_border
-                                    .unwrap_or(Base16Value::Base0B)
-                                    .color32(Base16Wrapper::Custom(colours.clone())),
-                            };
-
                             apply_theme(
                                 ctx,
                                 KomobarTheme::from(theme),
@@ -678,10 +654,6 @@ impl Komobar {
                                 bar_grouping,
                                 self.render_config.clone(),
                             );
-
-                            if let Some(state) = &self.komorebi_notification_state {
-                                state.borrow_mut().stack_accent = Some(stack_accent);
-                            }
                         }
                     }
                     Err(_) => {
@@ -724,7 +696,7 @@ impl Komobar {
             disabled: false,
             config,
             render_config: Rc::new(RefCell::new(RenderConfig::new())),
-            komorebi_notification_state: None,
+            monitor_info: None,
             left_widgets: vec![],
             center_widgets: vec![],
             right_widgets: vec![],
@@ -870,12 +842,12 @@ impl eframe::App for Komobar {
 
         if self.scale_factor != ctx.native_pixels_per_point().unwrap_or(1.0) {
             self.scale_factor = ctx.native_pixels_per_point().unwrap_or(1.0);
-            self.apply_config(ctx, self.komorebi_notification_state.clone());
+            self.apply_config(ctx, self.monitor_info.clone());
         }
 
         if let Ok(updated_config) = self.rx_config.try_recv() {
             self.config = updated_config;
-            self.apply_config(ctx, self.komorebi_notification_state.clone());
+            self.apply_config(ctx, self.monitor_info.clone());
         }
 
         match self.rx_gui.try_recv() {
@@ -1000,24 +972,26 @@ impl eframe::App for Komobar {
                     }
                 }
 
-                if let Some(komorebi_notification_state) = &self.komorebi_notification_state {
-                    komorebi_notification_state
-                        .borrow_mut()
-                        .handle_notification(
-                            ctx,
-                            self.monitor_index,
-                            notification,
-                            self.bg_color.clone(),
-                            self.bg_color_with_alpha.clone(),
-                            self.config.transparency_alpha,
-                            self.config.grouping,
-                            self.config.theme.clone(),
-                            self.render_config.clone(),
-                        );
+                if let Some(monitor_info) = &self.monitor_info {
+                    monitor_info.borrow_mut().update(
+                        self.monitor_index,
+                        notification.state,
+                        self.render_config.borrow().show_all_icons,
+                    );
+                    handle_notification(
+                        ctx,
+                        notification.event,
+                        self.bg_color.clone(),
+                        self.bg_color_with_alpha.clone(),
+                        self.config.transparency_alpha,
+                        self.config.grouping,
+                        self.config.theme.clone(),
+                        self.render_config.clone(),
+                    );
                 }
 
                 if should_apply_config {
-                    self.apply_config(ctx, self.komorebi_notification_state.clone());
+                    self.apply_config(ctx, self.monitor_info.clone());
 
                     // Reposition the Bar
                     self.position_bar();
@@ -1342,4 +1316,65 @@ pub enum Alignment {
     Left,
     Center,
     Right,
+}
+
+#[allow(clippy::too_many_arguments)]
+fn handle_notification(
+    ctx: &Context,
+    event: komorebi_client::NotificationEvent,
+    bg_color: Rc<RefCell<Color32>>,
+    bg_color_with_alpha: Rc<RefCell<Color32>>,
+    transparency_alpha: Option<u8>,
+    grouping: Option<Grouping>,
+    default_theme: Option<KomobarTheme>,
+    render_config: Rc<RefCell<RenderConfig>>,
+) {
+    if let NotificationEvent::Socket(message) = event {
+        match message {
+            SocketMessage::ReloadStaticConfiguration(path) => {
+                if let Ok(config) = komorebi_client::StaticConfig::read(&path) {
+                    if let Some(theme) = config.theme {
+                        apply_theme(
+                            ctx,
+                            KomobarTheme::from(theme),
+                            bg_color.clone(),
+                            bg_color_with_alpha.clone(),
+                            transparency_alpha,
+                            grouping,
+                            render_config,
+                        );
+                        tracing::info!("applied theme from updated komorebi.json");
+                    } else if let Some(default_theme) = default_theme {
+                        apply_theme(
+                            ctx,
+                            default_theme,
+                            bg_color.clone(),
+                            bg_color_with_alpha.clone(),
+                            transparency_alpha,
+                            grouping,
+                            render_config,
+                        );
+                        tracing::info!(
+                            "removed theme from updated komorebi.json and applied default theme"
+                        );
+                    } else {
+                        tracing::warn!("theme was removed from updated komorebi.json but there was no default theme to apply");
+                    }
+                }
+            }
+            SocketMessage::Theme(theme) => {
+                apply_theme(
+                    ctx,
+                    KomobarTheme::from(*theme),
+                    bg_color,
+                    bg_color_with_alpha.clone(),
+                    transparency_alpha,
+                    grouping,
+                    render_config,
+                );
+                tracing::info!("applied theme from komorebi socket message");
+            }
+            _ => {}
+        }
+    }
 }
