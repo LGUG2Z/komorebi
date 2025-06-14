@@ -428,7 +428,7 @@ impl Komobar {
                             monitor_info = Some(widget.monitor_info.clone());
                         }
                         Some(ref previous) => {
-                            if widget.workspaces.is_some_and(|w| w.enable) {
+                            if widget.workspaces_old.is_some_and(|w| w.enable) {
                                 previous
                                     .borrow_mut()
                                     .update_from_self(&widget.monitor_info.borrow());
