@@ -846,11 +846,12 @@ impl KomorebiNotificationState {
         }
 
         let focused_workspace = &monitor.workspaces()[focused_workspace_idx];
-        let is_focused = focused_workspace
-            .locked_containers()
-            .contains(&focused_workspace.focused_container_idx());
+        let is_locked = match focused_workspace.focused_container() {
+            Some(container) => container.locked(),
+            None => false,
+        };
 
-        self.focused_container_information = (is_focused, focused_workspace.into());
+        self.focused_container_information = (is_locked, focused_workspace.into());
     }
 }
 
