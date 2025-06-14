@@ -17,6 +17,7 @@ use eframe::egui::Frame;
 use eframe::egui::Image;
 use eframe::egui::Label;
 use eframe::egui::Margin;
+use eframe::egui::Response;
 use eframe::egui::RichText;
 use eframe::egui::Sense;
 use eframe::egui::Stroke;
@@ -28,6 +29,7 @@ use komorebi_client::Container;
 use komorebi_client::PathExt;
 use komorebi_client::Rect;
 use komorebi_client::SocketMessage;
+use komorebi_client::SocketMessage::*;
 use komorebi_client::State;
 use komorebi_client::Window;
 use komorebi_client::Workspace;
@@ -37,6 +39,7 @@ use serde::Serialize;
 use std::cell::RefCell;
 use std::collections::BTreeMap;
 use std::collections::HashMap;
+use std::io::Result as IoResult;
 use std::path::Path;
 use std::path::PathBuf;
 use std::rc::Rc;
@@ -142,7 +145,8 @@ impl From<&KomorebiConfig> for Komorebi {
                     .unwrap_or_default(),
                 ..Default::default()
             })),
-            workspaces: cfg.workspaces,
+            workspaces_old: cfg.workspaces,
+            workspaces: cfg.workspaces.and_then(WorkspacesBar::try_from),
             layout: cfg.layout.clone(),
             focused_container: cfg.focused_container,
             workspace_layer: cfg.workspace_layer,
@@ -155,7 +159,8 @@ impl From<&KomorebiConfig> for Komorebi {
 #[derive(Clone, Debug)]
 pub struct Komorebi {
     pub monitor_info: Rc<RefCell<MonitorInfo>>,
-    pub workspaces: Option<KomorebiWorkspacesConfig>,
+    pub workspaces_old: Option<KomorebiWorkspacesConfig>,
+    pub workspaces: Option<WorkspacesBar>,
     pub layout: Option<KomorebiLayoutConfig>,
     pub focused_container: Option<KomorebiFocusedContainerConfig>,
     pub workspace_layer: Option<KomorebiWorkspaceLayerConfig>,
@@ -168,7 +173,7 @@ impl BarWidget for Komorebi {
         let icon_size = Vec2::splat(config.icon_font_id.size);
         let text_size = Vec2::splat(config.text_font_id.size);
 
-        if let Some(workspaces) = self.workspaces {
+        if let Some(workspaces) = self.workspaces_old {
             if workspaces.enable {
                 let mut update = None;
                 let mut monitor_info = self.monitor_info.borrow_mut();
@@ -299,6 +304,8 @@ impl BarWidget for Komorebi {
                 }
             }
         }
+
+        self.render_workspaces(ctx, ui, config);
 
         if let Some(layer_config) = &self.workspace_layer {
             if layer_config.enable {
@@ -615,6 +622,185 @@ impl BarWidget for Komorebi {
                     });
                 }
             }
+        }
+    }
+}
+
+impl Komorebi {
+    /// Renders the workspace bar for the current monitor.
+    /// Updates the focused workspace when a workspace is clicked.
+    fn render_workspaces(&mut self, ctx: &Context, ui: &mut Ui, config: &mut RenderConfig) {
+        let monitor_info = &mut *self.monitor_info.borrow_mut();
+
+        let bar = match &mut self.workspaces {
+            Some(wg) if !monitor_info.workspaces.is_empty() => wg,
+            _ => return,
+        };
+
+        bar.text_size = Vec2::splat(config.text_font_id.size);
+        bar.icon_size = Vec2::splat(config.icon_font_id.size);
+
+        config.apply_on_widget(false, ui, |ui| {
+            for (index, workspace) in monitor_info.workspaces.iter().enumerate() {
+                if !workspace.should_show {
+                    continue;
+                }
+
+                let response = SelectableFrame::new(workspace.is_selected)
+                    .show(ui, |ui| (bar.renderer)(bar, ctx, ui, workspace));
+
+                if response.clicked() {
+                    let message = FocusMonitorWorkspaceNumber(monitor_info.monitor_index, index);
+                    if Self::send_with_mouse_follow_off(monitor_info, message).is_ok() {
+                        monitor_info.focused_workspace_idx = Some(index);
+                    }
+                }
+            }
+        });
+    }
+
+    /// Sends a message to Komorebi, temporarily disabling MouseFollowsFocus if it's enabled.
+    fn send_with_mouse_follow_off(monitor: &MonitorInfo, message: SocketMessage) -> IoResult<()> {
+        let messages: &[SocketMessage] = if monitor.mouse_follows_focus {
+            &[MouseFollowsFocus(false), message, MouseFollowsFocus(true)]
+        } else {
+            &[message]
+        };
+        Self::send_messages(messages)
+    }
+
+    /// Sends a batch of messages to Komorebi, logging errors on failure.
+    fn send_messages(messages: &[SocketMessage]) -> IoResult<()> {
+        komorebi_client::send_batch(messages).map_err(|err| {
+            tracing::error!("Failed to send message(s): {:?}\nError: {}", messages, err);
+            err
+        })
+    }
+}
+
+/// Workspace bar with a pre-selected render strategy for efficient
+/// workspace display
+#[derive(Clone, Debug)]
+pub struct WorkspacesBar {
+    /// Chosen rendering function for this widget
+    renderer: fn(&Self, &Context, &mut Ui, &WorkspaceInfo),
+    /// Text size (default: 12.5)
+    text_size: Vec2,
+    /// Icon size (default: 12.5 * 1.4)
+    icon_size: Vec2,
+}
+
+impl WorkspacesBar {
+    /// Creates a `WorkspacesBar` instance from a workspace configuration.
+    ///
+    /// Selects a render strategy based on the given display format
+    /// for optimal performance. Returns `None` if the widget is disabled.
+    fn try_from(value: KomorebiWorkspacesConfig) -> Option<Self> {
+        use WorkspacesDisplayFormat::*;
+        if !value.enable {
+            return None;
+        }
+        // Selects a render strategy according to the workspace config's display format
+        // for better performance
+        let renderer: fn(&Self, &Context, &mut Ui, &WorkspaceInfo) =
+            match value.display.unwrap_or(DisplayFormat::Text.into()) {
+                // 1: Show icons if any, fallback if none | Only hover workspace name
+                AllIcons | Existing(DisplayFormat::Icon) => |bar, ctx, ui, ws| {
+                    bar.show_icons(ctx, ui, ws)
+                        .unwrap_or_else(|| bar.show_fallback_icon(ctx, ui, ws))
+                        .on_hover_text(&ws.name);
+                },
+                // 2: Show icons, with no fallback | Label workspace name (no hover)
+                AllIconsAndText | Existing(DisplayFormat::IconAndText) => |bar, ctx, ui, ws| {
+                    bar.show_icons(ctx, ui, ws);
+                    Self::show_label(ctx, ui, ws);
+                },
+                // 3: Show icons, fallback if no icons and not selected | Label workspace name if selected else hover
+                AllIconsAndTextOnSelected | Existing(DisplayFormat::IconAndTextOnSelected) => {
+                    |bar, ctx, ui, ws| {
+                        if bar.show_icons(ctx, ui, ws).is_none() && !ws.is_selected {
+                            bar.show_fallback_icon(ctx, ui, ws);
+                        }
+                        if ws.is_selected {
+                            Self::show_label(ctx, ui, ws);
+                        } else {
+                            ui.response().on_hover_text(&ws.name);
+                        }
+                    }
+                }
+                // 4: Show icons if selected and has icons (no fallback) | Label workspace name
+                Existing(DisplayFormat::TextAndIconOnSelected) => |bar, ctx, ui, ws| {
+                    if ws.is_selected {
+                        bar.show_icons(ctx, ui, ws);
+                    }
+                    Self::show_label(ctx, ui, ws);
+                },
+                // 5: Never show icon (no icons at all) | Label workspace name always
+                Existing(DisplayFormat::Text) => |_, ctx, ui, ws| {
+                    Self::show_label(ctx, ui, ws);
+                },
+            };
+
+        Some(Self {
+            renderer,
+            icon_size: Vec2::splat(12.5),
+            text_size: Vec2::splat(12.5 * 1.4),
+        })
+    }
+
+    /// Draws all window icons for the workspace, using larger size for the focused container.
+    /// Returns response if icons exist, or None.
+    fn show_icons(&self, ctx: &Context, ui: &mut Ui, ws: &WorkspaceInfo) -> Option<Response> {
+        ws.has_icons.then(|| {
+            Frame::NONE
+                .inner_margin(Margin::same(ui.style().spacing.button_padding.y as i8))
+                .show(ui, |ui| {
+                    for container in &ws.containers {
+                        for icon in container.windows.iter().filter_map(|win| win.icon.as_ref()) {
+                            ui.add(
+                                Image::from(&icon.texture(ctx))
+                                    .maintain_aspect_ratio(true)
+                                    .fit_to_exact_size(if container.is_focused {
+                                        self.icon_size
+                                    } else {
+                                        self.text_size
+                                    }),
+                            );
+                        }
+                    }
+                })
+                .response
+        })
+    }
+
+    /// Draws a fallback icon (a rectangle with a diagonal) for the workspace.
+    fn show_fallback_icon(&self, ctx: &Context, ui: &mut Ui, ws: &WorkspaceInfo) -> Response {
+        let (response, painter) = ui.allocate_painter(self.icon_size, Sense::hover());
+        let stroke: Stroke = Stroke::new(
+            1.0,
+            if ws.is_selected {
+                ctx.style().visuals.selection.stroke.color
+            } else {
+                ui.style().visuals.text_color()
+            },
+        );
+        let mut rect = response.rect;
+        let rounding = CornerRadius::same((rect.width() * 0.1) as u8);
+        rect = rect.shrink(stroke.width);
+        let c = rect.center();
+        let r = rect.width() / 2.0;
+        painter.rect_stroke(rect, rounding, stroke, StrokeKind::Outside);
+        painter.line_segment([c - vec2(r, r), c + vec2(r, r)], stroke);
+        response
+    }
+
+    /// Shows the workspace label (colored if selected).
+    fn show_label(ctx: &Context, ui: &mut Ui, ws: &WorkspaceInfo) -> Response {
+        if ws.is_selected {
+            let text = RichText::new(&ws.name).color(ctx.style().visuals.selection.stroke.color);
+            ui.add(Label::new(text).selectable(false))
+        } else {
+            ui.add(Label::new(&ws.name).selectable(false))
         }
     }
 }
