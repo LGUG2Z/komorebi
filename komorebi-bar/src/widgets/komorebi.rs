@@ -416,15 +416,7 @@ impl BarWidget for Komorebi {
             }
         }
 
-        if let Some(layout_config) = &self.layout {
-            if layout_config.enable {
-                let monitor_info = &mut self.monitor_info.borrow_mut();
-                let workspace_idx = monitor_info.focused_workspace_idx;
-                monitor_info
-                    .layout
-                    .show(ctx, ui, config, layout_config, workspace_idx);
-            }
-        }
+        self.render_layout(ctx, ui, config);
 
         if let Some(configuration_switcher) = &self.configuration_switcher {
             if configuration_switcher.enable {
@@ -657,6 +649,18 @@ impl Komorebi {
                 }
             }
         });
+    }
+
+    fn render_layout(&mut self, ctx: &Context, ui: &mut Ui, config: &mut RenderConfig) {
+        if let Some(layout_config) = &self.layout {
+            if layout_config.enable {
+                let monitor_info = &mut *self.monitor_info.borrow_mut();
+                let workspace_idx = monitor_info.focused_workspace_idx;
+                monitor_info
+                    .layout
+                    .show(ctx, ui, config, layout_config, workspace_idx);
+            }
+        }
     }
 
     /// Sends a message to Komorebi, temporarily disabling MouseFollowsFocus if it's enabled.
