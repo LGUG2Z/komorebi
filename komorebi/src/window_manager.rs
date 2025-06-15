@@ -347,7 +347,6 @@ impl From<&WindowManager> for State {
                             layer: workspace.layer,
                             floating_layer_behaviour: workspace.floating_layer_behaviour,
                             globals: workspace.globals,
-                            locked_containers: workspace.locked_containers.clone(),
                             wallpaper: workspace.wallpaper.clone(),
                             workspace_config: None,
                         })
@@ -3192,14 +3191,10 @@ impl WindowManager {
     #[tracing::instrument(skip(self))]
     pub fn toggle_lock(&mut self) -> Result<()> {
         let workspace = self.focused_workspace_mut()?;
-        let index = workspace.focused_container_idx();
-
-        if workspace.locked_containers().contains(&index) {
-            workspace.locked_containers_mut().remove(&index);
-        } else {
-            workspace.locked_containers_mut().insert(index);
+        if let Some(container) = workspace.focused_container_mut() {
+            // Toggle the locked flag
+            container.set_locked(!container.locked());
         }
-
         Ok(())
     }
 
@@ -5375,7 +5370,8 @@ mod tests {
         {
             // Ensure container 2 is not locked
             let workspace = wm.focused_workspace_mut().unwrap();
-            assert!(!workspace.locked_containers().contains(&2));
+            assert_eq!(workspace.focused_container_idx(), 2);
+            assert!(!workspace.focused_container().unwrap().locked());
         }
 
         // Toggle lock on focused container
@@ -5384,7 +5380,7 @@ mod tests {
         {
             // Ensure container 2 is locked
             let workspace = wm.focused_workspace_mut().unwrap();
-            assert!(workspace.locked_containers().contains(&2));
+            assert!(workspace.focused_container().unwrap().locked());
         }
 
         // Toggle lock on focused container
@@ -5393,7 +5389,7 @@ mod tests {
         {
             // Ensure container 2 is not locked
             let workspace = wm.focused_workspace_mut().unwrap();
-            assert!(!workspace.locked_containers().contains(&2));
+            assert!(!workspace.focused_container().unwrap().locked());
         }
     }
 
