@@ -15,6 +15,7 @@ use eframe::egui::Align;
 use eframe::egui::Color32;
 use eframe::egui::Context;
 use eframe::egui::CornerRadius;
+use eframe::egui::FontId;
 use eframe::egui::Frame;
 use eframe::egui::Image;
 use eframe::egui::Label;
@@ -156,7 +157,8 @@ impl From<&KomorebiConfig> for Komorebi {
                 .and_then(FocusedContainerBar::try_from),
             workspace_layer_old: cfg.workspace_layer,
             workspace_layer: cfg.workspace_layer.and_then(WorkspaceLayerBar::try_from),
-            locked_container: cfg.locked_container,
+            locked_container_old: cfg.locked_container,
+            locked_container: cfg.locked_container.and_then(LockedContainerBar::try_from),
             configuration_switcher,
         }
     }
@@ -172,7 +174,8 @@ pub struct Komorebi {
     pub focused_container: Option<FocusedContainerBar>,
     pub workspace_layer_old: Option<KomorebiWorkspaceLayerConfig>,
     pub workspace_layer: Option<WorkspaceLayerBar>,
-    pub locked_container: Option<KomorebiLockedContainerConfig>,
+    pub locked_container_old: Option<KomorebiLockedContainerConfig>,
+    pub locked_container: Option<LockedContainerBar>,
     pub configuration_switcher: Option<KomorebiConfigurationSwitcherConfig>,
 }
 
@@ -456,7 +459,7 @@ impl BarWidget for Komorebi {
             }
         }
 
-        if let Some(locked_container_config) = self.locked_container {
+        if let Some(locked_container_config) = self.locked_container_old {
             if locked_container_config.enable {
                 let monitor_info = &mut self.monitor_info.borrow_mut();
                 let is_locked = monitor_info
@@ -518,6 +521,8 @@ impl BarWidget for Komorebi {
                 }
             }
         }
+
+        self.render_locked_container(ctx, ui, config);
 
         if let Some(focused_container_config) = self.focused_container_old {
             if focused_container_config.enable {
@@ -704,6 +709,35 @@ impl Komorebi {
                     .layout
                     .show(ctx, ui, config, layout_config, workspace_idx);
             }
+        }
+    }
+
+    /// Renders the locked container bar for the current monitor.
+    ///
+    /// Shows lock status and allows toggling the lock state when clicked.
+    /// Only renders if a focused container exists and either the container is locked
+    /// or `show_when_unlocked` is enabled in the bar configuration.
+    fn render_locked_container(&mut self, ctx: &Context, ui: &mut Ui, config: &mut RenderConfig) {
+        let Some(bar) = &self.locked_container else {
+            return;
+        };
+
+        let monitor_info = &*self.monitor_info.borrow();
+        let is_locked = monitor_info
+            .focused_container()
+            .map(|container| container.is_locked)
+            .unwrap_or_default();
+
+        let (icon_font, txt_font) = (config.icon_font_id.clone(), config.text_font_id.clone());
+        if (bar.show_when_unlocked || is_locked) && monitor_info.focused_container().is_some() {
+            config.apply_on_widget(false, ui, |ui| {
+                SelectableFrame::new(false)
+                    .show(ui, |ui| {
+                        (bar.renderer)(ctx, ui, is_locked, icon_font, txt_font)
+                    })
+                    .clicked()
+                    .then(|| Self::send_messages(&[FocusMonitorAtCursor, ToggleLock]));
+            });
         }
     }
 
@@ -1061,6 +1095,81 @@ impl WorkspaceLayerBar {
             painter.rect_filled(rect_left, corner, color);
             painter.rect_stroke(rect_right, corner, stroke, StrokeKind::Outside);
         }
+    }
+}
+
+/// Locked container bar for displaying and interacting with container lock state
+#[derive(Clone, Debug)]
+pub struct LockedContainerBar {
+    /// Show the widget even when unlocked
+    show_when_unlocked: bool,
+    /// Chosen rendering function for this widget
+    renderer: fn(&Context, &mut Ui, bool, FontId, FontId),
+}
+
+impl LockedContainerBar {
+    /// Creates a `LockedContainerBar` from the given configuration.
+    ///
+    /// Selects a render strategy based on the display format.
+    /// Returns `None` if the widget is disabled.
+    fn try_from(value: KomorebiLockedContainerConfig) -> Option<Self> {
+        if !value.enable {
+            return None;
+        }
+        let display_format = value.display.unwrap_or(DisplayFormat::Text);
+
+        // Select renderer strategy based on display format for better performance
+        let renderer: fn(&Context, &mut Ui, bool, FontId, FontId) = match display_format {
+            DisplayFormat::Icon => |ctx, ui, is_locked, icon_font, _txt_font| {
+                let layout_job = Self::icon_layout(ctx, is_locked, icon_font);
+                ui.add(Label::new(layout_job).selectable(false));
+            },
+            DisplayFormat::Text => |ctx, ui, is_locked, _icon_font, txt_font| {
+                let mut layout_job = LayoutJob::default();
+                Self::append_text(&mut layout_job, ctx, is_locked, txt_font);
+                ui.add(Label::new(layout_job).selectable(false));
+            },
+            _ => |ctx, ui: &mut Ui, is_locked, icon_font, txt_font| {
+                let mut layout_job = Self::icon_layout(ctx, is_locked, icon_font);
+                Self::append_text(&mut layout_job, ctx, is_locked, txt_font);
+                ui.add(Label::new(layout_job).selectable(false));
+            },
+        };
+
+        Some(Self {
+            show_when_unlocked: value.show_when_unlocked.unwrap_or_default(),
+            renderer,
+        })
+    }
+
+    /// Builds a layout job for the lock/unlock icon,
+    /// using the provided font and current lock state.
+    fn icon_layout(ctx: &Context, is_locked: bool, icon_font: FontId) -> LayoutJob {
+        LayoutJob::simple(
+            if is_locked {
+                egui_phosphor::regular::LOCK_KEY.to_string()
+            } else {
+                egui_phosphor::regular::LOCK_SIMPLE_OPEN.to_string()
+            },
+            icon_font,
+            ctx.style().visuals.selection.stroke.color,
+            100.0,
+        )
+    }
+
+    /// Appends lock/unlock status text to the given layout job,
+    /// using the specified font and current lock state.
+    fn append_text(job: &mut LayoutJob, ctx: &Context, is_locked: bool, txt_font: FontId) {
+        job.append(
+            if is_locked { "Locked" } else { "Unlocked" },
+            10.0,
+            TextFormat {
+                font_id: txt_font,
+                color: ctx.style().visuals.text_color(),
+                valign: Align::Center,
+                ..Default::default()
+            },
+        )
     }
 }
 
