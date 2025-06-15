@@ -44,7 +44,6 @@ use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::io::Result as IoResult;
 use std::path::Path;
-use std::path::PathBuf;
 use std::rc::Rc;
 use std::sync::atomic::Ordering;
 
@@ -429,35 +428,7 @@ impl BarWidget for Komorebi {
 
         self.render_workspace_layer(ctx, ui, config);
         self.render_layout(ctx, ui, config);
-
-        if let Some(configuration_switcher) = &self.configuration_switcher {
-            if configuration_switcher.enable {
-                for (name, location) in configuration_switcher.configurations.iter() {
-                    let path = PathBuf::from(location);
-                    if path.is_file() {
-                        config.apply_on_widget(false, ui, |ui| {
-                            if SelectableFrame::new(false)
-                                .show(ui, |ui| ui.add(Label::new(name).selectable(false)))
-                                .clicked()
-                            {
-                                let canonicalized =
-                                    dunce::canonicalize(path.clone()).unwrap_or(path);
-
-                                if komorebi_client::send_message(
-                                    &SocketMessage::ReplaceConfiguration(canonicalized),
-                                )
-                                .is_err()
-                                {
-                                    tracing::error!(
-                                        "could not send message to komorebi: ReplaceConfiguration"
-                                    );
-                                }
-                            }
-                        });
-                    }
-                }
-            }
-        }
+        self.render_config_switcher(ui, config);
 
         if let Some(locked_container_config) = self.locked_container_old {
             if locked_container_config.enable {
@@ -697,6 +668,29 @@ impl Komorebi {
                     ]);
                 }
             });
+        }
+    }
+
+    /// Renders the configuration switcher bar.
+    /// For each available configuration, displays a selectable label.
+    /// On click, sends a message to replace the current Komorebi configuration.
+    fn render_config_switcher(&mut self, ui: &mut Ui, config: &mut RenderConfig) {
+        let configuration_switcher = match &self.configuration_switcher {
+            Some(config) if config.enable => config,
+            _ => return,
+        };
+        for (name, location) in configuration_switcher.configurations.iter() {
+            let path = Path::new(location);
+            if path.is_file() {
+                config.apply_on_widget(false, ui, |ui| {
+                    let response = SelectableFrame::new(false)
+                        .show(ui, |ui| ui.add(Label::new(name).selectable(false)));
+                    if response.clicked() {
+                        let path = dunce::canonicalize(path).unwrap_or_else(|_| path.to_owned());
+                        let _ = Self::send_messages(&[ReplaceConfiguration(path)]);
+                    }
+                });
+            }
         }
     }
 
