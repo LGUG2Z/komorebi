@@ -8,7 +8,7 @@ pub mod ring;
 pub mod container;
 pub mod core;
 pub mod focus_manager;
-pub mod locked_deque;
+pub mod lockable_sequence;
 pub mod monitor;
 pub mod monitor_reconciliator;
 pub mod process_command;
@@ -254,6 +254,14 @@ pub static WINDOW_HANDLING_BEHAVIOUR: AtomicCell<WindowHandlingBehaviour> =
     AtomicCell::new(WindowHandlingBehaviour::Sync);
 
 shadow_rs::shadow!(build);
+
+/// A trait for types that can be marked as locked or unlocked.
+pub trait Lockable {
+    /// Returns `true` if the item is locked.
+    fn locked(&self) -> bool;
+    /// Sets the locked state of the item.
+    fn set_locked(&mut self, locked: bool) -> &mut Self;
+}
 
 #[must_use]
 pub fn current_virtual_desktop() -> Option<Vec<u8>> {

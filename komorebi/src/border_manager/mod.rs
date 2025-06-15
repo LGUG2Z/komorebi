@@ -255,7 +255,7 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                             let window_kind = if idx != ws.focused_container_idx()
                                 || monitor_idx != focused_monitor_idx
                             {
-                                if ws.locked_containers().contains(&idx) {
+                                if c.locked() {
                                     WindowKind::UnfocusedLocked
                                 } else {
                                     WindowKind::Unfocused
@@ -563,7 +563,7 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                                 || monitor_idx != focused_monitor_idx
                                 || focused_window_hwnd != foreground_window
                             {
-                                if ws.locked_containers().contains(&idx) {
+                                if c.locked() {
                                     WindowKind::UnfocusedLocked
                                 } else {
                                     WindowKind::Unfocused
