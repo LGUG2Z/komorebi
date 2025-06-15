@@ -199,19 +199,17 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
         let state = wm.lock();
         let is_paused = state.is_paused;
         let focused_monitor_idx = state.focused_monitor_idx();
-        let focused_workspace_idx =
-            state.monitors.elements()[focused_monitor_idx].focused_workspace_idx();
+        let focused_workspace_idx = state.monitors[focused_monitor_idx].focused_workspace_idx();
         let monitors = state.monitors.clone();
         let pending_move_op = *state.pending_move_op;
-        let floating_window_hwnds = state.monitors.elements()[focused_monitor_idx].workspaces()
+        let floating_window_hwnds = state.monitors[focused_monitor_idx].workspaces()
             [focused_workspace_idx]
             .floating_windows()
             .iter()
             .map(|w| w.hwnd)
             .collect::<Vec<_>>();
-        let workspace_layer = *state.monitors.elements()[focused_monitor_idx].workspaces()
-            [focused_workspace_idx]
-            .layer();
+        let workspace_layer =
+            *state.monitors[focused_monitor_idx].workspaces()[focused_workspace_idx].layer();
         let foreground_window = WindowsApi::foreground_window().unwrap_or_default();
         let layer_changed = previous_layer != workspace_layer;
         let forced_update = matches!(notification, Notification::ForceUpdate);
@@ -220,7 +218,7 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
 
         match IMPLEMENTATION.load() {
             BorderImplementation::Windows => {
-                'monitors: for (monitor_idx, m) in monitors.elements().iter().enumerate() {
+                'monitors: for (monitor_idx, m) in monitors.indexed() {
                     // Only operate on the focused workspace of each monitor
                     if let Some(ws) = m.focused_workspace() {
                         // Handle the monocle container separately
@@ -251,7 +249,7 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                             continue 'monitors;
                         }
 
-                        for (idx, c) in ws.containers().iter().enumerate() {
+                        for (idx, c) in ws.containers().indexed() {
                             let window_kind = if idx != ws.focused_container_idx()
                                 || monitor_idx != focused_monitor_idx
                             {
@@ -379,7 +377,7 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                     continue 'receiver;
                 }
 
-                'monitors: for (monitor_idx, m) in monitors.elements().iter().enumerate() {
+                'monitors: for (monitor_idx, m) in monitors.indexed() {
                     // Only operate on the focused workspace of each monitor
                     if let Some(ws) = m.focused_workspace() {
                         // Workspaces with tiling disabled don't have borders
@@ -483,7 +481,6 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                                         border_hwnd != b.hwnd
                                             && !ws
                                                 .floating_windows()
-                                                .iter()
                                                 .any(|w| w.hwnd == b.tracking_hwnd)
                                     },
                                 )?;
@@ -536,7 +533,7 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                             |id, _| !container_and_floating_window_ids.contains(id),
                         )?;
 
-                        'containers: for (idx, c) in ws.containers().iter().enumerate() {
+                        'containers: for (idx, c) in ws.containers().indexed() {
                             let focused_window_hwnd =
                                 c.focused_window().map(|w| w.hwnd).unwrap_or_default();
                             let id = c.id().clone();

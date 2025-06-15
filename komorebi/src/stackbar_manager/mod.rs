@@ -107,7 +107,7 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
             continue 'receiver;
         }
 
-        for (monitor_idx, m) in state.monitors_mut().iter_mut().enumerate() {
+        for (monitor_idx, m) in state.monitors_mut().indexed_mut() {
             // Only operate on the focused workspace of each monitor
             if let Some(ws) = m.focused_workspace_mut() {
                 // Workspaces with tiling disabled don't have stackbars

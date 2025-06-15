@@ -243,27 +243,27 @@ impl WindowManager {
                 let mut monitor_to_focus = None;
                 let mut needs_workspace_loading = false;
 
-                'search: for (monitor_idx, monitor) in self.monitors_mut().iter_mut().enumerate() {
-                    for (workspace_idx, workspace) in monitor.workspaces().iter().enumerate() {
-                        if let Some(location) = workspace.location_from_exe(exe) {
-                            window_location = Some(location);
+                for (monitor_idx, monitor) in self.monitors_mut().indexed_mut() {
+                    let output = monitor.workspaces().indexed().find_map(|(ws_idx, ws)| {
+                        ws.location_from_exe(exe).map(|loc| (ws_idx, loc))
+                    });
+                    if let Some((workspace_idx, location)) = output {
+                        window_location = Some(location);
 
-                            if monitor_idx != focused_monitor_idx {
-                                monitor_to_focus = Some(monitor_idx);
-                            }
-
-                            // Focus workspace if it is not already the focused one, without
-                            // loading it so that we don't give focus to the wrong window, we will
-                            // load it later after focusing the wanted window
-                            let focused_ws_idx = monitor.focused_workspace_idx();
-                            if focused_ws_idx != workspace_idx {
-                                monitor.set_last_focused_workspace(Option::from(focused_ws_idx));
-                                monitor.focus_workspace(workspace_idx)?;
-                                needs_workspace_loading = true;
-                            }
-
-                            break 'search;
+                        if monitor_idx != focused_monitor_idx {
+                            monitor_to_focus = Some(monitor_idx);
                         }
+                        // Focus workspace if it is not already the focused one, without
+                        // loading it so that we don't give focus to the wrong window, we will
+                        // load it later after focusing the wanted window
+                        let focused_ws_idx = monitor.focused_workspace_idx();
+                        if focused_ws_idx != workspace_idx {
+                            monitor.set_last_focused_workspace(Some(focused_ws_idx));
+                            monitor.focus_workspace(workspace_idx)?;
+                            needs_workspace_loading = true;
+                        }
+
+                        break;
                     }
                 }
 
@@ -634,7 +634,7 @@ impl WindowManager {
                 let offset = self.work_area_offset;
 
                 let mut hwnds_to_purge = vec![];
-                for (i, monitor) in self.monitors().iter().enumerate() {
+                for (i, monitor) in self.monitors().indexed() {
                     for container in monitor
                         .focused_workspace()
                         .ok_or_else(|| anyhow!("there is no workspace"))?
@@ -1115,7 +1115,7 @@ impl WindowManager {
 
                 let mut empty_workspaces = vec![];
 
-                for (idx, w) in focused_monitor.workspaces().iter().enumerate() {
+                for (idx, w) in focused_monitor.workspaces().indexed() {
                     if w.is_empty() {
                         empty_workspaces.push(idx);
                     }
@@ -1252,7 +1252,7 @@ impl WindowManager {
 
                 let focused_monitor_idx = self.focused_monitor_idx();
 
-                for (i, monitor) in self.monitors_mut().iter_mut().enumerate() {
+                for (i, monitor) in self.monitors_mut().indexed_mut() {
                     if i != focused_monitor_idx {
                         monitor.focus_workspace(workspace_idx)?;
                         monitor.load_focused_workspace(false)?;
@@ -1345,8 +1345,7 @@ impl WindowManager {
                             }
                         } else {
                             let focused_container_idx = workspace.focused_container_idx();
-                            for (i, container) in workspace.containers_mut().iter_mut().enumerate()
-                            {
+                            for (i, container) in workspace.containers_mut().indexed_mut() {
                                 if let Some(window) = container.focused_window() {
                                     if i == focused_container_idx {
                                         to_focus = Some(*window);
