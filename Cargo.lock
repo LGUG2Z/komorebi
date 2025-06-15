@@ -3109,6 +3109,7 @@ dependencies = [
  "thiserror 2.0.12",
  "which",
  "windows 0.61.1",
+ "winreg",
 ]
 
 [[package]]
