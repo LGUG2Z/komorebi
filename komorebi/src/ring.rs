@@ -43,10 +43,6 @@ impl<T> Ring<T> {
     pub fn focused_mut(&mut self) -> Option<&mut T> {
         self.elements.get_mut(self.focused)
     }
-
-    pub fn swap(&mut self, i: usize, j: usize) {
-        self.elements.swap(i, j);
-    }
 }
 
 macro_rules! impl_ring_elements {
