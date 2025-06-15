@@ -154,7 +154,8 @@ impl From<&KomorebiConfig> for Komorebi {
             focused_container: cfg
                 .focused_container
                 .and_then(FocusedContainerBar::try_from),
-            workspace_layer: cfg.workspace_layer,
+            workspace_layer_old: cfg.workspace_layer,
+            workspace_layer: cfg.workspace_layer.and_then(WorkspaceLayerBar::try_from),
             locked_container: cfg.locked_container,
             configuration_switcher,
         }
@@ -169,7 +170,8 @@ pub struct Komorebi {
     pub layout: Option<KomorebiLayoutConfig>,
     pub focused_container_old: Option<KomorebiFocusedContainerConfig>,
     pub focused_container: Option<FocusedContainerBar>,
-    pub workspace_layer: Option<KomorebiWorkspaceLayerConfig>,
+    pub workspace_layer_old: Option<KomorebiWorkspaceLayerConfig>,
+    pub workspace_layer: Option<WorkspaceLayerBar>,
     pub locked_container: Option<KomorebiLockedContainerConfig>,
     pub configuration_switcher: Option<KomorebiConfigurationSwitcherConfig>,
 }
@@ -313,7 +315,7 @@ impl BarWidget for Komorebi {
 
         self.render_workspaces(ctx, ui, config);
 
-        if let Some(layer_config) = &self.workspace_layer {
+        if let Some(layer_config) = &self.workspace_layer_old {
             if layer_config.enable {
                 let monitor_info = self.monitor_info.borrow_mut();
                 if let Some(layer) = monitor_info.focused_workspace_layer() {
@@ -422,6 +424,7 @@ impl BarWidget for Komorebi {
             }
         }
 
+        self.render_workspace_layer(ctx, ui, config);
         self.render_layout(ctx, ui, config);
 
         if let Some(configuration_switcher) = &self.configuration_switcher {
@@ -657,6 +660,39 @@ impl Komorebi {
                 }
             }
         });
+    }
+
+    /// Renders the workspace layer bar for the current monitor.
+    /// Handles user clicks to toggle the workspace layer.
+    fn render_workspace_layer(&mut self, ctx: &Context, ui: &mut Ui, config: &mut RenderConfig) {
+        let Some(bar) = &self.workspace_layer else {
+            return;
+        };
+
+        let monitor_info = &*self.monitor_info.borrow();
+        let Some(layer) = monitor_info.focused_workspace_layer() else {
+            return;
+        };
+
+        if (matches!(layer, WorkspaceLayer::Floating)
+            || bar.show_when_tiling && matches!(layer, WorkspaceLayer::Tiling))
+        {
+            let size = Vec2::splat(config.icon_font_id.size);
+            config.apply_on_widget(false, ui, |ui| {
+                let layer_frame = SelectableFrame::new(false)
+                    .show(ui, |ui| (bar.renderer)(ctx, ui, &layer, size))
+                    .on_hover_text(layer.to_string());
+
+                if layer_frame.clicked() {
+                    let _ = Self::send_messages(&[
+                        FocusMonitorAtCursor,
+                        MouseFollowsFocus(false),
+                        ToggleWorkspaceLayer,
+                        MouseFollowsFocus(monitor_info.mouse_follows_focus),
+                    ]);
+                }
+            });
+        }
     }
 
     fn render_layout(&mut self, ctx: &Context, ui: &mut Ui, config: &mut RenderConfig) {
@@ -933,6 +969,97 @@ impl FocusedContainerBar {
             let x = MAX_LABEL_WIDTH.load(Ordering::SeqCst) as f32;
             let y = ui.available_height();
             CustomUi(ui).add_sized_left_to_right(Vec2::new(x, y), text.truncate());
+        }
+    }
+}
+
+/// Workspace layer bar with a pre-selected render strategy for efficient
+/// layer display
+#[derive(Clone, Debug)]
+pub struct WorkspaceLayerBar {
+    /// Show the widget even if the layer is Tiling
+    show_when_tiling: bool,
+    /// Chosen rendering function for this widget
+    renderer: fn(&Context, &mut Ui, &WorkspaceLayer, Vec2),
+}
+
+impl WorkspaceLayerBar {
+    /// Creates a `WorkspaceLayerBar` from the given configuration.
+    ///
+    /// Selects a render strategy based on the display format.
+    /// Returns `None` if the widget is disabled.
+    fn try_from(value: KomorebiWorkspaceLayerConfig) -> Option<Self> {
+        if !value.enable {
+            return None;
+        }
+        let display_format = value.display.unwrap_or(Text);
+
+        // Select renderer strategy based on display format for better performance
+        let renderer: fn(&Context, &mut Ui, &WorkspaceLayer, Vec2) = match display_format {
+            Icon => Self::draw_layer_icon,
+            Text => |_ctx, ui, layer, _size| {
+                ui.add(Label::new(layer.to_string()).selectable(false));
+            },
+            _ => |ctx, ui, layer, size| {
+                Self::draw_layer_icon(ctx, ui, layer, size);
+                ui.add(Label::new(layer.to_string()).selectable(false));
+            },
+        };
+
+        Some(Self {
+            show_when_tiling: value.show_when_tiling.unwrap_or_default(),
+            renderer,
+        })
+    }
+
+    /// Draws an icon representing the current workspace layer.
+    fn draw_layer_icon(ctx: &Context, ui: &mut Ui, layer: &WorkspaceLayer, size: Vec2) {
+        if matches!(layer, WorkspaceLayer::Tiling) {
+            let (response, painter) = ui.allocate_painter(size, Sense::hover());
+            let color = ctx.style().visuals.selection.stroke.color;
+            let stroke = Stroke::new(1.0, color);
+            let mut rect = response.rect;
+            let corner = CornerRadius::same((rect.width() * 0.1) as u8);
+            rect = rect.shrink(stroke.width);
+
+            // tiling
+            let mut rect_left = response.rect;
+            rect_left.set_width(rect.width() * 0.48);
+            rect_left.set_height(rect.height() * 0.98);
+            let mut rect_right = rect_left;
+            rect_left = rect_left.translate(Vec2::new(
+                rect.width() * 0.01 + stroke.width,
+                rect.width() * 0.01 + stroke.width,
+            ));
+            rect_right = rect_right.translate(Vec2::new(
+                rect.width() * 0.51 + stroke.width,
+                rect.width() * 0.01 + stroke.width,
+            ));
+            painter.rect_filled(rect_left, corner, color);
+            painter.rect_stroke(rect_right, corner, stroke, StrokeKind::Outside);
+        } else {
+            let (response, painter) = ui.allocate_painter(size, Sense::hover());
+            let color = ctx.style().visuals.selection.stroke.color;
+            let stroke = Stroke::new(1.0, color);
+            let mut rect = response.rect;
+            let corner = CornerRadius::same((rect.width() * 0.1) as u8);
+            rect = rect.shrink(stroke.width);
+
+            // floating
+            let mut rect_left = response.rect;
+            rect_left.set_width(rect.width() * 0.65);
+            rect_left.set_height(rect.height() * 0.65);
+            let mut rect_right = rect_left;
+            rect_left = rect_left.translate(Vec2::new(
+                rect.width() * 0.01 + stroke.width,
+                rect.width() * 0.01 + stroke.width,
+            ));
+            rect_right = rect_right.translate(Vec2::new(
+                rect.width() * 0.34 + stroke.width,
+                rect.width() * 0.34 + stroke.width,
+            ));
+            painter.rect_filled(rect_left, corner, color);
+            painter.rect_stroke(rect_right, corner, stroke, StrokeKind::Outside);
         }
     }
 }
