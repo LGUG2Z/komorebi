@@ -34,9 +34,9 @@ pub static STACKBAR_MODE: AtomicCell<StackbarMode> = AtomicCell::new(StackbarMod
 pub static STACKBAR_TEMPORARILY_DISABLED: AtomicBool = AtomicBool::new(false);
 
 lazy_static! {
-    pub static ref STACKBAR_STATE: Mutex<HashMap<String, Stackbar>> = Mutex::new(HashMap::new());
+    pub static ref STACKBAR_STATE: Mutex<HashMap<Arc<str>, Stackbar>> = Mutex::new(HashMap::new());
     pub static ref STACKBAR_FONT_FAMILY: Mutex<Option<String>> = Mutex::new(None);
-    static ref STACKBARS_MONITORS: Mutex<HashMap<String, usize>> = Mutex::new(HashMap::new());
+    static ref STACKBARS_MONITORS: Mutex<HashMap<Arc<str>, usize>> = Mutex::new(HashMap::new());
     static ref STACKBARS_CONTAINERS: Mutex<HashMap<isize, Container>> = Mutex::new(HashMap::new());
 }
 
