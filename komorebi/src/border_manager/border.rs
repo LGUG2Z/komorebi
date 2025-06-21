@@ -1,6 +1,7 @@
 use crate::border_manager::window_kind_colour;
 use crate::border_manager::RenderTarget;
 use crate::border_manager::WindowKind;
+use crate::border_manager::WsElementId;
 use crate::border_manager::BORDER_OFFSET;
 use crate::border_manager::BORDER_WIDTH;
 use crate::border_manager::STYLE;
@@ -13,6 +14,7 @@ use std::collections::HashMap;
 use std::ops::Deref;
 use std::sync::atomic::Ordering;
 use std::sync::mpsc;
+use std::sync::Arc;
 use std::sync::LazyLock;
 use windows::Win32::Foundation::FALSE;
 use windows::Win32::Foundation::HWND;
@@ -114,7 +116,7 @@ pub extern "system" fn border_hwnds(hwnd: HWND, lparam: LPARAM) -> BOOL {
 #[derive(Debug, Clone)]
 pub struct Border {
     pub hwnd: isize,
-    pub id: String,
+    pub id: WsElementId,
     pub monitor_idx: Option<usize>,
     pub render_target: Option<RenderTarget>,
     pub tracking_hwnd: isize,
@@ -132,7 +134,7 @@ impl From<isize> for Border {
     fn from(value: isize) -> Self {
         Self {
             hwnd: value,
-            id: String::new(),
+            id: WsElementId::from(0),
             monitor_idx: None,
             render_target: None,
             tracking_hwnd: 0,
@@ -154,7 +156,7 @@ impl Border {
     }
 
     pub fn create(
-        id: &str,
+        id: &WsElementId,
         tracking_hwnd: isize,
         monitor_idx: usize,
     ) -> color_eyre::Result<Box<Self>> {
@@ -176,7 +178,7 @@ impl Border {
         let (border_sender, border_receiver) = mpsc::channel();
 
         let instance = h_module.0 as isize;
-        let container_id = id.to_owned();
+        let container_id = id.clone();
         std::thread::spawn(move || -> color_eyre::Result<()> {
             let mut border = Self {
                 hwnd: 0,

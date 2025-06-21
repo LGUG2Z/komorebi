@@ -1,11 +1,14 @@
 use std::collections::VecDeque;
+use std::sync::Arc;
 
 use getset::CopyGetters;
 use getset::Getters;
 use getset::Setters;
 use nanoid::nanoid;
 use serde::Deserialize;
+use serde::Deserializer;
 use serde::Serialize;
+use serde::Serializer;
 
 use crate::ring::Ring;
 use crate::window::Window;
@@ -15,11 +18,29 @@ use crate::Lockable;
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct Container {
     #[getset(get = "pub")]
-    id: String,
+    #[serde(serialize_with = "serialize", deserialize_with = "deserialize")]
+    id: Arc<str>,
     #[serde(default)]
     #[getset(get_copy = "pub", set = "pub")]
     locked: bool,
     windows: Ring<Window>,
+}
+
+/// Helper function to serialize the Arc<str>
+fn serialize<S>(arc: &Arc<str>, serializer: S) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    serializer.serialize_str(arc.as_ref())
+}
+
+/// Helper function to deserialize the Arc<str>
+fn deserialize<'de, D>(deserializer: D) -> Result<Arc<str>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let s: &str = Deserialize::deserialize(deserializer)?;
+    Ok(Arc::from(s))
 }
 
 impl_ring_elements!(Container, Window);
@@ -27,7 +48,7 @@ impl_ring_elements!(Container, Window);
 impl Default for Container {
     fn default() -> Self {
         Self {
-            id: nanoid!(),
+            id: Arc::from(nanoid!()),
             locked: false,
             windows: Ring::default(),
         }
@@ -279,7 +300,7 @@ mod tests {
         let container: Container = serde_json::from_str(json).expect("Should deserialize");
 
         assert!(!container.locked());
-        assert_eq!(container.id(), "test-1");
+        assert_eq!(&**container.id(), "test-1");
         assert!(container.windows().is_empty());
 
         let json = r#"{
@@ -287,7 +308,7 @@ mod tests {
             "windows": { "elements": [ { "hwnd": 5 }, { "hwnd": 9 } ], "focused": 1 }
         }"#;
         let container: Container = serde_json::from_str(json).unwrap();
-        assert_eq!(container.id(), "test-2");
+        assert_eq!(&**container.id(), "test-2");
         assert!(!container.locked());
         assert_eq!(container.windows(), &[Window::from(5), Window::from(9)]);
         assert_eq!(container.focused_window_idx(), 1);
