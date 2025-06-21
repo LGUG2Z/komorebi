@@ -357,7 +357,7 @@ where
                     // These are monitors that have been removed
                     let mut newly_removed_displays = vec![];
 
-                    for (m_idx, m) in wm.monitors().iter().enumerate() {
+                    for (m_idx, m) in wm.monitors().indexed() {
                         if !attached_devices.iter().any(|attached| {
                             attached.serial_number_id().eq(m.serial_number_id())
                                 || attached.device_id().eq(m.device_id())
@@ -371,13 +371,12 @@ where
 
                             let focused_workspace_idx = m.focused_workspace_idx();
 
-                            for (idx, workspace) in m.workspaces().iter().enumerate() {
+                            for (idx, workspace) in m.workspaces().indexed() {
                                 let is_focused_workspace = idx == focused_workspace_idx;
                                 let focused_container_idx = workspace.focused_container_idx();
-                                for (c_idx, container) in workspace.containers().iter().enumerate()
-                                {
+                                for (c_idx, container) in workspace.containers().indexed() {
                                     let focused_window_idx = container.focused_window_idx();
-                                    for (w_idx, window) in container.windows().iter().enumerate() {
+                                    for (w_idx, window) in container.windows().indexed() {
                                         windows_to_remove.push(window.hwnd);
                                         if is_focused_workspace
                                             && c_idx == focused_container_idx
@@ -512,7 +511,7 @@ where
                     let focused_workspace_idx = wm.focused_workspace_idx()?;
 
                     // Look in the updated state for new monitors
-                    for (i, m) in wm.monitors_mut().iter_mut().enumerate() {
+                    for (i, m) in wm.monitors_mut().indexed_mut() {
                         let device_id = m.device_id();
                         // We identify a new monitor when we encounter a new device id
                         if !post_removal_device_ids.contains(device_id) {
@@ -559,7 +558,7 @@ where
 
                                 let focused_workspace_idx = m.focused_workspace_idx();
 
-                                for (j, workspace) in m.workspaces_mut().iter_mut().enumerate() {
+                                for (j, workspace) in m.workspaces_mut().indexed_mut() {
                                     // If this is the focused workspace we need to show (restore) all
                                     // windows that were visible since they were probably minimized by
                                     // Windows.
@@ -567,8 +566,7 @@ where
                                     let focused_container_idx = workspace.focused_container_idx();
 
                                     let mut empty_containers = Vec::new();
-                                    for (idx, container) in
-                                        workspace.containers_mut().iter_mut().enumerate()
+                                    for (idx, container) in workspace.containers_mut().indexed_mut()
                                     {
                                         container.windows_mut().retain(|window| {
                                             window.exe().is_ok()

@@ -925,7 +925,7 @@ impl eframe::App for Komobar {
                 if self.monitor_index.is_none()
                     || self
                         .monitor_index
-                        .is_some_and(|idx| idx >= state.monitors.elements().len())
+                        .is_some_and(|idx| idx >= state.monitors.len())
                 {
                     if !self.disabled {
                         // Monitor for this bar got disconnected lets disable the bar until it
@@ -966,7 +966,7 @@ impl eframe::App for Komobar {
                 ) {
                     let monitor_index = self.monitor_index.expect("should have a monitor index");
 
-                    let monitor_size = state.monitors.elements()[monitor_index].size();
+                    let monitor_size = state.monitors[monitor_index].size();
 
                     self.update_monitor_coordinates(monitor_size);
 
@@ -979,7 +979,7 @@ impl eframe::App for Komobar {
 
                 // Check if monitor coordinates/size has changed
                 if let Some(monitor_index) = self.monitor_index {
-                    let monitor_size = state.monitors.elements()[monitor_index].size();
+                    let monitor_size = state.monitors[monitor_index].size();
                     let top = MONITOR_TOP.load(Ordering::SeqCst);
                     let left = MONITOR_LEFT.load(Ordering::SeqCst);
                     let right = MONITOR_RIGHT.load(Ordering::SeqCst);

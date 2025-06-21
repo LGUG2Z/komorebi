@@ -224,7 +224,7 @@ impl Stackbar {
 
             SelectObject(hdc, hfont.into());
 
-            for (i, window) in container.windows().iter().enumerate() {
+            for (i, window) in container.windows().indexed() {
                 if window.hwnd == container.focused_window().copied().unwrap_or_default().hwnd {
                     SetTextColor(hdc, COLORREF(focused_text_colour));
                 } else {
@@ -342,7 +342,7 @@ impl Stackbar {
                         )
                         .unwrap_or_default();
 
-                        for (index, window) in container.windows().iter().enumerate() {
+                        for (index, window) in container.windows().indexed() {
                             let left = gap + (index as i32 * (width + gap));
                             let right = left + width;
                             let top = 0;

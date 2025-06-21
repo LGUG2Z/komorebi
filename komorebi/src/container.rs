@@ -1,5 +1,3 @@
-use std::collections::VecDeque;
-
 use getset::CopyGetters;
 use getset::Getters;
 use getset::Setters;
@@ -76,7 +74,7 @@ impl Container {
     pub fn load_focused_window(&mut self) {
         let focused_idx = self.focused_window_idx();
 
-        for (i, window) in self.windows_mut().iter_mut().enumerate() {
+        for (i, window) in self.windows_mut().indexed_mut() {
             if i == focused_idx {
                 window.restore_with_border(false);
             } else {
@@ -98,7 +96,7 @@ impl Container {
     }
 
     pub fn idx_from_exe(&self, exe: &str) -> Option<usize> {
-        for (idx, window) in self.windows().iter().enumerate() {
+        for (idx, window) in self.windows().indexed() {
             if let Ok(window_exe) = window.exe() {
                 if exe == window_exe {
                     return Option::from(idx);
@@ -120,7 +118,7 @@ impl Container {
     }
 
     pub fn idx_for_window(&self, hwnd: isize) -> Option<usize> {
-        for (i, window) in self.windows().iter().enumerate() {
+        for (i, window) in self.windows().indexed() {
             if window.hwnd == hwnd {
                 return Option::from(i);
             }
@@ -145,7 +143,7 @@ impl Container {
         self.focus_window(self.windows().len().saturating_sub(1));
         let focused_window_idx = self.focused_window_idx();
 
-        for (i, window) in self.windows().iter().enumerate() {
+        for (i, window) in self.windows().indexed() {
             if i != focused_window_idx {
                 window.hide();
             }
@@ -289,7 +287,10 @@ mod tests {
         let container: Container = serde_json::from_str(json).unwrap();
         assert_eq!(container.id(), "test-2");
         assert!(!container.locked());
-        assert_eq!(container.windows(), &[Window::from(5), Window::from(9)]);
+        assert_eq!(
+            &container.windows().to_vec(Clone::clone),
+            &[Window::from(5), Window::from(9)]
+        );
         assert_eq!(container.focused_window_idx(), 1);
     }
 

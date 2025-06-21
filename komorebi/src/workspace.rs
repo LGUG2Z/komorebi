@@ -1,4 +1,3 @@
-use std::collections::VecDeque;
 use std::ffi::OsStr;
 use std::fmt::Display;
 use std::fmt::Formatter;
@@ -16,7 +15,6 @@ use crate::core::Layout;
 use crate::core::OperationDirection;
 use crate::core::Rect;
 use crate::default_layout::LayoutOptions;
-use crate::lockable_sequence::LockableSequence;
 use crate::ring::Ring;
 use crate::should_act;
 use crate::stackbar_manager;
@@ -437,7 +435,7 @@ impl Workspace {
         let idx = self.focused_container_idx();
         let mut to_focus = None;
 
-        for (i, container) in self.containers_mut().iter_mut().enumerate() {
+        for (i, container) in self.containers_mut().indexed_mut() {
             if let Some(window) = container.focused_window_mut() {
                 if idx == i {
                     to_focus = Option::from(*window);
@@ -595,7 +593,7 @@ impl Workspace {
 
                 let containers = self.containers_mut();
 
-                for (i, container) in containers.iter_mut().enumerate() {
+                for (i, container) in containers.indexed_mut() {
                     let window_count = container.windows().len();
 
                     if let Some(layout) = layouts.get_mut(i) {
@@ -707,7 +705,7 @@ impl Workspace {
 
         let point = WindowsApi::cursor_pos().ok()?;
 
-        for (i, _container) in self.containers().iter().enumerate() {
+        for (i, _container) in self.containers().indexed() {
             if let Some(rect) = self.latest_layout().get(i) {
                 if rect.contains_point((point.x, point.y)) {
                     idx = Option::from(i);
@@ -751,7 +749,7 @@ impl Workspace {
     }
 
     pub fn location_from_exe(&self, exe: &str) -> Option<WorkspaceWindowLocation> {
-        for (container_idx, container) in self.containers().iter().enumerate() {
+        for (container_idx, container) in self.containers().indexed() {
             if let Some(window_idx) = container.idx_from_exe(exe) {
                 return Some(WorkspaceWindowLocation::Container(
                     container_idx,
@@ -774,7 +772,7 @@ impl Workspace {
             }
         }
 
-        for (window_idx, window) in self.floating_windows().iter().enumerate() {
+        for (window_idx, window) in self.floating_windows().indexed() {
             if let Ok(window_exe) = window.exe() {
                 if exe == window_exe {
                     return Some(WorkspaceWindowLocation::Floating(window_idx));
@@ -923,7 +921,7 @@ impl Workspace {
 
     pub fn container_idx_for_window(&self, hwnd: isize) -> Option<usize> {
         let mut idx = None;
-        for (i, x) in self.containers().iter().enumerate() {
+        for (i, x) in self.containers().indexed() {
             if x.contains_window(hwnd) {
                 idx = Option::from(i);
             }
@@ -935,17 +933,13 @@ impl Workspace {
     pub fn remove_window(&mut self, hwnd: isize) -> Result<()> {
         border_manager::delete_border(hwnd);
 
-        if self.floating_windows().iter().any(|w| w.hwnd == hwnd) {
+        if self.floating_windows().any(|w| w.hwnd == hwnd) {
             self.floating_windows_mut().retain(|w| w.hwnd != hwnd);
             return Ok(());
         }
 
         if let Some(container) = self.monocle_container_mut() {
-            if let Some(window_idx) = container
-                .windows()
-                .iter()
-                .position(|window| window.hwnd == hwnd)
-            {
+            if let Some(window_idx) = container.windows().position(|window| window.hwnd == hwnd) {
                 container
                     .remove_window_by_idx(window_idx)
                     .ok_or_else(|| anyhow!("there is no window"))?;
@@ -983,7 +977,6 @@ impl Workspace {
 
         let window_idx = container
             .windows()
-            .iter()
             .position(|window| window.hwnd == hwnd)
             .ok_or_else(|| anyhow!("there is no window"))?;
 
@@ -1626,7 +1619,7 @@ impl Workspace {
     }
 
     pub fn swap_containers(&mut self, i: usize, j: usize) {
-        self.containers.elements_mut().swap_respecting_locks(i, j);
+        self.containers.swap_respecting_locks(i, j);
         self.focus_container(j);
     }
 
@@ -1634,7 +1627,7 @@ impl Workspace {
         let hwnd = WindowsApi::foreground_window().ok()?;
 
         let mut idx = None;
-        for (i, window) in self.floating_windows().iter().enumerate() {
+        for (i, window) in self.floating_windows().indexed() {
             if hwnd == window.hwnd {
                 idx = Option::from(i);
             }

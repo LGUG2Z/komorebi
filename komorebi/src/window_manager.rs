@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 use std::collections::HashSet;
-use std::collections::VecDeque;
 use std::env::temp_dir;
 use std::fs::OpenOptions;
 use std::io::ErrorKind;
@@ -301,67 +300,58 @@ impl From<&WindowManager> for State {
         // `workspace_config` field from every workspace, but more stripping can be added later if
         // needed.
         let mut stripped_monitors = Ring::default();
-        *stripped_monitors.elements_mut() = wm
-            .monitors()
-            .iter()
-            .map(|monitor| Monitor {
-                id: monitor.id,
-                name: monitor.name.clone(),
-                device: monitor.device.clone(),
-                device_id: monitor.device_id.clone(),
-                serial_number_id: monitor.serial_number_id.clone(),
-                size: monitor.size,
-                work_area_size: monitor.work_area_size,
-                work_area_offset: monitor.work_area_offset,
-                window_based_work_area_offset: monitor.window_based_work_area_offset,
-                window_based_work_area_offset_limit: monitor.window_based_work_area_offset_limit,
-                workspaces: {
-                    let mut ws = Ring::default();
-                    *ws.elements_mut() = monitor
-                        .workspaces()
-                        .iter()
-                        .map(|workspace| Workspace {
-                            name: workspace.name.clone(),
-                            containers: workspace.containers.clone(),
-                            monocle_container: workspace.monocle_container.clone(),
-                            monocle_container_restore_idx: workspace.monocle_container_restore_idx,
-                            maximized_window: workspace.maximized_window,
-                            maximized_window_restore_idx: workspace.maximized_window_restore_idx,
-                            floating_windows: workspace.floating_windows.clone(),
-                            layout: workspace.layout.clone(),
-                            layout_options: workspace.layout_options,
-                            layout_rules: workspace.layout_rules.clone(),
-                            layout_flip: workspace.layout_flip,
-                            workspace_padding: workspace.workspace_padding,
-                            container_padding: workspace.container_padding,
-                            latest_layout: workspace.latest_layout.clone(),
-                            resize_dimensions: workspace.resize_dimensions.clone(),
-                            tile: workspace.tile,
-                            apply_window_based_work_area_offset: workspace
-                                .apply_window_based_work_area_offset,
-                            window_container_behaviour: workspace.window_container_behaviour,
-                            window_container_behaviour_rules: workspace
-                                .window_container_behaviour_rules
-                                .clone(),
-                            float_override: workspace.float_override,
-                            layer: workspace.layer,
-                            floating_layer_behaviour: workspace.floating_layer_behaviour,
-                            globals: workspace.globals,
-                            wallpaper: workspace.wallpaper.clone(),
-                            workspace_config: None,
-                        })
-                        .collect::<VecDeque<_>>();
-                    ws.focus(monitor.workspaces.focused_idx());
-                    ws
-                },
-                last_focused_workspace: monitor.last_focused_workspace,
-                workspace_names: monitor.workspace_names.clone(),
-                container_padding: monitor.container_padding,
-                workspace_padding: monitor.workspace_padding,
-                wallpaper: monitor.wallpaper.clone(),
-                floating_layer_behaviour: monitor.floating_layer_behaviour,
-            })
-            .collect::<VecDeque<_>>();
+        stripped_monitors.extend(wm.monitors().iter().map(|monitor| Monitor {
+            id: monitor.id,
+            name: monitor.name.clone(),
+            device: monitor.device.clone(),
+            device_id: monitor.device_id.clone(),
+            serial_number_id: monitor.serial_number_id.clone(),
+            size: monitor.size,
+            work_area_size: monitor.work_area_size,
+            work_area_offset: monitor.work_area_offset,
+            window_based_work_area_offset: monitor.window_based_work_area_offset,
+            window_based_work_area_offset_limit: monitor.window_based_work_area_offset_limit,
+            workspaces: {
+                let mut ws = Ring::default();
+                ws.extend(monitor.workspaces().iter().map(|workspace| Workspace {
+                    name: workspace.name.clone(),
+                    containers: workspace.containers.clone(),
+                    monocle_container: workspace.monocle_container.clone(),
+                    monocle_container_restore_idx: workspace.monocle_container_restore_idx,
+                    maximized_window: workspace.maximized_window,
+                    maximized_window_restore_idx: workspace.maximized_window_restore_idx,
+                    floating_windows: workspace.floating_windows.clone(),
+                    layout: workspace.layout.clone(),
+                    layout_options: workspace.layout_options,
+                    layout_rules: workspace.layout_rules.clone(),
+                    layout_flip: workspace.layout_flip,
+                    workspace_padding: workspace.workspace_padding,
+                    container_padding: workspace.container_padding,
+                    latest_layout: workspace.latest_layout.clone(),
+                    resize_dimensions: workspace.resize_dimensions.clone(),
+                    tile: workspace.tile,
+                    apply_window_based_work_area_offset:
+                        workspace.apply_window_based_work_area_offset,
+                    window_container_behaviour: workspace.window_container_behaviour,
+                    window_container_behaviour_rules:
+                        workspace.window_container_behaviour_rules.clone(),
+                    float_override: workspace.float_override,
+                    layer: workspace.layer,
+                    floating_layer_behaviour: workspace.floating_layer_behaviour,
+                    globals: workspace.globals,
+                    wallpaper: workspace.wallpaper.clone(),
+                    workspace_config: None,
+                }));
+                ws.focus(monitor.workspaces.focused_idx());
+                ws
+            },
+            last_focused_workspace: monitor.last_focused_workspace,
+            workspace_names: monitor.workspace_names.clone(),
+            container_padding: monitor.container_padding,
+            workspace_padding: monitor.workspace_padding,
+            wallpaper: monitor.wallpaper.clone(),
+            floating_layer_behaviour: monitor.floating_layer_behaviour,
+        }));
         stripped_monitors.focus(wm.monitors.focused_idx());
 
         Self {
@@ -463,8 +453,8 @@ impl WindowManager {
     pub fn apply_state(&mut self, state: State) {
         let mut can_apply = true;
 
-        let state_monitors_len = state.monitors.elements().len();
-        let current_monitors_len = self.monitors.elements().len();
+        let state_monitors_len = state.monitors.len();
+        let current_monitors_len = self.monitors.len();
         if state_monitors_len != current_monitors_len {
             tracing::warn!(
                 "cannot apply state from {}; state file has {state_monitors_len} monitors, but only {current_monitors_len} are currently connected",
@@ -474,7 +464,7 @@ impl WindowManager {
             return;
         }
 
-        for monitor in state.monitors.elements() {
+        for monitor in &state.monitors {
             for workspace in monitor.workspaces() {
                 for container in workspace.containers() {
                     for window in container.windows() {
@@ -518,10 +508,10 @@ impl WindowManager {
 
             let offset = self.work_area_offset;
             let mouse_follows_focus = self.mouse_follows_focus;
-            for (monitor_idx, monitor) in self.monitors_mut().iter_mut().enumerate() {
+            for (monitor_idx, monitor) in self.monitors_mut().indexed_mut() {
                 let mut focused_workspace = 0;
-                for (workspace_idx, workspace) in monitor.workspaces_mut().iter_mut().enumerate() {
-                    if let Some(state_monitor) = state.monitors.elements().get(monitor_idx) {
+                for (workspace_idx, workspace) in monitor.workspaces_mut().indexed_mut() {
+                    if let Some(state_monitor) = state.monitors.get(monitor_idx) {
                         if let Some(state_workspace) = state_monitor.workspaces().get(workspace_idx)
                         {
                             // to make sure padding changes get applied for users after a quick restart
@@ -568,7 +558,6 @@ impl WindowManager {
             let focused_monitor_idx = state.monitors.focused_idx();
             let focused_workspace_idx = state
                 .monitors
-                .elements()
                 .get(focused_monitor_idx)
                 .map(|m| m.focused_workspace_idx())
                 .unwrap_or_default();
@@ -750,7 +739,7 @@ impl WindowManager {
     pub fn monitor_idx_in_direction(&self, direction: OperationDirection) -> Option<usize> {
         let current_monitor_size = self.focused_monitor_size().ok()?;
 
-        for (idx, monitor) in self.monitors.elements().iter().enumerate() {
+        for (idx, monitor) in self.monitors.indexed() {
             match direction {
                 OperationDirection::Left => {
                     if monitor.size().left + monitor.size().right == current_monitor_size.left {
@@ -857,8 +846,8 @@ impl WindowManager {
             let workspace_matching_rules = WORKSPACE_MATCHING_RULES.lock();
             let regex_identifiers = REGEX_IDENTIFIERS.lock();
             // Go through all the monitors and workspaces
-            for (i, monitor) in self.monitors().iter().enumerate() {
-                for (j, workspace) in monitor.workspaces().iter().enumerate() {
+            for (i, monitor) in self.monitors().indexed() {
+                for (j, workspace) in monitor.workspaces().indexed() {
                     // And all the visible windows (at the top of a container)
                     for window in workspace.visible_windows().into_iter().flatten() {
                         let mut already_moved_window_handles =
@@ -1161,7 +1150,7 @@ impl WindowManager {
 
         let origin_container_idx = origin_workspace
             .container_for_window(w_hwnd)
-            .and_then(|c| origin_workspace.containers().iter().position(|cc| cc == c));
+            .and_then(|c| origin_workspace.containers().position(|cc| cc == c));
 
         if let Some(origin_container_idx) = origin_container_idx {
             // Moving normal container window
@@ -1179,7 +1168,6 @@ impl WindowManager {
             )?;
         } else if let Some(idx) = origin_workspace
             .floating_windows()
-            .iter()
             .position(|w| w.hwnd == w_hwnd)
         {
             // Moving floating window
@@ -1918,7 +1906,6 @@ impl WindowManager {
         let foreground_hwnd = WindowsApi::foreground_window()?;
         let floating_window_index = workspace
             .floating_windows()
-            .iter()
             .position(|w| w.hwnd == foreground_hwnd);
 
         let floating_window =
@@ -2094,8 +2081,7 @@ impl WindowManager {
                 OperationDirection::Left => {
                     let mut windows_in_direction = focused_workspace
                         .floating_windows()
-                        .iter()
-                        .enumerate()
+                        .indexed()
                         .flat_map(|(idx, w)| {
                             (w.hwnd != focused_hwnd)
                                 .then_some(WindowsApi::window_rect(w.hwnd).ok().map(|r| (idx, r)))
@@ -2117,8 +2103,7 @@ impl WindowManager {
                 OperationDirection::Right => {
                     let mut windows_in_direction = focused_workspace
                         .floating_windows()
-                        .iter()
-                        .enumerate()
+                        .indexed()
                         .flat_map(|(idx, w)| {
                             (w.hwnd != focused_hwnd)
                                 .then_some(WindowsApi::window_rect(w.hwnd).ok().map(|r| (idx, r)))
@@ -2140,8 +2125,7 @@ impl WindowManager {
                 OperationDirection::Up => {
                     let mut windows_in_direction = focused_workspace
                         .floating_windows()
-                        .iter()
-                        .enumerate()
+                        .indexed()
                         .flat_map(|(idx, w)| {
                             (w.hwnd != focused_hwnd)
                                 .then_some(WindowsApi::window_rect(w.hwnd).ok().map(|r| (idx, r)))
@@ -2163,8 +2147,7 @@ impl WindowManager {
                 OperationDirection::Down => {
                     let mut windows_in_direction = focused_workspace
                         .floating_windows()
-                        .iter()
-                        .enumerate()
+                        .indexed()
                         .flat_map(|(idx, w)| {
                             (w.hwnd != focused_hwnd)
                                 .then_some(WindowsApi::window_rect(w.hwnd).ok().map(|r| (idx, r)))
@@ -2761,7 +2744,7 @@ impl WindowManager {
 
         if len > 1 {
             let focused_hwnd = WindowsApi::foreground_window()?;
-            for (idx, window) in focused_workspace.floating_windows().iter().enumerate() {
+            for (idx, window) in focused_workspace.floating_windows().indexed() {
                 if window.hwnd == focused_hwnd {
                     match direction {
                         CycleDirection::Previous => {
@@ -3823,7 +3806,7 @@ impl WindowManager {
     pub fn monitor_idx_from_window(&mut self, window: Window) -> Option<usize> {
         let hmonitor = WindowsApi::monitor_from_window(window.hwnd);
 
-        for (i, monitor) in self.monitors().iter().enumerate() {
+        for (i, monitor) in self.monitors().indexed() {
             if monitor.id() == hmonitor {
                 return Option::from(i);
             }
@@ -3832,7 +3815,7 @@ impl WindowManager {
         // our hmonitor might be stale, so if we didn't return above, try querying via the latest
         // info taken from win32_display_data and update our hmonitor while we're at it
         if let Ok(latest) = WindowsApi::monitor(hmonitor) {
-            for (i, monitor) in self.monitors_mut().iter_mut().enumerate() {
+            for (i, monitor) in self.monitors_mut().indexed_mut() {
                 if monitor.device_id() == latest.device_id() {
                     monitor.set_id(latest.id());
                     return Option::from(i);
@@ -3846,7 +3829,7 @@ impl WindowManager {
     pub fn monitor_idx_from_current_pos(&mut self) -> Option<usize> {
         let hmonitor = WindowsApi::monitor_from_point(WindowsApi::cursor_pos().ok()?);
 
-        for (i, monitor) in self.monitors().iter().enumerate() {
+        for (i, monitor) in self.monitors().indexed() {
             if monitor.id() == hmonitor {
                 return Option::from(i);
             }
@@ -3855,7 +3838,7 @@ impl WindowManager {
         // our hmonitor might be stale, so if we didn't return above, try querying via the latest
         // info taken from win32_display_data and update our hmonitor while we're at it
         if let Ok(latest) = WindowsApi::monitor(hmonitor) {
-            for (i, monitor) in self.monitors_mut().iter_mut().enumerate() {
+            for (i, monitor) in self.monitors_mut().indexed_mut() {
                 if monitor.device_id() == latest.device_id() {
                     monitor.set_id(latest.id());
                     return Option::from(i);
@@ -3930,8 +3913,8 @@ impl WindowManager {
     pub fn monitor_workspace_index_by_name(&mut self, name: &str) -> Option<(usize, usize)> {
         tracing::info!("looking up workspace by name");
 
-        for (monitor_idx, monitor) in self.monitors().iter().enumerate() {
-            for (workspace_idx, workspace) in monitor.workspaces().iter().enumerate() {
+        for (monitor_idx, monitor) in self.monitors().indexed() {
+            for (workspace_idx, workspace) in monitor.workspaces().indexed() {
                 if let Some(workspace_name) = workspace.name() {
                     if workspace_name == name {
                         return Option::from((monitor_idx, workspace_idx));
@@ -3992,8 +3975,8 @@ impl WindowManager {
     pub fn update_known_hwnds(&mut self) {
         tracing::trace!("updating list of known hwnds");
         let mut known_hwnds = HashMap::new();
-        for (m_idx, monitor) in self.monitors().iter().enumerate() {
-            for (w_idx, workspace) in monitor.workspaces().iter().enumerate() {
+        for (m_idx, monitor) in self.monitors().indexed() {
+            for (w_idx, workspace) in monitor.workspaces().indexed() {
                 for container in workspace.containers() {
                     for window in container.windows() {
                         known_hwnds.insert(window.hwnd, (m_idx, w_idx));
@@ -5807,7 +5790,7 @@ mod tests {
             let monitor = wm.monitors().get(1).unwrap();
             let workspaces = monitor.workspaces();
             assert_eq!(workspaces.len(), workspace_names.len());
-            for (i, workspace) in workspaces.iter().enumerate() {
+            for (i, workspace) in workspaces.indexed() {
                 assert_eq!(workspace.name(), &Some(workspace_names[i].clone()));
             }
         }
@@ -5826,7 +5809,7 @@ mod tests {
             let monitor = wm.monitors().front().unwrap();
             let workspaces = monitor.workspaces();
             assert_eq!(workspaces.len(), workspace_names.len());
-            for (i, workspace) in workspaces.iter().enumerate() {
+            for (i, workspace) in workspaces.indexed() {
                 assert_eq!(workspace.name(), &Some(workspace_names[i].clone()));
             }
         }

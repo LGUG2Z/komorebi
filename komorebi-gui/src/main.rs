@@ -170,7 +170,7 @@ impl KomorebiGui {
         };
 
         let mut monitors = vec![];
-        for m in state.monitors.elements() {
+        for m in &state.monitors {
             monitors.push(MonitorConfig::from(m));
         }
 
