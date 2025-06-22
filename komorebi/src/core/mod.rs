@@ -8,12 +8,16 @@ use std::str::FromStr;
 use clap::ValueEnum;
 use color_eyre::Result;
 use serde::Deserialize;
+use serde::Deserializer;
 use serde::Serialize;
+use serde::Serializer;
 use strum::Display;
 use strum::EnumString;
+use windows::Win32::Foundation::HWND;
 
 use crate::animation::prefix::AnimationPrefix;
 use crate::KomorebiTheme;
+use crate::Window;
 pub use animation::AnimationStyle;
 pub use arrangement::Arrangement;
 pub use arrangement::Axis;
@@ -243,7 +247,18 @@ pub enum SocketMessage {
     SocketSchema,
     StaticConfigSchema,
     GenerateStaticConfig,
-    DebugWindow(isize),
+    #[serde(serialize_with = "serialize", deserialize_with = "deserialize")]
+    #[cfg_attr(feature = "schemars", schemars(with = "i64"))]
+    DebugWindow(Window),
+}
+
+fn serialize<S: Serializer>(window: &Window, s: S) -> Result<S::Ok, S::Error> {
+    s.serialize_i64(window.as_isize() as i64)
+}
+
+fn deserialize<'de, D: Deserializer<'de>>(d: D) -> Result<Window, D::Error> {
+    let raw = i64::deserialize(d)?;
+    Ok(Window::from(HWND(crate::windows_api::as_ptr!(raw))))
 }
 
 impl SocketMessage {

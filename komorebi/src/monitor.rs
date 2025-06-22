@@ -421,10 +421,10 @@ impl Monitor {
             bail!("cannot move native maximized window to another monitor or workspace");
         }
 
-        let foreground_hwnd = WindowsApi::foreground_window()?;
+        let foreground_win = WindowsApi::foreground_window()?;
         let floating_window_index = workspace
             .floating_windows()
-            .position(|w| w.hwnd == foreground_hwnd);
+            .position(|&w| w == foreground_win);
 
         if let Some(idx) = floating_window_index {
             if let Some(window) = workspace.floating_windows_mut().remove(idx) {

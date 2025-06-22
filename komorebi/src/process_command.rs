@@ -60,7 +60,6 @@ use crate::static_config::StaticConfig;
 use crate::theme_manager;
 use crate::transparency_manager;
 use crate::window::RuleDebug;
-use crate::window::Window;
 use crate::window_manager;
 use crate::window_manager::WindowManager;
 use crate::windows_api::WindowsApi;
@@ -368,16 +367,12 @@ impl WindowManager {
             }
             SocketMessage::ForceFocus => {
                 let focused_window = self.focused_window()?;
-                let focused_window_rect = WindowsApi::window_rect(focused_window.hwnd)?;
+                let focused_window_rect = WindowsApi::window_rect(*focused_window)?;
                 WindowsApi::center_cursor_in_rect(&focused_window_rect)?;
                 WindowsApi::left_click();
             }
-            SocketMessage::Close => {
-                Window::from(WindowsApi::foreground_window()?).close()?;
-            }
-            SocketMessage::Minimize => {
-                Window::from(WindowsApi::foreground_window()?).minimize();
-            }
+            SocketMessage::Close => WindowsApi::foreground_window()?.close()?,
+            SocketMessage::Minimize => WindowsApi::foreground_window()?.minimize(),
             SocketMessage::LockMonitorWorkspaceContainer(
                 monitor_idx,
                 workspace_idx,
@@ -539,7 +534,7 @@ impl WindowManager {
             }
             SocketMessage::EnforceWorkspaceRules => {
                 {
-                    let mut already_moved = self.already_moved_window_handles.lock();
+                    let mut already_moved = self.already_moved_windows.lock();
                     already_moved.clear();
                 }
                 self.enforce_workspace_rules()?;
@@ -565,8 +560,7 @@ impl WindowManager {
                 }
             }
             SocketMessage::SessionFloatRule => {
-                let foreground_window = WindowsApi::foreground_window()?;
-                let window = Window::from(foreground_window);
+                let window = WindowsApi::foreground_window()?;
                 if let (Ok(exe), Ok(title), Ok(class)) =
                     (window.exe(), window.title(), window.class())
                 {
@@ -633,7 +627,7 @@ impl WindowManager {
 
                 let offset = self.work_area_offset;
 
-                let mut hwnds_to_purge = vec![];
+                let mut wins_to_purge = vec![];
                 for (i, monitor) in self.monitors().indexed() {
                     for container in monitor
                         .focused_workspace()
@@ -644,22 +638,22 @@ impl WindowManager {
                             match identifier {
                                 ApplicationIdentifier::Path => {
                                     if window.path()? == *id {
-                                        hwnds_to_purge.push((i, window.hwnd));
+                                        wins_to_purge.push((i, *window));
                                     }
                                 }
                                 ApplicationIdentifier::Exe => {
                                     if window.exe()? == *id {
-                                        hwnds_to_purge.push((i, window.hwnd));
+                                        wins_to_purge.push((i, *window));
                                     }
                                 }
                                 ApplicationIdentifier::Class => {
                                     if window.class()? == *id {
-                                        hwnds_to_purge.push((i, window.hwnd));
+                                        wins_to_purge.push((i, *window));
                                     }
                                 }
                                 ApplicationIdentifier::Title => {
                                     if window.title()? == *id {
-                                        hwnds_to_purge.push((i, window.hwnd));
+                                        wins_to_purge.push((i, *window));
                                     }
                                 }
                             }
@@ -667,7 +661,7 @@ impl WindowManager {
                     }
                 }
 
-                for (monitor_idx, hwnd) in hwnds_to_purge {
+                for (monitor_idx, win) in wins_to_purge {
                     let monitor = self
                         .monitors_mut()
                         .get_mut(monitor_idx)
@@ -676,7 +670,7 @@ impl WindowManager {
                     monitor
                         .focused_workspace_mut()
                         .ok_or_else(|| anyhow!("there is no focused workspace"))?
-                        .remove_window(hwnd)?;
+                        .remove_window(win)?;
 
                     monitor.update_focused_workspace(offset)?;
                 }
@@ -1299,7 +1293,7 @@ impl WindowManager {
 
                         // Sort by window area
                         window_idx_pairs.sort_by_key(|(_, w)| {
-                            let rect = WindowsApi::window_rect(w.hwnd).unwrap_or_default();
+                            let rect = WindowsApi::window_rect(**w).unwrap_or_default();
                             rect.right * rect.bottom
                         });
                         window_idx_pairs.reverse();
@@ -1362,7 +1356,7 @@ impl WindowManager {
 
                             // Sort by window area
                             window_idx_pairs.sort_by_key(|w| {
-                                let rect = WindowsApi::window_rect(w.hwnd).unwrap_or_default();
+                                let rect = WindowsApi::window_rect(**w).unwrap_or_default();
                                 rect.right * rect.bottom
                             });
 
@@ -2290,8 +2284,7 @@ if (!(Get-Process komorebi-bar -ErrorAction SilentlyContinue))
                 REMOVE_TITLEBARS.store(!current, Ordering::SeqCst);
                 self.update_focused_workspace(false, false)?;
             }
-            SocketMessage::DebugWindow(hwnd) => {
-                let window = Window::from(hwnd);
+            SocketMessage::DebugWindow(window) => {
                 let mut rule_debug = RuleDebug::default();
                 let _ = window.should_manage(None, &mut rule_debug);
                 let schema = serde_json::to_string_pretty(&rule_debug)?;

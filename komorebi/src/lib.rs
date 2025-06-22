@@ -75,7 +75,7 @@ use winreg::enums::HKEY_CURRENT_USER;
 use winreg::RegKey;
 
 lazy_static! {
-    static ref HIDDEN_HWNDS: Arc<Mutex<Vec<isize>>> = Arc::new(Mutex::new(vec![]));
+    static ref HIDDEN_WINDOWS: Arc<Mutex<Vec<Window>>> = Arc::new(Mutex::new(vec![]));
     static ref LAYERED_WHITELIST: Arc<Mutex<Vec<MatchingRule>>> = Arc::new(Mutex::new(vec![
         MatchingRule::Simple(IdWithIdentifier {
             kind: ApplicationIdentifier::Exe,

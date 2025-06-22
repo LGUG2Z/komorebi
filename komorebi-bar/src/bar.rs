@@ -53,6 +53,7 @@ use komorebi_client::NotificationEvent;
 use komorebi_client::PathExt;
 use komorebi_client::SocketMessage;
 use komorebi_client::VirtualDesktopNotification;
+use komorebi_client::Window;
 use komorebi_themes::catppuccin_egui;
 use komorebi_themes::Base16Value;
 use komorebi_themes::Base16Wrapper;
@@ -148,7 +149,7 @@ pub fn exec_powershell(cmd: &str) -> Result<()> {
 }
 
 pub struct Komobar {
-    pub hwnd: Option<isize>,
+    pub window: Option<Window>,
     pub monitor_index: Option<usize>,
     pub disabled: bool,
     pub config: KomobarConfig,
@@ -720,7 +721,7 @@ impl Komobar {
         config: KomobarConfig,
     ) -> Self {
         let mut komobar = Self {
-            hwnd: process_hwnd(),
+            window: process_hwnd().map(Window::from),
             monitor_index: None,
             disabled: false,
             config,
@@ -828,8 +829,7 @@ impl Komobar {
     }
 
     pub fn position_bar(&self) {
-        if let Some(hwnd) = self.hwnd {
-            let window = komorebi_client::Window::from(hwnd);
+        if let Some(window) = self.window {
             match window.set_position(&self.size_rect, false) {
                 Ok(_) => {
                     tracing::info!("updated bar position");
@@ -865,8 +865,8 @@ impl eframe::App for Komobar {
     }
 
     fn update(&mut self, ctx: &Context, _frame: &mut eframe::Frame) {
-        if self.hwnd.is_none() {
-            self.hwnd = process_hwnd();
+        if self.window.is_none() {
+            self.window = process_hwnd().map(Window::from);
         }
 
         if self.scale_factor != ctx.native_pixels_per_point().unwrap_or(1.0) {
@@ -905,9 +905,9 @@ impl eframe::App for Komobar {
                         tracing::debug!(
                             "back on komorebi's associated virtual desktop - restoring bar"
                         );
-                        if let Some(hwnd) = self.hwnd {
-                            komorebi_client::WindowsApi::restore_window(hwnd);
-                        }
+                        if let Some(window) = self.window {
+                            komorebi_client::WindowsApi::restore_window(window)
+                        };
                     }
                     NotificationEvent::VirtualDesktop(
                         VirtualDesktopNotification::LeftAssociatedVirtualDesktop,
@@ -915,8 +915,8 @@ impl eframe::App for Komobar {
                         tracing::debug!(
                             "no longer on komorebi's associated virtual desktop - minimizing bar"
                         );
-                        if let Some(hwnd) = self.hwnd {
-                            komorebi_client::WindowsApi::minimize_window(hwnd);
+                        if let Some(window) = self.window {
+                            komorebi_client::WindowsApi::minimize_window(window)
                         }
                     }
                     _ => {}
@@ -942,11 +942,8 @@ impl eframe::App for Komobar {
 
                         // Restore the bar in case it has been minimized when the monitor
                         // disconnected
-                        if let Some(hwnd) = self.hwnd {
-                            let window = komorebi_client::Window::from(hwnd);
-                            if window.is_miminized() {
-                                komorebi_client::WindowsApi::restore_window(hwnd);
-                            }
+                        if let Some(window) = self.window.filter(|w| w.is_miminized()) {
+                            komorebi_client::WindowsApi::restore_window(window)
                         }
 
                         // Reset the current `work_area_offset` so that it gets recalculated and

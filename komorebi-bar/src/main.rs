@@ -85,7 +85,7 @@ extern "system" fn enum_window(hwnd: HWND, lparam: LPARAM) -> BOOL {
     }
 }
 
-fn process_hwnd() -> Option<isize> {
+fn process_hwnd() -> Option<HWND> {
     unsafe {
         let mut hwnd = HWND::default();
         let _ = EnumThreadWindows(
@@ -94,10 +94,10 @@ fn process_hwnd() -> Option<isize> {
             LPARAM(&mut hwnd as *mut HWND as isize),
         );
 
-        if hwnd.0 as isize == 0 {
+        if hwnd.is_invalid() {
             None
         } else {
-            Some(hwnd.0 as isize)
+            Some(hwnd)
         }
     }
 }

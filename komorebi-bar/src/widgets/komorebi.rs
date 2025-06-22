@@ -886,10 +886,10 @@ impl From<&Container> for KomorebiNotificationStateContainerInformation {
         let windows = value.windows().iter().collect::<Vec<_>>();
 
         let icons = windows
-            .iter()
+            .into_iter()
             .map(|window| {
-                ImageIcon::try_load(window.hwnd, || {
-                    windows_icons::get_icon_by_hwnd(window.hwnd).or_else(|| {
+                ImageIcon::try_load(*window, || {
+                    windows_icons::get_icon_by_hwnd(window.as_isize()).or_else(|| {
                         windows_icons_fallback::get_icon_by_process_id(window.process_id())
                     })
                 })
@@ -910,8 +910,8 @@ impl From<&Container> for KomorebiNotificationStateContainerInformation {
 
 impl From<&Window> for KomorebiNotificationStateContainerInformation {
     fn from(value: &Window) -> Self {
-        let icons = ImageIcon::try_load(value.hwnd, || {
-            windows_icons::get_icon_by_hwnd(value.hwnd)
+        let icons = ImageIcon::try_load(*value, || {
+            windows_icons::get_icon_by_hwnd(value.as_isize())
                 .or_else(|| windows_icons_fallback::get_icon_by_process_id(value.process_id()))
         });
 

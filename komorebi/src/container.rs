@@ -60,22 +60,12 @@ impl Lockable for Container {
 }
 
 impl Container {
-    pub fn hide(&self, omit: Option<isize>) {
-        for window in self.windows().iter().rev() {
-            let mut should_hide = omit.is_none();
-
-            if !should_hide {
-                if let Some(omit) = omit {
-                    if omit != window.hwnd {
-                        should_hide = true
-                    }
-                }
-            }
-
-            if should_hide {
-                window.hide();
-            }
-        }
+    pub fn hide(&self, omit: Option<Window>) {
+        self.windows()
+            .iter()
+            .rev()
+            .filter(|&&window| Some(window) != omit)
+            .for_each(|window| window.hide())
     }
 
     pub fn restore(&self) {
@@ -99,48 +89,23 @@ impl Container {
         }
     }
 
-    pub fn hwnd_from_exe(&self, exe: &str) -> Option<isize> {
-        for window in self.windows() {
-            if let Ok(window_exe) = window.exe() {
-                if exe == window_exe {
-                    return Option::from(window.hwnd);
-                }
-            }
-        }
-
-        None
+    pub fn window_from_exe(&self, exe: &str) -> Option<Window> {
+        self.windows()
+            .iter()
+            .find_map(|win| win.exe().ok().filter(|e| e == exe).map(|_| *win))
     }
 
     pub fn idx_from_exe(&self, exe: &str) -> Option<usize> {
-        for (idx, window) in self.windows().indexed() {
-            if let Ok(window_exe) = window.exe() {
-                if exe == window_exe {
-                    return Option::from(idx);
-                }
-            }
-        }
-
-        None
+        self.windows()
+            .position(|win| win.exe().ok().as_deref() == Some(exe))
     }
 
-    pub fn contains_window(&self, hwnd: isize) -> bool {
-        for window in self.windows() {
-            if window.hwnd == hwnd {
-                return true;
-            }
-        }
-
-        false
+    pub fn contains_window(&self, window: Window) -> bool {
+        self.windows().contains(&window)
     }
 
-    pub fn idx_for_window(&self, hwnd: isize) -> Option<usize> {
-        for (i, window) in self.windows().indexed() {
-            if window.hwnd == hwnd {
-                return Option::from(i);
-            }
-        }
-
-        None
+    pub fn idx_for_window(&self, window: Window) -> Option<usize> {
+        self.windows().position(|win| *win == window)
     }
 
     pub fn remove_window_by_idx(&mut self, idx: usize) -> Option<Window> {
@@ -187,12 +152,12 @@ mod tests {
         }
 
         // Should return true for existing windows
-        assert!(container.contains_window(1));
-        assert_eq!(container.idx_for_window(1), Some(1));
+        assert!(container.contains_window(Window::from(1)));
+        assert_eq!(container.idx_for_window(Window::from(1)), Some(1));
 
         // Should return false since window 4 doesn't exist
-        assert!(!container.contains_window(4));
-        assert_eq!(container.idx_for_window(4), None);
+        assert!(!container.contains_window(Window::from(4)));
+        assert_eq!(container.idx_for_window(Window::from(4)), None);
     }
 
     #[test]
@@ -210,7 +175,7 @@ mod tests {
         assert_eq!(container.windows().len(), 2);
 
         // Should return false since window 1 was removed
-        assert!(!container.contains_window(1));
+        assert!(!container.contains_window(Window::from(1)));
     }
 
     #[test]
@@ -242,7 +207,7 @@ mod tests {
 
         assert_eq!(container.windows().len(), 1);
         assert_eq!(container.focused_window_idx(), 0);
-        assert!(container.contains_window(1));
+        assert!(container.contains_window(Window::from(1)));
     }
 
     #[test]
@@ -278,10 +243,10 @@ mod tests {
         }
 
         // Should return the index of the window
-        assert_eq!(container.idx_for_window(1), Some(1));
+        assert_eq!(container.idx_for_window(Window::from(1)), Some(1));
 
         // Should return None since window 4 doesn't exist
-        assert_eq!(container.idx_for_window(4), None);
+        assert_eq!(container.idx_for_window(Window::from(4)), None);
     }
 
     #[test]
