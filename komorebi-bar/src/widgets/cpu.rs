@@ -76,8 +76,8 @@ impl Cpu {
 
         CpuOutput {
             label: match self.label_prefix {
-                LabelPrefix::Text | LabelPrefix::IconAndText => format!("CPU: {}%", used),
-                LabelPrefix::None | LabelPrefix::Icon => format!("{}%", used),
+                LabelPrefix::Text | LabelPrefix::IconAndText => format!("CPU: {used}%"),
+                LabelPrefix::None | LabelPrefix::Icon => format!("{used}%"),
             },
             selected,
         }
@@ -124,7 +124,7 @@ impl BarWidget for Cpu {
                         if let Err(error) =
                             Command::new("cmd.exe").args(["/C", "taskmgr.exe"]).spawn()
                         {
-                            eprintln!("{}", error)
+                            eprintln!("{error}")
                         }
                     }
                 });

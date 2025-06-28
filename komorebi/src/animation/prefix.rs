@@ -17,5 +17,5 @@ pub enum AnimationPrefix {
 }
 
 pub fn new_animation_key(prefix: AnimationPrefix, key: String) -> String {
-    format!("{}:{}", prefix, key)
+    format!("{prefix}:{key}")
 }
