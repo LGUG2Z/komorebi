@@ -166,7 +166,7 @@ impl Date {
                         .to_string()
                         .trim()
                         .to_string(),
-                    Err(_) => format!("Invalid timezone: {}", timezone),
+                    Err(_) => format!("Invalid timezone: {timezone}"),
                 },
                 None => Local::now()
                     .format(&self.format.fmt_string())

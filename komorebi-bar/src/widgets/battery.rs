@@ -181,7 +181,7 @@ impl BarWidget for Battery {
                             .args(["/C", "start", "ms-settings:batterysaver"])
                             .spawn()
                         {
-                            eprintln!("{}", error)
+                            eprintln!("{error}")
                         }
                     }
                 });

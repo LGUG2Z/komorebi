@@ -10,10 +10,10 @@ use std::sync::OnceLock;
 use crate::Window;
 use crate::WindowManager;
 
-pub struct Notification(isize);
+pub struct Notification(Window);
 
 impl Deref for Notification {
-    type Target = isize;
+    type Target = Window;
 
     fn deref(&self) -> &Self::Target {
         &self.0
@@ -37,8 +37,8 @@ fn event_rx() -> Receiver<Notification> {
 // Currently this should only be used for async focus updates, such as
 // when an animation finishes and we need to focus to set the cursor
 // position if the user has mouse follows focus enabled
-pub fn send_notification(hwnd: isize) {
-    if event_tx().try_send(Notification(hwnd)).is_err() {
+pub fn send_notification(window: Window) {
+    if event_tx().try_send(Notification(window)).is_err() {
         tracing::warn!("channel is full; dropping notification")
     }
 }
@@ -63,7 +63,7 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
 
     for notification in receiver {
         let mouse_follows_focus = wm.lock().mouse_follows_focus;
-        let _ = Window::from(*notification).focus(mouse_follows_focus);
+        let _ = notification.focus(mouse_follows_focus);
     }
 
     Ok(())

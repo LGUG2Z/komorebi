@@ -92,8 +92,7 @@ lazy_static! {
 
                 assert!(
                     whkd_config_home.is_dir(),
-                    "$Env:WHKD_CONFIG_HOME is set to '{}', which is not a valid directory",
-                    home_path
+                    "$Env:WHKD_CONFIG_HOME is set to '{home_path}', which is not a valid directory",
                 );
 
                 whkd_config_home
@@ -3094,11 +3093,12 @@ fn show_window(hwnd: HWND, command: SHOW_WINDOW_CMD) {
     };
 }
 
-fn remove_transparency(hwnd: isize) {
+fn remove_transparency(hwnd: HWND) {
     let _ = komorebi_client::Window::from(hwnd).opaque();
 }
 
 fn restore_window(hwnd: isize) {
-    show_window(HWND(hwnd as *mut core::ffi::c_void), SW_RESTORE);
+    let hwnd = HWND(hwnd as *mut core::ffi::c_void);
+    show_window(hwnd, SW_RESTORE);
     remove_transparency(hwnd);
 }

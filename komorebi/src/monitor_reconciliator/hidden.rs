@@ -40,24 +40,22 @@ use windows::Win32::UI::WindowsAndMessaging::WTS_SESSION_LOCK;
 use windows::Win32::UI::WindowsAndMessaging::WTS_SESSION_UNLOCK;
 
 use crate::monitor_reconciliator;
-use crate::windows_api;
+use crate::Window;
 use crate::WindowsApi;
 
 // This is a hidden window specifically spawned to listen to system-wide events related to monitors
 #[derive(Debug, Clone, Copy)]
 pub struct Hidden {
-    pub hwnd: isize,
-}
-
-impl From<isize> for Hidden {
-    fn from(hwnd: isize) -> Self {
-        Self { hwnd }
-    }
+    id: Window,
 }
 
 impl Hidden {
     pub const fn hwnd(self) -> HWND {
-        HWND(windows_api::as_ptr!(self.hwnd))
+        self.id().hwnd()
+    }
+
+    pub const fn id(self) -> Window {
+        self.id
     }
 
     pub fn create(name: &str) -> color_eyre::Result<Self> {
@@ -76,12 +74,12 @@ impl Hidden {
 
         let _ = WindowsApi::register_class_w(&window_class)?;
 
-        let (hwnd_sender, hwnd_receiver) = mpsc::channel();
+        let (win_sender, win_receiver) = mpsc::channel();
 
         let instance = h_module.0 as isize;
         std::thread::spawn(move || -> color_eyre::Result<()> {
             let hwnd = WindowsApi::create_hidden_window(PCWSTR(name.as_ptr()), instance)?;
-            hwnd_sender.send(hwnd)?;
+            win_sender.send(hwnd)?;
 
             let mut msg: MSG = MSG::default();
 
@@ -102,14 +100,14 @@ impl Hidden {
             Ok(())
         });
 
-        let hwnd = hwnd_receiver.recv()?;
+        let window = win_receiver.recv()?;
 
         // Register Session Lock/Unlock events
-        WindowsApi::wts_register_session_notification(hwnd)?;
+        WindowsApi::wts_register_session_notification(window)?;
 
         // Register Laptop lid open/close events
         WindowsApi::register_power_setting_notification(
-            hwnd,
+            window,
             &GUID_LIDSWITCH_STATE_CHANGE,
             REGISTER_NOTIFICATION_FLAGS(0),
         )?;
@@ -140,22 +138,22 @@ impl Hidden {
             dbcc_name: [0; 1],
         };
         WindowsApi::register_device_notification(
-            hwnd,
+            window,
             monitor_filter,
             REGISTER_NOTIFICATION_FLAGS(0),
         )?;
         WindowsApi::register_device_notification(
-            hwnd,
+            window,
             display_adapter_filter,
             REGISTER_NOTIFICATION_FLAGS(0),
         )?;
         WindowsApi::register_device_notification(
-            hwnd,
+            window,
             video_output_filter,
             REGISTER_NOTIFICATION_FLAGS(0),
         )?;
 
-        Ok(Self { hwnd })
+        Ok(Hidden { id: window })
     }
 
     pub extern "system" fn callback(
