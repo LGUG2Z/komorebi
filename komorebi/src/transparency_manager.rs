@@ -9,7 +9,6 @@ use std::sync::atomic::AtomicU8;
 use std::sync::Arc;
 use std::sync::OnceLock;
 
-use crate::should_act;
 use crate::Window;
 use crate::WindowManager;
 use crate::WindowsApi;
@@ -145,27 +144,8 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                         let focused_window_idx = c.focused_window_idx();
                         for (window_idx, window) in c.windows().indexed() {
                             if window_idx == focused_window_idx {
-                                let mut should_make_transparent = true;
-                                if !transparency_blacklist.is_empty() {
-                                    if let (Ok(title), Ok(exe_name), Ok(class), Ok(path)) = (
-                                        window.title(),
-                                        window.exe(),
-                                        window.class(),
-                                        window.path(),
-                                    ) {
-                                        let is_blacklisted = should_act(
-                                            &title,
-                                            &exe_name,
-                                            &class,
-                                            &path,
-                                            &transparency_blacklist,
-                                            &regex_identifiers,
-                                        )
-                                        .is_some();
-
-                                        should_make_transparent = !is_blacklisted;
-                                    }
-                                }
+                                let should_make_transparent = !window
+                                    .matches_rules(&*transparency_blacklist, &regex_identifiers);
 
                                 if should_make_transparent {
                                     match window.transparent() {

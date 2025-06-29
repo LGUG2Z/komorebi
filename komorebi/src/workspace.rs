@@ -16,7 +16,6 @@ use crate::core::OperationDirection;
 use crate::core::Rect;
 use crate::default_layout::LayoutOptions;
 use crate::ring::Ring;
-use crate::should_act;
 use crate::stackbar_manager;
 use crate::stackbar_manager::STACKBAR_TAB_HEIGHT;
 use crate::static_config::WorkspaceConfig;
@@ -600,15 +599,8 @@ impl Workspace {
 
                         for window in container.windows() {
                             if container.focused_window().is_some_and(|w| w == window) {
-                                let should_remove_titlebar_for_window = should_act(
-                                    &window.title().unwrap_or_default(),
-                                    &window.exe().unwrap_or_default(),
-                                    &window.class().unwrap_or_default(),
-                                    &window.path().unwrap_or_default(),
-                                    &no_titlebar,
-                                    &regex_identifiers,
-                                )
-                                .is_some();
+                                let should_remove_titlebar_for_window =
+                                    window.matches_rules(&*no_titlebar, &regex_identifiers);
 
                                 if should_remove_titlebars && should_remove_titlebar_for_window {
                                     window.remove_title_bar()?;

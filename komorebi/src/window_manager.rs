@@ -1,3 +1,4 @@
+use std::cell::LazyCell;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::env::temp_dir;
@@ -31,6 +32,7 @@ use crate::animation::ANIMATION_ENABLED_GLOBAL;
 use crate::animation::ANIMATION_ENABLED_PER_ANIMATION;
 use crate::core::config_generation::MatchingRule;
 use crate::core::custom_layout::CustomLayout;
+use crate::core::ApplicationIdentifier;
 use crate::core::Arrangement;
 use crate::core::Axis;
 use crate::core::BorderImplementation;
@@ -58,10 +60,9 @@ use crate::container::Container;
 use crate::core::StackbarMode;
 use crate::current_virtual_desktop;
 use crate::load_configuration;
+use crate::matches_rule;
 use crate::monitor::Monitor;
 use crate::ring::Ring;
-use crate::should_act;
-use crate::should_act_individual;
 use crate::stackbar_manager::STACKBAR_FOCUSED_TEXT_COLOUR;
 use crate::stackbar_manager::STACKBAR_LABEL;
 use crate::stackbar_manager::STACKBAR_MODE;
@@ -855,55 +856,25 @@ impl WindowManager {
                     for window in workspace.visible_windows() {
                         let mut already_moved_windows = self.already_moved_windows.lock();
 
-                        if let (Ok(exe_name), Ok(title), Ok(class), Ok(path)) =
-                            (window.exe(), window.title(), window.class(), window.path())
-                        {
-                            for rule in &*workspace_matching_rules {
-                                let matched = match &rule.matching_rule {
-                                    MatchingRule::Simple(r) => should_act_individual(
-                                        &title,
-                                        &exe_name,
-                                        &class,
-                                        &path,
-                                        r,
-                                        &regex_identifiers,
-                                    ),
-                                    MatchingRule::Composite(r) => {
-                                        let mut composite_results = vec![];
-                                        for identifier in r {
-                                            composite_results.push(should_act_individual(
-                                                &title,
-                                                &exe_name,
-                                                &class,
-                                                &path,
-                                                identifier,
-                                                &regex_identifiers,
-                                            ));
-                                        }
+                        let title = LazyCell::new(|| window.title().ok());
+                        let exe = LazyCell::new(|| window.exe().ok());
+                        let class = LazyCell::new(|| window.class().ok());
+                        let path = LazyCell::new(|| window.path().ok());
 
-                                        composite_results.iter().all(|&x| x)
-                                    }
-                                };
+                        let matching = |kind| match kind {
+                            ApplicationIdentifier::Title => title.as_deref(),
+                            ApplicationIdentifier::Exe => exe.as_deref(),
+                            ApplicationIdentifier::Class => class.as_deref(),
+                            ApplicationIdentifier::Path => path.as_deref(),
+                        };
+                        for rule in &*workspace_matching_rules {
+                            if matches_rule(matching, &rule.matching_rule, &regex_identifiers) {
+                                let floating = workspace.floating_windows().contains(window);
 
-                                if matched {
-                                    let floating = workspace.floating_windows().contains(window);
+                                if rule.initial_only {
+                                    if !already_moved_windows.contains(window) {
+                                        already_moved_windows.insert(*window);
 
-                                    if rule.initial_only {
-                                        if !already_moved_windows.contains(window) {
-                                            already_moved_windows.insert(*window);
-
-                                            self.add_window_to_move_based_on_workspace_rule(
-                                                &window.title()?,
-                                                *window,
-                                                i,
-                                                j,
-                                                rule.monitor_index,
-                                                rule.workspace_index,
-                                                floating,
-                                                &mut to_move,
-                                            );
-                                        }
-                                    } else {
                                         self.add_window_to_move_based_on_workspace_rule(
                                             &window.title()?,
                                             *window,
@@ -915,6 +886,17 @@ impl WindowManager {
                                             &mut to_move,
                                         );
                                     }
+                                } else {
+                                    self.add_window_to_move_based_on_workspace_rule(
+                                        &window.title()?,
+                                        *window,
+                                        i,
+                                        j,
+                                        rule.monitor_index,
+                                        rule.workspace_index,
+                                        floating,
+                                        &mut to_move,
+                                    );
                                 }
                             }
                         }
@@ -1666,17 +1648,7 @@ impl WindowManager {
 
                 for containers in workspace.containers_mut() {
                     for window in containers.windows_mut() {
-                        let should_remove_titlebar_for_window = should_act(
-                            &window.title().unwrap_or_default(),
-                            &window.exe().unwrap_or_default(),
-                            &window.class().unwrap_or_default(),
-                            &window.path().unwrap_or_default(),
-                            &no_titlebar,
-                            &regex_identifiers,
-                        )
-                        .is_some();
-
-                        if should_remove_titlebar_for_window {
+                        if window.matches_rules(&*no_titlebar, &regex_identifiers) {
                             window.add_title_bar()?;
                         }
 
