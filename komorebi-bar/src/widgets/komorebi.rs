@@ -759,7 +759,7 @@ impl KomorebiNotificationState {
         self.monitor_usr_idx_map = notification.state.monitor_usr_idx_map.clone();
 
         if monitor_index.is_none()
-            || monitor_index.is_some_and(|idx| idx >= notification.state.monitors.elements().len())
+            || monitor_index.is_some_and(|idx| idx >= notification.state.monitors.len())
         {
             // The bar's monitor is diconnected, so the bar is disabled no need to check anything
             // any further otherwise we'll get `OutOfBounds` panics.
@@ -770,9 +770,8 @@ impl KomorebiNotificationState {
 
         self.mouse_follows_focus = notification.state.mouse_follows_focus;
 
-        let monitor = &notification.state.monitors.elements()[monitor_index];
-        self.work_area_offset =
-            notification.state.monitors.elements()[monitor_index].work_area_offset();
+        let monitor = &notification.state.monitors[monitor_index];
+        self.work_area_offset = notification.state.monitors[monitor_index].work_area_offset();
 
         let focused_workspace_idx = monitor.focused_workspace_idx();
 
@@ -783,7 +782,7 @@ impl KomorebiNotificationState {
             .to_owned()
             .unwrap_or_else(|| format!("{}", focused_workspace_idx + 1));
 
-        for (i, ws) in monitor.workspaces().iter().enumerate() {
+        for (i, ws) in monitor.workspaces().indexed() {
             let should_show = if self.hide_empty_workspaces {
                 focused_workspace_idx == i || !ws.is_empty()
             } else {
@@ -803,7 +802,7 @@ impl KomorebiNotificationState {
                     }
 
                     // add all tiled windows
-                    for (i, container) in ws.containers().iter().enumerate() {
+                    for (i, container) in ws.containers().indexed() {
                         containers.push((
                             !has_monocle && i == ws.focused_container_idx(),
                             container.into(),
@@ -887,10 +886,10 @@ impl From<&Container> for KomorebiNotificationStateContainerInformation {
         let windows = value.windows().iter().collect::<Vec<_>>();
 
         let icons = windows
-            .iter()
+            .into_iter()
             .map(|window| {
-                ImageIcon::try_load(window.hwnd, || {
-                    windows_icons::get_icon_by_hwnd(window.hwnd).or_else(|| {
+                ImageIcon::try_load(*window, || {
+                    windows_icons::get_icon_by_hwnd(window.as_isize()).or_else(|| {
                         windows_icons_fallback::get_icon_by_process_id(window.process_id())
                     })
                 })
@@ -911,8 +910,8 @@ impl From<&Container> for KomorebiNotificationStateContainerInformation {
 
 impl From<&Window> for KomorebiNotificationStateContainerInformation {
     fn from(value: &Window) -> Self {
-        let icons = ImageIcon::try_load(value.hwnd, || {
-            windows_icons::get_icon_by_hwnd(value.hwnd)
+        let icons = ImageIcon::try_load(*value, || {
+            windows_icons::get_icon_by_hwnd(value.as_isize())
                 .or_else(|| windows_icons_fallback::get_icon_by_process_id(value.process_id()))
         });
 

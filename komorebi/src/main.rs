@@ -324,7 +324,7 @@ fn main() -> Result<()> {
     stackbar_manager::listen_for_notifications(wm.clone());
     transparency_manager::listen_for_notifications(wm.clone());
     monitor_reconciliator::listen_for_notifications(wm.clone())?;
-    reaper::listen_for_notifications(wm.clone(), wm.lock().known_hwnds.clone());
+    reaper::listen_for_notifications(wm.clone(), wm.lock().known_wins.clone());
     focus_manager::listen_for_notifications(wm.clone());
     theme_manager::listen_for_notifications();
 

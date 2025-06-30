@@ -107,7 +107,7 @@ pub fn new(
     serial_number_id: Option<String>,
 ) -> Monitor {
     let mut workspaces = Ring::default();
-    workspaces.elements_mut().push_back(Workspace::default());
+    workspaces.push_back(Workspace::default());
 
     Monitor {
         id,
@@ -193,7 +193,7 @@ impl Monitor {
         let focused_idx = self.focused_workspace_idx();
         let hmonitor = self.id();
         let monitor_wp = self.wallpaper.clone();
-        for (i, workspace) in self.workspaces_mut().iter_mut().enumerate() {
+        for (i, workspace) in self.workspaces_mut().indexed_mut() {
             if i == focused_idx {
                 workspace.restore(mouse_follows_focus, hmonitor, &monitor_wp)?;
             } else {
@@ -421,11 +421,10 @@ impl Monitor {
             bail!("cannot move native maximized window to another monitor or workspace");
         }
 
-        let foreground_hwnd = WindowsApi::foreground_window()?;
+        let foreground_win = WindowsApi::foreground_window()?;
         let floating_window_index = workspace
             .floating_windows()
-            .iter()
-            .position(|w| w.hwnd == foreground_hwnd);
+            .position(|&w| w == foreground_win);
 
         if let Some(idx) = floating_window_index {
             if let Some(window) = workspace.floating_windows_mut().remove(idx) {

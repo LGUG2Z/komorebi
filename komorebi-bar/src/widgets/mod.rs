@@ -3,6 +3,7 @@ use eframe::egui::Context;
 use eframe::egui::TextureHandle;
 use eframe::egui::TextureOptions;
 use image::RgbaImage;
+use komorebi_client::Window;
 use std::collections::HashMap;
 use std::path::Path;
 use std::sync::Arc;
@@ -155,7 +156,7 @@ pub enum ImageIconId {
     /// Identifier based on a file system path.
     Path(Arc<Path>),
     /// Windows HWND handle.
-    Hwnd(isize),
+    Window(Window),
 }
 
 impl From<&Path> for ImageIconId {
@@ -165,9 +166,9 @@ impl From<&Path> for ImageIconId {
     }
 }
 
-impl From<isize> for ImageIconId {
+impl From<Window> for ImageIconId {
     #[inline]
-    fn from(value: isize) -> Self {
-        Self::Hwnd(value)
+    fn from(value: Window) -> Self {
+        Self::Window(value)
     }
 }

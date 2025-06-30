@@ -1,12 +1,13 @@
 use crate::border_manager::window_kind_colour;
 use crate::border_manager::RenderTarget;
 use crate::border_manager::WindowKind;
+use crate::border_manager::WsElementId;
 use crate::border_manager::BORDER_OFFSET;
 use crate::border_manager::BORDER_WIDTH;
 use crate::border_manager::STYLE;
 use crate::core::BorderStyle;
 use crate::core::Rect;
-use crate::windows_api;
+use crate::Window;
 use crate::WindowsApi;
 use crate::WINDOWS_11;
 use std::collections::HashMap;
@@ -98,14 +99,11 @@ static BRUSH_PROPERTIES: LazyLock<D2D1_BRUSH_PROPERTIES> =
         transform: Matrix3x2::identity(),
     });
 
-pub extern "system" fn border_hwnds(hwnd: HWND, lparam: LPARAM) -> BOOL {
-    let hwnds = unsafe { &mut *(lparam.0 as *mut Vec<isize>) };
-    let hwnd = hwnd.0 as isize;
-
-    if let Ok(class) = WindowsApi::real_window_class_w(hwnd) {
-        if class.starts_with("komoborder") {
-            hwnds.push(hwnd);
-        }
+pub extern "system" fn border_windows(hwnd: HWND, lparam: LPARAM) -> BOOL {
+    let windows = unsafe { &mut *(lparam.0 as *mut Vec<BorderId>) };
+    let win = Window::from(hwnd);
+    if WindowsApi::real_window_class_w(win).is_ok_and(|class| class.starts_with("komoborder")) {
+        windows.push(BorderId(win));
     }
 
     true.into()
@@ -113,11 +111,11 @@ pub extern "system" fn border_hwnds(hwnd: HWND, lparam: LPARAM) -> BOOL {
 
 #[derive(Debug, Clone)]
 pub struct Border {
-    pub hwnd: isize,
-    pub id: String,
+    pub border_id: BorderId,
+    pub id: WsElementId,
     pub monitor_idx: Option<usize>,
     pub render_target: Option<RenderTarget>,
-    pub tracking_hwnd: isize,
+    pub tracking_window: Window,
     pub window_rect: Rect,
     pub window_kind: WindowKind,
     pub style: BorderStyle,
@@ -128,14 +126,29 @@ pub struct Border {
     pub brushes: HashMap<WindowKind, ID2D1SolidColorBrush>,
 }
 
-impl From<isize> for Border {
-    fn from(value: isize) -> Self {
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct BorderId(Window);
+
+impl From<HWND> for BorderId {
+    fn from(value: HWND) -> Self {
+        BorderId(Window::from(value))
+    }
+}
+
+impl BorderId {
+    pub const fn window(self) -> Window {
+        self.0
+    }
+}
+
+impl From<BorderId> for Border {
+    fn from(border_id: BorderId) -> Self {
         Self {
-            hwnd: value,
-            id: String::new(),
+            border_id,
+            id: WsElementId::from(Window::default()),
             monitor_idx: None,
             render_target: None,
-            tracking_hwnd: 0,
+            tracking_window: Window::default(),
             window_rect: Rect::default(),
             window_kind: WindowKind::Unfocused,
             style: STYLE.load(),
@@ -150,12 +163,16 @@ impl From<isize> for Border {
 
 impl Border {
     pub const fn hwnd(&self) -> HWND {
-        HWND(windows_api::as_ptr!(self.hwnd))
+        self.id().window().hwnd()
+    }
+
+    pub const fn id(&self) -> BorderId {
+        self.border_id
     }
 
     pub fn create(
-        id: &str,
-        tracking_hwnd: isize,
+        id: &WsElementId,
+        tracking_window: Window,
         monitor_idx: usize,
     ) -> color_eyre::Result<Box<Self>> {
         let name: Vec<u16> = format!("komoborder-{id}\0").encode_utf16().collect();
@@ -176,15 +193,15 @@ impl Border {
         let (border_sender, border_receiver) = mpsc::channel();
 
         let instance = h_module.0 as isize;
-        let container_id = id.to_owned();
+        let container_id = id.clone();
         std::thread::spawn(move || -> color_eyre::Result<()> {
             let mut border = Self {
-                hwnd: 0,
+                border_id: BorderId(Window::default()),
                 id: container_id,
                 monitor_idx: Some(monitor_idx),
                 render_target: None,
-                tracking_hwnd,
-                window_rect: WindowsApi::window_rect(tracking_hwnd).unwrap_or_default(),
+                tracking_window,
+                window_rect: WindowsApi::window_rect(tracking_window).unwrap_or_default(),
                 window_kind: WindowKind::Unfocused,
                 style: STYLE.load(),
                 width: BORDER_WIDTH.load(Ordering::Relaxed),
@@ -195,11 +212,11 @@ impl Border {
             };
 
             let border_pointer = &raw mut border;
-            let hwnd =
+            let border_id =
                 WindowsApi::create_border_window(PCWSTR(name.as_ptr()), instance, border_pointer)?;
 
             let boxed = unsafe {
-                (*border_pointer).hwnd = hwnd;
+                (*border_pointer).border_id = BorderId(border_id);
                 Box::from_raw(border_pointer)
             };
             border_sender.send(boxed)?;
@@ -248,7 +265,7 @@ impl Border {
 
     pub fn update_brushes(&mut self) -> color_eyre::Result<()> {
         let hwnd_render_target_properties = D2D1_HWND_RENDER_TARGET_PROPERTIES {
-            hwnd: HWND(windows_api::as_ptr!(self.hwnd)),
+            hwnd: self.hwnd(),
             pixelSize: Default::default(),
             presentOptions: D2D1_PRESENT_OPTIONS_IMMEDIATELY,
         };
@@ -313,15 +330,15 @@ impl Border {
     }
 
     pub fn destroy(&self) -> color_eyre::Result<()> {
-        WindowsApi::close_window(self.hwnd)
+        WindowsApi::close_window(self.id().window())
     }
 
-    pub fn set_position(&self, rect: &Rect, reference_hwnd: isize) -> color_eyre::Result<()> {
+    pub fn set_position(&self, rect: &Rect, reference_win: Window) -> color_eyre::Result<()> {
         let mut rect = *rect;
         rect.add_margin(self.width);
         rect.add_padding(-self.offset);
 
-        WindowsApi::set_border_pos(self.hwnd, &rect, reference_hwnd)?;
+        WindowsApi::set_border_pos(self.id().window(), &rect, reference_win)?;
 
         Ok(())
     }
@@ -371,7 +388,7 @@ impl Border {
                     // we don't actually want to destroy the window here, just hide it for quicker
                     // visual feedback to the user; the actual destruction will be handled by the
                     // core border manager loop
-                    WindowsApi::hide_window(window.0 as isize);
+                    WindowsApi::hide_window(window);
                     LRESULT(0)
                 }
                 EVENT_OBJECT_LOCATIONCHANGE => {
@@ -381,14 +398,14 @@ impl Border {
                         return LRESULT(0);
                     }
 
-                    let reference_hwnd = (*border_pointer).tracking_hwnd;
+                    let reference_win = (*border_pointer).tracking_window;
 
                     let old_rect = (*border_pointer).window_rect;
-                    let rect = WindowsApi::window_rect(reference_hwnd).unwrap_or_default();
+                    let rect = WindowsApi::window_rect(reference_win).unwrap_or_default();
 
                     (*border_pointer).window_rect = rect;
 
-                    if let Err(error) = (*border_pointer).set_position(&rect, reference_hwnd) {
+                    if let Err(error) = (*border_pointer).set_position(&rect, reference_win) {
                         tracing::error!("failed to update border position {error}");
                     }
 
@@ -455,7 +472,7 @@ impl Border {
                     LRESULT(0)
                 }
                 WM_PAINT => {
-                    if let Ok(rect) = WindowsApi::window_rect(window.0 as isize) {
+                    if let Ok(rect) = WindowsApi::window_rect(window) {
                         let border_pointer: *mut Border =
                             GetWindowLongPtrW(window, GWLP_USERDATA) as _;
 
@@ -463,14 +480,14 @@ impl Border {
                             return LRESULT(0);
                         }
 
-                        let reference_hwnd = (*border_pointer).tracking_hwnd;
+                        let reference_win = (*border_pointer).tracking_window;
 
                         // Update position to update the ZOrder
                         let border_window_rect = (*border_pointer).window_rect;
 
                         tracing::trace!("updating border position");
                         if let Err(error) =
-                            (*border_pointer).set_position(&border_window_rect, reference_hwnd)
+                            (*border_pointer).set_position(&border_window_rect, reference_win)
                         {
                             tracing::error!("failed to update border position {error}");
                         }

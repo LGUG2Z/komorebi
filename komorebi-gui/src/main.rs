@@ -121,7 +121,7 @@ struct KomorebiGui {
     mouse_follows_focus: bool,
     monitors: Vec<MonitorConfig>,
     workspace_names: HashMap<usize, Vec<String>>,
-    debug_hwnd: isize,
+    debug_win: Window,
     debug_windows: Vec<Window>,
     debug_rule: Option<RuleDebug>,
 }
@@ -170,7 +170,7 @@ impl KomorebiGui {
         };
 
         let mut monitors = vec![];
-        for m in state.monitors.elements() {
+        for m in &state.monitors {
             monitors.push(MonitorConfig::from(m));
         }
 
@@ -208,7 +208,7 @@ impl KomorebiGui {
             mouse_follows_focus: state.mouse_follows_focus,
             monitors,
             workspace_names,
-            debug_hwnd: 0,
+            debug_win: Window::default(),
             debug_windows,
             stackbar_config,
             debug_rule: None,
@@ -221,7 +221,7 @@ extern "system" fn enum_window(
     lparam: windows::Win32::Foundation::LPARAM,
 ) -> windows_core::BOOL {
     let windows = unsafe { &mut *(lparam.0 as *mut Vec<Window>) };
-    let window = Window::from(hwnd.0 as isize);
+    let window = Window::from(hwnd);
 
     if window.is_window()
         && !window.is_miminized()
@@ -250,7 +250,7 @@ impl eframe::App for KomorebiGui {
                 ui.set_width(ctx.screen_rect().width());
                 ui.collapsing("Debugging", |ui| {
                     ui.collapsing("Window Rules", |ui| {
-                        let window = Window::from(self.debug_hwnd);
+                        let window = self.debug_win;
 
                         let label = if let (Ok(title), Ok(exe)) = (window.title(), window.exe()) {
                             format!("{title} ({exe})")
@@ -280,8 +280,8 @@ impl eframe::App for KomorebiGui {
                                 for w in &self.debug_windows {
                                     if ui
                                         .selectable_value(
-                                            &mut self.debug_hwnd,
-                                            w.hwnd,
+                                            &mut self.debug_win,
+                                            *w,
                                             format!(
                                                 "{} ({})",
                                                 w.title().unwrap(),
@@ -292,7 +292,7 @@ impl eframe::App for KomorebiGui {
                                     {
                                         let debug_rule: RuleDebug = serde_json::from_str(
                                             &komorebi_client::send_query(
-                                                &SocketMessage::DebugWindow(self.debug_hwnd),
+                                                &SocketMessage::DebugWindow(self.debug_win),
                                             )
                                             .unwrap(),
                                         )

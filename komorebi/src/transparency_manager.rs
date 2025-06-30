@@ -9,7 +9,6 @@ use std::sync::atomic::AtomicU8;
 use std::sync::Arc;
 use std::sync::OnceLock;
 
-use crate::should_act;
 use crate::Window;
 use crate::WindowManager;
 use crate::WindowsApi;
@@ -19,14 +18,14 @@ use crate::TRANSPARENCY_BLACKLIST;
 pub static TRANSPARENCY_ENABLED: AtomicBool = AtomicBool::new(false);
 pub static TRANSPARENCY_ALPHA: AtomicU8 = AtomicU8::new(200);
 
-static KNOWN_HWNDS: OnceLock<Mutex<Vec<isize>>> = OnceLock::new();
+static KNOWN_WINDOWS: OnceLock<Mutex<Vec<Window>>> = OnceLock::new();
 
 pub struct Notification;
 
 static CHANNEL: OnceLock<(Sender<Notification>, Receiver<Notification>)> = OnceLock::new();
 
-pub fn known_hwnds() -> Vec<isize> {
-    let known = KNOWN_HWNDS.get_or_init(|| Mutex::new(Vec::new())).lock();
+pub fn known_windows() -> Vec<Window> {
+    let known = KNOWN_WINDOWS.get_or_init(|| Mutex::new(Vec::new())).lock();
     known.iter().copied().collect()
 }
 
@@ -68,35 +67,34 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
     event_tx().send(Notification)?;
 
     'receiver: for _ in receiver {
-        let known_hwnds = KNOWN_HWNDS.get_or_init(|| Mutex::new(Vec::new()));
+        let known_wins = KNOWN_WINDOWS.get_or_init(|| Mutex::new(Vec::new()));
         if !TRANSPARENCY_ENABLED.load_consume() {
-            for hwnd in known_hwnds.lock().iter() {
-                if let Err(error) = Window::from(*hwnd).opaque() {
-                    tracing::error!("failed to make window {hwnd} opaque: {error}")
+            for window in known_wins.lock().iter() {
+                if let Err(error) = window.opaque() {
+                    tracing::error!("failed to make {window:?} opaque: {error}")
                 }
             }
 
             continue 'receiver;
         }
 
-        known_hwnds.lock().clear();
+        known_wins.lock().clear();
 
         // Check the wm state every time we receive a notification
         let state = wm.lock();
 
         let focused_monitor_idx = state.focused_monitor_idx();
 
-        'monitors: for (monitor_idx, m) in state.monitors.elements().iter().enumerate() {
+        'monitors: for (monitor_idx, m) in state.monitors.indexed() {
             let focused_workspace_idx = m.focused_workspace_idx();
 
-            'workspaces: for (workspace_idx, ws) in m.workspaces().iter().enumerate() {
+            'workspaces: for (workspace_idx, ws) in m.workspaces().indexed() {
                 // Only operate on the focused workspace of each monitor
                 // Workspaces with tiling disabled don't have transparent windows
                 if !ws.tile() || workspace_idx != focused_workspace_idx {
-                    for window in ws.visible_windows().iter().flatten() {
+                    for window in ws.visible_windows() {
                         if let Err(error) = window.opaque() {
-                            let hwnd = window.hwnd;
-                            tracing::error!("failed to make window {hwnd} opaque: {error}")
+                            tracing::error!("failed to make {window:?} opaque: {error}")
                         }
                     }
 
@@ -108,15 +106,11 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                     if let Some(window) = monocle.focused_window() {
                         if monitor_idx == focused_monitor_idx {
                             if let Err(error) = window.opaque() {
-                                let hwnd = window.hwnd;
-                                tracing::error!(
-                                    "failed to make monocle window {hwnd} opaque: {error}"
-                                )
+                                tracing::error!("failed to make monocle {window:?} opaque: {error}")
                             }
                         } else if let Err(error) = window.transparent() {
-                            let hwnd = window.hwnd;
                             tracing::error!(
-                                "failed to make monocle window {hwnd} transparent: {error}"
+                                "failed to make monocle {window:?} transparent: {error}"
                             )
                         }
                     }
@@ -124,13 +118,14 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                     continue 'monitors;
                 }
 
-                let foreground_hwnd = WindowsApi::foreground_window().unwrap_or_default();
-                let is_maximized = WindowsApi::is_zoomed(foreground_hwnd);
+                let foreground_win = WindowsApi::foreground_window().unwrap_or_default();
+                let is_maximized = WindowsApi::is_zoomed(foreground_win);
 
                 if is_maximized {
-                    if let Err(error) = Window::from(foreground_hwnd).opaque() {
-                        let hwnd = foreground_hwnd;
-                        tracing::error!("failed to make maximized window {hwnd} opaque: {error}")
+                    if let Err(error) = foreground_win.opaque() {
+                        tracing::error!(
+                            "failed to make maximized {foreground_win:?} opaque: {error}"
+                        )
                     }
 
                     continue 'monitors;
@@ -139,7 +134,7 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                 let transparency_blacklist = TRANSPARENCY_BLACKLIST.lock();
                 let regex_identifiers = REGEX_IDENTIFIERS.lock();
 
-                for (idx, c) in ws.containers().iter().enumerate() {
+                for (idx, c) in ws.containers().indexed() {
                     // Update the transparency for all containers on this workspace
 
                     // If the window is not focused on the current workspace, or isn't on the focused monitor
@@ -147,60 +142,39 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                     #[allow(clippy::collapsible_else_if)]
                     if idx != ws.focused_container_idx() || monitor_idx != focused_monitor_idx {
                         let focused_window_idx = c.focused_window_idx();
-                        for (window_idx, window) in c.windows().iter().enumerate() {
+                        for (window_idx, window) in c.windows().indexed() {
                             if window_idx == focused_window_idx {
-                                let mut should_make_transparent = true;
-                                if !transparency_blacklist.is_empty() {
-                                    if let (Ok(title), Ok(exe_name), Ok(class), Ok(path)) = (
-                                        window.title(),
-                                        window.exe(),
-                                        window.class(),
-                                        window.path(),
-                                    ) {
-                                        let is_blacklisted = should_act(
-                                            &title,
-                                            &exe_name,
-                                            &class,
-                                            &path,
-                                            &transparency_blacklist,
-                                            &regex_identifiers,
-                                        )
-                                        .is_some();
-
-                                        should_make_transparent = !is_blacklisted;
-                                    }
-                                }
+                                let should_make_transparent = !window
+                                    .matches_rules(&*transparency_blacklist, &regex_identifiers);
 
                                 if should_make_transparent {
                                     match window.transparent() {
                                         Err(error) => {
-                                            let hwnd = foreground_hwnd;
-                                            tracing::error!("failed to make unfocused window {hwnd} transparent: {error}" )
+                                            tracing::error!("failed to make unfocused {foreground_win:?} transparent: {error}" )
                                         }
                                         Ok(..) => {
-                                            known_hwnds.lock().push(window.hwnd);
+                                            known_wins.lock().push(*window);
                                         }
                                     }
                                 }
                             } else {
                                 // just in case, this is useful when people are clicking around
                                 // on unfocused stackbar tabs
-                                known_hwnds.lock().push(window.hwnd);
+                                known_wins.lock().push(*window);
                             }
                         }
                     // Otherwise, make it opaque
                     } else {
                         let focused_window_idx = c.focused_window_idx();
-                        for (window_idx, window) in c.windows().iter().enumerate() {
+                        for (window_idx, window) in c.windows().indexed() {
                             if window_idx != focused_window_idx {
-                                known_hwnds.lock().push(window.hwnd);
+                                known_wins.lock().push(*window);
                             } else {
                                 if let Err(error) =
                                     c.focused_window().copied().unwrap_or_default().opaque()
                                 {
-                                    let hwnd = foreground_hwnd;
                                     tracing::error!(
-                                        "failed to make focused window {hwnd} opaque: {error}"
+                                        "failed to make focused {foreground_win:?} opaque: {error}"
                                     )
                                 }
                             }
