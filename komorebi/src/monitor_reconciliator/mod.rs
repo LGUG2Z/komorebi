@@ -5,11 +5,13 @@ use crate::config_generation::WorkspaceMatchingRule;
 use crate::core::Rect;
 use crate::monitor;
 use crate::monitor::Monitor;
+use crate::monitor::MonitorIdx;
 use crate::monitor_reconciliator::hidden::Hidden;
 use crate::notify_subscribers;
 use crate::Notification;
 use crate::NotificationEvent;
 use crate::State;
+use crate::WindowIdx;
 use crate::WindowManager;
 use crate::WindowsApi;
 use crate::DISPLAY_INDEX_PREFERENCES;
@@ -461,12 +463,11 @@ where
                         });
                     }
 
-                    let post_removal_monitor_count = wm.monitors().len();
-                    let focused_monitor_idx = wm.focused_monitor_idx();
-                    if focused_monitor_idx >= post_removal_monitor_count {
-                        wm.focus_monitor(0)?;
+                    if wm.focused_monitor_idx() > wm.monitors().last_index() {
+                        wm.focus_monitor(MonitorIdx::default())?;
                     }
 
+                    let post_removal_monitor_count = wm.monitors().len();
                     let offset = wm.work_area_offset;
 
                     for monitor in wm.monitors_mut() {
@@ -582,7 +583,7 @@ where
                                                 // If the focused window was moved or removed by
                                                 // the user after the disconnect then focus the
                                                 // first window and show that one
-                                                container.focus_window(0);
+                                                container.focus_window(WindowIdx::default());
 
                                                 if let Some(window) = container.focused_window() {
                                                     WindowsApi::restore_window(*window);
@@ -623,7 +624,7 @@ where
                                                 // If the focused window was moved or removed by
                                                 // the user after the disconnect then focus the
                                                 // first window and show that one
-                                                container.focus_window(0);
+                                                container.focus_window(WindowIdx::default());
 
                                                 if let Some(window) = container.focused_window() {
                                                     WindowsApi::restore_window(*window);

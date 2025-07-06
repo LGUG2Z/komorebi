@@ -14,6 +14,7 @@ use eframe::egui::Shadow;
 use eframe::egui::TextStyle;
 use eframe::egui::Ui;
 use komorebi_client::Colour;
+use komorebi_client::MonitorIdx;
 use komorebi_client::Rgb;
 use serde::Deserialize;
 use serde::Serialize;
@@ -41,7 +42,7 @@ pub enum Grouping {
 #[derive(Clone)]
 pub struct RenderConfig {
     /// Komorebi monitor index of the monitor on which to render the bar
-    pub monitor_idx: usize,
+    pub monitor_idx: MonitorIdx,
     /// Spacing between widgets
     pub spacing: f32,
     /// Sets how widgets are grouped
@@ -136,7 +137,7 @@ impl RenderConfig {
 
     pub fn new() -> Self {
         Self {
-            monitor_idx: 0,
+            monitor_idx: MonitorIdx::default(),
             spacing: 0.0,
             grouping: Grouping::None,
             background_color: Color32::BLACK,

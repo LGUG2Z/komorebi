@@ -5,6 +5,7 @@ use crate::border_manager::border::BorderId;
 use crate::core::BorderImplementation;
 use crate::core::BorderStyle;
 use crate::core::WindowKind;
+use crate::monitor::MonitorIdx;
 use crate::ring::Ring;
 use crate::window::Window;
 use crate::workspace::Workspace;
@@ -684,7 +685,7 @@ fn handle_floating_borders(
     borders: &mut HashMap<WsElementId, Box<Border>>,
     windows_borders: &mut HashMap<Window, WsElementId>,
     ws: &Workspace,
-    monitor_idx: usize,
+    monitor_idx: MonitorIdx,
     foreground_window: Window,
     layer_changed: bool,
     forced_update: bool,
@@ -747,7 +748,7 @@ fn handle_floating_borders(
 fn remove_borders(
     borders: &mut HashMap<WsElementId, Box<Border>>,
     windows_borders: &mut HashMap<Window, WsElementId>,
-    monitor_idx: usize,
+    monitor_idx: MonitorIdx,
     condition: impl Fn(&WsElementId, &Border) -> bool,
 ) -> color_eyre::Result<()> {
     let mut to_remove = vec![];

@@ -173,29 +173,28 @@ gen_enum_subcommand_args! {
 }
 
 macro_rules! gen_target_subcommand_args {
-    // SubCommand Pattern
-    ( $( $name:ident ),+ $(,)? ) => {
+    ( $( $name:ident => $idx_ty:path ),+ $(,)? ) => {
         $(
             #[derive(clap::Parser)]
             pub struct $name {
                 /// Target index (zero-indexed)
-                target: usize,
+                target: $idx_ty,
             }
         )+
     };
 }
 
 gen_target_subcommand_args! {
-    MoveToMonitor,
-    MoveToWorkspace,
-    SendToMonitor,
-    SendToWorkspace,
-    FocusMonitor,
-    FocusWorkspace,
-    FocusWorkspaces,
-    MoveWorkspaceToMonitor,
-    SwapWorkspacesWithMonitor,
-    FocusStackWindow,
+    MoveToMonitor => komorebi_client::MonitorIdx,
+    MoveToWorkspace => komorebi_client::WorkspaceIdx,
+    SendToMonitor => komorebi_client::MonitorIdx,
+    SendToWorkspace => komorebi_client::WorkspaceIdx,
+    FocusMonitor => komorebi_client::MonitorIdx,
+    FocusWorkspace => komorebi_client::WorkspaceIdx,
+    FocusWorkspaces => komorebi_client::WorkspaceIdx,
+    MoveWorkspaceToMonitor => komorebi_client::MonitorIdx,
+    SwapWorkspacesWithMonitor => komorebi_client::MonitorIdx,
+    FocusStackWindow => komorebi_client::WindowIdx,
 }
 
 macro_rules! gen_named_target_subcommand_args {
@@ -229,10 +228,10 @@ macro_rules! gen_workspace_subcommand_args {
                 #[derive(clap::Parser)]
                 pub struct [<Workspace $name>] {
                     /// Monitor index (zero-indexed)
-                    monitor: usize,
+                    monitor: komorebi_client::MonitorIdx,
 
                     /// Workspace index on the specified monitor (zero-indexed)
-                    workspace: usize,
+                    workspace: komorebi_client::WorkspaceIdx,
 
                     $(#[clap(value_enum)] $($value_enum)?)?
                     #[cfg_attr(
@@ -283,19 +282,19 @@ gen_named_workspace_subcommand_args! {
 #[derive(Parser)]
 pub struct ClearWorkspaceLayoutRules {
     /// Monitor index (zero-indexed)
-    monitor: usize,
+    monitor: komorebi_client::MonitorIdx,
 
     /// Workspace index on the specified monitor (zero-indexed)
-    workspace: usize,
+    workspace: komorebi_client::WorkspaceIdx,
 }
 
 #[derive(Parser)]
 pub struct WorkspaceCustomLayout {
     /// Monitor index (zero-indexed)
-    monitor: usize,
+    monitor: komorebi_client::MonitorIdx,
 
     /// Workspace index on the specified monitor (zero-indexed)
-    workspace: usize,
+    workspace: komorebi_client::WorkspaceIdx,
 
     /// JSON or YAML file from which the custom layout definition should be loaded
     #[clap(value_parser = replace_env_in_path)]
@@ -315,10 +314,10 @@ pub struct NamedWorkspaceCustomLayout {
 #[derive(Parser)]
 pub struct WorkspaceLayoutRule {
     /// Monitor index (zero-indexed)
-    monitor: usize,
+    monitor: komorebi_client::MonitorIdx,
 
     /// Workspace index on the specified monitor (zero-indexed)
-    workspace: usize,
+    workspace: komorebi_client::WorkspaceIdx,
 
     /// The number of window containers on-screen required to trigger this layout rule
     at_container_count: usize,
@@ -342,10 +341,10 @@ pub struct NamedWorkspaceLayoutRule {
 #[derive(Parser)]
 pub struct WorkspaceCustomLayoutRule {
     /// Monitor index (zero-indexed)
-    monitor: usize,
+    monitor: komorebi_client::MonitorIdx,
 
     /// Workspace index on the specified monitor (zero-indexed)
-    workspace: usize,
+    workspace: komorebi_client::WorkspaceIdx,
 
     /// The number of window containers on-screen required to trigger this layout rule
     at_container_count: usize,
@@ -417,7 +416,7 @@ struct GlobalWorkAreaOffset {
 #[derive(Parser)]
 struct MonitorWorkAreaOffset {
     /// Monitor index (zero-indexed)
-    monitor: usize,
+    monitor: komorebi_client::MonitorIdx,
     /// Size of the left work area offset (set right to left * 2 to maintain right padding)
     left: i32,
     /// Size of the top work area offset (set bottom to the same value to maintain bottom padding)
@@ -431,7 +430,7 @@ struct MonitorWorkAreaOffset {
 #[derive(Parser)]
 struct MonitorIndexPreference {
     /// Preferred monitor index (zero-indexed)
-    index_preference: usize,
+    index_preference: komorebi_client::MonitorIdx,
     /// Left value of the monitor's size Rect
     left: i32,
     /// Top value of the monitor's size Rect
@@ -445,7 +444,7 @@ struct MonitorIndexPreference {
 #[derive(Parser)]
 struct DisplayIndexPreference {
     /// Preferred monitor index (zero-indexed)
-    index_preference: usize,
+    index_preference: komorebi_client::MonitorIdx,
     /// Display name as identified in komorebic state
     display: String,
 }
@@ -453,7 +452,7 @@ struct DisplayIndexPreference {
 #[derive(Parser)]
 struct EnsureWorkspaces {
     /// Monitor index (zero-indexed)
-    monitor: usize,
+    monitor: komorebi_client::MonitorIdx,
     /// Number of desired workspaces
     workspace_count: usize,
 }
@@ -461,7 +460,7 @@ struct EnsureWorkspaces {
 #[derive(Parser)]
 struct EnsureNamedWorkspaces {
     /// Monitor index (zero-indexed)
-    monitor: usize,
+    monitor: komorebi_client::MonitorIdx,
     /// Names of desired workspaces
     names: Vec<String>,
 }
@@ -469,25 +468,25 @@ struct EnsureNamedWorkspaces {
 #[derive(Parser)]
 struct FocusMonitorWorkspace {
     /// Target monitor index (zero-indexed)
-    target_monitor: usize,
+    target_monitor: komorebi_client::MonitorIdx,
     /// Workspace index on the target monitor (zero-indexed)
-    target_workspace: usize,
+    target_workspace: komorebi_client::WorkspaceIdx,
 }
 
-#[derive(Parser)]
+#[derive(clap::Parser)]
 pub struct SendToMonitorWorkspace {
     /// Target monitor index (zero-indexed)
-    target_monitor: usize,
+    target_monitor: komorebi_client::MonitorIdx,
     /// Workspace index on the target monitor (zero-indexed)
-    target_workspace: usize,
+    target_workspace: komorebi_client::WorkspaceIdx,
 }
 
 #[derive(Parser)]
 pub struct MoveToMonitorWorkspace {
     /// Target monitor index (zero-indexed)
-    target_monitor: usize,
+    target_monitor: komorebi_client::MonitorIdx,
     /// Workspace index on the target monitor (zero-indexed)
-    target_workspace: usize,
+    target_workspace: komorebi_client::WorkspaceIdx,
 }
 
 macro_rules! gen_focused_workspace_padding_subcommand_args {
@@ -515,9 +514,9 @@ macro_rules! gen_padding_subcommand_args {
             #[derive(clap::Parser)]
             pub struct $name {
                 /// Monitor index (zero-indexed)
-                monitor: usize,
+                monitor: komorebi_client::MonitorIdx,
                 /// Workspace index on the specified monitor (zero-indexed)
-                workspace: usize,
+                workspace: komorebi_client::WorkspaceIdx,
                 /// Pixels to pad with as an integer
                 size: i32,
             }
@@ -603,9 +602,9 @@ struct InitialWorkspaceRule {
     /// Identifier as a string
     id: String,
     /// Monitor index (zero-indexed)
-    monitor: usize,
+    monitor: komorebi_client::MonitorIdx,
     /// Workspace index on the specified monitor (zero-indexed)
-    workspace: usize,
+    workspace: komorebi_client::WorkspaceIdx,
 }
 
 #[derive(Parser)]
@@ -625,9 +624,9 @@ struct WorkspaceRule {
     /// Identifier as a string
     id: String,
     /// Monitor index (zero-indexed)
-    monitor: usize,
+    monitor: komorebi_client::MonitorIdx,
     /// Workspace index on the specified monitor (zero-indexed)
-    workspace: usize,
+    workspace: komorebi_client::WorkspaceIdx,
 }
 
 #[derive(Parser)]
@@ -643,9 +642,9 @@ struct NamedWorkspaceRule {
 #[derive(Parser)]
 struct ClearWorkspaceRules {
     /// Monitor index (zero-indexed)
-    monitor: usize,
+    monitor: komorebi_client::MonitorIdx,
     /// Workspace index on the specified monitor (zero-indexed)
-    workspace: usize,
+    workspace: komorebi_client::WorkspaceIdx,
 }
 
 #[derive(Parser)]

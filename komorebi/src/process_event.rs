@@ -15,7 +15,9 @@ use crate::border_manager;
 use crate::border_manager::BORDER_OFFSET;
 use crate::border_manager::BORDER_WIDTH;
 use crate::current_virtual_desktop;
+use crate::monitor::MonitorIdx;
 use crate::notify_subscribers;
+use crate::ring::RingIndex;
 use crate::stackbar_manager;
 use crate::transparency_manager;
 use crate::window::should_act;
@@ -24,6 +26,7 @@ use crate::window_manager::WindowManager;
 use crate::window_manager_event::WindowManagerEvent;
 use crate::windows_api::WindowsApi;
 use crate::winevent::WinEvent;
+use crate::workspace::WorkspaceIdx;
 use crate::workspace::WorkspaceLayer;
 use crate::DefaultLayout;
 use crate::Layout;
@@ -560,7 +563,7 @@ impl WindowManager {
                 let new_position = WindowsApi::window_rect(window)?;
                 let old_position = *workspace
                     .latest_layout()
-                    .get(focused_container_idx)
+                    .get(focused_container_idx.into_usize())
                     // If the move was to another monitor with an empty workspace, the
                     // workspace here will refer to that empty workspace, which won't
                     // have any latest layout set. We fall back to a Default for Rect
@@ -648,7 +651,7 @@ impl WindowManager {
                                     })?
                                     .container_idx_from_current_point()
                                     // Default to 0 in the case of an empty workspace
-                                    .unwrap_or(0);
+                                    .unwrap_or_default();
 
                                 let origin = (origin_monitor_idx, origin_workspace_idx, w_hwnd);
                                 let target = (
@@ -808,7 +811,10 @@ impl WindowManager {
     /// Checks if this window is from another unfocused workspace or is an unfocused window on a
     /// stack container. If it is it will return the monitor/workspace index pair of this window so
     /// that a reconciliation of that monitor/workspace can be done.
-    fn needs_reconciliation(&self, window: Window) -> color_eyre::Result<Option<(usize, usize)>> {
+    fn needs_reconciliation(
+        &self,
+        window: Window,
+    ) -> color_eyre::Result<Option<(MonitorIdx, WorkspaceIdx)>> {
         let focused_monitor_idx = self.focused_monitor_idx();
         let focused_workspace_idx =
             self.focused_workspace_idx_for_monitor_idx(focused_monitor_idx)?;
@@ -863,7 +869,7 @@ impl WindowManager {
     fn perform_reconciliation(
         &mut self,
         window: Window,
-        reconciliation_pair: (usize, usize),
+        reconciliation_pair: (MonitorIdx, WorkspaceIdx),
     ) -> color_eyre::Result<()> {
         let (m_idx, ws_idx) = reconciliation_pair;
 

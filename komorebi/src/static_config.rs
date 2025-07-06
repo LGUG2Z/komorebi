@@ -38,9 +38,11 @@ use crate::current_virtual_desktop;
 use crate::default_layout::LayoutOptions;
 use crate::monitor;
 use crate::monitor::Monitor;
+use crate::monitor::MonitorIdx;
 use crate::monitor_reconciliator;
 use crate::resolve_option_hashmap_usize_path;
 use crate::ring::Ring;
+use crate::ring::RingIndex;
 use crate::stackbar_manager::STACKBAR_FOCUSED_TEXT_COLOUR;
 use crate::stackbar_manager::STACKBAR_FONT_FAMILY;
 use crate::stackbar_manager::STACKBAR_FONT_SIZE;
@@ -57,6 +59,7 @@ use crate::window_manager::WindowManager;
 use crate::window_manager_event::WindowManagerEvent;
 use crate::windows_api::WindowsApi;
 use crate::workspace::Workspace;
+use crate::workspace::WorkspaceIdx;
 use crate::AspectRatio;
 use crate::Axis;
 use crate::CrossBoundaryBehaviour;
@@ -537,10 +540,10 @@ pub struct StaticConfig {
     pub object_name_change_title_ignore_list: Option<Vec<String>>,
     /// Set monitor index preferences
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub monitor_index_preferences: Option<HashMap<usize, Rect>>,
+    pub monitor_index_preferences: Option<HashMap<MonitorIdx, Rect>>,
     /// Set display index preferences
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub display_index_preferences: Option<HashMap<usize, String>>,
+    pub display_index_preferences: Option<HashMap<MonitorIdx, String>>,
     /// Stackbar configuration options
     #[serde(skip_serializing_if = "Option::is_none")]
     pub stackbar: Option<StackbarConfig>,
@@ -1374,12 +1377,13 @@ impl StaticConfig {
                     .map(|ms| ms.len())
                     .unwrap_or_default();
                 (0..m_config_count)
+                    .map(MonitorIdx::from_usize)
                     .find(|i| !configs_with_preference.contains(i) && !configs_used.contains(i))
             });
             if let Some(monitor_config) = value
                 .monitors
                 .as_mut()
-                .and_then(|ms| idx.and_then(|i| ms.get_mut(i)))
+                .and_then(|ms| idx.and_then(|i| ms.get_mut(i.into_usize())))
             {
                 if let Some(used_config_idx) = idx {
                     configs_used.push(used_config_idx);
@@ -1402,7 +1406,9 @@ impl StaticConfig {
 
                 monitor.update_workspaces_globals(offset);
                 for (j, ws) in monitor.workspaces_mut().indexed_mut() {
-                    if let Some(workspace_config) = monitor_config.workspaces.get_mut(j) {
+                    if let Some(workspace_config) =
+                        monitor_config.workspaces.get_mut(j.into_usize())
+                    {
                         if monitor_count > 1
                             && matches!(workspace_config.layout, Some(DefaultLayout::Scrolling))
                         {
@@ -1430,7 +1436,7 @@ impl StaticConfig {
                         for r in rules {
                             workspace_matching_rules.push(WorkspaceMatchingRule {
                                 monitor_index: i,
-                                workspace_index: j,
+                                workspace_index: WorkspaceIdx::from_usize(j),
                                 matching_rule: r.clone(),
                                 initial_only: false,
                             });
@@ -1441,7 +1447,7 @@ impl StaticConfig {
                         for r in rules {
                             workspace_matching_rules.push(WorkspaceMatchingRule {
                                 monitor_index: i,
-                                workspace_index: j,
+                                workspace_index: WorkspaceIdx::from_usize(j),
                                 matching_rule: r.clone(),
                                 initial_only: true,
                             });
@@ -1463,9 +1469,13 @@ impl StaticConfig {
                     let display_index_preferences = DISPLAY_INDEX_PREFERENCES.read();
                     display_index_preferences.get(i).cloned()
                 };
-                if let (Some(id), Some(monitor_config)) =
-                    (id, value.monitors.as_ref().and_then(|ms| ms.get(*i)))
-                {
+                if let (Some(id), Some(monitor_config)) = (
+                    id,
+                    value
+                        .monitors
+                        .as_ref()
+                        .and_then(|ms| ms.get(i.into_usize())),
+                ) {
                     // The name, device, device_id and serial_number_id can be empty here since
                     // once the monitor with this preferred index actually connects the
                     // `load_monitor_information` function will update these fields.
@@ -1496,7 +1506,9 @@ impl StaticConfig {
                     m.update_workspaces_globals(offset);
 
                     for (j, ws) in m.workspaces_mut().indexed_mut() {
-                        if let Some(workspace_config) = monitor_config.workspaces.get(j) {
+                        if let Some(workspace_config) =
+                            monitor_config.workspaces.get(j.into_usize())
+                        {
                             ws.load_static_config(workspace_config)?;
                         }
                     }
@@ -1553,12 +1565,13 @@ impl StaticConfig {
                     .map(|ms| ms.len())
                     .unwrap_or_default();
                 (0..m_config_count)
+                    .map(MonitorIdx::from_usize)
                     .find(|i| !configs_with_preference.contains(i) && !configs_used.contains(i))
             });
             if let Some(monitor_config) = value
                 .monitors
                 .as_ref()
-                .and_then(|ms| idx.and_then(|i| ms.get(i)))
+                .and_then(|ms| idx.and_then(|i| ms.get(i.into_usize())))
             {
                 if let Some(used_config_idx) = idx {
                     configs_used.push(used_config_idx);
@@ -1584,7 +1597,7 @@ impl StaticConfig {
                 monitor.update_workspaces_globals(offset);
 
                 for (j, ws) in monitor.workspaces_mut().indexed_mut() {
-                    if let Some(workspace_config) = monitor_config.workspaces.get(j) {
+                    if let Some(workspace_config) = monitor_config.workspaces.get(j.into_usize()) {
                         ws.load_static_config(workspace_config)?;
                     }
                 }
@@ -1605,7 +1618,7 @@ impl StaticConfig {
                         for r in rules {
                             workspace_matching_rules.push(WorkspaceMatchingRule {
                                 monitor_index: i,
-                                workspace_index: j,
+                                workspace_index: WorkspaceIdx::from_usize(j),
                                 matching_rule: r.clone(),
                                 initial_only: false,
                             });
@@ -1616,7 +1629,7 @@ impl StaticConfig {
                         for r in rules {
                             workspace_matching_rules.push(WorkspaceMatchingRule {
                                 monitor_index: i,
-                                workspace_index: j,
+                                workspace_index: WorkspaceIdx::from_usize(j),
                                 matching_rule: r.clone(),
                                 initial_only: true,
                             });
@@ -1638,9 +1651,13 @@ impl StaticConfig {
                     let display_index_preferences = DISPLAY_INDEX_PREFERENCES.read();
                     display_index_preferences.get(i).cloned()
                 };
-                if let (Some(id), Some(monitor_config)) =
-                    (id, value.monitors.as_ref().and_then(|ms| ms.get(*i)))
-                {
+                if let (Some(id), Some(monitor_config)) = (
+                    id,
+                    value
+                        .monitors
+                        .as_ref()
+                        .and_then(|ms| ms.get(i.into_usize())),
+                ) {
                     // The name, device, device_id and serial_number_id can be empty here since
                     // once the monitor with this preferred index actually connects the
                     // `load_monitor_information` function will update these fields.
@@ -1671,7 +1688,9 @@ impl StaticConfig {
                     m.update_workspaces_globals(offset);
 
                     for (j, ws) in m.workspaces_mut().indexed_mut() {
-                        if let Some(workspace_config) = monitor_config.workspaces.get(j) {
+                        if let Some(workspace_config) =
+                            monitor_config.workspaces.get(j.into_usize())
+                        {
                             ws.load_static_config(workspace_config)?;
                         }
                     }
@@ -1718,7 +1737,7 @@ impl StaticConfig {
 
         let monitor_count = wm.monitors().len();
 
-        for i in 0..monitor_count {
+        for i in (0..monitor_count).map(MonitorIdx::from_usize) {
             wm.update_focused_workspace_by_monitor_idx(i)?;
             let ws_idx = wm.focused_workspace_idx_for_monitor_idx(i)?;
             wm.apply_wallpaper_for_monitor_workspace(i, ws_idx)?;

@@ -10,7 +10,9 @@ use serde::Serialize;
 use serde::Serializer;
 
 use crate::ring::Ring;
+use crate::ring::RingIndex;
 use crate::window::Window;
+use crate::window::WindowIdx;
 use crate::Lockable;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Getters, CopyGetters, Setters)]
@@ -36,6 +38,7 @@ fn deserialize<'de, D: Deserializer<'de>>(d: D) -> Result<Arc<str>, D::Error> {
     Ok(Arc::from(s))
 }
 
+declare_ring_element_and_index!(Container, ContainerIdx);
 impl_ring_elements!(Container, Window);
 
 impl Default for Container {
@@ -95,7 +98,7 @@ impl Container {
             .find_map(|win| win.exe().ok().filter(|e| e == exe).map(|_| *win))
     }
 
-    pub fn idx_from_exe(&self, exe: &str) -> Option<usize> {
+    pub fn idx_from_exe(&self, exe: &str) -> Option<WindowIdx> {
         self.windows()
             .position(|win| win.exe().ok().as_deref() == Some(exe))
     }
@@ -104,13 +107,13 @@ impl Container {
         self.windows().contains(&window)
     }
 
-    pub fn idx_for_window(&self, window: Window) -> Option<usize> {
+    pub fn idx_for_window(&self, window: Window) -> Option<WindowIdx> {
         self.windows().position(|win| *win == window)
     }
 
-    pub fn remove_window_by_idx(&mut self, idx: usize) -> Option<Window> {
+    pub fn remove_window_by_idx(&mut self, idx: WindowIdx) -> Option<Window> {
         let window = self.windows_mut().remove(idx);
-        self.focus_window(idx.saturating_sub(1));
+        self.focus_window(idx.previous());
         window
     }
 
@@ -121,7 +124,7 @@ impl Container {
 
     pub fn add_window(&mut self, window: Window) {
         self.windows_mut().push_back(window);
-        self.focus_window(self.windows().len().saturating_sub(1));
+        self.focus_window(self.windows().last_index());
         let focused_window_idx = self.focused_window_idx();
 
         for (i, window) in self.windows().indexed() {
@@ -132,7 +135,7 @@ impl Container {
     }
 
     #[tracing::instrument(skip(self))]
-    pub fn focus_window(&mut self, idx: usize) {
+    pub fn focus_window(&mut self, idx: WindowIdx) {
         tracing::info!("focusing window");
         self.windows.focus(idx);
     }
@@ -153,7 +156,10 @@ mod tests {
 
         // Should return true for existing windows
         assert!(container.contains_window(Window::from(1)));
-        assert_eq!(container.idx_for_window(Window::from(1)), Some(1));
+        assert_eq!(
+            container.idx_for_window(Window::from(1)),
+            Some(WindowIdx::from_usize(1))
+        );
 
         // Should return false since window 4 doesn't exist
         assert!(!container.contains_window(Window::from(4)));
@@ -169,7 +175,7 @@ mod tests {
         }
 
         // Remove window 1
-        container.remove_window_by_idx(1);
+        container.remove_window_by_idx(WindowIdx::from_usize(1));
 
         // Should only have 2 windows left
         assert_eq!(container.windows().len(), 2);
@@ -187,13 +193,13 @@ mod tests {
         }
 
         // Should be focused on the last created window
-        assert_eq!(container.focused_window_idx(), 2);
+        assert_eq!(container.focused_window_idx(), WindowIdx::from_usize(2));
 
         // Remove the focused window
         container.remove_focused_window();
 
         // Should be focused on the window before the removed one
-        assert_eq!(container.focused_window_idx(), 1);
+        assert_eq!(container.focused_window_idx(), WindowIdx::from_usize(1));
 
         // Should only have 2 windows left
         assert_eq!(container.windows().len(), 2);
@@ -206,7 +212,7 @@ mod tests {
         container.add_window(Window::from(1));
 
         assert_eq!(container.windows().len(), 1);
-        assert_eq!(container.focused_window_idx(), 0);
+        assert_eq!(container.focused_window_idx(), WindowIdx::from_usize(0));
         assert!(container.contains_window(Window::from(1)));
     }
 
@@ -219,19 +225,19 @@ mod tests {
         }
 
         // Should focus on the last created window
-        assert_eq!(container.focused_window_idx(), 2);
+        assert_eq!(container.focused_window_idx(), WindowIdx::from_usize(2));
 
         // focus on the window at index 1
-        container.focus_window(1);
+        container.focus_window(WindowIdx::from_usize(1));
 
         // Should be focused on window 1
-        assert_eq!(container.focused_window_idx(), 1);
+        assert_eq!(container.focused_window_idx(), WindowIdx::from_usize(1));
 
         // focus on the window at index 0
-        container.focus_window(0);
+        container.focus_window(WindowIdx::from_usize(0));
 
         // Should be focused on window 0
-        assert_eq!(container.focused_window_idx(), 0);
+        assert_eq!(container.focused_window_idx(), WindowIdx::from_usize(0));
     }
 
     #[test]
@@ -243,7 +249,10 @@ mod tests {
         }
 
         // Should return the index of the window
-        assert_eq!(container.idx_for_window(Window::from(1)), Some(1));
+        assert_eq!(
+            container.idx_for_window(Window::from(1)),
+            Some(WindowIdx::from_usize(1))
+        );
 
         // Should return None since window 4 doesn't exist
         assert_eq!(container.idx_for_window(Window::from(4)), None);
@@ -272,7 +281,7 @@ mod tests {
             &container.windows().to_vec(Clone::clone),
             &[Window::from(5), Window::from(9)]
         );
-        assert_eq!(container.focused_window_idx(), 1);
+        assert_eq!(container.focused_window_idx(), WindowIdx::from_usize(1));
     }
 
     #[test]

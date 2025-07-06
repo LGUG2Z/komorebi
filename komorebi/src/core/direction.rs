@@ -1,3 +1,6 @@
+use crate::container::ContainerIdx;
+use crate::ring::RingIndex;
+
 use super::custom_layout::Column;
 use super::custom_layout::ColumnSplit;
 use super::custom_layout::ColumnSplitWithCapacity;
@@ -9,49 +12,49 @@ pub trait Direction {
     fn index_in_direction(
         &self,
         op_direction: OperationDirection,
-        idx: usize,
+        idx: ContainerIdx,
         count: usize,
-    ) -> Option<usize>;
+    ) -> Option<ContainerIdx>;
 
     fn is_valid_direction(
         &self,
         op_direction: OperationDirection,
-        idx: usize,
+        idx: ContainerIdx,
         count: usize,
     ) -> bool;
     fn up_index(
         &self,
         op_direction: Option<OperationDirection>,
-        idx: usize,
+        idx: ContainerIdx,
         count: Option<usize>,
-    ) -> usize;
+    ) -> ContainerIdx;
     fn down_index(
         &self,
         op_direction: Option<OperationDirection>,
-        idx: usize,
+        idx: ContainerIdx,
         count: Option<usize>,
-    ) -> usize;
+    ) -> ContainerIdx;
     fn left_index(
         &self,
         op_direction: Option<OperationDirection>,
-        idx: usize,
+        idx: ContainerIdx,
         count: Option<usize>,
-    ) -> usize;
+    ) -> ContainerIdx;
     fn right_index(
         &self,
         op_direction: Option<OperationDirection>,
-        idx: usize,
+        idx: ContainerIdx,
         count: Option<usize>,
-    ) -> usize;
+    ) -> ContainerIdx;
 }
 
 impl Direction for DefaultLayout {
     fn index_in_direction(
         &self,
         op_direction: OperationDirection,
-        idx: usize,
+        idx: ContainerIdx,
         count: usize,
-    ) -> Option<usize> {
+    ) -> Option<ContainerIdx> {
         match op_direction {
             OperationDirection::Left => {
                 if self.is_valid_direction(op_direction, idx, count) {
@@ -87,56 +90,65 @@ impl Direction for DefaultLayout {
     fn is_valid_direction(
         &self,
         op_direction: OperationDirection,
-        idx: usize,
+        idx: ContainerIdx,
         count: usize,
     ) -> bool {
         if count < 2 {
             return false;
         }
 
+        let last_index = ContainerIdx::from_usize(count - 1);
         match op_direction {
             OperationDirection::Up => match self {
-                Self::BSP => idx != 0 && idx != 1,
+                Self::BSP => idx != ContainerIdx::default() && idx != ContainerIdx::from_usize(1),
                 Self::Columns => false,
-                Self::Rows | Self::HorizontalStack => idx != 0,
-                Self::VerticalStack | Self::RightMainVerticalStack => idx != 0 && idx != 1,
-                Self::UltrawideVerticalStack => idx > 2,
+                Self::Rows | Self::HorizontalStack => idx != ContainerIdx::default(),
+                Self::VerticalStack | Self::RightMainVerticalStack => {
+                    idx != ContainerIdx::default() && idx != ContainerIdx::from_usize(1)
+                }
+                Self::UltrawideVerticalStack => idx > ContainerIdx::from_usize(2),
                 Self::Grid => !is_grid_edge(op_direction, idx, count),
                 Self::Scrolling => false,
             },
             OperationDirection::Down => match self {
-                Self::BSP => idx != count - 1 && idx % 2 != 0,
+                Self::BSP => idx != last_index && !idx.even(),
                 Self::Columns => false,
-                Self::Rows => idx != count - 1,
-                Self::VerticalStack | Self::RightMainVerticalStack => idx != 0 && idx != count - 1,
-                Self::HorizontalStack => idx == 0,
-                Self::UltrawideVerticalStack => idx > 1 && idx != count - 1,
+                Self::Rows => idx != last_index,
+                Self::VerticalStack | Self::RightMainVerticalStack => {
+                    idx != ContainerIdx::default() && idx != last_index
+                }
+                Self::HorizontalStack => idx == ContainerIdx::default(),
+                Self::UltrawideVerticalStack => {
+                    idx > ContainerIdx::from_usize(1) && idx != last_index
+                }
                 Self::Grid => !is_grid_edge(op_direction, idx, count),
                 Self::Scrolling => false,
             },
             OperationDirection::Left => match self {
-                Self::BSP => idx != 0,
-                Self::Columns | Self::VerticalStack => idx != 0,
-                Self::RightMainVerticalStack => idx == 0,
+                Self::BSP => idx != ContainerIdx::default(),
+                Self::Columns | Self::VerticalStack => idx != ContainerIdx::default(),
+                Self::RightMainVerticalStack => idx == ContainerIdx::default(),
                 Self::Rows => false,
-                Self::HorizontalStack => idx != 0 && idx != 1,
-                Self::UltrawideVerticalStack => idx != 1,
+                Self::HorizontalStack => {
+                    idx != ContainerIdx::default() && idx != ContainerIdx::from_usize(1)
+                }
+                Self::UltrawideVerticalStack => idx != ContainerIdx::from_usize(1),
                 Self::Grid => !is_grid_edge(op_direction, idx, count),
-                Self::Scrolling => idx != 0,
+                Self::Scrolling => idx != ContainerIdx::default(),
             },
             OperationDirection::Right => match self {
-                Self::BSP => idx % 2 == 0 && idx != count - 1,
-                Self::Columns => idx != count - 1,
+                Self::BSP => idx.even() && idx != last_index,
+                Self::Columns => idx != last_index,
                 Self::Rows => false,
-                Self::VerticalStack => idx == 0,
-                Self::RightMainVerticalStack => idx != 0,
-                Self::HorizontalStack => idx != 0 && idx != count - 1,
+                Self::VerticalStack => idx == ContainerIdx::default(),
+                Self::RightMainVerticalStack => idx != ContainerIdx::default(),
+                Self::HorizontalStack => idx != ContainerIdx::default() && idx != last_index,
                 Self::UltrawideVerticalStack => match count {
-                    2 => idx != 0,
-                    _ => idx < 2,
+                    2 => idx != ContainerIdx::default(),
+                    _ => idx < ContainerIdx::from_usize(2),
                 },
                 Self::Grid => !is_grid_edge(op_direction, idx, count),
-                Self::Scrolling => idx != count - 1,
+                Self::Scrolling => idx != last_index,
             },
         }
     }
@@ -144,23 +156,23 @@ impl Direction for DefaultLayout {
     fn up_index(
         &self,
         op_direction: Option<OperationDirection>,
-        idx: usize,
+        idx: ContainerIdx,
         count: Option<usize>,
-    ) -> usize {
+    ) -> ContainerIdx {
         match self {
             Self::BSP => {
-                if idx % 2 == 0 {
-                    idx - 1
+                if idx.even() {
+                    idx.previous()
                 } else {
-                    idx - 2
+                    ContainerIdx::from_usize(idx.into_usize() - 2)
                 }
             }
             Self::Columns => unreachable!(),
             Self::Rows
             | Self::VerticalStack
             | Self::UltrawideVerticalStack
-            | Self::RightMainVerticalStack => idx - 1,
-            Self::HorizontalStack => 0,
+            | Self::RightMainVerticalStack => idx.previous(),
+            Self::HorizontalStack => ContainerIdx::default(),
             Self::Grid => grid_neighbor(op_direction, idx, count),
             Self::Scrolling => unreachable!(),
         }
@@ -169,17 +181,17 @@ impl Direction for DefaultLayout {
     fn down_index(
         &self,
         op_direction: Option<OperationDirection>,
-        idx: usize,
+        idx: ContainerIdx,
         count: Option<usize>,
-    ) -> usize {
+    ) -> ContainerIdx {
         match self {
             Self::BSP
             | Self::Rows
             | Self::VerticalStack
             | Self::UltrawideVerticalStack
-            | Self::RightMainVerticalStack => idx + 1,
+            | Self::RightMainVerticalStack => idx.next(),
             Self::Columns => unreachable!(),
-            Self::HorizontalStack => 1,
+            Self::HorizontalStack => ContainerIdx::from_usize(1),
             Self::Grid => grid_neighbor(op_direction, idx, count),
             Self::Scrolling => unreachable!(),
         }
@@ -188,49 +200,49 @@ impl Direction for DefaultLayout {
     fn left_index(
         &self,
         op_direction: Option<OperationDirection>,
-        idx: usize,
+        idx: ContainerIdx,
         count: Option<usize>,
-    ) -> usize {
+    ) -> ContainerIdx {
         match self {
             Self::BSP => {
-                if idx % 2 == 0 {
-                    idx - 2
+                if idx.even() {
+                    ContainerIdx::from_usize(idx.into_usize() - 2)
                 } else {
-                    idx - 1
+                    idx.previous()
                 }
             }
-            Self::Columns | Self::HorizontalStack => idx - 1,
+            Self::Columns | Self::HorizontalStack => idx.previous(),
             Self::Rows => unreachable!(),
-            Self::VerticalStack => 0,
-            Self::RightMainVerticalStack => 1,
-            Self::UltrawideVerticalStack => match idx {
-                0 => 1,
+            Self::VerticalStack => ContainerIdx::default(),
+            Self::RightMainVerticalStack => ContainerIdx::from_usize(1),
+            Self::UltrawideVerticalStack => match idx.into_usize() {
+                0 => ContainerIdx::from_usize(1),
                 1 => unreachable!(),
-                _ => 0,
+                _ => ContainerIdx::default(),
             },
             Self::Grid => grid_neighbor(op_direction, idx, count),
-            Self::Scrolling => idx - 1,
+            Self::Scrolling => idx.previous(),
         }
     }
 
     fn right_index(
         &self,
         op_direction: Option<OperationDirection>,
-        idx: usize,
+        idx: ContainerIdx,
         count: Option<usize>,
-    ) -> usize {
+    ) -> ContainerIdx {
         match self {
-            Self::BSP | Self::Columns | Self::HorizontalStack => idx + 1,
+            Self::BSP | Self::Columns | Self::HorizontalStack => idx.next(),
             Self::Rows => unreachable!(),
-            Self::VerticalStack => 1,
-            Self::RightMainVerticalStack => 0,
-            Self::UltrawideVerticalStack => match idx {
-                1 => 0,
-                0 => 2,
+            Self::VerticalStack => ContainerIdx::from_usize(1),
+            Self::RightMainVerticalStack => ContainerIdx::default(),
+            Self::UltrawideVerticalStack => match idx.into_usize() {
+                1 => ContainerIdx::default(),
+                0 => ContainerIdx::from_usize(2),
                 _ => unreachable!(),
             },
             Self::Grid => grid_neighbor(op_direction, idx, count),
-            Self::Scrolling => idx + 1,
+            Self::Scrolling => idx.next(),
         }
     }
 }
@@ -260,17 +272,17 @@ struct GridTouchingEdges {
     clippy::cast_precision_loss,
     clippy::cast_sign_loss
 )]
-fn get_grid_item(idx: usize, count: usize) -> GridItem {
+fn get_grid_item(idx: ContainerIdx, count: usize) -> GridItem {
     let num_cols = (count as f32).sqrt().ceil() as usize;
-    let mut iter = 0;
+    let mut current_idx = ContainerIdx::default();
 
     for col in 0..num_cols {
-        let remaining_windows = count - iter;
+        let remaining_windows = count - current_idx.into_usize();
         let remaining_columns = num_cols - col;
         let num_rows_in_this_col = remaining_windows / remaining_columns;
 
         for row in 0..num_rows_in_this_col {
-            if iter == idx {
+            if current_idx == idx {
                 return GridItem {
                     state: GridItemState::Valid,
                     row: row + 1,
@@ -284,7 +296,7 @@ fn get_grid_item(idx: usize, count: usize) -> GridItem {
                 };
             }
 
-            iter += 1;
+            current_idx = current_idx.next();
         }
     }
 
@@ -301,7 +313,7 @@ fn get_grid_item(idx: usize, count: usize) -> GridItem {
     }
 }
 
-fn is_grid_edge(op_direction: OperationDirection, idx: usize, count: usize) -> bool {
+fn is_grid_edge(op_direction: OperationDirection, idx: ContainerIdx, count: usize) -> bool {
     let item = get_grid_item(idx, count);
 
     match item.state {
@@ -317,46 +329,46 @@ fn is_grid_edge(op_direction: OperationDirection, idx: usize, count: usize) -> b
 
 fn grid_neighbor(
     op_direction: Option<OperationDirection>,
-    idx: usize,
+    idx: ContainerIdx,
     count: Option<usize>,
-) -> usize {
+) -> ContainerIdx {
     let Some(op_direction) = op_direction else {
-        return 0;
+        return ContainerIdx::default();
     };
 
     let Some(count) = count else {
-        return 0;
+        return ContainerIdx::default();
     };
 
     let item = get_grid_item(idx, count);
 
-    match op_direction {
+    let idx = idx.into_usize();
+    let idx = match op_direction {
         OperationDirection::Left => {
-            let item_from_prev_col = get_grid_item(idx - item.row, count);
+            let item_from_prev_col = get_grid_item(ContainerIdx::from_usize(idx - item.row), count);
 
-            if item.touching_edges.up && item.num_rows != item_from_prev_col.num_rows {
-                return idx - (item.num_rows - 1);
+            if (item.touching_edges.up && item.num_rows != item_from_prev_col.num_rows)
+                || (item.num_rows != item_from_prev_col.num_rows && !item.touching_edges.down)
+            {
+                idx - (item.num_rows - 1)
+            } else {
+                idx - item.num_rows
             }
-
-            if item.num_rows != item_from_prev_col.num_rows && !item.touching_edges.down {
-                return idx - (item.num_rows - 1);
-            }
-
-            idx - item.num_rows
         }
         OperationDirection::Right => idx + item.num_rows,
         OperationDirection::Up => idx - 1,
         OperationDirection::Down => idx + 1,
-    }
+    };
+    ContainerIdx::from_usize(idx)
 }
 
 impl Direction for CustomLayout {
     fn index_in_direction(
         &self,
         op_direction: OperationDirection,
-        idx: usize,
+        idx: ContainerIdx,
         count: usize,
-    ) -> Option<usize> {
+    ) -> Option<ContainerIdx> {
         if count <= self.len() {
             return DefaultLayout::Columns.index_in_direction(op_direction, idx, count);
         }
@@ -396,20 +408,26 @@ impl Direction for CustomLayout {
     fn is_valid_direction(
         &self,
         op_direction: OperationDirection,
-        idx: usize,
+        idx: ContainerIdx,
         count: usize,
     ) -> bool {
         if count <= self.len() {
             return DefaultLayout::Columns.is_valid_direction(op_direction, idx, count);
         }
 
+        let last_index = ContainerIdx::from_usize(count - 1);
         match op_direction {
-            OperationDirection::Left => idx != 0 && self.column_for_container_idx(idx) != 0,
+            OperationDirection::Left => {
+                idx != ContainerIdx::default()
+                    && self.column_for_container_idx(idx) != ContainerIdx::default()
+            }
             OperationDirection::Right => {
-                idx != count - 1 && self.column_for_container_idx(idx) != self.len() - 1
+                idx != last_index
+                    && self.column_for_container_idx(idx)
+                        != ContainerIdx::from_usize(self.len() - 1)
             }
             OperationDirection::Up => {
-                if idx == 0 {
+                if idx == ContainerIdx::default() {
                     return false;
                 }
 
@@ -417,13 +435,13 @@ impl Direction for CustomLayout {
                 column.is_some_and(|column| match column {
                     Column::Secondary(Some(ColumnSplitWithCapacity::Horizontal(_)))
                     | Column::Tertiary(ColumnSplit::Horizontal) => {
-                        self.column_for_container_idx(idx - 1) == column_idx
+                        self.column_for_container_idx(idx.previous()) == column_idx
                     }
                     _ => false,
                 })
             }
             OperationDirection::Down => {
-                if idx == count - 1 {
+                if idx == last_index {
                     return false;
                 }
 
@@ -431,7 +449,7 @@ impl Direction for CustomLayout {
                 column.is_some_and(|column| match column {
                     Column::Secondary(Some(ColumnSplitWithCapacity::Horizontal(_)))
                     | Column::Tertiary(ColumnSplit::Horizontal) => {
-                        self.column_for_container_idx(idx + 1) == column_idx
+                        self.column_for_container_idx(idx.next()) == column_idx
                     }
                     _ => false,
                 })
@@ -442,42 +460,42 @@ impl Direction for CustomLayout {
     fn up_index(
         &self,
         _op_direction: Option<OperationDirection>,
-        idx: usize,
+        idx: ContainerIdx,
         _count: Option<usize>,
-    ) -> usize {
-        idx - 1
+    ) -> ContainerIdx {
+        idx.previous()
     }
 
     fn down_index(
         &self,
         _op_direction: Option<OperationDirection>,
-        idx: usize,
+        idx: ContainerIdx,
         _count: Option<usize>,
-    ) -> usize {
-        idx + 1
+    ) -> ContainerIdx {
+        idx.next()
     }
 
     fn left_index(
         &self,
         _op_direction: Option<OperationDirection>,
-        idx: usize,
+        idx: ContainerIdx,
         _count: Option<usize>,
-    ) -> usize {
+    ) -> ContainerIdx {
         let column_idx = self.column_for_container_idx(idx);
-        if column_idx - 1 == 0 {
-            0
+        if column_idx.previous() == ContainerIdx::default() {
+            ContainerIdx::default()
         } else {
-            self.first_container_idx(column_idx - 1)
+            self.first_container_idx(column_idx.previous())
         }
     }
 
     fn right_index(
         &self,
         _op_direction: Option<OperationDirection>,
-        idx: usize,
+        idx: ContainerIdx,
         _count: Option<usize>,
-    ) -> usize {
+    ) -> ContainerIdx {
         let column_idx = self.column_for_container_idx(idx);
-        self.first_container_idx(column_idx + 1)
+        self.first_container_idx(column_idx.next())
     }
 }

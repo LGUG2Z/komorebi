@@ -17,6 +17,7 @@ use hotwatch::EventKind;
 use hotwatch::Hotwatch;
 use komorebi_client::replace_env_in_path;
 use komorebi_client::PathExt;
+use komorebi_client::RingIndex;
 use komorebi_client::SocketMessage;
 use komorebi_client::SubscribeOptions;
 use std::io::BufReader;
@@ -235,7 +236,7 @@ fn main() -> color_eyre::Result<()> {
 
     MONITOR_LEFT.store(state.monitors[monitor_index].size().left, Ordering::SeqCst);
 
-    MONITOR_INDEX.store(monitor_index, Ordering::SeqCst);
+    MONITOR_INDEX.store(monitor_index.into_usize(), Ordering::SeqCst);
 
     match config.position {
         None => {

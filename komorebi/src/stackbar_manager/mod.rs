@@ -3,6 +3,7 @@ mod stackbar;
 use crate::container::Container;
 use crate::core::StackbarLabel;
 use crate::core::StackbarMode;
+use crate::monitor::MonitorIdx;
 use crate::stackbar_manager::stackbar::Stackbar;
 use crate::stackbar_manager::stackbar::StackbarId;
 use crate::WindowManager;
@@ -37,7 +38,8 @@ pub static STACKBAR_TEMPORARILY_DISABLED: AtomicBool = AtomicBool::new(false);
 lazy_static! {
     pub static ref STACKBAR_STATE: Mutex<HashMap<Arc<str>, Stackbar>> = Mutex::new(HashMap::new());
     pub static ref STACKBAR_FONT_FAMILY: Mutex<Option<String>> = Mutex::new(None);
-    static ref STACKBARS_MONITORS: Mutex<HashMap<Arc<str>, usize>> = Mutex::new(HashMap::new());
+    static ref STACKBARS_MONITORS: Mutex<HashMap<Arc<str>, MonitorIdx>> =
+        Mutex::new(HashMap::new());
     static ref STACKBARS_CONTAINERS: Mutex<HashMap<StackbarId, Container>> =
         Mutex::new(HashMap::new());
 }

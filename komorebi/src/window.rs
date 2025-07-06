@@ -91,6 +91,8 @@ impl From<Window> for HWND {
     }
 }
 
+declare_ring_element_and_index!(Window, WindowIdx);
+
 #[allow(clippy::module_name_repetitions)]
 #[derive(Debug, Clone, Serialize)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]

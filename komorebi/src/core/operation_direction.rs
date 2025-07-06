@@ -6,6 +6,8 @@ use serde::Serialize;
 use strum::Display;
 use strum::EnumString;
 
+use crate::container::ContainerIdx;
+
 use super::direction::Direction;
 use super::Axis;
 
@@ -55,9 +57,9 @@ impl OperationDirection {
         self,
         layout: &dyn Direction,
         layout_flip: Option<Axis>,
-        idx: usize,
+        idx: ContainerIdx,
         len: NonZeroUsize,
-    ) -> Option<usize> {
+    ) -> Option<ContainerIdx> {
         layout.index_in_direction(self.flip(layout_flip), idx, len.get())
     }
 }

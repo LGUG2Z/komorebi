@@ -5,6 +5,9 @@ use serde::Serialize;
 use strum::Display;
 use strum::EnumString;
 
+use crate::monitor::MonitorIdx;
+use crate::workspace::WorkspaceIdx;
+
 use super::ApplicationIdentifier;
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, Display, EnumString, ValueEnum)]
@@ -61,8 +64,8 @@ pub enum MatchingRule {
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct WorkspaceMatchingRule {
-    pub monitor_index: usize,
-    pub workspace_index: usize,
+    pub monitor_index: MonitorIdx,
+    pub workspace_index: WorkspaceIdx,
     pub matching_rule: MatchingRule,
     pub initial_only: bool,
 }

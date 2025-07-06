@@ -5,6 +5,7 @@ use crate::container::Container;
 use crate::core::BorderStyle;
 use crate::core::Rect;
 use crate::core::StackbarLabel;
+use crate::ring::RingIndex;
 use crate::stackbar_manager::STACKBARS_CONTAINERS;
 use crate::stackbar_manager::STACKBAR_FOCUSED_TEXT_COLOUR;
 use crate::stackbar_manager::STACKBAR_FONT_FAMILY;
@@ -245,7 +246,7 @@ impl Stackbar {
                     SetTextColor(hdc, COLORREF(unfocused_text_colour));
                 }
 
-                let left = gap + (i as i32 * (width + gap));
+                let left = gap + (i.into_usize() as i32 * (width + gap));
                 let mut rect = Rect {
                     top: 0,
                     left,
@@ -357,7 +358,7 @@ impl Stackbar {
                         .unwrap_or_default();
 
                         for (index, window) in container.windows().indexed() {
-                            let left = gap + (index as i32 * (width + gap));
+                            let left = gap + (index.into_usize() as i32 * (width + gap));
                             let right = left + width;
                             let top = 0;
                             let bottom = height;

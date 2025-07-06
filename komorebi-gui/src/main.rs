@@ -9,8 +9,12 @@ use komorebi_client::Colour;
 use komorebi_client::DefaultLayout;
 use komorebi_client::GlobalState;
 use komorebi_client::Layout;
+use komorebi_client::MonitorIdx;
 use komorebi_client::Rect;
 use komorebi_client::Rgb;
+use komorebi_client::Ring;
+use komorebi_client::RingElement;
+use komorebi_client::RingIndex;
 use komorebi_client::RuleDebug;
 use komorebi_client::SocketMessage;
 use komorebi_client::StackbarLabel;
@@ -18,6 +22,7 @@ use komorebi_client::StackbarMode;
 use komorebi_client::State;
 use komorebi_client::Window;
 use komorebi_client::WindowKind;
+use komorebi_client::WorkspaceIdx;
 use std::collections::HashMap;
 use std::time::Duration;
 use windows::Win32::UI::WindowsAndMessaging::EnumWindows;
@@ -67,20 +72,19 @@ struct StackbarConfig {
 struct MonitorConfig {
     size: Rect,
     work_area_offset: Rect,
-    workspaces: Vec<WorkspaceConfig>,
+    workspaces: Ring<WorkspaceConfig>,
+}
+
+impl RingElement for MonitorConfig {
+    type Index = MonitorIdx;
 }
 
 impl From<&komorebi_client::Monitor> for MonitorConfig {
     fn from(value: &komorebi_client::Monitor) -> Self {
-        let mut workspaces = vec![];
-        for ws in value.workspaces() {
-            workspaces.push(WorkspaceConfig::from(ws));
-        }
-
         Self {
             size: *value.size(),
             work_area_offset: value.work_area_offset().unwrap_or_default(),
-            workspaces,
+            workspaces: value.workspaces().map_clone(|ws| WorkspaceConfig::from(ws)),
         }
     }
 }
@@ -91,6 +95,10 @@ struct WorkspaceConfig {
     layout: DefaultLayout,
     container_padding: i32,
     workspace_padding: i32,
+}
+
+impl RingElement for WorkspaceConfig {
+    type Index = WorkspaceIdx;
 }
 
 impl From<&komorebi_client::Workspace> for WorkspaceConfig {
@@ -119,8 +127,8 @@ struct KomorebiGui {
     border_config: BorderConfig,
     stackbar_config: StackbarConfig,
     mouse_follows_focus: bool,
-    monitors: Vec<MonitorConfig>,
-    workspace_names: HashMap<usize, Vec<String>>,
+    monitors: Ring<MonitorConfig>,
+    workspace_names: HashMap<MonitorIdx, Vec<String>>,
     debug_win: Window,
     debug_windows: Vec<Window>,
     debug_rule: Option<RuleDebug>,
@@ -169,14 +177,11 @@ impl KomorebiGui {
             border_width: global_state.border_width,
         };
 
-        let mut monitors = vec![];
-        for m in &state.monitors {
-            monitors.push(MonitorConfig::from(m));
-        }
+        let monitors = state.monitors.map_clone(|m| MonitorConfig::from(m));
 
         let mut workspace_names = HashMap::new();
 
-        for (monitor_idx, m) in monitors.iter().enumerate() {
+        for (monitor_idx, m) in monitors.indexed() {
             for ws in &m.workspaces {
                 let names = workspace_names.entry(monitor_idx).or_insert_with(Vec::new);
                 names.push(ws.name.clone());
@@ -611,6 +616,7 @@ impl eframe::App for KomorebiGui {
                 });
 
                 for (monitor_idx, monitor) in self.monitors.iter_mut().enumerate() {
+                    let monitor_idx = MonitorIdx::from_usize(monitor_idx);
                     ui.collapsing(
                         format!(
                             "Monitor {monitor_idx} ({}x{})",
@@ -699,6 +705,7 @@ impl eframe::App for KomorebiGui {
                                 for (workspace_idx, workspace) in
                                     monitor.workspaces.iter_mut().enumerate()
                                 {
+                                    let workspace_idx = WorkspaceIdx::from_usize(workspace_idx);
                                     ui.collapsing(
                                         format!("Workspace {workspace_idx} ({})", workspace.name),
                                         |ui| {
@@ -743,8 +750,8 @@ impl eframe::App for KomorebiGui {
                                                     .workspace_names
                                                     .get_mut(&monitor_idx)
                                                     .unwrap();
-                                                let workspace_name =
-                                                    &mut monitor_workspaces[workspace_idx];
+                                                let workspace_name = &mut monitor_workspaces
+                                                    [workspace_idx.into_usize()];
                                                 if ui
                                                     .text_edit_singleline(workspace_name)
                                                     .lost_focus()

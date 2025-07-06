@@ -154,7 +154,9 @@ use crate::core::Rect;
 use crate::container::Container;
 use crate::monitor;
 use crate::monitor::Monitor;
+use crate::monitor::MonitorIdx;
 use crate::ring::Ring;
+use crate::ring::RingIndex;
 use crate::set_window_position::SetWindowPosition;
 use crate::windows_callbacks;
 use crate::Window;
@@ -336,7 +338,7 @@ impl WindowsApi {
             }
 
             if let Some(preference) = index_preference {
-                while *preference >= monitors.len() {
+                while *preference > monitors.last_index() {
                     monitors.push_back(Monitor::placeholder());
                 }
 
@@ -366,15 +368,20 @@ impl WindowsApi {
             }
         }
 
-        let max_usr_idx = monitors
-            .len()
-            .max(monitor_usr_idx_map.keys().max().map_or(0, |v| *v));
+        let max_usr_idx = monitors.last_index().max(
+            monitor_usr_idx_map
+                .keys()
+                .max()
+                .map_or(MonitorIdx::default(), |v| *v),
+        );
 
-        let mut available_usr_idxs = (0..max_usr_idx)
+        let mut available_usr_idxs = (0..max_usr_idx.into_usize())
+            .map(MonitorIdx::from_usize)
             .filter(|i| !monitor_usr_idx_map.contains_key(i))
             .collect::<Vec<_>>();
 
         let not_added_monitor_idxs = (0..monitors.len())
+            .map(MonitorIdx::from_usize)
             .filter(|i| !added_monitor_idxs.contains(i))
             .collect::<Vec<_>>();
 

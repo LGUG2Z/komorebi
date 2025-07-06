@@ -1,10 +1,12 @@
-use std::num::NonZeroUsize;
-
 use clap::ValueEnum;
 use serde::Deserialize;
 use serde::Serialize;
 use strum::Display;
 use strum::EnumString;
+
+use crate::ring::Ring;
+use crate::ring::RingElement;
+use crate::ring::RingIndex;
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, Display, EnumString, ValueEnum)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
@@ -15,20 +17,27 @@ pub enum CycleDirection {
 
 impl CycleDirection {
     #[must_use]
-    pub const fn next_idx(&self, idx: usize, len: NonZeroUsize) -> usize {
+    pub fn next_idx<I: RingIndex + Default, RE>(&self, idx: I, ring: &Ring<RE>) -> Option<I>
+    where
+        RE: RingElement<Index = I>,
+    {
+        if ring.is_empty() {
+            return None;
+        }
+
         match self {
             Self::Previous => {
-                if idx == 0 {
-                    len.get() - 1
+                if idx == I::default() {
+                    Some(ring.last_index())
                 } else {
-                    idx - 1
+                    Some(idx.previous())
                 }
             }
             Self::Next => {
-                if idx == len.get() - 1 {
-                    0
+                if idx == ring.last_index() {
+                    Some(I::default())
                 } else {
-                    idx + 1
+                    Some(idx.next())
                 }
             }
         }

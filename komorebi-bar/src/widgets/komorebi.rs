@@ -29,12 +29,16 @@ use eframe::egui::TextFormat;
 use eframe::egui::Ui;
 use eframe::egui::Vec2;
 use komorebi_client::Container;
+use komorebi_client::MonitorIdx;
 use komorebi_client::NotificationEvent;
 use komorebi_client::PathExt;
 use komorebi_client::Rect;
+use komorebi_client::RingIndex;
 use komorebi_client::SocketMessage;
 use komorebi_client::Window;
+use komorebi_client::WindowIdx;
 use komorebi_client::Workspace;
+use komorebi_client::WorkspaceIdx;
 use komorebi_client::WorkspaceLayer;
 use serde::Deserialize;
 use serde::Serialize;
@@ -158,7 +162,7 @@ impl From<&KomorebiConfig> for Komorebi {
                     KomorebiNotificationStateContainerInformation::EMPTY,
                 ),
                 stack_accent: None,
-                monitor_index: MONITOR_INDEX.load(Ordering::SeqCst),
+                monitor_index: MonitorIdx::from_usize(MONITOR_INDEX.load(Ordering::SeqCst)),
                 monitor_usr_idx_map: HashMap::new(),
             })),
             workspaces: value.workspaces,
@@ -286,7 +290,7 @@ impl BarWidget for Komorebi {
                                         SocketMessage::MouseFollowsFocus(false),
                                         SocketMessage::FocusMonitorWorkspaceNumber(
                                             komorebi_notification_state.monitor_index,
-                                            i,
+                                            WorkspaceIdx::from_usize(i),
                                         ),
                                         SocketMessage::MouseFollowsFocus(true),
                                     ])
@@ -304,7 +308,7 @@ impl BarWidget for Komorebi {
                                 } else if komorebi_client::send_batch([
                                     SocketMessage::FocusMonitorWorkspaceNumber(
                                         komorebi_notification_state.monitor_index,
-                                        i,
+                                        WorkspaceIdx::from_usize(i),
                                     ),
                                 ])
                                     .is_err()
@@ -454,7 +458,7 @@ impl BarWidget for Komorebi {
                     ui,
                     config,
                     layout_config,
-                    workspace_idx,
+                    workspace_idx.map(WorkspaceIdx::from_usize),
                 );
             }
         }
@@ -572,7 +576,7 @@ impl BarWidget for Komorebi {
                         let iter = titles.iter().zip(icons.iter());
                         let len = iter.len();
 
-                        for (i, (title, icon)) in iter.enumerate() {
+                        for (i, (title, icon)) in iter.enumerate().map(|(i, t)| (WindowIdx::from_usize(i), t)) {
                             let selected = i == focused_window_idx && len != 1;
                             let text_color = if selected { ctx.style().visuals.selection.stroke.color } else { ui.style().visuals.text_color() };
 
@@ -682,8 +686,8 @@ pub struct KomorebiNotificationState {
     pub mouse_follows_focus: bool,
     pub work_area_offset: Option<Rect>,
     pub stack_accent: Option<Color32>,
-    pub monitor_index: usize,
-    pub monitor_usr_idx_map: HashMap<usize, usize>,
+    pub monitor_index: MonitorIdx,
+    pub monitor_usr_idx_map: HashMap<MonitorIdx, MonitorIdx>,
 }
 
 impl KomorebiNotificationState {
@@ -695,7 +699,7 @@ impl KomorebiNotificationState {
     pub fn handle_notification(
         &mut self,
         ctx: &Context,
-        monitor_index: Option<usize>,
+        monitor_index: Option<MonitorIdx>,
         notification: komorebi_client::Notification,
         bg_color: Rc<RefCell<Color32>>,
         bg_color_with_alpha: Rc<RefCell<Color32>>,
@@ -759,7 +763,7 @@ impl KomorebiNotificationState {
         self.monitor_usr_idx_map = notification.state.monitor_usr_idx_map.clone();
 
         if monitor_index.is_none()
-            || monitor_index.is_some_and(|idx| idx >= notification.state.monitors.len())
+            || monitor_index.is_some_and(|idx| idx > notification.state.monitors.last_index())
         {
             // The bar's monitor is diconnected, so the bar is disabled no need to check anything
             // any further otherwise we'll get `OutOfBounds` panics.
@@ -780,7 +784,7 @@ impl KomorebiNotificationState {
         self.selected_workspace = monitor.workspaces()[focused_workspace_idx]
             .name()
             .to_owned()
-            .unwrap_or_else(|| format!("{}", focused_workspace_idx + 1));
+            .unwrap_or_else(|| format!("{}", focused_workspace_idx.next()));
 
         for (i, ws) in monitor.workspaces().indexed() {
             let should_show = if self.hide_empty_workspaces {
@@ -790,7 +794,9 @@ impl KomorebiNotificationState {
             };
 
             workspaces.push((
-                ws.name().to_owned().unwrap_or_else(|| format!("{}", i + 1)),
+                ws.name()
+                    .to_owned()
+                    .unwrap_or_else(|| format!("{}", i.next())),
                 if show_all_icons {
                     let mut containers = vec![];
                     let mut has_monocle = false;
@@ -858,7 +864,7 @@ impl KomorebiNotificationState {
 pub struct KomorebiNotificationStateContainerInformation {
     pub titles: Vec<String>,
     pub icons: Vec<Option<ImageIcon>>,
-    pub focused_window_idx: usize,
+    pub focused_window_idx: WindowIdx,
 }
 
 impl From<&Workspace> for KomorebiNotificationStateContainerInformation {
@@ -918,7 +924,7 @@ impl From<&Window> for KomorebiNotificationStateContainerInformation {
         Self {
             titles: vec![value.title().unwrap_or_default()],
             icons: vec![icons],
-            focused_window_idx: 0,
+            focused_window_idx: WindowIdx::DEFAULT,
         }
     }
 }
@@ -927,6 +933,6 @@ impl KomorebiNotificationStateContainerInformation {
     pub const EMPTY: Self = Self {
         titles: vec![],
         icons: vec![],
-        focused_window_idx: 0,
+        focused_window_idx: WindowIdx::DEFAULT,
     };
 }

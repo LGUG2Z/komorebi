@@ -1,8 +1,10 @@
 #![deny(clippy::unwrap_used, clippy::expect_used)]
 
 use crate::border_manager;
+use crate::monitor::MonitorIdx;
 use crate::notify_subscribers;
 use crate::winevent::WinEvent;
+use crate::workspace::WorkspaceIdx;
 use crate::HidingBehaviour;
 use crate::NotificationEvent;
 use crate::Window;
@@ -22,11 +24,11 @@ use std::sync::OnceLock;
 use std::time::Duration;
 
 lazy_static! {
-    pub static ref WINDOWS_CACHE: Arc<Mutex<HashMap<Window, (usize, usize)>>> =
+    pub static ref WINDOWS_CACHE: Arc<Mutex<HashMap<Window, (MonitorIdx, WorkspaceIdx)>>> =
         Arc::new(Mutex::new(HashMap::new()));
 }
 
-pub struct ReaperNotification(pub HashMap<Window, (usize, usize)>);
+pub struct ReaperNotification(pub HashMap<Window, (MonitorIdx, WorkspaceIdx)>);
 
 static CHANNEL: OnceLock<(Sender<ReaperNotification>, Receiver<ReaperNotification>)> =
     OnceLock::new();
@@ -43,7 +45,7 @@ fn event_rx() -> Receiver<ReaperNotification> {
     channel().1.clone()
 }
 
-pub fn send_notification(windows: HashMap<Window, (usize, usize)>) {
+pub fn send_notification(windows: HashMap<Window, (MonitorIdx, WorkspaceIdx)>) {
     if event_tx().try_send(ReaperNotification(windows)).is_err() {
         tracing::warn!("channel is full; dropping notification")
     }
@@ -51,7 +53,7 @@ pub fn send_notification(windows: HashMap<Window, (usize, usize)>) {
 
 pub fn listen_for_notifications(
     wm: Arc<Mutex<WindowManager>>,
-    known_wins: HashMap<Window, (usize, usize)>,
+    known_wins: HashMap<Window, (MonitorIdx, WorkspaceIdx)>,
 ) {
     watch_for_orphans(known_wins);
 
@@ -142,7 +144,7 @@ fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result<()>
     Ok(())
 }
 
-fn watch_for_orphans(known_wins: HashMap<Window, (usize, usize)>) {
+fn watch_for_orphans(known_wins: HashMap<Window, (MonitorIdx, WorkspaceIdx)>) {
     // Cache current hwnds
     {
         let mut cache = WINDOWS_CACHE.lock();

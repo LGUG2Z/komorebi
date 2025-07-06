@@ -7,6 +7,7 @@ use crate::border_manager::BORDER_WIDTH;
 use crate::border_manager::STYLE;
 use crate::core::BorderStyle;
 use crate::core::Rect;
+use crate::monitor::MonitorIdx;
 use crate::Window;
 use crate::WindowsApi;
 use crate::WINDOWS_11;
@@ -113,7 +114,7 @@ pub extern "system" fn border_windows(hwnd: HWND, lparam: LPARAM) -> BOOL {
 pub struct Border {
     pub border_id: BorderId,
     pub id: WsElementId,
-    pub monitor_idx: Option<usize>,
+    pub monitor_idx: Option<MonitorIdx>,
     pub render_target: Option<RenderTarget>,
     pub tracking_window: Window,
     pub window_rect: Rect,
@@ -173,7 +174,7 @@ impl Border {
     pub fn create(
         id: &WsElementId,
         tracking_window: Window,
-        monitor_idx: usize,
+        monitor_idx: MonitorIdx,
     ) -> color_eyre::Result<Box<Self>> {
         let name: Vec<u16> = format!("komoborder-{id}\0").encode_utf16().collect();
         let class_name = PCWSTR(name.as_ptr());

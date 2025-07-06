@@ -48,6 +48,7 @@ use font_loader::system_fonts;
 use font_loader::system_fonts::FontPropertyBuilder;
 use komorebi_client::Colour;
 use komorebi_client::KomorebiTheme;
+use komorebi_client::MonitorIdx;
 use komorebi_client::MonitorNotification;
 use komorebi_client::NotificationEvent;
 use komorebi_client::PathExt;
@@ -150,7 +151,7 @@ pub fn exec_powershell(cmd: &str) -> Result<()> {
 
 pub struct Komobar {
     pub window: Option<Window>,
-    pub monitor_index: Option<usize>,
+    pub monitor_index: Option<MonitorIdx>,
     pub disabled: bool,
     pub config: KomobarConfig,
     pub render_config: Rc<RefCell<RenderConfig>>,
@@ -924,7 +925,7 @@ impl eframe::App for Komobar {
                 if self.monitor_index.is_none()
                     || self
                         .monitor_index
-                        .is_some_and(|idx| idx >= state.monitors.len())
+                        .is_some_and(|idx| idx > state.monitors.last_index())
                 {
                     if !self.disabled {
                         // Monitor for this bar got disconnected lets disable the bar until it

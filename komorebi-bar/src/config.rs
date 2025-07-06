@@ -6,6 +6,7 @@ use eframe::egui::Pos2;
 use eframe::egui::TextBuffer;
 use eframe::egui::Vec2;
 use komorebi_client::KomorebiTheme;
+use komorebi_client::MonitorIdx;
 use komorebi_client::PathExt;
 use komorebi_client::Rect;
 use komorebi_client::SocketMessage;
@@ -164,7 +165,7 @@ pub struct FrameConfig {
 #[serde(untagged)]
 pub enum MonitorConfigOrIndex {
     /// The monitor index where you want the bar to show
-    Index(usize),
+    Index(MonitorIdx),
     /// The full monitor options with the index and an optional work_area_offset
     MonitorConfig(MonitorConfig),
 }
@@ -173,7 +174,7 @@ pub enum MonitorConfigOrIndex {
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct MonitorConfig {
     /// Komorebi monitor index of the monitor on which to render the bar
-    pub index: usize,
+    pub index: MonitorIdx,
     /// Automatically apply a work area offset for this monitor to accommodate the bar
     pub work_area_offset: Option<Rect>,
 }

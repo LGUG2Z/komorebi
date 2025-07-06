@@ -1,6 +1,9 @@
 use core::ops::RangeBounds;
 use std::collections::vec_deque::Drain;
 use std::collections::VecDeque;
+use std::fmt::Display;
+use std::hash::Hash;
+use std::ops::Bound;
 use std::ops::Index;
 use std::ops::IndexMut;
 
@@ -9,14 +12,41 @@ use serde::Serialize;
 
 use crate::Lockable;
 
+pub trait RingIndex: Copy + PartialEq + Eq + Hash + PartialOrd + Ord + Display {
+    const DEFAULT: Self;
+
+    fn from_usize(index: usize) -> Self;
+
+    fn into_usize(self) -> usize;
+
+    #[inline]
+    fn previous(self) -> Self {
+        Self::from_usize(self.into_usize().saturating_sub(1))
+    }
+
+    #[inline]
+    fn next(self) -> Self {
+        Self::from_usize(self.into_usize() + 1)
+    }
+
+    #[inline]
+    fn even(self) -> bool {
+        self.into_usize() % 2 == 0
+    }
+}
+
+pub trait RingElement {
+    type Index: RingIndex;
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
-pub struct Ring<T> {
+pub struct Ring<T: RingElement> {
     elements: VecDeque<T>,
     focused: usize,
 }
 
-impl<T> Default for Ring<T> {
+impl<T: RingElement> Default for Ring<T> {
     fn default() -> Self {
         Self {
             elements: VecDeque::default(),
@@ -25,15 +55,15 @@ impl<T> Default for Ring<T> {
     }
 }
 
-impl<T> Ring<T> {
+impl<T: RingElement> Ring<T> {
     /// Sets the focused index to `idx`.
-    pub fn focus(&mut self, idx: usize) {
-        self.focused = idx;
+    pub fn focus(&mut self, idx: T::Index) {
+        self.focused = idx.into_usize();
     }
 
     /// Returns the current focused index.
-    pub const fn focused_idx(&self) -> usize {
-        self.focused
+    pub fn focused_idx(&self) -> T::Index {
+        T::Index::from_usize(self.focused)
     }
 
     /// Returns a reference to the currently focused element, or `None` if out of bounds.
@@ -56,6 +86,16 @@ impl<T> Ring<T> {
         self.elements.is_empty()
     }
 
+    /// Returns the last index of elements in the ring if any
+    pub fn last_index(&self) -> T::Index {
+        T::Index::from_usize(self.elements.len().saturating_sub(1))
+    }
+
+    /// Returns the last index of elements in the ring if any
+    pub fn next_index(&self) -> T::Index {
+        T::Index::from_usize(self.elements.len())
+    }
+
     /// Returns an iterator over references to the elements.
     pub fn iter(&self) -> impl DoubleEndedIterator<Item = &T> {
         self.elements.iter()
@@ -67,23 +107,41 @@ impl<T> Ring<T> {
     }
 
     /// Returns an iterator over references to the elements with indexes.
-    pub fn indexed(&self) -> impl DoubleEndedIterator<Item = (usize, &T)> {
-        self.elements.iter().enumerate()
+    pub fn indexed(&self) -> impl DoubleEndedIterator<Item = (T::Index, &T)> {
+        self.elements
+            .iter()
+            .enumerate()
+            .map(|(idx, elm)| (T::Index::from_usize(idx), elm))
     }
 
     /// Returns an iterator over mutable references to the elements with indexes.
-    pub fn indexed_mut(&mut self) -> impl DoubleEndedIterator<Item = (usize, &mut T)> {
-        self.elements.iter_mut().enumerate()
+    pub fn indexed_mut(&mut self) -> impl DoubleEndedIterator<Item = (T::Index, &mut T)> {
+        self.elements
+            .iter_mut()
+            .enumerate()
+            .map(|(idx, elm)| (T::Index::from_usize(idx), elm))
+    }
+
+    /// Consumes `Ring<T>`, transforms each element into `U`, and collects them into a new ring.
+    /// The focused index is preserved as-is.
+    pub fn map_clone<U: RingElement, F>(&self, mut f: F) -> Ring<U>
+    where
+        F: FnMut(&T) -> U,
+    {
+        Ring {
+            elements: self.elements.iter().map(&mut f).collect(),
+            focused: self.focused,
+        }
     }
 
     /// Returns a reference to the element at `index`, or `None` if out of bounds.
-    pub fn get(&self, index: usize) -> Option<&T> {
-        self.elements.get(index)
+    pub fn get(&self, index: T::Index) -> Option<&T> {
+        self.elements.get(index.into_usize())
     }
 
     /// Returns a mutable reference to the element at `index`, or `None` if out of bounds.
-    pub fn get_mut(&mut self, index: usize) -> Option<&mut T> {
-        self.elements.get_mut(index)
+    pub fn get_mut(&mut self, index: T::Index) -> Option<&mut T> {
+        self.elements.get_mut(index.into_usize())
     }
 
     /// Tests if any element of the ring matches a predicate.
@@ -101,8 +159,11 @@ impl<T> Ring<T> {
 
     /// Searches for an element in the ring, returning its index.
     #[inline]
-    pub fn position(&self, predicate: impl FnMut(&T) -> bool) -> Option<usize> {
-        self.elements.iter().position(predicate)
+    pub fn position(&self, predicate: impl FnMut(&T) -> bool) -> Option<T::Index> {
+        self.elements
+            .iter()
+            .position(predicate)
+            .map(T::Index::from_usize)
     }
 
     /// Returns a reference to the first element, or `None` if empty.
@@ -136,13 +197,13 @@ impl<T> Ring<T> {
     }
 
     /// Inserts an element at the specified index, shifting later elements.
-    pub fn insert(&mut self, index: usize, value: T) {
-        self.elements.insert(index, value);
+    pub fn insert(&mut self, index: T::Index, value: T) {
+        self.elements.insert(index.into_usize(), value);
     }
 
     /// Swaps the elements at indices `i` and `j`.
-    pub fn swap(&mut self, i: usize, j: usize) {
-        self.elements.swap(i, j);
+    pub fn swap(&mut self, i: T::Index, j: T::Index) {
+        self.elements.swap(i.into_usize(), j.into_usize());
     }
 
     /// Changes the length of the ring, either truncating or extending with clones of `value`.
@@ -159,8 +220,8 @@ impl<T> Ring<T> {
     }
 
     /// Removes and returns the element at `index`, or `None` if out of bounds.
-    pub fn remove(&mut self, index: usize) -> Option<T> {
-        self.elements.remove(index)
+    pub fn remove(&mut self, index: T::Index) -> Option<T> {
+        self.elements.remove(index.into_usize())
     }
 
     /// Removes and returns the first element, or `None` if empty.
@@ -174,8 +235,19 @@ impl<T> Ring<T> {
     }
 
     /// Creates a draining iterator over the specified range of elements.
-    pub fn drain(&mut self, range: impl RangeBounds<usize>) -> Drain<'_, T> {
-        self.elements.drain(range)
+    pub fn drain(&mut self, range: impl RangeBounds<T::Index>) -> Drain<'_, T> {
+        let start_bound = match range.start_bound() {
+            Bound::Included(&i) => Bound::Included(i.into_usize()),
+            Bound::Excluded(&i) => Bound::Excluded(i.into_usize()),
+            Bound::Unbounded => Bound::Unbounded,
+        };
+        let end_bound = match range.end_bound() {
+            Bound::Included(&i) => Bound::Included(i.into_usize()),
+            Bound::Excluded(&i) => Bound::Excluded(i.into_usize()),
+            Bound::Unbounded => Bound::Unbounded,
+        };
+
+        self.elements.drain((start_bound, end_bound))
     }
 
     /// Makes the contents contiguous, returning a mutable slice.
@@ -189,16 +261,17 @@ impl<T> Ring<T> {
     }
 }
 
-impl<T: Lockable> Ring<T> {
+impl<T: RingElement + Lockable> Ring<T> {
     /// Insert `value` at logical index `idx`, with trying to keep locked elements
     /// (`is_locked()`) anchored at their original positions.
     ///
     /// Returns the final index of the inserted element.
-    pub fn insert_respecting_locks(&mut self, mut idx: usize, value: T) -> usize {
+    pub fn insert_respecting_locks(&mut self, idx: T::Index, value: T) -> T::Index {
         // 1. Bounds check: if index is out of range, simply append.
+        let mut idx = idx.into_usize();
         if idx >= self.elements.len() {
             self.elements.push_back(value);
-            return self.len() - 1; // last index
+            return T::Index::from_usize(self.len() - 1); // last index
         }
 
         // 2. Normal VecDeque insertion
@@ -218,15 +291,16 @@ impl<T: Lockable> Ring<T> {
                 }
             }
         }
-        idx
+        T::Index::from_usize(idx)
     }
 
     /// Remove element at `idx`, with trying to keep locked elements
     /// (`is_locked()`) anchored at their original positions.
     ///
     /// Returns the removed element, or `None` if `idx` is out of bounds.
-    pub fn remove_respecting_locks(&mut self, idx: usize) -> Option<T> {
+    pub fn remove_respecting_locks(&mut self, idx: T::Index) -> Option<T> {
         // 1. Bounds check: if index is out of range, do nothing.
+        let idx = idx.into_usize();
         if idx >= self.elements.len() {
             return None;
         }
@@ -257,7 +331,9 @@ impl<T: Lockable> Ring<T> {
 
     /// Swaps the elements at indices `i` and `j`, along with their `locked` status, ensuring
     /// the lock state remains associated with the position rather than the element itself.
-    pub fn swap_respecting_locks(&mut self, i: usize, j: usize) {
+    pub fn swap_respecting_locks(&mut self, i: T::Index, j: T::Index) {
+        let i = i.into_usize();
+        let j = j.into_usize();
         self.elements.swap(i, j);
         let locked_i = self.elements[i].locked();
         let locked_j = self.elements[j].locked();
@@ -266,20 +342,20 @@ impl<T: Lockable> Ring<T> {
     }
 }
 
-impl<T> Index<usize> for Ring<T> {
+impl<T: RingElement> Index<T::Index> for Ring<T> {
     type Output = T;
-    fn index(&self, index: usize) -> &Self::Output {
-        &self.elements[index]
+    fn index(&self, index: T::Index) -> &Self::Output {
+        &self.elements[index.into_usize()]
     }
 }
 
-impl<T> IndexMut<usize> for Ring<T> {
-    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
-        &mut self.elements[index]
+impl<T: RingElement> IndexMut<T::Index> for Ring<T> {
+    fn index_mut(&mut self, index: T::Index) -> &mut Self::Output {
+        &mut self.elements[index.into_usize()]
     }
 }
 
-impl<'a, T> IntoIterator for &'a Ring<T> {
+impl<'a, T: RingElement> IntoIterator for &'a Ring<T> {
     type Item = &'a T;
     type IntoIter = std::collections::vec_deque::Iter<'a, T>;
 
@@ -288,7 +364,7 @@ impl<'a, T> IntoIterator for &'a Ring<T> {
     }
 }
 
-impl<'a, T> IntoIterator for &'a mut Ring<T> {
+impl<'a, T: RingElement> IntoIterator for &'a mut Ring<T> {
     type Item = &'a mut T;
     type IntoIter = std::collections::vec_deque::IterMut<'a, T>;
 
@@ -297,10 +373,64 @@ impl<'a, T> IntoIterator for &'a mut Ring<T> {
     }
 }
 
-impl<T> Extend<T> for Ring<T> {
+impl<T: RingElement> Extend<T> for Ring<T> {
     fn extend<I: IntoIterator<Item = T>>(&mut self, iter: I) {
         self.elements.extend(iter);
     }
+}
+
+macro_rules! declare_ring_element_and_index {
+    ($container:ident, $index:ident) => {
+        impl crate::ring::RingElement for $container {
+            type Index = $index;
+        }
+
+        #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+        #[derive(
+            Debug,
+            Default,
+            Clone,
+            Copy,
+            PartialEq,
+            Eq,
+            PartialOrd,
+            Ord,
+            Hash,
+            Serialize,
+            Deserialize,
+        )]
+        #[serde(transparent)]
+        #[repr(transparent)]
+        pub struct $index {
+            index: usize,
+        }
+
+        impl std::fmt::Display for $index {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                write!(f, "{}", self.index)
+            }
+        }
+
+        impl std::str::FromStr for $index {
+            type Err = std::num::ParseIntError;
+            fn from_str(s: &str) -> Result<Self, Self::Err> {
+                s.parse::<usize>().map(|index| $index { index })
+            }
+        }
+
+        impl crate::ring::RingIndex for $index {
+            const DEFAULT: $index = $index { index: 0 };
+
+            #[inline]
+            fn from_usize(index: usize) -> Self {
+                $index { index }
+            }
+            #[inline]
+            fn into_usize(self) -> usize {
+                self.index
+            }
+        }
+    };
 }
 
 macro_rules! impl_ring_elements {
@@ -320,7 +450,7 @@ macro_rules! impl_ring_elements {
                     self.[<$element:lower s>].focused()
                 }
 
-                pub const fn [<focused_ $element:lower _idx>](&self) -> usize {
+                pub fn [<focused_ $element:lower _idx>](&self) -> <$element as crate::ring::RingElement>::Index {
                     self.[<$element:lower s>].focused_idx()
                 }
 
@@ -352,7 +482,7 @@ macro_rules! impl_ring_elements {
                     self.[<$el_name:lower s>].focused()
                 }
 
-                pub const fn [<focused_ $el_name:lower _idx>](&self) -> usize {
+                pub fn [<focused_ $el_name:lower _idx>](&self) -> <$element as crate::ring::RingElement>::Index {
                     self.[<$el_name:lower s>].focused_idx()
                 }
 
@@ -372,6 +502,14 @@ mod tests {
     struct TestItem {
         val: i32,
         locked: bool,
+    }
+
+    declare_ring_element_and_index!(TestItem, TestIdx);
+
+    impl From<usize> for TestIdx {
+        fn from(index: usize) -> Self {
+            TestIdx { index }
+        }
     }
 
     impl TestItem {
@@ -404,7 +542,7 @@ mod tests {
             // Lock index 2
             let mut ring = test_ring(&[(0, false), (1, false), (2, true), (3, false), (4, false)]);
             // Insert at index 0, should shift elements while keeping index 2 locked
-            ring.insert_respecting_locks(0, TestItem::new(99, false));
+            ring.insert_respecting_locks(0.into(), TestItem::new(99, false));
             // Element '2' remains at index 2, element '1' that was at index 1 is now at index 3
             assert_eq!(ring.to_vec(|x| x.val), vec![99, 0, 2, 1, 3, 4]);
         }
@@ -414,8 +552,8 @@ mod tests {
             // Lock index 2
             let mut ring = test_ring(&[(0, false), (1, false), (2, true), (3, false), (4, false)]);
             // Try to insert at locked index 2, should insert at index 3 instead
-            let actual_index = ring.insert_respecting_locks(2, TestItem::new(99, false));
-            assert_eq!(actual_index, 3);
+            let actual_index = ring.insert_respecting_locks(2.into(), TestItem::new(99, false));
+            assert_eq!(actual_index, 3.into());
             assert_eq!(ring.to_vec(|x| x.val), vec![0, 1, 2, 99, 3, 4]);
         }
 
@@ -424,7 +562,7 @@ mod tests {
             // Lock index 1 and 3
             let mut ring = test_ring(&[(0, false), (1, true), (2, false), (3, true), (4, false)]);
             // Insert at index 0, should maintain locked indices
-            ring.insert_respecting_locks(0, TestItem::new(99, false));
+            ring.insert_respecting_locks(0.into(), TestItem::new(99, false));
             // Elements '1' and '3' remain at indices 1 and 3
             assert_eq!(ring.to_vec(|x| x.val), vec![99, 1, 0, 3, 2, 4]);
         }
@@ -433,8 +571,8 @@ mod tests {
         {
             // Lock index 2
             let mut ring = test_ring(&[(0, false), (1, false), (2, true), (3, false), (4, false)]);
-            let actual_index = ring.insert_respecting_locks(5, TestItem::new(99, false));
-            assert_eq!(actual_index, 5);
+            let actual_index = ring.insert_respecting_locks(5.into(), TestItem::new(99, false));
+            assert_eq!(actual_index, 5.into());
             assert_eq!(ring.to_vec(|x| x.val), vec![0, 1, 2, 3, 4, 99]);
         }
 
@@ -442,8 +580,8 @@ mod tests {
         {
             let mut ring = test_ring(&[]);
             // Insert into empty deque
-            let actual_index = ring.insert_respecting_locks(0, TestItem::new(99, false));
-            assert_eq!(actual_index, 0);
+            let actual_index = ring.insert_respecting_locks(0.into(), TestItem::new(99, false));
+            assert_eq!(actual_index, 0.into());
             assert_eq!(ring.to_vec(|x| x.val), vec![99]);
         }
 
@@ -452,8 +590,8 @@ mod tests {
             // Lock all indices
             let mut ring = test_ring(&[(0, true), (1, true), (2, true), (3, true), (4, true)]);
             // Try to insert at index 2, should insert at the end
-            let actual_index = ring.insert_respecting_locks(2, TestItem::new(99, false));
-            assert_eq!(actual_index, 5);
+            let actual_index = ring.insert_respecting_locks(2.into(), TestItem::new(99, false));
+            assert_eq!(actual_index, 5.into());
             assert_eq!(ring.to_vec(|x| x.val), vec![0, 1, 2, 3, 4, 99]);
         }
 
@@ -462,7 +600,7 @@ mod tests {
             // Lock index 2 and 3
             let mut ring = test_ring(&[(0, false), (1, false), (2, true), (3, true), (4, false)]);
             // Insert at index 1, should maintain consecutive locked indices
-            ring.insert_respecting_locks(1, TestItem::new(99, false));
+            ring.insert_respecting_locks(1.into(), TestItem::new(99, false));
             // Elements '2' and '3' remain at indices 2 and 3
             assert_eq!(ring.to_vec(|x| x.val), vec![0, 99, 2, 3, 1, 4]);
         }
@@ -474,7 +612,7 @@ mod tests {
         {
             // Lock index 2
             let mut ring = test_ring(&[(0, false), (1, false), (2, true), (3, false), (4, false)]);
-            let removed = ring.remove_respecting_locks(0);
+            let removed = ring.remove_respecting_locks(0.into());
             assert_eq!(removed.map(|x| x.val), Some(0));
             // Elements '2' remain at index 2
             assert_eq!(ring.to_vec(|x| x.val), vec![1, 3, 2, 4]);
@@ -484,7 +622,7 @@ mod tests {
         {
             // Lock index 2
             let mut ring = test_ring(&[(0, false), (1, false), (2, true), (3, false), (4, false)]);
-            let removed = ring.remove_respecting_locks(2);
+            let removed = ring.remove_respecting_locks(2.into());
             assert_eq!(removed.map(|x| x.val), Some(2));
             // Elements should stay at the same places
             assert_eq!(ring.to_vec(|x| x.val), vec![0, 1, 3, 4]);
@@ -494,7 +632,7 @@ mod tests {
         {
             // Lock index 1
             let mut ring = test_ring(&[(0, false), (1, true), (2, false), (3, false), (4, false)]);
-            let removed = ring.remove_respecting_locks(3);
+            let removed = ring.remove_respecting_locks(3.into());
             assert_eq!(removed.map(|x| x.val), Some(3));
             // Elements should stay at the same places
             assert_eq!(ring.to_vec(|x| x.val), vec![0, 1, 2, 4]);
@@ -504,7 +642,7 @@ mod tests {
         {
             // Lock index 1 and 3
             let mut ring = test_ring(&[(0, false), (1, true), (2, false), (3, true), (4, false)]);
-            let removed = ring.remove_respecting_locks(0);
+            let removed = ring.remove_respecting_locks(0.into());
             assert_eq!(removed.map(|x| x.val), Some(0));
             // Elements '1' and '3' remain at indices '1' and '3'
             assert_eq!(ring.to_vec(|x| x.val), vec![2, 1, 4, 3]);
@@ -514,7 +652,7 @@ mod tests {
         {
             // Lock index 2
             let mut ring = test_ring(&[(0, false), (1, false), (2, true), (3, false), (4, false)]);
-            let removed = ring.remove_respecting_locks(4);
+            let removed = ring.remove_respecting_locks(4.into());
             assert_eq!(removed.map(|x| x.val), Some(4));
             // Index 2 should still be at the same place
             assert_eq!(ring.to_vec(|x| x.val), vec![0, 1, 2, 3]);
@@ -524,7 +662,7 @@ mod tests {
         {
             // Lock index 2
             let mut ring = test_ring(&[(0, false), (1, false), (2, true), (3, false), (4, false)]);
-            let removed = ring.remove_respecting_locks(10);
+            let removed = ring.remove_respecting_locks(10.into());
             assert_eq!(removed, None);
             // Deque unchanged
             assert_eq!(ring.to_vec(|x| x.val), vec![0, 1, 2, 3, 4]);
@@ -534,7 +672,7 @@ mod tests {
         {
             // Lock index 2
             let mut ring = test_ring(&[(0, false), (1, false), (2, true)]);
-            ring.remove_respecting_locks(0);
+            ring.remove_respecting_locks(0.into());
             // Index 2 should now be '1'
             assert_eq!(ring.to_vec(|x| x.val), vec![1, 2]);
         }
@@ -550,7 +688,7 @@ mod tests {
                 (4, true),
                 (5, false),
             ]);
-            let removed = ring.remove_respecting_locks(1);
+            let removed = ring.remove_respecting_locks(1.into());
             assert_eq!(removed.map(|x| x.val), Some(1));
             // Both indices should still be at the same place
             assert_eq!(ring.to_vec(|x| x.val), vec![0, 3, 2, 5, 4]);
@@ -561,29 +699,29 @@ mod tests {
     fn test_swap_respecting_locks_various_cases() {
         // Swap unlocked and locked
         let mut ring = test_ring(&[(0, false), (1, true), (2, false), (3, false)]);
-        ring.swap_respecting_locks(0, 1);
+        ring.swap_respecting_locks(0.into(), 1.into());
         assert_eq!(ring.to_vec(|x| x.val), vec![1, 0, 2, 3]);
-        assert_eq!(ring[0].locked, false);
-        assert_eq!(ring[1].locked, true);
-        ring.swap_respecting_locks(0, 1);
+        assert_eq!(ring[TestIdx::from_usize(0)].locked, false);
+        assert_eq!(ring[TestIdx::from_usize(1)].locked, true);
+        ring.swap_respecting_locks(0.into(), 1.into());
         assert_eq!(ring.to_vec(|x| x.val), vec![0, 1, 2, 3]);
-        assert_eq!(ring[0].locked, false);
-        assert_eq!(ring[1].locked, true);
+        assert_eq!(ring[TestIdx::from_usize(0)].locked, false);
+        assert_eq!(ring[TestIdx::from_usize(1)].locked, true);
 
         // Both locked
         let mut ring = test_ring(&[(0, true), (1, false), (2, true)]);
-        ring.swap_respecting_locks(0, 2);
+        ring.swap_respecting_locks(0.into(), 2.into());
         assert_eq!(ring.to_vec(|x| x.val), vec![2, 1, 0]);
-        assert!(ring[0].locked);
-        assert!(!ring[1].locked);
-        assert!(ring[2].locked);
+        assert!(ring[TestIdx::from_usize(0)].locked);
+        assert!(!ring[TestIdx::from_usize(1)].locked);
+        assert!(ring[TestIdx::from_usize(2)].locked);
 
         // Both unlocked
         let mut ring = test_ring(&[(0, false), (1, true), (2, false)]);
-        ring.swap_respecting_locks(0, 2);
+        ring.swap_respecting_locks(0.into(), 2.into());
         assert_eq!(ring.to_vec(|x| x.val), vec![2, 1, 0]);
-        assert!(!ring[0].locked);
-        assert!(ring[1].locked);
-        assert!(!ring[2].locked);
+        assert!(!ring[TestIdx::from_usize(0)].locked);
+        assert!(ring[TestIdx::from_usize(1)].locked);
+        assert!(!ring[TestIdx::from_usize(2)].locked);
     }
 }
