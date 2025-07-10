@@ -615,8 +615,7 @@ impl eframe::App for KomorebiGui {
                     });
                 });
 
-                for (monitor_idx, monitor) in self.monitors.iter_mut().enumerate() {
-                    let monitor_idx = MonitorIdx::from_usize(monitor_idx);
+                for (monitor_idx, monitor) in self.monitors.indexed_mut() {
                     ui.collapsing(
                         format!(
                             "Monitor {monitor_idx} ({}x{})",
