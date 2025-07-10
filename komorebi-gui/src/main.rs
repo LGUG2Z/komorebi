@@ -701,10 +701,7 @@ impl eframe::App for KomorebiGui {
                             });
 
                             ui.collapsing("Workspaces", |ui| {
-                                for (workspace_idx, workspace) in
-                                    monitor.workspaces.iter_mut().enumerate()
-                                {
-                                    let workspace_idx = WorkspaceIdx::from_usize(workspace_idx);
+                                for (workspace_idx, workspace) in monitor.workspaces.indexed_mut() {
                                     ui.collapsing(
                                         format!("Workspace {workspace_idx} ({})", workspace.name),
                                         |ui| {
