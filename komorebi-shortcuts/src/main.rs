@@ -1,6 +1,5 @@
 use eframe::egui::ViewportBuilder;
 use std::path::PathBuf;
-use whkd_core::HotkeyBinding;
 use whkd_core::Whkdrc;
 
 #[derive(Default)]
@@ -58,21 +57,18 @@ impl eframe::App for Quicklook {
                             ui.label("Filter");
                             ui.add(
                                 eframe::egui::text_edit::TextEdit::singleline(&mut self.filter)
+                                    .hint_text("Filter by command...")
                                     .background_color(ctx.style().visuals.faint_bg_color),
                             );
                             ui.end_row();
-                            ui.end_row();
 
                             for binding in &whkdrc.bindings {
-                                if is_komorebic_binding(binding) {
-                                    let keys = binding.keys.join(" + ");
-                                    if self.filter.is_empty()
-                                        || binding.command.contains(&self.filter)
-                                    {
-                                        ui.label(keys);
-                                        ui.label(&binding.command);
-                                        ui.end_row();
-                                    }
+                                let keys = binding.keys.join(" + ");
+                                if self.filter.is_empty() || binding.command.contains(&self.filter)
+                                {
+                                    ui.label(keys);
+                                    ui.label(&binding.command);
+                                    ui.end_row();
                                 }
                             }
                         }
@@ -99,8 +95,4 @@ fn main() {
         Box::new(|cc| Ok(Box::new(Quicklook::new(cc)))),
     )
     .unwrap();
-}
-
-fn is_komorebic_binding(binding: &HotkeyBinding) -> bool {
-    binding.command.starts_with("komorebic")
 }
