@@ -11,6 +11,9 @@ use color_eyre::Result;
 use serde::Deserialize;
 use serde::Serialize;
 
+use crate::container::ContainerIdx;
+use crate::ring::RingIndex;
+
 use super::Rect;
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
@@ -52,17 +55,17 @@ impl CustomLayout {
     }
 
     #[must_use]
-    pub fn column_with_idx(&self, idx: usize) -> (usize, Option<&Column>) {
+    pub fn column_with_idx(&self, idx: ContainerIdx) -> (ContainerIdx, Option<&Column>) {
         let column_idx = self.column_for_container_idx(idx);
-        let column = self.get(column_idx);
+        let column = self.get(column_idx.into_usize());
         (column_idx, column)
     }
 
     #[must_use]
-    pub fn primary_idx(&self) -> Option<usize> {
+    pub fn primary_idx(&self) -> Option<ContainerIdx> {
         for (i, column) in self.iter().enumerate() {
             if let Column::Primary(_) = column {
-                return Option::from(i);
+                return Option::from(ContainerIdx::from_usize(i));
             }
         }
 
@@ -151,21 +154,21 @@ impl CustomLayout {
     }
 
     #[must_use]
-    pub fn first_container_idx(&self, col_idx: usize) -> usize {
+    pub fn first_container_idx(&self, col_idx: ContainerIdx) -> ContainerIdx {
         let count_map = self.column_container_counts();
         let mut container_idx_accumulator = 0;
 
-        for i in 0..col_idx {
+        for i in 0..col_idx.into_usize() {
             if let Some(n) = count_map.get(&i) {
                 container_idx_accumulator += n;
             }
         }
 
-        container_idx_accumulator
+        ContainerIdx::from_usize(container_idx_accumulator)
     }
 
     #[must_use]
-    pub fn column_for_container_idx(&self, idx: usize) -> usize {
+    pub fn column_for_container_idx(&self, idx: ContainerIdx) -> ContainerIdx {
         let count_map = self.column_container_counts();
         let mut container_idx_accumulator = 0;
 
@@ -177,8 +180,8 @@ impl CustomLayout {
                 // The accumulator becomes greater than the window container index
                 // for the first time when we reach a column that contains that
                 // window container index
-                if container_idx_accumulator > idx {
-                    return i;
+                if container_idx_accumulator > idx.into_usize() {
+                    return ContainerIdx::from_usize(i);
                 }
             }
         }
@@ -186,7 +189,7 @@ impl CustomLayout {
         // If the accumulator never reaches a point where it is greater than the
         // window container index, then the only remaining possibility is the
         // final tertiary column
-        self.len() - 1
+        ContainerIdx::from_usize(self.len() - 1)
     }
 
     #[must_use]

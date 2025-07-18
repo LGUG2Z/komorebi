@@ -1,4 +1,3 @@
-use std::collections::VecDeque;
 use std::ffi::OsStr;
 use std::fmt::Display;
 use std::fmt::Formatter;
@@ -8,6 +7,7 @@ use std::sync::atomic::Ordering;
 
 use crate::border_manager;
 use crate::container::Container;
+use crate::container::ContainerIdx;
 use crate::core::Axis;
 use crate::core::CustomLayout;
 use crate::core::CycleDirection;
@@ -16,8 +16,8 @@ use crate::core::Layout;
 use crate::core::OperationDirection;
 use crate::core::Rect;
 use crate::default_layout::LayoutOptions;
-use crate::lockable_sequence::LockableSequence;
 use crate::ring::Ring;
+use crate::ring::RingIndex;
 use crate::should_act;
 use crate::stackbar_manager;
 use crate::stackbar_manager::STACKBAR_TAB_HEIGHT;
@@ -30,6 +30,7 @@ use crate::KomorebiTheme;
 use crate::SocketMessage;
 use crate::Wallpaper;
 use crate::WindowContainerBehaviour;
+use crate::WindowIdx;
 use crate::DATA_DIR;
 use crate::DEFAULT_CONTAINER_PADDING;
 use crate::DEFAULT_WORKSPACE_PADDING;
@@ -61,12 +62,12 @@ pub struct Workspace {
     pub monocle_container: Option<Container>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[getset(get_copy = "pub", set = "pub")]
-    pub monocle_container_restore_idx: Option<usize>,
+    pub monocle_container_restore_idx: Option<ContainerIdx>,
     #[getset(get = "pub", get_mut = "pub", set = "pub")]
     pub maximized_window: Option<Window>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[getset(get_copy = "pub", set = "pub")]
-    pub maximized_window_restore_idx: Option<usize>,
+    pub maximized_window_restore_idx: Option<ContainerIdx>,
     pub floating_windows: Ring<Window>,
     #[getset(get = "pub", get_mut = "pub", set = "pub")]
     pub layout: Layout,
@@ -107,6 +108,8 @@ pub struct Workspace {
     #[getset(get = "pub", set = "pub")]
     pub workspace_config: Option<WorkspaceConfig>,
 }
+
+declare_ring_element_and_index!(Workspace, WorkspaceIdx);
 
 #[derive(Debug, Default, Copy, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
@@ -162,10 +165,10 @@ impl Default for Workspace {
 
 #[derive(Debug)]
 pub enum WorkspaceWindowLocation {
-    Monocle(usize), // window_idx
+    Monocle(WindowIdx), // window_idx
     Maximized,
-    Container(usize, usize), // container_idx, window_idx
-    Floating(usize),         // idx in floating_windows
+    Container(ContainerIdx, WindowIdx), // container_idx, window_idx
+    Floating(WindowIdx),                // idx in floating_windows
 }
 
 #[derive(
@@ -274,22 +277,12 @@ impl Workspace {
         Ok(())
     }
 
-    pub fn hide(&mut self, omit: Option<isize>) {
-        for window in self.floating_windows_mut().iter_mut().rev() {
-            let mut should_hide = omit.is_none();
-
-            if !should_hide {
-                if let Some(omit) = omit {
-                    if omit != window.hwnd {
-                        should_hide = true
-                    }
-                }
-            }
-
-            if should_hide {
-                window.hide();
-            }
-        }
+    pub fn hide(&mut self, omit: Option<Window>) {
+        self.floating_windows()
+            .iter()
+            .rev()
+            .filter(|&&window| Some(window) != omit)
+            .for_each(|window| window.hide());
 
         for container in self.containers_mut() {
             container.hide(omit)
@@ -437,7 +430,7 @@ impl Workspace {
         let idx = self.focused_container_idx();
         let mut to_focus = None;
 
-        for (i, container) in self.containers_mut().iter_mut().enumerate() {
+        for (i, container) in self.containers_mut().indexed_mut() {
             if let Some(window) = container.focused_window_mut() {
                 if idx == i {
                     to_focus = Option::from(*window);
@@ -595,10 +588,10 @@ impl Workspace {
 
                 let containers = self.containers_mut();
 
-                for (i, container) in containers.iter_mut().enumerate() {
+                for (i, container) in containers.indexed_mut() {
                     let window_count = container.windows().len();
 
-                    if let Some(layout) = layouts.get_mut(i) {
+                    if let Some(layout) = layouts.get_mut(i.into_usize()) {
                         layout.add_padding(border_offset);
                         layout.add_padding(border_width);
 
@@ -611,10 +604,7 @@ impl Workspace {
                         }
 
                         for window in container.windows() {
-                            if container
-                                .focused_window()
-                                .is_some_and(|w| w.hwnd == window.hwnd)
-                            {
+                            if container.focused_window().is_some_and(|w| w == window) {
                                 let should_remove_titlebar_for_window = should_act(
                                     &window.title().unwrap_or_default(),
                                     &window.exe().unwrap_or_default(),
@@ -634,7 +624,7 @@ impl Workspace {
                                 // If a window has been unmaximized via toggle-maximize, this block
                                 // will make sure that it is unmaximized via restore_window
                                 if window.is_maximized() && !managed_maximized_window {
-                                    WindowsApi::restore_window(window.hwnd);
+                                    WindowsApi::restore_window(*window);
                                 }
                             }
                             window.set_position(layout, false)?;
@@ -664,16 +654,16 @@ impl Workspace {
         Ok(())
     }
 
-    pub fn container_for_window(&self, hwnd: isize) -> Option<&Container> {
-        self.containers().get(self.container_idx_for_window(hwnd)?)
+    pub fn container_for_window(&self, win: Window) -> Option<&Container> {
+        self.containers().get(self.container_idx_for_window(win)?)
     }
 
     /// If there is a container which holds the window with `hwnd` it will focus that container.
     /// This function will only emit a focus on the window if it isn't the focused window of that
     /// container already.
-    pub fn focus_container_by_window(&mut self, hwnd: isize) -> Result<()> {
+    pub fn focus_container_by_window(&mut self, window: Window) -> Result<()> {
         let container_idx = self
-            .container_idx_for_window(hwnd)
+            .container_idx_for_window(window)
             .ok_or_else(|| anyhow!("there is no container/window"))?;
 
         let container = self
@@ -682,7 +672,7 @@ impl Workspace {
             .ok_or_else(|| anyhow!("there is no container"))?;
 
         let window_idx = container
-            .idx_for_window(hwnd)
+            .idx_for_window(window)
             .ok_or_else(|| anyhow!("there is no window"))?;
 
         let mut should_load = false;
@@ -702,13 +692,13 @@ impl Workspace {
         Ok(())
     }
 
-    pub fn container_idx_from_current_point(&self) -> Option<usize> {
+    pub fn container_idx_from_current_point(&self) -> Option<ContainerIdx> {
         let mut idx = None;
 
         let point = WindowsApi::cursor_pos().ok()?;
 
-        for (i, _container) in self.containers().iter().enumerate() {
-            if let Some(rect) = self.latest_layout().get(i) {
+        for (i, _container) in self.containers().indexed() {
+            if let Some(rect) = self.latest_layout().get(i.into_usize()) {
                 if rect.contains_point((point.x, point.y)) {
                     idx = Option::from(i);
                 }
@@ -718,31 +708,31 @@ impl Workspace {
         idx
     }
 
-    pub fn hwnd_from_exe(&self, exe: &str) -> Option<isize> {
+    pub fn window_from_exe(&self, exe: &str) -> Option<Window> {
         for container in self.containers() {
-            if let Some(hwnd) = container.hwnd_from_exe(exe) {
-                return Option::from(hwnd);
+            if let Some(window) = container.window_from_exe(exe) {
+                return Option::from(window);
             }
         }
 
         if let Some(window) = self.maximized_window() {
             if let Ok(window_exe) = window.exe() {
                 if exe == window_exe {
-                    return Option::from(window.hwnd);
+                    return Option::from(*window);
                 }
             }
         }
 
         if let Some(container) = self.monocle_container() {
-            if let Some(hwnd) = container.hwnd_from_exe(exe) {
-                return Option::from(hwnd);
+            if let Some(window) = container.window_from_exe(exe) {
+                return Option::from(window);
             }
         }
 
         for window in self.floating_windows() {
             if let Ok(window_exe) = window.exe() {
                 if exe == window_exe {
-                    return Option::from(window.hwnd);
+                    return Option::from(*window);
                 }
             }
         }
@@ -751,7 +741,7 @@ impl Workspace {
     }
 
     pub fn location_from_exe(&self, exe: &str) -> Option<WorkspaceWindowLocation> {
-        for (container_idx, container) in self.containers().iter().enumerate() {
+        for (container_idx, container) in self.containers().indexed() {
             if let Some(window_idx) = container.idx_from_exe(exe) {
                 return Some(WorkspaceWindowLocation::Container(
                     container_idx,
@@ -774,7 +764,7 @@ impl Workspace {
             }
         }
 
-        for (window_idx, window) in self.floating_windows().iter().enumerate() {
+        for (window_idx, window) in self.floating_windows().indexed() {
             if let Ok(window_exe) = window.exe() {
                 if exe == window_exe {
                     return Some(WorkspaceWindowLocation::Floating(window_idx));
@@ -785,21 +775,21 @@ impl Workspace {
         None
     }
 
-    pub fn contains_managed_window(&self, hwnd: isize) -> bool {
+    pub fn contains_managed_window(&self, window: Window) -> bool {
         for container in self.containers() {
-            if container.contains_window(hwnd) {
+            if container.contains_window(window) {
                 return true;
             }
         }
 
-        if let Some(window) = self.maximized_window() {
-            if hwnd == window.hwnd {
+        if let Some(win) = self.maximized_window() {
+            if window == *win {
                 return true;
             }
         }
 
         if let Some(container) = self.monocle_container() {
-            if container.contains_window(hwnd) {
+            if container.contains_window(window) {
                 return true;
             }
         }
@@ -808,15 +798,15 @@ impl Workspace {
     }
 
     pub fn is_focused_window_monocle_or_maximized(&self) -> Result<bool> {
-        let hwnd = WindowsApi::foreground_window()?;
-        if let Some(window) = self.maximized_window() {
-            if hwnd == window.hwnd {
+        let window = WindowsApi::foreground_window()?;
+        if let Some(win) = self.maximized_window() {
+            if window == *win {
                 return Ok(true);
             }
         }
 
         if let Some(container) = self.monocle_container() {
-            if container.contains_window(hwnd) {
+            if container.contains_window(window) {
                 return Ok(true);
             }
         }
@@ -831,27 +821,27 @@ impl Workspace {
             && self.floating_windows().is_empty()
     }
 
-    pub fn contains_window(&self, hwnd: isize) -> bool {
+    pub fn contains_window(&self, window: Window) -> bool {
         for container in self.containers() {
-            if container.contains_window(hwnd) {
+            if container.contains_window(window) {
                 return true;
             }
         }
 
-        if let Some(window) = self.maximized_window() {
-            if hwnd == window.hwnd {
+        if let Some(win) = self.maximized_window() {
+            if window == *win {
                 return true;
             }
         }
 
         if let Some(container) = self.monocle_container() {
-            if container.contains_window(hwnd) {
+            if container.contains_window(window) {
                 return true;
             }
         }
 
-        for window in self.floating_windows() {
-            if hwnd == window.hwnd {
+        for win in self.floating_windows() {
+            if window == *win {
                 return true;
             }
         }
@@ -866,7 +856,7 @@ impl Workspace {
             .ok_or_else(|| anyhow!("there is no container"))?;
 
         let primary_idx = match self.layout() {
-            Layout::Default(_) => 0,
+            Layout::Default(_) => ContainerIdx::default(),
             Layout::Custom(layout) => layout.first_container_idx(
                 layout
                     .primary_idx()
@@ -875,7 +865,7 @@ impl Workspace {
         };
 
         let insertion_idx = self.insert_container_at_idx(primary_idx, container);
-        self.resize_dimensions_mut()[insertion_idx] = resize;
+        self.resize_dimensions_mut()[insertion_idx.into_usize()] = resize;
         self.focus_container(primary_idx);
 
         Ok(())
@@ -893,15 +883,20 @@ impl Workspace {
 
     // this fn respects locked container indexes - we should use it for pretty much everything
     // except monocle and maximize toggles
-    pub fn insert_container_at_idx(&mut self, idx: usize, container: Container) -> usize {
+    pub fn insert_container_at_idx(
+        &mut self,
+        idx: ContainerIdx,
+        container: Container,
+    ) -> ContainerIdx {
         let insertion_idx = self
             .containers_mut()
             .insert_respecting_locks(idx, container);
 
-        if insertion_idx > self.resize_dimensions().len() {
+        if insertion_idx > ContainerIdx::from_usize(self.resize_dimensions().len()) {
             self.resize_dimensions_mut().push(None);
         } else {
-            self.resize_dimensions_mut().insert(insertion_idx, None);
+            self.resize_dimensions_mut()
+                .insert(insertion_idx.into_usize(), None);
         }
 
         self.focus_container(insertion_idx);
@@ -911,41 +906,30 @@ impl Workspace {
 
     // this fn respects locked container indexes - we should use it for pretty much everything
     // except monocle and maximize toggles
-    pub fn remove_container_by_idx(&mut self, idx: usize) -> Option<Container> {
+    pub fn remove_container_by_idx(&mut self, idx: ContainerIdx) -> Option<Container> {
         let container = self.containers_mut().remove_respecting_locks(idx);
 
-        if idx < self.resize_dimensions().len() {
-            self.resize_dimensions_mut().remove(idx);
+        if idx < ContainerIdx::from_usize(self.resize_dimensions().len()) {
+            self.resize_dimensions_mut().remove(idx.into_usize());
         }
 
         container
     }
 
-    pub fn container_idx_for_window(&self, hwnd: isize) -> Option<usize> {
-        let mut idx = None;
-        for (i, x) in self.containers().iter().enumerate() {
-            if x.contains_window(hwnd) {
-                idx = Option::from(i);
-            }
-        }
-
-        idx
+    pub fn container_idx_for_window(&self, window: Window) -> Option<ContainerIdx> {
+        self.containers().position(|x| x.contains_window(window))
     }
 
-    pub fn remove_window(&mut self, hwnd: isize) -> Result<()> {
-        border_manager::delete_border(hwnd);
+    pub fn remove_window(&mut self, window: Window) -> Result<()> {
+        border_manager::delete_border(window);
 
-        if self.floating_windows().iter().any(|w| w.hwnd == hwnd) {
-            self.floating_windows_mut().retain(|w| w.hwnd != hwnd);
+        if self.floating_windows().any(|w| *w == window) {
+            self.floating_windows_mut().retain(|w| *w != window);
             return Ok(());
         }
 
         if let Some(container) = self.monocle_container_mut() {
-            if let Some(window_idx) = container
-                .windows()
-                .iter()
-                .position(|window| window.hwnd == hwnd)
-            {
+            if let Some(window_idx) = container.windows().position(|w| *w == window) {
                 container
                     .remove_window_by_idx(window_idx)
                     .ok_or_else(|| anyhow!("there is no window"))?;
@@ -963,17 +947,15 @@ impl Workspace {
             }
         }
 
-        if let Some(window) = self.maximized_window() {
-            if window.hwnd == hwnd {
-                window.unmaximize();
-                self.set_maximized_window(None);
-                self.set_maximized_window_restore_idx(None);
-                return Ok(());
-            }
+        if let Some(win) = self.maximized_window().filter(|&w| w == window) {
+            win.unmaximize();
+            self.set_maximized_window(None);
+            self.set_maximized_window_restore_idx(None);
+            return Ok(());
         }
 
         let container_idx = self
-            .container_idx_for_window(hwnd)
+            .container_idx_for_window(window)
             .ok_or_else(|| anyhow!("there is no window"))?;
 
         let container = self
@@ -983,8 +965,7 @@ impl Workspace {
 
         let window_idx = container
             .windows()
-            .iter()
-            .position(|window| window.hwnd == hwnd)
+            .position(|w| *w == window)
             .ok_or_else(|| anyhow!("there is no window"))?;
 
         container
@@ -1012,14 +993,14 @@ impl Workspace {
         container
     }
 
-    pub fn remove_container(&mut self, idx: usize) -> Option<Container> {
+    pub fn remove_container(&mut self, idx: ContainerIdx) -> Option<Container> {
         let container = self.remove_container_by_idx(idx);
         self.focus_previous_container();
 
         container
     }
 
-    pub fn new_idx_for_direction(&self, direction: OperationDirection) -> Option<usize> {
+    pub fn new_idx_for_direction(&self, direction: OperationDirection) -> Option<ContainerIdx> {
         let len = NonZeroUsize::new(self.containers().len())?;
 
         direction.destination(
@@ -1030,15 +1011,12 @@ impl Workspace {
         )
     }
 
-    pub fn new_idx_for_cycle_direction(&self, direction: CycleDirection) -> Option<usize> {
-        Option::from(direction.next_idx(
-            self.focused_container_idx(),
-            NonZeroUsize::new(self.containers().len())?,
-        ))
+    pub fn new_idx_for_cycle_direction(&self, direction: CycleDirection) -> Option<ContainerIdx> {
+        direction.next_idx(self.focused_container_idx(), self.containers())
     }
 
     // this is what we use for stacking
-    pub fn move_window_to_container(&mut self, target_container_idx: usize) -> Result<()> {
+    pub fn move_window_to_container(&mut self, target_container_idx: ContainerIdx) -> Result<()> {
         let focused_idx = self.focused_container_idx();
 
         let container = self
@@ -1054,7 +1032,7 @@ impl Workspace {
             self.remove_container_by_idx(focused_idx);
 
             if focused_idx < target_container_idx {
-                target_container_idx.saturating_sub(1)
+                target_container_idx.previous()
             } else {
                 target_container_idx
             }
@@ -1118,9 +1096,9 @@ impl Workspace {
 
     pub fn new_container_for_window(&mut self, window: Window) {
         let next_idx = if self.containers().is_empty() {
-            0
+            ContainerIdx::default()
         } else {
-            self.focused_container_idx() + 1
+            self.focused_container_idx().next()
         };
 
         let mut container = Container::default();
@@ -1162,8 +1140,8 @@ impl Workspace {
             if container.windows().is_empty() {
                 self.remove_container_by_idx(focused_idx);
 
-                if focused_idx == self.containers().len() {
-                    self.focus_container(focused_idx.saturating_sub(1));
+                if focused_idx == ContainerIdx::from_usize(self.containers().len()) {
+                    self.focus_container(focused_idx.previous());
                 }
             } else {
                 container.load_focused_window();
@@ -1493,9 +1471,9 @@ impl Workspace {
             .ok_or_else(|| anyhow!("there is no monocle container"))?;
 
         let container = container.clone();
-        if restore_idx >= self.containers().len() {
+        if restore_idx > self.containers().last_index() {
             self.containers_mut()
-                .resize(restore_idx, Container::default());
+                .resize(restore_idx.into_usize(), Container::default());
         }
 
         // we shouldn't use insert_container_at_index here because it doesn't make sense for
@@ -1563,8 +1541,13 @@ impl Workspace {
             // monocle and maximized toggles which take over the whole screen before being reinserted
             // at the same index to respect locked container indexes
             self.containers_mut().remove(focused_idx);
-            if self.resize_dimensions().get(focused_idx).is_some() {
-                self.resize_dimensions_mut().remove(focused_idx);
+            if self
+                .resize_dimensions()
+                .get(focused_idx.into_usize())
+                .is_some()
+            {
+                self.resize_dimensions_mut()
+                    .remove(focused_idx.into_usize());
             }
         } else {
             container.load_focused_window();
@@ -1593,10 +1576,9 @@ impl Workspace {
             .ok_or_else(|| anyhow!("there is no monocle container"))?;
 
         let window = *window;
-        if !self.containers().is_empty() && restore_idx > self.containers().len().saturating_sub(1)
-        {
+        if !self.containers().is_empty() && restore_idx > self.containers().last_index() {
             self.containers_mut()
-                .resize(restore_idx, Container::default());
+                .resize(restore_idx.into_usize(), Container::default());
         }
 
         let mut container = Container::default();
@@ -1619,57 +1601,37 @@ impl Workspace {
     }
 
     #[tracing::instrument(skip(self))]
-    pub fn focus_container(&mut self, idx: usize) {
+    pub fn focus_container(&mut self, idx: ContainerIdx) {
         tracing::info!("focusing container");
 
         self.containers.focus(idx);
     }
 
-    pub fn swap_containers(&mut self, i: usize, j: usize) {
-        self.containers.elements_mut().swap_respecting_locks(i, j);
+    pub fn swap_containers(&mut self, i: ContainerIdx, j: ContainerIdx) {
+        self.containers.swap_respecting_locks(i, j);
         self.focus_container(j);
     }
 
     pub fn remove_focused_floating_window(&mut self) -> Option<Window> {
-        let hwnd = WindowsApi::foreground_window().ok()?;
-
-        let mut idx = None;
-        for (i, window) in self.floating_windows().iter().enumerate() {
-            if hwnd == window.hwnd {
-                idx = Option::from(i);
-            }
-        }
-
-        match idx {
-            None => None,
-            Some(idx) => {
-                if self.floating_windows().get(idx).is_some() {
-                    self.floating_windows_mut().remove(idx)
-                } else {
-                    None
-                }
-            }
-        }
+        let win = WindowsApi::foreground_window().ok()?;
+        let idx = self.floating_windows().position(|&w| w == win)?;
+        self.floating_windows_mut().remove(idx)
     }
 
-    pub fn visible_windows(&self) -> Vec<Option<&Window>> {
-        let mut vec = vec![];
+    pub fn visible_windows(&self) -> impl Iterator<Item = &Window> + '_ {
+        let maximized = self.maximized_window().iter();
 
-        vec.push(self.maximized_window().as_ref());
+        let monocle = self
+            .monocle_container()
+            .as_ref()
+            .and_then(|m| m.focused_window())
+            .into_iter();
 
-        if let Some(monocle) = self.monocle_container() {
-            vec.push(monocle.focused_window());
-        }
+        let containers = self.containers().iter().filter_map(|c| c.focused_window());
 
-        for container in self.containers() {
-            vec.push(container.focused_window());
-        }
+        let floating = self.floating_windows().iter();
 
-        for window in self.floating_windows() {
-            vec.push(Some(window));
-        }
-
-        vec
+        maximized.chain(monocle).chain(containers).chain(floating)
     }
 
     pub fn visible_window_details(&self) -> Vec<WindowDetails> {
@@ -1708,15 +1670,15 @@ impl Workspace {
 
     pub fn focus_previous_container(&mut self) {
         let focused_idx = self.focused_container_idx();
-        self.focus_container(focused_idx.saturating_sub(1));
+        self.focus_container(focused_idx.previous());
     }
 
     fn focus_last_container(&mut self) {
-        self.focus_container(self.containers().len().saturating_sub(1));
+        self.focus_container(self.containers().last_index());
     }
 
     fn focus_first_container(&mut self) {
-        self.focus_container(0);
+        self.focus_container(ContainerIdx::default());
     }
 }
 
@@ -1745,28 +1707,26 @@ mod tests {
         assert_eq!(ws.containers().len(), 4);
 
         // focus container at index 2
-        ws.focus_container(2);
+        ws.focus_container(ContainerIdx::from_usize(2));
 
         // simulate a new window being launched on this workspace
         ws.new_container_for_window(Window::from(123));
 
         // new length should be 5, with the focus on the new window at index 4
         assert_eq!(ws.containers().len(), 5);
-        assert_eq!(ws.focused_container_idx(), 4);
+        assert_eq!(ws.focused_container_idx(), ContainerIdx::from_usize(4));
         assert_eq!(
-            ws.focused_container()
-                .unwrap()
-                .focused_window()
-                .unwrap()
-                .hwnd,
-            123
+            *ws.focused_container().unwrap().focused_window().unwrap(),
+            Window::from(123)
         );
 
         // when inserting a new container at index 0, index 3's container should not change
-        ws.focus_container(0);
+        ws.focus_container(ContainerIdx::from_usize(0));
         ws.new_container_for_window(Window::from(234));
         assert_eq!(
-            ws.containers()[3].id().to_string(),
+            ws.containers()[ContainerIdx::from_usize(3)]
+                .id()
+                .to_string(),
             state.get(&3).unwrap().to_string()
         );
     }
@@ -1786,11 +1746,21 @@ mod tests {
         }
         assert_eq!(ws.containers().len(), 4);
 
-        ws.remove_window(0).unwrap();
-        assert_eq!(ws.containers()[0].focused_window().unwrap().hwnd, 2);
+        ws.remove_window(Window::from(0)).unwrap();
+        let cont = ws.containers();
+        assert_eq!(
+            *cont[ContainerIdx::from_usize(0)].focused_window().unwrap(),
+            Window::from(2)
+        );
         // index 1 should still be the same
-        assert_eq!(ws.containers()[1].focused_window().unwrap().hwnd, 1);
-        assert_eq!(ws.containers()[2].focused_window().unwrap().hwnd, 3);
+        assert_eq!(
+            *cont[ContainerIdx::from_usize(1)].focused_window().unwrap(),
+            Window::from(1)
+        );
+        assert_eq!(
+            *cont[ContainerIdx::from_usize(2)].focused_window().unwrap(),
+            Window::from(3)
+        );
     }
 
     #[test]
@@ -1809,15 +1779,25 @@ mod tests {
         assert_eq!(ws.containers().len(), 4);
 
         // set index 0 focused
-        ws.focus_container(0);
+        ws.focus_container(ContainerIdx::from_usize(0));
 
         // float index 0
         ws.new_floating_window().unwrap();
 
-        assert_eq!(ws.containers()[0].focused_window().unwrap().hwnd, 2);
+        let cont = ws.containers();
+        assert_eq!(
+            *cont[ContainerIdx::from_usize(0)].focused_window().unwrap(),
+            Window::from(2)
+        );
         // index 1 should still be the same
-        assert_eq!(ws.containers()[1].focused_window().unwrap().hwnd, 1);
-        assert_eq!(ws.containers()[2].focused_window().unwrap().hwnd, 3);
+        assert_eq!(
+            *cont[ContainerIdx::from_usize(1)].focused_window().unwrap(),
+            Window::from(1)
+        );
+        assert_eq!(
+            *cont[ContainerIdx::from_usize(2)].focused_window().unwrap(),
+            Window::from(3)
+        );
 
         // unfloat - have to do this semi-manually becuase of calls to WindowsApi in
         // new_container_for_floating_window which usually handles unfloating
@@ -1827,10 +1807,11 @@ mod tests {
         ws.insert_container_at_idx(ws.focused_container_idx(), container);
 
         // all indexes should be at their original position
+        let cont = ws.containers();
         for i in 0..4 {
             assert_eq!(
-                ws.containers()[i].focused_window().unwrap().hwnd,
-                i as isize
+                *cont[ContainerIdx::from_usize(i)].focused_window().unwrap(),
+                Window::from(i as isize)
             );
         }
     }
@@ -1851,26 +1832,41 @@ mod tests {
         assert_eq!(ws.containers().len(), 6);
 
         // set index 3 focused
-        ws.focus_container(3);
+        ws.focus_container(ContainerIdx::from_usize(3));
 
         // stack index 3 on top of index 2
-        ws.move_window_to_container(2).unwrap();
+        ws.move_window_to_container(ContainerIdx::from_usize(2))
+            .unwrap();
 
-        assert_eq!(ws.containers()[0].focused_window().unwrap().hwnd, 0);
-        assert_eq!(ws.containers()[1].focused_window().unwrap().hwnd, 1);
-        assert_eq!(ws.containers()[2].windows().len(), 2);
-        assert_eq!(ws.containers()[3].focused_window().unwrap().hwnd, 5);
+        let cont = ws.containers();
+        assert_eq!(
+            *cont[ContainerIdx::from_usize(0)].focused_window().unwrap(),
+            Window::from(0)
+        );
+        assert_eq!(
+            *cont[ContainerIdx::from_usize(1)].focused_window().unwrap(),
+            Window::from(1)
+        );
+        assert_eq!(cont[ContainerIdx::from_usize(2)].windows().len(), 2);
+        assert_eq!(
+            *cont[ContainerIdx::from_usize(3)].focused_window().unwrap(),
+            Window::from(5)
+        );
         // index 4 should still be the same
-        assert_eq!(ws.containers()[4].focused_window().unwrap().hwnd, 4);
+        assert_eq!(
+            *cont[ContainerIdx::from_usize(4)].focused_window().unwrap(),
+            Window::from(4)
+        );
 
         // unstack
         ws.new_container_for_focused_window().unwrap();
 
         // all indexes should be at their original position
+        let cont = ws.containers();
         for i in 0..6 {
             assert_eq!(
-                ws.containers()[i].focused_window().unwrap().hwnd,
-                i as isize
+                *cont[ContainerIdx::from_usize(i)].focused_window().unwrap(),
+                Window::from(i as isize)
             )
         }
     }
@@ -1888,7 +1884,7 @@ mod tests {
         workspace.add_container_to_back(container);
 
         // Should be true
-        assert!(workspace.contains_window(0));
+        assert!(workspace.contains_window(Window::from(0)));
 
         // Should be false
         assert!(!workspace.is_empty())
@@ -1964,7 +1960,7 @@ mod tests {
         }
 
         // Attempt to remove a non-existent window
-        let result = workspace.remove_window(2);
+        let result = workspace.remove_window(Window::from(2));
 
         // Should return an error
         assert!(
@@ -2000,17 +1996,26 @@ mod tests {
         assert_eq!(workspace.containers().len(), 2);
 
         // Should be focused on the container at index 1
-        assert_eq!(workspace.focused_container_idx(), 1);
+        assert_eq!(
+            workspace.focused_container_idx(),
+            ContainerIdx::from_usize(1)
+        );
 
         // Store the container at index 1 before removal
-        let container_to_remove = workspace.containers().get(1).cloned();
+        let container_to_remove = workspace
+            .containers()
+            .get(ContainerIdx::from_usize(1))
+            .cloned();
         workspace.remove_focused_container();
 
         // Should only have 1 container
         assert_eq!(workspace.containers().len(), 1);
 
         // Should be focused on the container at index 0
-        assert_eq!(workspace.focused_container_idx(), 0);
+        assert_eq!(
+            workspace.focused_container_idx(),
+            ContainerIdx::from_usize(0)
+        );
 
         // Ensure the container at index 1 before removal is no longer present
         assert!(container_to_remove.is_some());
@@ -2033,16 +2038,22 @@ mod tests {
         assert_eq!(workspace.containers().len(), 4);
 
         // Should be focused on the last container
-        assert_eq!(workspace.focused_container_idx(), 3);
+        assert_eq!(
+            workspace.focused_container_idx(),
+            ContainerIdx::from_usize(3)
+        );
 
         // Insert a container at index 4
-        workspace.insert_container_at_idx(4, Container::default());
+        workspace.insert_container_at_idx(ContainerIdx::from_usize(4), Container::default());
 
         // Should have 5 containers
         assert_eq!(workspace.containers().len(), 5);
 
         // Should be focused on the newly inserted container
-        assert_eq!(workspace.focused_container_idx(), 4);
+        assert_eq!(
+            workspace.focused_container_idx(),
+            ContainerIdx::from_usize(4)
+        );
     }
 
     #[test]
@@ -2059,13 +2070,19 @@ mod tests {
         assert_eq!(workspace.containers().len(), 3);
 
         // Should be focused on the last container
-        assert_eq!(workspace.focused_container_idx(), 2);
+        assert_eq!(
+            workspace.focused_container_idx(),
+            ContainerIdx::from_usize(2)
+        );
 
         // Store the container at index 1 before removal
-        let container_to_remove = workspace.containers().get(1).cloned();
+        let container_to_remove = workspace
+            .containers()
+            .get(ContainerIdx::from_usize(1))
+            .cloned();
 
         // Remove the container at index 1
-        workspace.remove_container_by_idx(1);
+        workspace.remove_container_by_idx(ContainerIdx::from_usize(1));
 
         // Should have 2 containers
         assert_eq!(workspace.containers().len(), 2);
@@ -2091,16 +2108,25 @@ mod tests {
         assert_eq!(workspace.containers().len(), 3);
 
         // Should be focused on the last container
-        assert_eq!(workspace.focused_container_idx(), 2);
+        assert_eq!(
+            workspace.focused_container_idx(),
+            ContainerIdx::from_usize(2)
+        );
 
         // Store the container at index 2 before removal
-        let container_to_remove = workspace.containers().get(2).cloned();
+        let container_to_remove = workspace
+            .containers()
+            .get(ContainerIdx::from_usize(2))
+            .cloned();
 
         // Remove the container at index 2
-        workspace.remove_container(2);
+        workspace.remove_container(ContainerIdx::from_usize(2));
 
         // Should be focused on the previous container which is index 1
-        assert_eq!(workspace.focused_container_idx(), 1);
+        assert_eq!(
+            workspace.focused_container_idx(),
+            ContainerIdx::from_usize(1)
+        );
 
         // Should have 2 containers
         assert_eq!(workspace.containers().len(), 2);
@@ -2126,19 +2152,31 @@ mod tests {
         assert_eq!(workspace.containers().len(), 3);
 
         // Should be focused on the last container
-        assert_eq!(workspace.focused_container_idx(), 2);
+        assert_eq!(
+            workspace.focused_container_idx(),
+            ContainerIdx::from_usize(2)
+        );
 
         // Focus on container 1
-        workspace.focus_container(1);
-        assert_eq!(workspace.focused_container_idx(), 1);
+        workspace.focus_container(ContainerIdx::from_usize(1));
+        assert_eq!(
+            workspace.focused_container_idx(),
+            ContainerIdx::from_usize(1)
+        );
 
         // Focus on container 0
-        workspace.focus_container(0);
-        assert_eq!(workspace.focused_container_idx(), 0);
+        workspace.focus_container(ContainerIdx::from_usize(0));
+        assert_eq!(
+            workspace.focused_container_idx(),
+            ContainerIdx::from_usize(0)
+        );
 
         // Focus on container 2
-        workspace.focus_container(2);
-        assert_eq!(workspace.focused_container_idx(), 2);
+        workspace.focus_container(ContainerIdx::from_usize(2));
+        assert_eq!(
+            workspace.focused_container_idx(),
+            ContainerIdx::from_usize(2)
+        );
     }
 
     #[test]
@@ -2155,13 +2193,19 @@ mod tests {
         assert_eq!(workspace.containers().len(), 3);
 
         // Should be focused on the last container
-        assert_eq!(workspace.focused_container_idx(), 2);
+        assert_eq!(
+            workspace.focused_container_idx(),
+            ContainerIdx::from_usize(2)
+        );
 
         // Focus on the previous container
         workspace.focus_previous_container();
 
         // Should be focused on container 1
-        assert_eq!(workspace.focused_container_idx(), 1);
+        assert_eq!(
+            workspace.focused_container_idx(),
+            ContainerIdx::from_usize(1)
+        );
     }
 
     #[test]
@@ -2178,14 +2222,20 @@ mod tests {
         assert_eq!(workspace.containers().len(), 3);
 
         // Change focus to the first container for the test
-        workspace.focus_container(0);
-        assert_eq!(workspace.focused_container_idx(), 0);
+        workspace.focus_container(ContainerIdx::from_usize(0));
+        assert_eq!(
+            workspace.focused_container_idx(),
+            ContainerIdx::from_usize(0)
+        );
 
         // Focus on the last container
         workspace.focus_last_container();
 
         // Should be focused on container 1
-        assert_eq!(workspace.focused_container_idx(), 2);
+        assert_eq!(
+            workspace.focused_container_idx(),
+            ContainerIdx::from_usize(2)
+        );
     }
 
     #[test]
@@ -2202,13 +2252,19 @@ mod tests {
         assert_eq!(workspace.containers().len(), 3);
 
         // Should be focused on the last container
-        assert_eq!(workspace.focused_container_idx(), 2);
+        assert_eq!(
+            workspace.focused_container_idx(),
+            ContainerIdx::from_usize(2)
+        );
 
         // Focus on the first container
         workspace.focus_first_container();
 
         // Should be focused on container 1
-        assert_eq!(workspace.focused_container_idx(), 0);
+        assert_eq!(
+            workspace.focused_container_idx(),
+            ContainerIdx::from_usize(0)
+        );
     }
 
     #[test]
@@ -2234,7 +2290,10 @@ mod tests {
 
         {
             // Should be focused on container 1
-            assert_eq!(workspace.focused_container_idx(), 1);
+            assert_eq!(
+                workspace.focused_container_idx(),
+                ContainerIdx::from_usize(1)
+            );
 
             // Should have 1 window
             let container = workspace.focused_container_mut().unwrap();
@@ -2242,11 +2301,14 @@ mod tests {
         }
 
         // Swap containers 0 and 1
-        workspace.swap_containers(0, 1);
+        workspace.swap_containers(ContainerIdx::from_usize(0), ContainerIdx::from_usize(1));
 
         {
             // Should be focused on container 0
-            assert_eq!(workspace.focused_container_idx(), 1);
+            assert_eq!(
+                workspace.focused_container_idx(),
+                ContainerIdx::from_usize(1)
+            );
 
             let container = workspace.focused_container_mut().unwrap();
             assert_eq!(container.windows().len(), 3);
@@ -2271,7 +2333,7 @@ mod tests {
         assert_eq!(container.windows().len(), 1);
 
         // Should return true that window 2 exists
-        assert!(workspace.contains_window(2));
+        assert!(workspace.contains_window(Window::from(2)));
     }
 
     #[test]
@@ -2294,10 +2356,12 @@ mod tests {
         }
 
         // Move A Window from container 1 to container 0
-        workspace.move_window_to_container(0).unwrap();
+        workspace
+            .move_window_to_container(ContainerIdx::from_usize(0))
+            .unwrap();
 
         // Focus on container 0
-        workspace.focus_container(0);
+        workspace.focus_container(ContainerIdx::from_usize(0));
 
         // Container 0 should have 1 window
         let container = workspace.focused_container_mut().unwrap();
@@ -2314,7 +2378,7 @@ mod tests {
         workspace.add_container_to_back(container);
 
         // Try to move window to a non-existent container
-        let result = workspace.move_window_to_container(8);
+        let result = workspace.move_window_to_container(ContainerIdx::from_usize(8));
 
         // Should return an error
         assert!(
@@ -2337,14 +2401,14 @@ mod tests {
         }
 
         // Remove window 1
-        workspace.remove_window(1).ok();
+        workspace.remove_window(Window::from(1)).ok();
 
         // Should have 2 windows
         let container = workspace.focused_container_mut().unwrap();
         assert_eq!(container.windows().len(), 2);
 
         // Check that window 1 is removed
-        assert!(!workspace.contains_window(1));
+        assert!(!workspace.contains_window(Window::from(1)));
     }
 
     #[test]
@@ -2368,10 +2432,10 @@ mod tests {
 
         {
             // Inspect new container. Should contain 1 window. Window name should be 0
-            workspace.focus_container(1);
+            workspace.focus_container(ContainerIdx::from_usize(1));
             let container = workspace.focused_container_mut().unwrap();
             assert_eq!(container.windows().len(), 1);
-            assert!(workspace.contains_window(0));
+            assert!(workspace.contains_window(Window::from(0)));
         }
     }
 
@@ -2396,18 +2460,23 @@ mod tests {
         }
 
         // Focus container by window
-        workspace.focus_container_by_window(1).unwrap();
+        workspace
+            .focus_container_by_window(Window::from(1))
+            .unwrap();
 
         // Should be focused on workspace 0
-        assert_eq!(workspace.focused_container_idx(), 0);
+        assert_eq!(
+            workspace.focused_container_idx(),
+            ContainerIdx::from_usize(0)
+        );
 
         // Should be focused on window 1 and hwnd should be 1
         let focused_container = workspace.focused_container_mut().unwrap();
+        assert_eq!(focused_container.focused_window(), Some(&Window::from(1)));
         assert_eq!(
-            focused_container.focused_window(),
-            Some(&Window { hwnd: 1 })
+            focused_container.focused_window_idx(),
+            WindowIdx::from_usize(1)
         );
-        assert_eq!(focused_container.focused_window_idx(), 1);
     }
 
     #[test]
@@ -2431,15 +2500,15 @@ mod tests {
         }
 
         // Should return true, window is in container 1
-        assert!(workspace.contains_managed_window(4));
+        assert!(workspace.contains_managed_window(Window::from(4)));
 
         // Should return true, all the windows are in container 0
         for i in 0..3 {
-            assert!(workspace.contains_managed_window(i));
+            assert!(workspace.contains_managed_window(Window::from(i)));
         }
 
         // Should return false since window was never added
-        assert!(!workspace.contains_managed_window(5));
+        assert!(!workspace.contains_managed_window(Window::from(5)));
     }
 
     #[test]
@@ -2467,7 +2536,7 @@ mod tests {
 
         // Should contain hwnd 0 since this is the first window in the container
         let floating_windows = workspace.floating_windows_mut();
-        assert!(floating_windows.contains(&Window { hwnd: 0 }));
+        assert!(floating_windows.contains(&Window::from(0)));
     }
 
     #[test]
@@ -2484,10 +2553,9 @@ mod tests {
 
         {
             // visible_windows should return None and 100
-            let visible_windows = workspace.visible_windows();
-            assert_eq!(visible_windows.len(), 2);
-            assert!(visible_windows[0].is_none());
-            assert_eq!(visible_windows[1].unwrap().hwnd, 100);
+            let visible_windows = workspace.visible_windows().collect::<Vec<_>>();
+            assert_eq!(visible_windows.len(), 1);
+            assert_eq!(visible_windows, [&Window::from(100)]);
         }
 
         {
@@ -2499,23 +2567,22 @@ mod tests {
 
         {
             // visible_windows should return None, 100, and 300
-            let visible_windows = workspace.visible_windows();
-            assert_eq!(visible_windows.len(), 3);
-            assert!(visible_windows[0].is_none());
-            assert_eq!(visible_windows[1].unwrap().hwnd, 100);
-            assert_eq!(visible_windows[2].unwrap().hwnd, 300);
+            let visible_windows = workspace.visible_windows().collect::<Vec<_>>();
+            assert_eq!(visible_windows.len(), 2);
+            assert_eq!(visible_windows, [&Window::from(100), &Window::from(300)]);
         }
 
         // Maximize window 200
-        workspace.set_maximized_window(Some(Window { hwnd: 200 }));
+        workspace.set_maximized_window(Some(Window::from(200)));
 
         {
             // visible_windows should return 200, 100, and 300
-            let visible_windows = workspace.visible_windows();
+            let visible_windows = workspace.visible_windows().collect::<Vec<_>>();
             assert_eq!(visible_windows.len(), 3);
-            assert_eq!(visible_windows[0].unwrap().hwnd, 200);
-            assert_eq!(visible_windows[1].unwrap().hwnd, 100);
-            assert_eq!(visible_windows[2].unwrap().hwnd, 300);
+            assert_eq!(
+                visible_windows,
+                [&Window::from(200), &Window::from(100), &Window::from(300)]
+            );
         }
     }
 }

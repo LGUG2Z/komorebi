@@ -209,7 +209,7 @@ impl Time {
                             Some(dt.time()),
                         )
                     }
-                    Err(_) => (format!("Invalid timezone: {:?}", timezone), None),
+                    Err(_) => (format!("Invalid timezone: {timezone:?}"), None),
                 },
                 None => {
                     let dt = Local::now();

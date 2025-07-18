@@ -15,12 +15,15 @@ use serde::Serialize;
 use crate::border_manager::BORDER_ENABLED;
 use crate::border_manager::BORDER_OFFSET;
 use crate::border_manager::BORDER_WIDTH;
+use crate::container::ContainerIdx;
 use crate::core::Rect;
 
 use crate::container::Container;
 use crate::ring::Ring;
+use crate::ring::RingIndex;
 use crate::workspace::Workspace;
 use crate::workspace::WorkspaceGlobals;
+use crate::workspace::WorkspaceIdx;
 use crate::workspace::WorkspaceLayer;
 use crate::DefaultLayout;
 use crate::FloatingLayerBehaviour;
@@ -59,9 +62,9 @@ pub struct Monitor {
     pub workspaces: Ring<Workspace>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[getset(get_copy = "pub", set = "pub")]
-    pub last_focused_workspace: Option<usize>,
+    pub last_focused_workspace: Option<WorkspaceIdx>,
     #[getset(get_mut = "pub")]
-    pub workspace_names: HashMap<usize, String>,
+    pub workspace_names: HashMap<WorkspaceIdx, String>,
     #[getset(get_copy = "pub", set = "pub")]
     pub container_padding: Option<i32>,
     #[getset(get_copy = "pub", set = "pub")]
@@ -72,6 +75,7 @@ pub struct Monitor {
     pub floating_layer_behaviour: Option<FloatingLayerBehaviour>,
 }
 
+declare_ring_element_and_index!(Monitor, MonitorIdx);
 impl_ring_elements!(Monitor, Workspace);
 
 #[derive(Serialize)]
@@ -107,7 +111,7 @@ pub fn new(
     serial_number_id: Option<String>,
 ) -> Monitor {
     let mut workspaces = Ring::default();
-    workspaces.elements_mut().push_back(Workspace::default());
+    workspaces.push_back(Workspace::default());
 
     Monitor {
         id,
@@ -193,7 +197,7 @@ impl Monitor {
         let focused_idx = self.focused_workspace_idx();
         let hmonitor = self.id();
         let monitor_wp = self.wallpaper.clone();
-        for (i, workspace) in self.workspaces_mut().iter_mut().enumerate() {
+        for (i, workspace) in self.workspaces_mut().indexed_mut() {
             if i == focused_idx {
                 workspace.restore(mouse_follows_focus, hmonitor, &monitor_wp)?;
             } else {
@@ -244,7 +248,7 @@ impl Monitor {
     }
 
     /// Updates the `globals` field of workspace with index `workspace_idx`
-    pub fn update_workspace_globals(&mut self, workspace_idx: usize, offset: Option<Rect>) {
+    pub fn update_workspace_globals(&mut self, workspace_idx: WorkspaceIdx, offset: Option<Rect>) {
         let container_padding = self
             .container_padding()
             .or(Some(DEFAULT_CONTAINER_PADDING.load(Ordering::SeqCst)));
@@ -285,12 +289,12 @@ impl Monitor {
     pub fn add_container(
         &mut self,
         container: Container,
-        workspace_idx: Option<usize>,
+        workspace_idx: Option<WorkspaceIdx>,
     ) -> Result<()> {
         let workspace = if let Some(idx) = workspace_idx {
             self.workspaces_mut()
                 .get_mut(idx)
-                .ok_or_else(|| anyhow!("there is no workspace at index {}", idx))?
+                .ok_or_else(|| anyhow!("there is no workspace at index {}", idx.into_usize()))?
         } else {
             self.focused_workspace_mut()
                 .ok_or_else(|| anyhow!("there is no workspace"))?
@@ -308,13 +312,13 @@ impl Monitor {
     pub fn add_container_with_direction(
         &mut self,
         container: Container,
-        workspace_idx: Option<usize>,
+        workspace_idx: Option<WorkspaceIdx>,
         direction: OperationDirection,
     ) -> Result<()> {
         let workspace = if let Some(idx) = workspace_idx {
             self.workspaces_mut()
                 .get_mut(idx)
-                .ok_or_else(|| anyhow!("there is no workspace at index {}", idx))?
+                .ok_or_else(|| anyhow!("there is no workspace at index {}", idx.into_usize()))?
         } else {
             self.focused_workspace_mut()
                 .ok_or_else(|| anyhow!("there is no workspace"))?
@@ -331,7 +335,8 @@ impl Monitor {
                         }
                         DefaultLayout::UltrawideVerticalStack => {
                             if workspace.containers().len() == 1 {
-                                workspace.insert_container_at_idx(0, container);
+                                workspace
+                                    .insert_container_at_idx(ContainerIdx::default(), container);
                             } else {
                                 workspace.add_container_to_back(container);
                             }
@@ -350,7 +355,8 @@ impl Monitor {
                 // if we are moving across a boundary to the right (front = left side of the target)
                 match workspace.layout() {
                     Layout::Default(layout) => {
-                        let target_index = layout.leftmost_index(workspace.containers().len());
+                        let target_index =
+                            layout.leftmost_index(workspace.containers().last_index());
 
                         match layout {
                             DefaultLayout::RightMainVerticalStack
@@ -381,15 +387,15 @@ impl Monitor {
         Ok(())
     }
 
-    pub fn remove_workspace_by_idx(&mut self, idx: usize) -> Option<Workspace> {
-        if idx < self.workspaces().len() {
+    pub fn remove_workspace_by_idx(&mut self, idx: WorkspaceIdx) -> Option<Workspace> {
+        if idx <= self.workspaces().last_index() {
             return self.workspaces_mut().remove(idx);
         }
 
-        if idx == 0 {
+        if idx == WorkspaceIdx::default() {
             self.workspaces_mut().push_back(Workspace::default());
         } else {
-            self.focus_workspace(idx.saturating_sub(1)).ok()?;
+            self.focus_workspace(idx.previous()).ok()?;
         };
 
         None
@@ -409,7 +415,7 @@ impl Monitor {
     #[tracing::instrument(skip(self))]
     pub fn move_container_to_workspace(
         &mut self,
-        target_workspace_idx: usize,
+        target_workspace_idx: WorkspaceIdx,
         follow: bool,
         direction: Option<OperationDirection>,
     ) -> Result<()> {
@@ -421,11 +427,10 @@ impl Monitor {
             bail!("cannot move native maximized window to another monitor or workspace");
         }
 
-        let foreground_hwnd = WindowsApi::foreground_window()?;
+        let foreground_win = WindowsApi::foreground_window()?;
         let floating_window_index = workspace
             .floating_windows()
-            .iter()
-            .position(|w| w.hwnd == foreground_hwnd);
+            .position(|&w| w == foreground_win);
 
         if let Some(idx) = floating_window_index {
             if let Some(window) = workspace.floating_windows_mut().remove(idx) {
@@ -433,7 +438,10 @@ impl Monitor {
                 #[allow(clippy::option_if_let_else)]
                 let target_workspace = match workspaces.get_mut(target_workspace_idx) {
                     None => {
-                        workspaces.resize(target_workspace_idx + 1, Workspace::default());
+                        workspaces.resize(
+                            target_workspace_idx.next().into_usize(),
+                            Workspace::default(),
+                        );
                         workspaces.get_mut(target_workspace_idx).unwrap()
                     }
                     Some(workspace) => workspace,
@@ -452,7 +460,10 @@ impl Monitor {
             #[allow(clippy::option_if_let_else)]
             let target_workspace = match workspaces.get_mut(target_workspace_idx) {
                 None => {
-                    workspaces.resize(target_workspace_idx + 1, Workspace::default());
+                    workspaces.resize(
+                        target_workspace_idx.next().into_usize(),
+                        Workspace::default(),
+                    );
                     workspaces.get_mut(target_workspace_idx).unwrap()
                 }
                 Some(workspace) => workspace,
@@ -491,14 +502,14 @@ impl Monitor {
     }
 
     #[tracing::instrument(skip(self))]
-    pub fn focus_workspace(&mut self, idx: usize) -> Result<()> {
+    pub fn focus_workspace(&mut self, idx: WorkspaceIdx) -> Result<()> {
         tracing::info!("focusing workspace");
 
         {
             let workspaces = self.workspaces_mut();
 
             if workspaces.get(idx).is_none() {
-                workspaces.resize(idx + 1, Workspace::default());
+                workspaces.resize(idx.next().into_usize(), Workspace::default());
             }
 
             self.workspaces.focus(idx);
@@ -518,8 +529,8 @@ impl Monitor {
         Ok(())
     }
 
-    pub fn new_workspace_idx(&self) -> usize {
-        self.workspaces().len()
+    pub fn new_workspace_idx(&self) -> WorkspaceIdx {
+        self.workspaces().next_index()
     }
 
     pub fn update_focused_workspace(&mut self, offset: Option<Rect>) -> Result<()> {
@@ -556,7 +567,8 @@ mod tests {
         );
 
         // Add container to the default workspace
-        m.add_container(Container::default(), Some(0)).unwrap();
+        m.add_container(Container::default(), Some(WorkspaceIdx::from_usize(0)))
+            .unwrap();
 
         // Should contain a container in the current focused workspace
         let workspace = m.focused_workspace_mut().unwrap();
@@ -576,7 +588,7 @@ mod tests {
         );
 
         let new_workspace_index = m.new_workspace_idx();
-        assert_eq!(new_workspace_index, 1);
+        assert_eq!(new_workspace_index, WorkspaceIdx::from_usize(1));
 
         // Create workspace 2
         m.focus_workspace(new_workspace_index).unwrap();
@@ -585,13 +597,13 @@ mod tests {
         assert_eq!(m.workspaces().len(), 2);
 
         // Create workspace 3
-        m.focus_workspace(new_workspace_index + 1).unwrap();
+        m.focus_workspace(new_workspace_index.next()).unwrap();
 
         // Should have 3 workspaces
         assert_eq!(m.workspaces().len(), 3);
 
         // Remove workspace 1
-        m.remove_workspace_by_idx(1);
+        m.remove_workspace_by_idx(WorkspaceIdx::from_usize(1));
 
         // Should have only 2 workspaces
         assert_eq!(m.workspaces().len(), 2);
@@ -610,7 +622,7 @@ mod tests {
         );
 
         let new_workspace_index = m.new_workspace_idx();
-        assert_eq!(new_workspace_index, 1);
+        assert_eq!(new_workspace_index, WorkspaceIdx::from_usize(1));
 
         // Create workspace 2
         m.focus_workspace(new_workspace_index).unwrap();
@@ -619,7 +631,7 @@ mod tests {
         assert_eq!(m.workspaces().len(), 2);
 
         // Create workspace 3
-        m.focus_workspace(new_workspace_index + 1).unwrap();
+        m.focus_workspace(new_workspace_index.next()).unwrap();
 
         // Should have 3 workspaces
         assert_eq!(m.workspaces().len(), 3);
@@ -644,7 +656,7 @@ mod tests {
         );
 
         // Try to remove a workspace that doesn't exist
-        let removed_workspace = m.remove_workspace_by_idx(1);
+        let removed_workspace = m.remove_workspace_by_idx(WorkspaceIdx::from_usize(1));
 
         // Should return None since there is no workspace at index 1
         assert!(removed_workspace.is_none());
@@ -663,7 +675,7 @@ mod tests {
         );
 
         let new_workspace_index = m.new_workspace_idx();
-        assert_eq!(new_workspace_index, 1);
+        assert_eq!(new_workspace_index, WorkspaceIdx::from_usize(1));
 
         // Focus workspace 2
         m.focus_workspace(new_workspace_index).unwrap();
@@ -672,7 +684,7 @@ mod tests {
         assert_eq!(m.workspaces().len(), 2);
 
         // Should be focused on workspace 2
-        assert_eq!(m.focused_workspace_idx(), 1);
+        assert_eq!(m.focused_workspace_idx(), WorkspaceIdx::from_usize(1));
     }
 
     #[test]
@@ -690,7 +702,7 @@ mod tests {
         let new_workspace_index = m.new_workspace_idx();
 
         // Should be the last workspace index: 1
-        assert_eq!(new_workspace_index, 1);
+        assert_eq!(new_workspace_index, WorkspaceIdx::from_usize(1));
     }
 
     #[test]
@@ -706,7 +718,7 @@ mod tests {
         );
 
         let new_workspace_index = m.new_workspace_idx();
-        assert_eq!(new_workspace_index, 1);
+        assert_eq!(new_workspace_index, WorkspaceIdx::from_usize(1));
 
         {
             // Create workspace 1 and add 3 containers
@@ -724,34 +736,36 @@ mod tests {
         m.focus_workspace(new_workspace_index).unwrap();
 
         // Focus workspace 1
-        m.focus_workspace(0).unwrap();
+        m.focus_workspace(WorkspaceIdx::from_usize(0)).unwrap();
 
         // Move container to workspace 2
-        m.move_container_to_workspace(1, true, None).unwrap();
+        m.move_container_to_workspace(WorkspaceIdx::from_usize(1), true, None)
+            .unwrap();
 
         // Should be focused on workspace 2
-        assert_eq!(m.focused_workspace_idx(), 1);
+        assert_eq!(m.focused_workspace_idx(), WorkspaceIdx::from_usize(1));
 
         // Workspace 2 should have 1 container now
         assert_eq!(m.focused_workspace().unwrap().containers().len(), 1);
 
         // Move to workspace 1
-        m.focus_workspace(0).unwrap();
+        m.focus_workspace(WorkspaceIdx::from_usize(0)).unwrap();
 
         // Workspace 1 should have 2 containers
         assert_eq!(m.focused_workspace().unwrap().containers().len(), 2);
 
         // Move a another container from workspace 1 to workspace 2 without following
-        m.move_container_to_workspace(1, false, None).unwrap();
+        m.move_container_to_workspace(WorkspaceIdx::from_usize(1), false, None)
+            .unwrap();
 
         // Should have 1 container
         assert_eq!(m.focused_workspace().unwrap().containers().len(), 1);
 
         // Should still be focused on workspace 1
-        assert_eq!(m.focused_workspace_idx(), 0);
+        assert_eq!(m.focused_workspace_idx(), WorkspaceIdx::from_usize(0));
 
         // Switch to workspace 2
-        m.focus_workspace(1).unwrap();
+        m.focus_workspace(WorkspaceIdx::from_usize(1)).unwrap();
 
         // Workspace 2 should now have 2 containers
         assert_eq!(m.focused_workspace().unwrap().containers().len(), 2);
@@ -785,13 +799,14 @@ mod tests {
         assert_eq!(m.workspaces().len(), 1);
 
         // Try to move a container to a workspace that doesn't exist
-        m.move_container_to_workspace(8, true, None).unwrap();
+        m.move_container_to_workspace(WorkspaceIdx::from_usize(8), true, None)
+            .unwrap();
 
         // Should have 9 workspaces now
         assert_eq!(m.workspaces().len(), 9);
 
         // Should be focused on workspace 8
-        assert_eq!(m.focused_workspace_idx(), 8);
+        assert_eq!(m.focused_workspace_idx(), WorkspaceIdx::from_usize(8));
 
         // Should have 1 container in workspace 8
         assert_eq!(m.focused_workspace().unwrap().containers().len(), 1);

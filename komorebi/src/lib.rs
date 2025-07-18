@@ -8,7 +8,6 @@ pub mod ring;
 pub mod container;
 pub mod core;
 pub mod focus_manager;
-pub mod lockable_sequence;
 pub mod monitor;
 pub mod monitor_reconciliator;
 pub mod process_command;
@@ -62,6 +61,7 @@ use crate::core::config_generation::IdWithIdentifier;
 use crate::core::config_generation::MatchingRule;
 use crate::core::config_generation::MatchingStrategy;
 use crate::core::config_generation::WorkspaceMatchingRule;
+use crate::monitor::MonitorIdx;
 use color_eyre::Result;
 use crossbeam_utils::atomic::AtomicCell;
 use os_info::Version;
@@ -76,7 +76,7 @@ use winreg::enums::HKEY_CURRENT_USER;
 use winreg::RegKey;
 
 lazy_static! {
-    static ref HIDDEN_HWNDS: Arc<Mutex<Vec<isize>>> = Arc::new(Mutex::new(vec![]));
+    static ref HIDDEN_WINDOWS: Arc<Mutex<Vec<Window>>> = Arc::new(Mutex::new(vec![]));
     static ref LAYERED_WHITELIST: Arc<Mutex<Vec<MatchingRule>>> = Arc::new(Mutex::new(vec![
         MatchingRule::Simple(IdWithIdentifier {
             kind: ApplicationIdentifier::Exe,
@@ -131,9 +131,9 @@ lazy_static! {
     ]));
     static ref OBJECT_NAME_CHANGE_TITLE_IGNORE_LIST: Arc<Mutex<Vec<Regex>>> = Arc::new(Mutex::new(Vec::new()));
     static ref TRANSPARENCY_BLACKLIST: Arc<Mutex<Vec<MatchingRule>>> = Arc::new(Mutex::new(Vec::new()));
-    static ref MONITOR_INDEX_PREFERENCES: Arc<Mutex<HashMap<usize, Rect>>> =
+    static ref MONITOR_INDEX_PREFERENCES: Arc<Mutex<HashMap<MonitorIdx, Rect>>> =
         Arc::new(Mutex::new(HashMap::new()));
-    static ref DISPLAY_INDEX_PREFERENCES: Arc<RwLock<HashMap<usize, String>>> =
+    static ref DISPLAY_INDEX_PREFERENCES: Arc<RwLock<HashMap<MonitorIdx, String>>> =
         Arc::new(RwLock::new(HashMap::new()));
     static ref WORKSPACE_MATCHING_RULES: Arc<Mutex<Vec<WorkspaceMatchingRule>>> =
         Arc::new(Mutex::new(Vec::new()));
@@ -200,8 +200,7 @@ lazy_static! {
 
             assert!(
                 home.is_dir(),
-                "$Env:KOMOREBI_CONFIG_HOME is set to '{}', which is not a valid directory",
-                home_path
+                "$Env:KOMOREBI_CONFIG_HOME is set to '{home_path}', which is not a valid directory",
             );
 
 

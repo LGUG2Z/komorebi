@@ -4,7 +4,6 @@ use color_eyre::eyre::Error;
 use color_eyre::Result;
 use core::ffi::c_void;
 use std::collections::HashMap;
-use std::collections::VecDeque;
 use std::convert::TryFrom;
 use std::mem::size_of;
 use std::path::Path;
@@ -155,7 +154,9 @@ use crate::core::Rect;
 use crate::container::Container;
 use crate::monitor;
 use crate::monitor::Monitor;
+use crate::monitor::MonitorIdx;
 use crate::ring::Ring;
+use crate::ring::RingIndex;
 use crate::set_window_position::SetWindowPosition;
 use crate::windows_callbacks;
 use crate::Window;
@@ -210,33 +211,21 @@ pub trait ProcessWindowsCrateResult<T> {
     fn process(self) -> Result<T>;
 }
 
-macro_rules! impl_process_windows_crate_integer_wrapper_result {
-    ( $($input:ty => $deref:ty),+ $(,)? ) => (
-        paste::paste! {
-            $(
-                impl ProcessWindowsCrateResult<$deref> for $input {
-                    fn process(self) -> Result<$deref> {
-                        if self == $input(std::ptr::null_mut()) {
-                            Err(std::io::Error::last_os_error().into())
-                        } else {
-                            Ok(self.0 as $deref)
-                        }
-                    }
-                }
-            )+
-        }
-    );
-}
-
-impl_process_windows_crate_integer_wrapper_result!(
-    HWND => isize,
-);
-
 impl<T> ProcessWindowsCrateResult<T> for WindowsCrateResult<T> {
     fn process(self) -> Result<T> {
         match self {
             Ok(value) => Ok(value),
             Err(error) => Err(error.into()),
+        }
+    }
+}
+
+impl ProcessWindowsCrateResult<Window> for HWND {
+    fn process(self) -> Result<Window> {
+        if self == HWND(std::ptr::null_mut()) {
+            Err(std::io::Error::last_os_error().into())
+        } else {
+            Ok(Window::from(self))
         }
     }
 }
@@ -309,7 +298,7 @@ impl WindowsApi {
             let name = display.device_name.trim_start_matches(r"\\.\").to_string();
             let name = name.split('\\').collect::<Vec<_>>()[0].to_string();
 
-            for monitor in monitors.elements() {
+            for monitor in monitors.iter_mut() {
                 if device_id.eq(monitor.device_id()) {
                     continue 'read;
                 }
@@ -349,34 +338,29 @@ impl WindowsApi {
             }
 
             if let Some(preference) = index_preference {
-                while *preference >= monitors.elements().len() {
-                    monitors.elements_mut().push_back(Monitor::placeholder());
+                while *preference > monitors.last_index() {
+                    monitors.push_back(Monitor::placeholder());
                 }
 
-                let current_name = monitors
-                    .elements_mut()
-                    .get(*preference)
-                    .map_or("", |m| m.name());
+                let current_name = monitors.get(*preference).map_or("", |m| m.name());
                 if current_name == "PLACEHOLDER" {
-                    let _ = monitors.elements_mut().remove(*preference);
-                    monitors.elements_mut().insert(*preference, m);
+                    let _ = monitors.remove(*preference);
+                    monitors.insert(*preference, m);
                 } else {
-                    monitors.elements_mut().insert(*preference, m);
+                    monitors.insert(*preference, m);
                 }
             } else {
-                monitors.elements_mut().push_back(m);
+                monitors.push_back(m);
             }
         }
 
-        monitors
-            .elements_mut()
-            .retain(|m| m.name().ne("PLACEHOLDER"));
+        monitors.retain(|m| m.name().ne("PLACEHOLDER"));
 
         // Rebuild monitor index map
         *monitor_usr_idx_map = HashMap::new();
         let mut added_monitor_idxs = Vec::new();
         for (index, id) in &*DISPLAY_INDEX_PREFERENCES.read() {
-            if let Some(m_idx) = monitors.elements().iter().position(|m| {
+            if let Some(m_idx) = monitors.position(|m| {
                 m.serial_number_id().as_ref().is_some_and(|sn| sn == id) || m.device_id() == id
             }) {
                 monitor_usr_idx_map.insert(*index, m_idx);
@@ -384,16 +368,20 @@ impl WindowsApi {
             }
         }
 
-        let max_usr_idx = monitors
-            .elements()
-            .len()
-            .max(monitor_usr_idx_map.keys().max().map_or(0, |v| *v));
+        let max_usr_idx = monitors.last_index().max(
+            monitor_usr_idx_map
+                .keys()
+                .max()
+                .map_or(MonitorIdx::default(), |v| *v),
+        );
 
-        let mut available_usr_idxs = (0..max_usr_idx)
+        let mut available_usr_idxs = (0..max_usr_idx.into_usize())
+            .map(MonitorIdx::from_usize)
             .filter(|i| !monitor_usr_idx_map.contains_key(i))
             .collect::<Vec<_>>();
 
-        let not_added_monitor_idxs = (0..monitors.elements().len())
+        let not_added_monitor_idxs = (0..monitors.len())
+            .map(MonitorIdx::from_usize)
             .filter(|i| !added_monitor_idxs.contains(i))
             .collect::<Vec<_>>();
 
@@ -414,13 +402,13 @@ impl WindowsApi {
     }
 
     pub fn load_workspace_information(monitors: &mut Ring<Monitor>) -> Result<()> {
-        for monitor in monitors.elements_mut() {
+        for monitor in monitors {
             let monitor_name = monitor.name().clone();
             if let Some(workspace) = monitor.workspaces_mut().front_mut() {
                 // EnumWindows will enumerate through windows on all monitors
                 Self::enum_windows(
                     Some(windows_callbacks::enum_window),
-                    workspace.containers_mut() as *mut VecDeque<Container> as isize,
+                    workspace.containers_mut() as *mut Ring<Container> as isize,
                 )?;
 
                 // Ensure that the resize_dimensions Vec length matches the number of containers for
@@ -433,14 +421,14 @@ impl WindowsApi {
 
                 for container in workspace.containers_mut() {
                     for window in container.windows() {
-                        if Self::monitor_name_from_window(window.hwnd)? != monitor_name {
-                            windows_on_other_monitors.push(window.hwnd);
+                        if Self::monitor_name_from_window(*window)? != monitor_name {
+                            windows_on_other_monitors.push(*window);
                         }
                     }
                 }
 
-                for hwnd in windows_on_other_monitors {
-                    workspace.remove_window(hwnd)?;
+                for window in windows_on_other_monitors {
+                    workspace.remove_window(window)?;
                 }
             }
         }
@@ -452,17 +440,17 @@ impl WindowsApi {
         unsafe { AllowSetForegroundWindow(process_id) }.process()
     }
 
-    pub fn monitor_from_window(hwnd: isize) -> isize {
+    pub fn monitor_from_window(hwnd: impl Into<HWND>) -> isize {
         // MONITOR_DEFAULTTONEAREST ensures that the return value will never be NULL
         // https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-monitorfromwindow
-        unsafe { MonitorFromWindow(HWND(as_ptr!(hwnd)), MONITOR_DEFAULTTONEAREST) }.0 as isize
+        unsafe { MonitorFromWindow(hwnd.into(), MONITOR_DEFAULTTONEAREST) }.0 as isize
     }
 
-    pub fn monitor_name_from_window(hwnd: isize) -> Result<String> {
+    pub fn monitor_name_from_window(hwnd: impl Into<HWND>) -> Result<String> {
         // MONITOR_DEFAULTTONEAREST ensures that the return value will never be NULL
         // https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-monitorfromwindow
         Ok(Self::monitor(
-            unsafe { MonitorFromWindow(HWND(as_ptr!(hwnd)), MONITOR_DEFAULTTONEAREST) }.0 as isize,
+            unsafe { MonitorFromWindow(hwnd.into(), MONITOR_DEFAULTTONEAREST) }.0 as isize,
         )?
         .name()
         .to_string())
@@ -478,12 +466,12 @@ impl WindowsApi {
     /// the layout to account for any window shadow borders (the window painted
     /// region will match layout on completion).
     pub fn position_window(
-        hwnd: isize,
+        hwnd: impl Into<HWND>,
         layout: &Rect,
         top: bool,
         with_async_window_pos: bool,
     ) -> Result<()> {
-        let hwnd = HWND(as_ptr!(hwnd));
+        let hwnd = hwnd.into();
 
         let mut flags = SetWindowPosition::NO_ACTIVATE
             | SetWindowPosition::NO_SEND_CHANGING
@@ -533,13 +521,13 @@ impl WindowsApi {
         Self::set_window_pos(hwnd, &rect, HWND_TOP, flags.bits())
     }
 
-    pub fn bring_window_to_top(hwnd: isize) -> Result<()> {
-        unsafe { BringWindowToTop(HWND(as_ptr!(hwnd))) }.process()
+    pub fn bring_window_to_top(hwnd: impl Into<HWND>) -> Result<()> {
+        unsafe { BringWindowToTop(hwnd.into()) }.process()
     }
 
     /// Raise the window to the top of the Z order, but do not activate or focus
     /// it. Use raise_and_focus_window to activate and focus a window.
-    pub fn raise_window(hwnd: isize) -> Result<()> {
+    pub fn raise_window(hwnd: impl Into<HWND>) -> Result<()> {
         let mut flags = SetWindowPosition::NO_MOVE
             | SetWindowPosition::NO_SIZE
             | SetWindowPosition::NO_ACTIVATE
@@ -553,17 +541,12 @@ impl WindowsApi {
         }
 
         let position = HWND_TOP;
-        Self::set_window_pos(
-            HWND(as_ptr!(hwnd)),
-            &Rect::default(),
-            position,
-            flags.bits(),
-        )
+        Self::set_window_pos(hwnd.into(), &Rect::default(), position, flags.bits())
     }
 
     /// Lower the window to the bottom of the Z order, but do not activate or focus
     /// it.
-    pub fn lower_window(hwnd: isize) -> Result<()> {
+    pub fn lower_window(hwnd: impl Into<HWND>) -> Result<()> {
         let mut flags = SetWindowPosition::NO_MOVE
             | SetWindowPosition::NO_SIZE
             | SetWindowPosition::NO_ACTIVATE
@@ -577,15 +560,10 @@ impl WindowsApi {
         }
 
         let position = HWND_BOTTOM;
-        Self::set_window_pos(
-            HWND(as_ptr!(hwnd)),
-            &Rect::default(),
-            position,
-            flags.bits(),
-        )
+        Self::set_window_pos(hwnd.into(), &Rect::default(), position, flags.bits())
     }
 
-    pub fn set_border_pos(hwnd: isize, layout: &Rect, position: isize) -> Result<()> {
+    pub fn set_border_pos(hwnd: impl Into<HWND>, layout: &Rect, position: Window) -> Result<()> {
         let mut flags = SetWindowPosition::NO_SEND_CHANGING
             | SetWindowPosition::NO_ACTIVATE
             | SetWindowPosition::NO_REDRAW
@@ -598,12 +576,7 @@ impl WindowsApi {
             flags |= SetWindowPosition::ASYNC_WINDOW_POS;
         }
 
-        Self::set_window_pos(
-            HWND(as_ptr!(hwnd)),
-            layout,
-            HWND(as_ptr!(position)),
-            flags.bits(),
-        )
+        Self::set_window_pos(hwnd.into(), layout, position.hwnd(), flags.bits())
     }
 
     /// set_window_pos calls SetWindowPos without any accounting for Window decorations.
@@ -623,8 +596,8 @@ impl WindowsApi {
     }
 
     /// move_windows calls MoveWindow, but cannot be called with async window pos, so it might hang
-    pub fn move_window(hwnd: isize, layout: &Rect, repaint: bool) -> Result<()> {
-        let hwnd = HWND(as_ptr!(hwnd));
+    pub fn move_window(hwnd: impl Into<HWND>, layout: &Rect, repaint: bool) -> Result<()> {
+        let hwnd = hwnd.into();
 
         let shadow_rect = Self::shadow_rect(hwnd).unwrap_or_default();
         let rect = Rect {
@@ -636,7 +609,7 @@ impl WindowsApi {
         unsafe { MoveWindow(hwnd, rect.left, rect.top, rect.right, rect.bottom, repaint) }.process()
     }
 
-    pub fn show_window(hwnd: isize, command: SHOW_WINDOW_CMD) {
+    pub fn show_window(hwnd: impl Into<HWND>, command: SHOW_WINDOW_CMD) {
         // BOOL is returned but does not signify whether or not the operation was succesful
         // https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-showwindow
         // TODO: error handling
@@ -645,16 +618,16 @@ impl WindowsApi {
             WindowHandlingBehaviour::Async
         ) {
             unsafe {
-                let _ = ShowWindowAsync(HWND(as_ptr!(hwnd)), command);
+                let _ = ShowWindowAsync(hwnd.into(), command);
             };
         } else {
             unsafe {
-                let _ = ShowWindow(HWND(as_ptr!(hwnd)), command);
+                let _ = ShowWindow(hwnd.into(), command);
             };
         }
     }
 
-    pub fn minimize_window(hwnd: isize) {
+    pub fn minimize_window(hwnd: impl Into<HWND>) {
         Self::show_window(hwnd, SW_MINIMIZE);
     }
 
@@ -662,46 +635,46 @@ impl WindowsApi {
         unsafe { PostMessageW(Option::from(hwnd), message, wparam, lparam) }.process()
     }
 
-    pub fn close_window(hwnd: isize) -> Result<()> {
-        match Self::post_message(HWND(as_ptr!(hwnd)), WM_CLOSE, WPARAM(0), LPARAM(0)) {
+    pub fn close_window(hwnd: impl Into<HWND>) -> Result<()> {
+        match Self::post_message(hwnd.into(), WM_CLOSE, WPARAM(0), LPARAM(0)) {
             Ok(()) => Ok(()),
             Err(_) => Err(anyhow!("could not close window")),
         }
     }
 
-    pub fn hide_window(hwnd: isize) {
+    pub fn hide_window(hwnd: impl Into<HWND>) {
         Self::show_window(hwnd, SW_HIDE);
     }
 
-    pub fn restore_window(hwnd: isize) {
+    pub fn restore_window(hwnd: impl Into<HWND>) {
         Self::show_window(hwnd, SW_SHOWNOACTIVATE);
     }
 
-    pub fn unmaximize_window(hwnd: isize) {
+    pub fn unmaximize_window(hwnd: impl Into<HWND>) {
         Self::show_window(hwnd, SW_NORMAL);
     }
 
-    pub fn maximize_window(hwnd: isize) {
+    pub fn maximize_window(hwnd: impl Into<HWND>) {
         Self::show_window(hwnd, SW_MAXIMIZE);
     }
 
-    pub fn foreground_window() -> Result<isize> {
+    pub fn foreground_window() -> Result<Window> {
         unsafe { GetForegroundWindow() }.process()
     }
 
-    pub fn raise_and_focus_window(hwnd: isize) -> Result<()> {
+    pub fn raise_and_focus_window(hwnd: impl Into<HWND>) -> Result<()> {
         let event = [INPUT {
             r#type: INPUT_MOUSE,
             ..Default::default()
         }];
-
+        let hwnd = hwnd.into();
         unsafe {
             // Send an input event to our own process first so that we pass the
             // foreground lock check
             SendInput(&event, size_of::<INPUT>() as i32);
             // Error ignored, as the operation is not always necessary.
             let _ = SetWindowPos(
-                HWND(as_ptr!(hwnd)),
+                hwnd,
                 Option::from(HWND_TOP),
                 0,
                 0,
@@ -710,24 +683,24 @@ impl WindowsApi {
                 SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW | SWP_ASYNCWINDOWPOS,
             )
             .process();
-            SetForegroundWindow(HWND(as_ptr!(hwnd)))
+            SetForegroundWindow(hwnd)
         }
         .ok()
         .process()
     }
 
     #[allow(dead_code)]
-    pub fn top_window() -> Result<isize> {
+    pub fn top_window() -> Result<Window> {
         unsafe { GetTopWindow(None)? }.process()
     }
 
-    pub fn desktop_window() -> Result<isize> {
+    pub fn desktop_window() -> Result<Window> {
         unsafe { GetDesktopWindow() }.process()
     }
 
     #[allow(dead_code)]
-    pub fn next_window(hwnd: isize) -> Result<isize> {
-        unsafe { GetWindow(HWND(as_ptr!(hwnd)), GW_HWNDNEXT)? }.process()
+    pub fn next_window(hwnd: impl Into<HWND>) -> Result<Window> {
+        unsafe { GetWindow(hwnd.into(), GW_HWNDNEXT)? }.process()
     }
 
     pub fn alt_tab_windows() -> Result<Vec<Window>> {
@@ -741,24 +714,24 @@ impl WindowsApi {
     }
 
     #[allow(dead_code)]
-    pub fn top_visible_window() -> Result<isize> {
-        let hwnd = Self::top_window()?;
-        let mut next_hwnd = hwnd;
+    pub fn top_visible_window() -> Result<Window> {
+        let window = Self::top_window()?;
+        let mut next_window = window;
 
-        while next_hwnd != 0 {
-            if Self::is_window_visible(next_hwnd) {
-                return Ok(next_hwnd);
+        while !next_window.hwnd().is_invalid() {
+            if Self::is_window_visible(next_window) {
+                return Ok(next_window);
             }
 
-            next_hwnd = Self::next_window(next_hwnd)?;
+            next_window = Self::next_window(next_window)?;
         }
 
         Err(anyhow!("could not find next window"))
     }
 
-    pub fn window_rect(hwnd: isize) -> Result<Rect> {
+    pub fn window_rect(hwnd: impl Into<HWND>) -> Result<Rect> {
         let mut rect = unsafe { std::mem::zeroed() };
-
+        let hwnd = hwnd.into();
         if Self::dwm_get_window_attribute(hwnd, DWMWA_EXTENDED_FRAME_BOUNDS, &mut rect).is_ok() {
             // TODO(raggi): once we declare DPI awareness, we will need to scale the rect.
             // let window_scale = unsafe { GetDpiForWindow(hwnd) };
@@ -766,7 +739,7 @@ impl WindowsApi {
             // Ok(Rect::from(rect).scale(system_scale.try_into()?, window_scale.try_into()?))
             Ok(Rect::from(rect))
         } else {
-            unsafe { GetWindowRect(HWND(as_ptr!(hwnd)), &mut rect) }.process()?;
+            unsafe { GetWindowRect(hwnd, &mut rect) }.process()?;
             Ok(Rect::from(rect))
         }
     }
@@ -776,7 +749,7 @@ impl WindowsApi {
     /// added to a position rect to compute a size for set_window_pos that will
     /// fill the target area, ignoring shadows.
     fn shadow_rect(hwnd: HWND) -> Result<Rect> {
-        let window_rect = Self::window_rect(hwnd.0 as isize)?;
+        let window_rect = Self::window_rect(hwnd)?;
 
         let mut srect = Default::default();
         unsafe { GetWindowRect(hwnd, &mut srect) }.process()?;
@@ -821,11 +794,11 @@ impl WindowsApi {
         Ok(cursor_pos)
     }
 
-    pub fn window_from_point(point: POINT) -> Result<isize> {
+    pub fn window_from_point(point: POINT) -> Result<Window> {
         unsafe { WindowFromPoint(point) }.process()
     }
 
-    pub fn window_at_cursor_pos() -> Result<isize> {
+    pub fn window_at_cursor_pos() -> Result<Window> {
         Self::window_from_point(Self::cursor_pos()?)
     }
 
@@ -833,14 +806,14 @@ impl WindowsApi {
         Self::set_cursor_pos(rect.left + (rect.right / 2), rect.top + (rect.bottom / 2))
     }
 
-    pub fn window_thread_process_id(hwnd: isize) -> (u32, u32) {
+    pub fn window_thread_process_id(hwnd: impl Into<HWND>) -> (u32, u32) {
         let mut process_id: u32 = 0;
 
         // Behaviour is undefined if an invalid HWND is given
         // https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getwindowthreadprocessid
         let thread_id = unsafe {
             GetWindowThreadProcessId(
-                HWND(as_ptr!(hwnd)),
+                hwnd.into(),
                 Option::from(std::ptr::addr_of_mut!(process_id)),
             )
         };
@@ -890,23 +863,23 @@ impl WindowsApi {
     }
 
     #[cfg(target_pointer_width = "64")]
-    pub fn gwl_style(hwnd: isize) -> Result<isize> {
-        Self::window_long_ptr_w(HWND(as_ptr!(hwnd)), GWL_STYLE)
+    pub fn gwl_style(hwnd: impl Into<HWND>) -> Result<isize> {
+        Self::window_long_ptr_w(hwnd.into(), GWL_STYLE)
     }
 
     #[cfg(target_pointer_width = "32")]
-    pub fn gwl_style(hwnd: isize) -> Result<i32> {
-        Self::window_long_ptr_w(HWND(as_ptr!(hwnd)), GWL_STYLE)
+    pub fn gwl_style(hwnd: impl Into<HWND>) -> Result<i32> {
+        Self::window_long_ptr_w(hwnd.into(), GWL_STYLE)
     }
 
     #[cfg(target_pointer_width = "64")]
-    pub fn gwl_ex_style(hwnd: isize) -> Result<isize> {
-        Self::window_long_ptr_w(HWND(as_ptr!(hwnd)), GWL_EXSTYLE)
+    pub fn gwl_ex_style(hwnd: impl Into<HWND>) -> Result<isize> {
+        Self::window_long_ptr_w(hwnd.into(), GWL_EXSTYLE)
     }
 
     #[cfg(target_pointer_width = "32")]
-    pub fn gwl_ex_style(hwnd: isize) -> Result<i32> {
-        Self::window_long_ptr_w(HWND(as_ptr!(hwnd)), GWL_EXSTYLE)
+    pub fn gwl_ex_style(hwnd: impl Into<HWND>) -> Result<i32> {
+        Self::window_long_ptr_w(hwnd.into(), GWL_EXSTYLE)
     }
 
     #[cfg(target_pointer_width = "64")]
@@ -928,28 +901,28 @@ impl WindowsApi {
     }
 
     #[cfg(target_pointer_width = "64")]
-    pub fn update_style(hwnd: isize, new_value: isize) -> Result<()> {
-        Self::set_window_long_ptr_w(HWND(as_ptr!(hwnd)), GWL_STYLE, new_value)
+    pub fn update_style(hwnd: impl Into<HWND>, new_value: isize) -> Result<()> {
+        Self::set_window_long_ptr_w(hwnd.into(), GWL_STYLE, new_value)
     }
 
     #[cfg(target_pointer_width = "32")]
-    pub fn update_style(hwnd: isize, new_value: i32) -> Result<()> {
-        Self::set_window_long_ptr_w(HWND(as_ptr!(hwnd)), GWL_STYLE, new_value)
+    pub fn update_style(hwnd: impl Into<HWND>, new_value: i32) -> Result<()> {
+        Self::set_window_long_ptr_w(hwnd.into(), GWL_STYLE, new_value)
     }
 
     #[cfg(target_pointer_width = "64")]
-    pub fn update_ex_style(hwnd: isize, new_value: isize) -> Result<()> {
-        Self::set_window_long_ptr_w(HWND(as_ptr!(hwnd)), GWL_EXSTYLE, new_value)
+    pub fn update_ex_style(hwnd: impl Into<HWND>, new_value: isize) -> Result<()> {
+        Self::set_window_long_ptr_w(hwnd.into(), GWL_EXSTYLE, new_value)
     }
 
     #[cfg(target_pointer_width = "32")]
-    pub fn update_ex_style(hwnd: isize, new_value: i32) -> Result<()> {
-        Self::set_window_long_ptr_w(HWND(as_ptr!(hwnd)), GWL_EXSTYLE, new_value)
+    pub fn update_ex_style(hwnd: impl Into<HWND>, new_value: i32) -> Result<()> {
+        Self::set_window_long_ptr_w(hwnd.into(), GWL_EXSTYLE, new_value)
     }
 
-    pub fn window_text_w(hwnd: isize) -> Result<String> {
+    pub fn window_text_w(hwnd: impl Into<HWND>) -> Result<String> {
         let mut text: [u16; 512] = [0; 512];
-        match WindowsResult::from(unsafe { GetWindowTextW(HWND(as_ptr!(hwnd)), &mut text) }) {
+        match WindowsResult::from(unsafe { GetWindowTextW(hwnd.into(), &mut text) }) {
             WindowsResult::Ok(len) => {
                 let length = usize::try_from(len)?;
                 Ok(String::from_utf16(&text[..length])?)
@@ -995,25 +968,25 @@ impl WindowsApi {
             .to_string())
     }
 
-    pub fn real_window_class_w(hwnd: isize) -> Result<String> {
+    pub fn real_window_class_w(hwnd: impl Into<HWND>) -> Result<String> {
         const BUF_SIZE: usize = 512;
         let mut class: [u16; BUF_SIZE] = [0; BUF_SIZE];
 
         let len = Result::from(WindowsResult::from(unsafe {
-            RealGetWindowClassW(HWND(as_ptr!(hwnd)), &mut class)
+            RealGetWindowClassW(hwnd.into(), &mut class)
         }))?;
 
         Ok(String::from_utf16(&class[0..len as usize])?)
     }
 
     pub fn dwm_get_window_attribute<T>(
-        hwnd: isize,
+        hwnd: impl Into<HWND>,
         attribute: DWMWINDOWATTRIBUTE,
         value: &mut T,
     ) -> Result<()> {
         unsafe {
             DwmGetWindowAttribute(
-                HWND(as_ptr!(hwnd)),
+                hwnd.into(),
                 attribute,
                 (value as *mut T).cast(),
                 u32::try_from(std::mem::size_of::<T>())?,
@@ -1023,7 +996,7 @@ impl WindowsApi {
         Ok(())
     }
 
-    pub fn is_window_cloaked(hwnd: isize) -> Result<bool> {
+    pub fn is_window_cloaked(hwnd: impl Into<HWND>) -> Result<bool> {
         let mut cloaked: u32 = 0;
         Self::dwm_get_window_attribute(hwnd, DWMWA_CLOAKED, &mut cloaked)?;
 
@@ -1033,20 +1006,20 @@ impl WindowsApi {
         ))
     }
 
-    pub fn is_window(hwnd: isize) -> bool {
-        unsafe { IsWindow(Option::from(HWND(as_ptr!(hwnd)))) }.into()
+    pub fn is_window(hwnd: impl Into<HWND>) -> bool {
+        unsafe { IsWindow(Some(hwnd.into())) }.into()
     }
 
-    pub fn is_window_visible(hwnd: isize) -> bool {
-        unsafe { IsWindowVisible(HWND(as_ptr!(hwnd))) }.into()
+    pub fn is_window_visible(hwnd: impl Into<HWND>) -> bool {
+        unsafe { IsWindowVisible(hwnd.into()) }.into()
     }
 
-    pub fn is_iconic(hwnd: isize) -> bool {
-        unsafe { IsIconic(HWND(as_ptr!(hwnd))) }.into()
+    pub fn is_iconic(hwnd: impl Into<HWND>) -> bool {
+        unsafe { IsIconic(hwnd.into()) }.into()
     }
 
-    pub fn is_zoomed(hwnd: isize) -> bool {
-        unsafe { IsZoomed(HWND(as_ptr!(hwnd))) }.into()
+    pub fn is_zoomed(hwnd: impl Into<HWND>) -> bool {
+        unsafe { IsZoomed(hwnd.into()) }.into()
     }
 
     pub fn monitor_info_w(hmonitor: HMONITOR) -> Result<MONITORINFOEXW> {
@@ -1183,7 +1156,7 @@ impl WindowsApi {
         Self::system_parameters_info_w(
             SPI_SETACTIVEWINDOWTRACKING,
             0,
-            1 as *mut c_void,
+            std::ptr::dangling_mut::<c_void>(),
             SPIF_SENDCHANGE,
         )
     }
@@ -1235,12 +1208,12 @@ impl WindowsApi {
         Ok((dpi_a - dpi_b).abs() < f32::EPSILON)
     }
 
-    pub fn round_corners(hwnd: isize) -> Result<()> {
+    pub fn round_corners(hwnd: impl Into<HWND>) -> Result<()> {
         let round = DWMWCP_ROUND;
 
         unsafe {
             DwmSetWindowAttribute(
-                HWND(as_ptr!(hwnd)),
+                hwnd.into(),
                 DWMWA_WINDOW_CORNER_PREFERENCE,
                 std::ptr::addr_of!(round).cast(),
                 4,
@@ -1249,11 +1222,11 @@ impl WindowsApi {
         .process()
     }
 
-    pub fn set_window_accent(hwnd: isize, color: Option<u32>) -> Result<()> {
+    pub fn set_window_accent(hwnd: impl Into<HWND>, color: Option<u32>) -> Result<()> {
         let col_ref = COLORREF(color.unwrap_or(DWMWA_COLOR_NONE));
         unsafe {
             DwmSetWindowAttribute(
-                HWND(as_ptr!(hwnd)),
+                hwnd.into(),
                 DWMWA_BORDER_COLOR,
                 std::ptr::addr_of!(col_ref).cast(),
                 4,
@@ -1266,7 +1239,7 @@ impl WindowsApi {
         name: PCWSTR,
         instance: isize,
         border: *mut Border,
-    ) -> Result<isize> {
+    ) -> Result<Window> {
         unsafe {
             CreateWindowExW(
                 WS_EX_TOOLWINDOW | WS_EX_TOPMOST | WS_EX_NOACTIVATE,
@@ -1286,27 +1259,22 @@ impl WindowsApi {
         .process()
     }
 
-    pub fn set_transparent(hwnd: isize, alpha: u8) -> Result<()> {
+    pub fn set_transparent(hwnd: impl Into<HWND>, alpha: u8) -> Result<()> {
         unsafe {
             #[allow(clippy::cast_sign_loss)]
-            SetLayeredWindowAttributes(
-                HWND(as_ptr!(hwnd)),
-                COLORREF(-1i32 as u32),
-                alpha,
-                LWA_ALPHA,
-            )?;
+            SetLayeredWindowAttributes(hwnd.into(), COLORREF(-1i32 as u32), alpha, LWA_ALPHA)?;
         }
 
         Ok(())
     }
 
-    pub fn get_transparent(hwnd: isize) -> Result<u8> {
+    pub fn get_transparent(hwnd: impl Into<HWND>) -> Result<u8> {
         unsafe {
             let mut alpha: u8 = u8::default();
             let mut color_ref = COLORREF(-1i32 as u32);
             let mut flags = LWA_ALPHA;
             GetLayeredWindowAttributes(
-                HWND(as_ptr!(hwnd)),
+                hwnd.into(),
                 Some(std::ptr::addr_of_mut!(color_ref)),
                 Some(std::ptr::addr_of_mut!(alpha)),
                 Some(std::ptr::addr_of_mut!(flags)),
@@ -1315,7 +1283,7 @@ impl WindowsApi {
         }
     }
 
-    pub fn create_hidden_window(name: PCWSTR, instance: isize) -> Result<isize> {
+    pub fn create_hidden_window(name: PCWSTR, instance: isize) -> Result<Window> {
         unsafe {
             CreateWindowExW(
                 WS_EX_NOACTIVATE,
@@ -1336,27 +1304,27 @@ impl WindowsApi {
     }
 
     pub fn register_power_setting_notification(
-        hwnd: isize,
+        hwnd: impl Into<HWND>,
         guid: &windows_core::GUID,
         flags: REGISTER_NOTIFICATION_FLAGS,
     ) -> WindowsCrateResult<HPOWERNOTIFY> {
-        unsafe { RegisterPowerSettingNotification(HANDLE::from(HWND(as_ptr!(hwnd))), guid, flags) }
+        unsafe { RegisterPowerSettingNotification(HANDLE::from(hwnd.into()), guid, flags) }
     }
 
     pub fn register_device_notification(
-        hwnd: isize,
+        hwnd: impl Into<HWND>,
         mut filter: DEV_BROADCAST_DEVICEINTERFACE_W,
         flags: REGISTER_NOTIFICATION_FLAGS,
     ) -> WindowsCrateResult<HDEVNOTIFY> {
         unsafe {
             let state_ptr: *const c_void = &mut filter as *mut _ as *const c_void;
-            RegisterDeviceNotificationW(HANDLE::from(HWND(as_ptr!(hwnd))), state_ptr, flags)
+            RegisterDeviceNotificationW(HANDLE::from(hwnd.into()), state_ptr, flags)
         }
     }
 
-    pub fn invalidate_rect(hwnd: isize, rect: Option<&Rect>, erase: bool) -> bool {
+    pub fn invalidate_rect(hwnd: impl Into<HWND>, rect: Option<&Rect>, erase: bool) -> bool {
         let rect = rect.map(|rect| &rect.rect() as *const RECT);
-        unsafe { InvalidateRect(Option::from(HWND(as_ptr!(hwnd))), rect, erase) }.as_bool()
+        unsafe { InvalidateRect(Some(hwnd.into()), rect, erase) }.as_bool()
     }
 
     pub fn alt_is_pressed() -> bool {
@@ -1409,8 +1377,8 @@ impl WindowsApi {
         }
     }
 
-    pub fn wts_register_session_notification(hwnd: isize) -> Result<()> {
-        unsafe { WTSRegisterSessionNotification(HWND(as_ptr!(hwnd)), 1) }.process()
+    pub fn wts_register_session_notification(hwnd: impl Into<HWND>) -> Result<()> {
+        unsafe { WTSRegisterSessionNotification(hwnd.into(), 1) }.process()
     }
 
     pub fn set_wallpaper(path: &Path, hmonitor: isize) -> Result<()> {

@@ -48,11 +48,13 @@ use font_loader::system_fonts;
 use font_loader::system_fonts::FontPropertyBuilder;
 use komorebi_client::Colour;
 use komorebi_client::KomorebiTheme;
+use komorebi_client::MonitorIdx;
 use komorebi_client::MonitorNotification;
 use komorebi_client::NotificationEvent;
 use komorebi_client::PathExt;
 use komorebi_client::SocketMessage;
 use komorebi_client::VirtualDesktopNotification;
+use komorebi_client::Window;
 use komorebi_themes::catppuccin_egui;
 use komorebi_themes::Base16Value;
 use komorebi_themes::Base16Wrapper;
@@ -128,7 +130,7 @@ fn stop_powershell() -> Result<()> {
 
 pub fn exec_powershell(cmd: &str) -> Result<()> {
     if let Some(session_stdin) = SESSION_STDIN.lock().as_mut() {
-        if let Err(e) = writeln!(session_stdin, "{}", cmd) {
+        if let Err(e) = writeln!(session_stdin, "{cmd}") {
             tracing::error!(error = %e, cmd = cmd, "failed to write command to PowerShell stdin");
             return Err(e);
         }
@@ -148,8 +150,8 @@ pub fn exec_powershell(cmd: &str) -> Result<()> {
 }
 
 pub struct Komobar {
-    pub hwnd: Option<isize>,
-    pub monitor_index: Option<usize>,
+    pub window: Option<Window>,
+    pub monitor_index: Option<MonitorIdx>,
     pub disabled: bool,
     pub config: KomobarConfig,
     pub render_config: Rc<RefCell<RenderConfig>>,
@@ -635,8 +637,7 @@ impl Komobar {
 
                         assert!(
                             home.is_dir(),
-                            "$Env:KOMOREBI_CONFIG_HOME is set to '{}', which is not a valid directory",
-                            home_path
+                            "$Env:KOMOREBI_CONFIG_HOME is set to '{home_path}', which is not a valid directory",
                         );
 
                         home
@@ -720,7 +721,7 @@ impl Komobar {
         config: KomobarConfig,
     ) -> Self {
         let mut komobar = Self {
-            hwnd: process_hwnd(),
+            window: process_hwnd().map(Window::from),
             monitor_index: None,
             disabled: false,
             config,
@@ -828,8 +829,7 @@ impl Komobar {
     }
 
     pub fn position_bar(&self) {
-        if let Some(hwnd) = self.hwnd {
-            let window = komorebi_client::Window::from(hwnd);
+        if let Some(window) = self.window {
             match window.set_position(&self.size_rect, false) {
                 Ok(_) => {
                     tracing::info!("updated bar position");
@@ -865,8 +865,8 @@ impl eframe::App for Komobar {
     }
 
     fn update(&mut self, ctx: &Context, _frame: &mut eframe::Frame) {
-        if self.hwnd.is_none() {
-            self.hwnd = process_hwnd();
+        if self.window.is_none() {
+            self.window = process_hwnd().map(Window::from);
         }
 
         if self.scale_factor != ctx.native_pixels_per_point().unwrap_or(1.0) {
@@ -905,9 +905,9 @@ impl eframe::App for Komobar {
                         tracing::debug!(
                             "back on komorebi's associated virtual desktop - restoring bar"
                         );
-                        if let Some(hwnd) = self.hwnd {
-                            komorebi_client::WindowsApi::restore_window(hwnd);
-                        }
+                        if let Some(window) = self.window {
+                            komorebi_client::WindowsApi::restore_window(window)
+                        };
                     }
                     NotificationEvent::VirtualDesktop(
                         VirtualDesktopNotification::LeftAssociatedVirtualDesktop,
@@ -915,8 +915,8 @@ impl eframe::App for Komobar {
                         tracing::debug!(
                             "no longer on komorebi's associated virtual desktop - minimizing bar"
                         );
-                        if let Some(hwnd) = self.hwnd {
-                            komorebi_client::WindowsApi::minimize_window(hwnd);
+                        if let Some(window) = self.window {
+                            komorebi_client::WindowsApi::minimize_window(window)
                         }
                     }
                     _ => {}
@@ -925,7 +925,7 @@ impl eframe::App for Komobar {
                 if self.monitor_index.is_none()
                     || self
                         .monitor_index
-                        .is_some_and(|idx| idx >= state.monitors.elements().len())
+                        .is_some_and(|idx| idx > state.monitors.last_index())
                 {
                     if !self.disabled {
                         // Monitor for this bar got disconnected lets disable the bar until it
@@ -942,11 +942,8 @@ impl eframe::App for Komobar {
 
                         // Restore the bar in case it has been minimized when the monitor
                         // disconnected
-                        if let Some(hwnd) = self.hwnd {
-                            let window = komorebi_client::Window::from(hwnd);
-                            if window.is_miminized() {
-                                komorebi_client::WindowsApi::restore_window(hwnd);
-                            }
+                        if let Some(window) = self.window.filter(|w| w.is_miminized()) {
+                            komorebi_client::WindowsApi::restore_window(window)
                         }
 
                         // Reset the current `work_area_offset` so that it gets recalculated and
@@ -966,7 +963,7 @@ impl eframe::App for Komobar {
                 ) {
                     let monitor_index = self.monitor_index.expect("should have a monitor index");
 
-                    let monitor_size = state.monitors.elements()[monitor_index].size();
+                    let monitor_size = state.monitors[monitor_index].size();
 
                     self.update_monitor_coordinates(monitor_size);
 
@@ -979,7 +976,7 @@ impl eframe::App for Komobar {
 
                 // Check if monitor coordinates/size has changed
                 if let Some(monitor_index) = self.monitor_index {
-                    let monitor_size = state.monitors.elements()[monitor_index].size();
+                    let monitor_size = state.monitors[monitor_index].size();
                     let top = MONITOR_TOP.load(Ordering::SeqCst);
                     let left = MONITOR_LEFT.load(Ordering::SeqCst);
                     let right = MONITOR_RIGHT.load(Ordering::SeqCst);

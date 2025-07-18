@@ -8,12 +8,20 @@ use std::str::FromStr;
 use clap::ValueEnum;
 use color_eyre::Result;
 use serde::Deserialize;
+use serde::Deserializer;
 use serde::Serialize;
+use serde::Serializer;
 use strum::Display;
 use strum::EnumString;
+use windows::Win32::Foundation::HWND;
 
 use crate::animation::prefix::AnimationPrefix;
+use crate::container::ContainerIdx;
+use crate::monitor::MonitorIdx;
+use crate::workspace::WorkspaceIdx;
 use crate::KomorebiTheme;
+use crate::Window;
+use crate::WindowIdx;
 pub use animation::AnimationStyle;
 pub use arrangement::Arrangement;
 pub use arrangement::Axis;
@@ -61,28 +69,28 @@ pub enum SocketMessage {
     UnstackWindow,
     CycleStack(CycleDirection),
     CycleStackIndex(CycleDirection),
-    FocusStackWindow(usize),
+    FocusStackWindow(WindowIdx),
     StackAll,
     UnstackAll,
     ResizeWindowEdge(OperationDirection, Sizing),
     ResizeWindowAxis(Axis, Sizing),
     MoveContainerToLastWorkspace,
     SendContainerToLastWorkspace,
-    MoveContainerToMonitorNumber(usize),
+    MoveContainerToMonitorNumber(MonitorIdx),
     CycleMoveContainerToMonitor(CycleDirection),
-    MoveContainerToWorkspaceNumber(usize),
+    MoveContainerToWorkspaceNumber(WorkspaceIdx),
     MoveContainerToNamedWorkspace(String),
     CycleMoveContainerToWorkspace(CycleDirection),
-    SendContainerToMonitorNumber(usize),
+    SendContainerToMonitorNumber(MonitorIdx),
     CycleSendContainerToMonitor(CycleDirection),
-    SendContainerToWorkspaceNumber(usize),
+    SendContainerToWorkspaceNumber(WorkspaceIdx),
     CycleSendContainerToWorkspace(CycleDirection),
-    SendContainerToMonitorWorkspaceNumber(usize, usize),
-    MoveContainerToMonitorWorkspaceNumber(usize, usize),
+    SendContainerToMonitorWorkspaceNumber(MonitorIdx, WorkspaceIdx),
+    MoveContainerToMonitorWorkspaceNumber(MonitorIdx, WorkspaceIdx),
     SendContainerToNamedWorkspace(String),
     CycleMoveWorkspaceToMonitor(CycleDirection),
-    MoveWorkspaceToMonitorNumber(usize),
-    SwapWorkspacesToMonitorNumber(usize),
+    MoveWorkspaceToMonitorNumber(MonitorIdx),
+    SwapWorkspacesToMonitorNumber(MonitorIdx),
     ForceFocus,
     Close,
     Minimize,
@@ -90,8 +98,8 @@ pub enum SocketMessage {
     PromoteFocus,
     PromoteWindow(OperationDirection),
     EagerFocus(String),
-    LockMonitorWorkspaceContainer(usize, usize, usize),
-    UnlockMonitorWorkspaceContainer(usize, usize, usize),
+    LockMonitorWorkspaceContainer(MonitorIdx, WorkspaceIdx, ContainerIdx),
+    UnlockMonitorWorkspaceContainer(MonitorIdx, WorkspaceIdx, ContainerIdx),
     ToggleLock,
     ToggleFloat,
     ToggleMonocle,
@@ -115,10 +123,10 @@ pub enum SocketMessage {
     ToggleWorkspaceWindowContainerBehaviour,
     ToggleWorkspaceFloatOverride,
     // Monitor and Workspace Commands
-    MonitorIndexPreference(usize, i32, i32, i32, i32),
-    DisplayIndexPreference(usize, String),
-    EnsureWorkspaces(usize, usize),
-    EnsureNamedWorkspaces(usize, Vec<String>),
+    MonitorIndexPreference(MonitorIdx, i32, i32, i32, i32),
+    DisplayIndexPreference(MonitorIdx, String),
+    EnsureWorkspaces(MonitorIdx, usize),
+    EnsureNamedWorkspaces(MonitorIdx, Vec<String>),
     NewWorkspace,
     ToggleTiling,
     Stop,
@@ -133,37 +141,41 @@ pub enum SocketMessage {
     CycleFocusMonitor(CycleDirection),
     CycleFocusWorkspace(CycleDirection),
     CycleFocusEmptyWorkspace(CycleDirection),
-    FocusMonitorNumber(usize),
+    FocusMonitorNumber(MonitorIdx),
     FocusMonitorAtCursor,
     FocusLastWorkspace,
     CloseWorkspace,
-    FocusWorkspaceNumber(usize),
-    FocusWorkspaceNumbers(usize),
-    FocusMonitorWorkspaceNumber(usize, usize),
+    FocusWorkspaceNumber(WorkspaceIdx),
+    FocusWorkspaceNumbers(WorkspaceIdx),
+    FocusMonitorWorkspaceNumber(MonitorIdx, WorkspaceIdx),
     FocusNamedWorkspace(String),
-    ContainerPadding(usize, usize, i32),
+    ContainerPadding(MonitorIdx, WorkspaceIdx, i32),
     NamedWorkspaceContainerPadding(String, i32),
     FocusedWorkspaceContainerPadding(i32),
-    WorkspacePadding(usize, usize, i32),
+    WorkspacePadding(MonitorIdx, WorkspaceIdx, i32),
     NamedWorkspacePadding(String, i32),
     FocusedWorkspacePadding(i32),
-    WorkspaceTiling(usize, usize, bool),
+    WorkspaceTiling(MonitorIdx, WorkspaceIdx, bool),
     NamedWorkspaceTiling(String, bool),
-    WorkspaceName(usize, usize, String),
-    WorkspaceLayout(usize, usize, DefaultLayout),
+    WorkspaceName(MonitorIdx, WorkspaceIdx, String),
+    WorkspaceLayout(MonitorIdx, WorkspaceIdx, DefaultLayout),
     NamedWorkspaceLayout(String, DefaultLayout),
-    WorkspaceLayoutCustom(usize, usize, #[serde_as(as = "ResolvedPathBuf")] PathBuf),
+    WorkspaceLayoutCustom(
+        MonitorIdx,
+        WorkspaceIdx,
+        #[serde_as(as = "ResolvedPathBuf")] PathBuf,
+    ),
     NamedWorkspaceLayoutCustom(String, #[serde_as(as = "ResolvedPathBuf")] PathBuf),
-    WorkspaceLayoutRule(usize, usize, usize, DefaultLayout),
+    WorkspaceLayoutRule(MonitorIdx, WorkspaceIdx, usize, DefaultLayout),
     NamedWorkspaceLayoutRule(String, usize, DefaultLayout),
     WorkspaceLayoutCustomRule(
-        usize,
-        usize,
+        MonitorIdx,
+        WorkspaceIdx,
         usize,
         #[serde_as(as = "ResolvedPathBuf")] PathBuf,
     ),
     NamedWorkspaceLayoutCustomRule(String, usize, #[serde_as(as = "ResolvedPathBuf")] PathBuf),
-    ClearWorkspaceLayoutRules(usize, usize),
+    ClearWorkspaceLayoutRules(MonitorIdx, WorkspaceIdx),
     ClearNamedWorkspaceLayoutRules(String),
     ToggleWorkspaceLayer,
     // Configuration
@@ -201,14 +213,14 @@ pub enum SocketMessage {
     StackbarFontSize(i32),
     StackbarFontFamily(Option<String>),
     WorkAreaOffset(Rect),
-    MonitorWorkAreaOffset(usize, Rect),
+    MonitorWorkAreaOffset(MonitorIdx, Rect),
     ToggleWindowBasedWorkAreaOffset,
     ResizeDelta(i32),
-    InitialWorkspaceRule(ApplicationIdentifier, String, usize, usize),
+    InitialWorkspaceRule(ApplicationIdentifier, String, MonitorIdx, WorkspaceIdx),
     InitialNamedWorkspaceRule(ApplicationIdentifier, String, String),
-    WorkspaceRule(ApplicationIdentifier, String, usize, usize),
+    WorkspaceRule(ApplicationIdentifier, String, MonitorIdx, WorkspaceIdx),
     NamedWorkspaceRule(ApplicationIdentifier, String, String),
-    ClearWorkspaceRules(usize, usize),
+    ClearWorkspaceRules(MonitorIdx, WorkspaceIdx),
     ClearNamedWorkspaceRules(String),
     ClearAllWorkspaceRules,
     EnforceWorkspaceRules,
@@ -243,7 +255,18 @@ pub enum SocketMessage {
     SocketSchema,
     StaticConfigSchema,
     GenerateStaticConfig,
-    DebugWindow(isize),
+    #[serde(serialize_with = "serialize", deserialize_with = "deserialize")]
+    #[cfg_attr(feature = "schemars", schemars(with = "i64"))]
+    DebugWindow(Window),
+}
+
+fn serialize<S: Serializer>(window: &Window, s: S) -> Result<S::Ok, S::Error> {
+    s.serialize_i64(window.as_isize() as i64)
+}
+
+fn deserialize<'de, D: Deserializer<'de>>(d: D) -> Result<Window, D::Error> {
+    let raw = i64::deserialize(d)?;
+    Ok(Window::from(HWND(crate::windows_api::as_ptr!(raw))))
 }
 
 impl SocketMessage {

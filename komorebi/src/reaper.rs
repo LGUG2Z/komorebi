@@ -1,8 +1,10 @@
 #![deny(clippy::unwrap_used, clippy::expect_used)]
 
 use crate::border_manager;
+use crate::monitor::MonitorIdx;
 use crate::notify_subscribers;
 use crate::winevent::WinEvent;
+use crate::workspace::WorkspaceIdx;
 use crate::HidingBehaviour;
 use crate::NotificationEvent;
 use crate::Window;
@@ -22,11 +24,11 @@ use std::sync::OnceLock;
 use std::time::Duration;
 
 lazy_static! {
-    pub static ref HWNDS_CACHE: Arc<Mutex<HashMap<isize, (usize, usize)>>> =
+    pub static ref WINDOWS_CACHE: Arc<Mutex<HashMap<Window, (MonitorIdx, WorkspaceIdx)>>> =
         Arc::new(Mutex::new(HashMap::new()));
 }
 
-pub struct ReaperNotification(pub HashMap<isize, (usize, usize)>);
+pub struct ReaperNotification(pub HashMap<Window, (MonitorIdx, WorkspaceIdx)>);
 
 static CHANNEL: OnceLock<(Sender<ReaperNotification>, Receiver<ReaperNotification>)> =
     OnceLock::new();
@@ -43,17 +45,17 @@ fn event_rx() -> Receiver<ReaperNotification> {
     channel().1.clone()
 }
 
-pub fn send_notification(hwnds: HashMap<isize, (usize, usize)>) {
-    if event_tx().try_send(ReaperNotification(hwnds)).is_err() {
+pub fn send_notification(windows: HashMap<Window, (MonitorIdx, WorkspaceIdx)>) {
+    if event_tx().try_send(ReaperNotification(windows)).is_err() {
         tracing::warn!("channel is full; dropping notification")
     }
 }
 
 pub fn listen_for_notifications(
     wm: Arc<Mutex<WindowManager>>,
-    known_hwnds: HashMap<isize, (usize, usize)>,
+    known_wins: HashMap<Window, (MonitorIdx, WorkspaceIdx)>,
 ) {
-    watch_for_orphans(known_hwnds);
+    watch_for_orphans(known_wins);
 
     std::thread::spawn(move || loop {
         match handle_notifications(wm.clone()) {
@@ -78,16 +80,16 @@ fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result<()>
 
         let mut update_borders = false;
 
-        for (hwnd, (m_idx, w_idx)) in orphan_hwnds.iter() {
+        for (win, (m_idx, w_idx)) in orphan_hwnds.iter() {
             if let Some(monitor) = wm.monitors_mut().get_mut(*m_idx) {
                 let focused_workspace_idx = monitor.focused_workspace_idx();
 
                 if let Some(workspace) = monitor.workspaces_mut().get_mut(*w_idx) {
                     // Remove orphan window
-                    if let Err(error) = workspace.remove_window(*hwnd) {
+                    if let Err(error) = workspace.remove_window(*win) {
                         tracing::warn!(
-                            "error reaping orphan window ({}) on monitor: {}, workspace: {}. Error: {}",
-                            hwnd,
+                            "error reaping orphan {:?} on monitor: {}, workspace: {}. Error: {}",
+                            win,
                             m_idx,
                             w_idx,
                             error,
@@ -102,22 +104,21 @@ fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result<()>
                         update_borders = true;
                     }
                     tracing::info!(
-                        "reaped orphan window ({}) on monitor: {}, workspace: {}",
-                        hwnd,
+                        "reaped orphan {:?} on monitor: {}, workspace: {}",
+                        win,
                         m_idx,
                         w_idx,
                     );
                 }
             }
 
-            wm.known_hwnds.remove(hwnd);
+            wm.known_wins.remove(win);
 
-            let window = Window::from(*hwnd);
             notify_subscribers(
                 crate::Notification {
                     event: NotificationEvent::WindowManager(WindowManagerEvent::Destroy(
                         WinEvent::ObjectDestroy,
-                        window,
+                        *win,
                     )),
                     state: wm.as_ref().into(),
                 },
@@ -137,17 +138,17 @@ fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result<()>
             .create(true)
             .open(hwnd_json)?;
 
-        serde_json::to_writer_pretty(&file, &wm.known_hwnds.keys().collect::<Vec<_>>())?;
+        serde_json::to_writer_pretty(&file, &wm.known_wins.keys().collect::<Vec<_>>())?;
     }
 
     Ok(())
 }
 
-fn watch_for_orphans(known_hwnds: HashMap<isize, (usize, usize)>) {
+fn watch_for_orphans(known_wins: HashMap<Window, (MonitorIdx, WorkspaceIdx)>) {
     // Cache current hwnds
     {
-        let mut cache = HWNDS_CACHE.lock();
-        *cache = known_hwnds;
+        let mut cache = WINDOWS_CACHE.lock();
+        *cache = known_wins;
     }
 
     std::thread::spawn(move || loop {
@@ -173,12 +174,10 @@ fn find_orphans() -> color_eyre::Result<()> {
         std::thread::sleep(Duration::from_millis(20));
         let hiding_behaviour = *HIDING_BEHAVIOUR.lock();
 
-        let mut cache = HWNDS_CACHE.lock();
-        let mut orphan_hwnds = HashMap::new();
+        let mut cache = WINDOWS_CACHE.lock();
+        let mut orphan_wins = HashMap::new();
 
-        for (hwnd, (m_idx, w_idx)) in cache.iter() {
-            let window = Window::from(*hwnd);
-
+        for (window, (m_idx, w_idx)) in cache.iter() {
             if !window.is_window()
                 || (
                     // This one is a hack because WINWORD.EXE is an absolute trainwreck of an app
@@ -193,16 +192,16 @@ fn find_orphans() -> color_eyre::Result<()> {
                     && !matches!(hiding_behaviour, HidingBehaviour::Hide)
                 )
             {
-                orphan_hwnds.insert(window.hwnd, (*m_idx, *w_idx));
+                orphan_wins.insert(*window, (*m_idx, *w_idx));
             }
         }
 
-        if !orphan_hwnds.is_empty() {
+        if !orphan_wins.is_empty() {
             // Update reaper cache
-            cache.retain(|h, _| !orphan_hwnds.contains_key(h));
+            cache.retain(|h, _| !orphan_wins.contains_key(h));
 
             // Send handles to remove
-            event_tx().send(ReaperNotification(orphan_hwnds))?;
+            event_tx().send(ReaperNotification(orphan_wins))?;
         }
     }
 }

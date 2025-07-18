@@ -5,6 +5,7 @@ use crate::container::Container;
 use crate::core::BorderStyle;
 use crate::core::Rect;
 use crate::core::StackbarLabel;
+use crate::ring::RingIndex;
 use crate::stackbar_manager::STACKBARS_CONTAINERS;
 use crate::stackbar_manager::STACKBAR_FOCUSED_TEXT_COLOUR;
 use crate::stackbar_manager::STACKBAR_FONT_FAMILY;
@@ -15,6 +16,7 @@ use crate::stackbar_manager::STACKBAR_TAB_HEIGHT;
 use crate::stackbar_manager::STACKBAR_TAB_WIDTH;
 use crate::stackbar_manager::STACKBAR_UNFOCUSED_TEXT_COLOUR;
 use crate::windows_api;
+use crate::Window;
 use crate::WindowsApi;
 use crate::DEFAULT_CONTAINER_PADDING;
 use crate::WINDOWS_11;
@@ -79,18 +81,31 @@ use windows::Win32::UI::WindowsAndMessaging::WS_VISIBLE;
 
 #[derive(Debug)]
 pub struct Stackbar {
-    pub hwnd: isize,
+    pub id: StackbarId,
 }
 
-impl From<isize> for Stackbar {
-    fn from(value: isize) -> Self {
-        Self { hwnd: value }
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct StackbarId(Window);
+
+impl From<HWND> for StackbarId {
+    fn from(value: HWND) -> Self {
+        StackbarId(Window::from(value))
+    }
+}
+
+impl StackbarId {
+    pub const fn window(self) -> Window {
+        self.0
     }
 }
 
 impl Stackbar {
     pub const fn hwnd(&self) -> HWND {
-        HWND(windows_api::as_ptr!(self.hwnd))
+        self.id().window().hwnd()
+    }
+
+    pub const fn id(&self) -> StackbarId {
+        self.id
     }
 
     pub fn create(id: &str) -> color_eyre::Result<Self> {
@@ -132,7 +147,7 @@ impl Stackbar {
                 )?;
 
                 SetLayeredWindowAttributes(hwnd, COLORREF(0), 0, LWA_COLORKEY)?;
-                hwnd_sender.send(hwnd.0 as isize)?;
+                hwnd_sender.send(StackbarId::from(hwnd))?;
 
                 let mut msg: MSG = MSG::default();
 
@@ -153,12 +168,12 @@ impl Stackbar {
         });
 
         Ok(Self {
-            hwnd: hwnd_receiver.recv()?,
+            id: hwnd_receiver.recv()?,
         })
     }
 
     pub fn destroy(&self) -> color_eyre::Result<()> {
-        WindowsApi::close_window(self.hwnd)
+        WindowsApi::close_window(self.id().window())
     }
 
     pub fn update(
@@ -175,7 +190,7 @@ impl Stackbar {
         let unfocused_text_colour = STACKBAR_UNFOCUSED_TEXT_COLOUR.load_consume();
 
         let mut stackbars_containers = STACKBARS_CONTAINERS.lock();
-        stackbars_containers.insert(self.hwnd, container.clone());
+        stackbars_containers.insert(self.id(), container.clone());
 
         let mut layout = *layout;
         let workspace_specific_offset =
@@ -186,10 +201,10 @@ impl Stackbar {
 
         // Async causes the stackbar to disappear or flicker because we modify it right after,
         // so we have to do a synchronous call
-        WindowsApi::position_window(self.hwnd, &layout, false, false)?;
+        WindowsApi::position_window(self.id().window(), &layout, false, false)?;
 
         unsafe {
-            let hdc = GetDC(Option::from(self.hwnd()));
+            let hdc = GetDC(Some(self.hwnd()));
 
             let hpen = CreatePen(PS_SOLID, 0, COLORREF(background));
             let hbrush = CreateSolidBrush(COLORREF(background));
@@ -224,14 +239,14 @@ impl Stackbar {
 
             SelectObject(hdc, hfont.into());
 
-            for (i, window) in container.windows().iter().enumerate() {
-                if window.hwnd == container.focused_window().copied().unwrap_or_default().hwnd {
+            for (i, window) in container.windows().indexed() {
+                if *window == container.focused_window().copied().unwrap_or_default() {
                     SetTextColor(hdc, COLORREF(focused_text_colour));
                 } else {
                     SetTextColor(hdc, COLORREF(unfocused_text_colour));
                 }
 
-                let left = gap + (i as i32 * (width + gap));
+                let left = gap + (i.into_usize() as i32 * (width + gap));
                 let mut rect = Rect {
                     top: 0,
                     left,
@@ -289,7 +304,7 @@ impl Stackbar {
                 );
             }
 
-            ReleaseDC(Option::from(self.hwnd()), hdc);
+            ReleaseDC(Some(self.hwnd()), hdc);
             // TODO: error handling
             let _ = DeleteObject(hpen.into());
             // TODO: error handling
@@ -328,7 +343,7 @@ impl Stackbar {
                 },
                 WM_LBUTTONDOWN => {
                     let stackbars_containers = STACKBARS_CONTAINERS.lock();
-                    if let Some(container) = stackbars_containers.get(&(hwnd.0 as isize)) {
+                    if let Some(container) = stackbars_containers.get(&StackbarId::from(hwnd)) {
                         let x = l_param.0 as i32 & 0xFFFF;
                         let y = (l_param.0 as i32 >> 16) & 0xFFFF;
 
@@ -338,12 +353,12 @@ impl Stackbar {
 
                         let focused_window_idx = container.focused_window_idx();
                         let focused_window_rect = WindowsApi::window_rect(
-                            container.focused_window().cloned().unwrap_or_default().hwnd,
+                            container.focused_window().cloned().unwrap_or_default(),
                         )
                         .unwrap_or_default();
 
-                        for (index, window) in container.windows().iter().enumerate() {
-                            let left = gap + (index as i32 * (width + gap));
+                        for (index, window) in container.windows().indexed() {
+                            let left = gap + (index.into_usize() as i32 * (width + gap));
                             let right = left + width;
                             let top = 0;
                             let bottom = height;

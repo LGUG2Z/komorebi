@@ -4,6 +4,9 @@ use serde::Serialize;
 use strum::Display;
 use strum::EnumString;
 
+use crate::container::ContainerIdx;
+use crate::ring::RingIndex;
+
 use super::OperationDirection;
 use super::Rect;
 use super::Sizing;
@@ -40,36 +43,38 @@ pub struct ScrollingLayoutOptions {
 }
 
 impl DefaultLayout {
-    pub fn leftmost_index(&self, len: usize) -> usize {
+    pub fn leftmost_index(&self, last_index: ContainerIdx) -> ContainerIdx {
         match self {
-            Self::UltrawideVerticalStack | Self::RightMainVerticalStack => match len {
-                n if n > 1 => 1,
-                _ => 0,
-            },
-            Self::Scrolling => 0,
+            Self::UltrawideVerticalStack | Self::RightMainVerticalStack => {
+                match last_index.into_usize() {
+                    n if n > 0 => ContainerIdx::from_usize(1),
+                    _ => ContainerIdx::default(),
+                }
+            }
+            Self::Scrolling => ContainerIdx::default(),
             DefaultLayout::BSP
             | DefaultLayout::Columns
             | DefaultLayout::Rows
             | DefaultLayout::VerticalStack
             | DefaultLayout::HorizontalStack
-            | DefaultLayout::Grid => 0,
+            | DefaultLayout::Grid => ContainerIdx::default(),
         }
     }
 
-    pub fn rightmost_index(&self, len: usize) -> usize {
+    pub fn rightmost_index(&self, last_index: ContainerIdx) -> ContainerIdx {
         match self {
             DefaultLayout::BSP
             | DefaultLayout::Columns
             | DefaultLayout::Rows
             | DefaultLayout::VerticalStack
             | DefaultLayout::HorizontalStack
-            | DefaultLayout::Grid => len.saturating_sub(1),
-            DefaultLayout::UltrawideVerticalStack => match len {
-                2 => 0,
-                _ => len.saturating_sub(1),
+            | DefaultLayout::Grid => last_index,
+            DefaultLayout::UltrawideVerticalStack => match last_index.into_usize() {
+                1 => ContainerIdx::default(),
+                _ => last_index,
             },
-            DefaultLayout::RightMainVerticalStack => 0,
-            DefaultLayout::Scrolling => len.saturating_sub(1),
+            DefaultLayout::RightMainVerticalStack => ContainerIdx::default(),
+            DefaultLayout::Scrolling => last_index,
         }
     }
 

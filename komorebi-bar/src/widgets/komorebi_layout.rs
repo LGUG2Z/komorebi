@@ -13,7 +13,9 @@ use eframe::egui::Stroke;
 use eframe::egui::StrokeKind;
 use eframe::egui::Ui;
 use eframe::egui::Vec2;
+use komorebi_client::MonitorIdx;
 use komorebi_client::SocketMessage;
+use komorebi_client::WorkspaceIdx;
 use serde::de::Error;
 use serde::Deserialize;
 use serde::Deserializer;
@@ -41,8 +43,7 @@ impl<'de> Deserialize<'de> for KomorebiLayout {
         let s: String = String::deserialize(deserializer)?;
 
         // Attempt to deserialize the string as a DefaultLayout
-        if let Ok(default_layout) =
-            from_str::<komorebi_client::DefaultLayout>(&format!("\"{}\"", s))
+        if let Ok(default_layout) = from_str::<komorebi_client::DefaultLayout>(&format!("\"{s}\""))
         {
             return Ok(KomorebiLayout::Default(default_layout));
         }
@@ -53,7 +54,7 @@ impl<'de> Deserialize<'de> for KomorebiLayout {
             "Floating" => Ok(KomorebiLayout::Floating),
             "Paused" => Ok(KomorebiLayout::Paused),
             "Custom" => Ok(KomorebiLayout::Custom),
-            _ => Err(Error::custom(format!("Invalid layout: {}", s))),
+            _ => Err(Error::custom(format!("Invalid layout: {s}"))),
         }
     }
 }
@@ -78,8 +79,8 @@ impl KomorebiLayout {
     fn on_click(
         &mut self,
         show_options: &bool,
-        monitor_idx: usize,
-        workspace_idx: Option<usize>,
+        monitor_idx: MonitorIdx,
+        workspace_idx: Option<WorkspaceIdx>,
     ) -> bool {
         if self.is_default() {
             !show_options
@@ -89,7 +90,7 @@ impl KomorebiLayout {
         }
     }
 
-    fn on_click_option(&mut self, monitor_idx: usize, workspace_idx: Option<usize>) {
+    fn on_click_option(&mut self, monitor_idx: MonitorIdx, workspace_idx: Option<WorkspaceIdx>) {
         match self {
             KomorebiLayout::Default(option) => {
                 if let Some(ws_idx) = workspace_idx {
@@ -242,7 +243,7 @@ impl KomorebiLayout {
         ui: &mut Ui,
         render_config: &mut RenderConfig,
         layout_config: &KomorebiLayoutConfig,
-        workspace_idx: Option<usize>,
+        workspace_idx: Option<WorkspaceIdx>,
     ) {
         let monitor_idx = render_config.monitor_idx;
         let font_id = render_config.icon_font_id.clone();

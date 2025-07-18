@@ -12,7 +12,9 @@ use super::custom_layout::ColumnSplitWithCapacity;
 use super::CustomLayout;
 use super::DefaultLayout;
 use super::Rect;
+use crate::container::ContainerIdx;
 use crate::default_layout::LayoutOptions;
+use crate::ring::RingIndex;
 
 pub trait Arrangement {
     #[allow(clippy::too_many_arguments)]
@@ -23,7 +25,7 @@ pub trait Arrangement {
         container_padding: Option<i32>,
         layout_flip: Option<Axis>,
         resize_dimensions: &[Option<Rect>],
-        focused_idx: usize,
+        focused_idx: ContainerIdx,
         layout_options: Option<LayoutOptions>,
         latest_layout: &[Rect],
     ) -> Vec<Rect>;
@@ -38,7 +40,7 @@ impl Arrangement for DefaultLayout {
         container_padding: Option<i32>,
         layout_flip: Option<Axis>,
         resize_dimensions: &[Option<Rect>],
-        focused_idx: usize,
+        focused_idx: ContainerIdx,
         layout_options: Option<LayoutOptions>,
         latest_layout: &[Rect],
     ) -> Vec<Rect> {
@@ -79,7 +81,7 @@ impl Arrangement for DefaultLayout {
                     // treat >= column_count as scrolling
                     len => {
                         let visible_columns = area.right / column_width;
-                        let first_visible: isize = if focused_idx == 0 {
+                        let first_visible: isize = if focused_idx == ContainerIdx::default() {
                             // if focused idx is 0, we are at the beginning of the scrolling strip
                             0
                         } else {
@@ -94,7 +96,7 @@ impl Arrangement for DefaultLayout {
                                     .unwrap_or(0) as isize
                             };
 
-                            let focused_idx = focused_idx as isize;
+                            let focused_idx = focused_idx.into_usize() as isize;
 
                             if focused_idx < previous_first_visible {
                                 // focused window is off the left edge, we need to scroll left
@@ -593,7 +595,7 @@ impl Arrangement for CustomLayout {
         container_padding: Option<i32>,
         _layout_flip: Option<Axis>,
         _resize_dimensions: &[Option<Rect>],
-        _focused_idx: usize,
+        _focused_idx: ContainerIdx,
         _layout_options: Option<LayoutOptions>,
         _latest_layout: &[Rect],
     ) -> Vec<Rect> {
@@ -644,7 +646,11 @@ impl Arrangement for CustomLayout {
                             self.len(),
                             area,
                             primary_right,
-                            Option::from(dimensions[self.first_container_idx(idx - 1)]),
+                            Option::from(
+                                dimensions[self
+                                    .first_container_idx(ContainerIdx::from_usize(idx - 1))
+                                    .into_usize()],
+                            ),
                             offset,
                         )
                     };
@@ -657,7 +663,11 @@ impl Arrangement for CustomLayout {
                                 Self::main_column_area(
                                     area,
                                     primary_right,
-                                    Option::from(dimensions[self.first_container_idx(idx - 1)]),
+                                    Option::from(
+                                        dimensions[self
+                                            .first_container_idx(ContainerIdx::from_usize(idx - 1))
+                                            .into_usize()],
+                                    ),
                                 )
                             };
 
@@ -681,7 +691,11 @@ impl Arrangement for CustomLayout {
                                 self.len(),
                                 area,
                                 primary_right,
-                                Option::from(dimensions[self.first_container_idx(idx - 1)]),
+                                Option::from(
+                                    dimensions[self
+                                        .first_container_idx(ContainerIdx::from_usize(idx - 1))
+                                        .into_usize()],
+                                ),
                                 offset,
                             );
 

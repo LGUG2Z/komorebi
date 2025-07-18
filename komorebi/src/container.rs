@@ -1,33 +1,50 @@
-use std::collections::VecDeque;
+use std::sync::Arc;
 
 use getset::CopyGetters;
 use getset::Getters;
 use getset::Setters;
 use nanoid::nanoid;
 use serde::Deserialize;
+use serde::Deserializer;
 use serde::Serialize;
+use serde::Serializer;
 
 use crate::ring::Ring;
+use crate::ring::RingIndex;
 use crate::window::Window;
+use crate::window::WindowIdx;
 use crate::Lockable;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Getters, CopyGetters, Setters)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct Container {
     #[getset(get = "pub")]
-    id: String,
+    #[serde(serialize_with = "serialize", deserialize_with = "deserialize")]
+    id: Arc<str>,
     #[serde(default)]
     #[getset(get_copy = "pub", set = "pub")]
     locked: bool,
     windows: Ring<Window>,
 }
 
+/// Helper function to serialize the Arc<str>
+fn serialize<S: Serializer>(arc: &Arc<str>, s: S) -> Result<S::Ok, S::Error> {
+    s.serialize_str(arc.as_ref())
+}
+
+/// Helper function to deserialize the Arc<str>
+fn deserialize<'de, D: Deserializer<'de>>(d: D) -> Result<Arc<str>, D::Error> {
+    let s: &str = Deserialize::deserialize(d)?;
+    Ok(Arc::from(s))
+}
+
+declare_ring_element_and_index!(Container, ContainerIdx);
 impl_ring_elements!(Container, Window);
 
 impl Default for Container {
     fn default() -> Self {
         Self {
-            id: nanoid!(),
+            id: Arc::from(nanoid!()),
             locked: false,
             windows: Ring::default(),
         }
@@ -46,22 +63,12 @@ impl Lockable for Container {
 }
 
 impl Container {
-    pub fn hide(&self, omit: Option<isize>) {
-        for window in self.windows().iter().rev() {
-            let mut should_hide = omit.is_none();
-
-            if !should_hide {
-                if let Some(omit) = omit {
-                    if omit != window.hwnd {
-                        should_hide = true
-                    }
-                }
-            }
-
-            if should_hide {
-                window.hide();
-            }
-        }
+    pub fn hide(&self, omit: Option<Window>) {
+        self.windows()
+            .iter()
+            .rev()
+            .filter(|&&window| Some(window) != omit)
+            .for_each(|window| window.hide())
     }
 
     pub fn restore(&self) {
@@ -76,7 +83,7 @@ impl Container {
     pub fn load_focused_window(&mut self) {
         let focused_idx = self.focused_window_idx();
 
-        for (i, window) in self.windows_mut().iter_mut().enumerate() {
+        for (i, window) in self.windows_mut().indexed_mut() {
             if i == focused_idx {
                 window.restore_with_border(false);
             } else {
@@ -85,53 +92,28 @@ impl Container {
         }
     }
 
-    pub fn hwnd_from_exe(&self, exe: &str) -> Option<isize> {
-        for window in self.windows() {
-            if let Ok(window_exe) = window.exe() {
-                if exe == window_exe {
-                    return Option::from(window.hwnd);
-                }
-            }
-        }
-
-        None
+    pub fn window_from_exe(&self, exe: &str) -> Option<Window> {
+        self.windows()
+            .iter()
+            .find_map(|win| win.exe().ok().filter(|e| e == exe).map(|_| *win))
     }
 
-    pub fn idx_from_exe(&self, exe: &str) -> Option<usize> {
-        for (idx, window) in self.windows().iter().enumerate() {
-            if let Ok(window_exe) = window.exe() {
-                if exe == window_exe {
-                    return Option::from(idx);
-                }
-            }
-        }
-
-        None
+    pub fn idx_from_exe(&self, exe: &str) -> Option<WindowIdx> {
+        self.windows()
+            .position(|win| win.exe().ok().as_deref() == Some(exe))
     }
 
-    pub fn contains_window(&self, hwnd: isize) -> bool {
-        for window in self.windows() {
-            if window.hwnd == hwnd {
-                return true;
-            }
-        }
-
-        false
+    pub fn contains_window(&self, window: Window) -> bool {
+        self.windows().contains(&window)
     }
 
-    pub fn idx_for_window(&self, hwnd: isize) -> Option<usize> {
-        for (i, window) in self.windows().iter().enumerate() {
-            if window.hwnd == hwnd {
-                return Option::from(i);
-            }
-        }
-
-        None
+    pub fn idx_for_window(&self, window: Window) -> Option<WindowIdx> {
+        self.windows().position(|win| *win == window)
     }
 
-    pub fn remove_window_by_idx(&mut self, idx: usize) -> Option<Window> {
+    pub fn remove_window_by_idx(&mut self, idx: WindowIdx) -> Option<Window> {
         let window = self.windows_mut().remove(idx);
-        self.focus_window(idx.saturating_sub(1));
+        self.focus_window(idx.previous());
         window
     }
 
@@ -142,10 +124,10 @@ impl Container {
 
     pub fn add_window(&mut self, window: Window) {
         self.windows_mut().push_back(window);
-        self.focus_window(self.windows().len().saturating_sub(1));
+        self.focus_window(self.windows().last_index());
         let focused_window_idx = self.focused_window_idx();
 
-        for (i, window) in self.windows().iter().enumerate() {
+        for (i, window) in self.windows().indexed() {
             if i != focused_window_idx {
                 window.hide();
             }
@@ -153,7 +135,7 @@ impl Container {
     }
 
     #[tracing::instrument(skip(self))]
-    pub fn focus_window(&mut self, idx: usize) {
+    pub fn focus_window(&mut self, idx: WindowIdx) {
         tracing::info!("focusing window");
         self.windows.focus(idx);
     }
@@ -173,12 +155,15 @@ mod tests {
         }
 
         // Should return true for existing windows
-        assert!(container.contains_window(1));
-        assert_eq!(container.idx_for_window(1), Some(1));
+        assert!(container.contains_window(Window::from(1)));
+        assert_eq!(
+            container.idx_for_window(Window::from(1)),
+            Some(WindowIdx::from_usize(1))
+        );
 
         // Should return false since window 4 doesn't exist
-        assert!(!container.contains_window(4));
-        assert_eq!(container.idx_for_window(4), None);
+        assert!(!container.contains_window(Window::from(4)));
+        assert_eq!(container.idx_for_window(Window::from(4)), None);
     }
 
     #[test]
@@ -190,13 +175,13 @@ mod tests {
         }
 
         // Remove window 1
-        container.remove_window_by_idx(1);
+        container.remove_window_by_idx(WindowIdx::from_usize(1));
 
         // Should only have 2 windows left
         assert_eq!(container.windows().len(), 2);
 
         // Should return false since window 1 was removed
-        assert!(!container.contains_window(1));
+        assert!(!container.contains_window(Window::from(1)));
     }
 
     #[test]
@@ -208,13 +193,13 @@ mod tests {
         }
 
         // Should be focused on the last created window
-        assert_eq!(container.focused_window_idx(), 2);
+        assert_eq!(container.focused_window_idx(), WindowIdx::from_usize(2));
 
         // Remove the focused window
         container.remove_focused_window();
 
         // Should be focused on the window before the removed one
-        assert_eq!(container.focused_window_idx(), 1);
+        assert_eq!(container.focused_window_idx(), WindowIdx::from_usize(1));
 
         // Should only have 2 windows left
         assert_eq!(container.windows().len(), 2);
@@ -227,8 +212,8 @@ mod tests {
         container.add_window(Window::from(1));
 
         assert_eq!(container.windows().len(), 1);
-        assert_eq!(container.focused_window_idx(), 0);
-        assert!(container.contains_window(1));
+        assert_eq!(container.focused_window_idx(), WindowIdx::from_usize(0));
+        assert!(container.contains_window(Window::from(1)));
     }
 
     #[test]
@@ -240,19 +225,19 @@ mod tests {
         }
 
         // Should focus on the last created window
-        assert_eq!(container.focused_window_idx(), 2);
+        assert_eq!(container.focused_window_idx(), WindowIdx::from_usize(2));
 
         // focus on the window at index 1
-        container.focus_window(1);
+        container.focus_window(WindowIdx::from_usize(1));
 
         // Should be focused on window 1
-        assert_eq!(container.focused_window_idx(), 1);
+        assert_eq!(container.focused_window_idx(), WindowIdx::from_usize(1));
 
         // focus on the window at index 0
-        container.focus_window(0);
+        container.focus_window(WindowIdx::from_usize(0));
 
         // Should be focused on window 0
-        assert_eq!(container.focused_window_idx(), 0);
+        assert_eq!(container.focused_window_idx(), WindowIdx::from_usize(0));
     }
 
     #[test]
@@ -264,10 +249,13 @@ mod tests {
         }
 
         // Should return the index of the window
-        assert_eq!(container.idx_for_window(1), Some(1));
+        assert_eq!(
+            container.idx_for_window(Window::from(1)),
+            Some(WindowIdx::from_usize(1))
+        );
 
         // Should return None since window 4 doesn't exist
-        assert_eq!(container.idx_for_window(4), None);
+        assert_eq!(container.idx_for_window(Window::from(4)), None);
     }
 
     #[test]
@@ -279,7 +267,7 @@ mod tests {
         let container: Container = serde_json::from_str(json).expect("Should deserialize");
 
         assert!(!container.locked());
-        assert_eq!(container.id(), "test-1");
+        assert_eq!(&**container.id(), "test-1");
         assert!(container.windows().is_empty());
 
         let json = r#"{
@@ -287,10 +275,13 @@ mod tests {
             "windows": { "elements": [ { "hwnd": 5 }, { "hwnd": 9 } ], "focused": 1 }
         }"#;
         let container: Container = serde_json::from_str(json).unwrap();
-        assert_eq!(container.id(), "test-2");
+        assert_eq!(&**container.id(), "test-2");
         assert!(!container.locked());
-        assert_eq!(container.windows(), &[Window::from(5), Window::from(9)]);
-        assert_eq!(container.focused_window_idx(), 1);
+        assert_eq!(
+            &container.windows().to_vec(Clone::clone),
+            &[Window::from(5), Window::from(9)]
+        );
+        assert_eq!(container.focused_window_idx(), WindowIdx::from_usize(1));
     }
 
     #[test]
