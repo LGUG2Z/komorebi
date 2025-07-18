@@ -4,6 +4,7 @@ use crate::container::Container;
 use crate::core::StackbarLabel;
 use crate::core::StackbarMode;
 use crate::stackbar_manager::stackbar::Stackbar;
+use crate::stackbar_manager::stackbar::StackbarId;
 use crate::WindowManager;
 use crate::WindowsApi;
 use crate::DEFAULT_CONTAINER_PADDING;
@@ -34,10 +35,11 @@ pub static STACKBAR_MODE: AtomicCell<StackbarMode> = AtomicCell::new(StackbarMod
 pub static STACKBAR_TEMPORARILY_DISABLED: AtomicBool = AtomicBool::new(false);
 
 lazy_static! {
-    pub static ref STACKBAR_STATE: Mutex<HashMap<String, Stackbar>> = Mutex::new(HashMap::new());
+    pub static ref STACKBAR_STATE: Mutex<HashMap<Arc<str>, Stackbar>> = Mutex::new(HashMap::new());
     pub static ref STACKBAR_FONT_FAMILY: Mutex<Option<String>> = Mutex::new(None);
-    static ref STACKBARS_MONITORS: Mutex<HashMap<String, usize>> = Mutex::new(HashMap::new());
-    static ref STACKBARS_CONTAINERS: Mutex<HashMap<isize, Container>> = Mutex::new(HashMap::new());
+    static ref STACKBARS_MONITORS: Mutex<HashMap<Arc<str>, usize>> = Mutex::new(HashMap::new());
+    static ref STACKBARS_CONTAINERS: Mutex<HashMap<StackbarId, Container>> =
+        Mutex::new(HashMap::new());
 }
 
 pub struct Notification;
@@ -107,7 +109,7 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
             continue 'receiver;
         }
 
-        for (monitor_idx, m) in state.monitors_mut().iter_mut().enumerate() {
+        for (monitor_idx, m) in state.monitors_mut().indexed_mut() {
             // Only operate on the focused workspace of each monitor
             if let Some(ws) = m.focused_workspace_mut() {
                 // Workspaces with tiling disabled don't have stackbars
@@ -205,7 +207,7 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                     stackbars_monitors.insert(container.id().clone(), monitor_idx);
 
                     let rect = WindowsApi::window_rect(
-                        container.focused_window().copied().unwrap_or_default().hwnd,
+                        container.focused_window().copied().unwrap_or_default(),
                     )?;
 
                     stackbar.update(container_padding, container, &rect)?;

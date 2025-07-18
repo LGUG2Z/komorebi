@@ -87,7 +87,7 @@ impl Storage {
                         LabelPrefix::Text | LabelPrefix::IconAndText => {
                             format!("{} {}%", mount.to_string_lossy(), percentage)
                         }
-                        LabelPrefix::None | LabelPrefix::Icon => format!("{}%", percentage),
+                        LabelPrefix::None | LabelPrefix::Icon => format!("{percentage}%"),
                     },
                     selected,
                 })
@@ -151,7 +151,7 @@ impl BarWidget for Storage {
                             ])
                             .spawn()
                         {
-                            eprintln!("{}", error)
+                            eprintln!("{error}")
                         }
                     }
                 });

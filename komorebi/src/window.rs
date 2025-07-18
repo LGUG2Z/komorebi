@@ -29,7 +29,7 @@ use crate::windows_api::WindowsApi;
 use crate::AnimationStyle;
 use crate::FLOATING_APPLICATIONS;
 use crate::FLOATING_WINDOW_TOGGLE_ASPECT_RATIO;
-use crate::HIDDEN_HWNDS;
+use crate::HIDDEN_WINDOWS;
 use crate::HIDING_BEHAVIOUR;
 use crate::IGNORE_IDENTIFIERS;
 use crate::LAYERED_WHITELIST;
@@ -64,12 +64,13 @@ use windows::Win32::Foundation::HWND;
 pub static MINIMUM_WIDTH: AtomicI32 = AtomicI32::new(0);
 pub static MINIMUM_HEIGHT: AtomicI32 = AtomicI32::new(0);
 
-#[derive(Debug, Default, Clone, Copy, Deserialize, PartialEq)]
+#[derive(Debug, Default, Clone, Copy, Deserialize, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct Window {
-    pub hwnd: isize,
+    hwnd: isize,
 }
 
+#[cfg(test)]
 impl From<isize> for Window {
     fn from(value: isize) -> Self {
         Self { hwnd: value }
@@ -81,6 +82,12 @@ impl From<HWND> for Window {
         Self {
             hwnd: value.0 as isize,
         }
+    }
+}
+
+impl From<Window> for HWND {
+    fn from(value: Window) -> Self {
+        value.hwnd()
     }
 }
 
@@ -152,16 +159,13 @@ impl Serialize for Window {
                 .class()
                 .unwrap_or_else(|_| String::from("could not get window class")),
         )?;
-        state.serialize_field(
-            "rect",
-            &WindowsApi::window_rect(self.hwnd).unwrap_or_default(),
-        )?;
+        state.serialize_field("rect", &WindowsApi::window_rect(*self).unwrap_or_default())?;
         state.end()
     }
 }
 
 struct MovementRenderDispatcher {
-    hwnd: isize,
+    window: Window,
     start_rect: Rect,
     target_rect: Rect,
     top: bool,
@@ -172,14 +176,14 @@ impl MovementRenderDispatcher {
     const PREFIX: AnimationPrefix = AnimationPrefix::Movement;
 
     pub fn new(
-        hwnd: isize,
+        window: Window,
         start_rect: Rect,
         target_rect: Rect,
         top: bool,
         style: AnimationStyle,
     ) -> Self {
         Self {
-            hwnd,
+            window,
             start_rect,
             target_rect,
             top,
@@ -190,7 +194,8 @@ impl MovementRenderDispatcher {
 
 impl RenderDispatcher for MovementRenderDispatcher {
     fn get_animation_key(&self) -> String {
-        new_animation_key(MovementRenderDispatcher::PREFIX, self.hwnd.to_string())
+        let key = self.window.as_isize().to_string();
+        new_animation_key(MovementRenderDispatcher::PREFIX, key)
     }
 
     fn pre_render(&self) -> Result<()> {
@@ -205,8 +210,8 @@ impl RenderDispatcher for MovementRenderDispatcher {
 
         // we don't check WINDOW_HANDLING_BEHAVIOUR here because animations
         // are always run on a separate thread
-        WindowsApi::move_window(self.hwnd, &new_rect, false)?;
-        WindowsApi::invalidate_rect(self.hwnd, None, false);
+        WindowsApi::move_window(self.window, &new_rect, false)?;
+        WindowsApi::invalidate_rect(self.window, None, false);
 
         Ok(())
     }
@@ -214,14 +219,14 @@ impl RenderDispatcher for MovementRenderDispatcher {
     fn post_render(&self) -> Result<()> {
         // we don't add the async_window_pos flag here because animations
         // are always run on a separate thread
-        WindowsApi::position_window(self.hwnd, &self.target_rect, self.top, false)?;
+        WindowsApi::position_window(self.window, &self.target_rect, self.top, false)?;
         if ANIMATION_MANAGER
             .lock()
             .count_in_progress(MovementRenderDispatcher::PREFIX)
             == 0
         {
-            if WindowsApi::foreground_window().unwrap_or_default() == self.hwnd {
-                focus_manager::send_notification(self.hwnd)
+            if matches!(WindowsApi::foreground_window(), Ok(window) if window == self.window) {
+                focus_manager::send_notification(self.window)
             }
 
             stackbar_manager::STACKBAR_TEMPORARILY_DISABLED.store(false, Ordering::SeqCst);
@@ -235,7 +240,7 @@ impl RenderDispatcher for MovementRenderDispatcher {
 }
 
 struct TransparencyRenderDispatcher {
-    hwnd: isize,
+    window: Window,
     start_opacity: u8,
     target_opacity: u8,
     style: AnimationStyle,
@@ -246,14 +251,14 @@ impl TransparencyRenderDispatcher {
     const PREFIX: AnimationPrefix = AnimationPrefix::Transparency;
 
     pub fn new(
-        hwnd: isize,
+        window: Window,
         is_opaque: bool,
         start_opacity: u8,
         target_opacity: u8,
         style: AnimationStyle,
     ) -> Self {
         Self {
-            hwnd,
+            window,
             start_opacity,
             target_opacity,
             style,
@@ -264,16 +269,16 @@ impl TransparencyRenderDispatcher {
 
 impl RenderDispatcher for TransparencyRenderDispatcher {
     fn get_animation_key(&self) -> String {
-        new_animation_key(TransparencyRenderDispatcher::PREFIX, self.hwnd.to_string())
+        let key = self.window.as_isize().to_string();
+        new_animation_key(TransparencyRenderDispatcher::PREFIX, key)
     }
 
     fn pre_render(&self) -> Result<()> {
         //transparent
         if !self.is_opaque {
-            let window = Window::from(self.hwnd);
-            let mut ex_style = window.ex_style()?;
+            let mut ex_style = self.window.ex_style()?;
             ex_style.insert(ExtendedWindowStyle::LAYERED);
-            window.update_ex_style(&ex_style)?;
+            self.window.update_ex_style(&ex_style)?;
         }
 
         Ok(())
@@ -281,7 +286,7 @@ impl RenderDispatcher for TransparencyRenderDispatcher {
 
     fn render(&self, progress: f64) -> Result<()> {
         WindowsApi::set_transparent(
-            self.hwnd,
+            self.window,
             self.start_opacity
                 .lerp(self.target_opacity, progress, self.style),
         )
@@ -290,10 +295,9 @@ impl RenderDispatcher for TransparencyRenderDispatcher {
     fn post_render(&self) -> Result<()> {
         //opaque
         if self.is_opaque {
-            let window = Window::from(self.hwnd);
-            let mut ex_style = window.ex_style()?;
+            let mut ex_style = self.window.ex_style()?;
             ex_style.remove(ExtendedWindowStyle::LAYERED);
-            window.update_ex_style(&ex_style)?;
+            self.window.update_ex_style(&ex_style)?;
         }
 
         Ok(())
@@ -346,8 +350,12 @@ impl Window {
         HWND(windows_api::as_ptr!(self.hwnd))
     }
 
+    pub const fn as_isize(self) -> isize {
+        self.hwnd
+    }
+
     pub fn move_to_area(&mut self, current_area: &Rect, target_area: &Rect) -> Result<()> {
-        let current_rect = WindowsApi::window_rect(self.hwnd)?;
+        let current_rect = WindowsApi::window_rect(*self)?;
         let x_diff = target_area.left - current_area.left;
         let y_diff = target_area.top - current_area.top;
         let x_ratio = f32::abs((target_area.right as f32) / (current_area.right as f32));
@@ -373,7 +381,7 @@ impl Window {
 
         let is_maximized = &new_rect == target_area;
         if is_maximized {
-            windows_api::WindowsApi::unmaximize_window(self.hwnd);
+            windows_api::WindowsApi::unmaximize_window(*self);
             let animation_enabled = ANIMATION_ENABLED_PER_ANIMATION.lock();
             let move_enabled = animation_enabled
                 .get(&MovementRenderDispatcher::PREFIX)
@@ -385,7 +393,7 @@ impl Window {
                     .lock()
                     .count_in_progress(MovementRenderDispatcher::PREFIX);
                 self.set_position(&new_rect, true)?;
-                let hwnd = self.hwnd;
+                let window = *self;
                 // Wait for the animation to finish before maximizing the window again, otherwise
                 // we would be maximizing the window on the current monitor anyway
                 thread::spawn(move || {
@@ -400,11 +408,11 @@ impl Window {
                             .count_in_progress(MovementRenderDispatcher::PREFIX);
                         max_wait -= 1;
                     }
-                    windows_api::WindowsApi::maximize_window(hwnd);
+                    windows_api::WindowsApi::maximize_window(window);
                 });
             } else {
                 self.set_position(&new_rect, true)?;
-                windows_api::WindowsApi::maximize_window(self.hwnd);
+                windows_api::WindowsApi::maximize_window(*self);
             }
         } else {
             self.set_position(&new_rect, true)?;
@@ -422,7 +430,7 @@ impl Window {
             let target_width = (target_height * aspect_ratio_width) / aspect_ratio_height;
             (target_width, target_height)
         } else {
-            let current_rect = WindowsApi::window_rect(self.hwnd)?;
+            let current_rect = WindowsApi::window_rect(*self)?;
             (current_rect.right, current_rect.bottom)
         };
 
@@ -441,7 +449,7 @@ impl Window {
     }
 
     pub fn set_position(&self, layout: &Rect, top: bool) -> Result<()> {
-        let window_rect = WindowsApi::window_rect(self.hwnd)?;
+        let window_rect = WindowsApi::window_rect(*self)?;
 
         if window_rect.eq(layout) {
             return Ok(());
@@ -465,40 +473,40 @@ impl Window {
                 .unwrap_or(&ANIMATION_STYLE_GLOBAL.lock());
 
             let render_dispatcher =
-                MovementRenderDispatcher::new(self.hwnd, window_rect, *layout, top, style);
+                MovementRenderDispatcher::new(*self, window_rect, *layout, top, style);
 
             AnimationEngine::animate(render_dispatcher, duration)
         } else {
-            WindowsApi::position_window(self.hwnd, layout, top, true)
+            WindowsApi::position_window(*self, layout, top, true)
         }
     }
 
     pub fn is_maximized(self) -> bool {
-        WindowsApi::is_zoomed(self.hwnd)
+        WindowsApi::is_zoomed(self)
     }
 
     pub fn is_miminized(self) -> bool {
-        WindowsApi::is_iconic(self.hwnd)
+        WindowsApi::is_iconic(self)
     }
 
     pub fn is_visible(self) -> bool {
-        WindowsApi::is_window_visible(self.hwnd)
+        WindowsApi::is_window_visible(self)
     }
 
     pub fn hide_with_border(self, hide_border: bool) {
-        let mut programmatically_hidden_hwnds = HIDDEN_HWNDS.lock();
-        if !programmatically_hidden_hwnds.contains(&self.hwnd) {
-            programmatically_hidden_hwnds.push(self.hwnd);
+        let mut programmatically_hidden_hwnds = HIDDEN_WINDOWS.lock();
+        if !programmatically_hidden_hwnds.contains(&self) {
+            programmatically_hidden_hwnds.push(self);
         }
 
         let hiding_behaviour = HIDING_BEHAVIOUR.lock();
         match *hiding_behaviour {
-            HidingBehaviour::Hide => WindowsApi::hide_window(self.hwnd),
-            HidingBehaviour::Minimize => WindowsApi::minimize_window(self.hwnd),
+            HidingBehaviour::Hide => WindowsApi::hide_window(self),
+            HidingBehaviour::Minimize => WindowsApi::minimize_window(self),
             HidingBehaviour::Cloak => SetCloak(self.hwnd(), 1, 2),
         }
         if hide_border {
-            border_manager::hide_border(self.hwnd);
+            border_manager::hide_border(self);
         }
     }
 
@@ -507,10 +515,10 @@ impl Window {
     }
 
     pub fn restore_with_border(self, restore_border: bool) {
-        let mut programmatically_hidden_hwnds = HIDDEN_HWNDS.lock();
+        let mut programmatically_hidden_hwnds = HIDDEN_WINDOWS.lock();
         if let Some(idx) = programmatically_hidden_hwnds
             .iter()
-            .position(|&hwnd| hwnd == self.hwnd)
+            .position(|&hwnd| hwnd == self)
         {
             programmatically_hidden_hwnds.remove(idx);
         }
@@ -518,12 +526,12 @@ impl Window {
         let hiding_behaviour = HIDING_BEHAVIOUR.lock();
         match *hiding_behaviour {
             HidingBehaviour::Hide | HidingBehaviour::Minimize => {
-                WindowsApi::restore_window(self.hwnd);
+                WindowsApi::restore_window(self);
             }
             HidingBehaviour::Cloak => SetCloak(self.hwnd(), 1, 0),
         }
         if restore_border {
-            border_manager::show_border(self.hwnd);
+            border_manager::show_border(self);
         }
     }
 
@@ -534,63 +542,63 @@ impl Window {
     pub fn minimize(self) {
         let exe = self.exe().unwrap_or_default();
         if !exe.contains("komorebi-bar") {
-            WindowsApi::minimize_window(self.hwnd);
+            WindowsApi::minimize_window(self);
         }
     }
 
     pub fn close(self) -> Result<()> {
-        WindowsApi::close_window(self.hwnd)
+        WindowsApi::close_window(self)
     }
 
     pub fn maximize(self) {
-        let mut programmatically_hidden_hwnds = HIDDEN_HWNDS.lock();
+        let mut programmatically_hidden_hwnds = HIDDEN_WINDOWS.lock();
         if let Some(idx) = programmatically_hidden_hwnds
             .iter()
-            .position(|&hwnd| hwnd == self.hwnd)
+            .position(|&hwnd| hwnd == self)
         {
             programmatically_hidden_hwnds.remove(idx);
         }
 
-        WindowsApi::maximize_window(self.hwnd);
+        WindowsApi::maximize_window(self);
     }
 
     pub fn unmaximize(self) {
-        let mut programmatically_hidden_hwnds = HIDDEN_HWNDS.lock();
+        let mut programmatically_hidden_hwnds = HIDDEN_WINDOWS.lock();
         if let Some(idx) = programmatically_hidden_hwnds
             .iter()
-            .position(|&hwnd| hwnd == self.hwnd)
+            .position(|&hwnd| hwnd == self)
         {
             programmatically_hidden_hwnds.remove(idx);
         }
 
-        WindowsApi::unmaximize_window(self.hwnd);
+        WindowsApi::unmaximize_window(self);
     }
 
     pub fn focus(self, mouse_follows_focus: bool) -> Result<()> {
         // If the target window is already focused, do nothing.
-        if let Ok(ihwnd) = WindowsApi::foreground_window() {
-            if ihwnd == self.hwnd {
+        if let Ok(foreground_window) = WindowsApi::foreground_window() {
+            if foreground_window == self {
                 // Center cursor in Window
                 if mouse_follows_focus {
-                    WindowsApi::center_cursor_in_rect(&WindowsApi::window_rect(self.hwnd)?)?;
+                    WindowsApi::center_cursor_in_rect(&WindowsApi::window_rect(self)?)?;
                 }
 
                 return Ok(());
             }
         }
 
-        WindowsApi::raise_and_focus_window(self.hwnd)?;
+        WindowsApi::raise_and_focus_window(self)?;
 
         // Center cursor in Window
         if mouse_follows_focus {
-            WindowsApi::center_cursor_in_rect(&WindowsApi::window_rect(self.hwnd)?)?;
+            WindowsApi::center_cursor_in_rect(&WindowsApi::window_rect(self)?)?;
         }
 
         Ok(())
     }
 
     pub fn is_focused(self) -> bool {
-        WindowsApi::foreground_window().unwrap_or_default() == self.hwnd
+        WindowsApi::foreground_window().is_ok_and(|hwnd| hwnd == self)
     }
 
     pub fn transparent(self) -> Result<()> {
@@ -612,9 +620,9 @@ impl Window {
                 .unwrap_or(&ANIMATION_STYLE_GLOBAL.lock());
 
             let render_dispatcher = TransparencyRenderDispatcher::new(
-                self.hwnd,
+                self,
                 false,
-                WindowsApi::get_transparent(self.hwnd).unwrap_or(255),
+                WindowsApi::get_transparent(self).unwrap_or(255),
                 transparency_manager::TRANSPARENCY_ALPHA.load_consume(),
                 style,
             );
@@ -625,7 +633,7 @@ impl Window {
             ex_style.insert(ExtendedWindowStyle::LAYERED);
             self.update_ex_style(&ex_style)?;
             WindowsApi::set_transparent(
-                self.hwnd,
+                self,
                 transparency_manager::TRANSPARENCY_ALPHA.load_consume(),
             )
         }
@@ -650,9 +658,9 @@ impl Window {
                 .unwrap_or(&ANIMATION_STYLE_GLOBAL.lock());
 
             let render_dispatcher = TransparencyRenderDispatcher::new(
-                self.hwnd,
+                self,
                 true,
-                WindowsApi::get_transparent(self.hwnd)
+                WindowsApi::get_transparent(self)
                     .unwrap_or(transparency_manager::TRANSPARENCY_ALPHA.load_consume()),
                 255,
                 style,
@@ -667,49 +675,49 @@ impl Window {
     }
 
     pub fn set_accent(self, colour: u32) -> Result<()> {
-        WindowsApi::set_window_accent(self.hwnd, Some(colour))
+        WindowsApi::set_window_accent(self, Some(colour))
     }
 
     pub fn remove_accent(self) -> Result<()> {
-        WindowsApi::set_window_accent(self.hwnd, None)
+        WindowsApi::set_window_accent(self, None)
     }
 
     #[cfg(target_pointer_width = "64")]
     pub fn update_style(self, style: &WindowStyle) -> Result<()> {
-        WindowsApi::update_style(self.hwnd, isize::try_from(style.bits())?)
+        WindowsApi::update_style(self, isize::try_from(style.bits())?)
     }
 
     #[cfg(target_pointer_width = "32")]
     pub fn update_style(self, style: &WindowStyle) -> Result<()> {
-        WindowsApi::update_style(self.hwnd, i32::try_from(style.bits())?)
+        WindowsApi::update_style(self, i32::try_from(style.bits())?)
     }
 
     #[cfg(target_pointer_width = "64")]
     pub fn update_ex_style(self, style: &ExtendedWindowStyle) -> Result<()> {
-        WindowsApi::update_ex_style(self.hwnd, isize::try_from(style.bits())?)
+        WindowsApi::update_ex_style(self, isize::try_from(style.bits())?)
     }
 
     #[cfg(target_pointer_width = "32")]
     pub fn update_ex_style(self, style: &ExtendedWindowStyle) -> Result<()> {
-        WindowsApi::update_ex_style(self.hwnd, i32::try_from(style.bits())?)
+        WindowsApi::update_ex_style(self, i32::try_from(style.bits())?)
     }
 
     pub fn style(self) -> Result<WindowStyle> {
-        let bits = u32::try_from(WindowsApi::gwl_style(self.hwnd)?)?;
+        let bits = u32::try_from(WindowsApi::gwl_style(self)?)?;
         Ok(WindowStyle::from_bits_truncate(bits))
     }
 
     pub fn ex_style(self) -> Result<ExtendedWindowStyle> {
-        let bits = u32::try_from(WindowsApi::gwl_ex_style(self.hwnd)?)?;
+        let bits = u32::try_from(WindowsApi::gwl_ex_style(self)?)?;
         Ok(ExtendedWindowStyle::from_bits_truncate(bits))
     }
 
     pub fn title(self) -> Result<String> {
-        WindowsApi::window_text_w(self.hwnd)
+        WindowsApi::window_text_w(self)
     }
 
     pub fn path(self) -> Result<String> {
-        let (process_id, _) = WindowsApi::window_thread_process_id(self.hwnd);
+        let (process_id, _) = WindowsApi::window_thread_process_id(self);
         let handle = WindowsApi::process_handle(process_id)?;
         let path = WindowsApi::exe_path(handle);
         WindowsApi::close_process(handle)?;
@@ -717,7 +725,7 @@ impl Window {
     }
 
     pub fn exe(self) -> Result<String> {
-        let (process_id, _) = WindowsApi::window_thread_process_id(self.hwnd);
+        let (process_id, _) = WindowsApi::window_thread_process_id(self);
         let handle = WindowsApi::process_handle(process_id)?;
         let exe = WindowsApi::exe(handle);
         WindowsApi::close_process(handle)?;
@@ -725,20 +733,20 @@ impl Window {
     }
 
     pub fn process_id(self) -> u32 {
-        let (process_id, _) = WindowsApi::window_thread_process_id(self.hwnd);
+        let (process_id, _) = WindowsApi::window_thread_process_id(self);
         process_id
     }
 
     pub fn class(self) -> Result<String> {
-        WindowsApi::real_window_class_w(self.hwnd)
+        WindowsApi::real_window_class_w(self)
     }
 
     pub fn is_cloaked(self) -> Result<bool> {
-        WindowsApi::is_window_cloaked(self.hwnd)
+        WindowsApi::is_window_cloaked(self)
     }
 
     pub fn is_window(self) -> bool {
-        WindowsApi::is_window(self.hwnd)
+        WindowsApi::is_window(self)
     }
 
     pub fn remove_title_bar(self) -> Result<()> {
@@ -760,9 +768,9 @@ impl Window {
     /// It also checks if there is a border attached to this window and if it is
     /// it raises it as well.
     pub fn raise(self) -> Result<()> {
-        WindowsApi::raise_window(self.hwnd)?;
-        if let Some(border_info) = crate::border_manager::window_border(self.hwnd) {
-            WindowsApi::raise_window(border_info.border_hwnd)?;
+        WindowsApi::raise_window(self)?;
+        if let Some(border_info) = crate::border_manager::window_border(self) {
+            WindowsApi::raise_window(border_info.id().window())?;
         }
         Ok(())
     }
@@ -772,9 +780,9 @@ impl Window {
     /// It also checks if there is a border attached to this window and if it is
     /// it lowers it as well.
     pub fn lower(self) -> Result<()> {
-        WindowsApi::lower_window(self.hwnd)?;
-        if let Some(border_info) = crate::border_manager::window_border(self.hwnd) {
-            WindowsApi::lower_window(border_info.border_hwnd)?;
+        WindowsApi::lower_window(self)?;
+        if let Some(border_info) = crate::border_manager::window_border(self) {
+            WindowsApi::lower_window(border_info.id().window())?;
         }
         Ok(())
     }
@@ -791,7 +799,7 @@ impl Window {
 
         debug.is_window = true;
 
-        let rect = WindowsApi::window_rect(self.hwnd).unwrap_or_default();
+        let rect = WindowsApi::window_rect(self).unwrap_or_default();
 
         if rect.right < MINIMUM_WIDTH.load(Ordering::SeqCst) {
             return Ok(false);
@@ -844,7 +852,7 @@ impl Window {
                     if let (Ok(style), Ok(ex_style)) = (&self.style(), &self.ex_style()) {
                         debug.window_style = Some(*style);
                         debug.extended_window_style = Some(*ex_style);
-                        let eligible = window_is_eligible(self.hwnd, &title, &exe_name, &class, &path, style, ex_style, event, debug);
+                        let eligible = window_is_eligible(self, &title, &exe_name, &class, &path, style, ex_style, event, debug);
                         debug.should_manage = eligible;
                         return Ok(eligible);
                     }
@@ -884,7 +892,7 @@ pub struct RuleDebug {
 
 #[allow(clippy::too_many_arguments)]
 fn window_is_eligible(
-    hwnd: isize,
+    window: Window,
     title: &String,
     exe_name: &String,
     class: &String,
@@ -965,9 +973,9 @@ fn window_is_eligible(
         false
     };
 
-    let known_layered_hwnds = transparency_manager::known_hwnds();
+    let known_layered_wins = transparency_manager::known_windows();
 
-    allow_layered = if known_layered_hwnds.contains(&hwnd)
+    allow_layered = if known_layered_wins.contains(&window)
         // we always want to process hide events for windows with transparency, even on other
         // monitors, because we don't want to be left with ghost tiles
         || matches!(event, Some(WindowManagerEvent::Hide(_, _)))
