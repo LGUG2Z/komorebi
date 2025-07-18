@@ -230,20 +230,11 @@ fn main() -> color_eyre::Result<()> {
         .get(&usr_monitor_index)
         .map_or(usr_monitor_index, |i| *i);
 
-    MONITOR_RIGHT.store(
-        state.monitors.elements()[monitor_index].size().right,
-        Ordering::SeqCst,
-    );
+    MONITOR_RIGHT.store(state.monitors[monitor_index].size().right, Ordering::SeqCst);
 
-    MONITOR_TOP.store(
-        state.monitors.elements()[monitor_index].size().top,
-        Ordering::SeqCst,
-    );
+    MONITOR_TOP.store(state.monitors[monitor_index].size().top, Ordering::SeqCst);
 
-    MONITOR_LEFT.store(
-        state.monitors.elements()[monitor_index].size().left,
-        Ordering::SeqCst,
-    );
+    MONITOR_LEFT.store(state.monitors[monitor_index].size().left, Ordering::SeqCst);
 
     MONITOR_INDEX.store(monitor_index, Ordering::SeqCst);
 
@@ -251,11 +242,11 @@ fn main() -> color_eyre::Result<()> {
         None => {
             config.position = Some(PositionConfig {
                 start: Some(Position {
-                    x: state.monitors.elements()[monitor_index].size().left as f32,
-                    y: state.monitors.elements()[monitor_index].size().top as f32,
+                    x: state.monitors[monitor_index].size().left as f32,
+                    y: state.monitors[monitor_index].size().top as f32,
                 }),
                 end: Some(Position {
-                    x: state.monitors.elements()[monitor_index].size().right as f32,
+                    x: state.monitors[monitor_index].size().right as f32,
                     y: 50.0,
                 }),
             })
@@ -263,14 +254,14 @@ fn main() -> color_eyre::Result<()> {
         Some(ref mut position) => {
             if position.start.is_none() {
                 position.start = Some(Position {
-                    x: state.monitors.elements()[monitor_index].size().left as f32,
-                    y: state.monitors.elements()[monitor_index].size().top as f32,
+                    x: state.monitors[monitor_index].size().left as f32,
+                    y: state.monitors[monitor_index].size().top as f32,
                 });
             }
 
             if position.end.is_none() {
                 position.end = Some(Position {
-                    x: state.monitors.elements()[monitor_index].size().right as f32,
+                    x: state.monitors[monitor_index].size().right as f32,
                     y: 50.0,
                 })
             }

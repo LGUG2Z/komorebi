@@ -314,7 +314,6 @@ impl WindowManager {
                 let workspace = self.focused_workspace_mut()?;
                 let floating_window_idx = workspace
                     .floating_windows()
-                    .iter()
                     .position(|w| w.hwnd == window.hwnd);
 
                 match floating_window_idx {
@@ -897,11 +896,7 @@ impl WindowManager {
                     .and_then(|m| m.idx_for_window(window.hwnd).map(|i| (m, i)))
                 {
                     monocle.focus_window(idx);
-                } else if workspace
-                    .floating_windows()
-                    .iter()
-                    .any(|w| w.hwnd == window.hwnd)
-                {
+                } else if workspace.floating_windows().any(|w| w.hwnd == window.hwnd) {
                     layer = WorkspaceLayer::Floating;
                 } else if !workspace
                     .maximized_window()

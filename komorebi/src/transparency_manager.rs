@@ -86,10 +86,10 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
 
         let focused_monitor_idx = state.focused_monitor_idx();
 
-        'monitors: for (monitor_idx, m) in state.monitors.elements().iter().enumerate() {
+        'monitors: for (monitor_idx, m) in state.monitors.indexed() {
             let focused_workspace_idx = m.focused_workspace_idx();
 
-            'workspaces: for (workspace_idx, ws) in m.workspaces().iter().enumerate() {
+            'workspaces: for (workspace_idx, ws) in m.workspaces().indexed() {
                 // Only operate on the focused workspace of each monitor
                 // Workspaces with tiling disabled don't have transparent windows
                 if !ws.tile() || workspace_idx != focused_workspace_idx {
@@ -139,7 +139,7 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                 let transparency_blacklist = TRANSPARENCY_BLACKLIST.lock();
                 let regex_identifiers = REGEX_IDENTIFIERS.lock();
 
-                for (idx, c) in ws.containers().iter().enumerate() {
+                for (idx, c) in ws.containers().indexed() {
                     // Update the transparency for all containers on this workspace
 
                     // If the window is not focused on the current workspace, or isn't on the focused monitor
@@ -147,7 +147,7 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                     #[allow(clippy::collapsible_else_if)]
                     if idx != ws.focused_container_idx() || monitor_idx != focused_monitor_idx {
                         let focused_window_idx = c.focused_window_idx();
-                        for (window_idx, window) in c.windows().iter().enumerate() {
+                        for (window_idx, window) in c.windows().indexed() {
                             if window_idx == focused_window_idx {
                                 let mut should_make_transparent = true;
                                 if !transparency_blacklist.is_empty() {
@@ -191,7 +191,7 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                     // Otherwise, make it opaque
                     } else {
                         let focused_window_idx = c.focused_window_idx();
-                        for (window_idx, window) in c.windows().iter().enumerate() {
+                        for (window_idx, window) in c.windows().indexed() {
                             if window_idx != focused_window_idx {
                                 known_hwnds.lock().push(window.hwnd);
                             } else {

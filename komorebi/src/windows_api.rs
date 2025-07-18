@@ -4,7 +4,6 @@ use color_eyre::eyre::Error;
 use color_eyre::Result;
 use core::ffi::c_void;
 use std::collections::HashMap;
-use std::collections::VecDeque;
 use std::convert::TryFrom;
 use std::mem::size_of;
 use std::path::Path;
@@ -309,7 +308,7 @@ impl WindowsApi {
             let name = display.device_name.trim_start_matches(r"\\.\").to_string();
             let name = name.split('\\').collect::<Vec<_>>()[0].to_string();
 
-            for monitor in monitors.elements() {
+            for monitor in monitors.iter_mut() {
                 if device_id.eq(monitor.device_id()) {
                     continue 'read;
                 }
@@ -349,34 +348,29 @@ impl WindowsApi {
             }
 
             if let Some(preference) = index_preference {
-                while *preference >= monitors.elements().len() {
-                    monitors.elements_mut().push_back(Monitor::placeholder());
+                while *preference >= monitors.len() {
+                    monitors.push_back(Monitor::placeholder());
                 }
 
-                let current_name = monitors
-                    .elements_mut()
-                    .get(*preference)
-                    .map_or("", |m| m.name());
+                let current_name = monitors.get(*preference).map_or("", |m| m.name());
                 if current_name == "PLACEHOLDER" {
-                    let _ = monitors.elements_mut().remove(*preference);
-                    monitors.elements_mut().insert(*preference, m);
+                    let _ = monitors.remove(*preference);
+                    monitors.insert(*preference, m);
                 } else {
-                    monitors.elements_mut().insert(*preference, m);
+                    monitors.insert(*preference, m);
                 }
             } else {
-                monitors.elements_mut().push_back(m);
+                monitors.push_back(m);
             }
         }
 
-        monitors
-            .elements_mut()
-            .retain(|m| m.name().ne("PLACEHOLDER"));
+        monitors.retain(|m| m.name().ne("PLACEHOLDER"));
 
         // Rebuild monitor index map
         *monitor_usr_idx_map = HashMap::new();
         let mut added_monitor_idxs = Vec::new();
         for (index, id) in &*DISPLAY_INDEX_PREFERENCES.read() {
-            if let Some(m_idx) = monitors.elements().iter().position(|m| {
+            if let Some(m_idx) = monitors.position(|m| {
                 m.serial_number_id().as_ref().is_some_and(|sn| sn == id) || m.device_id() == id
             }) {
                 monitor_usr_idx_map.insert(*index, m_idx);
@@ -385,7 +379,6 @@ impl WindowsApi {
         }
 
         let max_usr_idx = monitors
-            .elements()
             .len()
             .max(monitor_usr_idx_map.keys().max().map_or(0, |v| *v));
 
@@ -393,7 +386,7 @@ impl WindowsApi {
             .filter(|i| !monitor_usr_idx_map.contains_key(i))
             .collect::<Vec<_>>();
 
-        let not_added_monitor_idxs = (0..monitors.elements().len())
+        let not_added_monitor_idxs = (0..monitors.len())
             .filter(|i| !added_monitor_idxs.contains(i))
             .collect::<Vec<_>>();
 
@@ -414,13 +407,13 @@ impl WindowsApi {
     }
 
     pub fn load_workspace_information(monitors: &mut Ring<Monitor>) -> Result<()> {
-        for monitor in monitors.elements_mut() {
+        for monitor in monitors {
             let monitor_name = monitor.name().clone();
             if let Some(workspace) = monitor.workspaces_mut().front_mut() {
                 // EnumWindows will enumerate through windows on all monitors
                 Self::enum_windows(
                     Some(windows_callbacks::enum_window),
-                    workspace.containers_mut() as *mut VecDeque<Container> as isize,
+                    workspace.containers_mut() as *mut Ring<Container> as isize,
                 )?;
 
                 // Ensure that the resize_dimensions Vec length matches the number of containers for

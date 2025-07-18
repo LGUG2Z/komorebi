@@ -1350,7 +1350,7 @@ impl StaticConfig {
         let monitor_count = wm.monitors().len();
 
         let offset = wm.work_area_offset;
-        for (i, monitor) in wm.monitors_mut().iter_mut().enumerate() {
+        for (i, monitor) in wm.monitors_mut().indexed_mut() {
             let preferred_config_idx = {
                 let display_index_preferences = DISPLAY_INDEX_PREFERENCES.read();
                 let c_idx = display_index_preferences.iter().find_map(|(c_idx, id)| {
@@ -1401,7 +1401,7 @@ impl StaticConfig {
                 monitor.set_floating_layer_behaviour(monitor_config.floating_layer_behaviour);
 
                 monitor.update_workspaces_globals(offset);
-                for (j, ws) in monitor.workspaces_mut().iter_mut().enumerate() {
+                for (j, ws) in monitor.workspaces_mut().indexed_mut() {
                     if let Some(workspace_config) = monitor_config.workspaces.get_mut(j) {
                         if monitor_count > 1
                             && matches!(workspace_config.layout, Some(DefaultLayout::Scrolling))
@@ -1495,7 +1495,7 @@ impl StaticConfig {
 
                     m.update_workspaces_globals(offset);
 
-                    for (j, ws) in m.workspaces_mut().iter_mut().enumerate() {
+                    for (j, ws) in m.workspaces_mut().indexed_mut() {
                         if let Some(workspace_config) = monitor_config.workspaces.get(j) {
                             ws.load_static_config(workspace_config)?;
                         }
@@ -1529,7 +1529,7 @@ impl StaticConfig {
         drop(workspace_matching_rules);
 
         let offset = wm.work_area_offset;
-        for (i, monitor) in wm.monitors_mut().iter_mut().enumerate() {
+        for (i, monitor) in wm.monitors_mut().indexed_mut() {
             let preferred_config_idx = {
                 let display_index_preferences = DISPLAY_INDEX_PREFERENCES.read();
                 let c_idx = display_index_preferences.iter().find_map(|(c_idx, id)| {
@@ -1583,7 +1583,7 @@ impl StaticConfig {
 
                 monitor.update_workspaces_globals(offset);
 
-                for (j, ws) in monitor.workspaces_mut().iter_mut().enumerate() {
+                for (j, ws) in monitor.workspaces_mut().indexed_mut() {
                     if let Some(workspace_config) = monitor_config.workspaces.get(j) {
                         ws.load_static_config(workspace_config)?;
                     }
@@ -1670,7 +1670,7 @@ impl StaticConfig {
 
                     m.update_workspaces_globals(offset);
 
-                    for (j, ws) in m.workspaces_mut().iter_mut().enumerate() {
+                    for (j, ws) in m.workspaces_mut().indexed_mut() {
                         if let Some(workspace_config) = monitor_config.workspaces.get(j) {
                             ws.load_static_config(workspace_config)?;
                         }
