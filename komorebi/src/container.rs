@@ -1,11 +1,13 @@
-use std::collections::VecDeque;
+use std::sync::Arc;
 
 use getset::CopyGetters;
 use getset::Getters;
 use getset::Setters;
 use nanoid::nanoid;
 use serde::Deserialize;
+use serde::Deserializer;
 use serde::Serialize;
+use serde::Serializer;
 
 use crate::ring::Ring;
 use crate::window::Window;
@@ -15,11 +17,23 @@ use crate::Lockable;
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct Container {
     #[getset(get = "pub")]
-    id: String,
+    #[serde(serialize_with = "serialize", deserialize_with = "deserialize")]
+    id: Arc<str>,
     #[serde(default)]
     #[getset(get_copy = "pub", set = "pub")]
     locked: bool,
     windows: Ring<Window>,
+}
+
+/// Helper function to serialize the Arc<str>
+fn serialize<S: Serializer>(arc: &Arc<str>, s: S) -> Result<S::Ok, S::Error> {
+    s.serialize_str(arc.as_ref())
+}
+
+/// Helper function to deserialize the Arc<str>
+fn deserialize<'de, D: Deserializer<'de>>(d: D) -> Result<Arc<str>, D::Error> {
+    let s: &str = Deserialize::deserialize(d)?;
+    Ok(Arc::from(s))
 }
 
 impl_ring_elements!(Container, Window);
@@ -27,7 +41,7 @@ impl_ring_elements!(Container, Window);
 impl Default for Container {
     fn default() -> Self {
         Self {
-            id: nanoid!(),
+            id: Arc::from(nanoid!()),
             locked: false,
             windows: Ring::default(),
         }
@@ -46,22 +60,12 @@ impl Lockable for Container {
 }
 
 impl Container {
-    pub fn hide(&self, omit: Option<isize>) {
-        for window in self.windows().iter().rev() {
-            let mut should_hide = omit.is_none();
-
-            if !should_hide {
-                if let Some(omit) = omit {
-                    if omit != window.hwnd {
-                        should_hide = true
-                    }
-                }
-            }
-
-            if should_hide {
-                window.hide();
-            }
-        }
+    pub fn hide(&self, omit: Option<Window>) {
+        self.windows()
+            .iter()
+            .rev()
+            .filter(|&&window| Some(window) != omit)
+            .for_each(|window| window.hide())
     }
 
     pub fn restore(&self) {
@@ -76,7 +80,7 @@ impl Container {
     pub fn load_focused_window(&mut self) {
         let focused_idx = self.focused_window_idx();
 
-        for (i, window) in self.windows_mut().iter_mut().enumerate() {
+        for (i, window) in self.windows_mut().indexed_mut() {
             if i == focused_idx {
                 window.restore_with_border(false);
             } else {
@@ -85,48 +89,23 @@ impl Container {
         }
     }
 
-    pub fn hwnd_from_exe(&self, exe: &str) -> Option<isize> {
-        for window in self.windows() {
-            if let Ok(window_exe) = window.exe() {
-                if exe == window_exe {
-                    return Option::from(window.hwnd);
-                }
-            }
-        }
-
-        None
+    pub fn window_from_exe(&self, exe: &str) -> Option<Window> {
+        self.windows()
+            .iter()
+            .find_map(|win| win.exe().ok().filter(|e| e == exe).map(|_| *win))
     }
 
     pub fn idx_from_exe(&self, exe: &str) -> Option<usize> {
-        for (idx, window) in self.windows().iter().enumerate() {
-            if let Ok(window_exe) = window.exe() {
-                if exe == window_exe {
-                    return Option::from(idx);
-                }
-            }
-        }
-
-        None
+        self.windows()
+            .position(|win| win.exe().ok().as_deref() == Some(exe))
     }
 
-    pub fn contains_window(&self, hwnd: isize) -> bool {
-        for window in self.windows() {
-            if window.hwnd == hwnd {
-                return true;
-            }
-        }
-
-        false
+    pub fn contains_window(&self, window: Window) -> bool {
+        self.windows().contains(&window)
     }
 
-    pub fn idx_for_window(&self, hwnd: isize) -> Option<usize> {
-        for (i, window) in self.windows().iter().enumerate() {
-            if window.hwnd == hwnd {
-                return Option::from(i);
-            }
-        }
-
-        None
+    pub fn idx_for_window(&self, window: Window) -> Option<usize> {
+        self.windows().position(|win| *win == window)
     }
 
     pub fn remove_window_by_idx(&mut self, idx: usize) -> Option<Window> {
@@ -145,7 +124,7 @@ impl Container {
         self.focus_window(self.windows().len().saturating_sub(1));
         let focused_window_idx = self.focused_window_idx();
 
-        for (i, window) in self.windows().iter().enumerate() {
+        for (i, window) in self.windows().indexed() {
             if i != focused_window_idx {
                 window.hide();
             }
@@ -173,12 +152,12 @@ mod tests {
         }
 
         // Should return true for existing windows
-        assert!(container.contains_window(1));
-        assert_eq!(container.idx_for_window(1), Some(1));
+        assert!(container.contains_window(Window::from(1)));
+        assert_eq!(container.idx_for_window(Window::from(1)), Some(1));
 
         // Should return false since window 4 doesn't exist
-        assert!(!container.contains_window(4));
-        assert_eq!(container.idx_for_window(4), None);
+        assert!(!container.contains_window(Window::from(4)));
+        assert_eq!(container.idx_for_window(Window::from(4)), None);
     }
 
     #[test]
@@ -196,7 +175,7 @@ mod tests {
         assert_eq!(container.windows().len(), 2);
 
         // Should return false since window 1 was removed
-        assert!(!container.contains_window(1));
+        assert!(!container.contains_window(Window::from(1)));
     }
 
     #[test]
@@ -228,7 +207,7 @@ mod tests {
 
         assert_eq!(container.windows().len(), 1);
         assert_eq!(container.focused_window_idx(), 0);
-        assert!(container.contains_window(1));
+        assert!(container.contains_window(Window::from(1)));
     }
 
     #[test]
@@ -264,10 +243,10 @@ mod tests {
         }
 
         // Should return the index of the window
-        assert_eq!(container.idx_for_window(1), Some(1));
+        assert_eq!(container.idx_for_window(Window::from(1)), Some(1));
 
         // Should return None since window 4 doesn't exist
-        assert_eq!(container.idx_for_window(4), None);
+        assert_eq!(container.idx_for_window(Window::from(4)), None);
     }
 
     #[test]
@@ -279,7 +258,7 @@ mod tests {
         let container: Container = serde_json::from_str(json).expect("Should deserialize");
 
         assert!(!container.locked());
-        assert_eq!(container.id(), "test-1");
+        assert_eq!(&**container.id(), "test-1");
         assert!(container.windows().is_empty());
 
         let json = r#"{
@@ -287,9 +266,12 @@ mod tests {
             "windows": { "elements": [ { "hwnd": 5 }, { "hwnd": 9 } ], "focused": 1 }
         }"#;
         let container: Container = serde_json::from_str(json).unwrap();
-        assert_eq!(container.id(), "test-2");
+        assert_eq!(&**container.id(), "test-2");
         assert!(!container.locked());
-        assert_eq!(container.windows(), &[Window::from(5), Window::from(9)]);
+        assert_eq!(
+            &container.windows().to_vec(Clone::clone),
+            &[Window::from(5), Window::from(9)]
+        );
         assert_eq!(container.focused_window_idx(), 1);
     }
 

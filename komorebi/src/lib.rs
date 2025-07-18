@@ -8,7 +8,6 @@ pub mod ring;
 pub mod container;
 pub mod core;
 pub mod focus_manager;
-pub mod lockable_sequence;
 pub mod monitor;
 pub mod monitor_reconciliator;
 pub mod process_command;
@@ -76,7 +75,7 @@ use winreg::enums::HKEY_CURRENT_USER;
 use winreg::RegKey;
 
 lazy_static! {
-    static ref HIDDEN_HWNDS: Arc<Mutex<Vec<isize>>> = Arc::new(Mutex::new(vec![]));
+    static ref HIDDEN_WINDOWS: Arc<Mutex<Vec<Window>>> = Arc::new(Mutex::new(vec![]));
     static ref LAYERED_WHITELIST: Arc<Mutex<Vec<MatchingRule>>> = Arc::new(Mutex::new(vec![
         MatchingRule::Simple(IdWithIdentifier {
             kind: ApplicationIdentifier::Exe,
@@ -200,8 +199,7 @@ lazy_static! {
 
             assert!(
                 home.is_dir(),
-                "$Env:KOMOREBI_CONFIG_HOME is set to '{}', which is not a valid directory",
-                home_path
+                "$Env:KOMOREBI_CONFIG_HOME is set to '{home_path}', which is not a valid directory",
             );
 
 

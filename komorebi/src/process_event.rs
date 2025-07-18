@@ -18,7 +18,6 @@ use crate::current_virtual_desktop;
 use crate::notify_subscribers;
 use crate::stackbar_manager;
 use crate::transparency_manager;
-use crate::window::should_act;
 use crate::window::RuleDebug;
 use crate::window_manager::WindowManager;
 use crate::window_manager_event::WindowManagerEvent;
@@ -34,7 +33,7 @@ use crate::VirtualDesktopNotification;
 use crate::Window;
 use crate::CURRENT_VIRTUAL_DESKTOP;
 use crate::FLOATING_APPLICATIONS;
-use crate::HIDDEN_HWNDS;
+use crate::HIDDEN_WINDOWS;
 use crate::REGEX_IDENTIFIERS;
 use crate::TRAY_AND_MULTI_WINDOW_IDENTIFIERS;
 
@@ -83,19 +82,13 @@ impl WindowManager {
             if transparency_manager::TRANSPARENCY_ENABLED.load_consume() {
                 for m in self.monitors() {
                     for w in m.workspaces() {
-                        let event_hwnd = event.window().hwnd;
+                        let event_win = event.window();
 
-                        let visible_hwnds = w
-                            .visible_windows()
-                            .iter()
-                            .flatten()
-                            .map(|w| w.hwnd)
-                            .collect::<Vec<_>>();
+                        let is_visible = w.visible_windows().any(|&win| win == event_win);
 
-                        let contains_managed_window = w.contains_managed_window(event_hwnd);
+                        let contains_managed_window = w.contains_managed_window(event_win);
 
-                        // this is for an old stackbar clicking fix
-                        if contains_managed_window && !visible_hwnds.contains(&event_hwnd) {
+                        if contains_managed_window && !is_visible {
                             transparency_override = true;
                         }
 
@@ -113,7 +106,7 @@ impl WindowManager {
 
             if !transparency_override {
                 if rule_debug.matches_ignore_identifier.is_some() {
-                    border_manager::send_notification(Option::from(event.hwnd()));
+                    border_manager::send_notification(Some(event.window()));
                 }
 
                 return Ok(());
@@ -230,74 +223,58 @@ impl WindowManager {
                 self.has_pending_raise_op = false;
             }
             WindowManagerEvent::Destroy(_, window) | WindowManagerEvent::Unmanage(window) => {
-                if self.focused_workspace()?.contains_window(window.hwnd) {
-                    self.focused_workspace_mut()?.remove_window(window.hwnd)?;
+                if self.focused_workspace()?.contains_window(window) {
+                    self.focused_workspace_mut()?.remove_window(window)?;
                     self.update_focused_workspace(false, false)?;
 
-                    let mut already_moved_window_handles = self.already_moved_window_handles.lock();
+                    let mut already_moved_windows = self.already_moved_windows.lock();
 
-                    already_moved_window_handles.remove(&window.hwnd);
+                    already_moved_windows.remove(&window);
                 }
             }
             WindowManagerEvent::Minimize(_, window) => {
                 let mut hide = false;
 
                 {
-                    let programmatically_hidden_hwnds = HIDDEN_HWNDS.lock();
-                    if !programmatically_hidden_hwnds.contains(&window.hwnd) {
+                    let programmatically_hidden_wins = HIDDEN_WINDOWS.lock();
+                    if !programmatically_hidden_wins.contains(&window) {
                         hide = true;
                     }
                 }
 
                 if hide {
-                    self.focused_workspace_mut()?.remove_window(window.hwnd)?;
+                    self.focused_workspace_mut()?.remove_window(window)?;
                     self.update_focused_workspace(false, false)?;
                 }
             }
             WindowManagerEvent::Hide(_, window) => {
                 let mut hide = false;
-                // Some major applications unfortunately send the HIDE signal when they are being
-                // minimized or destroyed. Applications that close to the tray also do the same,
-                // and will have is_window() return true, as the process is still running even if
-                // the window is not visible.
-                {
-                    let tray_and_multi_window_identifiers =
-                        TRAY_AND_MULTI_WINDOW_IDENTIFIERS.lock();
-                    let regex_identifiers = REGEX_IDENTIFIERS.lock();
+                if !window.is_window() {
+                    // If the window is already invalid, do not waste resources on rules and locks
+                    hide = true;
+                } else {
+                    // Some major applications unfortunately send the HIDE signal when they are being
+                    // minimized or destroyed. Applications that close to the tray also do the same,
+                    // and will have is_window() return true, as the process is still running even if
+                    // the window is not visible.
+                    let should_act = window.matches_rules(
+                        &*TRAY_AND_MULTI_WINDOW_IDENTIFIERS.lock(),
+                        &REGEX_IDENTIFIERS.lock(),
+                    );
 
-                    let title = &window.title()?;
-                    let exe_name = &window.exe()?;
-                    let class = &window.class()?;
-                    let path = &window.path()?;
-
-                    // We don't want to purge windows that have been deliberately hidden by us, eg. when
-                    // they are not on the top of a container stack.
-                    let programmatically_hidden_hwnds = HIDDEN_HWNDS.lock();
-                    let should_act = should_act(
-                        title,
-                        exe_name,
-                        class,
-                        path,
-                        &tray_and_multi_window_identifiers,
-                        &regex_identifiers,
-                    )
-                    .is_some();
-
-                    if !window.is_window()
-                        || (should_act && !programmatically_hidden_hwnds.contains(&window.hwnd))
-                    {
+                    if should_act && !HIDDEN_WINDOWS.lock().contains(&window) {
                         hide = true;
                     }
                 }
 
                 if hide {
-                    self.focused_workspace_mut()?.remove_window(window.hwnd)?;
+                    self.focused_workspace_mut()?.remove_window(window)?;
                     self.update_focused_workspace(false, false)?;
                 }
 
-                let mut already_moved_window_handles = self.already_moved_window_handles.lock();
+                let mut already_moved_windows = self.already_moved_windows.lock();
 
-                already_moved_window_handles.remove(&window.hwnd);
+                already_moved_windows.remove(&window);
             }
             WindowManagerEvent::FocusChange(_, window) => {
                 // don't want to trigger the full workspace updates when there are no managed
@@ -312,17 +289,12 @@ impl WindowManager {
                 }
 
                 let workspace = self.focused_workspace_mut()?;
-                let floating_window_idx = workspace
-                    .floating_windows()
-                    .iter()
-                    .position(|w| w.hwnd == window.hwnd);
+                let floating_window_idx = workspace.floating_windows().position(|w| *w == window);
 
                 match floating_window_idx {
                     None => {
-                        if let Some(w) = workspace.maximized_window() {
-                            if w.hwnd == window.hwnd {
-                                return Ok(());
-                            }
+                        if workspace.maximized_window().is_some_and(|w| w == window) {
+                            return Ok(());
                         }
 
                         if let Some(monocle) = workspace.monocle_container() {
@@ -330,7 +302,7 @@ impl WindowManager {
                                 window.focus(false)?;
                             }
                         } else {
-                            workspace.focus_container_by_window(window.hwnd)?;
+                            workspace.focus_container_by_window(window)?;
                         }
 
                         workspace.set_layer(WorkspaceLayer::Tiling);
@@ -389,7 +361,7 @@ impl WindowManager {
                         }
                     }
 
-                    if let Some((m_idx, w_idx)) = self.known_hwnds.get(&window.hwnd) {
+                    if let Some((m_idx, w_idx)) = self.known_wins.get(&window) {
                         if let Some(focused_workspace_idx) = self
                             .monitors()
                             .get(*m_idx)
@@ -414,30 +386,14 @@ impl WindowManager {
                             focused_workspace_idx,
                         );
                         let workspace = self.focused_workspace_mut()?;
-                        let workspace_contains_window = workspace.contains_window(window.hwnd);
+                        let workspace_contains_window = workspace.contains_window(window);
                         let monocle_container = workspace.monocle_container().clone();
 
                         if !workspace_contains_window && needs_reconciliation.is_none() {
-                            let floating_applications = FLOATING_APPLICATIONS.lock();
-                            let mut should_float = false;
-
-                            if !floating_applications.is_empty() {
-                                let regex_identifiers = REGEX_IDENTIFIERS.lock();
-
-                                if let (Ok(title), Ok(exe_name), Ok(class), Ok(path)) =
-                                    (window.title(), window.exe(), window.class(), window.path())
-                                {
-                                    should_float = should_act(
-                                        &title,
-                                        &exe_name,
-                                        &class,
-                                        &path,
-                                        &floating_applications,
-                                        &regex_identifiers,
-                                    )
-                                    .is_some();
-                                }
-                            }
+                            let should_float = window.matches_rules(
+                                &*FLOATING_APPLICATIONS.lock(),
+                                &REGEX_IDENTIFIERS.lock(),
+                            );
 
                             if behaviour.float_override
                                 || behaviour.floating_layer_override
@@ -508,7 +464,7 @@ impl WindowManager {
                             let mut monocle_window_event = false;
                             if let Some(ref monocle) = monocle_container {
                                 if let Some(monocle_window) = monocle.focused_window() {
-                                    if monocle_window.hwnd == window.hwnd {
+                                    if *monocle_window == window {
                                         monocle_window_event = true;
                                     }
                                 }
@@ -532,10 +488,10 @@ impl WindowManager {
                     .ok_or_else(|| anyhow!("there is no monitor with this idx"))?
                     .focused_workspace_idx();
 
-                WindowsApi::bring_window_to_top(window.hwnd)?;
+                WindowsApi::bring_window_to_top(window)?;
 
                 let pending_move_op = Arc::make_mut(&mut self.pending_move_op);
-                *pending_move_op = Option::from((monitor_idx, workspace_idx, window.hwnd));
+                *pending_move_op = Option::from((monitor_idx, workspace_idx, window));
             }
             WindowManagerEvent::MoveResizeEnd(_, window) => {
                 // We need this because if the event ends on a different monitor,
@@ -547,12 +503,12 @@ impl WindowManager {
 
                 // If the window handles don't match then something went wrong and the pending move
                 // is not related to this current move, if so abort this operation.
-                if let Some((_, _, w_hwnd)) = pending {
-                    if w_hwnd != window.hwnd {
+                if let Some((_, _, win)) = pending {
+                    if win != window {
                         color_eyre::eyre::bail!(
-                            "window handles for move operation don't match: {} != {}",
-                            w_hwnd,
-                            window.hwnd
+                            "window handles for move operation don't match: {:?} != {:?}",
+                            win,
+                            window
                         );
                     }
                 }
@@ -568,7 +524,7 @@ impl WindowManager {
 
                 let workspace = self.focused_workspace_mut()?;
                 let focused_container_idx = workspace.focused_container_idx();
-                let new_position = WindowsApi::window_rect(window.hwnd)?;
+                let new_position = WindowsApi::window_rect(window)?;
                 let old_position = *workspace
                     .latest_layout()
                     .get(focused_container_idx)
@@ -582,7 +538,7 @@ impl WindowManager {
                 // This will be true if we have moved to another monitor
                 let mut moved_across_monitors = false;
 
-                if let Some((m_idx, _)) = self.known_hwnds.get(&window.hwnd) {
+                if let Some((m_idx, _)) = self.known_wins.get(&window) {
                     if *m_idx != target_monitor_idx {
                         moved_across_monitors = true;
                     }
@@ -608,7 +564,7 @@ impl WindowManager {
                                 .get(origin_workspace_idx)
                                 .ok_or_else(|| anyhow!("cannot get workspace idx"))?;
 
-                            let managed_window = origin_workspace.contains_window(window.hwnd);
+                            let managed_window = origin_workspace.contains_window(window);
 
                             if !managed_window {
                                 moved_across_monitors = false;
@@ -618,7 +574,7 @@ impl WindowManager {
                 }
 
                 let workspace = self.focused_workspace_mut()?;
-                if (*workspace.tile() && workspace.contains_managed_window(window.hwnd))
+                if (*workspace.tile() && workspace.contains_managed_window(window))
                     || moved_across_monitors
                 {
                     let resize = Rect {
@@ -799,7 +755,7 @@ impl WindowManager {
             initial_state.has_been_modified(self.as_ref()),
         )?;
 
-        border_manager::send_notification(Some(event.hwnd()));
+        border_manager::send_notification(Some(event.window()));
         transparency_manager::send_notification();
         stackbar_manager::send_notification();
 
@@ -828,7 +784,7 @@ impl WindowManager {
 
         let mut needs_reconciliation = None;
 
-        if let Some((m_idx, ws_idx)) = self.known_hwnds.get(&window.hwnd) {
+        if let Some((m_idx, ws_idx)) = self.known_wins.get(&window) {
             if (*m_idx, *ws_idx) == focused_pair {
                 if let Some(target_workspace) = self
                     .monitors()
@@ -838,14 +794,14 @@ impl WindowManager {
                     if let Some(monocle_with_window) = target_workspace
                         .monocle_container()
                         .as_ref()
-                        .and_then(|m| m.contains_window(window.hwnd).then_some(m))
+                        .filter(|m| m.contains_window(window))
                     {
                         if monocle_with_window.focused_window() != Some(&window) {
                             tracing::debug!("Needs reconciliation within a monocled stack");
                             needs_reconciliation = Some((*m_idx, *ws_idx));
                         }
                     } else {
-                        let c_idx = target_workspace.container_idx_for_window(window.hwnd);
+                        let c_idx = target_workspace.container_idx_for_window(window);
 
                         if let Some(target_container) =
                             c_idx.and_then(|c_idx| target_workspace.containers().get(c_idx))
@@ -894,19 +850,12 @@ impl WindowManager {
                 if let Some((monocle, idx)) = workspace
                     .monocle_container_mut()
                     .as_mut()
-                    .and_then(|m| m.idx_for_window(window.hwnd).map(|i| (m, i)))
+                    .and_then(|m| m.idx_for_window(window).map(|i| (m, i)))
                 {
                     monocle.focus_window(idx);
-                } else if workspace
-                    .floating_windows()
-                    .iter()
-                    .any(|w| w.hwnd == window.hwnd)
-                {
+                } else if workspace.floating_windows().any(|&w| w == window) {
                     layer = WorkspaceLayer::Floating;
-                } else if !workspace
-                    .maximized_window()
-                    .is_some_and(|w| w.hwnd == window.hwnd)
-                {
+                } else if !workspace.maximized_window().is_some_and(|w| w == window) {
                     // If the window is the maximized window do nothing, else we
                     // reintegrate the monocle if it exists and then focus the
                     // container
@@ -920,7 +869,7 @@ impl WindowManager {
                         }
                         workspace.reintegrate_monocle_container()?;
                     }
-                    workspace.focus_container_by_window(window.hwnd)?;
+                    workspace.focus_container_by_window(window)?;
                 }
                 workspace.set_layer(layer);
             }

@@ -41,8 +41,7 @@ impl<'de> Deserialize<'de> for KomorebiLayout {
         let s: String = String::deserialize(deserializer)?;
 
         // Attempt to deserialize the string as a DefaultLayout
-        if let Ok(default_layout) =
-            from_str::<komorebi_client::DefaultLayout>(&format!("\"{}\"", s))
+        if let Ok(default_layout) = from_str::<komorebi_client::DefaultLayout>(&format!("\"{s}\""))
         {
             return Ok(KomorebiLayout::Default(default_layout));
         }
@@ -53,7 +52,7 @@ impl<'de> Deserialize<'de> for KomorebiLayout {
             "Floating" => Ok(KomorebiLayout::Floating),
             "Paused" => Ok(KomorebiLayout::Paused),
             "Custom" => Ok(KomorebiLayout::Custom),
-            _ => Err(Error::custom(format!("Invalid layout: {}", s))),
+            _ => Err(Error::custom(format!("Invalid layout: {s}"))),
         }
     }
 }

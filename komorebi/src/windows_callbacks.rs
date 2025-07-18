@@ -25,10 +25,10 @@ use windows_core::BOOL;
 pub extern "system" fn enum_window(hwnd: HWND, lparam: LPARAM) -> BOOL {
     let containers = unsafe { &mut *(lparam.0 as *mut VecDeque<Container>) };
 
-    let is_visible = WindowsApi::is_window_visible(hwnd.0 as isize);
-    let is_window = WindowsApi::is_window(hwnd.0 as isize);
-    let is_minimized = WindowsApi::is_iconic(hwnd.0 as isize);
-    let is_maximized = WindowsApi::is_zoomed(hwnd.0 as isize);
+    let is_visible = WindowsApi::is_window_visible(hwnd);
+    let is_window = WindowsApi::is_window(hwnd);
+    let is_minimized = WindowsApi::is_iconic(hwnd);
+    let is_maximized = WindowsApi::is_zoomed(hwnd);
 
     if is_visible && is_window && !is_minimized {
         let window = Window::from(hwnd);
@@ -36,7 +36,7 @@ pub extern "system" fn enum_window(hwnd: HWND, lparam: LPARAM) -> BOOL {
         if let Ok(should_manage) = window.should_manage(None, &mut RuleDebug::default()) {
             if should_manage {
                 if is_maximized {
-                    WindowsApi::restore_window(window.hwnd);
+                    WindowsApi::restore_window(window);
                 }
 
                 let mut container = Container::default();
@@ -52,9 +52,9 @@ pub extern "system" fn enum_window(hwnd: HWND, lparam: LPARAM) -> BOOL {
 pub extern "system" fn alt_tab_windows(hwnd: HWND, lparam: LPARAM) -> BOOL {
     let windows = unsafe { &mut *(lparam.0 as *mut Vec<Window>) };
 
-    let is_visible = WindowsApi::is_window_visible(hwnd.0 as isize);
-    let is_window = WindowsApi::is_window(hwnd.0 as isize);
-    let is_minimized = WindowsApi::is_iconic(hwnd.0 as isize);
+    let is_visible = WindowsApi::is_window_visible(hwnd);
+    let is_window = WindowsApi::is_window(hwnd);
+    let is_minimized = WindowsApi::is_iconic(hwnd);
 
     if is_visible && is_window && !is_minimized {
         let window = Window::from(hwnd);
@@ -105,7 +105,7 @@ pub extern "system" fn win_event_hook(
         WinEvent::ObjectLocationChange | WinEvent::ObjectDestroy
     ) && !has_filtered_style(hwnd)
     {
-        let border_info = border_manager::window_border(hwnd.0 as isize);
+        let border_info = border_manager::window_border(Window::from(hwnd));
 
         if let Some(border_info) = border_info {
             unsafe {
@@ -126,14 +126,14 @@ pub extern "system" fn win_event_hook(
     // so here we can just fire another event at the border manager when the system has finally
     // registered the new foreground window and this time the correct border colors will be applied
     if matches!(winevent, WinEvent::SystemForeground) && !has_filtered_style(hwnd) {
-        border_manager::send_notification(Some(hwnd.0 as isize));
+        border_manager::send_notification(Some(Window::from(hwnd)));
     }
 
     let event_type = match WindowManagerEvent::from_win_event(winevent, window) {
         None => {
             tracing::trace!(
                 "Unhandled WinEvent: {winevent} (hwnd: {}, exe: {}, title: {}, class: {})",
-                window.hwnd,
+                window.as_isize(),
                 window.exe().unwrap_or_default(),
                 window.title().unwrap_or_default(),
                 window.class().unwrap_or_default()

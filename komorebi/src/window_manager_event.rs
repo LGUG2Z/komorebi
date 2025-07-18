@@ -4,7 +4,6 @@ use std::fmt::Formatter;
 use serde::Deserialize;
 use serde::Serialize;
 
-use crate::window::should_act;
 use crate::window::Window;
 use crate::winevent::WinEvent;
 use crate::OBJECT_NAME_CHANGE_ON_LAUNCH;
@@ -103,8 +102,8 @@ impl WindowManagerEvent {
         }
     }
 
-    pub const fn hwnd(self) -> isize {
-        self.window().hwnd
+    pub fn hwnd(self) -> isize {
+        self.window().as_isize()
     }
 
     pub const fn title(self) -> &'static str {
@@ -176,28 +175,14 @@ impl WindowManagerEvent {
                 // [yatta\src\windows_event.rs:110] event = 32780 ObjectNameChange
                 // [yatta\src\windows_event.rs:110] event = 32779 ObjectLocationChange
 
-                let object_name_change_on_launch = OBJECT_NAME_CHANGE_ON_LAUNCH.lock();
-                let object_name_change_title_ignore_list =
-                    OBJECT_NAME_CHANGE_TITLE_IGNORE_LIST.lock();
-                let regex_identifiers = REGEX_IDENTIFIERS.lock();
-
-                let title = &window.title().ok()?;
-                let exe_name = &window.exe().ok()?;
-                let class = &window.class().ok()?;
-                let path = &window.path().ok()?;
-
-                let mut should_trigger_show = should_act(
-                    title,
-                    exe_name,
-                    class,
-                    path,
-                    &object_name_change_on_launch,
-                    &regex_identifiers,
-                )
-                .is_some();
+                let mut should_trigger_show = window.matches_rules(
+                    &*OBJECT_NAME_CHANGE_ON_LAUNCH.lock(),
+                    &REGEX_IDENTIFIERS.lock(),
+                );
 
                 if should_trigger_show {
-                    for r in &*object_name_change_title_ignore_list {
+                    let title = &window.title().ok()?;
+                    for r in &*OBJECT_NAME_CHANGE_TITLE_IGNORE_LIST.lock() {
                         if r.is_match(title) {
                             should_trigger_show = false;
                         }
