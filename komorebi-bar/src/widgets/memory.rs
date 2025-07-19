@@ -79,9 +79,9 @@ impl Memory {
         MemoryOutput {
             label: match self.label_prefix {
                 LabelPrefix::Text | LabelPrefix::IconAndText => {
-                    format!("RAM: {}%", usage)
+                    format!("RAM: {usage}%")
                 }
-                LabelPrefix::None | LabelPrefix::Icon => format!("{}%", usage),
+                LabelPrefix::None | LabelPrefix::Icon => format!("{usage}%"),
             },
             selected,
         }
@@ -128,7 +128,7 @@ impl BarWidget for Memory {
                         if let Err(error) =
                             Command::new("cmd.exe").args(["/C", "taskmgr.exe"]).spawn()
                         {
-                            eprintln!("{}", error)
+                            eprintln!("{error}")
                         }
                     }
                 });

@@ -128,7 +128,7 @@ fn stop_powershell() -> Result<()> {
 
 pub fn exec_powershell(cmd: &str) -> Result<()> {
     if let Some(session_stdin) = SESSION_STDIN.lock().as_mut() {
-        if let Err(e) = writeln!(session_stdin, "{}", cmd) {
+        if let Err(e) = writeln!(session_stdin, "{cmd}") {
             tracing::error!(error = %e, cmd = cmd, "failed to write command to PowerShell stdin");
             return Err(e);
         }
@@ -635,8 +635,7 @@ impl Komobar {
 
                         assert!(
                             home.is_dir(),
-                            "$Env:KOMOREBI_CONFIG_HOME is set to '{}', which is not a valid directory",
-                            home_path
+                            "$Env:KOMOREBI_CONFIG_HOME is set to '{home_path}', which is not a valid directory"
                         );
 
                         home

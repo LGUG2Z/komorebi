@@ -148,7 +148,7 @@ impl BarWidget for Update {
                             )])
                             .spawn()
                         {
-                            eprintln!("{}", error)
+                            eprintln!("{error}")
                         }
                     }
                 });

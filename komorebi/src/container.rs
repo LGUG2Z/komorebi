@@ -302,7 +302,7 @@ mod tests {
         let deserialized: Container =
             serde_json::from_str(&serialized).expect("Should deserialize");
 
-        assert_eq!(deserialized.locked(), true);
+        assert!(deserialized.locked());
         assert_eq!(deserialized.id(), container.id());
     }
 }

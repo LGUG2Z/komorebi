@@ -801,7 +801,7 @@ mod tests {
         let wm = match WindowManager::new(receiver, Some(socket_path.clone())) {
             Ok(manager) => manager,
             Err(e) => {
-                panic!("Failed to create WindowManager: {}", e);
+                panic!("Failed to create WindowManager: {e}");
             }
         };
 
@@ -829,7 +829,7 @@ mod tests {
             Ok(notification) => {
                 assert_eq!(notification, MonitorNotification::ResolutionScalingChanged);
             }
-            Err(e) => panic!("Failed to receive MonitorNotification: {}", e),
+            Err(e) => panic!("Failed to receive MonitorNotification: {e}"),
         }
     }
 
@@ -849,7 +849,7 @@ mod tests {
         for _ in 0..20 {
             let notification = match receiver.try_recv() {
                 Ok(notification) => notification,
-                Err(e) => panic!("Failed to receive MonitorNotification: {}", e),
+                Err(e) => panic!("Failed to receive MonitorNotification: {e}"),
             };
             assert_eq!(
                 notification,
@@ -960,7 +960,7 @@ mod tests {
             Ok(notification) => {
                 assert_eq!(notification, MonitorNotification::DisplayConnectionChange);
             }
-            Err(e) => panic!("Failed to receive MonitorNotification: {}", e),
+            Err(e) => panic!("Failed to receive MonitorNotification: {e}"),
         }
     }
 

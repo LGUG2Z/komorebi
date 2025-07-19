@@ -331,12 +331,12 @@ mod tests {
         let mut ring = test_deque(&[(0, false), (1, true), (2, false), (3, false)]);
         ring.swap_respecting_locks(0, 1);
         assert_eq!(vals(&ring), vec![1, 0, 2, 3]);
-        assert_eq!(ring[0].locked, false);
-        assert_eq!(ring[1].locked, true);
+        assert!(!ring[0].locked);
+        assert!(ring[1].locked);
         ring.swap_respecting_locks(0, 1);
         assert_eq!(vals(&ring), vec![0, 1, 2, 3]);
-        assert_eq!(ring[0].locked, false);
-        assert_eq!(ring[1].locked, true);
+        assert!(!ring[0].locked);
+        assert!(ring[1].locked);
 
         // Both locked
         let mut ring = test_deque(&[(0, true), (1, false), (2, true)]);

@@ -314,7 +314,7 @@ impl Network {
             .clicked()
         {
             if let Err(error) = Command::new("cmd.exe").args(["/C", "ncpa"]).spawn() {
-                eprintln!("{}", error);
+                eprintln!("{error}");
             }
         }
     }
@@ -535,6 +535,6 @@ enum DataUnit {
 
 impl fmt::Display for DataUnit {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{:?}", self)
+        write!(f, "{self:?}")
     }
 }

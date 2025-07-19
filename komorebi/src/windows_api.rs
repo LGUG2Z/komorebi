@@ -1180,6 +1180,7 @@ impl WindowsApi {
 
     #[allow(dead_code)]
     pub fn enable_focus_follows_mouse() -> Result<()> {
+        #[allow(clippy::manual_dangling_ptr)]
         Self::system_parameters_info_w(
             SPI_SETACTIVEWINDOWTRACKING,
             0,
