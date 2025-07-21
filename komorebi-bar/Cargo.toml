@@ -22,7 +22,7 @@ font-loader = "0.11"
 hotwatch = { workspace = true }
 image = "0.25"
 lazy_static = { workspace = true }
-netdev = "0.35"
+netdev = "0.36"
 num = "0.4"
 num-derive = "0.4"
 num-traits = "0.2"
