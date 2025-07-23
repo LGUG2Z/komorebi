@@ -209,25 +209,6 @@ impl WindowManager {
         // We don't have From implemented for &mut WindowManager
         let initial_state = State::from(self.as_ref());
 
-        match message {
-            SocketMessage::CycleFocusEmptyWorkspace(_)
-            | SocketMessage::CycleFocusWorkspace(_)
-            | SocketMessage::FocusWorkspaceNumber(_) => {
-                if let Some(monitor) = self.focused_monitor_mut() {
-                    let idx = monitor.focused_workspace_idx();
-                    monitor.set_last_focused_workspace(Option::from(idx));
-                }
-            }
-            SocketMessage::FocusMonitorWorkspaceNumber(target_monitor_idx, _) => {
-                let idx = self.focused_workspace_idx_for_monitor_idx(target_monitor_idx)?;
-                if let Some(monitor) = self.monitors_mut().get_mut(target_monitor_idx) {
-                    monitor.set_last_focused_workspace(Option::from(idx));
-                }
-            }
-
-            _ => {}
-        };
-
         let mut force_update_borders = false;
         match message {
             SocketMessage::Promote => self.promote_container_to_front()?,
