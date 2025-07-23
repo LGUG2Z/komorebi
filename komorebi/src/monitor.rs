@@ -500,7 +500,7 @@ impl Monitor {
             if workspaces.get(idx).is_none() {
                 workspaces.resize(idx + 1, Workspace::default());
             }
-
+            self.set_last_focused_workspace(Some(self.workspaces.focused_idx()));
             self.workspaces.focus(idx);
         }
 
