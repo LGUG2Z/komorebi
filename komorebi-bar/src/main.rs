@@ -103,7 +103,7 @@ fn process_hwnd() -> Option<isize> {
 }
 
 pub enum KomorebiEvent {
-    Notification(komorebi_client::Notification),
+    Notification(Box<komorebi_client::Notification>),
     Reconnect,
 }
 
@@ -377,7 +377,7 @@ fn main() -> color_eyre::Result<()> {
                                         Ok(notification) => {
                                             tracing::debug!("received notification from komorebi");
 
-                                            if let Err(error) = tx_gui.send(KomorebiEvent::Notification(notification)) {
+                                            if let Err(error) = tx_gui.send(KomorebiEvent::Notification(Box::new(notification))) {
                                                 tracing::error!("could not send komorebi notification update to gui thread: {error}")
                                             }
 

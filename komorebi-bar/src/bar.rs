@@ -1006,7 +1006,7 @@ impl eframe::App for Komobar {
                         .handle_notification(
                             ctx,
                             self.monitor_index,
-                            notification,
+                            *notification,
                             self.bg_color.clone(),
                             self.bg_color_with_alpha.clone(),
                             self.config.transparency_alpha,
