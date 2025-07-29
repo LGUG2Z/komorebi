@@ -75,3 +75,9 @@ features = [
     "Media",
     "Media_Control"
 ]
+
+[profile.release]
+lto = true
+panic = "abort"
+codegen-units = 1
+strip = true
