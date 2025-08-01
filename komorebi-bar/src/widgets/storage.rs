@@ -40,7 +40,9 @@ impl From<StorageConfig> for Storage {
             disks: Disks::new_with_refreshed_list(),
             data_refresh_interval: value.data_refresh_interval.unwrap_or(10),
             label_prefix: value.label_prefix.unwrap_or(LabelPrefix::IconAndText),
-            storage_display_name: value.storage_display_name.unwrap_or(StorageDisplayName::Mount),
+            storage_display_name: value
+                .storage_display_name
+                .unwrap_or(StorageDisplayName::Mount),
             auto_select_over: value.auto_select_over.map(|o| o.clamp(1, 100)),
             auto_hide_under: value.auto_hide_under.map(|o| o.clamp(1, 100)),
             last_updated: Instant::now(),
@@ -57,7 +59,7 @@ pub enum StorageDisplayName {
     Name,
     /// Display label as mount then name eg. C:\ Local Disk
     MountAndName,
-    /// Display label as name then mount eg. Local Disk C:\ 
+    /// Display label as name then mount eg. Local Disk C:\
     NameAndMount,
 }
 
@@ -93,8 +95,12 @@ impl Storage {
             let display_name = match self.storage_display_name {
                 StorageDisplayName::Mount => mount.to_string_lossy(),
                 StorageDisplayName::Name => name.to_string_lossy(),
-                StorageDisplayName::MountAndName => mount.to_string_lossy() + name.to_string_lossy(),
-                StorageDisplayName::NameAndMount => name.to_string_lossy() + mount.to_string_lossy()
+                StorageDisplayName::MountAndName => {
+                    mount.to_string_lossy() + name.to_string_lossy()
+                }
+                StorageDisplayName::NameAndMount => {
+                    name.to_string_lossy() + mount.to_string_lossy()
+                }
             };
             let total = disk.total_space();
             let available = disk.available_space();
