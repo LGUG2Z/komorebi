@@ -8289,10 +8289,45 @@
             "null"
           ],
           "default": true
+        },
+        "storage_display_name": {
+          "description": "Storage display name",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/StorageDisplayName"
+            },
+            {
+              "type": "null"
+            }
+          ]
         }
       },
       "required": [
         "enable"
+      ]
+    },
+    "StorageDisplayName": {
+      "oneOf": [
+        {
+          "description": "Display label as mount point eg. C:\\",
+          "type": "string",
+          "const": "Mount"
+        },
+        {
+          "description": "Display label as name eg. Local Disk",
+          "type": "string",
+          "const": "Name"
+        },
+        {
+          "description": "Display label as mount then name eg. C:\\ Local Disk",
+          "type": "string",
+          "const": "MountAndName"
+        },
+        {
+          "description": "Display label as name then mount eg. Local Disk C:\\",
+          "type": "string",
+          "const": "NameAndMount"
+        }
       ]
     },
     "SubscribeOptions": {

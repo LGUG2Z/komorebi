@@ -33,6 +33,8 @@ pub struct StorageConfig {
     /// Show removable disks
     #[cfg_attr(feature = "schemars", schemars(extend("default" = true)))]
     pub show_removable_disks: Option<bool>,
+    /// Storage display name
+    pub storage_display_name: Option<StorageDisplayName>,
     /// Select when the current percentage is over this value [[1-100]]
     pub auto_select_over: Option<u8>,
     /// Hide when the current percentage is under this value [[1-100]]
@@ -48,11 +50,27 @@ impl From<StorageConfig> for Storage {
             label_prefix: value.label_prefix.unwrap_or(LabelPrefix::IconAndText),
             show_read_only_disks: value.show_read_only_disks.unwrap_or(false),
             show_removable_disks: value.show_removable_disks.unwrap_or(true),
+            storage_display_name: value
+                .storage_display_name
+                .unwrap_or(StorageDisplayName::Mount),
             auto_select_over: value.auto_select_over.map(|o| o.clamp(1, 100)),
             auto_hide_under: value.auto_hide_under.map(|o| o.clamp(1, 100)),
             last_updated: Instant::now(),
         }
     }
+}
+
+#[derive(Copy, Clone, Debug, Serialize, Deserialize)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+pub enum StorageDisplayName {
+    /// Display label as mount point eg. C:\
+    Mount,
+    /// Display label as name eg. Local Disk
+    Name,
+    /// Display label as mount then name eg. C:\ Local Disk
+    MountAndName,
+    /// Display label as name then mount eg. Local Disk C:\
+    NameAndMount,
 }
 
 struct StorageDisk {
@@ -67,6 +85,7 @@ pub struct Storage {
     label_prefix: LabelPrefix,
     show_read_only_disks: bool,
     show_removable_disks: bool,
+    storage_display_name: StorageDisplayName,
     auto_select_over: Option<u8>,
     auto_hide_under: Option<u8>,
     last_updated: Instant,
@@ -90,6 +109,17 @@ impl Storage {
                 continue;
             }
             let mount = disk.mount_point();
+            let name = disk.name();
+            let display_name = match self.storage_display_name {
+                StorageDisplayName::Mount => mount.to_string_lossy(),
+                StorageDisplayName::Name => name.to_string_lossy(),
+                StorageDisplayName::MountAndName => {
+                    mount.to_string_lossy() + name.to_string_lossy()
+                }
+                StorageDisplayName::NameAndMount => {
+                    name.to_string_lossy() + mount.to_string_lossy()
+                }
+            };
             let total = disk.total_space();
             let available = disk.available_space();
             let used = total - available;
@@ -103,7 +133,7 @@ impl Storage {
                 disks.push(StorageDisk {
                     label: match self.label_prefix {
                         LabelPrefix::Text | LabelPrefix::IconAndText => {
-                            format!("{} {}%", mount.to_string_lossy(), percentage)
+                            format!("{} {}%", display_name, percentage)
                         }
                         LabelPrefix::None | LabelPrefix::Icon => format!("{percentage}%"),
                     },
