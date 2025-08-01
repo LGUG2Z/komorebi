@@ -1886,6 +1886,14 @@ if (!(Get-Process komorebi-bar -ErrorAction SilentlyContinue))
                     self.retile_all(false)?;
                 }
             }
+            SocketMessage::WorkspaceWorkAreaOffset(monitor_idx, workspace_idx, rect) => {
+                if let Some(monitor) = self.monitors_mut().get_mut(monitor_idx) {
+                    if let Some(workspace) = monitor.workspaces_mut().get_mut(workspace_idx) {
+                        workspace.set_work_area_offset(Option::from(rect));
+                        self.retile_all(false)?
+                    }
+                }
+            }
             SocketMessage::ToggleWindowBasedWorkAreaOffset => {
                 let workspace = self.focused_workspace_mut()?;
                 workspace.set_apply_window_based_work_area_offset(
