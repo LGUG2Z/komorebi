@@ -230,6 +230,9 @@ pub struct WorkspaceConfig {
     /// Enable or disable float override, which makes it so every new window opens in floating mode (default: false)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub float_override: Option<bool>,
+    /// Enable or disable tiling for the workspace (default: true)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tile: Option<bool>,
     /// Specify an axis on which to flip the selected layout (default: None)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub layout_flip: Option<Axis>,
@@ -278,6 +281,8 @@ impl From<&Workspace> for WorkspaceConfig {
             }
         });
 
+        let tile = if *value.tile() { None } else { Some(false) };
+
         Self {
             name: value
                 .name()
@@ -314,6 +319,7 @@ impl From<&Workspace> for WorkspaceConfig {
             window_container_behaviour: *value.window_container_behaviour(),
             window_container_behaviour_rules: Option::from(window_container_behaviour_rules),
             float_override: *value.float_override(),
+            tile,
             layout_flip: value.layout_flip(),
             floating_layer_behaviour: value.floating_layer_behaviour(),
             wallpaper: None,
