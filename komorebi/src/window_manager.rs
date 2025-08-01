@@ -1395,11 +1395,12 @@ impl WindowManager {
             .update_focused_workspace(offset)?;
 
         if follow_focus {
-            if let Some(window) = self.focused_workspace()?.maximized_window() {
+            let focused_workspace = self.focused_workspace()?;
+            if let Some(window) = focused_workspace.maximized_window() {
                 if trigger_focus {
                     window.focus(self.mouse_follows_focus)?;
                 }
-            } else if let Some(container) = self.focused_workspace()?.monocle_container() {
+            } else if let Some(container) = focused_workspace.monocle_container() {
                 if let Some(window) = container.focused_window() {
                     if trigger_focus {
                         window.focus(self.mouse_follows_focus)?;
@@ -1423,7 +1424,8 @@ impl WindowManager {
                 }
             }
         } else {
-            if self.focused_workspace()?.is_empty() {
+            let focused_workspace = self.focused_workspace()?;
+            if focused_workspace.is_empty() {
                 let desktop_window = Window::from(WindowsApi::desktop_window()?);
 
                 match WindowsApi::raise_and_focus_window(desktop_window.hwnd) {
@@ -1435,15 +1437,15 @@ impl WindowManager {
             }
 
             // if we passed false for follow_focus and there is a container on the workspace
-            if self.focused_container_mut().is_ok() {
+            if let Some(container) = focused_workspace.focused_container() {
                 // and we have a stack with >1 windows
-                if self.focused_container_mut()?.windows().len() > 1
+                if container.windows().len() > 1
                     // and we don't have a maxed window
-                    && self.focused_workspace()?.maximized_window().is_none()
+                    && focused_workspace.maximized_window().is_none()
                     // and we don't have a monocle container
-                    && self.focused_workspace()?.monocle_container().is_none()
+                    && focused_workspace.monocle_container().is_none()
                     // and we don't have any floating windows that should show on top
-                    && self.focused_workspace()?.floating_windows().is_empty()
+                    && focused_workspace.floating_windows().is_empty()
                 {
                     if let Ok(window) = self.focused_window_mut() {
                         if trigger_focus {
@@ -1452,6 +1454,11 @@ impl WindowManager {
                     }
                 }
             }
+        }
+
+        let fl_windows = &mut self.focused_workspace_mut()?.floating_windows;
+        if let Some(idx) = fl_windows.elements().iter().position(|w| w.is_focused()) {
+            fl_windows.focus(idx);
         }
 
         Ok(())
