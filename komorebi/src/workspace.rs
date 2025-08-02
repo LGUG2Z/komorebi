@@ -60,6 +60,7 @@ pub struct Workspace {
     pub layout: Layout,
     pub layout_options: Option<LayoutOptions>,
     pub layout_rules: Vec<(usize, Layout)>,
+    pub work_area_offset_rules: Vec<(usize, Rect)>,
     pub layout_flip: Option<Axis>,
     pub workspace_padding: Option<i32>,
     pub container_padding: Option<i32>,
@@ -113,6 +114,7 @@ impl Default for Workspace {
             layout: Layout::Default(DefaultLayout::BSP),
             layout_options: None,
             layout_rules: vec![],
+            work_area_offset_rules: vec![],
             layout_flip: None,
             workspace_padding: Option::from(DEFAULT_WORKSPACE_PADDING.load(Ordering::SeqCst)),
             container_padding: Option::from(DEFAULT_CONTAINER_PADDING.load(Ordering::SeqCst)),
@@ -198,6 +200,15 @@ impl Workspace {
             all_layout_rules.sort_by_key(|(i, _)| *i);
             self.tile = true;
             self.layout_rules = all_layout_rules;
+        }
+
+        let mut all_work_area_offset_rules = vec![];
+        if let Some(work_area_offset_rules) = &config.work_area_offset_rules {
+            for (count, rect) in work_area_offset_rules {
+                all_work_area_offset_rules.push((*count, *rect));
+            }
+            all_work_area_offset_rules.sort_by_key(|(i, _)| *i);
+            self.work_area_offset_rules = all_work_area_offset_rules;
         }
 
         self.work_area_offset = config.work_area_offset;
@@ -459,9 +470,26 @@ impl Workspace {
         let border_width = self.globals.border_width;
         let border_offset = self.globals.border_offset;
         let work_area = self.globals.work_area;
-        let work_area_offset = self.work_area_offset.or(self.globals.work_area_offset);
         let window_based_work_area_offset = self.globals.window_based_work_area_offset;
         let window_based_work_area_offset_limit = self.globals.window_based_work_area_offset_limit;
+        let mut rules_work_area_offset = None;
+        if !self.work_area_offset_rules.is_empty() && self.monocle_container.is_none() {
+            for (threshold, work_area_offset_rule) in &self.work_area_offset_rules {
+                if self.containers().len() >= *threshold {
+                    rules_work_area_offset = Some(*work_area_offset_rule);
+                }
+            }
+            // if self.monocle_container.is_some() {
+            //     for (threshold, work_area_offset) in &self.work_area_offset_rules {
+            //         if 1 >= *threshold {
+            //             updated_work_area_offset = Option::from(work_area_offset);
+            //         }
+            //     }
+            // }
+        };
+        let work_area_offset = rules_work_area_offset
+            .or(self.work_area_offset)
+            .or(self.globals.work_area_offset);
 
         let mut adjusted_work_area = work_area_offset.map_or_else(
             || work_area,
@@ -475,7 +503,6 @@ impl Workspace {
                 with_offset
             },
         );
-
         if (self.containers().len() <= window_based_work_area_offset_limit as usize
             || self.monocle_container.is_some() && window_based_work_area_offset_limit > 0)
             && self.apply_window_based_work_area_offset
