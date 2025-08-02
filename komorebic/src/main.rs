@@ -6,6 +6,7 @@ use komorebi_client::replace_env_in_path;
 use komorebi_client::PathExt;
 use std::fs::File;
 use std::fs::OpenOptions;
+use std::io;
 use std::io::BufRead;
 use std::io::BufReader;
 use std::io::Write;
@@ -1561,6 +1562,33 @@ fn main() -> Result<()> {
             }
         }
         SubCommand::Quickstart => {
+            fn write_file_with_prompt(
+                path: &PathBuf,
+                content: &str,
+                created_files: &mut Vec<String>,
+            ) -> Result<()> {
+                if path.exists() {
+                    print!(
+                        "{} will be overwritten, do you want to continue? (y/N): ",
+                        path.display()
+                    );
+                    io::stdout().flush()?;
+                    let mut input = String::new();
+                    io::stdin().read_line(&mut input)?;
+                    let trimmed = input.trim().to_lowercase();
+                    if trimmed == "y" || trimmed == "yes" {
+                        std::fs::write(path, content)?;
+                        created_files.push(path.display().to_string());
+                    } else {
+                        println!("Skipping {}", path.display());
+                    }
+                } else {
+                    std::fs::write(path, content)?;
+                    created_files.push(path.display().to_string());
+                }
+                Ok(())
+            }
+
             let local_appdata_dir = data_local_dir().expect("could not find localdata dir");
             let data_dir = local_appdata_dir.join("komorebi");
             std::fs::create_dir_all(&*WHKD_CONFIG_DIR)?;
@@ -1576,17 +1604,30 @@ fn main() -> Result<()> {
                     komorebi_json.replace("Env:USERPROFILE", "Env:KOMOREBI_CONFIG_HOME");
             }
 
-            std::fs::write(HOME_DIR.join("komorebi.json"), komorebi_json)?;
-            std::fs::write(HOME_DIR.join("komorebi.bar.json"), komorebi_bar_json)?;
+            let komorebi_path = HOME_DIR.join("komorebi.json");
+            let bar_path = HOME_DIR.join("komorebi.bar.json");
+            let applications_path = HOME_DIR.join("applications.json");
+            let whkdrc_path = WHKD_CONFIG_DIR.join("whkdrc");
+
+            let mut written_files = Vec::new();
+
+            write_file_with_prompt(&komorebi_path, &komorebi_json, &mut written_files)?;
+            write_file_with_prompt(&bar_path, &komorebi_bar_json, &mut written_files)?;
 
             let applications_json = include_str!("../applications.json");
-            std::fs::write(HOME_DIR.join("applications.json"), applications_json)?;
+            write_file_with_prompt(&applications_path, applications_json, &mut written_files)?;
 
             let whkdrc = include_str!("../../docs/whkdrc.sample");
-            std::fs::write(WHKD_CONFIG_DIR.join("whkdrc"), whkdrc)?;
-
-            println!("Example komorebi.json, komorebi.bar.json, whkdrc and latest applications.json files created");
-            println!("You can now run komorebic start --whkd --bar");
+            write_file_with_prompt(&whkdrc_path, whkdrc, &mut written_files)?;
+            if written_files.is_empty() {
+                println!("\nNo files were written.")
+            } else {
+                println!(
+                    "\nThe following example files were written:\n{}",
+                    written_files.join("\n")
+                );
+            }
+            println!("\nYou can now run komorebic start --whkd --bar");
         }
         SubCommand::EnableAutostart(args) => {
             let mut current_exe = std::env::current_exe().expect("unable to get exec path");
