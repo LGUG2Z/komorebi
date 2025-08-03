@@ -534,6 +534,13 @@ impl Workspace {
                     updated_work_area_offset = Option::from(*work_area_offset);
                 }
             }
+            if self.monocle_container().is_some() {
+                for (threshold, work_area_offset) in self.work_area_offset_rules() {
+                    if 1 >= *threshold {
+                        updated_work_area_offset = Option::from(*work_area_offset);
+                    }
+                }
+            }
             adjusted_work_area = updated_work_area_offset.map_or_else(
                 || adjusted_work_area,
                 |offset| {
