@@ -1307,7 +1307,7 @@ enum SubCommand {
     ToggleWorkspaceFloatOverride,
     /// Toggle between the Tiling and Floating layers on the focused workspace
     ToggleWorkspaceLayer,
-    /// Toggle window tiling on the focused workspace
+    /// Toggle the paused state for all window tiling
     TogglePause,
     /// Toggle window tiling on the focused workspace
     ToggleTiling,
