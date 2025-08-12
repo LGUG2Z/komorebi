@@ -1,7 +1,7 @@
 # toggle-pause
 
 ```
-Toggle window tiling on the focused workspace
+Toggle the paused state for all window tiling
 
 Usage: komorebic.exe toggle-pause
 
