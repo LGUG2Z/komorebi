@@ -747,34 +747,90 @@ impl WindowManager {
         Ok(())
     }
 
+    /// Calculates the direction of a move across monitors given a specific monitor index.
+    /// If multiple monitors are found, tries to find the one that makes the most sense to move the focused window to.
     pub fn monitor_idx_in_direction(&self, direction: OperationDirection) -> Option<usize> {
-        let current_monitor_size = self.focused_monitor_size().ok()?;
+        let current_monitor_size = match self.focused_monitor_size() {
+            Ok(size) => size,
+            Err(_) => return None,
+        };
+
+        let mut found: Vec<(usize, &Monitor)> = Vec::new();
 
         for (idx, monitor) in self.monitors.elements().iter().enumerate() {
-            match direction {
+            let size = monitor.size();
+
+            let condition = match direction {
                 OperationDirection::Left => {
-                    if monitor.size().left + monitor.size().right == current_monitor_size.left {
-                        return Option::from(idx);
-                    }
+                    let monitor_right_edge = size.left + size.right;
+                    let current_left_edge = current_monitor_size.left;
+                    monitor_right_edge == current_left_edge
                 }
                 OperationDirection::Right => {
-                    if current_monitor_size.right + current_monitor_size.left == monitor.size().left
-                    {
-                        return Option::from(idx);
-                    }
+                    let current_right_edge = current_monitor_size.left + current_monitor_size.right;
+                    let monitor_left_edge = size.left;
+                    current_right_edge == monitor_left_edge
                 }
                 OperationDirection::Up => {
-                    if monitor.size().top + monitor.size().bottom == current_monitor_size.top {
-                        return Option::from(idx);
-                    }
+                    let monitor_bottom_edge = size.top + size.bottom;
+                    let current_top_edge = current_monitor_size.top;
+                    monitor_bottom_edge == current_top_edge
                 }
                 OperationDirection::Down => {
-                    if current_monitor_size.top + current_monitor_size.bottom == monitor.size().top
-                    {
-                        return Option::from(idx);
+                    let current_bottom_edge =
+                        current_monitor_size.top + current_monitor_size.bottom;
+                    let monitor_top_edge = size.top;
+                    current_bottom_edge == monitor_top_edge
+                }
+            };
+
+            if condition {
+                found.push((idx, monitor));
+            }
+        }
+
+        if found.len() == 1 {
+            let (first_idx, _) = found[0];
+            return Some(first_idx);
+        }
+
+        if found.len() > 1 {
+            let (fallback_idx, _) = found[0];
+
+            let focused_window_rect = match self.focused_window() {
+                Ok(window) => match WindowsApi::window_rect(window.hwnd) {
+                    Ok(rect) => rect,
+                    Err(_) => return Some(fallback_idx),
+                },
+                Err(_) => return Some(fallback_idx),
+            };
+
+            for (idx, monitor) in &found {
+                let size = monitor.size();
+
+                match direction {
+                    OperationDirection::Left | OperationDirection::Right => {
+                        let window_y = focused_window_rect.top;
+                        let monitor_top = size.top;
+                        let monitor_bottom = size.top + size.bottom;
+
+                        if window_y >= monitor_top && window_y < monitor_bottom {
+                            return Some(*idx);
+                        }
+                    }
+                    OperationDirection::Up | OperationDirection::Down => {
+                        let window_x = focused_window_rect.left;
+                        let monitor_left = size.left;
+                        let monitor_right = size.left + size.right;
+
+                        if window_x >= monitor_left && window_x < monitor_right {
+                            return Some(*idx);
+                        }
                     }
                 }
             }
+
+            return Some(fallback_idx);
         }
 
         None
