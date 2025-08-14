@@ -218,6 +218,9 @@ pub struct WorkspaceConfig {
     /// Permanent workspace application rules
     #[serde(skip_serializing_if = "Option::is_none")]
     pub workspace_rules: Option<Vec<MatchingRule>>,
+    /// Workspace specific work area offset (default: None)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub work_area_offset: Option<Rect>,
     /// Apply this monitor's window-based work area offset (default: true)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub apply_window_based_work_area_offset: Option<bool>,
@@ -310,6 +313,7 @@ impl From<&Workspace> for WorkspaceConfig {
                 .workspace_config()
                 .as_ref()
                 .and_then(|c| c.workspace_rules.clone()),
+            work_area_offset: value.work_area_offset(),
             apply_window_based_work_area_offset: Some(value.apply_window_based_work_area_offset()),
             window_container_behaviour: *value.window_container_behaviour(),
             window_container_behaviour_rules: Option::from(window_container_behaviour_rules),

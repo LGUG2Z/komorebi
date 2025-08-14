@@ -184,6 +184,10 @@ MonitorWorkAreaOffset(monitor, left, top, right, bottom) {
     RunWait("komorebic.exe monitor-work-area-offset " monitor " " left " " top " " right " " bottom, , "Hide")
 }
 
+WorkspaceWorkAreaOffset(monitor, workspace, left, top, right, bottom) {
+    RunWait("komorebic.exe workspace-work-area-offset " monitor " "workspace" " left " " top " " right " " bottom, , "Hide")
+}
+
 AdjustContainerPadding(sizing, adjustment) {
     RunWait("komorebic.exe adjust-container-padding " sizing " " adjustment, , "Hide")
 }
