@@ -126,7 +126,7 @@ pub struct WindowManager {
 }
 
 #[allow(clippy::struct_excessive_bools)]
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct State {
     pub monitors: Ring<Monitor>,

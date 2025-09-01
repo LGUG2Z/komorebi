@@ -306,7 +306,7 @@ pub fn current_virtual_desktop() -> Option<Vec<u8>> {
     current
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[serde(untagged)]
 pub enum NotificationEvent {
@@ -323,7 +323,7 @@ pub enum VirtualDesktopNotification {
     LeftAssociatedVirtualDesktop,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct Notification {
     pub event: NotificationEvent,
