@@ -14,7 +14,8 @@ feature-depth = 1
 ignore = [
     { id = "RUSTSEC-2020-0016", reason = "local tcp connectivity is an opt-in feature, and there is no upgrade path for TcpStreamExt" },
     { id = "RUSTSEC-2024-0436", reason = "paste being unmaintained is not an issue in our use" },
-    { id = "RUSTSEC-2024-0320", reason = "not using any yaml features from this library" }
+    { id = "RUSTSEC-2024-0320", reason = "not using any yaml features from this library" },
+    { id = "RUSTSEC-2025-0056", reason = "only used for colour palette generation" }
 ]
 
 [licenses]
