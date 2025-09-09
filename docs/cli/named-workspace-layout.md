@@ -10,7 +10,7 @@ Arguments:
           Target workspace name
 
   <VALUE>
-          [possible values: bsp, columns, rows, vertical-stack, horizontal-stack, ultrawide-vertical-stack, grid, right-main-vertical-stack]
+          [possible values: bsp, columns, rows, vertical-stack, horizontal-stack, ultrawide-vertical-stack, grid, right-main-vertical-stack, scrolling]
 
 Options:
   -h, --help

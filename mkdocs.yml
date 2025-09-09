@@ -158,6 +158,7 @@ nav:
       - cli/invisible-borders.md
       - cli/global-work-area-offset.md
       - cli/monitor-work-area-offset.md
+      - cli/workspace-work-area-offset.md
       - cli/toggle-window-based-work-area-offset.md
       - cli/focused-workspace-container-padding.md
       - cli/focused-workspace-padding.md
@@ -165,6 +166,7 @@ nav:
       - cli/adjust-workspace-padding.md
       - cli/change-layout.md
       - cli/cycle-layout.md
+      - cli/scrolling-layout-columns.md
       - cli/flip-layout.md
       - cli/promote.md
       - cli/promote-focus.md

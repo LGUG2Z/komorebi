@@ -1846,6 +1846,10 @@
                   "description": "Name",
                   "type": "string"
                 },
+                "tile": {
+                  "description": "Enable or disable tiling for the workspace (default: true)",
+                  "type": "boolean"
+                },
                 "wallpaper": {
                   "description": "Specify a wallpaper for this workspace",
                   "type": "object",

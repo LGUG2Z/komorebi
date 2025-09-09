@@ -1111,6 +1111,14 @@
                         ]
                       }
                     ]
+                  },
+                  "show_read_only_disks": {
+                    "description": "Show disks that are read only. (default: false)",
+                    "type": "boolean"
+                  },
+                  "show_removable_disks": {
+                    "description": "Show removable disks. (default: true)",
+                    "type": "boolean"
                   }
                 }
               }
@@ -2755,6 +2763,14 @@
                         ]
                       }
                     ]
+                  },
+                  "show_read_only_disks": {
+                    "description": "Show disks that are read only. (default: false)",
+                    "type": "boolean"
+                  },
+                  "show_removable_disks": {
+                    "description": "Show removable disks. (default: true)",
+                    "type": "boolean"
                   }
                 }
               }
@@ -59617,6 +59633,14 @@
                         ]
                       }
                     ]
+                  },
+                  "show_read_only_disks": {
+                    "description": "Show disks that are read only. (default: false)",
+                    "type": "boolean"
+                  },
+                  "show_removable_disks": {
+                    "description": "Show removable disks. (default: true)",
+                    "type": "boolean"
                   }
                 }
               }
