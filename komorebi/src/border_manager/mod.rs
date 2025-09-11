@@ -24,6 +24,7 @@ use serde::Deserialize;
 use serde::Serialize;
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
+use std::fmt::Display;
 use std::ops::Deref;
 use std::sync::atomic::AtomicBool;
 use std::sync::atomic::AtomicI32;
@@ -58,8 +59,40 @@ lazy_static! {
 }
 
 lazy_static! {
-    static ref BORDER_STATE: Mutex<HashMap<String, Box<Border>>> = Mutex::new(HashMap::new());
-    static ref WINDOWS_BORDERS: Mutex<HashMap<isize, String>> = Mutex::new(HashMap::new());
+    static ref BORDER_STATE: Mutex<HashMap<WsElementId, Box<Border>>> = Mutex::new(HashMap::new());
+    static ref WINDOWS_BORDERS: Mutex<HashMap<isize, WsElementId>> = Mutex::new(HashMap::new());
+}
+
+/// Unique identifier for workspace element
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+pub enum WsElementId {
+    /// Container with its string ID
+    Container(Arc<str>),
+    /// Floating window with its HWND
+    Window(isize),
+}
+
+impl From<&Arc<str>> for WsElementId {
+    #[inline]
+    fn from(id: &Arc<str>) -> Self {
+        Self::Container(id.clone())
+    }
+}
+
+impl From<isize> for WsElementId {
+    #[inline]
+    fn from(hwnd: isize) -> Self {
+        Self::Window(hwnd)
+    }
+}
+
+impl Display for WsElementId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            WsElementId::Container(id) => f.write_str(id),
+            WsElementId::Window(hwnd) => write!(f, "{}", hwnd),
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -400,15 +433,13 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                             let mut new_border = false;
                             let focused_window_hwnd =
                                 monocle.focused_window().map(|w| w.hwnd).unwrap_or_default();
-                            let id = monocle.id().clone();
+                            let id = WsElementId::from(monocle.id());
                             let border = match borders.entry(id.clone()) {
                                 Entry::Occupied(entry) => entry.into_mut(),
                                 Entry::Vacant(entry) => {
-                                    if let Ok(border) = Border::create(
-                                        monocle.id(),
-                                        focused_window_hwnd,
-                                        monitor_idx,
-                                    ) {
+                                    if let Ok(border) =
+                                        Border::create(&id, focused_window_hwnd, monitor_idx)
+                                    {
                                         new_border = true;
                                         entry.insert(border)
                                     } else {
@@ -518,14 +549,11 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                         }
 
                         // Collect focused workspace container and floating windows ID's
-                        let mut container_and_floating_window_ids = ws
-                            .containers()
-                            .iter()
-                            .map(|c| c.id().clone())
-                            .collect::<Vec<_>>();
+                        let mut container_and_floating_window_ids: Vec<WsElementId> =
+                            ws.containers().iter().map(|c| c.id().into()).collect();
 
                         for w in ws.floating_windows() {
-                            container_and_floating_window_ids.push(w.hwnd.to_string());
+                            container_and_floating_window_ids.push(w.hwnd.into());
                         }
 
                         // Remove any borders not associated with the focused workspace
@@ -539,7 +567,7 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                         'containers: for (idx, c) in ws.containers().iter().enumerate() {
                             let focused_window_hwnd =
                                 c.focused_window().map(|w| w.hwnd).unwrap_or_default();
-                            let id = c.id().clone();
+                            let id = WsElementId::from(c.id());
 
                             // Get the border entry for this container from the map or create one
                             let mut new_border = false;
@@ -547,7 +575,7 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                                 Entry::Occupied(entry) => entry.into_mut(),
                                 Entry::Vacant(entry) => {
                                     if let Ok(border) =
-                                        Border::create(c.id(), focused_window_hwnd, monitor_idx)
+                                        Border::create(&id, focused_window_hwnd, monitor_idx)
                                     {
                                         new_border = true;
                                         entry.insert(border)
@@ -603,7 +631,7 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                             let rect = match WindowsApi::window_rect(focused_window_hwnd) {
                                 Ok(rect) => rect,
                                 Err(_) => {
-                                    remove_border(c.id(), &mut borders, &mut windows_borders)?;
+                                    remove_border(&id, &mut borders, &mut windows_borders)?;
                                     continue 'containers;
                                 }
                             };
@@ -653,8 +681,8 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
 }
 
 fn handle_floating_borders(
-    borders: &mut HashMap<String, Box<Border>>,
-    windows_borders: &mut HashMap<isize, String>,
+    borders: &mut HashMap<WsElementId, Box<Border>>,
+    windows_borders: &mut HashMap<isize, WsElementId>,
     ws: &Workspace,
     monitor_idx: usize,
     foreground_window: isize,
@@ -663,13 +691,11 @@ fn handle_floating_borders(
 ) -> color_eyre::Result<()> {
     for window in ws.floating_windows() {
         let mut new_border = false;
-        let id = window.hwnd.to_string();
+        let id = WsElementId::from(window.hwnd);
         let border = match borders.entry(id.clone()) {
             Entry::Occupied(entry) => entry.into_mut(),
             Entry::Vacant(entry) => {
-                if let Ok(border) =
-                    Border::create(&window.hwnd.to_string(), window.hwnd, monitor_idx)
-                {
+                if let Ok(border) = Border::create(&id, window.hwnd, monitor_idx) {
                     new_border = true;
                     entry.insert(border)
                 } else {
@@ -719,10 +745,10 @@ fn handle_floating_borders(
 /// the container id and the border and returns a bool, if true that border
 /// will be removed.
 fn remove_borders(
-    borders: &mut HashMap<String, Box<Border>>,
-    windows_borders: &mut HashMap<isize, String>,
+    borders: &mut HashMap<WsElementId, Box<Border>>,
+    windows_borders: &mut HashMap<isize, WsElementId>,
     monitor_idx: usize,
-    condition: impl Fn(&String, &Border) -> bool,
+    condition: impl Fn(&WsElementId, &Border) -> bool,
 ) -> color_eyre::Result<()> {
     let mut to_remove = vec![];
     for (id, border) in borders.iter() {
@@ -747,9 +773,9 @@ fn remove_borders(
 
 /// Removes the border with `id` and all its related info from all maps
 fn remove_border(
-    id: &str,
-    borders: &mut HashMap<String, Box<Border>>,
-    windows_borders: &mut HashMap<isize, String>,
+    id: &WsElementId,
+    borders: &mut HashMap<WsElementId, Box<Border>>,
+    windows_borders: &mut HashMap<isize, WsElementId>,
 ) -> color_eyre::Result<()> {
     if let Some(removed_border) = borders.remove(id) {
         windows_borders.remove(&removed_border.tracking_hwnd);
@@ -777,12 +803,9 @@ fn destroy_border(border: Box<Border>) -> color_eyre::Result<()> {
 /// Removes the border around window with `tracking_hwnd` if it exists
 pub fn delete_border(tracking_hwnd: isize) {
     std::thread::spawn(move || {
-        let id = {
-            WINDOWS_BORDERS
-                .lock()
-                .get(&tracking_hwnd)
-                .cloned()
-                .unwrap_or_default()
+        let id = { WINDOWS_BORDERS.lock().get(&tracking_hwnd).cloned() };
+        let Some(id) = id else {
+            return;
         };
 
         let mut borders = BORDER_STATE.lock();
