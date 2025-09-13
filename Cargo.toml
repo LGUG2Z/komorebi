@@ -9,7 +9,7 @@ members = [
     "komorebic-no-console",
     "komorebi-bar",
     "komorebi-themes",
-    "komorebi-shortcuts"
+    "komorebi-shortcuts",
 ]
 
 [workspace.dependencies]
@@ -52,7 +52,7 @@ features = [
     "Win32_Devices",
     "Win32_Devices_Display",
     "Win32_System_Com",
-    "Win32_UI_Shell_Common", # for IObjectArray
+    "Win32_UI_Shell_Common",           # for IObjectArray
     "Win32_Foundation",
     "Win32_Globalization",
     "Win32_Graphics_Dwm",
@@ -73,5 +73,12 @@ features = [
     "Win32_System_SystemServices",
     "Win32_System_WindowsProgramming",
     "Media",
-    "Media_Control"
+    "Media_Control",
 ]
+
+[profile.release-opt]
+inherits = "release"
+lto = true
+panic = "abort"
+codegen-units = 1
+strip = true
