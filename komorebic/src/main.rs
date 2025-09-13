@@ -1545,6 +1545,22 @@ fn startup_dir() -> Result<PathBuf> {
     Ok(startup)
 }
 
+fn start_komorebi_bar(config_path: Option<&PathBuf>) -> Result<()> {
+    let mut cmd = Command::new("komorebi-bar");
+    
+    if let Some(path) = config_path {
+        cmd.arg("--config").arg(path);
+        println!("Started komorebi-bar with config: {}", path.display());
+    } else {
+        println!("Started komorebi-bar without config");
+    }
+    
+    cmd.spawn()
+        .map_err(|e| anyhow!("Error starting komorebi-bar: {}", e))?;
+    
+    Ok(())
+}
+
 #[allow(clippy::too_many_lines, clippy::cognitive_complexity)]
 fn main() -> Result<()> {
     let opts: Opts = Opts::parse();
@@ -2336,35 +2352,10 @@ if (!(Get-Process whkd -ErrorAction SilentlyContinue))
                     let mut config = StaticConfig::read(config)?;
                     if let Some(display_bar_configurations) = &mut config.bar_configurations {
                         for config_file_path in &mut *display_bar_configurations {
-                            let script = format!(
-                                r#"Start-Process "komorebi-bar" '"--config" "{}"' -WindowStyle hidden"#,
-                                config_file_path.to_string_lossy()
-                            );
-
-                            match powershell_script::run(&script) {
-                                Ok(_) => {
-                                    println!("{script}");
-                                }
-                                Err(error) => {
-                                    println!("Error: {error}");
-                                }
-                            }
+                            start_komorebi_bar(Some(config_file_path))?;
                         }
                     } else {
-                        let script = r"
-if (!(Get-Process komorebi-bar -ErrorAction SilentlyContinue))
-{
-  Start-Process komorebi-bar -WindowStyle hidden
-}
-                ";
-                        match powershell_script::run(script) {
-                            Ok(_) => {
-                                println!("{script}");
-                            }
-                            Err(error) => {
-                                println!("Error: {error}");
-                            }
-                        }
+                        start_komorebi_bar(None)?;
                     }
                 }
             }
