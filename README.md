@@ -394,7 +394,7 @@ every `WindowManagerEvent` and `SocketMessage` handled by `komorebi` in a Rust c
 Below is a simple example of how to use `komorebi-client` in a basic Rust application.
 
 ```rust
-// komorebi-client = { git = "https://github.com/LGUG2Z/komorebi", tag = "v0.1.37"}
+// komorebi-client = { git = "https://github.com/LGUG2Z/komorebi", tag = "v0.1.38"}
 
 use anyhow::Result;
 use komorebi_client::Notification;
