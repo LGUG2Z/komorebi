@@ -58,6 +58,7 @@ pub struct NetworkSelectConfig {
 
 impl From<NetworkConfig> for Network {
     fn from(value: NetworkConfig) -> Self {
+        let default_refresh_interval = 10;
         let data_refresh_interval = value.data_refresh_interval.unwrap_or(10);
 
         Self {
@@ -67,10 +68,14 @@ impl From<NetworkConfig> for Network {
             show_default_interface: value.show_default_interface.unwrap_or(true),
             networks_network_activity: Networks::new_with_refreshed_list(),
             default_interface: String::new(),
+            default_refresh_interval,
             data_refresh_interval,
             label_prefix: value.label_prefix.unwrap_or(LabelPrefix::Icon),
             auto_select: value.auto_select,
             activity_left_padding: value.activity_left_padding.unwrap_or_default(),
+            last_updated_default_interface: Instant::now()
+                .checked_sub(Duration::from_secs(default_refresh_interval))
+                .unwrap(),
             last_state_total_activity: vec![],
             last_state_activity: vec![],
             last_updated_network_activity: Instant::now()
@@ -86,10 +91,12 @@ pub struct Network {
     pub show_activity: bool,
     pub show_default_interface: bool,
     networks_network_activity: Networks,
+    default_refresh_interval: u64,
     data_refresh_interval: u64,
     label_prefix: LabelPrefix,
     auto_select: Option<NetworkSelectConfig>,
     default_interface: String,
+    last_updated_default_interface: Instant,
     last_state_total_activity: Vec<NetworkReading>,
     last_state_activity: Vec<NetworkReading>,
     last_updated_network_activity: Instant,
@@ -98,10 +105,18 @@ pub struct Network {
 
 impl Network {
     fn default_interface(&mut self) {
-        if let Ok(interface) = netdev::get_default_interface() {
-            if let Some(friendly_name) = &interface.friendly_name {
-                self.default_interface.clone_from(friendly_name);
+        let now = Instant::now();
+
+        if now.duration_since(self.last_updated_default_interface)
+            > Duration::from_secs(self.default_refresh_interval)
+        {
+            if let Ok(interface) = netdev::get_default_interface() {
+                if let Some(friendly_name) = &interface.friendly_name {
+                    self.default_interface.clone_from(friendly_name);
+                }
             }
+
+            self.last_updated_default_interface = now;
         }
     }
 
