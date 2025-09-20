@@ -55,7 +55,7 @@ impl AnimationEngine {
 
     #[allow(clippy::cast_precision_loss)]
     pub fn animate(
-        render_dispatcher: (impl RenderDispatcher + Send + 'static),
+        render_dispatcher: impl RenderDispatcher + Send + 'static,
         duration: Duration,
     ) -> Result<()> {
         std::thread::spawn(move || {

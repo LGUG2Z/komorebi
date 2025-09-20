@@ -453,7 +453,7 @@ impl MouseMessage {
 
                 tracing::debug!("Sending messages: {messages:?}");
 
-                if komorebi_client::send_batch(messages.into_iter()).is_err() {
+                if komorebi_client::send_batch(messages).is_err() {
                     tracing::error!("could not send commands");
                 }
             }

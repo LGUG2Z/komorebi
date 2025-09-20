@@ -105,7 +105,7 @@ impl Direction for DefaultLayout {
                 Self::Scrolling => false,
             },
             OperationDirection::Down => match self {
-                Self::BSP => idx != count - 1 && idx % 2 != 0,
+                Self::BSP => idx != count - 1 && !idx.is_multiple_of(2),
                 Self::Columns => false,
                 Self::Rows => idx != count - 1,
                 Self::VerticalStack | Self::RightMainVerticalStack => idx != 0 && idx != count - 1,
@@ -125,7 +125,7 @@ impl Direction for DefaultLayout {
                 Self::Scrolling => idx != 0,
             },
             OperationDirection::Right => match self {
-                Self::BSP => idx % 2 == 0 && idx != count - 1,
+                Self::BSP => idx.is_multiple_of(2) && idx != count - 1,
                 Self::Columns => idx != count - 1,
                 Self::Rows => false,
                 Self::VerticalStack => idx == 0,
@@ -149,7 +149,7 @@ impl Direction for DefaultLayout {
     ) -> usize {
         match self {
             Self::BSP => {
-                if idx % 2 == 0 {
+                if idx.is_multiple_of(2) {
                     idx - 1
                 } else {
                     idx - 2
@@ -193,7 +193,7 @@ impl Direction for DefaultLayout {
     ) -> usize {
         match self {
             Self::BSP => {
-                if idx % 2 == 0 {
+                if idx.is_multiple_of(2) {
                     idx - 2
                 } else {
                     idx - 1

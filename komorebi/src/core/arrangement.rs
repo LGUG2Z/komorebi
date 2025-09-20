@@ -927,7 +927,7 @@ fn recursive_fibonacci(
             right: resized.right,
             bottom: resized.bottom,
         }]
-    } else if idx % 2 != 0 {
+    } else if !idx.is_multiple_of(2) {
         let mut res = vec![Rect {
             left: resized.left,
             top: main_y,
