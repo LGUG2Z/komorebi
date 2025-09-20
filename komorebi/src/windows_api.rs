@@ -1,6 +1,6 @@
-use color_eyre::eyre::anyhow;
 use color_eyre::eyre::bail;
 use color_eyre::eyre::Error;
+use color_eyre::eyre::OptionExt;
 use color_eyre::Result;
 use core::ffi::c_void;
 use std::collections::HashMap;
@@ -663,10 +663,11 @@ impl WindowsApi {
     }
 
     pub fn close_window(hwnd: isize) -> Result<()> {
-        match Self::post_message(HWND(as_ptr!(hwnd)), WM_CLOSE, WPARAM(0), LPARAM(0)) {
-            Ok(()) => Ok(()),
-            Err(_) => Err(anyhow!("could not close window")),
+        if Self::post_message(HWND(as_ptr!(hwnd)), WM_CLOSE, WPARAM(0), LPARAM(0)).is_err() {
+            bail!("could not close window");
         }
+
+        Ok(())
     }
 
     pub fn hide_window(hwnd: isize) {
@@ -753,7 +754,7 @@ impl WindowsApi {
             next_hwnd = Self::next_window(next_hwnd)?;
         }
 
-        Err(anyhow!("could not find next window"))
+        bail!("could not find next window")
     }
 
     pub fn window_rect(hwnd: isize) -> Result<Rect> {
@@ -857,12 +858,12 @@ impl WindowsApi {
         let mut session_id = 0;
 
         unsafe {
-            if ProcessIdToSessionId(process_id, &mut session_id).is_ok() {
-                Ok(session_id)
-            } else {
-                Err(anyhow!("could not determine current session id"))
+            if ProcessIdToSessionId(process_id, &mut session_id).is_err() {
+                bail!("could not determine current session id")
             }
         }
+
+        Ok(session_id)
     }
 
     #[cfg(target_pointer_width = "64")]
@@ -991,7 +992,7 @@ impl WindowsApi {
         Ok(Self::exe_path(handle)?
             .split('\\')
             .next_back()
-            .ok_or_else(|| anyhow!("there is no last element"))?
+            .ok_or_eyre("there is no last element")?
             .to_string())
     }
 

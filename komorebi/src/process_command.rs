@@ -1,5 +1,5 @@
-use color_eyre::eyre::anyhow;
 use color_eyre::eyre::OptionExt;
+use color_eyre::eyre::WrapErr;
 use color_eyre::Result;
 use komorebi_themes::colour::Rgb;
 use miow::pipe::connect;
@@ -618,7 +618,7 @@ impl WindowManager {
                 for (i, monitor) in self.monitors().iter().enumerate() {
                     for container in monitor
                         .focused_workspace()
-                        .ok_or_else(|| anyhow!("there is no workspace"))?
+                        .ok_or_eyre("there is no workspace")?
                         .containers()
                     {
                         for window in container.windows() {
@@ -652,11 +652,11 @@ impl WindowManager {
                     let monitor = self
                         .monitors_mut()
                         .get_mut(monitor_idx)
-                        .ok_or_else(|| anyhow!("there is no monitor"))?;
+                        .ok_or_eyre("there is no monitor")?;
 
                     monitor
                         .focused_workspace_mut()
-                        .ok_or_else(|| anyhow!("there is no focused workspace"))?
+                        .ok_or_eyre("there is no focused workspace")?
                         .remove_window(hwnd)?;
 
                     monitor.update_focused_workspace(offset)?;
@@ -665,9 +665,7 @@ impl WindowManager {
             SocketMessage::FocusedWorkspaceContainerPadding(adjustment) => {
                 let focused_monitor_idx = self.focused_monitor_idx();
 
-                let focused_monitor = self
-                    .focused_monitor()
-                    .ok_or_else(|| anyhow!("there is no monitor"))?;
+                let focused_monitor = self.focused_monitor().ok_or_eyre("there is no monitor")?;
 
                 let focused_workspace_idx = focused_monitor.focused_workspace_idx();
 
@@ -676,9 +674,7 @@ impl WindowManager {
             SocketMessage::FocusedWorkspacePadding(adjustment) => {
                 let focused_monitor_idx = self.focused_monitor_idx();
 
-                let focused_monitor = self
-                    .focused_monitor()
-                    .ok_or_else(|| anyhow!("there is no monitor"))?;
+                let focused_monitor = self.focused_monitor().ok_or_eyre("there is no monitor")?;
 
                 let focused_workspace_idx = focused_monitor.focused_workspace_idx();
 
@@ -708,7 +704,7 @@ impl WindowManager {
 
                 let idx = self
                     .focused_monitor()
-                    .ok_or_else(|| anyhow!("there is no monitor"))?
+                    .ok_or_eyre("there is no monitor")?
                     .focused_workspace_idx();
 
                 if let Some(monitor) = self.focused_monitor_mut() {
@@ -718,7 +714,7 @@ impl WindowManager {
                 }
 
                 self.focused_monitor_mut()
-                    .ok_or_else(|| anyhow!("there is no monitor"))?
+                    .ok_or_eyre("there is no monitor")?
                     .set_last_focused_workspace(Option::from(idx));
             }
             SocketMessage::SendContainerToLastWorkspace => {
@@ -739,7 +735,7 @@ impl WindowManager {
 
                 let idx = self
                     .focused_monitor()
-                    .ok_or_else(|| anyhow!("there is no monitor"))?
+                    .ok_or_eyre("there is no monitor")?
                     .focused_workspace_idx();
 
                 if let Some(monitor) = self.focused_monitor_mut() {
@@ -748,16 +744,14 @@ impl WindowManager {
                     }
                 }
                 self.focused_monitor_mut()
-                    .ok_or_else(|| anyhow!("there is no monitor"))?
+                    .ok_or_eyre("there is no monitor")?
                     .set_last_focused_workspace(Option::from(idx));
             }
             SocketMessage::MoveContainerToWorkspaceNumber(workspace_idx) => {
                 self.move_container_to_workspace(workspace_idx, true, None)?;
             }
             SocketMessage::CycleMoveContainerToWorkspace(direction) => {
-                let focused_monitor = self
-                    .focused_monitor()
-                    .ok_or_else(|| anyhow!("there is no monitor"))?;
+                let focused_monitor = self.focused_monitor().ok_or_eyre("there is no monitor")?;
 
                 let focused_workspace_idx = focused_monitor.focused_workspace_idx();
                 let workspaces = focused_monitor.workspaces().len();
@@ -765,7 +759,7 @@ impl WindowManager {
                 let workspace_idx = direction.next_idx(
                     focused_workspace_idx,
                     NonZeroUsize::new(workspaces)
-                        .ok_or_else(|| anyhow!("there must be at least one workspace"))?,
+                        .ok_or_eyre("there must be at least one workspace")?,
                 );
 
                 self.move_container_to_workspace(workspace_idx, true, None)?;
@@ -781,7 +775,7 @@ impl WindowManager {
                 let monitor_idx = direction.next_idx(
                     self.focused_monitor_idx(),
                     NonZeroUsize::new(self.monitors().len())
-                        .ok_or_else(|| anyhow!("there must be at least one monitor"))?,
+                        .ok_or_eyre("there must be at least one monitor")?,
                 );
 
                 let direction = self.direction_from_monitor_idx(monitor_idx);
@@ -791,9 +785,7 @@ impl WindowManager {
                 self.move_container_to_workspace(workspace_idx, false, None)?;
             }
             SocketMessage::CycleSendContainerToWorkspace(direction) => {
-                let focused_monitor = self
-                    .focused_monitor()
-                    .ok_or_else(|| anyhow!("there is no monitor"))?;
+                let focused_monitor = self.focused_monitor().ok_or_eyre("there is no monitor")?;
 
                 let focused_workspace_idx = focused_monitor.focused_workspace_idx();
                 let workspaces = focused_monitor.workspaces().len();
@@ -801,7 +793,7 @@ impl WindowManager {
                 let workspace_idx = direction.next_idx(
                     focused_workspace_idx,
                     NonZeroUsize::new(workspaces)
-                        .ok_or_else(|| anyhow!("there must be at least one workspace"))?,
+                        .ok_or_eyre("there must be at least one workspace")?,
                 );
 
                 self.move_container_to_workspace(workspace_idx, false, None)?;
@@ -814,7 +806,7 @@ impl WindowManager {
                 let monitor_idx = direction.next_idx(
                     self.focused_monitor_idx(),
                     NonZeroUsize::new(self.monitors().len())
-                        .ok_or_else(|| anyhow!("there must be at least one monitor"))?,
+                        .ok_or_eyre("there must be at least one monitor")?,
                 );
 
                 let direction = self.direction_from_monitor_idx(monitor_idx);
@@ -872,7 +864,7 @@ impl WindowManager {
                 let monitor_idx = direction.next_idx(
                     self.focused_monitor_idx(),
                     NonZeroUsize::new(self.monitors().len())
-                        .ok_or_else(|| anyhow!("there must be at least one monitor"))?,
+                        .ok_or_eyre("there must be at least one monitor")?,
                 );
 
                 self.move_workspace_to_monitor(monitor_idx)?;
@@ -894,7 +886,7 @@ impl WindowManager {
                 let monitor_idx = direction.next_idx(
                     self.focused_monitor_idx(),
                     NonZeroUsize::new(self.monitors().len())
-                        .ok_or_else(|| anyhow!("there must be at least one monitor"))?,
+                        .ok_or_eyre("there must be at least one monitor")?,
                 );
 
                 self.focus_monitor(monitor_idx)?;
@@ -1056,9 +1048,7 @@ impl WindowManager {
                     }
                 }
 
-                let focused_monitor = self
-                    .focused_monitor()
-                    .ok_or_else(|| anyhow!("there is no monitor"))?;
+                let focused_monitor = self.focused_monitor().ok_or_eyre("there is no monitor")?;
 
                 let focused_workspace_idx = focused_monitor.focused_workspace_idx();
                 let workspaces = focused_monitor.workspaces().len();
@@ -1066,7 +1056,7 @@ impl WindowManager {
                 let workspace_idx = direction.next_idx(
                     focused_workspace_idx,
                     NonZeroUsize::new(workspaces)
-                        .ok_or_else(|| anyhow!("there must be at least one workspace"))?,
+                        .ok_or_eyre("there must be at least one workspace")?,
                 );
 
                 self.focus_workspace(workspace_idx)?;
@@ -1087,9 +1077,7 @@ impl WindowManager {
                     }
                 }
 
-                let focused_monitor = self
-                    .focused_monitor()
-                    .ok_or_else(|| anyhow!("there is no monitor"))?;
+                let focused_monitor = self.focused_monitor().ok_or_eyre("there is no monitor")?;
 
                 let focused_workspace_idx = focused_monitor.focused_workspace_idx();
                 let workspaces = focused_monitor.workspaces().len();
@@ -1106,14 +1094,14 @@ impl WindowManager {
                     let mut workspace_idx = direction.next_idx(
                         focused_workspace_idx,
                         NonZeroUsize::new(workspaces)
-                            .ok_or_else(|| anyhow!("there must be at least one workspace"))?,
+                            .ok_or_eyre("there must be at least one workspace")?,
                     );
 
                     while !empty_workspaces.contains(&workspace_idx) {
                         workspace_idx = direction.next_idx(
                             workspace_idx,
                             NonZeroUsize::new(workspaces)
-                                .ok_or_else(|| anyhow!("there must be at least one workspace"))?,
+                                .ok_or_eyre("there must be at least one workspace")?,
                         );
                     }
 
@@ -1182,7 +1170,7 @@ impl WindowManager {
 
                 let idx = self
                     .focused_monitor()
-                    .ok_or_else(|| anyhow!("there is no monitor"))?
+                    .ok_or_eyre("there is no monitor")?
                     .focused_workspace_idx();
 
                 if let Some(monitor) = self.focused_monitor_mut() {
@@ -1192,7 +1180,7 @@ impl WindowManager {
                 }
 
                 self.focused_monitor_mut()
-                    .ok_or_else(|| anyhow!("there is no monitor"))?
+                    .ok_or_eyre("there is no monitor")?
                     .set_last_focused_workspace(Option::from(idx));
             }
             SocketMessage::FocusWorkspaceNumber(workspace_idx) => {
@@ -1450,7 +1438,7 @@ impl WindowManager {
                     StateQuery::FocusedMonitorIndex => self.focused_monitor_idx().to_string(),
                     StateQuery::FocusedWorkspaceIndex => self
                         .focused_monitor()
-                        .ok_or_else(|| anyhow!("there is no monitor"))?
+                        .ok_or_eyre("there is no monitor")?
                         .focused_workspace_idx()
                         .to_string(),
                     StateQuery::FocusedContainerIndex => self
@@ -1461,9 +1449,8 @@ impl WindowManager {
                         self.focused_container()?.focused_window_idx().to_string()
                     }
                     StateQuery::FocusedWorkspaceName => {
-                        let focused_monitor = self
-                            .focused_monitor()
-                            .ok_or_else(|| anyhow!("there is no monitor"))?;
+                        let focused_monitor =
+                            self.focused_monitor().ok_or_eyre("there is no monitor")?;
 
                         focused_monitor
                             .focused_workspace_name()
@@ -1471,9 +1458,8 @@ impl WindowManager {
                     }
                     StateQuery::Version => build::RUST_VERSION.to_string(),
                     StateQuery::FocusedWorkspaceLayout => {
-                        let focused_monitor = self
-                            .focused_monitor()
-                            .ok_or_else(|| anyhow!("there is no monitor"))?;
+                        let focused_monitor =
+                            self.focused_monitor().ok_or_eyre("there is no monitor")?;
 
                         focused_monitor.focused_workspace_layout().map_or_else(
                             || "None".to_string(),
@@ -1921,8 +1907,10 @@ if (!(Get-Process komorebi-bar -ErrorAction SilentlyContinue))
 
                 let quicksave_json = std::env::temp_dir().join("komorebi.quicksave.json");
 
-                let file = File::open(&quicksave_json)
-                    .map_err(|_| anyhow!("no quicksave found at {}", quicksave_json.display()))?;
+                let file = File::open(&quicksave_json).wrap_err(format!(
+                    "no quicksave found at {}",
+                    quicksave_json.display()
+                ))?;
 
                 let resize: Vec<Option<Rect>> = serde_json::from_reader(file)?;
 
@@ -1945,7 +1933,7 @@ if (!(Get-Process komorebi-bar -ErrorAction SilentlyContinue))
                 let workspace = self.focused_workspace_mut()?;
 
                 let file =
-                    File::open(path).map_err(|_| anyhow!("no file found at {}", path.display()))?;
+                    File::open(path).wrap_err(format!("no file found at {}", path.display()))?;
 
                 let resize: Vec<Option<Rect>> = serde_json::from_reader(file)?;
 
@@ -1972,9 +1960,9 @@ if (!(Get-Process komorebi-bar -ErrorAction SilentlyContinue))
             SocketMessage::AddSubscriberPipe(ref subscriber) => {
                 let mut pipes = SUBSCRIPTION_PIPES.lock();
                 let pipe_path = format!(r"\\.\pipe\{subscriber}");
-                let pipe = connect(&pipe_path).map_err(|_| {
-                    anyhow!("the named pipe '{}' has not yet been created; please create it before running this command", pipe_path)
-                })?;
+                let pipe = connect(&pipe_path).wrap_err(
+                    format!("the named pipe '{}' has not yet been created; please create it before running this command", pipe_path)
+                )?;
 
                 pipes.insert(subscriber.clone(), pipe);
             }

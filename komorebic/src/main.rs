@@ -20,8 +20,8 @@ use std::time::Duration;
 use clap::CommandFactory;
 use clap::Parser;
 use clap::ValueEnum;
-use color_eyre::eyre::anyhow;
 use color_eyre::eyre::bail;
+use color_eyre::eyre::OptionExt;
 use color_eyre::Result;
 use dirs::data_local_dir;
 use fs_tail::TailedFile;
@@ -2181,25 +2181,26 @@ fn main() -> Result<()> {
             let mut buf: PathBuf;
 
             // The komorebi.ps1 shim will only exist in the Path if installed by Scoop
-            let exec = if let Ok(output) = Command::new("where.exe").arg("komorebi.ps1").output() {
-                let stdout = String::from_utf8(output.stdout)?;
-                match stdout.trim() {
-                    "" => None,
-                    // It's possible that a komorebi.ps1 config will be in %USERPROFILE% - ignore this
-                    stdout if !stdout.contains("scoop") => None,
-                    stdout => {
-                        buf = PathBuf::from(stdout);
-                        buf.pop(); // %USERPROFILE%\scoop\shims
-                        buf.pop(); // %USERPROFILE%\scoop
-                        buf.push("apps\\komorebi\\current\\komorebi.exe"); //%USERPROFILE%\scoop\komorebi\current\komorebi.exe
-                        Some(buf.to_str().ok_or_else(|| {
-                            anyhow!("cannot create a string from the scoop komorebi path")
-                        })?)
+            let exec =
+                if let Ok(output) = Command::new("where.exe").arg("komorebi.ps1").output() {
+                    let stdout = String::from_utf8(output.stdout)?;
+                    match stdout.trim() {
+                        "" => None,
+                        // It's possible that a komorebi.ps1 config will be in %USERPROFILE% - ignore this
+                        stdout if !stdout.contains("scoop") => None,
+                        stdout => {
+                            buf = PathBuf::from(stdout);
+                            buf.pop(); // %USERPROFILE%\scoop\shims
+                            buf.pop(); // %USERPROFILE%\scoop
+                            buf.push("apps\\komorebi\\current\\komorebi.exe"); //%USERPROFILE%\scoop\komorebi\current\komorebi.exe
+                            Some(buf.to_str().ok_or_eyre(
+                                "cannot create a string from the scoop komorebi path",
+                            )?)
+                        }
                     }
-                }
-            } else {
-                None
-            };
+                } else {
+                    None
+                };
 
             let mut flags = vec![];
             if let Some(config) = &arg.config {

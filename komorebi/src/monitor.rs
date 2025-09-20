@@ -2,8 +2,8 @@ use std::collections::HashMap;
 use std::collections::VecDeque;
 use std::sync::atomic::Ordering;
 
-use color_eyre::eyre::anyhow;
 use color_eyre::eyre::bail;
+use color_eyre::eyre::OptionExt;
 use color_eyre::Result;
 use getset::CopyGetters;
 use getset::Getters;
@@ -290,10 +290,10 @@ impl Monitor {
         let workspace = if let Some(idx) = workspace_idx {
             self.workspaces_mut()
                 .get_mut(idx)
-                .ok_or_else(|| anyhow!("there is no workspace at index {}", idx))?
+                .ok_or_eyre(format!("there is no workspace at index {idx}"))?
         } else {
             self.focused_workspace_mut()
-                .ok_or_else(|| anyhow!("there is no workspace"))?
+                .ok_or_eyre("there is no workspace")?
         };
 
         workspace.add_container_to_back(container);
@@ -314,10 +314,10 @@ impl Monitor {
         let workspace = if let Some(idx) = workspace_idx {
             self.workspaces_mut()
                 .get_mut(idx)
-                .ok_or_else(|| anyhow!("there is no workspace at index {}", idx))?
+                .ok_or_eyre(format!("there is no workspace at index {idx}"))?
         } else {
             self.focused_workspace_mut()
-                .ok_or_else(|| anyhow!("there is no workspace"))?
+                .ok_or_eyre("there is no workspace")?
         };
 
         match direction {
@@ -415,7 +415,7 @@ impl Monitor {
     ) -> Result<()> {
         let workspace = self
             .focused_workspace_mut()
-            .ok_or_else(|| anyhow!("there is no workspace"))?;
+            .ok_or_eyre("there is no workspace")?;
 
         if workspace.maximized_window().is_some() {
             bail!("cannot move native maximized window to another monitor or workspace");
@@ -445,7 +445,7 @@ impl Monitor {
         } else {
             let container = workspace
                 .remove_focused_container()
-                .ok_or_else(|| anyhow!("there is no container"))?;
+                .ok_or_eyre("there is no container")?;
 
             let workspaces = self.workspaces_mut();
 
@@ -510,7 +510,7 @@ impl Monitor {
             if name.is_some() {
                 self.workspaces_mut()
                     .get_mut(idx)
-                    .ok_or_else(|| anyhow!("there is no workspace"))?
+                    .ok_or_eyre("there is no workspace")?
                     .set_name(name);
             }
         }
@@ -532,7 +532,7 @@ impl Monitor {
         let focused_workspace_idx = self.focused_workspace_idx();
         self.update_workspace_globals(focused_workspace_idx, offset);
         self.focused_workspace_mut()
-            .ok_or_else(|| anyhow!("there is no workspace"))?
+            .ok_or_eyre("there is no workspace")?
             .update()?;
 
         Ok(())

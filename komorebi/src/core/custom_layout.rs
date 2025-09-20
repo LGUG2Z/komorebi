@@ -5,7 +5,6 @@ use std::ops::Deref;
 use std::ops::DerefMut;
 use std::path::Path;
 
-use color_eyre::eyre::anyhow;
 use color_eyre::eyre::bail;
 use color_eyre::Result;
 use serde::Deserialize;
@@ -41,7 +40,7 @@ impl CustomLayout {
             Some(extension) if extension == "json" => {
                 serde_json::from_reader(BufReader::new(File::open(path)?))?
             }
-            _ => return Err(anyhow!("custom layouts must be json or yaml files")),
+            _ => bail!("custom layouts must be json or yaml files"),
         };
 
         if !layout.is_valid() {

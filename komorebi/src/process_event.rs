@@ -1,7 +1,7 @@
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
 
-use color_eyre::eyre::anyhow;
+use color_eyre::eyre::OptionExt;
 use color_eyre::Result;
 use crossbeam_utils::atomic::AtomicConsume;
 use parking_lot::Mutex;
@@ -477,9 +477,7 @@ impl WindowManager {
                                     WindowContainerBehaviour::Append => {
                                         workspace
                                             .focused_container_mut()
-                                            .ok_or_else(|| {
-                                                anyhow!("there is no focused container")
-                                            })?
+                                            .ok_or_eyre("there is no focused container")?
                                             .add_window(window);
                                         workspace.set_layer(WorkspaceLayer::Tiling);
                                         self.update_focused_workspace(true, false)?;
@@ -529,7 +527,7 @@ impl WindowManager {
                 let monitor_idx = self.focused_monitor_idx();
                 let workspace_idx = self
                     .focused_monitor()
-                    .ok_or_else(|| anyhow!("there is no monitor with this idx"))?
+                    .ok_or_eyre("there is no monitor with this idx")?
                     .focused_workspace_idx();
 
                 WindowsApi::bring_window_to_top(window.hwnd)?;
@@ -559,7 +557,7 @@ impl WindowManager {
 
                 let target_monitor_idx = self
                     .monitor_idx_from_current_pos()
-                    .ok_or_else(|| anyhow!("cannot get monitor idx from current position"))?;
+                    .ok_or_eyre("cannot get monitor idx from current position")?;
 
                 let focused_monitor_idx = self.focused_monitor_idx();
                 let focused_workspace_idx = self.focused_workspace_idx().unwrap_or_default();
@@ -603,10 +601,10 @@ impl WindowManager {
                             let origin_workspace = self
                                 .monitors()
                                 .get(origin_monitor_idx)
-                                .ok_or_else(|| anyhow!("cannot get monitor idx"))?
+                                .ok_or_eyre("cannot get monitor idx")?
                                 .workspaces()
                                 .get(origin_workspace_idx)
-                                .ok_or_else(|| anyhow!("cannot get workspace idx"))?;
+                                .ok_or_eyre("cannot get workspace idx")?;
 
                             let managed_window = origin_workspace.contains_window(window.hwnd);
 
@@ -646,17 +644,15 @@ impl WindowManager {
                                 let target_workspace_idx = self
                                     .monitors()
                                     .get(target_monitor_idx)
-                                    .ok_or_else(|| anyhow!("there is no monitor at this idx"))?
+                                    .ok_or_eyre("there is no monitor at this idx")?
                                     .focused_workspace_idx();
 
                                 let target_container_idx = self
                                     .monitors()
                                     .get(target_monitor_idx)
-                                    .ok_or_else(|| anyhow!("there is no monitor at this idx"))?
+                                    .ok_or_eyre("there is no monitor at this idx")?
                                     .focused_workspace()
-                                    .ok_or_else(|| {
-                                        anyhow!("there is no focused workspace for this monitor")
-                                    })?
+                                    .ok_or_eyre("there is no focused workspace for this monitor")?
                                     .container_idx_from_current_point()
                                     // Default to 0 in the case of an empty workspace
                                     .unwrap_or(0);
@@ -676,7 +672,7 @@ impl WindowManager {
                                 let origin_monitor = self
                                     .monitors_mut()
                                     .get_mut(origin_monitor_idx)
-                                    .ok_or_else(|| anyhow!("there is no monitor at this idx"))?;
+                                    .ok_or_eyre("there is no monitor at this idx")?;
                                 origin_monitor.focus_workspace(origin_workspace_idx)?;
                                 self.update_focused_workspace(false, false)?;
 
@@ -684,7 +680,7 @@ impl WindowManager {
                                 let target_monitor = self
                                     .monitors_mut()
                                     .get_mut(target_monitor_idx)
-                                    .ok_or_else(|| anyhow!("there is no monitor at this idx"))?;
+                                    .ok_or_eyre("there is no monitor at this idx")?;
                                 target_monitor.focus_workspace(target_workspace_idx)?;
                                 self.update_focused_workspace(false, false)?;
 

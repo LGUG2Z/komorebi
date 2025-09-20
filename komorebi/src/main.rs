@@ -17,7 +17,7 @@ use std::time::Duration;
 
 use clap::Parser;
 use clap::ValueEnum;
-use color_eyre::eyre::anyhow;
+use color_eyre::eyre::bail;
 use color_eyre::Result;
 use crossbeam_utils::Backoff;
 use komorebi::animation::AnimationEngine;
@@ -210,9 +210,7 @@ fn main() -> Result<()> {
         }
 
         if set_foreground_window_retries == 0 {
-            return Err(anyhow!(
-                "failed call to AllowSetForegroundWindow after 5 retries"
-            ));
+            bail!("failed call to AllowSetForegroundWindow after 5 retries");
         }
     }
 
