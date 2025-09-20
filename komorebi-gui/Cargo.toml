@@ -1,6 +1,6 @@
 [package]
 name = "komorebi-gui"
-version = "0.1.38"
+version = "0.1.39"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html

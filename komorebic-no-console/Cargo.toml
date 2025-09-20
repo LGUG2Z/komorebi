@@ -1,6 +1,6 @@
 [package]
 name = "komorebic-no-console"
-version = "0.1.38"
+version = "0.1.39"
 description = "The command-line interface (without a console) for Komorebi, a tiling window manager for Windows"
 repository = "https://github.com/LGUG2Z/komorebi"
 edition = "2021"
