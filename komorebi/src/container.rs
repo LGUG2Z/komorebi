@@ -1,8 +1,5 @@
 use std::collections::VecDeque;
 
-use getset::CopyGetters;
-use getset::Getters;
-use getset::Setters;
 use nanoid::nanoid;
 use serde::Deserialize;
 use serde::Serialize;
@@ -11,14 +8,12 @@ use crate::ring::Ring;
 use crate::window::Window;
 use crate::Lockable;
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Getters, CopyGetters, Setters)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct Container {
-    #[getset(get = "pub")]
-    id: String,
+    pub id: String,
     #[serde(default)]
-    #[getset(get_copy = "pub", set = "pub")]
-    locked: bool,
+    pub locked: bool,
     windows: Ring<Window>,
 }
 
@@ -278,8 +273,8 @@ mod tests {
         }"#;
         let container: Container = serde_json::from_str(json).expect("Should deserialize");
 
-        assert!(!container.locked());
-        assert_eq!(container.id(), "test-1");
+        assert!(!container.locked);
+        assert_eq!(container.id, "test-1");
         assert!(container.windows().is_empty());
 
         let json = r#"{
@@ -287,8 +282,8 @@ mod tests {
             "windows": { "elements": [ { "hwnd": 5 }, { "hwnd": 9 } ], "focused": 1 }
         }"#;
         let container: Container = serde_json::from_str(json).unwrap();
-        assert_eq!(container.id(), "test-2");
-        assert!(!container.locked());
+        assert_eq!(container.id, "test-2");
+        assert!(!container.locked);
         assert_eq!(container.windows(), &[Window::from(5), Window::from(9)]);
         assert_eq!(container.focused_window_idx(), 1);
     }
@@ -302,7 +297,7 @@ mod tests {
         let deserialized: Container =
             serde_json::from_str(&serialized).expect("Should deserialize");
 
-        assert!(deserialized.locked());
-        assert_eq!(deserialized.id(), container.id());
+        assert!(deserialized.locked);
+        assert_eq!(deserialized.id, container.id);
     }
 }

@@ -39,74 +39,44 @@ use crate::REGEX_IDENTIFIERS;
 use crate::REMOVE_TITLEBARS;
 use color_eyre::eyre::OptionExt;
 use color_eyre::Result;
-use getset::CopyGetters;
-use getset::Getters;
-use getset::MutGetters;
-use getset::Setters;
 use komorebi_themes::Base16ColourPalette;
 use serde::Deserialize;
 use serde::Serialize;
 use uds_windows::UnixStream;
 
 #[allow(clippy::struct_field_names)]
-#[derive(
-    Debug, Clone, Serialize, Deserialize, Getters, CopyGetters, MutGetters, Setters, PartialEq,
-)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct Workspace {
-    #[getset(get = "pub", set = "pub")]
     pub name: Option<String>,
     pub containers: Ring<Container>,
-    #[getset(get = "pub", get_mut = "pub", set = "pub")]
     pub monocle_container: Option<Container>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[getset(get_copy = "pub", set = "pub")]
     pub monocle_container_restore_idx: Option<usize>,
-    #[getset(get = "pub", get_mut = "pub", set = "pub")]
     pub maximized_window: Option<Window>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[getset(get_copy = "pub", set = "pub")]
     pub maximized_window_restore_idx: Option<usize>,
     pub floating_windows: Ring<Window>,
-    #[getset(get = "pub", get_mut = "pub", set = "pub")]
     pub layout: Layout,
-    #[getset(get_copy = "pub", set = "pub")]
     pub layout_options: Option<LayoutOptions>,
-    #[getset(get = "pub", get_mut = "pub", set = "pub")]
     pub layout_rules: Vec<(usize, Layout)>,
-    #[getset(get_copy = "pub", set = "pub")]
     pub layout_flip: Option<Axis>,
-    #[getset(get_copy = "pub", set = "pub")]
     pub workspace_padding: Option<i32>,
-    #[getset(get_copy = "pub", set = "pub")]
     pub container_padding: Option<i32>,
-    #[getset(get = "pub", set = "pub")]
     pub latest_layout: Vec<Rect>,
-    #[getset(get = "pub", get_mut = "pub", set = "pub")]
     pub resize_dimensions: Vec<Option<Rect>>,
-    #[getset(get = "pub", set = "pub")]
     pub tile: bool,
-    #[getset(get_copy = "pub", set = "pub")]
     pub work_area_offset: Option<Rect>,
-    #[getset(get_copy = "pub", set = "pub")]
     pub apply_window_based_work_area_offset: bool,
-    #[getset(get = "pub", get_mut = "pub", set = "pub")]
     pub window_container_behaviour: Option<WindowContainerBehaviour>,
-    #[getset(get = "pub", get_mut = "pub", set = "pub")]
     pub window_container_behaviour_rules: Option<Vec<(usize, WindowContainerBehaviour)>>,
-    #[getset(get = "pub", get_mut = "pub", set = "pub")]
     pub float_override: Option<bool>,
     #[serde(skip)]
-    #[getset(get = "pub", get_mut = "pub", set = "pub")]
     pub globals: WorkspaceGlobals,
-    #[getset(get = "pub", get_mut = "pub", set = "pub")]
     pub layer: WorkspaceLayer,
-    #[getset(get_copy = "pub", get_mut = "pub", set = "pub")]
     pub floating_layer_behaviour: Option<FloatingLayerBehaviour>,
-    #[getset(get = "pub", get_mut = "pub", set = "pub")]
     pub wallpaper: Option<Wallpaper>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[getset(get = "pub", set = "pub")]
     pub workspace_config: Option<WorkspaceConfig>,
 }
 
@@ -171,19 +141,7 @@ pub enum WorkspaceWindowLocation {
     Floating(usize),         // idx in floating_windows
 }
 
-#[derive(
-    Debug,
-    Default,
-    Copy,
-    Clone,
-    Serialize,
-    Deserialize,
-    Getters,
-    CopyGetters,
-    MutGetters,
-    Setters,
-    PartialEq,
-)]
+#[derive(Debug, Default, Copy, Clone, Serialize, Deserialize, PartialEq)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 /// Settings setup either by the parent monitor or by the `WindowManager`
 pub struct WorkspaceGlobals {
@@ -202,9 +160,9 @@ impl Workspace {
     pub fn load_static_config(&mut self, config: &WorkspaceConfig) -> Result<()> {
         self.name = Option::from(config.name.clone());
 
-        self.set_container_padding(config.container_padding);
+        self.container_padding = config.container_padding;
 
-        self.set_workspace_padding(config.workspace_padding);
+        self.workspace_padding = config.workspace_padding;
 
         if let Some(layout) = &config.layout {
             self.layout = Layout::Default(*layout);
@@ -229,7 +187,7 @@ impl Workspace {
             self.tile = true;
         }
 
-        self.set_layout_rules(all_layout_rules.clone());
+        self.layout_rules = all_layout_rules.clone();
 
         if let Some(layout_rules) = &config.custom_layout_rules {
             for (count, pathbuf) in layout_rules {
@@ -239,20 +197,19 @@ impl Workspace {
 
             all_layout_rules.sort_by_key(|(i, _)| *i);
             self.tile = true;
-            self.set_layout_rules(all_layout_rules);
+            self.layout_rules = all_layout_rules;
         }
 
-        self.set_work_area_offset(config.work_area_offset);
+        self.work_area_offset = config.work_area_offset;
 
-        self.set_apply_window_based_work_area_offset(
-            config.apply_window_based_work_area_offset.unwrap_or(true),
-        );
+        self.apply_window_based_work_area_offset =
+            config.apply_window_based_work_area_offset.unwrap_or(true);
 
-        self.set_window_container_behaviour(config.window_container_behaviour);
+        self.window_container_behaviour = config.window_container_behaviour;
 
         if let Some(window_container_behaviour_rules) = &config.window_container_behaviour_rules {
             if window_container_behaviour_rules.is_empty() {
-                self.set_window_container_behaviour_rules(None);
+                self.window_container_behaviour_rules = None;
             } else {
                 let mut all_rules = vec![];
                 for (count, behaviour) in window_container_behaviour_rules {
@@ -260,19 +217,19 @@ impl Workspace {
                 }
 
                 all_rules.sort_by_key(|(i, _)| *i);
-                self.set_window_container_behaviour_rules(Some(all_rules));
+                self.window_container_behaviour_rules = Some(all_rules);
             }
         } else {
-            self.set_window_container_behaviour_rules(None);
+            self.window_container_behaviour_rules = None;
         }
 
-        self.set_float_override(config.float_override);
-        self.set_layout_flip(config.layout_flip);
-        self.set_floating_layer_behaviour(config.floating_layer_behaviour);
-        self.set_wallpaper(config.wallpaper.clone());
-        self.set_layout_options(config.layout_options);
+        self.float_override = config.float_override;
+        self.layout_flip = config.layout_flip;
+        self.floating_layer_behaviour = config.floating_layer_behaviour;
+        self.wallpaper = config.wallpaper.clone();
+        self.layout_options = config.layout_options;
 
-        self.set_workspace_config(Some(config.clone()));
+        self.workspace_config = Some(config.clone());
 
         Ok(())
     }
@@ -298,11 +255,11 @@ impl Workspace {
             container.hide(omit)
         }
 
-        if let Some(window) = self.maximized_window() {
+        if let Some(window) = self.maximized_window {
             window.hide();
         }
 
-        if let Some(container) = self.monocle_container_mut() {
+        if let Some(container) = &self.monocle_container {
             container.hide(omit)
         }
     }
@@ -429,7 +386,7 @@ impl Workspace {
         hmonitor: isize,
         monitor_wp: &Option<Wallpaper>,
     ) -> Result<()> {
-        if let Some(container) = self.monocle_container() {
+        if let Some(container) = &self.monocle_container {
             if let Some(window) = container.focused_window() {
                 container.restore();
                 window.focus(mouse_follows_focus)?;
@@ -462,15 +419,15 @@ impl Workspace {
         // Maximised windows and floating windows should always be drawn at the top of the Z order
         // when switching to a workspace
         if let Some(window) = to_focus {
-            if self.maximized_window().is_none() && matches!(self.layer, WorkspaceLayer::Tiling) {
+            if self.maximized_window.is_none() && matches!(self.layer, WorkspaceLayer::Tiling) {
                 window.focus(mouse_follows_focus)?;
-            } else if let Some(maximized_window) = self.maximized_window() {
+            } else if let Some(maximized_window) = self.maximized_window {
                 maximized_window.restore();
                 maximized_window.focus(mouse_follows_focus)?;
             } else if let Some(floating_window) = self.focused_floating_window() {
                 floating_window.focus(mouse_follows_focus)?;
             }
-        } else if let Some(maximized_window) = self.maximized_window() {
+        } else if let Some(maximized_window) = self.maximized_window {
             maximized_window.restore();
             maximized_window.focus(mouse_follows_focus)?;
         } else if let Some(floating_window) = self.focused_floating_window() {
@@ -489,20 +446,19 @@ impl Workspace {
         self.containers_mut().retain(|c| !c.windows().is_empty());
 
         let container_padding = self
-            .container_padding()
-            .or(self.globals().container_padding)
+            .container_padding
+            .or(self.globals.container_padding)
             .unwrap_or_default();
         let workspace_padding = self
-            .workspace_padding()
-            .or(self.globals().workspace_padding)
+            .workspace_padding
+            .or(self.globals.workspace_padding)
             .unwrap_or_default();
-        let border_width = self.globals().border_width;
-        let border_offset = self.globals().border_offset;
-        let work_area = self.globals().work_area;
-        let work_area_offset = self.work_area_offset().or(self.globals().work_area_offset);
-        let window_based_work_area_offset = self.globals().window_based_work_area_offset;
-        let window_based_work_area_offset_limit =
-            self.globals().window_based_work_area_offset_limit;
+        let border_width = self.globals.border_width;
+        let border_offset = self.globals.border_offset;
+        let work_area = self.globals.work_area;
+        let work_area_offset = self.work_area_offset.or(self.globals.work_area_offset);
+        let window_based_work_area_offset = self.globals.window_based_work_area_offset;
+        let window_based_work_area_offset_limit = self.globals.window_based_work_area_offset_limit;
 
         let mut adjusted_work_area = work_area_offset.map_or_else(
             || work_area,
@@ -518,7 +474,7 @@ impl Workspace {
         );
 
         if (self.containers().len() <= window_based_work_area_offset_limit as usize
-            || self.monocle_container().is_some() && window_based_work_area_offset_limit > 0)
+            || self.monocle_container.is_some() && window_based_work_area_offset_limit > 0)
             && self.apply_window_based_work_area_offset
         {
             adjusted_work_area = window_based_work_area_offset.map_or_else(
@@ -539,21 +495,21 @@ impl Workspace {
 
         self.enforce_resize_constraints();
 
-        if !self.layout_rules().is_empty() {
+        if !self.layout_rules.is_empty() {
             let mut updated_layout = None;
 
-            for (threshold, layout) in self.layout_rules() {
+            for (threshold, layout) in &self.layout_rules {
                 if self.containers().len() >= *threshold {
                     updated_layout = Option::from(layout.clone());
                 }
             }
 
             if let Some(updated_layout) = updated_layout {
-                self.set_layout(updated_layout);
+                self.layout = updated_layout;
             }
         }
 
-        if let Some(window_container_behaviour_rules) = self.window_container_behaviour_rules() {
+        if let Some(window_container_behaviour_rules) = &self.window_container_behaviour_rules {
             let mut updated_behaviour = None;
             for (threshold, behaviour) in window_container_behaviour_rules {
                 if self.containers().len() >= *threshold {
@@ -561,33 +517,33 @@ impl Workspace {
                 }
             }
 
-            self.set_window_container_behaviour(updated_behaviour);
+            self.window_container_behaviour = updated_behaviour;
         }
 
-        let managed_maximized_window = self.maximized_window().is_some();
+        let managed_maximized_window = self.maximized_window.is_some();
 
-        if *self.tile() {
-            if let Some(container) = self.monocle_container_mut() {
+        if self.tile {
+            if let Some(container) = &mut self.monocle_container {
                 if let Some(window) = container.focused_window_mut() {
                     adjusted_work_area.add_padding(container_padding);
                     adjusted_work_area.add_padding(border_offset);
                     adjusted_work_area.add_padding(border_width);
                     window.set_position(&adjusted_work_area, true)?;
                 };
-            } else if let Some(window) = self.maximized_window_mut() {
+            } else if let Some(window) = &mut self.maximized_window {
                 window.maximize();
             } else if !self.containers().is_empty() {
-                let mut layouts = self.layout().as_boxed_arrangement().calculate(
+                let mut layouts = self.layout.as_boxed_arrangement().calculate(
                     &adjusted_work_area,
                     NonZeroUsize::new(self.containers().len()).ok_or_eyre(
                         "there must be at least one container to calculate a workspace layout",
                     )?,
                     Some(container_padding),
-                    self.layout_flip(),
-                    self.resize_dimensions(),
+                    self.layout_flip,
+                    &self.resize_dimensions,
                     self.focused_container_idx(),
-                    self.layout_options(),
-                    self.latest_layout(),
+                    self.layout_options,
+                    &self.latest_layout,
                 );
 
                 let should_remove_titlebars = REMOVE_TITLEBARS.load(Ordering::SeqCst);
@@ -643,7 +599,7 @@ impl Workspace {
                     }
                 }
 
-                self.set_latest_layout(layouts);
+                self.latest_layout = layouts;
             }
         }
 
@@ -658,8 +614,8 @@ impl Workspace {
         // without this check, if there are exactly two containers, when one is toggled to monocle
         // the resize dimensions will be truncated to len == 1, and when it is reintegrated, if it
         // had a resize adjustment before, that will have been lost
-        if self.monocle_container().is_none() {
-            self.resize_dimensions_mut().resize(container_count, None);
+        if self.monocle_container.is_none() {
+            self.resize_dimensions.resize(container_count, None);
         }
 
         Ok(())
@@ -709,7 +665,7 @@ impl Workspace {
         let point = WindowsApi::cursor_pos().ok()?;
 
         for (i, _container) in self.containers().iter().enumerate() {
-            if let Some(rect) = self.latest_layout().get(i) {
+            if let Some(rect) = self.latest_layout.get(i) {
                 if rect.contains_point((point.x, point.y)) {
                     idx = Option::from(i);
                 }
@@ -726,7 +682,7 @@ impl Workspace {
             }
         }
 
-        if let Some(window) = self.maximized_window() {
+        if let Some(window) = self.maximized_window {
             if let Ok(window_exe) = window.exe() {
                 if exe == window_exe {
                     return Option::from(window.hwnd);
@@ -734,7 +690,7 @@ impl Workspace {
             }
         }
 
-        if let Some(container) = self.monocle_container() {
+        if let Some(container) = &self.monocle_container {
             if let Some(hwnd) = container.hwnd_from_exe(exe) {
                 return Option::from(hwnd);
             }
@@ -761,7 +717,7 @@ impl Workspace {
             }
         }
 
-        if let Some(window) = self.maximized_window() {
+        if let Some(window) = self.maximized_window {
             if let Ok(window_exe) = window.exe() {
                 if exe == window_exe {
                     return Some(WorkspaceWindowLocation::Maximized);
@@ -769,7 +725,7 @@ impl Workspace {
             }
         }
 
-        if let Some(container) = self.monocle_container() {
+        if let Some(container) = &self.monocle_container {
             if let Some(window_idx) = container.idx_from_exe(exe) {
                 return Some(WorkspaceWindowLocation::Monocle(window_idx));
             }
@@ -793,13 +749,13 @@ impl Workspace {
             }
         }
 
-        if let Some(window) = self.maximized_window() {
+        if let Some(window) = self.maximized_window {
             if hwnd == window.hwnd {
                 return true;
             }
         }
 
-        if let Some(container) = self.monocle_container() {
+        if let Some(container) = &self.monocle_container {
             if container.contains_window(hwnd) {
                 return true;
             }
@@ -810,13 +766,13 @@ impl Workspace {
 
     pub fn is_focused_window_monocle_or_maximized(&self) -> Result<bool> {
         let hwnd = WindowsApi::foreground_window()?;
-        if let Some(window) = self.maximized_window() {
+        if let Some(window) = self.maximized_window {
             if hwnd == window.hwnd {
                 return Ok(true);
             }
         }
 
-        if let Some(container) = self.monocle_container() {
+        if let Some(container) = &self.monocle_container {
             if container.contains_window(hwnd) {
                 return Ok(true);
             }
@@ -827,8 +783,8 @@ impl Workspace {
 
     pub fn is_empty(&self) -> bool {
         self.containers().is_empty()
-            && self.maximized_window().is_none()
-            && self.monocle_container().is_none()
+            && self.maximized_window.is_none()
+            && self.monocle_container.is_none()
             && self.floating_windows().is_empty()
     }
 
@@ -839,13 +795,13 @@ impl Workspace {
             }
         }
 
-        if let Some(window) = self.maximized_window() {
+        if let Some(window) = self.maximized_window {
             if hwnd == window.hwnd {
                 return true;
             }
         }
 
-        if let Some(container) = self.monocle_container() {
+        if let Some(container) = &self.monocle_container {
             if container.contains_window(hwnd) {
                 return true;
             }
@@ -861,12 +817,12 @@ impl Workspace {
     }
 
     pub fn promote_container(&mut self) -> Result<()> {
-        let resize = self.resize_dimensions_mut().remove(0);
+        let resize = self.resize_dimensions.remove(0);
         let container = self
             .remove_focused_container()
             .ok_or_eyre("there is no container")?;
 
-        let primary_idx = match self.layout() {
+        let primary_idx = match &self.layout {
             Layout::Default(_) => 0,
             Layout::Custom(layout) => layout.first_container_idx(
                 layout
@@ -876,7 +832,7 @@ impl Workspace {
         };
 
         let insertion_idx = self.insert_container_at_idx(primary_idx, container);
-        self.resize_dimensions_mut()[insertion_idx] = resize;
+        self.resize_dimensions[insertion_idx] = resize;
         self.focus_container(primary_idx);
 
         Ok(())
@@ -899,10 +855,10 @@ impl Workspace {
             .containers_mut()
             .insert_respecting_locks(idx, container);
 
-        if insertion_idx > self.resize_dimensions().len() {
-            self.resize_dimensions_mut().push(None);
+        if insertion_idx > self.resize_dimensions.len() {
+            self.resize_dimensions.push(None);
         } else {
-            self.resize_dimensions_mut().insert(insertion_idx, None);
+            self.resize_dimensions.insert(insertion_idx, None);
         }
 
         self.focus_container(insertion_idx);
@@ -915,8 +871,8 @@ impl Workspace {
     pub fn remove_container_by_idx(&mut self, idx: usize) -> Option<Container> {
         let container = self.containers_mut().remove_respecting_locks(idx);
 
-        if idx < self.resize_dimensions().len() {
-            self.resize_dimensions_mut().remove(idx);
+        if idx < self.resize_dimensions.len() {
+            self.resize_dimensions.remove(idx);
         }
 
         container
@@ -941,7 +897,7 @@ impl Workspace {
             return Ok(());
         }
 
-        if let Some(container) = self.monocle_container_mut() {
+        if let Some(container) = &mut self.monocle_container {
             if let Some(window_idx) = container
                 .windows()
                 .iter()
@@ -952,8 +908,8 @@ impl Workspace {
                     .ok_or_eyre("there is no window")?;
 
                 if container.windows().is_empty() {
-                    self.set_monocle_container(None);
-                    self.set_monocle_container_restore_idx(None);
+                    self.monocle_container = None;
+                    self.monocle_container_restore_idx = None;
                 }
 
                 for c in self.containers() {
@@ -964,11 +920,11 @@ impl Workspace {
             }
         }
 
-        if let Some(window) = self.maximized_window() {
+        if let Some(window) = self.maximized_window {
             if window.hwnd == hwnd {
                 window.unmaximize();
-                self.set_maximized_window(None);
-                self.set_maximized_window_restore_idx(None);
+                self.maximized_window = None;
+                self.maximized_window_restore_idx = None;
                 return Ok(());
             }
         }
@@ -1024,8 +980,8 @@ impl Workspace {
         let len = NonZeroUsize::new(self.containers().len())?;
 
         direction.destination(
-            self.layout().as_boxed_direction().as_ref(),
-            self.layout_flip(),
+            self.layout.as_boxed_direction().as_ref(),
+            self.layout_flip,
             self.focused_container_idx(),
             len,
         )
@@ -1131,19 +1087,19 @@ impl Workspace {
     }
 
     pub fn new_floating_window(&mut self) -> Result<()> {
-        let window = if let Some(maximized_window) = self.maximized_window() {
-            let window = *maximized_window;
-            self.set_maximized_window(None);
-            self.set_maximized_window_restore_idx(None);
+        let window = if let Some(maximized_window) = self.maximized_window {
+            let window = maximized_window;
+            self.maximized_window = None;
+            self.maximized_window_restore_idx = None;
             window
-        } else if let Some(monocle_container) = self.monocle_container_mut() {
+        } else if let Some(monocle_container) = &mut self.monocle_container {
             let window = monocle_container
                 .remove_focused_window()
                 .ok_or_eyre("there is no window")?;
 
             if monocle_container.windows().is_empty() {
-                self.set_monocle_container(None);
-                self.set_monocle_container_restore_idx(None);
+                self.monocle_container = None;
+                self.monocle_container_restore_idx = None;
             } else {
                 monocle_container.load_focused_window();
             }
@@ -1203,7 +1159,7 @@ impl Workspace {
     }
 
     fn enforce_resize_constraints_for_bsp(&mut self) {
-        for (i, rect) in self.resize_dimensions_mut().iter_mut().enumerate() {
+        for (i, rect) in self.resize_dimensions.iter_mut().enumerate() {
             if let Some(rect) = rect {
                 // Even containers can't be resized to the bottom
                 if i % 2 == 0 {
@@ -1216,20 +1172,20 @@ impl Workspace {
         }
 
         // The first container can never be resized to the left or the top
-        if let Some(Some(first)) = self.resize_dimensions_mut().first_mut() {
+        if let Some(Some(first)) = self.resize_dimensions.first_mut() {
             first.top = 0;
             first.left = 0;
         }
 
         // The last container can never be resized to the bottom or the right
-        if let Some(Some(last)) = self.resize_dimensions_mut().last_mut() {
+        if let Some(Some(last)) = self.resize_dimensions.last_mut() {
             last.bottom = 0;
             last.right = 0;
         }
     }
 
     fn enforce_resize_for_columns(&mut self) {
-        let resize_dimensions = self.resize_dimensions_mut();
+        let resize_dimensions = &mut self.resize_dimensions;
         match resize_dimensions.len() {
             0 | 1 => self.enforce_no_resize(),
             _ => {
@@ -1252,7 +1208,7 @@ impl Workspace {
     }
 
     fn enforce_resize_for_rows(&mut self) {
-        let resize_dimensions = self.resize_dimensions_mut();
+        let resize_dimensions = &mut self.resize_dimensions;
         match resize_dimensions.len() {
             0 | 1 => self.enforce_no_resize(),
             _ => {
@@ -1275,7 +1231,7 @@ impl Workspace {
     }
 
     fn enforce_resize_for_vertical_stack(&mut self) {
-        let resize_dimensions = self.resize_dimensions_mut();
+        let resize_dimensions = &mut self.resize_dimensions;
         match resize_dimensions.len() {
             // Single window can not be resized at all
             0 | 1 => self.enforce_no_resize(),
@@ -1308,7 +1264,7 @@ impl Workspace {
     }
 
     fn enforce_resize_for_right_vertical_stack(&mut self) {
-        let resize_dimensions = self.resize_dimensions_mut();
+        let resize_dimensions = &mut self.resize_dimensions;
         match resize_dimensions.len() {
             // Single window can not be resized at all
             0 | 1 => self.enforce_no_resize(),
@@ -1341,7 +1297,7 @@ impl Workspace {
     }
 
     fn enforce_resize_for_horizontal_stack(&mut self) {
-        let resize_dimensions = self.resize_dimensions_mut();
+        let resize_dimensions = &mut self.resize_dimensions;
         match resize_dimensions.len() {
             0 | 1 => self.enforce_no_resize(),
             _ => {
@@ -1369,7 +1325,7 @@ impl Workspace {
     }
 
     fn enforce_resize_for_ultrawide(&mut self) {
-        let resize_dimensions = self.resize_dimensions_mut();
+        let resize_dimensions = &mut self.resize_dimensions;
         match resize_dimensions.len() {
             // Single window can not be resized at all
             0 | 1 => self.enforce_no_resize(),
@@ -1426,7 +1382,7 @@ impl Workspace {
     }
 
     fn enforce_resize_for_scrolling(&mut self) {
-        let resize_dimensions = self.resize_dimensions_mut();
+        let resize_dimensions = &mut self.resize_dimensions;
         match resize_dimensions.len() {
             0 | 1 => self.enforce_no_resize(),
             _ => {
@@ -1448,7 +1404,7 @@ impl Workspace {
         }
     }
     fn enforce_no_resize(&mut self) {
-        for rect in self.resize_dimensions_mut().iter_mut().flatten() {
+        for rect in self.resize_dimensions.iter_mut().flatten() {
             rect.left = 0;
             rect.right = 0;
             rect.top = 0;
@@ -1471,11 +1427,11 @@ impl Workspace {
         // inevitably reintegrated, it would be weird if it doesn't go back to the dimensions
         // it had before
 
-        self.set_monocle_container(Option::from(container));
-        self.set_monocle_container_restore_idx(Option::from(focused_idx));
+        self.monocle_container = Option::from(container);
+        self.monocle_container_restore_idx = Option::from(focused_idx);
         self.focus_previous_container();
 
-        self.monocle_container_mut()
+        self.monocle_container
             .as_mut()
             .ok_or_eyre("there is no monocle container")?
             .load_focused_window();
@@ -1485,11 +1441,11 @@ impl Workspace {
 
     pub fn reintegrate_monocle_container(&mut self) -> Result<()> {
         let restore_idx = self
-            .monocle_container_restore_idx()
+            .monocle_container_restore_idx
             .ok_or_eyre("there is no monocle restore index")?;
 
         let container = self
-            .monocle_container_mut()
+            .monocle_container
             .as_ref()
             .ok_or_eyre("there is no monocle container")?;
 
@@ -1508,8 +1464,8 @@ impl Workspace {
             .ok_or_eyre("there is no container")?
             .load_focused_window();
 
-        self.set_monocle_container(None);
-        self.set_monocle_container_restore_idx(None);
+        self.monocle_container = None;
+        self.monocle_container_restore_idx = None;
 
         Ok(())
     }
@@ -1520,31 +1476,31 @@ impl Workspace {
         if matches!(self.layer, WorkspaceLayer::Floating) {
             let floating_window_idx = self.focused_floating_window_idx();
             let floating_window = self.floating_windows_mut().remove(floating_window_idx);
-            self.set_maximized_window(floating_window);
-            self.set_maximized_window_restore_idx(Option::from(focused_idx));
-            if let Some(window) = self.maximized_window() {
+            self.maximized_window = floating_window;
+            self.maximized_window_restore_idx = Option::from(focused_idx);
+            if let Some(window) = self.maximized_window {
                 window.maximize();
             }
 
             return Ok(());
         }
 
-        let monocle_restore_idx = self.monocle_container_restore_idx();
-        if let Some(monocle_container) = self.monocle_container_mut() {
+        let monocle_restore_idx = self.monocle_container_restore_idx;
+        if let Some(monocle_container) = &mut self.monocle_container {
             let window = monocle_container
                 .remove_focused_window()
                 .ok_or_eyre("there is no window")?;
 
             if monocle_container.windows().is_empty() {
-                self.set_monocle_container(None);
-                self.set_monocle_container_restore_idx(None);
+                self.monocle_container = None;
+                self.monocle_container_restore_idx = None;
             } else {
                 monocle_container.load_focused_window();
             }
 
-            self.set_maximized_window(Option::from(window));
-            self.set_maximized_window_restore_idx(monocle_restore_idx);
-            if let Some(window) = self.maximized_window() {
+            self.maximized_window = Option::from(window);
+            self.maximized_window_restore_idx = monocle_restore_idx;
+            if let Some(window) = self.maximized_window {
                 window.maximize();
             }
 
@@ -1564,17 +1520,17 @@ impl Workspace {
             // monocle and maximized toggles which take over the whole screen before being reinserted
             // at the same index to respect locked container indexes
             self.containers_mut().remove(focused_idx);
-            if self.resize_dimensions().get(focused_idx).is_some() {
-                self.resize_dimensions_mut().remove(focused_idx);
+            if self.resize_dimensions.get(focused_idx).is_some() {
+                self.resize_dimensions.remove(focused_idx);
             }
         } else {
             container.load_focused_window();
         }
 
-        self.set_maximized_window(Option::from(window));
-        self.set_maximized_window_restore_idx(Option::from(focused_idx));
+        self.maximized_window = Option::from(window);
+        self.maximized_window_restore_idx = Option::from(focused_idx);
 
-        if let Some(window) = self.maximized_window() {
+        if let Some(window) = self.maximized_window {
             window.maximize();
         }
 
@@ -1585,11 +1541,11 @@ impl Workspace {
 
     pub fn reintegrate_maximized_window(&mut self) -> Result<()> {
         let restore_idx = self
-            .maximized_window_restore_idx()
+            .maximized_window_restore_idx
             .ok_or_eyre("there is no monocle restore index")?;
 
         let window = self
-            .maximized_window()
+            .maximized_window
             .as_ref()
             .ok_or_eyre("there is no monocle container")?;
 
@@ -1613,8 +1569,8 @@ impl Workspace {
             .ok_or_eyre("there is no container")?
             .load_focused_window();
 
-        self.set_maximized_window(None);
-        self.set_maximized_window_restore_idx(None);
+        self.maximized_window = None;
+        self.maximized_window_restore_idx = None;
 
         Ok(())
     }
@@ -1656,9 +1612,9 @@ impl Workspace {
     pub fn visible_windows(&self) -> Vec<Option<&Window>> {
         let mut vec = vec![];
 
-        vec.push(self.maximized_window().as_ref());
+        vec.push(self.maximized_window.as_ref());
 
-        if let Some(monocle) = self.monocle_container() {
+        if let Some(monocle) = &self.monocle_container {
             vec.push(monocle.focused_window());
         }
 
@@ -1676,13 +1632,13 @@ impl Workspace {
     pub fn visible_window_details(&self) -> Vec<WindowDetails> {
         let mut vec: Vec<WindowDetails> = vec![];
 
-        if let Some(maximized) = self.maximized_window() {
-            if let Ok(details) = (*maximized).try_into() {
+        if let Some(maximized) = self.maximized_window {
+            if let Ok(details) = (maximized).try_into() {
                 vec.push(details);
             }
         }
 
-        if let Some(monocle) = self.monocle_container() {
+        if let Some(monocle) = &self.monocle_container {
             if let Some(focused) = monocle.focused_window() {
                 if let Ok(details) = (*focused).try_into() {
                     vec.push(details);
@@ -1738,9 +1694,9 @@ mod tests {
         for i in 0..4 {
             let mut container = Container::default();
             if i == 3 {
-                container.set_locked(true); // set index 3 locked
+                container.locked = true; // set index 3 locked
             }
-            state.insert(i, container.id().to_string());
+            state.insert(i, container.id.to_string());
             ws.add_container_to_back(container);
         }
         assert_eq!(ws.containers().len(), 4);
@@ -1767,7 +1723,7 @@ mod tests {
         ws.focus_container(0);
         ws.new_container_for_window(Window::from(234));
         assert_eq!(
-            ws.containers()[3].id().to_string(),
+            ws.containers()[3].id.to_string(),
             state.get(&3).unwrap().to_string()
         );
     }
@@ -1781,7 +1737,7 @@ mod tests {
             let mut container = Container::default();
             container.windows_mut().push_back(Window::from(i));
             if i == 1 {
-                container.set_locked(true);
+                container.locked = true;
             }
             ws.add_container_to_back(container);
         }
@@ -1803,7 +1759,7 @@ mod tests {
             let mut container = Container::default();
             container.windows_mut().push_back(Window::from(i));
             if i == 1 {
-                container.set_locked(true);
+                container.locked = true;
             }
             ws.add_container_to_back(container);
         }
@@ -1845,7 +1801,7 @@ mod tests {
             let mut container = Container::default();
             container.windows_mut().push_back(Window::from(i));
             if i == 4 {
-                container.set_locked(true);
+                container.locked = true;
             }
             ws.add_container_to_back(container);
         }
@@ -2508,7 +2464,7 @@ mod tests {
         }
 
         // Maximize window 200
-        workspace.set_maximized_window(Some(Window { hwnd: 200 }));
+        workspace.maximized_window = Some(Window { hwnd: 200 });
 
         {
             // visible_windows should return 200, 100, and 300

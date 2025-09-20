@@ -70,10 +70,10 @@ pub fn send_notification(notification: MonitorNotification) {
 pub fn insert_in_monitor_cache(serial_or_device_id: &str, monitor: Monitor) {
     let dip = DISPLAY_INDEX_PREFERENCES.read();
     let mut dip_ids = dip.values();
-    let preferred_id = if dip_ids.any(|id| id == monitor.device_id()) {
-        monitor.device_id().clone()
-    } else if dip_ids.any(|id| Some(id) == monitor.serial_number_id().as_ref()) {
-        monitor.serial_number_id().clone().unwrap_or_default()
+    let preferred_id = if dip_ids.any(|id| id.eq(&monitor.device_id)) {
+        monitor.device_id.clone()
+    } else if dip_ids.any(|id| Some(id) == monitor.serial_number_id.as_ref()) {
+        monitor.serial_number_id.clone().unwrap_or_default()
     } else {
         serial_or_device_id.to_string()
     };
@@ -219,27 +219,27 @@ where
                     let mut should_update = false;
 
                     // Update work areas as necessary
-                    if let Ok(reference) = WindowsApi::monitor(monitor.id()) {
-                        if reference.work_area_size() != monitor.work_area_size() {
-                            monitor.set_work_area_size(Rect {
-                                left: reference.work_area_size().left,
-                                top: reference.work_area_size().top,
-                                right: reference.work_area_size().right,
-                                bottom: reference.work_area_size().bottom,
-                            });
+                    if let Ok(reference) = WindowsApi::monitor(monitor.id) {
+                        if reference.work_area_size != monitor.work_area_size {
+                            monitor.work_area_size = Rect {
+                                left: reference.work_area_size.left,
+                                top: reference.work_area_size.top,
+                                right: reference.work_area_size.right,
+                                bottom: reference.work_area_size.bottom,
+                            };
 
                             should_update = true;
                         }
                     }
 
                     if should_update {
-                        tracing::info!("updated work area for {}", monitor.device_id());
+                        tracing::info!("updated work area for {}", monitor.device_id);
                         monitor.update_focused_workspace(offset)?;
                         border_manager::send_notification(None);
                     } else {
                         tracing::debug!(
                             "work areas match, reconciliation not required for {}",
-                            monitor.device_id()
+                            monitor.device_id
                         );
                     }
                 }
@@ -251,25 +251,25 @@ where
                     let mut should_update = false;
 
                     // Update sizes and work areas as necessary
-                    if let Ok(reference) = WindowsApi::monitor(monitor.id()) {
-                        if reference.work_area_size() != monitor.work_area_size() {
-                            monitor.set_work_area_size(Rect {
-                                left: reference.work_area_size().left,
-                                top: reference.work_area_size().top,
-                                right: reference.work_area_size().right,
-                                bottom: reference.work_area_size().bottom,
-                            });
+                    if let Ok(reference) = WindowsApi::monitor(monitor.id) {
+                        if reference.work_area_size != monitor.work_area_size {
+                            monitor.work_area_size = Rect {
+                                left: reference.work_area_size.left,
+                                top: reference.work_area_size.top,
+                                right: reference.work_area_size.right,
+                                bottom: reference.work_area_size.bottom,
+                            };
 
                             should_update = true;
                         }
 
-                        if reference.size() != monitor.size() {
-                            monitor.set_size(Rect {
-                                left: reference.size().left,
-                                top: reference.size().top,
-                                right: reference.size().right,
-                                bottom: reference.size().bottom,
-                            });
+                        if reference.size != monitor.size {
+                            monitor.size = Rect {
+                                left: reference.size.left,
+                                top: reference.size.top,
+                                right: reference.size.right,
+                                bottom: reference.size.bottom,
+                            };
 
                             should_update = true;
                         }
@@ -278,7 +278,7 @@ where
                     if should_update {
                         tracing::info!(
                             "updated monitor resolution/scaling for {}",
-                            monitor.device_id()
+                            monitor.device_id
                         );
 
                         monitor.update_focused_workspace(offset)?;
@@ -286,7 +286,7 @@ where
                     } else {
                         tracing::debug!(
                             "resolutions match, reconciliation not required for {}",
-                            monitor.device_id()
+                            monitor.device_id
                         );
                     }
                 }
@@ -311,21 +311,21 @@ where
                 for monitor in wm.monitors_mut() {
                     for attached in &attached_devices {
                         let serial_number_ids_match = if let (Some(attached_snid), Some(m_snid)) =
-                            (attached.serial_number_id(), monitor.serial_number_id())
+                            (&attached.serial_number_id, &monitor.serial_number_id)
                         {
                             attached_snid.eq(m_snid)
                         } else {
                             false
                         };
 
-                        if serial_number_ids_match || attached.device_id().eq(monitor.device_id()) {
-                            monitor.set_id(attached.id());
-                            monitor.set_device(attached.device().clone());
-                            monitor.set_device_id(attached.device_id().clone());
-                            monitor.set_serial_number_id(attached.serial_number_id().clone());
-                            monitor.set_name(attached.name().clone());
-                            monitor.set_size(*attached.size());
-                            monitor.set_work_area_size(*attached.work_area_size());
+                        if serial_number_ids_match || attached.device_id.eq(&monitor.device_id) {
+                            monitor.id = attached.id;
+                            monitor.device = attached.device.clone();
+                            monitor.device_id = attached.device_id.clone();
+                            monitor.serial_number_id = attached.serial_number_id.clone();
+                            monitor.name = attached.name.clone();
+                            monitor.size = attached.size;
+                            monitor.work_area_size = attached.work_area_size;
                         }
                     }
                 }
@@ -359,13 +359,13 @@ where
 
                     for (m_idx, m) in wm.monitors().iter().enumerate() {
                         if !attached_devices.iter().any(|attached| {
-                            attached.serial_number_id().eq(m.serial_number_id())
-                                || attached.device_id().eq(m.device_id())
+                            attached.serial_number_id.eq(&m.serial_number_id)
+                                || attached.device_id.eq(&m.device_id)
                         }) {
                             let id = m
-                                .serial_number_id()
+                                .serial_number_id
                                 .as_ref()
-                                .map_or(m.device_id().clone(), |sn| sn.clone());
+                                .map_or(m.device_id.clone(), |sn| sn.clone());
 
                             newly_removed_displays.push(id.clone());
 
@@ -392,7 +392,7 @@ where
                                     }
                                 }
 
-                                if let Some(maximized) = workspace.maximized_window() {
+                                if let Some(maximized) = &workspace.maximized_window {
                                     windows_to_remove.push(maximized.hwnd);
                                     // Minimize the focused window since Windows might try
                                     // to move it to another monitor if it was focused.
@@ -401,7 +401,7 @@ where
                                     }
                                 }
 
-                                if let Some(container) = workspace.monocle_container() {
+                                if let Some(container) = &workspace.monocle_container {
                                     for window in container.windows() {
                                         windows_to_remove.push(window.hwnd);
                                     }
@@ -440,10 +440,10 @@ where
                             // the user set as preference as the id.
                             let dip = DISPLAY_INDEX_PREFERENCES.read();
                             let mut dip_ids = dip.values();
-                            let preferred_id = if dip_ids.any(|id| id == m.device_id()) {
-                                m.device_id().clone()
-                            } else if dip_ids.any(|id| Some(id) == m.serial_number_id().as_ref()) {
-                                m.serial_number_id().clone().unwrap_or_default()
+                            let preferred_id = if dip_ids.any(|id| id.eq(&m.device_id)) {
+                                m.device_id.clone()
+                            } else if dip_ids.any(|id| Some(id) == m.serial_number_id.as_ref()) {
+                                m.serial_number_id.clone().unwrap_or_default()
                             } else {
                                 id
                             };
@@ -458,8 +458,8 @@ where
                         // After we have cached them, remove them from our state
                         wm.monitors_mut().retain(|m| {
                             !newly_removed_displays.iter().any(|id| {
-                                m.serial_number_id().as_ref().is_some_and(|sn| sn == id)
-                                    || m.device_id() == id
+                                m.serial_number_id.as_ref().is_some_and(|sn| sn == id)
+                                    || m.device_id.eq(id)
                             })
                         });
                     }
@@ -490,7 +490,7 @@ where
                 let post_removal_device_ids = wm
                     .monitors()
                     .iter()
-                    .map(Monitor::device_id)
+                    .map(|m| &m.device_id)
                     .cloned()
                     .collect::<Vec<_>>();
 
@@ -513,14 +513,14 @@ where
 
                     // Look in the updated state for new monitors
                     for (i, m) in wm.monitors_mut().iter_mut().enumerate() {
-                        let device_id = m.device_id();
+                        let device_id = &m.device_id;
                         // We identify a new monitor when we encounter a new device id
                         if !post_removal_device_ids.contains(device_id) {
                             let mut cache_hit = false;
                             let mut cached_id = String::new();
                             // Check if that device id exists in the cache for this session
                             if let Some((id, cached)) = monitor_cache.get_key_value(device_id).or(m
-                                .serial_number_id()
+                                .serial_number_id
                                 .as_ref()
                                 .and_then(|sn| monitor_cache.get_key_value(sn)))
                             {
@@ -608,24 +608,24 @@ where
                                         }
                                     }
 
-                                    if let Some(window) = workspace.maximized_window() {
+                                    if let Some(window) = &workspace.maximized_window {
                                         if window.exe().is_err()
                                             || known_hwnds.contains_key(&window.hwnd)
                                         {
-                                            workspace.set_maximized_window(None);
+                                            workspace.maximized_window = None;
                                         } else if is_focused_workspace {
                                             WindowsApi::restore_window(window.hwnd);
                                         }
                                     }
 
-                                    if let Some(container) = workspace.monocle_container_mut() {
+                                    if let Some(container) = &mut workspace.monocle_container {
                                         container.windows_mut().retain(|window| {
                                             window.exe().is_ok()
                                                 && !known_hwnds.contains_key(&window.hwnd)
                                         });
 
                                         if container.windows().is_empty() {
-                                            workspace.set_monocle_container(None);
+                                            workspace.monocle_container = None;
                                         } else if is_focused_workspace {
                                             if let Some(window) = container.focused_window() {
                                                 WindowsApi::restore_window(window.hwnd);
@@ -657,7 +657,7 @@ where
                                     let mut workspace_matching_rules =
                                         WORKSPACE_MATCHING_RULES.lock();
                                     if let Some(rules) = workspace
-                                        .workspace_config()
+                                        .workspace_config
                                         .as_ref()
                                         .and_then(|c| c.workspace_rules.as_ref())
                                     {
@@ -672,7 +672,7 @@ where
                                     }
 
                                     if let Some(rules) = workspace
-                                        .workspace_config()
+                                        .workspace_config
                                         .as_ref()
                                         .and_then(|c| c.initial_workspace_rules.as_ref())
                                     {
@@ -1006,18 +1006,18 @@ mod tests {
             assert_eq!(monitors.len(), 1, "Expected one monitor");
 
             // hmonitor
-            assert_eq!(monitors[0].id(), 1);
+            assert_eq!(monitors[0].id, 1);
 
             // device name
-            assert_eq!(monitors[0].name(), &String::from("DISPLAY1"));
+            assert_eq!(monitors[0].name, String::from("DISPLAY1"));
 
             // Device
-            assert_eq!(monitors[0].device(), &String::from("ABC123"));
+            assert_eq!(monitors[0].device, String::from("ABC123"));
 
             // Device ID
             assert_eq!(
-                monitors[0].device_id(),
-                &String::from("ABC123-4&123456&0&UID0")
+                monitors[0].device_id,
+                String::from("ABC123-4&123456&0&UID0")
             );
 
             // Check monitor serial number id

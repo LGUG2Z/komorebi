@@ -209,9 +209,9 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
             .iter()
             .map(|w| w.hwnd)
             .collect::<Vec<_>>();
-        let workspace_layer = *state.monitors.elements()[focused_monitor_idx].workspaces()
+        let workspace_layer = state.monitors.elements()[focused_monitor_idx].workspaces()
             [focused_workspace_idx]
-            .layer();
+            .layer;
         let foreground_window = WindowsApi::foreground_window().unwrap_or_default();
         let layer_changed = previous_layer != workspace_layer;
         let forced_update = matches!(notification, Notification::ForceUpdate);
@@ -224,7 +224,7 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                     // Only operate on the focused workspace of each monitor
                     if let Some(ws) = m.focused_workspace() {
                         // Handle the monocle container separately
-                        if let Some(monocle) = ws.monocle_container() {
+                        if let Some(monocle) = &ws.monocle_container {
                             let window_kind = if monitor_idx != focused_monitor_idx {
                                 WindowKind::Unfocused
                             } else {
@@ -237,7 +237,7 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                                 .unwrap_or_default()
                                 .set_accent(window_kind_colour(window_kind))?;
 
-                            if ws.layer() == &WorkspaceLayer::Floating {
+                            if ws.layer == WorkspaceLayer::Floating {
                                 for window in ws.floating_windows() {
                                     let mut window_kind = WindowKind::Unfocused;
 
@@ -255,7 +255,7 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                             let window_kind = if idx != ws.focused_container_idx()
                                 || monitor_idx != focused_monitor_idx
                             {
-                                if c.locked() {
+                                if c.locked {
                                     WindowKind::UnfocusedLocked
                                 } else {
                                     WindowKind::Unfocused
@@ -383,7 +383,7 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                     // Only operate on the focused workspace of each monitor
                     if let Some(ws) = m.focused_workspace() {
                         // Workspaces with tiling disabled don't have borders
-                        if !ws.tile() {
+                        if !ws.tile {
                             // Remove all borders on this monitor
                             remove_borders(
                                 &mut borders,
@@ -396,16 +396,16 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                         }
 
                         // Handle the monocle container separately
-                        if let Some(monocle) = ws.monocle_container() {
+                        if let Some(monocle) = &ws.monocle_container {
                             let mut new_border = false;
                             let focused_window_hwnd =
                                 monocle.focused_window().map(|w| w.hwnd).unwrap_or_default();
-                            let id = monocle.id().clone();
+                            let id = monocle.id.clone();
                             let border = match borders.entry(id.clone()) {
                                 Entry::Occupied(entry) => entry.into_mut(),
                                 Entry::Vacant(entry) => {
                                     if let Ok(border) = Border::create(
-                                        monocle.id(),
+                                        &monocle.id,
                                         focused_window_hwnd,
                                         monitor_idx,
                                     ) {
@@ -463,7 +463,7 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
 
                             let border_hwnd = border.hwnd;
 
-                            if ws.layer() == &WorkspaceLayer::Floating {
+                            if ws.layer == WorkspaceLayer::Floating {
                                 handle_floating_borders(
                                     &mut borders,
                                     &mut windows_borders,
@@ -502,8 +502,8 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                         let foreground_hwnd = WindowsApi::foreground_window().unwrap_or_default();
                         let foreground_monitor_id =
                             WindowsApi::monitor_from_window(foreground_hwnd);
-                        let is_maximized = foreground_monitor_id == m.id()
-                            && WindowsApi::is_zoomed(foreground_hwnd);
+                        let is_maximized =
+                            foreground_monitor_id == m.id && WindowsApi::is_zoomed(foreground_hwnd);
 
                         if is_maximized {
                             // Remove all borders on this monitor
@@ -521,7 +521,7 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                         let mut container_and_floating_window_ids = ws
                             .containers()
                             .iter()
-                            .map(|c| c.id().clone())
+                            .map(|c| c.id.clone())
                             .collect::<Vec<_>>();
 
                         for w in ws.floating_windows() {
@@ -539,7 +539,7 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                         'containers: for (idx, c) in ws.containers().iter().enumerate() {
                             let focused_window_hwnd =
                                 c.focused_window().map(|w| w.hwnd).unwrap_or_default();
-                            let id = c.id().clone();
+                            let id = c.id.clone();
 
                             // Get the border entry for this container from the map or create one
                             let mut new_border = false;
@@ -547,7 +547,7 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                                 Entry::Occupied(entry) => entry.into_mut(),
                                 Entry::Vacant(entry) => {
                                     if let Ok(border) =
-                                        Border::create(c.id(), focused_window_hwnd, monitor_idx)
+                                        Border::create(&c.id, focused_window_hwnd, monitor_idx)
                                     {
                                         new_border = true;
                                         entry.insert(border)
@@ -563,7 +563,7 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                                 || monitor_idx != focused_monitor_idx
                                 || focused_window_hwnd != foreground_window
                             {
-                                if c.locked() {
+                                if c.locked {
                                     WindowKind::UnfocusedLocked
                                 } else {
                                     WindowKind::Unfocused
@@ -603,7 +603,7 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                             let rect = match WindowsApi::window_rect(focused_window_hwnd) {
                                 Ok(rect) => rect,
                                 Err(_) => {
-                                    remove_border(c.id(), &mut borders, &mut windows_borders)?;
+                                    remove_border(&c.id, &mut borders, &mut windows_borders)?;
                                     continue 'containers;
                                 }
                             };

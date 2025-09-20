@@ -111,7 +111,7 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
             // Only operate on the focused workspace of each monitor
             if let Some(ws) = m.focused_workspace_mut() {
                 // Workspaces with tiling disabled don't have stackbars
-                if !ws.tile() {
+                if !ws.tile {
                     let mut to_remove = vec![];
                     for (id, border) in stackbars.iter() {
                         if stackbars_monitors.get(id).copied().unwrap_or_default() == monitor_idx {
@@ -131,7 +131,7 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                     WindowsApi::is_zoomed(WindowsApi::foreground_window().unwrap_or_default());
 
                 // Handle the monocle container separately
-                if ws.monocle_container().is_some() || is_maximized {
+                if ws.monocle_container.is_some() || is_maximized {
                     // Destroy any stackbars associated with the focused workspace
                     let mut to_remove = vec![];
                     for (id, stackbar) in stackbars.iter() {
@@ -152,7 +152,7 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                 let container_ids = ws
                     .containers()
                     .iter()
-                    .map(|c| c.id().clone())
+                    .map(|c| c.id.clone())
                     .collect::<Vec<_>>();
 
                 let mut to_remove = vec![];
@@ -170,7 +170,7 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                 }
 
                 let container_padding = ws
-                    .container_padding()
+                    .container_padding
                     .unwrap_or_else(|| DEFAULT_CONTAINER_PADDING.load_consume());
 
                 'containers: for container in ws.containers_mut() {
@@ -181,20 +181,20 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                     };
 
                     if !should_add_stackbar {
-                        if let Some(stackbar) = stackbars.get(container.id()) {
+                        if let Some(stackbar) = stackbars.get(&container.id) {
                             stackbar.destroy()?
                         }
 
-                        stackbars.remove(container.id());
-                        stackbars_monitors.remove(container.id());
+                        stackbars.remove(&container.id);
+                        stackbars_monitors.remove(&container.id);
                         continue 'containers;
                     }
 
                     // Get the stackbar entry for this container from the map or create one
-                    let stackbar = match stackbars.entry(container.id().clone()) {
+                    let stackbar = match stackbars.entry(container.id.clone()) {
                         Entry::Occupied(entry) => entry.into_mut(),
                         Entry::Vacant(entry) => {
-                            if let Ok(stackbar) = Stackbar::create(container.id()) {
+                            if let Ok(stackbar) = Stackbar::create(&container.id) {
                                 entry.insert(stackbar)
                             } else {
                                 continue 'receiver;
@@ -202,7 +202,7 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                         }
                     };
 
-                    stackbars_monitors.insert(container.id().clone(), monitor_idx);
+                    stackbars_monitors.insert(container.id.clone(), monitor_idx);
 
                     let rect = WindowsApi::window_rect(
                         container.focused_window().copied().unwrap_or_default().hwnd,

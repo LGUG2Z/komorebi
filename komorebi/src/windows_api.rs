@@ -310,7 +310,7 @@ impl WindowsApi {
             let name = name.split('\\').collect::<Vec<_>>()[0].to_string();
 
             for monitor in monitors.elements() {
-                if device_id.eq(monitor.device_id()) {
+                if device_id.eq(&monitor.device_id) {
                     continue 'read;
                 }
             }
@@ -335,15 +335,14 @@ impl WindowsApi {
             let mut index_preference = None;
             let monitor_index_preferences = MONITOR_INDEX_PREFERENCES.lock();
             for (index, monitor_size) in &*monitor_index_preferences {
-                if m.size() == monitor_size {
+                if m.size == *monitor_size {
                     index_preference = Option::from(index);
                 }
             }
 
             let display_index_preferences = DISPLAY_INDEX_PREFERENCES.read();
             for (index, id) in &*display_index_preferences {
-                if m.serial_number_id().as_ref().is_some_and(|sn| sn == id) || id.eq(m.device_id())
-                {
+                if m.serial_number_id.as_ref().is_some_and(|sn| sn == id) || id.eq(&m.device_id) {
                     index_preference = Option::from(index);
                 }
             }
@@ -356,7 +355,7 @@ impl WindowsApi {
                 let current_name = monitors
                     .elements_mut()
                     .get(*preference)
-                    .map_or("", |m| m.name());
+                    .map_or("", |m| &m.name);
                 if current_name == "PLACEHOLDER" {
                     let _ = monitors.elements_mut().remove(*preference);
                     monitors.elements_mut().insert(*preference, m);
@@ -368,16 +367,14 @@ impl WindowsApi {
             }
         }
 
-        monitors
-            .elements_mut()
-            .retain(|m| m.name().ne("PLACEHOLDER"));
+        monitors.elements_mut().retain(|m| m.name.ne("PLACEHOLDER"));
 
         // Rebuild monitor index map
         *monitor_usr_idx_map = HashMap::new();
         let mut added_monitor_idxs = Vec::new();
         for (index, id) in &*DISPLAY_INDEX_PREFERENCES.read() {
             if let Some(m_idx) = monitors.elements().iter().position(|m| {
-                m.serial_number_id().as_ref().is_some_and(|sn| sn == id) || m.device_id() == id
+                m.serial_number_id.as_ref().is_some_and(|sn| sn == id) || m.device_id.eq(id)
             }) {
                 monitor_usr_idx_map.insert(*index, m_idx);
                 added_monitor_idxs.push(m_idx);
@@ -415,7 +412,7 @@ impl WindowsApi {
 
     pub fn load_workspace_information(monitors: &mut Ring<Monitor>) -> Result<()> {
         for monitor in monitors.elements_mut() {
-            let monitor_name = monitor.name().clone();
+            let monitor_name = monitor.name.clone();
             if let Some(workspace) = monitor.workspaces_mut().front_mut() {
                 // EnumWindows will enumerate through windows on all monitors
                 Self::enum_windows(
@@ -426,7 +423,7 @@ impl WindowsApi {
                 // Ensure that the resize_dimensions Vec length matches the number of containers for
                 // the potential later calls to workspace.remove_window later in this fn
                 let len = workspace.containers().len();
-                workspace.resize_dimensions_mut().resize(len, None);
+                workspace.resize_dimensions.resize(len, None);
 
                 // We have to prune each monitor's primary workspace of undesired windows here
                 let mut windows_on_other_monitors = vec![];
@@ -464,7 +461,7 @@ impl WindowsApi {
         Ok(Self::monitor(
             unsafe { MonitorFromWindow(HWND(as_ptr!(hwnd)), MONITOR_DEFAULTTONEAREST) }.0 as isize,
         )?
-        .name()
+        .name
         .to_string())
     }
 

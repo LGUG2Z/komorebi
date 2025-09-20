@@ -92,7 +92,7 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
             'workspaces: for (workspace_idx, ws) in m.workspaces().iter().enumerate() {
                 // Only operate on the focused workspace of each monitor
                 // Workspaces with tiling disabled don't have transparent windows
-                if !ws.tile() || workspace_idx != focused_workspace_idx {
+                if !ws.tile || workspace_idx != focused_workspace_idx {
                     for window in ws.visible_windows().iter().flatten() {
                         if let Err(error) = window.opaque() {
                             let hwnd = window.hwnd;
@@ -104,7 +104,7 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                 }
 
                 // Monocle container is never transparent
-                if let Some(monocle) = ws.monocle_container() {
+                if let Some(monocle) = &ws.monocle_container {
                     if let Some(window) = monocle.focused_window() {
                         if monitor_idx == focused_monitor_idx {
                             if let Err(error) = window.opaque() {

@@ -78,8 +78,8 @@ impl From<&komorebi_client::Monitor> for MonitorConfig {
         }
 
         Self {
-            size: *value.size(),
-            work_area_offset: value.work_area_offset().unwrap_or_default(),
+            size: value.size,
+            work_area_offset: value.work_area_offset.unwrap_or_default(),
             workspaces,
         }
     }
@@ -95,22 +95,22 @@ struct WorkspaceConfig {
 
 impl From<&komorebi_client::Workspace> for WorkspaceConfig {
     fn from(value: &komorebi_client::Workspace) -> Self {
-        let layout = match value.layout() {
-            Layout::Default(layout) => *layout,
+        let layout = match value.layout {
+            Layout::Default(layout) => layout,
             Layout::Custom(_) => DefaultLayout::BSP,
         };
 
         let name = value
-            .name()
+            .name
             .to_owned()
             .unwrap_or_else(|| random_word::get(random_word::Lang::En).to_string());
 
         Self {
             layout,
             name,
-            tile: *value.tile(),
-            workspace_padding: value.workspace_padding().unwrap_or(20),
-            container_padding: value.container_padding().unwrap_or(20),
+            tile: value.tile,
+            workspace_padding: value.workspace_padding.unwrap_or(20),
+            container_padding: value.container_padding.unwrap_or(20),
         }
     }
 }

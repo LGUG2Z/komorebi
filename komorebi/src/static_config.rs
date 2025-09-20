@@ -250,7 +250,7 @@ pub struct WorkspaceConfig {
 impl From<&Workspace> for WorkspaceConfig {
     fn from(value: &Workspace) -> Self {
         let mut layout_rules = HashMap::new();
-        for (threshold, layout) in value.layout_rules() {
+        for (threshold, layout) in &value.layout_rules {
             match layout {
                 Layout::Default(value) => {
                     layout_rules.insert(*threshold, *value);
@@ -261,14 +261,14 @@ impl From<&Workspace> for WorkspaceConfig {
         let layout_rules = (!layout_rules.is_empty()).then_some(layout_rules);
 
         let mut window_container_behaviour_rules = HashMap::new();
-        for (threshold, behaviour) in value.window_container_behaviour_rules().iter().flatten() {
+        for (threshold, behaviour) in value.window_container_behaviour_rules.iter().flatten() {
             window_container_behaviour_rules.insert(*threshold, *behaviour);
         }
 
         let default_container_padding = DEFAULT_CONTAINER_PADDING.load(Ordering::SeqCst);
         let default_workspace_padding = DEFAULT_WORKSPACE_PADDING.load(Ordering::SeqCst);
 
-        let container_padding = value.container_padding().and_then(|container_padding| {
+        let container_padding = value.container_padding.and_then(|container_padding| {
             if container_padding == default_container_padding {
                 None
             } else {
@@ -276,7 +276,7 @@ impl From<&Workspace> for WorkspaceConfig {
             }
         });
 
-        let workspace_padding = value.workspace_padding().and_then(|workspace_padding| {
+        let workspace_padding = value.workspace_padding.and_then(|workspace_padding| {
             if workspace_padding == default_workspace_padding {
                 None
             } else {
@@ -284,48 +284,48 @@ impl From<&Workspace> for WorkspaceConfig {
             }
         });
 
-        let tile = if *value.tile() { None } else { Some(false) };
+        let tile = if value.tile { None } else { Some(false) };
 
         Self {
             name: value
-                .name()
+                .name
                 .clone()
                 .unwrap_or_else(|| String::from("unnamed")),
             layout: value
-                .tile()
-                .then_some(match value.layout() {
-                    Layout::Default(layout) => Option::from(*layout),
+                .tile
+                .then_some(match value.layout {
+                    Layout::Default(layout) => Option::from(layout),
                     Layout::Custom(_) => None,
                 })
                 .flatten(),
-            layout_options: value.layout_options(),
+            layout_options: value.layout_options,
             custom_layout: value
-                .workspace_config()
+                .workspace_config
                 .as_ref()
                 .and_then(|c| c.custom_layout.clone()),
             layout_rules,
             custom_layout_rules: value
-                .workspace_config()
+                .workspace_config
                 .as_ref()
                 .and_then(|c| c.custom_layout_rules.clone()),
             container_padding,
             workspace_padding,
             initial_workspace_rules: value
-                .workspace_config()
+                .workspace_config
                 .as_ref()
                 .and_then(|c| c.initial_workspace_rules.clone()),
             workspace_rules: value
-                .workspace_config()
+                .workspace_config
                 .as_ref()
                 .and_then(|c| c.workspace_rules.clone()),
-            work_area_offset: value.work_area_offset(),
-            apply_window_based_work_area_offset: Some(value.apply_window_based_work_area_offset()),
-            window_container_behaviour: *value.window_container_behaviour(),
+            work_area_offset: value.work_area_offset,
+            apply_window_based_work_area_offset: Some(value.apply_window_based_work_area_offset),
+            window_container_behaviour: value.window_container_behaviour,
             window_container_behaviour_rules: Option::from(window_container_behaviour_rules),
-            float_override: *value.float_override(),
+            float_override: value.float_override,
             tile,
-            layout_flip: value.layout_flip(),
-            floating_layer_behaviour: value.floating_layer_behaviour(),
+            layout_flip: value.layout_flip,
+            floating_layer_behaviour: value.floating_layer_behaviour,
             wallpaper: None,
         }
     }
@@ -369,7 +369,7 @@ impl From<&Monitor> for MonitorConfig {
         let default_container_padding = DEFAULT_CONTAINER_PADDING.load(Ordering::SeqCst);
         let default_workspace_padding = DEFAULT_WORKSPACE_PADDING.load(Ordering::SeqCst);
 
-        let container_padding = value.container_padding().and_then(|container_padding| {
+        let container_padding = value.container_padding.and_then(|container_padding| {
             if container_padding == default_container_padding {
                 None
             } else {
@@ -377,7 +377,7 @@ impl From<&Monitor> for MonitorConfig {
             }
         });
 
-        let workspace_padding = value.workspace_padding().and_then(|workspace_padding| {
+        let workspace_padding = value.workspace_padding.and_then(|workspace_padding| {
             if workspace_padding == default_workspace_padding {
                 None
             } else {
@@ -387,13 +387,13 @@ impl From<&Monitor> for MonitorConfig {
 
         Self {
             workspaces,
-            work_area_offset: value.work_area_offset(),
-            window_based_work_area_offset: value.window_based_work_area_offset(),
-            window_based_work_area_offset_limit: Some(value.window_based_work_area_offset_limit()),
+            work_area_offset: value.work_area_offset,
+            window_based_work_area_offset: value.window_based_work_area_offset,
+            window_based_work_area_offset_limit: Some(value.window_based_work_area_offset_limit),
             container_padding,
             workspace_padding,
-            wallpaper: value.wallpaper().clone(),
-            floating_layer_behaviour: value.floating_layer_behaviour(),
+            wallpaper: value.wallpaper.clone(),
+            floating_layer_behaviour: value.floating_layer_behaviour,
         }
     }
 }
@@ -1364,12 +1364,9 @@ impl StaticConfig {
             let preferred_config_idx = {
                 let display_index_preferences = DISPLAY_INDEX_PREFERENCES.read();
                 let c_idx = display_index_preferences.iter().find_map(|(c_idx, id)| {
-                    (monitor
-                        .serial_number_id()
-                        .as_ref()
-                        .is_some_and(|sn| sn == id)
-                        || monitor.device_id() == id)
-                        .then_some(*c_idx)
+                    (monitor.serial_number_id.as_ref().is_some_and(|sn| sn == id)
+                        || monitor.device_id.eq(id))
+                    .then_some(*c_idx)
                 });
                 c_idx
             };
@@ -1396,19 +1393,16 @@ impl StaticConfig {
                 }
 
                 monitor.ensure_workspace_count(monitor_config.workspaces.len());
-                monitor.set_work_area_offset(monitor_config.work_area_offset);
-                monitor.set_window_based_work_area_offset(
-                    monitor_config.window_based_work_area_offset,
-                );
-                monitor.set_window_based_work_area_offset_limit(
-                    monitor_config
-                        .window_based_work_area_offset_limit
-                        .unwrap_or(1),
-                );
-                monitor.set_container_padding(monitor_config.container_padding);
-                monitor.set_workspace_padding(monitor_config.workspace_padding);
-                monitor.set_wallpaper(monitor_config.wallpaper.clone());
-                monitor.set_floating_layer_behaviour(monitor_config.floating_layer_behaviour);
+                monitor.work_area_offset = monitor_config.work_area_offset;
+                monitor.window_based_work_area_offset =
+                    monitor_config.window_based_work_area_offset;
+                monitor.window_based_work_area_offset_limit = monitor_config
+                    .window_based_work_area_offset_limit
+                    .unwrap_or(1);
+                monitor.container_padding = monitor_config.container_padding;
+                monitor.workspace_padding = monitor_config.workspace_padding;
+                monitor.wallpaper = monitor_config.wallpaper.clone();
+                monitor.floating_layer_behaviour = monitor_config.floating_layer_behaviour;
 
                 monitor.update_workspaces_globals(offset);
                 for (j, ws) in monitor.workspaces_mut().iter_mut().enumerate() {
@@ -1428,9 +1422,9 @@ impl StaticConfig {
                 // a copy of the monitor itself on the monitor cache if it is.
                 if idx == preferred_config_idx {
                     let id = monitor
-                        .serial_number_id()
+                        .serial_number_id
                         .as_ref()
-                        .map_or(monitor.device_id(), |sn| sn);
+                        .map_or(&monitor.device_id, |sn| sn);
                     monitor_reconciliator::insert_in_monitor_cache(id, monitor.clone());
                 }
 
@@ -1490,18 +1484,14 @@ impl StaticConfig {
                     );
 
                     m.ensure_workspace_count(monitor_config.workspaces.len());
-                    m.set_work_area_offset(monitor_config.work_area_offset);
-                    m.set_window_based_work_area_offset(
-                        monitor_config.window_based_work_area_offset,
-                    );
-                    m.set_window_based_work_area_offset_limit(
-                        monitor_config
-                            .window_based_work_area_offset_limit
-                            .unwrap_or(1),
-                    );
-                    m.set_container_padding(monitor_config.container_padding);
-                    m.set_workspace_padding(monitor_config.workspace_padding);
-                    m.set_floating_layer_behaviour(monitor_config.floating_layer_behaviour);
+                    m.work_area_offset = monitor_config.work_area_offset;
+                    m.window_based_work_area_offset = monitor_config.window_based_work_area_offset;
+                    m.window_based_work_area_offset_limit = monitor_config
+                        .window_based_work_area_offset_limit
+                        .unwrap_or(1);
+                    m.container_padding = monitor_config.container_padding;
+                    m.workspace_padding = monitor_config.workspace_padding;
+                    m.floating_layer_behaviour = monitor_config.floating_layer_behaviour;
 
                     m.update_workspaces_globals(offset);
 
@@ -1543,12 +1533,9 @@ impl StaticConfig {
             let preferred_config_idx = {
                 let display_index_preferences = DISPLAY_INDEX_PREFERENCES.read();
                 let c_idx = display_index_preferences.iter().find_map(|(c_idx, id)| {
-                    (monitor
-                        .serial_number_id()
-                        .as_ref()
-                        .is_some_and(|sn| sn == id)
-                        || monitor.device_id() == id)
-                        .then_some(*c_idx)
+                    (monitor.serial_number_id.as_ref().is_some_and(|sn| sn == id)
+                        || monitor.device_id.eq(id))
+                    .then_some(*c_idx)
                 });
                 c_idx
             };
@@ -1575,21 +1562,18 @@ impl StaticConfig {
                 }
 
                 monitor.ensure_workspace_count(monitor_config.workspaces.len());
-                if monitor.work_area_offset().is_none() {
-                    monitor.set_work_area_offset(monitor_config.work_area_offset);
+                if monitor.work_area_offset.is_none() {
+                    monitor.work_area_offset = monitor_config.work_area_offset;
                 }
-                monitor.set_window_based_work_area_offset(
-                    monitor_config.window_based_work_area_offset,
-                );
-                monitor.set_window_based_work_area_offset_limit(
-                    monitor_config
-                        .window_based_work_area_offset_limit
-                        .unwrap_or(1),
-                );
-                monitor.set_container_padding(monitor_config.container_padding);
-                monitor.set_workspace_padding(monitor_config.workspace_padding);
-                monitor.set_wallpaper(monitor_config.wallpaper.clone());
-                monitor.set_floating_layer_behaviour(monitor_config.floating_layer_behaviour);
+                monitor.window_based_work_area_offset =
+                    monitor_config.window_based_work_area_offset;
+                monitor.window_based_work_area_offset_limit = monitor_config
+                    .window_based_work_area_offset_limit
+                    .unwrap_or(1);
+                monitor.container_padding = monitor_config.container_padding;
+                monitor.workspace_padding = monitor_config.workspace_padding;
+                monitor.wallpaper = monitor_config.wallpaper.clone();
+                monitor.floating_layer_behaviour = monitor_config.floating_layer_behaviour;
 
                 monitor.update_workspaces_globals(offset);
 
@@ -1603,9 +1587,9 @@ impl StaticConfig {
                 // a copy of the monitor itself on the monitor cache if it is.
                 if idx == preferred_config_idx {
                     let id = monitor
-                        .serial_number_id()
+                        .serial_number_id
                         .as_ref()
-                        .map_or(monitor.device_id(), |sn| sn);
+                        .map_or(&monitor.device_id, |sn| sn);
                     monitor_reconciliator::insert_in_monitor_cache(id, monitor.clone());
                 }
 
@@ -1665,18 +1649,14 @@ impl StaticConfig {
                     );
 
                     m.ensure_workspace_count(monitor_config.workspaces.len());
-                    m.set_work_area_offset(monitor_config.work_area_offset);
-                    m.set_window_based_work_area_offset(
-                        monitor_config.window_based_work_area_offset,
-                    );
-                    m.set_window_based_work_area_offset_limit(
-                        monitor_config
-                            .window_based_work_area_offset_limit
-                            .unwrap_or(1),
-                    );
-                    m.set_container_padding(monitor_config.container_padding);
-                    m.set_workspace_padding(monitor_config.workspace_padding);
-                    m.set_floating_layer_behaviour(monitor_config.floating_layer_behaviour);
+                    m.work_area_offset = monitor_config.work_area_offset;
+                    m.window_based_work_area_offset = monitor_config.window_based_work_area_offset;
+                    m.window_based_work_area_offset_limit = monitor_config
+                        .window_based_work_area_offset_limit
+                        .unwrap_or(1);
+                    m.container_padding = monitor_config.container_padding;
+                    m.workspace_padding = monitor_config.workspace_padding;
+                    m.floating_layer_behaviour = monitor_config.floating_layer_behaviour;
 
                     m.update_workspaces_globals(offset);
 

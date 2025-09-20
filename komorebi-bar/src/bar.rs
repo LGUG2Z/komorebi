@@ -937,9 +937,9 @@ impl eframe::App for Komobar {
                 ) {
                     let monitor_index = self.monitor_index.expect("should have a monitor index");
 
-                    let monitor_size = state.monitors.elements()[monitor_index].size();
+                    let monitor_size = state.monitors.elements()[monitor_index].size;
 
-                    self.update_monitor_coordinates(monitor_size);
+                    self.update_monitor_coordinates(&monitor_size);
 
                     should_apply_config = true;
                 }
@@ -950,7 +950,7 @@ impl eframe::App for Komobar {
 
                 // Check if monitor coordinates/size has changed
                 if let Some(monitor_index) = self.monitor_index {
-                    let monitor_size = state.monitors.elements()[monitor_index].size();
+                    let monitor_size = state.monitors.elements()[monitor_index].size;
                     let top = MONITOR_TOP.load(Ordering::SeqCst);
                     let left = MONITOR_LEFT.load(Ordering::SeqCst);
                     let right = MONITOR_RIGHT.load(Ordering::SeqCst);
@@ -960,13 +960,13 @@ impl eframe::App for Komobar {
                         bottom: monitor_size.bottom,
                         right,
                     };
-                    if *monitor_size != rect {
+                    if monitor_size != rect {
                         tracing::info!(
                             "Monitor coordinates/size has changed, storing new coordinates: {:#?}",
                             monitor_size
                         );
 
-                        self.update_monitor_coordinates(monitor_size);
+                        self.update_monitor_coordinates(&monitor_size);
 
                         should_apply_config = true;
                     }

@@ -817,7 +817,7 @@ impl MonitorInfo {
         self.mouse_follows_focus = state.mouse_follows_focus;
 
         let monitor = &state.monitors.elements()[self.monitor_index];
-        self.work_area_offset = monitor.work_area_offset();
+        self.work_area_offset = monitor.work_area_offset;
         self.focused_workspace_idx = Some(monitor.focused_workspace_idx());
 
         // Layout
@@ -856,7 +856,7 @@ impl MonitorInfo {
             let containers = fn_containers_from(ws);
             WorkspaceInfo {
                 name: ws
-                    .name()
+                    .name
                     .to_owned()
                     .unwrap_or_else(|| format!("{}", index + 1)),
                 focused_container_idx: containers.iter().position(|c| c.is_focused),
@@ -864,7 +864,7 @@ impl MonitorInfo {
                     .iter()
                     .any(|container| container.windows.iter().any(|window| window.icon.is_some())),
                 containers,
-                layer: *ws.layer(),
+                layer: ws.layer,
                 should_show: !hide_empty_ws || focused_ws_idx == Some(index) || !ws.is_empty(),
                 is_selected: focused_ws_idx == Some(index),
             }
@@ -873,15 +873,15 @@ impl MonitorInfo {
 
     /// Determines the current layout of the focused workspace
     fn resolve_layout(focused_ws: &Workspace, is_paused: bool) -> KomorebiLayout {
-        if focused_ws.monocle_container().is_some() {
+        if focused_ws.monocle_container.is_some() {
             KomorebiLayout::Monocle
-        } else if !focused_ws.tile() {
+        } else if !focused_ws.tile {
             KomorebiLayout::Floating
         } else if is_paused {
             KomorebiLayout::Paused
         } else {
-            match focused_ws.layout() {
-                komorebi_client::Layout::Default(layout) => KomorebiLayout::Default(*layout),
+            match focused_ws.layout {
+                komorebi_client::Layout::Default(layout) => KomorebiLayout::Default(layout),
                 komorebi_client::Layout::Custom(_) => KomorebiLayout::Custom,
             }
         }
@@ -938,7 +938,7 @@ impl ContainerInfo {
 
         // Monocle container first if present
         let monocle = ws
-            .monocle_container()
+            .monocle_container
             .as_ref()
             .map(|c| Self::from_container(c, !has_focused_float));
 
@@ -965,7 +965,7 @@ impl ContainerInfo {
         if let Some(window) = ws.floating_windows().iter().find(|w| w.is_focused()) {
             return Some(Self::from_window(window));
         }
-        if let Some(container) = ws.monocle_container() {
+        if let Some(container) = &ws.monocle_container {
             Some(Self::from_container(container, true))
         } else {
             ws.focused_container()
@@ -979,7 +979,7 @@ impl ContainerInfo {
             windows: container.windows().iter().map(WindowInfo::from).collect(),
             focused_window_idx: container.focused_window_idx(),
             is_focused,
-            is_locked: container.locked(),
+            is_locked: container.locked,
         }
     }
 
