@@ -2991,7 +2991,7 @@ dependencies = [
  "which",
  "win32-display-data",
  "windows 0.61.3",
- "windows-core 0.61.2",
+ "windows-core 0.62.0",
  "windows-implement 0.60.0",
  "windows-interface 0.59.1",
  "windows-numerics 0.2.0",
@@ -3034,7 +3034,7 @@ dependencies = [
  "tracing-subscriber",
  "which",
  "windows 0.61.3",
- "windows-core 0.61.2",
+ "windows-core 0.62.0",
  "windows-icons 0.1.0 (git+https://github.com/LGUG2Z/windows-icons?rev=0c9d7ee1b807347c507d3a9862dd007b4d3f4354)",
  "windows-icons 0.1.0 (git+https://github.com/LGUG2Z/windows-icons?rev=d67cc9920aa9b4883393e411fb4fa2ddd4c498b5)",
 ]
@@ -3058,7 +3058,7 @@ dependencies = [
  "random_word",
  "serde_json_lenient",
  "windows 0.61.3",
- "windows-core 0.61.2",
+ "windows-core 0.62.0",
 ]
 
 [[package]]
