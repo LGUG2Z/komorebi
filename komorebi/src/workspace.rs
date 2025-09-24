@@ -238,12 +238,11 @@ impl Workspace {
         for window in self.floating_windows_mut().iter_mut().rev() {
             let mut should_hide = omit.is_none();
 
-            if !should_hide {
-                if let Some(omit) = omit {
-                    if omit != window.hwnd {
-                        should_hide = true
-                    }
-                }
+            if !should_hide
+                && let Some(omit) = omit
+                && omit != window.hwnd
+            {
+                should_hide = true
             }
 
             if should_hide {
@@ -386,22 +385,22 @@ impl Workspace {
         hmonitor: isize,
         monitor_wp: &Option<Wallpaper>,
     ) -> Result<()> {
-        if let Some(container) = &self.monocle_container {
-            if let Some(window) = container.focused_window() {
-                container.restore();
-                window.focus(mouse_follows_focus)?;
-                return self.apply_wallpaper(hmonitor, monitor_wp);
-            }
+        if let Some(container) = &self.monocle_container
+            && let Some(window) = container.focused_window()
+        {
+            container.restore();
+            window.focus(mouse_follows_focus)?;
+            return self.apply_wallpaper(hmonitor, monitor_wp);
         }
 
         let idx = self.focused_container_idx();
         let mut to_focus = None;
 
         for (i, container) in self.containers_mut().iter_mut().enumerate() {
-            if let Some(window) = container.focused_window_mut() {
-                if idx == i {
-                    to_focus = Option::from(*window);
-                }
+            if let Some(window) = container.focused_window_mut()
+                && idx == i
+            {
+                to_focus = Option::from(*window);
             }
 
             container.restore();
@@ -665,10 +664,10 @@ impl Workspace {
         let point = WindowsApi::cursor_pos().ok()?;
 
         for (i, _container) in self.containers().iter().enumerate() {
-            if let Some(rect) = self.latest_layout.get(i) {
-                if rect.contains_point((point.x, point.y)) {
-                    idx = Option::from(i);
-                }
+            if let Some(rect) = self.latest_layout.get(i)
+                && rect.contains_point((point.x, point.y))
+            {
+                idx = Option::from(i);
             }
         }
 
@@ -682,25 +681,24 @@ impl Workspace {
             }
         }
 
-        if let Some(window) = self.maximized_window {
-            if let Ok(window_exe) = window.exe() {
-                if exe == window_exe {
-                    return Option::from(window.hwnd);
-                }
-            }
+        if let Some(window) = self.maximized_window
+            && let Ok(window_exe) = window.exe()
+            && exe == window_exe
+        {
+            return Option::from(window.hwnd);
         }
 
-        if let Some(container) = &self.monocle_container {
-            if let Some(hwnd) = container.hwnd_from_exe(exe) {
-                return Option::from(hwnd);
-            }
+        if let Some(container) = &self.monocle_container
+            && let Some(hwnd) = container.hwnd_from_exe(exe)
+        {
+            return Option::from(hwnd);
         }
 
         for window in self.floating_windows() {
-            if let Ok(window_exe) = window.exe() {
-                if exe == window_exe {
-                    return Option::from(window.hwnd);
-                }
+            if let Ok(window_exe) = window.exe()
+                && exe == window_exe
+            {
+                return Option::from(window.hwnd);
             }
         }
 
@@ -717,25 +715,24 @@ impl Workspace {
             }
         }
 
-        if let Some(window) = self.maximized_window {
-            if let Ok(window_exe) = window.exe() {
-                if exe == window_exe {
-                    return Some(WorkspaceWindowLocation::Maximized);
-                }
-            }
+        if let Some(window) = self.maximized_window
+            && let Ok(window_exe) = window.exe()
+            && exe == window_exe
+        {
+            return Some(WorkspaceWindowLocation::Maximized);
         }
 
-        if let Some(container) = &self.monocle_container {
-            if let Some(window_idx) = container.idx_from_exe(exe) {
-                return Some(WorkspaceWindowLocation::Monocle(window_idx));
-            }
+        if let Some(container) = &self.monocle_container
+            && let Some(window_idx) = container.idx_from_exe(exe)
+        {
+            return Some(WorkspaceWindowLocation::Monocle(window_idx));
         }
 
         for (window_idx, window) in self.floating_windows().iter().enumerate() {
-            if let Ok(window_exe) = window.exe() {
-                if exe == window_exe {
-                    return Some(WorkspaceWindowLocation::Floating(window_idx));
-                }
+            if let Ok(window_exe) = window.exe()
+                && exe == window_exe
+            {
+                return Some(WorkspaceWindowLocation::Floating(window_idx));
             }
         }
 
@@ -749,16 +746,16 @@ impl Workspace {
             }
         }
 
-        if let Some(window) = self.maximized_window {
-            if hwnd == window.hwnd {
-                return true;
-            }
+        if let Some(window) = self.maximized_window
+            && hwnd == window.hwnd
+        {
+            return true;
         }
 
-        if let Some(container) = &self.monocle_container {
-            if container.contains_window(hwnd) {
-                return true;
-            }
+        if let Some(container) = &self.monocle_container
+            && container.contains_window(hwnd)
+        {
+            return true;
         }
 
         false
@@ -766,16 +763,16 @@ impl Workspace {
 
     pub fn is_focused_window_monocle_or_maximized(&self) -> Result<bool> {
         let hwnd = WindowsApi::foreground_window()?;
-        if let Some(window) = self.maximized_window {
-            if hwnd == window.hwnd {
-                return Ok(true);
-            }
+        if let Some(window) = self.maximized_window
+            && hwnd == window.hwnd
+        {
+            return Ok(true);
         }
 
-        if let Some(container) = &self.monocle_container {
-            if container.contains_window(hwnd) {
-                return Ok(true);
-            }
+        if let Some(container) = &self.monocle_container
+            && container.contains_window(hwnd)
+        {
+            return Ok(true);
         }
 
         Ok(false)
@@ -795,16 +792,16 @@ impl Workspace {
             }
         }
 
-        if let Some(window) = self.maximized_window {
-            if hwnd == window.hwnd {
-                return true;
-            }
+        if let Some(window) = self.maximized_window
+            && hwnd == window.hwnd
+        {
+            return true;
         }
 
-        if let Some(container) = &self.monocle_container {
-            if container.contains_window(hwnd) {
-                return true;
-            }
+        if let Some(container) = &self.monocle_container
+            && container.contains_window(hwnd)
+        {
+            return true;
         }
 
         for window in self.floating_windows() {
@@ -897,36 +894,35 @@ impl Workspace {
             return Ok(());
         }
 
-        if let Some(container) = &mut self.monocle_container {
-            if let Some(window_idx) = container
+        if let Some(container) = &mut self.monocle_container
+            && let Some(window_idx) = container
                 .windows()
                 .iter()
                 .position(|window| window.hwnd == hwnd)
-            {
-                container
-                    .remove_window_by_idx(window_idx)
-                    .ok_or_eyre("there is no window")?;
+        {
+            container
+                .remove_window_by_idx(window_idx)
+                .ok_or_eyre("there is no window")?;
 
-                if container.windows().is_empty() {
-                    self.monocle_container = None;
-                    self.monocle_container_restore_idx = None;
-                }
-
-                for c in self.containers() {
-                    c.restore();
-                }
-
-                return Ok(());
+            if container.windows().is_empty() {
+                self.monocle_container = None;
+                self.monocle_container_restore_idx = None;
             }
+
+            for c in self.containers() {
+                c.restore();
+            }
+
+            return Ok(());
         }
 
-        if let Some(window) = self.maximized_window {
-            if window.hwnd == hwnd {
-                window.unmaximize();
-                self.maximized_window = None;
-                self.maximized_window_restore_idx = None;
-                return Ok(());
-            }
+        if let Some(window) = self.maximized_window
+            && window.hwnd == hwnd
+        {
+            window.unmaximize();
+            self.maximized_window = None;
+            self.maximized_window_restore_idx = None;
+            return Ok(());
         }
 
         let container_idx = self
@@ -1632,25 +1628,24 @@ impl Workspace {
     pub fn visible_window_details(&self) -> Vec<WindowDetails> {
         let mut vec: Vec<WindowDetails> = vec![];
 
-        if let Some(maximized) = self.maximized_window {
-            if let Ok(details) = (maximized).try_into() {
-                vec.push(details);
-            }
+        if let Some(maximized) = self.maximized_window
+            && let Ok(details) = (maximized).try_into()
+        {
+            vec.push(details);
         }
 
-        if let Some(monocle) = &self.monocle_container {
-            if let Some(focused) = monocle.focused_window() {
-                if let Ok(details) = (*focused).try_into() {
-                    vec.push(details);
-                }
-            }
+        if let Some(monocle) = &self.monocle_container
+            && let Some(focused) = monocle.focused_window()
+            && let Ok(details) = (*focused).try_into()
+        {
+            vec.push(details);
         }
 
         for container in self.containers() {
-            if let Some(focused) = container.focused_window() {
-                if let Ok(details) = (*focused).try_into() {
-                    vec.push(details);
-                }
+            if let Some(focused) = container.focused_window()
+                && let Ok(details) = (*focused).try_into()
+            {
+                vec.push(details);
             }
         }
 

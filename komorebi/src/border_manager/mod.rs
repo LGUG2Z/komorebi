@@ -341,15 +341,11 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                             should_process_notification = true;
                         }
 
-                        if !should_process_notification {
-                            if let Some(Notification::Update(ref previous)) = previous_notification
-                            {
-                                if previous.unwrap_or_default()
-                                    != notification_hwnd.unwrap_or_default()
-                                {
-                                    should_process_notification = true;
-                                }
-                            }
+                        if !should_process_notification
+                            && let Some(Notification::Update(ref previous)) = previous_notification
+                            && previous.unwrap_or_default() != notification_hwnd.unwrap_or_default()
+                        {
+                            should_process_notification = true;
                         }
 
                         should_process_notification

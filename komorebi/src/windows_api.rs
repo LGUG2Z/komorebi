@@ -282,12 +282,12 @@ impl WindowsApi {
         }
 
         for d in &all_displays {
-            if let Some(id) = &d.serial_number_id {
-                if serial_id_map.get(id).copied().unwrap_or_default() > 1 {
-                    let mut dupes = DUPLICATE_MONITOR_SERIAL_IDS.write();
-                    if !dupes.contains(id) {
-                        (*dupes).push(id.clone());
-                    }
+            if let Some(id) = &d.serial_number_id
+                && serial_id_map.get(id).copied().unwrap_or_default() > 1
+            {
+                let mut dupes = DUPLICATE_MONITOR_SERIAL_IDS.write();
+                if !dupes.contains(id) {
+                    (*dupes).push(id.clone());
                 }
             }
         }

@@ -46,30 +46,28 @@ impl Media {
     }
 
     pub fn toggle(&self) {
-        if let Ok(session) = self.session_manager.GetCurrentSession() {
-            if let Ok(op) = session.TryTogglePlayPauseAsync() {
-                op.get().unwrap_or_default();
-            }
+        if let Ok(session) = self.session_manager.GetCurrentSession()
+            && let Ok(op) = session.TryTogglePlayPauseAsync()
+        {
+            op.get().unwrap_or_default();
         }
     }
 
     fn output(&mut self) -> String {
-        if let Ok(session) = self.session_manager.GetCurrentSession() {
-            if let Ok(operation) = session.TryGetMediaPropertiesAsync() {
-                if let Ok(properties) = operation.get() {
-                    if let (Ok(artist), Ok(title)) = (properties.Artist(), properties.Title()) {
-                        if artist.is_empty() {
-                            return format!("{title}");
-                        }
-
-                        if title.is_empty() {
-                            return format!("{artist}");
-                        }
-
-                        return format!("{artist} - {title}");
-                    }
-                }
+        if let Ok(session) = self.session_manager.GetCurrentSession()
+            && let Ok(operation) = session.TryGetMediaPropertiesAsync()
+            && let Ok(properties) = operation.get()
+            && let (Ok(artist), Ok(title)) = (properties.Artist(), properties.Title())
+        {
+            if artist.is_empty() {
+                return format!("{title}");
             }
+
+            if title.is_empty() {
+                return format!("{artist}");
+            }
+
+            return format!("{artist} - {title}");
         }
 
         String::new()

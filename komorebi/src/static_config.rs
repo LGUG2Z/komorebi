@@ -1367,12 +1367,12 @@ impl StaticConfig {
         for (i, monitor) in wm.monitors_mut().iter_mut().enumerate() {
             let preferred_config_idx = {
                 let display_index_preferences = DISPLAY_INDEX_PREFERENCES.read();
-                let c_idx = display_index_preferences.iter().find_map(|(c_idx, id)| {
+
+                display_index_preferences.iter().find_map(|(c_idx, id)| {
                     (monitor.serial_number_id.as_ref().is_some_and(|sn| sn == id)
                         || monitor.device_id.eq(id))
                     .then_some(*c_idx)
-                });
-                c_idx
+                })
             };
             let idx = preferred_config_idx.or({
                 // Monitor without preferred config idx.
@@ -1538,12 +1538,12 @@ impl StaticConfig {
         for (i, monitor) in wm.monitors_mut().iter_mut().enumerate() {
             let preferred_config_idx = {
                 let display_index_preferences = DISPLAY_INDEX_PREFERENCES.read();
-                let c_idx = display_index_preferences.iter().find_map(|(c_idx, id)| {
+
+                display_index_preferences.iter().find_map(|(c_idx, id)| {
                     (monitor.serial_number_id.as_ref().is_some_and(|sn| sn == id)
                         || monitor.device_id.eq(id))
                     .then_some(*c_idx)
-                });
-                c_idx
+                })
             };
             let idx = preferred_config_idx.or({
                 // Monitor without preferred config idx.

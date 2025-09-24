@@ -102,10 +102,10 @@ pub extern "system" fn border_hwnds(hwnd: HWND, lparam: LPARAM) -> BOOL {
     let hwnds = unsafe { &mut *(lparam.0 as *mut Vec<isize>) };
     let hwnd = hwnd.0 as isize;
 
-    if let Ok(class) = WindowsApi::real_window_class_w(hwnd) {
-        if class.starts_with("komoborder") {
-            hwnds.push(hwnd);
-        }
+    if let Ok(class) = WindowsApi::real_window_class_w(hwnd)
+        && class.starts_with("komoborder")
+    {
+        hwnds.push(hwnd);
     }
 
     true.into()
@@ -392,63 +392,63 @@ impl Border {
                         tracing::error!("failed to update border position {error}");
                     }
 
-                    if !rect.is_same_size_as(&old_rect) || !rect.has_same_position_as(&old_rect) {
-                        if let Some(render_target) = (*border_pointer).render_target.as_ref() {
-                            let border_width = (*border_pointer).width;
-                            let border_offset = (*border_pointer).offset;
+                    if (!rect.is_same_size_as(&old_rect) || !rect.has_same_position_as(&old_rect))
+                        && let Some(render_target) = (*border_pointer).render_target.as_ref()
+                    {
+                        let border_width = (*border_pointer).width;
+                        let border_offset = (*border_pointer).offset;
 
-                            (*border_pointer).rounded_rect.rect = D2D_RECT_F {
-                                left: (border_width / 2 - border_offset) as f32,
-                                top: (border_width / 2 - border_offset) as f32,
-                                right: (rect.right - border_width / 2 + border_offset) as f32,
-                                bottom: (rect.bottom - border_width / 2 + border_offset) as f32,
+                        (*border_pointer).rounded_rect.rect = D2D_RECT_F {
+                            left: (border_width / 2 - border_offset) as f32,
+                            top: (border_width / 2 - border_offset) as f32,
+                            right: (rect.right - border_width / 2 + border_offset) as f32,
+                            bottom: (rect.bottom - border_width / 2 + border_offset) as f32,
+                        };
+
+                        let _ = render_target.Resize(&D2D_SIZE_U {
+                            width: rect.right as u32,
+                            height: rect.bottom as u32,
+                        });
+
+                        let window_kind = (*border_pointer).window_kind;
+                        if let Some(brush) = (*border_pointer).brushes.get(&window_kind) {
+                            render_target.BeginDraw();
+                            render_target.Clear(None);
+
+                            // Calculate border radius based on style
+                            let style = match (*border_pointer).style {
+                                BorderStyle::System => {
+                                    if *WINDOWS_11 {
+                                        BorderStyle::Rounded
+                                    } else {
+                                        BorderStyle::Square
+                                    }
+                                }
+                                BorderStyle::Rounded => BorderStyle::Rounded,
+                                BorderStyle::Square => BorderStyle::Square,
                             };
 
-                            let _ = render_target.Resize(&D2D_SIZE_U {
-                                width: rect.right as u32,
-                                height: rect.bottom as u32,
-                            });
-
-                            let window_kind = (*border_pointer).window_kind;
-                            if let Some(brush) = (*border_pointer).brushes.get(&window_kind) {
-                                render_target.BeginDraw();
-                                render_target.Clear(None);
-
-                                // Calculate border radius based on style
-                                let style = match (*border_pointer).style {
-                                    BorderStyle::System => {
-                                        if *WINDOWS_11 {
-                                            BorderStyle::Rounded
-                                        } else {
-                                            BorderStyle::Square
-                                        }
-                                    }
-                                    BorderStyle::Rounded => BorderStyle::Rounded,
-                                    BorderStyle::Square => BorderStyle::Square,
-                                };
-
-                                match style {
-                                    BorderStyle::Rounded => {
-                                        render_target.DrawRoundedRectangle(
-                                            &(*border_pointer).rounded_rect,
-                                            brush,
-                                            border_width as f32,
-                                            None,
-                                        );
-                                    }
-                                    BorderStyle::Square => {
-                                        render_target.DrawRectangle(
-                                            &(*border_pointer).rounded_rect.rect,
-                                            brush,
-                                            border_width as f32,
-                                            None,
-                                        );
-                                    }
-                                    _ => {}
+                            match style {
+                                BorderStyle::Rounded => {
+                                    render_target.DrawRoundedRectangle(
+                                        &(*border_pointer).rounded_rect,
+                                        brush,
+                                        border_width as f32,
+                                        None,
+                                    );
                                 }
-
-                                let _ = render_target.EndDraw(None, None);
+                                BorderStyle::Square => {
+                                    render_target.DrawRectangle(
+                                        &(*border_pointer).rounded_rect.rect,
+                                        brush,
+                                        border_width as f32,
+                                        None,
+                                    );
+                                }
+                                _ => {}
                             }
+
+                            let _ = render_target.EndDraw(None, None);
                         }
                     }
 

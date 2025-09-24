@@ -322,16 +322,15 @@ pub fn apply_theme(
     // apply rounding to the widgets
     if let Some(Grouping::Bar(config) | Grouping::Alignment(config) | Grouping::Widget(config)) =
         &grouping
+        && let Some(rounding) = config.rounding
     {
-        if let Some(rounding) = config.rounding {
-            ctx.style_mut(|style| {
-                style.visuals.widgets.noninteractive.corner_radius = rounding.into();
-                style.visuals.widgets.inactive.corner_radius = rounding.into();
-                style.visuals.widgets.hovered.corner_radius = rounding.into();
-                style.visuals.widgets.active.corner_radius = rounding.into();
-                style.visuals.widgets.open.corner_radius = rounding.into();
-            });
-        }
+        ctx.style_mut(|style| {
+            style.visuals.widgets.noninteractive.corner_radius = rounding.into();
+            style.visuals.widgets.inactive.corner_radius = rounding.into();
+            style.visuals.widgets.hovered.corner_radius = rounding.into();
+            style.visuals.widgets.active.corner_radius = rounding.into();
+            style.visuals.widgets.open.corner_radius = rounding.into();
+        });
     }
 
     // Update RenderConfig's background_color so that widgets will have the new color
@@ -672,17 +671,16 @@ impl Komobar {
                             | Grouping::Alignment(config)
                             | Grouping::Widget(config),
                         ) = &bar_grouping
+                            && let Some(rounding) = config.rounding
                         {
-                            if let Some(rounding) = config.rounding {
-                                ctx.style_mut(|style| {
-                                    style.visuals.widgets.noninteractive.corner_radius =
-                                        rounding.into();
-                                    style.visuals.widgets.inactive.corner_radius = rounding.into();
-                                    style.visuals.widgets.hovered.corner_radius = rounding.into();
-                                    style.visuals.widgets.active.corner_radius = rounding.into();
-                                    style.visuals.widgets.open.corner_radius = rounding.into();
-                                });
-                            }
+                            ctx.style_mut(|style| {
+                                style.visuals.widgets.noninteractive.corner_radius =
+                                    rounding.into();
+                                style.visuals.widgets.inactive.corner_radius = rounding.into();
+                                style.visuals.widgets.hovered.corner_radius = rounding.into();
+                                style.visuals.widgets.active.corner_radius = rounding.into();
+                                style.visuals.widgets.open.corner_radius = rounding.into();
+                            });
                         }
                     }
                 }

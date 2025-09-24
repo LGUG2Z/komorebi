@@ -70,10 +70,9 @@ impl Arrangement for DefaultLayout {
                         if matches!(
                             layout_flip,
                             Some(Axis::Horizontal | Axis::HorizontalAndVertical)
-                        ) {
-                            if let 2.. = len {
-                                columns_reverse(&mut layouts);
-                            }
+                        ) && let 2.. = len
+                        {
+                            columns_reverse(&mut layouts);
                         }
                     }
                     // treat >= column_count as scrolling
@@ -166,10 +165,9 @@ impl Arrangement for DefaultLayout {
                 if matches!(
                     layout_flip,
                     Some(Axis::Horizontal | Axis::HorizontalAndVertical)
-                ) {
-                    if let 2.. = len {
-                        columns_reverse(&mut layouts);
-                    }
+                ) && let 2.. = len
+                {
+                    columns_reverse(&mut layouts);
                 }
 
                 layouts
@@ -191,10 +189,9 @@ impl Arrangement for DefaultLayout {
                 if matches!(
                     layout_flip,
                     Some(Axis::Vertical | Axis::HorizontalAndVertical)
-                ) {
-                    if let 2.. = len {
-                        rows_reverse(&mut layouts);
-                    }
+                ) && let 2.. = len
+                {
+                    rows_reverse(&mut layouts);
                 }
 
                 layouts
@@ -245,25 +242,23 @@ impl Arrangement for DefaultLayout {
                 if matches!(
                     layout_flip,
                     Some(Axis::Horizontal | Axis::HorizontalAndVertical)
-                ) {
-                    if let 2.. = len {
-                        let (primary, rest) = layouts.split_at_mut(1);
-                        let primary = &mut primary[0];
+                ) && let 2.. = len
+                {
+                    let (primary, rest) = layouts.split_at_mut(1);
+                    let primary = &mut primary[0];
 
-                        for rect in rest.iter_mut() {
-                            rect.left = primary.left;
-                        }
-                        primary.left = rest[0].left + rest[0].right;
+                    for rect in rest.iter_mut() {
+                        rect.left = primary.left;
                     }
+                    primary.left = rest[0].left + rest[0].right;
                 }
 
                 if matches!(
                     layout_flip,
                     Some(Axis::Vertical | Axis::HorizontalAndVertical)
-                ) {
-                    if let 3.. = len {
-                        rows_reverse(&mut layouts[1..]);
-                    }
+                ) && let 3.. = len
+                {
+                    rows_reverse(&mut layouts[1..]);
                 }
 
                 layouts
@@ -317,25 +312,23 @@ impl Arrangement for DefaultLayout {
                 if matches!(
                     layout_flip,
                     Some(Axis::Horizontal | Axis::HorizontalAndVertical)
-                ) {
-                    if let 2.. = len {
-                        let (primary, rest) = layouts.split_at_mut(1);
-                        let primary = &mut primary[0];
+                ) && let 2.. = len
+                {
+                    let (primary, rest) = layouts.split_at_mut(1);
+                    let primary = &mut primary[0];
 
-                        primary.left = rest[0].left;
-                        for rect in rest.iter_mut() {
-                            rect.left = primary.left + primary.right;
-                        }
+                    primary.left = rest[0].left;
+                    for rect in rest.iter_mut() {
+                        rect.left = primary.left + primary.right;
                     }
                 }
 
                 if matches!(
                     layout_flip,
                     Some(Axis::Vertical | Axis::HorizontalAndVertical)
-                ) {
-                    if let 3.. = len {
-                        rows_reverse(&mut layouts[1..]);
-                    }
+                ) && let 3.. = len
+                {
+                    rows_reverse(&mut layouts[1..]);
                 }
 
                 layouts
@@ -386,25 +379,23 @@ impl Arrangement for DefaultLayout {
                 if matches!(
                     layout_flip,
                     Some(Axis::Vertical | Axis::HorizontalAndVertical)
-                ) {
-                    if let 2.. = len {
-                        let (primary, rest) = layouts.split_at_mut(1);
-                        let primary = &mut primary[0];
+                ) && let 2.. = len
+                {
+                    let (primary, rest) = layouts.split_at_mut(1);
+                    let primary = &mut primary[0];
 
-                        for rect in rest.iter_mut() {
-                            rect.top = primary.top;
-                        }
-                        primary.top = rest[0].top + rest[0].bottom;
+                    for rect in rest.iter_mut() {
+                        rect.top = primary.top;
                     }
+                    primary.top = rest[0].top + rest[0].bottom;
                 }
 
                 if matches!(
                     layout_flip,
                     Some(Axis::Horizontal | Axis::HorizontalAndVertical)
-                ) {
-                    if let 3.. = len {
-                        columns_reverse(&mut layouts[1..]);
-                    }
+                ) && let 3.. = len
+                {
+                    columns_reverse(&mut layouts[1..]);
                 }
 
                 layouts
@@ -513,10 +504,9 @@ impl Arrangement for DefaultLayout {
                 if matches!(
                     layout_flip,
                     Some(Axis::Vertical | Axis::HorizontalAndVertical)
-                ) {
-                    if let 4.. = len {
-                        rows_reverse(&mut layouts[2..]);
-                    }
+                ) && let 4.. = len
+                {
+                    rows_reverse(&mut layouts[2..]);
                 }
 
                 layouts
@@ -782,67 +772,67 @@ fn calculate_resize_adjustments(resize_dimensions: &[Option<Rect>]) -> Vec<Optio
 
     // This needs to be aware of layout flips
     for (i, opt) in resize_dimensions.iter().enumerate() {
-        if let Some(resize_ref) = opt {
-            if i > 0 {
-                if resize_ref.left != 0 {
-                    #[allow(clippy::if_not_else)]
-                    let range = if i == 1 {
-                        0..1
-                    } else if i & 1 != 0 {
-                        i - 1..i
-                    } else {
-                        i - 2..i
-                    };
+        if let Some(resize_ref) = opt
+            && i > 0
+        {
+            if resize_ref.left != 0 {
+                #[allow(clippy::if_not_else)]
+                let range = if i == 1 {
+                    0..1
+                } else if i & 1 != 0 {
+                    i - 1..i
+                } else {
+                    i - 2..i
+                };
 
-                    for n in range {
-                        let should_adjust = n % 2 == 0;
-                        if should_adjust {
-                            if let Some(Some(adjacent_resize)) = resize_adjustments.get_mut(n) {
-                                adjacent_resize.right += resize_ref.left;
-                            } else {
-                                resize_adjustments[n] = Option::from(Rect {
-                                    left: 0,
-                                    top: 0,
-                                    right: resize_ref.left,
-                                    bottom: 0,
-                                });
-                            }
+                for n in range {
+                    let should_adjust = n % 2 == 0;
+                    if should_adjust {
+                        if let Some(Some(adjacent_resize)) = resize_adjustments.get_mut(n) {
+                            adjacent_resize.right += resize_ref.left;
+                        } else {
+                            resize_adjustments[n] = Option::from(Rect {
+                                left: 0,
+                                top: 0,
+                                right: resize_ref.left,
+                                bottom: 0,
+                            });
                         }
-                    }
-
-                    if let Some(rr) = resize_adjustments[i].as_mut() {
-                        rr.left = 0;
                     }
                 }
 
-                if resize_ref.top != 0 {
-                    let range = if i == 1 {
-                        0..1
-                    } else if i & 1 == 0 {
-                        i - 1..i
-                    } else {
-                        i - 2..i
-                    };
+                if let Some(rr) = resize_adjustments[i].as_mut() {
+                    rr.left = 0;
+                }
+            }
 
-                    for n in range {
-                        let should_adjust = n % 2 != 0;
-                        if should_adjust {
-                            if let Some(Some(adjacent_resize)) = resize_adjustments.get_mut(n) {
-                                adjacent_resize.bottom += resize_ref.top;
-                            } else {
-                                resize_adjustments[n] = Option::from(Rect {
-                                    left: 0,
-                                    top: 0,
-                                    right: 0,
-                                    bottom: resize_ref.top,
-                                });
-                            }
+            if resize_ref.top != 0 {
+                let range = if i == 1 {
+                    0..1
+                } else if i & 1 == 0 {
+                    i - 1..i
+                } else {
+                    i - 2..i
+                };
+
+                for n in range {
+                    let should_adjust = n % 2 != 0;
+                    if should_adjust {
+                        if let Some(Some(adjacent_resize)) = resize_adjustments.get_mut(n) {
+                            adjacent_resize.bottom += resize_ref.top;
+                        } else {
+                            resize_adjustments[n] = Option::from(Rect {
+                                left: 0,
+                                top: 0,
+                                right: 0,
+                                bottom: resize_ref.top,
+                            });
                         }
                     }
+                }
 
-                    if let Some(Some(resize)) = resize_adjustments.get_mut(i) {
-                        resize.top = 0;
-                    }
+                if let Some(Some(resize)) = resize_adjustments.get_mut(i) {
+                    resize.top = 0;
                 }
             }
         }

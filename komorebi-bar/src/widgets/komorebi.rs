@@ -271,14 +271,14 @@ impl Komorebi {
     }
 
     fn render_layout(&mut self, ctx: &Context, ui: &mut Ui, config: &mut RenderConfig) {
-        if let Some(layout_config) = &self.layout {
-            if layout_config.enable {
-                let monitor_info = &mut *self.monitor_info.borrow_mut();
-                let workspace_idx = monitor_info.focused_workspace_idx;
-                monitor_info
-                    .layout
-                    .show(ctx, ui, config, layout_config, workspace_idx);
-            }
+        if let Some(layout_config) = &self.layout
+            && layout_config.enable
+        {
+            let monitor_info = &mut *self.monitor_info.borrow_mut();
+            let workspace_idx = monitor_info.focused_workspace_idx;
+            monitor_info
+                .layout
+                .show(ctx, ui, config, layout_config, workspace_idx);
         }
     }
 
@@ -558,10 +558,8 @@ impl FocusedContainerBar {
                     ui.add(img.fit_to_exact_size(self.icon_size));
                 }
             });
-        if HOVEL {
-            if let Some(title) = &info.title {
-                inner_response.response.on_hover_text(title);
-            }
+        if HOVEL && let Some(title) = &info.title {
+            inner_response.response.on_hover_text(title);
         }
     }
 

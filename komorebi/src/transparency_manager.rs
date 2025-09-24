@@ -152,25 +152,25 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                         for (window_idx, window) in c.windows().iter().enumerate() {
                             if window_idx == focused_window_idx {
                                 let mut should_make_transparent = true;
-                                if !transparency_blacklist.is_empty() {
-                                    if let (Ok(title), Ok(exe_name), Ok(class), Ok(path)) = (
+                                if !transparency_blacklist.is_empty()
+                                    && let (Ok(title), Ok(exe_name), Ok(class), Ok(path)) = (
                                         window.title(),
                                         window.exe(),
                                         window.class(),
                                         window.path(),
-                                    ) {
-                                        let is_blacklisted = should_act(
-                                            &title,
-                                            &exe_name,
-                                            &class,
-                                            &path,
-                                            &transparency_blacklist,
-                                            &regex_identifiers,
-                                        )
-                                        .is_some();
+                                    )
+                                {
+                                    let is_blacklisted = should_act(
+                                        &title,
+                                        &exe_name,
+                                        &class,
+                                        &path,
+                                        &transparency_blacklist,
+                                        &regex_identifiers,
+                                    )
+                                    .is_some();
 
-                                        should_make_transparent = !is_blacklisted;
-                                    }
+                                    should_make_transparent = !is_blacklisted;
                                 }
 
                                 if should_make_transparent {

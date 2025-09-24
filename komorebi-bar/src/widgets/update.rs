@@ -140,16 +140,14 @@ impl BarWidget for Update {
                     if SelectableFrame::new(false)
                         .show(ui, |ui| ui.add(Label::new(layout_job).selectable(false)))
                         .clicked()
-                    {
-                        if let Err(error) = Command::new("explorer.exe")
+                        && let Err(error) = Command::new("explorer.exe")
                             .args([format!(
                                 "https://github.com/LGUG2Z/komorebi/releases/v{}",
                                 self.latest_version
                             )])
                             .spawn()
-                        {
-                            eprintln!("{error}")
-                        }
+                    {
+                        eprintln!("{error}")
                     }
                 });
             }

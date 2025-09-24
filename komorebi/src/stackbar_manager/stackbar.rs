@@ -353,16 +353,15 @@ impl Stackbar {
                                 // stackbar, make sure we update its location so that it doesn't render
                                 // on top of other tiles before eventually ending up in the correct
                                 // tile
-                                if index != focused_window_idx {
-                                    if let Err(err) =
+                                if index != focused_window_idx
+                                    && let Err(err) =
                                         window.set_position(&focused_window_rect, false)
-                                    {
-                                        tracing::error!(
-                                            "stackbar WM_LBUTTONDOWN repositioning error: hwnd {} ({})",
-                                            *window,
-                                            err
-                                        );
-                                    }
+                                {
+                                    tracing::error!(
+                                        "stackbar WM_LBUTTONDOWN repositioning error: hwnd {} ({})",
+                                        *window,
+                                        err
+                                    );
                                 }
 
                                 // Restore the window corresponding to the tab we have clicked

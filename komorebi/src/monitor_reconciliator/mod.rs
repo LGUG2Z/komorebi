@@ -100,12 +100,12 @@ where
     }
 
     for d in &all_displays {
-        if let Some(id) = &d.serial_number_id {
-            if serial_id_map.get(id).copied().unwrap_or_default() > 1 {
-                let mut dupes = DUPLICATE_MONITOR_SERIAL_IDS.write();
-                if !dupes.contains(id) {
-                    (*dupes).push(id.clone());
-                }
+        if let Some(id) = &d.serial_number_id
+            && serial_id_map.get(id).copied().unwrap_or_default() > 1
+        {
+            let mut dupes = DUPLICATE_MONITOR_SERIAL_IDS.write();
+            if !dupes.contains(id) {
+                (*dupes).push(id.clone());
             }
         }
     }
@@ -221,17 +221,17 @@ where
                     let mut should_update = false;
 
                     // Update work areas as necessary
-                    if let Ok(reference) = WindowsApi::monitor(monitor.id) {
-                        if reference.work_area_size != monitor.work_area_size {
-                            monitor.work_area_size = Rect {
-                                left: reference.work_area_size.left,
-                                top: reference.work_area_size.top,
-                                right: reference.work_area_size.right,
-                                bottom: reference.work_area_size.bottom,
-                            };
+                    if let Ok(reference) = WindowsApi::monitor(monitor.id)
+                        && reference.work_area_size != monitor.work_area_size
+                    {
+                        monitor.work_area_size = Rect {
+                            left: reference.work_area_size.left,
+                            top: reference.work_area_size.top,
+                            right: reference.work_area_size.right,
+                            bottom: reference.work_area_size.bottom,
+                        };
 
-                            should_update = true;
-                        }
+                        should_update = true;
                     }
 
                     if should_update {

@@ -211,11 +211,10 @@ lazy_static! {
     pub static ref AHK_EXE: String = {
         let mut ahk: String = String::from("autohotkey.exe");
 
-        if let Ok(komorebi_ahk_exe) = std::env::var("KOMOREBI_AHK_EXE") {
-            if which(&komorebi_ahk_exe).is_ok() {
+        if let Ok(komorebi_ahk_exe) = std::env::var("KOMOREBI_AHK_EXE")
+            && which(&komorebi_ahk_exe).is_ok() {
                 ahk = komorebi_ahk_exe;
             }
-        }
 
         ahk
     };

@@ -45,12 +45,11 @@ impl Container {
         for window in self.windows().iter().rev() {
             let mut should_hide = omit.is_none();
 
-            if !should_hide {
-                if let Some(omit) = omit {
-                    if omit != window.hwnd {
-                        should_hide = true
-                    }
-                }
+            if !should_hide
+                && let Some(omit) = omit
+                && omit != window.hwnd
+            {
+                should_hide = true
             }
 
             if should_hide {
@@ -82,10 +81,10 @@ impl Container {
 
     pub fn hwnd_from_exe(&self, exe: &str) -> Option<isize> {
         for window in self.windows() {
-            if let Ok(window_exe) = window.exe() {
-                if exe == window_exe {
-                    return Option::from(window.hwnd);
-                }
+            if let Ok(window_exe) = window.exe()
+                && exe == window_exe
+            {
+                return Option::from(window.hwnd);
             }
         }
 
@@ -94,10 +93,10 @@ impl Container {
 
     pub fn idx_from_exe(&self, exe: &str) -> Option<usize> {
         for (idx, window) in self.windows().iter().enumerate() {
-            if let Ok(window_exe) = window.exe() {
-                if exe == window_exe {
-                    return Option::from(idx);
-                }
+            if let Ok(window_exe) = window.exe()
+                && exe == window_exe
+            {
+                return Option::from(idx);
             }
         }
 

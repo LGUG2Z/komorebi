@@ -33,16 +33,16 @@ pub extern "system" fn enum_window(hwnd: HWND, lparam: LPARAM) -> BOOL {
     if is_visible && is_window && !is_minimized {
         let window = Window::from(hwnd);
 
-        if let Ok(should_manage) = window.should_manage(None, &mut RuleDebug::default()) {
-            if should_manage {
-                if is_maximized {
-                    WindowsApi::restore_window(window.hwnd);
-                }
-
-                let mut container = Container::default();
-                container.windows_mut().push_back(window);
-                containers.push_back(container);
+        if let Ok(should_manage) = window.should_manage(None, &mut RuleDebug::default())
+            && should_manage
+        {
+            if is_maximized {
+                WindowsApi::restore_window(window.hwnd);
             }
+
+            let mut container = Container::default();
+            container.windows_mut().push_back(window);
+            containers.push_back(container);
         }
     }
 
@@ -59,10 +59,10 @@ pub extern "system" fn alt_tab_windows(hwnd: HWND, lparam: LPARAM) -> BOOL {
     if is_visible && is_window && !is_minimized {
         let window = Window::from(hwnd);
 
-        if let Ok(should_manage) = window.should_manage(None, &mut RuleDebug::default()) {
-            if should_manage {
-                windows.push(window);
-            }
+        if let Ok(should_manage) = window.should_manage(None, &mut RuleDebug::default())
+            && should_manage
+        {
+            windows.push(window);
         }
     }
 

@@ -2182,10 +2182,10 @@ fn main() -> Result<()> {
         SubCommand::Start(arg) => {
             let mut ahk: String = String::from("autohotkey.exe");
 
-            if let Ok(komorebi_ahk_exe) = std::env::var("KOMOREBI_AHK_EXE") {
-                if which(&komorebi_ahk_exe).is_ok() {
-                    ahk = komorebi_ahk_exe;
-                }
+            if let Ok(komorebi_ahk_exe) = std::env::var("KOMOREBI_AHK_EXE")
+                && which(&komorebi_ahk_exe).is_ok()
+            {
+                ahk = komorebi_ahk_exe;
             }
 
             if arg.whkd && which("whkd").is_err() {
@@ -2360,39 +2360,39 @@ if (!(Get-Process whkd -ErrorAction SilentlyContinue))
                 komorebi_json.is_file().then_some(komorebi_json)
             });
 
-            if arg.bar {
-                if let Some(config) = &static_config {
-                    let mut config = StaticConfig::read(config)?;
-                    if let Some(display_bar_configurations) = &mut config.bar_configurations {
-                        for config_file_path in &mut *display_bar_configurations {
-                            let script = format!(
-                                r#"Start-Process "komorebi-bar" '"--config" "{}"' -WindowStyle hidden"#,
-                                config_file_path.to_string_lossy()
-                            );
+            if arg.bar
+                && let Some(config) = &static_config
+            {
+                let mut config = StaticConfig::read(config)?;
+                if let Some(display_bar_configurations) = &mut config.bar_configurations {
+                    for config_file_path in &mut *display_bar_configurations {
+                        let script = format!(
+                            r#"Start-Process "komorebi-bar" '"--config" "{}"' -WindowStyle hidden"#,
+                            config_file_path.to_string_lossy()
+                        );
 
-                            match powershell_script::run(&script) {
-                                Ok(_) => {
-                                    println!("{script}");
-                                }
-                                Err(error) => {
-                                    println!("Error: {error}");
-                                }
-                            }
-                        }
-                    } else {
-                        let script = r"
-if (!(Get-Process komorebi-bar -ErrorAction SilentlyContinue))
-{
-  Start-Process komorebi-bar -WindowStyle hidden
-}
-                ";
-                        match powershell_script::run(script) {
+                        match powershell_script::run(&script) {
                             Ok(_) => {
                                 println!("{script}");
                             }
                             Err(error) => {
                                 println!("Error: {error}");
                             }
+                        }
+                    }
+                } else {
+                    let script = r"
+if (!(Get-Process komorebi-bar -ErrorAction SilentlyContinue))
+{
+  Start-Process komorebi-bar -WindowStyle hidden
+}
+                ";
+                    match powershell_script::run(script) {
+                        Ok(_) => {
+                            println!("{script}");
+                        }
+                        Err(error) => {
+                            println!("Error: {error}");
                         }
                     }
                 }

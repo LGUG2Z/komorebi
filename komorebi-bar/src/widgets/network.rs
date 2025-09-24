@@ -110,10 +110,10 @@ impl Network {
         if now.duration_since(self.last_updated_default_interface)
             > Duration::from_secs(self.default_refresh_interval)
         {
-            if let Ok(interface) = netdev::get_default_interface() {
-                if let Some(friendly_name) = &interface.friendly_name {
-                    self.default_interface.clone_from(friendly_name);
-                }
+            if let Ok(interface) = netdev::get_default_interface()
+                && let Some(friendly_name) = &interface.friendly_name
+            {
+                self.default_interface.clone_from(friendly_name);
             }
 
             self.last_updated_default_interface = now;
@@ -131,43 +131,40 @@ impl Network {
             activity.clear();
             total_activity.clear();
 
-            if let Ok(interface) = netdev::get_default_interface() {
-                if let Some(friendly_name) = &interface.friendly_name {
-                    self.default_interface.clone_from(friendly_name);
+            if let Ok(interface) = netdev::get_default_interface()
+                && let Some(friendly_name) = &interface.friendly_name
+            {
+                self.default_interface.clone_from(friendly_name);
 
-                    self.networks_network_activity.refresh(true);
+                self.networks_network_activity.refresh(true);
 
-                    for (interface_name, data) in &self.networks_network_activity {
-                        if friendly_name.eq(interface_name) {
-                            if self.show_activity {
-                                let received = Self::to_pretty_bytes(
-                                    data.received(),
-                                    self.data_refresh_interval,
-                                );
-                                let transmitted = Self::to_pretty_bytes(
-                                    data.transmitted(),
-                                    self.data_refresh_interval,
-                                );
+                for (interface_name, data) in &self.networks_network_activity {
+                    if friendly_name.eq(interface_name) {
+                        if self.show_activity {
+                            let received =
+                                Self::to_pretty_bytes(data.received(), self.data_refresh_interval);
+                            let transmitted = Self::to_pretty_bytes(
+                                data.transmitted(),
+                                self.data_refresh_interval,
+                            );
 
-                                activity.push(NetworkReading::new(
-                                    NetworkReadingFormat::Speed,
-                                    ReadingValue::from(received),
-                                    ReadingValue::from(transmitted),
-                                ));
-                            }
+                            activity.push(NetworkReading::new(
+                                NetworkReadingFormat::Speed,
+                                ReadingValue::from(received),
+                                ReadingValue::from(transmitted),
+                            ));
+                        }
 
-                            if self.show_total_activity {
-                                let total_received =
-                                    Self::to_pretty_bytes(data.total_received(), 1);
-                                let total_transmitted =
-                                    Self::to_pretty_bytes(data.total_transmitted(), 1);
+                        if self.show_total_activity {
+                            let total_received = Self::to_pretty_bytes(data.total_received(), 1);
+                            let total_transmitted =
+                                Self::to_pretty_bytes(data.total_transmitted(), 1);
 
-                                total_activity.push(NetworkReading::new(
-                                    NetworkReadingFormat::Total,
-                                    ReadingValue::from(total_received),
-                                    ReadingValue::from(total_transmitted),
-                                ))
-                            }
+                            total_activity.push(NetworkReading::new(
+                                NetworkReadingFormat::Total,
+                                ReadingValue::from(total_received),
+                                ReadingValue::from(total_transmitted),
+                            ))
                         }
                     }
                 }
@@ -327,10 +324,9 @@ impl Network {
         if SelectableFrame::new_auto(selected, auto_focus_fill)
             .show(ui, add_contents)
             .clicked()
+            && let Err(error) = Command::new("cmd.exe").args(["/C", "ncpa"]).spawn()
         {
-            if let Err(error) = Command::new("cmd.exe").args(["/C", "ncpa"]).spawn() {
-                eprintln!("{error}");
-            }
+            eprintln!("{error}");
         }
     }
 }

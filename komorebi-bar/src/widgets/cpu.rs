@@ -120,12 +120,10 @@ impl BarWidget for Cpu {
                     if SelectableFrame::new_auto(output.selected, auto_focus_fill)
                         .show(ui, |ui| ui.add(Label::new(layout_job).selectable(false)))
                         .clicked()
-                    {
-                        if let Err(error) =
+                        && let Err(error) =
                             Command::new("cmd.exe").args(["/C", "taskmgr.exe"]).spawn()
-                        {
-                            eprintln!("{error}")
-                        }
+                    {
+                        eprintln!("{error}")
                     }
                 });
             }

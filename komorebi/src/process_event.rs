@@ -207,12 +207,11 @@ impl WindowManager {
                     //
                     // This check ensures that we only update the focused monitor when the window
                     // triggering monitor reconciliation is known to not be tied to a specific monitor.
-                    if let Ok(class) = window.class() {
-                        if class != "OleMainThreadWndClass"
-                            && self.focused_monitor_idx() != monitor_idx
-                        {
-                            self.focus_monitor(monitor_idx)?;
-                        }
+                    if let Ok(class) = window.class()
+                        && class != "OleMainThreadWndClass"
+                        && self.focused_monitor_idx() != monitor_idx
+                    {
+                        self.focus_monitor(monitor_idx)?;
                     }
                 }
             }
@@ -323,10 +322,10 @@ impl WindowManager {
 
                 match floating_window_idx {
                     None => {
-                        if let Some(w) = &workspace.maximized_window {
-                            if w.hwnd == window.hwnd {
-                                return Ok(());
-                            }
+                        if let Some(w) = &workspace.maximized_window
+                            && w.hwnd == window.hwnd
+                        {
+                            return Ok(());
                         }
 
                         if let Some(monocle) = &workspace.monocle_container {
@@ -393,23 +392,20 @@ impl WindowManager {
                         }
                     }
 
-                    if let Some((m_idx, w_idx)) = self.known_hwnds.get(&window.hwnd) {
-                        if let Some(focused_workspace_idx) = self
+                    if let Some((m_idx, w_idx)) = self.known_hwnds.get(&window.hwnd)
+                        && let Some(focused_workspace_idx) = self
                             .monitors()
                             .get(*m_idx)
                             .map(|m| m.focused_workspace_idx())
-                        {
-                            if *m_idx != self.focused_monitor_idx()
-                                && *w_idx != focused_workspace_idx
-                            {
-                                tracing::debug!(
-                                    "ignoring show event for window already associated with another workspace"
-                                );
+                        && *m_idx != self.focused_monitor_idx()
+                        && *w_idx != focused_workspace_idx
+                    {
+                        tracing::debug!(
+                            "ignoring show event for window already associated with another workspace"
+                        );
 
-                                window.hide();
-                                proceed = false;
-                            }
-                        }
+                        window.hide();
+                        proceed = false;
                     }
 
                     if proceed {
@@ -508,12 +504,11 @@ impl WindowManager {
 
                         if workspace_contains_window {
                             let mut monocle_window_event = false;
-                            if let Some(ref monocle) = monocle_container {
-                                if let Some(monocle_window) = monocle.focused_window() {
-                                    if monocle_window.hwnd == window.hwnd {
-                                        monocle_window_event = true;
-                                    }
-                                }
+                            if let Some(ref monocle) = monocle_container
+                                && let Some(monocle_window) = monocle.focused_window()
+                                && monocle_window.hwnd == window.hwnd
+                            {
+                                monocle_window_event = true;
                             }
 
                             let workspace = self.focused_workspace()?;
@@ -548,14 +543,14 @@ impl WindowManager {
 
                 // If the window handles don't match then something went wrong and the pending move
                 // is not related to this current move, if so abort this operation.
-                if let Some((_, _, w_hwnd)) = pending {
-                    if w_hwnd != window.hwnd {
-                        color_eyre::eyre::bail!(
-                            "window handles for move operation don't match: {} != {}",
-                            w_hwnd,
-                            window.hwnd
-                        );
-                    }
+                if let Some((_, _, w_hwnd)) = pending
+                    && w_hwnd != window.hwnd
+                {
+                    color_eyre::eyre::bail!(
+                        "window handles for move operation don't match: {} != {}",
+                        w_hwnd,
+                        window.hwnd
+                    );
                 }
 
                 let target_monitor_idx = self
@@ -583,10 +578,10 @@ impl WindowManager {
                 // This will be true if we have moved to another monitor
                 let mut moved_across_monitors = false;
 
-                if let Some((m_idx, _)) = self.known_hwnds.get(&window.hwnd) {
-                    if *m_idx != target_monitor_idx {
-                        moved_across_monitors = true;
-                    }
+                if let Some((m_idx, _)) = self.known_hwnds.get(&window.hwnd)
+                    && *m_idx != target_monitor_idx
+                {
+                    moved_across_monitors = true;
                 }
 
                 if let Some((origin_monitor_idx, origin_workspace_idx, _)) = pending {
@@ -848,13 +843,12 @@ impl WindowManager {
 
                         if let Some(target_container) =
                             c_idx.and_then(|c_idx| target_workspace.containers().get(c_idx))
+                            && target_container.focused_window() != Some(&window)
                         {
-                            if target_container.focused_window() != Some(&window) {
-                                tracing::debug!(
-                                    "Needs reconciliation within a stack on the focused workspace"
-                                );
-                                needs_reconciliation = Some((*m_idx, *ws_idx));
-                            }
+                            tracing::debug!(
+                                "Needs reconciliation within a stack on the focused workspace"
+                            );
+                            needs_reconciliation = Some((*m_idx, *ws_idx));
                         }
                     }
                 }

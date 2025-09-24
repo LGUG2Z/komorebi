@@ -568,15 +568,15 @@ impl Window {
 
     pub fn focus(self, mouse_follows_focus: bool) -> Result<()> {
         // If the target window is already focused, do nothing.
-        if let Ok(ihwnd) = WindowsApi::foreground_window() {
-            if ihwnd == self.hwnd {
-                // Center cursor in Window
-                if mouse_follows_focus {
-                    WindowsApi::center_cursor_in_rect(&WindowsApi::window_rect(self.hwnd)?)?;
-                }
-
-                return Ok(());
+        if let Ok(ihwnd) = WindowsApi::foreground_window()
+            && ihwnd == self.hwnd
+        {
+            // Center cursor in Window
+            if mouse_follows_focus {
+                WindowsApi::center_cursor_in_rect(&WindowsApi::window_rect(self.hwnd)?)?;
             }
+
+            return Ok(());
         }
 
         WindowsApi::raise_and_focus_window(self.hwnd)?;
@@ -817,13 +817,13 @@ impl Window {
 
         let mut allow_cloaked = false;
 
-        if let Some(event) = event {
-            if matches!(
+        if let Some(event) = event
+            && matches!(
                 event,
                 WindowManagerEvent::Hide(_, _) | WindowManagerEvent::Cloak(_, _)
-            ) {
-                allow_cloaked = true;
-            }
+            )
+        {
+            allow_cloaked = true;
         }
 
         debug.allow_cloaked = allow_cloaked;
@@ -1302,31 +1302,31 @@ pub fn should_act_individual(
         },
         Some(MatchingStrategy::Regex) => match identifier.kind {
             ApplicationIdentifier::Title => {
-                if let Some(re) = regex_identifiers.get(&identifier.id) {
-                    if re.is_match(title) {
-                        should_act = true;
-                    }
+                if let Some(re) = regex_identifiers.get(&identifier.id)
+                    && re.is_match(title)
+                {
+                    should_act = true;
                 }
             }
             ApplicationIdentifier::Class => {
-                if let Some(re) = regex_identifiers.get(&identifier.id) {
-                    if re.is_match(class) {
-                        should_act = true;
-                    }
+                if let Some(re) = regex_identifiers.get(&identifier.id)
+                    && re.is_match(class)
+                {
+                    should_act = true;
                 }
             }
             ApplicationIdentifier::Exe => {
-                if let Some(re) = regex_identifiers.get(&identifier.id) {
-                    if re.is_match(exe_name) {
-                        should_act = true;
-                    }
+                if let Some(re) = regex_identifiers.get(&identifier.id)
+                    && re.is_match(exe_name)
+                {
+                    should_act = true;
                 }
             }
             ApplicationIdentifier::Path => {
-                if let Some(re) = regex_identifiers.get(&identifier.id) {
-                    if re.is_match(path) {
-                        should_act = true;
-                    }
+                if let Some(re) = regex_identifiers.get(&identifier.id)
+                    && re.is_match(path)
+                {
+                    should_act = true;
                 }
             }
         },
