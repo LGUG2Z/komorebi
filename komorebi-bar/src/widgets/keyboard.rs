@@ -1,13 +1,13 @@
 use crate::config::LabelPrefix;
 use crate::render::RenderConfig;
 use crate::widgets::widget::BarWidget;
-use eframe::egui::text::LayoutJob;
 use eframe::egui::Align;
 use eframe::egui::Context;
 use eframe::egui::Label;
 use eframe::egui::TextFormat;
 use eframe::egui::Ui;
 use eframe::egui::WidgetText;
+use eframe::egui::text::LayoutJob;
 use serde::Deserialize;
 use serde::Serialize;
 use std::time::Duration;

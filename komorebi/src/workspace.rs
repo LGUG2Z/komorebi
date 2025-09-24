@@ -6,6 +6,18 @@ use std::io::Write;
 use std::num::NonZeroUsize;
 use std::sync::atomic::Ordering;
 
+use crate::DATA_DIR;
+use crate::DEFAULT_CONTAINER_PADDING;
+use crate::DEFAULT_WORKSPACE_PADDING;
+use crate::FloatingLayerBehaviour;
+use crate::INITIAL_CONFIGURATION_LOADED;
+use crate::KomorebiTheme;
+use crate::NO_TITLEBAR;
+use crate::REGEX_IDENTIFIERS;
+use crate::REMOVE_TITLEBARS;
+use crate::SocketMessage;
+use crate::Wallpaper;
+use crate::WindowContainerBehaviour;
 use crate::border_manager;
 use crate::container::Container;
 use crate::core::Axis;
@@ -25,20 +37,8 @@ use crate::static_config::WorkspaceConfig;
 use crate::window::Window;
 use crate::window::WindowDetails;
 use crate::windows_api::WindowsApi;
-use crate::FloatingLayerBehaviour;
-use crate::KomorebiTheme;
-use crate::SocketMessage;
-use crate::Wallpaper;
-use crate::WindowContainerBehaviour;
-use crate::DATA_DIR;
-use crate::DEFAULT_CONTAINER_PADDING;
-use crate::DEFAULT_WORKSPACE_PADDING;
-use crate::INITIAL_CONFIGURATION_LOADED;
-use crate::NO_TITLEBAR;
-use crate::REGEX_IDENTIFIERS;
-use crate::REMOVE_TITLEBARS;
-use color_eyre::eyre::OptionExt;
 use color_eyre::Result;
+use color_eyre::eyre::OptionExt;
 use komorebi_themes::Base16ColourPalette;
 use serde::Deserialize;
 use serde::Serialize;
@@ -1680,8 +1680,8 @@ impl Workspace {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::container::Container;
     use crate::Window;
+    use crate::container::Container;
     use std::collections::HashMap;
 
     #[test]
@@ -1971,9 +1971,11 @@ mod tests {
 
         // Ensure the container at index 1 before removal is no longer present
         assert!(container_to_remove.is_some());
-        assert!(!workspace
-            .containers()
-            .contains(&container_to_remove.unwrap()));
+        assert!(
+            !workspace
+                .containers()
+                .contains(&container_to_remove.unwrap())
+        );
     }
 
     #[test]
@@ -2029,9 +2031,11 @@ mod tests {
 
         // Ensure the container at index 1 before removal is no longer present
         assert!(container_to_remove.is_some());
-        assert!(!workspace
-            .containers()
-            .contains(&container_to_remove.unwrap()));
+        assert!(
+            !workspace
+                .containers()
+                .contains(&container_to_remove.unwrap())
+        );
     }
 
     #[test]
@@ -2064,9 +2068,11 @@ mod tests {
 
         // Ensure the container at index 1 before removal is no longer present
         assert!(container_to_remove.is_some());
-        assert!(!workspace
-            .containers()
-            .contains(&container_to_remove.unwrap()));
+        assert!(
+            !workspace
+                .containers()
+                .contains(&container_to_remove.unwrap())
+        );
     }
 
     #[test]

@@ -4,8 +4,8 @@
 pub mod colour;
 mod generator;
 
-pub use generator::generate_base16_palette;
 pub use generator::ThemeVariant;
+pub use generator::generate_base16_palette;
 
 use schemars::JsonSchema;
 use serde::Deserialize;
@@ -16,14 +16,14 @@ use strum::IntoEnumIterator;
 use crate::colour::Colour;
 pub use base16_egui_themes::Base16;
 pub use catppuccin_egui;
-use eframe::egui::style::Selection;
-use eframe::egui::style::WidgetVisuals;
-use eframe::egui::style::Widgets;
 pub use eframe::egui::Color32;
 use eframe::egui::Shadow;
 use eframe::egui::Stroke;
 use eframe::egui::Style;
 use eframe::egui::Visuals;
+use eframe::egui::style::Selection;
+use eframe::egui::style::WidgetVisuals;
+use eframe::egui::style::Widgets;
 use serde_variant::to_variant_name;
 
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq)]

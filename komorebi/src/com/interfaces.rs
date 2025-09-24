@@ -6,17 +6,17 @@
 
 use std::ffi::c_void;
 use std::ops::Deref;
-use windows::core::IUnknown;
-use windows::core::IUnknown_Vtbl;
-use windows::core::GUID;
-use windows::core::HRESULT;
-use windows::core::HSTRING;
-use windows::core::PCWSTR;
-use windows::core::PWSTR;
 use windows::Win32::Foundation::HWND;
 use windows::Win32::Foundation::RECT;
 use windows::Win32::Foundation::SIZE;
 use windows::Win32::UI::Shell::Common::IObjectArray;
+use windows::core::GUID;
+use windows::core::HRESULT;
+use windows::core::HSTRING;
+use windows::core::IUnknown;
+use windows::core::IUnknown_Vtbl;
+use windows::core::PCWSTR;
+use windows::core::PWSTR;
 use windows_core::BOOL;
 
 type DesktopID = GUID;
@@ -129,7 +129,7 @@ pub unsafe trait IApplicationView: IUnknown {
     pub unsafe fn get_app_user_model_id(&self, id: *mut PWSTR) -> HRESULT; // Proc17
     pub unsafe fn set_app_user_model_id(&self, id: PCWSTR) -> HRESULT;
     pub unsafe fn is_equal_by_app_user_model_id(&self, id: PCWSTR, out_result: *mut INT)
-        -> HRESULT;
+    -> HRESULT;
 
     /*** IApplicationView methods ***/
     pub unsafe fn get_view_state(&self, out_state: *mut UINT) -> HRESULT; // Proc20

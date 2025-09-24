@@ -1,7 +1,7 @@
 [package]
 name = "komorebi-themes"
 version = "0.1.39"
-edition = "2021"
+edition = "2024"
 
 [dependencies]
 base16-egui-themes = { git = "https://github.com/LGUG2Z/base16-egui-themes", rev = "96f26c88d83781f234d42222293ec73d23a39ad8" }

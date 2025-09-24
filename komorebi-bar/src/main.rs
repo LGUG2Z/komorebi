@@ -15,10 +15,10 @@ use eframe::egui::ViewportBuilder;
 use font_loader::system_fonts;
 use hotwatch::EventKind;
 use hotwatch::Hotwatch;
-use komorebi_client::replace_env_in_path;
 use komorebi_client::PathExt;
 use komorebi_client::SocketMessage;
 use komorebi_client::SubscribeOptions;
+use komorebi_client::replace_env_in_path;
 use std::io::BufReader;
 use std::io::Read;
 use std::path::PathBuf;
@@ -32,8 +32,8 @@ use windows::Win32::Foundation::HWND;
 use windows::Win32::Foundation::LPARAM;
 use windows::Win32::System::Threading::GetCurrentProcessId;
 use windows::Win32::System::Threading::GetCurrentThreadId;
-use windows::Win32::UI::HiDpi::SetProcessDpiAwarenessContext;
 use windows::Win32::UI::HiDpi::DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2;
+use windows::Win32::UI::HiDpi::SetProcessDpiAwarenessContext;
 use windows::Win32::UI::WindowsAndMessaging::EnumThreadWindows;
 use windows::Win32::UI::WindowsAndMessaging::GetWindowThreadProcessId;
 use windows_core::BOOL;
@@ -114,14 +114,14 @@ fn main() -> color_eyre::Result<()> {
 
     #[cfg(feature = "schemars")]
     if opts.schema {
-        let settings = schemars::gen::SchemaSettings::default().with(|s| {
+        let settings = schemars::r#gen::SchemaSettings::default().with(|s| {
             s.option_nullable = false;
             s.option_add_null_type = false;
             s.inline_subschemas = true;
         });
 
-        let gen = settings.into_generator();
-        let socket_message = gen.into_root_schema_for::<KomobarConfig>();
+        let generator = settings.into_generator();
+        let socket_message = generator.into_root_schema_for::<KomobarConfig>();
         let schema = serde_json::to_string_pretty(&socket_message)?;
 
         println!("{schema}");
@@ -137,13 +137,17 @@ fn main() -> color_eyre::Result<()> {
     }
 
     if std::env::var("RUST_LIB_BACKTRACE").is_err() {
-        std::env::set_var("RUST_LIB_BACKTRACE", "1");
+        unsafe {
+            std::env::set_var("RUST_LIB_BACKTRACE", "1");
+        }
     }
 
     color_eyre::install()?;
 
     if std::env::var("RUST_LOG").is_err() {
-        std::env::set_var("RUST_LOG", "info");
+        unsafe {
+            std::env::set_var("RUST_LOG", "info");
+        }
     }
 
     tracing::subscriber::set_global_default(
@@ -354,7 +358,7 @@ fn main() -> color_eyre::Result<()> {
                                 while komorebi_client::send_message(
                                     &SocketMessage::AddSubscriberSocket(subscriber_name.clone()),
                                 )
-                                .is_err()
+                                    .is_err()
                                 {
                                     std::thread::sleep(Duration::from_secs(1));
                                 }
@@ -405,5 +409,5 @@ fn main() -> color_eyre::Result<()> {
             Ok(Box::new(Komobar::new(cc, rx_gui, rx_config, config)))
         }),
     )
-    .map_err(|error| color_eyre::eyre::Error::msg(error.to_string()))
+        .map_err(|error| color_eyre::eyre::Error::msg(error.to_string()))
 }

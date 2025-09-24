@@ -1,8 +1,8 @@
-use std::sync::atomic::Ordering;
 use std::sync::Arc;
+use std::sync::atomic::Ordering;
 
-use color_eyre::eyre::OptionExt;
 use color_eyre::Result;
+use color_eyre::eyre::OptionExt;
 use crossbeam_utils::atomic::AtomicConsume;
 use parking_lot::Mutex;
 
@@ -11,6 +11,18 @@ use crate::core::Rect;
 use crate::core::Sizing;
 use crate::core::WindowContainerBehaviour;
 
+use crate::CURRENT_VIRTUAL_DESKTOP;
+use crate::DefaultLayout;
+use crate::FLOATING_APPLICATIONS;
+use crate::HIDDEN_HWNDS;
+use crate::Layout;
+use crate::Notification;
+use crate::NotificationEvent;
+use crate::REGEX_IDENTIFIERS;
+use crate::State;
+use crate::TRAY_AND_MULTI_WINDOW_IDENTIFIERS;
+use crate::VirtualDesktopNotification;
+use crate::Window;
 use crate::border_manager;
 use crate::border_manager::BORDER_OFFSET;
 use crate::border_manager::BORDER_WIDTH;
@@ -18,25 +30,13 @@ use crate::current_virtual_desktop;
 use crate::notify_subscribers;
 use crate::stackbar_manager;
 use crate::transparency_manager;
-use crate::window::should_act;
 use crate::window::RuleDebug;
+use crate::window::should_act;
 use crate::window_manager::WindowManager;
 use crate::window_manager_event::WindowManagerEvent;
 use crate::windows_api::WindowsApi;
 use crate::winevent::WinEvent;
 use crate::workspace::WorkspaceLayer;
-use crate::DefaultLayout;
-use crate::Layout;
-use crate::Notification;
-use crate::NotificationEvent;
-use crate::State;
-use crate::VirtualDesktopNotification;
-use crate::Window;
-use crate::CURRENT_VIRTUAL_DESKTOP;
-use crate::FLOATING_APPLICATIONS;
-use crate::HIDDEN_HWNDS;
-use crate::REGEX_IDENTIFIERS;
-use crate::TRAY_AND_MULTI_WINDOW_IDENTIFIERS;
 
 #[tracing::instrument]
 pub fn listen_for_events(wm: Arc<Mutex<WindowManager>>) {
@@ -145,7 +145,9 @@ impl WindowManager {
                     // to be consumed by integrating gui applications like bars to know
                     // when to hide visual components which don't make sense when not on
                     // komorebi's associated virtual desktop
-                    tracing::debug!("notifying subscribers that we have left komorebi's associated virtual desktop");
+                    tracing::debug!(
+                        "notifying subscribers that we have left komorebi's associated virtual desktop"
+                    );
                     notify_subscribers(
                         Notification {
                             event: NotificationEvent::VirtualDesktop(
@@ -165,7 +167,9 @@ impl WindowManager {
                     // to be consumed by integrating gui applications like bars to know
                     // when to show visual components associated with komorebi's virtual
                     // desktop
-                    tracing::debug!("notifying subscribers that we are back on komorebi's associated virtual desktop");
+                    tracing::debug!(
+                        "notifying subscribers that we are back on komorebi's associated virtual desktop"
+                    );
                     notify_subscribers(
                         Notification {
                             event: NotificationEvent::VirtualDesktop(

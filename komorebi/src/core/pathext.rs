@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::env;
 use std::ffi::OsStr;
 use std::path::Component;
 use std::path::Path;
@@ -58,7 +57,7 @@ impl<P: AsRef<Path>> PathExt for P {
                     // if component is a variable, get the value from the environment
                     if let Some(var) = var {
                         let var = unsafe { OsStr::from_encoded_bytes_unchecked(var) };
-                        if let Some(value) = env::var_os(var) {
+                        if let Some(value) = std::env::var_os(var) {
                             out.push(value);
                             continue;
                         }
@@ -127,8 +126,8 @@ impl serde_with::schemars_0_8::JsonSchemaAs<PathBuf> for ResolvedPathBuf {
         "PathBuf".to_owned()
     }
 
-    fn json_schema(gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
-        <PathBuf as schemars::JsonSchema>::json_schema(gen)
+    fn json_schema(generator: &mut schemars::SchemaGenerator) -> schemars::schema::Schema {
+        <PathBuf as schemars::JsonSchema>::json_schema(generator)
     }
 }
 
@@ -165,7 +164,9 @@ mod tests {
     #[test]
     fn resolves_env_vars() {
         // Set a variable for testing
-        std::env::set_var("VAR", "VALUE");
+        unsafe {
+            std::env::set_var("VAR", "VALUE");
+        }
 
         // %VAR% format
         assert_eq!(resolve("/path/%VAR%/d"), expected("/path/VALUE/d"));
@@ -183,7 +184,9 @@ mod tests {
         assert_eq!(resolve("/path/$ASD/to/d"), expected("/path/$ASD/to/d"));
 
         // Set a $env:USERPROFILE variable for testing
-        std::env::set_var("USERPROFILE", "C:\\Users\\user");
+        unsafe {
+            std::env::set_var("USERPROFILE", "C:\\Users\\user");
+        }
 
         // ~ and $HOME should be replaced with $Env:USERPROFILE
         assert_eq!(resolve("~"), expected("C:\\Users\\user"));

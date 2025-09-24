@@ -2,8 +2,8 @@
 #![allow(clippy::missing_errors_doc, clippy::doc_markdown)]
 
 use chrono::Utc;
-use komorebi_client::replace_env_in_path;
 use komorebi_client::PathExt;
+use komorebi_client::replace_env_in_path;
 use std::fs::File;
 use std::fs::OpenOptions;
 use std::io;
@@ -20,15 +20,15 @@ use std::time::Duration;
 use clap::CommandFactory;
 use clap::Parser;
 use clap::ValueEnum;
-use color_eyre::eyre::bail;
-use color_eyre::eyre::OptionExt;
 use color_eyre::Result;
+use color_eyre::eyre::OptionExt;
+use color_eyre::eyre::bail;
 use dirs::data_local_dir;
 use fs_tail::TailedFile;
-use komorebi_client::send_message;
-use komorebi_client::send_query;
 use komorebi_client::AppSpecificConfigurationPath;
 use komorebi_client::ApplicationSpecificConfiguration;
+use komorebi_client::send_message;
+use komorebi_client::send_query;
 use lazy_static::lazy_static;
 use miette::NamedSource;
 use miette::Report;
@@ -39,9 +39,9 @@ use serde::Deserialize;
 use sysinfo::ProcessesToUpdate;
 use which::which;
 use windows::Win32::Foundation::HWND;
-use windows::Win32::UI::WindowsAndMessaging::ShowWindow;
 use windows::Win32::UI::WindowsAndMessaging::SHOW_WINDOW_CMD;
 use windows::Win32::UI::WindowsAndMessaging::SW_RESTORE;
+use windows::Win32::UI::WindowsAndMessaging::ShowWindow;
 
 use komorebi_client::ApplicationConfigurationGenerator;
 use komorebi_client::ApplicationIdentifier;
@@ -1691,8 +1691,12 @@ fn main() -> Result<()> {
                 .env("TARGET_ARGS", arguments)
                 .output()?;
 
-            println!("NOTE: If your komorebi.json file contains a reference to $Env:KOMOREBI_CONFIG_HOME,");
-            println!("you need to add this to System Properties > Environment Variables > User Variables");
+            println!(
+                "NOTE: If your komorebi.json file contains a reference to $Env:KOMOREBI_CONFIG_HOME,"
+            );
+            println!(
+                "you need to add this to System Properties > Environment Variables > User Variables"
+            );
             println!("in order for the autostart command to work properly");
         }
         SubCommand::DisableAutostart => {
@@ -1756,16 +1760,23 @@ fn main() -> Result<()> {
                     println!("{:?}", Report::new(diagnostic));
                 }
 
-                println!("Found komorebi.json; this file can be passed to the start command with the --config flag\n");
+                println!(
+                    "Found komorebi.json; this file can be passed to the start command with the --config flag\n"
+                );
 
                 if let Ok(config) = StaticConfig::read(&static_config) {
                     match config.app_specific_configuration_path {
                         None => {
-                            println!("Application specific configuration file path has not been set. Try running 'komorebic fetch-asc'\n");
+                            println!(
+                                "Application specific configuration file path has not been set. Try running 'komorebic fetch-asc'\n"
+                            );
                         }
                         Some(AppSpecificConfigurationPath::Single(path)) => {
                             if !path.exists() {
-                                println!("Application specific configuration file path '{}' does not exist. Try running 'komorebic fetch-asc'\n", path.display());
+                                println!(
+                                    "Application specific configuration file path '{}' does not exist. Try running 'komorebic fetch-asc'\n",
+                                    path.display()
+                                );
                             }
                         }
                         _ => {}
@@ -1783,9 +1794,14 @@ fn main() -> Result<()> {
                 StaticConfig::end_of_life(&raw);
 
                 if config_whkd.exists() {
-                    println!("Found {}; key bindings will be loaded from here when whkd is started, and you can start it automatically using the --whkd flag\n", config_whkd.to_string_lossy());
+                    println!(
+                        "Found {}; key bindings will be loaded from here when whkd is started, and you can start it automatically using the --whkd flag\n",
+                        config_whkd.to_string_lossy()
+                    );
                 } else {
-                    println!("No ~/.config/whkdrc found; you may not be able to control komorebi with your keyboard\n");
+                    println!(
+                        "No ~/.config/whkdrc found; you may not be able to control komorebi with your keyboard\n"
+                    );
                 }
             } else if config_pwsh.exists() {
                 println!("Found komorebi.ps1; this file will be autoloaded by komorebi\n");
@@ -1795,13 +1811,17 @@ fn main() -> Result<()> {
                         config_whkd.to_string_lossy()
                     );
                 } else {
-                    println!("No ~/.config/whkdrc found; you may not be able to control komorebi with your keyboard\n");
+                    println!(
+                        "No ~/.config/whkdrc found; you may not be able to control komorebi with your keyboard\n"
+                    );
                 }
             } else if config_ahk.exists() {
                 println!("Found komorebi.ahk; this file will be autoloaded by komorebi\n");
             } else {
                 println!("No komorebi configuration found in {home_display}\n");
-                println!("If running 'komorebic start --await-configuration', you will manually have to call the following command to begin tiling: komorebic complete-configuration\n");
+                println!(
+                    "If running 'komorebic start --await-configuration', you will manually have to call the following command to begin tiling: komorebic complete-configuration\n"
+                );
             }
 
             let client = reqwest::blocking::Client::new();
@@ -1823,7 +1843,9 @@ fn main() -> Result<()> {
                 {
                     let trimmed = release.tag_name.trim_start_matches("v");
                     if trimmed > version {
-                        println!("An updated version of komorebi is available! https://github.com/LGUG2Z/komorebi/releases/v{trimmed}");
+                        println!(
+                            "An updated version of komorebi is available! https://github.com/LGUG2Z/komorebi/releases/v{trimmed}"
+                        );
                     }
                 }
             }
@@ -2167,15 +2189,21 @@ fn main() -> Result<()> {
             }
 
             if arg.whkd && which("whkd").is_err() {
-                bail!("could not find whkd, please make sure it is installed before using the --whkd flag");
+                bail!(
+                    "could not find whkd, please make sure it is installed before using the --whkd flag"
+                );
             }
 
             if arg.masir && which("masir").is_err() {
-                bail!("could not find masir, please make sure it is installed before using the --masir flag");
+                bail!(
+                    "could not find masir, please make sure it is installed before using the --masir flag"
+                );
             }
 
             if arg.ahk && which(&ahk).is_err() {
-                bail!("could not find autohotkey, please make sure it is installed before using the --ahk flag");
+                bail!(
+                    "could not find autohotkey, please make sure it is installed before using the --ahk flag"
+                );
             }
 
             let mut buf: PathBuf;
@@ -2389,18 +2417,28 @@ if (!(Get-Process masir -ErrorAction SilentlyContinue))
 
             println!("\nThank you for using komorebi!\n");
             println!("# Commercial Use License");
-            println!("* View licensing options https://lgug2z.com/software/komorebi - A commercial use license is required to use komorebi at work");
+            println!(
+                "* View licensing options https://lgug2z.com/software/komorebi - A commercial use license is required to use komorebi at work"
+            );
             println!("\n# Personal Use Sponsorship");
-            println!("* Become a sponsor https://github.com/sponsors/LGUG2Z - $5/month makes a big difference");
+            println!(
+                "* Become a sponsor https://github.com/sponsors/LGUG2Z - $5/month makes a big difference"
+            );
             println!("* Leave a tip https://ko-fi.com/lgug2z - An alternative to GitHub Sponsors");
             println!("\n# Community");
-            println!("* Join the Discord https://discord.gg/mGkn66PHkx - Chat, ask questions, share your desktops");
+            println!(
+                "* Join the Discord https://discord.gg/mGkn66PHkx - Chat, ask questions, share your desktops"
+            );
             println!(
                 "* Subscribe to https://youtube.com/@LGUG2Z - Development videos, feature previews and release overviews"
             );
-            println!("* Explore the Awesome Komorebi list https://github.com/LGUG2Z/awesome-komorebi - Projects in the komorebi ecosystem");
+            println!(
+                "* Explore the Awesome Komorebi list https://github.com/LGUG2Z/awesome-komorebi - Projects in the komorebi ecosystem"
+            );
             println!("\n# Documentation");
-            println!("* Read the docs https://lgug2z.github.io/komorebi - Quickly search through all komorebic commands");
+            println!(
+                "* Read the docs https://lgug2z.github.io/komorebi - Quickly search through all komorebic commands"
+            );
 
             let bar_config = arg.config.or_else(|| {
                 let bar_json = HOME_DIR.join("komorebi.bar.json");
@@ -2439,7 +2477,9 @@ if (!(Get-Process masir -ErrorAction SilentlyContinue))
                 {
                     let trimmed = release.tag_name.trim_start_matches("v");
                     if trimmed > version {
-                        println!("An updated version of komorebi is available! https://github.com/LGUG2Z/komorebi/releases/v{trimmed}");
+                        println!(
+                            "An updated version of komorebi is available! https://github.com/LGUG2Z/komorebi/releases/v{trimmed}"
+                        );
                     }
                 }
             }
@@ -3086,7 +3126,9 @@ if (Get-Command Get-CimInstance -ErrorAction SilentlyContinue) {
 
             file.write_all(formatted_content.as_bytes())?;
 
-            println!("File successfully formatted for PRs to https://github.com/LGUG2Z/komorebi-application-specific-configuration");
+            println!(
+                "File successfully formatted for PRs to https://github.com/LGUG2Z/komorebi-application-specific-configuration"
+            );
         }
         SubCommand::FetchAppSpecificConfiguration => {
             let content = reqwest::blocking::get("https://raw.githubusercontent.com/LGUG2Z/komorebi-application-specific-configuration/master/applications.json")?
@@ -3102,10 +3144,12 @@ if (Get-Command Get-CimInstance -ErrorAction SilentlyContinue) {
 
             file.write_all(content.as_bytes())?;
 
-            println!("Latest version of applications.json from https://github.com/LGUG2Z/komorebi-application-specific-configuration downloaded\n");
             println!(
-               "You can add this to your komorebi.json static configuration file like this: \n\n\"app_specific_configuration_path\": \"{}\"",
-               output_file.display().to_string().replace("\\", "/")
+                "Latest version of applications.json from https://github.com/LGUG2Z/komorebi-application-specific-configuration downloaded\n"
+            );
+            println!(
+                "You can add this to your komorebi.json static configuration file like this: \n\n\"app_specific_configuration_path\": \"{}\"",
+                output_file.display().to_string().replace("\\", "/")
             );
         }
         SubCommand::ApplicationSpecificConfigurationSchema => {
@@ -3135,14 +3179,14 @@ if (Get-Command Get-CimInstance -ErrorAction SilentlyContinue) {
         SubCommand::StaticConfigSchema => {
             #[cfg(feature = "schemars")]
             {
-                let settings = schemars::gen::SchemaSettings::default().with(|s| {
+                let settings = schemars::r#gen::SchemaSettings::default().with(|s| {
                     s.option_nullable = false;
                     s.option_add_null_type = false;
                     s.inline_subschemas = true;
                 });
 
-                let gen = settings.into_generator();
-                let socket_message = gen.into_root_schema_for::<StaticConfig>();
+                let generator = settings.into_generator();
+                let socket_message = generator.into_root_schema_for::<StaticConfig>();
                 let schema = serde_json::to_string_pretty(&socket_message)?;
                 println!("{schema}");
             }

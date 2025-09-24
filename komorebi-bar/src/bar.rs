@@ -1,9 +1,18 @@
-use crate::config::get_individual_spacing;
+use crate::AUTO_SELECT_FILL_COLOUR;
+use crate::AUTO_SELECT_TEXT_COLOUR;
+use crate::BAR_HEIGHT;
+use crate::DEFAULT_PADDING;
+use crate::KomorebiEvent;
+use crate::MAX_LABEL_WIDTH;
+use crate::MONITOR_LEFT;
+use crate::MONITOR_RIGHT;
+use crate::MONITOR_TOP;
 use crate::config::KomobarConfig;
 use crate::config::KomobarTheme;
 use crate::config::MonitorConfigOrIndex;
 use crate::config::Position;
 use crate::config::PositionConfig;
+use crate::config::get_individual_spacing;
 use crate::process_hwnd;
 use crate::render::Color32Ext;
 use crate::render::Grouping;
@@ -13,15 +22,6 @@ use crate::widgets::komorebi::Komorebi;
 use crate::widgets::komorebi::MonitorInfo;
 use crate::widgets::widget::BarWidget;
 use crate::widgets::widget::WidgetConfig;
-use crate::KomorebiEvent;
-use crate::AUTO_SELECT_FILL_COLOUR;
-use crate::AUTO_SELECT_TEXT_COLOUR;
-use crate::BAR_HEIGHT;
-use crate::DEFAULT_PADDING;
-use crate::MAX_LABEL_WIDTH;
-use crate::MONITOR_LEFT;
-use crate::MONITOR_RIGHT;
-use crate::MONITOR_TOP;
 use crossbeam_channel::Receiver;
 use crossbeam_channel::TryRecvError;
 use eframe::egui::Align;
@@ -52,9 +52,9 @@ use komorebi_client::NotificationEvent;
 use komorebi_client::PathExt;
 use komorebi_client::SocketMessage;
 use komorebi_client::VirtualDesktopNotification;
-use komorebi_themes::catppuccin_egui;
 use komorebi_themes::Base16Wrapper;
 use komorebi_themes::Catppuccin;
+use komorebi_themes::catppuccin_egui;
 use lazy_static::lazy_static;
 use parking_lot::Mutex;
 use std::cell::RefCell;
@@ -69,8 +69,8 @@ use std::process::ChildStdin;
 use std::process::Command;
 use std::process::Stdio;
 use std::rc::Rc;
-use std::sync::atomic::Ordering;
 use std::sync::Arc;
+use std::sync::atomic::Ordering;
 
 const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 
@@ -523,10 +523,14 @@ impl Komobar {
                 }
             }
         } else if self.monitor_info.is_some() && !self.disabled {
-            tracing::warn!("couldn't find the monitor index of this bar! Disabling the bar until the monitor connects...");
+            tracing::warn!(
+                "couldn't find the monitor index of this bar! Disabling the bar until the monitor connects..."
+            );
             self.disabled = true;
         } else {
-            tracing::warn!("couldn't find the monitor index of this bar, if the bar is starting up this is normal until it receives the first state from komorebi.");
+            tracing::warn!(
+                "couldn't find the monitor index of this bar, if the bar is starting up this is normal until it receives the first state from komorebi."
+            );
             self.disabled = true;
         }
 
@@ -599,7 +603,9 @@ impl Komobar {
         end.x -= margin.left + margin.right;
 
         if end.y == 0.0 {
-            tracing::warn!("position.end.y is set to 0.0 which will make your bar invisible on a config reload - this is usually set to 50.0 by default")
+            tracing::warn!(
+                "position.end.y is set to 0.0 which will make your bar invisible on a config reload - this is usually set to 50.0 by default"
+            )
         }
 
         self.size_rect = komorebi_client::Rect {
@@ -1358,7 +1364,9 @@ fn handle_notification(
                             "removed theme from updated komorebi.json and applied default theme"
                         );
                     } else {
-                        tracing::warn!("theme was removed from updated komorebi.json but there was no default theme to apply");
+                        tracing::warn!(
+                            "theme was removed from updated komorebi.json but there was no default theme to apply"
+                        );
                     }
                 }
             }

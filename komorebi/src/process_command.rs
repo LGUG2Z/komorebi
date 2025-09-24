@@ -1,6 +1,6 @@
+use color_eyre::Result;
 use color_eyre::eyre::OptionExt;
 use color_eyre::eyre::WrapErr;
-use color_eyre::Result;
 use komorebi_themes::colour::Rgb;
 use miow::pipe::connect;
 use net2::TcpStreamExt;
@@ -15,11 +15,36 @@ use std::net::TcpListener;
 use std::net::TcpStream;
 use std::num::NonZeroUsize;
 use std::str::FromStr;
-use std::sync::atomic::Ordering;
 use std::sync::Arc;
+use std::sync::atomic::Ordering;
 use std::time::Duration;
 use uds_windows::UnixStream;
 
+use crate::CUSTOM_FFM;
+use crate::DATA_DIR;
+use crate::DISPLAY_INDEX_PREFERENCES;
+use crate::FLOATING_APPLICATIONS;
+use crate::GlobalState;
+use crate::HIDING_BEHAVIOUR;
+use crate::IGNORE_IDENTIFIERS;
+use crate::INITIAL_CONFIGURATION_LOADED;
+use crate::LAYERED_WHITELIST;
+use crate::MANAGE_IDENTIFIERS;
+use crate::MONITOR_INDEX_PREFERENCES;
+use crate::NO_TITLEBAR;
+use crate::Notification;
+use crate::NotificationEvent;
+use crate::OBJECT_NAME_CHANGE_ON_LAUNCH;
+use crate::REMOVE_TITLEBARS;
+use crate::SESSION_FLOATING_APPLICATIONS;
+use crate::SUBSCRIPTION_PIPES;
+use crate::SUBSCRIPTION_SOCKET_OPTIONS;
+use crate::SUBSCRIPTION_SOCKETS;
+use crate::State;
+use crate::TCP_CONNECTIONS;
+use crate::TRAY_AND_MULTI_WINDOW_IDENTIFIERS;
+use crate::WINDOWS_11;
+use crate::WORKSPACE_MATCHING_RULES;
 use crate::animation::ANIMATION_DURATION_GLOBAL;
 use crate::animation::ANIMATION_DURATION_PER_ANIMATION;
 use crate::animation::ANIMATION_ENABLED_GLOBAL;
@@ -32,9 +57,6 @@ use crate::border_manager::IMPLEMENTATION;
 use crate::border_manager::STYLE;
 use crate::build;
 use crate::config_generation::WorkspaceMatchingRule;
-use crate::core::config_generation::IdWithIdentifier;
-use crate::core::config_generation::MatchingRule;
-use crate::core::config_generation::MatchingStrategy;
 use crate::core::ApplicationIdentifier;
 use crate::core::Axis;
 use crate::core::BorderImplementation;
@@ -48,6 +70,9 @@ use crate::core::SocketMessage;
 use crate::core::StateQuery;
 use crate::core::WindowContainerBehaviour;
 use crate::core::WindowKind;
+use crate::core::config_generation::IdWithIdentifier;
+use crate::core::config_generation::MatchingRule;
+use crate::core::config_generation::MatchingStrategy;
 use crate::current_virtual_desktop;
 use crate::default_layout::LayoutOptions;
 use crate::default_layout::ScrollingLayoutOptions;
@@ -67,31 +92,6 @@ use crate::windows_api::WindowsApi;
 use crate::winevent_listener;
 use crate::workspace::WorkspaceLayer;
 use crate::workspace::WorkspaceWindowLocation;
-use crate::GlobalState;
-use crate::Notification;
-use crate::NotificationEvent;
-use crate::State;
-use crate::CUSTOM_FFM;
-use crate::DATA_DIR;
-use crate::DISPLAY_INDEX_PREFERENCES;
-use crate::FLOATING_APPLICATIONS;
-use crate::HIDING_BEHAVIOUR;
-use crate::IGNORE_IDENTIFIERS;
-use crate::INITIAL_CONFIGURATION_LOADED;
-use crate::LAYERED_WHITELIST;
-use crate::MANAGE_IDENTIFIERS;
-use crate::MONITOR_INDEX_PREFERENCES;
-use crate::NO_TITLEBAR;
-use crate::OBJECT_NAME_CHANGE_ON_LAUNCH;
-use crate::REMOVE_TITLEBARS;
-use crate::SESSION_FLOATING_APPLICATIONS;
-use crate::SUBSCRIPTION_PIPES;
-use crate::SUBSCRIPTION_SOCKETS;
-use crate::SUBSCRIPTION_SOCKET_OPTIONS;
-use crate::TCP_CONNECTIONS;
-use crate::TRAY_AND_MULTI_WINDOW_IDENTIFIERS;
-use crate::WINDOWS_11;
-use crate::WORKSPACE_MATCHING_RULES;
 use stackbar_manager::STACKBAR_FOCUSED_TEXT_COLOUR;
 use stackbar_manager::STACKBAR_LABEL;
 use stackbar_manager::STACKBAR_MODE;
@@ -102,42 +102,44 @@ use stackbar_manager::STACKBAR_UNFOCUSED_TEXT_COLOUR;
 
 #[tracing::instrument]
 pub fn listen_for_commands(wm: Arc<Mutex<WindowManager>>) {
-    std::thread::spawn(move || loop {
-        let wm = wm.clone();
+    std::thread::spawn(move || {
+        loop {
+            let wm = wm.clone();
 
-        let _ = std::thread::spawn(move || {
-            let listener = wm
-                .lock()
-                .command_listener
-                .try_clone()
-                .expect("could not clone unix listener");
+            let _ = std::thread::spawn(move || {
+                let listener = wm
+                    .lock()
+                    .command_listener
+                    .try_clone()
+                    .expect("could not clone unix listener");
 
-            tracing::info!("listening on komorebi.sock");
-            for client in listener.incoming() {
-                match client {
-                    Ok(stream) => {
-                        let wm_clone = wm.clone();
-                        std::thread::spawn(move || {
-                            match stream.set_read_timeout(Some(Duration::from_secs(1))) {
-                                Ok(()) => {}
-                                Err(error) => tracing::error!("{}", error),
-                            }
-                            match read_commands_uds(&wm_clone, stream) {
-                                Ok(()) => {}
-                                Err(error) => tracing::error!("{}", error),
-                            }
-                        });
-                    }
-                    Err(error) => {
-                        tracing::error!("{}", error);
-                        break;
+                tracing::info!("listening on komorebi.sock");
+                for client in listener.incoming() {
+                    match client {
+                        Ok(stream) => {
+                            let wm_clone = wm.clone();
+                            std::thread::spawn(move || {
+                                match stream.set_read_timeout(Some(Duration::from_secs(1))) {
+                                    Ok(()) => {}
+                                    Err(error) => tracing::error!("{}", error),
+                                }
+                                match read_commands_uds(&wm_clone, stream) {
+                                    Ok(()) => {}
+                                    Err(error) => tracing::error!("{}", error),
+                                }
+                            });
+                        }
+                        Err(error) => {
+                            tracing::error!("{}", error);
+                            break;
+                        }
                     }
                 }
-            }
-        })
-        .join();
+            })
+            .join();
 
-        tracing::error!("restarting failed thread");
+            tracing::error!("restarting failed thread");
+        }
     });
 }
 
@@ -1495,7 +1497,7 @@ impl WindowManager {
                 let container_len = workspace.containers().len();
                 let no_layout_rules = workspace.layout_rules.is_empty();
 
-                if let Layout::Custom(ref mut custom) = &mut workspace.layout {
+                if let Layout::Custom(custom) = &mut workspace.layout {
                     if matches!(axis, Axis::Horizontal) {
                         #[allow(clippy::cast_precision_loss)]
                         let percentage = custom
@@ -1657,7 +1659,9 @@ impl WindowManager {
                                     self.focus_follows_mouse = None;
                                 }
                                 Some(FocusFollowsMouseImplementation::Windows) => {
-                                    tracing::warn!("ignoring command that could mix different focus follows mouse implementations");
+                                    tracing::warn!(
+                                        "ignoring command that could mix different focus follows mouse implementations"
+                                    );
                                 }
                             }
                         }
@@ -1681,7 +1685,9 @@ impl WindowManager {
                                     self.focus_follows_mouse = None;
                                 }
                                 Some(FocusFollowsMouseImplementation::Komorebi) => {
-                                    tracing::warn!("ignoring command that could mix different focus follows mouse implementations");
+                                    tracing::warn!(
+                                        "ignoring command that could mix different focus follows mouse implementations"
+                                    );
                                 }
                             }
                         }
@@ -2222,14 +2228,14 @@ if (!(Get-Process komorebi-bar -ErrorAction SilentlyContinue))
             SocketMessage::StaticConfigSchema => {
                 #[cfg(feature = "schemars")]
                 {
-                    let settings = schemars::gen::SchemaSettings::default().with(|s| {
+                    let settings = schemars::r#gen::SchemaSettings::default().with(|s| {
                         s.option_nullable = false;
                         s.option_add_null_type = false;
                         s.inline_subschemas = true;
                     });
 
-                    let gen = settings.into_generator();
-                    let socket_message = gen.into_root_schema_for::<StaticConfig>();
+                    let generator = settings.into_generator();
+                    let socket_message = generator.into_root_schema_for::<StaticConfig>();
                     let schema = serde_json::to_string_pretty(&socket_message)?;
 
                     reply.write_all(schema.as_bytes())?;
@@ -2392,14 +2398,14 @@ pub fn read_commands_tcp(
 
 #[cfg(test)]
 mod tests {
-    use crate::monitor;
-    use crate::window_manager::WindowManager;
     use crate::Rect;
     use crate::SocketMessage;
     use crate::WindowManagerEvent;
-    use crossbeam_channel::bounded;
+    use crate::monitor;
+    use crate::window_manager::WindowManager;
     use crossbeam_channel::Receiver;
     use crossbeam_channel::Sender;
+    use crossbeam_channel::bounded;
     use std::io::BufRead;
     use std::io::BufReader;
     use std::io::Write;

@@ -4,9 +4,9 @@ use nanoid::nanoid;
 use serde::Deserialize;
 use serde::Serialize;
 
+use crate::Lockable;
 use crate::ring::Ring;
 use crate::window::Window;
-use crate::Lockable;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]

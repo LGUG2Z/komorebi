@@ -12,8 +12,8 @@ use serde::Serialize;
 use strum::Display;
 use strum::EnumString;
 
-use crate::animation::prefix::AnimationPrefix;
 use crate::KomorebiTheme;
+use crate::animation::prefix::AnimationPrefix;
 pub use animation::AnimationStyle;
 pub use arrangement::Arrangement;
 pub use arrangement::Axis;
@@ -27,10 +27,10 @@ pub use default_layout::DefaultLayout;
 pub use direction::Direction;
 pub use layout::Layout;
 pub use operation_direction::OperationDirection;
-pub use pathext::replace_env_in_path;
-pub use pathext::resolve_option_hashmap_usize_path;
 pub use pathext::PathExt;
 pub use pathext::ResolvedPathBuf;
+pub use pathext::replace_env_in_path;
+pub use pathext::resolve_option_hashmap_usize_path;
 pub use rect::Rect;
 
 pub mod animation;
@@ -550,7 +550,9 @@ mod tests {
     #[test]
     fn deserializes() {
         // Set a variable for testing
-        std::env::set_var("VAR", "VALUE");
+        unsafe {
+            std::env::set_var("VAR", "VALUE");
+        }
 
         let json = r#"{"type":"WorkspaceLayoutCustomRule","content":[0,0,0,"/path/%VAR%/d"]}"#;
         let message: SocketMessage = serde_json::from_str(json).unwrap();

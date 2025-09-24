@@ -4,17 +4,17 @@ use crossbeam_channel::Receiver;
 use crossbeam_channel::Sender;
 use crossbeam_utils::atomic::AtomicConsume;
 use parking_lot::Mutex;
-use std::sync::atomic::AtomicBool;
-use std::sync::atomic::AtomicU8;
 use std::sync::Arc;
 use std::sync::OnceLock;
+use std::sync::atomic::AtomicBool;
+use std::sync::atomic::AtomicU8;
 
-use crate::should_act;
+use crate::REGEX_IDENTIFIERS;
+use crate::TRANSPARENCY_BLACKLIST;
 use crate::Window;
 use crate::WindowManager;
 use crate::WindowsApi;
-use crate::REGEX_IDENTIFIERS;
-use crate::TRANSPARENCY_BLACKLIST;
+use crate::should_act;
 
 pub static TRANSPARENCY_ENABLED: AtomicBool = AtomicBool::new(false);
 pub static TRANSPARENCY_ALPHA: AtomicU8 = AtomicU8::new(200);
@@ -49,13 +49,15 @@ pub fn send_notification() {
 }
 
 pub fn listen_for_notifications(wm: Arc<Mutex<WindowManager>>) {
-    std::thread::spawn(move || loop {
-        match handle_notifications(wm.clone()) {
-            Ok(()) => {
-                tracing::warn!("restarting finished thread");
-            }
-            Err(error) => {
-                tracing::warn!("restarting failed thread: {}", error);
+    std::thread::spawn(move || {
+        loop {
+            match handle_notifications(wm.clone()) {
+                Ok(()) => {
+                    tracing::warn!("restarting finished thread");
+                }
+                Err(error) => {
+                    tracing::warn!("restarting failed thread: {}", error);
+                }
             }
         }
     });
@@ -175,7 +177,9 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                                     match window.transparent() {
                                         Err(error) => {
                                             let hwnd = foreground_hwnd;
-                                            tracing::error!("failed to make unfocused window {hwnd} transparent: {error}" )
+                                            tracing::error!(
+                                                "failed to make unfocused window {hwnd} transparent: {error}"
+                                            )
                                         }
                                         Ok(..) => {
                                             known_hwnds.lock().push(window.hwnd);

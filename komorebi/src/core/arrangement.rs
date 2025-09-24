@@ -6,12 +6,12 @@ use serde::Serialize;
 use strum::Display;
 use strum::EnumString;
 
-use super::custom_layout::Column;
-use super::custom_layout::ColumnSplit;
-use super::custom_layout::ColumnSplitWithCapacity;
 use super::CustomLayout;
 use super::DefaultLayout;
 use super::Rect;
+use super::custom_layout::Column;
+use super::custom_layout::ColumnSplit;
+use super::custom_layout::ColumnSplitWithCapacity;
 use crate::default_layout::LayoutOptions;
 
 pub trait Arrangement {

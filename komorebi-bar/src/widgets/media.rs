@@ -1,15 +1,15 @@
+use crate::MAX_LABEL_WIDTH;
 use crate::render::RenderConfig;
 use crate::selected_frame::SelectableFrame;
 use crate::ui::CustomUi;
 use crate::widgets::widget::BarWidget;
-use crate::MAX_LABEL_WIDTH;
-use eframe::egui::text::LayoutJob;
 use eframe::egui::Align;
 use eframe::egui::Context;
 use eframe::egui::Label;
 use eframe::egui::TextFormat;
 use eframe::egui::Ui;
 use eframe::egui::Vec2;
+use eframe::egui::text::LayoutJob;
 use serde::Deserialize;
 use serde::Serialize;
 use std::sync::atomic::Ordering;

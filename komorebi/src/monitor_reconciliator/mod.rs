@@ -1,5 +1,13 @@
 #![deny(clippy::unwrap_used, clippy::expect_used)]
 
+use crate::DISPLAY_INDEX_PREFERENCES;
+use crate::DUPLICATE_MONITOR_SERIAL_IDS;
+use crate::Notification;
+use crate::NotificationEvent;
+use crate::State;
+use crate::WORKSPACE_MATCHING_RULES;
+use crate::WindowManager;
+use crate::WindowsApi;
 use crate::border_manager;
 use crate::config_generation::WorkspaceMatchingRule;
 use crate::core::Rect;
@@ -7,14 +15,6 @@ use crate::monitor;
 use crate::monitor::Monitor;
 use crate::monitor_reconciliator::hidden::Hidden;
 use crate::notify_subscribers;
-use crate::Notification;
-use crate::NotificationEvent;
-use crate::State;
-use crate::WindowManager;
-use crate::WindowsApi;
-use crate::DISPLAY_INDEX_PREFERENCES;
-use crate::DUPLICATE_MONITOR_SERIAL_IDS;
-use crate::WORKSPACE_MATCHING_RULES;
 use crossbeam_channel::Receiver;
 use crossbeam_channel::Sender;
 use crossbeam_utils::atomic::AtomicConsume;
@@ -22,10 +22,10 @@ use parking_lot::Mutex;
 use serde::Deserialize;
 use serde::Serialize;
 use std::collections::HashMap;
-use std::sync::atomic::AtomicBool;
-use std::sync::atomic::Ordering;
 use std::sync::Arc;
 use std::sync::OnceLock;
+use std::sync::atomic::AtomicBool;
+use std::sync::atomic::Ordering;
 
 pub mod hidden;
 
@@ -155,16 +155,18 @@ pub fn listen_for_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Re
 
     tracing::info!("created hidden window to listen for monitor-related events");
 
-    std::thread::spawn(move || loop {
-        match handle_notifications(wm.clone(), win32_display_data::connected_displays_all) {
-            Ok(()) => {
-                tracing::warn!("restarting finished thread");
-            }
-            Err(error) => {
-                if cfg!(debug_assertions) {
-                    tracing::error!("restarting failed thread: {:?}", error)
-                } else {
-                    tracing::error!("restarting failed thread: {}", error)
+    std::thread::spawn(move || {
+        loop {
+            match handle_notifications(wm.clone(), win32_display_data::connected_displays_all) {
+                Ok(()) => {
+                    tracing::warn!("restarting finished thread");
+                }
+                Err(error) => {
+                    if cfg!(debug_assertions) {
+                        tracing::error!("restarting failed thread: {:?}", error)
+                    } else {
+                        tracing::error!("restarting failed thread: {}", error)
+                    }
                 }
             }
         }
@@ -527,7 +529,9 @@ where
                                 cache_hit = true;
                                 cached_id = id.clone();
 
-                                tracing::info!("found monitor and workspace configuration for {id} in the monitor cache, applying");
+                                tracing::info!(
+                                    "found monitor and workspace configuration for {id} in the monitor cache, applying"
+                                );
 
                                 // If it does, update the cached monitor info with the new one and
                                 // load the cached monitor removing any window that has since been
@@ -734,8 +738,8 @@ where
 mod tests {
     use super::*;
     use crate::window_manager_event::WindowManagerEvent;
-    use crossbeam_channel::bounded;
     use crossbeam_channel::Sender;
+    use crossbeam_channel::bounded;
     use std::path::PathBuf;
     use uuid::Uuid;
     use windows::Win32::Devices::Display::DISPLAYCONFIG_VIDEO_OUTPUT_TECHNOLOGY;

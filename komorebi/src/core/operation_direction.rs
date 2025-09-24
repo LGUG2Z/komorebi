@@ -6,8 +6,8 @@ use serde::Serialize;
 use strum::Display;
 use strum::EnumString;
 
-use super::direction::Direction;
 use super::Axis;
+use super::direction::Direction;
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, Display, EnumString, ValueEnum)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]

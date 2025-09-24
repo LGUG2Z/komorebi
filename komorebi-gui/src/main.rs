@@ -1,9 +1,9 @@
 #![warn(clippy::all)]
 
 use eframe::egui;
-use eframe::egui::color_picker::Alpha;
 use eframe::egui::Color32;
 use eframe::egui::ViewportBuilder;
+use eframe::egui::color_picker::Alpha;
 use komorebi_client::BorderStyle;
 use komorebi_client::Colour;
 use komorebi_client::DefaultLayout;
