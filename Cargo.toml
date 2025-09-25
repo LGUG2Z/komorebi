@@ -24,7 +24,7 @@ egui_extras = "0.31"
 dirs = "6"
 dunce = "1"
 hotwatch = "0.5"
-schemars = "0.8"
+schemars = "1.0"
 lazy_static = "1"
 serde = { version = "1", features = ["derive"] }
 serde_json = { package = "serde_json_lenient", version = "0.2" }
