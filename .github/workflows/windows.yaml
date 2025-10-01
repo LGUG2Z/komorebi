@@ -47,6 +47,7 @@ jobs:
         with:
           fetch-depth: 0
       - run: rustup toolchain install stable --profile minimal
+      - run: rustup component add --toolchain stable-x86_64-pc-windows-msvc clippy
       - run: rustup toolchain install nightly --allow-downgrade -c rustfmt
       - uses: Swatinem/rust-cache@v2
         with:
