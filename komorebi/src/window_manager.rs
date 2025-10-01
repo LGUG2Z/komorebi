@@ -11,7 +11,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::atomic::Ordering;
 
-use color_eyre::Result;
+use color_eyre::eyre;
 use color_eyre::eyre::OptionExt;
 use color_eyre::eyre::bail;
 use crossbeam_channel::Receiver;
@@ -413,7 +413,7 @@ impl WindowManager {
     pub fn new(
         incoming: Receiver<WindowManagerEvent>,
         custom_socket_path: Option<PathBuf>,
-    ) -> Result<Self> {
+    ) -> eyre::Result<Self> {
         let socket = custom_socket_path.unwrap_or_else(|| DATA_DIR.join("komorebi.sock"));
 
         match std::fs::remove_file(&socket) {
@@ -454,7 +454,7 @@ impl WindowManager {
     }
 
     #[tracing::instrument(skip(self))]
-    pub fn init(&mut self) -> Result<()> {
+    pub fn init(&mut self) -> eyre::Result<()> {
         tracing::info!("initialising");
         WindowsApi::load_monitor_information(self)?;
         WindowsApi::load_workspace_information(&mut self.monitors)
@@ -611,7 +611,7 @@ impl WindowManager {
     }
 
     #[tracing::instrument(skip(self))]
-    pub fn reload_static_configuration(&mut self, pathbuf: &PathBuf) -> Result<()> {
+    pub fn reload_static_configuration(&mut self, pathbuf: &PathBuf) -> eyre::Result<()> {
         tracing::info!("reloading static configuration");
         StaticConfig::reload(pathbuf, self)
     }
@@ -691,7 +691,7 @@ impl WindowManager {
     }
 
     #[tracing::instrument(skip(self))]
-    pub fn watch_configuration(&mut self, enable: bool) -> Result<()> {
+    pub fn watch_configuration(&mut self, enable: bool) -> eyre::Result<()> {
         let config_pwsh = HOME_DIR.join("komorebi.ps1");
         let config_ahk = HOME_DIR.join("komorebi.ahk");
 
@@ -704,7 +704,7 @@ impl WindowManager {
         Ok(())
     }
 
-    fn configure_watcher(&mut self, enable: bool, config: PathBuf) -> Result<()> {
+    fn configure_watcher(&mut self, enable: bool, config: PathBuf) -> eyre::Result<()> {
         if enable {
             tracing::info!("watching configuration for changes: {}", config.display());
             // Always make absolutely sure that there isn't an already existing watch, because
@@ -834,7 +834,7 @@ impl WindowManager {
     }
 
     #[tracing::instrument(skip(self), level = "debug")]
-    pub fn enforce_workspace_rules(&mut self) -> Result<()> {
+    pub fn enforce_workspace_rules(&mut self) -> eyre::Result<()> {
         let mut to_move = vec![];
 
         let focused_monitor_idx = self.focused_monitor_idx();
@@ -1017,7 +1017,7 @@ impl WindowManager {
     }
 
     #[tracing::instrument(skip(self))]
-    pub fn retile_all(&mut self, preserve_resize_dimensions: bool) -> Result<()> {
+    pub fn retile_all(&mut self, preserve_resize_dimensions: bool) -> eyre::Result<()> {
         let offset = self.work_area_offset;
 
         for monitor in self.monitors_mut() {
@@ -1056,21 +1056,21 @@ impl WindowManager {
     }
 
     #[tracing::instrument(skip(self))]
-    pub fn manage_focused_window(&mut self) -> Result<()> {
+    pub fn manage_focused_window(&mut self) -> eyre::Result<()> {
         let hwnd = WindowsApi::foreground_window()?;
         let event = WindowManagerEvent::Manage(Window::from(hwnd));
         Ok(winevent_listener::event_tx().send(event)?)
     }
 
     #[tracing::instrument(skip(self))]
-    pub fn unmanage_focused_window(&mut self) -> Result<()> {
+    pub fn unmanage_focused_window(&mut self) -> eyre::Result<()> {
         let hwnd = WindowsApi::foreground_window()?;
         let event = WindowManagerEvent::Unmanage(Window::from(hwnd));
         Ok(winevent_listener::event_tx().send(event)?)
     }
 
     #[tracing::instrument(skip(self))]
-    pub fn raise_window_at_cursor_pos(&mut self) -> Result<()> {
+    pub fn raise_window_at_cursor_pos(&mut self) -> eyre::Result<()> {
         let mut hwnd = None;
 
         let workspace = self.focused_workspace()?;
@@ -1138,7 +1138,7 @@ impl WindowManager {
         &mut self,
         origin: (usize, usize, isize),
         target: (usize, usize, usize),
-    ) -> Result<()> {
+    ) -> eyre::Result<()> {
         let (origin_monitor_idx, origin_workspace_idx, w_hwnd) = origin;
         let (target_monitor_idx, target_workspace_idx, target_container_idx) = target;
 
@@ -1265,7 +1265,7 @@ impl WindowManager {
         &mut self,
         origin: (usize, usize, usize),
         target: (usize, usize, usize),
-    ) -> Result<()> {
+    ) -> eyre::Result<()> {
         let (origin_monitor_idx, origin_workspace_idx, origin_container_idx) = origin;
         let (target_monitor_idx, target_workspace_idx, target_container_idx) = target;
 
@@ -1301,7 +1301,7 @@ impl WindowManager {
         &mut self,
         origin: (usize, usize, usize),
         target: (usize, usize, usize),
-    ) -> Result<()> {
+    ) -> eyre::Result<()> {
         let (origin_monitor_idx, origin_workspace_idx, origin_container_idx) = origin;
         let (target_monitor_idx, target_workspace_idx, target_container_idx) = target;
 
@@ -1376,7 +1376,7 @@ impl WindowManager {
         &mut self,
         follow_focus: bool,
         trigger_focus: bool,
-    ) -> Result<()> {
+    ) -> eyre::Result<()> {
         tracing::info!("updating");
 
         let offset = self.work_area_offset;
@@ -1453,7 +1453,7 @@ impl WindowManager {
         sizing: Sizing,
         delta: i32,
         update: bool,
-    ) -> Result<()> {
+    ) -> eyre::Result<()> {
         let mouse_follows_focus = self.mouse_follows_focus;
         let mut focused_monitor_work_area = self.focused_monitor_work_area()?;
         let workspace = self.focused_workspace_mut()?;
@@ -1627,7 +1627,7 @@ impl WindowManager {
     }
 
     #[tracing::instrument(skip(self))]
-    pub fn stop(&mut self, ignore_restore: bool) -> Result<()> {
+    pub fn stop(&mut self, ignore_restore: bool) -> eyre::Result<()> {
         tracing::info!(
             "received stop command, restoring all hidden windows and terminating process"
         );
@@ -1661,7 +1661,7 @@ impl WindowManager {
     }
 
     #[tracing::instrument(skip(self))]
-    pub fn restore_all_windows(&mut self, ignore_restore: bool) -> Result<()> {
+    pub fn restore_all_windows(&mut self, ignore_restore: bool) -> eyre::Result<()> {
         tracing::info!("restoring all hidden windows");
 
         let no_titlebar = NO_TITLEBAR.lock();
@@ -1715,7 +1715,7 @@ impl WindowManager {
     }
 
     #[tracing::instrument(skip(self))]
-    pub fn remove_all_accents(&mut self) -> Result<()> {
+    pub fn remove_all_accents(&mut self) -> eyre::Result<()> {
         tracing::info!("removing all window accents");
 
         for monitor in self.monitors() {
@@ -1738,7 +1738,7 @@ impl WindowManager {
     }
 
     #[tracing::instrument(skip(self))]
-    fn handle_unmanaged_window_behaviour(&self) -> Result<()> {
+    fn handle_unmanaged_window_behaviour(&self) -> eyre::Result<()> {
         if matches!(
             self.unmanaged_window_operation_behaviour,
             OperationBehaviour::NoOp
@@ -1760,7 +1760,7 @@ impl WindowManager {
         &mut self,
         monitor_idx: usize,
         workspace_idx: usize,
-    ) -> Result<()> {
+    ) -> eyre::Result<()> {
         let monitor = self
             .monitors_mut()
             .get_mut(monitor_idx)
@@ -1777,7 +1777,7 @@ impl WindowManager {
         workspace.apply_wallpaper(hmonitor, &monitor_wp)
     }
 
-    pub fn update_focused_workspace_by_monitor_idx(&mut self, idx: usize) -> Result<()> {
+    pub fn update_focused_workspace_by_monitor_idx(&mut self, idx: usize) -> eyre::Result<()> {
         let offset = self.work_area_offset;
 
         self.monitors_mut()
@@ -1787,7 +1787,11 @@ impl WindowManager {
     }
 
     #[tracing::instrument(skip(self))]
-    pub fn swap_monitor_workspaces(&mut self, first_idx: usize, second_idx: usize) -> Result<()> {
+    pub fn swap_monitor_workspaces(
+        &mut self,
+        first_idx: usize,
+        second_idx: usize,
+    ) -> eyre::Result<()> {
         tracing::info!("swaping monitors");
         if first_idx == second_idx {
             return Ok(());
@@ -1854,7 +1858,7 @@ impl WindowManager {
     }
 
     #[tracing::instrument(skip(self))]
-    pub fn swap_focused_monitor(&mut self, idx: usize) -> Result<()> {
+    pub fn swap_focused_monitor(&mut self, idx: usize) -> eyre::Result<()> {
         tracing::info!("swapping focused monitor");
 
         let focused_monitor_idx = self.focused_monitor_idx();
@@ -1872,7 +1876,7 @@ impl WindowManager {
         workspace_idx: Option<usize>,
         follow: bool,
         move_direction: Option<OperationDirection>,
-    ) -> Result<()> {
+    ) -> eyre::Result<()> {
         self.handle_unmanaged_window_behaviour()?;
 
         tracing::info!("moving container");
@@ -2006,7 +2010,7 @@ impl WindowManager {
         idx: usize,
         follow: bool,
         direction: Option<OperationDirection>,
-    ) -> Result<()> {
+    ) -> eyre::Result<()> {
         self.handle_unmanaged_window_behaviour()?;
 
         tracing::info!("moving container");
@@ -2039,7 +2043,7 @@ impl WindowManager {
     }
 
     #[tracing::instrument(skip(self))]
-    pub fn move_workspace_to_monitor(&mut self, idx: usize) -> Result<()> {
+    pub fn move_workspace_to_monitor(&mut self, idx: usize) -> eyre::Result<()> {
         tracing::info!("moving workspace");
         let mouse_follows_focus = self.mouse_follows_focus;
         let offset = self.work_area_offset;
@@ -2067,7 +2071,7 @@ impl WindowManager {
     pub fn focus_floating_window_in_direction(
         &mut self,
         direction: OperationDirection,
-    ) -> Result<()> {
+    ) -> eyre::Result<()> {
         let mouse_follows_focus = self.mouse_follows_focus;
         let focused_workspace = self.focused_workspace_mut()?;
 
@@ -2320,7 +2324,10 @@ impl WindowManager {
     }
 
     #[tracing::instrument(skip(self))]
-    pub fn focus_container_in_direction(&mut self, direction: OperationDirection) -> Result<()> {
+    pub fn focus_container_in_direction(
+        &mut self,
+        direction: OperationDirection,
+    ) -> eyre::Result<()> {
         self.handle_unmanaged_window_behaviour()?;
 
         let workspace = self.focused_workspace()?;
@@ -2486,7 +2493,7 @@ impl WindowManager {
     pub fn move_floating_window_in_direction(
         &mut self,
         direction: OperationDirection,
-    ) -> Result<()> {
+    ) -> eyre::Result<()> {
         let mouse_follows_focus = self.mouse_follows_focus;
 
         let mut focused_monitor_work_area = self.focused_monitor_work_area()?;
@@ -2560,7 +2567,10 @@ impl WindowManager {
     }
 
     #[tracing::instrument(skip(self))]
-    pub fn move_container_in_direction(&mut self, direction: OperationDirection) -> Result<()> {
+    pub fn move_container_in_direction(
+        &mut self,
+        direction: OperationDirection,
+    ) -> eyre::Result<()> {
         self.handle_unmanaged_window_behaviour()?;
 
         let workspace = self.focused_workspace()?;
@@ -2737,7 +2747,7 @@ impl WindowManager {
     pub fn focus_floating_window_in_cycle_direction(
         &mut self,
         direction: CycleDirection,
-    ) -> Result<()> {
+    ) -> eyre::Result<()> {
         let mouse_follows_focus = self.mouse_follows_focus;
         let focused_workspace = self.focused_workspace()?;
 
@@ -2782,7 +2792,10 @@ impl WindowManager {
     }
 
     #[tracing::instrument(skip(self))]
-    pub fn focus_container_in_cycle_direction(&mut self, direction: CycleDirection) -> Result<()> {
+    pub fn focus_container_in_cycle_direction(
+        &mut self,
+        direction: CycleDirection,
+    ) -> eyre::Result<()> {
         self.handle_unmanaged_window_behaviour()?;
 
         tracing::info!("focusing container");
@@ -2819,7 +2832,10 @@ impl WindowManager {
     }
 
     #[tracing::instrument(skip(self))]
-    pub fn move_container_in_cycle_direction(&mut self, direction: CycleDirection) -> Result<()> {
+    pub fn move_container_in_cycle_direction(
+        &mut self,
+        direction: CycleDirection,
+    ) -> eyre::Result<()> {
         self.handle_unmanaged_window_behaviour()?;
 
         let workspace = self.focused_workspace_mut()?;
@@ -2840,7 +2856,10 @@ impl WindowManager {
     }
 
     #[tracing::instrument(skip(self))]
-    pub fn cycle_container_window_in_direction(&mut self, direction: CycleDirection) -> Result<()> {
+    pub fn cycle_container_window_in_direction(
+        &mut self,
+        direction: CycleDirection,
+    ) -> eyre::Result<()> {
         self.handle_unmanaged_window_behaviour()?;
 
         tracing::info!("cycling container windows");
@@ -2876,7 +2895,7 @@ impl WindowManager {
     pub fn cycle_container_window_index_in_direction(
         &mut self,
         direction: CycleDirection,
-    ) -> Result<()> {
+    ) -> eyre::Result<()> {
         self.handle_unmanaged_window_behaviour()?;
 
         tracing::info!("cycling container window index");
@@ -2909,7 +2928,7 @@ impl WindowManager {
         self.update_focused_workspace(self.mouse_follows_focus, true)
     }
     #[tracing::instrument(skip(self))]
-    pub fn focus_container_window(&mut self, idx: usize) -> Result<()> {
+    pub fn focus_container_window(&mut self, idx: usize) -> eyre::Result<()> {
         self.handle_unmanaged_window_behaviour()?;
 
         tracing::info!("focusing container window at index {idx}");
@@ -2943,7 +2962,7 @@ impl WindowManager {
     }
 
     #[tracing::instrument(skip(self))]
-    pub fn stack_all(&mut self) -> Result<()> {
+    pub fn stack_all(&mut self) -> eyre::Result<()> {
         self.unstack_all(false)?;
 
         self.handle_unmanaged_window_behaviour()?;
@@ -2972,7 +2991,7 @@ impl WindowManager {
     }
 
     #[tracing::instrument(skip(self))]
-    pub fn unstack_all(&mut self, update_workspace: bool) -> Result<()> {
+    pub fn unstack_all(&mut self, update_workspace: bool) -> eyre::Result<()> {
         self.handle_unmanaged_window_behaviour()?;
         tracing::info!("unstacking all windows in container");
 
@@ -3010,7 +3029,7 @@ impl WindowManager {
     }
 
     #[tracing::instrument(skip(self))]
-    pub fn add_window_to_container(&mut self, direction: OperationDirection) -> Result<()> {
+    pub fn add_window_to_container(&mut self, direction: OperationDirection) -> eyre::Result<()> {
         self.handle_unmanaged_window_behaviour()?;
 
         tracing::info!("adding window to container");
@@ -3081,7 +3100,7 @@ impl WindowManager {
     }
 
     #[tracing::instrument(skip(self))]
-    pub fn promote_container_to_front(&mut self) -> Result<()> {
+    pub fn promote_container_to_front(&mut self) -> eyre::Result<()> {
         self.handle_unmanaged_window_behaviour()?;
 
         let workspace = self.focused_workspace_mut()?;
@@ -3098,7 +3117,7 @@ impl WindowManager {
     }
 
     #[tracing::instrument(skip(self))]
-    pub fn promote_focus_to_front(&mut self) -> Result<()> {
+    pub fn promote_focus_to_front(&mut self) -> eyre::Result<()> {
         self.handle_unmanaged_window_behaviour()?;
 
         let workspace = self.focused_workspace_mut()?;
@@ -3121,7 +3140,7 @@ impl WindowManager {
     }
 
     #[tracing::instrument(skip(self))]
-    pub fn remove_window_from_container(&mut self) -> Result<()> {
+    pub fn remove_window_from_container(&mut self) -> eyre::Result<()> {
         self.handle_unmanaged_window_behaviour()?;
 
         tracing::info!("removing window");
@@ -3137,14 +3156,14 @@ impl WindowManager {
     }
 
     #[tracing::instrument(skip(self))]
-    pub fn toggle_tiling(&mut self) -> Result<()> {
+    pub fn toggle_tiling(&mut self) -> eyre::Result<()> {
         let workspace = self.focused_workspace_mut()?;
         workspace.tile = !workspace.tile;
         self.update_focused_workspace(false, false)
     }
 
     #[tracing::instrument(skip(self))]
-    pub fn toggle_float(&mut self, force_float: bool) -> Result<()> {
+    pub fn toggle_float(&mut self, force_float: bool) -> eyre::Result<()> {
         let hwnd = WindowsApi::foreground_window()?;
         let workspace = self.focused_workspace_mut()?;
         if workspace.monocle_container.is_some() {
@@ -3172,7 +3191,7 @@ impl WindowManager {
     }
 
     #[tracing::instrument(skip(self))]
-    pub fn toggle_lock(&mut self) -> Result<()> {
+    pub fn toggle_lock(&mut self) -> eyre::Result<()> {
         let workspace = self.focused_workspace_mut()?;
         if let Some(container) = workspace.focused_container_mut() {
             // Toggle the locked flag
@@ -3182,7 +3201,7 @@ impl WindowManager {
     }
 
     #[tracing::instrument(skip(self))]
-    pub fn float_window(&mut self) -> Result<()> {
+    pub fn float_window(&mut self) -> eyre::Result<()> {
         tracing::info!("floating window");
 
         let work_area = self.focused_monitor_work_area()?;
@@ -3206,7 +3225,7 @@ impl WindowManager {
     }
 
     #[tracing::instrument(skip(self))]
-    pub fn unfloat_window(&mut self) -> Result<()> {
+    pub fn unfloat_window(&mut self) -> eyre::Result<()> {
         tracing::info!("unfloating window");
 
         let workspace = self.focused_workspace_mut()?;
@@ -3214,7 +3233,7 @@ impl WindowManager {
     }
 
     #[tracing::instrument(skip(self))]
-    pub fn toggle_monocle(&mut self) -> Result<()> {
+    pub fn toggle_monocle(&mut self) -> eyre::Result<()> {
         self.handle_unmanaged_window_behaviour()?;
 
         let workspace = self.focused_workspace()?;
@@ -3229,7 +3248,7 @@ impl WindowManager {
     }
 
     #[tracing::instrument(skip(self))]
-    pub fn monocle_on(&mut self) -> Result<()> {
+    pub fn monocle_on(&mut self) -> eyre::Result<()> {
         tracing::info!("enabling monocle");
 
         let workspace = self.focused_workspace_mut()?;
@@ -3247,7 +3266,7 @@ impl WindowManager {
     }
 
     #[tracing::instrument(skip(self))]
-    pub fn monocle_off(&mut self) -> Result<()> {
+    pub fn monocle_off(&mut self) -> eyre::Result<()> {
         tracing::info!("disabling monocle");
 
         let workspace = self.focused_workspace_mut()?;
@@ -3264,7 +3283,7 @@ impl WindowManager {
     }
 
     #[tracing::instrument(skip(self))]
-    pub fn toggle_maximize(&mut self) -> Result<()> {
+    pub fn toggle_maximize(&mut self) -> eyre::Result<()> {
         self.handle_unmanaged_window_behaviour()?;
 
         let workspace = self.focused_workspace_mut()?;
@@ -3278,7 +3297,7 @@ impl WindowManager {
     }
 
     #[tracing::instrument(skip(self))]
-    pub fn maximize_window(&mut self) -> Result<()> {
+    pub fn maximize_window(&mut self) -> eyre::Result<()> {
         tracing::info!("maximizing windowj");
 
         let workspace = self.focused_workspace_mut()?;
@@ -3286,7 +3305,7 @@ impl WindowManager {
     }
 
     #[tracing::instrument(skip(self))]
-    pub fn unmaximize_window(&mut self) -> Result<()> {
+    pub fn unmaximize_window(&mut self) -> eyre::Result<()> {
         tracing::info!("unmaximizing window");
 
         let workspace = self.focused_workspace_mut()?;
@@ -3294,7 +3313,7 @@ impl WindowManager {
     }
 
     #[tracing::instrument(skip(self))]
-    pub fn flip_layout(&mut self, layout_flip: Axis) -> Result<()> {
+    pub fn flip_layout(&mut self, layout_flip: Axis) -> eyre::Result<()> {
         let workspace = self.focused_workspace_mut()?;
 
         tracing::info!("flipping layout");
@@ -3337,7 +3356,7 @@ impl WindowManager {
     }
 
     #[tracing::instrument(skip(self))]
-    pub fn change_workspace_layout_default(&mut self, layout: DefaultLayout) -> Result<()> {
+    pub fn change_workspace_layout_default(&mut self, layout: DefaultLayout) -> eyre::Result<()> {
         tracing::info!("changing layout");
 
         let monitor_count = self.monitors().len();
@@ -3371,7 +3390,7 @@ impl WindowManager {
     }
 
     #[tracing::instrument(skip(self))]
-    pub fn cycle_layout(&mut self, direction: CycleDirection) -> Result<()> {
+    pub fn cycle_layout(&mut self, direction: CycleDirection) -> eyre::Result<()> {
         tracing::info!("cycling layout");
 
         let workspace = self.focused_workspace_mut()?;
@@ -3394,7 +3413,7 @@ impl WindowManager {
     }
 
     #[tracing::instrument(skip(self))]
-    pub fn change_workspace_custom_layout<P>(&mut self, path: P) -> Result<()>
+    pub fn change_workspace_custom_layout<P>(&mut self, path: P) -> eyre::Result<()>
     where
         P: AsRef<Path> + std::fmt::Debug,
     {
@@ -3425,7 +3444,11 @@ impl WindowManager {
     }
 
     #[tracing::instrument(skip(self))]
-    pub fn adjust_workspace_padding(&mut self, sizing: Sizing, adjustment: i32) -> Result<()> {
+    pub fn adjust_workspace_padding(
+        &mut self,
+        sizing: Sizing,
+        adjustment: i32,
+    ) -> eyre::Result<()> {
         tracing::info!("adjusting workspace padding");
 
         let workspace = self.focused_workspace_mut()?;
@@ -3440,7 +3463,11 @@ impl WindowManager {
     }
 
     #[tracing::instrument(skip(self))]
-    pub fn adjust_container_padding(&mut self, sizing: Sizing, adjustment: i32) -> Result<()> {
+    pub fn adjust_container_padding(
+        &mut self,
+        sizing: Sizing,
+        adjustment: i32,
+    ) -> eyre::Result<()> {
         tracing::info!("adjusting container padding");
 
         let workspace = self.focused_workspace_mut()?;
@@ -3460,7 +3487,7 @@ impl WindowManager {
         monitor_idx: usize,
         workspace_idx: usize,
         tile: bool,
-    ) -> Result<()> {
+    ) -> eyre::Result<()> {
         let monitor = self
             .monitors_mut()
             .get_mut(monitor_idx)
@@ -3483,7 +3510,7 @@ impl WindowManager {
         workspace_idx: usize,
         at_container_count: usize,
         layout: DefaultLayout,
-    ) -> Result<()> {
+    ) -> eyre::Result<()> {
         tracing::info!("setting workspace layout");
 
         let focused_monitor_idx = self.focused_monitor_idx();
@@ -3521,7 +3548,7 @@ impl WindowManager {
         workspace_idx: usize,
         at_container_count: usize,
         path: P,
-    ) -> Result<()>
+    ) -> eyre::Result<()>
     where
         P: AsRef<Path> + std::fmt::Debug,
     {
@@ -3562,7 +3589,7 @@ impl WindowManager {
         &mut self,
         monitor_idx: usize,
         workspace_idx: usize,
-    ) -> Result<()> {
+    ) -> eyre::Result<()> {
         tracing::info!("setting workspace layout");
 
         let focused_monitor_idx = self.focused_monitor_idx();
@@ -3597,7 +3624,7 @@ impl WindowManager {
         monitor_idx: usize,
         workspace_idx: usize,
         layout: DefaultLayout,
-    ) -> Result<()> {
+    ) -> eyre::Result<()> {
         tracing::info!("setting workspace layout");
 
         let focused_monitor_idx = self.focused_monitor_idx();
@@ -3631,7 +3658,7 @@ impl WindowManager {
         monitor_idx: usize,
         workspace_idx: usize,
         path: P,
-    ) -> Result<()>
+    ) -> eyre::Result<()>
     where
         P: AsRef<Path> + std::fmt::Debug,
     {
@@ -3668,7 +3695,7 @@ impl WindowManager {
         &mut self,
         monitor_idx: usize,
         workspace_count: usize,
-    ) -> Result<()> {
+    ) -> eyre::Result<()> {
         tracing::info!("ensuring workspace count");
 
         let monitor = self
@@ -3686,7 +3713,7 @@ impl WindowManager {
         &mut self,
         monitor_idx: usize,
         names: &Vec<String>,
-    ) -> Result<()> {
+    ) -> eyre::Result<()> {
         tracing::info!("ensuring workspace count");
 
         let monitor = self
@@ -3711,7 +3738,7 @@ impl WindowManager {
         monitor_idx: usize,
         workspace_idx: usize,
         size: i32,
-    ) -> Result<()> {
+    ) -> eyre::Result<()> {
         tracing::info!("setting workspace padding");
 
         let monitor = self
@@ -3735,7 +3762,7 @@ impl WindowManager {
         monitor_idx: usize,
         workspace_idx: usize,
         name: String,
-    ) -> Result<()> {
+    ) -> eyre::Result<()> {
         tracing::info!("setting workspace name");
 
         let monitor = self
@@ -3760,7 +3787,7 @@ impl WindowManager {
         monitor_idx: usize,
         workspace_idx: usize,
         size: i32,
-    ) -> Result<()> {
+    ) -> eyre::Result<()> {
         tracing::info!("setting container padding");
 
         let monitor = self
@@ -3778,14 +3805,14 @@ impl WindowManager {
         self.update_focused_workspace(false, false)
     }
 
-    pub fn focused_monitor_size(&self) -> Result<Rect> {
+    pub fn focused_monitor_size(&self) -> eyre::Result<Rect> {
         Ok(self
             .focused_monitor()
             .ok_or_eyre("there is no monitor")?
             .size)
     }
 
-    pub fn focused_monitor_work_area(&self) -> Result<Rect> {
+    pub fn focused_monitor_work_area(&self) -> eyre::Result<Rect> {
         Ok(self
             .focused_monitor()
             .ok_or_eyre("there is no monitor")?
@@ -3793,7 +3820,7 @@ impl WindowManager {
     }
 
     #[tracing::instrument(skip(self))]
-    pub fn focus_monitor(&mut self, idx: usize) -> Result<()> {
+    pub fn focus_monitor(&mut self, idx: usize) -> eyre::Result<()> {
         tracing::info!("focusing monitor");
 
         if self.monitors().get(idx).is_some() {
@@ -3851,28 +3878,28 @@ impl WindowManager {
         None
     }
 
-    pub fn focused_workspace_idx(&self) -> Result<usize> {
+    pub fn focused_workspace_idx(&self) -> eyre::Result<usize> {
         Ok(self
             .focused_monitor()
             .ok_or_eyre("there is no monitor")?
             .focused_workspace_idx())
     }
 
-    pub fn focused_workspace(&self) -> Result<&Workspace> {
+    pub fn focused_workspace(&self) -> eyre::Result<&Workspace> {
         self.focused_monitor()
             .ok_or_eyre("there is no monitor")?
             .focused_workspace()
             .ok_or_eyre("there is no workspace")
     }
 
-    pub fn focused_workspace_mut(&mut self) -> Result<&mut Workspace> {
+    pub fn focused_workspace_mut(&mut self) -> eyre::Result<&mut Workspace> {
         self.focused_monitor_mut()
             .ok_or_eyre("there is no monitor")?
             .focused_workspace_mut()
             .ok_or_eyre("there is no workspace")
     }
 
-    pub fn focused_workspace_idx_for_monitor_idx(&self, idx: usize) -> Result<usize> {
+    pub fn focused_workspace_idx_for_monitor_idx(&self, idx: usize) -> eyre::Result<usize> {
         Ok(self
             .monitors()
             .get(idx)
@@ -3880,7 +3907,7 @@ impl WindowManager {
             .focused_workspace_idx())
     }
 
-    pub fn focused_workspace_for_monitor_idx(&self, idx: usize) -> Result<&Workspace> {
+    pub fn focused_workspace_for_monitor_idx(&self, idx: usize) -> eyre::Result<&Workspace> {
         self.monitors()
             .get(idx)
             .ok_or_eyre("there is no monitor at this index")?
@@ -3888,7 +3915,10 @@ impl WindowManager {
             .ok_or_eyre("there is no workspace")
     }
 
-    pub fn focused_workspace_for_monitor_idx_mut(&mut self, idx: usize) -> Result<&mut Workspace> {
+    pub fn focused_workspace_for_monitor_idx_mut(
+        &mut self,
+        idx: usize,
+    ) -> eyre::Result<&mut Workspace> {
         self.monitors_mut()
             .get_mut(idx)
             .ok_or_eyre("there is no monitor at this index")?
@@ -3897,7 +3927,7 @@ impl WindowManager {
     }
 
     #[tracing::instrument(skip(self))]
-    pub fn focus_workspace(&mut self, idx: usize) -> Result<()> {
+    pub fn focus_workspace(&mut self, idx: usize) -> eyre::Result<()> {
         tracing::info!("focusing workspace");
 
         let mouse_follows_focus = self.mouse_follows_focus;
@@ -3929,7 +3959,7 @@ impl WindowManager {
     }
 
     #[tracing::instrument(skip(self))]
-    pub fn new_workspace(&mut self) -> Result<()> {
+    pub fn new_workspace(&mut self) -> eyre::Result<()> {
         tracing::info!("adding new workspace");
 
         let mouse_follows_focus = self.mouse_follows_focus;
@@ -3943,29 +3973,29 @@ impl WindowManager {
         self.update_focused_workspace(self.mouse_follows_focus, false)
     }
 
-    pub fn focused_container(&self) -> Result<&Container> {
+    pub fn focused_container(&self) -> eyre::Result<&Container> {
         self.focused_workspace()?
             .focused_container()
             .ok_or_eyre("there is no container")
     }
 
-    pub fn focused_container_idx(&self) -> Result<usize> {
+    pub fn focused_container_idx(&self) -> eyre::Result<usize> {
         Ok(self.focused_workspace()?.focused_container_idx())
     }
 
-    pub fn focused_container_mut(&mut self) -> Result<&mut Container> {
+    pub fn focused_container_mut(&mut self) -> eyre::Result<&mut Container> {
         self.focused_workspace_mut()?
             .focused_container_mut()
             .ok_or_eyre("there is no container")
     }
 
-    pub fn focused_window(&self) -> Result<&Window> {
+    pub fn focused_window(&self) -> eyre::Result<&Window> {
         self.focused_container()?
             .focused_window()
             .ok_or_eyre("there is no window")
     }
 
-    fn focused_window_mut(&mut self) -> Result<&mut Window> {
+    fn focused_window_mut(&mut self) -> eyre::Result<&mut Window> {
         self.focused_container_mut()?
             .focused_window_mut()
             .ok_or_eyre("there is no window")

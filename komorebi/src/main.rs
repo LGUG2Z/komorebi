@@ -17,7 +17,7 @@ use std::time::Duration;
 
 use clap::Parser;
 use clap::ValueEnum;
-use color_eyre::Result;
+use color_eyre::eyre;
 use color_eyre::eyre::bail;
 use crossbeam_utils::Backoff;
 use komorebi::animation::ANIMATION_ENABLED_GLOBAL;
@@ -58,7 +58,7 @@ use komorebi::window_manager::WindowManager;
 use komorebi::windows_api::WindowsApi;
 use komorebi::winevent_listener;
 
-fn setup(log_level: LogLevel) -> Result<(WorkerGuard, WorkerGuard)> {
+fn setup(log_level: LogLevel) -> eyre::Result<(WorkerGuard, WorkerGuard)> {
     if std::env::var("RUST_LIB_BACKTRACE").is_err() {
         unsafe {
             std::env::set_var("RUST_LIB_BACKTRACE", "1");
@@ -196,7 +196,7 @@ struct Opts {
 
 #[tracing::instrument]
 #[allow(clippy::cognitive_complexity)]
-fn main() -> Result<()> {
+fn main() -> eyre::Result<()> {
     let opts: Opts = Opts::parse();
     CUSTOM_FFM.store(opts.focus_follows_mouse, Ordering::SeqCst);
 

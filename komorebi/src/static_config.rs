@@ -87,7 +87,7 @@ use crate::window_manager::WindowManager;
 use crate::window_manager_event::WindowManagerEvent;
 use crate::windows_api::WindowsApi;
 use crate::workspace::Workspace;
-use color_eyre::Result;
+use color_eyre::eyre;
 use crossbeam_channel::Receiver;
 use hotwatch::EventKind;
 use hotwatch::Hotwatch;
@@ -952,7 +952,7 @@ impl From<&WindowManager> for StaticConfig {
 
 impl StaticConfig {
     #[allow(clippy::cognitive_complexity, clippy::too_many_lines)]
-    fn apply_globals(&mut self) -> Result<()> {
+    fn apply_globals(&mut self) -> eyre::Result<()> {
         *FLOATING_WINDOW_TOGGLE_ASPECT_RATIO.lock() = self
             .floating_window_aspect_ratio
             .unwrap_or(AspectRatio::Predefined(PredefinedAspectRatio::Standard));
@@ -1240,11 +1240,11 @@ impl StaticConfig {
         Ok(())
     }
 
-    pub fn read_raw(raw: &str) -> Result<Self> {
+    pub fn read_raw(raw: &str) -> eyre::Result<Self> {
         Ok(serde_json::from_str(raw)?)
     }
 
-    pub fn read(path: &PathBuf) -> Result<Self> {
+    pub fn read(path: &PathBuf) -> eyre::Result<Self> {
         let content = std::fs::read_to_string(path)?;
         serde_json::from_str(&content).map_err(Into::into)
     }
@@ -1254,7 +1254,7 @@ impl StaticConfig {
         path: &PathBuf,
         incoming: Receiver<WindowManagerEvent>,
         unix_listener: Option<UnixListener>,
-    ) -> Result<WindowManager> {
+    ) -> eyre::Result<WindowManager> {
         let mut value = Self::read(path)?;
         value.apply_globals()?;
 
@@ -1349,7 +1349,7 @@ impl StaticConfig {
         Ok(wm)
     }
 
-    pub fn postload(path: &PathBuf, wm: &Arc<Mutex<WindowManager>>) -> Result<()> {
+    pub fn postload(path: &PathBuf, wm: &Arc<Mutex<WindowManager>>) -> eyre::Result<()> {
         let mut value = Self::read(path)?;
         let mut wm = wm.lock();
 
@@ -1521,7 +1521,7 @@ impl StaticConfig {
         Ok(())
     }
 
-    pub fn reload(path: &PathBuf, wm: &mut WindowManager) -> Result<()> {
+    pub fn reload(path: &PathBuf, wm: &mut WindowManager) -> eyre::Result<()> {
         let mut value = Self::read(path)?;
 
         value.apply_globals()?;
@@ -1728,7 +1728,7 @@ fn populate_option(
     entry: &mut ApplicationConfiguration,
     identifiers: &mut Vec<MatchingRule>,
     regex_identifiers: &mut HashMap<String, Regex>,
-) -> Result<()> {
+) -> eyre::Result<()> {
     if entry.identifier.matching_strategy.is_none() {
         entry.identifier.matching_strategy = Option::from(MatchingStrategy::Legacy);
     }
@@ -1754,7 +1754,7 @@ fn populate_rules(
     matching_rules: &mut Vec<MatchingRule>,
     identifiers: &mut Vec<MatchingRule>,
     regex_identifiers: &mut HashMap<String, Regex>,
-) -> Result<()> {
+) -> eyre::Result<()> {
     for matching_rule in matching_rules {
         if !identifiers.contains(matching_rule) {
             match matching_rule {
@@ -1800,7 +1800,7 @@ fn handle_asc_file(
     transparency_blacklist: &mut Vec<MatchingRule>,
     slow_application_identifiers: &mut Vec<MatchingRule>,
     regex_identifiers: &mut HashMap<String, Regex>,
-) -> Result<()> {
+) -> eyre::Result<()> {
     match path.extension() {
         None => {}
         Some(ext) => match ext.to_string_lossy().to_string().as_str() {

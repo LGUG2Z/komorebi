@@ -62,7 +62,7 @@ use crate::core::config_generation::IdWithIdentifier;
 use crate::core::config_generation::MatchingRule;
 use crate::core::config_generation::MatchingStrategy;
 use crate::core::config_generation::WorkspaceMatchingRule;
-use color_eyre::Result;
+use color_eyre::eyre;
 use crossbeam_utils::atomic::AtomicCell;
 use os_info::Version;
 use parking_lot::Mutex;
@@ -329,7 +329,10 @@ pub struct Notification {
     pub state: State,
 }
 
-pub fn notify_subscribers(notification: Notification, state_has_been_modified: bool) -> Result<()> {
+pub fn notify_subscribers(
+    notification: Notification,
+    state_has_been_modified: bool,
+) -> eyre::Result<()> {
     let is_override_event = matches!(
         notification.event,
         NotificationEvent::Socket(SocketMessage::AddSubscriberSocket(_))
@@ -410,7 +413,7 @@ pub fn notify_subscribers(notification: Notification, state_has_been_modified: b
     Ok(())
 }
 
-pub fn load_configuration() -> Result<()> {
+pub fn load_configuration() -> eyre::Result<()> {
     let config_pwsh = HOME_DIR.join("komorebi.ps1");
     let config_ahk = HOME_DIR.join("komorebi.ahk");
 

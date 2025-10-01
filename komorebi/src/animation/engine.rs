@@ -1,4 +1,4 @@
-use color_eyre::Result;
+use color_eyre::eyre;
 
 use serde::Deserialize;
 use serde::Serialize;
@@ -57,7 +57,7 @@ impl AnimationEngine {
     pub fn animate(
         render_dispatcher: impl RenderDispatcher + Send + 'static,
         duration: Duration,
-    ) -> Result<()> {
+    ) -> eyre::Result<()> {
         std::thread::spawn(move || {
             let animation_key = render_dispatcher.get_animation_key();
             if ANIMATION_MANAGER.lock().in_progress(animation_key.as_str()) {

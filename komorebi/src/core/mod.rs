@@ -6,7 +6,7 @@ use std::path::PathBuf;
 use std::str::FromStr;
 
 use clap::ValueEnum;
-use color_eyre::Result;
+use color_eyre::eyre;
 use serde::Deserialize;
 use serde::Serialize;
 use strum::Display;
@@ -248,7 +248,7 @@ pub enum SocketMessage {
 }
 
 impl SocketMessage {
-    pub fn as_bytes(&self) -> Result<Vec<u8>> {
+    pub fn as_bytes(&self) -> eyre::Result<Vec<u8>> {
         Ok(serde_json::to_string(self)?.as_bytes().to_vec())
     }
 }
@@ -256,7 +256,7 @@ impl SocketMessage {
 impl FromStr for SocketMessage {
     type Err = serde_json::Error;
 
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
+    fn from_str(s: &str) -> eyre::Result<Self, Self::Err> {
         serde_json::from_str(s)
     }
 }

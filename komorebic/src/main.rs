@@ -20,7 +20,7 @@ use std::time::Duration;
 use clap::CommandFactory;
 use clap::Parser;
 use clap::ValueEnum;
-use color_eyre::Result;
+use color_eyre::eyre;
 use color_eyre::eyre::OptionExt;
 use color_eyre::eyre::bail;
 use dirs::data_local_dir;
@@ -1527,7 +1527,7 @@ fn print_query(message: &SocketMessage) {
     }
 }
 
-fn startup_dir() -> Result<PathBuf> {
+fn startup_dir() -> eyre::Result<PathBuf> {
     let startup = dirs::home_dir()
         .expect("unable to obtain user's home folder")
         .join("AppData")
@@ -1546,7 +1546,7 @@ fn startup_dir() -> Result<PathBuf> {
 }
 
 #[allow(clippy::too_many_lines, clippy::cognitive_complexity)]
-fn main() -> Result<()> {
+fn main() -> eyre::Result<()> {
     let opts: Opts = Opts::parse();
 
     match opts.subcmd {
@@ -1585,7 +1585,7 @@ fn main() -> Result<()> {
                 path: &PathBuf,
                 content: &str,
                 created_files: &mut Vec<String>,
-            ) -> Result<()> {
+            ) -> eyre::Result<()> {
                 if path.exists() {
                     print!(
                         "{} will be overwritten, do you want to continue? (y/N): ",

@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::collections::VecDeque;
 use std::sync::atomic::Ordering;
 
-use color_eyre::Result;
+use color_eyre::eyre;
 use color_eyre::eyre::OptionExt;
 use color_eyre::eyre::bail;
 use serde::Deserialize;
@@ -167,7 +167,7 @@ impl Monitor {
         })
     }
 
-    pub fn load_focused_workspace(&mut self, mouse_follows_focus: bool) -> Result<()> {
+    pub fn load_focused_workspace(&mut self, mouse_follows_focus: bool) -> eyre::Result<()> {
         let focused_idx = self.focused_workspace_idx();
         let hmonitor = self.id;
         let monitor_wp = self.wallpaper.clone();
@@ -264,7 +264,7 @@ impl Monitor {
         &mut self,
         container: Container,
         workspace_idx: Option<usize>,
-    ) -> Result<()> {
+    ) -> eyre::Result<()> {
         let workspace = if let Some(idx) = workspace_idx {
             self.workspaces_mut()
                 .get_mut(idx)
@@ -288,7 +288,7 @@ impl Monitor {
         container: Container,
         workspace_idx: Option<usize>,
         direction: OperationDirection,
-    ) -> Result<()> {
+    ) -> eyre::Result<()> {
         let workspace = if let Some(idx) = workspace_idx {
             self.workspaces_mut()
                 .get_mut(idx)
@@ -390,7 +390,7 @@ impl Monitor {
         target_workspace_idx: usize,
         follow: bool,
         direction: Option<OperationDirection>,
-    ) -> Result<()> {
+    ) -> eyre::Result<()> {
         let workspace = self
             .focused_workspace_mut()
             .ok_or_eyre("there is no workspace")?;
@@ -469,7 +469,7 @@ impl Monitor {
     }
 
     #[tracing::instrument(skip(self))]
-    pub fn focus_workspace(&mut self, idx: usize) -> Result<()> {
+    pub fn focus_workspace(&mut self, idx: usize) -> eyre::Result<()> {
         tracing::info!("focusing workspace");
 
         {
@@ -500,7 +500,7 @@ impl Monitor {
         self.workspaces().len()
     }
 
-    pub fn update_focused_workspace(&mut self, offset: Option<Rect>) -> Result<()> {
+    pub fn update_focused_workspace(&mut self, offset: Option<Rect>) -> eyre::Result<()> {
         let offset = if self.work_area_offset.is_some() {
             self.work_area_offset
         } else {

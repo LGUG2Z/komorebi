@@ -1,4 +1,4 @@
-use color_eyre::Result;
+use color_eyre::eyre;
 use color_eyre::eyre::OptionExt;
 use color_eyre::eyre::WrapErr;
 use komorebi_themes::colour::Rgb;
@@ -194,7 +194,7 @@ impl WindowManager {
         &mut self,
         message: SocketMessage,
         mut reply: impl std::io::Write,
-    ) -> Result<()> {
+    ) -> eyre::Result<()> {
         if let Some(virtual_desktop_id) = &self.virtual_desktop_id
             && let Some(id) = current_virtual_desktop()
             && id != *virtual_desktop_id
@@ -2283,7 +2283,10 @@ if (!(Get-Process komorebi-bar -ErrorAction SilentlyContinue))
     }
 }
 
-pub fn read_commands_uds(wm: &Arc<Mutex<WindowManager>>, mut stream: UnixStream) -> Result<()> {
+pub fn read_commands_uds(
+    wm: &Arc<Mutex<WindowManager>>,
+    mut stream: UnixStream,
+) -> eyre::Result<()> {
     let reader = BufReader::new(stream.try_clone()?);
     // TODO(raggi): while this processes more than one command, if there are
     // replies there is no clearly defined protocol for framing yet - it's
@@ -2324,7 +2327,7 @@ pub fn read_commands_tcp(
     wm: &Arc<Mutex<WindowManager>>,
     stream: &mut TcpStream,
     addr: &str,
-) -> Result<()> {
+) -> eyre::Result<()> {
     let mut reader = BufReader::new(stream.try_clone()?);
 
     loop {

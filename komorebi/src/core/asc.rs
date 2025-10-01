@@ -1,7 +1,7 @@
 use crate::config_generation::ApplicationConfiguration;
 use crate::config_generation::ApplicationOptions;
 use crate::config_generation::MatchingRule;
-use color_eyre::Result;
+use color_eyre::eyre;
 use serde::Deserialize;
 use serde::Serialize;
 use std::collections::BTreeMap;
@@ -36,12 +36,12 @@ impl DerefMut for ApplicationSpecificConfiguration {
 }
 
 impl ApplicationSpecificConfiguration {
-    pub fn load(pathbuf: &PathBuf) -> Result<Self> {
+    pub fn load(pathbuf: &PathBuf) -> eyre::Result<Self> {
         let content = std::fs::read_to_string(pathbuf)?;
         Ok(serde_json::from_str(&content)?)
     }
 
-    pub fn format(pathbuf: &PathBuf) -> Result<String> {
+    pub fn format(pathbuf: &PathBuf) -> eyre::Result<String> {
         Ok(serde_json::to_string_pretty(&Self::load(pathbuf)?)?)
     }
 }

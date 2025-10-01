@@ -1,7 +1,7 @@
 use std::sync::Arc;
 use std::sync::atomic::Ordering;
 
-use color_eyre::Result;
+use color_eyre::eyre;
 use color_eyre::eyre::OptionExt;
 use crossbeam_utils::atomic::AtomicConsume;
 use parking_lot::Mutex;
@@ -65,7 +65,7 @@ pub fn listen_for_events(wm: Arc<Mutex<WindowManager>>) {
 impl WindowManager {
     #[allow(clippy::too_many_lines, clippy::cognitive_complexity)]
     #[tracing::instrument(skip(self, event), fields(event = event.title(), winevent = event.winevent(), hwnd = event.hwnd()))]
-    pub fn process_event(&mut self, event: WindowManagerEvent) -> Result<()> {
+    pub fn process_event(&mut self, event: WindowManagerEvent) -> eyre::Result<()> {
         if self.is_paused {
             tracing::trace!("ignoring while paused");
             return Ok(());

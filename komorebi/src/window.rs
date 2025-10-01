@@ -40,7 +40,6 @@ use crate::transparency_manager;
 use crate::window_manager_event::WindowManagerEvent;
 use crate::windows_api;
 use crate::windows_api::WindowsApi;
-use color_eyre::Result;
 use color_eyre::eyre;
 use crossbeam_utils::atomic::AtomicConsume;
 use regex::Regex;
@@ -128,7 +127,7 @@ impl Display for Window {
 }
 
 impl Serialize for Window {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    fn serialize<S>(&self, serializer: S) -> eyre::Result<S::Ok, S::Error>
     where
         S: Serializer,
     {
@@ -193,14 +192,14 @@ impl RenderDispatcher for MovementRenderDispatcher {
         new_animation_key(MovementRenderDispatcher::PREFIX, self.hwnd.to_string())
     }
 
-    fn pre_render(&self) -> Result<()> {
+    fn pre_render(&self) -> eyre::Result<()> {
         stackbar_manager::STACKBAR_TEMPORARILY_DISABLED.store(true, Ordering::SeqCst);
         stackbar_manager::send_notification();
 
         Ok(())
     }
 
-    fn render(&self, progress: f64) -> Result<()> {
+    fn render(&self, progress: f64) -> eyre::Result<()> {
         let new_rect = self.start_rect.lerp(self.target_rect, progress, self.style);
 
         // we don't check WINDOW_HANDLING_BEHAVIOUR here because animations
@@ -211,7 +210,7 @@ impl RenderDispatcher for MovementRenderDispatcher {
         Ok(())
     }
 
-    fn post_render(&self) -> Result<()> {
+    fn post_render(&self) -> eyre::Result<()> {
         // we don't add the async_window_pos flag here because animations
         // are always run on a separate thread
         WindowsApi::position_window(self.hwnd, &self.target_rect, self.top, false)?;
@@ -267,7 +266,7 @@ impl RenderDispatcher for TransparencyRenderDispatcher {
         new_animation_key(TransparencyRenderDispatcher::PREFIX, self.hwnd.to_string())
     }
 
-    fn pre_render(&self) -> Result<()> {
+    fn pre_render(&self) -> eyre::Result<()> {
         //transparent
         if !self.is_opaque {
             let window = Window::from(self.hwnd);
@@ -279,7 +278,7 @@ impl RenderDispatcher for TransparencyRenderDispatcher {
         Ok(())
     }
 
-    fn render(&self, progress: f64) -> Result<()> {
+    fn render(&self, progress: f64) -> eyre::Result<()> {
         WindowsApi::set_transparent(
             self.hwnd,
             self.start_opacity
@@ -287,7 +286,7 @@ impl RenderDispatcher for TransparencyRenderDispatcher {
         )
     }
 
-    fn post_render(&self) -> Result<()> {
+    fn post_render(&self) -> eyre::Result<()> {
         //opaque
         if self.is_opaque {
             let window = Window::from(self.hwnd);
@@ -346,7 +345,7 @@ impl Window {
         HWND(windows_api::as_ptr!(self.hwnd))
     }
 
-    pub fn move_to_area(&mut self, current_area: &Rect, target_area: &Rect) -> Result<()> {
+    pub fn move_to_area(&mut self, current_area: &Rect, target_area: &Rect) -> eyre::Result<()> {
         let current_rect = WindowsApi::window_rect(self.hwnd)?;
         let x_diff = target_area.left - current_area.left;
         let y_diff = target_area.top - current_area.top;
@@ -413,7 +412,7 @@ impl Window {
         Ok(())
     }
 
-    pub fn center(&mut self, work_area: &Rect, resize: bool) -> Result<()> {
+    pub fn center(&mut self, work_area: &Rect, resize: bool) -> eyre::Result<()> {
         let (target_width, target_height) = if resize {
             let (aspect_ratio_width, aspect_ratio_height) = FLOATING_WINDOW_TOGGLE_ASPECT_RATIO
                 .lock()
@@ -440,7 +439,7 @@ impl Window {
         )
     }
 
-    pub fn set_position(&self, layout: &Rect, top: bool) -> Result<()> {
+    pub fn set_position(&self, layout: &Rect, top: bool) -> eyre::Result<()> {
         let window_rect = WindowsApi::window_rect(self.hwnd)?;
 
         if window_rect.eq(layout) {
@@ -538,7 +537,7 @@ impl Window {
         }
     }
 
-    pub fn close(self) -> Result<()> {
+    pub fn close(self) -> eyre::Result<()> {
         WindowsApi::close_window(self.hwnd)
     }
 
@@ -566,7 +565,7 @@ impl Window {
         WindowsApi::unmaximize_window(self.hwnd);
     }
 
-    pub fn focus(self, mouse_follows_focus: bool) -> Result<()> {
+    pub fn focus(self, mouse_follows_focus: bool) -> eyre::Result<()> {
         // If the target window is already focused, do nothing.
         if let Ok(ihwnd) = WindowsApi::foreground_window()
             && ihwnd == self.hwnd
@@ -593,7 +592,7 @@ impl Window {
         WindowsApi::foreground_window().unwrap_or_default() == self.hwnd
     }
 
-    pub fn transparent(self) -> Result<()> {
+    pub fn transparent(self) -> eyre::Result<()> {
         let animation_enabled = ANIMATION_ENABLED_PER_ANIMATION.lock();
         let transparent_enabled = animation_enabled.get(&TransparencyRenderDispatcher::PREFIX);
 
@@ -631,7 +630,7 @@ impl Window {
         }
     }
 
-    pub fn opaque(self) -> Result<()> {
+    pub fn opaque(self) -> eyre::Result<()> {
         let animation_enabled = ANIMATION_ENABLED_PER_ANIMATION.lock();
         let transparent_enabled = animation_enabled.get(&TransparencyRenderDispatcher::PREFIX);
 
@@ -666,49 +665,49 @@ impl Window {
         }
     }
 
-    pub fn set_accent(self, colour: u32) -> Result<()> {
+    pub fn set_accent(self, colour: u32) -> eyre::Result<()> {
         WindowsApi::set_window_accent(self.hwnd, Some(colour))
     }
 
-    pub fn remove_accent(self) -> Result<()> {
+    pub fn remove_accent(self) -> eyre::Result<()> {
         WindowsApi::set_window_accent(self.hwnd, None)
     }
 
     #[cfg(target_pointer_width = "64")]
-    pub fn update_style(self, style: &WindowStyle) -> Result<()> {
+    pub fn update_style(self, style: &WindowStyle) -> eyre::Result<()> {
         WindowsApi::update_style(self.hwnd, isize::try_from(style.bits())?)
     }
 
     #[cfg(target_pointer_width = "32")]
-    pub fn update_style(self, style: &WindowStyle) -> Result<()> {
+    pub fn update_style(self, style: &WindowStyle) -> eyre::Result<()> {
         WindowsApi::update_style(self.hwnd, i32::try_from(style.bits())?)
     }
 
     #[cfg(target_pointer_width = "64")]
-    pub fn update_ex_style(self, style: &ExtendedWindowStyle) -> Result<()> {
+    pub fn update_ex_style(self, style: &ExtendedWindowStyle) -> eyre::Result<()> {
         WindowsApi::update_ex_style(self.hwnd, isize::try_from(style.bits())?)
     }
 
     #[cfg(target_pointer_width = "32")]
-    pub fn update_ex_style(self, style: &ExtendedWindowStyle) -> Result<()> {
+    pub fn update_ex_style(self, style: &ExtendedWindowStyle) -> eyre::Result<()> {
         WindowsApi::update_ex_style(self.hwnd, i32::try_from(style.bits())?)
     }
 
-    pub fn style(self) -> Result<WindowStyle> {
+    pub fn style(self) -> eyre::Result<WindowStyle> {
         let bits = u32::try_from(WindowsApi::gwl_style(self.hwnd)?)?;
         Ok(WindowStyle::from_bits_truncate(bits))
     }
 
-    pub fn ex_style(self) -> Result<ExtendedWindowStyle> {
+    pub fn ex_style(self) -> eyre::Result<ExtendedWindowStyle> {
         let bits = u32::try_from(WindowsApi::gwl_ex_style(self.hwnd)?)?;
         Ok(ExtendedWindowStyle::from_bits_truncate(bits))
     }
 
-    pub fn title(self) -> Result<String> {
+    pub fn title(self) -> eyre::Result<String> {
         WindowsApi::window_text_w(self.hwnd)
     }
 
-    pub fn path(self) -> Result<String> {
+    pub fn path(self) -> eyre::Result<String> {
         let (process_id, _) = WindowsApi::window_thread_process_id(self.hwnd);
         let handle = WindowsApi::process_handle(process_id)?;
         let path = WindowsApi::exe_path(handle);
@@ -716,7 +715,7 @@ impl Window {
         path
     }
 
-    pub fn exe(self) -> Result<String> {
+    pub fn exe(self) -> eyre::Result<String> {
         let (process_id, _) = WindowsApi::window_thread_process_id(self.hwnd);
         let handle = WindowsApi::process_handle(process_id)?;
         let exe = WindowsApi::exe(handle);
@@ -729,11 +728,11 @@ impl Window {
         process_id
     }
 
-    pub fn class(self) -> Result<String> {
+    pub fn class(self) -> eyre::Result<String> {
         WindowsApi::real_window_class_w(self.hwnd)
     }
 
-    pub fn is_cloaked(self) -> Result<bool> {
+    pub fn is_cloaked(self) -> eyre::Result<bool> {
         WindowsApi::is_window_cloaked(self.hwnd)
     }
 
@@ -741,14 +740,14 @@ impl Window {
         WindowsApi::is_window(self.hwnd)
     }
 
-    pub fn remove_title_bar(self) -> Result<()> {
+    pub fn remove_title_bar(self) -> eyre::Result<()> {
         let mut style = self.style()?;
         style.remove(WindowStyle::CAPTION);
         style.remove(WindowStyle::THICKFRAME);
         self.update_style(&style)
     }
 
-    pub fn add_title_bar(self) -> Result<()> {
+    pub fn add_title_bar(self) -> eyre::Result<()> {
         let mut style = self.style()?;
         style.insert(WindowStyle::CAPTION);
         style.insert(WindowStyle::THICKFRAME);
@@ -759,7 +758,7 @@ impl Window {
     /// it. Use raise_and_focus_window to activate and focus a window.
     /// It also checks if there is a border attached to this window and if it is
     /// it raises it as well.
-    pub fn raise(self) -> Result<()> {
+    pub fn raise(self) -> eyre::Result<()> {
         WindowsApi::raise_window(self.hwnd)?;
         if let Some(border_info) = crate::border_manager::window_border(self.hwnd) {
             WindowsApi::raise_window(border_info.border_hwnd)?;
@@ -771,7 +770,7 @@ impl Window {
     /// it.
     /// It also checks if there is a border attached to this window and if it is
     /// it lowers it as well.
-    pub fn lower(self) -> Result<()> {
+    pub fn lower(self) -> eyre::Result<()> {
         WindowsApi::lower_window(self.hwnd)?;
         if let Some(border_info) = crate::border_manager::window_border(self.hwnd) {
             WindowsApi::lower_window(border_info.border_hwnd)?;
@@ -784,7 +783,7 @@ impl Window {
         self,
         event: Option<WindowManagerEvent>,
         debug: &mut RuleDebug,
-    ) -> Result<bool> {
+    ) -> eyre::Result<bool> {
         if !self.is_window() {
             return Ok(false);
         }

@@ -1,4 +1,4 @@
-use color_eyre::Result;
+use color_eyre::eyre;
 use color_eyre::eyre::Error;
 use color_eyre::eyre::OptionExt;
 use color_eyre::eyre::bail;
@@ -207,7 +207,7 @@ impl<T, E> From<WindowsResult<T, E>> for Result<T, E> {
 }
 
 pub trait ProcessWindowsCrateResult<T> {
-    fn process(self) -> Result<T>;
+    fn process(self) -> eyre::Result<T>;
 }
 
 macro_rules! impl_process_windows_crate_integer_wrapper_result {
@@ -215,7 +215,7 @@ macro_rules! impl_process_windows_crate_integer_wrapper_result {
         paste::paste! {
             $(
                 impl ProcessWindowsCrateResult<$deref> for $input {
-                    fn process(self) -> Result<$deref> {
+                    fn process(self) -> eyre::Result<$deref> {
                         if self == $input(std::ptr::null_mut()) {
                             Err(std::io::Error::last_os_error().into())
                         } else {
@@ -233,7 +233,7 @@ impl_process_windows_crate_integer_wrapper_result!(
 );
 
 impl<T> ProcessWindowsCrateResult<T> for WindowsCrateResult<T> {
-    fn process(self) -> Result<T> {
+    fn process(self) -> eyre::Result<T> {
         match self {
             Ok(value) => Ok(value),
             Err(error) => Err(error.into()),
@@ -247,13 +247,13 @@ impl WindowsApi {
     pub fn enum_display_monitors(
         callback: MONITORENUMPROC,
         callback_data_address: isize,
-    ) -> Result<()> {
+    ) -> eyre::Result<()> {
         unsafe { EnumDisplayMonitors(None, None, callback, LPARAM(callback_data_address)) }
             .ok()
             .process()
     }
 
-    pub fn valid_hmonitors() -> Result<Vec<(String, isize)>> {
+    pub fn valid_hmonitors() -> eyre::Result<Vec<(String, isize)>> {
         Ok(win32_display_data::connected_displays_all()
             .flatten()
             .map(|d| {
@@ -265,7 +265,7 @@ impl WindowsApi {
             .collect::<Vec<_>>())
     }
 
-    pub fn load_monitor_information(wm: &mut WindowManager) -> Result<()> {
+    pub fn load_monitor_information(wm: &mut WindowManager) -> eyre::Result<()> {
         let monitors = &mut wm.monitors;
         let monitor_usr_idx_map = &mut wm.monitor_usr_idx_map;
 
@@ -406,11 +406,11 @@ impl WindowsApi {
         Ok(())
     }
 
-    pub fn enum_windows(callback: WNDENUMPROC, callback_data_address: isize) -> Result<()> {
+    pub fn enum_windows(callback: WNDENUMPROC, callback_data_address: isize) -> eyre::Result<()> {
         unsafe { EnumWindows(callback, LPARAM(callback_data_address)) }.process()
     }
 
-    pub fn load_workspace_information(monitors: &mut Ring<Monitor>) -> Result<()> {
+    pub fn load_workspace_information(monitors: &mut Ring<Monitor>) -> eyre::Result<()> {
         for monitor in monitors.elements_mut() {
             let monitor_name = monitor.name.clone();
             if let Some(workspace) = monitor.workspaces_mut().front_mut() {
@@ -445,7 +445,7 @@ impl WindowsApi {
         Ok(())
     }
 
-    pub fn allow_set_foreground_window(process_id: u32) -> Result<()> {
+    pub fn allow_set_foreground_window(process_id: u32) -> eyre::Result<()> {
         unsafe { AllowSetForegroundWindow(process_id) }.process()
     }
 
@@ -455,7 +455,7 @@ impl WindowsApi {
         unsafe { MonitorFromWindow(HWND(as_ptr!(hwnd)), MONITOR_DEFAULTTONEAREST) }.0 as isize
     }
 
-    pub fn monitor_name_from_window(hwnd: isize) -> Result<String> {
+    pub fn monitor_name_from_window(hwnd: isize) -> eyre::Result<String> {
         // MONITOR_DEFAULTTONEAREST ensures that the return value will never be NULL
         // https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-monitorfromwindow
         Ok(Self::monitor(
@@ -479,7 +479,7 @@ impl WindowsApi {
         layout: &Rect,
         top: bool,
         with_async_window_pos: bool,
-    ) -> Result<()> {
+    ) -> eyre::Result<()> {
         let hwnd = HWND(as_ptr!(hwnd));
 
         let mut flags = SetWindowPosition::NO_ACTIVATE
@@ -530,13 +530,13 @@ impl WindowsApi {
         Self::set_window_pos(hwnd, &rect, HWND_TOP, flags.bits())
     }
 
-    pub fn bring_window_to_top(hwnd: isize) -> Result<()> {
+    pub fn bring_window_to_top(hwnd: isize) -> eyre::Result<()> {
         unsafe { BringWindowToTop(HWND(as_ptr!(hwnd))) }.process()
     }
 
     /// Raise the window to the top of the Z order, but do not activate or focus
     /// it. Use raise_and_focus_window to activate and focus a window.
-    pub fn raise_window(hwnd: isize) -> Result<()> {
+    pub fn raise_window(hwnd: isize) -> eyre::Result<()> {
         let mut flags = SetWindowPosition::NO_MOVE
             | SetWindowPosition::NO_SIZE
             | SetWindowPosition::NO_ACTIVATE
@@ -560,7 +560,7 @@ impl WindowsApi {
 
     /// Lower the window to the bottom of the Z order, but do not activate or focus
     /// it.
-    pub fn lower_window(hwnd: isize) -> Result<()> {
+    pub fn lower_window(hwnd: isize) -> eyre::Result<()> {
         let mut flags = SetWindowPosition::NO_MOVE
             | SetWindowPosition::NO_SIZE
             | SetWindowPosition::NO_ACTIVATE
@@ -582,7 +582,7 @@ impl WindowsApi {
         )
     }
 
-    pub fn set_border_pos(hwnd: isize, layout: &Rect, position: isize) -> Result<()> {
+    pub fn set_border_pos(hwnd: isize, layout: &Rect, position: isize) -> eyre::Result<()> {
         let mut flags = SetWindowPosition::NO_SEND_CHANGING
             | SetWindowPosition::NO_ACTIVATE
             | SetWindowPosition::NO_REDRAW
@@ -604,7 +604,7 @@ impl WindowsApi {
     }
 
     /// set_window_pos calls SetWindowPos without any accounting for Window decorations.
-    fn set_window_pos(hwnd: HWND, layout: &Rect, position: HWND, flags: u32) -> Result<()> {
+    fn set_window_pos(hwnd: HWND, layout: &Rect, position: HWND, flags: u32) -> eyre::Result<()> {
         unsafe {
             SetWindowPos(
                 hwnd,
@@ -620,7 +620,7 @@ impl WindowsApi {
     }
 
     /// move_windows calls MoveWindow, but cannot be called with async window pos, so it might hang
-    pub fn move_window(hwnd: isize, layout: &Rect, repaint: bool) -> Result<()> {
+    pub fn move_window(hwnd: isize, layout: &Rect, repaint: bool) -> eyre::Result<()> {
         let hwnd = HWND(as_ptr!(hwnd));
 
         let shadow_rect = Self::shadow_rect(hwnd).unwrap_or_default();
@@ -655,11 +655,11 @@ impl WindowsApi {
         Self::show_window(hwnd, SW_MINIMIZE);
     }
 
-    fn post_message(hwnd: HWND, message: u32, wparam: WPARAM, lparam: LPARAM) -> Result<()> {
+    fn post_message(hwnd: HWND, message: u32, wparam: WPARAM, lparam: LPARAM) -> eyre::Result<()> {
         unsafe { PostMessageW(Option::from(hwnd), message, wparam, lparam) }.process()
     }
 
-    pub fn close_window(hwnd: isize) -> Result<()> {
+    pub fn close_window(hwnd: isize) -> eyre::Result<()> {
         if Self::post_message(HWND(as_ptr!(hwnd)), WM_CLOSE, WPARAM(0), LPARAM(0)).is_err() {
             bail!("could not close window");
         }
@@ -683,11 +683,11 @@ impl WindowsApi {
         Self::show_window(hwnd, SW_MAXIMIZE);
     }
 
-    pub fn foreground_window() -> Result<isize> {
+    pub fn foreground_window() -> eyre::Result<isize> {
         unsafe { GetForegroundWindow() }.process()
     }
 
-    pub fn raise_and_focus_window(hwnd: isize) -> Result<()> {
+    pub fn raise_and_focus_window(hwnd: isize) -> eyre::Result<()> {
         let event = [INPUT {
             r#type: INPUT_MOUSE,
             ..Default::default()
@@ -715,20 +715,20 @@ impl WindowsApi {
     }
 
     #[allow(dead_code)]
-    pub fn top_window() -> Result<isize> {
+    pub fn top_window() -> eyre::Result<isize> {
         unsafe { GetTopWindow(None)? }.process()
     }
 
-    pub fn desktop_window() -> Result<isize> {
+    pub fn desktop_window() -> eyre::Result<isize> {
         unsafe { GetDesktopWindow() }.process()
     }
 
     #[allow(dead_code)]
-    pub fn next_window(hwnd: isize) -> Result<isize> {
+    pub fn next_window(hwnd: isize) -> eyre::Result<isize> {
         unsafe { GetWindow(HWND(as_ptr!(hwnd)), GW_HWNDNEXT)? }.process()
     }
 
-    pub fn alt_tab_windows() -> Result<Vec<Window>> {
+    pub fn alt_tab_windows() -> eyre::Result<Vec<Window>> {
         let mut hwnds = vec![];
         Self::enum_windows(
             Some(windows_callbacks::alt_tab_windows),
@@ -739,7 +739,7 @@ impl WindowsApi {
     }
 
     #[allow(dead_code)]
-    pub fn top_visible_window() -> Result<isize> {
+    pub fn top_visible_window() -> eyre::Result<isize> {
         let hwnd = Self::top_window()?;
         let mut next_hwnd = hwnd;
 
@@ -754,7 +754,7 @@ impl WindowsApi {
         bail!("could not find next window")
     }
 
-    pub fn window_rect(hwnd: isize) -> Result<Rect> {
+    pub fn window_rect(hwnd: isize) -> eyre::Result<Rect> {
         let mut rect = unsafe { std::mem::zeroed() };
 
         if Self::dwm_get_window_attribute(hwnd, DWMWA_EXTENDED_FRAME_BOUNDS, &mut rect).is_ok() {
@@ -773,7 +773,7 @@ impl WindowsApi {
     /// the window painted region. The four values in the returned Rect can be
     /// added to a position rect to compute a size for set_window_pos that will
     /// fill the target area, ignoring shadows.
-    fn shadow_rect(hwnd: HWND) -> Result<Rect> {
+    fn shadow_rect(hwnd: HWND) -> eyre::Result<Rect> {
         let window_rect = Self::window_rect(hwnd.0 as isize)?;
 
         let mut srect = Default::default();
@@ -808,26 +808,26 @@ impl WindowsApi {
             let _ = Rectangle(hdc, rect.left, rect.top, rect.right, rect.bottom);
         }
     }
-    fn set_cursor_pos(x: i32, y: i32) -> Result<()> {
+    fn set_cursor_pos(x: i32, y: i32) -> eyre::Result<()> {
         unsafe { SetCursorPos(x, y) }.process()
     }
 
-    pub fn cursor_pos() -> Result<POINT> {
+    pub fn cursor_pos() -> eyre::Result<POINT> {
         let mut cursor_pos = POINT::default();
         unsafe { GetCursorPos(&mut cursor_pos) }.process()?;
 
         Ok(cursor_pos)
     }
 
-    pub fn window_from_point(point: POINT) -> Result<isize> {
+    pub fn window_from_point(point: POINT) -> eyre::Result<isize> {
         unsafe { WindowFromPoint(point) }.process()
     }
 
-    pub fn window_at_cursor_pos() -> Result<isize> {
+    pub fn window_at_cursor_pos() -> eyre::Result<isize> {
         Self::window_from_point(Self::cursor_pos()?)
     }
 
-    pub fn center_cursor_in_rect(rect: &Rect) -> Result<()> {
+    pub fn center_cursor_in_rect(rect: &Rect) -> eyre::Result<()> {
         Self::set_cursor_pos(rect.left + (rect.right / 2), rect.top + (rect.bottom / 2))
     }
 
@@ -850,7 +850,7 @@ impl WindowsApi {
         unsafe { GetCurrentProcessId() }
     }
 
-    pub fn process_id_to_session_id() -> Result<u32> {
+    pub fn process_id_to_session_id() -> eyre::Result<u32> {
         let process_id = Self::current_process_id();
         let mut session_id = 0;
 
@@ -868,7 +868,7 @@ impl WindowsApi {
         hwnd: HWND,
         index: WINDOW_LONG_PTR_INDEX,
         new_value: isize,
-    ) -> Result<()> {
+    ) -> eyre::Result<()> {
         Result::from(WindowsResult::from(unsafe {
             SetWindowLongPtrW(hwnd, index, new_value)
         }))
@@ -880,7 +880,7 @@ impl WindowsApi {
         hwnd: HWND,
         index: WINDOW_LONG_PTR_INDEX,
         new_value: i32,
-    ) -> Result<()> {
+    ) -> eyre::Result<()> {
         Result::from(WindowsResult::from(unsafe {
             SetWindowLongPtrW(hwnd, index, new_value)
         }))
@@ -888,27 +888,27 @@ impl WindowsApi {
     }
 
     #[cfg(target_pointer_width = "64")]
-    pub fn gwl_style(hwnd: isize) -> Result<isize> {
+    pub fn gwl_style(hwnd: isize) -> eyre::Result<isize> {
         Self::window_long_ptr_w(HWND(as_ptr!(hwnd)), GWL_STYLE)
     }
 
     #[cfg(target_pointer_width = "32")]
-    pub fn gwl_style(hwnd: isize) -> Result<i32> {
+    pub fn gwl_style(hwnd: isize) -> eyre::Result<i32> {
         Self::window_long_ptr_w(HWND(as_ptr!(hwnd)), GWL_STYLE)
     }
 
     #[cfg(target_pointer_width = "64")]
-    pub fn gwl_ex_style(hwnd: isize) -> Result<isize> {
+    pub fn gwl_ex_style(hwnd: isize) -> eyre::Result<isize> {
         Self::window_long_ptr_w(HWND(as_ptr!(hwnd)), GWL_EXSTYLE)
     }
 
     #[cfg(target_pointer_width = "32")]
-    pub fn gwl_ex_style(hwnd: isize) -> Result<i32> {
+    pub fn gwl_ex_style(hwnd: isize) -> eyre::Result<i32> {
         Self::window_long_ptr_w(HWND(as_ptr!(hwnd)), GWL_EXSTYLE)
     }
 
     #[cfg(target_pointer_width = "64")]
-    fn window_long_ptr_w(hwnd: HWND, index: WINDOW_LONG_PTR_INDEX) -> Result<isize> {
+    fn window_long_ptr_w(hwnd: HWND, index: WINDOW_LONG_PTR_INDEX) -> eyre::Result<isize> {
         // Can return 0, which does not always mean that an error has occurred
         // https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getwindowlongptrw
         Result::from(WindowsResult::from(unsafe {
@@ -917,7 +917,7 @@ impl WindowsApi {
     }
 
     #[cfg(target_pointer_width = "32")]
-    fn window_long_ptr_w(hwnd: HWND, index: WINDOW_LONG_PTR_INDEX) -> Result<i32> {
+    fn window_long_ptr_w(hwnd: HWND, index: WINDOW_LONG_PTR_INDEX) -> eyre::Result<i32> {
         // Can return 0, which does not always mean that an error has occurred
         // https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getwindowlongptrw
         Result::from(WindowsResult::from(unsafe {
@@ -926,26 +926,26 @@ impl WindowsApi {
     }
 
     #[cfg(target_pointer_width = "64")]
-    pub fn update_style(hwnd: isize, new_value: isize) -> Result<()> {
+    pub fn update_style(hwnd: isize, new_value: isize) -> eyre::Result<()> {
         Self::set_window_long_ptr_w(HWND(as_ptr!(hwnd)), GWL_STYLE, new_value)
     }
 
     #[cfg(target_pointer_width = "32")]
-    pub fn update_style(hwnd: isize, new_value: i32) -> Result<()> {
+    pub fn update_style(hwnd: isize, new_value: i32) -> eyre::Result<()> {
         Self::set_window_long_ptr_w(HWND(as_ptr!(hwnd)), GWL_STYLE, new_value)
     }
 
     #[cfg(target_pointer_width = "64")]
-    pub fn update_ex_style(hwnd: isize, new_value: isize) -> Result<()> {
+    pub fn update_ex_style(hwnd: isize, new_value: isize) -> eyre::Result<()> {
         Self::set_window_long_ptr_w(HWND(as_ptr!(hwnd)), GWL_EXSTYLE, new_value)
     }
 
     #[cfg(target_pointer_width = "32")]
-    pub fn update_ex_style(hwnd: isize, new_value: i32) -> Result<()> {
+    pub fn update_ex_style(hwnd: isize, new_value: i32) -> eyre::Result<()> {
         Self::set_window_long_ptr_w(HWND(as_ptr!(hwnd)), GWL_EXSTYLE, new_value)
     }
 
-    pub fn window_text_w(hwnd: isize) -> Result<String> {
+    pub fn window_text_w(hwnd: isize) -> eyre::Result<String> {
         let mut text: [u16; 512] = [0; 512];
         match WindowsResult::from(unsafe { GetWindowTextW(HWND(as_ptr!(hwnd)), &mut text) }) {
             WindowsResult::Ok(len) => {
@@ -960,19 +960,19 @@ impl WindowsApi {
         access_rights: PROCESS_ACCESS_RIGHTS,
         inherit_handle: bool,
         process_id: u32,
-    ) -> Result<HANDLE> {
+    ) -> eyre::Result<HANDLE> {
         unsafe { OpenProcess(access_rights, inherit_handle, process_id) }.process()
     }
 
-    pub fn close_process(handle: HANDLE) -> Result<()> {
+    pub fn close_process(handle: HANDLE) -> eyre::Result<()> {
         unsafe { CloseHandle(handle) }.process()
     }
 
-    pub fn process_handle(process_id: u32) -> Result<HANDLE> {
+    pub fn process_handle(process_id: u32) -> eyre::Result<HANDLE> {
         Self::open_process(PROCESS_QUERY_INFORMATION, false, process_id)
     }
 
-    pub fn exe_path(handle: HANDLE) -> Result<String> {
+    pub fn exe_path(handle: HANDLE) -> eyre::Result<String> {
         let mut len = 260_u32;
         let mut path: Vec<u16> = vec![0; len as usize];
         let text_ptr = path.as_mut_ptr();
@@ -985,7 +985,7 @@ impl WindowsApi {
         Ok(String::from_utf16(&path[..len as usize])?)
     }
 
-    pub fn exe(handle: HANDLE) -> Result<String> {
+    pub fn exe(handle: HANDLE) -> eyre::Result<String> {
         Ok(Self::exe_path(handle)?
             .split('\\')
             .next_back()
@@ -993,7 +993,7 @@ impl WindowsApi {
             .to_string())
     }
 
-    pub fn real_window_class_w(hwnd: isize) -> Result<String> {
+    pub fn real_window_class_w(hwnd: isize) -> eyre::Result<String> {
         const BUF_SIZE: usize = 512;
         let mut class: [u16; BUF_SIZE] = [0; BUF_SIZE];
 
@@ -1008,7 +1008,7 @@ impl WindowsApi {
         hwnd: isize,
         attribute: DWMWINDOWATTRIBUTE,
         value: &mut T,
-    ) -> Result<()> {
+    ) -> eyre::Result<()> {
         unsafe {
             DwmGetWindowAttribute(
                 HWND(as_ptr!(hwnd)),
@@ -1021,7 +1021,7 @@ impl WindowsApi {
         Ok(())
     }
 
-    pub fn is_window_cloaked(hwnd: isize) -> Result<bool> {
+    pub fn is_window_cloaked(hwnd: isize) -> eyre::Result<bool> {
         let mut cloaked: u32 = 0;
         Self::dwm_get_window_attribute(hwnd, DWMWA_CLOAKED, &mut cloaked)?;
 
@@ -1047,7 +1047,7 @@ impl WindowsApi {
         unsafe { IsZoomed(HWND(as_ptr!(hwnd))) }.into()
     }
 
-    pub fn monitor_info_w(hmonitor: HMONITOR) -> Result<MONITORINFOEXW> {
+    pub fn monitor_info_w(hmonitor: HMONITOR) -> eyre::Result<MONITORINFOEXW> {
         let mut ex_info = MONITORINFOEXW::default();
         ex_info.monitorInfo.cbSize = u32::try_from(std::mem::size_of::<MONITORINFOEXW>())?;
         unsafe { GetMonitorInfoW(hmonitor, &mut ex_info.monitorInfo) }
@@ -1067,7 +1067,7 @@ impl WindowsApi {
         None
     }
 
-    pub fn monitor(hmonitor: isize) -> Result<Monitor> {
+    pub fn monitor(hmonitor: isize) -> eyre::Result<Monitor> {
         for mut display in win32_display_data::connected_displays_all().flatten() {
             if display.hmonitor == hmonitor {
                 let path = display.device_path;
@@ -1110,7 +1110,7 @@ impl WindowsApi {
         bail!("could not find device_id for hmonitor: {hmonitor}");
     }
 
-    pub fn set_process_dpi_awareness_context() -> Result<()> {
+    pub fn set_process_dpi_awareness_context() -> eyre::Result<()> {
         unsafe { SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2) }
             .process()
     }
@@ -1121,13 +1121,13 @@ impl WindowsApi {
         ui_param: u32,
         pv_param: *mut c_void,
         update_flags: SYSTEM_PARAMETERS_INFO_UPDATE_FLAGS,
-    ) -> Result<()> {
+    ) -> eyre::Result<()> {
         unsafe { SystemParametersInfoW(action, ui_param, Option::from(pv_param), update_flags) }
             .process()
     }
 
     #[tracing::instrument]
-    pub fn foreground_lock_timeout() -> Result<()> {
+    pub fn foreground_lock_timeout() -> eyre::Result<()> {
         let mut value: u32 = 0;
 
         Self::system_parameters_info_w(
@@ -1165,7 +1165,7 @@ impl WindowsApi {
     }
 
     #[allow(dead_code)]
-    pub fn focus_follows_mouse() -> Result<bool> {
+    pub fn focus_follows_mouse() -> eyre::Result<bool> {
         let mut is_enabled: BOOL = unsafe { std::mem::zeroed() };
 
         Self::system_parameters_info_w(
@@ -1179,7 +1179,7 @@ impl WindowsApi {
     }
 
     #[allow(dead_code)]
-    pub fn enable_focus_follows_mouse() -> Result<()> {
+    pub fn enable_focus_follows_mouse() -> eyre::Result<()> {
         #[allow(clippy::manual_dangling_ptr)]
         Self::system_parameters_info_w(
             SPI_SETACTIVEWINDOWTRACKING,
@@ -1190,7 +1190,7 @@ impl WindowsApi {
     }
 
     #[allow(dead_code)]
-    pub fn disable_focus_follows_mouse() -> Result<()> {
+    pub fn disable_focus_follows_mouse() -> eyre::Result<()> {
         Self::system_parameters_info_w(
             SPI_SETACTIVEWINDOWTRACKING,
             0,
@@ -1199,7 +1199,7 @@ impl WindowsApi {
         )
     }
 
-    pub fn module_handle_w() -> Result<HMODULE> {
+    pub fn module_handle_w() -> eyre::Result<HMODULE> {
         unsafe { GetModuleHandleW(None) }.process()
     }
 
@@ -1207,11 +1207,11 @@ impl WindowsApi {
         unsafe { CreateSolidBrush(COLORREF(colour)) }
     }
 
-    pub fn register_class_w(window_class: &WNDCLASSW) -> Result<u16> {
+    pub fn register_class_w(window_class: &WNDCLASSW) -> eyre::Result<u16> {
         Result::from(WindowsResult::from(unsafe { RegisterClassW(window_class) }))
     }
 
-    pub fn dpi_for_monitor(hmonitor: isize) -> Result<f32> {
+    pub fn dpi_for_monitor(hmonitor: isize) -> eyre::Result<f32> {
         let mut dpi_x = u32::default();
         let mut dpi_y = u32::default();
 
@@ -1229,14 +1229,14 @@ impl WindowsApi {
         Ok(dpi_y as f32 / 96.0)
     }
 
-    pub fn monitors_have_same_dpi(hmonitor_a: isize, hmonitor_b: isize) -> Result<bool> {
+    pub fn monitors_have_same_dpi(hmonitor_a: isize, hmonitor_b: isize) -> eyre::Result<bool> {
         let dpi_a = Self::dpi_for_monitor(hmonitor_a)?;
         let dpi_b = Self::dpi_for_monitor(hmonitor_b)?;
 
         Ok((dpi_a - dpi_b).abs() < f32::EPSILON)
     }
 
-    pub fn round_corners(hwnd: isize) -> Result<()> {
+    pub fn round_corners(hwnd: isize) -> eyre::Result<()> {
         let round = DWMWCP_ROUND;
 
         unsafe {
@@ -1250,7 +1250,7 @@ impl WindowsApi {
         .process()
     }
 
-    pub fn set_window_accent(hwnd: isize, color: Option<u32>) -> Result<()> {
+    pub fn set_window_accent(hwnd: isize, color: Option<u32>) -> eyre::Result<()> {
         let col_ref = COLORREF(color.unwrap_or(DWMWA_COLOR_NONE));
         unsafe {
             DwmSetWindowAttribute(
@@ -1267,7 +1267,7 @@ impl WindowsApi {
         name: PCWSTR,
         instance: isize,
         border: *mut Border,
-    ) -> Result<isize> {
+    ) -> eyre::Result<isize> {
         unsafe {
             CreateWindowExW(
                 WS_EX_TOOLWINDOW | WS_EX_TOPMOST | WS_EX_NOACTIVATE,
@@ -1287,7 +1287,7 @@ impl WindowsApi {
         .process()
     }
 
-    pub fn set_transparent(hwnd: isize, alpha: u8) -> Result<()> {
+    pub fn set_transparent(hwnd: isize, alpha: u8) -> eyre::Result<()> {
         unsafe {
             #[allow(clippy::cast_sign_loss)]
             SetLayeredWindowAttributes(
@@ -1301,7 +1301,7 @@ impl WindowsApi {
         Ok(())
     }
 
-    pub fn get_transparent(hwnd: isize) -> Result<u8> {
+    pub fn get_transparent(hwnd: isize) -> eyre::Result<u8> {
         unsafe {
             let mut alpha: u8 = u8::default();
             let mut color_ref = COLORREF(-1i32 as u32);
@@ -1316,7 +1316,7 @@ impl WindowsApi {
         }
     }
 
-    pub fn create_hidden_window(name: PCWSTR, instance: isize) -> Result<isize> {
+    pub fn create_hidden_window(name: PCWSTR, instance: isize) -> eyre::Result<isize> {
         unsafe {
             CreateWindowExW(
                 WS_EX_NOACTIVATE,
@@ -1410,11 +1410,11 @@ impl WindowsApi {
         }
     }
 
-    pub fn wts_register_session_notification(hwnd: isize) -> Result<()> {
+    pub fn wts_register_session_notification(hwnd: isize) -> eyre::Result<()> {
         unsafe { WTSRegisterSessionNotification(HWND(as_ptr!(hwnd)), 1) }.process()
     }
 
-    pub fn set_wallpaper(path: &Path, hmonitor: isize) -> Result<()> {
+    pub fn set_wallpaper(path: &Path, hmonitor: isize) -> eyre::Result<()> {
         let path = path.canonicalize()?;
 
         let wallpaper: IDesktopWallpaper =
@@ -1438,7 +1438,7 @@ impl WindowsApi {
         Ok(())
     }
 
-    pub fn get_wallpaper(hmonitor: isize) -> Result<String> {
+    pub fn get_wallpaper(hmonitor: isize) -> eyre::Result<String> {
         let wallpaper: IDesktopWallpaper =
             unsafe { CoCreateInstance(&DesktopWallpaper, None, CLSCTX_ALL)? };
 

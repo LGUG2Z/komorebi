@@ -2,6 +2,7 @@ use crate::config::DisplayFormat;
 use crate::render::RenderConfig;
 use crate::selected_frame::SelectableFrame;
 use crate::widgets::komorebi::KomorebiLayoutConfig;
+use color_eyre::eyre;
 use eframe::egui::Context;
 use eframe::egui::CornerRadius;
 use eframe::egui::FontId;
@@ -34,7 +35,7 @@ pub enum KomorebiLayout {
 }
 
 impl<'de> Deserialize<'de> for KomorebiLayout {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    fn deserialize<D>(deserializer: D) -> eyre::Result<Self, D::Error>
     where
         D: Deserializer<'de>,
     {

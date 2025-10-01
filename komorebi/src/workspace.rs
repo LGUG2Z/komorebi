@@ -37,7 +37,7 @@ use crate::static_config::WorkspaceConfig;
 use crate::window::Window;
 use crate::window::WindowDetails;
 use crate::windows_api::WindowsApi;
-use color_eyre::Result;
+use color_eyre::eyre;
 use color_eyre::eyre::OptionExt;
 use komorebi_themes::Base16ColourPalette;
 use serde::Deserialize;
@@ -157,7 +157,7 @@ pub struct WorkspaceGlobals {
 }
 
 impl Workspace {
-    pub fn load_static_config(&mut self, config: &WorkspaceConfig) -> Result<()> {
+    pub fn load_static_config(&mut self, config: &WorkspaceConfig) -> eyre::Result<()> {
         self.name = Option::from(config.name.clone());
 
         self.container_padding = config.container_padding;
@@ -263,7 +263,11 @@ impl Workspace {
         }
     }
 
-    pub fn apply_wallpaper(&self, hmonitor: isize, monitor_wp: &Option<Wallpaper>) -> Result<()> {
+    pub fn apply_wallpaper(
+        &self,
+        hmonitor: isize,
+        monitor_wp: &Option<Wallpaper>,
+    ) -> eyre::Result<()> {
         if let Some(wallpaper) = self.wallpaper.as_ref().or(monitor_wp.as_ref()) {
             if let Err(error) = WindowsApi::set_wallpaper(&wallpaper.path, hmonitor) {
                 tracing::error!("failed to set wallpaper: {error}");
@@ -384,7 +388,7 @@ impl Workspace {
         mouse_follows_focus: bool,
         hmonitor: isize,
         monitor_wp: &Option<Wallpaper>,
-    ) -> Result<()> {
+    ) -> eyre::Result<()> {
         if let Some(container) = &self.monocle_container
             && let Some(window) = container.focused_window()
         {
@@ -436,7 +440,7 @@ impl Workspace {
         self.apply_wallpaper(hmonitor, monitor_wp)
     }
 
-    pub fn update(&mut self) -> Result<()> {
+    pub fn update(&mut self) -> eyre::Result<()> {
         if !INITIAL_CONFIGURATION_LOADED.load(Ordering::SeqCst) {
             return Ok(());
         }
@@ -627,7 +631,7 @@ impl Workspace {
     /// If there is a container which holds the window with `hwnd` it will focus that container.
     /// This function will only emit a focus on the window if it isn't the focused window of that
     /// container already.
-    pub fn focus_container_by_window(&mut self, hwnd: isize) -> Result<()> {
+    pub fn focus_container_by_window(&mut self, hwnd: isize) -> eyre::Result<()> {
         let container_idx = self
             .container_idx_for_window(hwnd)
             .ok_or_eyre("there is no container/window")?;
@@ -761,7 +765,7 @@ impl Workspace {
         false
     }
 
-    pub fn is_focused_window_monocle_or_maximized(&self) -> Result<bool> {
+    pub fn is_focused_window_monocle_or_maximized(&self) -> eyre::Result<bool> {
         let hwnd = WindowsApi::foreground_window()?;
         if let Some(window) = self.maximized_window
             && hwnd == window.hwnd
@@ -813,7 +817,7 @@ impl Workspace {
         false
     }
 
-    pub fn promote_container(&mut self) -> Result<()> {
+    pub fn promote_container(&mut self) -> eyre::Result<()> {
         let resize = self.resize_dimensions.remove(0);
         let container = self
             .remove_focused_container()
@@ -886,7 +890,7 @@ impl Workspace {
         idx
     }
 
-    pub fn remove_window(&mut self, hwnd: isize) -> Result<()> {
+    pub fn remove_window(&mut self, hwnd: isize) -> eyre::Result<()> {
         border_manager::delete_border(hwnd);
 
         if self.floating_windows().iter().any(|w| w.hwnd == hwnd) {
@@ -991,7 +995,7 @@ impl Workspace {
     }
 
     // this is what we use for stacking
-    pub fn move_window_to_container(&mut self, target_container_idx: usize) -> Result<()> {
+    pub fn move_window_to_container(&mut self, target_container_idx: usize) -> eyre::Result<()> {
         let focused_idx = self.focused_container_idx();
 
         let container = self
@@ -1031,7 +1035,7 @@ impl Workspace {
         Ok(())
     }
 
-    pub fn new_container_for_focused_window(&mut self) -> Result<()> {
+    pub fn new_container_for_focused_window(&mut self) -> eyre::Result<()> {
         let focused_container_idx = self.focused_container_idx();
 
         let container = self
@@ -1055,7 +1059,7 @@ impl Workspace {
         Ok(())
     }
 
-    pub fn new_container_for_floating_window(&mut self) -> Result<()> {
+    pub fn new_container_for_floating_window(&mut self) -> eyre::Result<()> {
         let focused_idx = self.focused_container_idx();
         let window = self
             .remove_focused_floating_window()
@@ -1082,7 +1086,7 @@ impl Workspace {
         self.insert_container_at_idx(next_idx, container);
     }
 
-    pub fn new_floating_window(&mut self) -> Result<()> {
+    pub fn new_floating_window(&mut self) -> eyre::Result<()> {
         let window = if let Some(maximized_window) = self.maximized_window {
             let window = maximized_window;
             self.maximized_window = None;
@@ -1408,7 +1412,7 @@ impl Workspace {
         }
     }
 
-    pub fn new_monocle_container(&mut self) -> Result<()> {
+    pub fn new_monocle_container(&mut self) -> eyre::Result<()> {
         let focused_idx = self.focused_container_idx();
 
         // we shouldn't use remove_container_by_idx here because it doesn't make sense for
@@ -1435,7 +1439,7 @@ impl Workspace {
         Ok(())
     }
 
-    pub fn reintegrate_monocle_container(&mut self) -> Result<()> {
+    pub fn reintegrate_monocle_container(&mut self) -> eyre::Result<()> {
         let restore_idx = self
             .monocle_container_restore_idx
             .ok_or_eyre("there is no monocle restore index")?;
@@ -1466,7 +1470,7 @@ impl Workspace {
         Ok(())
     }
 
-    pub fn new_maximized_window(&mut self) -> Result<()> {
+    pub fn new_maximized_window(&mut self) -> eyre::Result<()> {
         let focused_idx = self.focused_container_idx();
 
         if matches!(self.layer, WorkspaceLayer::Floating) {
@@ -1535,7 +1539,7 @@ impl Workspace {
         Ok(())
     }
 
-    pub fn reintegrate_maximized_window(&mut self) -> Result<()> {
+    pub fn reintegrate_maximized_window(&mut self) -> eyre::Result<()> {
         let restore_idx = self
             .maximized_window_restore_idx
             .ok_or_eyre("there is no monocle restore index")?;
