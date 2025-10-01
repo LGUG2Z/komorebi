@@ -13,6 +13,7 @@ use eframe::egui::WidgetText;
 use eframe::egui::text::LayoutJob;
 use serde::Deserialize;
 use serde::Serialize;
+use std::sync::Arc;
 use std::time::Duration;
 use std::time::Instant;
 
@@ -225,7 +226,7 @@ impl BarWidget for Date {
                     if SelectableFrame::new(false)
                         .show(ui, |ui| {
                             ui.add(
-                                Label::new(WidgetText::LayoutJob(layout_job.clone()))
+                                Label::new(WidgetText::LayoutJob(Arc::from(layout_job.clone())))
                                     .selectable(false),
                             )
                         })

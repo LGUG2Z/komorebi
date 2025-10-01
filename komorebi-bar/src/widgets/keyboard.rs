@@ -11,6 +11,7 @@ use eframe::egui::WidgetText;
 use eframe::egui::text::LayoutJob;
 use serde::Deserialize;
 use serde::Serialize;
+use std::sync::Arc;
 use std::time::Duration;
 use std::time::Instant;
 use windows::Win32::Globalization::LCIDToLocaleName;
@@ -170,7 +171,10 @@ impl BarWidget for Keyboard {
                 );
 
                 config.apply_on_widget(true, ui, |ui| {
-                    ui.add(Label::new(WidgetText::LayoutJob(layout_job.clone())).selectable(false))
+                    ui.add(
+                        Label::new(WidgetText::LayoutJob(Arc::from(layout_job.clone())))
+                            .selectable(false),
+                    )
                 });
             }
         }

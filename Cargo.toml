@@ -19,8 +19,8 @@ chrono = "0.4"
 crossbeam-channel = "0.5"
 crossbeam-utils = "0.8"
 color-eyre = "0.6"
-eframe = "0.31"
-egui_extras = "0.31"
+eframe = "0.32"
+egui_extras = "0.32"
 dirs = "6"
 dunce = "1"
 hotwatch = "0.5"
@@ -52,7 +52,7 @@ features = [
     "Win32_Devices",
     "Win32_Devices_Display",
     "Win32_System_Com",
-    "Win32_UI_Shell_Common",           # for IObjectArray
+    "Win32_UI_Shell_Common", # for IObjectArray
     "Win32_Foundation",
     "Win32_Globalization",
     "Win32_Graphics_Dwm",

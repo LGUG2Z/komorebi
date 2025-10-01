@@ -437,7 +437,7 @@ impl eframe::App for KomorebiGui {
                             BorderStyle::Square,
                         ] {
                             if ui
-                                .add(egui::SelectableLabel::new(
+                                .add(egui::Button::selectable(
                                     self.border_config.border_style == option,
                                     option.to_string(),
                                 ))
@@ -494,7 +494,7 @@ impl eframe::App for KomorebiGui {
                         StackbarMode::Always,
                     ] {
                         if ui
-                            .add(egui::SelectableLabel::new(
+                            .add(egui::Button::selectable(
                                 self.stackbar_config.mode == option,
                                 option.to_string(),
                             ))
@@ -513,7 +513,7 @@ impl eframe::App for KomorebiGui {
                     ui.collapsing("Label", |ui| {
                         for option in [StackbarLabel::Process, StackbarLabel::Title] {
                             if ui
-                                .add(egui::SelectableLabel::new(
+                                .add(egui::Button::selectable(
                                     self.stackbar_config.label == option,
                                     option.to_string(),
                                 ))
@@ -772,7 +772,7 @@ impl eframe::App for KomorebiGui {
                                                     DefaultLayout::Grid,
                                                 ] {
                                                     if ui
-                                                        .add(egui::SelectableLabel::new(
+                                                        .add(egui::Button::selectable(
                                                             workspace.layout == option,
                                                             option.to_string(),
                                                         ))
