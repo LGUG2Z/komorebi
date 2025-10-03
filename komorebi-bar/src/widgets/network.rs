@@ -15,6 +15,11 @@ use serde::Deserialize;
 use serde::Serialize;
 use std::fmt;
 use std::process::Command;
+use std::sync::Arc;
+use std::sync::Mutex;
+use std::sync::atomic::AtomicU64;
+use std::sync::atomic::Ordering;
+use std::thread;
 use std::time::Duration;
 use std::time::Instant;
 use sysinfo::Networks;
@@ -66,21 +71,25 @@ impl From<NetworkConfig> for Network {
             show_total_activity: value.show_total_activity,
             show_activity: value.show_activity,
             show_default_interface: value.show_default_interface.unwrap_or(true),
-            networks_network_activity: Networks::new_with_refreshed_list(),
-            default_interface: String::new(),
+            networks_network_activity: Arc::new(Mutex::new(Networks::new_with_refreshed_list())),
+            default_interface: Arc::new(Mutex::new(String::new())),
+            interface_generation: Arc::new(AtomicU64::new(0)),
             default_refresh_interval,
             data_refresh_interval,
             label_prefix: value.label_prefix.unwrap_or(LabelPrefix::Icon),
             auto_select: value.auto_select,
             activity_left_padding: value.activity_left_padding.unwrap_or_default(),
-            last_updated_default_interface: Instant::now()
+            last_update_request_default_interface: Instant::now()
                 .checked_sub(Duration::from_secs(default_refresh_interval))
                 .unwrap(),
-            last_state_total_activity: vec![],
-            last_state_activity: vec![],
-            last_updated_network_activity: Instant::now()
-                .checked_sub(Duration::from_secs(data_refresh_interval))
-                .unwrap(),
+            last_state_total_activity: Arc::new(Mutex::new(vec![])),
+            last_state_activity: Arc::new(Mutex::new(vec![])),
+            last_update_request_network_activity: Arc::new(Mutex::new(
+                Instant::now()
+                    .checked_sub(Duration::from_secs(data_refresh_interval))
+                    .unwrap(),
+            )),
+            activity_generation: Arc::new(AtomicU64::new(0)),
         }
     }
 }
@@ -90,63 +99,82 @@ pub struct Network {
     pub show_total_activity: bool,
     pub show_activity: bool,
     pub show_default_interface: bool,
-    networks_network_activity: Networks,
+    networks_network_activity: Arc<Mutex<Networks>>,
     default_refresh_interval: u64,
     data_refresh_interval: u64,
     label_prefix: LabelPrefix,
     auto_select: Option<NetworkSelectConfig>,
-    default_interface: String,
-    last_updated_default_interface: Instant,
-    last_state_total_activity: Vec<NetworkReading>,
-    last_state_activity: Vec<NetworkReading>,
-    last_updated_network_activity: Instant,
+    default_interface: Arc<Mutex<String>>,
+    interface_generation: Arc<AtomicU64>,
+    last_update_request_default_interface: Instant,
+    activity_generation: Arc<AtomicU64>,
+    last_state_activity: Arc<Mutex<Vec<NetworkReading>>>,
+    last_state_total_activity: Arc<Mutex<Vec<NetworkReading>>>,
+    last_update_request_network_activity: Arc<Mutex<Instant>>,
     activity_left_padding: usize,
 }
 
 impl Network {
-    fn default_interface(&mut self) {
-        let now = Instant::now();
+    fn update_default_interface_async(&mut self) {
+        let gen_ = self.interface_generation.fetch_add(1, Ordering::SeqCst) + 1;
+        let gen_arc = Arc::clone(&self.interface_generation);
+        let iface_arc = Arc::clone(&self.default_interface);
 
-        if now.duration_since(self.last_updated_default_interface)
-            > Duration::from_secs(self.default_refresh_interval)
-        {
+        thread::spawn(move || {
             if let Ok(interface) = netdev::get_default_interface()
                 && let Some(friendly_name) = &interface.friendly_name
             {
-                self.default_interface.clone_from(friendly_name);
+                // Only update if this is the latest request
+                if gen_ == gen_arc.load(Ordering::SeqCst)
+                    && let Ok(mut iface) = iface_arc.lock()
+                {
+                    *iface = friendly_name.clone();
+                }
             }
-
-            self.last_updated_default_interface = now;
-        }
+        });
     }
 
-    fn network_activity(&mut self) -> (Vec<NetworkReading>, Vec<NetworkReading>) {
-        let mut activity = self.last_state_activity.clone();
-        let mut total_activity = self.last_state_total_activity.clone();
+    fn default_interface(&mut self) -> String {
+        let current = self.default_interface.lock().unwrap().clone();
         let now = Instant::now();
 
-        if now.duration_since(self.last_updated_network_activity)
-            > Duration::from_secs(self.data_refresh_interval)
+        if now.duration_since(self.last_update_request_default_interface)
+            > Duration::from_secs(self.default_refresh_interval)
         {
-            activity.clear();
-            total_activity.clear();
+            self.last_update_request_default_interface = now;
+            self.update_default_interface_async();
+        }
+
+        current
+    }
+
+    fn update_network_activity_async(&mut self) {
+        let gen_ = self.activity_generation.fetch_add(1, Ordering::SeqCst) + 1;
+        let gen_arc = Arc::clone(&self.activity_generation);
+        let activity_arc = Arc::clone(&self.last_state_activity);
+        let total_activity_arc = Arc::clone(&self.last_state_total_activity);
+        let data_refresh_interval = self.data_refresh_interval;
+        let show_activity = self.show_activity;
+        let show_total_activity = self.show_total_activity;
+        let networks_network_activity_arc = Arc::clone(&self.networks_network_activity);
+
+        thread::spawn(move || {
+            let mut activity = Vec::new();
+            let mut total_activity = Vec::new();
 
             if let Ok(interface) = netdev::get_default_interface()
                 && let Some(friendly_name) = &interface.friendly_name
+                && let Ok(mut networks) = networks_network_activity_arc.lock()
             {
-                self.default_interface.clone_from(friendly_name);
+                networks.refresh(true);
 
-                self.networks_network_activity.refresh(true);
-
-                for (interface_name, data) in &self.networks_network_activity {
+                for (interface_name, data) in &*networks {
                     if friendly_name.eq(interface_name) {
-                        if self.show_activity {
+                        if show_activity {
                             let received =
-                                Self::to_pretty_bytes(data.received(), self.data_refresh_interval);
-                            let transmitted = Self::to_pretty_bytes(
-                                data.transmitted(),
-                                self.data_refresh_interval,
-                            );
+                                Network::to_pretty_bytes(data.received(), data_refresh_interval);
+                            let transmitted =
+                                Network::to_pretty_bytes(data.transmitted(), data_refresh_interval);
 
                             activity.push(NetworkReading::new(
                                 NetworkReadingFormat::Speed,
@@ -155,26 +183,55 @@ impl Network {
                             ));
                         }
 
-                        if self.show_total_activity {
-                            let total_received = Self::to_pretty_bytes(data.total_received(), 1);
+                        if show_total_activity {
+                            let total_received = Network::to_pretty_bytes(data.total_received(), 1);
                             let total_transmitted =
-                                Self::to_pretty_bytes(data.total_transmitted(), 1);
+                                Network::to_pretty_bytes(data.total_transmitted(), 1);
 
                             total_activity.push(NetworkReading::new(
                                 NetworkReadingFormat::Total,
                                 ReadingValue::from(total_received),
                                 ReadingValue::from(total_transmitted),
-                            ))
+                            ));
                         }
                     }
                 }
             }
 
-            self.last_state_activity.clone_from(&activity);
-            self.last_state_total_activity.clone_from(&total_activity);
-            self.last_updated_network_activity = now;
+            // Only update if this is the latest request
+            if gen_ == gen_arc.load(Ordering::SeqCst) {
+                if let Ok(mut act) = activity_arc.lock() {
+                    *act = activity;
+                }
+                if let Ok(mut tot) = total_activity_arc.lock() {
+                    *tot = total_activity;
+                }
+            }
+        });
+    }
+
+    fn network_activity(&mut self) -> (Vec<NetworkReading>, Vec<NetworkReading>) {
+        let now = Instant::now();
+        let should_update = {
+            let last_update_request = self.last_update_request_network_activity.lock().unwrap();
+            now.duration_since(*last_update_request)
+                > Duration::from_secs(self.data_refresh_interval)
+        };
+
+        if should_update {
+            {
+                let mut last_updated = self.last_update_request_network_activity.lock().unwrap();
+                *last_updated = now;
+            }
+            self.update_network_activity_async();
         }
 
+        self.get_network_activity()
+    }
+
+    fn get_network_activity(&self) -> (Vec<NetworkReading>, Vec<NetworkReading>) {
+        let activity = self.last_state_activity.lock().unwrap().clone();
+        let total_activity = self.last_state_total_activity.lock().unwrap().clone();
         (activity, total_activity)
     }
 
@@ -445,9 +502,9 @@ impl BarWidget for Network {
             }
 
             if self.show_default_interface {
-                self.default_interface();
+                let mut self_default_interface = self.default_interface();
 
-                if !self.default_interface.is_empty() {
+                if !self_default_interface.is_empty() {
                     let mut layout_job = LayoutJob::simple(
                         match self.label_prefix {
                             LabelPrefix::Icon | LabelPrefix::IconAndText => {
@@ -461,11 +518,11 @@ impl BarWidget for Network {
                     );
 
                     if let LabelPrefix::Text | LabelPrefix::IconAndText = self.label_prefix {
-                        self.default_interface.insert_str(0, "NET: ");
+                        self_default_interface.insert_str(0, "NET: ");
                     }
 
                     layout_job.append(
-                        &self.default_interface,
+                        &self_default_interface,
                         10.0,
                         TextFormat {
                             font_id: config.text_font_id.clone(),
