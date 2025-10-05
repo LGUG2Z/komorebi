@@ -4,6 +4,7 @@ use crate::DISPLAY_INDEX_PREFERENCES;
 use crate::DUPLICATE_MONITOR_SERIAL_IDS;
 use crate::Notification;
 use crate::NotificationEvent;
+use crate::REGEX_IDENTIFIERS;
 use crate::State;
 use crate::WORKSPACE_MATCHING_RULES;
 use crate::WindowManager;
@@ -15,6 +16,7 @@ use crate::monitor;
 use crate::monitor::Monitor;
 use crate::monitor_reconciliator::hidden::Hidden;
 use crate::notify_subscribers;
+use crate::static_config::populate_rules;
 use crossbeam_channel::Receiver;
 use crossbeam_channel::Sender;
 use crossbeam_utils::atomic::AtomicConsume;
@@ -660,11 +662,19 @@ where
                                     // Apply workspace rules
                                     let mut workspace_matching_rules =
                                         WORKSPACE_MATCHING_RULES.lock();
+                                    let mut regex_identifiers = REGEX_IDENTIFIERS.lock();
                                     if let Some(rules) = workspace
                                         .workspace_config
                                         .as_ref()
                                         .and_then(|c| c.workspace_rules.as_ref())
                                     {
+                                        // Process regex patterns for workspace rules
+                                        let mut rules_clone = rules.clone();
+                                        let mut dummy_vec = vec![];
+                                        if let Err(e) = populate_rules(&mut rules_clone, &mut dummy_vec, &mut regex_identifiers) {
+                                            tracing::error!("failed to populate workspace rules: {}", e);
+                                        }
+
                                         for r in rules {
                                             workspace_matching_rules.push(WorkspaceMatchingRule {
                                                 monitor_index: i,
@@ -680,6 +690,13 @@ where
                                         .as_ref()
                                         .and_then(|c| c.initial_workspace_rules.as_ref())
                                     {
+                                        // Process regex patterns for initial workspace rules
+                                        let mut rules_clone = rules.clone();
+                                        let mut dummy_vec = vec![];
+                                        if let Err(e) = populate_rules(&mut rules_clone, &mut dummy_vec, &mut regex_identifiers) {
+                                            tracing::error!("failed to populate initial workspace rules: {}", e);
+                                        }
+
                                         for r in rules {
                                             workspace_matching_rules.push(WorkspaceMatchingRule {
                                                 monitor_index: i,

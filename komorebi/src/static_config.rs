@@ -1435,8 +1435,13 @@ impl StaticConfig {
                 }
 
                 let mut workspace_matching_rules = WORKSPACE_MATCHING_RULES.lock();
-                for (j, ws) in monitor_config.workspaces.iter().enumerate() {
-                    if let Some(rules) = &ws.workspace_rules {
+                let mut regex_identifiers = REGEX_IDENTIFIERS.lock();
+                for (j, ws) in monitor_config.workspaces.iter_mut().enumerate() {
+                    if let Some(rules) = &mut ws.workspace_rules {
+                        // Process regex patterns for workspace rules
+                        let mut dummy_vec = vec![];
+                        populate_rules(rules, &mut dummy_vec, &mut regex_identifiers)?;
+
                         for r in rules {
                             workspace_matching_rules.push(WorkspaceMatchingRule {
                                 monitor_index: i,
@@ -1447,7 +1452,11 @@ impl StaticConfig {
                         }
                     }
 
-                    if let Some(rules) = &ws.initial_workspace_rules {
+                    if let Some(rules) = &mut ws.initial_workspace_rules {
+                        // Process regex patterns for initial workspace rules
+                        let mut dummy_vec = vec![];
+                        populate_rules(rules, &mut dummy_vec, &mut regex_identifiers)?;
+
                         for r in rules {
                             workspace_matching_rules.push(WorkspaceMatchingRule {
                                 monitor_index: i,
@@ -1560,8 +1569,8 @@ impl StaticConfig {
             });
             if let Some(monitor_config) = value
                 .monitors
-                .as_ref()
-                .and_then(|ms| idx.and_then(|i| ms.get(i)))
+                .as_mut()
+                .and_then(|ms| idx.and_then(|i| ms.get_mut(i)))
             {
                 if let Some(used_config_idx) = idx {
                     configs_used.push(used_config_idx);
@@ -1600,8 +1609,13 @@ impl StaticConfig {
                 }
 
                 let mut workspace_matching_rules = WORKSPACE_MATCHING_RULES.lock();
-                for (j, ws) in monitor_config.workspaces.iter().enumerate() {
-                    if let Some(rules) = &ws.workspace_rules {
+                let mut regex_identifiers = REGEX_IDENTIFIERS.lock();
+                for (j, ws) in monitor_config.workspaces.iter_mut().enumerate() {
+                    if let Some(rules) = &mut ws.workspace_rules {
+                        // Process regex patterns for workspace rules
+                        let mut dummy_vec = vec![];
+                        populate_rules(rules, &mut dummy_vec, &mut regex_identifiers)?;
+
                         for r in rules {
                             workspace_matching_rules.push(WorkspaceMatchingRule {
                                 monitor_index: i,
@@ -1612,7 +1626,11 @@ impl StaticConfig {
                         }
                     }
 
-                    if let Some(rules) = &ws.initial_workspace_rules {
+                    if let Some(rules) = &mut ws.initial_workspace_rules {
+                        // Process regex patterns for initial workspace rules
+                        let mut dummy_vec = vec![];
+                        populate_rules(rules, &mut dummy_vec, &mut regex_identifiers)?;
+
                         for r in rules {
                             workspace_matching_rules.push(WorkspaceMatchingRule {
                                 monitor_index: i,
@@ -1750,7 +1768,7 @@ fn populate_option(
     Ok(())
 }
 
-fn populate_rules(
+pub fn populate_rules(
     matching_rules: &mut Vec<MatchingRule>,
     identifiers: &mut Vec<MatchingRule>,
     regex_identifiers: &mut HashMap<String, Regex>,
@@ -1987,5 +2005,117 @@ mod tests {
         "#;
         let config = serde_json::from_str::<WorkspaceConfig>(config).unwrap();
         assert_eq!(config.custom_layout_rules, None);
+    }
+
+    #[test]
+    fn workspace_rules_with_regex_compile_patterns() {
+        use crate::core::ApplicationIdentifier;
+        use crate::core::config_generation::IdWithIdentifier;
+        use crate::core::config_generation::MatchingRule;
+        use crate::core::config_generation::MatchingStrategy;
+        use crate::static_config::populate_rules;
+        use regex::Regex;
+        use std::collections::HashMap;
+
+        // Create a workspace rule with regex matching strategy
+        let mut workspace_rules = vec![
+            MatchingRule::Simple(IdWithIdentifier {
+                kind: ApplicationIdentifier::Title,
+                id: String::from("^Mozilla.*Firefox$"),
+                matching_strategy: Some(MatchingStrategy::Regex),
+            }),
+            MatchingRule::Simple(IdWithIdentifier {
+                kind: ApplicationIdentifier::Exe,
+                id: String::from("chrome\\.exe"),
+                matching_strategy: Some(MatchingStrategy::Regex),
+            }),
+        ];
+
+        let mut identifiers = vec![];
+        let mut regex_identifiers: HashMap<String, Regex> = HashMap::new();
+
+        // Call populate_rules to process the regex patterns
+        populate_rules(&mut workspace_rules, &mut identifiers, &mut regex_identifiers).unwrap();
+
+        // Verify that regex patterns were compiled and added to regex_identifiers
+        assert_eq!(regex_identifiers.len(), 2, "Should have 2 compiled regex patterns");
+
+        assert!(
+            regex_identifiers.contains_key("^Mozilla.*Firefox$"),
+            "Should contain Firefox title regex pattern"
+        );
+        assert!(
+            regex_identifiers.contains_key("chrome\\.exe"),
+            "Should contain Chrome exe regex pattern"
+        );
+
+        // Verify the regexes actually work
+        let firefox_regex = regex_identifiers.get("^Mozilla.*Firefox$").unwrap();
+        assert!(firefox_regex.is_match("Mozilla Firefox"));
+        assert!(firefox_regex.is_match("Mozilla  Firefox"));  // Multiple spaces
+        assert!(!firefox_regex.is_match("Mozilla Firefox Nightly"));  // Doesn't end with Firefox
+        assert!(!firefox_regex.is_match("Firefox"));  // Doesn't start with Mozilla
+        assert!(!firefox_regex.is_match("Mozilla Thunderbird"));  // No Firefox
+
+        let chrome_regex = regex_identifiers.get("chrome\\.exe").unwrap();
+        assert!(chrome_regex.is_match("chrome.exe"));
+        assert!(chrome_regex.is_match("C:\\Program Files\\chrome.exe"));
+        assert!(!chrome_regex.is_match("chromeexe"));
+    }
+
+    #[test]
+    fn workspace_rules_with_composite_regex_compile_patterns() {
+        use crate::core::ApplicationIdentifier;
+        use crate::core::config_generation::IdWithIdentifier;
+        use crate::core::config_generation::MatchingRule;
+        use crate::core::config_generation::MatchingStrategy;
+        use crate::static_config::populate_rules;
+        use regex::Regex;
+        use std::collections::HashMap;
+
+        // Create a composite workspace rule with regex matching strategies
+        let mut workspace_rules = vec![
+            MatchingRule::Composite(vec![
+                IdWithIdentifier {
+                    kind: ApplicationIdentifier::Title,
+                    id: String::from(".*YouTube.*"),
+                    matching_strategy: Some(MatchingStrategy::Regex),
+                },
+                IdWithIdentifier {
+                    kind: ApplicationIdentifier::Exe,
+                    id: String::from("firefox\\.exe"),
+                    matching_strategy: Some(MatchingStrategy::Regex),
+                },
+            ]),
+        ];
+
+        let mut identifiers = vec![];
+        let mut regex_identifiers: HashMap<String, Regex> = HashMap::new();
+
+        // Call populate_rules to process the regex patterns
+        populate_rules(&mut workspace_rules, &mut identifiers, &mut regex_identifiers).unwrap();
+
+        // Verify that both regex patterns in the composite rule were compiled
+        assert_eq!(regex_identifiers.len(), 2, "Should have 2 compiled regex patterns from composite rule");
+
+        assert!(
+            regex_identifiers.contains_key(".*YouTube.*"),
+            "Should contain YouTube title regex pattern"
+        );
+        assert!(
+            regex_identifiers.contains_key("firefox\\.exe"),
+            "Should contain Firefox exe regex pattern"
+        );
+
+        // Verify the regexes work correctly
+        let youtube_regex = regex_identifiers.get(".*YouTube.*").unwrap();
+        assert!(youtube_regex.is_match("YouTube - Mozilla Firefox"));
+        assert!(youtube_regex.is_match("My Video - YouTube"));
+        assert!(!youtube_regex.is_match("Vimeo - Mozilla Firefox"));
+
+        let firefox_regex = regex_identifiers.get("firefox\\.exe").unwrap();
+        assert!(firefox_regex.is_match("firefox.exe"));
+        assert!(firefox_regex.is_match("C:\\Program Files\\Mozilla Firefox\\firefox.exe"));
+        assert!(!firefox_regex.is_match("firefoxexe"));
     }
 }
