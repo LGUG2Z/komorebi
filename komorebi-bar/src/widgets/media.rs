@@ -40,7 +40,7 @@ impl Media {
             enable,
             session_manager: GlobalSystemMediaTransportControlsSessionManager::RequestAsync()
                 .unwrap()
-                .get()
+                .join()
                 .unwrap(),
         }
     }
@@ -49,14 +49,14 @@ impl Media {
         if let Ok(session) = self.session_manager.GetCurrentSession()
             && let Ok(op) = session.TryTogglePlayPauseAsync()
         {
-            op.get().unwrap_or_default();
+            op.join().unwrap_or_default();
         }
     }
 
     fn output(&mut self) -> String {
         if let Ok(session) = self.session_manager.GetCurrentSession()
             && let Ok(operation) = session.TryGetMediaPropertiesAsync()
-            && let Ok(properties) = operation.get()
+            && let Ok(properties) = operation.join()
             && let (Ok(artist), Ok(title)) = (properties.Artist(), properties.Title())
         {
             if artist.is_empty() {

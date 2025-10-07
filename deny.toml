@@ -107,10 +107,10 @@ unknown-git = "deny"
 allow-registry = ["https://github.com/rust-lang/crates.io-index"]
 allow-git = [
     "https://github.com/LGUG2Z/base16-egui-themes",
-    "https://github.com/LGUG2Z/catppuccin-egui",
     "https://github.com/LGUG2Z/windows-icons",
     "https://github.com/LGUG2Z/win32-display-data",
     "https://github.com/LGUG2Z/flavours",
     "https://github.com/LGUG2Z/base16_color_scheme",
     "https://github.com/LGUG2Z/whkd",
+    #    "https://github.com/LGUG2Z/catppuccin-egui",
 ]
