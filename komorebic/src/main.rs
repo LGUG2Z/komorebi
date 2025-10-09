@@ -658,6 +658,50 @@ struct NamedWorkspaceRule {
 }
 
 #[derive(Parser)]
+struct InitialWorkspaceRuleRegex {
+    #[clap(value_enum)]
+    identifier: ApplicationIdentifier,
+    /// Regex pattern as a string
+    id: String,
+    /// Monitor index (zero-indexed)
+    monitor: usize,
+    /// Workspace index on the specified monitor (zero-indexed)
+    workspace: usize,
+}
+
+#[derive(Parser)]
+struct InitialNamedWorkspaceRuleRegex {
+    #[clap(value_enum)]
+    identifier: ApplicationIdentifier,
+    /// Regex pattern as a string
+    id: String,
+    /// Name of a workspace
+    workspace: String,
+}
+
+#[derive(Parser)]
+struct WorkspaceRuleRegex {
+    #[clap(value_enum)]
+    identifier: ApplicationIdentifier,
+    /// Regex pattern as a string
+    id: String,
+    /// Monitor index (zero-indexed)
+    monitor: usize,
+    /// Workspace index on the specified monitor (zero-indexed)
+    workspace: usize,
+}
+
+#[derive(Parser)]
+struct NamedWorkspaceRuleRegex {
+    #[clap(value_enum)]
+    identifier: ApplicationIdentifier,
+    /// Regex pattern as a string
+    id: String,
+    /// Name of a workspace
+    workspace: String,
+}
+
+#[derive(Parser)]
 struct ClearWorkspaceRules {
     /// Monitor index (zero-indexed)
     monitor: usize,
@@ -1395,6 +1439,18 @@ enum SubCommand {
     /// Add a rule to associate an application with a named workspace
     #[clap(arg_required_else_help = true)]
     NamedWorkspaceRule(NamedWorkspaceRule),
+    /// Add a regex rule to associate an application with a workspace on first show
+    #[clap(arg_required_else_help = true)]
+    InitialWorkspaceRuleRegex(InitialWorkspaceRuleRegex),
+    /// Add a regex rule to associate an application with a named workspace on first show
+    #[clap(arg_required_else_help = true)]
+    InitialNamedWorkspaceRuleRegex(InitialNamedWorkspaceRuleRegex),
+    /// Add a regex rule to associate an application with a workspace
+    #[clap(arg_required_else_help = true)]
+    WorkspaceRuleRegex(WorkspaceRuleRegex),
+    /// Add a regex rule to associate an application with a named workspace
+    #[clap(arg_required_else_help = true)]
+    NamedWorkspaceRuleRegex(NamedWorkspaceRuleRegex),
     /// Remove all application association rules for a workspace by monitor and workspace index
     #[clap(arg_required_else_help = true)]
     ClearWorkspaceRules(ClearWorkspaceRules),
@@ -2702,6 +2758,36 @@ if (Get-Command Get-CimInstance -ErrorAction SilentlyContinue) {
         }
         SubCommand::NamedWorkspaceRule(arg) => {
             send_message(&SocketMessage::NamedWorkspaceRule(
+                arg.identifier,
+                arg.id,
+                arg.workspace,
+            ))?;
+        }
+        SubCommand::InitialWorkspaceRuleRegex(arg) => {
+            send_message(&SocketMessage::InitialWorkspaceRuleRegex(
+                arg.identifier,
+                arg.id,
+                arg.monitor,
+                arg.workspace,
+            ))?;
+        }
+        SubCommand::InitialNamedWorkspaceRuleRegex(arg) => {
+            send_message(&SocketMessage::InitialNamedWorkspaceRuleRegex(
+                arg.identifier,
+                arg.id,
+                arg.workspace,
+            ))?;
+        }
+        SubCommand::WorkspaceRuleRegex(arg) => {
+            send_message(&SocketMessage::WorkspaceRuleRegex(
+                arg.identifier,
+                arg.id,
+                arg.monitor,
+                arg.workspace,
+            ))?;
+        }
+        SubCommand::NamedWorkspaceRuleRegex(arg) => {
+            send_message(&SocketMessage::NamedWorkspaceRuleRegex(
                 arg.identifier,
                 arg.id,
                 arg.workspace,
