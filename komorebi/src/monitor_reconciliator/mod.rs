@@ -671,8 +671,15 @@ where
                                         // Process regex patterns for workspace rules
                                         let mut rules_clone = rules.clone();
                                         let mut dummy_vec = vec![];
-                                        if let Err(e) = populate_rules(&mut rules_clone, &mut dummy_vec, &mut regex_identifiers) {
-                                            tracing::error!("failed to populate workspace rules: {}", e);
+                                        if let Err(e) = populate_rules(
+                                            &mut rules_clone,
+                                            &mut dummy_vec,
+                                            &mut regex_identifiers,
+                                        ) {
+                                            tracing::error!(
+                                                "failed to populate workspace rules: {}",
+                                                e
+                                            );
                                         }
 
                                         for r in rules {
@@ -693,8 +700,15 @@ where
                                         // Process regex patterns for initial workspace rules
                                         let mut rules_clone = rules.clone();
                                         let mut dummy_vec = vec![];
-                                        if let Err(e) = populate_rules(&mut rules_clone, &mut dummy_vec, &mut regex_identifiers) {
-                                            tracing::error!("failed to populate initial workspace rules: {}", e);
+                                        if let Err(e) = populate_rules(
+                                            &mut rules_clone,
+                                            &mut dummy_vec,
+                                            &mut regex_identifiers,
+                                        ) {
+                                            tracing::error!(
+                                                "failed to populate initial workspace rules: {}",
+                                                e
+                                            );
                                         }
 
                                         for r in rules {

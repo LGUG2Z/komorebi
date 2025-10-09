@@ -2035,10 +2035,19 @@ mod tests {
         let mut regex_identifiers: HashMap<String, Regex> = HashMap::new();
 
         // Call populate_rules to process the regex patterns
-        populate_rules(&mut workspace_rules, &mut identifiers, &mut regex_identifiers).unwrap();
+        populate_rules(
+            &mut workspace_rules,
+            &mut identifiers,
+            &mut regex_identifiers,
+        )
+        .unwrap();
 
         // Verify that regex patterns were compiled and added to regex_identifiers
-        assert_eq!(regex_identifiers.len(), 2, "Should have 2 compiled regex patterns");
+        assert_eq!(
+            regex_identifiers.len(),
+            2,
+            "Should have 2 compiled regex patterns"
+        );
 
         assert!(
             regex_identifiers.contains_key("^Mozilla.*Firefox$"),
@@ -2052,10 +2061,10 @@ mod tests {
         // Verify the regexes actually work
         let firefox_regex = regex_identifiers.get("^Mozilla.*Firefox$").unwrap();
         assert!(firefox_regex.is_match("Mozilla Firefox"));
-        assert!(firefox_regex.is_match("Mozilla  Firefox"));  // Multiple spaces
-        assert!(!firefox_regex.is_match("Mozilla Firefox Nightly"));  // Doesn't end with Firefox
-        assert!(!firefox_regex.is_match("Firefox"));  // Doesn't start with Mozilla
-        assert!(!firefox_regex.is_match("Mozilla Thunderbird"));  // No Firefox
+        assert!(firefox_regex.is_match("Mozilla  Firefox")); // Multiple spaces
+        assert!(!firefox_regex.is_match("Mozilla Firefox Nightly")); // Doesn't end with Firefox
+        assert!(!firefox_regex.is_match("Firefox")); // Doesn't start with Mozilla
+        assert!(!firefox_regex.is_match("Mozilla Thunderbird")); // No Firefox
 
         let chrome_regex = regex_identifiers.get("chrome\\.exe").unwrap();
         assert!(chrome_regex.is_match("chrome.exe"));
@@ -2074,29 +2083,36 @@ mod tests {
         use std::collections::HashMap;
 
         // Create a composite workspace rule with regex matching strategies
-        let mut workspace_rules = vec![
-            MatchingRule::Composite(vec![
-                IdWithIdentifier {
-                    kind: ApplicationIdentifier::Title,
-                    id: String::from(".*YouTube.*"),
-                    matching_strategy: Some(MatchingStrategy::Regex),
-                },
-                IdWithIdentifier {
-                    kind: ApplicationIdentifier::Exe,
-                    id: String::from("firefox\\.exe"),
-                    matching_strategy: Some(MatchingStrategy::Regex),
-                },
-            ]),
-        ];
+        let mut workspace_rules = vec![MatchingRule::Composite(vec![
+            IdWithIdentifier {
+                kind: ApplicationIdentifier::Title,
+                id: String::from(".*YouTube.*"),
+                matching_strategy: Some(MatchingStrategy::Regex),
+            },
+            IdWithIdentifier {
+                kind: ApplicationIdentifier::Exe,
+                id: String::from("firefox\\.exe"),
+                matching_strategy: Some(MatchingStrategy::Regex),
+            },
+        ])];
 
         let mut identifiers = vec![];
         let mut regex_identifiers: HashMap<String, Regex> = HashMap::new();
 
         // Call populate_rules to process the regex patterns
-        populate_rules(&mut workspace_rules, &mut identifiers, &mut regex_identifiers).unwrap();
+        populate_rules(
+            &mut workspace_rules,
+            &mut identifiers,
+            &mut regex_identifiers,
+        )
+        .unwrap();
 
         // Verify that both regex patterns in the composite rule were compiled
-        assert_eq!(regex_identifiers.len(), 2, "Should have 2 compiled regex patterns from composite rule");
+        assert_eq!(
+            regex_identifiers.len(),
+            2,
+            "Should have 2 compiled regex patterns from composite rule"
+        );
 
         assert!(
             regex_identifiers.contains_key(".*YouTube.*"),

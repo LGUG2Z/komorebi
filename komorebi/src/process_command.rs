@@ -46,7 +46,6 @@ use crate::TCP_CONNECTIONS;
 use crate::TRAY_AND_MULTI_WINDOW_IDENTIFIERS;
 use crate::WINDOWS_11;
 use crate::WORKSPACE_MATCHING_RULES;
-use crate::static_config::populate_rules;
 use crate::animation::ANIMATION_DURATION_GLOBAL;
 use crate::animation::ANIMATION_DURATION_PER_ANIMATION;
 use crate::animation::ANIMATION_ENABLED_GLOBAL;
@@ -84,6 +83,7 @@ use crate::stackbar_manager;
 use crate::stackbar_manager::STACKBAR_FONT_FAMILY;
 use crate::stackbar_manager::STACKBAR_FONT_SIZE;
 use crate::static_config::StaticConfig;
+use crate::static_config::populate_rules;
 use crate::theme_manager;
 use crate::transparency_manager;
 use crate::window::RuleDebug;
@@ -500,7 +500,12 @@ impl WindowManager {
                     }
                 }
             }
-            SocketMessage::InitialWorkspaceRuleRegex(identifier, ref id, monitor_idx, workspace_idx) => {
+            SocketMessage::InitialWorkspaceRuleRegex(
+                identifier,
+                ref id,
+                monitor_idx,
+                workspace_idx,
+            ) => {
                 let mut workspace_rules = WORKSPACE_MATCHING_RULES.lock();
                 let mut regex_identifiers = REGEX_IDENTIFIERS.lock();
 
@@ -512,7 +517,9 @@ impl WindowManager {
 
                 // Compile regex pattern
                 let mut dummy_vec = vec![];
-                if let Err(e) = populate_rules(&mut matching_rules, &mut dummy_vec, &mut regex_identifiers) {
+                if let Err(e) =
+                    populate_rules(&mut matching_rules, &mut dummy_vec, &mut regex_identifiers)
+                {
                     tracing::error!("failed to compile regex pattern '{}': {}", id, e);
                     return Ok(());
                 }
@@ -543,7 +550,9 @@ impl WindowManager {
 
                     // Compile regex pattern
                     let mut dummy_vec = vec![];
-                    if let Err(e) = populate_rules(&mut matching_rules, &mut dummy_vec, &mut regex_identifiers) {
+                    if let Err(e) =
+                        populate_rules(&mut matching_rules, &mut dummy_vec, &mut regex_identifiers)
+                    {
                         tracing::error!("failed to compile regex pattern '{}': {}", id, e);
                         return Ok(());
                     }
@@ -572,7 +581,9 @@ impl WindowManager {
 
                 // Compile regex pattern
                 let mut dummy_vec = vec![];
-                if let Err(e) = populate_rules(&mut matching_rules, &mut dummy_vec, &mut regex_identifiers) {
+                if let Err(e) =
+                    populate_rules(&mut matching_rules, &mut dummy_vec, &mut regex_identifiers)
+                {
                     tracing::error!("failed to compile regex pattern '{}': {}", id, e);
                     return Ok(());
                 }
@@ -603,7 +614,9 @@ impl WindowManager {
 
                     // Compile regex pattern
                     let mut dummy_vec = vec![];
-                    if let Err(e) = populate_rules(&mut matching_rules, &mut dummy_vec, &mut regex_identifiers) {
+                    if let Err(e) =
+                        populate_rules(&mut matching_rules, &mut dummy_vec, &mut regex_identifiers)
+                    {
                         tracing::error!("failed to compile regex pattern '{}': {}", id, e);
                         return Ok(());
                     }
@@ -2628,7 +2641,8 @@ mod tests {
         let workspace_rules = WORKSPACE_MATCHING_RULES.lock();
         let our_rule = workspace_rules.iter().find(|r| {
             if let crate::core::config_generation::MatchingRule::Simple(id) = &r.matching_rule {
-                id.id == "^Mozilla.*Firefox$" && id.matching_strategy == Some(MatchingStrategy::Regex)
+                id.id == "^Mozilla.*Firefox$"
+                    && id.matching_strategy == Some(MatchingStrategy::Regex)
             } else {
                 false
             }
@@ -2643,10 +2657,10 @@ mod tests {
         // Test the regex actually works
         let regex = regex_identifiers.get("^Mozilla.*Firefox$").unwrap();
         assert!(regex.is_match("Mozilla Firefox"));
-        assert!(regex.is_match("Mozilla  Firefox"));  // Multiple spaces
-        assert!(!regex.is_match("Mozilla Firefox Developer Edition"));  // Doesn't end with Firefox
-        assert!(!regex.is_match("Firefox"));  // Doesn't start with Mozilla
-        assert!(!regex.is_match("Mozilla Thunderbird"));  // Doesn't contain Firefox
+        assert!(regex.is_match("Mozilla  Firefox")); // Multiple spaces
+        assert!(!regex.is_match("Mozilla Firefox Developer Edition")); // Doesn't end with Firefox
+        assert!(!regex.is_match("Firefox")); // Doesn't start with Mozilla
+        assert!(!regex.is_match("Mozilla Thunderbird")); // Doesn't contain Firefox
 
         std::fs::remove_file(socket_path).unwrap();
     }
@@ -2723,7 +2737,10 @@ mod tests {
             }
         });
 
-        assert!(our_rule.is_some(), "Should find our initial regex workspace rule");
+        assert!(
+            our_rule.is_some(),
+            "Should find our initial regex workspace rule"
+        );
         let rule = our_rule.unwrap();
         assert_eq!(rule.monitor_index, 0);
         assert_eq!(rule.workspace_index, 1);
