@@ -202,6 +202,9 @@ pub struct WorkspaceConfig {
     /// Layout rules in the format of threshold => layout (default: None)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub layout_rules: Option<HashMap<usize, DefaultLayout>>,
+    /// Work area offset rules in the format of threshold => Rect (default: None)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub work_area_offset_rules: Option<HashMap<usize, Rect>>,
     /// END OF LIFE FEATURE: Custom layout rules (default: None)
     #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(deserialize_with = "resolve_option_hashmap_usize_path", default)]
@@ -259,6 +262,13 @@ impl From<&Workspace> for WorkspaceConfig {
             }
         }
         let layout_rules = (!layout_rules.is_empty()).then_some(layout_rules);
+
+        let mut work_area_offset_rules = HashMap::new();
+        for (threshold, offset) in &value.work_area_offset_rules {
+            work_area_offset_rules.insert(*threshold, *offset);
+        }
+        let work_area_offset_rules =
+            (!work_area_offset_rules.is_empty()).then_some(work_area_offset_rules);
 
         let mut window_container_behaviour_rules = HashMap::new();
         for (threshold, behaviour) in value.window_container_behaviour_rules.iter().flatten() {
@@ -318,6 +328,7 @@ impl From<&Workspace> for WorkspaceConfig {
                 .workspace_config
                 .as_ref()
                 .and_then(|c| c.workspace_rules.clone()),
+            work_area_offset_rules,
             work_area_offset: value.work_area_offset,
             apply_window_based_work_area_offset: Some(value.apply_window_based_work_area_offset),
             window_container_behaviour: value.window_container_behaviour,
