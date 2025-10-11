@@ -921,6 +921,7 @@ impl WindowManager {
                     None => LayoutOptions {
                         scrolling: Some(ScrollingLayoutOptions {
                             columns: count.into(),
+                            center_focused_column: Default::default(),
                         }),
                     },
                 };

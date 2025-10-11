@@ -78,6 +78,13 @@ impl Arrangement for DefaultLayout {
                     // treat >= column_count as scrolling
                     len => {
                         let visible_columns = area.right / column_width;
+                        let keep_centered = layout_options
+                            .and_then(|o| {
+                                o.scrolling
+                                    .map(|s| s.center_focused_column.unwrap_or_default())
+                            })
+                            .unwrap_or(false);
+
                         let first_visible: isize = if focused_idx == 0 {
                             // if focused idx is 0, we are at the beginning of the scrolling strip
                             0
@@ -95,24 +102,35 @@ impl Arrangement for DefaultLayout {
 
                             let focused_idx = focused_idx as isize;
 
-                            if focused_idx < previous_first_visible {
-                                // focused window is off the left edge, we need to scroll left
-                                focused_idx
-                            } else if focused_idx
-                                >= previous_first_visible + visible_columns as isize
-                            {
-                                // focused window is off the right edge, we need to scroll right
-                                // and make sure it's the last visible window
-                                (focused_idx + 1 - visible_columns as isize).max(0)
+                            // if center_focused_column is enabled, and we have an odd number of visible columns,
+                            // center the focused window column
+                            if keep_centered && visible_columns % 2 == 1 {
+                                let center_offset = visible_columns as isize / 2;
+                                (focused_idx - center_offset).max(0).min(
+                                    (len as isize)
+                                        .saturating_sub(visible_columns as isize)
+                                        .max(0),
+                                )
                             } else {
-                                // focused window is already visible, we don't need to scroll
-                                previous_first_visible
+                                if focused_idx < previous_first_visible {
+                                    // focused window is off the left edge, we need to scroll left
+                                    focused_idx
+                                } else if focused_idx
+                                    >= previous_first_visible + visible_columns as isize
+                                {
+                                    // focused window is off the right edge, we need to scroll right
+                                    // and make sure it's the last visible window
+                                    (focused_idx + 1 - visible_columns as isize).max(0)
+                                } else {
+                                    // focused window is already visible, we don't need to scroll
+                                    previous_first_visible
+                                }
+                                .min(
+                                    (len as isize)
+                                        .saturating_sub(visible_columns as isize)
+                                        .max(0),
+                                )
                             }
-                            .min(
-                                (len as isize)
-                                    .saturating_sub(visible_columns as isize)
-                                    .max(0),
-                            )
                         };
 
                         for i in 0..len {

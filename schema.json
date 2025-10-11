@@ -1814,6 +1814,10 @@
                         "columns"
                       ],
                       "properties": {
+                        "center_focused_column": {
+                          "description": "With an odd number of visible columns, keep the focused window column centered",
+                          "type": "boolean"
+                        },
                         "columns": {
                           "description": "Desired number of visible columns (default: 3)",
                           "type": "integer",

@@ -37,6 +37,8 @@ pub struct LayoutOptions {
 pub struct ScrollingLayoutOptions {
     /// Desired number of visible columns (default: 3)
     pub columns: usize,
+    /// With an odd number of visible columns, keep the focused window column centered
+    pub center_focused_column: Option<bool>,
 }
 
 impl DefaultLayout {
