@@ -52,110 +52,82 @@ impl Arrangement for DefaultLayout {
                 let column_width = area.right / column_count as i32;
                 let mut layouts = Vec::with_capacity(len);
 
-                match len {
-                    // treat < 3 windows the same as the columns layout
-                    len if len < 3 => {
-                        layouts = columns(area, len);
+                let visible_columns = area.right / column_width;
+                let keep_centered = layout_options
+                    .and_then(|o| {
+                        o.scrolling
+                            .map(|s| s.center_focused_column.unwrap_or_default())
+                    })
+                    .unwrap_or(false);
 
-                        let adjustment = calculate_columns_adjustment(resize_dimensions);
-                        layouts.iter_mut().zip(adjustment.iter()).for_each(
-                            |(layout, adjustment)| {
-                                layout.top += adjustment.top;
-                                layout.bottom += adjustment.bottom;
-                                layout.left += adjustment.left;
-                                layout.right += adjustment.right;
-                            },
-                        );
+                let first_visible: isize = if focused_idx == 0 {
+                    // if focused idx is 0, we are at the beginning of the scrolling strip
+                    0
+                } else {
+                    let previous_first_visible = if latest_layout.is_empty() {
+                        0
+                    } else {
+                        // previous first_visible based on the left position of the first visible window
+                        let left_edge = area.left;
+                        latest_layout
+                            .iter()
+                            .position(|rect| rect.left >= left_edge)
+                            .unwrap_or(0) as isize
+                    };
 
-                        if matches!(
-                            layout_flip,
-                            Some(Axis::Horizontal | Axis::HorizontalAndVertical)
-                        ) && let 2.. = len
-                        {
-                            columns_reverse(&mut layouts);
-                        }
-                    }
-                    // treat >= column_count as scrolling
-                    len => {
-                        let visible_columns = area.right / column_width;
-                        let keep_centered = layout_options
-                            .and_then(|o| {
-                                o.scrolling
-                                    .map(|s| s.center_focused_column.unwrap_or_default())
-                            })
-                            .unwrap_or(false);
+                    let focused_idx = focused_idx as isize;
 
-                        let first_visible: isize = if focused_idx == 0 {
-                            // if focused idx is 0, we are at the beginning of the scrolling strip
-                            0
+                    // if center_focused_column is enabled, and we have an odd number of visible columns,
+                    // center the focused window column
+                    if keep_centered && visible_columns % 2 == 1 {
+                        let center_offset = visible_columns as isize / 2;
+                        (focused_idx - center_offset).max(0).min(
+                            (len as isize)
+                                .saturating_sub(visible_columns as isize)
+                                .max(0),
+                        )
+                    } else {
+                        if focused_idx < previous_first_visible {
+                            // focused window is off the left edge, we need to scroll left
+                            focused_idx
+                        } else if focused_idx >= previous_first_visible + visible_columns as isize {
+                            // focused window is off the right edge, we need to scroll right
+                            // and make sure it's the last visible window
+                            (focused_idx + 1 - visible_columns as isize).max(0)
                         } else {
-                            let previous_first_visible = if latest_layout.is_empty() {
-                                0
-                            } else {
-                                // previous first_visible based on the left position of the first visible window
-                                let left_edge = area.left;
-                                latest_layout
-                                    .iter()
-                                    .position(|rect| rect.left >= left_edge)
-                                    .unwrap_or(0) as isize
-                            };
-
-                            let focused_idx = focused_idx as isize;
-
-                            // if center_focused_column is enabled, and we have an odd number of visible columns,
-                            // center the focused window column
-                            if keep_centered && visible_columns % 2 == 1 {
-                                let center_offset = visible_columns as isize / 2;
-                                (focused_idx - center_offset).max(0).min(
-                                    (len as isize)
-                                        .saturating_sub(visible_columns as isize)
-                                        .max(0),
-                                )
-                            } else {
-                                if focused_idx < previous_first_visible {
-                                    // focused window is off the left edge, we need to scroll left
-                                    focused_idx
-                                } else if focused_idx
-                                    >= previous_first_visible + visible_columns as isize
-                                {
-                                    // focused window is off the right edge, we need to scroll right
-                                    // and make sure it's the last visible window
-                                    (focused_idx + 1 - visible_columns as isize).max(0)
-                                } else {
-                                    // focused window is already visible, we don't need to scroll
-                                    previous_first_visible
-                                }
-                                .min(
-                                    (len as isize)
-                                        .saturating_sub(visible_columns as isize)
-                                        .max(0),
-                                )
-                            }
-                        };
-
-                        for i in 0..len {
-                            let position = (i as isize) - first_visible;
-                            let left = area.left + (position as i32 * column_width);
-
-                            layouts.push(Rect {
-                                left,
-                                top: area.top,
-                                right: column_width,
-                                bottom: area.bottom,
-                            });
+                            // focused window is already visible, we don't need to scroll
+                            previous_first_visible
                         }
-
-                        let adjustment = calculate_scrolling_adjustment(resize_dimensions);
-                        layouts.iter_mut().zip(adjustment.iter()).for_each(
-                            |(layout, adjustment)| {
-                                layout.top += adjustment.top;
-                                layout.bottom += adjustment.bottom;
-                                layout.left += adjustment.left;
-                                layout.right += adjustment.right;
-                            },
-                        );
+                        .min(
+                            (len as isize)
+                                .saturating_sub(visible_columns as isize)
+                                .max(0),
+                        )
                     }
+                };
+
+                for i in 0..len {
+                    let position = (i as isize) - first_visible;
+                    let left = area.left + (position as i32 * column_width);
+
+                    layouts.push(Rect {
+                        left,
+                        top: area.top,
+                        right: column_width,
+                        bottom: area.bottom,
+                    });
                 }
+
+                let adjustment = calculate_scrolling_adjustment(resize_dimensions);
+                layouts
+                    .iter_mut()
+                    .zip(adjustment.iter())
+                    .for_each(|(layout, adjustment)| {
+                        layout.top += adjustment.top;
+                        layout.bottom += adjustment.bottom;
+                        layout.left += adjustment.left;
+                        layout.right += adjustment.right;
+                    });
 
                 layouts
             }
