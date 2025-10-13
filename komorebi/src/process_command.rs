@@ -35,6 +35,7 @@ use crate::NO_TITLEBAR;
 use crate::Notification;
 use crate::NotificationEvent;
 use crate::OBJECT_NAME_CHANGE_ON_LAUNCH;
+use crate::REGEX_IDENTIFIERS;
 use crate::REMOVE_TITLEBARS;
 use crate::SESSION_FLOATING_APPLICATIONS;
 use crate::SUBSCRIPTION_PIPES;
@@ -82,6 +83,7 @@ use crate::stackbar_manager;
 use crate::stackbar_manager::STACKBAR_FONT_FAMILY;
 use crate::stackbar_manager::STACKBAR_FONT_SIZE;
 use crate::static_config::StaticConfig;
+use crate::static_config::populate_rules;
 use crate::theme_manager;
 use crate::transparency_manager;
 use crate::window::RuleDebug;
@@ -490,6 +492,139 @@ impl WindowManager {
                             id: id.to_string(),
                             matching_strategy: Some(MatchingStrategy::Legacy),
                         }),
+                        initial_only: false,
+                    };
+
+                    if !workspace_rules.contains(&workspace_matching_rule) {
+                        workspace_rules.push(workspace_matching_rule);
+                    }
+                }
+            }
+            SocketMessage::InitialWorkspaceRuleRegex(
+                identifier,
+                ref id,
+                monitor_idx,
+                workspace_idx,
+            ) => {
+                let mut workspace_rules = WORKSPACE_MATCHING_RULES.lock();
+                let mut regex_identifiers = REGEX_IDENTIFIERS.lock();
+
+                let mut matching_rules = vec![MatchingRule::Simple(IdWithIdentifier {
+                    kind: identifier,
+                    id: id.to_string(),
+                    matching_strategy: Some(MatchingStrategy::Regex),
+                })];
+
+                // Compile regex pattern
+                let mut dummy_vec = vec![];
+                if let Err(e) =
+                    populate_rules(&mut matching_rules, &mut dummy_vec, &mut regex_identifiers)
+                {
+                    tracing::error!("failed to compile regex pattern '{}': {}", id, e);
+                    return Ok(());
+                }
+
+                let workspace_matching_rule = WorkspaceMatchingRule {
+                    monitor_index: monitor_idx,
+                    workspace_index: workspace_idx,
+                    matching_rule: matching_rules[0].clone(),
+                    initial_only: true,
+                };
+
+                if !workspace_rules.contains(&workspace_matching_rule) {
+                    workspace_rules.push(workspace_matching_rule);
+                }
+            }
+            SocketMessage::InitialNamedWorkspaceRuleRegex(identifier, ref id, ref workspace) => {
+                if let Some((monitor_idx, workspace_idx)) =
+                    self.monitor_workspace_index_by_name(workspace)
+                {
+                    let mut workspace_rules = WORKSPACE_MATCHING_RULES.lock();
+                    let mut regex_identifiers = REGEX_IDENTIFIERS.lock();
+
+                    let mut matching_rules = vec![MatchingRule::Simple(IdWithIdentifier {
+                        kind: identifier,
+                        id: id.to_string(),
+                        matching_strategy: Some(MatchingStrategy::Regex),
+                    })];
+
+                    // Compile regex pattern
+                    let mut dummy_vec = vec![];
+                    if let Err(e) =
+                        populate_rules(&mut matching_rules, &mut dummy_vec, &mut regex_identifiers)
+                    {
+                        tracing::error!("failed to compile regex pattern '{}': {}", id, e);
+                        return Ok(());
+                    }
+
+                    let workspace_matching_rule = WorkspaceMatchingRule {
+                        monitor_index: monitor_idx,
+                        workspace_index: workspace_idx,
+                        matching_rule: matching_rules[0].clone(),
+                        initial_only: true,
+                    };
+
+                    if !workspace_rules.contains(&workspace_matching_rule) {
+                        workspace_rules.push(workspace_matching_rule);
+                    }
+                }
+            }
+            SocketMessage::WorkspaceRuleRegex(identifier, ref id, monitor_idx, workspace_idx) => {
+                let mut workspace_rules = WORKSPACE_MATCHING_RULES.lock();
+                let mut regex_identifiers = REGEX_IDENTIFIERS.lock();
+
+                let mut matching_rules = vec![MatchingRule::Simple(IdWithIdentifier {
+                    kind: identifier,
+                    id: id.to_string(),
+                    matching_strategy: Some(MatchingStrategy::Regex),
+                })];
+
+                // Compile regex pattern
+                let mut dummy_vec = vec![];
+                if let Err(e) =
+                    populate_rules(&mut matching_rules, &mut dummy_vec, &mut regex_identifiers)
+                {
+                    tracing::error!("failed to compile regex pattern '{}': {}", id, e);
+                    return Ok(());
+                }
+
+                let workspace_matching_rule = WorkspaceMatchingRule {
+                    monitor_index: monitor_idx,
+                    workspace_index: workspace_idx,
+                    matching_rule: matching_rules[0].clone(),
+                    initial_only: false,
+                };
+
+                if !workspace_rules.contains(&workspace_matching_rule) {
+                    workspace_rules.push(workspace_matching_rule);
+                }
+            }
+            SocketMessage::NamedWorkspaceRuleRegex(identifier, ref id, ref workspace) => {
+                if let Some((monitor_idx, workspace_idx)) =
+                    self.monitor_workspace_index_by_name(workspace)
+                {
+                    let mut workspace_rules = WORKSPACE_MATCHING_RULES.lock();
+                    let mut regex_identifiers = REGEX_IDENTIFIERS.lock();
+
+                    let mut matching_rules = vec![MatchingRule::Simple(IdWithIdentifier {
+                        kind: identifier,
+                        id: id.to_string(),
+                        matching_strategy: Some(MatchingStrategy::Regex),
+                    })];
+
+                    // Compile regex pattern
+                    let mut dummy_vec = vec![];
+                    if let Err(e) =
+                        populate_rules(&mut matching_rules, &mut dummy_vec, &mut regex_identifiers)
+                    {
+                        tracing::error!("failed to compile regex pattern '{}': {}", id, e);
+                        return Ok(());
+                    }
+
+                    let workspace_matching_rule = WorkspaceMatchingRule {
+                        monitor_index: monitor_idx,
+                        workspace_index: workspace_idx,
+                        matching_rule: matching_rules[0].clone(),
                         initial_only: false,
                     };
 
@@ -2437,6 +2572,180 @@ mod tests {
 
         // check the updated window manager state
         assert_eq!(wm.focused_workspace_idx().unwrap(), 5);
+
+        std::fs::remove_file(socket_path).unwrap();
+    }
+
+    #[test]
+    fn test_workspace_rule_regex_compiles_pattern() {
+        use crate::REGEX_IDENTIFIERS;
+        use crate::WORKSPACE_MATCHING_RULES;
+        use crate::core::ApplicationIdentifier;
+        use crate::core::config_generation::MatchingStrategy;
+
+        let (_sender, receiver): (Sender<WindowManagerEvent>, Receiver<WindowManagerEvent>) =
+            bounded(1);
+        let socket_name = format!("komorebi-test-regex-{}.sock", Uuid::new_v4());
+        let socket_path = PathBuf::from(&socket_name);
+        let mut wm = WindowManager::new(receiver, Some(socket_path.clone())).unwrap();
+        let m = monitor::new(
+            0,
+            Rect::default(),
+            Rect::default(),
+            "TestMonitor".to_string(),
+            "TestDevice".to_string(),
+            "TestDeviceID".to_string(),
+            Some("TestMonitorID".to_string()),
+        );
+
+        wm.monitors_mut().push_back(m);
+
+        // Verify the regex pattern doesn't exist yet
+        {
+            let regex_identifiers = REGEX_IDENTIFIERS.lock();
+            assert!(
+                !regex_identifiers.contains_key("^Mozilla.*Firefox$"),
+                "Regex pattern should not exist before processing command"
+            );
+        }
+
+        // Send a regex workspace rule message
+        send_socket_message(
+            &socket_path,
+            SocketMessage::WorkspaceRuleRegex(
+                ApplicationIdentifier::Title,
+                "^Mozilla.*Firefox$".to_string(),
+                0,
+                0,
+            ),
+        );
+
+        let (stream, _) = wm.command_listener.accept().unwrap();
+        let reader = BufReader::new(stream.try_clone().unwrap());
+        let next = reader.lines().next();
+
+        // Read and deserialize the message
+        let message_string = next.unwrap().unwrap();
+        let message = SocketMessage::from_str(&message_string).unwrap();
+
+        // Process the message
+        wm.process_command(message, stream).unwrap();
+
+        // Verify the regex was compiled and added to REGEX_IDENTIFIERS
+        let regex_identifiers = REGEX_IDENTIFIERS.lock();
+        assert!(
+            regex_identifiers.contains_key("^Mozilla.*Firefox$"),
+            "Regex pattern should be compiled after processing command"
+        );
+
+        // Verify the workspace rule was added with correct properties
+        let workspace_rules = WORKSPACE_MATCHING_RULES.lock();
+        let our_rule = workspace_rules.iter().find(|r| {
+            if let crate::core::config_generation::MatchingRule::Simple(id) = &r.matching_rule {
+                id.id == "^Mozilla.*Firefox$"
+                    && id.matching_strategy == Some(MatchingStrategy::Regex)
+            } else {
+                false
+            }
+        });
+
+        assert!(our_rule.is_some(), "Should find our regex workspace rule");
+        let rule = our_rule.unwrap();
+        assert_eq!(rule.monitor_index, 0);
+        assert_eq!(rule.workspace_index, 0);
+        assert!(!rule.initial_only);
+
+        // Test the regex actually works
+        let regex = regex_identifiers.get("^Mozilla.*Firefox$").unwrap();
+        assert!(regex.is_match("Mozilla Firefox"));
+        assert!(regex.is_match("Mozilla  Firefox")); // Multiple spaces
+        assert!(!regex.is_match("Mozilla Firefox Developer Edition")); // Doesn't end with Firefox
+        assert!(!regex.is_match("Firefox")); // Doesn't start with Mozilla
+        assert!(!regex.is_match("Mozilla Thunderbird")); // Doesn't contain Firefox
+
+        std::fs::remove_file(socket_path).unwrap();
+    }
+
+    #[test]
+    fn test_initial_workspace_rule_regex() {
+        use crate::REGEX_IDENTIFIERS;
+        use crate::WORKSPACE_MATCHING_RULES;
+        use crate::core::ApplicationIdentifier;
+        use crate::core::config_generation::MatchingStrategy;
+
+        let (_sender, receiver): (Sender<WindowManagerEvent>, Receiver<WindowManagerEvent>) =
+            bounded(1);
+        let socket_name = format!("komorebi-test-initial-regex-{}.sock", Uuid::new_v4());
+        let socket_path = PathBuf::from(&socket_name);
+        let mut wm = WindowManager::new(receiver, Some(socket_path.clone())).unwrap();
+        let m = monitor::new(
+            0,
+            Rect::default(),
+            Rect::default(),
+            "TestMonitor".to_string(),
+            "TestDevice".to_string(),
+            "TestDeviceID".to_string(),
+            Some("TestMonitorID".to_string()),
+        );
+
+        wm.monitors_mut().push_back(m);
+
+        // Verify the regex pattern doesn't exist yet
+        {
+            let regex_identifiers = REGEX_IDENTIFIERS.lock();
+            assert!(
+                !regex_identifiers.contains_key("chrome\\.exe$"),
+                "Regex pattern should not exist before processing command"
+            );
+        }
+
+        // Send an initial regex workspace rule message
+        send_socket_message(
+            &socket_path,
+            SocketMessage::InitialWorkspaceRuleRegex(
+                ApplicationIdentifier::Exe,
+                "chrome\\.exe$".to_string(),
+                0,
+                1,
+            ),
+        );
+
+        let (stream, _) = wm.command_listener.accept().unwrap();
+        let reader = BufReader::new(stream.try_clone().unwrap());
+        let next = reader.lines().next();
+
+        let message_string = next.unwrap().unwrap();
+        let message = SocketMessage::from_str(&message_string).unwrap();
+
+        wm.process_command(message, stream).unwrap();
+
+        // Verify the regex was compiled
+        let regex_identifiers = REGEX_IDENTIFIERS.lock();
+        assert!(
+            regex_identifiers.contains_key("chrome\\.exe$"),
+            "Regex pattern should be compiled after processing command"
+        );
+
+        // Verify the workspace rule was added with initial_only=true
+        let workspace_rules = WORKSPACE_MATCHING_RULES.lock();
+        let our_rule = workspace_rules.iter().find(|r| {
+            if let crate::core::config_generation::MatchingRule::Simple(id) = &r.matching_rule {
+                id.id == "chrome\\.exe$"
+                    && id.matching_strategy == Some(MatchingStrategy::Regex)
+                    && id.kind == ApplicationIdentifier::Exe
+            } else {
+                false
+            }
+        });
+
+        assert!(
+            our_rule.is_some(),
+            "Should find our initial regex workspace rule"
+        );
+        let rule = our_rule.unwrap();
+        assert_eq!(rule.monitor_index, 0);
+        assert_eq!(rule.workspace_index, 1);
+        assert!(rule.initial_only, "Should be initial_only rule");
 
         std::fs::remove_file(socket_path).unwrap();
     }
