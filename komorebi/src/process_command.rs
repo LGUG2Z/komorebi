@@ -24,7 +24,6 @@ use crate::CUSTOM_FFM;
 use crate::DATA_DIR;
 use crate::DISPLAY_INDEX_PREFERENCES;
 use crate::FLOATING_APPLICATIONS;
-use crate::GlobalState;
 use crate::HIDING_BEHAVIOUR;
 use crate::IGNORE_IDENTIFIERS;
 use crate::INITIAL_CONFIGURATION_LOADED;
@@ -40,7 +39,6 @@ use crate::SESSION_FLOATING_APPLICATIONS;
 use crate::SUBSCRIPTION_PIPES;
 use crate::SUBSCRIPTION_SOCKET_OPTIONS;
 use crate::SUBSCRIPTION_SOCKETS;
-use crate::State;
 use crate::TCP_CONNECTIONS;
 use crate::TRAY_AND_MULTI_WINDOW_IDENTIFIERS;
 use crate::WINDOWS_11;
@@ -81,12 +79,14 @@ use crate::notify_subscribers;
 use crate::stackbar_manager;
 use crate::stackbar_manager::STACKBAR_FONT_FAMILY;
 use crate::stackbar_manager::STACKBAR_FONT_SIZE;
+use crate::state;
+use crate::state::GlobalState;
+use crate::state::State;
 use crate::static_config::StaticConfig;
 use crate::theme_manager;
 use crate::transparency_manager;
 use crate::window::RuleDebug;
 use crate::window::Window;
-use crate::window_manager;
 use crate::window_manager::WindowManager;
 use crate::windows_api::WindowsApi;
 use crate::winevent_listener;
@@ -1358,8 +1358,7 @@ impl WindowManager {
                 self.set_workspace_name(monitor_idx, workspace_idx, name.to_string())?;
             }
             SocketMessage::State => {
-                let state = match serde_json::to_string_pretty(&window_manager::State::from(&*self))
-                {
+                let state = match serde_json::to_string_pretty(&state::State::from(&*self)) {
                     Ok(state) => state,
                     Err(error) => error.to_string(),
                 };
