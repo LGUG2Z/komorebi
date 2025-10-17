@@ -802,6 +802,7 @@ struct Start {
     #[clap(long)]
     whkd: bool,
     /// Start autohotkey configuration file
+    #[clap(hide = true)]
     #[clap(long)]
     ahk: bool,
     /// Start komorebi-bar in a background process
@@ -821,6 +822,7 @@ struct Stop {
     #[clap(long)]
     whkd: bool,
     /// Stop ahk if it is running as a background process
+    #[clap(hide = true)]
     #[clap(long)]
     ahk: bool,
     /// Stop komorebi-bar if it is running as a background process
@@ -840,6 +842,7 @@ struct Kill {
     #[clap(long)]
     whkd: bool,
     /// Kill ahk if it is running as a background process
+    #[clap(hide = true)]
     #[clap(long)]
     ahk: bool,
     /// Kill komorebi-bar if it is running as a background process
@@ -949,6 +952,7 @@ struct EnableAutostart {
     #[clap(long)]
     whkd: bool,
     /// Enable autostart of ahk
+    #[clap(hide = true)]
     #[clap(long)]
     ahk: bool,
     /// Enable autostart of komorebi-bar
@@ -1648,7 +1652,13 @@ fn main() -> eyre::Result<()> {
             }
             println!("\nYou can now run komorebic start --whkd --bar");
         }
-        SubCommand::EnableAutostart(args) => {
+        SubCommand::EnableAutostart(arg) => {
+            if arg.ahk {
+                println!(
+                    "EOL: The --ahk flag is now end-of-life and will not receive any further updates or bug fixes"
+                );
+            }
+
             let mut current_exe = std::env::current_exe().expect("unable to get exec path");
             current_exe.pop();
             let komorebic_exe = current_exe.join("komorebic-no-console.exe");
@@ -1660,26 +1670,26 @@ fn main() -> eyre::Result<()> {
 
             let mut arguments = String::from("start");
 
-            if let Some(config) = args.config {
+            if let Some(config) = arg.config {
                 arguments.push_str(" --config ");
                 arguments.push_str(&config.to_string_lossy());
             }
 
-            if args.ffm {
+            if arg.ffm {
                 arguments.push_str(" --ffm");
             }
 
-            if args.bar {
+            if arg.bar {
                 arguments.push_str(" --bar");
             }
 
-            if args.whkd {
+            if arg.whkd {
                 arguments.push_str(" --whkd");
-            } else if args.ahk {
+            } else if arg.ahk {
                 arguments.push_str(" --ahk");
             }
 
-            if args.masir {
+            if arg.masir {
                 arguments.push_str(" --masir");
             }
 
@@ -2180,6 +2190,12 @@ fn main() -> eyre::Result<()> {
             ))?;
         }
         SubCommand::Start(arg) => {
+            if arg.ahk {
+                println!(
+                    "EOL: The --ahk flag is now end-of-life and will not receive any further updates or bug fixes"
+                );
+            }
+
             let mut ahk: String = String::from("autohotkey.exe");
 
             if let Ok(komorebi_ahk_exe) = std::env::var("KOMOREBI_AHK_EXE")
@@ -2485,6 +2501,12 @@ if (!(Get-Process masir -ErrorAction SilentlyContinue))
             }
         }
         SubCommand::Stop(arg) => {
+            if arg.ahk {
+                println!(
+                    "EOL: The --ahk flag is now end-of-life and will not receive any further updates or bug fixes"
+                );
+            }
+
             if arg.whkd {
                 let script = r"
 Stop-Process -Name:whkd -ErrorAction SilentlyContinue
@@ -2591,6 +2613,12 @@ Stop-Process -Name:komorebi -ErrorAction SilentlyContinue
             }
         }
         SubCommand::Kill(arg) => {
+            if arg.ahk {
+                println!(
+                    "EOL: The --ahk flag is now end-of-life and will not receive any further updates or bug fixes"
+                );
+            }
+
             if arg.whkd {
                 let script = r"
 Stop-Process -Name:whkd -ErrorAction SilentlyContinue
