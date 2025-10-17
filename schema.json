@@ -1807,6 +1807,21 @@
                   "description": "Layout-specific options (default: None)",
                   "type": "object",
                   "properties": {
+                    "grid": {
+                      "description": "Options related to the Grid layout",
+                      "type": "object",
+                      "required": [
+                        "rows"
+                      ],
+                      "properties": {
+                        "rows": {
+                          "description": "Maximum number of rows per grid column",
+                          "type": "integer",
+                          "format": "uint",
+                          "minimum": 0.0
+                        }
+                      }
+                    },
                     "scrolling": {
                       "description": "Options related to the Scrolling layout",
                       "type": "object",

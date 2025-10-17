@@ -542,14 +542,25 @@ impl Arrangement for DefaultLayout {
 
                 let len = len as i32;
 
-                let num_cols = (len as f32).sqrt().ceil() as i32;
+                let row_constraint = layout_options.and_then(|o| o.grid.map(|g| g.rows));
+                let num_cols = if let Some(rows) = row_constraint {
+                    ((len as f32) / (rows as f32)).ceil() as i32
+                } else {
+                    (len as f32).sqrt().ceil() as i32
+                };
+
                 let mut iter = layouts.iter_mut().enumerate().peekable();
 
                 for col in 0..num_cols {
                     let iter_peek = iter.peek().map(|x| x.0).unwrap_or_default() as i32;
                     let remaining_windows = len - iter_peek;
                     let remaining_columns = num_cols - col;
-                    let num_rows_in_this_col = remaining_windows / remaining_columns;
+
+                    let num_rows_in_this_col = if let Some(rows) = row_constraint {
+                        (remaining_windows / remaining_columns).min(rows as i32)
+                    } else {
+                        remaining_windows / remaining_columns
+                    };
 
                     let win_height = area.bottom / num_rows_in_this_col;
                     let win_width = area.right / num_cols;

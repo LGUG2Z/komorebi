@@ -1,13 +1,13 @@
 use std::num::NonZeroUsize;
 
+use super::Axis;
+use super::direction::Direction;
+use crate::default_layout::LayoutOptions;
 use clap::ValueEnum;
 use serde::Deserialize;
 use serde::Serialize;
 use strum::Display;
 use strum::EnumString;
-
-use super::Axis;
-use super::direction::Direction;
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, Display, EnumString, ValueEnum)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
@@ -57,7 +57,8 @@ impl OperationDirection {
         layout_flip: Option<Axis>,
         idx: usize,
         len: NonZeroUsize,
+        layout_options: Option<LayoutOptions>,
     ) -> Option<usize> {
-        layout.index_in_direction(self.flip(layout_flip), idx, len.get())
+        layout.index_in_direction(self.flip(layout_flip), idx, len.get(), layout_options)
     }
 }

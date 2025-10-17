@@ -923,6 +923,7 @@ impl WindowManager {
                             columns: count.into(),
                             center_focused_column: Default::default(),
                         }),
+                        grid: None,
                     },
                 };
 
