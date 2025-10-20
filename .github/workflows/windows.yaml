@@ -13,8 +13,8 @@ on:
       - hotfix/*
     tags:
       - v*
-  schedule:
-    - cron: "30 0 * * 0" # Every day at 00:30 UTC
+  # schedule:
+  #   - cron: "30 0 * * 0" # Every day at 00:30 UTC
   workflow_dispatch:
 
 jobs:
