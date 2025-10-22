@@ -15,10 +15,10 @@ use eframe::egui::ViewportBuilder;
 use font_loader::system_fonts;
 use hotwatch::EventKind;
 use hotwatch::Hotwatch;
-use komorebi_client::replace_env_in_path;
 use komorebi_client::PathExt;
 use komorebi_client::SocketMessage;
 use komorebi_client::SubscribeOptions;
+use komorebi_client::replace_env_in_path;
 use std::io::BufReader;
 use std::io::Read;
 use std::path::PathBuf;
@@ -32,8 +32,8 @@ use windows::Win32::Foundation::HWND;
 use windows::Win32::Foundation::LPARAM;
 use windows::Win32::System::Threading::GetCurrentProcessId;
 use windows::Win32::System::Threading::GetCurrentThreadId;
-use windows::Win32::UI::HiDpi::SetProcessDpiAwarenessContext;
 use windows::Win32::UI::HiDpi::DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2;
+use windows::Win32::UI::HiDpi::SetProcessDpiAwarenessContext;
 use windows::Win32::UI::WindowsAndMessaging::EnumThreadWindows;
 use windows::Win32::UI::WindowsAndMessaging::GetWindowThreadProcessId;
 use windows_core::BOOL;
@@ -103,7 +103,7 @@ fn process_hwnd() -> Option<isize> {
 }
 
 pub enum KomorebiEvent {
-    Notification(komorebi_client::Notification),
+    Notification(Box<komorebi_client::Notification>),
     Reconnect,
 }
 
@@ -114,14 +114,14 @@ fn main() -> color_eyre::Result<()> {
 
     #[cfg(feature = "schemars")]
     if opts.schema {
-        let settings = schemars::gen::SchemaSettings::default().with(|s| {
+        let settings = schemars::r#gen::SchemaSettings::default().with(|s| {
             s.option_nullable = false;
             s.option_add_null_type = false;
             s.inline_subschemas = true;
         });
 
-        let gen = settings.into_generator();
-        let socket_message = gen.into_root_schema_for::<KomobarConfig>();
+        let generator = settings.into_generator();
+        let socket_message = generator.into_root_schema_for::<KomobarConfig>();
         let schema = serde_json::to_string_pretty(&socket_message)?;
 
         println!("{schema}");
@@ -137,13 +137,17 @@ fn main() -> color_eyre::Result<()> {
     }
 
     if std::env::var("RUST_LIB_BACKTRACE").is_err() {
-        std::env::set_var("RUST_LIB_BACKTRACE", "1");
+        unsafe {
+            std::env::set_var("RUST_LIB_BACKTRACE", "1");
+        }
     }
 
     color_eyre::install()?;
 
     if std::env::var("RUST_LOG").is_err() {
-        std::env::set_var("RUST_LOG", "info");
+        unsafe {
+            std::env::set_var("RUST_LOG", "info");
+        }
     }
 
     tracing::subscriber::set_global_default(
@@ -159,8 +163,7 @@ fn main() -> color_eyre::Result<()> {
 
             assert!(
                 home.is_dir(),
-                "$Env:KOMOREBI_CONFIG_HOME is set to '{}', which is not a valid directory",
-                home_path
+                "$Env:KOMOREBI_CONFIG_HOME is set to '{home_path}', which is not a valid directory"
             );
 
             home
@@ -231,17 +234,17 @@ fn main() -> color_eyre::Result<()> {
         .map_or(usr_monitor_index, |i| *i);
 
     MONITOR_RIGHT.store(
-        state.monitors.elements()[monitor_index].size().right,
+        state.monitors.elements()[monitor_index].size.right,
         Ordering::SeqCst,
     );
 
     MONITOR_TOP.store(
-        state.monitors.elements()[monitor_index].size().top,
+        state.monitors.elements()[monitor_index].size.top,
         Ordering::SeqCst,
     );
 
     MONITOR_LEFT.store(
-        state.monitors.elements()[monitor_index].size().left,
+        state.monitors.elements()[monitor_index].size.left,
         Ordering::SeqCst,
     );
 
@@ -251,11 +254,11 @@ fn main() -> color_eyre::Result<()> {
         None => {
             config.position = Some(PositionConfig {
                 start: Some(Position {
-                    x: state.monitors.elements()[monitor_index].size().left as f32,
-                    y: state.monitors.elements()[monitor_index].size().top as f32,
+                    x: state.monitors.elements()[monitor_index].size.left as f32,
+                    y: state.monitors.elements()[monitor_index].size.top as f32,
                 }),
                 end: Some(Position {
-                    x: state.monitors.elements()[monitor_index].size().right as f32,
+                    x: state.monitors.elements()[monitor_index].size.right as f32,
                     y: 50.0,
                 }),
             })
@@ -263,14 +266,14 @@ fn main() -> color_eyre::Result<()> {
         Some(ref mut position) => {
             if position.start.is_none() {
                 position.start = Some(Position {
-                    x: state.monitors.elements()[monitor_index].size().left as f32,
-                    y: state.monitors.elements()[monitor_index].size().top as f32,
+                    x: state.monitors.elements()[monitor_index].size.left as f32,
+                    y: state.monitors.elements()[monitor_index].size.top as f32,
                 });
             }
 
             if position.end.is_none() {
                 position.end = Some(Position {
-                    x: state.monitors.elements()[monitor_index].size().right as f32,
+                    x: state.monitors.elements()[monitor_index].size.right as f32,
                     y: 50.0,
                 })
             }
@@ -355,7 +358,7 @@ fn main() -> color_eyre::Result<()> {
                                 while komorebi_client::send_message(
                                     &SocketMessage::AddSubscriberSocket(subscriber_name.clone()),
                                 )
-                                .is_err()
+                                    .is_err()
                                 {
                                     std::thread::sleep(Duration::from_secs(1));
                                 }
@@ -378,7 +381,7 @@ fn main() -> color_eyre::Result<()> {
                                         Ok(notification) => {
                                             tracing::debug!("received notification from komorebi");
 
-                                            if let Err(error) = tx_gui.send(KomorebiEvent::Notification(notification)) {
+                                            if let Err(error) = tx_gui.send(KomorebiEvent::Notification(Box::new(notification))) {
                                                 tracing::error!("could not send komorebi notification update to gui thread: {error}")
                                             }
 
@@ -406,5 +409,5 @@ fn main() -> color_eyre::Result<()> {
             Ok(Box::new(Komobar::new(cc, rx_gui, rx_config, config)))
         }),
     )
-    .map_err(|error| color_eyre::eyre::Error::msg(error.to_string()))
+        .map_err(|error| color_eyre::eyre::Error::msg(error.to_string()))
 }

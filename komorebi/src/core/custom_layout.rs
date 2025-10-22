@@ -1,15 +1,13 @@
+use color_eyre::eyre;
+use color_eyre::eyre::bail;
+use serde::Deserialize;
+use serde::Serialize;
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::BufReader;
 use std::ops::Deref;
 use std::ops::DerefMut;
 use std::path::Path;
-
-use color_eyre::eyre::anyhow;
-use color_eyre::eyre::bail;
-use color_eyre::Result;
-use serde::Deserialize;
-use serde::Serialize;
 
 use super::Rect;
 
@@ -32,7 +30,7 @@ impl DerefMut for CustomLayout {
 }
 
 impl CustomLayout {
-    pub fn from_path<P: AsRef<Path>>(path: P) -> Result<Self> {
+    pub fn from_path<P: AsRef<Path>>(path: P) -> eyre::Result<Self> {
         let path = path.as_ref();
         let layout: Self = match path.extension() {
             Some(extension) if extension == "yaml" || extension == "yml" => {
@@ -41,7 +39,7 @@ impl CustomLayout {
             Some(extension) if extension == "json" => {
                 serde_json::from_reader(BufReader::new(File::open(path)?))?
             }
-            _ => return Err(anyhow!("custom layouts must be json or yaml files")),
+            _ => bail!("custom layouts must be json or yaml files"),
         };
 
         if !layout.is_valid() {

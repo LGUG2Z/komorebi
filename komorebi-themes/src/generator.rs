@@ -1,6 +1,6 @@
+use crate::Base16ColourPalette;
 use crate::colour::Colour;
 use crate::colour::Hex;
-use crate::Base16ColourPalette;
 use hex_color::HexColor;
 use std::collections::VecDeque;
 use std::fmt::Display;

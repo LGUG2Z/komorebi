@@ -1,12 +1,11 @@
 [package]
 name = "komorebi-themes"
-version = "0.1.38"
-edition = "2021"
+version = "0.1.39"
+edition = "2024"
 
 [dependencies]
-base16-egui-themes = { git = "https://github.com/LGUG2Z/base16-egui-themes", rev = "96f26c88d83781f234d42222293ec73d23a39ad8" }
-catppuccin-egui = { git = "https://github.com/LGUG2Z/catppuccin-egui", rev = "bdaff30959512c4f7ee7304117076a48633d777f", default-features = false, features = ["egui31"] }
-#catppuccin-egui = { version = "5", default-features = false, features = ["egui30"] }
+base16-egui-themes = { git = "https://github.com/LGUG2Z/base16-egui-themes", rev = "c9008bd5cfa288c926e9ea3aa18c92073f9281bd" }
+catppuccin-egui = { version = "5", default-features = false, features = ["egui32"] }
 eframe = { workspace = true }
 schemars = { workspace = true, optional = true }
 serde = { workspace = true }

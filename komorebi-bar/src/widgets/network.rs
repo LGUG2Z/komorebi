@@ -3,13 +3,13 @@ use crate::config::LabelPrefix;
 use crate::render::RenderConfig;
 use crate::selected_frame::SelectableFrame;
 use crate::widgets::widget::BarWidget;
-use eframe::egui::text::LayoutJob;
 use eframe::egui::Align;
 use eframe::egui::Color32;
 use eframe::egui::Context;
 use eframe::egui::Label;
 use eframe::egui::TextFormat;
 use eframe::egui::Ui;
+use eframe::egui::text::LayoutJob;
 use num_derive::FromPrimitive;
 use serde::Deserialize;
 use serde::Serialize;
@@ -58,6 +58,7 @@ pub struct NetworkSelectConfig {
 
 impl From<NetworkConfig> for Network {
     fn from(value: NetworkConfig) -> Self {
+        let default_refresh_interval = 10;
         let data_refresh_interval = value.data_refresh_interval.unwrap_or(10);
 
         Self {
@@ -67,10 +68,14 @@ impl From<NetworkConfig> for Network {
             show_default_interface: value.show_default_interface.unwrap_or(true),
             networks_network_activity: Networks::new_with_refreshed_list(),
             default_interface: String::new(),
+            default_refresh_interval,
             data_refresh_interval,
             label_prefix: value.label_prefix.unwrap_or(LabelPrefix::Icon),
             auto_select: value.auto_select,
             activity_left_padding: value.activity_left_padding.unwrap_or_default(),
+            last_updated_default_interface: Instant::now()
+                .checked_sub(Duration::from_secs(default_refresh_interval))
+                .unwrap(),
             last_state_total_activity: vec![],
             last_state_activity: vec![],
             last_updated_network_activity: Instant::now()
@@ -86,10 +91,12 @@ pub struct Network {
     pub show_activity: bool,
     pub show_default_interface: bool,
     networks_network_activity: Networks,
+    default_refresh_interval: u64,
     data_refresh_interval: u64,
     label_prefix: LabelPrefix,
     auto_select: Option<NetworkSelectConfig>,
     default_interface: String,
+    last_updated_default_interface: Instant,
     last_state_total_activity: Vec<NetworkReading>,
     last_state_activity: Vec<NetworkReading>,
     last_updated_network_activity: Instant,
@@ -98,10 +105,18 @@ pub struct Network {
 
 impl Network {
     fn default_interface(&mut self) {
-        if let Ok(interface) = netdev::get_default_interface() {
-            if let Some(friendly_name) = &interface.friendly_name {
+        let now = Instant::now();
+
+        if now.duration_since(self.last_updated_default_interface)
+            > Duration::from_secs(self.default_refresh_interval)
+        {
+            if let Ok(interface) = netdev::get_default_interface()
+                && let Some(friendly_name) = &interface.friendly_name
+            {
                 self.default_interface.clone_from(friendly_name);
             }
+
+            self.last_updated_default_interface = now;
         }
     }
 
@@ -116,43 +131,40 @@ impl Network {
             activity.clear();
             total_activity.clear();
 
-            if let Ok(interface) = netdev::get_default_interface() {
-                if let Some(friendly_name) = &interface.friendly_name {
-                    self.default_interface.clone_from(friendly_name);
+            if let Ok(interface) = netdev::get_default_interface()
+                && let Some(friendly_name) = &interface.friendly_name
+            {
+                self.default_interface.clone_from(friendly_name);
 
-                    self.networks_network_activity.refresh(true);
+                self.networks_network_activity.refresh(true);
 
-                    for (interface_name, data) in &self.networks_network_activity {
-                        if friendly_name.eq(interface_name) {
-                            if self.show_activity {
-                                let received = Self::to_pretty_bytes(
-                                    data.received(),
-                                    self.data_refresh_interval,
-                                );
-                                let transmitted = Self::to_pretty_bytes(
-                                    data.transmitted(),
-                                    self.data_refresh_interval,
-                                );
+                for (interface_name, data) in &self.networks_network_activity {
+                    if friendly_name.eq(interface_name) {
+                        if self.show_activity {
+                            let received =
+                                Self::to_pretty_bytes(data.received(), self.data_refresh_interval);
+                            let transmitted = Self::to_pretty_bytes(
+                                data.transmitted(),
+                                self.data_refresh_interval,
+                            );
 
-                                activity.push(NetworkReading::new(
-                                    NetworkReadingFormat::Speed,
-                                    ReadingValue::from(received),
-                                    ReadingValue::from(transmitted),
-                                ));
-                            }
+                            activity.push(NetworkReading::new(
+                                NetworkReadingFormat::Speed,
+                                ReadingValue::from(received),
+                                ReadingValue::from(transmitted),
+                            ));
+                        }
 
-                            if self.show_total_activity {
-                                let total_received =
-                                    Self::to_pretty_bytes(data.total_received(), 1);
-                                let total_transmitted =
-                                    Self::to_pretty_bytes(data.total_transmitted(), 1);
+                        if self.show_total_activity {
+                            let total_received = Self::to_pretty_bytes(data.total_received(), 1);
+                            let total_transmitted =
+                                Self::to_pretty_bytes(data.total_transmitted(), 1);
 
-                                total_activity.push(NetworkReading::new(
-                                    NetworkReadingFormat::Total,
-                                    ReadingValue::from(total_received),
-                                    ReadingValue::from(total_transmitted),
-                                ))
-                            }
+                            total_activity.push(NetworkReading::new(
+                                NetworkReadingFormat::Total,
+                                ReadingValue::from(total_received),
+                                ReadingValue::from(total_transmitted),
+                            ))
                         }
                     }
                 }
@@ -312,10 +324,9 @@ impl Network {
         if SelectableFrame::new_auto(selected, auto_focus_fill)
             .show(ui, add_contents)
             .clicked()
+            && let Err(error) = Command::new("cmd.exe").args(["/C", "ncpa"]).spawn()
         {
-            if let Err(error) = Command::new("cmd.exe").args(["/C", "ncpa"]).spawn() {
-                eprintln!("{}", error);
-            }
+            eprintln!("{error}");
         }
     }
 }
@@ -535,6 +546,6 @@ enum DataUnit {
 
 impl fmt::Display for DataUnit {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{:?}", self)
+        write!(f, "{self:?}")
     }
 }

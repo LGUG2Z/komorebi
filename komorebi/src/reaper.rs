@@ -1,15 +1,15 @@
 #![deny(clippy::unwrap_used, clippy::expect_used)]
 
-use crate::border_manager;
-use crate::notify_subscribers;
-use crate::winevent::WinEvent;
+use crate::DATA_DIR;
+use crate::HIDING_BEHAVIOUR;
 use crate::HidingBehaviour;
 use crate::NotificationEvent;
 use crate::Window;
 use crate::WindowManager;
 use crate::WindowManagerEvent;
-use crate::DATA_DIR;
-use crate::HIDING_BEHAVIOUR;
+use crate::border_manager;
+use crate::notify_subscribers;
+use crate::winevent::WinEvent;
 
 use crossbeam_channel::Receiver;
 use crossbeam_channel::Sender;
@@ -55,13 +55,15 @@ pub fn listen_for_notifications(
 ) {
     watch_for_orphans(known_hwnds);
 
-    std::thread::spawn(move || loop {
-        match handle_notifications(wm.clone()) {
-            Ok(()) => {
-                tracing::warn!("restarting finished thread");
-            }
-            Err(error) => {
-                tracing::warn!("restarting failed thread: {}", error);
+    std::thread::spawn(move || {
+        loop {
+            match handle_notifications(wm.clone()) {
+                Ok(()) => {
+                    tracing::warn!("restarting finished thread");
+                }
+                Err(error) => {
+                    tracing::warn!("restarting failed thread: {}", error);
+                }
             }
         }
     });
@@ -150,16 +152,18 @@ fn watch_for_orphans(known_hwnds: HashMap<isize, (usize, usize)>) {
         *cache = known_hwnds;
     }
 
-    std::thread::spawn(move || loop {
-        match find_orphans() {
-            Ok(()) => {
-                tracing::warn!("restarting finished thread");
-            }
-            Err(error) => {
-                if cfg!(debug_assertions) {
-                    tracing::error!("restarting failed thread: {:?}", error)
-                } else {
-                    tracing::error!("restarting failed thread: {}", error)
+    std::thread::spawn(move || {
+        loop {
+            match find_orphans() {
+                Ok(()) => {
+                    tracing::warn!("restarting finished thread");
+                }
+                Err(error) => {
+                    if cfg!(debug_assertions) {
+                        tracing::error!("restarting failed thread: {:?}", error)
+                    } else {
+                        tracing::error!("restarting failed thread: {}", error)
+                    }
                 }
             }
         }

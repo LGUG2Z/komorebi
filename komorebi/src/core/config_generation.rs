@@ -1,5 +1,5 @@
 use clap::ValueEnum;
-use color_eyre::Result;
+use color_eyre::eyre;
 use serde::Deserialize;
 use serde::Serialize;
 use strum::Display;
@@ -142,11 +142,11 @@ impl ApplicationConfiguration {
 pub struct ApplicationConfigurationGenerator;
 
 impl ApplicationConfigurationGenerator {
-    pub fn load(content: &str) -> Result<Vec<ApplicationConfiguration>> {
+    pub fn load(content: &str) -> eyre::Result<Vec<ApplicationConfiguration>> {
         Ok(serde_yaml::from_str(content)?)
     }
 
-    pub fn format(content: &str) -> Result<String> {
+    pub fn format(content: &str) -> eyre::Result<String> {
         let mut cfgen = Self::load(content)?;
         for cfg in &mut cfgen {
             cfg.populate_default_matching_strategies();
@@ -156,7 +156,10 @@ impl ApplicationConfigurationGenerator {
         Ok(serde_yaml::to_string(&cfgen)?)
     }
 
-    fn merge(base_content: &str, override_content: &str) -> Result<Vec<ApplicationConfiguration>> {
+    fn merge(
+        base_content: &str,
+        override_content: &str,
+    ) -> eyre::Result<Vec<ApplicationConfiguration>> {
         let base_cfgen = Self::load(base_content)?;
         let override_cfgen = Self::load(override_content)?;
 
@@ -182,7 +185,7 @@ impl ApplicationConfigurationGenerator {
     pub fn generate_pwsh(
         base_content: &str,
         override_content: Option<&str>,
-    ) -> Result<Vec<String>> {
+    ) -> eyre::Result<Vec<String>> {
         let mut cfgen = if let Some(override_content) = override_content {
             Self::merge(base_content, override_content)?
         } else {
@@ -233,7 +236,10 @@ impl ApplicationConfigurationGenerator {
         Ok(lines)
     }
 
-    pub fn generate_ahk(base_content: &str, override_content: Option<&str>) -> Result<Vec<String>> {
+    pub fn generate_ahk(
+        base_content: &str,
+        override_content: Option<&str>,
+    ) -> eyre::Result<Vec<String>> {
         let mut cfgen = if let Some(override_content) = override_content {
             Self::merge(base_content, override_content)?
         } else {

@@ -2,7 +2,7 @@ use crate::config::DisplayFormat;
 use crate::render::RenderConfig;
 use crate::selected_frame::SelectableFrame;
 use crate::widgets::komorebi::KomorebiLayoutConfig;
-use eframe::egui::vec2;
+use color_eyre::eyre;
 use eframe::egui::Context;
 use eframe::egui::CornerRadius;
 use eframe::egui::FontId;
@@ -13,11 +13,12 @@ use eframe::egui::Stroke;
 use eframe::egui::StrokeKind;
 use eframe::egui::Ui;
 use eframe::egui::Vec2;
+use eframe::egui::vec2;
 use komorebi_client::SocketMessage;
-use serde::de::Error;
 use serde::Deserialize;
 use serde::Deserializer;
 use serde::Serialize;
+use serde::de::Error;
 use serde_json::from_str;
 use std::fmt::Display;
 use std::fmt::Formatter;
@@ -34,15 +35,14 @@ pub enum KomorebiLayout {
 }
 
 impl<'de> Deserialize<'de> for KomorebiLayout {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    fn deserialize<D>(deserializer: D) -> eyre::Result<Self, D::Error>
     where
         D: Deserializer<'de>,
     {
         let s: String = String::deserialize(deserializer)?;
 
         // Attempt to deserialize the string as a DefaultLayout
-        if let Ok(default_layout) =
-            from_str::<komorebi_client::DefaultLayout>(&format!("\"{}\"", s))
+        if let Ok(default_layout) = from_str::<komorebi_client::DefaultLayout>(&format!("\"{s}\""))
         {
             return Ok(KomorebiLayout::Default(default_layout));
         }
@@ -53,7 +53,7 @@ impl<'de> Deserialize<'de> for KomorebiLayout {
             "Floating" => Ok(KomorebiLayout::Floating),
             "Paused" => Ok(KomorebiLayout::Paused),
             "Custom" => Ok(KomorebiLayout::Custom),
-            _ => Err(Error::custom(format!("Invalid layout: {}", s))),
+            _ => Err(Error::custom(format!("Invalid layout: {s}"))),
         }
     }
 }
@@ -92,16 +92,15 @@ impl KomorebiLayout {
     fn on_click_option(&mut self, monitor_idx: usize, workspace_idx: Option<usize>) {
         match self {
             KomorebiLayout::Default(option) => {
-                if let Some(ws_idx) = workspace_idx {
-                    if komorebi_client::send_message(&SocketMessage::WorkspaceLayout(
+                if let Some(ws_idx) = workspace_idx
+                    && komorebi_client::send_message(&SocketMessage::WorkspaceLayout(
                         monitor_idx,
                         ws_idx,
                         *option,
                     ))
                     .is_err()
-                    {
-                        tracing::error!("could not send message to komorebi: WorkspaceLayout");
-                    }
+                {
+                    tracing::error!("could not send message to komorebi: WorkspaceLayout");
                 }
             }
             KomorebiLayout::Monocle => {
@@ -270,57 +269,53 @@ impl KomorebiLayout {
                 show_options = self.on_click(&show_options, monitor_idx, workspace_idx);
             }
 
-            if show_options {
-                if let Some(workspace_idx) = workspace_idx {
-                    Frame::NONE.show(ui, |ui| {
-                        ui.add(
-                            Label::new(egui_phosphor::regular::ARROW_FAT_LINES_RIGHT.to_string())
-                                .selectable(false),
-                        );
+            if show_options && let Some(workspace_idx) = workspace_idx {
+                Frame::NONE.show(ui, |ui| {
+                    ui.add(
+                        Label::new(egui_phosphor::regular::ARROW_FAT_LINES_RIGHT.to_string())
+                            .selectable(false),
+                    );
 
-                        let mut layout_options = layout_config.options.clone().unwrap_or(vec![
-                            KomorebiLayout::Default(komorebi_client::DefaultLayout::BSP),
-                            KomorebiLayout::Default(komorebi_client::DefaultLayout::Columns),
-                            KomorebiLayout::Default(komorebi_client::DefaultLayout::Rows),
-                            KomorebiLayout::Default(komorebi_client::DefaultLayout::VerticalStack),
-                            KomorebiLayout::Default(
-                                komorebi_client::DefaultLayout::RightMainVerticalStack,
-                            ),
-                            KomorebiLayout::Default(
-                                komorebi_client::DefaultLayout::HorizontalStack,
-                            ),
-                            KomorebiLayout::Default(
-                                komorebi_client::DefaultLayout::UltrawideVerticalStack,
-                            ),
-                            KomorebiLayout::Default(komorebi_client::DefaultLayout::Grid),
-                            //KomorebiLayout::Custom,
-                            KomorebiLayout::Monocle,
-                            KomorebiLayout::Floating,
-                            KomorebiLayout::Paused,
-                        ]);
+                    let mut layout_options = layout_config.options.clone().unwrap_or(vec![
+                        KomorebiLayout::Default(komorebi_client::DefaultLayout::BSP),
+                        KomorebiLayout::Default(komorebi_client::DefaultLayout::Columns),
+                        KomorebiLayout::Default(komorebi_client::DefaultLayout::Rows),
+                        KomorebiLayout::Default(komorebi_client::DefaultLayout::VerticalStack),
+                        KomorebiLayout::Default(
+                            komorebi_client::DefaultLayout::RightMainVerticalStack,
+                        ),
+                        KomorebiLayout::Default(komorebi_client::DefaultLayout::HorizontalStack),
+                        KomorebiLayout::Default(
+                            komorebi_client::DefaultLayout::UltrawideVerticalStack,
+                        ),
+                        KomorebiLayout::Default(komorebi_client::DefaultLayout::Grid),
+                        //KomorebiLayout::Custom,
+                        KomorebiLayout::Monocle,
+                        KomorebiLayout::Floating,
+                        KomorebiLayout::Paused,
+                    ]);
 
-                        for layout_option in &mut layout_options {
-                            let is_selected = self == layout_option;
+                    for layout_option in &mut layout_options {
+                        let is_selected = self == layout_option;
 
-                            if SelectableFrame::new(is_selected)
-                                .show(ui, |ui| {
-                                    layout_option.show_icon(is_selected, font_id.clone(), ctx, ui)
-                                })
-                                .on_hover_text(match layout_option {
-                                    KomorebiLayout::Default(layout) => layout.to_string(),
-                                    KomorebiLayout::Monocle => "Toggle monocle".to_string(),
-                                    KomorebiLayout::Floating => "Toggle tiling".to_string(),
-                                    KomorebiLayout::Paused => "Toggle pause".to_string(),
-                                    KomorebiLayout::Custom => "Custom".to_string(),
-                                })
-                                .clicked()
-                            {
-                                layout_option.on_click_option(monitor_idx, Some(workspace_idx));
-                                show_options = false;
-                            };
-                        }
-                    });
-                }
+                        if SelectableFrame::new(is_selected)
+                            .show(ui, |ui| {
+                                layout_option.show_icon(is_selected, font_id.clone(), ctx, ui)
+                            })
+                            .on_hover_text(match layout_option {
+                                KomorebiLayout::Default(layout) => layout.to_string(),
+                                KomorebiLayout::Monocle => "Toggle monocle".to_string(),
+                                KomorebiLayout::Floating => "Toggle tiling".to_string(),
+                                KomorebiLayout::Paused => "Toggle pause".to_string(),
+                                KomorebiLayout::Custom => "Custom".to_string(),
+                            })
+                            .clicked()
+                        {
+                            layout_option.on_click_option(monitor_idx, Some(workspace_idx));
+                            show_options = false;
+                        };
+                    }
+                });
             }
         });
 

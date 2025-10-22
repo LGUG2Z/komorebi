@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "StaticConfig",
-  "description": "The `komorebi.json` static configuration file reference for `v0.1.38`",
+  "description": "The `komorebi.json` static configuration file reference for `v0.1.39`",
   "type": "object",
   "properties": {
     "animation": {
@@ -1807,6 +1807,21 @@
                   "description": "Layout-specific options (default: None)",
                   "type": "object",
                   "properties": {
+                    "grid": {
+                      "description": "Options related to the Grid layout",
+                      "type": "object",
+                      "required": [
+                        "rows"
+                      ],
+                      "properties": {
+                        "rows": {
+                          "description": "Maximum number of rows per grid column",
+                          "type": "integer",
+                          "format": "uint",
+                          "minimum": 0.0
+                        }
+                      }
+                    },
                     "scrolling": {
                       "description": "Options related to the Scrolling layout",
                       "type": "object",
@@ -1814,6 +1829,10 @@
                         "columns"
                       ],
                       "properties": {
+                        "center_focused_column": {
+                          "description": "With an odd number of visible columns, keep the focused window column centered",
+                          "type": "boolean"
+                        },
                         "columns": {
                           "description": "Desired number of visible columns (default: 3)",
                           "type": "integer",
@@ -1845,6 +1864,10 @@
                 "name": {
                   "description": "Name",
                   "type": "string"
+                },
+                "tile": {
+                  "description": "Enable or disable tiling for the workspace (default: true)",
+                  "type": "boolean"
                 },
                 "wallpaper": {
                   "description": "Specify a wallpaper for this workspace",
@@ -2136,6 +2159,38 @@
                         ]
                       }
                     ]
+                  }
+                },
+                "work_area_offset": {
+                  "description": "Workspace specific work area offset (default: None)",
+                  "type": "object",
+                  "required": [
+                    "bottom",
+                    "left",
+                    "right",
+                    "top"
+                  ],
+                  "properties": {
+                    "bottom": {
+                      "description": "The bottom point in a Win32 Rect",
+                      "type": "integer",
+                      "format": "int32"
+                    },
+                    "left": {
+                      "description": "The left point in a Win32 Rect",
+                      "type": "integer",
+                      "format": "int32"
+                    },
+                    "right": {
+                      "description": "The right point in a Win32 Rect",
+                      "type": "integer",
+                      "format": "int32"
+                    },
+                    "top": {
+                      "description": "The top point in a Win32 Rect",
+                      "type": "integer",
+                      "format": "int32"
+                    }
                   }
                 },
                 "workspace_padding": {

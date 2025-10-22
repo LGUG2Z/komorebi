@@ -1,7 +1,7 @@
+use crate::DEFAULT_PADDING;
 use crate::bar::exec_powershell;
 use crate::render::Grouping;
 use crate::widgets::widget::WidgetConfig;
-use crate::DEFAULT_PADDING;
 use eframe::egui::Pos2;
 use eframe::egui::TextBuffer;
 use eframe::egui::Vec2;
@@ -16,7 +16,7 @@ use std::path::PathBuf;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
-/// The `komorebi.bar.json` configuration file reference for `v0.1.38`
+/// The `komorebi.bar.json` configuration file reference for `v0.1.39`
 pub struct KomobarConfig {
     /// Bar height (default: 50)
     pub height: Option<f32>,
@@ -120,7 +120,9 @@ impl KomobarConfig {
         }
 
         if display {
-            println!("\nYour bar configuration file contains some options that have been renamed or deprecated:\n");
+            println!(
+                "\nYour bar configuration file contains some options that have been renamed or deprecated:\n"
+            );
             for (canonical, aliases) in map {
                 for alias in aliases {
                     if raw.contains(alias) {
@@ -453,7 +455,7 @@ impl MouseMessage {
 
                 tracing::debug!("Sending messages: {messages:?}");
 
-                if komorebi_client::send_batch(messages.into_iter()).is_err() {
+                if komorebi_client::send_batch(messages).is_err() {
                     tracing::error!("could not send commands");
                 }
             }

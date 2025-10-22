@@ -3,12 +3,12 @@ use crate::config::LabelPrefix;
 use crate::render::RenderConfig;
 use crate::selected_frame::SelectableFrame;
 use crate::widgets::widget::BarWidget;
-use eframe::egui::text::LayoutJob;
 use eframe::egui::Align;
 use eframe::egui::Context;
 use eframe::egui::Label;
 use eframe::egui::TextFormat;
 use eframe::egui::Ui;
+use eframe::egui::text::LayoutJob;
 use serde::Deserialize;
 use serde::Serialize;
 use std::process::Command;
@@ -25,6 +25,10 @@ pub struct StorageConfig {
     pub data_refresh_interval: Option<u64>,
     /// Display label prefix
     pub label_prefix: Option<LabelPrefix>,
+    /// Show disks that are read only. (default: false)
+    pub show_read_only_disks: Option<bool>,
+    /// Show removable disks. (default: true)
+    pub show_removable_disks: Option<bool>,
     /// Select when the current percentage is over this value [[1-100]]
     pub auto_select_over: Option<u8>,
     /// Hide when the current percentage is under this value [[1-100]]
@@ -38,6 +42,8 @@ impl From<StorageConfig> for Storage {
             disks: Disks::new_with_refreshed_list(),
             data_refresh_interval: value.data_refresh_interval.unwrap_or(10),
             label_prefix: value.label_prefix.unwrap_or(LabelPrefix::IconAndText),
+            show_read_only_disks: value.show_read_only_disks.unwrap_or(false),
+            show_removable_disks: value.show_removable_disks.unwrap_or(true),
             auto_select_over: value.auto_select_over.map(|o| o.clamp(1, 100)),
             auto_hide_under: value.auto_hide_under.map(|o| o.clamp(1, 100)),
             last_updated: Instant::now(),
@@ -55,6 +61,8 @@ pub struct Storage {
     disks: Disks,
     data_refresh_interval: u64,
     label_prefix: LabelPrefix,
+    show_read_only_disks: bool,
+    show_removable_disks: bool,
     auto_select_over: Option<u8>,
     auto_hide_under: Option<u8>,
     last_updated: Instant,
@@ -71,6 +79,12 @@ impl Storage {
         let mut disks = vec![];
 
         for disk in &self.disks {
+            if disk.is_read_only() && !self.show_read_only_disks {
+                continue;
+            }
+            if disk.is_removable() && !self.show_removable_disks {
+                continue;
+            }
             let mount = disk.mount_point();
             let total = disk.total_space();
             let available = disk.available_space();
@@ -87,7 +101,7 @@ impl Storage {
                         LabelPrefix::Text | LabelPrefix::IconAndText => {
                             format!("{} {}%", mount.to_string_lossy(), percentage)
                         }
-                        LabelPrefix::None | LabelPrefix::Icon => format!("{}%", percentage),
+                        LabelPrefix::None | LabelPrefix::Icon => format!("{percentage}%"),
                     },
                     selected,
                 })
@@ -142,17 +156,15 @@ impl BarWidget for Storage {
                     if SelectableFrame::new_auto(output.selected, auto_focus_fill)
                         .show(ui, |ui| ui.add(Label::new(layout_job).selectable(false)))
                         .clicked()
-                    {
-                        if let Err(error) = Command::new("cmd.exe")
+                        && let Err(error) = Command::new("cmd.exe")
                             .args([
                                 "/C",
                                 "explorer.exe",
                                 output.label.split(' ').collect::<Vec<&str>>()[0],
                             ])
                             .spawn()
-                        {
-                            eprintln!("{}", error)
-                        }
+                    {
+                        eprintln!("{error}")
                     }
                 });
             }

@@ -1,15 +1,17 @@
 use crate::config::LabelPrefix;
 use crate::render::RenderConfig;
 use crate::widgets::widget::BarWidget;
-use eframe::egui::text::LayoutJob;
+use color_eyre::eyre;
 use eframe::egui::Align;
 use eframe::egui::Context;
 use eframe::egui::Label;
 use eframe::egui::TextFormat;
 use eframe::egui::Ui;
 use eframe::egui::WidgetText;
+use eframe::egui::text::LayoutJob;
 use serde::Deserialize;
 use serde::Serialize;
+use std::sync::Arc;
 use std::time::Duration;
 use std::time::Instant;
 use windows::Win32::Globalization::LCIDToLocaleName;
@@ -80,7 +82,7 @@ pub struct Keyboard {
 /// - `Ok(String)`: The name of the active keyboard layout as a valid UTF-8 string.
 /// - `Err(())`: Indicates that the function failed to retrieve the locale name or encountered
 ///   invalid UTF-16 characters during conversion.
-fn get_active_keyboard_layout() -> Result<String, ()> {
+fn get_active_keyboard_layout() -> eyre::Result<String, ()> {
     let foreground_window_tid = unsafe { GetWindowThreadProcessId(GetForegroundWindow(), None) };
     let lcid = unsafe { GetKeyboardLayout(foreground_window_tid) };
 
@@ -169,7 +171,10 @@ impl BarWidget for Keyboard {
                 );
 
                 config.apply_on_widget(true, ui, |ui| {
-                    ui.add(Label::new(WidgetText::LayoutJob(layout_job.clone())).selectable(false))
+                    ui.add(
+                        Label::new(WidgetText::LayoutJob(Arc::from(layout_job.clone())))
+                            .selectable(false),
+                    )
                 });
             }
         }

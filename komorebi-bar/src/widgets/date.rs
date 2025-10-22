@@ -4,15 +4,16 @@ use crate::selected_frame::SelectableFrame;
 use crate::widgets::widget::BarWidget;
 use chrono::Local;
 use chrono_tz::Tz;
-use eframe::egui::text::LayoutJob;
 use eframe::egui::Align;
 use eframe::egui::Context;
 use eframe::egui::Label;
 use eframe::egui::TextFormat;
 use eframe::egui::Ui;
 use eframe::egui::WidgetText;
+use eframe::egui::text::LayoutJob;
 use serde::Deserialize;
 use serde::Serialize;
+use std::sync::Arc;
 use std::time::Duration;
 use std::time::Instant;
 
@@ -166,7 +167,7 @@ impl Date {
                         .to_string()
                         .trim()
                         .to_string(),
-                    Err(_) => format!("Invalid timezone: {}", timezone),
+                    Err(_) => format!("Invalid timezone: {timezone}"),
                 },
                 None => Local::now()
                     .format(&self.format.fmt_string())
@@ -225,7 +226,7 @@ impl BarWidget for Date {
                     if SelectableFrame::new(false)
                         .show(ui, |ui| {
                             ui.add(
-                                Label::new(WidgetText::LayoutJob(layout_job.clone()))
+                                Label::new(WidgetText::LayoutJob(Arc::from(layout_job.clone())))
                                     .selectable(false),
                             )
                         })

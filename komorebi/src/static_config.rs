@@ -1,4 +1,33 @@
-use crate::animation::PerAnimationPrefixConfig;
+use crate::AspectRatio;
+use crate::Axis;
+use crate::CrossBoundaryBehaviour;
+use crate::DATA_DIR;
+use crate::DEFAULT_CONTAINER_PADDING;
+use crate::DEFAULT_WORKSPACE_PADDING;
+use crate::DISPLAY_INDEX_PREFERENCES;
+use crate::FLOATING_APPLICATIONS;
+use crate::FLOATING_WINDOW_TOGGLE_ASPECT_RATIO;
+use crate::FloatingLayerBehaviour;
+use crate::HIDING_BEHAVIOUR;
+use crate::IGNORE_IDENTIFIERS;
+use crate::LAYERED_WHITELIST;
+use crate::MANAGE_IDENTIFIERS;
+use crate::MONITOR_INDEX_PREFERENCES;
+use crate::NO_TITLEBAR;
+use crate::OBJECT_NAME_CHANGE_ON_LAUNCH;
+use crate::OBJECT_NAME_CHANGE_TITLE_IGNORE_LIST;
+use crate::Placement;
+use crate::PredefinedAspectRatio;
+use crate::REGEX_IDENTIFIERS;
+use crate::ResolvedPathBuf;
+use crate::SLOW_APPLICATION_COMPENSATION_TIME;
+use crate::SLOW_APPLICATION_IDENTIFIERS;
+use crate::TRANSPARENCY_BLACKLIST;
+use crate::TRAY_AND_MULTI_WINDOW_IDENTIFIERS;
+use crate::WINDOW_HANDLING_BEHAVIOUR;
+use crate::WINDOWS_11;
+use crate::WORKSPACE_MATCHING_RULES;
+use crate::WindowHandlingBehaviour;
 use crate::animation::ANIMATION_DURATION_GLOBAL;
 use crate::animation::ANIMATION_DURATION_PER_ANIMATION;
 use crate::animation::ANIMATION_ENABLED_GLOBAL;
@@ -7,18 +36,14 @@ use crate::animation::ANIMATION_FPS;
 use crate::animation::ANIMATION_STYLE_GLOBAL;
 use crate::animation::ANIMATION_STYLE_PER_ANIMATION;
 use crate::animation::DEFAULT_ANIMATION_FPS;
+use crate::animation::PerAnimationPrefixConfig;
 use crate::asc::ApplicationSpecificConfiguration;
 use crate::asc::AscApplicationRulesOrSchema;
 use crate::border_manager;
-use crate::border_manager::ZOrder;
 use crate::border_manager::IMPLEMENTATION;
 use crate::border_manager::STYLE;
+use crate::border_manager::ZOrder;
 use crate::config_generation::WorkspaceMatchingRule;
-use crate::core::config_generation::ApplicationConfiguration;
-use crate::core::config_generation::ApplicationConfigurationGenerator;
-use crate::core::config_generation::ApplicationOptions;
-use crate::core::config_generation::MatchingRule;
-use crate::core::config_generation::MatchingStrategy;
 use crate::core::AnimationStyle;
 use crate::core::BorderImplementation;
 use crate::core::BorderStyle;
@@ -34,6 +59,11 @@ use crate::core::StackbarLabel;
 use crate::core::StackbarMode;
 use crate::core::WindowContainerBehaviour;
 use crate::core::WindowManagementBehaviour;
+use crate::core::config_generation::ApplicationConfiguration;
+use crate::core::config_generation::ApplicationConfigurationGenerator;
+use crate::core::config_generation::ApplicationOptions;
+use crate::core::config_generation::MatchingRule;
+use crate::core::config_generation::MatchingStrategy;
 use crate::current_virtual_desktop;
 use crate::default_layout::LayoutOptions;
 use crate::monitor;
@@ -57,37 +87,7 @@ use crate::window_manager::WindowManager;
 use crate::window_manager_event::WindowManagerEvent;
 use crate::windows_api::WindowsApi;
 use crate::workspace::Workspace;
-use crate::AspectRatio;
-use crate::Axis;
-use crate::CrossBoundaryBehaviour;
-use crate::FloatingLayerBehaviour;
-use crate::Placement;
-use crate::PredefinedAspectRatio;
-use crate::ResolvedPathBuf;
-use crate::WindowHandlingBehaviour;
-use crate::DATA_DIR;
-use crate::DEFAULT_CONTAINER_PADDING;
-use crate::DEFAULT_WORKSPACE_PADDING;
-use crate::DISPLAY_INDEX_PREFERENCES;
-use crate::FLOATING_APPLICATIONS;
-use crate::FLOATING_WINDOW_TOGGLE_ASPECT_RATIO;
-use crate::HIDING_BEHAVIOUR;
-use crate::IGNORE_IDENTIFIERS;
-use crate::LAYERED_WHITELIST;
-use crate::MANAGE_IDENTIFIERS;
-use crate::MONITOR_INDEX_PREFERENCES;
-use crate::NO_TITLEBAR;
-use crate::OBJECT_NAME_CHANGE_ON_LAUNCH;
-use crate::OBJECT_NAME_CHANGE_TITLE_IGNORE_LIST;
-use crate::REGEX_IDENTIFIERS;
-use crate::SLOW_APPLICATION_COMPENSATION_TIME;
-use crate::SLOW_APPLICATION_IDENTIFIERS;
-use crate::TRANSPARENCY_BLACKLIST;
-use crate::TRAY_AND_MULTI_WINDOW_IDENTIFIERS;
-use crate::WINDOWS_11;
-use crate::WINDOW_HANDLING_BEHAVIOUR;
-use crate::WORKSPACE_MATCHING_RULES;
-use color_eyre::Result;
+use color_eyre::eyre;
 use crossbeam_channel::Receiver;
 use hotwatch::EventKind;
 use hotwatch::Hotwatch;
@@ -101,8 +101,8 @@ use std::collections::HashSet;
 use std::io::ErrorKind;
 use std::io::Write;
 use std::path::PathBuf;
-use std::sync::atomic::Ordering;
 use std::sync::Arc;
+use std::sync::atomic::Ordering;
 use uds_windows::UnixListener;
 use uds_windows::UnixStream;
 
@@ -218,6 +218,9 @@ pub struct WorkspaceConfig {
     /// Permanent workspace application rules
     #[serde(skip_serializing_if = "Option::is_none")]
     pub workspace_rules: Option<Vec<MatchingRule>>,
+    /// Workspace specific work area offset (default: None)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub work_area_offset: Option<Rect>,
     /// Apply this monitor's window-based work area offset (default: true)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub apply_window_based_work_area_offset: Option<bool>,
@@ -230,6 +233,9 @@ pub struct WorkspaceConfig {
     /// Enable or disable float override, which makes it so every new window opens in floating mode (default: false)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub float_override: Option<bool>,
+    /// Enable or disable tiling for the workspace (default: true)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tile: Option<bool>,
     /// Specify an axis on which to flip the selected layout (default: None)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub layout_flip: Option<Axis>,
@@ -244,7 +250,7 @@ pub struct WorkspaceConfig {
 impl From<&Workspace> for WorkspaceConfig {
     fn from(value: &Workspace) -> Self {
         let mut layout_rules = HashMap::new();
-        for (threshold, layout) in value.layout_rules() {
+        for (threshold, layout) in &value.layout_rules {
             match layout {
                 Layout::Default(value) => {
                     layout_rules.insert(*threshold, *value);
@@ -255,14 +261,14 @@ impl From<&Workspace> for WorkspaceConfig {
         let layout_rules = (!layout_rules.is_empty()).then_some(layout_rules);
 
         let mut window_container_behaviour_rules = HashMap::new();
-        for (threshold, behaviour) in value.window_container_behaviour_rules().iter().flatten() {
+        for (threshold, behaviour) in value.window_container_behaviour_rules.iter().flatten() {
             window_container_behaviour_rules.insert(*threshold, *behaviour);
         }
 
         let default_container_padding = DEFAULT_CONTAINER_PADDING.load(Ordering::SeqCst);
         let default_workspace_padding = DEFAULT_WORKSPACE_PADDING.load(Ordering::SeqCst);
 
-        let container_padding = value.container_padding().and_then(|container_padding| {
+        let container_padding = value.container_padding.and_then(|container_padding| {
             if container_padding == default_container_padding {
                 None
             } else {
@@ -270,7 +276,7 @@ impl From<&Workspace> for WorkspaceConfig {
             }
         });
 
-        let workspace_padding = value.workspace_padding().and_then(|workspace_padding| {
+        let workspace_padding = value.workspace_padding.and_then(|workspace_padding| {
             if workspace_padding == default_workspace_padding {
                 None
             } else {
@@ -278,44 +284,48 @@ impl From<&Workspace> for WorkspaceConfig {
             }
         });
 
+        let tile = if value.tile { None } else { Some(false) };
+
         Self {
             name: value
-                .name()
+                .name
                 .clone()
                 .unwrap_or_else(|| String::from("unnamed")),
             layout: value
-                .tile()
-                .then_some(match value.layout() {
-                    Layout::Default(layout) => Option::from(*layout),
+                .tile
+                .then_some(match value.layout {
+                    Layout::Default(layout) => Option::from(layout),
                     Layout::Custom(_) => None,
                 })
                 .flatten(),
-            layout_options: value.layout_options(),
+            layout_options: value.layout_options,
             custom_layout: value
-                .workspace_config()
+                .workspace_config
                 .as_ref()
                 .and_then(|c| c.custom_layout.clone()),
             layout_rules,
             custom_layout_rules: value
-                .workspace_config()
+                .workspace_config
                 .as_ref()
                 .and_then(|c| c.custom_layout_rules.clone()),
             container_padding,
             workspace_padding,
             initial_workspace_rules: value
-                .workspace_config()
+                .workspace_config
                 .as_ref()
                 .and_then(|c| c.initial_workspace_rules.clone()),
             workspace_rules: value
-                .workspace_config()
+                .workspace_config
                 .as_ref()
                 .and_then(|c| c.workspace_rules.clone()),
-            apply_window_based_work_area_offset: Some(value.apply_window_based_work_area_offset()),
-            window_container_behaviour: *value.window_container_behaviour(),
+            work_area_offset: value.work_area_offset,
+            apply_window_based_work_area_offset: Some(value.apply_window_based_work_area_offset),
+            window_container_behaviour: value.window_container_behaviour,
             window_container_behaviour_rules: Option::from(window_container_behaviour_rules),
-            float_override: *value.float_override(),
-            layout_flip: value.layout_flip(),
-            floating_layer_behaviour: value.floating_layer_behaviour(),
+            float_override: value.float_override,
+            tile,
+            layout_flip: value.layout_flip,
+            floating_layer_behaviour: value.floating_layer_behaviour,
             wallpaper: None,
         }
     }
@@ -359,7 +369,7 @@ impl From<&Monitor> for MonitorConfig {
         let default_container_padding = DEFAULT_CONTAINER_PADDING.load(Ordering::SeqCst);
         let default_workspace_padding = DEFAULT_WORKSPACE_PADDING.load(Ordering::SeqCst);
 
-        let container_padding = value.container_padding().and_then(|container_padding| {
+        let container_padding = value.container_padding.and_then(|container_padding| {
             if container_padding == default_container_padding {
                 None
             } else {
@@ -367,7 +377,7 @@ impl From<&Monitor> for MonitorConfig {
             }
         });
 
-        let workspace_padding = value.workspace_padding().and_then(|workspace_padding| {
+        let workspace_padding = value.workspace_padding.and_then(|workspace_padding| {
             if workspace_padding == default_workspace_padding {
                 None
             } else {
@@ -377,13 +387,13 @@ impl From<&Monitor> for MonitorConfig {
 
         Self {
             workspaces,
-            work_area_offset: value.work_area_offset(),
-            window_based_work_area_offset: value.window_based_work_area_offset(),
-            window_based_work_area_offset_limit: Some(value.window_based_work_area_offset_limit()),
+            work_area_offset: value.work_area_offset,
+            window_based_work_area_offset: value.window_based_work_area_offset,
+            window_based_work_area_offset_limit: Some(value.window_based_work_area_offset_limit),
             container_padding,
             workspace_padding,
-            wallpaper: value.wallpaper().clone(),
-            floating_layer_behaviour: value.floating_layer_behaviour(),
+            wallpaper: value.wallpaper.clone(),
+            floating_layer_behaviour: value.floating_layer_behaviour,
         }
     }
 }
@@ -402,7 +412,7 @@ pub enum AppSpecificConfigurationPath {
 #[serde_with::serde_as]
 #[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
-/// The `komorebi.json` static configuration file reference for `v0.1.38`
+/// The `komorebi.json` static configuration file reference for `v0.1.39`
 pub struct StaticConfig {
     /// DEPRECATED from v0.1.22: no longer required
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -721,7 +731,9 @@ impl StaticConfig {
         }
 
         if display {
-            println!("\nEnd-of-life features will not receive any further bug fixes or updates; they should not be used\n")
+            println!(
+                "\nEnd-of-life features will not receive any further bug fixes or updates; they should not be used\n"
+            )
         }
     }
 
@@ -746,7 +758,9 @@ impl StaticConfig {
         }
 
         if display {
-            println!("\nYour configuration file contains some options that have been renamed or deprecated:\n");
+            println!(
+                "\nYour configuration file contains some options that have been renamed or deprecated:\n"
+            );
             for (canonical, aliases) in map {
                 for alias in aliases {
                     if raw.contains(alias) {
@@ -938,7 +952,7 @@ impl From<&WindowManager> for StaticConfig {
 
 impl StaticConfig {
     #[allow(clippy::cognitive_complexity, clippy::too_many_lines)]
-    fn apply_globals(&mut self) -> Result<()> {
+    fn apply_globals(&mut self) -> eyre::Result<()> {
         *FLOATING_WINDOW_TOGGLE_ASPECT_RATIO.lock() = self
             .floating_window_aspect_ratio
             .unwrap_or(AspectRatio::Predefined(PredefinedAspectRatio::Standard));
@@ -1226,11 +1240,11 @@ impl StaticConfig {
         Ok(())
     }
 
-    pub fn read_raw(raw: &str) -> Result<Self> {
+    pub fn read_raw(raw: &str) -> eyre::Result<Self> {
         Ok(serde_json::from_str(raw)?)
     }
 
-    pub fn read(path: &PathBuf) -> Result<Self> {
+    pub fn read(path: &PathBuf) -> eyre::Result<Self> {
         let content = std::fs::read_to_string(path)?;
         serde_json::from_str(&content).map_err(Into::into)
     }
@@ -1240,7 +1254,7 @@ impl StaticConfig {
         path: &PathBuf,
         incoming: Receiver<WindowManagerEvent>,
         unix_listener: Option<UnixListener>,
-    ) -> Result<WindowManager> {
+    ) -> eyre::Result<WindowManager> {
         let mut value = Self::read(path)?;
         value.apply_globals()?;
 
@@ -1335,7 +1349,7 @@ impl StaticConfig {
         Ok(wm)
     }
 
-    pub fn postload(path: &PathBuf, wm: &Arc<Mutex<WindowManager>>) -> Result<()> {
+    pub fn postload(path: &PathBuf, wm: &Arc<Mutex<WindowManager>>) -> eyre::Result<()> {
         let mut value = Self::read(path)?;
         let mut wm = wm.lock();
 
@@ -1353,15 +1367,12 @@ impl StaticConfig {
         for (i, monitor) in wm.monitors_mut().iter_mut().enumerate() {
             let preferred_config_idx = {
                 let display_index_preferences = DISPLAY_INDEX_PREFERENCES.read();
-                let c_idx = display_index_preferences.iter().find_map(|(c_idx, id)| {
-                    (monitor
-                        .serial_number_id()
-                        .as_ref()
-                        .is_some_and(|sn| sn == id)
-                        || monitor.device_id() == id)
-                        .then_some(*c_idx)
-                });
-                c_idx
+
+                display_index_preferences.iter().find_map(|(c_idx, id)| {
+                    (monitor.serial_number_id.as_ref().is_some_and(|sn| sn == id)
+                        || monitor.device_id.eq(id))
+                    .then_some(*c_idx)
+                })
             };
             let idx = preferred_config_idx.or({
                 // Monitor without preferred config idx.
@@ -1386,19 +1397,16 @@ impl StaticConfig {
                 }
 
                 monitor.ensure_workspace_count(monitor_config.workspaces.len());
-                monitor.set_work_area_offset(monitor_config.work_area_offset);
-                monitor.set_window_based_work_area_offset(
-                    monitor_config.window_based_work_area_offset,
-                );
-                monitor.set_window_based_work_area_offset_limit(
-                    monitor_config
-                        .window_based_work_area_offset_limit
-                        .unwrap_or(1),
-                );
-                monitor.set_container_padding(monitor_config.container_padding);
-                monitor.set_workspace_padding(monitor_config.workspace_padding);
-                monitor.set_wallpaper(monitor_config.wallpaper.clone());
-                monitor.set_floating_layer_behaviour(monitor_config.floating_layer_behaviour);
+                monitor.work_area_offset = monitor_config.work_area_offset;
+                monitor.window_based_work_area_offset =
+                    monitor_config.window_based_work_area_offset;
+                monitor.window_based_work_area_offset_limit = monitor_config
+                    .window_based_work_area_offset_limit
+                    .unwrap_or(1);
+                monitor.container_padding = monitor_config.container_padding;
+                monitor.workspace_padding = monitor_config.workspace_padding;
+                monitor.wallpaper = monitor_config.wallpaper.clone();
+                monitor.floating_layer_behaviour = monitor_config.floating_layer_behaviour;
 
                 monitor.update_workspaces_globals(offset);
                 for (j, ws) in monitor.workspaces_mut().iter_mut().enumerate() {
@@ -1406,7 +1414,9 @@ impl StaticConfig {
                         if monitor_count > 1
                             && matches!(workspace_config.layout, Some(DefaultLayout::Scrolling))
                         {
-                            tracing::warn!("scrolling layout is only supported for a single monitor; falling back to columns layout");
+                            tracing::warn!(
+                                "scrolling layout is only supported for a single monitor; falling back to columns layout"
+                            );
                             workspace_config.layout = Some(DefaultLayout::Columns);
                         }
 
@@ -1418,9 +1428,9 @@ impl StaticConfig {
                 // a copy of the monitor itself on the monitor cache if it is.
                 if idx == preferred_config_idx {
                     let id = monitor
-                        .serial_number_id()
+                        .serial_number_id
                         .as_ref()
-                        .map_or(monitor.device_id(), |sn| sn);
+                        .map_or(&monitor.device_id, |sn| sn);
                     monitor_reconciliator::insert_in_monitor_cache(id, monitor.clone());
                 }
 
@@ -1480,18 +1490,14 @@ impl StaticConfig {
                     );
 
                     m.ensure_workspace_count(monitor_config.workspaces.len());
-                    m.set_work_area_offset(monitor_config.work_area_offset);
-                    m.set_window_based_work_area_offset(
-                        monitor_config.window_based_work_area_offset,
-                    );
-                    m.set_window_based_work_area_offset_limit(
-                        monitor_config
-                            .window_based_work_area_offset_limit
-                            .unwrap_or(1),
-                    );
-                    m.set_container_padding(monitor_config.container_padding);
-                    m.set_workspace_padding(monitor_config.workspace_padding);
-                    m.set_floating_layer_behaviour(monitor_config.floating_layer_behaviour);
+                    m.work_area_offset = monitor_config.work_area_offset;
+                    m.window_based_work_area_offset = monitor_config.window_based_work_area_offset;
+                    m.window_based_work_area_offset_limit = monitor_config
+                        .window_based_work_area_offset_limit
+                        .unwrap_or(1);
+                    m.container_padding = monitor_config.container_padding;
+                    m.workspace_padding = monitor_config.workspace_padding;
+                    m.floating_layer_behaviour = monitor_config.floating_layer_behaviour;
 
                     m.update_workspaces_globals(offset);
 
@@ -1515,7 +1521,7 @@ impl StaticConfig {
         Ok(())
     }
 
-    pub fn reload(path: &PathBuf, wm: &mut WindowManager) -> Result<()> {
+    pub fn reload(path: &PathBuf, wm: &mut WindowManager) -> eyre::Result<()> {
         let mut value = Self::read(path)?;
 
         value.apply_globals()?;
@@ -1532,15 +1538,12 @@ impl StaticConfig {
         for (i, monitor) in wm.monitors_mut().iter_mut().enumerate() {
             let preferred_config_idx = {
                 let display_index_preferences = DISPLAY_INDEX_PREFERENCES.read();
-                let c_idx = display_index_preferences.iter().find_map(|(c_idx, id)| {
-                    (monitor
-                        .serial_number_id()
-                        .as_ref()
-                        .is_some_and(|sn| sn == id)
-                        || monitor.device_id() == id)
-                        .then_some(*c_idx)
-                });
-                c_idx
+
+                display_index_preferences.iter().find_map(|(c_idx, id)| {
+                    (monitor.serial_number_id.as_ref().is_some_and(|sn| sn == id)
+                        || monitor.device_id.eq(id))
+                    .then_some(*c_idx)
+                })
             };
             let idx = preferred_config_idx.or({
                 // Monitor without preferred config idx.
@@ -1565,21 +1568,18 @@ impl StaticConfig {
                 }
 
                 monitor.ensure_workspace_count(monitor_config.workspaces.len());
-                if monitor.work_area_offset().is_none() {
-                    monitor.set_work_area_offset(monitor_config.work_area_offset);
+                if monitor.work_area_offset.is_none() {
+                    monitor.work_area_offset = monitor_config.work_area_offset;
                 }
-                monitor.set_window_based_work_area_offset(
-                    monitor_config.window_based_work_area_offset,
-                );
-                monitor.set_window_based_work_area_offset_limit(
-                    monitor_config
-                        .window_based_work_area_offset_limit
-                        .unwrap_or(1),
-                );
-                monitor.set_container_padding(monitor_config.container_padding);
-                monitor.set_workspace_padding(monitor_config.workspace_padding);
-                monitor.set_wallpaper(monitor_config.wallpaper.clone());
-                monitor.set_floating_layer_behaviour(monitor_config.floating_layer_behaviour);
+                monitor.window_based_work_area_offset =
+                    monitor_config.window_based_work_area_offset;
+                monitor.window_based_work_area_offset_limit = monitor_config
+                    .window_based_work_area_offset_limit
+                    .unwrap_or(1);
+                monitor.container_padding = monitor_config.container_padding;
+                monitor.workspace_padding = monitor_config.workspace_padding;
+                monitor.wallpaper = monitor_config.wallpaper.clone();
+                monitor.floating_layer_behaviour = monitor_config.floating_layer_behaviour;
 
                 monitor.update_workspaces_globals(offset);
 
@@ -1593,9 +1593,9 @@ impl StaticConfig {
                 // a copy of the monitor itself on the monitor cache if it is.
                 if idx == preferred_config_idx {
                     let id = monitor
-                        .serial_number_id()
+                        .serial_number_id
                         .as_ref()
-                        .map_or(monitor.device_id(), |sn| sn);
+                        .map_or(&monitor.device_id, |sn| sn);
                     monitor_reconciliator::insert_in_monitor_cache(id, monitor.clone());
                 }
 
@@ -1655,18 +1655,14 @@ impl StaticConfig {
                     );
 
                     m.ensure_workspace_count(monitor_config.workspaces.len());
-                    m.set_work_area_offset(monitor_config.work_area_offset);
-                    m.set_window_based_work_area_offset(
-                        monitor_config.window_based_work_area_offset,
-                    );
-                    m.set_window_based_work_area_offset_limit(
-                        monitor_config
-                            .window_based_work_area_offset_limit
-                            .unwrap_or(1),
-                    );
-                    m.set_container_padding(monitor_config.container_padding);
-                    m.set_workspace_padding(monitor_config.workspace_padding);
-                    m.set_floating_layer_behaviour(monitor_config.floating_layer_behaviour);
+                    m.work_area_offset = monitor_config.work_area_offset;
+                    m.window_based_work_area_offset = monitor_config.window_based_work_area_offset;
+                    m.window_based_work_area_offset_limit = monitor_config
+                        .window_based_work_area_offset_limit
+                        .unwrap_or(1);
+                    m.container_padding = monitor_config.container_padding;
+                    m.workspace_padding = monitor_config.workspace_padding;
+                    m.floating_layer_behaviour = monitor_config.floating_layer_behaviour;
 
                     m.update_workspaces_globals(offset);
 
@@ -1732,7 +1728,7 @@ fn populate_option(
     entry: &mut ApplicationConfiguration,
     identifiers: &mut Vec<MatchingRule>,
     regex_identifiers: &mut HashMap<String, Regex>,
-) -> Result<()> {
+) -> eyre::Result<()> {
     if entry.identifier.matching_strategy.is_none() {
         entry.identifier.matching_strategy = Option::from(MatchingStrategy::Legacy);
     }
@@ -1758,7 +1754,7 @@ fn populate_rules(
     matching_rules: &mut Vec<MatchingRule>,
     identifiers: &mut Vec<MatchingRule>,
     regex_identifiers: &mut HashMap<String, Regex>,
-) -> Result<()> {
+) -> eyre::Result<()> {
     for matching_rule in matching_rules {
         if !identifiers.contains(matching_rule) {
             match matching_rule {
@@ -1804,7 +1800,7 @@ fn handle_asc_file(
     transparency_blacklist: &mut Vec<MatchingRule>,
     slow_application_identifiers: &mut Vec<MatchingRule>,
     regex_identifiers: &mut HashMap<String, Regex>,
-) -> Result<()> {
+) -> eyre::Result<()> {
     match path.extension() {
         None => {}
         Some(ext) => match ext.to_string_lossy().to_string().as_str() {
@@ -1932,7 +1928,7 @@ mod tests {
         let docs = vec![
             "0.1.20", "0.1.21", "0.1.22", "0.1.23", "0.1.24", "0.1.25", "0.1.26", "0.1.27",
             "0.1.28", "0.1.29", "0.1.30", "0.1.31", "0.1.32", "0.1.33", "0.1.34", "0.1.35",
-            "0.1.36",
+            "0.1.36", "0.1.37",
         ];
 
         let mut versions = vec![];
@@ -1958,7 +1954,9 @@ mod tests {
     #[test]
     fn deserialize_custom_layout_rules() {
         // set an environment variable for testing
-        std::env::set_var("VAR", "VALUE");
+        unsafe {
+            std::env::set_var("VAR", "VALUE");
+        }
 
         let config = r#"
         {

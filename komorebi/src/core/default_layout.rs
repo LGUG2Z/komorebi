@@ -30,6 +30,8 @@ pub enum DefaultLayout {
 pub struct LayoutOptions {
     /// Options related to the Scrolling layout
     pub scrolling: Option<ScrollingLayoutOptions>,
+    /// Options related to the Grid layout
+    pub grid: Option<GridLayoutOptions>,
 }
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, Eq, PartialEq)]
@@ -37,6 +39,15 @@ pub struct LayoutOptions {
 pub struct ScrollingLayoutOptions {
     /// Desired number of visible columns (default: 3)
     pub columns: usize,
+    /// With an odd number of visible columns, keep the focused window column centered
+    pub center_focused_column: Option<bool>,
+}
+
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, Eq, PartialEq)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+pub struct GridLayoutOptions {
+    /// Maximum number of rows per grid column
+    pub rows: usize,
 }
 
 impl DefaultLayout {

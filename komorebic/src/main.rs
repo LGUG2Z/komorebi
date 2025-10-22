@@ -2,10 +2,11 @@
 #![allow(clippy::missing_errors_doc, clippy::doc_markdown)]
 
 use chrono::Utc;
-use komorebi_client::replace_env_in_path;
 use komorebi_client::PathExt;
+use komorebi_client::replace_env_in_path;
 use std::fs::File;
 use std::fs::OpenOptions;
+use std::io;
 use std::io::BufRead;
 use std::io::BufReader;
 use std::io::Write;
@@ -19,15 +20,15 @@ use std::time::Duration;
 use clap::CommandFactory;
 use clap::Parser;
 use clap::ValueEnum;
-use color_eyre::eyre::anyhow;
+use color_eyre::eyre;
+use color_eyre::eyre::OptionExt;
 use color_eyre::eyre::bail;
-use color_eyre::Result;
 use dirs::data_local_dir;
 use fs_tail::TailedFile;
-use komorebi_client::send_message;
-use komorebi_client::send_query;
 use komorebi_client::AppSpecificConfigurationPath;
 use komorebi_client::ApplicationSpecificConfiguration;
+use komorebi_client::send_message;
+use komorebi_client::send_query;
 use lazy_static::lazy_static;
 use miette::NamedSource;
 use miette::Report;
@@ -38,9 +39,9 @@ use serde::Deserialize;
 use sysinfo::ProcessesToUpdate;
 use which::which;
 use windows::Win32::Foundation::HWND;
-use windows::Win32::UI::WindowsAndMessaging::ShowWindow;
 use windows::Win32::UI::WindowsAndMessaging::SHOW_WINDOW_CMD;
 use windows::Win32::UI::WindowsAndMessaging::SW_RESTORE;
+use windows::Win32::UI::WindowsAndMessaging::ShowWindow;
 use winreg::enums::*;
 use winreg::RegKey;
 
@@ -94,8 +95,7 @@ lazy_static! {
 
                 assert!(
                     whkd_config_home.is_dir(),
-                    "$Env:WHKD_CONFIG_HOME is set to '{}', which is not a valid directory",
-                    home_path
+                    "$Env:WHKD_CONFIG_HOME is set to '{home_path}', which is not a valid directory"
                 );
 
                 whkd_config_home
@@ -421,6 +421,22 @@ struct GlobalWorkAreaOffset {
 struct MonitorWorkAreaOffset {
     /// Monitor index (zero-indexed)
     monitor: usize,
+    /// Size of the left work area offset (set right to left * 2 to maintain right padding)
+    left: i32,
+    /// Size of the top work area offset (set bottom to the same value to maintain bottom padding)
+    top: i32,
+    /// Size of the right work area offset
+    right: i32,
+    /// Size of the bottom work area offset
+    bottom: i32,
+}
+
+#[derive(Parser)]
+struct WorkspaceWorkAreaOffset {
+    /// Monitor index (zero-indexed)
+    monitor: usize,
+    /// Workspace index (zero-indexed)
+    workspace: usize,
     /// Size of the left work area offset (set right to left * 2 to maintain right padding)
     left: i32,
     /// Size of the top work area offset (set bottom to the same value to maintain bottom padding)
@@ -788,6 +804,7 @@ struct Start {
     #[clap(long)]
     whkd: bool,
     /// Start autohotkey configuration file
+    #[clap(hide = true)]
     #[clap(long)]
     ahk: bool,
     /// Start komorebi-bar in a background process
@@ -807,6 +824,7 @@ struct Stop {
     #[clap(long)]
     whkd: bool,
     /// Stop ahk if it is running as a background process
+    #[clap(hide = true)]
     #[clap(long)]
     ahk: bool,
     /// Stop komorebi-bar if it is running as a background process
@@ -826,6 +844,7 @@ struct Kill {
     #[clap(long)]
     whkd: bool,
     /// Kill ahk if it is running as a background process
+    #[clap(hide = true)]
     #[clap(long)]
     ahk: bool,
     /// Kill komorebi-bar if it is running as a background process
@@ -935,6 +954,7 @@ struct EnableAutostart {
     #[clap(long)]
     whkd: bool,
     /// Enable autostart of ahk
+    #[clap(hide = true)]
     #[clap(long)]
     ahk: bool,
     /// Enable autostart of komorebi-bar
@@ -1194,6 +1214,9 @@ enum SubCommand {
     /// Set offsets for a monitor to exclude parts of the work area from tiling
     #[clap(arg_required_else_help = true)]
     MonitorWorkAreaOffset(MonitorWorkAreaOffset),
+    /// Set offsets for a workspace to exclude parts of the work area from tiling
+    #[clap(arg_required_else_help = true)]
+    WorkspaceWorkAreaOffset(WorkspaceWorkAreaOffset),
     /// Toggle application of the window-based work area offset for the focused workspace
     ToggleWindowBasedWorkAreaOffset,
     /// Set container padding on the focused workspace
@@ -1313,7 +1336,7 @@ enum SubCommand {
     ToggleWorkspaceFloatOverride,
     /// Toggle between the Tiling and Floating layers on the focused workspace
     ToggleWorkspaceLayer,
-    /// Toggle window tiling on the focused workspace
+    /// Toggle the paused state for all window tiling
     TogglePause,
     /// Toggle window tiling on the focused workspace
     ToggleTiling,
@@ -1513,7 +1536,7 @@ fn print_query(message: &SocketMessage) {
     }
 }
 
-fn startup_dir() -> Result<PathBuf> {
+fn startup_dir() -> eyre::Result<PathBuf> {
     let startup = dirs::home_dir()
         .expect("unable to obtain user's home folder")
         .join("AppData")
@@ -1532,7 +1555,7 @@ fn startup_dir() -> Result<PathBuf> {
 }
 
 #[allow(clippy::too_many_lines, clippy::cognitive_complexity)]
-fn main() -> Result<()> {
+fn main() -> eyre::Result<()> {
     let opts: Opts = Opts::parse();
 
     match opts.subcmd {
@@ -1567,6 +1590,33 @@ fn main() -> Result<()> {
             }
         }
         SubCommand::Quickstart => {
+            fn write_file_with_prompt(
+                path: &PathBuf,
+                content: &str,
+                created_files: &mut Vec<String>,
+            ) -> eyre::Result<()> {
+                if path.exists() {
+                    print!(
+                        "{} will be overwritten, do you want to continue? (y/N): ",
+                        path.display()
+                    );
+                    io::stdout().flush()?;
+                    let mut input = String::new();
+                    io::stdin().read_line(&mut input)?;
+                    let trimmed = input.trim().to_lowercase();
+                    if trimmed == "y" || trimmed == "yes" {
+                        std::fs::write(path, content)?;
+                        created_files.push(path.display().to_string());
+                    } else {
+                        println!("Skipping {}", path.display());
+                    }
+                } else {
+                    std::fs::write(path, content)?;
+                    created_files.push(path.display().to_string());
+                }
+                Ok(())
+            }
+
             let local_appdata_dir = data_local_dir().expect("could not find localdata dir");
             let data_dir = local_appdata_dir.join("komorebi");
             std::fs::create_dir_all(&*WHKD_CONFIG_DIR)?;
@@ -1582,19 +1632,38 @@ fn main() -> Result<()> {
                     komorebi_json.replace("Env:USERPROFILE", "Env:KOMOREBI_CONFIG_HOME");
             }
 
-            std::fs::write(HOME_DIR.join("komorebi.json"), komorebi_json)?;
-            std::fs::write(HOME_DIR.join("komorebi.bar.json"), komorebi_bar_json)?;
+            let komorebi_path = HOME_DIR.join("komorebi.json");
+            let bar_path = HOME_DIR.join("komorebi.bar.json");
+            let applications_path = HOME_DIR.join("applications.json");
+            let whkdrc_path = WHKD_CONFIG_DIR.join("whkdrc");
+
+            let mut written_files = Vec::new();
+
+            write_file_with_prompt(&komorebi_path, &komorebi_json, &mut written_files)?;
+            write_file_with_prompt(&bar_path, &komorebi_bar_json, &mut written_files)?;
 
             let applications_json = include_str!("../applications.json");
-            std::fs::write(HOME_DIR.join("applications.json"), applications_json)?;
+            write_file_with_prompt(&applications_path, applications_json, &mut written_files)?;
 
             let whkdrc = include_str!("../../docs/whkdrc.sample");
-            std::fs::write(WHKD_CONFIG_DIR.join("whkdrc"), whkdrc)?;
-
-            println!("Example komorebi.json, komorebi.bar.json, whkdrc and latest applications.json files created");
-            println!("You can now run komorebic start --whkd --bar");
+            write_file_with_prompt(&whkdrc_path, whkdrc, &mut written_files)?;
+            if written_files.is_empty() {
+                println!("\nNo files were written.")
+            } else {
+                println!(
+                    "\nThe following example files were written:\n{}",
+                    written_files.join("\n")
+                );
+            }
+            println!("\nYou can now run komorebic start --whkd --bar");
         }
-        SubCommand::EnableAutostart(args) => {
+        SubCommand::EnableAutostart(arg) => {
+            if arg.ahk {
+                println!(
+                    "EOL: The --ahk flag is now end-of-life and will not receive any further updates or bug fixes"
+                );
+            }
+
             let mut current_exe = std::env::current_exe().expect("unable to get exec path");
             current_exe.pop();
             let komorebic_exe = current_exe.join("komorebic-no-console.exe");
@@ -1606,26 +1675,26 @@ fn main() -> Result<()> {
 
             let mut arguments = String::from("start");
 
-            if let Some(config) = args.config {
+            if let Some(config) = arg.config {
                 arguments.push_str(" --config ");
                 arguments.push_str(&config.to_string_lossy());
             }
 
-            if args.ffm {
+            if arg.ffm {
                 arguments.push_str(" --ffm");
             }
 
-            if args.bar {
+            if arg.bar {
                 arguments.push_str(" --bar");
             }
 
-            if args.whkd {
+            if arg.whkd {
                 arguments.push_str(" --whkd");
-            } else if args.ahk {
+            } else if arg.ahk {
                 arguments.push_str(" --ahk");
             }
 
-            if args.masir {
+            if arg.masir {
                 arguments.push_str(" --masir");
             }
 
@@ -1663,8 +1732,12 @@ fn main() -> Result<()> {
 
             println!("Autostart enabled!");
 
-            println!("NOTE: If your komorebi.json file contains a reference to $Env:KOMOREBI_CONFIG_HOME,");
-            println!("you need to add this to System Properties > Environment Variables > User Variables");
+            println!(
+                "NOTE: If your komorebi.json file contains a reference to $Env:KOMOREBI_CONFIG_HOME,"
+            );
+            println!(
+                "you need to add this to System Properties > Environment Variables > User Variables"
+            );
             println!("in order for the autostart command to work properly");
         }
         SubCommand::DisableAutostart => {
@@ -1741,16 +1814,23 @@ fn main() -> Result<()> {
                     println!("{:?}", Report::new(diagnostic));
                 }
 
-                println!("Found komorebi.json; this file can be passed to the start command with the --config flag\n");
+                println!(
+                    "Found komorebi.json; this file can be passed to the start command with the --config flag\n"
+                );
 
                 if let Ok(config) = StaticConfig::read(&static_config) {
                     match config.app_specific_configuration_path {
                         None => {
-                            println!("Application specific configuration file path has not been set. Try running 'komorebic fetch-asc'\n");
+                            println!(
+                                "Application specific configuration file path has not been set. Try running 'komorebic fetch-asc'\n"
+                            );
                         }
                         Some(AppSpecificConfigurationPath::Single(path)) => {
                             if !path.exists() {
-                                println!("Application specific configuration file path '{}' does not exist. Try running 'komorebic fetch-asc'\n", path.display());
+                                println!(
+                                    "Application specific configuration file path '{}' does not exist. Try running 'komorebic fetch-asc'\n",
+                                    path.display()
+                                );
                             }
                         }
                         _ => {}
@@ -1768,9 +1848,14 @@ fn main() -> Result<()> {
                 StaticConfig::end_of_life(&raw);
 
                 if config_whkd.exists() {
-                    println!("Found {}; key bindings will be loaded from here when whkd is started, and you can start it automatically using the --whkd flag\n", config_whkd.to_string_lossy());
+                    println!(
+                        "Found {}; key bindings will be loaded from here when whkd is started, and you can start it automatically using the --whkd flag\n",
+                        config_whkd.to_string_lossy()
+                    );
                 } else {
-                    println!("No ~/.config/whkdrc found; you may not be able to control komorebi with your keyboard\n");
+                    println!(
+                        "No ~/.config/whkdrc found; you may not be able to control komorebi with your keyboard\n"
+                    );
                 }
             } else if config_pwsh.exists() {
                 println!("Found komorebi.ps1; this file will be autoloaded by komorebi\n");
@@ -1780,13 +1865,17 @@ fn main() -> Result<()> {
                         config_whkd.to_string_lossy()
                     );
                 } else {
-                    println!("No ~/.config/whkdrc found; you may not be able to control komorebi with your keyboard\n");
+                    println!(
+                        "No ~/.config/whkdrc found; you may not be able to control komorebi with your keyboard\n"
+                    );
                 }
             } else if config_ahk.exists() {
                 println!("Found komorebi.ahk; this file will be autoloaded by komorebi\n");
             } else {
                 println!("No komorebi configuration found in {home_display}\n");
-                println!("If running 'komorebic start --await-configuration', you will manually have to call the following command to begin tiling: komorebic complete-configuration\n");
+                println!(
+                    "If running 'komorebic start --await-configuration', you will manually have to call the following command to begin tiling: komorebic complete-configuration\n"
+                );
             }
 
             let client = reqwest::blocking::Client::new();
@@ -1808,7 +1897,9 @@ fn main() -> Result<()> {
                 {
                     let trimmed = release.tag_name.trim_start_matches("v");
                     if trimmed > version {
-                        println!("An updated version of komorebi is available! https://github.com/LGUG2Z/komorebi/releases/v{trimmed}");
+                        println!(
+                            "An updated version of komorebi is available! https://github.com/LGUG2Z/komorebi/releases/v{trimmed}"
+                        );
                     }
                 }
             }
@@ -1983,6 +2074,20 @@ fn main() -> Result<()> {
                 bottom: arg.bottom,
             }))?;
         }
+
+        SubCommand::WorkspaceWorkAreaOffset(arg) => {
+            send_message(&SocketMessage::WorkspaceWorkAreaOffset(
+                arg.monitor,
+                arg.workspace,
+                Rect {
+                    left: arg.left,
+                    top: arg.top,
+                    right: arg.right,
+                    bottom: arg.bottom,
+                },
+            ))?;
+        }
+
         SubCommand::ToggleWindowBasedWorkAreaOffset => {
             send_message(&SocketMessage::ToggleWindowBasedWorkAreaOffset)?;
         }
@@ -2129,48 +2234,61 @@ fn main() -> Result<()> {
             ))?;
         }
         SubCommand::Start(arg) => {
+            if arg.ahk {
+                println!(
+                    "EOL: The --ahk flag is now end-of-life and will not receive any further updates or bug fixes"
+                );
+            }
+
             let mut ahk: String = String::from("autohotkey.exe");
 
-            if let Ok(komorebi_ahk_exe) = std::env::var("KOMOREBI_AHK_EXE") {
-                if which(&komorebi_ahk_exe).is_ok() {
-                    ahk = komorebi_ahk_exe;
-                }
+            if let Ok(komorebi_ahk_exe) = std::env::var("KOMOREBI_AHK_EXE")
+                && which(&komorebi_ahk_exe).is_ok()
+            {
+                ahk = komorebi_ahk_exe;
             }
 
             if arg.whkd && which("whkd").is_err() {
-                bail!("could not find whkd, please make sure it is installed before using the --whkd flag");
+                bail!(
+                    "could not find whkd, please make sure it is installed before using the --whkd flag"
+                );
             }
 
             if arg.masir && which("masir").is_err() {
-                bail!("could not find masir, please make sure it is installed before using the --masir flag");
+                bail!(
+                    "could not find masir, please make sure it is installed before using the --masir flag"
+                );
             }
 
             if arg.ahk && which(&ahk).is_err() {
-                bail!("could not find autohotkey, please make sure it is installed before using the --ahk flag");
+                bail!(
+                    "could not find autohotkey, please make sure it is installed before using the --ahk flag"
+                );
             }
 
             let mut buf: PathBuf;
 
             // The komorebi.ps1 shim will only exist in the Path if installed by Scoop
-            let exec = if let Ok(output) = Command::new("where.exe").arg("komorebi.ps1").output() {
-                let stdout = String::from_utf8(output.stdout)?;
-                match stdout.trim() {
-                    "" => None,
-                    // It's possible that a komorebi.ps1 config will be in %USERPROFILE% - ignore this
-                    stdout if !stdout.contains("scoop") => None,
-                    stdout => {
-                        buf = PathBuf::from(stdout);
-                        buf.pop(); // %USERPROFILE%\scoop\shims
-                        buf.pop(); // %USERPROFILE%\scoop
-                        buf.push("apps\\komorebi\\current\\komorebi.exe"); //%USERPROFILE%\scoop\komorebi\current\komorebi.exe
-                        Some(buf.to_str().ok_or_else(|| {
-                            anyhow!("cannot create a string from the scoop komorebi path")
-                        })?)
+            let exec =
+                if let Ok(output) = Command::new("where.exe").arg("komorebi.ps1").output() {
+                    let stdout = String::from_utf8(output.stdout)?;
+                    match stdout.trim() {
+                        "" => None,
+                        // It's possible that a komorebi.ps1 config will be in %USERPROFILE% - ignore this
+                        stdout if !stdout.contains("scoop") => None,
+                        stdout => {
+                            buf = PathBuf::from(stdout);
+                            buf.pop(); // %USERPROFILE%\scoop\shims
+                            buf.pop(); // %USERPROFILE%\scoop
+                            buf.push("apps\\komorebi\\current\\komorebi.exe"); //%USERPROFILE%\scoop\komorebi\current\komorebi.exe
+                            Some(buf.to_str().ok_or_eyre(
+                                "cannot create a string from the scoop komorebi path",
+                            )?)
+                        }
                     }
-                }
-            } else {
-                None
-            };
+                } else {
+                    None
+                };
 
             let mut flags = vec![];
             if let Some(config) = &arg.config {
@@ -2302,39 +2420,39 @@ if (!(Get-Process whkd -ErrorAction SilentlyContinue))
                 komorebi_json.is_file().then_some(komorebi_json)
             });
 
-            if arg.bar {
-                if let Some(config) = &static_config {
-                    let mut config = StaticConfig::read(config)?;
-                    if let Some(display_bar_configurations) = &mut config.bar_configurations {
-                        for config_file_path in &mut *display_bar_configurations {
-                            let script = format!(
-                                r#"Start-Process "komorebi-bar" '"--config" "{}"' -WindowStyle hidden"#,
-                                config_file_path.to_string_lossy()
-                            );
+            if arg.bar
+                && let Some(config) = &static_config
+            {
+                let mut config = StaticConfig::read(config)?;
+                if let Some(display_bar_configurations) = &mut config.bar_configurations {
+                    for config_file_path in &mut *display_bar_configurations {
+                        let script = format!(
+                            r#"Start-Process "komorebi-bar" '"--config" "{}"' -WindowStyle hidden"#,
+                            config_file_path.to_string_lossy()
+                        );
 
-                            match powershell_script::run(&script) {
-                                Ok(_) => {
-                                    println!("{script}");
-                                }
-                                Err(error) => {
-                                    println!("Error: {error}");
-                                }
-                            }
-                        }
-                    } else {
-                        let script = r"
-if (!(Get-Process komorebi-bar -ErrorAction SilentlyContinue))
-{
-  Start-Process komorebi-bar -WindowStyle hidden
-}
-                ";
-                        match powershell_script::run(script) {
+                        match powershell_script::run(&script) {
                             Ok(_) => {
                                 println!("{script}");
                             }
                             Err(error) => {
                                 println!("Error: {error}");
                             }
+                        }
+                    }
+                } else {
+                    let script = r"
+if (!(Get-Process komorebi-bar -ErrorAction SilentlyContinue))
+{
+  Start-Process komorebi-bar -WindowStyle hidden
+}
+                ";
+                    match powershell_script::run(script) {
+                        Ok(_) => {
+                            println!("{script}");
+                        }
+                        Err(error) => {
+                            println!("Error: {error}");
                         }
                     }
                 }
@@ -2359,18 +2477,28 @@ if (!(Get-Process masir -ErrorAction SilentlyContinue))
 
             println!("\nThank you for using komorebi!\n");
             println!("# Commercial Use License");
-            println!("* View licensing options https://lgug2z.com/software/komorebi - A commercial use license is required to use komorebi at work");
+            println!(
+                "* View licensing options https://lgug2z.com/software/komorebi - A commercial use license is required to use komorebi at work"
+            );
             println!("\n# Personal Use Sponsorship");
-            println!("* Become a sponsor https://github.com/sponsors/LGUG2Z - $5/month makes a big difference");
+            println!(
+                "* Become a sponsor https://github.com/sponsors/LGUG2Z - $5/month makes a big difference"
+            );
             println!("* Leave a tip https://ko-fi.com/lgug2z - An alternative to GitHub Sponsors");
             println!("\n# Community");
-            println!("* Join the Discord https://discord.gg/mGkn66PHkx - Chat, ask questions, share your desktops");
+            println!(
+                "* Join the Discord https://discord.gg/mGkn66PHkx - Chat, ask questions, share your desktops"
+            );
             println!(
                 "* Subscribe to https://youtube.com/@LGUG2Z - Development videos, feature previews and release overviews"
             );
-            println!("* Explore the Awesome Komorebi list https://github.com/LGUG2Z/awesome-komorebi - Projects in the komorebi ecosystem");
+            println!(
+                "* Explore the Awesome Komorebi list https://github.com/LGUG2Z/awesome-komorebi - Projects in the komorebi ecosystem"
+            );
             println!("\n# Documentation");
-            println!("* Read the docs https://lgug2z.github.io/komorebi - Quickly search through all komorebic commands");
+            println!(
+                "* Read the docs https://lgug2z.github.io/komorebi - Quickly search through all komorebic commands"
+            );
 
             let bar_config = arg.config.or_else(|| {
                 let bar_json = HOME_DIR.join("komorebi.bar.json");
@@ -2409,12 +2537,20 @@ if (!(Get-Process masir -ErrorAction SilentlyContinue))
                 {
                     let trimmed = release.tag_name.trim_start_matches("v");
                     if trimmed > version {
-                        println!("An updated version of komorebi is available! https://github.com/LGUG2Z/komorebi/releases/v{trimmed}");
+                        println!(
+                            "An updated version of komorebi is available! https://github.com/LGUG2Z/komorebi/releases/v{trimmed}"
+                        );
                     }
                 }
             }
         }
         SubCommand::Stop(arg) => {
+            if arg.ahk {
+                println!(
+                    "EOL: The --ahk flag is now end-of-life and will not receive any further updates or bug fixes"
+                );
+            }
+
             if arg.whkd {
                 let script = r"
 Stop-Process -Name:whkd -ErrorAction SilentlyContinue
@@ -2521,6 +2657,12 @@ Stop-Process -Name:komorebi -ErrorAction SilentlyContinue
             }
         }
         SubCommand::Kill(arg) => {
+            if arg.ahk {
+                println!(
+                    "EOL: The --ahk flag is now end-of-life and will not receive any further updates or bug fixes"
+                );
+            }
+
             if arg.whkd {
                 let script = r"
 Stop-Process -Name:whkd -ErrorAction SilentlyContinue
@@ -3056,7 +3198,9 @@ if (Get-Command Get-CimInstance -ErrorAction SilentlyContinue) {
 
             file.write_all(formatted_content.as_bytes())?;
 
-            println!("File successfully formatted for PRs to https://github.com/LGUG2Z/komorebi-application-specific-configuration");
+            println!(
+                "File successfully formatted for PRs to https://github.com/LGUG2Z/komorebi-application-specific-configuration"
+            );
         }
         SubCommand::FetchAppSpecificConfiguration => {
             let content = reqwest::blocking::get("https://raw.githubusercontent.com/LGUG2Z/komorebi-application-specific-configuration/master/applications.json")?
@@ -3072,10 +3216,12 @@ if (Get-Command Get-CimInstance -ErrorAction SilentlyContinue) {
 
             file.write_all(content.as_bytes())?;
 
-            println!("Latest version of applications.json from https://github.com/LGUG2Z/komorebi-application-specific-configuration downloaded\n");
             println!(
-               "You can add this to your komorebi.json static configuration file like this: \n\n\"app_specific_configuration_path\": \"{}\"",
-               output_file.display().to_string().replace("\\", "/")
+                "Latest version of applications.json from https://github.com/LGUG2Z/komorebi-application-specific-configuration downloaded\n"
+            );
+            println!(
+                "You can add this to your komorebi.json static configuration file like this: \n\n\"app_specific_configuration_path\": \"{}\"",
+                output_file.display().to_string().replace("\\", "/")
             );
         }
         SubCommand::ApplicationSpecificConfigurationSchema => {
@@ -3105,14 +3251,14 @@ if (Get-Command Get-CimInstance -ErrorAction SilentlyContinue) {
         SubCommand::StaticConfigSchema => {
             #[cfg(feature = "schemars")]
             {
-                let settings = schemars::gen::SchemaSettings::default().with(|s| {
+                let settings = schemars::r#gen::SchemaSettings::default().with(|s| {
                     s.option_nullable = false;
                     s.option_add_null_type = false;
                     s.inline_subschemas = true;
                 });
 
-                let gen = settings.into_generator();
-                let socket_message = gen.into_root_schema_for::<StaticConfig>();
+                let generator = settings.into_generator();
+                let socket_message = generator.into_root_schema_for::<StaticConfig>();
                 let schema = serde_json::to_string_pretty(&socket_message)?;
                 println!("{schema}");
             }

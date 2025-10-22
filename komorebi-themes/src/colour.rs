@@ -1,6 +1,6 @@
 use hex_color::HexColor;
 #[cfg(feature = "schemars")]
-use schemars::gen::SchemaGenerator;
+use schemars::SchemaGenerator;
 #[cfg(feature = "schemars")]
 use schemars::schema::InstanceType;
 #[cfg(feature = "schemars")]

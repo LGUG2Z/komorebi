@@ -1,8 +1,8 @@
 use clap::ValueEnum;
 
-use serde::ser::SerializeSeq;
 use serde::Deserialize;
 use serde::Serialize;
+use serde::ser::SerializeSeq;
 use strum::Display;
 use strum::EnumString;
 

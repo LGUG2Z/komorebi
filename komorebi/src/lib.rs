@@ -8,7 +8,7 @@ pub mod ring;
 pub mod container;
 pub mod core;
 pub mod focus_manager;
-pub mod locked_deque;
+pub mod lockable_sequence;
 pub mod monitor;
 pub mod monitor_reconciliator;
 pub mod process_command;
@@ -17,6 +17,7 @@ pub mod process_movement;
 pub mod reaper;
 pub mod set_window_position;
 pub mod stackbar_manager;
+pub mod state;
 pub mod static_config;
 pub mod styles;
 pub mod theme_manager;
@@ -39,12 +40,12 @@ use std::io::Write;
 use std::net::TcpStream;
 use std::path::PathBuf;
 use std::process::Command;
+use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
 use std::sync::atomic::AtomicI32;
 use std::sync::atomic::AtomicU32;
 use std::sync::atomic::AtomicU64;
 use std::sync::atomic::Ordering;
-use std::sync::Arc;
 
 pub use core::*;
 pub use komorebi_themes::colour::*;
@@ -62,7 +63,7 @@ use crate::core::config_generation::IdWithIdentifier;
 use crate::core::config_generation::MatchingRule;
 use crate::core::config_generation::MatchingStrategy;
 use crate::core::config_generation::WorkspaceMatchingRule;
-use color_eyre::Result;
+use color_eyre::eyre;
 use crossbeam_utils::atomic::AtomicCell;
 use os_info::Version;
 use parking_lot::Mutex;
@@ -70,10 +71,11 @@ use parking_lot::RwLock;
 use regex::Regex;
 use serde::Deserialize;
 use serde::Serialize;
+use state::State;
 use uds_windows::UnixStream;
 use which::which;
-use winreg::enums::HKEY_CURRENT_USER;
 use winreg::RegKey;
+use winreg::enums::HKEY_CURRENT_USER;
 
 lazy_static! {
     static ref HIDDEN_HWNDS: Arc<Mutex<Vec<isize>>> = Arc::new(Mutex::new(vec![]));
@@ -200,8 +202,7 @@ lazy_static! {
 
             assert!(
                 home.is_dir(),
-                "$Env:KOMOREBI_CONFIG_HOME is set to '{}', which is not a valid directory",
-                home_path
+                "$Env:KOMOREBI_CONFIG_HOME is set to '{home_path}', which is not a valid directory"
             );
 
 
@@ -212,11 +213,10 @@ lazy_static! {
     pub static ref AHK_EXE: String = {
         let mut ahk: String = String::from("autohotkey.exe");
 
-        if let Ok(komorebi_ahk_exe) = std::env::var("KOMOREBI_AHK_EXE") {
-            if which(&komorebi_ahk_exe).is_ok() {
+        if let Ok(komorebi_ahk_exe) = std::env::var("KOMOREBI_AHK_EXE")
+            && which(&komorebi_ahk_exe).is_ok() {
                 ahk = komorebi_ahk_exe;
             }
-        }
 
         ahk
     };
@@ -254,6 +254,14 @@ pub static WINDOW_HANDLING_BEHAVIOUR: AtomicCell<WindowHandlingBehaviour> =
     AtomicCell::new(WindowHandlingBehaviour::Sync);
 
 shadow_rs::shadow!(build);
+
+/// A trait for types that can be marked as locked or unlocked.
+pub trait Lockable {
+    /// Returns `true` if the item is locked.
+    fn locked(&self) -> bool;
+    /// Sets the locked state of the item.
+    fn set_locked(&mut self, locked: bool) -> &mut Self;
+}
 
 #[must_use]
 pub fn current_virtual_desktop() -> Option<Vec<u8>> {
@@ -299,7 +307,7 @@ pub fn current_virtual_desktop() -> Option<Vec<u8>> {
     current
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[serde(untagged)]
 pub enum NotificationEvent {
@@ -316,14 +324,17 @@ pub enum VirtualDesktopNotification {
     LeftAssociatedVirtualDesktop,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct Notification {
     pub event: NotificationEvent,
     pub state: State,
 }
 
-pub fn notify_subscribers(notification: Notification, state_has_been_modified: bool) -> Result<()> {
+pub fn notify_subscribers(
+    notification: Notification,
+    state_has_been_modified: bool,
+) -> eyre::Result<()> {
     let is_override_event = matches!(
         notification.event,
         NotificationEvent::Socket(SocketMessage::AddSubscriberSocket(_))
@@ -404,7 +415,7 @@ pub fn notify_subscribers(notification: Notification, state_has_been_modified: b
     Ok(())
 }
 
-pub fn load_configuration() -> Result<()> {
+pub fn load_configuration() -> eyre::Result<()> {
     let config_pwsh = HOME_DIR.join("komorebi.ps1");
     let config_ahk = HOME_DIR.join("komorebi.ahk");
 

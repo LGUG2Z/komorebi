@@ -1,8 +1,29 @@
 #![warn(clippy::all)]
 #![allow(clippy::missing_errors_doc)]
 
-pub use komorebi::animation::prefix::AnimationPrefix;
+pub use komorebi::AnimationsConfig;
+pub use komorebi::AppSpecificConfigurationPath;
+pub use komorebi::AspectRatio;
+pub use komorebi::BorderColours;
+pub use komorebi::Colour;
+pub use komorebi::CrossBoundaryBehaviour;
+pub use komorebi::KomorebiTheme;
+pub use komorebi::MonitorConfig;
+pub use komorebi::Notification;
+pub use komorebi::NotificationEvent;
+pub use komorebi::PredefinedAspectRatio;
+pub use komorebi::Rgb;
+pub use komorebi::RuleDebug;
+pub use komorebi::StackbarConfig;
+pub use komorebi::StaticConfig;
+pub use komorebi::SubscribeOptions;
+pub use komorebi::TabsConfig;
+pub use komorebi::VirtualDesktopNotification;
+pub use komorebi::WindowContainerBehaviour;
+pub use komorebi::WindowsApi;
+pub use komorebi::WorkspaceConfig;
 pub use komorebi::animation::PerAnimationPrefixConfig;
+pub use komorebi::animation::prefix::AnimationPrefix;
 pub use komorebi::asc::ApplicationSpecificConfiguration;
 pub use komorebi::border_manager::BorderInfo;
 pub use komorebi::config_generation::ApplicationConfiguration;
@@ -11,8 +32,6 @@ pub use komorebi::config_generation::IdWithIdentifierAndComment;
 pub use komorebi::config_generation::MatchingRule;
 pub use komorebi::config_generation::MatchingStrategy;
 pub use komorebi::container::Container;
-pub use komorebi::core::config_generation::ApplicationConfigurationGenerator;
-pub use komorebi::core::replace_env_in_path;
 pub use komorebi::core::AnimationStyle;
 pub use komorebi::core::ApplicationIdentifier;
 pub use komorebi::core::Arrangement;
@@ -42,41 +61,23 @@ pub use komorebi::core::StackbarLabel;
 pub use komorebi::core::StackbarMode;
 pub use komorebi::core::StateQuery;
 pub use komorebi::core::WindowKind;
+pub use komorebi::core::config_generation::ApplicationConfigurationGenerator;
+pub use komorebi::core::replace_env_in_path;
 pub use komorebi::monitor::Monitor;
 pub use komorebi::monitor_reconciliator::MonitorNotification;
 pub use komorebi::ring::Ring;
+pub use komorebi::state::GlobalState;
+pub use komorebi::state::State;
 pub use komorebi::win32_display_data;
 pub use komorebi::window::Window;
 pub use komorebi::window_manager_event::WindowManagerEvent;
 pub use komorebi::workspace::Workspace;
 pub use komorebi::workspace::WorkspaceGlobals;
 pub use komorebi::workspace::WorkspaceLayer;
-pub use komorebi::AnimationsConfig;
-pub use komorebi::AppSpecificConfigurationPath;
-pub use komorebi::AspectRatio;
-pub use komorebi::BorderColours;
-pub use komorebi::Colour;
-pub use komorebi::CrossBoundaryBehaviour;
-pub use komorebi::GlobalState;
-pub use komorebi::KomorebiTheme;
-pub use komorebi::MonitorConfig;
-pub use komorebi::Notification;
-pub use komorebi::NotificationEvent;
-pub use komorebi::PredefinedAspectRatio;
-pub use komorebi::Rgb;
-pub use komorebi::RuleDebug;
-pub use komorebi::StackbarConfig;
-pub use komorebi::State;
-pub use komorebi::StaticConfig;
-pub use komorebi::SubscribeOptions;
-pub use komorebi::TabsConfig;
-pub use komorebi::VirtualDesktopNotification;
-pub use komorebi::WindowContainerBehaviour;
-pub use komorebi::WindowsApi;
-pub use komorebi::WorkspaceConfig;
 
 use komorebi::DATA_DIR;
 
+use std::borrow::Borrow;
 use std::io::BufReader;
 use std::io::Read;
 use std::io::Write;
@@ -94,12 +95,15 @@ pub fn send_message(message: &SocketMessage) -> std::io::Result<()> {
     stream.write_all(serde_json::to_string(message)?.as_bytes())
 }
 
-pub fn send_batch(messages: impl IntoIterator<Item = SocketMessage>) -> std::io::Result<()> {
+pub fn send_batch<Q>(messages: impl IntoIterator<Item = Q>) -> std::io::Result<()>
+where
+    Q: Borrow<SocketMessage>,
+{
     let socket = DATA_DIR.join(KOMOREBI);
     let mut stream = UnixStream::connect(socket)?;
     stream.set_write_timeout(Some(Duration::from_secs(1)))?;
     let msgs = messages.into_iter().fold(String::new(), |mut s, m| {
-        if let Ok(m_str) = serde_json::to_string(&m) {
+        if let Ok(m_str) = serde_json::to_string(m.borrow()) {
             s.push_str(&m_str);
             s.push('\n');
         }

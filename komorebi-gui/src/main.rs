@@ -1,9 +1,9 @@
 #![warn(clippy::all)]
 
 use eframe::egui;
-use eframe::egui::color_picker::Alpha;
 use eframe::egui::Color32;
 use eframe::egui::ViewportBuilder;
+use eframe::egui::color_picker::Alpha;
 use komorebi_client::BorderStyle;
 use komorebi_client::Colour;
 use komorebi_client::DefaultLayout;
@@ -78,8 +78,8 @@ impl From<&komorebi_client::Monitor> for MonitorConfig {
         }
 
         Self {
-            size: *value.size(),
-            work_area_offset: value.work_area_offset().unwrap_or_default(),
+            size: value.size,
+            work_area_offset: value.work_area_offset.unwrap_or_default(),
             workspaces,
         }
     }
@@ -95,22 +95,22 @@ struct WorkspaceConfig {
 
 impl From<&komorebi_client::Workspace> for WorkspaceConfig {
     fn from(value: &komorebi_client::Workspace) -> Self {
-        let layout = match value.layout() {
-            Layout::Default(layout) => *layout,
+        let layout = match value.layout {
+            Layout::Default(layout) => layout,
             Layout::Custom(_) => DefaultLayout::BSP,
         };
 
         let name = value
-            .name()
+            .name
             .to_owned()
             .unwrap_or_else(|| random_word::get(random_word::Lang::En).to_string());
 
         Self {
             layout,
             name,
-            tile: *value.tile(),
-            workspace_padding: value.workspace_padding().unwrap_or(20),
-            container_padding: value.container_padding().unwrap_or(20),
+            tile: value.tile,
+            workspace_padding: value.workspace_padding.unwrap_or(20),
+            container_padding: value.container_padding.unwrap_or(20),
         }
     }
 }
@@ -437,7 +437,7 @@ impl eframe::App for KomorebiGui {
                             BorderStyle::Square,
                         ] {
                             if ui
-                                .add(egui::SelectableLabel::new(
+                                .add(egui::Button::selectable(
                                     self.border_config.border_style == option,
                                     option.to_string(),
                                 ))
@@ -494,7 +494,7 @@ impl eframe::App for KomorebiGui {
                         StackbarMode::Always,
                     ] {
                         if ui
-                            .add(egui::SelectableLabel::new(
+                            .add(egui::Button::selectable(
                                 self.stackbar_config.mode == option,
                                 option.to_string(),
                             ))
@@ -513,7 +513,7 @@ impl eframe::App for KomorebiGui {
                     ui.collapsing("Label", |ui| {
                         for option in [StackbarLabel::Process, StackbarLabel::Title] {
                             if ui
-                                .add(egui::SelectableLabel::new(
+                                .add(egui::Button::selectable(
                                     self.stackbar_config.label == option,
                                     option.to_string(),
                                 ))
@@ -772,7 +772,7 @@ impl eframe::App for KomorebiGui {
                                                     DefaultLayout::Grid,
                                                 ] {
                                                     if ui
-                                                        .add(egui::SelectableLabel::new(
+                                                        .add(egui::Button::selectable(
                                                             workspace.layout == option,
                                                             option.to_string(),
                                                         ))

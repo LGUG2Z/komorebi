@@ -1,4 +1,4 @@
-use color_eyre::Result;
+use color_eyre::eyre;
 
 use serde::Deserialize;
 use serde::Serialize;
@@ -6,10 +6,10 @@ use std::sync::atomic::Ordering;
 use std::time::Duration;
 use std::time::Instant;
 
-use super::RenderDispatcher;
 use super::ANIMATION_DURATION_GLOBAL;
 use super::ANIMATION_FPS;
 use super::ANIMATION_MANAGER;
+use super::RenderDispatcher;
 
 #[derive(Debug, Default, Clone, Copy, Serialize, Deserialize, PartialEq)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
@@ -55,9 +55,9 @@ impl AnimationEngine {
 
     #[allow(clippy::cast_precision_loss)]
     pub fn animate(
-        render_dispatcher: (impl RenderDispatcher + Send + 'static),
+        render_dispatcher: impl RenderDispatcher + Send + 'static,
         duration: Duration,
-    ) -> Result<()> {
+    ) -> eyre::Result<()> {
         std::thread::spawn(move || {
             let animation_key = render_dispatcher.get_animation_key();
             if ANIMATION_MANAGER.lock().in_progress(animation_key.as_str()) {

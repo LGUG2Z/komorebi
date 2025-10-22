@@ -1,8 +1,8 @@
+use crate::AUTO_SELECT_FILL_COLOUR;
+use crate::AUTO_SELECT_TEXT_COLOUR;
 use crate::bar::Alignment;
 use crate::config::KomobarConfig;
 use crate::config::MonitorConfigOrIndex;
-use crate::AUTO_SELECT_FILL_COLOUR;
-use crate::AUTO_SELECT_TEXT_COLOUR;
 use eframe::egui::Color32;
 use eframe::egui::Context;
 use eframe::egui::CornerRadius;
@@ -18,9 +18,9 @@ use komorebi_client::Rgb;
 use serde::Deserialize;
 use serde::Serialize;
 use std::num::NonZeroU32;
+use std::sync::Arc;
 use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering;
-use std::sync::Arc;
 
 static SHOW_KOMOREBI_LAYOUT_OPTIONS: AtomicUsize = AtomicUsize::new(0);
 

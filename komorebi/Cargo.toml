@@ -1,9 +1,9 @@
 [package]
 name = "komorebi"
-version = "0.1.38"
+version = "0.1.39"
 description = "A tiling window manager for Windows"
 repository = "https://github.com/LGUG2Z/komorebi"
-edition = "2021"
+edition = "2024"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -17,7 +17,6 @@ crossbeam-channel = { workspace = true }
 crossbeam-utils = { workspace = true }
 ctrlc = { version = "3", features = ["termination"] }
 dirs = { workspace = true }
-getset = "0.1"
 hotwatch = { workspace = true }
 lazy_static = { workspace = true }
 miow = "0.6"

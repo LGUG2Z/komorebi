@@ -1,33 +1,30 @@
-use crate::border_manager::window_kind_colour;
-use crate::border_manager::RenderTarget;
-use crate::border_manager::WindowKind;
+use crate::WINDOWS_11;
+use crate::WindowsApi;
 use crate::border_manager::BORDER_OFFSET;
 use crate::border_manager::BORDER_WIDTH;
+use crate::border_manager::RenderTarget;
 use crate::border_manager::STYLE;
+use crate::border_manager::WindowKind;
+use crate::border_manager::window_kind_colour;
 use crate::core::BorderStyle;
 use crate::core::Rect;
 use crate::windows_api;
-use crate::WindowsApi;
-use crate::WINDOWS_11;
 use std::collections::HashMap;
 use std::ops::Deref;
+use std::sync::LazyLock;
 use std::sync::atomic::Ordering;
 use std::sync::mpsc;
-use std::sync::LazyLock;
 use windows::Win32::Foundation::FALSE;
 use windows::Win32::Foundation::HWND;
 use windows::Win32::Foundation::LPARAM;
 use windows::Win32::Foundation::LRESULT;
 use windows::Win32::Foundation::TRUE;
 use windows::Win32::Foundation::WPARAM;
+use windows::Win32::Graphics::Direct2D::Common::D2D_RECT_F;
+use windows::Win32::Graphics::Direct2D::Common::D2D_SIZE_U;
 use windows::Win32::Graphics::Direct2D::Common::D2D1_ALPHA_MODE_PREMULTIPLIED;
 use windows::Win32::Graphics::Direct2D::Common::D2D1_COLOR_F;
 use windows::Win32::Graphics::Direct2D::Common::D2D1_PIXEL_FORMAT;
-use windows::Win32::Graphics::Direct2D::Common::D2D_RECT_F;
-use windows::Win32::Graphics::Direct2D::Common::D2D_SIZE_U;
-use windows::Win32::Graphics::Direct2D::D2D1CreateFactory;
-use windows::Win32::Graphics::Direct2D::ID2D1Factory;
-use windows::Win32::Graphics::Direct2D::ID2D1SolidColorBrush;
 use windows::Win32::Graphics::Direct2D::D2D1_ANTIALIAS_MODE_PER_PRIMITIVE;
 use windows::Win32::Graphics::Direct2D::D2D1_BRUSH_PROPERTIES;
 use windows::Win32::Graphics::Direct2D::D2D1_FACTORY_TYPE_MULTI_THREADED;
@@ -36,31 +33,34 @@ use windows::Win32::Graphics::Direct2D::D2D1_PRESENT_OPTIONS_IMMEDIATELY;
 use windows::Win32::Graphics::Direct2D::D2D1_RENDER_TARGET_PROPERTIES;
 use windows::Win32::Graphics::Direct2D::D2D1_RENDER_TARGET_TYPE_DEFAULT;
 use windows::Win32::Graphics::Direct2D::D2D1_ROUNDED_RECT;
-use windows::Win32::Graphics::Dwm::DwmEnableBlurBehindWindow;
+use windows::Win32::Graphics::Direct2D::D2D1CreateFactory;
+use windows::Win32::Graphics::Direct2D::ID2D1Factory;
+use windows::Win32::Graphics::Direct2D::ID2D1SolidColorBrush;
 use windows::Win32::Graphics::Dwm::DWM_BB_BLURREGION;
 use windows::Win32::Graphics::Dwm::DWM_BB_ENABLE;
 use windows::Win32::Graphics::Dwm::DWM_BLURBEHIND;
+use windows::Win32::Graphics::Dwm::DwmEnableBlurBehindWindow;
 use windows::Win32::Graphics::Dxgi::Common::DXGI_FORMAT_UNKNOWN;
 use windows::Win32::Graphics::Gdi::CreateRectRgn;
 use windows::Win32::Graphics::Gdi::InvalidateRect;
 use windows::Win32::Graphics::Gdi::ValidateRect;
+use windows::Win32::UI::WindowsAndMessaging::CREATESTRUCTW;
 use windows::Win32::UI::WindowsAndMessaging::DefWindowProcW;
 use windows::Win32::UI::WindowsAndMessaging::DispatchMessageW;
-use windows::Win32::UI::WindowsAndMessaging::GetMessageW;
-use windows::Win32::UI::WindowsAndMessaging::GetSystemMetrics;
-use windows::Win32::UI::WindowsAndMessaging::GetWindowLongPtrW;
-use windows::Win32::UI::WindowsAndMessaging::LoadCursorW;
-use windows::Win32::UI::WindowsAndMessaging::PostQuitMessage;
-use windows::Win32::UI::WindowsAndMessaging::SetCursor;
-use windows::Win32::UI::WindowsAndMessaging::SetWindowLongPtrW;
-use windows::Win32::UI::WindowsAndMessaging::TranslateMessage;
-use windows::Win32::UI::WindowsAndMessaging::CREATESTRUCTW;
 use windows::Win32::UI::WindowsAndMessaging::EVENT_OBJECT_DESTROY;
 use windows::Win32::UI::WindowsAndMessaging::EVENT_OBJECT_LOCATIONCHANGE;
 use windows::Win32::UI::WindowsAndMessaging::GWLP_USERDATA;
+use windows::Win32::UI::WindowsAndMessaging::GetMessageW;
+use windows::Win32::UI::WindowsAndMessaging::GetSystemMetrics;
+use windows::Win32::UI::WindowsAndMessaging::GetWindowLongPtrW;
 use windows::Win32::UI::WindowsAndMessaging::IDC_ARROW;
+use windows::Win32::UI::WindowsAndMessaging::LoadCursorW;
 use windows::Win32::UI::WindowsAndMessaging::MSG;
+use windows::Win32::UI::WindowsAndMessaging::PostQuitMessage;
 use windows::Win32::UI::WindowsAndMessaging::SM_CXVIRTUALSCREEN;
+use windows::Win32::UI::WindowsAndMessaging::SetCursor;
+use windows::Win32::UI::WindowsAndMessaging::SetWindowLongPtrW;
+use windows::Win32::UI::WindowsAndMessaging::TranslateMessage;
 use windows::Win32::UI::WindowsAndMessaging::WM_CREATE;
 use windows::Win32::UI::WindowsAndMessaging::WM_DESTROY;
 use windows::Win32::UI::WindowsAndMessaging::WM_PAINT;
@@ -102,10 +102,10 @@ pub extern "system" fn border_hwnds(hwnd: HWND, lparam: LPARAM) -> BOOL {
     let hwnds = unsafe { &mut *(lparam.0 as *mut Vec<isize>) };
     let hwnd = hwnd.0 as isize;
 
-    if let Ok(class) = WindowsApi::real_window_class_w(hwnd) {
-        if class.starts_with("komoborder") {
-            hwnds.push(hwnd);
-        }
+    if let Ok(class) = WindowsApi::real_window_class_w(hwnd)
+        && class.starts_with("komoborder")
+    {
+        hwnds.push(hwnd);
     }
 
     true.into()
@@ -392,63 +392,63 @@ impl Border {
                         tracing::error!("failed to update border position {error}");
                     }
 
-                    if !rect.is_same_size_as(&old_rect) || !rect.has_same_position_as(&old_rect) {
-                        if let Some(render_target) = (*border_pointer).render_target.as_ref() {
-                            let border_width = (*border_pointer).width;
-                            let border_offset = (*border_pointer).offset;
+                    if (!rect.is_same_size_as(&old_rect) || !rect.has_same_position_as(&old_rect))
+                        && let Some(render_target) = (*border_pointer).render_target.as_ref()
+                    {
+                        let border_width = (*border_pointer).width;
+                        let border_offset = (*border_pointer).offset;
 
-                            (*border_pointer).rounded_rect.rect = D2D_RECT_F {
-                                left: (border_width / 2 - border_offset) as f32,
-                                top: (border_width / 2 - border_offset) as f32,
-                                right: (rect.right - border_width / 2 + border_offset) as f32,
-                                bottom: (rect.bottom - border_width / 2 + border_offset) as f32,
+                        (*border_pointer).rounded_rect.rect = D2D_RECT_F {
+                            left: (border_width / 2 - border_offset) as f32,
+                            top: (border_width / 2 - border_offset) as f32,
+                            right: (rect.right - border_width / 2 + border_offset) as f32,
+                            bottom: (rect.bottom - border_width / 2 + border_offset) as f32,
+                        };
+
+                        let _ = render_target.Resize(&D2D_SIZE_U {
+                            width: rect.right as u32,
+                            height: rect.bottom as u32,
+                        });
+
+                        let window_kind = (*border_pointer).window_kind;
+                        if let Some(brush) = (*border_pointer).brushes.get(&window_kind) {
+                            render_target.BeginDraw();
+                            render_target.Clear(None);
+
+                            // Calculate border radius based on style
+                            let style = match (*border_pointer).style {
+                                BorderStyle::System => {
+                                    if *WINDOWS_11 {
+                                        BorderStyle::Rounded
+                                    } else {
+                                        BorderStyle::Square
+                                    }
+                                }
+                                BorderStyle::Rounded => BorderStyle::Rounded,
+                                BorderStyle::Square => BorderStyle::Square,
                             };
 
-                            let _ = render_target.Resize(&D2D_SIZE_U {
-                                width: rect.right as u32,
-                                height: rect.bottom as u32,
-                            });
-
-                            let window_kind = (*border_pointer).window_kind;
-                            if let Some(brush) = (*border_pointer).brushes.get(&window_kind) {
-                                render_target.BeginDraw();
-                                render_target.Clear(None);
-
-                                // Calculate border radius based on style
-                                let style = match (*border_pointer).style {
-                                    BorderStyle::System => {
-                                        if *WINDOWS_11 {
-                                            BorderStyle::Rounded
-                                        } else {
-                                            BorderStyle::Square
-                                        }
-                                    }
-                                    BorderStyle::Rounded => BorderStyle::Rounded,
-                                    BorderStyle::Square => BorderStyle::Square,
-                                };
-
-                                match style {
-                                    BorderStyle::Rounded => {
-                                        render_target.DrawRoundedRectangle(
-                                            &(*border_pointer).rounded_rect,
-                                            brush,
-                                            border_width as f32,
-                                            None,
-                                        );
-                                    }
-                                    BorderStyle::Square => {
-                                        render_target.DrawRectangle(
-                                            &(*border_pointer).rounded_rect.rect,
-                                            brush,
-                                            border_width as f32,
-                                            None,
-                                        );
-                                    }
-                                    _ => {}
+                            match style {
+                                BorderStyle::Rounded => {
+                                    render_target.DrawRoundedRectangle(
+                                        &(*border_pointer).rounded_rect,
+                                        brush,
+                                        border_width as f32,
+                                        None,
+                                    );
                                 }
-
-                                let _ = render_target.EndDraw(None, None);
+                                BorderStyle::Square => {
+                                    render_target.DrawRectangle(
+                                        &(*border_pointer).rounded_rect.rect,
+                                        brush,
+                                        border_width as f32,
+                                        None,
+                                    );
+                                }
+                                _ => {}
                             }
+
+                            let _ = render_target.EndDraw(None, None);
                         }
                     }
 

@@ -2,12 +2,12 @@ use crate::config::LabelPrefix;
 use crate::render::RenderConfig;
 use crate::selected_frame::SelectableFrame;
 use crate::widgets::widget::BarWidget;
-use eframe::egui::text::LayoutJob;
 use eframe::egui::Align;
 use eframe::egui::Context;
 use eframe::egui::Label;
 use eframe::egui::TextFormat;
 use eframe::egui::Ui;
+use eframe::egui::text::LayoutJob;
 use serde::Deserialize;
 use serde::Serialize;
 use std::process::Command;
@@ -76,8 +76,8 @@ impl Cpu {
 
         CpuOutput {
             label: match self.label_prefix {
-                LabelPrefix::Text | LabelPrefix::IconAndText => format!("CPU: {}%", used),
-                LabelPrefix::None | LabelPrefix::Icon => format!("{}%", used),
+                LabelPrefix::Text | LabelPrefix::IconAndText => format!("CPU: {used}%"),
+                LabelPrefix::None | LabelPrefix::Icon => format!("{used}%"),
             },
             selected,
         }
@@ -120,12 +120,10 @@ impl BarWidget for Cpu {
                     if SelectableFrame::new_auto(output.selected, auto_focus_fill)
                         .show(ui, |ui| ui.add(Label::new(layout_job).selectable(false)))
                         .clicked()
-                    {
-                        if let Err(error) =
+                        && let Err(error) =
                             Command::new("cmd.exe").args(["/C", "taskmgr.exe"]).spawn()
-                        {
-                            eprintln!("{}", error)
-                        }
+                    {
+                        eprintln!("{error}")
                     }
                 });
             }

@@ -1,3 +1,6 @@
+use crate::DEFAULT_CONTAINER_PADDING;
+use crate::WINDOWS_11;
+use crate::WindowsApi;
 use crate::border_manager::BORDER_OFFSET;
 use crate::border_manager::BORDER_WIDTH;
 use crate::border_manager::STYLE;
@@ -5,7 +8,6 @@ use crate::container::Container;
 use crate::core::BorderStyle;
 use crate::core::Rect;
 use crate::core::StackbarLabel;
-use crate::stackbar_manager::STACKBARS_CONTAINERS;
 use crate::stackbar_manager::STACKBAR_FOCUSED_TEXT_COLOUR;
 use crate::stackbar_manager::STACKBAR_FONT_FAMILY;
 use crate::stackbar_manager::STACKBAR_FONT_SIZE;
@@ -14,16 +16,13 @@ use crate::stackbar_manager::STACKBAR_TAB_BACKGROUND_COLOUR;
 use crate::stackbar_manager::STACKBAR_TAB_HEIGHT;
 use crate::stackbar_manager::STACKBAR_TAB_WIDTH;
 use crate::stackbar_manager::STACKBAR_UNFOCUSED_TEXT_COLOUR;
+use crate::stackbar_manager::STACKBARS_CONTAINERS;
 use crate::windows_api;
-use crate::WindowsApi;
-use crate::DEFAULT_CONTAINER_PADDING;
-use crate::WINDOWS_11;
 use crossbeam_utils::atomic::AtomicConsume;
 use std::os::windows::ffi::OsStrExt;
 use std::sync::atomic::Ordering;
 use std::sync::mpsc;
 use std::time::Duration;
-use windows::core::PCWSTR;
 use windows::Win32::Foundation::COLORREF;
 use windows::Win32::Foundation::HINSTANCE;
 use windows::Win32::Foundation::HWND;
@@ -33,41 +32,41 @@ use windows::Win32::Foundation::WPARAM;
 use windows::Win32::Graphics::Gdi::CreateFontIndirectW;
 use windows::Win32::Graphics::Gdi::CreatePen;
 use windows::Win32::Graphics::Gdi::CreateSolidBrush;
+use windows::Win32::Graphics::Gdi::DT_CENTER;
+use windows::Win32::Graphics::Gdi::DT_END_ELLIPSIS;
+use windows::Win32::Graphics::Gdi::DT_SINGLELINE;
+use windows::Win32::Graphics::Gdi::DT_VCENTER;
 use windows::Win32::Graphics::Gdi::DeleteObject;
 use windows::Win32::Graphics::Gdi::DrawTextW;
+use windows::Win32::Graphics::Gdi::FONT_QUALITY;
+use windows::Win32::Graphics::Gdi::FW_BOLD;
 use windows::Win32::Graphics::Gdi::GetDC;
 use windows::Win32::Graphics::Gdi::GetDeviceCaps;
+use windows::Win32::Graphics::Gdi::LOGFONTW;
+use windows::Win32::Graphics::Gdi::LOGPIXELSY;
+use windows::Win32::Graphics::Gdi::PROOF_QUALITY;
+use windows::Win32::Graphics::Gdi::PS_SOLID;
 use windows::Win32::Graphics::Gdi::Rectangle;
 use windows::Win32::Graphics::Gdi::ReleaseDC;
 use windows::Win32::Graphics::Gdi::RoundRect;
 use windows::Win32::Graphics::Gdi::SelectObject;
 use windows::Win32::Graphics::Gdi::SetBkColor;
 use windows::Win32::Graphics::Gdi::SetTextColor;
-use windows::Win32::Graphics::Gdi::DT_CENTER;
-use windows::Win32::Graphics::Gdi::DT_END_ELLIPSIS;
-use windows::Win32::Graphics::Gdi::DT_SINGLELINE;
-use windows::Win32::Graphics::Gdi::DT_VCENTER;
-use windows::Win32::Graphics::Gdi::FONT_QUALITY;
-use windows::Win32::Graphics::Gdi::FW_BOLD;
-use windows::Win32::Graphics::Gdi::LOGFONTW;
-use windows::Win32::Graphics::Gdi::LOGPIXELSY;
-use windows::Win32::Graphics::Gdi::PROOF_QUALITY;
-use windows::Win32::Graphics::Gdi::PS_SOLID;
 use windows::Win32::System::WindowsProgramming::MulDiv;
+use windows::Win32::UI::WindowsAndMessaging::CS_HREDRAW;
+use windows::Win32::UI::WindowsAndMessaging::CS_VREDRAW;
 use windows::Win32::UI::WindowsAndMessaging::CreateWindowExW;
 use windows::Win32::UI::WindowsAndMessaging::DefWindowProcW;
 use windows::Win32::UI::WindowsAndMessaging::DispatchMessageW;
 use windows::Win32::UI::WindowsAndMessaging::GetMessageW;
+use windows::Win32::UI::WindowsAndMessaging::IDC_ARROW;
+use windows::Win32::UI::WindowsAndMessaging::LWA_COLORKEY;
 use windows::Win32::UI::WindowsAndMessaging::LoadCursorW;
+use windows::Win32::UI::WindowsAndMessaging::MSG;
 use windows::Win32::UI::WindowsAndMessaging::PostQuitMessage;
 use windows::Win32::UI::WindowsAndMessaging::SetCursor;
 use windows::Win32::UI::WindowsAndMessaging::SetLayeredWindowAttributes;
 use windows::Win32::UI::WindowsAndMessaging::TranslateMessage;
-use windows::Win32::UI::WindowsAndMessaging::CS_HREDRAW;
-use windows::Win32::UI::WindowsAndMessaging::CS_VREDRAW;
-use windows::Win32::UI::WindowsAndMessaging::IDC_ARROW;
-use windows::Win32::UI::WindowsAndMessaging::LWA_COLORKEY;
-use windows::Win32::UI::WindowsAndMessaging::MSG;
 use windows::Win32::UI::WindowsAndMessaging::WM_DESTROY;
 use windows::Win32::UI::WindowsAndMessaging::WM_LBUTTONDOWN;
 use windows::Win32::UI::WindowsAndMessaging::WM_SETCURSOR;
@@ -76,6 +75,7 @@ use windows::Win32::UI::WindowsAndMessaging::WS_EX_LAYERED;
 use windows::Win32::UI::WindowsAndMessaging::WS_EX_TOOLWINDOW;
 use windows::Win32::UI::WindowsAndMessaging::WS_POPUP;
 use windows::Win32::UI::WindowsAndMessaging::WS_VISIBLE;
+use windows::core::PCWSTR;
 
 #[derive(Debug)]
 pub struct Stackbar {
@@ -353,16 +353,15 @@ impl Stackbar {
                                 // stackbar, make sure we update its location so that it doesn't render
                                 // on top of other tiles before eventually ending up in the correct
                                 // tile
-                                if index != focused_window_idx {
-                                    if let Err(err) =
+                                if index != focused_window_idx
+                                    && let Err(err) =
                                         window.set_position(&focused_window_rect, false)
-                                    {
-                                        tracing::error!(
+                                {
+                                    tracing::error!(
                                         "stackbar WM_LBUTTONDOWN repositioning error: hwnd {} ({})",
                                         *window,
                                         err
                                     );
-                                    }
                                 }
 
                                 // Restore the window corresponding to the tab we have clicked

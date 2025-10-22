@@ -2,17 +2,17 @@ use crate::config::LabelPrefix;
 use crate::render::RenderConfig;
 use crate::selected_frame::SelectableFrame;
 use crate::widgets::widget::BarWidget;
-use eframe::egui::text::LayoutJob;
 use eframe::egui::Align;
 use eframe::egui::Context;
 use eframe::egui::Label;
 use eframe::egui::TextFormat;
 use eframe::egui::Ui;
+use eframe::egui::text::LayoutJob;
 use serde::Deserialize;
 use serde::Serialize;
-use starship_battery::units::ratio::percent;
 use starship_battery::Manager;
 use starship_battery::State;
+use starship_battery::units::ratio::percent;
 use std::process::Command;
 use std::time::Duration;
 use std::time::Instant;
@@ -87,41 +87,41 @@ impl Battery {
         if now.duration_since(self.last_updated) > Duration::from_secs(self.data_refresh_interval) {
             output = None;
 
-            if let Ok(mut batteries) = self.manager.batteries() {
-                if let Some(Ok(first)) = batteries.nth(0) {
-                    let percentage = first.state_of_charge().get::<percent>().round() as u8;
+            if let Ok(mut batteries) = self.manager.batteries()
+                && let Some(Ok(first)) = batteries.nth(0)
+            {
+                let percentage = first.state_of_charge().get::<percent>().round() as u8;
 
-                    if percentage == 100 && self.hide_on_full_charge {
-                        output = None
-                    } else {
-                        match first.state() {
-                            State::Charging => self.state = BatteryState::Charging,
-                            State::Discharging => {
-                                self.state = match percentage {
-                                    p if p > 75 => BatteryState::Discharging,
-                                    p if p > 50 => BatteryState::High,
-                                    p if p > 25 => BatteryState::Medium,
-                                    p if p > 10 => BatteryState::Low,
-                                    _ => BatteryState::Warning,
-                                }
+                if percentage == 100 && self.hide_on_full_charge {
+                    output = None
+                } else {
+                    match first.state() {
+                        State::Charging => self.state = BatteryState::Charging,
+                        State::Discharging => {
+                            self.state = match percentage {
+                                p if p > 75 => BatteryState::Discharging,
+                                p if p > 50 => BatteryState::High,
+                                p if p > 25 => BatteryState::Medium,
+                                p if p > 10 => BatteryState::Low,
+                                _ => BatteryState::Warning,
                             }
-                            _ => {}
                         }
-
-                        let selected = self.auto_select_under.is_some_and(|u| percentage <= u);
-
-                        output = Some(BatteryOutput {
-                            label: match self.label_prefix {
-                                LabelPrefix::Text | LabelPrefix::IconAndText => {
-                                    format!("BAT: {percentage}%")
-                                }
-                                LabelPrefix::None | LabelPrefix::Icon => {
-                                    format!("{percentage}%")
-                                }
-                            },
-                            selected,
-                        })
+                        _ => {}
                     }
+
+                    let selected = self.auto_select_under.is_some_and(|u| percentage <= u);
+
+                    output = Some(BatteryOutput {
+                        label: match self.label_prefix {
+                            LabelPrefix::Text | LabelPrefix::IconAndText => {
+                                format!("BAT: {percentage}%")
+                            }
+                            LabelPrefix::None | LabelPrefix::Icon => {
+                                format!("{percentage}%")
+                            }
+                        },
+                        selected,
+                    })
                 }
             }
 
@@ -176,13 +176,11 @@ impl BarWidget for Battery {
                     if SelectableFrame::new_auto(output.selected, auto_focus_fill)
                         .show(ui, |ui| ui.add(Label::new(layout_job).selectable(false)))
                         .clicked()
-                    {
-                        if let Err(error) = Command::new("cmd.exe")
+                        && let Err(error) = Command::new("cmd.exe")
                             .args(["/C", "start", "ms-settings:batterysaver"])
                             .spawn()
-                        {
-                            eprintln!("{}", error)
-                        }
+                    {
+                        eprintln!("{error}")
                     }
                 });
             }
