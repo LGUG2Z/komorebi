@@ -87,7 +87,7 @@ jobs:
           fetch-depth: 0
       - shell: bash
         run: echo "VERSION=nightly" >> $GITHUB_ENV
-      - uses: actions/download-artifact@v5
+      - uses: actions/download-artifact@v6
       - run: |
           Compress-Archive -Force ./komorebi-x86_64-pc-windows-msvc-${{ github.sha }}/x86_64-pc-windows-msvc/release/*.exe komorebi-$Env:VERSION-x86_64-pc-windows-msvc.zip
           Copy-Item ./komorebi-x86_64-pc-windows-msvc-${{ github.sha }}/wix/*x86_64.msi -Destination ./komorebi-$Env:VERSION-x86_64.msi
@@ -136,7 +136,7 @@ jobs:
         run: |
           TAG=${{ github.event.release.tag_name }}
           echo "VERSION=${TAG#v}" >> $GITHUB_ENV
-      - uses: actions/download-artifact@v5
+      - uses: actions/download-artifact@v6
       - run: |
           Compress-Archive -Force ./komorebi-x86_64-pc-windows-msvc-${{ github.sha }}/x86_64-pc-windows-msvc/release/*.exe komorebi-$Env:VERSION-x86_64-pc-windows-msvc.zip
           Copy-Item ./komorebi-x86_64-pc-windows-msvc-${{ github.sha }}/wix/*x86_64.msi -Destination ./komorebi-$Env:VERSION-x86_64.msi
@@ -178,7 +178,7 @@ jobs:
         run: |
           TAG=${{ github.ref_name }}
           echo "VERSION=${TAG#v}" >> $GITHUB_ENV
-      - uses: actions/download-artifact@v5
+      - uses: actions/download-artifact@v6
       - run: |
           Compress-Archive -Force ./komorebi-x86_64-pc-windows-msvc-${{ github.sha }}/x86_64-pc-windows-msvc/release/*.exe komorebi-$Env:VERSION-x86_64-pc-windows-msvc.zip
           Copy-Item ./komorebi-x86_64-pc-windows-msvc-${{ github.sha }}/wix/*x86_64.msi -Destination ./komorebi-$Env:VERSION-x86_64.msi
