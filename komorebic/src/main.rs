@@ -61,6 +61,7 @@ use komorebi_client::SocketMessage;
 use komorebi_client::StateQuery;
 use komorebi_client::StaticConfig;
 use komorebi_client::WindowKind;
+use komorebi_client::splash::ValidationFeedback;
 
 lazy_static! {
     static ref HAS_CUSTOM_CONFIG_HOME: AtomicBool = AtomicBool::new(false);
@@ -1639,8 +1640,35 @@ fn main() -> eyre::Result<()> {
             }
         }
         SubCommand::License(arg) => {
-            std::fs::write(DATA_DIR.join("icul"), arg.email)?;
-            splash::should()?;
+            let _ = std::fs::remove_file(DATA_DIR.join("icul.validation"));
+            std::fs::write(DATA_DIR.join("icul"), &arg.email)?;
+            match splash::should()? {
+                ValidationFeedback::Successful(icul_validation) => {
+                    println!("Individual commercial use license validation successful");
+                    println!(
+                        "Local validation file saved to {}",
+                        icul_validation.display()
+                    );
+                    println!("\n{}", std::fs::read_to_string(&icul_validation)?);
+                }
+                ValidationFeedback::Unsuccessful(invalid_payload) => {
+                    println!(
+                        "No active individual commercial use license found for {}",
+                        arg.email
+                    );
+                    println!("\n{invalid_payload}");
+                    println!(
+                        "\nYou can purchase an individual commercial use license at https://lgug2z.com/software/komorebi"
+                    );
+                }
+                ValidationFeedback::NoEmail => {}
+                ValidationFeedback::NoConnectivity => {
+                    println!(
+                        "Could not make a connection to validate an individual commercial use license for {}",
+                        arg.email
+                    );
+                }
+            }
         }
         SubCommand::Quickstart => {
             fn write_file_with_prompt(

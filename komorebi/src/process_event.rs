@@ -49,7 +49,7 @@ pub fn listen_for_events(wm: Arc<Mutex<WindowManager>>) {
         loop {
             if let Ok((mdm, server)) = mdm_enrollment() {
                 #[allow(clippy::collapsible_if)]
-                if mdm && splash::should().unwrap_or(true) {
+                if mdm && splash::should().map(|f| f.into()).unwrap_or(true) {
                     let mut args = vec!["splash".to_string()];
                     if let Some(server) = server {
                         args.push(server);
