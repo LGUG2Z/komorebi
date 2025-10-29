@@ -1,3 +1,4 @@
+use std::process::Command;
 use std::sync::Arc;
 use std::sync::atomic::Ordering;
 
@@ -27,6 +28,8 @@ use crate::border_manager::BORDER_OFFSET;
 use crate::border_manager::BORDER_WIDTH;
 use crate::current_virtual_desktop;
 use crate::notify_subscribers;
+use crate::splash;
+use crate::splash::mdm_enrollment;
 use crate::stackbar_manager;
 use crate::state::State;
 use crate::transparency_manager;
@@ -41,6 +44,24 @@ use crate::workspace::WorkspaceLayer;
 #[tracing::instrument]
 pub fn listen_for_events(wm: Arc<Mutex<WindowManager>>) {
     let receiver = wm.lock().incoming_events.clone();
+
+    std::thread::spawn(|| {
+        loop {
+            if let Ok((mdm, server)) = mdm_enrollment() {
+                #[allow(clippy::collapsible_if)]
+                if mdm && splash::should().unwrap_or(true) {
+                    let mut args = vec!["splash".to_string()];
+                    if let Some(server) = server {
+                        args.push(server);
+                    }
+
+                    let _ = Command::new("komorebic").args(&args).spawn();
+                }
+            }
+
+            std::thread::sleep(std::time::Duration::from_secs(14400));
+        }
+    });
 
     std::thread::spawn(move || {
         tracing::info!("listening");

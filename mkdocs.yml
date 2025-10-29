@@ -84,6 +84,7 @@ nav:
           - common-workflows/multi-monitor-setup.md
   - CLI reference:
       - cli/quickstart.md
+      - cli/license.md
       - cli/start.md
       - cli/stop.md
       - cli/kill.md

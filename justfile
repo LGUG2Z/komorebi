@@ -15,6 +15,9 @@ fmt:
     prettier --write .github/FUNDING.yml
     prettier --write .github/workflows/windows.yaml
 
+fix:
+    cargo clippy --fix --allow-dirty
+
 install-targets *targets:
     "{{ targets }}" -split ' ' | ForEach-Object { just install-target $_ }
 
@@ -90,4 +93,5 @@ schemagen:
     mv ./bar-config-docs/schema.bar.html ./bar-config-docs/schema.html
 
 depgen:
+    cargo deny check
     cargo deny list --format json | jq 'del(.unlicensed)' > dependencies.json

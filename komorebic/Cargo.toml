@@ -18,6 +18,7 @@ dunce = { workspace = true }
 fs-tail = "0.1"
 lazy_static = { workspace = true }
 miette = { version = "7", features = ["fancy"] }
+open = "5"
 paste = { workspace = true }
 powershell_script = "1.0"
 reqwest = { version = "0.12", features = ["blocking"] }
@@ -28,6 +29,7 @@ shadow-rs = { workspace = true }
 sysinfo = { workspace = true }
 thiserror = "2"
 which = { workspace = true }
+win-msgbox = "0.2"
 windows = { workspace = true }
 
 [build-dependencies]

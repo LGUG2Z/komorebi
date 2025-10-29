@@ -66,6 +66,7 @@ pub use komorebi::core::replace_env_in_path;
 pub use komorebi::monitor::Monitor;
 pub use komorebi::monitor_reconciliator::MonitorNotification;
 pub use komorebi::ring::Ring;
+pub use komorebi::splash;
 pub use komorebi::state::GlobalState;
 pub use komorebi::state::State;
 pub use komorebi::win32_display_data;

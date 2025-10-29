@@ -12,9 +12,6 @@ Options:
       --whkd
           Enable autostart of whkd
 
-      --ahk
-          Enable autostart of ahk
-
       --bar
           Enable autostart of komorebi-bar
 
