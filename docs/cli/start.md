@@ -18,9 +18,6 @@ Options:
       --whkd
           Start whkd in a background process
 
-      --ahk
-          Start autohotkey configuration file
-
       --bar
           Start komorebi-bar in a background process
 

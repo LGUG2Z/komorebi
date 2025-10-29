@@ -16,12 +16,28 @@ the example files have been downloaded. For most new users this will be in the
 komorebic quickstart
 ```
 
+## Corporate Devices Enrolled in MDM
+
+If you are using `komorebi` on a corporate device enrolled in mobile device
+management, you will receive a pop-up when you run `komorebic start` reminding
+you that the [Komorebi License](https://github.com/LGUG2Z/komorebi-license) does
+not permit any kind of commercial use.
+
+You can remove this pop-up by running `komorebic license <email>` with the email
+associated with your Individual Commercial Use License. A single HTTP request
+will be sent with the given email address to verify license validity.
+
+## Starting komorebi
+
 With the example configurations downloaded, you can now start `komorebi`,
 `komorebi-bar` and `whkd`.
 
 ```powershell
 komorebic start --whkd --bar
 ```
+
+If you don't want to use the komorebi status bar, you can remove the `--bar` option
+from the above command.
 
 ## komorebi.json
 

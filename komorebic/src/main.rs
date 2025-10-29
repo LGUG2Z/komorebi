@@ -4,6 +4,7 @@
 use chrono::Utc;
 use komorebi_client::PathExt;
 use komorebi_client::replace_env_in_path;
+use komorebi_client::splash;
 use std::fs::File;
 use std::fs::OpenOptions;
 use std::io;
@@ -38,6 +39,7 @@ use paste::paste;
 use serde::Deserialize;
 use sysinfo::ProcessesToUpdate;
 use which::which;
+use win_msgbox::OkayCancel;
 use windows::Win32::Foundation::HWND;
 use windows::Win32::UI::WindowsAndMessaging::SHOW_WINDOW_CMD;
 use windows::Win32::UI::WindowsAndMessaging::SW_RESTORE;
@@ -991,6 +993,17 @@ struct ScrollingLayoutColumns {
 }
 
 #[derive(Parser)]
+struct License {
+    /// Email address associated with an Individual Commercial Use License
+    email: String,
+}
+
+#[derive(Parser)]
+struct Splash {
+    mdm_server: Option<String>,
+}
+
+#[derive(Parser)]
 #[clap(author, about, version = build::CLAP_LONG_VERSION)]
 struct Opts {
     #[clap(subcommand)]
@@ -1001,8 +1014,13 @@ struct Opts {
 enum SubCommand {
     #[clap(hide = true)]
     Docgen,
+    #[clap(hide = true)]
+    Splash(Splash),
     /// Gather example configurations for a new-user quickstart
     Quickstart,
+    /// Specify an email associated with an Individual Commercial Use License
+    #[clap(arg_required_else_help = true)]
+    License(License),
     /// Start komorebi.exe as a background process
     Start(Start),
     /// Stop the komorebi.exe process and restore all hidden windows
@@ -1561,6 +1579,7 @@ fn main() -> eyre::Result<()> {
 
             let ignore = [
                 "docgen",
+                "splash",
                 "alt-focus-hack",
                 "identify-border-overflow-application",
                 "load-custom-layout",
@@ -1583,6 +1602,45 @@ fn main() -> eyre::Result<()> {
                     println!("    - cli/{name}.md");
                 }
             }
+        }
+        SubCommand::Splash(arg) => {
+            let informative_text = match arg.mdm_server {
+                None => {
+                    "It looks like you are using a corporate device enrolled in mobile device management\n\n\
+                         The Komorebi License does not permit any kind of commercial use\n\n\
+                         A dedicated Individual Commercial Use License is available if you wish to use this software at work\n\n\
+                         You are strongly encouraged to make your employer pay for your license, either directly or via reimbursement\n\n\
+                         To remove this popup in the future, run \"komorebic license <email>\" using the email address associated with your license".to_string()
+                }
+                Some(server) => {
+                    format!(
+                        "It looks like you are using a corporate device enrolled in mobile device management ({server})\n\n\
+                             The Komorebi License does not permit any kind of commercial use\n\n\
+                             A dedicated Individual Commercial Use License is available if you wish to use this software at work\n\n\
+                             You are strongly encouraged to make your employer pay for your license, either directly or via reimbursement\n\n\
+                             To remove this popup in the future you can run \"komorebic license <email>\" using the email address associated with your license"
+                    )
+                }
+            };
+
+            if let Ok(response) = win_msgbox::error::<OkayCancel>(&informative_text)
+                .title("MDM Enrollment Detected")
+                .topmost()
+                .icon(win_msgbox::Icon::Warning)
+                .set_foreground()
+                .show()
+            {
+                match response {
+                    OkayCancel::Okay => {
+                        open::that("https://lgug2z.com/software/komorebi")?;
+                    }
+                    OkayCancel::Cancel => {}
+                }
+            }
+        }
+        SubCommand::License(arg) => {
+            std::fs::write(DATA_DIR.join("icul"), arg.email)?;
+            splash::should()?;
         }
         SubCommand::Quickstart => {
             fn write_file_with_prompt(
@@ -1650,6 +1708,31 @@ fn main() -> eyre::Result<()> {
                     written_files.join("\n")
                 );
             }
+
+            if let Ok((mdm, server)) = splash::mdm_enrollment()
+                && mdm
+            {
+                if let Some(server) = server {
+                    println!(
+                        "\nIt looks like you are using a corporate device enrolled in mobile device management ({server})"
+                    );
+                } else {
+                    println!(
+                        "\nIt looks like you are using a corporate device enrolled in mobile device management"
+                    );
+                }
+                println!("The Komorebi License does not permit any kind of commercial use");
+                println!(
+                    "A dedicated Individual Commercial Use License is available if you wish to use this software at work"
+                );
+                println!(
+                    "You are strongly encouraged to make your employer pay for your license, either directly or via reimbursement"
+                );
+                println!(
+                    "If you already have a license, you can run \"komorebic license <email>\" with the email address your license is associated with"
+                );
+            }
+
             println!("\nYou can now run komorebic start --whkd --bar");
         }
         SubCommand::EnableAutostart(arg) => {

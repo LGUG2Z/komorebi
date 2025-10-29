@@ -10,13 +10,16 @@ edition = "2024"
 [dependencies]
 komorebi-themes = { path = "../komorebi-themes" }
 
+base64 = "0.21"
 bitflags = { version = "2", features = ["serde"] }
 clap = { workspace = true }
+chrono = { workspace = true }
 color-eyre = { workspace = true }
 crossbeam-channel = { workspace = true }
 crossbeam-utils = { workspace = true }
 ctrlc = { version = "3", features = ["termination"] }
 dirs = { workspace = true }
+ed25519-dalek = "2"
 hotwatch = { workspace = true }
 lazy_static = { workspace = true }
 miow = "0.6"
@@ -27,9 +30,10 @@ parking_lot = { workspace = true }
 paste = { workspace = true }
 powershell_script = "1.0"
 regex = "1"
+reqwest = { version = "0.12", features = ["blocking"] }
 schemars = { workspace = true, optional = true }
 serde = { workspace = true }
-serde_json = { workspace = true }
+serde_json = { workspace = true, features = ["preserve_order"] }
 serde_yaml = { workspace = true }
 shadow-rs = { workspace = true }
 strum = { workspace = true }
