@@ -2682,8 +2682,6 @@ impl WindowManager {
 
     #[tracing::instrument(skip(self))]
     pub fn stack_all(&mut self) -> eyre::Result<()> {
-        self.unstack_all(false)?;
-
         self.handle_unmanaged_window_behaviour()?;
         tracing::info!("stacking all windows on workspace");
 
@@ -2696,16 +2694,27 @@ impl WindowManager {
             focused_hwnd = Some(window.hwnd);
         }
 
-        workspace.focus_container(workspace.containers().len().saturating_sub(1));
-        while workspace.focused_container_idx() > 0 {
-            workspace.move_window_to_container(0)?;
-            workspace.focus_container(workspace.containers().len().saturating_sub(1));
-        }
+        let workspace_hwnds =
+            workspace
+                .containers()
+                .iter()
+                .fold(VecDeque::new(), |mut hwnds, c| {
+                    hwnds.extend(c.windows().clone());
+                    hwnds
+                });
 
-        if let Some(hwnd) = focused_hwnd {
-            workspace.focus_container_by_window(hwnd)?;
-        }
+        let mut container = Container::default();
+        *container.windows_mut() = workspace_hwnds;
+        *workspace.containers_mut() = VecDeque::from([container]);
+        workspace.focus_container(0);
 
+        if let Some(hwnd) = focused_hwnd
+            && let Some(c) = workspace.focused_container_mut()
+            && let Some(w_idx_to_focus) = c.idx_for_window(hwnd)
+        {
+            c.focus_window(w_idx_to_focus);
+            c.load_focused_window();
+        }
         self.update_focused_workspace(self.mouse_follows_focus, true)
     }
 
