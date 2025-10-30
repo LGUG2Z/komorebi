@@ -2682,6 +2682,11 @@ impl WindowManager {
 
     #[tracing::instrument(skip(self))]
     pub fn stack_all(&mut self) -> eyre::Result<()> {
+        if transparency_manager::TRANSPARENCY_ENABLED.load(Ordering::SeqCst) {
+            transparency_manager::TRANSPARENCY_ENABLED.store(false, Ordering::SeqCst);
+            transparency_manager::TRANSPARENCY_ENABLED_OVERRIDE.store(true, Ordering::SeqCst);
+        }
+
         self.handle_unmanaged_window_behaviour()?;
         tracing::info!("stacking all windows on workspace");
 
@@ -2747,6 +2752,11 @@ impl WindowManager {
 
         if let Some(hwnd) = focused_hwnd {
             workspace.focus_container_by_window(hwnd)?;
+        }
+
+        if transparency_manager::TRANSPARENCY_ENABLED_OVERRIDE.load(Ordering::SeqCst) {
+            transparency_manager::TRANSPARENCY_ENABLED.store(true, Ordering::SeqCst);
+            transparency_manager::TRANSPARENCY_ENABLED_OVERRIDE.store(false, Ordering::SeqCst);
         }
 
         if update_workspace {

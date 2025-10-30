@@ -17,6 +17,7 @@ use crate::WindowsApi;
 use crate::should_act;
 
 pub static TRANSPARENCY_ENABLED: AtomicBool = AtomicBool::new(false);
+pub static TRANSPARENCY_ENABLED_OVERRIDE: AtomicBool = AtomicBool::new(false);
 pub static TRANSPARENCY_ALPHA: AtomicU8 = AtomicU8::new(200);
 
 static KNOWN_HWNDS: OnceLock<Mutex<Vec<isize>>> = OnceLock::new();
