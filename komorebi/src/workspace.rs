@@ -531,7 +531,7 @@ impl Workspace {
                     adjusted_work_area.add_padding(container_padding);
                     adjusted_work_area.add_padding(border_offset);
                     adjusted_work_area.add_padding(border_width);
-                    window.set_position(&adjusted_work_area, true)?;
+                    window.set_position(&adjusted_work_area, true, false)?;
                 };
             } else if let Some(window) = &mut self.maximized_window {
                 window.maximize();
@@ -552,6 +552,8 @@ impl Workspace {
                 let should_remove_titlebars = REMOVE_TITLEBARS.load(Ordering::SeqCst);
                 let no_titlebar = NO_TITLEBAR.lock().clone();
                 let regex_identifiers = REGEX_IDENTIFIERS.lock().clone();
+
+                let is_scrolling = matches!(self.layout, Layout::Default(DefaultLayout::Scrolling));
 
                 let containers = self.containers_mut();
 
@@ -597,7 +599,13 @@ impl Workspace {
                                     WindowsApi::restore_window(window.hwnd);
                                 }
                             }
-                            window.set_position(layout, false)?;
+
+                            window.set_position(
+                                layout,
+                                false,
+                                is_scrolling
+                                    && !work_area.contains_within_horizontal_bounds(layout),
+                            )?;
                         }
                     }
                 }
@@ -1581,6 +1589,14 @@ impl Workspace {
         tracing::info!("focusing container");
 
         self.containers.focus(idx);
+
+        if matches!(self.layout, Layout::Default(DefaultLayout::Scrolling))
+            && let Some(container) = self.focused_container()
+            && let Some(window) = container.focused_window()
+            && window.is_cloaked().unwrap_or(true)
+        {
+            window.restore();
+        }
     }
 
     pub fn swap_containers(&mut self, i: usize, j: usize) {

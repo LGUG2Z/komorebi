@@ -85,6 +85,15 @@ impl Rect {
             && point.1 <= self.top + self.bottom
     }
 
+    pub fn contains_within_horizontal_bounds(&self, other: &Rect) -> bool {
+        let left_corner_is_within_bounds =
+            other.left >= self.left && other.left < self.left + self.right;
+        let right_corner_is_within_bounds = other.left + other.right >= self.left
+            && other.left + other.right < self.left + self.right;
+
+        left_corner_is_within_bounds || right_corner_is_within_bounds
+    }
+
     #[must_use]
     pub const fn scale(&self, system_dpi: i32, rect_dpi: i32) -> Rect {
         Rect {

@@ -802,7 +802,7 @@ impl Komobar {
     pub fn position_bar(&self) {
         if let Some(hwnd) = self.hwnd {
             let window = komorebi_client::Window::from(hwnd);
-            match window.set_position(&self.size_rect, false) {
+            match window.set_position(&self.size_rect, false, false) {
                 Ok(_) => {
                     tracing::info!("updated bar position");
                 }

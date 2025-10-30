@@ -165,6 +165,7 @@ struct MovementRenderDispatcher {
     target_rect: Rect,
     top: bool,
     style: AnimationStyle,
+    end_with_hide: bool,
 }
 
 impl MovementRenderDispatcher {
@@ -176,6 +177,7 @@ impl MovementRenderDispatcher {
         target_rect: Rect,
         top: bool,
         style: AnimationStyle,
+        end_with_hide: bool,
     ) -> Self {
         Self {
             hwnd,
@@ -183,6 +185,7 @@ impl MovementRenderDispatcher {
             target_rect,
             top,
             style,
+            end_with_hide,
         }
     }
 }
@@ -193,6 +196,11 @@ impl RenderDispatcher for MovementRenderDispatcher {
     }
 
     fn pre_render(&self) -> eyre::Result<()> {
+        let window = Window::from(self.hwnd);
+        if window.is_cloaked().unwrap_or(true) {
+            window.restore()
+        }
+
         stackbar_manager::STACKBAR_TEMPORARILY_DISABLED.store(true, Ordering::SeqCst);
         stackbar_manager::send_notification();
 
@@ -213,7 +221,13 @@ impl RenderDispatcher for MovementRenderDispatcher {
     fn post_render(&self) -> eyre::Result<()> {
         // we don't add the async_window_pos flag here because animations
         // are always run on a separate thread
-        WindowsApi::position_window(self.hwnd, &self.target_rect, self.top, false)?;
+        if self.end_with_hide {
+            let window = Window::from(self.hwnd);
+            window.hide();
+        } else {
+            WindowsApi::position_window(self.hwnd, &self.target_rect, self.top, false)?;
+        }
+
         if ANIMATION_MANAGER
             .lock()
             .count_in_progress(MovementRenderDispatcher::PREFIX)
@@ -383,7 +397,7 @@ impl Window {
                 let anim_count = ANIMATION_MANAGER
                     .lock()
                     .count_in_progress(MovementRenderDispatcher::PREFIX);
-                self.set_position(&new_rect, true)?;
+                self.set_position(&new_rect, true, false)?;
                 let hwnd = self.hwnd;
                 // Wait for the animation to finish before maximizing the window again, otherwise
                 // we would be maximizing the window on the current monitor anyway
@@ -402,11 +416,11 @@ impl Window {
                     windows_api::WindowsApi::maximize_window(hwnd);
                 });
             } else {
-                self.set_position(&new_rect, true)?;
+                self.set_position(&new_rect, true, false)?;
                 windows_api::WindowsApi::maximize_window(self.hwnd);
             }
         } else {
-            self.set_position(&new_rect, true)?;
+            self.set_position(&new_rect, true, false)?;
         }
 
         Ok(())
@@ -436,10 +450,11 @@ impl Window {
                 bottom: target_height,
             },
             true,
+            false,
         )
     }
 
-    pub fn set_position(&self, layout: &Rect, top: bool) -> eyre::Result<()> {
+    pub fn set_position(&self, layout: &Rect, top: bool, end_with_hide: bool) -> eyre::Result<()> {
         let window_rect = WindowsApi::window_rect(self.hwnd)?;
 
         if window_rect.eq(layout) {
@@ -463,11 +478,24 @@ impl Window {
                 .get(&MovementRenderDispatcher::PREFIX)
                 .unwrap_or(&ANIMATION_STYLE_GLOBAL.lock());
 
-            let render_dispatcher =
-                MovementRenderDispatcher::new(self.hwnd, window_rect, *layout, top, style);
+            let render_dispatcher = MovementRenderDispatcher::new(
+                self.hwnd,
+                window_rect,
+                *layout,
+                top,
+                style,
+                end_with_hide,
+            );
 
             AnimationEngine::animate(render_dispatcher, duration)
+        } else if end_with_hide {
+            self.hide();
+            Ok(())
         } else {
+            if self.is_cloaked().unwrap_or(true) {
+                self.restore()
+            }
+
             WindowsApi::position_window(self.hwnd, layout, top, true)
         }
     }

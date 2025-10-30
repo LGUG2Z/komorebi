@@ -355,7 +355,7 @@ impl Stackbar {
                                 // tile
                                 if index != focused_window_idx
                                     && let Err(err) =
-                                        window.set_position(&focused_window_rect, false)
+                                        window.set_position(&focused_window_rect, false, false)
                                 {
                                     tracing::error!(
                                         "stackbar WM_LBUTTONDOWN repositioning error: hwnd {} ({})",

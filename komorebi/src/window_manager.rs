@@ -3088,15 +3088,7 @@ impl WindowManager {
     pub fn change_workspace_layout_default(&mut self, layout: DefaultLayout) -> eyre::Result<()> {
         tracing::info!("changing layout");
 
-        let monitor_count = self.monitors().len();
         let workspace = self.focused_workspace_mut()?;
-
-        if monitor_count > 1 && matches!(layout, DefaultLayout::Scrolling) {
-            tracing::warn!(
-                "scrolling layout is only supported for a single monitor; not changing layout"
-            );
-            return Ok(());
-        }
 
         match &workspace.layout {
             Layout::Default(_) => {}
