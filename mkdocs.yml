@@ -111,6 +111,7 @@ nav:
       - cli/load-resize.md
       - cli/focus.md
       - cli/move.md
+      - cli/preselect-direction.md
       - cli/minimize.md
       - cli/close.md
       - cli/force-focus.md

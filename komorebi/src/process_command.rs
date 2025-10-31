@@ -303,6 +303,12 @@ impl WindowManager {
                     }
                 }
             }
+            SocketMessage::PreselectDirection(direction) => {
+                let focused_workspace = self.focused_workspace()?;
+                if matches!(focused_workspace.layer, WorkspaceLayer::Tiling) {
+                    self.preselect_container_in_direction(direction)?;
+                }
+            }
             SocketMessage::MoveWindow(direction) => {
                 let focused_workspace = self.focused_workspace()?;
                 match focused_workspace.layer {

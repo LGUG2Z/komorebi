@@ -2043,6 +2043,53 @@ impl WindowManager {
     }
 
     #[tracing::instrument(skip(self))]
+    pub fn preselect_container_in_direction(
+        &mut self,
+        direction: OperationDirection,
+    ) -> eyre::Result<()> {
+        let workspace = self.focused_workspace_mut()?;
+        let focused_idx = workspace.focused_container_idx();
+
+        if matches!(workspace.layout, Layout::Default(DefaultLayout::Grid)) {
+            tracing::warn!("preselection is not supported on the grid layout");
+            return Ok(());
+        }
+
+        tracing::info!("preselecting container");
+
+        let new_idx =
+            if workspace.maximized_window.is_some() || workspace.monocle_container.is_some() {
+                None
+            } else {
+                workspace.new_idx_for_direction(direction)
+            };
+
+        match new_idx {
+            Some(new_idx) => {
+                let adjusted_idx = match direction {
+                    OperationDirection::Left | OperationDirection::Up => {
+                        if focused_idx.abs_diff(new_idx) == 1 {
+                            new_idx + 1
+                        } else {
+                            new_idx
+                        }
+                    }
+                    _ => new_idx,
+                };
+
+                workspace.preselect_container_index(adjusted_idx);
+            }
+            None => {
+                tracing::debug!(
+                    "this is not a valid preselection direction from the current position"
+                )
+            }
+        }
+
+        Ok(())
+    }
+
+    #[tracing::instrument(skip(self))]
     pub fn focus_container_in_direction(
         &mut self,
         direction: OperationDirection,

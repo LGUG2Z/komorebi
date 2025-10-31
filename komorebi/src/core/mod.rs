@@ -55,6 +55,7 @@ pub enum SocketMessage {
     // Window / Container Commands
     FocusWindow(OperationDirection),
     MoveWindow(OperationDirection),
+    PreselectDirection(OperationDirection),
     CycleFocusWindow(CycleDirection),
     CycleMoveWindow(CycleDirection),
     StackWindow(OperationDirection),
