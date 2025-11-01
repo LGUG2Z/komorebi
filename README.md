@@ -29,6 +29,20 @@ Tiling Window Management for Windows.
 
 ![screenshot](https://user-images.githubusercontent.com/13164844/184027064-f5a6cec2-2865-4d65-a549-a1f1da589abf.png)
 
+## Note: komorebi for Mac
+
+If you made your way to this repo looking for [komorebi for
+Mac](https://github.com/KomoCorp/komorebi-for-mac), the project is currently
+being developed in private with [early access available to GitHub
+Sponsors](https://github.com/sponsors/LGUG2Z).
+
+If you want to see how far along development is before signing up for early
+access (spoiler: it's very far along!) there is an overview video you can watch
+[here](https://www.youtube.com/watch?v=u3eJcsa_MJk).
+
+Sponsors with early access can install komorebi for Mac either by compiling
+from source, by using Homebrew, or by using the project's Nix Flake. 
+
 ## Overview
 
 _komorebi_ is a tiling window manager that works as an extension to Microsoft's
