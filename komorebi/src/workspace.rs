@@ -449,7 +449,8 @@ impl Workspace {
         }
 
         // make sure we are never holding on to empty containers
-        self.containers_mut().retain(|c| !c.windows().is_empty());
+        self.containers_mut()
+            .retain(|c| c.is_preselect() || !c.windows().is_empty());
 
         let container_padding = self
             .container_padding
@@ -979,8 +980,16 @@ impl Workspace {
         container
     }
 
-    pub fn preselect_container_index(&mut self, insertion_index: usize) {
-        self.preselected_container_idx = Some(insertion_index);
+    pub fn preselect_container_idx(&mut self, insertion_idx: usize) {
+        self.preselected_container_idx = Some(insertion_idx);
+        self.insert_container_at_idx(insertion_idx, Container::preselect());
+    }
+
+    pub fn cancel_preselect(&mut self) {
+        if let Some(idx) = self.preselected_container_idx {
+            self.containers_mut().remove_respecting_locks(idx);
+            self.preselected_container_idx = None;
+        }
     }
 
     pub fn new_idx_for_direction(&self, direction: OperationDirection) -> Option<usize> {
@@ -1084,9 +1093,8 @@ impl Workspace {
     pub fn new_container_for_window(&mut self, window: Window) {
         let next_idx = if let Some(idx) = self.preselected_container_idx {
             let next = idx;
-
             self.preselected_container_idx = None;
-
+            self.remove_container_by_idx(next);
             next
         } else if self.containers().is_empty() {
             0

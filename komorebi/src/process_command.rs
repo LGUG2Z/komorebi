@@ -305,9 +305,25 @@ impl WindowManager {
             }
             SocketMessage::PreselectDirection(direction) => {
                 let focused_workspace = self.focused_workspace()?;
-                if matches!(focused_workspace.layer, WorkspaceLayer::Tiling) {
+                let mut update = false;
+
+                if focused_workspace.preselected_container_idx.is_some() {
+                    tracing::warn!(
+                        "ignoring command as this workspace already has a direction preselect set"
+                    );
+                } else if matches!(focused_workspace.layer, WorkspaceLayer::Tiling) {
                     self.preselect_container_in_direction(direction)?;
+                    update = true;
                 }
+
+                if update {
+                    self.focused_workspace_mut()?.update()?;
+                }
+            }
+            SocketMessage::CancelPreselect => {
+                let focused_workspace = self.focused_workspace_mut()?;
+                focused_workspace.cancel_preselect();
+                focused_workspace.update()?;
             }
             SocketMessage::MoveWindow(direction) => {
                 let focused_workspace = self.focused_workspace()?;

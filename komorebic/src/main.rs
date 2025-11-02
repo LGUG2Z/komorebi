@@ -1099,6 +1099,8 @@ enum SubCommand {
     /// Preselect the specified direction for the next window to be spawned on supported layouts
     #[clap(arg_required_else_help = true)]
     PreselectDirection(PreselectDirection),
+    /// Cancel a workspace preselect set by the preselect-direction command, if one exists
+    CancelPreselect,
     /// Minimize the focused window
     Minimize,
     /// Close the focused window
@@ -2044,6 +2046,9 @@ fn main() -> eyre::Result<()> {
         }
         SubCommand::PreselectDirection(arg) => {
             send_message(&SocketMessage::PreselectDirection(arg.operation_direction))?;
+        }
+        SubCommand::CancelPreselect => {
+            send_message(&SocketMessage::CancelPreselect)?;
         }
         SubCommand::CycleFocus(arg) => {
             send_message(&SocketMessage::CycleFocusWindow(arg.cycle_direction))?;

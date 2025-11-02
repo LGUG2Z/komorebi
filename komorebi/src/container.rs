@@ -41,6 +41,18 @@ impl Lockable for Container {
 }
 
 impl Container {
+    pub fn preselect() -> Self {
+        Self {
+            id: "PRESELECT".to_string(),
+            locked: false,
+            windows: Default::default(),
+        }
+    }
+
+    pub fn is_preselect(&self) -> bool {
+        self.id == "PRESELECT"
+    }
+
     pub fn hide(&self, omit: Option<isize>) {
         for window in self.windows().iter().rev() {
             let mut should_hide = omit.is_none();

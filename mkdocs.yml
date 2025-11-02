@@ -112,6 +112,7 @@ nav:
       - cli/focus.md
       - cli/move.md
       - cli/preselect-direction.md
+      - cli/cancel-preselect.md
       - cli/minimize.md
       - cli/close.md
       - cli/force-focus.md
