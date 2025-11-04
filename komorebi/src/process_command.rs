@@ -213,6 +213,7 @@ impl WindowManager {
         let mut force_update_borders = false;
         match message {
             SocketMessage::Promote => self.promote_container_to_front()?,
+            SocketMessage::PromoteSwap => self.promote_container_swap()?,
             SocketMessage::PromoteFocus => self.promote_focus_to_front()?,
             SocketMessage::PromoteWindow(direction) => {
                 self.focus_container_in_direction(direction)?;

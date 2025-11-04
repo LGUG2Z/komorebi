@@ -1,7 +1,7 @@
 # promote
 
 ```
-Promote the focused window to the top of the tree
+Promote the focused window to the largest tile via container removal and re-insertion
 
 Usage: komorebic.exe promote
 

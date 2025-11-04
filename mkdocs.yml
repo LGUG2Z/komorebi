@@ -172,6 +172,7 @@ nav:
       - cli/scrolling-layout-columns.md
       - cli/flip-layout.md
       - cli/promote.md
+      - cli/promote-swap.md
       - cli/promote-focus.md
       - cli/promote-window.md
       - cli/retile.md

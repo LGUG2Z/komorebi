@@ -89,6 +89,7 @@ pub enum SocketMessage {
     Close,
     Minimize,
     Promote,
+    PromoteSwap,
     PromoteFocus,
     PromoteWindow(OperationDirection),
     EagerFocus(String),

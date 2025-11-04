@@ -2893,6 +2893,31 @@ impl WindowManager {
     }
 
     #[tracing::instrument(skip(self))]
+    pub fn promote_container_swap(&mut self) -> eyre::Result<()> {
+        self.handle_unmanaged_window_behaviour()?;
+
+        let workspace = self.focused_workspace_mut()?;
+        let focused_container_idx = workspace.focused_container_idx();
+        let primary_idx = match &workspace.layout {
+            Layout::Default(_) => 0,
+            Layout::Custom(layout) => layout.first_container_idx(
+                layout
+                    .primary_idx()
+                    .ok_or_eyre("this custom layout does not have a primary column")?,
+            ),
+        };
+
+        if matches!(workspace.layout, Layout::Default(DefaultLayout::Grid)) {
+            tracing::debug!("ignoring promote-swap command for grid layout");
+            return Ok(());
+        }
+
+        workspace.swap_containers(focused_container_idx, primary_idx);
+
+        self.update_focused_workspace(self.mouse_follows_focus, true)
+    }
+
+    #[tracing::instrument(skip(self))]
     pub fn promote_focus_to_front(&mut self) -> eyre::Result<()> {
         self.handle_unmanaged_window_behaviour()?;
 
