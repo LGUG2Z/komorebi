@@ -273,6 +273,7 @@ impl From<&WindowManager> for State {
                             wallpaper: workspace.wallpaper.clone(),
                             workspace_config: None,
                             preselected_container_idx: None,
+                            promotion_swap_container_idx: None,
                         })
                         .collect::<VecDeque<_>>();
                     ws.focus(monitor.workspaces.focused_idx());

@@ -80,6 +80,8 @@ pub struct Workspace {
     pub workspace_config: Option<WorkspaceConfig>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub preselected_container_idx: Option<usize>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub promotion_swap_container_idx: Option<usize>,
 }
 
 #[derive(Debug, Default, Copy, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -132,6 +134,7 @@ impl Default for Workspace {
             workspace_config: None,
             wallpaper: None,
             preselected_container_idx: None,
+            promotion_swap_container_idx: None,
         }
     }
 }
