@@ -23,7 +23,7 @@ pub use custom_layout::ColumnSplitWithCapacity;
 pub use custom_layout::ColumnWidth;
 pub use custom_layout::CustomLayout;
 pub use cycle_direction::CycleDirection;
-pub use default_layout::DefaultLayout;
+pub use default_layout::*;
 pub use direction::Direction;
 pub use layout::Layout;
 pub use operation_direction::OperationDirection;
