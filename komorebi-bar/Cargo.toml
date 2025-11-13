@@ -17,12 +17,12 @@ crossbeam-channel = { workspace = true }
 dirs = { workspace = true }
 dunce = { workspace = true }
 eframe = { workspace = true }
-egui-phosphor = "0.10"
+egui-phosphor = { git = "https://github.com/amPerl/egui-phosphor", rev = "d13688738478ecd12b426e3e74c59d6577a85b59" }
 font-loader = "0.11"
 hotwatch = { workspace = true }
 image = "0.25"
 lazy_static = { workspace = true }
-netdev = "0.36"
+netdev = "0.39"
 num = "0.4"
 num-derive = "0.4"
 num-traits = "0.2"

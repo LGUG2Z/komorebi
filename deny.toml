@@ -95,6 +95,11 @@ crate = "base16-egui-themes"
 expression = "MIT"
 license-files = []
 
+[[licenses.clarify]]
+crate = "win32-display-data"
+expression = "0BSD"
+license-files = []
+
 [bans]
 multiple-versions = "allow"
 wildcards = "allow"
@@ -113,5 +118,6 @@ allow-git = [
     "https://github.com/LGUG2Z/flavours",
     "https://github.com/LGUG2Z/base16_color_scheme",
     "https://github.com/LGUG2Z/whkd",
-    #    "https://github.com/LGUG2Z/catppuccin-egui",
+    "https://github.com/LGUG2Z/catppuccin-egui",
+    "https://github.com/amPerl/egui-phosphor",
 ]

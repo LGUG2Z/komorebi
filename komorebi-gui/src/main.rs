@@ -247,7 +247,7 @@ impl eframe::App for KomorebiGui {
         egui::CentralPanel::default().show(ctx, |ui| {
             ctx.set_pixels_per_point(2.0);
             egui::ScrollArea::vertical().show(ui, |ui| {
-                ui.set_width(ctx.screen_rect().width());
+                ui.set_width(ctx.content_rect().width());
                 ui.collapsing("Debugging", |ui| {
                     ui.collapsing("Window Rules", |ui| {
                         let window = Window::from(self.debug_hwnd);

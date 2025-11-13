@@ -10,7 +10,7 @@ edition = "2024"
 [dependencies]
 komorebi-themes = { path = "../komorebi-themes" }
 
-base64 = "0.21"
+base64 = "0.22"
 bitflags = { version = "2", features = ["serde"] }
 clap = { workspace = true }
 chrono = { workspace = true }
