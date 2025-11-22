@@ -4,8 +4,8 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-whkd-parser = { git = "https://github.com/LGUG2Z/whkd", rev = "v0.2.9" }
-whkd-core = { git = "https://github.com/LGUG2Z/whkd", rev = "v0.2.9" }
+whkd-parser = { git = "https://github.com/LGUG2Z/whkd", rev = "v0.2.10" }
+whkd-core = { git = "https://github.com/LGUG2Z/whkd", rev = "v0.2.10" }
 
 eframe = { workspace = true }
 dirs = { workspace = true }

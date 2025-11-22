@@ -7228,13 +7228,13 @@ dependencies = [
 
 [[package]]
 name = "whkd-core"
-version = "0.2.9"
-source = "git+https://github.com/LGUG2Z/whkd?rev=v0.2.9#bf68f3df5f6383420e4e1d3b91acbcb46ce35c40"
+version = "0.2.10"
+source = "git+https://github.com/LGUG2Z/whkd?rev=v0.2.10#5d6a767f2ab7ac309686fe44ce59689546cf55fe"
 
 [[package]]
 name = "whkd-parser"
-version = "0.2.9"
-source = "git+https://github.com/LGUG2Z/whkd?rev=v0.2.9#bf68f3df5f6383420e4e1d3b91acbcb46ce35c40"
+version = "0.2.10"
+source = "git+https://github.com/LGUG2Z/whkd?rev=v0.2.10#5d6a767f2ab7ac309686fe44ce59689546cf55fe"
 dependencies = [
  "chumsky",
  "thiserror 2.0.17",
