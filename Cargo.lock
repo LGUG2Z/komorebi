@@ -3117,7 +3117,7 @@ dependencies = [
  "powershell_script",
  "regex",
  "reqwest",
- "schemars 0.8.22",
+ "schemars 1.0.4",
  "serde",
  "serde_json_lenient",
  "serde_with",
@@ -3167,7 +3167,7 @@ dependencies = [
  "parking_lot",
  "random_word",
  "reqwest",
- "schemars 0.8.22",
+ "schemars 1.0.4",
  "serde",
  "serde_json_lenient",
  "starship-battery",
@@ -3222,7 +3222,7 @@ dependencies = [
  "eframe",
  "flavours",
  "hex_color",
- "schemars 0.8.22",
+ "schemars 1.0.4",
  "serde",
  "serde_variant",
  "strum",
@@ -3245,7 +3245,7 @@ dependencies = [
  "paste",
  "powershell_script",
  "reqwest",
- "schemars 0.8.22",
+ "schemars 1.0.4",
  "serde",
  "serde_json_lenient",
  "shadow-rs",
@@ -5436,7 +5436,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3fbf2ae1b8bc8e02df939598064d22402220cd5bbcca1c76f7d6a310974d5615"
 dependencies = [
  "dyn-clone",
- "schemars_derive",
+ "schemars_derive 0.8.22",
  "serde",
  "serde_json",
 ]
@@ -5461,6 +5461,7 @@ checksum = "9558e172d4e8533736ba97870c4b2cd63f84b382a3d6eb063da41b91cce17289"
 dependencies = [
  "dyn-clone",
  "ref-cast",
+ "schemars_derive 1.0.4",
  "serde",
  "serde_json",
 ]
@@ -5475,6 +5476,18 @@ dependencies = [
  "quote",
  "serde_derive_internals",
  "syn 2.0.110",
+]
+
+[[package]]
+name = "schemars_derive"
+version = "1.0.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "33d020396d1d138dc19f1165df7545479dcd58d93810dc5d646a16e55abefa80"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "serde_derive_internals",
+ "syn 2.0.104",
 ]
 
 [[package]]
