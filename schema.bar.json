@@ -3201,6 +3201,44 @@
                         "content": {
                           "type": "string",
                           "enum": [
+                            "Left",
+                            "Right",
+                            "Up",
+                            "Down"
+                          ]
+                        },
+                        "type": {
+                          "type": "string",
+                          "enum": [
+                            "PreselectDirection"
+                          ]
+                        }
+                      }
+                    },
+                    {
+                      "type": "object",
+                      "required": [
+                        "type"
+                      ],
+                      "properties": {
+                        "type": {
+                          "type": "string",
+                          "enum": [
+                            "CancelPreselect"
+                          ]
+                        }
+                      }
+                    },
+                    {
+                      "type": "object",
+                      "required": [
+                        "content",
+                        "type"
+                      ],
+                      "properties": {
+                        "content": {
+                          "type": "string",
+                          "enum": [
                             "Previous",
                             "Next"
                           ]
@@ -3850,6 +3888,20 @@
                           "type": "string",
                           "enum": [
                             "Promote"
+                          ]
+                        }
+                      }
+                    },
+                    {
+                      "type": "object",
+                      "required": [
+                        "type"
+                      ],
+                      "properties": {
+                        "type": {
+                          "type": "string",
+                          "enum": [
+                            "PromoteSwap"
                           ]
                         }
                       }
@@ -9342,6 +9394,44 @@
                         "content": {
                           "type": "string",
                           "enum": [
+                            "Left",
+                            "Right",
+                            "Up",
+                            "Down"
+                          ]
+                        },
+                        "type": {
+                          "type": "string",
+                          "enum": [
+                            "PreselectDirection"
+                          ]
+                        }
+                      }
+                    },
+                    {
+                      "type": "object",
+                      "required": [
+                        "type"
+                      ],
+                      "properties": {
+                        "type": {
+                          "type": "string",
+                          "enum": [
+                            "CancelPreselect"
+                          ]
+                        }
+                      }
+                    },
+                    {
+                      "type": "object",
+                      "required": [
+                        "content",
+                        "type"
+                      ],
+                      "properties": {
+                        "content": {
+                          "type": "string",
+                          "enum": [
                             "Previous",
                             "Next"
                           ]
@@ -9991,6 +10081,20 @@
                           "type": "string",
                           "enum": [
                             "Promote"
+                          ]
+                        }
+                      }
+                    },
+                    {
+                      "type": "object",
+                      "required": [
+                        "type"
+                      ],
+                      "properties": {
+                        "type": {
+                          "type": "string",
+                          "enum": [
+                            "PromoteSwap"
                           ]
                         }
                       }
@@ -15483,6 +15587,44 @@
                         "content": {
                           "type": "string",
                           "enum": [
+                            "Left",
+                            "Right",
+                            "Up",
+                            "Down"
+                          ]
+                        },
+                        "type": {
+                          "type": "string",
+                          "enum": [
+                            "PreselectDirection"
+                          ]
+                        }
+                      }
+                    },
+                    {
+                      "type": "object",
+                      "required": [
+                        "type"
+                      ],
+                      "properties": {
+                        "type": {
+                          "type": "string",
+                          "enum": [
+                            "CancelPreselect"
+                          ]
+                        }
+                      }
+                    },
+                    {
+                      "type": "object",
+                      "required": [
+                        "content",
+                        "type"
+                      ],
+                      "properties": {
+                        "content": {
+                          "type": "string",
+                          "enum": [
                             "Previous",
                             "Next"
                           ]
@@ -16132,6 +16274,20 @@
                           "type": "string",
                           "enum": [
                             "Promote"
+                          ]
+                        }
+                      }
+                    },
+                    {
+                      "type": "object",
+                      "required": [
+                        "type"
+                      ],
+                      "properties": {
+                        "type": {
+                          "type": "string",
+                          "enum": [
+                            "PromoteSwap"
                           ]
                         }
                       }
@@ -21624,6 +21780,44 @@
                         "content": {
                           "type": "string",
                           "enum": [
+                            "Left",
+                            "Right",
+                            "Up",
+                            "Down"
+                          ]
+                        },
+                        "type": {
+                          "type": "string",
+                          "enum": [
+                            "PreselectDirection"
+                          ]
+                        }
+                      }
+                    },
+                    {
+                      "type": "object",
+                      "required": [
+                        "type"
+                      ],
+                      "properties": {
+                        "type": {
+                          "type": "string",
+                          "enum": [
+                            "CancelPreselect"
+                          ]
+                        }
+                      }
+                    },
+                    {
+                      "type": "object",
+                      "required": [
+                        "content",
+                        "type"
+                      ],
+                      "properties": {
+                        "content": {
+                          "type": "string",
+                          "enum": [
                             "Previous",
                             "Next"
                           ]
@@ -22273,6 +22467,20 @@
                           "type": "string",
                           "enum": [
                             "Promote"
+                          ]
+                        }
+                      }
+                    },
+                    {
+                      "type": "object",
+                      "required": [
+                        "type"
+                      ],
+                      "properties": {
+                        "type": {
+                          "type": "string",
+                          "enum": [
+                            "PromoteSwap"
                           ]
                         }
                       }
@@ -27765,6 +27973,44 @@
                         "content": {
                           "type": "string",
                           "enum": [
+                            "Left",
+                            "Right",
+                            "Up",
+                            "Down"
+                          ]
+                        },
+                        "type": {
+                          "type": "string",
+                          "enum": [
+                            "PreselectDirection"
+                          ]
+                        }
+                      }
+                    },
+                    {
+                      "type": "object",
+                      "required": [
+                        "type"
+                      ],
+                      "properties": {
+                        "type": {
+                          "type": "string",
+                          "enum": [
+                            "CancelPreselect"
+                          ]
+                        }
+                      }
+                    },
+                    {
+                      "type": "object",
+                      "required": [
+                        "content",
+                        "type"
+                      ],
+                      "properties": {
+                        "content": {
+                          "type": "string",
+                          "enum": [
                             "Previous",
                             "Next"
                           ]
@@ -28414,6 +28660,20 @@
                           "type": "string",
                           "enum": [
                             "Promote"
+                          ]
+                        }
+                      }
+                    },
+                    {
+                      "type": "object",
+                      "required": [
+                        "type"
+                      ],
+                      "properties": {
+                        "type": {
+                          "type": "string",
+                          "enum": [
+                            "PromoteSwap"
                           ]
                         }
                       }
@@ -33906,6 +34166,44 @@
                         "content": {
                           "type": "string",
                           "enum": [
+                            "Left",
+                            "Right",
+                            "Up",
+                            "Down"
+                          ]
+                        },
+                        "type": {
+                          "type": "string",
+                          "enum": [
+                            "PreselectDirection"
+                          ]
+                        }
+                      }
+                    },
+                    {
+                      "type": "object",
+                      "required": [
+                        "type"
+                      ],
+                      "properties": {
+                        "type": {
+                          "type": "string",
+                          "enum": [
+                            "CancelPreselect"
+                          ]
+                        }
+                      }
+                    },
+                    {
+                      "type": "object",
+                      "required": [
+                        "content",
+                        "type"
+                      ],
+                      "properties": {
+                        "content": {
+                          "type": "string",
+                          "enum": [
                             "Previous",
                             "Next"
                           ]
@@ -34555,6 +34853,20 @@
                           "type": "string",
                           "enum": [
                             "Promote"
+                          ]
+                        }
+                      }
+                    },
+                    {
+                      "type": "object",
+                      "required": [
+                        "type"
+                      ],
+                      "properties": {
+                        "type": {
+                          "type": "string",
+                          "enum": [
+                            "PromoteSwap"
                           ]
                         }
                       }
@@ -40047,6 +40359,44 @@
                         "content": {
                           "type": "string",
                           "enum": [
+                            "Left",
+                            "Right",
+                            "Up",
+                            "Down"
+                          ]
+                        },
+                        "type": {
+                          "type": "string",
+                          "enum": [
+                            "PreselectDirection"
+                          ]
+                        }
+                      }
+                    },
+                    {
+                      "type": "object",
+                      "required": [
+                        "type"
+                      ],
+                      "properties": {
+                        "type": {
+                          "type": "string",
+                          "enum": [
+                            "CancelPreselect"
+                          ]
+                        }
+                      }
+                    },
+                    {
+                      "type": "object",
+                      "required": [
+                        "content",
+                        "type"
+                      ],
+                      "properties": {
+                        "content": {
+                          "type": "string",
+                          "enum": [
                             "Previous",
                             "Next"
                           ]
@@ -40696,6 +41046,20 @@
                           "type": "string",
                           "enum": [
                             "Promote"
+                          ]
+                        }
+                      }
+                    },
+                    {
+                      "type": "object",
+                      "required": [
+                        "type"
+                      ],
+                      "properties": {
+                        "type": {
+                          "type": "string",
+                          "enum": [
+                            "PromoteSwap"
                           ]
                         }
                       }
@@ -46188,6 +46552,44 @@
                         "content": {
                           "type": "string",
                           "enum": [
+                            "Left",
+                            "Right",
+                            "Up",
+                            "Down"
+                          ]
+                        },
+                        "type": {
+                          "type": "string",
+                          "enum": [
+                            "PreselectDirection"
+                          ]
+                        }
+                      }
+                    },
+                    {
+                      "type": "object",
+                      "required": [
+                        "type"
+                      ],
+                      "properties": {
+                        "type": {
+                          "type": "string",
+                          "enum": [
+                            "CancelPreselect"
+                          ]
+                        }
+                      }
+                    },
+                    {
+                      "type": "object",
+                      "required": [
+                        "content",
+                        "type"
+                      ],
+                      "properties": {
+                        "content": {
+                          "type": "string",
+                          "enum": [
                             "Previous",
                             "Next"
                           ]
@@ -46837,6 +47239,20 @@
                           "type": "string",
                           "enum": [
                             "Promote"
+                          ]
+                        }
+                      }
+                    },
+                    {
+                      "type": "object",
+                      "required": [
+                        "type"
+                      ],
+                      "properties": {
+                        "type": {
+                          "type": "string",
+                          "enum": [
+                            "PromoteSwap"
                           ]
                         }
                       }
@@ -52329,6 +52745,44 @@
                         "content": {
                           "type": "string",
                           "enum": [
+                            "Left",
+                            "Right",
+                            "Up",
+                            "Down"
+                          ]
+                        },
+                        "type": {
+                          "type": "string",
+                          "enum": [
+                            "PreselectDirection"
+                          ]
+                        }
+                      }
+                    },
+                    {
+                      "type": "object",
+                      "required": [
+                        "type"
+                      ],
+                      "properties": {
+                        "type": {
+                          "type": "string",
+                          "enum": [
+                            "CancelPreselect"
+                          ]
+                        }
+                      }
+                    },
+                    {
+                      "type": "object",
+                      "required": [
+                        "content",
+                        "type"
+                      ],
+                      "properties": {
+                        "content": {
+                          "type": "string",
+                          "enum": [
                             "Previous",
                             "Next"
                           ]
@@ -52978,6 +53432,20 @@
                           "type": "string",
                           "enum": [
                             "Promote"
+                          ]
+                        }
+                      }
+                    },
+                    {
+                      "type": "object",
+                      "required": [
+                        "type"
+                      ],
+                      "properties": {
+                        "type": {
+                          "type": "string",
+                          "enum": [
+                            "PromoteSwap"
                           ]
                         }
                       }
