@@ -1619,7 +1619,8 @@ fn main() -> eyre::Result<()> {
                          The Komorebi License does not permit any kind of commercial use\n\n\
                          A dedicated Individual Commercial Use License is available if you wish to use this software at work\n\n\
                          You are strongly encouraged to make your employer pay for your license, either directly or via reimbursement\n\n\
-                         To remove this popup in the future, run \"komorebic license <email>\" using the email address associated with your license".to_string()
+                         To remove this popup in the future, run \"komorebic license <email>\" using the email address associated with your license\n\n\
+                         If you are a student using komorebi on a laptop provided by your school, you can email me from your educational email account to remove this popup".to_string()
                 }
                 Some(server) => {
                     format!(
@@ -1627,7 +1628,8 @@ fn main() -> eyre::Result<()> {
                              The Komorebi License does not permit any kind of commercial use\n\n\
                              A dedicated Individual Commercial Use License is available if you wish to use this software at work\n\n\
                              You are strongly encouraged to make your employer pay for your license, either directly or via reimbursement\n\n\
-                             To remove this popup in the future you can run \"komorebic license <email>\" using the email address associated with your license"
+                             To remove this popup in the future you can run \"komorebic license <email>\" using the email address associated with your license\n\n
+                             If you are a student using komorebi on a laptop provided by your school, you can email me from your educational email account to remove this popup"
                     )
                 }
             };

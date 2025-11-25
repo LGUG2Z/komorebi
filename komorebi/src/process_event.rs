@@ -52,7 +52,9 @@ pub fn listen_for_events(wm: Arc<Mutex<WindowManager>>) {
                 if mdm && splash::should().map(|f| f.into()).unwrap_or(true) {
                     let mut args = vec!["splash".to_string()];
                     if let Some(server) = server {
-                        args.push(server);
+                        if !server.trim().is_empty() {
+                            args.push(server);
+                        }
                     }
 
                     let _ = Command::new("komorebic").args(&args).spawn();
