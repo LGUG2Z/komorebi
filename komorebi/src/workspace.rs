@@ -603,8 +603,11 @@ impl Workspace {
                                 if window.is_maximized() && !managed_maximized_window {
                                     WindowsApi::restore_window(window.hwnd);
                                 }
+
+                                // Only resize the focused window to prevent viewport resets in
+                                // Chromium browsers when transitioning from single to tiled layout
+                                window.set_position(layout, false)?;
                             }
-                            window.set_position(layout, false)?;
                         }
                     }
                 }
