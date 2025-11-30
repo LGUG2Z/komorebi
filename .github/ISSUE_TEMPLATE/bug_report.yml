@@ -55,6 +55,7 @@ body:
       label: Hotkey Configuration
       description: >
         Please provide your whkdrc or komorebi.ahk hotkey configuration file
+      render: shell
   - type: textarea
     validations:
       required: true
@@ -62,3 +63,4 @@ body:
       label: Output of komorebic check
       description: >
         Please provide the output of `komorebic check`
+      render: shell
