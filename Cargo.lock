@@ -1464,6 +1464,15 @@ dependencies = [
 
 [[package]]
 name = "dirs"
+version = "5.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "44c45a9d03d6676652bcb5e724c7e988de1acad23a711b5217ab9cbecbec2225"
+dependencies = [
+ "dirs-sys 0.4.1",
+]
+
+[[package]]
+name = "dirs"
 version = "6.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c3e8aa94d75141228480295a7d0e7feb620b1a5ad9f12bc40be62411e38cce4e"
@@ -1480,6 +1489,18 @@ dependencies = [
  "libc",
  "redox_users 0.4.6",
  "winapi",
+]
+
+[[package]]
+name = "dirs-sys"
+version = "0.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "520f05a5cbd335fae5a99ff7a6ab8627577660ee5cfd6a94a6a929b52ff0321c"
+dependencies = [
+ "libc",
+ "option-ext",
+ "redox_users 0.4.6",
+ "windows-sys 0.48.0",
 ]
 
 [[package]]
@@ -3289,6 +3310,21 @@ dependencies = [
 [[package]]
 name = "komorebic-no-console"
 version = "0.1.40"
+
+[[package]]
+name = "komorebic-service"
+version = "0.1.0"
+dependencies = [
+ "color-eyre",
+ "dirs 5.0.1",
+ "komorebi-client",
+ "serde",
+ "serde_json_lenient",
+ "tracing",
+ "tracing-appender",
+ "tracing-subscriber",
+ "windows 0.62.2",
+]
 
 [[package]]
 name = "kqueue"

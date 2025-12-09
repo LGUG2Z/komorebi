@@ -1,0 +1,24 @@
+[package]
+name = "komorebic-service"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+komorebi-client = { path = "../komorebi-client" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tracing = { workspace = true }
+tracing-appender = { workspace = true }
+tracing-subscriber = { workspace = true }
+color-eyre = { workspace = true }
+dirs = "5.0"
+
+[dependencies.windows]
+workspace = true
+features = [
+    "Win32_Foundation",
+    "Win32_Storage_FileSystem",
+    "Win32_System_Pipes",
+    "Win32_System_IO",
+    "Win32_Security",
+]
