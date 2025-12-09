@@ -1,10 +1,13 @@
 #![warn(clippy::all)]
 #![windows_subsystem = "windows"]
 
-use color_eyre::Result;
-use komorebi_client::send_message;
 use komorebi_client::SocketMessage;
+use std::io::Write;
 use std::ptr;
+use std::sync::Arc;
+use std::thread;
+use std::time::Duration;
+use uds_windows::UnixStream;
 use windows::Win32::Foundation::CloseHandle;
 use windows::Win32::Foundation::ERROR_PIPE_CONNECTED;
 use windows::Win32::Foundation::HANDLE;
@@ -23,50 +26,50 @@ use windows::Win32::System::Pipes::PIPE_TYPE_BYTE;
 use windows::Win32::System::Pipes::PIPE_WAIT;
 
 const PIPE_NAME: &[u8] = b"\\\\.\\pipe\\komorebi-command\0";
-const BUFFER_SIZE: usize = 4096;
+const BUFFER_SIZE: usize = 512;
+const NUM_PIPE_INSTANCES: usize = 4;
 
-fn main() -> Result<()> {
-    color_eyre::install()?;
-
-    // Setup file logging
+fn main() {
     let data_dir = dirs::data_local_dir()
         .expect("Unable to locate local data directory")
         .join("komorebi");
-    std::fs::create_dir_all(&data_dir)?;
 
-    let log_file = data_dir.join("komorebic-service.log");
-    let file = std::fs::OpenOptions::new()
-        .create(true)
-        .append(true)
-        .open(log_file)?;
+    let komorebi_socket = Arc::new(data_dir.join("komorebi.sock"));
+    let mut handles = Vec::with_capacity(NUM_PIPE_INSTANCES);
 
-    tracing_subscriber::fmt()
-        .with_writer(file)
-        .with_ansi(false)
-        .init();
+    for _ in 0..NUM_PIPE_INSTANCES {
+        let socket_path = Arc::clone(&komorebi_socket);
+        let handle = thread::spawn(move || {
+            pipe_listener_thread(socket_path);
+        });
+        handles.push(handle);
+    }
 
-    tracing::info!("komorebic-service starting");
-    tracing::info!("Listening on: \\\\.\\pipe\\komorebi-command");
+    for handle in handles {
+        let _ = handle.join();
+    }
+}
 
-    loop {
-        // Create security descriptor that allows everyone to access the pipe
-        let mut sd = SECURITY_DESCRIPTOR::default();
-        let mut sa = SECURITY_ATTRIBUTES {
-            nLength: std::mem::size_of::<SECURITY_ATTRIBUTES>() as u32,
-            lpSecurityDescriptor: ptr::null_mut(),
-            bInheritHandle: false.into(),
-        };
+fn pipe_listener_thread(komorebi_socket: Arc<std::path::PathBuf>) {
+    let mut sd = SECURITY_DESCRIPTOR::default();
+    let mut sa = SECURITY_ATTRIBUTES {
+        nLength: std::mem::size_of::<SECURITY_ATTRIBUTES>() as u32,
+        lpSecurityDescriptor: ptr::null_mut(),
+        bInheritHandle: false.into(),
+    };
 
-        unsafe {
-            let sd_ptr = PSECURITY_DESCRIPTOR(&mut sd as *mut _ as *mut _);
-            if InitializeSecurityDescriptor(sd_ptr, 1).is_ok() {
-                if SetSecurityDescriptorDacl(sd_ptr, true, None, false).is_ok() {
-                    sa.lpSecurityDescriptor = sd_ptr.0;
-                }
+    unsafe {
+        let sd_ptr = PSECURITY_DESCRIPTOR(&mut sd as *mut _ as *mut _);
+        if InitializeSecurityDescriptor(sd_ptr, 1).is_ok() {
+            if SetSecurityDescriptorDacl(sd_ptr, true, None, false).is_ok() {
+                sa.lpSecurityDescriptor = sd_ptr.0;
             }
         }
+    }
 
-        // Create a new named pipe instance
+    let mut buffer = [0u8; BUFFER_SIZE];
+
+    loop {
         let pipe_handle = unsafe {
             CreateNamedPipeA(
                 windows::core::PCSTR::from_raw(PIPE_NAME.as_ptr()),
@@ -82,20 +85,17 @@ fn main() -> Result<()> {
 
         let pipe_handle = match pipe_handle {
             Ok(handle) => handle,
-            Err(e) => {
-                tracing::error!("Failed to create named pipe: {}", e);
-                std::thread::sleep(std::time::Duration::from_secs(1));
+            Err(_) => {
+                thread::sleep(Duration::from_millis(100));
                 continue;
             }
         };
 
-        // Wait for a client to connect
         let connected = unsafe { ConnectNamedPipe(pipe_handle, None) };
 
         if let Err(e) = connected {
             let error_code = e.code().0 as u32;
             if error_code != ERROR_PIPE_CONNECTED.0 {
-                tracing::error!("Failed to connect to client: {}", e);
                 unsafe {
                     let _ = CloseHandle(pipe_handle);
                 }
@@ -103,12 +103,8 @@ fn main() -> Result<()> {
             }
         }
 
-        // Handle the client request
-        if let Err(e) = handle_client(pipe_handle) {
-            tracing::error!("Error handling client: {}", e);
-        }
+        handle_client(pipe_handle, &mut buffer, &komorebi_socket);
 
-        // Disconnect and close the pipe
         unsafe {
             let _ = DisconnectNamedPipe(pipe_handle);
             let _ = CloseHandle(pipe_handle);
@@ -116,64 +112,178 @@ fn main() -> Result<()> {
     }
 }
 
-fn handle_client(pipe_handle: HANDLE) -> Result<()> {
-    let mut buffer = vec![0u8; BUFFER_SIZE];
+#[inline]
+fn handle_client(
+    pipe_handle: HANDLE,
+    buffer: &mut [u8; BUFFER_SIZE],
+    komorebi_socket: &std::path::Path,
+) {
     let mut bytes_read = 0u32;
 
-    let read_result =
-        unsafe { ReadFile(pipe_handle, Some(&mut buffer), Some(&mut bytes_read), None) };
+    let read_result = unsafe { ReadFile(pipe_handle, Some(buffer), Some(&mut bytes_read), None) };
 
-    if let Err(e) = read_result {
-        return Err(color_eyre::eyre::eyre!("Failed to read from pipe: {}", e));
+    if read_result.is_err() || bytes_read == 0 {
+        return;
     }
 
-    if bytes_read == 0 {
-        return Err(color_eyre::eyre::eyre!("Read 0 bytes from pipe"));
-    }
-
-    // Convert bytes to string and strip BOM if present
-    let command_str = String::from_utf8_lossy(&buffer[..bytes_read as usize]);
+    let command_str = unsafe { std::str::from_utf8_unchecked(&buffer[..bytes_read as usize]) };
     let trimmed = command_str.trim().trim_start_matches('\u{FEFF}');
 
-    tracing::info!("Received: '{}'", trimmed);
-
-    // Parse and execute the command
-    let message = parse_command(trimmed)?;
-    send_message(&message)?;
-
-    tracing::info!("Sent to komorebi: {:?}", message);
-    Ok(())
+    if let Some(message) = parse_command(trimmed) {
+        if let Ok(json) = serde_json::to_string(&message) {
+            if let Ok(mut stream) = UnixStream::connect(komorebi_socket) {
+                let _ = stream.set_write_timeout(Some(Duration::from_millis(100)));
+                let _ = stream.write_all(json.as_bytes());
+            }
+        }
+    }
 }
 
-/// Parse a simple command string into a SocketMessage
-/// Format: "Command" or "Command arg"
-fn parse_command(cmd: &str) -> Result<SocketMessage> {
-    let parts: Vec<&str> = cmd.splitn(2, ' ').collect();
-    let command = parts[0];
-    let arg = parts.get(1).map(|s| s.trim());
+#[inline]
+fn parse_command(cmd: &str) -> Option<SocketMessage> {
+    use komorebi_client::*;
+    use std::path::PathBuf;
 
-    let message = match command {
-        // Focus commands
-        "Focus" => {
-            let direction = arg.ok_or_else(|| {
-                color_eyre::eyre::eyre!("Focus requires direction (Left/Right/Up/Down)")
-            })?;
-            SocketMessage::FocusWindow(direction.parse()?)
-        }
-        "FocusNamedWorkspace" => {
-            let workspace = arg.ok_or_else(|| {
-                color_eyre::eyre::eyre!("FocusNamedWorkspace requires workspace name")
-            })?;
-            SocketMessage::FocusNamedWorkspace(workspace.to_string())
-        }
-        "FocusLastWorkspace" => SocketMessage::FocusLastWorkspace,
+    let mut parts = cmd.splitn(3, ' ');
+    let command = parts.next()?;
+    let arg1 = parts.next();
+    let arg2 = parts.next();
 
-        // Add more commands here following the same pattern:
-        // "CommandName" => SocketMessage::CommandName(args...),
-        _ => {
-            return Err(color_eyre::eyre::eyre!("Unknown command: {}", command));
-        }
-    };
+    match command {
+        // No-arg commands
+        "quick-save-resize" => Some(SocketMessage::QuickSave),
+        "quick-load-resize" => Some(SocketMessage::QuickLoad),
+        "minimize" => Some(SocketMessage::Minimize),
+        "close" => Some(SocketMessage::Close),
+        "force-focus" => Some(SocketMessage::ForceFocus),
+        "unstack" => Some(SocketMessage::UnstackWindow),
+        "stack-all" => Some(SocketMessage::StackAll),
+        "unstack-all" => Some(SocketMessage::UnstackAll),
+        "send-to-last-workspace" => Some(SocketMessage::SendContainerToLastWorkspace),
+        "move-to-last-workspace" => Some(SocketMessage::MoveContainerToLastWorkspace),
+        "focus-monitor-at-cursor" => Some(SocketMessage::FocusMonitorAtCursor),
+        "focus-last-workspace" => Some(SocketMessage::FocusLastWorkspace),
+        "close-workspace" => Some(SocketMessage::CloseWorkspace),
+        "new-workspace" => Some(SocketMessage::NewWorkspace),
+        "promote" => Some(SocketMessage::Promote),
+        "promote-focus" => Some(SocketMessage::PromoteFocus),
+        "retile" => Some(SocketMessage::Retile),
+        "toggle-pause" => Some(SocketMessage::TogglePause),
+        "toggle-tiling" => Some(SocketMessage::ToggleTiling),
+        "toggle-float" => Some(SocketMessage::ToggleFloat),
+        "toggle-monocle" => Some(SocketMessage::ToggleMonocle),
+        "toggle-maximize" => Some(SocketMessage::ToggleMaximize),
+        "toggle-lock" => Some(SocketMessage::ToggleLock),
+        "manage" => Some(SocketMessage::ManageFocusedWindow),
+        "unmanage" => Some(SocketMessage::UnmanageFocusedWindow),
+        "reload-configuration" => Some(SocketMessage::ReloadConfiguration),
 
-    Ok(message)
+        // PathBuf commands
+        "save-resize" => Some(SocketMessage::Save(PathBuf::from(arg1?))),
+        "load-resize" => Some(SocketMessage::Load(PathBuf::from(arg1?))),
+
+        // OperationDirection commands
+        "focus" => Some(SocketMessage::FocusWindow(arg1?.parse().ok()?)),
+        "move" => Some(SocketMessage::MoveWindow(arg1?.parse().ok()?)),
+        "stack" => Some(SocketMessage::StackWindow(arg1?.parse().ok()?)),
+        "promote-window" => Some(SocketMessage::PromoteWindow(arg1?.parse().ok()?)),
+
+        // CycleDirection commands
+        "cycle-focus" => Some(SocketMessage::CycleFocusWindow(arg1?.parse().ok()?)),
+        "cycle-move" => Some(SocketMessage::CycleMoveWindow(arg1?.parse().ok()?)),
+        "cycle-stack" => Some(SocketMessage::CycleStack(arg1?.parse().ok()?)),
+        "cycle-stack-index" => Some(SocketMessage::CycleStackIndex(arg1?.parse().ok()?)),
+        "cycle-move-to-monitor" => Some(SocketMessage::CycleMoveContainerToMonitor(
+            arg1?.parse().ok()?,
+        )),
+        "cycle-move-to-workspace" => Some(SocketMessage::CycleMoveContainerToWorkspace(
+            arg1?.parse().ok()?,
+        )),
+        "cycle-send-to-monitor" => Some(SocketMessage::CycleSendContainerToMonitor(
+            arg1?.parse().ok()?,
+        )),
+        "cycle-send-to-workspace" => Some(SocketMessage::CycleSendContainerToWorkspace(
+            arg1?.parse().ok()?,
+        )),
+        "cycle-monitor" => Some(SocketMessage::CycleFocusMonitor(arg1?.parse().ok()?)),
+        "cycle-workspace" => Some(SocketMessage::CycleFocusWorkspace(arg1?.parse().ok()?)),
+        "cycle-empty-workspace" => {
+            Some(SocketMessage::CycleFocusEmptyWorkspace(arg1?.parse().ok()?))
+        }
+        "cycle-move-workspace-to-monitor" => Some(SocketMessage::CycleMoveWorkspaceToMonitor(
+            arg1?.parse().ok()?,
+        )),
+        "cycle-layout" => Some(SocketMessage::CycleLayout(arg1?.parse().ok()?)),
+
+        // String commands
+        "eager-focus" => Some(SocketMessage::EagerFocus(arg1?.to_string())),
+        "move-to-named-workspace" => Some(SocketMessage::MoveContainerToNamedWorkspace(
+            arg1?.to_string(),
+        )),
+        "send-to-named-workspace" => Some(SocketMessage::SendContainerToNamedWorkspace(
+            arg1?.to_string(),
+        )),
+        "focus-named-workspace" => Some(SocketMessage::FocusNamedWorkspace(arg1?.to_string())),
+
+        // usize commands
+        "focus-stack-window" => Some(SocketMessage::FocusStackWindow(arg1?.parse().ok()?)),
+        "move-to-monitor" => Some(SocketMessage::MoveContainerToMonitorNumber(
+            arg1?.parse().ok()?,
+        )),
+        "move-to-workspace" => Some(SocketMessage::MoveContainerToWorkspaceNumber(
+            arg1?.parse().ok()?,
+        )),
+        "send-to-monitor" => Some(SocketMessage::SendContainerToMonitorNumber(
+            arg1?.parse().ok()?,
+        )),
+        "send-to-workspace" => Some(SocketMessage::SendContainerToWorkspaceNumber(
+            arg1?.parse().ok()?,
+        )),
+        "focus-monitor" => Some(SocketMessage::FocusMonitorNumber(arg1?.parse().ok()?)),
+        "focus-workspace" => Some(SocketMessage::FocusWorkspaceNumber(arg1?.parse().ok()?)),
+        "focus-workspaces" => Some(SocketMessage::FocusWorkspaceNumbers(arg1?.parse().ok()?)),
+        "move-workspace-to-monitor" => Some(SocketMessage::MoveWorkspaceToMonitorNumber(
+            arg1?.parse().ok()?,
+        )),
+        "swap-workspaces-with-monitor" => Some(SocketMessage::SwapWorkspacesToMonitorNumber(
+            arg1?.parse().ok()?,
+        )),
+
+        // i32 commands
+        "resize-delta" => Some(SocketMessage::ResizeDelta(arg1?.parse().ok()?)),
+
+        // DefaultLayout commands
+        "change-layout" => Some(SocketMessage::ChangeLayout(arg1?.parse().ok()?)),
+
+        // Axis commands
+        "flip-layout" => Some(SocketMessage::FlipLayout(arg1?.parse().ok()?)),
+
+        // Two-argument commands (usize, usize)
+        "send-to-monitor-workspace" => Some(SocketMessage::SendContainerToMonitorWorkspaceNumber(
+            arg1?.parse().ok()?,
+            arg2?.parse().ok()?,
+        )),
+        "move-to-monitor-workspace" => Some(SocketMessage::MoveContainerToMonitorWorkspaceNumber(
+            arg1?.parse().ok()?,
+            arg2?.parse().ok()?,
+        )),
+        "focus-monitor-workspace" => Some(SocketMessage::FocusMonitorWorkspaceNumber(
+            arg1?.parse().ok()?,
+            arg2?.parse().ok()?,
+        )),
+
+        // Two-argument commands (OperationDirection, Sizing)
+        "resize-edge" => Some(SocketMessage::ResizeWindowEdge(
+            arg1?.parse().ok()?,
+            arg2?.parse().ok()?,
+        )),
+
+        // Two-argument commands (Axis, Sizing)
+        "resize-axis" => Some(SocketMessage::ResizeWindowAxis(
+            arg1?.parse().ok()?,
+            arg2?.parse().ok()?,
+        )),
+
+        _ => None,
+    }
 }

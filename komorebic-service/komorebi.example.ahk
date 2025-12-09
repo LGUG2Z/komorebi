@@ -16,18 +16,20 @@
 Komorebic(command) {
     static PIPE_NAME := "\\.\pipe\komorebi-command"
     
-    try {
-        ; Open the named pipe for writing
-        ; Use UTF-8-RAW to avoid BOM (Byte Order Mark)
-        ; This is a kernel-level operation with ~1-2ms latency
-        pipe := FileOpen(PIPE_NAME, "w", "UTF-8-RAW")
-        
-        if (pipe) {
-            ; Write the JSON command
-            pipe.Write(command)
-            ; Close to flush and send immediately
-            pipe.Close()
+    ; Retry up to 3 times if pipe is busy
+    Loop 3 {
+        try {
+            pipe := FileOpen(PIPE_NAME, "w", "UTF-8-RAW")
+            if (pipe) {
+                pipe.Write(command)
+                pipe.Close()
+                return  ; Success, exit
+            }
         }
+        ; Small delay before retry (1ms)
+        Sleep(1)
+    }
+}
     } catch as e {
         ; If the pipe is not available, komorebic-service might not be running
         OutputDebug("Komorebi pipe error: " . e.Message)

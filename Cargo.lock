@@ -3315,14 +3315,10 @@ version = "0.1.40"
 name = "komorebic-service"
 version = "0.1.0"
 dependencies = [
- "color-eyre",
  "dirs 5.0.1",
  "komorebi-client",
- "serde",
  "serde_json_lenient",
- "tracing",
- "tracing-appender",
- "tracing-subscriber",
+ "uds_windows",
  "windows 0.62.2",
 ]
 
