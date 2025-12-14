@@ -29,6 +29,23 @@ Tiling Window Management for Windows.
 
 ![screenshot](https://user-images.githubusercontent.com/13164844/184027064-f5a6cec2-2865-4d65-a549-a1f1da589abf.png)
 
+## Note: Students using devices enrolled in mobile device management (MDM)
+
+Your usage still falls under the [Komorebi License 2.0.0](./LICENSE.md).
+
+You can email me at the address I sign my commits with (add `.patch` to the end
+of any commit URL on GitHub to find it) from the address associated with your
+institution with the subject "komorebi - student with an MDM device", and I will
+be able to remove the splash intended for corporate users, whose usage falls
+under the [Individual Commercial Use
+License](https://lgug2z.com/software/komorebi).
+
+This is currently a manual process - most days this shouldn't take more than
+12h, and you will receive an email reply from me when the process is complete.
+
+If you haven't had a reply to your email within 24h you can reach out to me on
+Discord.
+
 ## Note: komorebi for Mac
 
 If you made your way to this repo looking for [komorebi for
