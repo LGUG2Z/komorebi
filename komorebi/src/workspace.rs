@@ -1,3 +1,5 @@
+#![allow(unused_assignments, unused_variables)] // TODO: something got weird in clippy 1.92.0
+
 use std::collections::VecDeque;
 use std::ffi::OsStr;
 use std::fmt::Display;
