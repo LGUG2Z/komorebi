@@ -65,7 +65,7 @@ jobs:
       - run: |
           cargo install cargo-wix
           cargo wix --no-build -p komorebi --nocapture -I .\wix\main.wxs --target ${{ matrix.platform.target }}
-      - uses: actions/upload-artifact@v5
+      - uses: actions/upload-artifact@v6
         with:
           name: komorebi-${{ matrix.platform.target }}-${{ github.sha }}
           path: |
