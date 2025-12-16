@@ -108,6 +108,30 @@ No process spawns, no antivirus or anticheat software scans, or similar issues t
 
 This should fix your delayed execution issue.
 
+### Starting `komorebic-service`
+
+This can be done by adding the `--service` flag when you are starting Komorebi, but it won't your if `komorebic-service.exe` isn't in the PATH, if it didn't work add it to PATH.
+
+Example:
+
+```bash
+# Starts `komorebic-service` too. 
+komorebic-no-console.exe start --ahk --bar --service
+```
+
+#### Fixing PATH
+
+For scoop:
+
+1. Go to `C:\Users\%USERNAME%\scoop\apps\komorebi\current`
+2. Copy `komorebic-service.exe` file.
+3. Go to `C:\Users\%USERNAME%\scoop\shims`
+4. Paste file into shims directory.
+
+For winget:
+
+Add `C:\Program Files\komorebi\bin` to your PATH.
+
 ---
 
 If you are still having delay issues you may need to reset your PC, or maybe there is something much more weird that causes delays.
