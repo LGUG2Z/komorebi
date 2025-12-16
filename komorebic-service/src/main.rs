@@ -146,8 +146,14 @@ fn parse_command(cmd: &str) -> Option<SocketMessage> {
 
     let mut parts = cmd.splitn(3, ' ');
     let command = parts.next()?;
-    let arg1 = parts.next();
-    let arg2 = parts.next();
+
+    let first_arg = parts.next();
+    let second_arg = parts.next();
+
+    // Parse numeric arguments once
+    let first_arg_usize = first_arg.and_then(|s| s.parse::<usize>().ok());
+    let second_arg_usize = second_arg.and_then(|s| s.parse::<usize>().ok());
+    let first_arg_i32 = first_arg.and_then(|s| s.parse::<i32>().ok());
 
     match command {
         // No-arg commands
@@ -179,111 +185,143 @@ fn parse_command(cmd: &str) -> Option<SocketMessage> {
         "reload-configuration" => Some(SocketMessage::ReloadConfiguration),
 
         // PathBuf commands
-        "save-resize" => Some(SocketMessage::Save(PathBuf::from(arg1?))),
-        "load-resize" => Some(SocketMessage::Load(PathBuf::from(arg1?))),
+        "save-resize" => Some(SocketMessage::Save(PathBuf::from(first_arg?))),
+        "load-resize" => Some(SocketMessage::Load(PathBuf::from(first_arg?))),
 
         // OperationDirection commands
-        "focus" => Some(SocketMessage::FocusWindow(arg1?.parse().ok()?)),
-        "move" => Some(SocketMessage::MoveWindow(arg1?.parse().ok()?)),
-        "stack" => Some(SocketMessage::StackWindow(arg1?.parse().ok()?)),
-        "promote-window" => Some(SocketMessage::PromoteWindow(arg1?.parse().ok()?)),
+        "focus" => Some(SocketMessage::FocusWindow(parse_enum_uppercase(
+            first_arg?,
+        )?)),
+        "move" => Some(SocketMessage::MoveWindow(parse_enum_uppercase(first_arg?)?)),
+        "stack" => Some(SocketMessage::StackWindow(parse_enum_uppercase(
+            first_arg?,
+        )?)),
+        "promote-window" => Some(SocketMessage::PromoteWindow(parse_enum_uppercase(
+            first_arg?,
+        )?)),
 
         // CycleDirection commands
-        "cycle-focus" => Some(SocketMessage::CycleFocusWindow(arg1?.parse().ok()?)),
-        "cycle-move" => Some(SocketMessage::CycleMoveWindow(arg1?.parse().ok()?)),
-        "cycle-stack" => Some(SocketMessage::CycleStack(arg1?.parse().ok()?)),
-        "cycle-stack-index" => Some(SocketMessage::CycleStackIndex(arg1?.parse().ok()?)),
+        "cycle-focus" => Some(SocketMessage::CycleFocusWindow(parse_enum_uppercase(
+            first_arg?,
+        )?)),
+        "cycle-move" => Some(SocketMessage::CycleMoveWindow(parse_enum_uppercase(
+            first_arg?,
+        )?)),
+        "cycle-stack" => Some(SocketMessage::CycleStack(parse_enum_uppercase(first_arg?)?)),
+        "cycle-stack-index" => Some(SocketMessage::CycleStackIndex(parse_enum_uppercase(
+            first_arg?,
+        )?)),
         "cycle-move-to-monitor" => Some(SocketMessage::CycleMoveContainerToMonitor(
-            arg1?.parse().ok()?,
+            parse_enum_uppercase(first_arg?)?,
         )),
         "cycle-move-to-workspace" => Some(SocketMessage::CycleMoveContainerToWorkspace(
-            arg1?.parse().ok()?,
+            parse_enum_uppercase(first_arg?)?,
         )),
         "cycle-send-to-monitor" => Some(SocketMessage::CycleSendContainerToMonitor(
-            arg1?.parse().ok()?,
+            parse_enum_uppercase(first_arg?)?,
         )),
         "cycle-send-to-workspace" => Some(SocketMessage::CycleSendContainerToWorkspace(
-            arg1?.parse().ok()?,
+            parse_enum_uppercase(first_arg?)?,
         )),
-        "cycle-monitor" => Some(SocketMessage::CycleFocusMonitor(arg1?.parse().ok()?)),
-        "cycle-workspace" => Some(SocketMessage::CycleFocusWorkspace(arg1?.parse().ok()?)),
-        "cycle-empty-workspace" => {
-            Some(SocketMessage::CycleFocusEmptyWorkspace(arg1?.parse().ok()?))
-        }
+        "cycle-monitor" => Some(SocketMessage::CycleFocusMonitor(parse_enum_uppercase(
+            first_arg?,
+        )?)),
+        "cycle-workspace" => Some(SocketMessage::CycleFocusWorkspace(parse_enum_uppercase(
+            first_arg?,
+        )?)),
+        "cycle-empty-workspace" => Some(SocketMessage::CycleFocusEmptyWorkspace(
+            parse_enum_uppercase(first_arg?)?,
+        )),
         "cycle-move-workspace-to-monitor" => Some(SocketMessage::CycleMoveWorkspaceToMonitor(
-            arg1?.parse().ok()?,
+            parse_enum_uppercase(first_arg?)?,
         )),
-        "cycle-layout" => Some(SocketMessage::CycleLayout(arg1?.parse().ok()?)),
+        "cycle-layout" => Some(SocketMessage::CycleLayout(parse_enum_uppercase(
+            first_arg?,
+        )?)),
 
         // String commands
-        "eager-focus" => Some(SocketMessage::EagerFocus(arg1?.to_string())),
+        "eager-focus" => Some(SocketMessage::EagerFocus(first_arg?.to_string())),
         "move-to-named-workspace" => Some(SocketMessage::MoveContainerToNamedWorkspace(
-            arg1?.to_string(),
+            first_arg?.to_string(),
         )),
         "send-to-named-workspace" => Some(SocketMessage::SendContainerToNamedWorkspace(
-            arg1?.to_string(),
+            first_arg?.to_string(),
         )),
-        "focus-named-workspace" => Some(SocketMessage::FocusNamedWorkspace(arg1?.to_string())),
+        "focus-named-workspace" => Some(SocketMessage::FocusNamedWorkspace(first_arg?.to_string())),
 
         // usize commands
-        "focus-stack-window" => Some(SocketMessage::FocusStackWindow(arg1?.parse().ok()?)),
+        "focus-stack-window" => Some(SocketMessage::FocusStackWindow(first_arg_usize?)),
         "move-to-monitor" => Some(SocketMessage::MoveContainerToMonitorNumber(
-            arg1?.parse().ok()?,
+            first_arg_usize?,
         )),
         "move-to-workspace" => Some(SocketMessage::MoveContainerToWorkspaceNumber(
-            arg1?.parse().ok()?,
+            first_arg_usize?,
         )),
         "send-to-monitor" => Some(SocketMessage::SendContainerToMonitorNumber(
-            arg1?.parse().ok()?,
+            first_arg_usize?,
         )),
         "send-to-workspace" => Some(SocketMessage::SendContainerToWorkspaceNumber(
-            arg1?.parse().ok()?,
+            first_arg_usize?,
         )),
-        "focus-monitor" => Some(SocketMessage::FocusMonitorNumber(arg1?.parse().ok()?)),
-        "focus-workspace" => Some(SocketMessage::FocusWorkspaceNumber(arg1?.parse().ok()?)),
-        "focus-workspaces" => Some(SocketMessage::FocusWorkspaceNumbers(arg1?.parse().ok()?)),
+        "focus-monitor" => Some(SocketMessage::FocusMonitorNumber(first_arg_usize?)),
+        "focus-workspace" => Some(SocketMessage::FocusWorkspaceNumber(first_arg_usize?)),
+        "focus-workspaces" => Some(SocketMessage::FocusWorkspaceNumbers(first_arg_usize?)),
         "move-workspace-to-monitor" => Some(SocketMessage::MoveWorkspaceToMonitorNumber(
-            arg1?.parse().ok()?,
+            first_arg_usize?,
         )),
         "swap-workspaces-with-monitor" => Some(SocketMessage::SwapWorkspacesToMonitorNumber(
-            arg1?.parse().ok()?,
+            first_arg_usize?,
         )),
 
         // i32 commands
-        "resize-delta" => Some(SocketMessage::ResizeDelta(arg1?.parse().ok()?)),
+        "resize-delta" => Some(SocketMessage::ResizeDelta(first_arg_i32?)),
 
         // DefaultLayout commands
-        "change-layout" => Some(SocketMessage::ChangeLayout(arg1?.parse().ok()?)),
+        "change-layout" => Some(SocketMessage::ChangeLayout(parse_enum_uppercase(
+            first_arg?,
+        )?)),
 
         // Axis commands
-        "flip-layout" => Some(SocketMessage::FlipLayout(arg1?.parse().ok()?)),
+        "flip-layout" => Some(SocketMessage::FlipLayout(parse_enum_uppercase(first_arg?)?)),
 
         // Two-argument commands (usize, usize)
         "send-to-monitor-workspace" => Some(SocketMessage::SendContainerToMonitorWorkspaceNumber(
-            arg1?.parse().ok()?,
-            arg2?.parse().ok()?,
+            first_arg_usize?,
+            second_arg_usize?,
         )),
         "move-to-monitor-workspace" => Some(SocketMessage::MoveContainerToMonitorWorkspaceNumber(
-            arg1?.parse().ok()?,
-            arg2?.parse().ok()?,
+            first_arg_usize?,
+            second_arg_usize?,
         )),
         "focus-monitor-workspace" => Some(SocketMessage::FocusMonitorWorkspaceNumber(
-            arg1?.parse().ok()?,
-            arg2?.parse().ok()?,
+            first_arg_usize?,
+            second_arg_usize?,
         )),
 
         // Two-argument commands (OperationDirection, Sizing)
         "resize-edge" => Some(SocketMessage::ResizeWindowEdge(
-            arg1?.parse().ok()?,
-            arg2?.parse().ok()?,
+            parse_enum_uppercase(first_arg?)?,
+            parse_enum_uppercase(second_arg?)?,
         )),
 
         // Two-argument commands (Axis, Sizing)
         "resize-axis" => Some(SocketMessage::ResizeWindowAxis(
-            arg1?.parse().ok()?,
-            arg2?.parse().ok()?,
+            parse_enum_uppercase(first_arg?)?,
+            parse_enum_uppercase(second_arg?)?,
         )),
 
         _ => None,
+    }
+}
+
+#[inline]
+fn parse_enum_uppercase<T: std::str::FromStr>(s: &str) -> Option<T> {
+    let mut chars = s.chars();
+    match chars.next() {
+        None => None,
+        Some(first_char) => {
+            let uppercased = first_char.to_uppercase().collect::<String>() + chars.as_str();
+            uppercased.parse().ok()
+        }
     }
 }
