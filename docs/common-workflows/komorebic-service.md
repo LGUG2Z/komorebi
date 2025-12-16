@@ -6,8 +6,8 @@ If you are having delay issues about executing commands you can use `komorebic-s
 
 Delay issues with commands usually happens due to few known reasons:
 
-- Kernel based anticheat softwares. (Faceit AC, Vanguard etc.)
-- Kernel based antivirus softwares.
+- Kernel based anti-cheat softwares. (Faceit AC, Vanguard etc.)
+- Kernel based anti-virus softwares.
 - Softwares that scans new process spawns.
 
 There might be also some other reasons why this can happen too.
@@ -24,14 +24,14 @@ And because (doesn't matter if you use `whkd` or `AHK`) you spawn new `komorebic
 
 Delayed executions can be up to 10, 15, 20 seconds time to time, I'm still not sure what is the underlying issue that is directly related with the duration of delay time.
 
-Other than "long" delays average execution time of any `komorebic` command may increase over time too, for example you might see that `komorebic` getting slower over time, which is another known issue but I don't know how this happens and what is the root cause of this. It's also veyr likely that you will have more delay than before, even if it won't go up over time, which as I said reason of this is probably the anticheat or antivirus software you have installed.
+Other than "long" delays average execution time of any `komorebic` command may increase over time too, for example you might see that `komorebic` getting slower over time, which is another known issue but I don't know how this happens and what is the root cause of this. It's also veyr likely that you will have more delay than before, even if it won't go up over time, which as I said reason of this is probably the anti-cheat or anti-virus software you have installed.
 
 > The key take here is komorebi isn't slow to respond or render something, the actual problem is `komrobic.exe` is blocked to execute the command at all, this is why things are delayed, not because komorebi itself is slow that isn't the case. (It's written in Rust it can't be slow xd)
 
 Example of what happens in normal case;
 
 ```mermaid
-flowchart TD
+flowchart LR
 
 ahk[AHK]
 whkd[whkd]
@@ -46,7 +46,7 @@ ahk & whkd --triggers komorebic.exe--> komorebic --runs a CLI command--> komoreb
 Example of what happens in delayed case;
 
 ```mermaid
-flowchart TD
+flowchart LR
 
 ahk[AHK]
 whkd[whkd]
@@ -65,12 +65,12 @@ ahk & whkd --triggers komorebic.exe--> delay --> komorebic --runs a CLI command-
 You have few options to fix this issue permanently or temporarily.
 
 1. You can keep `komorebic log` openin a terminal session.
-2. You can uninstall anticheat or antivirus software.
+2. You can uninstall anti-cheat or anti-virus software.
 3. You can use `komorebic-service` instead of `komorebic`.
 
 When you run `komorebic log` command on your terminal sometimes it fixes the issue but you will see some increased CPU usage (%2-8) which something you may not want. But can be quick fix temporarily if it works.
 
-You can remove some known anticheat/antivirus softwares but this might not help too, because as far as I find out just single install of these softwares sometimes enough to break Komorebi forever, probably due to kernel things I don't understand. So you can try this but might not help too.
+You can remove some known anti-cheat/anti-virus softwares but this might not help too, because as far as I find out just single install of these softwares sometimes enough to break Komorebi forever, probably due to kernel things I don't understand. So you can try this but might not help too.
 
 > Windows Defender usually works fine you shouldn't have any issue with Windows Defender, just let you know. You can also whitelist `komorebic.exe` if you think Windows Defender is causing issues. [how to whitelist](https://learn.microsoft.com/en-us/answers/questions/3187645/how-to-add-an-exception-to-windows-defender)
 
@@ -78,7 +78,7 @@ You can remove some known anticheat/antivirus softwares but this might not help 
 
 For AHK replace your `Komorebic` function with the following command;
 
-```ahkv2
+```ahk
 Komorebic(command) {
     static PIPE_NAME := "\\.\pipe\komorebi-command"
 
@@ -104,7 +104,7 @@ After this you can leave your commands as they are. This will change how Komoreb
 ahk or whkd -> komorebic-service (via pipes) -> komorebi
 ```
 
-No process spawns, no antivirus or anticheat software scans, or similar issues that has the similar root causes.
+No process spawns, no anti-virus or anti-cheat software scans, or similar issues that has the similar root causes.
 
 This should fix your delayed execution issue.
 
