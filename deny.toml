@@ -81,6 +81,11 @@ expression = "LicenseRef-Komorebi-2.0"
 license-files = []
 
 [[licenses.clarify]]
+crate = "komorebic-service"
+expression = "LicenseRef-Komorebi-2.0"
+license-files = []
+
+[[licenses.clarify]]
 crate = "whkd-core"
 expression = "LicenseRef-Komorebi-2.0"
 license-files = []
