@@ -60,10 +60,10 @@ fn pipe_listener_thread(komorebi_socket: Arc<std::path::PathBuf>) {
 
     unsafe {
         let sd_ptr = PSECURITY_DESCRIPTOR(&mut sd as *mut _ as *mut _);
-        if InitializeSecurityDescriptor(sd_ptr, 1).is_ok() {
-            if SetSecurityDescriptorDacl(sd_ptr, true, None, false).is_ok() {
-                sa.lpSecurityDescriptor = sd_ptr.0;
-            }
+        if InitializeSecurityDescriptor(sd_ptr, 1).is_ok()
+            && SetSecurityDescriptorDacl(sd_ptr, true, None, false).is_ok()
+        {
+            sa.lpSecurityDescriptor = sd_ptr.0;
         }
     }
 
@@ -129,13 +129,12 @@ fn handle_client(
     let command_str = unsafe { std::str::from_utf8_unchecked(&buffer[..bytes_read as usize]) };
     let trimmed = command_str.trim().trim_start_matches('\u{FEFF}');
 
-    if let Some(message) = parse_command(trimmed) {
-        if let Ok(json) = serde_json::to_string(&message) {
-            if let Ok(mut stream) = UnixStream::connect(komorebi_socket) {
-                let _ = stream.set_write_timeout(Some(Duration::from_millis(100)));
-                let _ = stream.write_all(json.as_bytes());
-            }
-        }
+    if let Some(message) = parse_command(trimmed)
+        && let Ok(json) = serde_json::to_string(&message)
+        && let Ok(mut stream) = UnixStream::connect(komorebi_socket)
+    {
+        let _ = stream.set_write_timeout(Some(Duration::from_millis(100)));
+        let _ = stream.write_all(json.as_bytes());
     }
 }
 
