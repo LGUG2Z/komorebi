@@ -1,0 +1,26 @@
+[package]
+name = "schemars-docgen"
+version = "0.1.0"
+edition = "2024"
+description = "Generate HTML documentation from schemars::Schema objects"
+license-file = "LICENSE.md"
+
+[lib]
+name = "schemars_docgen"
+path = "src/lib.rs"
+
+[[bin]]
+name = "schemars-docgen"
+path = "src/main.rs"
+
+[dependencies]
+schemars = "1.1"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tera = "1.19"
+pulldown-cmark = "0.12"
+clap = { version = "4", features = ["derive"] }
+thiserror = "2"
+
+[dev-dependencies]
+pretty_assertions = "1.4"

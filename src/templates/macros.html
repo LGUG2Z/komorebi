@@ -1,0 +1,348 @@
+{# Render a hierarchical outline item with collapsible children #}
+{% macro render_outline_item(entry, depth) %}
+{%- if entry.children | length > 0 -%}
+<li class="outline-item depth-{{ depth }}">
+  <details>
+    <summary>
+      <a href="#{{ entry.anchor }}" class="nav-link" data-search-name="{{ entry.name | lower }}">{{ entry.name }}</a>
+    </summary>
+    <ul class="outline-children">
+      {%- for child in entry.children -%}
+      {{ self::render_outline_item(entry=child, depth=depth + 1) }}
+      {%- endfor -%}
+    </ul>
+  </details>
+</li>
+{%- else -%}
+<li class="outline-item depth-{{ depth }}">
+  <a href="#{{ entry.anchor }}" class="nav-link" data-search-name="{{ entry.name | lower }}">{{ entry.name }}</a>
+</li>
+{%- endif -%}
+{% endmacro render_outline_item %}
+
+{# Render a property with its name and schema #}
+{# Note: Using 'node' instead of 'schema' to avoid conflict with global context #}
+{% macro render_property(name, node, required, depth, path) %}
+{%- if depth < 10 -%}
+<div class="property depth-{{ depth }}" id="{{ path | lower | replace(from=".", to="-") }}" data-search-name="{{ name | lower }}">
+  <div class="property-header">
+    <code class="property-name">{{ name }}</code>
+    {%- if required %}<span class="badge required">required</span>{% endif -%}
+    {%- if node.deprecated %}<span class="badge deprecated">deprecated</span>{% endif -%}
+    {{ self::render_type_badge(node=node) }}
+  </div>
+  {%- if node.description_html %}<div class="description">{{ node.description_html | safe }}</div>{% endif -%}
+  {{ self::render_constraints(node=node) }}
+  {%- if node.default %}<div class="default-value"><span class="label">Default:</span> <code>{{ node.default | json_encode() }}</code></div>{% endif -%}
+  {{ self::render_schema_body(node=node, depth=depth, path=path) }}
+</div>
+{%- else -%}
+<div class="property depth-{{ depth }}"><span class="too-deep">Schema nested too deeply. See type definition.</span></div>
+{%- endif -%}
+{% endmacro render_property %}
+
+{# Render the type badge for a schema #}
+{% macro render_type_badge(node) %}
+{%- if node["$ref"] -%}
+  {%- set ref_name = node["$ref"] | replace(from="#/$defs/", to="") -%}
+  <a href="#{{ ref_name | lower }}" class="type-ref">{{ ref_name }}</a>
+{%- elif node.type -%}
+  {%- if node.type is string -%}
+    {%- if node.type == "array" and node.prefixItems -%}
+      {# Check if all prefixItems have the same type (homogeneous tuple) #}
+      {%- set first_type = node.prefixItems | first -%}
+      {%- set_global is_homogeneous = true -%}
+      {%- for item in node.prefixItems -%}
+        {%- if item.type != first_type.type -%}
+          {%- set_global is_homogeneous = false -%}
+        {%- endif -%}
+      {%- endfor -%}
+      {%- if is_homogeneous and first_type.type -%}
+        <span class="type-badge type-array">array</span> <span class="type-badge type-{{ first_type.type }}">{{ first_type.type }}; {{ node.prefixItems | length }}</span>
+      {%- else -%}
+        <span class="type-badge type-array">array</span> <span class="type-badge type-array">tuple</span>
+      {%- endif -%}
+    {%- elif node.type == "array" and node.items -%}
+      {# Show array with item type as separate badge #}
+      <span class="type-badge type-array">array</span> {{ self::render_type_badge(node=node.items) }}
+    {%- else -%}
+      <span class="type-badge type-{{ node.type }}">{{ node.type }}</span>
+    {%- endif -%}
+  {%- else -%}
+    {# Check for Option<T> pattern: type array with exactly 2 types where one is null #}
+    {%- if node.type | length == 2 and "null" in node.type -%}
+      <span class="badge optional">optional</span>
+      {%- for t in node.type -%}
+        {%- if t != "null" -%}
+          {%- if t == "array" and node.items -%}
+            <span class="type-badge type-array">array</span> {{ self::render_type_badge(node=node.items) }}
+          {%- else -%}
+            <span class="type-badge type-{{ t }}">{{ t }}</span>
+          {%- endif -%}
+        {%- endif -%}
+      {%- endfor -%}
+    {%- else -%}
+      {%- for t in node.type -%}<span class="type-badge type-{{ t }}">{{ t }}</span>{% endfor -%}
+    {%- endif -%}
+  {%- endif -%}
+{%- elif node.anyOf -%}
+  {# Check for Option<T> pattern: anyOf with exactly 2 variants where one is null #}
+  {%- if node.anyOf | length == 2 -%}
+    {%- set first = node.anyOf | first -%}
+    {%- set second = node.anyOf | last -%}
+    {%- if second.type and second.type == "null" -%}
+      <span class="badge optional">optional</span>{{ self::render_type_badge(node=first) }}
+    {%- elif first.type and first.type == "null" -%}
+      <span class="badge optional">optional</span>{{ self::render_type_badge(node=second) }}
+    {%- else -%}
+      {# Check if all variants are string const (enum pattern) #}
+      {%- set_global is_string_enum = true -%}
+      {%- for variant in node.anyOf -%}
+        {%- if variant.type and variant.type == "string" and variant.const -%}
+          {# valid string const #}
+        {%- else -%}
+          {%- set_global is_string_enum = false -%}
+        {%- endif -%}
+      {%- endfor -%}
+      {%- if is_string_enum -%}
+        <span class="type-badge type-string">string</span> <span class="type-badge type-enum">enum</span>
+      {%- else -%}
+        <span class="type-badge type-enum">enum</span>
+      {%- endif -%}
+    {%- endif -%}
+  {%- else -%}
+    {# Check if all variants are string const (enum pattern) #}
+    {%- set_global is_string_enum = true -%}
+    {%- for variant in node.anyOf -%}
+      {%- if variant.type and variant.type == "string" and variant.const -%}
+        {# valid string const #}
+      {%- else -%}
+        {%- set_global is_string_enum = false -%}
+      {%- endif -%}
+    {%- endfor -%}
+    {%- if is_string_enum -%}
+      <span class="type-badge type-string">string</span> <span class="type-badge type-enum">enum</span>
+    {%- else -%}
+      <span class="type-badge type-enum">enum</span>
+    {%- endif -%}
+  {%- endif -%}
+{%- elif node.oneOf -%}
+  {# Check if all variants are string const (enum pattern from schemars with doc comments) #}
+  {%- set_global is_string_enum = true -%}
+  {%- for variant in node.oneOf -%}
+    {%- if variant.type and variant.type == "string" and variant.const -%}
+      {# This variant is a string const, keep is_string_enum true #}
+    {%- else -%}
+      {%- set_global is_string_enum = false -%}
+    {%- endif -%}
+  {%- endfor -%}
+  {%- if is_string_enum -%}
+    <span class="type-badge type-string">string</span> <span class="type-badge type-enum">enum</span>
+  {%- else -%}
+    <span class="type-badge type-enum">enum</span>
+  {%- endif -%}
+{%- elif node.allOf -%}
+  <span class="type-badge type-union">allOf</span>
+{%- elif node.const -%}
+  <span class="type-badge type-const">const</span>
+{%- elif node.enum -%}
+  <span class="type-badge type-enum">enum</span>
+{%- endif -%}
+{% endmacro render_type_badge %}
+
+{# Render constraints like min, max, pattern, format #}
+{% macro render_constraints(node) %}
+{# Check if this is a homogeneous tuple - skip minItems/maxItems if so #}
+{%- set_global skip_item_constraints = false -%}
+{%- if node.prefixItems -%}
+  {%- set first_type = node.prefixItems | first -%}
+  {%- set_global is_homogeneous = true -%}
+  {%- for item in node.prefixItems -%}
+    {%- if item.type != first_type.type -%}
+      {%- set_global is_homogeneous = false -%}
+    {%- endif -%}
+  {%- endfor -%}
+  {%- if is_homogeneous and first_type.type -%}
+    {%- set_global skip_item_constraints = true -%}
+  {%- endif -%}
+{%- endif -%}
+{%- if node.format or node.pattern or node.minimum is defined or node.maximum is defined or node.minLength is defined or node.maxLength is defined or (node.minItems is defined and not skip_item_constraints) or (node.maxItems is defined and not skip_item_constraints) -%}
+<div class="constraints">
+  {%- if node.format %}<span class="constraint"><span class="label">Format:</span> <code>{{ node.format }}</code></span>{% endif -%}
+  {%- if node.pattern %}<span class="constraint"><span class="label">Pattern:</span> <code>{{ node.pattern }}</code></span>{% endif -%}
+  {%- if node.minimum is defined %}<span class="constraint"><span class="label">Min:</span> {{ node.minimum }}</span>{% endif -%}
+  {%- if node.maximum is defined %}<span class="constraint"><span class="label">Max:</span> {{ node.maximum }}</span>{% endif -%}
+  {%- if node.minLength is defined %}<span class="constraint"><span class="label">Min length:</span> {{ node.minLength }}</span>{% endif -%}
+  {%- if node.maxLength is defined %}<span class="constraint"><span class="label">Max length:</span> {{ node.maxLength }}</span>{% endif -%}
+  {%- if node.minItems is defined and not skip_item_constraints %}<span class="constraint"><span class="label">Min items:</span> {{ node.minItems }}</span>{% endif -%}
+  {%- if node.maxItems is defined and not skip_item_constraints %}<span class="constraint"><span class="label">Max items:</span> {{ node.maxItems }}</span>{% endif -%}
+</div>
+{%- endif -%}
+{% endmacro render_constraints %}
+
+{# Render the body of a schema (properties, items, variants, etc.) #}
+{% macro render_schema_body(node, depth, path) %}
+{%- if depth < 10 -%}
+{%- if node["$ref"] -%}
+  {# Reference only, already shown as type badge #}
+{%- elif node.properties -%}
+  {%- set required_arr = node.required | default(value=[]) -%}
+  <details class="nested-schema" open>
+    <summary>Properties ({{ node.properties | length }})</summary>
+    <div class="properties-container">
+      {%- for prop_name, prop in node.properties -%}
+      {%- set is_required = prop_name in required_arr -%}
+      {{ self::render_property(name=prop_name, node=prop, required=is_required, depth=depth + 1, path=path ~ "." ~ prop_name) }}
+      {%- endfor -%}
+    </div>
+  </details>
+{%- elif node.patternProperties -%}
+  <div class="properties-container map-entries">
+    {%- for pattern, prop in node.patternProperties -%}
+    <div class="property depth-{{ depth + 1 }}">
+      <div class="property-header">
+        {# Convert known patterns to friendly type names - show as quoted string to indicate JSON string key #}
+        {# Note: patterns use single backslash in the parsed JSON value #}
+        {%- if pattern == "^\d+$" or pattern == "^[0-9]+$" or pattern == "^-?\d+$" or pattern == "^-?[0-9]+$" -%}
+          <span class="map-key">"&lt;<span class="key-type">integer</span>&gt;"</span>
+        {%- elif pattern == ".*" or pattern == "^.*$" -%}
+          <span class="map-key">"&lt;<span class="key-type">string</span>&gt;"</span>
+        {%- else -%}
+          <code class="property-name pattern">{{ pattern }}</code>
+          <span class="badge pattern">pattern</span>
+        {%- endif -%}
+        <span class="map-arrow">→</span>
+        {{ self::render_type_badge(node=prop) }}
+      </div>
+      {%- if prop.description_html %}<div class="description">{{ prop.description_html | safe }}</div>{% endif -%}
+      {{ self::render_schema_body(node=prop, depth=depth + 1, path=path ~ ".[key]") }}
+    </div>
+    {%- endfor -%}
+  </div>
+{%- elif node.items -%}
+  {%- if node.items["$ref"] -%}
+    {# Already shown in type badge, no dropdown needed #}
+  {%- elif node.items.type and node.items.type is string -%}
+    {# Simple type (string, number, integer, boolean) - already shown in type badge #}
+  {%- else -%}
+    {# Complex item type needs dropdown #}
+    <details class="nested-schema" open>
+      <summary>Array Items</summary>
+      <div class="array-items">{{ self::render_schema(node=node.items, depth=depth + 1, path=path ~ "[]") }}</div>
+    </details>
+  {%- endif -%}
+{%- elif node.prefixItems -%}
+  {# Check if homogeneous tuple - already shown as [T; N] in badge #}
+  {%- set first_type = node.prefixItems | first -%}
+  {%- set_global is_homogeneous = true -%}
+  {%- for item in node.prefixItems -%}
+    {%- if item.type != first_type.type -%}
+      {%- set_global is_homogeneous = false -%}
+    {%- endif -%}
+  {%- endfor -%}
+  {%- if is_homogeneous and first_type.type -%}
+    {# Homogeneous tuple - already shown as [T; N] in badge, no dropdown needed #}
+  {%- else -%}
+    {# Heterogeneous tuple - show dropdown #}
+    <details class="nested-schema" open>
+      <summary>Tuple Items ({{ node.prefixItems | length }})</summary>
+      <div class="tuple-items">
+        {%- for item in node.prefixItems -%}
+        <div class="tuple-item"><span class="tuple-index">[{{ loop.index0 }}]</span>{{ self::render_schema(node=item, depth=depth + 1, path=path ~ "[" ~ loop.index0 ~ "]") }}</div>
+        {%- endfor -%}
+      </div>
+    </details>
+  {%- endif -%}
+{%- elif node.anyOf -%}
+  {# Check for Option<T> pattern: anyOf with exactly 2 variants where one is null #}
+  {%- if node.anyOf | length == 2 -%}
+    {%- set first = node.anyOf | first -%}
+    {%- set second = node.anyOf | last -%}
+    {%- if second.type and second.type == "null" -%}
+      {# Option<T> - just render the non-null variant's body #}
+      {{ self::render_schema_body(node=first, depth=depth, path=path) }}
+    {%- elif first.type and first.type == "null" -%}
+      {# Option<T> with null first - just render the non-null variant's body #}
+      {{ self::render_schema_body(node=second, depth=depth, path=path) }}
+    {%- else -%}
+      {# Check if all variants are string const (enum pattern) #}
+      {%- set_global is_string_enum = true -%}
+      {%- for variant in node.anyOf -%}
+        {%- if variant.type and variant.type == "string" and variant.const -%}
+          {# valid string const #}
+        {%- else -%}
+          {%- set_global is_string_enum = false -%}
+        {%- endif -%}
+      {%- endfor -%}
+        {# Render all anyOf variants using full schema rendering #}
+        <details class="nested-schema enum-details" open>
+          <summary>Enum variants ({{ node.anyOf | length }})</summary>
+          <div class="variants">
+            {%- for variant in node.anyOf -%}
+            <div class="variant">{{ self::render_schema(node=variant, depth=depth + 1, path=path ~ ".anyOf[" ~ loop.index0 ~ "]") }}</div>
+            {%- endfor -%}
+          </div>
+        </details>
+    {%- endif -%}
+  {%- else -%}
+      {# Render all anyOf variants using full schema rendering #}
+      <details class="nested-schema enum-details" open>
+        <summary>Enum variants ({{ node.anyOf | length }})</summary>
+        <div class="variants">
+          {%- for variant in node.anyOf -%}
+          <div class="variant">{{ self::render_schema(node=variant, depth=depth + 1, path=path ~ ".anyOf[" ~ loop.index0 ~ "]") }}</div>
+          {%- endfor -%}
+        </div>
+      </details>
+  {%- endif -%}
+{%- elif node.oneOf -%}
+  {# Render all oneOf variants using full schema rendering #}
+  <details class="nested-schema enum-details" open>
+    <summary>Enum variants ({{ node.oneOf | length }})</summary>
+    <div class="variants">
+      {%- for variant in node.oneOf -%}
+      <div class="variant">{{ self::render_schema(node=variant, depth=depth + 1, path=path ~ ".oneOf[" ~ loop.index0 ~ "]") }}</div>
+      {%- endfor -%}
+    </div>
+  </details>
+{%- elif node.allOf -%}
+  <details class="nested-schema" open>
+    <summary>All of ({{ node.allOf | length }} schemas)</summary>
+    <div class="variants">
+      {%- for variant in node.allOf -%}
+      <div class="variant">{{ self::render_schema(node=variant, depth=depth + 1, path=path ~ ".allOf[" ~ loop.index0 ~ "]") }}</div>
+      {%- endfor -%}
+    </div>
+  </details>
+{%- elif node.enum -%}
+  {%- set enum_count = node.enum | length -%}
+  <details class="nested-schema enum-details" open>
+    <summary>Enum variants ({{ enum_count }})</summary>
+    <ul class="enum-values">
+      {%- for value in node.enum -%}<li><code>{{ value | json_encode() }}</code></li>{%- endfor -%}
+    </ul>
+  </details>
+{%- elif node.const -%}
+  <div class="const-value"><span class="label">Value:</span> <code>{{ node.const | json_encode() }}</code></div>
+{%- endif -%}
+{%- if node.additionalProperties and node.additionalProperties is object -%}
+  <details class="nested-schema" open>
+    <summary>Additional Properties</summary>
+    {{ self::render_schema(node=node.additionalProperties, depth=depth + 1, path=path ~ ".[*]") }}
+  </details>
+{%- endif -%}
+{%- endif -%}
+{% endmacro render_schema_body %}
+
+{# Render a schema without property wrapper #}
+{% macro render_schema(node, depth, path) %}
+{%- if depth < 10 -%}
+<div class="schema-inline">
+  {{ self::render_type_badge(node=node) }}
+  {%- if node.description_html %}<div class="description">{{ node.description_html | safe }}</div>{% endif -%}
+  {{ self::render_constraints(node=node) }}
+  {%- if node.default %}<div class="default-value"><span class="label">Default:</span> <code>{{ node.default | json_encode() }}</code></div>{% endif -%}
+  {{ self::render_schema_body(node=node, depth=depth, path=path) }}
+</div>
+{%- endif -%}
+{% endmacro render_schema %}

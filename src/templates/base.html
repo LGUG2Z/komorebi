@@ -1,0 +1,144 @@
+{%- import "macros.html" as macros -%}
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>{{ title | default(value="Schema Documentation") }}</title>
+        <style>
+            {% include "style.css" %}
+        </style>
+    </head>
+    <body>
+        <header class="header">
+            <div class="header-content">
+                <h1>
+                    {{ title_html | default(value="Schema Documentation") | safe
+                    }}
+                </h1>
+                <div class="search-container">
+                    <input
+                        type="search"
+                        id="search"
+                        placeholder="Search properties and types..."
+                        autocomplete="off"
+                    />
+                    <div id="search-results" class="search-results"></div>
+                </div>
+            </div>
+        </header>
+        <div class="layout">
+            <nav class="sidebar" id="sidebar">
+                <div class="sidebar-header">
+                    <h2>Navigation</h2>
+                    <button
+                        class="sidebar-toggle"
+                        id="sidebar-toggle"
+                        aria-label="Toggle sidebar"
+                    >
+                        <span></span>
+                    </button>
+                </div>
+                {%- if navigation.outline | length > 0 -%}
+                <div class="sidebar-section">
+                    <h3 class="sidebar-section-title">Outline</h3>
+                    <ul class="nav-list outline-list">
+                        {%- for entry in navigation.outline -%} {{
+                        macros::render_outline_item(entry=entry, depth=0) }} {%-
+                        endfor -%}
+                    </ul>
+                </div>
+                {%- endif -%} {%- if navigation.definitions | length > 0 -%}
+                <div class="sidebar-section">
+                    <h3 class="sidebar-section-title">Types</h3>
+                    <ul class="nav-list">
+                        {%- for def in navigation.definitions -%}
+                        <li>
+                            <a
+                                href="#{{ def.anchor }}"
+                                class="nav-link"
+                                data-search-name="{{ def.name | lower }}"
+                                >{{ def.name }}</a
+                            >
+                        </li>
+                        {%- endfor -%}
+                    </ul>
+                </div>
+                {%- endif -%}
+            </nav>
+            <main class="main-content">
+                <section id="root-schema" class="schema-section">
+                    <h2>Configuration</h2>
+                    {%- if schema.properties -%}
+                    <div class="properties-container">
+                        {%- for prop_name, prop in schema.properties -%} {%- set
+                        is_required = prop_name in required_set -%} {{
+                        macros::render_property(name=prop_name, node=prop,
+                        required=is_required, depth=0, path=prop_name) }} {%-
+                        endfor -%}
+                    </div>
+                    {%- endif -%}
+                </section>
+                {%- if schema["$defs"] -%}
+                <section id="definitions" class="schema-section">
+                    <h2>Type Definitions</h2>
+                    {%- for def_name, def in schema["$defs"] -%}
+                    <article
+                        id="{{ def_name | lower }}"
+                        class="definition"
+                        data-search-name="{{ def_name | lower }}"
+                    >
+                        <h3 class="definition-name">{{ def_name }}</h3>
+                        {%- if def.description_html %}
+                        <div class="description">
+                            {{ def.description_html | safe }}
+                        </div>
+                        {% endif -%} {{ macros::render_schema(node=def, depth=0,
+                        path=def_name) }} {# Usages section at bottom #} {%- set
+                        type_usages = usages[def_name] -%} {%- if type_usages
+                        and (type_usages.config_usages | length > 0 or
+                        type_usages.type_references | length > 0) -%}
+                        <div class="usages">
+                            {%- if type_usages.config_usages | length > 0 -%}
+                            <div class="usage-section">
+                                <h4>Configuration Usage</h4>
+                                <ul class="usage-list">
+                                    {%- for usage in type_usages.config_usages
+                                    -%}
+                                    <li>
+                                        <a href="#{{ usage.anchor }}"
+                                            ><code>{{ usage.path }}</code></a
+                                        >
+                                    </li>
+                                    {%- endfor -%}
+                                </ul>
+                            </div>
+                            {%- endif -%} {%- if type_usages.type_references |
+                            length > 0 -%}
+                            <div class="usage-section">
+                                <h4>Referenced by</h4>
+                                <ul class="usage-list">
+                                    {%- for ref in type_usages.type_references
+                                    -%}
+                                    <li>
+                                        <a href="#{{ ref.anchor }}"
+                                            >{{ ref.type_name }}</a
+                                        >
+                                    </li>
+                                    {%- endfor -%}
+                                </ul>
+                            </div>
+                            {%- endif -%}
+                        </div>
+                        {%- endif -%}
+                    </article>
+                    {%- endfor -%}
+                </section>
+                {%- endif -%}
+            </main>
+        </div>
+        <script>
+            (function(){const searchInput=document.getElementById('search');const searchResults=document.getElementById('search-results');const searchIndex={{ search_index | json_encode() | safe }};searchInput.addEventListener('input',function(e){const query=e.target.value.toLowerCase().trim();if(!query){searchResults.innerHTML='';searchResults.classList.remove('active');return;}const matches=searchIndex.filter(item=>item.name.toLowerCase().includes(query)||item.path.toLowerCase().includes(query)).slice(0,10);if(matches.length===0){searchResults.innerHTML='<div class="search-result-item no-results">No results found</div>';}else{searchResults.innerHTML=matches.map(item=>`<a href="#${item.anchor}" class="search-result-item"><span class="result-name">${item.name}</span><span class="result-path">${item.path}</span><span class="result-type">${item.entry_type}</span></a>`).join('');}searchResults.classList.add('active');});document.addEventListener('click',function(e){if(!searchInput.contains(e.target)&&!searchResults.contains(e.target)){searchResults.classList.remove('active');}});searchInput.addEventListener('keydown',function(e){if(e.key==='Escape'){searchResults.classList.remove('active');searchInput.blur();}});const sidebarToggle=document.getElementById('sidebar-toggle');const sidebar=document.getElementById('sidebar');if(sidebarToggle&&sidebar){sidebarToggle.addEventListener('click',function(){sidebar.classList.toggle('open');});}document.querySelectorAll('a[href^="#"]').forEach(anchor=>{anchor.addEventListener('click',function(e){const targetId=this.getAttribute('href').slice(1);const target=document.getElementById(targetId);if(target){target.classList.add('highlight');setTimeout(()=>target.classList.remove('highlight'),2000);}if(sidebar){sidebar.classList.remove('open');}searchResults.classList.remove('active');});});})();
+        </script>
+    </body>
+</html>
