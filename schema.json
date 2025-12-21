@@ -225,11 +225,11 @@
       }
     },
     "border": {
-      "description": "Display an active window border (default: true)",
+      "description": "Display window borders (default: true)",
       "type": "boolean"
     },
     "border_colours": {
-      "description": "Active window border colours for different container types",
+      "description": "Window border colours for different container types (has no effect if a theme is defined)",
       "type": "object",
       "properties": {
         "floating": {
@@ -469,7 +469,7 @@
       }
     },
     "border_implementation": {
-      "description": "Active window border implementation (default: Komorebi)",
+      "description": "Window border implementation (default: Komorebi)",
       "oneOf": [
         {
           "description": "Use the adjustable komorebi border implementation",
@@ -488,7 +488,7 @@
       ]
     },
     "border_offset": {
-      "description": "Offset of the window border (default: -1)",
+      "description": "Offset of window borders (default: -1)",
       "type": "integer",
       "format": "int32"
     },
@@ -576,7 +576,7 @@
       }
     },
     "border_style": {
-      "description": "Active window border style (default: System)",
+      "description": "Window border style (default: System)",
       "oneOf": [
         {
           "description": "Use the system border style",
@@ -602,7 +602,7 @@
       ]
     },
     "border_width": {
-      "description": "Width of the window border (default: 8)",
+      "description": "Width of window borders (default: 8)",
       "type": "integer",
       "format": "int32"
     },
