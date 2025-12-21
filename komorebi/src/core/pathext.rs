@@ -121,12 +121,12 @@ impl<'de> serde_with::DeserializeAs<'de, PathBuf> for ResolvedPathBuf {
 }
 
 #[cfg(feature = "schemars")]
-impl serde_with::schemars_0_8::JsonSchemaAs<PathBuf> for ResolvedPathBuf {
-    fn schema_name() -> String {
-        "PathBuf".to_owned()
+impl serde_with::schemars_1::JsonSchemaAs<PathBuf> for ResolvedPathBuf {
+    fn schema_name() -> std::borrow::Cow<'static, str> {
+        std::borrow::Cow::Borrowed("PathBuf")
     }
 
-    fn json_schema(generator: &mut schemars::SchemaGenerator) -> schemars::schema::Schema {
+    fn json_schema(generator: &mut schemars::SchemaGenerator) -> schemars::Schema {
         <PathBuf as schemars::JsonSchema>::json_schema(generator)
     }
 }

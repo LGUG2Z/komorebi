@@ -1,11 +1,11 @@
 {
-  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "ApplicationSpecificConfiguration",
   "type": "object",
   "additionalProperties": {
-    "$ref": "#/definitions/AscApplicationRulesOrSchema"
+    "$ref": "#/$defs/AscApplicationRulesOrSchema"
   },
-  "definitions": {
+  "$defs": {
     "ApplicationIdentifier": {
       "type": "string",
       "enum": [
@@ -26,7 +26,7 @@
             "null"
           ],
           "items": {
-            "$ref": "#/definitions/MatchingRule"
+            "$ref": "#/$defs/MatchingRule"
           }
         },
         "ignore": {
@@ -36,7 +36,7 @@
             "null"
           ],
           "items": {
-            "$ref": "#/definitions/MatchingRule"
+            "$ref": "#/$defs/MatchingRule"
           }
         },
         "layered": {
@@ -46,7 +46,7 @@
             "null"
           ],
           "items": {
-            "$ref": "#/definitions/MatchingRule"
+            "$ref": "#/$defs/MatchingRule"
           }
         },
         "manage": {
@@ -56,7 +56,7 @@
             "null"
           ],
           "items": {
-            "$ref": "#/definitions/MatchingRule"
+            "$ref": "#/$defs/MatchingRule"
           }
         },
         "object_name_change": {
@@ -66,7 +66,7 @@
             "null"
           ],
           "items": {
-            "$ref": "#/definitions/MatchingRule"
+            "$ref": "#/$defs/MatchingRule"
           }
         },
         "slow_application": {
@@ -76,7 +76,7 @@
             "null"
           ],
           "items": {
-            "$ref": "#/definitions/MatchingRule"
+            "$ref": "#/$defs/MatchingRule"
           }
         },
         "transparency_ignore": {
@@ -86,7 +86,7 @@
             "null"
           ],
           "items": {
-            "$ref": "#/definitions/MatchingRule"
+            "$ref": "#/$defs/MatchingRule"
           }
         },
         "tray_and_multi_window": {
@@ -96,7 +96,7 @@
             "null"
           ],
           "items": {
-            "$ref": "#/definitions/MatchingRule"
+            "$ref": "#/$defs/MatchingRule"
           }
         }
       }
@@ -104,7 +104,7 @@
     "AscApplicationRulesOrSchema": {
       "anyOf": [
         {
-          "$ref": "#/definitions/AscApplicationRules"
+          "$ref": "#/$defs/AscApplicationRules"
         },
         {
           "type": "string"
@@ -113,38 +113,38 @@
     },
     "IdWithIdentifier": {
       "type": "object",
-      "required": [
-        "id",
-        "kind"
-      ],
       "properties": {
         "id": {
           "type": "string"
         },
         "kind": {
-          "$ref": "#/definitions/ApplicationIdentifier"
+          "$ref": "#/$defs/ApplicationIdentifier"
         },
         "matching_strategy": {
           "anyOf": [
             {
-              "$ref": "#/definitions/MatchingStrategy"
+              "$ref": "#/$defs/MatchingStrategy"
             },
             {
               "type": "null"
             }
           ]
         }
-      }
+      },
+      "required": [
+        "kind",
+        "id"
+      ]
     },
     "MatchingRule": {
       "anyOf": [
         {
-          "$ref": "#/definitions/IdWithIdentifier"
+          "$ref": "#/$defs/IdWithIdentifier"
         },
         {
           "type": "array",
           "items": {
-            "$ref": "#/definitions/IdWithIdentifier"
+            "$ref": "#/$defs/IdWithIdentifier"
           }
         }
       ]

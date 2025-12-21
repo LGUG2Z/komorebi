@@ -114,9 +114,7 @@ fn main() -> color_eyre::Result<()> {
 
     #[cfg(feature = "schemars")]
     if opts.schema {
-        let settings = schemars::r#gen::SchemaSettings::default().with(|s| {
-            s.option_nullable = false;
-            s.option_add_null_type = false;
+        let settings = schemars::generate::SchemaSettings::default().with(|s| {
             s.inline_subschemas = true;
         });
 

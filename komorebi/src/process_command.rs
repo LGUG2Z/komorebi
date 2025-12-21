@@ -2224,9 +2224,7 @@ if (!(Get-Process komorebi-bar -ErrorAction SilentlyContinue))
             SocketMessage::StaticConfigSchema => {
                 #[cfg(feature = "schemars")]
                 {
-                    let settings = schemars::r#gen::SchemaSettings::default().with(|s| {
-                        s.option_nullable = false;
-                        s.option_add_null_type = false;
+                    let settings = schemars::generate::SchemaSettings::default().with(|s| {
                         s.inline_subschemas = true;
                     });
 
