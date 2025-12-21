@@ -3343,15 +3343,8 @@ if (Get-Command Get-CimInstance -ErrorAction SilentlyContinue) {
         SubCommand::StaticConfigSchema => {
             #[cfg(feature = "schemars")]
             {
-                let settings = schemars::r#gen::SchemaSettings::default().with(|s| {
-                    s.option_nullable = false;
-                    s.option_add_null_type = false;
-                    s.inline_subschemas = true;
-                });
-
-                let generator = settings.into_generator();
-                let socket_message = generator.into_root_schema_for::<StaticConfig>();
-                let schema = serde_json::to_string_pretty(&socket_message)?;
+                let static_config = schemars::schema_for!(StaticConfig);
+                let schema = serde_json::to_string_pretty(&static_config)?;
                 println!("{schema}");
             }
         }

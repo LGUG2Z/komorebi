@@ -1,12 +1,8 @@
 use hex_color::HexColor;
 #[cfg(feature = "schemars")]
+use schemars::Schema;
+#[cfg(feature = "schemars")]
 use schemars::SchemaGenerator;
-#[cfg(feature = "schemars")]
-use schemars::schema::InstanceType;
-#[cfg(feature = "schemars")]
-use schemars::schema::Schema;
-#[cfg(feature = "schemars")]
-use schemars::schema::SchemaObject;
 
 use crate::Color32;
 use serde::Deserialize;
@@ -61,17 +57,15 @@ pub struct Hex(pub HexColor);
 
 #[cfg(feature = "schemars")]
 impl schemars::JsonSchema for Hex {
-    fn schema_name() -> String {
-        String::from("Hex")
+    fn schema_name() -> std::borrow::Cow<'static, str> {
+        std::borrow::Cow::Borrowed("Hex")
     }
 
     fn json_schema(_: &mut SchemaGenerator) -> Schema {
-        SchemaObject {
-            instance_type: Some(InstanceType::String.into()),
-            format: Some("color-hex".to_string()),
-            ..Default::default()
-        }
-        .into()
+        schemars::json_schema!({
+            "type": "string",
+            "format": "color-hex"
+        })
     }
 }
 
