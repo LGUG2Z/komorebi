@@ -10,53 +10,56 @@
         </style>
     </head>
     <body>
-        <header class="header">
-            <div class="header-content">
+        <header class="{{ css.header }}">
+            <div class="{{ css.header_content }}">
                 <h1>
                     {{ title_html | default(value="Schema Documentation") | safe
                     }}
                 </h1>
-                <div class="search-container">
+                <div class="{{ css.search_container }}">
                     <input
                         type="search"
-                        id="search"
+                        id="{{ ids.search }}"
                         placeholder="Search properties and types..."
                         autocomplete="off"
                     />
-                    <div id="search-results" class="search-results"></div>
+                    <div
+                        id="{{ ids.search_results }}"
+                        class="{{ css.search_results }}"
+                    ></div>
                 </div>
             </div>
         </header>
-        <div class="layout">
-            <nav class="sidebar" id="sidebar">
-                <div class="sidebar-header">
+        <div class="{{ css.layout }}">
+            <nav class="{{ css.sidebar }}" id="{{ ids.sidebar }}">
+                <div class="{{ css.sidebar_header }}">
                     <h2>Navigation</h2>
                     <button
-                        class="sidebar-toggle"
-                        id="sidebar-toggle"
+                        class="{{ css.sidebar_toggle }}"
+                        id="{{ ids.sidebar_toggle }}"
                         aria-label="Toggle sidebar"
                     >
                         <span></span>
                     </button>
                 </div>
                 {%- if navigation.outline | length > 0 -%}
-                <div class="sidebar-section">
-                    <h3 class="sidebar-section-title">Outline</h3>
-                    <ul class="nav-list outline-list">
+                <div class="{{ css.sidebar_section }}">
+                    <h3 class="{{ css.sidebar_section_title }}">Outline</h3>
+                    <ul class="{{ css.nav_list }} {{ css.outline_list }}">
                         {%- for entry in navigation.outline -%} {{
                         macros::render_outline_item(entry=entry, depth=0) }} {%-
                         endfor -%}
                     </ul>
                 </div>
                 {%- endif -%} {%- if navigation.definitions | length > 0 -%}
-                <div class="sidebar-section">
-                    <h3 class="sidebar-section-title">Types</h3>
-                    <ul class="nav-list">
+                <div class="{{ css.sidebar_section }}">
+                    <h3 class="{{ css.sidebar_section_title }}">Types</h3>
+                    <ul class="{{ css.nav_list }}">
                         {%- for def in navigation.definitions -%}
                         <li>
                             <a
                                 href="#{{ def.anchor }}"
-                                class="nav-link"
+                                class="{{ css.nav_link }}"
                                 data-search-name="{{ def.name | lower }}"
                                 >{{ def.display_name | default(value=def.name)
                                 }}</a
@@ -67,11 +70,14 @@
                 </div>
                 {%- endif -%}
             </nav>
-            <main class="main-content">
-                <section id="root-schema" class="schema-section">
+            <main class="{{ css.main_content }}">
+                <section
+                    id="{{ ids.root_schema }}"
+                    class="{{ css.schema_section }}"
+                >
                     <h2>Configuration</h2>
                     {%- if schema.properties -%}
-                    <div class="properties-container">
+                    <div class="{{ css.properties_container }}">
                         {%- for prop_name, prop in schema.properties -%} {%- set
                         is_required = prop_name in required_set -%} {{
                         macros::render_property(name=prop_name, node=prop,
@@ -81,19 +87,22 @@
                     {%- endif -%}
                 </section>
                 {%- if schema["$defs"] -%}
-                <section id="definitions" class="schema-section">
+                <section
+                    id="{{ ids.definitions }}"
+                    class="{{ css.schema_section }}"
+                >
                     <h2>Type Definitions</h2>
                     {%- for def_name, def in schema["$defs"] -%}
                     <article
                         id="{{ def_name | lower }}"
-                        class="definition"
+                        class="{{ css.definition }}"
                         data-search-name="{{ def_name | lower }}"
                     >
-                        <h3 class="definition-name">
+                        <h3 class="{{ css.definition_name }}">
                             {{ def._display_name | default(value=def_name) }}
                         </h3>
                         {%- if def.description_html %}
-                        <div class="description">
+                        <div class="{{ css.description }}">
                             {{ def.description_html | safe }}
                         </div>
                         {% endif -%} {{ macros::render_schema(node=def, depth=0,
@@ -101,11 +110,11 @@
                         type_usages = usages[def_name] -%} {%- if type_usages
                         and (type_usages.config_usages | length > 0 or
                         type_usages.type_references | length > 0) -%}
-                        <div class="usages">
+                        <div class="{{ css.usages }}">
                             {%- if type_usages.config_usages | length > 0 -%}
-                            <div class="usage-section">
+                            <div class="{{ css.usage_section }}">
                                 <h4>Configuration Usage</h4>
-                                <ul class="usage-list">
+                                <ul class="{{ css.usage_list }}">
                                     {%- for usage in type_usages.config_usages
                                     -%}
                                     <li>
@@ -118,9 +127,9 @@
                             </div>
                             {%- endif -%} {%- if type_usages.type_references |
                             length > 0 -%}
-                            <div class="usage-section">
+                            <div class="{{ css.usage_section }}">
                                 <h4>Referenced by</h4>
-                                <ul class="usage-list">
+                                <ul class="{{ css.usage_list }}">
                                     {%- for ref in type_usages.type_references
                                     -%} {%- set ref_display =
                                     display_names[ref.type_name] |
@@ -143,7 +152,7 @@
             </main>
         </div>
         <script>
-            (function(){const searchInput=document.getElementById('search');const searchResults=document.getElementById('search-results');const searchIndex={{ search_index | json_encode() | safe }};searchInput.addEventListener('input',function(e){const query=e.target.value.toLowerCase().trim();if(!query){searchResults.innerHTML='';searchResults.classList.remove('active');return;}const matches=searchIndex.filter(item=>item.name.toLowerCase().includes(query)||item.path.toLowerCase().includes(query)).slice(0,10);if(matches.length===0){searchResults.innerHTML='<div class="search-result-item no-results">No results found</div>';}else{searchResults.innerHTML=matches.map(item=>`<a href="#${item.anchor}" class="search-result-item"><span class="result-name">${item.name}</span><span class="result-path">${item.path}</span><span class="result-type">${item.entry_type}</span></a>`).join('');}searchResults.classList.add('active');});document.addEventListener('click',function(e){if(!searchInput.contains(e.target)&&!searchResults.contains(e.target)){searchResults.classList.remove('active');}});searchInput.addEventListener('keydown',function(e){if(e.key==='Escape'){searchResults.classList.remove('active');searchInput.blur();}});const sidebarToggle=document.getElementById('sidebar-toggle');const sidebar=document.getElementById('sidebar');if(sidebarToggle&&sidebar){sidebarToggle.addEventListener('click',function(){sidebar.classList.toggle('open');});}document.querySelectorAll('a[href^="#"]').forEach(anchor=>{anchor.addEventListener('click',function(e){const targetId=this.getAttribute('href').slice(1);const target=document.getElementById(targetId);if(target){target.classList.add('highlight');setTimeout(()=>target.classList.remove('highlight'),2000);}if(sidebar){sidebar.classList.remove('open');}searchResults.classList.remove('active');});});})();
+            (function(){const searchInput=document.getElementById('{{ ids.search }}');const searchResults=document.getElementById('{{ ids.search_results }}');const searchIndex={{ search_index | json_encode() | safe }};searchInput.addEventListener('input',function(e){const query=e.target.value.toLowerCase().trim();if(!query){searchResults.innerHTML='';searchResults.classList.remove('{{ css.search_results_active }}');return;}const matches=searchIndex.filter(item=>item.name.toLowerCase().includes(query)||item.path.toLowerCase().includes(query)).slice(0,10);if(matches.length===0){searchResults.innerHTML='<div class="{{ css.search_result_item }} {{ css.no_results }}">No results found</div>';}else{searchResults.innerHTML=matches.map(item=>`<a href="#${item.anchor}" class="{{ css.search_result_item }}"><span class="{{ css.result_name }}">${item.name}</span><span class="{{ css.result_path }}">${item.path}</span><span class="{{ css.result_type }}">${item.entry_type}</span></a>`).join('');}searchResults.classList.add('{{ css.search_results_active }}');});document.addEventListener('click',function(e){if(!searchInput.contains(e.target)&&!searchResults.contains(e.target)){searchResults.classList.remove('{{ css.search_results_active }}');}});searchInput.addEventListener('keydown',function(e){if(e.key==='Escape'){searchResults.classList.remove('{{ css.search_results_active }}');searchInput.blur();}});const sidebarToggle=document.getElementById('{{ ids.sidebar_toggle }}');const sidebar=document.getElementById('{{ ids.sidebar }}');if(sidebarToggle&&sidebar){sidebarToggle.addEventListener('click',function(){sidebar.classList.toggle('{{ css.sidebar_open }}');});}document.querySelectorAll('a[href^="#"]').forEach(anchor=>{anchor.addEventListener('click',function(e){const targetId=this.getAttribute('href').slice(1);const target=document.getElementById(targetId);if(target){target.classList.add('{{ css.highlight }}');setTimeout(()=>target.classList.remove('{{ css.highlight }}'),2000);}if(sidebar){sidebar.classList.remove('{{ css.sidebar_open }}');}searchResults.classList.remove('{{ css.search_results_active }}');});});})();
         </script>
     </body>
 </html>

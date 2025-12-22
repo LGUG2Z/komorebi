@@ -29,9 +29,13 @@
 //! ```
 
 mod generator;
+pub mod identifiers;
 mod prepare;
 
 pub use generator::Generator;
+pub use identifiers::CSS;
+pub use identifiers::IDS;
+pub use identifiers::TYPE_CLASSES;
 
 use schemars::Schema;
 use serde_json::Value;

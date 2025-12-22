@@ -2,6 +2,9 @@
 
 use crate::Error;
 use crate::Options;
+use crate::identifiers::CSS;
+use crate::identifiers::IDS;
+use crate::identifiers::TYPE_CLASSES;
 use crate::prepare::NavigationData;
 use crate::prepare::build_navigation;
 use crate::prepare::prepare_for_template;
@@ -107,6 +110,11 @@ impl Generator {
             })
             .unwrap_or_default();
         context.insert("required_set", &required_set);
+
+        // Add CSS classes and HTML IDs from the single source of truth
+        context.insert("ids", &IDS);
+        context.insert("css", &CSS);
+        context.insert("type_classes", &TYPE_CLASSES);
 
         Ok(context)
     }
