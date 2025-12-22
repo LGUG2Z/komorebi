@@ -1,0 +1,313 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>JSON Schema Test Suite - Generated Documentation</title>
+        <style>
+            :root {
+                --bg-primary: #1a1a2e;
+                --bg-secondary: #16213e;
+                --bg-card: #1f2937;
+                --text-primary: #e2e8f0;
+                --text-secondary: #94a3b8;
+                --accent: #818cf8;
+                --accent-hover: #a5b4fc;
+                --border: #374151;
+                --green: #34d399;
+                --yellow: #fbbf24;
+            }
+            * {
+                box-sizing: border-box;
+                margin: 0;
+                padding: 0;
+            }
+            body {
+                font-family:
+                    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+                    Oxygen, Ubuntu, sans-serif;
+                background: var(--bg-primary);
+                color: var(--text-primary);
+                line-height: 1.6;
+                padding: 2rem;
+            }
+            .container {
+                max-width: 1200px;
+                margin: 0 auto;
+            }
+            h1 {
+                font-size: 2rem;
+                margin-bottom: 0.5rem;
+                color: var(--accent);
+            }
+            .subtitle {
+                color: var(--text-secondary);
+                margin-bottom: 2rem;
+            }
+            .stats {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 2rem;
+                margin-bottom: 2rem;
+                padding: 1rem;
+                background: var(--bg-secondary);
+                border-radius: 8px;
+                border: 1px solid var(--border);
+            }
+            .stat {
+                text-align: center;
+            }
+            .stat-value {
+                font-size: 2rem;
+                font-weight: bold;
+                color: var(--accent);
+            }
+            .stat-value.green {
+                color: var(--green);
+            }
+            .stat-value.yellow {
+                color: var(--yellow);
+            }
+            .stat-label {
+                color: var(--text-secondary);
+                font-size: 0.875rem;
+            }
+            .build-info {
+                margin-bottom: 2rem;
+                padding: 1rem;
+                background: var(--bg-secondary);
+                border-radius: 8px;
+                border: 1px solid var(--border);
+                font-size: 0.875rem;
+            }
+            .build-info h3 {
+                margin-bottom: 0.5rem;
+                font-size: 1rem;
+            }
+            .build-info-grid {
+                display: grid;
+                grid-template-columns: auto 1fr;
+                gap: 0.25rem 1rem;
+            }
+            .build-info-label {
+                color: var(--text-secondary);
+            }
+            .build-info-value {
+                font-family: "SF Mono", Consolas, monospace;
+            }
+            .dirty-badge {
+                display: inline-block;
+                padding: 0.125rem 0.5rem;
+                margin-left: 0.5rem;
+                background: rgba(239, 68, 68, 0.2);
+                color: #ef4444;
+                border-radius: 4px;
+                font-size: 0.75rem;
+                font-weight: 500;
+            }
+            .clean-badge {
+                display: inline-block;
+                padding: 0.125rem 0.5rem;
+                margin-left: 0.5rem;
+                background: rgba(52, 211, 153, 0.2);
+                color: var(--green);
+                border-radius: 4px;
+                font-size: 0.75rem;
+                font-weight: 500;
+            }
+            .legend {
+                margin-bottom: 2rem;
+                padding: 1rem;
+                background: var(--bg-secondary);
+                border-radius: 8px;
+                border: 1px solid var(--border);
+            }
+            .legend h3 {
+                margin-bottom: 0.5rem;
+                font-size: 1rem;
+            }
+            .legend-items {
+                display: flex;
+                gap: 2rem;
+                flex-wrap: wrap;
+            }
+            .legend-item {
+                display: flex;
+                align-items: center;
+                gap: 0.5rem;
+                color: var(--text-secondary);
+                font-size: 0.875rem;
+            }
+            .badge {
+                display: inline-block;
+                padding: 0.125rem 0.5rem;
+                border-radius: 4px;
+                font-size: 0.75rem;
+                font-weight: 500;
+            }
+            .badge-content {
+                background: rgba(52, 211, 153, 0.2);
+                color: var(--green);
+            }
+            .badge-empty {
+                background: rgba(251, 191, 36, 0.2);
+                color: var(--yellow);
+            }
+            .file-group {
+                margin-bottom: 1.5rem;
+                background: var(--bg-card);
+                border-radius: 8px;
+                border: 1px solid var(--border);
+                overflow: hidden;
+            }
+            .file-header {
+                padding: 0.75rem 1rem;
+                background: var(--bg-secondary);
+                border-bottom: 1px solid var(--border);
+                font-weight: 600;
+                font-family: "SF Mono", Consolas, monospace;
+                font-size: 0.9rem;
+            }
+            .schema-list {
+                list-style: none;
+                padding: 0.5rem;
+            }
+            .schema-item {
+                padding: 0.5rem;
+                border-radius: 4px;
+            }
+            .schema-item:hover {
+                background: var(--bg-secondary);
+            }
+            .schema-link {
+                color: var(--accent);
+                text-decoration: none;
+                display: flex;
+                align-items: baseline;
+                gap: 0.5rem;
+                flex-wrap: wrap;
+            }
+            .schema-link:hover {
+                color: var(--accent-hover);
+            }
+            .schema-index {
+                color: var(--text-secondary);
+                font-size: 0.75rem;
+                font-family: "SF Mono", Consolas, monospace;
+                min-width: 2rem;
+            }
+            .schema-desc {
+                flex: 1;
+                min-width: 200px;
+            }
+            .schema-features {
+                display: flex;
+                gap: 0.25rem;
+                flex-wrap: wrap;
+            }
+            .feature-tag {
+                display: inline-block;
+                padding: 0.0625rem 0.375rem;
+                background: var(--bg-secondary);
+                border-radius: 3px;
+                font-size: 0.625rem;
+                font-family: "SF Mono", Consolas, monospace;
+                color: var(--text-secondary);
+            }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h1>JSON Schema Test Suite</h1>
+            <p class="subtitle">
+                Generated HTML documentation for draft2020-12 test schemas
+            </p>
+            <div class="stats">
+                <div class="stat">
+                    <div class="stat-value">{{ total_schemas }}</div>
+                    <div class="stat-label">Total Schemas</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value">{{ total_files }}</div>
+                    <div class="stat-label">Test Files</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value green">{{ with_content }}</div>
+                    <div class="stat-label">With Content</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value yellow">{{ without_content }}</div>
+                    <div class="stat-label">Empty (Expected)</div>
+                </div>
+            </div>
+            <div class="build-info">
+                <h3>Build Information</h3>
+                <div class="build-info-grid">
+                    <span class="build-info-label">Commit:</span>
+                    <span class="build-info-value">
+                        {{ commit_hash }} {%- if is_dirty %}
+                        <span class="dirty-badge">dirty</span>
+                        {%- else %}
+                        <span class="clean-badge">clean</span>
+                        {%- endif %}
+                    </span>
+                    <span class="build-info-label">Time (UTC):</span>
+                    <span class="build-info-value">{{ time_utc }}</span>
+                    <span class="build-info-label">Time (Local):</span>
+                    <span class="build-info-value">{{ time_local }}</span>
+                </div>
+            </div>
+            <div class="legend">
+                <h3>Legend</h3>
+                <div class="legend-items">
+                    <div class="legend-item">
+                        <span class="badge badge-content">content</span>
+                        <span
+                            >Schema has properties or $defs -
+                            Configuration/Types sections populated</span
+                        >
+                    </div>
+                    <div class="legend-item">
+                        <span class="badge badge-empty">empty</span>
+                        <span
+                            >Schema lacks properties/$defs - empty sections
+                            expected</span
+                        >
+                    </div>
+                </div>
+            </div>
+            {%- for group in groups %}
+            <div class="file-group">
+                <div class="file-header">{{ group.file_path }}</div>
+                <ul class="schema-list">
+                    {%- for schema in group.schemas %}
+                    <li class="schema-item">
+                        <a
+                            class="schema-link"
+                            href="{{ schema.output_path | safe }}"
+                        >
+                            <span class="schema-index"
+                                >[{{ schema.index }}]</span
+                            >
+                            {%- if schema.has_content %}
+                            <span class="badge badge-content">content</span>
+                            {%- else %}
+                            <span class="badge badge-empty">empty</span>
+                            {%- endif %}
+                            <span class="schema-desc"
+                                >{{ schema.description }}</span
+                            >
+                            <span class="schema-features">
+                                {%- for feature in schema.features %}
+                                <span class="feature-tag">{{ feature }}</span>
+                                {%- endfor %}
+                            </span>
+                        </a>
+                    </li>
+                    {%- endfor %}
+                </ul>
+            </div>
+            {%- endfor %}
+        </div>
+    </body>
+</html>

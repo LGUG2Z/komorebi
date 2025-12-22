@@ -4,8 +4,12 @@
 //! for all schemas in the JSON-Schema-Test-Suite draft2020-12 examples
 //! without crashing.
 
+use chrono::Local;
+use chrono::Utc;
 use rayon::prelude::*;
 use serde::Deserialize;
+use serde::Serialize;
+use std::collections::BTreeMap;
 use std::fs;
 use std::path::Path;
 use std::path::PathBuf;
@@ -13,6 +17,8 @@ use std::process::Command;
 use std::sync::Mutex;
 use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering;
+use tera::Context;
+use tera::Tera;
 
 /// Represents a test suite from the JSON Schema Test Suite
 #[derive(Debug, Deserialize)]
@@ -173,6 +179,242 @@ fn collect_all_test_cases() -> Vec<SchemaTestCase> {
         .collect()
 }
 
+/// Data structure for a schema entry in the index template
+#[derive(Debug, Serialize)]
+struct IndexSchema {
+    index: usize,
+    description: String,
+    output_path: String,
+    has_content: bool,
+    features: Vec<String>,
+}
+
+/// Data structure for a file group in the index template
+#[derive(Debug, Serialize)]
+struct IndexGroup {
+    file_path: String,
+    schemas: Vec<IndexSchema>,
+}
+
+/// Analyze a schema and return (has_content, features)
+/// has_content is true if the schema has properties or $defs (will show Configuration/Types)
+/// features lists the JSON Schema keywords present in the schema
+fn analyze_schema(schema: &serde_json::Value) -> (bool, Vec<String>) {
+    let mut features = Vec::new();
+
+    let obj = match schema.as_object() {
+        Some(o) => o,
+        None => {
+            // Handle boolean schemas
+            if schema.as_bool() == Some(true) {
+                return (false, vec!["boolean: true".to_string()]);
+            } else if schema.as_bool() == Some(false) {
+                return (false, vec!["boolean: false".to_string()]);
+            }
+            return (false, vec!["non-object".to_string()]);
+        }
+    };
+
+    if obj.is_empty() {
+        return (false, vec!["empty schema".to_string()]);
+    }
+
+    let has_properties = obj.contains_key("properties");
+    let has_defs = obj.contains_key("$defs") || obj.contains_key("definitions");
+
+    // Collect features
+    if has_properties {
+        features.push("properties".to_string());
+    }
+    if has_defs {
+        features.push("$defs".to_string());
+    }
+    if obj.contains_key("$ref") {
+        features.push("$ref".to_string());
+    }
+    if obj.contains_key("type") {
+        if let Some(t) = obj.get("type") {
+            if let Some(s) = t.as_str() {
+                features.push(format!("type: {}", s));
+            } else if let Some(arr) = t.as_array() {
+                let types: Vec<_> = arr.iter().filter_map(|v| v.as_str()).collect();
+                features.push(format!("type: [{}]", types.join(", ")));
+            }
+        }
+    }
+    if obj.contains_key("items") {
+        features.push("items".to_string());
+    }
+    if obj.contains_key("prefixItems") {
+        features.push("prefixItems".to_string());
+    }
+    if obj.contains_key("additionalProperties") {
+        features.push("additionalProperties".to_string());
+    }
+    if obj.contains_key("patternProperties") {
+        features.push("patternProperties".to_string());
+    }
+    if obj.contains_key("allOf") {
+        features.push("allOf".to_string());
+    }
+    if obj.contains_key("anyOf") {
+        features.push("anyOf".to_string());
+    }
+    if obj.contains_key("oneOf") {
+        features.push("oneOf".to_string());
+    }
+    if obj.contains_key("not") {
+        features.push("not".to_string());
+    }
+    if obj.contains_key("if") {
+        features.push("if/then/else".to_string());
+    }
+    if obj.contains_key("const") {
+        features.push("const".to_string());
+    }
+    if obj.contains_key("enum") {
+        features.push("enum".to_string());
+    }
+    if obj.contains_key("$dynamicRef") {
+        features.push("$dynamicRef".to_string());
+    }
+    if obj.contains_key("$dynamicAnchor") {
+        features.push("$dynamicAnchor".to_string());
+    }
+    if obj.contains_key("contains") {
+        features.push("contains".to_string());
+    }
+    if obj.contains_key("dependentSchemas") {
+        features.push("dependentSchemas".to_string());
+    }
+    if obj.contains_key("dependentRequired") {
+        features.push("dependentRequired".to_string());
+    }
+    if obj.contains_key("unevaluatedItems") {
+        features.push("unevaluatedItems".to_string());
+    }
+    if obj.contains_key("unevaluatedProperties") {
+        features.push("unevaluatedProperties".to_string());
+    }
+
+    // If no features found, list what keys are present
+    if features.is_empty() {
+        let keys: Vec<_> = obj.keys().take(3).cloned().collect();
+        features.push(format!("other: {}", keys.join(", ")));
+    }
+
+    (has_properties || has_defs, features)
+}
+
+/// Get git commit hash
+fn get_git_commit_hash() -> String {
+    Command::new("git")
+        .args(["rev-parse", "HEAD"])
+        .output()
+        .ok()
+        .and_then(|o| {
+            if o.status.success() {
+                String::from_utf8(o.stdout)
+                    .ok()
+                    .map(|s| s.trim().to_string())
+            } else {
+                None
+            }
+        })
+        .unwrap_or_else(|| "unknown".to_string())
+}
+
+/// Check if git repo is dirty
+fn is_git_dirty() -> bool {
+    Command::new("git")
+        .args(["status", "--porcelain"])
+        .output()
+        .ok()
+        .map(|o| !o.stdout.is_empty())
+        .unwrap_or(false)
+}
+
+/// Generate an index.html file with links to all test outputs using Tera
+fn generate_index_html(test_cases: &[SchemaTestCase]) {
+    let output_base = project_root().join("tests/outputs");
+    let index_path = output_base.join("index.html");
+
+    // Group test cases by their source file (relative_path)
+    let mut grouped: BTreeMap<String, Vec<&SchemaTestCase>> = BTreeMap::new();
+    for test_case in test_cases {
+        grouped
+            .entry(test_case.relative_path.clone())
+            .or_default()
+            .push(test_case);
+    }
+
+    // Convert to template-friendly structure
+    let mut with_content = 0;
+    let mut without_content = 0;
+
+    let groups: Vec<IndexGroup> = grouped
+        .into_iter()
+        .map(|(file_path, cases)| {
+            let schemas = cases
+                .into_iter()
+                .map(|case| {
+                    let relative_output = case
+                        .output_path
+                        .strip_prefix(&output_base)
+                        .expect("Output path should be under output base");
+                    let (has_content, features) = analyze_schema(&case.schema);
+                    if has_content {
+                        with_content += 1;
+                    } else {
+                        without_content += 1;
+                    }
+                    IndexSchema {
+                        index: case.index,
+                        description: case.description.clone(),
+                        output_path: relative_output.display().to_string(),
+                        has_content,
+                        features,
+                    }
+                })
+                .collect();
+            IndexGroup { file_path, schemas }
+        })
+        .collect();
+
+    // Load and render template
+    let template_path = project_root().join("src/templates/test_index.html");
+    let template_content =
+        fs::read_to_string(&template_path).expect("Failed to read test_index.html template");
+
+    let mut tera = Tera::default();
+    tera.add_raw_template("test_index.html", &template_content)
+        .expect("Failed to parse template");
+
+    // Get git and time info
+    let commit_hash = get_git_commit_hash();
+    let is_dirty = is_git_dirty();
+    let time_utc = Utc::now().format("%Y-%m-%d %H:%M:%S UTC").to_string();
+    let time_local = Local::now().format("%Y-%m-%d %H:%M:%S %Z").to_string();
+
+    let mut context = Context::new();
+    context.insert("total_schemas", &test_cases.len());
+    context.insert("total_files", &groups.len());
+    context.insert("with_content", &with_content);
+    context.insert("without_content", &without_content);
+    context.insert("commit_hash", &commit_hash);
+    context.insert("is_dirty", &is_dirty);
+    context.insert("time_utc", &time_utc);
+    context.insert("time_local", &time_local);
+    context.insert("groups", &groups);
+
+    let html = tera
+        .render("test_index.html", &context)
+        .expect("Failed to render template");
+
+    fs::write(&index_path, html).expect("Failed to write index.html");
+    println!("Generated index.html at {:?}", index_path);
+}
+
 #[test]
 fn test_all_json_schema_test_suite_schemas() {
     let fixtures = fixtures_dir();
@@ -235,6 +477,9 @@ fn test_all_json_schema_test_suite_schemas() {
             failed_list.len()
         );
     }
+
+    // Generate index.html with links to all outputs
+    generate_index_html(&test_cases);
 }
 
 /// Test a single schema file - useful for debugging specific failures
