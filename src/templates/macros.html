@@ -56,7 +56,12 @@
       {%- set first_type = node.prefixItems | first -%}
       {%- set_global is_homogeneous = true -%}
       {%- for item in node.prefixItems -%}
-        {%- if item.type != first_type.type -%}
+        {%- if item.type is defined and first_type.type is defined -%}
+          {%- if item.type != first_type.type -%}
+            {%- set_global is_homogeneous = false -%}
+          {%- endif -%}
+        {%- else -%}
+          {# If either lacks a direct type (uses $ref, anyOf, etc.), not homogeneous #}
           {%- set_global is_homogeneous = false -%}
         {%- endif -%}
       {%- endfor -%}
@@ -160,7 +165,12 @@
   {%- set first_type = node.prefixItems | first -%}
   {%- set_global is_homogeneous = true -%}
   {%- for item in node.prefixItems -%}
-    {%- if item.type != first_type.type -%}
+    {%- if item.type is defined and first_type.type is defined -%}
+      {%- if item.type != first_type.type -%}
+        {%- set_global is_homogeneous = false -%}
+      {%- endif -%}
+    {%- else -%}
+      {# If either lacks a direct type (uses $ref, anyOf, etc.), not homogeneous #}
       {%- set_global is_homogeneous = false -%}
     {%- endif -%}
   {%- endfor -%}
@@ -238,7 +248,12 @@
   {%- set first_type = node.prefixItems | first -%}
   {%- set_global is_homogeneous = true -%}
   {%- for item in node.prefixItems -%}
-    {%- if item.type != first_type.type -%}
+    {%- if item.type is defined and first_type.type is defined -%}
+      {%- if item.type != first_type.type -%}
+        {%- set_global is_homogeneous = false -%}
+      {%- endif -%}
+    {%- else -%}
+      {# If either lacks a direct type (uses $ref, anyOf, etc.), not homogeneous #}
       {%- set_global is_homogeneous = false -%}
     {%- endif -%}
   {%- endfor -%}

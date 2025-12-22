@@ -380,4 +380,109 @@ mod tests {
         let props = schema.properties().unwrap();
         assert!(props.contains_key("name"));
     }
+
+    #[test]
+    fn test_tuple_with_ref_items() {
+        let schema: Schema = serde_json::from_str(
+            r##"{
+            "type": "object",
+            "properties": {
+                "coords": {
+                    "type": "array",
+                    "prefixItems": [
+                        { "$ref": "#/$defs/X" },
+                        { "$ref": "#/$defs/Y" }
+                    ]
+                }
+            },
+            "$defs": {
+                "X": { "type": "number" },
+                "Y": { "type": "number" }
+            }
+        }"##,
+        )
+        .unwrap();
+
+        let result = generate_html(&schema, &Options::default());
+        assert!(result.is_ok(), "Should handle $ref in prefixItems");
+    }
+
+    #[test]
+    fn test_tuple_with_mixed_items() {
+        let schema: Schema = serde_json::from_str(
+            r##"{
+            "type": "object",
+            "properties": {
+                "pair": {
+                    "type": "array",
+                    "prefixItems": [
+                        { "$ref": "#/$defs/Name" },
+                        { "type": "integer" }
+                    ]
+                }
+            },
+            "$defs": {
+                "Name": { "type": "string" }
+            }
+        }"##,
+        )
+        .unwrap();
+
+        let result = generate_html(&schema, &Options::default());
+        assert!(
+            result.is_ok(),
+            "Should handle mixed $ref and type in prefixItems"
+        );
+    }
+
+    #[test]
+    fn test_tuple_with_anyof_items() {
+        let schema: Schema = serde_json::from_str(
+            r##"{
+            "type": "object",
+            "properties": {
+                "optional_pair": {
+                    "type": "array",
+                    "prefixItems": [
+                        { "type": "string" },
+                        { "anyOf": [{ "type": "number" }, { "type": "null" }] }
+                    ]
+                }
+            }
+        }"##,
+        )
+        .unwrap();
+
+        let result = generate_html(&schema, &Options::default());
+        assert!(result.is_ok(), "Should handle anyOf in prefixItems");
+    }
+
+    #[test]
+    fn test_homogeneous_tuple_still_works() {
+        let schema: Schema = serde_json::from_str(
+            r#"{
+            "type": "object",
+            "properties": {
+                "point": {
+                    "type": "array",
+                    "prefixItems": [
+                        { "type": "number" },
+                        { "type": "number" },
+                        { "type": "number" }
+                    ]
+                }
+            }
+        }"#,
+        )
+        .unwrap();
+
+        let result = generate_html(&schema, &Options::default());
+        assert!(result.is_ok());
+        let html = result.unwrap();
+        // Homogeneous tuples should show as "array float; 3" not "Tuple Items"
+        assert!(
+            html.contains("float; 3") || html.contains("number; 3"),
+            "Homogeneous tuple should display as [T; N] format"
+        );
+    }
 }

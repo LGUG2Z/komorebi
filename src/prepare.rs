@@ -27,15 +27,19 @@ pub fn prepare_for_template(value: &Value) -> Value {
     prepared
 }
 
-/// Add display names to wrapper types by stripping numeric suffixes
+/// Add display names to types by stripping numeric suffixes
 ///
-/// For wrapper types like `PerAnimationPrefixConfig2`, this adds a
-/// `_display_name` field with the base name `PerAnimationPrefixConfig`.
+/// For types like `PerAnimationPrefixConfig2` or `DisplayFormat2`, this adds a
+/// `_display_name` field with the base name (e.g., `PerAnimationPrefixConfig`).
+/// This applies to all types with trailing digits, not just wrapper types.
 fn add_wrapper_display_names(schema: &mut Value) {
     if let Some(defs) = schema.get_mut("$defs").and_then(|v| v.as_object_mut()) {
         for (name, def) in defs.iter_mut() {
-            if def.get("_wrapper_type") == Some(&Value::Bool(true)) {
-                let display_name = name.trim_end_matches(|c: char| c.is_ascii_digit());
+            // Strip trailing digits from ALL type names (not just wrapper types)
+            let display_name = name.trim_end_matches(|c: char| c.is_ascii_digit());
+
+            // Only add _display_name if it differs from the original name
+            if display_name != name {
                 if let Some(obj) = def.as_object_mut() {
                     obj.insert(
                         "_display_name".to_string(),
