@@ -106,16 +106,17 @@
                             {{ def.description_html | safe }}
                         </div>
                         {% endif -%} {{ macros::render_schema(node=def, depth=0,
-                        path=def_name) }} {# Usages section at bottom #} {%- set
-                        type_usages = usages[def_name] -%} {%- if type_usages
-                        and (type_usages.config_usages | length > 0 or
-                        type_usages.type_references | length > 0) -%}
+                        path=def_name) }} {# Usages section at bottom - use
+                        embedded _usages to avoid lookup issues with special
+                        chars #} {%- if def._usages and
+                        (def._usages.config_usages | length > 0 or
+                        def._usages.type_references | length > 0) -%}
                         <div class="{{ css.usages }}">
-                            {%- if type_usages.config_usages | length > 0 -%}
+                            {%- if def._usages.config_usages | length > 0 -%}
                             <div class="{{ css.usage_section }}">
                                 <h4>Configuration Usage</h4>
                                 <ul class="{{ css.usage_list }}">
-                                    {%- for usage in type_usages.config_usages
+                                    {%- for usage in def._usages.config_usages
                                     -%}
                                     <li>
                                         <a href="#{{ usage.anchor }}"
@@ -125,12 +126,12 @@
                                     {%- endfor -%}
                                 </ul>
                             </div>
-                            {%- endif -%} {%- if type_usages.type_references |
+                            {%- endif -%} {%- if def._usages.type_references |
                             length > 0 -%}
                             <div class="{{ css.usage_section }}">
                                 <h4>Referenced by</h4>
                                 <ul class="{{ css.usage_list }}">
-                                    {%- for ref in type_usages.type_references
+                                    {%- for ref in def._usages.type_references
                                     -%} {%- set ref_display =
                                     display_names[ref.type_name] |
                                     default(value=ref.type_name) -%}

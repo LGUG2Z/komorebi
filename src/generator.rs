@@ -7,6 +7,7 @@ use crate::identifiers::IDS;
 use crate::identifiers::TYPE_CLASSES;
 use crate::prepare::NavigationData;
 use crate::prepare::build_navigation;
+use crate::prepare::embed_usages_in_defs;
 use crate::prepare::prepare_for_template;
 use crate::prepare::render_markdown;
 use crate::prepare::strip_markdown;
@@ -37,10 +38,13 @@ impl Generator {
     /// Generate HTML documentation from a schema
     pub fn generate(&self, schema: &Schema, options: &Options) -> Result<String, Error> {
         // Prepare the schema for template rendering
-        let prepared_schema = prepare_for_template(schema.as_value());
+        let mut prepared_schema = prepare_for_template(schema.as_value());
 
         // Build navigation data from the prepared schema (includes _display_name for wrapper types)
         let navigation = build_navigation(&prepared_schema);
+
+        // Embed usages directly into $defs to avoid Tera lookup issues with special characters
+        embed_usages_in_defs(&mut prepared_schema, &navigation.usages);
 
         // Build the template context
         let context = self.build_context(&prepared_schema, &navigation, options)?;

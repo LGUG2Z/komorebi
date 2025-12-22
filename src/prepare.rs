@@ -18,10 +18,13 @@ use std::collections::HashSet;
 /// This function:
 /// 1. Clones the schema value
 /// 2. Recursively renders all `description` fields as markdown to `description_html`
-/// 3. Returns the modified value ready for Tera
+/// 3. Normalizes non-$defs refs to prevent template errors
+/// 4. Returns the modified value ready for Tera
 pub fn prepare_for_template(value: &Value) -> Value {
     let mut prepared = value.clone();
     process_value(&mut prepared);
+    let root_schema = prepared.clone();
+    normalize_refs(&mut prepared, &root_schema);
     detect_wrapper_types(&mut prepared);
     add_wrapper_display_names(&mut prepared);
     prepared
@@ -49,6 +52,207 @@ fn add_wrapper_display_names(schema: &mut Value) {
             }
         }
     }
+}
+
+/// Embed usages directly into each $defs entry
+///
+/// This avoids Tera template lookup issues with special characters in def names
+/// (like quotes or empty strings). Each definition will have `_usages` with
+/// `config_usages` and `type_references` arrays.
+pub fn embed_usages_in_defs(schema: &mut Value, usages: &HashMap<String, TypeUsages>) {
+    if let Some(defs) = schema.get_mut("$defs").and_then(|v| v.as_object_mut()) {
+        for (name, def) in defs.iter_mut() {
+            if let Some(obj) = def.as_object_mut()
+                && let Some(type_usages) = usages.get(name)
+            {
+                obj.insert(
+                    "_usages".to_string(),
+                    serde_json::to_value(type_usages).unwrap_or(Value::Null),
+                );
+            }
+        }
+    }
+}
+
+/// Normalize $ref values that don't follow the #/$defs/TypeName pattern
+///
+/// The template expects all $refs to be in the format #/$defs/TypeName.
+/// This function handles other ref patterns:
+/// - `#` (root ref): Replaces with the root schema inline
+/// - `#/properties/foo` (JSON pointer): Resolves to the target or marks as unresolved
+/// - `#/$defs/percent%25field` (URL-encoded): Decodes to the actual $defs name
+/// - External URIs: Marks as unresolved reference
+fn normalize_refs(value: &mut Value, root_schema: &Value) {
+    normalize_refs_recursive(value, root_schema);
+}
+
+fn normalize_refs_recursive(value: &mut Value, root_schema: &Value) {
+    match value {
+        Value::Object(map) => {
+            // Check if this object has a $ref that needs normalization
+            if let Some(ref_value) = map.get("$ref").cloned()
+                && let Some(ref_str) = ref_value.as_str()
+                && let Some(normalized) = normalize_single_ref(ref_str, root_schema)
+            {
+                // Replace this object with the resolved schema
+                // But preserve any sibling properties (like description)
+                if let Value::Object(resolved_map) = normalized {
+                    // Merge: keep original properties, add resolved ones
+                    let original_ref = map.remove("$ref");
+                    for (k, v) in resolved_map {
+                        if !map.contains_key(&k) {
+                            map.insert(k, v);
+                        }
+                    }
+                    // If we couldn't resolve, restore the ref but mark it
+                    if (map.is_empty()
+                        || (!map.contains_key("type")
+                            && !map.contains_key("anyOf")
+                            && !map.contains_key("oneOf")
+                            && !map.contains_key("allOf")
+                            && !map.contains_key("properties")
+                            && !map.contains_key("enum")
+                            && !map.contains_key("const")))
+                        && let Some(orig) = original_ref
+                    {
+                        map.insert("$ref".to_string(), orig);
+                    }
+                }
+            }
+
+            // Recurse into all nested values
+            for v in map.values_mut() {
+                normalize_refs_recursive(v, root_schema);
+            }
+        }
+        Value::Array(arr) => {
+            for v in arr.iter_mut() {
+                normalize_refs_recursive(v, root_schema);
+            }
+        }
+        _ => {}
+    }
+}
+
+/// Normalize a single $ref string, returning the resolved schema if needed
+fn normalize_single_ref(ref_str: &str, root_schema: &Value) -> Option<Value> {
+    // Already in expected format - decode URL-encoded characters for $defs lookup
+    if let Some(encoded_name) = ref_str.strip_prefix("#/$defs/") {
+        // Skip "#/$defs/"
+
+        // Decode JSON pointer escapes: ~1 -> /, ~0 -> ~
+        let decoded = encoded_name.replace("~1", "/").replace("~0", "~");
+
+        // Decode URL-encoded characters: %25 -> %, etc.
+        let decoded = percent_decode(&decoded);
+
+        // If the decoded name differs from encoded, update the ref
+        if decoded != encoded_name {
+            // Check if the decoded name exists in $defs
+            if let Some(defs) = root_schema.get("$defs").and_then(|v| v.as_object())
+                && defs.contains_key(&decoded)
+            {
+                return Some(serde_json::json!({
+                    "$ref": format!("#/$defs/{}", decoded)
+                }));
+            }
+        }
+        return None; // No change needed
+    }
+
+    // Root reference: #
+    if ref_str == "#" {
+        // Return a placeholder type - we can't inline the whole root
+        return Some(serde_json::json!({
+            "type": "object",
+            "description": "(recursive reference to root schema)"
+        }));
+    }
+
+    // JSON pointer reference: #/properties/foo, #/items, etc.
+    if ref_str.starts_with("#/") {
+        if let Some(resolved) = resolve_json_pointer(ref_str, root_schema) {
+            return Some(resolved.clone());
+        }
+        // Couldn't resolve - return a placeholder
+        return Some(serde_json::json!({
+            "description": format!("(unresolved reference: {})", ref_str)
+        }));
+    }
+
+    // External URI reference (http://, https://, urn:, file://, etc.)
+    if ref_str.contains("://") || ref_str.starts_with("urn:") {
+        return Some(serde_json::json!({
+            "description": format!("(external reference: {})", ref_str)
+        }));
+    }
+
+    // Relative URI reference (e.g., "other-schema.json#/$defs/Foo")
+    if ref_str.contains('#') || ref_str.ends_with(".json") {
+        return Some(serde_json::json!({
+            "description": format!("(external reference: {})", ref_str)
+        }));
+    }
+
+    None // Unknown format, leave as-is
+}
+
+/// Decode percent-encoded characters in a string
+fn percent_decode(s: &str) -> String {
+    let mut result = String::with_capacity(s.len());
+    let mut chars = s.chars().peekable();
+
+    while let Some(c) = chars.next() {
+        if c == '%' {
+            // Try to read two hex digits
+            let hex: String = chars.by_ref().take(2).collect();
+            if hex.len() == 2
+                && let Ok(byte) = u8::from_str_radix(&hex, 16)
+            {
+                result.push(byte as char);
+                continue;
+            }
+            // If decoding failed, keep the original
+            result.push('%');
+            result.push_str(&hex);
+        } else {
+            result.push(c);
+        }
+    }
+
+    result
+}
+
+/// Resolve a JSON pointer within the schema
+fn resolve_json_pointer<'a>(pointer: &str, schema: &'a Value) -> Option<&'a Value> {
+    // Remove leading #
+    let pointer = pointer.strip_prefix('#')?;
+
+    if pointer.is_empty() {
+        return Some(schema);
+    }
+
+    // Remove leading /
+    let pointer = pointer.strip_prefix('/')?;
+
+    let mut current = schema;
+    for segment in pointer.split('/') {
+        // Decode JSON pointer escapes
+        let decoded = segment.replace("~1", "/").replace("~0", "~");
+        // Also decode percent-encoding
+        let decoded = percent_decode(&decoded);
+
+        current = match current {
+            Value::Object(map) => map.get(&decoded)?,
+            Value::Array(arr) => {
+                let index: usize = decoded.parse().ok()?;
+                arr.get(index)?
+            }
+            _ => return None,
+        };
+    }
+
+    Some(current)
 }
 
 /// Recursively process a value, rendering markdown descriptions

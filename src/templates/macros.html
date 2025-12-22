@@ -46,9 +46,13 @@
 {%- if node["$ref"] -%}
   {%- set ref_name = node["$ref"] | replace(from="#/$defs/", to="") -%}
   {%- set display = display_names[ref_name] | default(value=ref_name) -%}
-  {%- set ref_def = schema["$defs"][ref_name] -%}
-  <a href="#{{ ref_name | lower }}" class="{{ css.type_ref }}">{{ display }}</a>
-  {%- if ref_def._wrapper_inner %} {{ self::render_type_badge(node=ref_def._wrapper_inner) }}{%- endif -%}
+  {%- if schema["$defs"][ref_name] -%}
+    {%- set ref_def = schema["$defs"][ref_name] -%}
+    <a href="#{{ ref_name | lower }}" class="{{ css.type_ref }}">{{ display }}</a>
+    {%- if ref_def._wrapper_inner %} {{ self::render_type_badge(node=ref_def._wrapper_inner) }}{%- endif -%}
+  {%- else -%}
+    <span class="{{ css.type_badge }} {{ type_classes.object }}">$ref</span>
+  {%- endif -%}
 {%- elif node.type -%}
   {%- if node.type is string -%}
     {%- if node.type == "array" and node.prefixItems -%}

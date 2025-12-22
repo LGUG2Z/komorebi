@@ -1223,6 +1223,7 @@ dependencies = [
  "clap",
  "lightningcss",
  "pulldown-cmark",
+ "rayon",
  "regex",
  "schemars",
  "serde",
