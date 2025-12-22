@@ -84,10 +84,11 @@ fn detect_wrapper_types(value: &mut Value) {
         Value::Object(map) => {
             // Check for wrapper type pattern in anyOf
             if let Some(any_of) = map.get("anyOf").and_then(|v| v.as_array())
-                && let Some(inner) = detect_wrapper_pattern(any_of) {
-                    map.insert("_wrapper_type".to_string(), Value::Bool(true));
-                    map.insert("_wrapper_inner".to_string(), inner);
-                }
+                && let Some(inner) = detect_wrapper_pattern(any_of)
+            {
+                map.insert("_wrapper_type".to_string(), Value::Bool(true));
+                map.insert("_wrapper_inner".to_string(), inner);
+            }
 
             // Recurse into all nested values
             for v in map.values_mut() {
@@ -122,15 +123,17 @@ fn detect_wrapper_pattern(any_of: &[Value]) -> Option<Value> {
 
     // Try first as map variant, second as inner type
     if let Some(map_inner) = get_map_inner_type(first)
-        && types_are_equal(map_inner, second) {
-            return Some(second.clone());
-        }
+        && types_are_equal(map_inner, second)
+    {
+        return Some(second.clone());
+    }
 
     // Try second as map variant, first as inner type
     if let Some(map_inner) = get_map_inner_type(second)
-        && types_are_equal(map_inner, first) {
-            return Some(first.clone());
-        }
+        && types_are_equal(map_inner, first)
+    {
+        return Some(first.clone());
+    }
 
     None
 }

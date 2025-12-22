@@ -48,10 +48,7 @@
   {%- set display = display_names[ref_name] | default(value=ref_name) -%}
   {%- set ref_def = schema["$defs"][ref_name] -%}
   <a href="#{{ ref_name | lower }}" class="type-ref">{{ display }}</a>
-  {%- if ref_def._wrapper_inner -%}
-    {# Show the inner type for wrapper types #}
-    {{ self::render_type_badge(node=ref_def._wrapper_inner) }}
-  {%- endif -%}
+  {%- if ref_def._wrapper_inner %} {{ self::render_type_badge(node=ref_def._wrapper_inner) }}{%- endif -%}
 {%- elif node.type -%}
   {%- if node.type is string -%}
     {%- if node.type == "array" and node.prefixItems -%}
@@ -64,7 +61,7 @@
         {%- endif -%}
       {%- endfor -%}
       {%- if is_homogeneous and first_type.type -%}
-        <span class="type-badge type-array">array</span> {%- if first_type.type == "number" -%}<span class="type-badge type-float">float; {{ node.prefixItems | length }}</span>{%- else -%}<span class="type-badge type-{{ first_type.type }}">{{ first_type.type }}; {{ node.prefixItems | length }}</span>{%- endif -%}
+        <span class="type-badge type-array">array</span> {% if first_type.type == "number" %}<span class="type-badge type-float">float; {{ node.prefixItems | length }}</span>{% else %}<span class="type-badge type-{{ first_type.type }}">{{ first_type.type }}; {{ node.prefixItems | length }}</span>{% endif %}
       {%- else -%}
         <span class="type-badge type-array">array</span> <span class="type-badge type-array">tuple</span>
       {%- endif -%}
@@ -79,16 +76,11 @@
     {%- if node.type | length == 2 and "null" in node.type -%}
       <span class="badge optional">optional</span>
       {%- for t in node.type -%}
-        {%- if t != "null" -%}
-          {%- if t == "array" and node.items -%}
-            <span class="type-badge type-array">array</span> {{ self::render_type_badge(node=node.items) }}
-          {%- else -%}
-            <span class="type-badge type-{{ t }}">{{ t }}</span>
-          {%- endif -%}
+        {%- if t != "null" %} {% if t == "array" and node.items %}<span class="type-badge type-array">array</span> {{ self::render_type_badge(node=node.items) }}{% else %}<span class="type-badge type-{{ t }}">{{ t }}</span>{% endif %}
         {%- endif -%}
       {%- endfor -%}
     {%- else -%}
-      {%- for t in node.type -%}<span class="type-badge type-{{ t }}">{{ t }}</span>{% endfor -%}
+      {%- for t in node.type %} <span class="type-badge type-{{ t }}">{{ t }}</span>{%- endfor -%}
     {%- endif -%}
   {%- endif -%}
 {%- elif node.anyOf -%}
@@ -101,9 +93,9 @@
     {%- set first = node.anyOf | first -%}
     {%- set second = node.anyOf | last -%}
     {%- if second.type and second.type == "null" -%}
-      <span class="badge optional">optional</span>{{ self::render_type_badge(node=first) }}
+      <span class="badge optional">optional</span> {{ self::render_type_badge(node=first) }}
     {%- elif first.type and first.type == "null" -%}
-      <span class="badge optional">optional</span>{{ self::render_type_badge(node=second) }}
+      <span class="badge optional">optional</span> {{ self::render_type_badge(node=second) }}
     {%- else -%}
       {# Check if all variants are string const (enum pattern) #}
       {%- set_global is_string_enum = true -%}
@@ -352,8 +344,7 @@
 {% macro render_schema(node, depth, path) %}
 {%- if depth < 10 -%}
 <div class="schema-inline">
-  {{ self::render_type_badge(node=node) }}
-  {%- if node.description_html %}<div class="description">{{ node.description_html | safe }}</div>{% endif -%}
+  {{ self::render_type_badge(node=node) }}{%- if node.description_html %} <div class="description">{{ node.description_html | safe }}</div>{% endif -%}
   {{ self::render_constraints(node=node) }}
   {%- if node.default %}<div class="default-value"><span class="label">Default:</span> <code>{{ node.default | json_encode() }}</code></div>{% endif -%}
   {{ self::render_schema_body(node=node, depth=depth, path=path) }}

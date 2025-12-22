@@ -507,6 +507,11 @@ body {
     text-transform: uppercase;
     letter-spacing: 0.025em;
     border-radius: 3px;
+    margin-left: 0.25rem;
+}
+
+.badge:first-child {
+    margin-left: 0;
 }
 
 .badge.required {
@@ -555,6 +560,11 @@ body {
     border-radius: 3px;
     background-color: var(--bg-tertiary);
     color: var(--text-secondary);
+    margin-left: 0.25rem;
+}
+
+.type-badge:first-child {
+    margin-left: 0;
 }
 
 /* Primitive types */
@@ -617,6 +627,11 @@ body {
     color: white;
     text-decoration: none;
     transition: background-color 0.15s;
+    margin-left: 0.25rem;
+}
+
+.type-ref:first-child {
+    margin-left: 0;
 }
 
 .type-ref:hover {
