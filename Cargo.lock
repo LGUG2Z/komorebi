@@ -740,6 +740,7 @@ dependencies = [
  "clap",
  "pretty_assertions",
  "pulldown-cmark",
+ "regex",
  "schemars",
  "serde",
  "serde_json",

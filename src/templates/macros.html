@@ -45,7 +45,13 @@
 {% macro render_type_badge(node) %}
 {%- if node["$ref"] -%}
   {%- set ref_name = node["$ref"] | replace(from="#/$defs/", to="") -%}
-  <a href="#{{ ref_name | lower }}" class="type-ref">{{ ref_name }}</a>
+  {%- set display = display_names[ref_name] | default(value=ref_name) -%}
+  {%- set ref_def = schema["$defs"][ref_name] -%}
+  <a href="#{{ ref_name | lower }}" class="type-ref">{{ display }}</a>
+  {%- if ref_def._wrapper_inner -%}
+    {# Show the inner type for wrapper types #}
+    {{ self::render_type_badge(node=ref_def._wrapper_inner) }}
+  {%- endif -%}
 {%- elif node.type -%}
   {%- if node.type is string -%}
     {%- if node.type == "array" and node.prefixItems -%}
@@ -58,7 +64,7 @@
         {%- endif -%}
       {%- endfor -%}
       {%- if is_homogeneous and first_type.type -%}
-        <span class="type-badge type-array">array</span> <span class="type-badge type-{{ first_type.type }}">{{ first_type.type }}; {{ node.prefixItems | length }}</span>
+        <span class="type-badge type-array">array</span> {%- if first_type.type == "number" -%}<span class="type-badge type-float">float; {{ node.prefixItems | length }}</span>{%- else -%}<span class="type-badge type-{{ first_type.type }}">{{ first_type.type }}; {{ node.prefixItems | length }}</span>{%- endif -%}
       {%- else -%}
         <span class="type-badge type-array">array</span> <span class="type-badge type-array">tuple</span>
       {%- endif -%}
@@ -86,8 +92,12 @@
     {%- endif -%}
   {%- endif -%}
 {%- elif node.anyOf -%}
+  {# Check for wrapper type pattern first (detected in prepare.rs) #}
+  {%- if node._wrapper_type -%}
+    {# Wrapper type: show inner type badge (type name shown separately in type definitions) #}
+    {{ self::render_type_badge(node=node._wrapper_inner) }}
   {# Check for Option<T> pattern: anyOf with exactly 2 variants where one is null #}
-  {%- if node.anyOf | length == 2 -%}
+  {%- elif node.anyOf | length == 2 -%}
     {%- set first = node.anyOf | first -%}
     {%- set second = node.anyOf | last -%}
     {%- if second.type and second.type == "null" -%}
@@ -254,8 +264,12 @@
     </details>
   {%- endif -%}
 {%- elif node.anyOf -%}
+  {# Check for wrapper type pattern first (detected in prepare.rs) #}
+  {%- if node._wrapper_type -%}
+    {# Wrapper type - render the inner type's body #}
+    {{ self::render_schema_body(node=node._wrapper_inner, depth=depth, path=path) }}
   {# Check for Option<T> pattern: anyOf with exactly 2 variants where one is null #}
-  {%- if node.anyOf | length == 2 -%}
+  {%- elif node.anyOf | length == 2 -%}
     {%- set first = node.anyOf | first -%}
     {%- set second = node.anyOf | last -%}
     {%- if second.type and second.type == "null" -%}

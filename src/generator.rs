@@ -36,8 +36,8 @@ impl Generator {
         // Prepare the schema for template rendering
         let prepared_schema = prepare_for_template(schema.as_value());
 
-        // Build navigation data
-        let navigation = build_navigation(schema.as_value());
+        // Build navigation data from the prepared schema (includes _display_name for wrapper types)
+        let navigation = build_navigation(&prepared_schema);
 
         // Build the template context
         let context = self.build_context(&prepared_schema, &navigation, options)?;
@@ -92,6 +92,9 @@ impl Generator {
 
         // Type usages for "Usages" section in type definitions
         context.insert("usages", &navigation.usages);
+
+        // Display names for wrapper types (type_name -> display_name)
+        context.insert("display_names", &navigation.display_names);
 
         // Build required set for the root schema
         let required_set: Vec<String> = schema
@@ -1200,5 +1203,479 @@ mod tests {
             "Should render minLength: 0"
         );
         assert!(html.contains("Max length:"), "Should render maxLength");
+    }
+
+    // Test: Homogeneous tuple with floats should display "float" instead of "number"
+    #[test]
+    fn test_tuple_float_display() {
+        let generator = Generator::new().unwrap();
+        let schema = make_schema(json!({
+            "title": "Test",
+            "type": "object",
+            "properties": {
+                "point": {
+                    "type": "array",
+                    "prefixItems": [
+                        { "type": "number" },
+                        { "type": "number" }
+                    ]
+                }
+            }
+        }));
+
+        let options = Options::default();
+        let html = generator.generate(&schema, &options).unwrap();
+
+        // Should show "float" instead of "number" for tuple display
+        assert!(
+            html.contains("float; 2"),
+            "Should display 'float; 2' for number tuples"
+        );
+        assert!(
+            !html.contains("number; 2"),
+            "Should NOT display 'number; 2' for float tuples"
+        );
+        assert!(
+            html.contains("type-float"),
+            "Should use type-float CSS class"
+        );
+    }
+
+    // Test: Homogeneous tuple with integers should still display "integer"
+    #[test]
+    fn test_tuple_integer_display_unchanged() {
+        let generator = Generator::new().unwrap();
+        let schema = make_schema(json!({
+            "title": "Test",
+            "type": "object",
+            "properties": {
+                "coords": {
+                    "type": "array",
+                    "prefixItems": [
+                        { "type": "integer" },
+                        { "type": "integer" },
+                        { "type": "integer" }
+                    ]
+                }
+            }
+        }));
+
+        let options = Options::default();
+        let html = generator.generate(&schema, &options).unwrap();
+
+        // Should still show "integer" for integer tuples
+        assert!(
+            html.contains("integer; 3"),
+            "Should display 'integer; 3' for integer tuples"
+        );
+        assert!(
+            html.contains("type-integer"),
+            "Should use type-integer CSS class"
+        );
+    }
+
+    // Test: Float tuple with format (e.g., format: "double") still displays "float"
+    #[test]
+    fn test_tuple_float_with_format() {
+        let generator = Generator::new().unwrap();
+        let schema = make_schema(json!({
+            "title": "Test",
+            "type": "object",
+            "properties": {
+                "bezier": {
+                    "type": "array",
+                    "prefixItems": [
+                        { "type": "number", "format": "double" },
+                        { "type": "number", "format": "double" },
+                        { "type": "number", "format": "double" },
+                        { "type": "number", "format": "double" }
+                    ]
+                }
+            }
+        }));
+
+        let options = Options::default();
+        let html = generator.generate(&schema, &options).unwrap();
+
+        // Should show "float" for number tuples regardless of format
+        assert!(
+            html.contains("float; 4"),
+            "Should display 'float; 4' for number tuples with format"
+        );
+    }
+
+    // ==================== Wrapper Type Rendering Tests ====================
+
+    // Test: Wrapper type with $ref renders inner type as link
+    #[test]
+    fn test_wrapper_type_renders_inner_ref() {
+        let generator = Generator::new().unwrap();
+        let schema = make_schema(json!({
+            "title": "Test",
+            "type": "object",
+            "$defs": {
+                "InnerType": {
+                    "type": "string",
+                    "description": "The inner type"
+                },
+                "WrapperType": {
+                    "anyOf": [
+                        {
+                            "type": "object",
+                            "additionalProperties": { "$ref": "#/$defs/InnerType" }
+                        },
+                        { "$ref": "#/$defs/InnerType" }
+                    ]
+                }
+            },
+            "properties": {
+                "config": { "$ref": "#/$defs/WrapperType" }
+            }
+        }));
+
+        let options = Options::default();
+        let html = generator.generate(&schema, &options).unwrap();
+
+        // WrapperType definition should show InnerType as a link
+        assert!(
+            html.contains("href=\"#innertype\""),
+            "Should link to inner type definition"
+        );
+        // Should NOT show "enum" badge for wrapper type
+        // (Note: The wrapper type is referenced via $ref, so we check the definition section)
+    }
+
+    // Test: Wrapper type with primitive renders primitive badge
+    #[test]
+    fn test_wrapper_type_renders_primitive_badge() {
+        let generator = Generator::new().unwrap();
+        let schema = make_schema(json!({
+            "title": "Test",
+            "type": "object",
+            "$defs": {
+                "BoolWrapper": {
+                    "anyOf": [
+                        {
+                            "type": "object",
+                            "additionalProperties": { "type": "boolean" }
+                        },
+                        { "type": "boolean" }
+                    ]
+                }
+            },
+            "properties": {
+                "enabled": { "$ref": "#/$defs/BoolWrapper" }
+            }
+        }));
+
+        let options = Options::default();
+        let html = generator.generate(&schema, &options).unwrap();
+
+        // Should show boolean type badge in the BoolWrapper definition
+        assert!(
+            html.contains("type-boolean"),
+            "Should show boolean type badge for wrapper with primitive inner type"
+        );
+    }
+
+    // Test: Wrapper type with integer constraints renders integer badge
+    #[test]
+    fn test_wrapper_type_with_integer_renders_correctly() {
+        let generator = Generator::new().unwrap();
+        let schema = make_schema(json!({
+            "title": "Test",
+            "type": "object",
+            "$defs": {
+                "IntWrapper": {
+                    "anyOf": [
+                        {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "integer",
+                                "format": "uint64",
+                                "minimum": 0
+                            }
+                        },
+                        {
+                            "type": "integer",
+                            "format": "uint64",
+                            "minimum": 0
+                        }
+                    ]
+                }
+            },
+            "properties": {
+                "duration": { "$ref": "#/$defs/IntWrapper" }
+            }
+        }));
+
+        let options = Options::default();
+        let html = generator.generate(&schema, &options).unwrap();
+
+        // Should show integer type badge
+        assert!(
+            html.contains("type-integer"),
+            "Should show integer type badge for wrapper with integer inner type"
+        );
+    }
+
+    // Test: Non-wrapper anyOf still shows enum badge
+    #[test]
+    fn test_non_wrapper_anyof_still_shows_enum() {
+        let generator = Generator::new().unwrap();
+        let schema = make_schema(json!({
+            "title": "Test",
+            "type": "object",
+            "$defs": {
+                "NotWrapper": {
+                    "anyOf": [
+                        {
+                            "type": "object",
+                            "additionalProperties": { "type": "string" }
+                        },
+                        { "type": "integer" }
+                    ]
+                }
+            },
+            "properties": {
+                "value": { "$ref": "#/$defs/NotWrapper" }
+            }
+        }));
+
+        let options = Options::default();
+        let html = generator.generate(&schema, &options).unwrap();
+
+        // Should show enum badge since inner types don't match
+        assert!(
+            html.contains(">enum<"),
+            "Should show enum badge for non-wrapper anyOf"
+        );
+    }
+
+    // Test: Wrapper type does not show "Enum variants" dropdown
+    #[test]
+    fn test_wrapper_type_no_enum_variants_dropdown() {
+        let generator = Generator::new().unwrap();
+        let schema = make_schema(json!({
+            "title": "Test",
+            "type": "object",
+            "$defs": {
+                "StringWrapper": {
+                    "anyOf": [
+                        {
+                            "type": "object",
+                            "additionalProperties": { "type": "string" }
+                        },
+                        { "type": "string" }
+                    ]
+                }
+            },
+            "properties": {
+                "name": { "$ref": "#/$defs/StringWrapper" }
+            }
+        }));
+
+        let options = Options::default();
+        let html = generator.generate(&schema, &options).unwrap();
+
+        // Count occurrences of "Enum variants" - should not appear for wrapper types
+        // (The StringWrapper definition should not have an "Enum variants" dropdown)
+        let enum_variants_in_stringwrapper = html
+            .find("StringWrapper")
+            .map(|pos| {
+                let section = &html[pos..pos.min(html.len()).saturating_add(500)];
+                section.contains("Enum variants")
+            })
+            .unwrap_or(false);
+
+        assert!(
+            !enum_variants_in_stringwrapper,
+            "Wrapper type should NOT show 'Enum variants' dropdown"
+        );
+    }
+
+    // Test: Wrapper type with $ref to AnimationStyle (like PerAnimationPrefixConfig3)
+    #[test]
+    fn test_wrapper_type_like_per_animation_prefix_config() {
+        let generator = Generator::new().unwrap();
+        let schema = make_schema(json!({
+            "title": "Test",
+            "type": "object",
+            "$defs": {
+                "AnimationStyle": {
+                    "type": "string",
+                    "enum": ["Linear", "EaseIn", "EaseOut"]
+                },
+                "PerAnimationPrefixConfig": {
+                    "anyOf": [
+                        {
+                            "type": "object",
+                            "additionalProperties": { "$ref": "#/$defs/AnimationStyle" }
+                        },
+                        { "$ref": "#/$defs/AnimationStyle" }
+                    ]
+                }
+            },
+            "properties": {
+                "style": { "$ref": "#/$defs/PerAnimationPrefixConfig" }
+            }
+        }));
+
+        let options = Options::default();
+        let html = generator.generate(&schema, &options).unwrap();
+
+        // The PerAnimationPrefixConfig definition should link to AnimationStyle
+        assert!(
+            html.contains("href=\"#animationstyle\""),
+            "Wrapper type should link to inner type (AnimationStyle)"
+        );
+    }
+
+    // Test: Wrapper types display base name without numeric suffix
+    #[test]
+    fn test_wrapper_type_display_name() {
+        let generator = Generator::new().unwrap();
+        let schema = make_schema(json!({
+            "title": "Test",
+            "type": "object",
+            "$defs": {
+                "PerAnimationPrefixConfig": {
+                    "anyOf": [
+                        {
+                            "type": "object",
+                            "additionalProperties": { "type": "boolean" }
+                        },
+                        { "type": "boolean" }
+                    ]
+                },
+                "PerAnimationPrefixConfig2": {
+                    "anyOf": [
+                        {
+                            "type": "object",
+                            "additionalProperties": { "type": "integer" }
+                        },
+                        { "type": "integer" }
+                    ]
+                },
+                "PerAnimationPrefixConfig3": {
+                    "anyOf": [
+                        {
+                            "type": "object",
+                            "additionalProperties": { "$ref": "#/$defs/AnimationStyle" }
+                        },
+                        { "$ref": "#/$defs/AnimationStyle" }
+                    ]
+                },
+                "AnimationStyle": {
+                    "type": "string",
+                    "enum": ["Linear", "EaseIn"]
+                }
+            },
+            "properties": {
+                "config1": { "$ref": "#/$defs/PerAnimationPrefixConfig" },
+                "config2": { "$ref": "#/$defs/PerAnimationPrefixConfig2" },
+                "config3": { "$ref": "#/$defs/PerAnimationPrefixConfig3" }
+            }
+        }));
+
+        let options = Options::default();
+        let html = generator.generate(&schema, &options).unwrap();
+
+        // Definition headers should show base name without numeric suffix
+        // PerAnimationPrefixConfig2 header should show "PerAnimationPrefixConfig"
+
+        // Count definition-name headers containing "PerAnimationPrefixConfig" (base name)
+        // The HTML has whitespace/newlines in formatting
+        let header_pattern = "<h3 class=\"definition-name\">";
+        let per_anim_header_count = html
+            .match_indices(header_pattern)
+            .filter(|(i, _)| {
+                let after = &html[*i + header_pattern.len()..];
+                after.trim_start().starts_with("PerAnimationPrefixConfig")
+            })
+            .count();
+
+        assert_eq!(
+            per_anim_header_count, 3,
+            "All 3 wrapper types should show 'PerAnimationPrefixConfig' in header (found {})",
+            per_anim_header_count
+        );
+
+        // Verify that PerAnimationPrefixConfig2 and PerAnimationPrefixConfig3 do NOT appear in headers
+        // (They should only appear in anchor IDs and href links)
+        assert!(
+            !html.contains("class=\"definition-name\">PerAnimationPrefixConfig2") &&
+            !html.contains("class=\"definition-name\">\n                            PerAnimationPrefixConfig2"),
+            "Should NOT show numeric suffix 2 in definition header"
+        );
+        assert!(
+            !html.contains("class=\"definition-name\">PerAnimationPrefixConfig3") &&
+            !html.contains("class=\"definition-name\">\n                            PerAnimationPrefixConfig3"),
+            "Should NOT show numeric suffix 3 in definition header"
+        );
+
+        // Sidebar should also show base names (navigation uses display_name)
+        let sidebar_base_name_count = html.matches(">PerAnimationPrefixConfig<").count();
+        assert!(
+            sidebar_base_name_count >= 3,
+            "Sidebar should show base name for wrapper types (found {})",
+            sidebar_base_name_count
+        );
+
+        // Anchors should still use full names for correct linking
+        assert!(
+            html.contains("id=\"peranimationprefixconfig\""),
+            "Anchor should use full name"
+        );
+        assert!(
+            html.contains("id=\"peranimationprefixconfig2\""),
+            "Anchor should use full name with suffix"
+        );
+        assert!(
+            html.contains("id=\"peranimationprefixconfig3\""),
+            "Anchor should use full name with suffix"
+        );
+    }
+
+    // Test: No broken anchor links in rendered output
+    #[test]
+    fn test_no_broken_anchor_links() {
+        use regex::Regex;
+        use std::collections::HashSet;
+
+        let generator = Generator::new().unwrap();
+        let schema_json = include_str!("../schema.json");
+        let schema: Schema = serde_json::from_str(schema_json).unwrap();
+        let options = Options::default();
+        let html = generator.generate(&schema, &options).unwrap();
+
+        // Extract all href="#..." targets (excluding JavaScript template literals like ${...})
+        let href_re = Regex::new(r##"href="#([^"]+)""##).unwrap();
+        let hrefs: HashSet<String> = href_re
+            .captures_iter(&html)
+            .map(|c| c[1].to_string())
+            .filter(|href| !href.starts_with("${")) // Exclude JS template literals
+            .collect();
+
+        // Extract all id="..." values
+        let id_re = Regex::new(r##"id="([^"]+)""##).unwrap();
+        let ids: HashSet<String> = id_re
+            .captures_iter(&html)
+            .map(|c| c[1].to_string())
+            .collect();
+
+        // Find broken links
+        let broken: Vec<&String> = hrefs.iter().filter(|href| !ids.contains(*href)).collect();
+
+        if !broken.is_empty() {
+            eprintln!("Broken anchor links found: {:?}", broken);
+        }
+
+        assert!(
+            broken.is_empty(),
+            "Found {} broken anchor links: {:?}",
+            broken.len(),
+            broken.iter().take(20).collect::<Vec<_>>()
+        );
     }
 }

@@ -58,7 +58,8 @@
                                 href="#{{ def.anchor }}"
                                 class="nav-link"
                                 data-search-name="{{ def.name | lower }}"
-                                >{{ def.name }}</a
+                                >{{ def.display_name | default(value=def.name)
+                                }}</a
                             >
                         </li>
                         {%- endfor -%}
@@ -88,7 +89,9 @@
                         class="definition"
                         data-search-name="{{ def_name | lower }}"
                     >
-                        <h3 class="definition-name">{{ def_name }}</h3>
+                        <h3 class="definition-name">
+                            {{ def._display_name | default(value=def_name) }}
+                        </h3>
                         {%- if def.description_html %}
                         <div class="description">
                             {{ def.description_html | safe }}
@@ -119,10 +122,12 @@
                                 <h4>Referenced by</h4>
                                 <ul class="usage-list">
                                     {%- for ref in type_usages.type_references
-                                    -%}
+                                    -%} {%- set ref_display =
+                                    display_names[ref.type_name] |
+                                    default(value=ref.type_name) -%}
                                     <li>
                                         <a href="#{{ ref.anchor }}"
-                                            >{{ ref.type_name }}</a
+                                            >{{ ref_display }}</a
                                         >
                                     </li>
                                     {%- endfor -%}

@@ -22,7 +22,29 @@ use std::collections::HashSet;
 pub fn prepare_for_template(value: &Value) -> Value {
     let mut prepared = value.clone();
     process_value(&mut prepared);
+    detect_wrapper_types(&mut prepared);
+    add_wrapper_display_names(&mut prepared);
     prepared
+}
+
+/// Add display names to wrapper types by stripping numeric suffixes
+///
+/// For wrapper types like `PerAnimationPrefixConfig2`, this adds a
+/// `_display_name` field with the base name `PerAnimationPrefixConfig`.
+fn add_wrapper_display_names(schema: &mut Value) {
+    if let Some(defs) = schema.get_mut("$defs").and_then(|v| v.as_object_mut()) {
+        for (name, def) in defs.iter_mut() {
+            if def.get("_wrapper_type") == Some(&Value::Bool(true)) {
+                let display_name = name.trim_end_matches(|c: char| c.is_ascii_digit());
+                if let Some(obj) = def.as_object_mut() {
+                    obj.insert(
+                        "_display_name".to_string(),
+                        Value::String(display_name.to_string()),
+                    );
+                }
+            }
+        }
+    }
 }
 
 /// Recursively process a value, rendering markdown descriptions
@@ -47,6 +69,130 @@ fn process_value(value: &mut Value) {
         }
         _ => {}
     }
+}
+
+/// Detect and annotate wrapper type patterns in the schema
+///
+/// A wrapper type is an anyOf with exactly 2 variants where:
+/// - One variant is an object with additionalProperties of type T
+/// - The other variant is directly type T
+///
+/// This pattern is common for types like `PerAnimationPrefixConfig<T>` which
+/// can be either a map of animation prefixes to T, or directly a T value.
+fn detect_wrapper_types(value: &mut Value) {
+    match value {
+        Value::Object(map) => {
+            // Check for wrapper type pattern in anyOf
+            if let Some(any_of) = map.get("anyOf").and_then(|v| v.as_array())
+                && let Some(inner) = detect_wrapper_pattern(any_of) {
+                    map.insert("_wrapper_type".to_string(), Value::Bool(true));
+                    map.insert("_wrapper_inner".to_string(), inner);
+                }
+
+            // Recurse into all nested values
+            for v in map.values_mut() {
+                detect_wrapper_types(v);
+            }
+        }
+        Value::Array(arr) => {
+            for v in arr.iter_mut() {
+                detect_wrapper_types(v);
+            }
+        }
+        _ => {}
+    }
+}
+
+/// Check if anyOf array matches the wrapper type pattern
+///
+/// Returns the inner type if the pattern matches, None otherwise.
+fn detect_wrapper_pattern(any_of: &[Value]) -> Option<Value> {
+    // Must have exactly 2 variants
+    if any_of.len() != 2 {
+        return None;
+    }
+
+    let first = &any_of[0];
+    let second = &any_of[1];
+
+    // Skip if either variant is null (that's Option<T>, not wrapper)
+    if is_null_type(first) || is_null_type(second) {
+        return None;
+    }
+
+    // Try first as map variant, second as inner type
+    if let Some(map_inner) = get_map_inner_type(first)
+        && types_are_equal(map_inner, second) {
+            return Some(second.clone());
+        }
+
+    // Try second as map variant, first as inner type
+    if let Some(map_inner) = get_map_inner_type(second)
+        && types_are_equal(map_inner, first) {
+            return Some(first.clone());
+        }
+
+    None
+}
+
+/// Check if a schema represents the null type
+fn is_null_type(schema: &Value) -> bool {
+    schema
+        .get("type")
+        .and_then(|t| t.as_str())
+        .map(|t| t == "null")
+        .unwrap_or(false)
+}
+
+/// Extract the inner type from a map schema (object with additionalProperties)
+///
+/// Returns the additionalProperties schema if this is an object type with
+/// additionalProperties defined, None otherwise.
+fn get_map_inner_type(schema: &Value) -> Option<&Value> {
+    let obj = schema.as_object()?;
+
+    // Must be type: "object"
+    let type_val = obj.get("type")?;
+    if type_val.as_str()? != "object" {
+        return None;
+    }
+
+    // Must have additionalProperties (and it must be an object, not boolean)
+    let additional = obj.get("additionalProperties")?;
+    if additional.is_object() {
+        Some(additional)
+    } else {
+        None
+    }
+}
+
+/// Check if two type schemas are equivalent
+///
+/// Handles:
+/// - $ref comparison (by ref string)
+/// - Primitive type comparison (by type string)
+/// - Deep equality for complex types
+fn types_are_equal(a: &Value, b: &Value) -> bool {
+    // Handle $ref comparison
+    if let (Some(ref_a), Some(ref_b)) = (
+        a.get("$ref").and_then(|v| v.as_str()),
+        b.get("$ref").and_then(|v| v.as_str()),
+    ) {
+        return ref_a == ref_b;
+    }
+
+    // Handle primitive type comparison
+    if let (Some(type_a), Some(type_b)) = (
+        a.get("type").and_then(|v| v.as_str()),
+        b.get("type").and_then(|v| v.as_str()),
+    ) {
+        // For primitive types, just compare the type string
+        // (ignoring format, constraints, etc. for matching purposes)
+        return type_a == type_b;
+    }
+
+    // Deep equality for complex types
+    a == b
 }
 
 /// Render markdown text to HTML
@@ -76,6 +222,7 @@ pub struct DefinitionInfo {
     pub name: String,
     pub anchor: String,
     pub description: Option<String>,
+    pub display_name: Option<String>,
 }
 
 /// An outline entry for hierarchical navigation
@@ -130,6 +277,8 @@ pub struct NavigationData {
     pub search_index: Vec<SearchEntry>,
     /// Map from type name to its usages
     pub usages: HashMap<String, TypeUsages>,
+    /// Map from type name to display name (for wrapper types with numeric suffixes)
+    pub display_names: HashMap<String, String>,
 }
 
 /// Maximum depth for outline tree to prevent infinite recursion
@@ -241,30 +390,32 @@ fn resolve_schema_for_outline<'a>(
 
     // Handle array - unwrap to items schema
     if is_array_type(schema)
-        && let Some(items) = schema.get("items") {
-            return resolve_schema_for_outline(items, defs, current_path);
-        }
+        && let Some(items) = schema.get("items")
+    {
+        return resolve_schema_for_outline(items, defs, current_path);
+    }
 
     // Handle anyOf - only unwrap if it's Option<T> (exactly 2 variants, one null)
     // For true unions (multiple non-null variants), don't unwrap - treat as leaf
     if let Some(any_of) = schema.get("anyOf").and_then(|v| v.as_array())
-        && any_of.len() == 2 {
-            let null_count = any_of
-                .iter()
-                .filter(|v| v.get("type").and_then(|t| t.as_str()) == Some("null"))
-                .count();
+        && any_of.len() == 2
+    {
+        let null_count = any_of
+            .iter()
+            .filter(|v| v.get("type").and_then(|t| t.as_str()) == Some("null"))
+            .count();
 
-            // Only unwrap if exactly one null variant (Option<T> pattern)
-            if null_count == 1 {
-                for variant in any_of {
-                    let is_null = variant.get("type").and_then(|t| t.as_str()) == Some("null");
-                    if !is_null {
-                        return resolve_schema_for_outline(variant, defs, current_path);
-                    }
+        // Only unwrap if exactly one null variant (Option<T> pattern)
+        if null_count == 1 {
+            for variant in any_of {
+                let is_null = variant.get("type").and_then(|t| t.as_str()) == Some("null");
+                if !is_null {
+                    return resolve_schema_for_outline(variant, defs, current_path);
                 }
             }
         }
-        // For true unions (0 or 2+ null variants, or 3+ total variants), don't unwrap
+    }
+    // For true unions (0 or 2+ null variants, or 3+ total variants), don't unwrap
 
     // Inline object or leaf type - keep current path
     (schema, current_path.to_string())
@@ -278,9 +429,10 @@ fn is_array_type(schema: &Value) -> bool {
     }
     // Check type: ["array", "null"] (Option<Vec<T>>)
     if let Some(type_arr) = schema.get("type").and_then(|v| v.as_array())
-        && type_arr.iter().any(|t| t.as_str() == Some("array")) {
-            return true;
-        }
+        && type_arr.iter().any(|t| t.as_str() == Some("array"))
+    {
+        return true;
+    }
     false
 }
 
@@ -324,8 +476,10 @@ fn collect_config_usages(
             // At config root - anchor points to config section property
             // e.g., .monitors[] -> "monitors" (template IDs don't have [])
             // Remove all bracket notation for config paths
+            // Also remove [*] notation from patternProperties/additionalProperties
             let clean_path = path
                 .trim_start_matches('.')
+                .replace("[*]", "")
                 .replace("[]", "")
                 .replace("[", "-")
                 .replace("]", "");
@@ -345,19 +499,20 @@ fn collect_config_usages(
         // Follow the $ref into the type definition (if not already visited)
         // When following, we enter the new type with an empty relative path
         if !visited.contains(&type_name)
-            && let Some(def) = defs.and_then(|d| d.get(&type_name)) {
-                visited.insert(type_name.clone());
-                collect_config_usages(
-                    def,
-                    path,
-                    usages,
-                    defs,
-                    visited,
-                    Some(&type_name),
-                    String::new(), // Reset relative path when entering new type
-                );
-                visited.remove(&type_name); // Allow revisiting from different paths
-            }
+            && let Some(def) = defs.and_then(|d| d.get(&type_name))
+        {
+            visited.insert(type_name.clone());
+            collect_config_usages(
+                def,
+                path,
+                usages,
+                defs,
+                visited,
+                Some(&type_name),
+                String::new(), // Reset relative path when entering new type
+            );
+            visited.remove(&type_name); // Allow revisiting from different paths
+        }
         return; // $ref schema has no other content to process
     }
 
@@ -467,18 +622,19 @@ fn collect_config_usages(
 
     // Recurse into additionalProperties
     if let Some(additional) = schema.get("additionalProperties")
-        && additional.is_object() {
-            let new_path = format!("{}[*]", path);
-            collect_config_usages(
-                additional,
-                new_path,
-                usages,
-                defs,
-                visited,
-                current_type,
-                type_relative_path.clone(),
-            );
-        }
+        && additional.is_object()
+    {
+        let new_path = format!("{}[*]", path);
+        collect_config_usages(
+            additional,
+            new_path,
+            usages,
+            defs,
+            visited,
+            current_type,
+            type_relative_path.clone(),
+        );
+    }
 }
 
 /// Collect references to types from within $defs
@@ -561,10 +717,16 @@ pub fn build_navigation(schema: &Value) -> NavigationData {
                 }
             });
 
+            let display_name = def
+                .get("_display_name")
+                .and_then(|v| v.as_str())
+                .map(String::from);
+
             definitions.push(DefinitionInfo {
                 name: name.clone(),
                 anchor: anchor.clone(),
                 description,
+                display_name,
             });
 
             search_index.push(SearchEntry {
@@ -576,8 +738,29 @@ pub fn build_navigation(schema: &Value) -> NavigationData {
         }
     }
 
+    // Build display_names map (type_name -> display_name for wrapper types)
+    let mut display_names: HashMap<String, String> = HashMap::new();
+    for def in &definitions {
+        if let Some(display) = &def.display_name {
+            display_names.insert(def.name.clone(), display.clone());
+        }
+    }
+
     // Sort definitions alphabetically
     definitions.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
+
+    // Deduplicate definitions by display_name (for wrapper types with same base name)
+    // Keep only the first occurrence of each display_name
+    let mut seen_display_names: HashSet<String> = HashSet::new();
+    definitions.retain(|def| {
+        let display = def.display_name.as_ref().unwrap_or(&def.name);
+        if seen_display_names.contains(display) {
+            false // Skip duplicate
+        } else {
+            seen_display_names.insert(display.clone());
+            true // Keep first occurrence
+        }
+    });
 
     // Collect configuration usages (from main schema, following $refs transitively)
     let mut config_usages: HashMap<String, Vec<ConfigUsage>> = HashMap::new();
@@ -623,6 +806,7 @@ pub fn build_navigation(schema: &Value) -> NavigationData {
         definitions,
         search_index,
         usages,
+        display_names,
     }
 }
 
@@ -1663,5 +1847,253 @@ mod tests {
         assert_eq!(item_usages.config_usages[0].path, ".items[]");
         // Anchor should NOT have brackets
         assert_eq!(item_usages.config_usages[0].anchor, "items");
+    }
+
+    // ==================== Wrapper Type Detection Tests ====================
+
+    #[test]
+    fn test_wrapper_type_detection_with_ref() {
+        // Wrapper type pattern: anyOf with object+additionalProperties and direct $ref
+        let schema = json!({
+            "anyOf": [
+                {
+                    "type": "object",
+                    "additionalProperties": { "$ref": "#/$defs/InnerType" }
+                },
+                { "$ref": "#/$defs/InnerType" }
+            ]
+        });
+
+        let prepared = prepare_for_template(&schema);
+
+        assert_eq!(
+            prepared.get("_wrapper_type"),
+            Some(&Value::Bool(true)),
+            "Should detect wrapper type pattern"
+        );
+        assert!(
+            prepared.get("_wrapper_inner").is_some(),
+            "Should have _wrapper_inner"
+        );
+        assert_eq!(
+            prepared.get("_wrapper_inner").unwrap().get("$ref"),
+            Some(&Value::String("#/$defs/InnerType".to_string())),
+            "Inner type should be the $ref"
+        );
+    }
+
+    #[test]
+    fn test_wrapper_type_detection_with_primitive() {
+        // Wrapper type with primitive inner type
+        let schema = json!({
+            "anyOf": [
+                {
+                    "type": "object",
+                    "additionalProperties": { "type": "boolean" }
+                },
+                { "type": "boolean" }
+            ]
+        });
+
+        let prepared = prepare_for_template(&schema);
+
+        assert_eq!(
+            prepared.get("_wrapper_type"),
+            Some(&Value::Bool(true)),
+            "Should detect wrapper type with primitive"
+        );
+        assert_eq!(
+            prepared
+                .get("_wrapper_inner")
+                .unwrap()
+                .get("type")
+                .unwrap()
+                .as_str(),
+            Some("boolean"),
+            "Inner type should be boolean"
+        );
+    }
+
+    #[test]
+    fn test_wrapper_type_detection_reversed_order() {
+        // Wrapper type with map variant second
+        let schema = json!({
+            "anyOf": [
+                { "type": "integer" },
+                {
+                    "type": "object",
+                    "additionalProperties": { "type": "integer" }
+                }
+            ]
+        });
+
+        let prepared = prepare_for_template(&schema);
+
+        assert_eq!(
+            prepared.get("_wrapper_type"),
+            Some(&Value::Bool(true)),
+            "Should detect wrapper type regardless of variant order"
+        );
+    }
+
+    #[test]
+    fn test_non_wrapper_mismatched_types() {
+        // Not a wrapper: inner types don't match
+        let schema = json!({
+            "anyOf": [
+                {
+                    "type": "object",
+                    "additionalProperties": { "type": "string" }
+                },
+                { "type": "integer" }
+            ]
+        });
+
+        let prepared = prepare_for_template(&schema);
+
+        assert!(
+            prepared.get("_wrapper_type").is_none(),
+            "Should NOT detect wrapper when inner types don't match"
+        );
+    }
+
+    #[test]
+    fn test_option_not_detected_as_wrapper() {
+        // Option<T> pattern (anyOf with null) should NOT be detected as wrapper
+        let schema = json!({
+            "anyOf": [
+                {
+                    "type": "object",
+                    "additionalProperties": { "type": "string" }
+                },
+                { "type": "null" }
+            ]
+        });
+
+        let prepared = prepare_for_template(&schema);
+
+        assert!(
+            prepared.get("_wrapper_type").is_none(),
+            "Option<Map<K,V>> should NOT be detected as wrapper type"
+        );
+    }
+
+    #[test]
+    fn test_regular_anyof_not_wrapper() {
+        // Regular anyOf (no additionalProperties pattern)
+        let schema = json!({
+            "anyOf": [
+                { "type": "string" },
+                { "type": "integer" }
+            ]
+        });
+
+        let prepared = prepare_for_template(&schema);
+
+        assert!(
+            prepared.get("_wrapper_type").is_none(),
+            "Regular anyOf should NOT be detected as wrapper"
+        );
+    }
+
+    #[test]
+    fn test_wrapper_detection_nested() {
+        // Wrapper type nested inside a larger schema
+        let schema = json!({
+            "$defs": {
+                "WrapperType": {
+                    "anyOf": [
+                        {
+                            "type": "object",
+                            "additionalProperties": { "$ref": "#/$defs/Inner" }
+                        },
+                        { "$ref": "#/$defs/Inner" }
+                    ]
+                },
+                "Inner": { "type": "string" }
+            }
+        });
+
+        let prepared = prepare_for_template(&schema);
+
+        let wrapper_def = prepared.get("$defs").unwrap().get("WrapperType").unwrap();
+        assert_eq!(
+            wrapper_def.get("_wrapper_type"),
+            Some(&Value::Bool(true)),
+            "Should detect nested wrapper type"
+        );
+    }
+
+    #[test]
+    fn test_wrapper_with_integer_constraints() {
+        // Wrapper type where inner type has constraints (should still match by type)
+        let schema = json!({
+            "anyOf": [
+                {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "integer",
+                        "format": "uint64",
+                        "minimum": 0
+                    }
+                },
+                {
+                    "type": "integer",
+                    "format": "uint64",
+                    "minimum": 0
+                }
+            ]
+        });
+
+        let prepared = prepare_for_template(&schema);
+
+        assert_eq!(
+            prepared.get("_wrapper_type"),
+            Some(&Value::Bool(true)),
+            "Should detect wrapper even with constraints on inner type"
+        );
+    }
+
+    #[test]
+    fn test_three_variant_anyof_not_wrapper() {
+        // anyOf with 3+ variants should NOT be detected as wrapper
+        let schema = json!({
+            "anyOf": [
+                {
+                    "type": "object",
+                    "additionalProperties": { "type": "string" }
+                },
+                { "type": "string" },
+                { "type": "null" }
+            ]
+        });
+
+        let prepared = prepare_for_template(&schema);
+
+        assert!(
+            prepared.get("_wrapper_type").is_none(),
+            "anyOf with 3+ variants should NOT be detected as wrapper"
+        );
+    }
+
+    #[test]
+    fn test_object_without_additional_properties_not_wrapper() {
+        // Object without additionalProperties should NOT be detected as wrapper
+        let schema = json!({
+            "anyOf": [
+                {
+                    "type": "object",
+                    "properties": { "name": { "type": "string" } }
+                },
+                { "type": "string" }
+            ]
+        });
+
+        let prepared = prepare_for_template(&schema);
+
+        assert!(
+            prepared.get("_wrapper_type").is_none(),
+            "Object with properties (not additionalProperties) should NOT be wrapper"
+        );
     }
 }

@@ -570,6 +570,10 @@ body {
     background-color: #0a58ca;
     color: white;
 }
+.type-badge.type-float {
+    background-color: #0d6efd;
+    color: white;
+}
 .type-badge.type-boolean {
     background-color: #fd7e14;
     color: white;
