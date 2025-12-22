@@ -94,15 +94,6 @@ body {
     font-weight: 600;
 }
 
-.header .schema-description {
-    color: var(--text-secondary);
-    margin-bottom: 1rem;
-}
-
-.header .schema-description p {
-    margin: 0;
-}
-
 /* Search */
 .search-container {
     position: relative;

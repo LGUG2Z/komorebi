@@ -37,7 +37,7 @@
   {{ self::render_schema_body(node=node, depth=depth, path=path) }}
 </div>
 {%- else -%}
-<div class="{{ css.property }} depth-{{ depth }}"><span class="{{ css.too_deep }}">Schema nested too deeply. See type definition.</span></div>
+<div class="{{ css.property }} depth-{{ depth }}">Schema nested too deeply. See type definition.</div>
 {%- endif -%}
 {% endmacro render_property %}
 
@@ -209,7 +209,7 @@
     </div>
   </details>
 {%- elif node.patternProperties -%}
-  <div class="{{ css.properties_container }} {{ css.map_entries }}">
+  <div class="{{ css.properties_container }}">
     {%- for pattern, prop in node.patternProperties -%}
     <div class="{{ css.property }} depth-{{ depth + 1 }}">
       <div class="{{ css.property_header }}">

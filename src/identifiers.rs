@@ -5,8 +5,10 @@
 //! CSS styles, and JavaScript.
 
 use serde::Serialize;
+use struct_iterable::Iterable;
 
 /// Static HTML element IDs used for JavaScript interaction
+#[allow(dead_code)] // Used by main crate, not build script
 #[derive(Debug, Clone, Serialize)]
 pub struct HtmlIds {
     pub search: &'static str,
@@ -19,6 +21,7 @@ pub struct HtmlIds {
 }
 
 /// All static HTML IDs
+#[allow(dead_code)] // Used by main crate, not build script
 pub const IDS: HtmlIds = HtmlIds {
     search: "search",
     search_results: "search-results",
@@ -30,7 +33,7 @@ pub const IDS: HtmlIds = HtmlIds {
 };
 
 /// CSS class names organized by category
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Iterable)]
 pub struct CssClasses {
     // Layout
     pub header: &'static str,
@@ -67,14 +70,12 @@ pub struct CssClasses {
     pub schema_section: &'static str,
     pub schema_inline: &'static str,
     pub properties_container: &'static str,
-    pub map_entries: &'static str,
 
     // Property
     pub property: &'static str,
     pub property_header: &'static str,
     pub property_name: &'static str,
     pub pattern: &'static str,
-    pub too_deep: &'static str,
 
     // Badges
     pub badge: &'static str,
@@ -176,14 +177,12 @@ pub const CSS: CssClasses = CssClasses {
     schema_section: "schema-section",
     schema_inline: "schema-inline",
     properties_container: "properties-container",
-    map_entries: "map-entries",
 
     // Property
     property: "property",
     property_header: "property-header",
     property_name: "property-name",
     pattern: "pattern",
-    too_deep: "too-deep",
 
     // Badges
     badge: "badge",
@@ -249,7 +248,7 @@ pub const CSS: CssClasses = CssClasses {
 };
 
 /// Type-specific badge class suffixes (used with type-badge prefix)
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Iterable)]
 pub struct TypeClasses {
     pub string: &'static str,
     pub number: &'static str,
@@ -314,5 +313,59 @@ mod tests {
         assert!(!CSS.modal_nav.contains(' '));
         assert!(!CSS.modal_nav_btn.contains(' '));
         assert!(!CSS.modal_nav_disabled.contains(' '));
+    }
+
+    #[test]
+    fn test_all_css_classes_are_styled() {
+        use regex::Regex;
+        use std::collections::HashSet;
+        use std::fs;
+        use struct_iterable::Iterable;
+
+        let css_content =
+            fs::read_to_string("src/templates/style.css").expect("Failed to read style.css");
+
+        // Extract all class names from CSS using regex
+        let class_regex = Regex::new(r"\.([a-zA-Z_][a-zA-Z0-9_-]*)").unwrap();
+        let css_classes: HashSet<&str> = class_regex
+            .captures_iter(&css_content)
+            .filter_map(|c| c.get(1).map(|m| m.as_str()))
+            .collect();
+
+        // Verify enum-details specifically (was false-positive before fix)
+        assert!(
+            css_classes.contains("enum-details"),
+            "enum-details should be found in CSS (compound selector .enum-details .enum-values)"
+        );
+
+        // Dynamic prefixes to skip
+        let dynamic_prefixes = ["depth-"];
+
+        // Collect all defined classes and check they're in CSS
+        let mut missing: Vec<&str> = Vec::new();
+
+        for (_field_name, field_value) in CSS.iter() {
+            if let Some(class) = field_value.downcast_ref::<&str>() {
+                if !css_classes.contains(*class)
+                    && !dynamic_prefixes.iter().any(|p| class.starts_with(p))
+                {
+                    missing.push(*class);
+                }
+            }
+        }
+
+        for (_field_name, field_value) in TYPE_CLASSES.iter() {
+            if let Some(class) = field_value.downcast_ref::<&str>() {
+                if !css_classes.contains(*class) {
+                    missing.push(*class);
+                }
+            }
+        }
+
+        assert!(
+            missing.is_empty(),
+            "CSS classes defined but not styled: {:?}",
+            missing
+        );
     }
 }
