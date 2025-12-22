@@ -39,13 +39,13 @@ fn add_wrapper_display_names(schema: &mut Value) {
             let display_name = name.trim_end_matches(|c: char| c.is_ascii_digit());
 
             // Only add _display_name if it differs from the original name
-            if display_name != name {
-                if let Some(obj) = def.as_object_mut() {
-                    obj.insert(
-                        "_display_name".to_string(),
-                        Value::String(display_name.to_string()),
-                    );
-                }
+            if display_name != name
+                && let Some(obj) = def.as_object_mut()
+            {
+                obj.insert(
+                    "_display_name".to_string(),
+                    Value::String(display_name.to_string()),
+                );
             }
         }
     }

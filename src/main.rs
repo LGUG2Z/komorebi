@@ -1,3 +1,5 @@
+#![warn(clippy::all)]
+
 use clap::Parser;
 use schemars_docgen::Options;
 use schemars_docgen::generate_html;

@@ -1,3 +1,5 @@
+#![warn(clippy::all)]
+
 //! # schemars-docgen
 //!
 //! Generate HTML documentation from `schemars::Schema` objects.

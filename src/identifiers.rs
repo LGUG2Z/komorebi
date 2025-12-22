@@ -15,6 +15,7 @@ pub struct HtmlIds {
     pub sidebar_toggle: &'static str,
     pub root_schema: &'static str,
     pub definitions: &'static str,
+    pub modal_overlay: &'static str,
 }
 
 /// All static HTML IDs
@@ -25,6 +26,7 @@ pub const IDS: HtmlIds = HtmlIds {
     sidebar_toggle: "sidebar-toggle",
     root_schema: "root-schema",
     definitions: "definitions",
+    modal_overlay: "modal-overlay",
 };
 
 /// CSS class names organized by category
@@ -123,6 +125,18 @@ pub struct CssClasses {
     pub usages: &'static str,
     pub usage_section: &'static str,
     pub usage_list: &'static str,
+
+    // Modal
+    pub modal_overlay: &'static str,
+    pub modal: &'static str,
+    pub modal_active: &'static str,
+    pub modal_header: &'static str,
+    pub modal_title: &'static str,
+    pub modal_close: &'static str,
+    pub modal_content: &'static str,
+    pub modal_nav: &'static str,
+    pub modal_nav_btn: &'static str,
+    pub modal_nav_disabled: &'static str,
 }
 
 /// All CSS class names
@@ -220,6 +234,18 @@ pub const CSS: CssClasses = CssClasses {
     usages: "usages",
     usage_section: "usage-section",
     usage_list: "usage-list",
+
+    // Modal
+    modal_overlay: "modal-overlay",
+    modal: "modal",
+    modal_active: "modal-active",
+    modal_header: "modal-header",
+    modal_title: "modal-title",
+    modal_close: "modal-close",
+    modal_content: "modal-content",
+    modal_nav: "modal-nav",
+    modal_nav_btn: "modal-nav-btn",
+    modal_nav_disabled: "disabled",
 };
 
 /// Type-specific badge class suffixes (used with type-badge prefix)
@@ -280,5 +306,13 @@ mod tests {
         assert!(TYPE_CLASSES.string.starts_with("type-"));
         assert!(TYPE_CLASSES.integer.starts_with("type-"));
         assert!(TYPE_CLASSES.array.starts_with("type-"));
+    }
+
+    #[test]
+    fn test_modal_nav_classes_are_valid() {
+        // Modal navigation CSS classes should not contain spaces
+        assert!(!CSS.modal_nav.contains(' '));
+        assert!(!CSS.modal_nav_btn.contains(' '));
+        assert!(!CSS.modal_nav_disabled.contains(' '));
     }
 }

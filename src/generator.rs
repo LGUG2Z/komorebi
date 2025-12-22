@@ -1686,4 +1686,138 @@ mod tests {
             broken.iter().take(20).collect::<Vec<_>>()
         );
     }
+
+    // Test: Modal has navigation buttons
+    #[test]
+    fn test_modal_has_navigation_buttons() {
+        let generator = Generator::new().unwrap();
+        let schema = make_schema(json!({
+            "title": "Test",
+            "type": "object",
+            "properties": {
+                "field": { "type": "string" }
+            }
+        }));
+        let options = Options::default();
+        let html = generator.generate(&schema, &options).unwrap();
+
+        // Should have modal navigation container
+        assert!(
+            html.contains("modal-nav"),
+            "Should have modal-nav container"
+        );
+        // Should have back and forward buttons
+        assert!(
+            html.contains("data-dir=\"back\""),
+            "Should have back button"
+        );
+        assert!(
+            html.contains("data-dir=\"forward\""),
+            "Should have forward button"
+        );
+        // Should have navigation button class
+        assert!(
+            html.contains("modal-nav-btn"),
+            "Should have nav button class"
+        );
+    }
+
+    // Test: Modal nav buttons start disabled
+    #[test]
+    fn test_modal_nav_buttons_start_disabled() {
+        let generator = Generator::new().unwrap();
+        let schema = make_schema(json!({
+            "title": "Test",
+            "type": "object",
+            "properties": {
+                "field": { "type": "string" }
+            }
+        }));
+        let options = Options::default();
+        let html = generator.generate(&schema, &options).unwrap();
+
+        // Both nav buttons should start with disabled class
+        assert!(
+            html.contains("modal-nav-btn disabled"),
+            "Nav buttons should start disabled"
+        );
+    }
+
+    // Test: Modal has keyboard navigation
+    #[test]
+    fn test_modal_has_keyboard_navigation() {
+        let generator = Generator::new().unwrap();
+        let schema = make_schema(json!({
+            "title": "Test",
+            "type": "object",
+            "properties": {
+                "field": { "type": "string" }
+            }
+        }));
+        let options = Options::default();
+        let html = generator.generate(&schema, &options).unwrap();
+
+        // Should have Alt+Arrow keyboard handling
+        assert!(html.contains("altKey"), "Should handle Alt key modifier");
+        assert!(
+            html.contains("ArrowLeft"),
+            "Should handle ArrowLeft for back"
+        );
+        assert!(
+            html.contains("ArrowRight"),
+            "Should handle ArrowRight for forward"
+        );
+    }
+
+    // Test: Modal has history management
+    #[test]
+    fn test_modal_has_history_management() {
+        let generator = Generator::new().unwrap();
+        let schema = make_schema(json!({
+            "title": "Test",
+            "type": "object",
+            "properties": {
+                "field": { "type": "string" }
+            }
+        }));
+        let options = Options::default();
+        let html = generator.generate(&schema, &options).unwrap();
+
+        // Should have history array and index
+        assert!(
+            html.contains("history=[]"),
+            "Should initialize history array"
+        );
+        assert!(
+            html.contains("historyIndex=-1"),
+            "Should initialize history index"
+        );
+        // Should have navigate function
+        assert!(
+            html.contains("navigateHistory"),
+            "Should have navigateHistory function"
+        );
+    }
+
+    // Test: Modal history cleared on close
+    #[test]
+    fn test_modal_history_cleared_on_close() {
+        let generator = Generator::new().unwrap();
+        let schema = make_schema(json!({
+            "title": "Test",
+            "type": "object",
+            "properties": {
+                "field": { "type": "string" }
+            }
+        }));
+        let options = Options::default();
+        let html = generator.generate(&schema, &options).unwrap();
+
+        // closeModal function should reset history
+        // The function contains: history=[];historyIndex=-1;
+        assert!(
+            html.contains("history=[]") && html.contains("historyIndex=-1"),
+            "closeModal should reset history state"
+        );
+    }
 }
