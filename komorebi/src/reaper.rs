@@ -183,6 +183,7 @@ fn find_orphans() -> color_eyre::Result<()> {
         for (hwnd, (m_idx, w_idx)) in cache.iter() {
             let window = Window::from(*hwnd);
 
+            #[allow(deprecated)]
             if !window.is_window()
                 || (
                     // This one is a hack because WINWORD.EXE is an absolute trainwreck of an app

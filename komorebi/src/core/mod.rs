@@ -1,5 +1,6 @@
 #![warn(clippy::all)]
 #![allow(clippy::missing_errors_doc, clippy::use_self, clippy::doc_markdown)]
+#![allow(deprecated)] // allow deprecated variants like HidingBehaviour::Hide to be used in derive macros
 
 use std::num::NonZeroUsize;
 use std::path::PathBuf;
@@ -397,7 +398,7 @@ pub struct WindowManagementBehaviour {
     pub floating_layer_placement: Placement,
     /// The `Placement` to be used when spawning a window with float override active
     pub float_override_placement: Placement,
-    /// The `Placement` to be used when spawning a window that matches a 'floating_applications' rule
+    /// The `Placement` to be used when spawning a window that matches a `floating_applications` rule
     pub float_rule_placement: Placement,
 }
 
@@ -493,9 +494,10 @@ pub enum CrossBoundaryBehaviour {
 #[derive(Copy, Clone, Debug, Serialize, Deserialize, Display, EnumString, ValueEnum, PartialEq)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub enum HidingBehaviour {
-    /// END OF LIFE FEATURE: Use the SW_HIDE flag to hide windows when switching workspaces (has issues with Electron apps)
+    /// END OF LIFE FEATURE: Use the `SW_HIDE` flag to hide windows when switching workspaces (has issues with Electron apps)
+    #[deprecated(note = "End of life feature")]
     Hide,
-    /// Use the SW_MINIMIZE flag to hide windows when switching workspaces (has issues with frequent workspace switching)
+    /// Use the `SW_MINIMIZE` flag to hide windows when switching workspaces (has issues with frequent workspace switching)
     Minimize,
     /// Use the undocumented SetCloak Win32 function to hide windows when switching workspaces
     Cloak,

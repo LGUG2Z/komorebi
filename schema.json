@@ -111,7 +111,8 @@
         {
           "type": "null"
         }
-      ]
+      ],
+      "deprecated": true
     },
     "cross_boundary_behaviour": {
       "description": "Determine what happens when an action is called on a window at a monitor boundary (default: Monitor)",
@@ -245,7 +246,8 @@
         {
           "type": "null"
         }
-      ]
+      ],
+      "deprecated": true
     },
     "global_work_area_offset": {
       "description": "Global work area (space used for tiling) offset (default: None)",
@@ -277,7 +279,8 @@
         {
           "type": "null"
         }
-      ]
+      ],
+      "deprecated": true
     },
     "layered_applications": {
       "description": "Identify applications that have the WS_EX_LAYERED extended window style",
@@ -1289,7 +1292,8 @@
         {
           "description": "END OF LIFE FEATURE: Use the SW_HIDE flag to hide windows when switching workspaces (has issues with Electron apps)",
           "type": "string",
-          "const": "Hide"
+          "const": "Hide",
+          "deprecated": true
         },
         {
           "description": "Use the SW_MINIMIZE flag to hide windows when switching workspaces (has issues with frequent workspace switching)",
@@ -2384,7 +2388,8 @@
             {
               "type": "null"
             }
-          ]
+          ],
+          "deprecated": true
         },
         "custom_layout_rules": {
           "description": "END OF LIFE FEATURE: Custom layout rules (default: None)",
@@ -2393,6 +2398,7 @@
             "null"
           ],
           "additionalProperties": false,
+          "deprecated": true,
           "patternProperties": {
             "^\\d+$": {
               "type": "string"

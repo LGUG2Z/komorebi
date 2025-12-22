@@ -176,14 +176,19 @@ impl Workspace {
             self.layout = Layout::Default(*layout);
         }
 
+        #[allow(deprecated)]
         if let Some(pathbuf) = &config.custom_layout {
             let layout = CustomLayout::from_path(pathbuf)?;
             self.layout = Layout::Custom(layout);
         }
 
-        self.tile =
-            !(config.custom_layout.is_none() && config.layout.is_none() && config.tile.is_none()
+        #[allow(deprecated)]
+        {
+            self.tile = !(config.custom_layout.is_none()
+                && config.layout.is_none()
+                && config.tile.is_none()
                 || config.tile.is_some_and(|tile| !tile));
+        }
 
         let mut all_layout_rules = vec![];
         if let Some(layout_rules) = &config.layout_rules {
@@ -197,6 +202,7 @@ impl Workspace {
 
         self.layout_rules = all_layout_rules.clone();
 
+        #[allow(deprecated)]
         if let Some(layout_rules) = &config.custom_layout_rules {
             for (count, pathbuf) in layout_rules {
                 let rule = CustomLayout::from_path(pathbuf)?;

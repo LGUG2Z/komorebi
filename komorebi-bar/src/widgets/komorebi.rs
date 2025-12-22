@@ -103,7 +103,8 @@ pub struct KomorebiWorkspaceLayerConfig {
 pub struct KomorebiFocusedContainerConfig {
     /// Enable the Komorebi Focused Container widget
     pub enable: bool,
-    /// DEPRECATED: use 'display' instead (Show the icon of the currently focused container)
+    /// DEPRECATED: use `display` instead (Show the icon of the currently focused container)
+    #[deprecated(note = "Use `display` instead")]
     pub show_icon: Option<bool>,
     /// Display format of the currently focused container
     pub display: Option<DisplayFormat>,
@@ -506,7 +507,9 @@ impl FocusedContainerBar {
         if !value.enable {
             return None;
         }
+
         // Handle legacy setting - convert show_icon to display format
+        #[allow(deprecated)]
         let format = value
             .display
             .unwrap_or(if value.show_icon.unwrap_or(false) {

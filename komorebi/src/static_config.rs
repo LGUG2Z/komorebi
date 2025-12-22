@@ -196,6 +196,7 @@ pub struct WorkspaceConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub layout_options: Option<LayoutOptions>,
     /// END OF LIFE FEATURE: Custom Layout (default: None)
+    #[deprecated(note = "End of life feature")]
     #[serde(skip_serializing_if = "Option::is_none")]
     #[serde_as(as = "Option<ResolvedPathBuf>")]
     pub custom_layout: Option<PathBuf>,
@@ -203,6 +204,7 @@ pub struct WorkspaceConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub layout_rules: Option<HashMap<usize, DefaultLayout>>,
     /// END OF LIFE FEATURE: Custom layout rules (default: None)
+    #[deprecated(note = "End of life feature")]
     #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(deserialize_with = "resolve_option_hashmap_usize_path", default)]
     pub custom_layout_rules: Option<HashMap<usize, PathBuf>>,
@@ -299,11 +301,13 @@ impl From<&Workspace> for WorkspaceConfig {
                 })
                 .flatten(),
             layout_options: value.layout_options,
+            #[allow(deprecated)]
             custom_layout: value
                 .workspace_config
                 .as_ref()
                 .and_then(|c| c.custom_layout.clone()),
             layout_rules,
+            #[allow(deprecated)]
             custom_layout_rules: value
                 .workspace_config
                 .as_ref()
@@ -403,9 +407,9 @@ impl From<&Monitor> for MonitorConfig {
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[serde(untagged)]
 pub enum AppSpecificConfigurationPath {
-    /// A single applications.json file
+    /// A single `applications.json` file
     Single(#[serde_as(as = "ResolvedPathBuf")] PathBuf),
-    /// Multiple applications.json files
+    /// Multiple `applications.json` files
     Multiple(#[serde_as(as = "Vec<ResolvedPathBuf>")] Vec<PathBuf>),
 }
 
@@ -415,6 +419,7 @@ pub enum AppSpecificConfigurationPath {
 /// The `komorebi.json` static configuration file reference for `v0.1.40`
 pub struct StaticConfig {
     /// DEPRECATED from v0.1.22: no longer required
+    #[deprecated(note = "No longer required")]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub invisible_borders: Option<Rect>,
     /// DISCOURAGED: Minimum width for a window to be eligible for tiling
@@ -449,7 +454,7 @@ pub struct StaticConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub float_override_placement: Option<Placement>,
     /// Determines the `Placement` to be used when spawning a window that matches a
-    /// 'floating_applications' rule (default: None)
+    /// `floating_applications` rule (default: None)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub float_rule_placement: Option<Placement>,
     /// Determine what happens when a window is moved across a monitor boundary (default: Swap)
@@ -462,6 +467,9 @@ pub struct StaticConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub unmanaged_window_operation_behaviour: Option<OperationBehaviour>,
     /// END OF LIFE FEATURE: Use https://github.com/LGUG2Z/masir instead
+    #[deprecated(
+        note = "End of life feature, use [masir](https://github.com/LGUG2Z/masir) instead"
+    )]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub focus_follows_mouse: Option<FocusFollowsMouseImplementation>,
     /// Enable or disable mouse follows focus (default: true)
@@ -491,6 +499,7 @@ pub struct StaticConfig {
     #[serde(alias = "active_window_border_style")]
     pub border_style: Option<BorderStyle>,
     /// DEPRECATED from v0.1.31: no longer required
+    #[deprecated(note = "No longer required")]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub border_z_order: Option<ZOrder>,
     /// Window border implementation (default: Komorebi)
@@ -536,13 +545,13 @@ pub struct StaticConfig {
     /// Identify tray and multi-window applications
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tray_and_multi_window_applications: Option<Vec<MatchingRule>>,
-    /// Identify applications that have the WS_EX_LAYERED extended window style
+    /// Identify applications that have the `WS_EX_LAYERED` extended window style
     #[serde(skip_serializing_if = "Option::is_none")]
     pub layered_applications: Option<Vec<MatchingRule>>,
-    /// Identify applications that send EVENT_OBJECT_NAMECHANGE on launch (very rare)
+    /// Identify applications that send `EVENT_OBJECT_NAMECHANGE` on launch (very rare)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub object_name_change_applications: Option<Vec<MatchingRule>>,
-    /// Do not process EVENT_OBJECT_NAMECHANGE events as Show events for identified applications matching these title regexes
+    /// Do not process `EVENT_OBJECT_NAMECHANGE` events as Show events for identified applications matching these title regexes
     #[serde(skip_serializing_if = "Option::is_none")]
     pub object_name_change_title_ignore_list: Option<Vec<String>>,
     /// Set monitor index preferences
@@ -862,6 +871,7 @@ impl From<&WindowManager> for StaticConfig {
         };
 
         Self {
+            #[allow(deprecated)]
             invisible_borders: None,
             resize_delta: Option::from(value.resize_delta),
             window_container_behaviour: Option::from(
@@ -890,6 +900,7 @@ impl From<&WindowManager> for StaticConfig {
             ),
             minimum_window_height: Some(window::MINIMUM_HEIGHT.load(Ordering::SeqCst)),
             minimum_window_width: Some(window::MINIMUM_WIDTH.load(Ordering::SeqCst)),
+            #[allow(deprecated)]
             focus_follows_mouse: value.focus_follows_mouse,
             mouse_follows_focus: Option::from(value.mouse_follows_focus),
             app_specific_configuration_path: None,
@@ -905,6 +916,7 @@ impl From<&WindowManager> for StaticConfig {
             ),
             transparency_ignore_rules: None,
             border_style: Option::from(STYLE.load()),
+            #[allow(deprecated)]
             border_z_order: None,
             border_implementation: Option::from(IMPLEMENTATION.load()),
             default_workspace_padding: Option::from(
@@ -1312,6 +1324,7 @@ impl StaticConfig {
                 .unmanaged_window_operation_behaviour
                 .unwrap_or(OperationBehaviour::Op),
             resize_delta: value.resize_delta.unwrap_or(50),
+            #[allow(deprecated)]
             focus_follows_mouse: value.focus_follows_mouse,
             mouse_follows_focus: value.mouse_follows_focus.unwrap_or(true),
             hotwatch: Hotwatch::new()?,
@@ -1322,6 +1335,7 @@ impl StaticConfig {
             known_hwnds: HashMap::new(),
         };
 
+        #[allow(deprecated)]
         match value.focus_follows_mouse {
             None => WindowsApi::disable_focus_follows_mouse()?,
             Some(FocusFollowsMouseImplementation::Windows) => {
@@ -1702,7 +1716,10 @@ impl StaticConfig {
         wm.resize_delta = value.resize_delta.unwrap_or(50);
         wm.mouse_follows_focus = value.mouse_follows_focus.unwrap_or(true);
         wm.work_area_offset = value.global_work_area_offset;
-        wm.focus_follows_mouse = value.focus_follows_mouse;
+        #[allow(deprecated)]
+        {
+            wm.focus_follows_mouse = value.focus_follows_mouse;
+        }
 
         match wm.focus_follows_mouse {
             None => WindowsApi::disable_focus_follows_mouse()?,
@@ -1969,6 +1986,7 @@ mod tests {
         "#;
         let config = serde_json::from_str::<WorkspaceConfig>(config).unwrap();
 
+        #[allow(deprecated)]
         let custom_layout_rules = config.custom_layout_rules.unwrap();
 
         assert_eq!(
@@ -1985,7 +2003,10 @@ mod tests {
             "name": "Test",
         }
         "#;
+
         let config = serde_json::from_str::<WorkspaceConfig>(config).unwrap();
-        assert_eq!(config.custom_layout_rules, None);
+        #[allow(deprecated)]
+        let custom_layout_rules = config.custom_layout_rules;
+        assert_eq!(custom_layout_rules, None);
     }
 }

@@ -176,7 +176,7 @@ struct Opts {
     /// Allow the use of komorebi's custom focus-follows-mouse implementation
     #[clap(short, long = "ffm")]
     focus_follows_mouse: bool,
-    /// Wait for 'komorebic complete-configuration' to be sent before processing events
+    /// Wait for `komorebic complete-configuration` to be sent before processing events
     #[clap(short, long)]
     await_configuration: bool,
     /// Start a TCP server on the given port to allow the direct sending of SocketMessages

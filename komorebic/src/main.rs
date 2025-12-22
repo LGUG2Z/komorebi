@@ -796,7 +796,7 @@ struct Start {
     #[clap(short, long)]
     #[clap(value_parser = replace_env_in_path)]
     config: Option<PathBuf>,
-    /// Wait for 'komorebic complete-configuration' to be sent before processing events
+    /// Wait for `komorebic complete-configuration` to be sent before processing events
     #[clap(short, long)]
     await_configuration: bool,
     /// Start a TCP server on the given port to allow the direct sending of SocketMessages
@@ -1387,6 +1387,7 @@ enum SubCommand {
     /// For legacy komorebi.ahk or komorebi.ps1 configurations, signal that the final configuration option has been sent
     CompleteConfiguration,
     /// DEPRECATED since v0.1.22
+    #[deprecated(note = "No longer required")]
     #[clap(arg_required_else_help = true)]
     #[clap(hide = true)]
     AltFocusHack(AltFocusHack),
@@ -1524,7 +1525,7 @@ enum SubCommand {
     #[clap(arg_required_else_help = true)]
     #[clap(alias = "convert-asc")]
     ConvertAppSpecificConfiguration(ConvertAppSpecificConfiguration),
-    /// Format a YAML file for use with the 'app-specific-configuration' command
+    /// Format a YAML file for use with the `app-specific-configuration` command
     #[clap(arg_required_else_help = true)]
     #[clap(alias = "fmt-asc")]
     #[clap(hide = true)]
@@ -3352,6 +3353,7 @@ if (Get-Command Get-CimInstance -ErrorAction SilentlyContinue) {
             print_query(&SocketMessage::GenerateStaticConfig);
         }
         // Deprecated
+        #[allow(deprecated)]
         SubCommand::AltFocusHack(_) | SubCommand::IdentifyBorderOverflowApplication(_) => {
             println!("Command deprecated - this is now automatically handled by komorebi! 🎉");
         }

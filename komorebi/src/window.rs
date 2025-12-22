@@ -491,6 +491,8 @@ impl Window {
         }
 
         let hiding_behaviour = HIDING_BEHAVIOUR.lock();
+
+        #[allow(deprecated)]
         match *hiding_behaviour {
             HidingBehaviour::Hide => WindowsApi::hide_window(self.hwnd),
             HidingBehaviour::Minimize => WindowsApi::minimize_window(self.hwnd),
@@ -515,6 +517,8 @@ impl Window {
         }
 
         let hiding_behaviour = HIDING_BEHAVIOUR.lock();
+
+        #[allow(deprecated)]
         match *hiding_behaviour {
             HidingBehaviour::Hide | HidingBehaviour::Minimize => {
                 WindowsApi::restore_window(self.hwnd);
