@@ -84,13 +84,15 @@ jsonschema:
     cargo run --package komorebic -- application-specific-configuration-schema > schema.asc.json
     cargo run --package komorebi-bar -- --schema > schema.bar.json
 
-# this part is run in a nix shell because python is a nightmare
 schemagen:
-    rm -rf static-config-docs bar-config-docs
-    mkdir -p static-config-docs bar-config-docs
-    generate-schema-doc ./schema.json --config template_name=js_offline --config minify=false ./static-config-docs/
-    generate-schema-doc ./schema.bar.json --config template_name=js_offline --config minify=false ./bar-config-docs/
-    mv ./bar-config-docs/schema.bar.html ./bar-config-docs/schema.html
+    mkdir -Force komorebi-schema
+    mkdir -Force bar-schema
+    schemars-docgen .\schema.json -o .\komorebi-schema\schema.html
+    schemars-docgen .\schema.bar.json -o .\bar-schema\schema.html
+
+schemapub:
+    npx wrangler pages deploy --project-name komorebi .\komorebi-schema
+    npx wrangler pages deploy --project-name komorebi-bar .\bar-schema
 
 depgen:
     cargo deny check

@@ -6,3 +6,6 @@ dummy.go
 komorebic/applications.yaml
 komorebic/applications.json
 /.vs
+/bar-schema
+/komorebi-schema
+/.wrangler
