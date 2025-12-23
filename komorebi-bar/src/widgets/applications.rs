@@ -44,7 +44,7 @@ pub struct ApplicationsConfig {
     pub spacing: Option<f32>,
     /// Default display format for all applications (optional).
     /// Could be overridden per application. Defaults to `Icon`.
-    pub display: Option<DisplayFormat>,
+    pub display: Option<ApplicationsDisplayFormat>,
     /// List of configured applications to display.
     pub items: Vec<AppConfig>,
 }
@@ -67,12 +67,12 @@ pub struct AppConfig {
     /// Command to execute (e.g. path to the application or shell command).
     pub command: String,
     /// Display format for this application button (optional). Overrides global format if set.
-    pub display: Option<DisplayFormat>,
+    pub display: Option<ApplicationsDisplayFormat>,
 }
 
 #[derive(Copy, Clone, Debug, Serialize, Deserialize, PartialEq, Default)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
-pub enum DisplayFormat {
+pub enum ApplicationsDisplayFormat {
     /// Show only the application icon.
     #[default]
     Icon,
@@ -168,7 +168,7 @@ pub struct App {
     /// Command to execute when the application is launched.
     pub command: UserCommand,
     /// Display format (icon, text, or both).
-    pub display: DisplayFormat,
+    pub display: ApplicationsDisplayFormat,
     /// Whether to show the launch command on hover.
     pub show_command_on_hover: bool,
 }
@@ -183,9 +183,9 @@ impl App {
                     ui.spacing_mut().item_spacing = Vec2::splat(4.0);
 
                     match self.display {
-                        DisplayFormat::Icon => self.draw_icon(ctx, ui, icon_config),
-                        DisplayFormat::Text => self.draw_name(ui),
-                        DisplayFormat::IconAndText => {
+                        ApplicationsDisplayFormat::Icon => self.draw_icon(ctx, ui, icon_config),
+                        ApplicationsDisplayFormat::Text => self.draw_name(ui),
+                        ApplicationsDisplayFormat::IconAndText => {
                             self.draw_icon(ctx, ui, icon_config);
                             self.draw_name(ui);
                         }

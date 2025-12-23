@@ -184,7 +184,7 @@
       ]
     },
     "float_rule_placement": {
-      "description": "Determines the `Placement` to be used when spawning a window that matches a\n'floating_applications' rule (default: None)",
+      "description": "Determines the `Placement` to be used when spawning a window that matches a\n`floating_applications` rule (default: None)",
       "anyOf": [
         {
           "$ref": "#/$defs/Placement"
@@ -283,7 +283,7 @@
       "deprecated": true
     },
     "layered_applications": {
-      "description": "Identify applications that have the WS_EX_LAYERED extended window style",
+      "description": "Identify applications that have the `WS_EX_LAYERED` extended window style",
       "type": [
         "array",
         "null"
@@ -349,7 +349,7 @@
       ]
     },
     "object_name_change_applications": {
-      "description": "Identify applications that send EVENT_OBJECT_NAMECHANGE on launch (very rare)",
+      "description": "Identify applications that send `EVENT_OBJECT_NAMECHANGE` on launch (very rare)",
       "type": [
         "array",
         "null"
@@ -359,7 +359,7 @@
       }
     },
     "object_name_change_title_ignore_list": {
-      "description": "Do not process EVENT_OBJECT_NAMECHANGE events as Show events for identified applications matching these title regexes",
+      "description": "Do not process `EVENT_OBJECT_NAMECHANGE` events as Show events for identified applications matching these title regexes",
       "type": [
         "array",
         "null"
@@ -638,11 +638,11 @@
     "AppSpecificConfigurationPath": {
       "anyOf": [
         {
-          "description": "A single applications.json file",
+          "description": "A single `applications.json` file",
           "$ref": "#/$defs/PathBuf"
         },
         {
-          "description": "Multiple applications.json files",
+          "description": "Multiple `applications.json` files",
           "type": "array",
           "items": {
             "$ref": "#/$defs/PathBuf"
@@ -1290,13 +1290,13 @@
     "HidingBehaviour": {
       "oneOf": [
         {
-          "description": "END OF LIFE FEATURE: Use the SW_HIDE flag to hide windows when switching workspaces (has issues with Electron apps)",
+          "description": "END OF LIFE FEATURE: Use the `SW_HIDE` flag to hide windows when switching workspaces (has issues with Electron apps)",
           "type": "string",
           "const": "Hide",
           "deprecated": true
         },
         {
-          "description": "Use the SW_MINIMIZE flag to hide windows when switching workspaces (has issues with frequent workspace switching)",
+          "description": "Use the `SW_MINIMIZE` flag to hide windows when switching workspaces (has issues with frequent workspace switching)",
           "type": "string",
           "const": "Minimize"
         },
