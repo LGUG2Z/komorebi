@@ -30,25 +30,28 @@ pub fn prepare_for_template(value: &Value) -> Value {
     prepared
 }
 
-/// Add display names to types by stripping numeric suffixes
+/// Add display names to wrapper types by stripping numeric suffixes
 ///
-/// For types like `PerAnimationPrefixConfig2` or `DisplayFormat2`, this adds a
-/// `_display_name` field with the base name (e.g., `PerAnimationPrefixConfig`).
-/// This applies to all types with trailing digits, not just wrapper types.
+/// For wrapper types like `PerAnimationPrefixConfig2` or `PerAnimationPrefixConfig3`,
+/// this adds a `_display_name` field with the base name (e.g., `PerAnimationPrefixConfig`).
+/// This only applies to types marked with `_wrapper_type: true`, not all types ending in digits.
+/// Legitimate type names like `Base16` or `Sha256` are left unchanged.
 fn add_wrapper_display_names(schema: &mut Value) {
     if let Some(defs) = schema.get_mut("$defs").and_then(|v| v.as_object_mut()) {
         for (name, def) in defs.iter_mut() {
-            // Strip trailing digits from ALL type names (not just wrapper types)
-            let display_name = name.trim_end_matches(|c: char| c.is_ascii_digit());
+            // Only strip trailing digits from wrapper types (not all types)
+            if def.get("_wrapper_type") == Some(&Value::Bool(true)) {
+                let display_name = name.trim_end_matches(|c: char| c.is_ascii_digit());
 
-            // Only add _display_name if it differs from the original name
-            if display_name != name
-                && let Some(obj) = def.as_object_mut()
-            {
-                obj.insert(
-                    "_display_name".to_string(),
-                    Value::String(display_name.to_string()),
-                );
+                // Only add _display_name if it differs from the original name
+                if display_name != name
+                    && let Some(obj) = def.as_object_mut()
+                {
+                    obj.insert(
+                        "_display_name".to_string(),
+                        Value::String(display_name.to_string()),
+                    );
+                }
             }
         }
     }
@@ -2305,6 +2308,136 @@ mod tests {
         assert!(
             prepared.get("_wrapper_type").is_none(),
             "Object with properties (not additionalProperties) should NOT be wrapper"
+        );
+    }
+
+    #[test]
+    fn test_type_names_ending_in_digits_not_stripped() {
+        // Legitimate type names ending in digits should NOT have _display_name added
+        let schema = json!({
+            "$defs": {
+                "Base16": { "type": "string" },
+                "Sha256": { "type": "string" },
+                "Level3": { "type": "object" }
+            }
+        });
+
+        let prepared = prepare_for_template(&schema);
+        let defs = prepared.get("$defs").unwrap().as_object().unwrap();
+
+        // Type names that legitimately end in digits should NOT have _display_name added
+        assert!(
+            defs.get("Base16").unwrap().get("_display_name").is_none(),
+            "Base16 should not have _display_name"
+        );
+        assert!(
+            defs.get("Sha256").unwrap().get("_display_name").is_none(),
+            "Sha256 should not have _display_name"
+        );
+        assert!(
+            defs.get("Level3").unwrap().get("_display_name").is_none(),
+            "Level3 should not have _display_name"
+        );
+    }
+
+    #[test]
+    fn test_wrapper_types_get_display_name_stripped() {
+        // Real-world pattern from komorebi: PerAnimationPrefixConfig<T> generates
+        // multiple $defs entries for different type parameters:
+        // - PerAnimationPrefixConfig (bool)
+        // - PerAnimationPrefixConfig2 (uint64)
+        // - PerAnimationPrefixConfig3 (AnimationStyle ref)
+        // All should display as "PerAnimationPrefixConfig"
+        let schema = json!({
+            "$defs": {
+                "AnimationStyle": { "type": "string" },
+                "PerAnimationPrefixConfig": {
+                    "anyOf": [
+                        {
+                            "type": "object",
+                            "additionalProperties": { "type": "boolean" }
+                        },
+                        { "type": "boolean" }
+                    ]
+                },
+                "PerAnimationPrefixConfig2": {
+                    "anyOf": [
+                        {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "integer",
+                                "format": "uint64",
+                                "minimum": 0
+                            }
+                        },
+                        {
+                            "type": "integer",
+                            "format": "uint64",
+                            "minimum": 0
+                        }
+                    ]
+                },
+                "PerAnimationPrefixConfig3": {
+                    "anyOf": [
+                        {
+                            "type": "object",
+                            "additionalProperties": { "$ref": "#/$defs/AnimationStyle" }
+                        },
+                        { "$ref": "#/$defs/AnimationStyle" }
+                    ]
+                }
+            }
+        });
+
+        let prepared = prepare_for_template(&schema);
+        let defs = prepared.get("$defs").unwrap().as_object().unwrap();
+
+        // All three should be detected as wrapper types
+        assert_eq!(
+            defs.get("PerAnimationPrefixConfig")
+                .unwrap()
+                .get("_wrapper_type"),
+            Some(&json!(true)),
+            "PerAnimationPrefixConfig should be detected as wrapper type"
+        );
+        assert_eq!(
+            defs.get("PerAnimationPrefixConfig2")
+                .unwrap()
+                .get("_wrapper_type"),
+            Some(&json!(true)),
+            "PerAnimationPrefixConfig2 should be detected as wrapper type"
+        );
+        assert_eq!(
+            defs.get("PerAnimationPrefixConfig3")
+                .unwrap()
+                .get("_wrapper_type"),
+            Some(&json!(true)),
+            "PerAnimationPrefixConfig3 should be detected as wrapper type"
+        );
+
+        // The base type has no digits, so no _display_name needed
+        assert!(
+            defs.get("PerAnimationPrefixConfig")
+                .unwrap()
+                .get("_display_name")
+                .is_none(),
+            "Base wrapper type should not have _display_name"
+        );
+
+        // Numbered variants should have display name with digits stripped
+        assert_eq!(
+            defs.get("PerAnimationPrefixConfig2")
+                .unwrap()
+                .get("_display_name"),
+            Some(&json!("PerAnimationPrefixConfig")),
+            "PerAnimationPrefixConfig2 should have digits stripped"
+        );
+        assert_eq!(
+            defs.get("PerAnimationPrefixConfig3")
+                .unwrap()
+                .get("_display_name"),
+            Some(&json!("PerAnimationPrefixConfig")),
+            "PerAnimationPrefixConfig3 should have digits stripped"
         );
     }
 }
