@@ -53,6 +53,12 @@
             ];
           };
 
+          nightlyToolchain = pkgs.rust-bin.nightly.latest.default;
+          cargo-udeps = pkgs.writeShellScriptBin "cargo-udeps" ''
+            export PATH="${nightlyToolchain}/bin:$PATH"
+            exec ${pkgs.cargo-udeps}/bin/cargo-udeps "$@"
+          '';
+
           craneLib = (crane.mkLib pkgs).overrideToolchain rustToolchain;
 
           src = pkgs.lib.cleanSourceWith {
@@ -99,6 +105,8 @@
             inputsFrom = [ schemars-nixgen ];
             packages = [
               rustToolchainWithNightlyRustfmt
+              cargo-udeps
+              pkgs.cargo-outdated
               pkgs.bacon
             ];
           };
