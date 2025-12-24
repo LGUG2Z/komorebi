@@ -126,7 +126,7 @@ fn collect_test_files(dir: &Path) -> Vec<PathBuf> {
 
             if path.is_dir() {
                 files.extend(collect_test_files(&path));
-            } else if path.extension().map_or(false, |ext| ext == "json") {
+            } else if path.extension().is_some_and(|ext| ext == "json") {
                 files.push(path);
             }
         }
@@ -232,14 +232,12 @@ fn analyze_schema(schema: &serde_json::Value) -> (bool, Vec<String>) {
     if obj.contains_key("$ref") {
         features.push("$ref".to_string());
     }
-    if obj.contains_key("type") {
-        if let Some(t) = obj.get("type") {
-            if let Some(s) = t.as_str() {
-                features.push(format!("type: {}", s));
-            } else if let Some(arr) = t.as_array() {
-                let types: Vec<_> = arr.iter().filter_map(|v| v.as_str()).collect();
-                features.push(format!("type: [{}]", types.join(", ")));
-            }
+    if let Some(t) = obj.get("type") {
+        if let Some(s) = t.as_str() {
+            features.push(format!("type: {}", s));
+        } else if let Some(arr) = t.as_array() {
+            let types: Vec<_> = arr.iter().filter_map(|v| v.as_str()).collect();
+            features.push(format!("type: [{}]", types.join(", ")));
         }
     }
     if obj.contains_key("items") {
@@ -436,8 +434,8 @@ fn test_all_json_schema_test_suite_schemas() {
 
     // Counters for progress
     let passed = AtomicUsize::new(0);
-    let failed: Mutex<Vec<(String, usize, String, serde_json::Value, String)>> =
-        Mutex::new(Vec::new());
+    type FailedTest = (String, usize, String, serde_json::Value, String);
+    let failed: Mutex<Vec<FailedTest>> = Mutex::new(Vec::new());
 
     // Run tests in parallel
     test_cases.par_iter().for_each(|test_case| {

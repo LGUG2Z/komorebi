@@ -2,7 +2,6 @@
 name = "schemars-docgen"
 version = "0.1.0"
 edition = "2024"
-description = "Generate HTML documentation from schemars::Schema objects"
 license-file = "LICENSE.md"
 
 [lib]
