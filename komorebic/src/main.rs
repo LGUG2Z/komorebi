@@ -1,6 +1,6 @@
 #![warn(clippy::all)]
 #![allow(clippy::missing_errors_doc, clippy::doc_markdown)]
-#![allow(unused_assignments)] // TODO: something got weird in clippy 1.92.0
+#![allow(unused_assignments)] // false positives for the error reporter
 
 use chrono::Utc;
 use komorebi_client::PathExt;
