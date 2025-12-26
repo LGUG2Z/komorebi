@@ -32,12 +32,14 @@
 
 mod generator;
 pub mod identifiers;
+mod mdx_generator;
 mod prepare;
 
 pub use generator::Generator;
 pub use identifiers::CSS;
 pub use identifiers::IDS;
 pub use identifiers::TYPE_CLASSES;
+pub use mdx_generator::MdxGenerator;
 
 use schemars::Schema;
 use serde_json::Value;
@@ -47,6 +49,15 @@ use serde_json::Value;
 pub struct Options {
     /// Override the schema title
     pub title_override: Option<String>,
+}
+
+/// Options for MDX generation
+#[derive(Debug, Clone, Default)]
+pub struct MdxOptions {
+    /// Override the schema title
+    pub title_override: Option<String>,
+    /// Override the schema description (used in frontmatter)
+    pub description_override: Option<String>,
 }
 
 /// Error type for documentation generation
@@ -65,6 +76,15 @@ pub enum Error {
 /// and returns a self-contained HTML string.
 pub fn generate_html(schema: &Schema, options: &Options) -> Result<String, Error> {
     let generator = Generator::new()?;
+    generator.generate(schema, options)
+}
+
+/// Generate MDX documentation from a schema
+///
+/// This generates an MDX document suitable for use with Astro Starlight.
+/// The output includes YAML frontmatter and uses Starlight components.
+pub fn generate_mdx(schema: &Schema, options: &MdxOptions) -> Result<String, Error> {
+    let generator = MdxGenerator::new()?;
     generator.generate(schema, options)
 }
 

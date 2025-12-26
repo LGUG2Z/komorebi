@@ -681,7 +681,16 @@ fn collect_config_usages(
             // e.g., KomorebiTheme.oneOf[0].bar_accent -> "komorebitheme-oneof[0]-bar_accent"
             // Note: Keep [N] for variant indices, but remove empty [] from array notation
             let clean_path = type_relative_path.replace("[]", "");
-            if clean_path.is_empty() {
+
+            // If the path is ONLY a variant index (e.g., "oneOf[1]"), the $ref is at variant root.
+            // In this case, link to the parent type, not the non-existent variant anchor.
+            // The template doesn't render separate heading IDs for bare $ref variants.
+            let is_variant_root_ref = (clean_path.starts_with("oneOf[")
+                || clean_path.starts_with("anyOf[")
+                || clean_path.starts_with("allOf["))
+                && !clean_path.contains('.');
+
+            if clean_path.is_empty() || is_variant_root_ref {
                 make_anchor(parent_type)
             } else {
                 make_anchor(&format!("{}.{}", parent_type, clean_path))
