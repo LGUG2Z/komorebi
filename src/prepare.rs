@@ -27,6 +27,7 @@ pub fn prepare_for_template(value: &Value) -> Value {
     normalize_refs(&mut prepared, &root_schema);
     detect_wrapper_types(&mut prepared);
     add_wrapper_display_names(&mut prepared);
+    annotate_defaults_with_refs(&mut prepared);
     prepared
 }
 
@@ -55,6 +56,90 @@ fn add_wrapper_display_names(schema: &mut Value) {
             }
         }
     }
+}
+
+/// Annotate default values with type references for linking
+///
+/// When a property has a `default` value and references a type via `$ref` (directly or
+/// through `anyOf`/`oneOf` for Option<T> patterns), this adds a `_default_ref` field
+/// with the referenced type name. This allows templates to render defaults as links
+/// to the type definition.
+///
+/// For example, if a property has:
+/// - `"anyOf": [{"$ref": "#/$defs/MoveBehaviour"}, {"type": "null"}]`
+/// - `"default": "Swap"`
+///
+/// This adds `"_default_ref": "MoveBehaviour"` so the template can render:
+/// `Default: [Swap](#movebehaviour)`
+fn annotate_defaults_with_refs(schema: &mut Value) {
+    annotate_defaults_recursive(schema);
+}
+
+fn annotate_defaults_recursive(value: &mut Value) {
+    match value {
+        Value::Object(map) => {
+            // Check if this object has a default value
+            if map.contains_key("default") {
+                // Try to find a $ref to a type definition
+                if let Some(ref_name) = extract_type_ref(map) {
+                    map.insert("_default_ref".to_string(), Value::String(ref_name));
+                }
+            }
+
+            // Recurse into all nested values
+            for v in map.values_mut() {
+                annotate_defaults_recursive(v);
+            }
+        }
+        Value::Array(arr) => {
+            for v in arr.iter_mut() {
+                annotate_defaults_recursive(v);
+            }
+        }
+        _ => {}
+    }
+}
+
+/// Extract the type name from a $ref, handling various patterns:
+/// - Direct `$ref`: `{"$ref": "#/$defs/TypeName"}`
+/// - Option<T> via anyOf: `{"anyOf": [{"$ref": "#/$defs/TypeName"}, {"type": "null"}]}`
+/// - Option<T> via oneOf: `{"oneOf": [{"$ref": "#/$defs/TypeName"}, {"type": "null"}]}`
+fn extract_type_ref(map: &Map<String, Value>) -> Option<String> {
+    // Check for direct $ref
+    if let Some(ref_value) = map.get("$ref")
+        && let Some(ref_str) = ref_value.as_str()
+        && let Some(type_name) = ref_str.strip_prefix("#/$defs/")
+    {
+        return Some(type_name.to_string());
+    }
+
+    // Check for anyOf/oneOf Option<T> pattern
+    for key in ["anyOf", "oneOf"] {
+        if let Some(variants) = map.get(key).and_then(|v| v.as_array()) {
+            // Look for the pattern: exactly 2 variants, one null and one $ref
+            if variants.len() == 2 {
+                let null_count = variants
+                    .iter()
+                    .filter(|v| v.get("type").and_then(|t| t.as_str()) == Some("null"))
+                    .count();
+
+                if null_count == 1 {
+                    // Find the non-null variant with a $ref
+                    for variant in variants {
+                        if variant.get("type").and_then(|t| t.as_str()) != Some("null") {
+                            if let Some(ref_str) = variant.get("$ref").and_then(|v| v.as_str())
+                                && let Some(type_name) = ref_str.strip_prefix("#/$defs/")
+                            {
+                                return Some(type_name.to_string());
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    None
 }
 
 /// Embed usages directly into each $defs entry
@@ -2447,6 +2532,202 @@ mod tests {
                 .get("_display_name"),
             Some(&json!("PerAnimationPrefixConfig")),
             "PerAnimationPrefixConfig3 should have digits stripped"
+        );
+    }
+
+    #[test]
+    fn test_default_with_direct_ref_gets_annotated() {
+        // When a property has a default and a direct $ref, it should get _default_ref
+        let schema = json!({
+            "title": "Test",
+            "type": "object",
+            "$defs": {
+                "Layout": {
+                    "type": "string",
+                    "enum": ["horizontal", "vertical"]
+                }
+            },
+            "properties": {
+                "layout": {
+                    "$ref": "#/$defs/Layout",
+                    "default": "horizontal"
+                }
+            }
+        });
+
+        let prepared = prepare_for_template(&schema);
+        let props = prepared.get("properties").unwrap().as_object().unwrap();
+        let layout_prop = props.get("layout").unwrap();
+
+        assert_eq!(
+            layout_prop.get("_default_ref"),
+            Some(&json!("Layout")),
+            "Direct $ref with default should have _default_ref"
+        );
+    }
+
+    #[test]
+    fn test_default_with_anyof_option_pattern_gets_annotated() {
+        // When a property has a default and anyOf Option<T> pattern, it should get _default_ref
+        let schema = json!({
+            "title": "Test",
+            "type": "object",
+            "$defs": {
+                "MoveBehaviour": {
+                    "oneOf": [
+                        { "type": "string", "const": "Swap" },
+                        { "type": "string", "const": "Insert" }
+                    ]
+                }
+            },
+            "properties": {
+                "move_behaviour": {
+                    "anyOf": [
+                        { "$ref": "#/$defs/MoveBehaviour" },
+                        { "type": "null" }
+                    ],
+                    "default": "Swap"
+                }
+            }
+        });
+
+        let prepared = prepare_for_template(&schema);
+        let props = prepared.get("properties").unwrap().as_object().unwrap();
+        let move_prop = props.get("move_behaviour").unwrap();
+
+        assert_eq!(
+            move_prop.get("_default_ref"),
+            Some(&json!("MoveBehaviour")),
+            "anyOf Option<T> pattern with default should have _default_ref"
+        );
+    }
+
+    #[test]
+    fn test_default_with_oneof_option_pattern_gets_annotated() {
+        // When a property has a default and oneOf Option<T> pattern, it should get _default_ref
+        let schema = json!({
+            "title": "Test",
+            "type": "object",
+            "$defs": {
+                "BorderStyle": {
+                    "type": "string",
+                    "enum": ["solid", "dashed"]
+                }
+            },
+            "properties": {
+                "border_style": {
+                    "oneOf": [
+                        { "$ref": "#/$defs/BorderStyle" },
+                        { "type": "null" }
+                    ],
+                    "default": "solid"
+                }
+            }
+        });
+
+        let prepared = prepare_for_template(&schema);
+        let props = prepared.get("properties").unwrap().as_object().unwrap();
+        let border_prop = props.get("border_style").unwrap();
+
+        assert_eq!(
+            border_prop.get("_default_ref"),
+            Some(&json!("BorderStyle")),
+            "oneOf Option<T> pattern with default should have _default_ref"
+        );
+    }
+
+    #[test]
+    fn test_primitive_default_not_annotated() {
+        // Primitive defaults (boolean, integer, etc.) should NOT get _default_ref
+        let schema = json!({
+            "title": "Test",
+            "type": "object",
+            "properties": {
+                "enabled": {
+                    "type": ["boolean", "null"],
+                    "default": true
+                },
+                "count": {
+                    "type": ["integer", "null"],
+                    "default": 10
+                }
+            }
+        });
+
+        let prepared = prepare_for_template(&schema);
+        let props = prepared.get("properties").unwrap().as_object().unwrap();
+
+        assert!(
+            props.get("enabled").unwrap().get("_default_ref").is_none(),
+            "Boolean default should not have _default_ref"
+        );
+        assert!(
+            props.get("count").unwrap().get("_default_ref").is_none(),
+            "Integer default should not have _default_ref"
+        );
+    }
+
+    #[test]
+    fn test_default_without_ref_not_annotated() {
+        // Defaults on types without $ref should NOT get _default_ref
+        let schema = json!({
+            "title": "Test",
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string",
+                    "default": "untitled"
+                }
+            }
+        });
+
+        let prepared = prepare_for_template(&schema);
+        let props = prepared.get("properties").unwrap().as_object().unwrap();
+
+        assert!(
+            props.get("name").unwrap().get("_default_ref").is_none(),
+            "String type without $ref should not have _default_ref"
+        );
+    }
+
+    #[test]
+    fn test_nested_defaults_annotated() {
+        // Defaults inside nested structures should also be annotated
+        let schema = json!({
+            "title": "Test",
+            "type": "object",
+            "$defs": {
+                "AnimationStyle": {
+                    "type": "string",
+                    "enum": ["Linear", "EaseIn", "EaseOut"]
+                },
+                "AnimationConfig": {
+                    "type": "object",
+                    "properties": {
+                        "style": {
+                            "anyOf": [
+                                { "$ref": "#/$defs/AnimationStyle" },
+                                { "type": "null" }
+                            ],
+                            "default": "Linear"
+                        }
+                    }
+                }
+            },
+            "properties": {
+                "animation": { "$ref": "#/$defs/AnimationConfig" }
+            }
+        });
+
+        let prepared = prepare_for_template(&schema);
+        let defs = prepared.get("$defs").unwrap().as_object().unwrap();
+        let anim_config = defs.get("AnimationConfig").unwrap();
+        let style_prop = anim_config.get("properties").unwrap().get("style").unwrap();
+
+        assert_eq!(
+            style_prop.get("_default_ref"),
+            Some(&json!("AnimationStyle")),
+            "Nested default with $ref should have _default_ref"
         );
     }
 }

@@ -171,7 +171,7 @@
 {% else -%}
 **Pattern:** `{{ pattern }}` **→** {{ self::render_type_badge(node=prop) }}
 {% endif %}
-{% if prop.description_html %}{{ prop.description_html | striptags | mdx_escape }}{% endif %}
+{% if prop.description %}{{ prop.description | mdx_escape }}{% endif %}
 {{ self::render_schema_body(node=prop, depth=depth + 1, path=path ~ ".[key]") }}
 {% endfor %}
 {%- elif node.items -%}
@@ -291,11 +291,16 @@
 {# Render a schema without property wrapper #}
 {% macro render_schema(node, depth, path) %}
 {%- if depth < 10 -%}
-{{ self::render_type_badge(node=node) }}{% if node.description_html %} - {{ node.description_html | striptags | mdx_escape }}{% endif %}
+{# Skip type badge for documented const variants - the value is shown below #}
+{%- if node.const and node.description -%}
+{{ node.description | mdx_escape }}
+{%- else -%}
+{{ self::render_type_badge(node=node) }}{% if node.description %} - {{ node.description | mdx_escape }}{% endif %}
+{%- endif -%}
 {{ self::render_constraints(node=node) }}
 {%- if node.default %}
 
-**Default:** `{{ node.default | json_encode() }}`
+**Default:** {% if node._default_ref and schema["$defs"][node._default_ref] %}[`{{ node.default | json_encode() }}`](#{{ node._default_ref | lower }}){% else %}`{{ node.default | json_encode() }}`{% endif %}
 {% endif -%}
 {{ self::render_schema_body(node=node, depth=depth, path=path) }}
 {%- endif -%}
@@ -309,11 +314,11 @@
 
 {% if required %}<Badge text="required" variant="success" /> {% endif %}{% if node.deprecated %}<Badge text="deprecated" variant="danger" /> {% endif %}{{ self::render_type_badge(node=node) }}
 
-{% if node.description_html %}{{ node.description_html | striptags | mdx_escape }}{% endif %}
+{% if node.description %}{{ node.description | mdx_escape }}{% endif %}
 {{ self::render_constraints(node=node) }}
 {%- if node.default %}
 
-**Default:** `{{ node.default | json_encode() }}`
+**Default:** {% if node._default_ref and schema["$defs"][node._default_ref] %}[`{{ node.default | json_encode() }}`](#{{ node._default_ref | lower }}){% else %}`{{ node.default | json_encode() }}`{% endif %}
 {% endif -%}
 {{ self::render_schema_body(node=node, depth=depth, path=path) }}
 {%- endif -%}
@@ -327,11 +332,11 @@
 
 {% if required %}<Badge text="required" variant="success" /> {% endif %}{% if node.deprecated %}<Badge text="deprecated" variant="danger" /> {% endif %}{{ self::render_type_badge(node=node) }}
 
-{% if node.description_html %}{{ node.description_html | striptags | mdx_escape }}{% endif %}
+{% if node.description %}{{ node.description | mdx_escape }}{% endif %}
 {{ self::render_constraints(node=node) }}
 {%- if node.default %}
 
-**Default:** `{{ node.default | json_encode() }}`
+**Default:** {% if node._default_ref and schema["$defs"][node._default_ref] %}[`{{ node.default | json_encode() }}`](#{{ node._default_ref | lower }}){% else %}`{{ node.default | json_encode() }}`{% endif %}
 {% endif -%}
 {{ self::render_schema_body(node=node, depth=depth, path=path) }}
 
@@ -367,7 +372,7 @@
 
 {{ self::render_type_badge(node=def) }}
 
-{% if def.description_html %}{{ def.description_html | striptags | mdx_escape }}{% endif %}
+{% if def.description %}{{ def.description | mdx_escape }}{% endif %}
 {{ self::render_constraints(node=def) }}
 {{ self::render_schema_body(node=def, depth=0, path=def_name) }}
 {{ self::render_usages(def=def) }}

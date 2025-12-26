@@ -18,14 +18,80 @@ use tera::Tera;
 /// MDX interprets `{` and `}` as JSX expressions. This filter escapes them
 /// so they render as literal text, which is necessary for descriptions
 /// containing JSON code blocks.
+///
+/// This filter is code-block aware: it will NOT escape braces inside fenced
+/// code blocks (```) or inline code (`), preserving proper code formatting.
 fn mdx_escape(value: &Value, _args: &HashMap<String, Value>) -> tera::Result<Value> {
     match value {
         Value::String(s) => {
-            let escaped = s.replace('{', "\\{").replace('}', "\\}");
+            let escaped = escape_braces_outside_code(s);
             Ok(Value::String(escaped))
         }
         _ => Ok(value.clone()),
     }
+}
+
+/// Escape `{` and `}` characters outside of code blocks and inline code.
+///
+/// This preserves code block content while escaping braces in regular text
+/// that would otherwise be interpreted as JSX expressions by MDX.
+fn escape_braces_outside_code(text: &str) -> String {
+    let mut result = String::with_capacity(text.len());
+    let chars: Vec<char> = text.chars().collect();
+    let len = chars.len();
+    let mut i = 0;
+
+    // Track whether we're inside a fenced code block
+    let mut in_fenced_block = false;
+
+    while i < len {
+        // Check for fenced code block start/end (```)
+        if i + 2 < len && chars[i] == '`' && chars[i + 1] == '`' && chars[i + 2] == '`' {
+            // Toggle fenced block state
+            in_fenced_block = !in_fenced_block;
+            result.push('`');
+            result.push('`');
+            result.push('`');
+            i += 3;
+            continue;
+        }
+
+        // If we're in a fenced code block, pass through everything
+        if in_fenced_block {
+            result.push(chars[i]);
+            i += 1;
+            continue;
+        }
+
+        // Check for inline code (single backtick, not part of ```)
+        if chars[i] == '`' {
+            result.push('`');
+            i += 1;
+            // Find closing backtick and pass through content
+            while i < len && chars[i] != '`' {
+                result.push(chars[i]);
+                i += 1;
+            }
+            // Push closing backtick if found
+            if i < len {
+                result.push('`');
+                i += 1;
+            }
+            continue;
+        }
+
+        // Outside of any code: escape braces
+        if chars[i] == '{' {
+            result.push_str("\\{");
+        } else if chars[i] == '}' {
+            result.push_str("\\}");
+        } else {
+            result.push(chars[i]);
+        }
+        i += 1;
+    }
+
+    result
 }
 
 /// MDX documentation generator for Astro Starlight
@@ -802,5 +868,60 @@ mod tests {
             mdx.contains("enum") || mdx.contains("Enum"),
             "Should detect string enum pattern"
         );
+    }
+
+    #[test]
+    fn test_escape_braces_outside_code_plain_text() {
+        // Plain text should have braces escaped
+        let result = escape_braces_outside_code("Use {foo} and {bar}");
+        assert_eq!(result, "Use \\{foo\\} and \\{bar\\}");
+    }
+
+    #[test]
+    fn test_escape_braces_outside_code_inline_code() {
+        // Braces inside inline code should NOT be escaped
+        let result = escape_braces_outside_code("Use `{foo}` in your code");
+        assert_eq!(result, "Use `{foo}` in your code");
+    }
+
+    #[test]
+    fn test_escape_braces_outside_code_fenced_block() {
+        // Braces inside fenced code blocks should NOT be escaped
+        let input = "Example:\n```json\n{\"key\": \"value\"}\n```\nEnd";
+        let result = escape_braces_outside_code(input);
+        assert_eq!(result, "Example:\n```json\n{\"key\": \"value\"}\n```\nEnd");
+    }
+
+    #[test]
+    fn test_escape_braces_outside_code_mixed() {
+        // Mix of plain text and code - only plain text braces escaped
+        let input = "Set `{option}` to {value}";
+        let result = escape_braces_outside_code(input);
+        assert_eq!(result, "Set `{option}` to \\{value\\}");
+    }
+
+    #[test]
+    fn test_escape_braces_outside_code_multiple_code_blocks() {
+        // Multiple fenced code blocks
+        let input = "First:\n```\n{a}\n```\nMiddle {b}\n```\n{c}\n```\nEnd";
+        let result = escape_braces_outside_code(input);
+        assert_eq!(
+            result,
+            "First:\n```\n{a}\n```\nMiddle \\{b\\}\n```\n{c}\n```\nEnd"
+        );
+    }
+
+    #[test]
+    fn test_escape_braces_outside_code_no_braces() {
+        // No braces should pass through unchanged
+        let result = escape_braces_outside_code("Just plain text");
+        assert_eq!(result, "Just plain text");
+    }
+
+    #[test]
+    fn test_escape_braces_outside_code_nested_inline() {
+        // Multiple inline code segments
+        let result = escape_braces_outside_code("`{a}` and `{b}` with {c}");
+        assert_eq!(result, "`{a}` and `{b}` with \\{c\\}");
     }
 }

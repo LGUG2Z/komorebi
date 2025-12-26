@@ -68,6 +68,7 @@
               (craneLib.filterCargoSources path type)
               || (builtins.match ".*\\.css$" path != null)
               || (builtins.match ".*\\.html$" path != null)
+              || (builtins.match ".*\\.md$" path != null)
               || (builtins.match ".*\\.json$" path != null);
           };
 
