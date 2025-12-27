@@ -127,6 +127,7 @@ mod defaults {
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+/// Border colours for different container states
 pub struct BorderColours {
     /// Border colour when the container contains a single window
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -150,6 +151,7 @@ pub struct BorderColours {
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+/// Theme options
 pub struct ThemeOptions {
     /// Specify Light or Dark variant for theme generation
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -200,6 +202,7 @@ pub struct ThemeOptions {
 #[serde_with::serde_as]
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+/// Wallpaper configuration
 pub struct Wallpaper {
     /// Path to the wallpaper image file
     #[serde_as(as = "ResolvedPathBuf")]
@@ -218,6 +221,7 @@ pub struct Wallpaper {
 #[serde_with::serde_as]
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+/// Workspace configuration
 pub struct WorkspaceConfig {
     /// Name
     pub name: String,
@@ -375,6 +379,7 @@ impl From<&Workspace> for WorkspaceConfig {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+/// Monitor configuration
 pub struct MonitorConfig {
     /// Workspace configurations
     pub workspaces: Vec<WorkspaceConfig>,
@@ -446,6 +451,7 @@ impl From<&Monitor> for MonitorConfig {
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[serde(untagged)]
+/// Path(s) to application-specific configuration file(s)
 pub enum AppSpecificConfigurationPath {
     /// A single `applications.json` file
     Single(#[serde_as(as = "ResolvedPathBuf")] PathBuf),
@@ -540,7 +546,7 @@ pub struct StaticConfig {
     #[serde(alias = "active_window_border")]
     #[cfg_attr(feature = "schemars", schemars(extend("default" = defaults::BORDER_ENABLED)))]
     pub border: Option<bool>,
-    /// Window border colours for different container types (has no effect if a theme is defined)
+    /// Window border colours for different container types (has no effect if [`theme`] is defined)
     #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(alias = "active_window_border_colours")]
     pub border_colours: Option<BorderColours>,
@@ -624,6 +630,8 @@ pub struct StaticConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub animation: Option<AnimationsConfig>,
     /// Theme configuration options
+    ///
+    /// If a theme is specified, `border_colours` will have no effect
     #[serde(skip_serializing_if = "Option::is_none")]
     pub theme: Option<KomorebiTheme>,
     /// Identify applications which are slow to send initial event notifications
@@ -652,6 +660,7 @@ pub struct StaticConfig {
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+/// Animations configuration options
 pub struct AnimationsConfig {
     /// Enable or disable animations
     pub enabled: PerAnimationPrefixConfig<bool>,
@@ -670,6 +679,7 @@ pub struct AnimationsConfig {
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[serde(tag = "palette")]
+/// Komorebi theme
 pub enum KomorebiTheme {
     /// A theme from catppuccin-egui
     Catppuccin {
@@ -895,6 +905,7 @@ impl StaticConfig {
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+/// Stackbar tabs configuration
 pub struct TabsConfig {
     /// Width of a stackbar tab
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -918,6 +929,7 @@ pub struct TabsConfig {
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+/// Stackbar configuration
 pub struct StackbarConfig {
     /// Stackbar height
     #[serde(skip_serializing_if = "Option::is_none")]

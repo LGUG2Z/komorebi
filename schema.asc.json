@@ -7,12 +7,28 @@
   },
   "$defs": {
     "ApplicationIdentifier": {
-      "type": "string",
-      "enum": [
-        "Exe",
-        "Class",
-        "Title",
-        "Path"
+      "description": "Application identifier",
+      "oneOf": [
+        {
+          "description": "Executable name",
+          "type": "string",
+          "const": "Exe"
+        },
+        {
+          "description": "Class",
+          "type": "string",
+          "const": "Class"
+        },
+        {
+          "description": "Window title",
+          "type": "string",
+          "const": "Title"
+        },
+        {
+          "description": "Executable path",
+          "type": "string",
+          "const": "Path"
+        }
       ]
     },
     "AscApplicationRules": {
@@ -112,15 +128,19 @@
       ]
     },
     "IdWithIdentifier": {
+      "description": "Rule for matching applications",
       "type": "object",
       "properties": {
         "id": {
+          "description": "Target identifier",
           "type": "string"
         },
         "kind": {
+          "description": "Kind of identifier to target",
           "$ref": "#/$defs/ApplicationIdentifier"
         },
         "matching_strategy": {
+          "description": "Matching strategy to use",
           "anyOf": [
             {
               "$ref": "#/$defs/MatchingStrategy"
@@ -137,11 +157,14 @@
       ]
     },
     "MatchingRule": {
+      "description": "Rule for matching applications",
       "anyOf": [
         {
+          "description": "Simple matching rule which must evaluate to true",
           "$ref": "#/$defs/IdWithIdentifier"
         },
         {
+          "description": "Composite matching rule where all conditions must evaluate to true",
           "type": "array",
           "items": {
             "$ref": "#/$defs/IdWithIdentifier"
@@ -150,18 +173,58 @@
       ]
     },
     "MatchingStrategy": {
-      "type": "string",
-      "enum": [
-        "Legacy",
-        "Equals",
-        "StartsWith",
-        "EndsWith",
-        "Contains",
-        "Regex",
-        "DoesNotEndWith",
-        "DoesNotStartWith",
-        "DoesNotEqual",
-        "DoesNotContain"
+      "description": "Strategy for matching identifiers",
+      "oneOf": [
+        {
+          "description": "Should not be used, only kept for backward compatibility",
+          "type": "string",
+          "const": "Legacy"
+        },
+        {
+          "description": "Equals",
+          "type": "string",
+          "const": "Equals"
+        },
+        {
+          "description": "Starts With",
+          "type": "string",
+          "const": "StartsWith"
+        },
+        {
+          "description": "Ends With",
+          "type": "string",
+          "const": "EndsWith"
+        },
+        {
+          "description": "Contains",
+          "type": "string",
+          "const": "Contains"
+        },
+        {
+          "description": "Regex",
+          "type": "string",
+          "const": "Regex"
+        },
+        {
+          "description": "Does not end with",
+          "type": "string",
+          "const": "DoesNotEndWith"
+        },
+        {
+          "description": "Does not start with",
+          "type": "string",
+          "const": "DoesNotStartWith"
+        },
+        {
+          "description": "Does not equal",
+          "type": "string",
+          "const": "DoesNotEqual"
+        },
+        {
+          "description": "Does not contain",
+          "type": "string",
+          "const": "DoesNotContain"
+        }
       ]
     }
   }

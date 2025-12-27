@@ -8,38 +8,72 @@ use strum::EnumString;
 
 #[derive(Copy, Clone, Debug, Display, EnumString, ValueEnum, PartialEq)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+/// Mathematical function which describes the rate at which a value changes
 pub enum AnimationStyle {
+    /// Linear
     Linear,
+    /// Ease in sine
     EaseInSine,
+    /// Ease out sine
     EaseOutSine,
+    /// Ease in out sine
     EaseInOutSine,
+    /// Ease in quad
     EaseInQuad,
+    /// Ease out quad
     EaseOutQuad,
+    /// Ease in out quad
     EaseInOutQuad,
+    /// Ease in cubic
     EaseInCubic,
+    /// Ease out cubic
+    EaseOutCubic,
+    /// Ease in out cubic
     EaseInOutCubic,
+    /// Ease in quart
     EaseInQuart,
+    /// Ease out quart
     EaseOutQuart,
+    /// Ease in out quart
     EaseInOutQuart,
+    /// Ease in quint
     EaseInQuint,
+    /// Ease out quint
     EaseOutQuint,
+    /// Ease in out quint
     EaseInOutQuint,
+    /// Ease in expo
     EaseInExpo,
+    /// Ease out expo
     EaseOutExpo,
+    /// Ease in out expo
     EaseInOutExpo,
+    /// Ease in circ
     EaseInCirc,
+    /// Ease out circ
     EaseOutCirc,
+    /// Ease in out circ
     EaseInOutCirc,
+    /// Ease in back
     EaseInBack,
+    /// Ease out back
     EaseOutBack,
+    /// Ease in out back
     EaseInOutBack,
+    /// Ease in elastic
     EaseInElastic,
+    /// Ease out elastic
     EaseOutElastic,
+    /// Ease in out elastic
     EaseInOutElastic,
+    /// Ease in bounce
     EaseInBounce,
+    /// Ease out bounce
     EaseOutBounce,
+    /// Ease in out bounce
     EaseInOutBounce,
     #[value(skip)]
+    /// Custom Cubic Bézier function
     CubicBezier(f64, f64, f64, f64),
 }
 

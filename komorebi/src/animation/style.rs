@@ -420,6 +420,7 @@ pub fn apply_ease_func(t: f64, style: AnimationStyle) -> f64 {
         AnimationStyle::EaseOutQuad => EaseOutQuad::evaluate(t),
         AnimationStyle::EaseInOutQuad => EaseInOutQuad::evaluate(t),
         AnimationStyle::EaseInCubic => EaseInCubic::evaluate(t),
+        AnimationStyle::EaseOutCubic => EaseOutCubic::evaluate(t),
         AnimationStyle::EaseInOutCubic => EaseInOutCubic::evaluate(t),
         AnimationStyle::EaseInQuart => EaseInQuart::evaluate(t),
         AnimationStyle::EaseOutQuart => EaseOutQuart::evaluate(t),

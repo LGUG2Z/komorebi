@@ -12,21 +12,109 @@ use super::Sizing;
     Clone, Copy, Debug, Serialize, Deserialize, Eq, PartialEq, Display, EnumString, ValueEnum,
 )]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+/// A predefined komorebi layout
 pub enum DefaultLayout {
+    /// BSP Layout
+    ///
+    /// ```
+    /// +-------+-----+
+    /// |       |     |
+    /// |       +--+--+
+    /// |       |  |--|
+    /// +-------+--+--+
+    /// ```
     BSP,
+    /// Columns Layout
+    ///
+    /// ```
+    /// +--+--+--+--+
+    /// |  |  |  |  |
+    /// |  |  |  |  |
+    /// |  |  |  |  |
+    /// +--+--+--+--+
+    /// ```
     Columns,
+    /// Rows Layout
+    ///
+    /// ```
+    /// +-----------+
+    /// |-----------|
+    /// |-----------|
+    /// |-----------|
+    /// +-----------+
+    /// ```
     Rows,
+    /// Vertical Stack Layout
+    ///
+    /// ```
+    /// +-------+-----+
+    /// |       |     |
+    /// |       +-----+
+    /// |       |     |
+    /// +-------+-----+
+    /// ```
     VerticalStack,
+    /// Horizontal Stack Layout
+    ///
+    /// ```
+    /// +------+------+
+    /// |             |
+    /// |------+------+
+    /// |      |      |
+    /// +------+------+
+    /// ```
     HorizontalStack,
+    /// Ultrawide Vertical Stack Layout
+    ///
+    /// ```
+    /// +-----+-----------+-----+
+    /// |     |           |     |
+    /// |     |           +-----+
+    /// |     |           |     |
+    /// |     |           +-----+
+    /// |     |           |     |
+    /// +-----+-----------+-----+
+    /// ```
     UltrawideVerticalStack,
+    /// Grid Layout
+    ///
+    /// ```
+    /// +-----+-----+   +---+---+---+   +---+---+---+   +---+---+---+
+    ///|     |     |   |   |   |   |   |   |   |   |   |   |   |   |
+    ///|     |     |   |   |   |   |   |   |   |   |   |   |   +---+
+    ///+-----+-----+   |   +---+---+   +---+---+---+   +---+---|   |
+    ///|     |     |   |   |   |   |   |   |   |   |   |   |   +---+
+    ///|     |     |   |   |   |   |   |   |   |   |   |   |   |   |
+    ///+-----+-----+   +---+---+---+   +---+---+---+   +---+---+---+
+    ///  4 windows       5 windows       6 windows       7 windows
+    ///```
     Grid,
+    /// Right Main Vertical Stack Layout
+    ///
+    /// ```
+    /// +-----+-------+
+    /// |     |       |
+    /// +-----+       |
+    /// |     |       |
+    /// +-----+-------+
+    /// ```
     RightMainVerticalStack,
+    /// Scrolling Layout
+    ///
+    /// ```
+    /// +--+--+--+--+--+--+
+    /// |     |     |     |
+    /// |     |     |     |
+    /// |     |     |     |
+    /// +--+--+--+--+--+--+
+    /// ```
     Scrolling,
     // NOTE: If any new layout is added, please make sure to register the same in `DefaultLayout::cycle`
 }
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, Eq, PartialEq)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+/// Options for specific layouts
 pub struct LayoutOptions {
     /// Options related to the Scrolling layout
     pub scrolling: Option<ScrollingLayoutOptions>,
@@ -36,6 +124,7 @@ pub struct LayoutOptions {
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, Eq, PartialEq)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+/// Options for the Scrolling layout
 pub struct ScrollingLayoutOptions {
     /// Desired number of visible columns (default: 3)
     pub columns: usize,
@@ -45,6 +134,7 @@ pub struct ScrollingLayoutOptions {
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, Eq, PartialEq)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+/// Options for the Grid layout
 pub struct GridLayoutOptions {
     /// Maximum number of rows per grid column
     pub rows: usize,

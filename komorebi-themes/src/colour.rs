@@ -11,6 +11,7 @@ use serde::Serialize;
 #[derive(Debug, Copy, Clone, Serialize, Deserialize, PartialEq)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[serde(untagged)]
+/// Colour representation
 pub enum Colour {
     /// Colour represented as RGB
     Rgb(Rgb),
@@ -52,6 +53,7 @@ impl From<Colour> for Color32 {
     }
 }
 
+/// Colour represented as a Hex string
 #[derive(Debug, Copy, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Hex(pub HexColor);
 
@@ -64,7 +66,8 @@ impl schemars::JsonSchema for Hex {
     fn json_schema(_: &mut SchemaGenerator) -> Schema {
         schemars::json_schema!({
             "type": "string",
-            "format": "color-hex"
+            "format": "color-hex",
+            "description": "Colour represented as a Hex string"
         })
     }
 }
@@ -80,6 +83,7 @@ impl From<Colour> for u32 {
 
 #[derive(Debug, Copy, Clone, Serialize, Deserialize, PartialEq)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+/// Colour represented as RGB
 pub struct Rgb {
     /// Red
     pub r: u32,

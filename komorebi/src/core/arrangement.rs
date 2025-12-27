@@ -704,9 +704,13 @@ impl Arrangement for CustomLayout {
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, Display, EnumString, ValueEnum, PartialEq)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+/// Axis on which to perform an operation
 pub enum Axis {
+    /// Horizontal axis
     Horizontal,
+    /// Vertical axis
     Vertical,
+    /// Both horizontal and vertical axes
     HorizontalAndVertical,
 }
 

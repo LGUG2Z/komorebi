@@ -274,17 +274,24 @@ pub struct SubscribeOptions {
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Display, Serialize, Deserialize, ValueEnum)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+/// Stackbar mode
 pub enum StackbarMode {
+    /// Always show
     Always,
+    /// Never show
     Never,
+    /// Show on stack
     OnStack,
 }
 
 #[derive(Debug, Copy, Default, Clone, Eq, PartialEq, Display, Serialize, Deserialize)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+/// Starbar label
 pub enum StackbarLabel {
     #[default]
+    /// Process name
     Process,
+    /// Window title
     Title,
 }
 
@@ -292,6 +299,7 @@ pub enum StackbarLabel {
     Default, Copy, Clone, Debug, Eq, PartialEq, Display, Serialize, Deserialize, ValueEnum,
 )]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+/// Border style
 pub enum BorderStyle {
     #[default]
     /// Use the system border style
@@ -306,6 +314,7 @@ pub enum BorderStyle {
     Default, Copy, Clone, Debug, Eq, PartialEq, Display, Serialize, Deserialize, ValueEnum,
 )]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+/// Border style
 pub enum BorderImplementation {
     #[default]
     /// Use the adjustable komorebi border implementation
@@ -329,13 +338,20 @@ pub enum BorderImplementation {
     Hash,
 )]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+/// Window kind
 pub enum WindowKind {
+    /// Single window
     Single,
+    /// Stack container
     Stack,
+    /// Monocle container
     Monocle,
     #[default]
+    /// Unfocused window
     Unfocused,
+    /// Unfocused locked container
     UnfocusedLocked,
+    /// Floating window
     Floating,
 }
 
@@ -356,30 +372,37 @@ pub enum StateQuery {
     Copy, Clone, Debug, Eq, PartialEq, Serialize, Deserialize, Display, EnumString, ValueEnum,
 )]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+/// Application identifier
 pub enum ApplicationIdentifier {
+    /// Executable name
     #[serde(alias = "exe")]
     Exe,
+    /// Class
     #[serde(alias = "class")]
     Class,
     #[serde(alias = "title")]
+    /// Window title
     Title,
+    /// Executable path
     #[serde(alias = "path")]
     Path,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Serialize, Deserialize, Display, EnumString, ValueEnum)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+/// Focus follows mouse implementation
 pub enum FocusFollowsMouseImplementation {
-    /// A custom FFM implementation (slightly more CPU-intensive)
+    /// Custom FFM implementation (slightly more CPU-intensive)
     Komorebi,
-    /// The native (legacy) Windows FFM implementation
+    /// Native (legacy) Windows FFM implementation
     Windows,
 }
 
 #[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, PartialEq)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+/// Window management behaviour
 pub struct WindowManagementBehaviour {
-    /// The current WindowContainerBehaviour to be used
+    /// The current [`WindowContainerBehaviour`] to be used
     pub current_behaviour: WindowContainerBehaviour,
     /// Override of `current_behaviour` to open new windows as floating windows
     /// that can be later toggled to tiled, when false it will default to
@@ -406,6 +429,7 @@ pub struct WindowManagementBehaviour {
     Clone, Copy, Debug, Default, Serialize, Deserialize, Display, EnumString, ValueEnum, PartialEq,
 )]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+/// Window container behaviour when a new window is opened
 pub enum WindowContainerBehaviour {
     /// Create a new container for each new window
     #[default]
@@ -418,6 +442,7 @@ pub enum WindowContainerBehaviour {
     Clone, Copy, Debug, Default, Serialize, Deserialize, Display, EnumString, ValueEnum, PartialEq,
 )]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+/// Floating layer behaviour when a new window is opened
 pub enum FloatingLayerBehaviour {
     /// Tile new windows (unless they match a float rule or float override is active)
     #[default]
@@ -430,6 +455,7 @@ pub enum FloatingLayerBehaviour {
     Clone, Copy, Debug, Default, Serialize, Deserialize, Display, EnumString, ValueEnum, PartialEq,
 )]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+/// Placement behaviour for floating windows
 pub enum Placement {
     /// Does not change the size or position of the window
     #[default]
@@ -469,6 +495,7 @@ impl Placement {
     Clone, Copy, Debug, Default, PartialEq, Serialize, Deserialize, Display, EnumString, ValueEnum,
 )]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+/// Move behaviour when the operation works across a monitor boundary
 pub enum MoveBehaviour {
     /// Swap the window container with the window container at the edge of the adjacent monitor
     #[default]
@@ -483,6 +510,7 @@ pub enum MoveBehaviour {
     Clone, Copy, Debug, Default, Serialize, Deserialize, Display, EnumString, ValueEnum, PartialEq,
 )]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+/// Behaviour when an action would cross a monitor boundary
 pub enum CrossBoundaryBehaviour {
     /// Attempt to perform actions across a workspace boundary
     Workspace,
@@ -493,6 +521,7 @@ pub enum CrossBoundaryBehaviour {
 
 #[derive(Copy, Clone, Debug, Serialize, Deserialize, Display, EnumString, ValueEnum, PartialEq)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+/// Window hiding behaviour
 pub enum HidingBehaviour {
     /// END OF LIFE FEATURE: Use the `SW_HIDE` flag to hide windows when switching workspaces (has issues with Electron apps)
     #[deprecated(note = "End of life feature")]
@@ -507,18 +536,22 @@ pub enum HidingBehaviour {
     Clone, Copy, Debug, Default, PartialEq, Serialize, Deserialize, Display, EnumString, ValueEnum,
 )]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+/// Operation behaviour for temporarily unmanaged and floating windows
 pub enum OperationBehaviour {
-    /// Process komorebic commands on temporarily unmanaged/floated windows
+    /// Process commands on temporarily unmanaged/floated windows
     #[default]
     Op,
-    /// Ignore komorebic commands on temporarily unmanaged/floated windows
+    /// Ignore commands on temporarily unmanaged/floated windows
     NoOp,
 }
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, Display, EnumString, ValueEnum)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+/// Sizing
 pub enum Sizing {
+    /// Increase
     Increase,
+    /// Decrease
     Decrease,
 }
 
@@ -542,9 +575,12 @@ impl Sizing {
     Clone, Copy, Debug, Default, Serialize, Deserialize, Display, EnumString, ValueEnum, PartialEq,
 )]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+/// Window handling behaviour
 pub enum WindowHandlingBehaviour {
     #[default]
+    /// Synchronous
     Sync,
+    /// Asynchronous
     Async,
 }
 

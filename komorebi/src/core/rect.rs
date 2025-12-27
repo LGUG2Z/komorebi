@@ -4,14 +4,15 @@ use windows::Win32::Foundation::RECT;
 
 #[derive(Debug, Default, Clone, Copy, Serialize, Deserialize, Eq, PartialEq)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+/// Rectangle dimensions
 pub struct Rect {
-    /// The left point in a Win32 Rect
+    /// Left point of the rectangle
     pub left: i32,
-    /// The top point in a Win32 Rect
+    /// Top point of the rectangle
     pub top: i32,
-    /// The right point in a Win32 Rect
+    /// Width of the recentangle (from the left point)
     pub right: i32,
-    /// The bottom point in a Win32 Rect
+    /// Height of the rectangle (from the top point)
     pub bottom: i32,
 }
 

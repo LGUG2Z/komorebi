@@ -12,9 +12,12 @@ use serde::Serialize;
 
 #[derive(Debug, Default, Copy, Clone, Serialize, Deserialize, PartialEq)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+/// Theme variant
 pub enum ThemeVariant {
     #[default]
+    /// Dark variant
     Dark,
+    /// Light variant
     Light,
 }
 

@@ -28,18 +28,19 @@ use serde_variant::to_variant_name;
 
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq)]
 #[serde(tag = "type")]
+/// Theme
 pub enum Theme {
-    /// A theme from catppuccin-egui
+    /// Theme from catppuccin-egui
     Catppuccin {
         name: Catppuccin,
         accent: Option<CatppuccinValue>,
     },
-    /// A theme from base16-egui-themes
+    /// Theme from base16-egui-themes
     Base16 {
         name: Base16,
         accent: Option<Base16Value>,
     },
-    /// A custom base16 palette
+    /// Custom base16 palette
     Custom {
         palette: Box<Base16ColourPalette>,
         accent: Option<Base16Value>,
@@ -47,22 +48,39 @@ pub enum Theme {
 }
 
 #[derive(Copy, Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq)]
+/// Base16 colour palette: https://github.com/chriskempson/base16
 pub struct Base16ColourPalette {
+    /// Base00
     pub base_00: Colour,
+    /// Base01
     pub base_01: Colour,
+    /// Base02
     pub base_02: Colour,
+    /// Base03
     pub base_03: Colour,
+    /// Base04
     pub base_04: Colour,
+    /// Base05
     pub base_05: Colour,
+    /// Base06
     pub base_06: Colour,
+    /// Base07
     pub base_07: Colour,
+    /// Base08
     pub base_08: Colour,
+    /// Base09
     pub base_09: Colour,
+    /// Base0A
     pub base_0a: Colour,
+    /// Base0B
     pub base_0b: Colour,
+    /// Base0C
     pub base_0c: Colour,
+    /// Base0D
     pub base_0d: Colour,
+    /// Base0E
     pub base_0e: Colour,
+    /// Base0F
     pub base_0f: Colour,
 }
 
@@ -199,28 +217,48 @@ impl Theme {
 }
 
 #[derive(Copy, Clone, Debug, Default, Serialize, Deserialize, JsonSchema, Display, PartialEq)]
+/// Base16 value
 pub enum Base16Value {
+    /// Base00
     Base00,
+    /// Base01
     Base01,
+    /// Base02
     Base02,
+    /// Base03
     Base03,
+    /// Base04
     Base04,
+    /// Base05
     Base05,
+    /// Base06
     #[default]
     Base06,
+    /// Base07
     Base07,
+    /// Base08
     Base08,
+    /// Base09
     Base09,
+    /// Base0A
     Base0A,
+    /// Base0B
     Base0B,
+    /// Base0C
     Base0C,
+    /// Base0D
     Base0D,
+    /// Base0E
     Base0E,
+    /// Base0F
     Base0F,
 }
 
+/// Wrapper around a Base16 colour palette
 pub enum Base16Wrapper {
+    /// Predefined Base16 colour palette
     Base16(Base16),
+    /// Custom Base16 colour palette
     Custom(Box<Base16ColourPalette>),
 }
 
@@ -268,10 +306,15 @@ impl Base16Value {
 }
 
 #[derive(Copy, Clone, Debug, Serialize, Deserialize, JsonSchema, Display, PartialEq)]
+/// Catppuccin palette
 pub enum Catppuccin {
+    /// Frappe
     Frappe,
+    /// Latte
     Latte,
+    /// Macchiato
     Macchiato,
+    /// Mocha
     Mocha,
 }
 
@@ -293,33 +336,60 @@ impl From<Catppuccin> for catppuccin_egui::Theme {
 }
 
 #[derive(Copy, Clone, Debug, Default, Serialize, Deserialize, JsonSchema, Display, PartialEq)]
+/// Catppuccin Value
 pub enum CatppuccinValue {
+    /// Rosewater
     Rosewater,
+    /// Flamingo
     Flamingo,
+    /// Pink
     Pink,
+    /// Mauve
     Mauve,
+    /// Red
     Red,
+    /// Maroon
     Maroon,
+    /// Peach
     Peach,
+    /// Yellow
     Yellow,
+    /// Green
     Green,
+    /// Teal
     Teal,
+    /// Sky
     Sky,
+    /// Sapphire
     Sapphire,
+    /// Blue
     Blue,
+    /// Lavender
     Lavender,
     #[default]
+    /// Text
     Text,
+    /// Subtext1
     Subtext1,
+    /// Subtext0
     Subtext0,
+    /// Overlay2
     Overlay2,
+    /// Overlay1
     Overlay1,
+    /// Overlay0
     Overlay0,
+    /// Surface2
     Surface2,
+    /// Surface1
     Surface1,
+    /// Surface0
     Surface0,
+    /// Base
     Base,
+    /// Mantle
     Mantle,
+    /// Crust
     Crust,
 }
 
