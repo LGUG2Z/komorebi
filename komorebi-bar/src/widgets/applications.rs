@@ -34,6 +34,7 @@ const MIN_LAUNCH_INTERVAL: Duration = Duration::from_millis(800);
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+/// Applications widget configuration
 pub struct ApplicationsConfig {
     /// Enables or disables the applications widget.
     pub enable: bool,
@@ -51,6 +52,7 @@ pub struct ApplicationsConfig {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+/// Application button configuration
 pub struct AppConfig {
     /// Whether to enable this application button (optional).
     /// Inherits from the global `Applications` setting if omitted.
@@ -72,6 +74,7 @@ pub struct AppConfig {
 
 #[derive(Copy, Clone, Debug, Serialize, Deserialize, PartialEq, Default)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+/// Applications widget display format
 pub enum ApplicationsDisplayFormat {
     /// Show only the application icon.
     #[default]

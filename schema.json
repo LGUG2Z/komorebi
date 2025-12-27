@@ -868,277 +868,1353 @@
       ]
     },
     "Base16": {
-      "type": "string",
-      "enum": [
-        "3024",
-        "Apathy",
-        "Apprentice",
-        "Ashes",
-        "AtelierCaveLight",
-        "AtelierCave",
-        "AtelierDuneLight",
-        "AtelierDune",
-        "AtelierEstuaryLight",
-        "AtelierEstuary",
-        "AtelierForestLight",
-        "AtelierForest",
-        "AtelierHeathLight",
-        "AtelierHeath",
-        "AtelierLakesideLight",
-        "AtelierLakeside",
-        "AtelierPlateauLight",
-        "AtelierPlateau",
-        "AtelierSavannaLight",
-        "AtelierSavanna",
-        "AtelierSeasideLight",
-        "AtelierSeaside",
-        "AtelierSulphurpoolLight",
-        "AtelierSulphurpool",
-        "Atlas",
-        "AyuDark",
-        "AyuLight",
-        "AyuMirage",
-        "Aztec",
-        "Bespin",
-        "BlackMetalBathory",
-        "BlackMetalBurzum",
-        "BlackMetalDarkFuneral",
-        "BlackMetalGorgoroth",
-        "BlackMetalImmortal",
-        "BlackMetalKhold",
-        "BlackMetalMarduk",
-        "BlackMetalMayhem",
-        "BlackMetalNile",
-        "BlackMetalVenom",
-        "BlackMetal",
-        "Blueforest",
-        "Blueish",
-        "Brewer",
-        "Bright",
-        "Brogrammer",
-        "BrushtreesDark",
-        "Brushtrees",
-        "Caroline",
-        "CatppuccinFrappe",
-        "CatppuccinLatte",
-        "CatppuccinMacchiato",
-        "CatppuccinMocha",
-        "Chalk",
-        "Circus",
-        "ClassicDark",
-        "ClassicLight",
-        "Codeschool",
-        "Colors",
-        "Cupcake",
-        "Cupertino",
-        "DaOneBlack",
-        "DaOneGray",
-        "DaOneOcean",
-        "DaOnePaper",
-        "DaOneSea",
-        "DaOneWhite",
-        "DanqingLight",
-        "Danqing",
-        "Darcula",
-        "Darkmoss",
-        "Darktooth",
-        "Darkviolet",
-        "Decaf",
-        "DefaultDark",
-        "DefaultLight",
-        "Dirtysea",
-        "Dracula",
-        "EdgeDark",
-        "EdgeLight",
-        "Eighties",
-        "EmbersLight",
-        "Embers",
-        "Emil",
-        "EquilibriumDark",
-        "EquilibriumGrayDark",
-        "EquilibriumGrayLight",
-        "EquilibriumLight",
-        "Eris",
-        "Espresso",
-        "EvaDim",
-        "Eva",
-        "EvenokDark",
-        "EverforestDarkHard",
-        "Everforest",
-        "Flat",
-        "Framer",
-        "FruitSoda",
-        "Gigavolt",
-        "Github",
-        "GoogleDark",
-        "GoogleLight",
-        "Gotham",
-        "GrayscaleDark",
-        "GrayscaleLight",
-        "Greenscreen",
-        "Gruber",
-        "GruvboxDarkHard",
-        "GruvboxDarkMedium",
-        "GruvboxDarkPale",
-        "GruvboxDarkSoft",
-        "GruvboxLightHard",
-        "GruvboxLightMedium",
-        "GruvboxLightSoft",
-        "GruvboxMaterialDarkHard",
-        "GruvboxMaterialDarkMedium",
-        "GruvboxMaterialDarkSoft",
-        "GruvboxMaterialLightHard",
-        "GruvboxMaterialLightMedium",
-        "GruvboxMaterialLightSoft",
-        "Hardcore",
-        "Harmonic16Dark",
-        "Harmonic16Light",
-        "HeetchLight",
-        "Heetch",
-        "Helios",
-        "Hopscotch",
-        "HorizonDark",
-        "HorizonLight",
-        "HorizonTerminalDark",
-        "HorizonTerminalLight",
-        "HumanoidDark",
-        "HumanoidLight",
-        "IaDark",
-        "IaLight",
-        "Icy",
-        "Irblack",
-        "Isotope",
-        "Jabuti",
-        "Kanagawa",
-        "Katy",
-        "Kimber",
-        "Lime",
-        "Macintosh",
-        "Marrakesh",
-        "Materia",
-        "MaterialDarker",
-        "MaterialLighter",
-        "MaterialPalenight",
-        "MaterialVivid",
-        "Material",
-        "MeasuredDark",
-        "MeasuredLight",
-        "MellowPurple",
-        "MexicoLight",
-        "Mocha",
-        "Monokai",
-        "Moonlight",
-        "Mountain",
-        "Nebula",
-        "NordLight",
-        "Nord",
-        "Nova",
-        "Ocean",
-        "Oceanicnext",
-        "OneLight",
-        "OnedarkDark",
-        "Onedark",
-        "OutrunDark",
-        "OxocarbonDark",
-        "OxocarbonLight",
-        "Pandora",
-        "PapercolorDark",
-        "PapercolorLight",
-        "Paraiso",
-        "Pasque",
-        "Phd",
-        "Pico",
-        "Pinky",
-        "Pop",
-        "Porple",
-        "PreciousDarkEleven",
-        "PreciousDarkFifteen",
-        "PreciousLightWarm",
-        "PreciousLightWhite",
-        "PrimerDarkDimmed",
-        "PrimerDark",
-        "PrimerLight",
-        "Purpledream",
-        "Qualia",
-        "Railscasts",
-        "Rebecca",
-        "RosePineDawn",
-        "RosePineMoon",
-        "RosePine",
-        "Saga",
-        "Sagelight",
-        "Sakura",
-        "Sandcastle",
-        "SelenizedBlack",
-        "SelenizedDark",
-        "SelenizedLight",
-        "SelenizedWhite",
-        "Seti",
-        "ShadesOfPurple",
-        "ShadesmearDark",
-        "ShadesmearLight",
-        "Shapeshifter",
-        "SilkDark",
-        "SilkLight",
-        "Snazzy",
-        "SolarflareLight",
-        "Solarflare",
-        "SolarizedDark",
-        "SolarizedLight",
-        "Spaceduck",
-        "Spacemacs",
-        "Sparky",
-        "StandardizedDark",
-        "StandardizedLight",
-        "Stella",
-        "StillAlive",
-        "Summercamp",
-        "SummerfruitDark",
-        "SummerfruitLight",
-        "SynthMidnightDark",
-        "SynthMidnightLight",
-        "Tango",
-        "Tarot",
-        "Tender",
-        "TerracottaDark",
-        "Terracotta",
-        "TokyoCityDark",
-        "TokyoCityLight",
-        "TokyoCityTerminalDark",
-        "TokyoCityTerminalLight",
-        "TokyoNightDark",
-        "TokyoNightLight",
-        "TokyoNightMoon",
-        "TokyoNightStorm",
-        "TokyoNightTerminalDark",
-        "TokyoNightTerminalLight",
-        "TokyoNightTerminalStorm",
-        "TokyodarkTerminal",
-        "Tokyodark",
-        "TomorrowNightEighties",
-        "TomorrowNight",
-        "Tomorrow",
-        "Tube",
-        "Twilight",
-        "UnikittyDark",
-        "UnikittyLight",
-        "UnikittyReversible",
-        "Uwunicorn",
-        "Vesper",
-        "Vice",
-        "Vulcan",
-        "Windows10Light",
-        "Windows10",
-        "Windows95Light",
-        "Windows95",
-        "WindowsHighcontrastLight",
-        "WindowsHighcontrast",
-        "WindowsNtLight",
-        "WindowsNt",
-        "Woodland",
-        "XcodeDusk",
-        "Zenbones",
-        "Zenburn"
+      "description": "Base 16 colour palette",
+      "oneOf": [
+        {
+          "description": "3024 (https://tinted-theming.github.io/tinted-gallery/#base16-3024)",
+          "type": "string",
+          "const": "3024"
+        },
+        {
+          "description": "Apathy (https://tinted-theming.github.io/tinted-gallery/#base16-apathy)",
+          "type": "string",
+          "const": "Apathy"
+        },
+        {
+          "description": "Apprentice (https://tinted-theming.github.io/tinted-gallery/#base16-apprentice)",
+          "type": "string",
+          "const": "Apprentice"
+        },
+        {
+          "description": "Ashes (https://tinted-theming.github.io/tinted-gallery/#base16-ashes)",
+          "type": "string",
+          "const": "Ashes"
+        },
+        {
+          "description": "Atelier Cave Light (https://tinted-theming.github.io/tinted-gallery/#base16-atelier-cave-light)",
+          "type": "string",
+          "const": "AtelierCaveLight"
+        },
+        {
+          "description": "Atelier Cave (https://tinted-theming.github.io/tinted-gallery/#base16-atelier-cave)",
+          "type": "string",
+          "const": "AtelierCave"
+        },
+        {
+          "description": "Atelier Dune Light (https://tinted-theming.github.io/tinted-gallery/#base16-atelier-dune-light)",
+          "type": "string",
+          "const": "AtelierDuneLight"
+        },
+        {
+          "description": "Atelier Dune (https://tinted-theming.github.io/tinted-gallery/#base16-atelier-dune)",
+          "type": "string",
+          "const": "AtelierDune"
+        },
+        {
+          "description": "Atelier Estuary Light (https://tinted-theming.github.io/tinted-gallery/#base16-atelier-estuary-light)",
+          "type": "string",
+          "const": "AtelierEstuaryLight"
+        },
+        {
+          "description": "Atelier Estuary (https://tinted-theming.github.io/tinted-gallery/#base16-atelier-estuary)",
+          "type": "string",
+          "const": "AtelierEstuary"
+        },
+        {
+          "description": "Atelier Forest Light (https://tinted-theming.github.io/tinted-gallery/#base16-atelier-forest-light)",
+          "type": "string",
+          "const": "AtelierForestLight"
+        },
+        {
+          "description": "Atelier Forest (https://tinted-theming.github.io/tinted-gallery/#base16-atelier-forest)",
+          "type": "string",
+          "const": "AtelierForest"
+        },
+        {
+          "description": "Atelier Heath Light (https://tinted-theming.github.io/tinted-gallery/#base16-atelier-heath-light)",
+          "type": "string",
+          "const": "AtelierHeathLight"
+        },
+        {
+          "description": "Atelier Heath (https://tinted-theming.github.io/tinted-gallery/#base16-atelier-heath)",
+          "type": "string",
+          "const": "AtelierHeath"
+        },
+        {
+          "description": "Atelier Lakeside Light (https://tinted-theming.github.io/tinted-gallery/#base16-atelier-lakeside-light)",
+          "type": "string",
+          "const": "AtelierLakesideLight"
+        },
+        {
+          "description": "Atelier Lakeside (https://tinted-theming.github.io/tinted-gallery/#base16-atelier-lakeside)",
+          "type": "string",
+          "const": "AtelierLakeside"
+        },
+        {
+          "description": "Atelier Plateau Light (https://tinted-theming.github.io/tinted-gallery/#base16-atelier-plateau-light)",
+          "type": "string",
+          "const": "AtelierPlateauLight"
+        },
+        {
+          "description": "Atelier Plateau (https://tinted-theming.github.io/tinted-gallery/#base16-atelier-plateau)",
+          "type": "string",
+          "const": "AtelierPlateau"
+        },
+        {
+          "description": "Atelier Savanna Light (https://tinted-theming.github.io/tinted-gallery/#base16-atelier-savanna-light)",
+          "type": "string",
+          "const": "AtelierSavannaLight"
+        },
+        {
+          "description": "Atelier Savanna (https://tinted-theming.github.io/tinted-gallery/#base16-atelier-savanna)",
+          "type": "string",
+          "const": "AtelierSavanna"
+        },
+        {
+          "description": "Atelier Seaside Light (https://tinted-theming.github.io/tinted-gallery/#base16-atelier-seaside-light)",
+          "type": "string",
+          "const": "AtelierSeasideLight"
+        },
+        {
+          "description": "Atelier Seaside (https://tinted-theming.github.io/tinted-gallery/#base16-atelier-seaside)",
+          "type": "string",
+          "const": "AtelierSeaside"
+        },
+        {
+          "description": "Atelier Sulphurpool Light (https://tinted-theming.github.io/tinted-gallery/#base16-atelier-sulphurpool-light)",
+          "type": "string",
+          "const": "AtelierSulphurpoolLight"
+        },
+        {
+          "description": "Atelier Sulphurpool (https://tinted-theming.github.io/tinted-gallery/#base16-atelier-sulphurpool)",
+          "type": "string",
+          "const": "AtelierSulphurpool"
+        },
+        {
+          "description": "Atlas (https://tinted-theming.github.io/tinted-gallery/#base16-atlas)",
+          "type": "string",
+          "const": "Atlas"
+        },
+        {
+          "description": "Ayu Dark (https://tinted-theming.github.io/tinted-gallery/#base16-ayu-dark)",
+          "type": "string",
+          "const": "AyuDark"
+        },
+        {
+          "description": "Ayu Light (https://tinted-theming.github.io/tinted-gallery/#base16-ayu-light)",
+          "type": "string",
+          "const": "AyuLight"
+        },
+        {
+          "description": "Ayu Mirage (https://tinted-theming.github.io/tinted-gallery/#base16-ayu-mirage)",
+          "type": "string",
+          "const": "AyuMirage"
+        },
+        {
+          "description": "Aztec (https://tinted-theming.github.io/tinted-gallery/#base16-aztec)",
+          "type": "string",
+          "const": "Aztec"
+        },
+        {
+          "description": "Bespin (https://tinted-theming.github.io/tinted-gallery/#base16-bespin)",
+          "type": "string",
+          "const": "Bespin"
+        },
+        {
+          "description": "Black Metal Bathory (https://tinted-theming.github.io/tinted-gallery/#base16-black-metal-bathory)",
+          "type": "string",
+          "const": "BlackMetalBathory"
+        },
+        {
+          "description": "Black Metal Burzum (https://tinted-theming.github.io/tinted-gallery/#base16-black-metal-burzum)",
+          "type": "string",
+          "const": "BlackMetalBurzum"
+        },
+        {
+          "description": "Black Metal Dark Funeral (https://tinted-theming.github.io/tinted-gallery/#base16-black-metal-dark-funeral)",
+          "type": "string",
+          "const": "BlackMetalDarkFuneral"
+        },
+        {
+          "description": "Black Metal Gorgoroth (https://tinted-theming.github.io/tinted-gallery/#base16-black-metal-gorgoroth)",
+          "type": "string",
+          "const": "BlackMetalGorgoroth"
+        },
+        {
+          "description": "Black Metal Immortal (https://tinted-theming.github.io/tinted-gallery/#base16-black-metal-immortal)",
+          "type": "string",
+          "const": "BlackMetalImmortal"
+        },
+        {
+          "description": "Black Metal Khold (https://tinted-theming.github.io/tinted-gallery/#base16-black-metal-khold)",
+          "type": "string",
+          "const": "BlackMetalKhold"
+        },
+        {
+          "description": "Black Metal Marduk (https://tinted-theming.github.io/tinted-gallery/#base16-black-metal-marduk)",
+          "type": "string",
+          "const": "BlackMetalMarduk"
+        },
+        {
+          "description": "Black Metal Mayhem (https://tinted-theming.github.io/tinted-gallery/#base16-black-metal-mayhem)",
+          "type": "string",
+          "const": "BlackMetalMayhem"
+        },
+        {
+          "description": "Black Metal Nile (https://tinted-theming.github.io/tinted-gallery/#base16-black-metal-nile)",
+          "type": "string",
+          "const": "BlackMetalNile"
+        },
+        {
+          "description": "Black Metal Venom (https://tinted-theming.github.io/tinted-gallery/#base16-black-metal-venom)",
+          "type": "string",
+          "const": "BlackMetalVenom"
+        },
+        {
+          "description": "Black Metal (https://tinted-theming.github.io/tinted-gallery/#base16-black-metal)",
+          "type": "string",
+          "const": "BlackMetal"
+        },
+        {
+          "description": "Blueforest (https://tinted-theming.github.io/tinted-gallery/#base16-blueforest)",
+          "type": "string",
+          "const": "Blueforest"
+        },
+        {
+          "description": "Blueish (https://tinted-theming.github.io/tinted-gallery/#base16-blueish)",
+          "type": "string",
+          "const": "Blueish"
+        },
+        {
+          "description": "Brewer (https://tinted-theming.github.io/tinted-gallery/#base16-brewer)",
+          "type": "string",
+          "const": "Brewer"
+        },
+        {
+          "description": "Bright (https://tinted-theming.github.io/tinted-gallery/#base16-bright)",
+          "type": "string",
+          "const": "Bright"
+        },
+        {
+          "description": "Brogrammer (https://tinted-theming.github.io/tinted-gallery/#base16-brogrammer)",
+          "type": "string",
+          "const": "Brogrammer"
+        },
+        {
+          "description": "Brushtrees Dark (https://tinted-theming.github.io/tinted-gallery/#base16-brushtrees-dark)",
+          "type": "string",
+          "const": "BrushtreesDark"
+        },
+        {
+          "description": "Brushtrees (https://tinted-theming.github.io/tinted-gallery/#base16-brushtrees)",
+          "type": "string",
+          "const": "Brushtrees"
+        },
+        {
+          "description": "Caroline (https://tinted-theming.github.io/tinted-gallery/#base16-caroline)",
+          "type": "string",
+          "const": "Caroline"
+        },
+        {
+          "description": "Catppuccin Frappe (https://tinted-theming.github.io/tinted-gallery/#base16-catppuccin-frappe)",
+          "type": "string",
+          "const": "CatppuccinFrappe"
+        },
+        {
+          "description": "Catppuccin Latte (https://tinted-theming.github.io/tinted-gallery/#base16-catppuccin-latte)",
+          "type": "string",
+          "const": "CatppuccinLatte"
+        },
+        {
+          "description": "Catppuccin Macchiato (https://tinted-theming.github.io/tinted-gallery/#base16-catppuccin-macchiato)",
+          "type": "string",
+          "const": "CatppuccinMacchiato"
+        },
+        {
+          "description": "Catppuccin Mocha (https://tinted-theming.github.io/tinted-gallery/#base16-catppuccin-mocha)",
+          "type": "string",
+          "const": "CatppuccinMocha"
+        },
+        {
+          "description": "Chalk (https://tinted-theming.github.io/tinted-gallery/#base16-chalk)",
+          "type": "string",
+          "const": "Chalk"
+        },
+        {
+          "description": "Circus (https://tinted-theming.github.io/tinted-gallery/#base16-circus)",
+          "type": "string",
+          "const": "Circus"
+        },
+        {
+          "description": "Classic Dark (https://tinted-theming.github.io/tinted-gallery/#base16-classic-dark)",
+          "type": "string",
+          "const": "ClassicDark"
+        },
+        {
+          "description": "Classic Light (https://tinted-theming.github.io/tinted-gallery/#base16-classic-light)",
+          "type": "string",
+          "const": "ClassicLight"
+        },
+        {
+          "description": "Codeschool (https://tinted-theming.github.io/tinted-gallery/#base16-codeschool)",
+          "type": "string",
+          "const": "Codeschool"
+        },
+        {
+          "description": "Colors (https://tinted-theming.github.io/tinted-gallery/#base16-colors)",
+          "type": "string",
+          "const": "Colors"
+        },
+        {
+          "description": "Cupcake (https://tinted-theming.github.io/tinted-gallery/#base16-cupcake)",
+          "type": "string",
+          "const": "Cupcake"
+        },
+        {
+          "description": "Cupertino (https://tinted-theming.github.io/tinted-gallery/#base16-cupertino)",
+          "type": "string",
+          "const": "Cupertino"
+        },
+        {
+          "description": "Da One Black (https://tinted-theming.github.io/tinted-gallery/#base16-da-one-black)",
+          "type": "string",
+          "const": "DaOneBlack"
+        },
+        {
+          "description": "Da One Gray (https://tinted-theming.github.io/tinted-gallery/#base16-da-one-gray)",
+          "type": "string",
+          "const": "DaOneGray"
+        },
+        {
+          "description": "Da One Ocean (https://tinted-theming.github.io/tinted-gallery/#base16-da-one-ocean)",
+          "type": "string",
+          "const": "DaOneOcean"
+        },
+        {
+          "description": "Da One Paper (https://tinted-theming.github.io/tinted-gallery/#base16-da-one-paper)",
+          "type": "string",
+          "const": "DaOnePaper"
+        },
+        {
+          "description": "Da One Sea (https://tinted-theming.github.io/tinted-gallery/#base16-da-one-sea)",
+          "type": "string",
+          "const": "DaOneSea"
+        },
+        {
+          "description": "Da One White (https://tinted-theming.github.io/tinted-gallery/#base16-da-one-white)",
+          "type": "string",
+          "const": "DaOneWhite"
+        },
+        {
+          "description": "Danqing Light (https://tinted-theming.github.io/tinted-gallery/#base16-danqing-light)",
+          "type": "string",
+          "const": "DanqingLight"
+        },
+        {
+          "description": "Danqing (https://tinted-theming.github.io/tinted-gallery/#base16-danqing)",
+          "type": "string",
+          "const": "Danqing"
+        },
+        {
+          "description": "Darcula (https://tinted-theming.github.io/tinted-gallery/#base16-darcula)",
+          "type": "string",
+          "const": "Darcula"
+        },
+        {
+          "description": "Darkmoss (https://tinted-theming.github.io/tinted-gallery/#base16-darkmoss)",
+          "type": "string",
+          "const": "Darkmoss"
+        },
+        {
+          "description": "Darktooth (https://tinted-theming.github.io/tinted-gallery/#base16-darktooth)",
+          "type": "string",
+          "const": "Darktooth"
+        },
+        {
+          "description": "Darkviolet (https://tinted-theming.github.io/tinted-gallery/#base16-darkviolet)",
+          "type": "string",
+          "const": "Darkviolet"
+        },
+        {
+          "description": "Decaf (https://tinted-theming.github.io/tinted-gallery/#base16-decaf)",
+          "type": "string",
+          "const": "Decaf"
+        },
+        {
+          "description": "Default Dark (https://tinted-theming.github.io/tinted-gallery/#base16-default-dark)",
+          "type": "string",
+          "const": "DefaultDark"
+        },
+        {
+          "description": "Default Light (https://tinted-theming.github.io/tinted-gallery/#base16-default-light)",
+          "type": "string",
+          "const": "DefaultLight"
+        },
+        {
+          "description": "Dirtysea (https://tinted-theming.github.io/tinted-gallery/#base16-dirtysea)",
+          "type": "string",
+          "const": "Dirtysea"
+        },
+        {
+          "description": "Dracula (https://tinted-theming.github.io/tinted-gallery/#base16-dracula)",
+          "type": "string",
+          "const": "Dracula"
+        },
+        {
+          "description": "Edge Dark (https://tinted-theming.github.io/tinted-gallery/#base16-edge-dark)",
+          "type": "string",
+          "const": "EdgeDark"
+        },
+        {
+          "description": "Edge Light (https://tinted-theming.github.io/tinted-gallery/#base16-edge-light)",
+          "type": "string",
+          "const": "EdgeLight"
+        },
+        {
+          "description": "Eighties (https://tinted-theming.github.io/tinted-gallery/#base16-eighties)",
+          "type": "string",
+          "const": "Eighties"
+        },
+        {
+          "description": "Embers Light (https://tinted-theming.github.io/tinted-gallery/#base16-embers-light)",
+          "type": "string",
+          "const": "EmbersLight"
+        },
+        {
+          "description": "Embers (https://tinted-theming.github.io/tinted-gallery/#base16-embers)",
+          "type": "string",
+          "const": "Embers"
+        },
+        {
+          "description": "Emil (https://tinted-theming.github.io/tinted-gallery/#base16-emil)",
+          "type": "string",
+          "const": "Emil"
+        },
+        {
+          "description": "Equilibrium Dark (https://tinted-theming.github.io/tinted-gallery/#base16-equilibrium-dark)",
+          "type": "string",
+          "const": "EquilibriumDark"
+        },
+        {
+          "description": "Equilibrium Gray Dark (https://tinted-theming.github.io/tinted-gallery/#base16-equilibrium-gray-dark)",
+          "type": "string",
+          "const": "EquilibriumGrayDark"
+        },
+        {
+          "description": "Equilibrium Gray Light (https://tinted-theming.github.io/tinted-gallery/#base16-equilibrium-gray-light)",
+          "type": "string",
+          "const": "EquilibriumGrayLight"
+        },
+        {
+          "description": "Equilibrium Light (https://tinted-theming.github.io/tinted-gallery/#base16-equilibrium-light)",
+          "type": "string",
+          "const": "EquilibriumLight"
+        },
+        {
+          "description": "Eris (https://tinted-theming.github.io/tinted-gallery/#base16-eris)",
+          "type": "string",
+          "const": "Eris"
+        },
+        {
+          "description": "Espresso (https://tinted-theming.github.io/tinted-gallery/#base16-espresso)",
+          "type": "string",
+          "const": "Espresso"
+        },
+        {
+          "description": "Eva Dim (https://tinted-theming.github.io/tinted-gallery/#base16-eva-dim)",
+          "type": "string",
+          "const": "EvaDim"
+        },
+        {
+          "description": "Eva (https://tinted-theming.github.io/tinted-gallery/#base16-eva)",
+          "type": "string",
+          "const": "Eva"
+        },
+        {
+          "description": "Evenok Dark (https://tinted-theming.github.io/tinted-gallery/#base16-evenok-dark)",
+          "type": "string",
+          "const": "EvenokDark"
+        },
+        {
+          "description": "Everforest Dark Hard (https://tinted-theming.github.io/tinted-gallery/#base16-everforest-dark-hard)",
+          "type": "string",
+          "const": "EverforestDarkHard"
+        },
+        {
+          "description": "Everforest (https://tinted-theming.github.io/tinted-gallery/#base16-everforest)",
+          "type": "string",
+          "const": "Everforest"
+        },
+        {
+          "description": "Flat (https://tinted-theming.github.io/tinted-gallery/#base16-flat)",
+          "type": "string",
+          "const": "Flat"
+        },
+        {
+          "description": "Framer (https://tinted-theming.github.io/tinted-gallery/#base16-framer)",
+          "type": "string",
+          "const": "Framer"
+        },
+        {
+          "description": "Fruit Soda (https://tinted-theming.github.io/tinted-gallery/#base16-fruit-soda)",
+          "type": "string",
+          "const": "FruitSoda"
+        },
+        {
+          "description": "Gigavolt (https://tinted-theming.github.io/tinted-gallery/#base16-gigavolt)",
+          "type": "string",
+          "const": "Gigavolt"
+        },
+        {
+          "description": "Github (https://tinted-theming.github.io/tinted-gallery/#base16-github)",
+          "type": "string",
+          "const": "Github"
+        },
+        {
+          "description": "Google Dark (https://tinted-theming.github.io/tinted-gallery/#base16-google-dark)",
+          "type": "string",
+          "const": "GoogleDark"
+        },
+        {
+          "description": "Google Light (https://tinted-theming.github.io/tinted-gallery/#base16-google-light)",
+          "type": "string",
+          "const": "GoogleLight"
+        },
+        {
+          "description": "Gotham (https://tinted-theming.github.io/tinted-gallery/#base16-gotham)",
+          "type": "string",
+          "const": "Gotham"
+        },
+        {
+          "description": "Grayscale Dark (https://tinted-theming.github.io/tinted-gallery/#base16-grayscale-dark)",
+          "type": "string",
+          "const": "GrayscaleDark"
+        },
+        {
+          "description": "Grayscale Light (https://tinted-theming.github.io/tinted-gallery/#base16-grayscale-light)",
+          "type": "string",
+          "const": "GrayscaleLight"
+        },
+        {
+          "description": "Greenscreen (https://tinted-theming.github.io/tinted-gallery/#base16-greenscreen)",
+          "type": "string",
+          "const": "Greenscreen"
+        },
+        {
+          "description": "Gruber (https://tinted-theming.github.io/tinted-gallery/#base16-gruber)",
+          "type": "string",
+          "const": "Gruber"
+        },
+        {
+          "description": "Gruvbox Dark Hard (https://tinted-theming.github.io/tinted-gallery/#base16-gruvbox-dark-hard)",
+          "type": "string",
+          "const": "GruvboxDarkHard"
+        },
+        {
+          "description": "Gruvbox Dark Medium (https://tinted-theming.github.io/tinted-gallery/#base16-gruvbox-dark-medium)",
+          "type": "string",
+          "const": "GruvboxDarkMedium"
+        },
+        {
+          "description": "Gruvbox Dark Pale (https://tinted-theming.github.io/tinted-gallery/#base16-gruvbox-dark-pale)",
+          "type": "string",
+          "const": "GruvboxDarkPale"
+        },
+        {
+          "description": "Gruvbox Dark Soft (https://tinted-theming.github.io/tinted-gallery/#base16-gruvbox-dark-soft)",
+          "type": "string",
+          "const": "GruvboxDarkSoft"
+        },
+        {
+          "description": "Gruvbox Light Hard (https://tinted-theming.github.io/tinted-gallery/#base16-gruvbox-light-hard)",
+          "type": "string",
+          "const": "GruvboxLightHard"
+        },
+        {
+          "description": "Gruvbox Light Medium (https://tinted-theming.github.io/tinted-gallery/#base16-gruvbox-light-medium)",
+          "type": "string",
+          "const": "GruvboxLightMedium"
+        },
+        {
+          "description": "Gruvbox Light Soft (https://tinted-theming.github.io/tinted-gallery/#base16-gruvbox-light-soft)",
+          "type": "string",
+          "const": "GruvboxLightSoft"
+        },
+        {
+          "description": "Gruvbox Material Dark Hard (https://tinted-theming.github.io/tinted-gallery/#base16-gruvbox-material-dark-hard)",
+          "type": "string",
+          "const": "GruvboxMaterialDarkHard"
+        },
+        {
+          "description": "Gruvbox Material Dark Medium (https://tinted-theming.github.io/tinted-gallery/#base16-gruvbox-material-dark-medium)",
+          "type": "string",
+          "const": "GruvboxMaterialDarkMedium"
+        },
+        {
+          "description": "Gruvbox Material Dark Soft (https://tinted-theming.github.io/tinted-gallery/#base16-gruvbox-material-dark-soft)",
+          "type": "string",
+          "const": "GruvboxMaterialDarkSoft"
+        },
+        {
+          "description": "Gruvbox Material Light Hard (https://tinted-theming.github.io/tinted-gallery/#base16-gruvbox-material-light-hard)",
+          "type": "string",
+          "const": "GruvboxMaterialLightHard"
+        },
+        {
+          "description": "Gruvbox Material Light Medium (https://tinted-theming.github.io/tinted-gallery/#base16-gruvbox-material-light-medium)",
+          "type": "string",
+          "const": "GruvboxMaterialLightMedium"
+        },
+        {
+          "description": "Gruvbox Material Light Soft (https://tinted-theming.github.io/tinted-gallery/#base16-gruvbox-material-light-soft)",
+          "type": "string",
+          "const": "GruvboxMaterialLightSoft"
+        },
+        {
+          "description": "Hardcore (https://tinted-theming.github.io/tinted-gallery/#base16-hardcore)",
+          "type": "string",
+          "const": "Hardcore"
+        },
+        {
+          "description": "Harmonic16 Dark (https://tinted-theming.github.io/tinted-gallery/#base16-harmonic16-dark)",
+          "type": "string",
+          "const": "Harmonic16Dark"
+        },
+        {
+          "description": "Harmonic16 Light (https://tinted-theming.github.io/tinted-gallery/#base16-harmonic16-light)",
+          "type": "string",
+          "const": "Harmonic16Light"
+        },
+        {
+          "description": "Heetch Light (https://tinted-theming.github.io/tinted-gallery/#base16-heetch-light)",
+          "type": "string",
+          "const": "HeetchLight"
+        },
+        {
+          "description": "Heetch (https://tinted-theming.github.io/tinted-gallery/#base16-heetch)",
+          "type": "string",
+          "const": "Heetch"
+        },
+        {
+          "description": "Helios (https://tinted-theming.github.io/tinted-gallery/#base16-helios)",
+          "type": "string",
+          "const": "Helios"
+        },
+        {
+          "description": "Hopscotch (https://tinted-theming.github.io/tinted-gallery/#base16-hopscotch)",
+          "type": "string",
+          "const": "Hopscotch"
+        },
+        {
+          "description": "Horizon Dark (https://tinted-theming.github.io/tinted-gallery/#base16-horizon-dark)",
+          "type": "string",
+          "const": "HorizonDark"
+        },
+        {
+          "description": "Horizon Light (https://tinted-theming.github.io/tinted-gallery/#base16-horizon-light)",
+          "type": "string",
+          "const": "HorizonLight"
+        },
+        {
+          "description": "Horizon Terminal Dark (https://tinted-theming.github.io/tinted-gallery/#base16-horizon-terminal-dark)",
+          "type": "string",
+          "const": "HorizonTerminalDark"
+        },
+        {
+          "description": "Horizon Terminal Light (https://tinted-theming.github.io/tinted-gallery/#base16-horizon-terminal-light)",
+          "type": "string",
+          "const": "HorizonTerminalLight"
+        },
+        {
+          "description": "Humanoid Dark (https://tinted-theming.github.io/tinted-gallery/#base16-humanoid-dark)",
+          "type": "string",
+          "const": "HumanoidDark"
+        },
+        {
+          "description": "Humanoid Light (https://tinted-theming.github.io/tinted-gallery/#base16-humanoid-light)",
+          "type": "string",
+          "const": "HumanoidLight"
+        },
+        {
+          "description": "Ia Dark (https://tinted-theming.github.io/tinted-gallery/#base16-ia-dark)",
+          "type": "string",
+          "const": "IaDark"
+        },
+        {
+          "description": "Ia Light (https://tinted-theming.github.io/tinted-gallery/#base16-ia-light)",
+          "type": "string",
+          "const": "IaLight"
+        },
+        {
+          "description": "Icy (https://tinted-theming.github.io/tinted-gallery/#base16-icy)",
+          "type": "string",
+          "const": "Icy"
+        },
+        {
+          "description": "Irblack (https://tinted-theming.github.io/tinted-gallery/#base16-irblack)",
+          "type": "string",
+          "const": "Irblack"
+        },
+        {
+          "description": "Isotope (https://tinted-theming.github.io/tinted-gallery/#base16-isotope)",
+          "type": "string",
+          "const": "Isotope"
+        },
+        {
+          "description": "Jabuti (https://tinted-theming.github.io/tinted-gallery/#base16-jabuti)",
+          "type": "string",
+          "const": "Jabuti"
+        },
+        {
+          "description": "Kanagawa (https://tinted-theming.github.io/tinted-gallery/#base16-kanagawa)",
+          "type": "string",
+          "const": "Kanagawa"
+        },
+        {
+          "description": "Katy (https://tinted-theming.github.io/tinted-gallery/#base16-katy)",
+          "type": "string",
+          "const": "Katy"
+        },
+        {
+          "description": "Kimber (https://tinted-theming.github.io/tinted-gallery/#base16-kimber)",
+          "type": "string",
+          "const": "Kimber"
+        },
+        {
+          "description": "Lime (https://tinted-theming.github.io/tinted-gallery/#base16-lime)",
+          "type": "string",
+          "const": "Lime"
+        },
+        {
+          "description": "Macintosh (https://tinted-theming.github.io/tinted-gallery/#base16-macintosh)",
+          "type": "string",
+          "const": "Macintosh"
+        },
+        {
+          "description": "Marrakesh (https://tinted-theming.github.io/tinted-gallery/#base16-marrakesh)",
+          "type": "string",
+          "const": "Marrakesh"
+        },
+        {
+          "description": "Materia (https://tinted-theming.github.io/tinted-gallery/#base16-materia)",
+          "type": "string",
+          "const": "Materia"
+        },
+        {
+          "description": "Material Darker (https://tinted-theming.github.io/tinted-gallery/#base16-material-darker)",
+          "type": "string",
+          "const": "MaterialDarker"
+        },
+        {
+          "description": "Material Lighter (https://tinted-theming.github.io/tinted-gallery/#base16-material-lighter)",
+          "type": "string",
+          "const": "MaterialLighter"
+        },
+        {
+          "description": "Material Palenight (https://tinted-theming.github.io/tinted-gallery/#base16-material-palenight)",
+          "type": "string",
+          "const": "MaterialPalenight"
+        },
+        {
+          "description": "Material Vivid (https://tinted-theming.github.io/tinted-gallery/#base16-material-vivid)",
+          "type": "string",
+          "const": "MaterialVivid"
+        },
+        {
+          "description": "Material (https://tinted-theming.github.io/tinted-gallery/#base16-material)",
+          "type": "string",
+          "const": "Material"
+        },
+        {
+          "description": "Measured Dark (https://tinted-theming.github.io/tinted-gallery/#base16-measured-dark)",
+          "type": "string",
+          "const": "MeasuredDark"
+        },
+        {
+          "description": "Measured Light (https://tinted-theming.github.io/tinted-gallery/#base16-measured-light)",
+          "type": "string",
+          "const": "MeasuredLight"
+        },
+        {
+          "description": "Mellow Purple (https://tinted-theming.github.io/tinted-gallery/#base16-mellow-purple)",
+          "type": "string",
+          "const": "MellowPurple"
+        },
+        {
+          "description": "Mexico Light (https://tinted-theming.github.io/tinted-gallery/#base16-mexico-light)",
+          "type": "string",
+          "const": "MexicoLight"
+        },
+        {
+          "description": "Mocha (https://tinted-theming.github.io/tinted-gallery/#base16-mocha)",
+          "type": "string",
+          "const": "Mocha"
+        },
+        {
+          "description": "Monokai (https://tinted-theming.github.io/tinted-gallery/#base16-monokai)",
+          "type": "string",
+          "const": "Monokai"
+        },
+        {
+          "description": "Moonlight (https://tinted-theming.github.io/tinted-gallery/#base16-moonlight)",
+          "type": "string",
+          "const": "Moonlight"
+        },
+        {
+          "description": "Mountain (https://tinted-theming.github.io/tinted-gallery/#base16-mountain)",
+          "type": "string",
+          "const": "Mountain"
+        },
+        {
+          "description": "Nebula (https://tinted-theming.github.io/tinted-gallery/#base16-nebula)",
+          "type": "string",
+          "const": "Nebula"
+        },
+        {
+          "description": "Nord Light (https://tinted-theming.github.io/tinted-gallery/#base16-nord-light)",
+          "type": "string",
+          "const": "NordLight"
+        },
+        {
+          "description": "Nord (https://tinted-theming.github.io/tinted-gallery/#base16-nord)",
+          "type": "string",
+          "const": "Nord"
+        },
+        {
+          "description": "Nova (https://tinted-theming.github.io/tinted-gallery/#base16-nova)",
+          "type": "string",
+          "const": "Nova"
+        },
+        {
+          "description": "Ocean (https://tinted-theming.github.io/tinted-gallery/#base16-ocean)",
+          "type": "string",
+          "const": "Ocean"
+        },
+        {
+          "description": "Oceanicnext (https://tinted-theming.github.io/tinted-gallery/#base16-oceanicnext)",
+          "type": "string",
+          "const": "Oceanicnext"
+        },
+        {
+          "description": "One Light (https://tinted-theming.github.io/tinted-gallery/#base16-one-light)",
+          "type": "string",
+          "const": "OneLight"
+        },
+        {
+          "description": "Onedark Dark (https://tinted-theming.github.io/tinted-gallery/#base16-onedark-dark)",
+          "type": "string",
+          "const": "OnedarkDark"
+        },
+        {
+          "description": "Onedark (https://tinted-theming.github.io/tinted-gallery/#base16-onedark)",
+          "type": "string",
+          "const": "Onedark"
+        },
+        {
+          "description": "Outrun Dark (https://tinted-theming.github.io/tinted-gallery/#base16-outrun-dark)",
+          "type": "string",
+          "const": "OutrunDark"
+        },
+        {
+          "description": "Oxocarbon Dark (https://tinted-theming.github.io/tinted-gallery/#base16-oxocarbon-dark)",
+          "type": "string",
+          "const": "OxocarbonDark"
+        },
+        {
+          "description": "Oxocarbon Light (https://tinted-theming.github.io/tinted-gallery/#base16-oxocarbon-light)",
+          "type": "string",
+          "const": "OxocarbonLight"
+        },
+        {
+          "description": "Pandora (https://tinted-theming.github.io/tinted-gallery/#base16-pandora)",
+          "type": "string",
+          "const": "Pandora"
+        },
+        {
+          "description": "Papercolor Dark (https://tinted-theming.github.io/tinted-gallery/#base16-papercolor-dark)",
+          "type": "string",
+          "const": "PapercolorDark"
+        },
+        {
+          "description": "Papercolor Light (https://tinted-theming.github.io/tinted-gallery/#base16-papercolor-light)",
+          "type": "string",
+          "const": "PapercolorLight"
+        },
+        {
+          "description": "Paraiso (https://tinted-theming.github.io/tinted-gallery/#base16-paraiso)",
+          "type": "string",
+          "const": "Paraiso"
+        },
+        {
+          "description": "Pasque (https://tinted-theming.github.io/tinted-gallery/#base16-pasque)",
+          "type": "string",
+          "const": "Pasque"
+        },
+        {
+          "description": "Phd (https://tinted-theming.github.io/tinted-gallery/#base16-phd)",
+          "type": "string",
+          "const": "Phd"
+        },
+        {
+          "description": "Pico (https://tinted-theming.github.io/tinted-gallery/#base16-pico)",
+          "type": "string",
+          "const": "Pico"
+        },
+        {
+          "description": "Pinky (https://tinted-theming.github.io/tinted-gallery/#base16-pinky)",
+          "type": "string",
+          "const": "Pinky"
+        },
+        {
+          "description": "Pop (https://tinted-theming.github.io/tinted-gallery/#base16-pop)",
+          "type": "string",
+          "const": "Pop"
+        },
+        {
+          "description": "Porple (https://tinted-theming.github.io/tinted-gallery/#base16-porple)",
+          "type": "string",
+          "const": "Porple"
+        },
+        {
+          "description": "Precious Dark Eleven (https://tinted-theming.github.io/tinted-gallery/#base16-precious-dark-eleven)",
+          "type": "string",
+          "const": "PreciousDarkEleven"
+        },
+        {
+          "description": "Precious Dark Fifteen (https://tinted-theming.github.io/tinted-gallery/#base16-precious-dark-fifteen)",
+          "type": "string",
+          "const": "PreciousDarkFifteen"
+        },
+        {
+          "description": "Precious Light Warm (https://tinted-theming.github.io/tinted-gallery/#base16-precious-light-warm)",
+          "type": "string",
+          "const": "PreciousLightWarm"
+        },
+        {
+          "description": "Precious Light White (https://tinted-theming.github.io/tinted-gallery/#base16-precious-light-white)",
+          "type": "string",
+          "const": "PreciousLightWhite"
+        },
+        {
+          "description": "Primer Dark Dimmed (https://tinted-theming.github.io/tinted-gallery/#base16-primer-dark-dimmed)",
+          "type": "string",
+          "const": "PrimerDarkDimmed"
+        },
+        {
+          "description": "Primer Dark (https://tinted-theming.github.io/tinted-gallery/#base16-primer-dark)",
+          "type": "string",
+          "const": "PrimerDark"
+        },
+        {
+          "description": "Primer Light (https://tinted-theming.github.io/tinted-gallery/#base16-primer-light)",
+          "type": "string",
+          "const": "PrimerLight"
+        },
+        {
+          "description": "Purpledream (https://tinted-theming.github.io/tinted-gallery/#base16-purpledream)",
+          "type": "string",
+          "const": "Purpledream"
+        },
+        {
+          "description": "Qualia (https://tinted-theming.github.io/tinted-gallery/#base16-qualia)",
+          "type": "string",
+          "const": "Qualia"
+        },
+        {
+          "description": "Railscasts (https://tinted-theming.github.io/tinted-gallery/#base16-railscasts)",
+          "type": "string",
+          "const": "Railscasts"
+        },
+        {
+          "description": "Rebecca (https://tinted-theming.github.io/tinted-gallery/#base16-rebecca)",
+          "type": "string",
+          "const": "Rebecca"
+        },
+        {
+          "description": "Rose Pine Dawn (https://tinted-theming.github.io/tinted-gallery/#base16-rose-pine-dawn)",
+          "type": "string",
+          "const": "RosePineDawn"
+        },
+        {
+          "description": "Rose Pine Moon (https://tinted-theming.github.io/tinted-gallery/#base16-rose-pine-moon)",
+          "type": "string",
+          "const": "RosePineMoon"
+        },
+        {
+          "description": "Rose Pine (https://tinted-theming.github.io/tinted-gallery/#base16-rose-pine)",
+          "type": "string",
+          "const": "RosePine"
+        },
+        {
+          "description": "Saga (https://tinted-theming.github.io/tinted-gallery/#base16-saga)",
+          "type": "string",
+          "const": "Saga"
+        },
+        {
+          "description": "Sagelight (https://tinted-theming.github.io/tinted-gallery/#base16-sagelight)",
+          "type": "string",
+          "const": "Sagelight"
+        },
+        {
+          "description": "Sakura (https://tinted-theming.github.io/tinted-gallery/#base16-sakura)",
+          "type": "string",
+          "const": "Sakura"
+        },
+        {
+          "description": "Sandcastle (https://tinted-theming.github.io/tinted-gallery/#base16-sandcastle)",
+          "type": "string",
+          "const": "Sandcastle"
+        },
+        {
+          "description": "Selenized Black (https://tinted-theming.github.io/tinted-gallery/#base16-selenized-black)",
+          "type": "string",
+          "const": "SelenizedBlack"
+        },
+        {
+          "description": "Selenized Dark (https://tinted-theming.github.io/tinted-gallery/#base16-selenized-dark)",
+          "type": "string",
+          "const": "SelenizedDark"
+        },
+        {
+          "description": "Selenized Light (https://tinted-theming.github.io/tinted-gallery/#base16-selenized-light)",
+          "type": "string",
+          "const": "SelenizedLight"
+        },
+        {
+          "description": "Selenized White (https://tinted-theming.github.io/tinted-gallery/#base16-selenized-white)",
+          "type": "string",
+          "const": "SelenizedWhite"
+        },
+        {
+          "description": "Seti (https://tinted-theming.github.io/tinted-gallery/#base16-seti)",
+          "type": "string",
+          "const": "Seti"
+        },
+        {
+          "description": "Shades Of Purple (https://tinted-theming.github.io/tinted-gallery/#base16-shades-of-purple)",
+          "type": "string",
+          "const": "ShadesOfPurple"
+        },
+        {
+          "description": "Shadesmear Dark (https://tinted-theming.github.io/tinted-gallery/#base16-shadesmear-dark)",
+          "type": "string",
+          "const": "ShadesmearDark"
+        },
+        {
+          "description": "Shadesmear Light (https://tinted-theming.github.io/tinted-gallery/#base16-shadesmear-light)",
+          "type": "string",
+          "const": "ShadesmearLight"
+        },
+        {
+          "description": "Shapeshifter (https://tinted-theming.github.io/tinted-gallery/#base16-shapeshifter)",
+          "type": "string",
+          "const": "Shapeshifter"
+        },
+        {
+          "description": "Silk Dark (https://tinted-theming.github.io/tinted-gallery/#base16-silk-dark)",
+          "type": "string",
+          "const": "SilkDark"
+        },
+        {
+          "description": "Silk Light (https://tinted-theming.github.io/tinted-gallery/#base16-silk-light)",
+          "type": "string",
+          "const": "SilkLight"
+        },
+        {
+          "description": "Snazzy (https://tinted-theming.github.io/tinted-gallery/#base16-snazzy)",
+          "type": "string",
+          "const": "Snazzy"
+        },
+        {
+          "description": "Solarflare Light (https://tinted-theming.github.io/tinted-gallery/#base16-solarflare-light)",
+          "type": "string",
+          "const": "SolarflareLight"
+        },
+        {
+          "description": "Solarflare (https://tinted-theming.github.io/tinted-gallery/#base16-solarflare)",
+          "type": "string",
+          "const": "Solarflare"
+        },
+        {
+          "description": "Solarized Dark (https://tinted-theming.github.io/tinted-gallery/#base16-solarized-dark)",
+          "type": "string",
+          "const": "SolarizedDark"
+        },
+        {
+          "description": "Solarized Light (https://tinted-theming.github.io/tinted-gallery/#base16-solarized-light)",
+          "type": "string",
+          "const": "SolarizedLight"
+        },
+        {
+          "description": "Spaceduck (https://tinted-theming.github.io/tinted-gallery/#base16-spaceduck)",
+          "type": "string",
+          "const": "Spaceduck"
+        },
+        {
+          "description": "Spacemacs (https://tinted-theming.github.io/tinted-gallery/#base16-spacemacs)",
+          "type": "string",
+          "const": "Spacemacs"
+        },
+        {
+          "description": "Sparky (https://tinted-theming.github.io/tinted-gallery/#base16-sparky)",
+          "type": "string",
+          "const": "Sparky"
+        },
+        {
+          "description": "Standardized Dark (https://tinted-theming.github.io/tinted-gallery/#base16-standardized-dark)",
+          "type": "string",
+          "const": "StandardizedDark"
+        },
+        {
+          "description": "Standardized Light (https://tinted-theming.github.io/tinted-gallery/#base16-standardized-light)",
+          "type": "string",
+          "const": "StandardizedLight"
+        },
+        {
+          "description": "Stella (https://tinted-theming.github.io/tinted-gallery/#base16-stella)",
+          "type": "string",
+          "const": "Stella"
+        },
+        {
+          "description": "Still Alive (https://tinted-theming.github.io/tinted-gallery/#base16-still-alive)",
+          "type": "string",
+          "const": "StillAlive"
+        },
+        {
+          "description": "Summercamp (https://tinted-theming.github.io/tinted-gallery/#base16-summercamp)",
+          "type": "string",
+          "const": "Summercamp"
+        },
+        {
+          "description": "Summerfruit Dark (https://tinted-theming.github.io/tinted-gallery/#base16-summerfruit-dark)",
+          "type": "string",
+          "const": "SummerfruitDark"
+        },
+        {
+          "description": "Summerfruit Light (https://tinted-theming.github.io/tinted-gallery/#base16-summerfruit-light)",
+          "type": "string",
+          "const": "SummerfruitLight"
+        },
+        {
+          "description": "Synth Midnight Dark (https://tinted-theming.github.io/tinted-gallery/#base16-synth-midnight-dark)",
+          "type": "string",
+          "const": "SynthMidnightDark"
+        },
+        {
+          "description": "Synth Midnight Light (https://tinted-theming.github.io/tinted-gallery/#base16-synth-midnight-light)",
+          "type": "string",
+          "const": "SynthMidnightLight"
+        },
+        {
+          "description": "Tango (https://tinted-theming.github.io/tinted-gallery/#base16-tango)",
+          "type": "string",
+          "const": "Tango"
+        },
+        {
+          "description": "Tarot (https://tinted-theming.github.io/tinted-gallery/#base16-tarot)",
+          "type": "string",
+          "const": "Tarot"
+        },
+        {
+          "description": "Tender (https://tinted-theming.github.io/tinted-gallery/#base16-tender)",
+          "type": "string",
+          "const": "Tender"
+        },
+        {
+          "description": "Terracotta Dark (https://tinted-theming.github.io/tinted-gallery/#base16-terracotta-dark)",
+          "type": "string",
+          "const": "TerracottaDark"
+        },
+        {
+          "description": "Terracotta (https://tinted-theming.github.io/tinted-gallery/#base16-terracotta)",
+          "type": "string",
+          "const": "Terracotta"
+        },
+        {
+          "description": "Tokyo City Dark (https://tinted-theming.github.io/tinted-gallery/#base16-tokyo-city-dark)",
+          "type": "string",
+          "const": "TokyoCityDark"
+        },
+        {
+          "description": "Tokyo City Light (https://tinted-theming.github.io/tinted-gallery/#base16-tokyo-city-light)",
+          "type": "string",
+          "const": "TokyoCityLight"
+        },
+        {
+          "description": "Tokyo City Terminal Dark (https://tinted-theming.github.io/tinted-gallery/#base16-tokyo-city-terminal-dark)",
+          "type": "string",
+          "const": "TokyoCityTerminalDark"
+        },
+        {
+          "description": "Tokyo City Terminal Light (https://tinted-theming.github.io/tinted-gallery/#base16-tokyo-city-terminal-light)",
+          "type": "string",
+          "const": "TokyoCityTerminalLight"
+        },
+        {
+          "description": "Tokyo Night Dark (https://tinted-theming.github.io/tinted-gallery/#base16-tokyo-night-dark)",
+          "type": "string",
+          "const": "TokyoNightDark"
+        },
+        {
+          "description": "Tokyo Night Light (https://tinted-theming.github.io/tinted-gallery/#base16-tokyo-night-light)",
+          "type": "string",
+          "const": "TokyoNightLight"
+        },
+        {
+          "description": "Tokyo Night Moon (https://tinted-theming.github.io/tinted-gallery/#base16-tokyo-night-moon)",
+          "type": "string",
+          "const": "TokyoNightMoon"
+        },
+        {
+          "description": "Tokyo Night Storm (https://tinted-theming.github.io/tinted-gallery/#base16-tokyo-night-storm)",
+          "type": "string",
+          "const": "TokyoNightStorm"
+        },
+        {
+          "description": "Tokyo Night Terminal Dark (https://tinted-theming.github.io/tinted-gallery/#base16-tokyo-night-terminal-dark)",
+          "type": "string",
+          "const": "TokyoNightTerminalDark"
+        },
+        {
+          "description": "Tokyo Night Terminal Light (https://tinted-theming.github.io/tinted-gallery/#base16-tokyo-night-terminal-light)",
+          "type": "string",
+          "const": "TokyoNightTerminalLight"
+        },
+        {
+          "description": "Tokyo Night Terminal Storm (https://tinted-theming.github.io/tinted-gallery/#base16-tokyo-night-terminal-storm)",
+          "type": "string",
+          "const": "TokyoNightTerminalStorm"
+        },
+        {
+          "description": "Tokyodark Terminal (https://tinted-theming.github.io/tinted-gallery/#base16-tokyodark-terminal)",
+          "type": "string",
+          "const": "TokyodarkTerminal"
+        },
+        {
+          "description": "Tokyodark (https://tinted-theming.github.io/tinted-gallery/#base16-tokyodark)",
+          "type": "string",
+          "const": "Tokyodark"
+        },
+        {
+          "description": "Tomorrow Night Eighties (https://tinted-theming.github.io/tinted-gallery/#base16-tomorrow-night-eighties)",
+          "type": "string",
+          "const": "TomorrowNightEighties"
+        },
+        {
+          "description": "Tomorrow Night (https://tinted-theming.github.io/tinted-gallery/#base16-tomorrow-night)",
+          "type": "string",
+          "const": "TomorrowNight"
+        },
+        {
+          "description": "Tomorrow (https://tinted-theming.github.io/tinted-gallery/#base16-tomorrow)",
+          "type": "string",
+          "const": "Tomorrow"
+        },
+        {
+          "description": "Tube (https://tinted-theming.github.io/tinted-gallery/#base16-tube)",
+          "type": "string",
+          "const": "Tube"
+        },
+        {
+          "description": "Twilight (https://tinted-theming.github.io/tinted-gallery/#base16-twilight)",
+          "type": "string",
+          "const": "Twilight"
+        },
+        {
+          "description": "Unikitty Dark (https://tinted-theming.github.io/tinted-gallery/#base16-unikitty-dark)",
+          "type": "string",
+          "const": "UnikittyDark"
+        },
+        {
+          "description": "Unikitty Light (https://tinted-theming.github.io/tinted-gallery/#base16-unikitty-light)",
+          "type": "string",
+          "const": "UnikittyLight"
+        },
+        {
+          "description": "Unikitty Reversible (https://tinted-theming.github.io/tinted-gallery/#base16-unikitty-reversible)",
+          "type": "string",
+          "const": "UnikittyReversible"
+        },
+        {
+          "description": "Uwunicorn (https://tinted-theming.github.io/tinted-gallery/#base16-uwunicorn)",
+          "type": "string",
+          "const": "Uwunicorn"
+        },
+        {
+          "description": "Vesper (https://tinted-theming.github.io/tinted-gallery/#base16-vesper)",
+          "type": "string",
+          "const": "Vesper"
+        },
+        {
+          "description": "Vice (https://tinted-theming.github.io/tinted-gallery/#base16-vice)",
+          "type": "string",
+          "const": "Vice"
+        },
+        {
+          "description": "Vulcan (https://tinted-theming.github.io/tinted-gallery/#base16-vulcan)",
+          "type": "string",
+          "const": "Vulcan"
+        },
+        {
+          "description": "Windows 10 Light (https://tinted-theming.github.io/tinted-gallery/#base16-windows-10-light)",
+          "type": "string",
+          "const": "Windows10Light"
+        },
+        {
+          "description": "Windows 10 (https://tinted-theming.github.io/tinted-gallery/#base16-windows-10)",
+          "type": "string",
+          "const": "Windows10"
+        },
+        {
+          "description": "Windows 95 Light (https://tinted-theming.github.io/tinted-gallery/#base16-windows-95-light)",
+          "type": "string",
+          "const": "Windows95Light"
+        },
+        {
+          "description": "Windows 95 (https://tinted-theming.github.io/tinted-gallery/#base16-windows-95)",
+          "type": "string",
+          "const": "Windows95"
+        },
+        {
+          "description": "Windows Highcontrast Light (https://tinted-theming.github.io/tinted-gallery/#base16-windows-highcontrast-light)",
+          "type": "string",
+          "const": "WindowsHighcontrastLight"
+        },
+        {
+          "description": "Windows Highcontrast (https://tinted-theming.github.io/tinted-gallery/#base16-windows-highcontrast)",
+          "type": "string",
+          "const": "WindowsHighcontrast"
+        },
+        {
+          "description": "Windows Nt Light (https://tinted-theming.github.io/tinted-gallery/#base16-windows-nt-light)",
+          "type": "string",
+          "const": "WindowsNtLight"
+        },
+        {
+          "description": "Windows Nt (https://tinted-theming.github.io/tinted-gallery/#base16-windows-nt)",
+          "type": "string",
+          "const": "WindowsNt"
+        },
+        {
+          "description": "Woodland (https://tinted-theming.github.io/tinted-gallery/#base16-woodland)",
+          "type": "string",
+          "const": "Woodland"
+        },
+        {
+          "description": "Xcode Dusk (https://tinted-theming.github.io/tinted-gallery/#base16-xcode-dusk)",
+          "type": "string",
+          "const": "XcodeDusk"
+        },
+        {
+          "description": "Zenbones (https://tinted-theming.github.io/tinted-gallery/#base16-zenbones)",
+          "type": "string",
+          "const": "Zenbones"
+        },
+        {
+          "description": "Zenburn (https://tinted-theming.github.io/tinted-gallery/#base16-zenburn)",
+          "type": "string",
+          "const": "Zenburn"
+        }
       ]
     },
     "Base16ColourPalette": {
@@ -2399,6 +3475,7 @@
       ]
     },
     "PathBuf": {
+      "description": "A file system path. Environment variables like %VAR%, $Env:VAR, or $VAR are automatically resolved.",
       "type": "string"
     },
     "PerAnimationPrefixConfig": {

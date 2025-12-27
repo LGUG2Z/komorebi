@@ -4,7 +4,7 @@ version = "0.1.40"
 edition = "2024"
 
 [dependencies]
-base16-egui-themes = { git = "https://github.com/LGUG2Z/base16-egui-themes", rev = "adfed118ab1408f134fd7d8a549ccfe47b99d752" }
+base16-egui-themes = { git = "https://github.com/LGUG2Z/base16-egui-themes", rev = "b9e26b31f7a0e7ed239b14e5317e95d1bdc544bd" }
 #catppuccin-egui = { version = "5", default-features = false, features = ["egui32"] }
 catppuccin-egui = { git = "https://github.com/LGUG2Z/catppuccin-egui", rev = "b2f95cbf441d1dd99f3c955ef10dcb84ce23c20a", default-features = false, features = ["egui33"] }
 eframe = { workspace = true }

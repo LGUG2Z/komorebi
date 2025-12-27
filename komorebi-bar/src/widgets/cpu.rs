@@ -22,6 +22,7 @@ mod defaults {
 
 #[derive(Copy, Clone, Debug, Serialize, Deserialize)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+/// CPU widget configuration
 pub struct CpuConfig {
     /// Enable the Cpu widget
     pub enable: bool,

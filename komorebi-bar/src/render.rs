@@ -27,6 +27,7 @@ static SHOW_KOMOREBI_LAYOUT_OPTIONS: AtomicUsize = AtomicUsize::new(0);
 #[derive(Copy, Clone, Debug, Serialize, Deserialize)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[serde(tag = "kind")]
+/// Grouping
 pub enum Grouping {
     /// No grouping is applied
     None,
@@ -39,6 +40,7 @@ pub enum Grouping {
 }
 
 #[derive(Clone)]
+/// Render configuration
 pub struct RenderConfig {
     /// Komorebi monitor index of the monitor on which to render the bar
     pub monitor_idx: usize,
@@ -356,6 +358,7 @@ impl RenderConfig {
 
 #[derive(Copy, Clone, Debug, Serialize, Deserialize)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+/// Grouping configuration
 pub struct GroupingConfig {
     /// Styles for the grouping
     pub style: Option<GroupingStyle>,
@@ -367,7 +370,9 @@ pub struct GroupingConfig {
 
 #[derive(Copy, Clone, Debug, Serialize, Deserialize)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+/// Grouping Style
 pub enum GroupingStyle {
+    /// Default
     #[serde(alias = "CtByte")]
     Default,
     /// A shadow is added under the default group. (blur: 4, offset: x-1 y-1, spread: 3)
@@ -389,6 +394,7 @@ pub enum GroupingStyle {
 #[derive(Copy, Clone, Debug, Serialize, Deserialize)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[serde(untagged)]
+/// Rounding configuration
 pub enum RoundingConfig {
     /// All 4 corners are the same    
     Same(f32),

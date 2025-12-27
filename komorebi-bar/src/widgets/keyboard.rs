@@ -28,6 +28,7 @@ mod defaults {
 
 #[derive(Copy, Clone, Debug, Serialize, Deserialize)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+/// Keyboard widget configuration
 pub struct KeyboardConfig {
     /// Enable the Input widget
     pub enable: bool,

@@ -22,6 +22,7 @@ mod defaults {
 
 #[derive(Copy, Clone, Debug, Serialize, Deserialize)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+/// Memory widget configuration
 pub struct MemoryConfig {
     /// Enable the Memory widget
     pub enable: bool,

@@ -24,6 +24,7 @@ mod defaults {
 
 #[derive(Copy, Clone, Debug, Serialize, Deserialize)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+/// Storage widget configuration
 pub struct StorageConfig {
     /// Enable the Storage widget
     pub enable: bool,

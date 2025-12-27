@@ -72,6 +72,7 @@ lazy_static! {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+/// Time widget configuration
 pub struct TimeConfig {
     /// Enable the Time widget
     pub enable: bool,
@@ -119,6 +120,7 @@ impl From<TimeConfig> for Time {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+/// Time format
 pub enum TimeFormat {
     /// Twelve-hour format (with seconds)
     TwelveHour,

@@ -17,6 +17,7 @@ use windows::Media::Control::GlobalSystemMediaTransportControlsSessionManager;
 
 #[derive(Copy, Clone, Debug, Serialize, Deserialize)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+/// Media widget configuration
 pub struct MediaConfig {
     /// Enable the Media widget
     pub enable: bool,

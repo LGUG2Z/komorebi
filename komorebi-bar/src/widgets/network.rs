@@ -30,6 +30,7 @@ mod defaults {
 
 #[derive(Copy, Clone, Debug, Serialize, Deserialize)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+/// Network widget configuration
 pub struct NetworkConfig {
     /// Enable the Network widget
     pub enable: bool,
@@ -55,6 +56,7 @@ pub struct NetworkConfig {
 
 #[derive(Copy, Clone, Debug, Serialize, Deserialize)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+/// Network select configuration
 pub struct NetworkSelectConfig {
     /// Select the total received data when it's over this value
     pub total_received_over: Option<u64>,

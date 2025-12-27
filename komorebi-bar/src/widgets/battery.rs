@@ -23,6 +23,7 @@ mod defaults {
 
 #[derive(Copy, Clone, Debug, Serialize, Deserialize)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+/// Battery widget configuration
 pub struct BatteryConfig {
     /// Enable the Battery widget
     pub enable: bool,

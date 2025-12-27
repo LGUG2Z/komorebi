@@ -34,18 +34,31 @@ pub trait BarWidget {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+/// Widget configuration
 pub enum WidgetConfig {
+    /// Applications widget configuration
     Applications(ApplicationsConfig),
+    /// Battery widget configuration
     Battery(BatteryConfig),
+    /// CPU widget configuration
     Cpu(CpuConfig),
+    /// Date widget configuration
     Date(DateConfig),
+    /// Keyboard widget configuration
     Keyboard(KeyboardConfig),
+    /// Komorebi widget configuration
     Komorebi(KomorebiConfig),
+    /// Media widget configuration
     Media(MediaConfig),
+    /// Memory widget configuration
     Memory(MemoryConfig),
+    /// Network widget configuration
     Network(NetworkConfig),
+    /// Storage widget configuration
     Storage(StorageConfig),
+    /// Time widget configuration
     Time(TimeConfig),
+    /// Update widget configuration
     Update(UpdateConfig),
 }
 
