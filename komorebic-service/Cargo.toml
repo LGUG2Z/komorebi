@@ -1,0 +1,22 @@
+[package]
+name = "komorebic-service"
+version = "0.1.0"
+description = "The persistent pipe service for komorebi commands, enabling low-latency hotkey execution without process spawning, tiling window manager for Windows"
+repository = "https://github.com/LGUG2Z/komorebi"
+edition = "2024"
+
+[dependencies]
+komorebi-client = { path = "../komorebi-client" }
+serde_json = { workspace = true }
+dirs = "5.0"
+uds_windows = { workspace = true }
+
+[dependencies.windows]
+workspace = true
+features = [
+    "Win32_Foundation",
+    "Win32_Storage_FileSystem",
+    "Win32_System_Pipes",
+    "Win32_System_IO",
+    "Win32_Security",
+]

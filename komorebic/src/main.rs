@@ -822,6 +822,9 @@ struct Start {
     /// Start masir in a background process for focus-follows-mouse
     #[clap(long)]
     masir: bool,
+    /// Start komorebic-service in a background process for low-latency hotkey execution
+    #[clap(long)]
+    service: bool,
     /// Do not attempt to auto-apply a dumped state temp file from a previously running instance of komorebi
     #[clap(long)]
     clean_state: bool,
@@ -842,6 +845,9 @@ struct Stop {
     /// Stop masir if it is running as a background process
     #[clap(long)]
     masir: bool,
+    /// Stop komorebic-service if it is running as a background process
+    #[clap(long)]
+    service: bool,
     /// Do not restore windows after stopping komorebi
     #[clap(long, hide = true)]
     ignore_restore: bool,
@@ -862,6 +868,9 @@ struct Kill {
     /// Kill masir if it is running as a background process
     #[clap(long)]
     masir: bool,
+    /// Kill komorebic-service if it is running as a background process
+    #[clap(long)]
+    service: bool,
 }
 
 #[derive(Parser)]
@@ -972,6 +981,9 @@ struct EnableAutostart {
     /// Enable autostart of masir
     #[clap(long)]
     masir: bool,
+    /// Enable autostart of komorebic-service
+    #[clap(long)]
+    service: bool,
 }
 
 #[derive(Parser)]
@@ -2575,6 +2587,23 @@ if (!(Get-Process masir -ErrorAction SilentlyContinue))
                 }
             }
 
+            if args.service {
+                let script = r"
+if (!(Get-Process komorebic-service -ErrorAction SilentlyContinue))
+{
+  Start-Process komorebic-service -WindowStyle hidden
+}
+                ";
+                match powershell_script::run(script) {
+                    Ok(_) => {
+                        println!("{script}");
+                    }
+                    Err(error) => {
+                        println!("Error: {error}");
+                    }
+                }
+            }
+
             println!("\nThank you for using komorebi!\n");
             println!("# Commercial Use License");
             println!(
@@ -2693,6 +2722,20 @@ Stop-Process -Name:masir -ErrorAction SilentlyContinue
                 }
             }
 
+            if args.service {
+                let script = r"
+Stop-Process -Name:komorebic-service -ErrorAction SilentlyContinue
+                ";
+                match powershell_script::run(script) {
+                    Ok(_) => {
+                        println!("{script}");
+                    }
+                    Err(error) => {
+                        println!("Error: {error}");
+                    }
+                }
+            }
+
             if args.ahk {
                 let script = r#"
 if (Get-Command Get-CimInstance -ErrorAction SilentlyContinue) {
@@ -2794,6 +2837,20 @@ Stop-Process -Name:komorebi-bar -ErrorAction SilentlyContinue
             if args.masir {
                 let script = r"
 Stop-Process -Name:masir -ErrorAction SilentlyContinue
+                ";
+                match powershell_script::run(script) {
+                    Ok(_) => {
+                        println!("{script}");
+                    }
+                    Err(error) => {
+                        println!("Error: {error}");
+                    }
+                }
+            }
+
+            if args.service {
+                let script = r"
+Stop-Process -Name:komorebic-service -ErrorAction SilentlyContinue
                 ";
                 match powershell_script::run(script) {
                     Ok(_) => {
