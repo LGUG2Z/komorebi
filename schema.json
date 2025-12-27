@@ -16,7 +16,7 @@
       ]
     },
     "app_specific_configuration_path": {
-      "description": "Path to applications.json from komorebi-application-specific-configurations (default: None)",
+      "description": "Path to applications.json from komorebi-application-specific-configurations",
       "anyOf": [
         {
           "$ref": "#/$defs/AppSpecificConfigurationPath"
@@ -37,11 +37,12 @@
       }
     },
     "border": {
-      "description": "Display window borders (default: true)",
+      "description": "Display window borders",
       "type": [
         "boolean",
         "null"
-      ]
+      ],
+      "default": true
     },
     "border_colours": {
       "description": "Window border colours for different container types (has no effect if a theme is defined)",
@@ -55,7 +56,7 @@
       ]
     },
     "border_implementation": {
-      "description": "Window border implementation (default: Komorebi)",
+      "description": "Window border implementation",
       "anyOf": [
         {
           "$ref": "#/$defs/BorderImplementation"
@@ -63,15 +64,17 @@
         {
           "type": "null"
         }
-      ]
+      ],
+      "default": "Komorebi"
     },
     "border_offset": {
-      "description": "Offset of window borders (default: -1)",
+      "description": "Offset of window borders",
       "type": [
         "integer",
         "null"
       ],
-      "format": "int32"
+      "format": "int32",
+      "default": -1
     },
     "border_overflow_applications": {
       "description": "Identify border overflow applications",
@@ -84,7 +87,7 @@
       }
     },
     "border_style": {
-      "description": "Window border style (default: System)",
+      "description": "Window border style",
       "anyOf": [
         {
           "$ref": "#/$defs/BorderStyle"
@@ -92,15 +95,17 @@
         {
           "type": "null"
         }
-      ]
+      ],
+      "default": "System"
     },
     "border_width": {
-      "description": "Width of window borders (default: 8)",
+      "description": "Width of window borders",
       "type": [
         "integer",
         "null"
       ],
-      "format": "int32"
+      "format": "int32",
+      "default": 8
     },
     "border_z_order": {
       "description": "DEPRECATED from v0.1.31: no longer required",
@@ -115,7 +120,7 @@
       "deprecated": true
     },
     "cross_boundary_behaviour": {
-      "description": "Determine what happens when an action is called on a window at a monitor boundary (default: Monitor)",
+      "description": "Determine what happens when an action is called on a window at a monitor boundary",
       "anyOf": [
         {
           "$ref": "#/$defs/CrossBoundaryBehaviour"
@@ -123,10 +128,11 @@
         {
           "type": "null"
         }
-      ]
+      ],
+      "default": "Monitor"
     },
     "cross_monitor_move_behaviour": {
-      "description": "Determine what happens when a window is moved across a monitor boundary (default: Swap)",
+      "description": "Determine what happens when a window is moved across a monitor boundary",
       "anyOf": [
         {
           "$ref": "#/$defs/MoveBehaviour"
@@ -134,23 +140,26 @@
         {
           "type": "null"
         }
-      ]
+      ],
+      "default": "Swap"
     },
     "default_container_padding": {
-      "description": "Global default container padding (default: 10)",
+      "description": "Global default container padding",
       "type": [
         "integer",
         "null"
       ],
-      "format": "int32"
+      "format": "int32",
+      "default": 10
     },
     "default_workspace_padding": {
-      "description": "Global default workspace padding (default: 10)",
+      "description": "Global default workspace padding",
       "type": [
         "integer",
         "null"
       ],
-      "format": "int32"
+      "format": "int32",
+      "default": 10
     },
     "display_index_preferences": {
       "description": "Set display index preferences",
@@ -166,14 +175,15 @@
       }
     },
     "float_override": {
-      "description": "Enable or disable float override, which makes it so every new window opens in floating mode\n(default: false)",
+      "description": "Enable or disable float override, which makes it so every new window opens in floating mode",
       "type": [
         "boolean",
         "null"
-      ]
+      ],
+      "default": false
     },
     "float_override_placement": {
-      "description": "Determines the `Placement` to be used when spawning a window with float override active\n(default: None)",
+      "description": "Determines the `Placement` to be used when spawning a window with float override active",
       "anyOf": [
         {
           "$ref": "#/$defs/Placement"
@@ -184,7 +194,7 @@
       ]
     },
     "float_rule_placement": {
-      "description": "Determines the `Placement` to be used when spawning a window that matches a\n`floating_applications` rule (default: None)",
+      "description": "Determines the `Placement` to be used when spawning a window that matches a\n`floating_applications` rule",
       "anyOf": [
         {
           "$ref": "#/$defs/Placement"
@@ -205,7 +215,7 @@
       }
     },
     "floating_layer_behaviour": {
-      "description": "Determines what happens on a new window when on the `FloatingLayer`\n(default: Tile)",
+      "description": "Determines what happens on a new window when on the `FloatingLayer`",
       "anyOf": [
         {
           "$ref": "#/$defs/FloatingLayerBehaviour"
@@ -213,10 +223,11 @@
         {
           "type": "null"
         }
-      ]
+      ],
+      "default": "Tile"
     },
     "floating_layer_placement": {
-      "description": "Determines the `Placement` to be used when spawning a window on the floating layer with the\n`FloatingLayerBehaviour` set to `FloatingLayerBehaviour::Float` (default: Center)",
+      "description": "Determines the `Placement` to be used when spawning a window on the floating layer with the\n`FloatingLayerBehaviour` set to `FloatingLayerBehaviour::Float`",
       "anyOf": [
         {
           "$ref": "#/$defs/Placement"
@@ -224,7 +235,8 @@
         {
           "type": "null"
         }
-      ]
+      ],
+      "default": "Center"
     },
     "floating_window_aspect_ratio": {
       "description": "Aspect ratio to resize with when toggling floating mode for a window",
@@ -250,7 +262,7 @@
       "deprecated": true
     },
     "global_work_area_offset": {
-      "description": "Global work area (space used for tiling) offset (default: None)",
+      "description": "Global work area (space used for tiling) offset",
       "anyOf": [
         {
           "$ref": "#/$defs/Rect"
@@ -342,11 +354,12 @@
       }
     },
     "mouse_follows_focus": {
-      "description": "Enable or disable mouse follows focus (default: true)",
+      "description": "Enable or disable mouse follows focus",
       "type": [
         "boolean",
         "null"
-      ]
+      ],
+      "default": true
     },
     "object_name_change_applications": {
       "description": "Identify applications that send `EVENT_OBJECT_NAMECHANGE` on launch (very rare)",
@@ -379,20 +392,22 @@
       }
     },
     "resize_delta": {
-      "description": "Delta to resize windows by (default 50)",
+      "description": "Delta to resize windows by",
       "type": [
         "integer",
         "null"
       ],
-      "format": "int32"
+      "format": "int32",
+      "default": 50
     },
     "slow_application_compensation_time": {
-      "description": "How long to wait when compensating for slow applications, in milliseconds (default: 20)",
+      "description": "How long to wait when compensating for slow applications, in milliseconds",
       "type": [
         "integer",
         "null"
       ],
       "format": "uint64",
+      "default": 20,
       "minimum": 0
     },
     "slow_application_identifiers": {
@@ -428,7 +443,7 @@
       ]
     },
     "toggle_float_placement": {
-      "description": "Determines the placement of a new window when toggling to float (default: CenterAndResize)",
+      "description": "Determines the placement of a new window when toggling to float",
       "anyOf": [
         {
           "$ref": "#/$defs/Placement"
@@ -436,22 +451,25 @@
         {
           "type": "null"
         }
-      ]
+      ],
+      "default": "CenterAndResize"
     },
     "transparency": {
-      "description": "Add transparency to unfocused windows (default: false)",
+      "description": "Add transparency to unfocused windows",
       "type": [
         "boolean",
         "null"
-      ]
+      ],
+      "default": false
     },
     "transparency_alpha": {
-      "description": "Alpha value for unfocused window transparency [[0-255]] (default: 200)",
+      "description": "Alpha value for unfocused window transparency [[0-255]]",
       "type": [
         "integer",
         "null"
       ],
       "format": "uint8",
+      "default": 200,
       "maximum": 255,
       "minimum": 0
     },
@@ -476,7 +494,7 @@
       }
     },
     "unmanaged_window_operation_behaviour": {
-      "description": "Determine what happens when commands are sent while an unmanaged window is in the foreground (default: Op)",
+      "description": "Determine what happens when commands are sent while an unmanaged window is in the foreground",
       "anyOf": [
         {
           "$ref": "#/$defs/OperationBehaviour"
@@ -484,10 +502,11 @@
         {
           "type": "null"
         }
-      ]
+      ],
+      "default": "Op"
     },
     "window_container_behaviour": {
-      "description": "Determine what happens when a new window is opened (default: Create)",
+      "description": "Determine what happens when a new window is opened",
       "anyOf": [
         {
           "$ref": "#/$defs/WindowContainerBehaviour"
@@ -495,10 +514,11 @@
         {
           "type": "null"
         }
-      ]
+      ],
+      "default": "Create"
     },
     "window_handling_behaviour": {
-      "description": "Which Windows API behaviour to use when manipulating windows (default: Sync)",
+      "description": "Which Windows API behaviour to use when manipulating windows",
       "anyOf": [
         {
           "$ref": "#/$defs/WindowHandlingBehaviour"
@@ -506,10 +526,11 @@
         {
           "type": "null"
         }
-      ]
+      ],
+      "default": "Sync"
     },
     "window_hiding_behaviour": {
-      "description": "Which Windows signal to use when hiding windows (default: Cloak)",
+      "description": "Which Windows signal to use when hiding windows",
       "anyOf": [
         {
           "$ref": "#/$defs/HidingBehaviour"
@@ -517,7 +538,8 @@
         {
           "type": "null"
         }
-      ]
+      ],
+      "default": "Cloak"
     }
   },
   "$defs": {
@@ -596,7 +618,7 @@
       "type": "object",
       "properties": {
         "duration": {
-          "description": "Set the animation duration in ms (default: 250)",
+          "description": "Set the animation duration in ms",
           "anyOf": [
             {
               "$ref": "#/$defs/PerAnimationPrefixConfig2"
@@ -607,20 +629,21 @@
           ]
         },
         "enabled": {
-          "description": "Enable or disable animations (default: false)",
+          "description": "Enable or disable animations",
           "$ref": "#/$defs/PerAnimationPrefixConfig"
         },
         "fps": {
-          "description": "Set the animation FPS (default: 60)",
+          "description": "Set the animation FPS",
           "type": [
             "integer",
             "null"
           ],
           "format": "uint64",
+          "default": 60,
           "minimum": 0
         },
         "style": {
-          "description": "Set the animation style (default: Linear)",
+          "description": "Set the animation style",
           "anyOf": [
             {
               "$ref": "#/$defs/PerAnimationPrefixConfig3"
@@ -1339,7 +1362,7 @@
           "type": "object",
           "properties": {
             "bar_accent": {
-              "description": "Komorebi status bar accent (default: Blue)",
+              "description": "Komorebi status bar accent",
               "anyOf": [
                 {
                   "$ref": "#/$defs/CatppuccinValue"
@@ -1347,10 +1370,11 @@
                 {
                   "type": "null"
                 }
-              ]
+              ],
+              "default": "Blue"
             },
             "floating_border": {
-              "description": "Border colour when the window is floating (default: Yellow)",
+              "description": "Border colour when the window is floating",
               "anyOf": [
                 {
                   "$ref": "#/$defs/CatppuccinValue"
@@ -1358,10 +1382,11 @@
                 {
                   "type": "null"
                 }
-              ]
+              ],
+              "default": "Yellow"
             },
             "monocle_border": {
-              "description": "Border colour when the container is in monocle mode (default: Pink)",
+              "description": "Border colour when the container is in monocle mode",
               "anyOf": [
                 {
                   "$ref": "#/$defs/CatppuccinValue"
@@ -1369,7 +1394,8 @@
                 {
                   "type": "null"
                 }
-              ]
+              ],
+              "default": "Pink"
             },
             "name": {
               "description": "Name of the Catppuccin theme (theme previews: https://github.com/catppuccin/catppuccin)",
@@ -1380,7 +1406,7 @@
               "const": "Catppuccin"
             },
             "single_border": {
-              "description": "Border colour when the container contains a single window (default: Blue)",
+              "description": "Border colour when the container contains a single window",
               "anyOf": [
                 {
                   "$ref": "#/$defs/CatppuccinValue"
@@ -1388,10 +1414,11 @@
                 {
                   "type": "null"
                 }
-              ]
+              ],
+              "default": "Blue"
             },
             "stack_border": {
-              "description": "Border colour when the container contains multiple windows (default: Green)",
+              "description": "Border colour when the container contains multiple windows",
               "anyOf": [
                 {
                   "$ref": "#/$defs/CatppuccinValue"
@@ -1399,10 +1426,11 @@
                 {
                   "type": "null"
                 }
-              ]
+              ],
+              "default": "Green"
             },
             "stackbar_background": {
-              "description": "Stackbar tab background colour (default: Base)",
+              "description": "Stackbar tab background colour",
               "anyOf": [
                 {
                   "$ref": "#/$defs/CatppuccinValue"
@@ -1410,10 +1438,11 @@
                 {
                   "type": "null"
                 }
-              ]
+              ],
+              "default": "Base"
             },
             "stackbar_focused_text": {
-              "description": "Stackbar focused tab text colour (default: Green)",
+              "description": "Stackbar focused tab text colour",
               "anyOf": [
                 {
                   "$ref": "#/$defs/CatppuccinValue"
@@ -1421,10 +1450,11 @@
                 {
                   "type": "null"
                 }
-              ]
+              ],
+              "default": "Green"
             },
             "stackbar_unfocused_text": {
-              "description": "Stackbar unfocused tab text colour (default: Text)",
+              "description": "Stackbar unfocused tab text colour",
               "anyOf": [
                 {
                   "$ref": "#/$defs/CatppuccinValue"
@@ -1432,10 +1462,11 @@
                 {
                   "type": "null"
                 }
-              ]
+              ],
+              "default": "Text"
             },
             "unfocused_border": {
-              "description": "Border colour when the container is unfocused (default: Base)",
+              "description": "Border colour when the container is unfocused",
               "anyOf": [
                 {
                   "$ref": "#/$defs/CatppuccinValue"
@@ -1443,10 +1474,11 @@
                 {
                   "type": "null"
                 }
-              ]
+              ],
+              "default": "Base"
             },
             "unfocused_locked_border": {
-              "description": "Border colour when the container is unfocused and locked (default: Red)",
+              "description": "Border colour when the container is unfocused and locked",
               "anyOf": [
                 {
                   "$ref": "#/$defs/CatppuccinValue"
@@ -1454,7 +1486,8 @@
                 {
                   "type": "null"
                 }
-              ]
+              ],
+              "default": "Red"
             }
           },
           "required": [
@@ -1467,7 +1500,7 @@
           "type": "object",
           "properties": {
             "bar_accent": {
-              "description": "Komorebi status bar accent (default: Base0D)",
+              "description": "Komorebi status bar accent",
               "anyOf": [
                 {
                   "$ref": "#/$defs/Base16Value"
@@ -1475,10 +1508,11 @@
                 {
                   "type": "null"
                 }
-              ]
+              ],
+              "default": "Base0D"
             },
             "floating_border": {
-              "description": "Border colour when the window is floating (default: Base09)",
+              "description": "Border colour when the window is floating",
               "anyOf": [
                 {
                   "$ref": "#/$defs/Base16Value"
@@ -1486,10 +1520,11 @@
                 {
                   "type": "null"
                 }
-              ]
+              ],
+              "default": "Base09"
             },
             "monocle_border": {
-              "description": "Border colour when the container is in monocle mode (default: Base0F)",
+              "description": "Border colour when the container is in monocle mode",
               "anyOf": [
                 {
                   "$ref": "#/$defs/Base16Value"
@@ -1497,7 +1532,8 @@
                 {
                   "type": "null"
                 }
-              ]
+              ],
+              "default": "Base0F"
             },
             "name": {
               "description": "Name of the Base16 theme (theme previews: https://tinted-theming.github.io/tinted-gallery/)",
@@ -1508,7 +1544,7 @@
               "const": "Base16"
             },
             "single_border": {
-              "description": "Border colour when the container contains a single window (default: Base0D)",
+              "description": "Border colour when the container contains a single window",
               "anyOf": [
                 {
                   "$ref": "#/$defs/Base16Value"
@@ -1516,10 +1552,11 @@
                 {
                   "type": "null"
                 }
-              ]
+              ],
+              "default": "Base0D"
             },
             "stack_border": {
-              "description": "Border colour when the container contains multiple windows (default: Base0B)",
+              "description": "Border colour when the container contains multiple windows",
               "anyOf": [
                 {
                   "$ref": "#/$defs/Base16Value"
@@ -1527,10 +1564,11 @@
                 {
                   "type": "null"
                 }
-              ]
+              ],
+              "default": "Base0B"
             },
             "stackbar_background": {
-              "description": "Stackbar tab background colour (default: Base01)",
+              "description": "Stackbar tab background colour",
               "anyOf": [
                 {
                   "$ref": "#/$defs/Base16Value"
@@ -1538,10 +1576,11 @@
                 {
                   "type": "null"
                 }
-              ]
+              ],
+              "default": "Base01"
             },
             "stackbar_focused_text": {
-              "description": "Stackbar focused tab text colour (default: Base0B)",
+              "description": "Stackbar focused tab text colour",
               "anyOf": [
                 {
                   "$ref": "#/$defs/Base16Value"
@@ -1549,10 +1588,11 @@
                 {
                   "type": "null"
                 }
-              ]
+              ],
+              "default": "Base0B"
             },
             "stackbar_unfocused_text": {
-              "description": "Stackbar unfocused tab text colour (default: Base05)",
+              "description": "Stackbar unfocused tab text colour",
               "anyOf": [
                 {
                   "$ref": "#/$defs/Base16Value"
@@ -1560,10 +1600,11 @@
                 {
                   "type": "null"
                 }
-              ]
+              ],
+              "default": "Base05"
             },
             "unfocused_border": {
-              "description": "Border colour when the container is unfocused (default: Base01)",
+              "description": "Border colour when the container is unfocused",
               "anyOf": [
                 {
                   "$ref": "#/$defs/Base16Value"
@@ -1571,10 +1612,11 @@
                 {
                   "type": "null"
                 }
-              ]
+              ],
+              "default": "Base01"
             },
             "unfocused_locked_border": {
-              "description": "Border colour when the container is unfocused and locked (default: Base08)",
+              "description": "Border colour when the container is unfocused and locked",
               "anyOf": [
                 {
                   "$ref": "#/$defs/Base16Value"
@@ -1582,7 +1624,8 @@
                 {
                   "type": "null"
                 }
-              ]
+              ],
+              "default": "Base08"
             }
           },
           "required": [
@@ -1595,7 +1638,7 @@
           "type": "object",
           "properties": {
             "bar_accent": {
-              "description": "Komorebi status bar accent (default: Base0D)",
+              "description": "Komorebi status bar accent",
               "anyOf": [
                 {
                   "$ref": "#/$defs/Base16Value"
@@ -1603,14 +1646,15 @@
                 {
                   "type": "null"
                 }
-              ]
+              ],
+              "default": "Base0D"
             },
             "colours": {
               "description": "Colours of the custom Base16 theme palette",
               "$ref": "#/$defs/Base16ColourPalette"
             },
             "floating_border": {
-              "description": "Border colour when the window is floating (default: Base09)",
+              "description": "Border colour when the window is floating",
               "anyOf": [
                 {
                   "$ref": "#/$defs/Base16Value"
@@ -1618,10 +1662,11 @@
                 {
                   "type": "null"
                 }
-              ]
+              ],
+              "default": "Base09"
             },
             "monocle_border": {
-              "description": "Border colour when the container is in monocle mode (default: Base0F)",
+              "description": "Border colour when the container is in monocle mode",
               "anyOf": [
                 {
                   "$ref": "#/$defs/Base16Value"
@@ -1629,14 +1674,15 @@
                 {
                   "type": "null"
                 }
-              ]
+              ],
+              "default": "Base0F"
             },
             "palette": {
               "type": "string",
               "const": "Custom"
             },
             "single_border": {
-              "description": "Border colour when the container contains a single window (default: Base0D)",
+              "description": "Border colour when the container contains a single window",
               "anyOf": [
                 {
                   "$ref": "#/$defs/Base16Value"
@@ -1644,10 +1690,11 @@
                 {
                   "type": "null"
                 }
-              ]
+              ],
+              "default": "Base0D"
             },
             "stack_border": {
-              "description": "Border colour when the container contains multiple windows (default: Base0B)",
+              "description": "Border colour when the container contains multiple windows",
               "anyOf": [
                 {
                   "$ref": "#/$defs/Base16Value"
@@ -1655,10 +1702,11 @@
                 {
                   "type": "null"
                 }
-              ]
+              ],
+              "default": "Base0B"
             },
             "stackbar_background": {
-              "description": "Stackbar tab background colour (default: Base01)",
+              "description": "Stackbar tab background colour",
               "anyOf": [
                 {
                   "$ref": "#/$defs/Base16Value"
@@ -1666,10 +1714,11 @@
                 {
                   "type": "null"
                 }
-              ]
+              ],
+              "default": "Base01"
             },
             "stackbar_focused_text": {
-              "description": "Stackbar focused tab text colour (default: Base0B)",
+              "description": "Stackbar focused tab text colour",
               "anyOf": [
                 {
                   "$ref": "#/$defs/Base16Value"
@@ -1677,10 +1726,11 @@
                 {
                   "type": "null"
                 }
-              ]
+              ],
+              "default": "Base0B"
             },
             "stackbar_unfocused_text": {
-              "description": "Stackbar unfocused tab text colour (default: Base05)",
+              "description": "Stackbar unfocused tab text colour",
               "anyOf": [
                 {
                   "$ref": "#/$defs/Base16Value"
@@ -1688,10 +1738,11 @@
                 {
                   "type": "null"
                 }
-              ]
+              ],
+              "default": "Base05"
             },
             "unfocused_border": {
-              "description": "Border colour when the container is unfocused (default: Base01)",
+              "description": "Border colour when the container is unfocused",
               "anyOf": [
                 {
                   "$ref": "#/$defs/Base16Value"
@@ -1699,10 +1750,11 @@
                 {
                   "type": "null"
                 }
-              ]
+              ],
+              "default": "Base01"
             },
             "unfocused_locked_border": {
-              "description": "Border colour when the container is unfocused and locked (default: Base08)",
+              "description": "Border colour when the container is unfocused and locked",
               "anyOf": [
                 {
                   "$ref": "#/$defs/Base16Value"
@@ -1710,7 +1762,8 @@
                 {
                   "type": "null"
                 }
-              ]
+              ],
+              "default": "Base08"
             }
           },
           "required": [
@@ -1787,7 +1840,7 @@
           "format": "int32"
         },
         "floating_layer_behaviour": {
-          "description": "Determine what happens to a new window when the Floating workspace layer is active (default: Tile)",
+          "description": "Determine what happens to a new window when the Floating workspace layer is active",
           "anyOf": [
             {
               "$ref": "#/$defs/FloatingLayerBehaviour"
@@ -1795,7 +1848,8 @@
             {
               "type": "null"
             }
-          ]
+          ],
+          "default": "Tile"
         },
         "wallpaper": {
           "description": "Specify a wallpaper for this monitor",
@@ -1809,7 +1863,7 @@
           ]
         },
         "window_based_work_area_offset": {
-          "description": "Window based work area offset (default: None)",
+          "description": "Window based work area offset",
           "anyOf": [
             {
               "$ref": "#/$defs/Rect"
@@ -1820,15 +1874,16 @@
           ]
         },
         "window_based_work_area_offset_limit": {
-          "description": "Open window limit after which the window based work area offset will no longer be applied (default: 1)",
+          "description": "Open window limit after which the window based work area offset will no longer be applied",
           "type": [
             "integer",
             "null"
           ],
-          "format": "int"
+          "format": "int",
+          "default": 1
         },
         "work_area_offset": {
-          "description": "Monitor-specific work area offset (default: None)",
+          "description": "Monitor-specific work area offset",
           "anyOf": [
             {
               "$ref": "#/$defs/Rect"
@@ -2078,7 +2133,7 @@
           ]
         },
         "mode": {
-          "description": "Stackbar mode (default: Never)",
+          "description": "Stackbar mode",
           "anyOf": [
             {
               "$ref": "#/$defs/StackbarMode"
@@ -2086,7 +2141,8 @@
             {
               "type": "null"
             }
-          ]
+          ],
+          "default": "Never"
         },
         "tabs": {
           "description": "Stackbar tab configuration options",
@@ -2181,7 +2237,7 @@
       "type": "object",
       "properties": {
         "bar_accent": {
-          "description": "Komorebi status bar accent (default: Base0D)",
+          "description": "Komorebi status bar accent",
           "anyOf": [
             {
               "$ref": "#/$defs/Base16Value"
@@ -2189,10 +2245,11 @@
             {
               "type": "null"
             }
-          ]
+          ],
+          "default": "Base0D"
         },
         "floating_border": {
-          "description": "Border colour when the window is floating (default: Base09)",
+          "description": "Border colour when the window is floating",
           "anyOf": [
             {
               "$ref": "#/$defs/Base16Value"
@@ -2200,10 +2257,11 @@
             {
               "type": "null"
             }
-          ]
+          ],
+          "default": "Base09"
         },
         "monocle_border": {
-          "description": "Border colour when the container is in monocle mode (default: Base0F)",
+          "description": "Border colour when the container is in monocle mode",
           "anyOf": [
             {
               "$ref": "#/$defs/Base16Value"
@@ -2211,10 +2269,11 @@
             {
               "type": "null"
             }
-          ]
+          ],
+          "default": "Base0F"
         },
         "single_border": {
-          "description": "Border colour when the container contains a single window (default: Base0D)",
+          "description": "Border colour when the container contains a single window",
           "anyOf": [
             {
               "$ref": "#/$defs/Base16Value"
@@ -2222,10 +2281,11 @@
             {
               "type": "null"
             }
-          ]
+          ],
+          "default": "Base0D"
         },
         "stack_border": {
-          "description": "Border colour when the container contains multiple windows (default: Base0B)",
+          "description": "Border colour when the container contains multiple windows",
           "anyOf": [
             {
               "$ref": "#/$defs/Base16Value"
@@ -2233,10 +2293,11 @@
             {
               "type": "null"
             }
-          ]
+          ],
+          "default": "Base0B"
         },
         "stackbar_background": {
-          "description": "Stackbar tab background colour (default: Base01)",
+          "description": "Stackbar tab background colour",
           "anyOf": [
             {
               "$ref": "#/$defs/Base16Value"
@@ -2244,10 +2305,11 @@
             {
               "type": "null"
             }
-          ]
+          ],
+          "default": "Base01"
         },
         "stackbar_focused_text": {
-          "description": "Stackbar focused tab text colour (default: Base0B)",
+          "description": "Stackbar focused tab text colour",
           "anyOf": [
             {
               "$ref": "#/$defs/Base16Value"
@@ -2255,10 +2317,11 @@
             {
               "type": "null"
             }
-          ]
+          ],
+          "default": "Base0B"
         },
         "stackbar_unfocused_text": {
-          "description": "Stackbar unfocused tab text colour (default: Base05)",
+          "description": "Stackbar unfocused tab text colour",
           "anyOf": [
             {
               "$ref": "#/$defs/Base16Value"
@@ -2266,10 +2329,11 @@
             {
               "type": "null"
             }
-          ]
+          ],
+          "default": "Base05"
         },
         "theme_variant": {
-          "description": "Specify Light or Dark variant for theme generation (default: Dark)",
+          "description": "Specify Light or Dark variant for theme generation",
           "anyOf": [
             {
               "$ref": "#/$defs/ThemeVariant"
@@ -2277,10 +2341,11 @@
             {
               "type": "null"
             }
-          ]
+          ],
+          "default": "Dark"
         },
         "unfocused_border": {
-          "description": "Border colour when the container is unfocused (default: Base01)",
+          "description": "Border colour when the container is unfocused",
           "anyOf": [
             {
               "$ref": "#/$defs/Base16Value"
@@ -2288,10 +2353,11 @@
             {
               "type": "null"
             }
-          ]
+          ],
+          "default": "Base01"
         },
         "unfocused_locked_border": {
-          "description": "Border colour when the container is unfocused and locked (default: Base08)",
+          "description": "Border colour when the container is unfocused and locked",
           "anyOf": [
             {
               "$ref": "#/$defs/Base16Value"
@@ -2299,7 +2365,8 @@
             {
               "type": "null"
             }
-          ]
+          ],
+          "default": "Base08"
         }
       }
     },
@@ -2314,18 +2381,19 @@
       "type": "object",
       "properties": {
         "generate_theme": {
-          "description": "Generate and apply Base16 theme for this wallpaper (default: true)",
+          "description": "Generate and apply Base16 theme for this wallpaper",
           "type": [
             "boolean",
             "null"
-          ]
+          ],
+          "default": true
         },
         "path": {
           "description": "Path to the wallpaper image file",
           "$ref": "#/$defs/PathBuf"
         },
         "theme_options": {
-          "description": "Specify Light or Dark variant for theme generation (default: Dark)",
+          "description": "Specify Light or Dark variant for theme generation",
           "anyOf": [
             {
               "$ref": "#/$defs/ThemeOptions"
@@ -2333,7 +2401,8 @@
             {
               "type": "null"
             }
-          ]
+          ],
+          "default": "Dark"
         }
       },
       "required": [
@@ -2365,11 +2434,12 @@
       "type": "object",
       "properties": {
         "apply_window_based_work_area_offset": {
-          "description": "Apply this monitor's window-based work area offset (default: true)",
+          "description": "Apply this monitor's window-based work area offset",
           "type": [
             "boolean",
             "null"
-          ]
+          ],
+          "default": true
         },
         "container_padding": {
           "description": "Container padding (default: global)",
@@ -2380,7 +2450,7 @@
           "format": "int32"
         },
         "custom_layout": {
-          "description": "END OF LIFE FEATURE: Custom Layout (default: None)",
+          "description": "END OF LIFE FEATURE: Custom Layout",
           "anyOf": [
             {
               "$ref": "#/$defs/PathBuf"
@@ -2392,7 +2462,7 @@
           "deprecated": true
         },
         "custom_layout_rules": {
-          "description": "END OF LIFE FEATURE: Custom layout rules (default: None)",
+          "description": "END OF LIFE FEATURE: Custom layout rules",
           "type": [
             "object",
             "null"
@@ -2406,14 +2476,15 @@
           }
         },
         "float_override": {
-          "description": "Enable or disable float override, which makes it so every new window opens in floating mode (default: false)",
+          "description": "Enable or disable float override, which makes it so every new window opens in floating mode",
           "type": [
             "boolean",
             "null"
-          ]
+          ],
+          "default": false
         },
         "floating_layer_behaviour": {
-          "description": "Determine what happens to a new window when the Floating workspace layer is active (default: Tile)",
+          "description": "Determine what happens to a new window when the Floating workspace layer is active",
           "anyOf": [
             {
               "$ref": "#/$defs/FloatingLayerBehaviour"
@@ -2421,7 +2492,8 @@
             {
               "type": "null"
             }
-          ]
+          ],
+          "default": "Tile"
         },
         "initial_workspace_rules": {
           "description": "Initial workspace application rules",
@@ -2434,7 +2506,7 @@
           }
         },
         "layout": {
-          "description": "Layout (default: BSP)",
+          "description": "Layout",
           "anyOf": [
             {
               "$ref": "#/$defs/DefaultLayout"
@@ -2442,10 +2514,11 @@
             {
               "type": "null"
             }
-          ]
+          ],
+          "default": "BSP"
         },
         "layout_flip": {
-          "description": "Specify an axis on which to flip the selected layout (default: None)",
+          "description": "Specify an axis on which to flip the selected layout",
           "anyOf": [
             {
               "$ref": "#/$defs/Axis"
@@ -2456,7 +2529,7 @@
           ]
         },
         "layout_options": {
-          "description": "Layout-specific options (default: None)",
+          "description": "Layout-specific options",
           "anyOf": [
             {
               "$ref": "#/$defs/LayoutOptions"
@@ -2467,7 +2540,7 @@
           ]
         },
         "layout_rules": {
-          "description": "Layout rules in the format of threshold => layout (default: None)",
+          "description": "Layout rules in the format of threshold => layout",
           "type": [
             "object",
             "null"
@@ -2484,11 +2557,12 @@
           "type": "string"
         },
         "tile": {
-          "description": "Enable or disable tiling for the workspace (default: true)",
+          "description": "Enable or disable tiling for the workspace",
           "type": [
             "boolean",
             "null"
-          ]
+          ],
+          "default": true
         },
         "wallpaper": {
           "description": "Specify a wallpaper for this workspace",
@@ -2502,7 +2576,7 @@
           ]
         },
         "window_container_behaviour": {
-          "description": "Determine what happens when a new window is opened (default: Create)",
+          "description": "Determine what happens when a new window is opened",
           "anyOf": [
             {
               "$ref": "#/$defs/WindowContainerBehaviour"
@@ -2510,10 +2584,11 @@
             {
               "type": "null"
             }
-          ]
+          ],
+          "default": "Create"
         },
         "window_container_behaviour_rules": {
-          "description": "Window container behaviour rules in the format of threshold => behaviour (default: None)",
+          "description": "Window container behaviour rules in the format of threshold => behaviour",
           "type": [
             "object",
             "null"
@@ -2526,7 +2601,7 @@
           }
         },
         "work_area_offset": {
-          "description": "Workspace specific work area offset (default: None)",
+          "description": "Workspace specific work area offset",
           "anyOf": [
             {
               "$ref": "#/$defs/Rect"

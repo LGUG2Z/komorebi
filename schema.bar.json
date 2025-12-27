@@ -22,12 +22,13 @@
       ]
     },
     "font_size": {
-      "description": "Font size (default: 12.5)",
+      "description": "Font size",
       "type": [
         "number",
         "null"
       ],
-      "format": "float"
+      "format": "float",
+      "default": 12.5
     },
     "frame": {
       "description": "Frame options (see: https://docs.rs/egui/latest/egui/containers/frame/struct.Frame.html)",
@@ -52,20 +53,22 @@
       ]
     },
     "height": {
-      "description": "Bar height (default: 50)",
+      "description": "Bar height",
       "type": [
         "number",
         "null"
       ],
-      "format": "float"
+      "format": "float",
+      "default": 50.0
     },
     "icon_scale": {
-      "description": "Scale of the icons relative to the font_size [[1.0-2.0]]. (default: 1.4)",
+      "description": "Scale of the icons relative to the font_size [[1.0-2.0]]",
       "type": [
         "number",
         "null"
       ],
-      "format": "float"
+      "format": "float",
+      "default": 1.399999976158142
     },
     "left_widgets": {
       "description": "Left side widgets (ordered left-to-right)",
@@ -86,12 +89,13 @@
       ]
     },
     "max_label_width": {
-      "description": "Max label width before text truncation (default: 400.0)",
+      "description": "Max label width before text truncation",
       "type": [
         "number",
         "null"
       ],
-      "format": "float"
+      "format": "float",
+      "default": 400.0
     },
     "monitor": {
       "description": "The monitor index or the full monitor options",
@@ -149,22 +153,24 @@
       ]
     },
     "transparency_alpha": {
-      "description": "Alpha value for the color transparency [[0-255]] (default: 200)",
+      "description": "Alpha value for the color transparency [[0-255]]",
       "type": [
         "integer",
         "null"
       ],
       "format": "uint8",
+      "default": 200,
       "maximum": 255,
       "minimum": 0
     },
     "widget_spacing": {
-      "description": "Spacing between widgets (default: 10.0)",
+      "description": "Spacing between widgets",
       "type": [
         "number",
         "null"
       ],
-      "format": "float"
+      "format": "float",
+      "default": 10.0
     }
   },
   "required": [
@@ -762,12 +768,13 @@
           "minimum": 0
         },
         "data_refresh_interval": {
-          "description": "Data refresh interval (default: 10 seconds)",
+          "description": "Data refresh interval in seconds",
           "type": [
             "integer",
             "null"
           ],
           "format": "uint64",
+          "default": 10,
           "minimum": 0
         },
         "enable": {
@@ -896,12 +903,13 @@
           "minimum": 0
         },
         "data_refresh_interval": {
-          "description": "Data refresh interval (default: 10 seconds)",
+          "description": "Data refresh interval in seconds",
           "type": [
             "integer",
             "null"
           ],
           "format": "uint64",
+          "default": 10,
           "minimum": 0
         },
         "enable": {
@@ -1346,12 +1354,13 @@
       "type": "object",
       "properties": {
         "data_refresh_interval": {
-          "description": "Data refresh interval (default: 1 second)",
+          "description": "Data refresh interval",
           "type": [
             "integer",
             "null"
           ],
           "format": "uint64",
+          "default": 10,
           "minimum": 0
         },
         "enable": {
@@ -1730,18 +1739,20 @@
       "type": "object",
       "properties": {
         "focus_monitor_at_cursor": {
-          "description": "Send the FocusMonitorAtCursor message (default:true)",
+          "description": "Send the FocusMonitorAtCursor message",
           "type": [
             "boolean",
             "null"
-          ]
+          ],
+          "default": true
         },
         "ignore_mouse_follows_focus": {
-          "description": "Wrap the {message} with a MouseFollowsFocus(false) and MouseFollowsFocus({original.value}) message (default:true)",
+          "description": "Wrap the {message} with a MouseFollowsFocus(false) and MouseFollowsFocus({original.value}) message",
           "type": [
             "boolean",
             "null"
-          ]
+          ],
+          "default": true
         },
         "message": {
           "description": "The message to send to the komorebi client",
@@ -1759,7 +1770,7 @@
           "type": "object",
           "properties": {
             "bar_accent": {
-              "description": "Komorebi status bar accent (default: Blue)",
+              "description": "Komorebi status bar accent",
               "anyOf": [
                 {
                   "$ref": "#/$defs/CatppuccinValue"
@@ -1767,10 +1778,11 @@
                 {
                   "type": "null"
                 }
-              ]
+              ],
+              "default": "Blue"
             },
             "floating_border": {
-              "description": "Border colour when the window is floating (default: Yellow)",
+              "description": "Border colour when the window is floating",
               "anyOf": [
                 {
                   "$ref": "#/$defs/CatppuccinValue"
@@ -1778,10 +1790,11 @@
                 {
                   "type": "null"
                 }
-              ]
+              ],
+              "default": "Yellow"
             },
             "monocle_border": {
-              "description": "Border colour when the container is in monocle mode (default: Pink)",
+              "description": "Border colour when the container is in monocle mode",
               "anyOf": [
                 {
                   "$ref": "#/$defs/CatppuccinValue"
@@ -1789,7 +1802,8 @@
                 {
                   "type": "null"
                 }
-              ]
+              ],
+              "default": "Pink"
             },
             "name": {
               "description": "Name of the Catppuccin theme (theme previews: https://github.com/catppuccin/catppuccin)",
@@ -1800,7 +1814,7 @@
               "const": "Catppuccin"
             },
             "single_border": {
-              "description": "Border colour when the container contains a single window (default: Blue)",
+              "description": "Border colour when the container contains a single window",
               "anyOf": [
                 {
                   "$ref": "#/$defs/CatppuccinValue"
@@ -1808,10 +1822,11 @@
                 {
                   "type": "null"
                 }
-              ]
+              ],
+              "default": "Blue"
             },
             "stack_border": {
-              "description": "Border colour when the container contains multiple windows (default: Green)",
+              "description": "Border colour when the container contains multiple windows",
               "anyOf": [
                 {
                   "$ref": "#/$defs/CatppuccinValue"
@@ -1819,10 +1834,11 @@
                 {
                   "type": "null"
                 }
-              ]
+              ],
+              "default": "Green"
             },
             "stackbar_background": {
-              "description": "Stackbar tab background colour (default: Base)",
+              "description": "Stackbar tab background colour",
               "anyOf": [
                 {
                   "$ref": "#/$defs/CatppuccinValue"
@@ -1830,10 +1846,11 @@
                 {
                   "type": "null"
                 }
-              ]
+              ],
+              "default": "Base"
             },
             "stackbar_focused_text": {
-              "description": "Stackbar focused tab text colour (default: Green)",
+              "description": "Stackbar focused tab text colour",
               "anyOf": [
                 {
                   "$ref": "#/$defs/CatppuccinValue"
@@ -1841,10 +1858,11 @@
                 {
                   "type": "null"
                 }
-              ]
+              ],
+              "default": "Green"
             },
             "stackbar_unfocused_text": {
-              "description": "Stackbar unfocused tab text colour (default: Text)",
+              "description": "Stackbar unfocused tab text colour",
               "anyOf": [
                 {
                   "$ref": "#/$defs/CatppuccinValue"
@@ -1852,10 +1870,11 @@
                 {
                   "type": "null"
                 }
-              ]
+              ],
+              "default": "Text"
             },
             "unfocused_border": {
-              "description": "Border colour when the container is unfocused (default: Base)",
+              "description": "Border colour when the container is unfocused",
               "anyOf": [
                 {
                   "$ref": "#/$defs/CatppuccinValue"
@@ -1863,10 +1882,11 @@
                 {
                   "type": "null"
                 }
-              ]
+              ],
+              "default": "Base"
             },
             "unfocused_locked_border": {
-              "description": "Border colour when the container is unfocused and locked (default: Red)",
+              "description": "Border colour when the container is unfocused and locked",
               "anyOf": [
                 {
                   "$ref": "#/$defs/CatppuccinValue"
@@ -1874,7 +1894,8 @@
                 {
                   "type": "null"
                 }
-              ]
+              ],
+              "default": "Red"
             }
           },
           "required": [
@@ -1887,7 +1908,7 @@
           "type": "object",
           "properties": {
             "bar_accent": {
-              "description": "Komorebi status bar accent (default: Base0D)",
+              "description": "Komorebi status bar accent",
               "anyOf": [
                 {
                   "$ref": "#/$defs/Base16Value"
@@ -1895,10 +1916,11 @@
                 {
                   "type": "null"
                 }
-              ]
+              ],
+              "default": "Base0D"
             },
             "floating_border": {
-              "description": "Border colour when the window is floating (default: Base09)",
+              "description": "Border colour when the window is floating",
               "anyOf": [
                 {
                   "$ref": "#/$defs/Base16Value"
@@ -1906,10 +1928,11 @@
                 {
                   "type": "null"
                 }
-              ]
+              ],
+              "default": "Base09"
             },
             "monocle_border": {
-              "description": "Border colour when the container is in monocle mode (default: Base0F)",
+              "description": "Border colour when the container is in monocle mode",
               "anyOf": [
                 {
                   "$ref": "#/$defs/Base16Value"
@@ -1917,7 +1940,8 @@
                 {
                   "type": "null"
                 }
-              ]
+              ],
+              "default": "Base0F"
             },
             "name": {
               "description": "Name of the Base16 theme (theme previews: https://tinted-theming.github.io/tinted-gallery/)",
@@ -1928,7 +1952,7 @@
               "const": "Base16"
             },
             "single_border": {
-              "description": "Border colour when the container contains a single window (default: Base0D)",
+              "description": "Border colour when the container contains a single window",
               "anyOf": [
                 {
                   "$ref": "#/$defs/Base16Value"
@@ -1936,10 +1960,11 @@
                 {
                   "type": "null"
                 }
-              ]
+              ],
+              "default": "Base0D"
             },
             "stack_border": {
-              "description": "Border colour when the container contains multiple windows (default: Base0B)",
+              "description": "Border colour when the container contains multiple windows",
               "anyOf": [
                 {
                   "$ref": "#/$defs/Base16Value"
@@ -1947,10 +1972,11 @@
                 {
                   "type": "null"
                 }
-              ]
+              ],
+              "default": "Base0B"
             },
             "stackbar_background": {
-              "description": "Stackbar tab background colour (default: Base01)",
+              "description": "Stackbar tab background colour",
               "anyOf": [
                 {
                   "$ref": "#/$defs/Base16Value"
@@ -1958,10 +1984,11 @@
                 {
                   "type": "null"
                 }
-              ]
+              ],
+              "default": "Base01"
             },
             "stackbar_focused_text": {
-              "description": "Stackbar focused tab text colour (default: Base0B)",
+              "description": "Stackbar focused tab text colour",
               "anyOf": [
                 {
                   "$ref": "#/$defs/Base16Value"
@@ -1969,10 +1996,11 @@
                 {
                   "type": "null"
                 }
-              ]
+              ],
+              "default": "Base0B"
             },
             "stackbar_unfocused_text": {
-              "description": "Stackbar unfocused tab text colour (default: Base05)",
+              "description": "Stackbar unfocused tab text colour",
               "anyOf": [
                 {
                   "$ref": "#/$defs/Base16Value"
@@ -1980,10 +2008,11 @@
                 {
                   "type": "null"
                 }
-              ]
+              ],
+              "default": "Base05"
             },
             "unfocused_border": {
-              "description": "Border colour when the container is unfocused (default: Base01)",
+              "description": "Border colour when the container is unfocused",
               "anyOf": [
                 {
                   "$ref": "#/$defs/Base16Value"
@@ -1991,10 +2020,11 @@
                 {
                   "type": "null"
                 }
-              ]
+              ],
+              "default": "Base01"
             },
             "unfocused_locked_border": {
-              "description": "Border colour when the container is unfocused and locked (default: Base08)",
+              "description": "Border colour when the container is unfocused and locked",
               "anyOf": [
                 {
                   "$ref": "#/$defs/Base16Value"
@@ -2002,7 +2032,8 @@
                 {
                   "type": "null"
                 }
-              ]
+              ],
+              "default": "Base08"
             }
           },
           "required": [
@@ -2015,7 +2046,7 @@
           "type": "object",
           "properties": {
             "bar_accent": {
-              "description": "Komorebi status bar accent (default: Base0D)",
+              "description": "Komorebi status bar accent",
               "anyOf": [
                 {
                   "$ref": "#/$defs/Base16Value"
@@ -2023,14 +2054,15 @@
                 {
                   "type": "null"
                 }
-              ]
+              ],
+              "default": "Base0D"
             },
             "colours": {
               "description": "Colours of the custom Base16 theme palette",
               "$ref": "#/$defs/Base16ColourPalette"
             },
             "floating_border": {
-              "description": "Border colour when the window is floating (default: Base09)",
+              "description": "Border colour when the window is floating",
               "anyOf": [
                 {
                   "$ref": "#/$defs/Base16Value"
@@ -2038,10 +2070,11 @@
                 {
                   "type": "null"
                 }
-              ]
+              ],
+              "default": "Base09"
             },
             "monocle_border": {
-              "description": "Border colour when the container is in monocle mode (default: Base0F)",
+              "description": "Border colour when the container is in monocle mode",
               "anyOf": [
                 {
                   "$ref": "#/$defs/Base16Value"
@@ -2049,14 +2082,15 @@
                 {
                   "type": "null"
                 }
-              ]
+              ],
+              "default": "Base0F"
             },
             "palette": {
               "type": "string",
               "const": "Custom"
             },
             "single_border": {
-              "description": "Border colour when the container contains a single window (default: Base0D)",
+              "description": "Border colour when the container contains a single window",
               "anyOf": [
                 {
                   "$ref": "#/$defs/Base16Value"
@@ -2064,10 +2098,11 @@
                 {
                   "type": "null"
                 }
-              ]
+              ],
+              "default": "Base0D"
             },
             "stack_border": {
-              "description": "Border colour when the container contains multiple windows (default: Base0B)",
+              "description": "Border colour when the container contains multiple windows",
               "anyOf": [
                 {
                   "$ref": "#/$defs/Base16Value"
@@ -2075,10 +2110,11 @@
                 {
                   "type": "null"
                 }
-              ]
+              ],
+              "default": "Base0B"
             },
             "stackbar_background": {
-              "description": "Stackbar tab background colour (default: Base01)",
+              "description": "Stackbar tab background colour",
               "anyOf": [
                 {
                   "$ref": "#/$defs/Base16Value"
@@ -2086,10 +2122,11 @@
                 {
                   "type": "null"
                 }
-              ]
+              ],
+              "default": "Base01"
             },
             "stackbar_focused_text": {
-              "description": "Stackbar focused tab text colour (default: Base0B)",
+              "description": "Stackbar focused tab text colour",
               "anyOf": [
                 {
                   "$ref": "#/$defs/Base16Value"
@@ -2097,10 +2134,11 @@
                 {
                   "type": "null"
                 }
-              ]
+              ],
+              "default": "Base0B"
             },
             "stackbar_unfocused_text": {
-              "description": "Stackbar unfocused tab text colour (default: Base05)",
+              "description": "Stackbar unfocused tab text colour",
               "anyOf": [
                 {
                   "$ref": "#/$defs/Base16Value"
@@ -2108,10 +2146,11 @@
                 {
                   "type": "null"
                 }
-              ]
+              ],
+              "default": "Base05"
             },
             "unfocused_border": {
-              "description": "Border colour when the container is unfocused (default: Base01)",
+              "description": "Border colour when the container is unfocused",
               "anyOf": [
                 {
                   "$ref": "#/$defs/Base16Value"
@@ -2119,10 +2158,11 @@
                 {
                   "type": "null"
                 }
-              ]
+              ],
+              "default": "Base01"
             },
             "unfocused_locked_border": {
-              "description": "Border colour when the container is unfocused and locked (default: Base08)",
+              "description": "Border colour when the container is unfocused and locked",
               "anyOf": [
                 {
                   "$ref": "#/$defs/Base16Value"
@@ -2130,7 +2170,8 @@
                 {
                   "type": "null"
                 }
-              ]
+              ],
+              "default": "Base08"
             }
           },
           "required": [
@@ -2248,12 +2289,13 @@
           "minimum": 0
         },
         "data_refresh_interval": {
-          "description": "Data refresh interval (default: 10 seconds)",
+          "description": "Data refresh interval in seconds",
           "type": [
             "integer",
             "null"
           ],
           "format": "uint64",
+          "default": 10,
           "minimum": 0
         },
         "enable": {
@@ -2319,12 +2361,13 @@
       "type": "object",
       "properties": {
         "horizontal_scroll_threshold": {
-          "description": "Defines how many points a user needs to scroll horizontally to make a \"tick\" on a mouse/touchpad/touchscreen (default: 30)",
+          "description": "Defines how many points a user needs to scroll horizontally to make a \"tick\" on a mouse/touchpad/touchscreen",
           "type": [
             "number",
             "null"
           ],
-          "format": "float"
+          "format": "float",
+          "default": 30.0
         },
         "on_extra1_click": {
           "description": "Command to send on extra1/back button click",
@@ -2426,12 +2469,13 @@
           ]
         },
         "vertical_scroll_threshold": {
-          "description": "Defines how many points a user needs to scroll vertically to make a \"tick\" on a mouse/touchpad/touchscreen (default: 30)",
+          "description": "Defines how many points a user needs to scroll vertically to make a \"tick\" on a mouse/touchpad/touchscreen",
           "type": [
             "number",
             "null"
           ],
-          "format": "float"
+          "format": "float",
+          "default": 30.0
         }
       }
     },
@@ -2490,12 +2534,13 @@
           ]
         },
         "data_refresh_interval": {
-          "description": "Data refresh interval (default: 10 seconds)",
+          "description": "Data refresh interval in seconds",
           "type": [
             "integer",
             "null"
           ],
           "format": "uint64",
+          "default": 10,
           "minimum": 0
         },
         "enable": {
@@ -6309,12 +6354,13 @@
           "minimum": 0
         },
         "data_refresh_interval": {
-          "description": "Data refresh interval (default: 10 seconds)",
+          "description": "Data refresh interval in seconds",
           "type": [
             "integer",
             "null"
           ],
           "format": "uint64",
+          "default": 10,
           "minimum": 0
         },
         "enable": {
@@ -6333,18 +6379,20 @@
           ]
         },
         "show_read_only_disks": {
-          "description": "Show disks that are read only. (default: false)",
+          "description": "Show disks that are read only",
           "type": [
             "boolean",
             "null"
-          ]
+          ],
+          "default": false
         },
         "show_removable_disks": {
-          "description": "Show removable disks. (default: true)",
+          "description": "Show removable disks",
           "type": [
             "boolean",
             "null"
-          ]
+          ],
+          "default": true
         }
       },
       "required": [
@@ -6367,7 +6415,7 @@
       "type": "object",
       "properties": {
         "changing_icon": {
-          "description": "Change the icon depending on the time. The default icon is used between 8:30 and 12:00. (default: false)",
+          "description": "Change the icon depending on the time. The default icon is used between 8:30 and 12:00",
           "type": [
             "boolean",
             "null"
@@ -6456,12 +6504,13 @@
       "type": "object",
       "properties": {
         "data_refresh_interval": {
-          "description": "Data refresh interval (default: 12 hours)",
+          "description": "Data refresh interval in hours",
           "type": [
             "integer",
             "null"
           ],
           "format": "uint64",
+          "default": 12,
           "minimum": 0
         },
         "enable": {

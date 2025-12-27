@@ -21,15 +21,18 @@ use windows::Win32::UI::Input::KeyboardAndMouse::GetKeyboardLayout;
 use windows::Win32::UI::WindowsAndMessaging::GetForegroundWindow;
 use windows::Win32::UI::WindowsAndMessaging::GetWindowThreadProcessId;
 
-const DEFAULT_DATA_REFRESH_INTERVAL: u64 = 1;
-const ERROR_TEXT: &str = "Error";
+mod defaults {
+    pub const DATA_REFRESH_INTERVAL: u64 = 10;
+    pub const ERROR_TEXT: &str = "Error";
+}
 
 #[derive(Copy, Clone, Debug, Serialize, Deserialize)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct KeyboardConfig {
     /// Enable the Input widget
     pub enable: bool,
-    /// Data refresh interval (default: 1 second)
+    /// Data refresh interval
+    #[cfg_attr(feature = "schemars", schemars(extend("default" = defaults::DATA_REFRESH_INTERVAL)))]
     pub data_refresh_interval: Option<u64>,
     /// Display label prefix
     pub label_prefix: Option<LabelPrefix>,
@@ -39,7 +42,7 @@ impl From<KeyboardConfig> for Keyboard {
     fn from(value: KeyboardConfig) -> Self {
         let data_refresh_interval = value
             .data_refresh_interval
-            .unwrap_or(DEFAULT_DATA_REFRESH_INTERVAL);
+            .unwrap_or(defaults::DATA_REFRESH_INTERVAL);
 
         Self {
             enable: value.enable,
@@ -124,7 +127,7 @@ fn get_active_keyboard_layout() -> eyre::Result<String, ()> {
 fn get_lang() -> String {
     get_active_keyboard_layout()
         .map(|l| l.trim_end_matches('\0').to_string())
-        .unwrap_or_else(|_| ERROR_TEXT.to_string())
+        .unwrap_or_else(|_| defaults::ERROR_TEXT.to_string())
 }
 
 impl Keyboard {

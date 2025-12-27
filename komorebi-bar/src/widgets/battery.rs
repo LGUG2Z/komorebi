@@ -17,6 +17,10 @@ use std::process::Command;
 use std::time::Duration;
 use std::time::Instant;
 
+mod defaults {
+    pub const DATA_REFRESH_INTERVAL: u64 = 10;
+}
+
 #[derive(Copy, Clone, Debug, Serialize, Deserialize)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct BatteryConfig {
@@ -24,7 +28,8 @@ pub struct BatteryConfig {
     pub enable: bool,
     /// Hide the widget if the battery is at full charge
     pub hide_on_full_charge: Option<bool>,
-    /// Data refresh interval (default: 10 seconds)
+    /// Data refresh interval in seconds
+    #[cfg_attr(feature = "schemars", schemars(extend("default" = defaults::DATA_REFRESH_INTERVAL)))]
     pub data_refresh_interval: Option<u64>,
     /// Display label prefix
     pub label_prefix: Option<LabelPrefix>,
@@ -34,7 +39,9 @@ pub struct BatteryConfig {
 
 impl From<BatteryConfig> for Battery {
     fn from(value: BatteryConfig) -> Self {
-        let data_refresh_interval = value.data_refresh_interval.unwrap_or(10);
+        let data_refresh_interval = value
+            .data_refresh_interval
+            .unwrap_or(defaults::DATA_REFRESH_INTERVAL);
 
         Self {
             enable: value.enable,

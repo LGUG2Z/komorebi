@@ -16,12 +16,17 @@ use std::time::Instant;
 use sysinfo::RefreshKind;
 use sysinfo::System;
 
+mod defaults {
+    pub const DATA_REFRESH_INTERVAL: u64 = 10;
+}
+
 #[derive(Copy, Clone, Debug, Serialize, Deserialize)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct MemoryConfig {
     /// Enable the Memory widget
     pub enable: bool,
-    /// Data refresh interval (default: 10 seconds)
+    /// Data refresh interval in seconds
+    #[cfg_attr(feature = "schemars", schemars(extend("default" = defaults::DATA_REFRESH_INTERVAL)))]
     pub data_refresh_interval: Option<u64>,
     /// Display label prefix
     pub label_prefix: Option<LabelPrefix>,
@@ -31,7 +36,9 @@ pub struct MemoryConfig {
 
 impl From<MemoryConfig> for Memory {
     fn from(value: MemoryConfig) -> Self {
-        let data_refresh_interval = value.data_refresh_interval.unwrap_or(10);
+        let data_refresh_interval = value
+            .data_refresh_interval
+            .unwrap_or(defaults::DATA_REFRESH_INTERVAL);
 
         Self {
             enable: value.enable,

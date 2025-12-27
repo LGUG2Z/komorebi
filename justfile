@@ -75,9 +75,11 @@ trace target $RUST_LOG="trace":
 deadlock $RUST_LOG="trace":
     cargo +stable run --bin komorebi --locked --no-default-features --features deadlock_detection
 
-docgen:
-    cargo run --package komorebic -- docgen
-    Get-ChildItem -Path "docs/cli" -Recurse -File | ForEach-Object { (Get-Content $_.FullName) -replace 'Usage: ', 'Usage: komorebic.exe ' | Set-Content $_.FullName }
+docgen starlight:
+    rm {{ starlight }}/src/data/cli/windows/*.md
+    cargo run --package komorebic -- docgen --output {{ starlight }}/src/data/cli/windows
+    schemars-docgen ./schema.json --output {{ starlight }}/src/content/docs/reference/komorebi-windows.mdx --format mdx --title "komorebi.json (Windows)" --description "komorebi for Windows configuration schema reference"
+    schemars-docgen ./schema.bar.json --output {{ starlight }}/src/content/docs/reference/bar-windows.mdx --format mdx --title "komorebi.bar.json (Windows)" --description "komorebi-bar for Windows configuration schema reference"
 
 jsonschema:
     cargo run --package komorebic -- static-config-schema > schema.json
