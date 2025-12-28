@@ -5,8 +5,9 @@ Check schema.json and schema.bar.json for missing docstrings and map them to Rus
 This script analyzes the generated JSON schemas and identifies:
 1. Type definitions ($defs) missing top-level descriptions
 2. Enum variants missing descriptions (in oneOf/anyOf)
-3. Struct properties missing descriptions
-4. Top-level schema properties missing descriptions
+3. Enum variants missing titles (object variants in oneOf/anyOf)
+4. Struct properties missing descriptions
+5. Top-level schema properties missing descriptions
 
 For each missing docstring, it attempts to find the corresponding Rust source
 file and line number where the docstring should be added.
@@ -23,7 +24,7 @@ from typing import Optional
 @dataclass
 class MissingDoc:
     type_name: str
-    kind: str  # "type", "variant", "property"
+    kind: str  # "type", "variant", "property", "variant_title"
     item_name: Optional[str]  # variant or property name
     rust_file: Optional[str] = None
     rust_line: Optional[int] = None
@@ -39,6 +40,8 @@ class MissingDoc:
             return f"[TYPE] {self.type_name}{location}"
         elif self.kind == "variant":
             return f"[VARIANT] {self.type_name}::{self.item_name}{location}"
+        elif self.kind == "variant_title":
+            return f"[VARIANT_TITLE] {self.type_name}::{self.item_name}{location}"
         else:
             return f"[PROPERTY] {self.type_name}.{self.item_name}{location}"
 
@@ -62,7 +65,7 @@ def find_rust_definition(
             rf"pub\s+enum\s+{type_name}\b",
             rf"pub\s+struct\s+{type_name}\b",
         ]
-    elif kind == "variant":
+    elif kind in ("variant", "variant_title"):
         patterns = [
             rf"^\s*{re.escape(item_name)}\s*[,\(\{{]",
             rf"^\s*{re.escape(item_name)}\s*$",
@@ -83,7 +86,7 @@ def find_rust_definition(
                             if re.search(pattern, line):
                                 return str(rust_file), i + 1
 
-                elif kind in ("variant", "property"):
+                elif kind in ("variant", "variant_title", "property"):
                     parent_pattern = rf"pub\s+(?:enum|struct)\s+{type_name}\b"
                     in_type = False
                     brace_count = 0
@@ -110,6 +113,39 @@ def find_rust_definition(
                 continue
 
     return None, None
+
+
+def _get_variant_identifier(variant: dict) -> str:
+    """Extract a meaningful identifier for a variant.
+
+    Tries to find the best identifier by checking:
+    1. A top-level const value (e.g., {"const": "Linear"})
+    2. A property with a const value (e.g., {"kind": {"const": "Bar"}})
+    3. The first required property name
+    4. The type field
+    5. Falls back to "unknown"
+    """
+    # Check for top-level const value (simple enum variant)
+    if "const" in variant:
+        return str(variant["const"])
+
+    properties = variant.get("properties", {})
+
+    # Check for a property with a const value (common pattern for tagged enums)
+    for prop_name, prop_def in properties.items():
+        if isinstance(prop_def, dict) and "const" in prop_def:
+            return str(prop_def["const"])
+
+    # Fall back to first required property name
+    required = variant.get("required", [])
+    if required:
+        return str(required[0])
+
+    # Fall back to type
+    if "type" in variant:
+        return str(variant["type"])
+
+    return "unknown"
 
 
 def check_type_description(type_name: str, type_def: dict) -> list[MissingDoc]:
@@ -150,6 +186,19 @@ def check_type_description(type_name: str, type_def: dict) -> list[MissingDoc]:
                         MissingDoc(type_name, "variant", str(prop_name), None, None)
                     )
 
+            # Case 4: Object variant missing title (needed for schema UI display)
+            # Object variants should have a title or const for proper display in editors
+            if (
+                "properties" in variant
+                and "title" not in variant
+                and "const" not in variant
+            ):
+                # Try to find a good identifier for the variant (for display only)
+                variant_id = _get_variant_identifier(variant)
+                missing.append(
+                    MissingDoc(type_name, "variant_title", str(variant_id), None, None)
+                )
+
     # Check anyOf variants - check each variant individually
     elif "anyOf" in type_def:
         # anyOf types should have a top-level description
@@ -178,6 +227,17 @@ def check_type_description(type_name: str, type_def: dict) -> list[MissingDoc]:
                 variant_id = variant.get("const") or variant.get("type") or "unknown"
                 missing.append(
                     MissingDoc(type_name, "variant", str(variant_id), None, None)
+                )
+
+            # Check for missing title on object variants in anyOf
+            if (
+                "properties" in variant
+                and "title" not in variant
+                and "const" not in variant
+            ):
+                variant_id = _get_variant_identifier(variant)
+                missing.append(
+                    MissingDoc(type_name, "variant_title", str(variant_id), None, None)
                 )
 
     # Check simple string enums (no oneOf means no variant descriptions possible in schema)
@@ -285,11 +345,13 @@ def print_results(all_missing: list[MissingDoc], display_name: str) -> None:
 
     type_count = sum(1 for d in all_missing if d.kind == "type")
     variant_count = sum(1 for d in all_missing if d.kind == "variant")
+    variant_title_count = sum(1 for d in all_missing if d.kind == "variant_title")
     prop_count = sum(1 for d in all_missing if d.kind == "property")
 
-    print(f"\nTotal: {len(all_missing)} missing docstrings")
+    print(f"\nTotal: {len(all_missing)} missing docstrings/titles")
     print(f"  - {type_count} types")
     print(f"  - {variant_count} variants")
+    print(f"  - {variant_title_count} variant titles")
     print(f"  - {prop_count} properties")
 
     # Print by file
@@ -311,8 +373,7 @@ def print_results(all_missing: list[MissingDoc], display_name: str) -> None:
 
 
 def main():
-    script_dir = Path(__file__).parent
-    project_root = script_dir.parent
+    project_root = Path.cwd()
 
     # Define schemas to check with their respective search paths
     schemas = [

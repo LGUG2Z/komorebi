@@ -116,8 +116,10 @@ pub enum DateFormat {
     /// Day Date Month Year format (8 September 2024)
     DayDateMonthYear,
     /// Custom format (https://docs.rs/chrono/latest/chrono/format/strftime/index.html)
+    #[cfg_attr(feature = "schemars", schemars(title = "Custom"))]
     Custom(String),
     /// Custom format with modifiers
+    #[cfg_attr(feature = "schemars", schemars(title = "CustomModifiers"))]
     CustomModifiers(CustomModifiers),
 }
 

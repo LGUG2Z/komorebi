@@ -135,6 +135,7 @@ pub enum TimeFormat {
     /// Twenty-four-hour format displayed as a binary clock with rectangles (with seconds) (https://en.wikipedia.org/wiki/Binary_clock)
     BinaryRectangle,
     /// Custom format (https://docs.rs/chrono/latest/chrono/format/strftime/index.html)
+    #[cfg_attr(feature = "schemars", schemars(title = "Custom"))]
     Custom(String),
 }
 

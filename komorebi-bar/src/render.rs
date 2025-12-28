@@ -30,12 +30,16 @@ static SHOW_KOMOREBI_LAYOUT_OPTIONS: AtomicUsize = AtomicUsize::new(0);
 /// Grouping
 pub enum Grouping {
     /// No grouping is applied
+    #[cfg_attr(feature = "schemars", schemars(title = "None"))]
     None,
     /// Widgets are grouped as a whole
+    #[cfg_attr(feature = "schemars", schemars(title = "Bar"))]
     Bar(GroupingConfig),
     /// Widgets are grouped by alignment
+    #[cfg_attr(feature = "schemars", schemars(title = "Alignment"))]
     Alignment(GroupingConfig),
     /// Widgets are grouped individually
+    #[cfg_attr(feature = "schemars", schemars(title = "Widget"))]
     Widget(GroupingConfig),
 }
 
@@ -396,7 +400,7 @@ pub enum GroupingStyle {
 #[serde(untagged)]
 /// Rounding configuration
 pub enum RoundingConfig {
-    /// All 4 corners are the same    
+    /// All 4 corners are the same
     Same(f32),
     /// All 4 corners are custom. Order: NW, NE, SW, SE
     Individual([f32; 4]),

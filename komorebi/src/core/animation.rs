@@ -72,6 +72,7 @@ pub enum AnimationStyle {
     EaseOutBounce,
     /// Ease in out bounce
     EaseInOutBounce,
+    #[cfg_attr(feature = "schemars", schemars(title = "CubicBezier"))]
     #[value(skip)]
     /// Custom Cubic Bézier function
     CubicBezier(f64, f64, f64, f64),

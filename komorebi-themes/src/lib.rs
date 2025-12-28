@@ -308,13 +308,13 @@ impl Base16Value {
 #[derive(Copy, Clone, Debug, Serialize, Deserialize, JsonSchema, Display, PartialEq)]
 /// Catppuccin palette
 pub enum Catppuccin {
-    /// Frappe
+    /// Frappe (https://catppuccin.com/palette#flavor-frappe)
     Frappe,
-    /// Latte
+    /// Latte (https://catppuccin.com/palette#flavor-latte)
     Latte,
-    /// Macchiato
+    /// Macchiato (https://catppuccin.com/palette#flavor-macchiato)
     Macchiato,
-    /// Mocha
+    /// Mocha (https://catppuccin.com/palette#flavor-mocha)
     Mocha,
 }
 

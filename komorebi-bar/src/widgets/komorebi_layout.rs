@@ -29,6 +29,7 @@ use std::fmt::Formatter;
 /// Komorebi layout kind
 pub enum KomorebiLayout {
     /// Predefined layout
+    #[cfg_attr(feature = "schemars", schemars(title = "Default"))]
     Default(komorebi_client::DefaultLayout),
     /// Monocle mode
     Monocle,

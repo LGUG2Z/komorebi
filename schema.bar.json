@@ -345,6 +345,7 @@
           "const": "EaseInOutBounce"
         },
         {
+          "title": "CubicBezier",
           "description": "Custom Cubic Bézier function",
           "type": "object",
           "properties": {
@@ -2154,22 +2155,22 @@
       "description": "Catppuccin palette",
       "oneOf": [
         {
-          "description": "Frappe",
+          "description": "Frappe (https://catppuccin.com/palette#flavor-frappe)",
           "type": "string",
           "const": "Frappe"
         },
         {
-          "description": "Latte",
+          "description": "Latte (https://catppuccin.com/palette#flavor-latte)",
           "type": "string",
           "const": "Latte"
         },
         {
-          "description": "Macchiato",
+          "description": "Macchiato (https://catppuccin.com/palette#flavor-macchiato)",
           "type": "string",
           "const": "Macchiato"
         },
         {
-          "description": "Mocha",
+          "description": "Mocha (https://catppuccin.com/palette#flavor-mocha)",
           "type": "string",
           "const": "Mocha"
         }
@@ -2456,6 +2457,7 @@
           "const": "DayDateMonthYear"
         },
         {
+          "title": "Custom",
           "description": "Custom format (https://docs.rs/chrono/latest/chrono/format/strftime/index.html)",
           "type": "object",
           "properties": {
@@ -2469,6 +2471,7 @@
           ]
         },
         {
+          "title": "CustomModifiers",
           "description": "Custom format with modifiers",
           "type": "object",
           "properties": {
@@ -2517,7 +2520,7 @@
           "const": "UltrawideVerticalStack"
         },
         {
-          "description": "Grid Layout\n\n```\n+-----+-----+   +---+---+---+   +---+---+---+   +---+---+---+\n|     |     |   |   |   |   |   |   |   |   |   |   |   |   |\n|     |     |   |   |   |   |   |   |   |   |   |   |   +---+\n+-----+-----+   |   +---+---+   +---+---+---+   +---+---|   |\n|     |     |   |   |   |   |   |   |   |   |   |   |   +---+\n|     |     |   |   |   |   |   |   |   |   |   |   |   |   |\n+-----+-----+   +---+---+---+   +---+---+---+   +---+---+---+\n 4 windows       5 windows       6 windows       7 windows\n```",
+          "description": "Grid Layout\n\n```\n+-----+-----+   +---+---+---+   +---+---+---+   +---+---+---+\n|     |     |   |   |   |   |   |   |   |   |   |   |   |   |\n|     |     |   |   |   |   |   |   |   |   |   |   |   +---+\n+-----+-----+   |   +---+---+   +---+---+---+   +---+---|   |\n|     |     |   |   |   |   |   |   |   |   |   |   |   +---+\n|     |     |   |   |   |   |   |   |   |   |   |   |   |   |\n+-----+-----+   +---+---+---+   +---+---+---+   +---+---+---+\n  4 windows       5 windows       6 windows       7 windows\n```",
           "type": "string",
           "const": "Grid"
         },
@@ -2649,6 +2652,7 @@
       "description": "Grouping",
       "oneOf": [
         {
+          "title": "None",
           "description": "No grouping is applied",
           "type": "object",
           "properties": {
@@ -2662,6 +2666,7 @@
           ]
         },
         {
+          "title": "Bar",
           "description": "Widgets are grouped as a whole",
           "type": "object",
           "properties": {
@@ -2676,6 +2681,7 @@
           ]
         },
         {
+          "title": "Alignment",
           "description": "Widgets are grouped by alignment",
           "type": "object",
           "properties": {
@@ -2690,6 +2696,7 @@
           ]
         },
         {
+          "title": "Widget",
           "description": "Widgets are grouped individually",
           "type": "object",
           "properties": {
@@ -2879,6 +2886,7 @@
       "description": "Komorebi bar theme",
       "oneOf": [
         {
+          "title": "Catppuccin",
           "description": "Theme from catppuccin-egui",
           "type": "object",
           "properties": {
@@ -2930,6 +2938,7 @@
           ]
         },
         {
+          "title": "Base16",
           "description": "Theme from base16-egui-themes",
           "type": "object",
           "properties": {
@@ -2981,6 +2990,7 @@
           ]
         },
         {
+          "title": "Custom",
           "description": "Custom Base16 theme",
           "type": "object",
           "properties": {
@@ -3162,6 +3172,7 @@
       "description": "Komorebi layout kind",
       "anyOf": [
         {
+          "title": "Default",
           "description": "Predefined layout",
           "$ref": "#/$defs/DefaultLayout"
         },
@@ -3281,6 +3292,7 @@
       "description": "Komorebi theme",
       "oneOf": [
         {
+          "title": "Catppuccin",
           "description": "A theme from catppuccin-egui",
           "type": "object",
           "properties": {
@@ -3419,6 +3431,7 @@
           ]
         },
         {
+          "title": "Base16",
           "description": "A theme from base16-egui-themes",
           "type": "object",
           "properties": {
@@ -3557,6 +3570,7 @@
           ]
         },
         {
+          "title": "Custom",
           "description": "A custom Base16 theme",
           "type": "object",
           "properties": {
@@ -8055,6 +8069,7 @@
           "const": "BinaryRectangle"
         },
         {
+          "title": "Custom",
           "description": "Custom format (https://docs.rs/chrono/latest/chrono/format/strftime/index.html)",
           "type": "object",
           "properties": {
@@ -8107,6 +8122,7 @@
       "description": "Widget configuration",
       "oneOf": [
         {
+          "title": "Applications",
           "description": "Applications widget configuration",
           "type": "object",
           "properties": {
@@ -8120,6 +8136,7 @@
           ]
         },
         {
+          "title": "Battery",
           "description": "Battery widget configuration",
           "type": "object",
           "properties": {
@@ -8133,6 +8150,7 @@
           ]
         },
         {
+          "title": "Cpu",
           "description": "CPU widget configuration",
           "type": "object",
           "properties": {
@@ -8146,6 +8164,7 @@
           ]
         },
         {
+          "title": "Date",
           "description": "Date widget configuration",
           "type": "object",
           "properties": {
@@ -8159,6 +8178,7 @@
           ]
         },
         {
+          "title": "Keyboard",
           "description": "Keyboard widget configuration",
           "type": "object",
           "properties": {
@@ -8172,6 +8192,7 @@
           ]
         },
         {
+          "title": "Komorebi",
           "description": "Komorebi widget configuration",
           "type": "object",
           "properties": {
@@ -8185,6 +8206,7 @@
           ]
         },
         {
+          "title": "Media",
           "description": "Media widget configuration",
           "type": "object",
           "properties": {
@@ -8198,6 +8220,7 @@
           ]
         },
         {
+          "title": "Memory",
           "description": "Memory widget configuration",
           "type": "object",
           "properties": {
@@ -8211,6 +8234,7 @@
           ]
         },
         {
+          "title": "Network",
           "description": "Network widget configuration",
           "type": "object",
           "properties": {
@@ -8224,6 +8248,7 @@
           ]
         },
         {
+          "title": "Storage",
           "description": "Storage widget configuration",
           "type": "object",
           "properties": {
@@ -8237,6 +8262,7 @@
           ]
         },
         {
+          "title": "Time",
           "description": "Time widget configuration",
           "type": "object",
           "properties": {
@@ -8250,6 +8276,7 @@
           ]
         },
         {
+          "title": "Update",
           "description": "Update widget configuration",
           "type": "object",
           "properties": {
@@ -8300,6 +8327,7 @@
       ]
     },
     "WorkspacesDisplayFormat": {
+      "description": "Workspaces display format",
       "anyOf": [
         {
           "description": "Show all icons only",

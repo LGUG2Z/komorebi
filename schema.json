@@ -702,6 +702,7 @@
           "const": "EaseInOutBounce"
         },
         {
+          "title": "CubicBezier",
           "description": "Custom Cubic Bézier function",
           "type": "object",
           "properties": {
@@ -749,11 +750,13 @@
             {
               "type": "null"
             }
-          ]
+          ],
+          "default": 250
         },
         "enabled": {
           "description": "Enable or disable animations",
-          "$ref": "#/$defs/PerAnimationPrefixConfig"
+          "$ref": "#/$defs/PerAnimationPrefixConfig",
+          "default": false
         },
         "fps": {
           "description": "Set the animation FPS",
@@ -774,7 +777,8 @@
             {
               "type": "null"
             }
-          ]
+          ],
+          "default": "Linear"
         }
       },
       "required": [
@@ -826,10 +830,12 @@
       "description": "Aspect ratio for temporarily floating windows",
       "anyOf": [
         {
+          "title": "Predefined",
           "description": "Predefined aspect ratio",
           "$ref": "#/$defs/PredefinedAspectRatio"
         },
         {
+          "title": "Custom",
           "description": "Custom W:H aspect ratio",
           "type": "array",
           "maxItems": 2,
@@ -2501,22 +2507,22 @@
       "description": "Catppuccin palette",
       "oneOf": [
         {
-          "description": "Frappe",
+          "description": "Frappe (https://catppuccin.com/palette#flavor-frappe)",
           "type": "string",
           "const": "Frappe"
         },
         {
-          "description": "Latte",
+          "description": "Latte (https://catppuccin.com/palette#flavor-latte)",
           "type": "string",
           "const": "Latte"
         },
         {
-          "description": "Macchiato",
+          "description": "Macchiato (https://catppuccin.com/palette#flavor-macchiato)",
           "type": "string",
           "const": "Macchiato"
         },
         {
-          "description": "Mocha",
+          "description": "Mocha (https://catppuccin.com/palette#flavor-mocha)",
           "type": "string",
           "const": "Mocha"
         }
@@ -2719,7 +2725,7 @@
           "const": "UltrawideVerticalStack"
         },
         {
-          "description": "Grid Layout\n\n```\n+-----+-----+   +---+---+---+   +---+---+---+   +---+---+---+\n|     |     |   |   |   |   |   |   |   |   |   |   |   |   |\n|     |     |   |   |   |   |   |   |   |   |   |   |   +---+\n+-----+-----+   |   +---+---+   +---+---+---+   +---+---|   |\n|     |     |   |   |   |   |   |   |   |   |   |   |   +---+\n|     |     |   |   |   |   |   |   |   |   |   |   |   |   |\n+-----+-----+   +---+---+---+   +---+---+---+   +---+---+---+\n 4 windows       5 windows       6 windows       7 windows\n```",
+          "description": "Grid Layout\n\n```\n+-----+-----+   +---+---+---+   +---+---+---+   +---+---+---+\n|     |     |   |   |   |   |   |   |   |   |   |   |   |   |\n|     |     |   |   |   |   |   |   |   |   |   |   |   +---+\n+-----+-----+   |   +---+---+   +---+---+---+   +---+---|   |\n|     |     |   |   |   |   |   |   |   |   |   |   |   +---+\n|     |     |   |   |   |   |   |   |   |   |   |   |   |   |\n+-----+-----+   +---+---+---+   +---+---+---+   +---+---+---+\n  4 windows       5 windows       6 windows       7 windows\n```",
           "type": "string",
           "const": "Grid"
         },
@@ -2839,6 +2845,7 @@
       "description": "Komorebi theme",
       "oneOf": [
         {
+          "title": "Catppuccin",
           "description": "A theme from catppuccin-egui",
           "type": "object",
           "properties": {
@@ -2977,6 +2984,7 @@
           ]
         },
         {
+          "title": "Base16",
           "description": "A theme from base16-egui-themes",
           "type": "object",
           "properties": {
@@ -3115,6 +3123,7 @@
           ]
         },
         {
+          "title": "Custom",
           "description": "A custom Base16 theme",
           "type": "object",
           "properties": {

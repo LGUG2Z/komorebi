@@ -305,8 +305,10 @@ impl RenderDispatcher for TransparencyRenderDispatcher {
 /// Aspect ratio for temporarily floating windows
 pub enum AspectRatio {
     /// Predefined aspect ratio
+    #[cfg_attr(feature = "schemars", schemars(title = "Predefined"))]
     Predefined(PredefinedAspectRatio),
     /// Custom W:H aspect ratio
+    #[cfg_attr(feature = "schemars", schemars(title = "Custom"))]
     Custom(i32, i32),
 }
 
