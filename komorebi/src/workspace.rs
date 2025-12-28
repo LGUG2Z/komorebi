@@ -40,6 +40,7 @@ use crate::windows_api::WindowsApi;
 use color_eyre::eyre;
 use color_eyre::eyre::OptionExt;
 use komorebi_themes::Base16ColourPalette;
+use komorebi_themes::KomorebiThemeCustom as Custom;
 use serde::Deserialize;
 use serde::Serialize;
 use uds_windows::UnixStream;
@@ -334,7 +335,7 @@ impl Workspace {
                 }
 
                 if let Some(palette) = base16_palette {
-                    let komorebi_theme = KomorebiTheme::Custom {
+                    let komorebi_theme = KomorebiTheme::Custom(Custom {
                         colours: Box::new(palette),
                         single_border: wallpaper
                             .theme_options
@@ -373,7 +374,7 @@ impl Workspace {
                             .as_ref()
                             .and_then(|o| o.stackbar_background),
                         bar_accent: wallpaper.theme_options.as_ref().and_then(|o| o.bar_accent),
-                    };
+                    });
 
                     let bytes = SocketMessage::Theme(Box::new(komorebi_theme)).as_bytes()?;
 

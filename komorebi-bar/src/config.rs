@@ -5,7 +5,6 @@ use crate::widgets::widget::WidgetConfig;
 use eframe::egui::Pos2;
 use eframe::egui::TextBuffer;
 use eframe::egui::Vec2;
-use komorebi_client::KomorebiTheme;
 use komorebi_client::PathExt;
 use komorebi_client::Rect;
 use komorebi_client::SocketMessage;
@@ -565,81 +564,7 @@ impl From<Position> for Pos2 {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
-#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
-#[serde(tag = "palette")]
-/// Komorebi bar theme
-pub enum KomobarTheme {
-    /// Theme from catppuccin-egui
-    #[cfg_attr(feature = "schemars", schemars(title = "Catppuccin"))]
-    Catppuccin {
-        /// Name of the Catppuccin theme (theme previews: https://github.com/catppuccin/catppuccin)
-        name: komorebi_themes::Catppuccin,
-        /// Accent colour
-        accent: Option<komorebi_themes::CatppuccinValue>,
-        /// Auto select fill colour
-        auto_select_fill: Option<komorebi_themes::CatppuccinValue>,
-        /// Auto select text colour
-        auto_select_text: Option<komorebi_themes::CatppuccinValue>,
-    },
-    /// Theme from base16-egui-themes
-    #[cfg_attr(feature = "schemars", schemars(title = "Base16"))]
-    Base16 {
-        /// Name of the Base16 theme (theme previews: https://tinted-theming.github.io/tinted-gallery/)
-        name: komorebi_themes::Base16,
-        /// Accent colour
-        accent: Option<komorebi_themes::Base16Value>,
-        /// Auto select fill colour
-        auto_select_fill: Option<komorebi_themes::Base16Value>,
-        /// Auto select text colour
-        auto_select_text: Option<komorebi_themes::Base16Value>,
-    },
-    /// Custom Base16 theme
-    #[cfg_attr(feature = "schemars", schemars(title = "Custom"))]
-    Custom {
-        /// Colours of the custom Base16 theme palette
-        colours: Box<komorebi_themes::Base16ColourPalette>,
-        /// Accent colour
-        accent: Option<komorebi_themes::Base16Value>,
-        /// Auto select fill colour
-        auto_select_fill: Option<komorebi_themes::Base16Value>,
-        /// Auto select text colour
-        auto_select_text: Option<komorebi_themes::Base16Value>,
-    },
-}
-
-impl From<KomorebiTheme> for KomobarTheme {
-    fn from(value: KomorebiTheme) -> Self {
-        match value {
-            KomorebiTheme::Catppuccin {
-                name, bar_accent, ..
-            } => Self::Catppuccin {
-                name,
-                accent: bar_accent,
-                auto_select_fill: None,
-                auto_select_text: None,
-            },
-            KomorebiTheme::Base16 {
-                name, bar_accent, ..
-            } => Self::Base16 {
-                name,
-                accent: bar_accent,
-                auto_select_fill: None,
-                auto_select_text: None,
-            },
-            KomorebiTheme::Custom {
-                colours,
-                bar_accent,
-                ..
-            } => Self::Custom {
-                colours,
-                accent: bar_accent,
-                auto_select_fill: None,
-                auto_select_text: None,
-            },
-        }
-    }
-}
+pub use komorebi_themes::KomobarTheme;
 
 #[derive(Copy, Clone, Debug, Serialize, Deserialize)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]

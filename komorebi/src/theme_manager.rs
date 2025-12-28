@@ -10,6 +10,9 @@ use crossbeam_channel::Receiver;
 use crossbeam_channel::Sender;
 use crossbeam_utils::atomic::AtomicCell;
 use komorebi_themes::Base16Wrapper;
+use komorebi_themes::KomorebiThemeBase16 as Base16;
+use komorebi_themes::KomorebiThemeCatppuccin as Catppuccin;
+use komorebi_themes::KomorebiThemeCustom as Custom;
 use komorebi_themes::colour::Colour;
 use std::ops::Deref;
 use std::sync::OnceLock;
@@ -84,7 +87,7 @@ pub fn handle_notifications() -> color_eyre::Result<()> {
             stackbar_unfocused_text,
             stackbar_background,
         ) = match theme {
-            KomorebiTheme::Catppuccin {
+            KomorebiTheme::Catppuccin(Catppuccin {
                 name,
                 single_border,
                 stack_border,
@@ -96,7 +99,7 @@ pub fn handle_notifications() -> color_eyre::Result<()> {
                 stackbar_unfocused_text,
                 stackbar_background,
                 ..
-            } => {
+            }) => {
                 let single_border = single_border
                     .unwrap_or(komorebi_themes::CatppuccinValue::Blue)
                     .color32(name.as_theme());
@@ -145,7 +148,7 @@ pub fn handle_notifications() -> color_eyre::Result<()> {
                     stackbar_background,
                 )
             }
-            KomorebiTheme::Base16 {
+            KomorebiTheme::Base16(Base16 {
                 name,
                 single_border,
                 stack_border,
@@ -157,7 +160,7 @@ pub fn handle_notifications() -> color_eyre::Result<()> {
                 stackbar_unfocused_text,
                 stackbar_background,
                 ..
-            } => {
+            }) => {
                 let single_border = single_border
                     .unwrap_or(komorebi_themes::Base16Value::Base0D)
                     .color32(Base16Wrapper::Base16(*name));
@@ -206,7 +209,7 @@ pub fn handle_notifications() -> color_eyre::Result<()> {
                     stackbar_background,
                 )
             }
-            KomorebiTheme::Custom {
+            KomorebiTheme::Custom(Custom {
                 colours,
                 single_border,
                 stack_border,
@@ -218,7 +221,7 @@ pub fn handle_notifications() -> color_eyre::Result<()> {
                 stackbar_unfocused_text,
                 stackbar_background,
                 ..
-            } => {
+            }) => {
                 let single_border = single_border
                     .unwrap_or(komorebi_themes::Base16Value::Base0D)
                     .color32(Base16Wrapper::Custom(colours.clone()));

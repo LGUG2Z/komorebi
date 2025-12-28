@@ -2890,51 +2890,14 @@
           "description": "Theme from catppuccin-egui",
           "type": "object",
           "properties": {
-            "accent": {
-              "description": "Accent colour",
-              "anyOf": [
-                {
-                  "$ref": "#/$defs/CatppuccinValue"
-                },
-                {
-                  "type": "null"
-                }
-              ]
-            },
-            "auto_select_fill": {
-              "description": "Auto select fill colour",
-              "anyOf": [
-                {
-                  "$ref": "#/$defs/CatppuccinValue"
-                },
-                {
-                  "type": "null"
-                }
-              ]
-            },
-            "auto_select_text": {
-              "description": "Auto select text colour",
-              "anyOf": [
-                {
-                  "$ref": "#/$defs/CatppuccinValue"
-                },
-                {
-                  "type": "null"
-                }
-              ]
-            },
-            "name": {
-              "description": "Name of the Catppuccin theme (theme previews: https://github.com/catppuccin/catppuccin)",
-              "$ref": "#/$defs/Catppuccin"
-            },
             "palette": {
               "type": "string",
               "const": "Catppuccin"
             }
           },
+          "$ref": "#/$defs/KomobarThemeCatppuccin",
           "required": [
-            "palette",
-            "name"
+            "palette"
           ]
         },
         {
@@ -2942,51 +2905,14 @@
           "description": "Theme from base16-egui-themes",
           "type": "object",
           "properties": {
-            "accent": {
-              "description": "Accent colour",
-              "anyOf": [
-                {
-                  "$ref": "#/$defs/Base16Value"
-                },
-                {
-                  "type": "null"
-                }
-              ]
-            },
-            "auto_select_fill": {
-              "description": "Auto select fill colour",
-              "anyOf": [
-                {
-                  "$ref": "#/$defs/Base16Value"
-                },
-                {
-                  "type": "null"
-                }
-              ]
-            },
-            "auto_select_text": {
-              "description": "Auto select text colour",
-              "anyOf": [
-                {
-                  "$ref": "#/$defs/Base16Value"
-                },
-                {
-                  "type": "null"
-                }
-              ]
-            },
-            "name": {
-              "description": "Name of the Base16 theme (theme previews: https://tinted-theming.github.io/tinted-gallery/)",
-              "$ref": "#/$defs/Base16"
-            },
             "palette": {
               "type": "string",
               "const": "Base16"
             }
           },
+          "$ref": "#/$defs/KomobarThemeBase16",
           "required": [
-            "palette",
-            "name"
+            "palette"
           ]
         },
         {
@@ -2994,53 +2920,157 @@
           "description": "Custom Base16 theme",
           "type": "object",
           "properties": {
-            "accent": {
-              "description": "Accent colour",
-              "anyOf": [
-                {
-                  "$ref": "#/$defs/Base16Value"
-                },
-                {
-                  "type": "null"
-                }
-              ]
-            },
-            "auto_select_fill": {
-              "description": "Auto select fill colour",
-              "anyOf": [
-                {
-                  "$ref": "#/$defs/Base16Value"
-                },
-                {
-                  "type": "null"
-                }
-              ]
-            },
-            "auto_select_text": {
-              "description": "Auto select text colour",
-              "anyOf": [
-                {
-                  "$ref": "#/$defs/Base16Value"
-                },
-                {
-                  "type": "null"
-                }
-              ]
-            },
-            "colours": {
-              "description": "Colours of the custom Base16 theme palette",
-              "$ref": "#/$defs/Base16ColourPalette"
-            },
             "palette": {
               "type": "string",
               "const": "Custom"
             }
           },
+          "$ref": "#/$defs/KomobarThemeCustom",
           "required": [
-            "palette",
-            "colours"
+            "palette"
           ]
         }
+      ]
+    },
+    "KomobarThemeBase16": {
+      "description": "Theme from base16-egui-themes",
+      "type": "object",
+      "properties": {
+        "accent": {
+          "description": "Accent colour",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Base16Value"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": "Base0D"
+        },
+        "auto_select_fill": {
+          "description": "Auto select fill colour",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Base16Value"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "auto_select_text": {
+          "description": "Auto select text colour",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Base16Value"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "name": {
+          "description": "Name of the Base16 theme (previews: https://tinted-theming.github.io/tinted-gallery/)",
+          "$ref": "#/$defs/Base16"
+        }
+      },
+      "required": [
+        "name"
+      ]
+    },
+    "KomobarThemeCatppuccin": {
+      "description": "Theme from catppuccin-egui",
+      "type": "object",
+      "properties": {
+        "accent": {
+          "description": "Accent colour",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CatppuccinValue"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": "Blue"
+        },
+        "auto_select_fill": {
+          "description": "Auto select fill colour",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CatppuccinValue"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "auto_select_text": {
+          "description": "Auto select text colour",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CatppuccinValue"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "name": {
+          "description": "Name of the Catppuccin theme (previews: https://github.com/catppuccin/catppuccin)",
+          "$ref": "#/$defs/Catppuccin"
+        }
+      },
+      "required": [
+        "name"
+      ]
+    },
+    "KomobarThemeCustom": {
+      "description": "Theme from base16-egui-themes",
+      "type": "object",
+      "properties": {
+        "accent": {
+          "description": "Accent colour",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Base16Value"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": "Blue"
+        },
+        "auto_select_fill": {
+          "description": "Auto select fill colour",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Base16Value"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "auto_select_text": {
+          "description": "Auto select text colour",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Base16Value"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "colours": {
+          "description": "Colours of the custom Base16 theme palette",
+          "$ref": "#/$defs/Base16ColourPalette"
+        }
+      },
+      "required": [
+        "colours"
       ]
     },
     "KomorebiConfig": {
@@ -3293,421 +3323,448 @@
       "oneOf": [
         {
           "title": "Catppuccin",
-          "description": "A theme from catppuccin-egui",
+          "description": "Theme from catppuccin-egui",
           "type": "object",
           "properties": {
-            "bar_accent": {
-              "description": "Komorebi status bar accent",
-              "anyOf": [
-                {
-                  "$ref": "#/$defs/CatppuccinValue"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "default": "Blue"
-            },
-            "floating_border": {
-              "description": "Border colour when the window is floating",
-              "anyOf": [
-                {
-                  "$ref": "#/$defs/CatppuccinValue"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "default": "Yellow"
-            },
-            "monocle_border": {
-              "description": "Border colour when the container is in monocle mode",
-              "anyOf": [
-                {
-                  "$ref": "#/$defs/CatppuccinValue"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "default": "Pink"
-            },
-            "name": {
-              "description": "Name of the Catppuccin theme (theme previews: https://github.com/catppuccin/catppuccin)",
-              "$ref": "#/$defs/Catppuccin"
-            },
             "palette": {
               "type": "string",
               "const": "Catppuccin"
-            },
-            "single_border": {
-              "description": "Border colour when the container contains a single window",
-              "anyOf": [
-                {
-                  "$ref": "#/$defs/CatppuccinValue"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "default": "Blue"
-            },
-            "stack_border": {
-              "description": "Border colour when the container contains multiple windows",
-              "anyOf": [
-                {
-                  "$ref": "#/$defs/CatppuccinValue"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "default": "Green"
-            },
-            "stackbar_background": {
-              "description": "Stackbar tab background colour",
-              "anyOf": [
-                {
-                  "$ref": "#/$defs/CatppuccinValue"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "default": "Base"
-            },
-            "stackbar_focused_text": {
-              "description": "Stackbar focused tab text colour",
-              "anyOf": [
-                {
-                  "$ref": "#/$defs/CatppuccinValue"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "default": "Green"
-            },
-            "stackbar_unfocused_text": {
-              "description": "Stackbar unfocused tab text colour",
-              "anyOf": [
-                {
-                  "$ref": "#/$defs/CatppuccinValue"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "default": "Text"
-            },
-            "unfocused_border": {
-              "description": "Border colour when the container is unfocused",
-              "anyOf": [
-                {
-                  "$ref": "#/$defs/CatppuccinValue"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "default": "Base"
-            },
-            "unfocused_locked_border": {
-              "description": "Border colour when the container is unfocused and locked",
-              "anyOf": [
-                {
-                  "$ref": "#/$defs/CatppuccinValue"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "default": "Red"
             }
           },
+          "$ref": "#/$defs/KomorebiThemeCatppuccin",
           "required": [
-            "palette",
-            "name"
+            "palette"
           ]
         },
         {
           "title": "Base16",
-          "description": "A theme from base16-egui-themes",
+          "description": "Theme from base16-egui-themes",
           "type": "object",
           "properties": {
-            "bar_accent": {
-              "description": "Komorebi status bar accent",
-              "anyOf": [
-                {
-                  "$ref": "#/$defs/Base16Value"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "default": "Base0D"
-            },
-            "floating_border": {
-              "description": "Border colour when the window is floating",
-              "anyOf": [
-                {
-                  "$ref": "#/$defs/Base16Value"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "default": "Base09"
-            },
-            "monocle_border": {
-              "description": "Border colour when the container is in monocle mode",
-              "anyOf": [
-                {
-                  "$ref": "#/$defs/Base16Value"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "default": "Base0F"
-            },
-            "name": {
-              "description": "Name of the Base16 theme (theme previews: https://tinted-theming.github.io/tinted-gallery/)",
-              "$ref": "#/$defs/Base16"
-            },
             "palette": {
               "type": "string",
               "const": "Base16"
-            },
-            "single_border": {
-              "description": "Border colour when the container contains a single window",
-              "anyOf": [
-                {
-                  "$ref": "#/$defs/Base16Value"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "default": "Base0D"
-            },
-            "stack_border": {
-              "description": "Border colour when the container contains multiple windows",
-              "anyOf": [
-                {
-                  "$ref": "#/$defs/Base16Value"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "default": "Base0B"
-            },
-            "stackbar_background": {
-              "description": "Stackbar tab background colour",
-              "anyOf": [
-                {
-                  "$ref": "#/$defs/Base16Value"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "default": "Base01"
-            },
-            "stackbar_focused_text": {
-              "description": "Stackbar focused tab text colour",
-              "anyOf": [
-                {
-                  "$ref": "#/$defs/Base16Value"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "default": "Base0B"
-            },
-            "stackbar_unfocused_text": {
-              "description": "Stackbar unfocused tab text colour",
-              "anyOf": [
-                {
-                  "$ref": "#/$defs/Base16Value"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "default": "Base05"
-            },
-            "unfocused_border": {
-              "description": "Border colour when the container is unfocused",
-              "anyOf": [
-                {
-                  "$ref": "#/$defs/Base16Value"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "default": "Base01"
-            },
-            "unfocused_locked_border": {
-              "description": "Border colour when the container is unfocused and locked",
-              "anyOf": [
-                {
-                  "$ref": "#/$defs/Base16Value"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "default": "Base08"
             }
           },
+          "$ref": "#/$defs/KomorebiThemeBase16",
           "required": [
-            "palette",
-            "name"
+            "palette"
           ]
         },
         {
           "title": "Custom",
-          "description": "A custom Base16 theme",
+          "description": "Custom Base16 theme",
           "type": "object",
           "properties": {
-            "bar_accent": {
-              "description": "Komorebi status bar accent",
-              "anyOf": [
-                {
-                  "$ref": "#/$defs/Base16Value"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "default": "Base0D"
-            },
-            "colours": {
-              "description": "Colours of the custom Base16 theme palette",
-              "$ref": "#/$defs/Base16ColourPalette"
-            },
-            "floating_border": {
-              "description": "Border colour when the window is floating",
-              "anyOf": [
-                {
-                  "$ref": "#/$defs/Base16Value"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "default": "Base09"
-            },
-            "monocle_border": {
-              "description": "Border colour when the container is in monocle mode",
-              "anyOf": [
-                {
-                  "$ref": "#/$defs/Base16Value"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "default": "Base0F"
-            },
             "palette": {
               "type": "string",
               "const": "Custom"
-            },
-            "single_border": {
-              "description": "Border colour when the container contains a single window",
-              "anyOf": [
-                {
-                  "$ref": "#/$defs/Base16Value"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "default": "Base0D"
-            },
-            "stack_border": {
-              "description": "Border colour when the container contains multiple windows",
-              "anyOf": [
-                {
-                  "$ref": "#/$defs/Base16Value"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "default": "Base0B"
-            },
-            "stackbar_background": {
-              "description": "Stackbar tab background colour",
-              "anyOf": [
-                {
-                  "$ref": "#/$defs/Base16Value"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "default": "Base01"
-            },
-            "stackbar_focused_text": {
-              "description": "Stackbar focused tab text colour",
-              "anyOf": [
-                {
-                  "$ref": "#/$defs/Base16Value"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "default": "Base0B"
-            },
-            "stackbar_unfocused_text": {
-              "description": "Stackbar unfocused tab text colour",
-              "anyOf": [
-                {
-                  "$ref": "#/$defs/Base16Value"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "default": "Base05"
-            },
-            "unfocused_border": {
-              "description": "Border colour when the container is unfocused",
-              "anyOf": [
-                {
-                  "$ref": "#/$defs/Base16Value"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "default": "Base01"
-            },
-            "unfocused_locked_border": {
-              "description": "Border colour when the container is unfocused and locked",
-              "anyOf": [
-                {
-                  "$ref": "#/$defs/Base16Value"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "default": "Base08"
             }
           },
+          "$ref": "#/$defs/KomorebiThemeCustom",
           "required": [
-            "palette",
-            "colours"
+            "palette"
           ]
         }
+      ]
+    },
+    "KomorebiThemeBase16": {
+      "description": "Theme from base16-egui-themes",
+      "type": "object",
+      "properties": {
+        "bar_accent": {
+          "description": "Bar accent colour",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Base16Value"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": "Base0D"
+        },
+        "floating_border": {
+          "description": "Floating window border colour",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Base16Value"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": "Base09"
+        },
+        "monocle_border": {
+          "description": "Monocle window border colour",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Base16Value"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": "Base0F"
+        },
+        "name": {
+          "description": "Name of the Base16 theme (theme previews: https://tinted-theming.github.io/tinted-gallery/)",
+          "$ref": "#/$defs/Base16"
+        },
+        "single_border": {
+          "description": "Single window border colour",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Base16Value"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": "Base0D"
+        },
+        "stack_border": {
+          "description": "Stack window border colour",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Base16Value"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": "Base0B"
+        },
+        "stackbar_background": {
+          "description": "Stackbar background colour",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Base16Value"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": "Base01"
+        },
+        "stackbar_focused_text": {
+          "description": "Stackbar focused text colour",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Base16Value"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": "Base0B"
+        },
+        "stackbar_unfocused_text": {
+          "description": "Stackbar unfocused text colour",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Base16Value"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": "Base05"
+        },
+        "unfocused_border": {
+          "description": "Unfocused window border colour",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Base16Value"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": "Base01"
+        },
+        "unfocused_locked_border": {
+          "description": "Unfocused locked window border colour",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Base16Value"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": "Base08"
+        }
+      },
+      "required": [
+        "name"
+      ]
+    },
+    "KomorebiThemeCatppuccin": {
+      "description": "Theme from catppuccin-egui",
+      "type": "object",
+      "properties": {
+        "bar_accent": {
+          "description": "Bar accent colour",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CatppuccinValue"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": "Blue"
+        },
+        "floating_border": {
+          "description": "Floating window border colour",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CatppuccinValue"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": "Yellow"
+        },
+        "monocle_border": {
+          "description": "Monocle window border colour",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CatppuccinValue"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": "Pink"
+        },
+        "name": {
+          "description": "Name of the Catppuccin theme (previews: https://github.com/catppuccin/catppuccin)",
+          "$ref": "#/$defs/Catppuccin"
+        },
+        "single_border": {
+          "description": "Single window border colour",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CatppuccinValue"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": "Blue"
+        },
+        "stack_border": {
+          "description": "Stack window border colour",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CatppuccinValue"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": "Green"
+        },
+        "stackbar_background": {
+          "description": "Stackbar background colour",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CatppuccinValue"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": "Base"
+        },
+        "stackbar_focused_text": {
+          "description": "Stackbar focused text colour",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CatppuccinValue"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": "Green"
+        },
+        "stackbar_unfocused_text": {
+          "description": "Stackbar unfocused text colour",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CatppuccinValue"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": "Text"
+        },
+        "unfocused_border": {
+          "description": "Unfocused window border colour",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CatppuccinValue"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": "Base"
+        },
+        "unfocused_locked_border": {
+          "description": "Unfocused locked window border colour",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CatppuccinValue"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": "Red"
+        }
+      },
+      "required": [
+        "name"
+      ]
+    },
+    "KomorebiThemeCustom": {
+      "description": "Custom Base16 theme",
+      "type": "object",
+      "properties": {
+        "bar_accent": {
+          "description": "Bar accent colour",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Base16Value"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": "Base0D"
+        },
+        "colours": {
+          "description": "Colours of the custom Base16 theme palette",
+          "$ref": "#/$defs/Base16ColourPalette"
+        },
+        "floating_border": {
+          "description": "Floating window border colour",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Base16Value"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": "Base09"
+        },
+        "monocle_border": {
+          "description": "Monocle window border colour",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Base16Value"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": "Base0F"
+        },
+        "single_border": {
+          "description": "Single window border colour",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Base16Value"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": "Base0D"
+        },
+        "stack_border": {
+          "description": "Stack window border colour",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Base16Value"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": "Base0B"
+        },
+        "stackbar_background": {
+          "description": "Stackbar background colour",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Base16Value"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": "Base01"
+        },
+        "stackbar_focused_text": {
+          "description": "Stackbar focused text colour",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Base16Value"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": "Base0B"
+        },
+        "stackbar_unfocused_text": {
+          "description": "Stackbar unfocused text colour",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Base16Value"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": "Base05"
+        },
+        "unfocused_border": {
+          "description": "Unfocused window border colour",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Base16Value"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": "Base01"
+        },
+        "unfocused_locked_border": {
+          "description": "Unfocused locked window border colour",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Base16Value"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": "Base08"
+        }
+      },
+      "required": [
+        "colours"
       ]
     },
     "KomorebiWorkspaceLayerConfig": {

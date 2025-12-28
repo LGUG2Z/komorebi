@@ -429,3 +429,275 @@ impl CatppuccinValue {
         }
     }
 }
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[cfg_attr(feature = "schemars", derive(JsonSchema))]
+/// Theme from catppuccin-egui
+pub struct KomorebiThemeCatppuccin {
+    /// Name of the Catppuccin theme (previews: https://github.com/catppuccin/catppuccin)
+    pub name: Catppuccin,
+    /// Single window border colour
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "schemars", schemars(extend("default" = CatppuccinValue::Blue)))]
+    pub single_border: Option<CatppuccinValue>,
+    /// Stack window border colour
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "schemars", schemars(extend("default" = CatppuccinValue::Green)))]
+    pub stack_border: Option<CatppuccinValue>,
+    /// Monocle window border colour
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "schemars", schemars(extend("default" = CatppuccinValue::Pink)))]
+    pub monocle_border: Option<CatppuccinValue>,
+    /// Floating window border colour
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "schemars", schemars(extend("default" = CatppuccinValue::Yellow)))]
+    pub floating_border: Option<CatppuccinValue>,
+    /// Unfocused window border colour
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "schemars", schemars(extend("default" = CatppuccinValue::Base)))]
+    pub unfocused_border: Option<CatppuccinValue>,
+    /// Unfocused locked window border colour
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "schemars", schemars(extend("default" = CatppuccinValue::Red)))]
+    pub unfocused_locked_border: Option<CatppuccinValue>,
+    #[cfg(target_os = "windows")]
+    /// Stackbar focused text colour
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "schemars", schemars(extend("default" = CatppuccinValue::Green)))]
+    pub stackbar_focused_text: Option<CatppuccinValue>,
+    #[cfg(target_os = "windows")]
+    /// Stackbar unfocused text colour
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "schemars", schemars(extend("default" = CatppuccinValue::Text)))]
+    pub stackbar_unfocused_text: Option<CatppuccinValue>,
+    #[cfg(target_os = "windows")]
+    /// Stackbar background colour
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "schemars", schemars(extend("default" = CatppuccinValue::Base)))]
+    pub stackbar_background: Option<CatppuccinValue>,
+    /// Bar accent colour
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "schemars", schemars(extend("default" = CatppuccinValue::Blue)))]
+    pub bar_accent: Option<CatppuccinValue>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[cfg_attr(feature = "schemars", derive(JsonSchema))]
+/// Theme from base16-egui-themes
+pub struct KomorebiThemeBase16 {
+    /// Name of the Base16 theme (theme previews: https://tinted-theming.github.io/tinted-gallery/)
+    pub name: Base16,
+    /// Single window border colour
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "schemars", schemars(extend("default" = Base16Value::Base0D)))]
+    pub single_border: Option<Base16Value>,
+    /// Stack window border colour
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "schemars", schemars(extend("default" = Base16Value::Base0B)))]
+    pub stack_border: Option<Base16Value>,
+    /// Monocle window border colour
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "schemars", schemars(extend("default" = Base16Value::Base0F)))]
+    pub monocle_border: Option<Base16Value>,
+    /// Floating window border colour
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "schemars", schemars(extend("default" = Base16Value::Base09)))]
+    pub floating_border: Option<Base16Value>,
+    /// Unfocused window border colour
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "schemars", schemars(extend("default" = Base16Value::Base01)))]
+    pub unfocused_border: Option<Base16Value>,
+    /// Unfocused locked window border colour
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "schemars", schemars(extend("default" = Base16Value::Base08)))]
+    pub unfocused_locked_border: Option<Base16Value>,
+    #[cfg(target_os = "windows")]
+    /// Stackbar focused text colour
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "schemars", schemars(extend("default" = Base16Value::Base0B)))]
+    pub stackbar_focused_text: Option<Base16Value>,
+    #[cfg(target_os = "windows")]
+    /// Stackbar unfocused text colour
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "schemars", schemars(extend("default" = Base16Value::Base05)))]
+    pub stackbar_unfocused_text: Option<Base16Value>,
+    #[cfg(target_os = "windows")]
+    /// Stackbar background colour
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "schemars", schemars(extend("default" = Base16Value::Base01)))]
+    pub stackbar_background: Option<Base16Value>,
+    /// Bar accent colour
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "schemars", schemars(extend("default" = Base16Value::Base0D)))]
+    pub bar_accent: Option<Base16Value>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[cfg_attr(feature = "schemars", derive(JsonSchema))]
+/// Custom Base16 theme
+pub struct KomorebiThemeCustom {
+    /// Colours of the custom Base16 theme palette
+    pub colours: Box<Base16ColourPalette>,
+    /// Single window border colour
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "schemars", schemars(extend("default" = Base16Value::Base0D)))]
+    pub single_border: Option<Base16Value>,
+    /// Stack window border colour
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "schemars", schemars(extend("default" = Base16Value::Base0B)))]
+    pub stack_border: Option<Base16Value>,
+    /// Monocle window border colour
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "schemars", schemars(extend("default" = Base16Value::Base0F)))]
+    pub monocle_border: Option<Base16Value>,
+    /// Floating window border colour
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "schemars", schemars(extend("default" = Base16Value::Base09)))]
+    pub floating_border: Option<Base16Value>,
+    /// Unfocused window border colour
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "schemars", schemars(extend("default" = Base16Value::Base01)))]
+    pub unfocused_border: Option<Base16Value>,
+    /// Unfocused locked window border colour
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "schemars", schemars(extend("default" = Base16Value::Base08)))]
+    pub unfocused_locked_border: Option<Base16Value>,
+    #[cfg(target_os = "windows")]
+    /// Stackbar focused text colour
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "schemars", schemars(extend("default" = Base16Value::Base0B)))]
+    pub stackbar_focused_text: Option<Base16Value>,
+    #[cfg(target_os = "windows")]
+    /// Stackbar unfocused text colour
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "schemars", schemars(extend("default" = Base16Value::Base05)))]
+    pub stackbar_unfocused_text: Option<Base16Value>,
+    #[cfg(target_os = "windows")]
+    /// Stackbar background colour
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "schemars", schemars(extend("default" = Base16Value::Base01)))]
+    pub stackbar_background: Option<Base16Value>,
+    /// Bar accent colour
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "schemars", schemars(extend("default" = Base16Value::Base0D)))]
+    pub bar_accent: Option<Base16Value>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[cfg_attr(feature = "schemars", derive(JsonSchema))]
+#[serde(tag = "palette")]
+/// Komorebi theme
+pub enum KomorebiTheme {
+    #[cfg_attr(feature = "schemars", schemars(title = "Catppuccin"))]
+    /// Theme from catppuccin-egui
+    Catppuccin(KomorebiThemeCatppuccin),
+    #[cfg_attr(feature = "schemars", schemars(title = "Base16"))]
+    /// Theme from base16-egui-themes
+    Base16(KomorebiThemeBase16),
+    #[cfg_attr(feature = "schemars", schemars(title = "Custom"))]
+    /// Custom Base16 theme
+    Custom(KomorebiThemeCustom),
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[cfg_attr(feature = "schemars", derive(JsonSchema))]
+/// Theme from catppuccin-egui
+pub struct KomobarThemeCatppuccin {
+    /// Name of the Catppuccin theme (previews: https://github.com/catppuccin/catppuccin)
+    pub name: Catppuccin,
+    /// Accent colour
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "schemars", schemars(extend("default" = CatppuccinValue::Blue)))]
+    pub accent: Option<CatppuccinValue>,
+    /// Auto select fill colour
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub auto_select_fill: Option<CatppuccinValue>,
+    /// Auto select text colour
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub auto_select_text: Option<CatppuccinValue>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[cfg_attr(feature = "schemars", derive(JsonSchema))]
+/// Theme from base16-egui-themes
+pub struct KomobarThemeBase16 {
+    /// Name of the Base16 theme (previews: https://tinted-theming.github.io/tinted-gallery/)
+    pub name: Base16,
+    /// Accent colour
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "schemars", schemars(extend("default" = Base16Value::Base0D)))]
+    pub accent: Option<Base16Value>,
+    /// Auto select fill colour
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub auto_select_fill: Option<Base16Value>,
+    /// Auto select text colour
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub auto_select_text: Option<Base16Value>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[cfg_attr(feature = "schemars", derive(JsonSchema))]
+/// Theme from base16-egui-themes
+pub struct KomobarThemeCustom {
+    /// Colours of the custom Base16 theme palette
+    pub colours: Box<Base16ColourPalette>,
+    /// Accent colour
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "schemars", schemars(extend("default" = CatppuccinValue::Blue)))]
+    pub accent: Option<Base16Value>,
+    /// Auto select fill colour
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub auto_select_fill: Option<Base16Value>,
+    /// Auto select text colour
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub auto_select_text: Option<Base16Value>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[cfg_attr(feature = "schemars", derive(JsonSchema))]
+#[serde(tag = "palette")]
+/// Komorebi bar theme
+pub enum KomobarTheme {
+    #[cfg_attr(feature = "schemars", schemars(title = "Catppuccin"))]
+    /// Theme from catppuccin-egui
+    Catppuccin(KomobarThemeCatppuccin),
+    #[cfg_attr(feature = "schemars", schemars(title = "Base16"))]
+    /// Theme from base16-egui-themes
+    Base16(KomobarThemeBase16),
+    #[cfg_attr(feature = "schemars", schemars(title = "Custom"))]
+    /// Custom Base16 theme
+    Custom(KomobarThemeCustom),
+}
+
+impl From<KomorebiTheme> for KomobarTheme {
+    fn from(value: KomorebiTheme) -> Self {
+        match value {
+            KomorebiTheme::Catppuccin(KomorebiThemeCatppuccin {
+                name, bar_accent, ..
+            }) => Self::Catppuccin(KomobarThemeCatppuccin {
+                name,
+                accent: bar_accent,
+                auto_select_fill: None,
+                auto_select_text: None,
+            }),
+            KomorebiTheme::Base16(KomorebiThemeBase16 {
+                name, bar_accent, ..
+            }) => Self::Base16(KomobarThemeBase16 {
+                name,
+                accent: bar_accent,
+                auto_select_fill: None,
+                auto_select_text: None,
+            }),
+            KomorebiTheme::Custom(KomorebiThemeCustom {
+                colours,
+                bar_accent,
+                ..
+            }) => Self::Custom(KomobarThemeCustom {
+                colours,
+                accent: bar_accent,
+                auto_select_fill: None,
+                auto_select_text: None,
+            }),
+        }
+    }
+}
