@@ -126,12 +126,11 @@ fn extract_type_ref(map: &Map<String, Value>) -> Option<String> {
                 if null_count == 1 {
                     // Find the non-null variant with a $ref
                     for variant in variants {
-                        if variant.get("type").and_then(|t| t.as_str()) != Some("null") {
-                            if let Some(ref_str) = variant.get("$ref").and_then(|v| v.as_str())
-                                && let Some(type_name) = ref_str.strip_prefix("#/$defs/")
-                            {
-                                return Some(type_name.to_string());
-                            }
+                        if variant.get("type").and_then(|t| t.as_str()) != Some("null")
+                            && let Some(ref_str) = variant.get("$ref").and_then(|v| v.as_str())
+                            && let Some(type_name) = ref_str.strip_prefix("#/$defs/")
+                        {
+                            return Some(type_name.to_string());
                         }
                     }
                 }
@@ -645,6 +644,12 @@ fn build_outline_tree(
         .and_then(|v| v.as_object())
     {
         for (name, prop) in props {
+            // Skip properties with const values (discriminator fields in internally tagged enums)
+            // These are shown as variant headings in templates, not as rendered properties
+            if prop.get("const").is_some() {
+                continue;
+            }
+
             // Build the anchor path using the resolved anchor base
             let child_anchor_path = if anchor_base.is_empty() {
                 name.clone()

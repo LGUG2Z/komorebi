@@ -20,14 +20,3 @@ tera = "1"
 pulldown-cmark = "0.13"
 clap = { version = "4", features = ["derive"] }
 thiserror = "2"
-struct_iterable = "0.1"
-
-[build-dependencies]
-lightningcss = "1.0.0-alpha.68"
-struct_iterable = "0.1"
-serde = { version = "1", features = ["derive"] }
-
-[dev-dependencies]
-regex = "1"
-rayon = "1"
-chrono = "0.4"

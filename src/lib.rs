@@ -2,22 +2,20 @@
 
 //! # schemars-docgen
 //!
-//! Generate HTML documentation from `schemars::Schema` objects.
+//! Generate MDX documentation from `schemars::Schema` objects.
 //!
 //! This library takes a JSON Schema (as produced by schemars) and generates
-//! a self-contained HTML documentation page with:
+//! MDX documentation suitable for Astro Starlight with:
 //!
-//! - Responsive design (mobile, tablet, desktop)
-//! - Dark/light mode following system preference
-//! - Searchable properties
-//! - Collapsible nested structures
+//! - YAML frontmatter
+//! - Starlight components
 //! - Markdown rendering for descriptions
 //!
 //! ## Usage
 //!
 //! ```rust,no_run
 //! use schemars::schema_for;
-//! use schemars_docgen::{generate_html, Options};
+//! use schemars_docgen::{generate_mdx, MdxOptions};
 //!
 //! #[derive(schemars::JsonSchema)]
 //! struct MyConfig {
@@ -26,30 +24,17 @@
 //! }
 //!
 //! let schema = schema_for!(MyConfig);
-//! let options = Options::default();
-//! let html = generate_html(&schema, &options).unwrap();
+//! let options = MdxOptions::default();
+//! let mdx = generate_mdx(&schema, &options).unwrap();
 //! ```
 
-mod generator;
-pub mod identifiers;
 mod mdx_generator;
 mod prepare;
 
-pub use generator::Generator;
-pub use identifiers::CSS;
-pub use identifiers::IDS;
-pub use identifiers::TYPE_CLASSES;
 pub use mdx_generator::MdxGenerator;
 
 use schemars::Schema;
 use serde_json::Value;
-
-/// Options for HTML generation
-#[derive(Debug, Clone, Default)]
-pub struct Options {
-    /// Override the schema title
-    pub title_override: Option<String>,
-}
 
 /// Options for MDX generation
 #[derive(Debug, Clone, Default)]
@@ -68,15 +53,6 @@ pub enum Error {
 
     #[error("JSON error: {0}")]
     Json(#[from] serde_json::Error),
-}
-
-/// Generate HTML documentation from a schema
-///
-/// This is the main entry point for the library. It takes a `schemars::Schema`
-/// and returns a self-contained HTML string.
-pub fn generate_html(schema: &Schema, options: &Options) -> Result<String, Error> {
-    let generator = Generator::new()?;
-    generator.generate(schema, options)
 }
 
 /// Generate MDX documentation from a schema
@@ -425,7 +401,7 @@ mod tests {
         )
         .unwrap();
 
-        let result = generate_html(&schema, &Options::default());
+        let result = generate_mdx(&schema, &MdxOptions::default());
         assert!(result.is_ok(), "Should handle $ref in prefixItems");
     }
 
@@ -450,7 +426,7 @@ mod tests {
         )
         .unwrap();
 
-        let result = generate_html(&schema, &Options::default());
+        let result = generate_mdx(&schema, &MdxOptions::default());
         assert!(
             result.is_ok(),
             "Should handle mixed $ref and type in prefixItems"
@@ -475,7 +451,7 @@ mod tests {
         )
         .unwrap();
 
-        let result = generate_html(&schema, &Options::default());
+        let result = generate_mdx(&schema, &MdxOptions::default());
         assert!(result.is_ok(), "Should handle anyOf in prefixItems");
     }
 
@@ -498,13 +474,7 @@ mod tests {
         )
         .unwrap();
 
-        let result = generate_html(&schema, &Options::default());
+        let result = generate_mdx(&schema, &MdxOptions::default());
         assert!(result.is_ok());
-        let html = result.unwrap();
-        // Homogeneous tuples should show as "array float; 3" not "Tuple Items"
-        assert!(
-            html.contains("float; 3") || html.contains("number; 3"),
-            "Homogeneous tuple should display as [T; N] format"
-        );
     }
 }

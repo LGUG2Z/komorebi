@@ -574,9 +574,9 @@ mod tests {
             "properties": {
                 "value": {
                     "anyOf": [
-                        { "type": "string" },
-                        { "type": "number" },
-                        { "type": "boolean" }
+                        { "type": "string", "description": "A string value" },
+                        { "type": "number", "description": "A number value" },
+                        { "type": "boolean", "description": "A boolean value" }
                     ]
                 }
             }
@@ -585,10 +585,24 @@ mod tests {
         let options = MdxOptions::default();
         let mdx = generator.generate(&schema, &options).unwrap();
 
-        // Should show all variant types
-        assert!(mdx.contains("string"), "Should contain string variant");
-        assert!(mdx.contains("number"), "Should contain number variant");
-        assert!(mdx.contains("boolean"), "Should contain boolean variant");
+        // Should show variant descriptions (not type badges for enum variants)
+        assert!(
+            mdx.contains("A string value"),
+            "Should contain string variant description"
+        );
+        assert!(
+            mdx.contains("A number value"),
+            "Should contain number variant description"
+        );
+        assert!(
+            mdx.contains("A boolean value"),
+            "Should contain boolean variant description"
+        );
+        // Should show enum variants section
+        assert!(
+            mdx.contains("Enum variants"),
+            "Should show enum variants header"
+        );
     }
 
     #[test]
@@ -923,5 +937,621 @@ mod tests {
         // Multiple inline code segments
         let result = escape_braces_outside_code("`{a}` and `{b}` with {c}");
         assert_eq!(result, "`{a}` and `{b}` with \\{c\\}");
+    }
+
+    // =========================================================================
+    // Enum Pattern Tests - Ensure Value: is never rendered twice
+    // See ENUMS.md for full pattern documentation
+    // =========================================================================
+
+    /// Helper to count occurrences of a pattern in a string
+    fn count_occurrences(haystack: &str, needle: &str) -> usize {
+        haystack.matches(needle).count()
+    }
+
+    /// Helper to count occurrences of "Value:" followed by a specific value
+    fn count_value_occurrences(mdx: &str, value: &str) -> usize {
+        // Look for patterns like: **Value:** `"Horizontal"`
+        let pattern = format!("**Value:** `\"{}\"`", value);
+        count_occurrences(mdx, &pattern)
+    }
+
+    // Pattern 1: Simple Unit Enums (String Constants)
+    // oneOf with {type: "string", const: "Value"}
+    #[test]
+    fn test_pattern1_simple_unit_enum_no_duplicate_value() {
+        let generator = MdxGenerator::new().unwrap();
+        let schema = make_schema(json!({
+            "title": "Test",
+            "type": "object",
+            "properties": {
+                "axis": {
+                    "description": "Axis selection",
+                    "oneOf": [
+                        { "description": "Horizontal axis", "type": "string", "const": "Horizontal" },
+                        { "description": "Vertical axis", "type": "string", "const": "Vertical" },
+                        { "description": "Both axes", "type": "string", "const": "HorizontalAndVertical" }
+                    ]
+                }
+            }
+        }));
+
+        let options = MdxOptions::default();
+        let mdx = generator.generate(&schema, &options).unwrap();
+
+        // Each variant's Value: should appear exactly once
+        assert_eq!(
+            count_value_occurrences(&mdx, "Horizontal"),
+            1,
+            "Horizontal Value: should appear exactly once. MDX:\n{}",
+            mdx
+        );
+        assert_eq!(
+            count_value_occurrences(&mdx, "Vertical"),
+            1,
+            "Vertical Value: should appear exactly once. MDX:\n{}",
+            mdx
+        );
+        assert_eq!(
+            count_value_occurrences(&mdx, "HorizontalAndVertical"),
+            1,
+            "HorizontalAndVertical Value: should appear exactly once. MDX:\n{}",
+            mdx
+        );
+    }
+
+    // Pattern 2: Unit Enum with Default Value
+    // Same as Pattern 1 but with "default" field at enum level
+    #[test]
+    fn test_pattern2_unit_enum_with_default_no_duplicate_value() {
+        let generator = MdxGenerator::new().unwrap();
+        let schema = make_schema(json!({
+            "title": "Test",
+            "type": "object",
+            "properties": {
+                "layout": {
+                    "description": "A predefined layout",
+                    "default": "BSP",
+                    "oneOf": [
+                        { "description": "BSP Layout", "type": "string", "const": "BSP" },
+                        { "description": "Columns Layout", "type": "string", "const": "Columns" }
+                    ]
+                }
+            }
+        }));
+
+        let options = MdxOptions::default();
+        let mdx = generator.generate(&schema, &options).unwrap();
+
+        assert_eq!(
+            count_value_occurrences(&mdx, "BSP"),
+            1,
+            "BSP Value: should appear exactly once. MDX:\n{}",
+            mdx
+        );
+        assert_eq!(
+            count_value_occurrences(&mdx, "Columns"),
+            1,
+            "Columns Value: should appear exactly once. MDX:\n{}",
+            mdx
+        );
+    }
+
+    // Pattern 3: Mixed Enum (Unit Variants + Newtype Variants)
+    // oneOf with unit variants as {type: "string", const: "Name"} and
+    // newtype variants as objects with variant name as property key
+    #[test]
+    fn test_pattern3_mixed_enum_no_duplicate_value() {
+        let generator = MdxGenerator::new().unwrap();
+        let schema = make_schema(json!({
+            "title": "Test",
+            "type": "object",
+            "properties": {
+                "format": {
+                    "description": "Date format",
+                    "oneOf": [
+                        { "description": "Month/Date/Year format", "type": "string", "const": "MonthDateYear" },
+                        { "description": "Year-Month-Date format", "type": "string", "const": "YearMonthDate" },
+                        {
+                            "title": "Custom",
+                            "description": "Custom format",
+                            "type": "object",
+                            "properties": {
+                                "Custom": { "type": "string" }
+                            },
+                            "additionalProperties": false,
+                            "required": ["Custom"]
+                        }
+                    ]
+                }
+            }
+        }));
+
+        let options = MdxOptions::default();
+        let mdx = generator.generate(&schema, &options).unwrap();
+
+        assert_eq!(
+            count_value_occurrences(&mdx, "MonthDateYear"),
+            1,
+            "MonthDateYear Value: should appear exactly once. MDX:\n{}",
+            mdx
+        );
+        assert_eq!(
+            count_value_occurrences(&mdx, "YearMonthDate"),
+            1,
+            "YearMonthDate Value: should appear exactly once. MDX:\n{}",
+            mdx
+        );
+    }
+
+    // Pattern 4a: Untagged with Primitives
+    // anyOf with {type: "integer"} and {$ref: "..."}
+    #[test]
+    fn test_pattern4a_untagged_primitives_no_duplicate_value() {
+        let generator = MdxGenerator::new().unwrap();
+        let schema = make_schema(json!({
+            "title": "Test",
+            "type": "object",
+            "$defs": {
+                "MonitorConfig": { "type": "object", "properties": { "name": { "type": "string" } } }
+            },
+            "properties": {
+                "monitor": {
+                    "description": "Monitor configuration or index",
+                    "anyOf": [
+                        { "description": "The monitor index", "type": "integer", "format": "uint", "minimum": 0 },
+                        { "description": "The full config", "$ref": "#/$defs/MonitorConfig" }
+                    ]
+                }
+            }
+        }));
+
+        let options = MdxOptions::default();
+        let mdx = generator.generate(&schema, &options).unwrap();
+
+        // For anyOf with primitives, we should see the type badge, not duplicate values
+        // Count total **Value:** occurrences - should not have duplicates
+        let total_value_lines = count_occurrences(&mdx, "**Value:**");
+        // Each variant should have at most one Value: line
+        assert!(
+            total_value_lines <= 2,
+            "Should have at most 2 Value: lines (one per variant). Found {}. MDX:\n{}",
+            total_value_lines,
+            mdx
+        );
+    }
+
+    // Pattern 4b: Untagged with Multiple Struct Refs
+    #[test]
+    fn test_pattern4b_untagged_multiple_refs_no_duplicate_value() {
+        let generator = MdxGenerator::new().unwrap();
+        let schema = make_schema(json!({
+            "title": "Test",
+            "type": "object",
+            "$defs": {
+                "IndividualSpacing": { "type": "object" },
+                "GroupedSpacing": { "type": "object" }
+            },
+            "properties": {
+                "spacing": {
+                    "description": "Spacing kind",
+                    "anyOf": [
+                        { "description": "All sides", "type": "number", "format": "float" },
+                        { "description": "Individual", "$ref": "#/$defs/IndividualSpacing" },
+                        { "description": "Grouped", "$ref": "#/$defs/GroupedSpacing" }
+                    ]
+                }
+            }
+        }));
+
+        let options = MdxOptions::default();
+        let mdx = generator.generate(&schema, &options).unwrap();
+
+        let total_value_lines = count_occurrences(&mdx, "**Value:**");
+        assert!(
+            total_value_lines <= 3,
+            "Should have at most 3 Value: lines. Found {}. MDX:\n{}",
+            total_value_lines,
+            mdx
+        );
+    }
+
+    // Pattern 4c: Untagged with Two $refs
+    #[test]
+    fn test_pattern4c_untagged_two_refs_no_duplicate_value() {
+        let generator = MdxGenerator::new().unwrap();
+        let schema = make_schema(json!({
+            "title": "Test",
+            "type": "object",
+            "$defs": {
+                "Rgb": { "type": "object" },
+                "Hex": { "type": "string" }
+            },
+            "properties": {
+                "colour": {
+                    "description": "Colour representation",
+                    "anyOf": [
+                        { "description": "RGB", "$ref": "#/$defs/Rgb" },
+                        { "description": "Hex", "$ref": "#/$defs/Hex" }
+                    ]
+                }
+            }
+        }));
+
+        let options = MdxOptions::default();
+        let mdx = generator.generate(&schema, &options).unwrap();
+
+        let total_value_lines = count_occurrences(&mdx, "**Value:**");
+        assert!(
+            total_value_lines <= 2,
+            "Should have at most 2 Value: lines. Found {}. MDX:\n{}",
+            total_value_lines,
+            mdx
+        );
+    }
+
+    // Pattern 4d: Untagged with Single vs Array
+    #[test]
+    fn test_pattern4d_untagged_single_vs_array_no_duplicate_value() {
+        let generator = MdxGenerator::new().unwrap();
+        let schema = make_schema(json!({
+            "title": "Test",
+            "type": "object",
+            "$defs": {
+                "IdWithIdentifier": { "type": "object" }
+            },
+            "properties": {
+                "rule": {
+                    "description": "Matching rule",
+                    "anyOf": [
+                        { "description": "Simple rule", "$ref": "#/$defs/IdWithIdentifier" },
+                        { "description": "Composite rule", "type": "array", "items": { "$ref": "#/$defs/IdWithIdentifier" } }
+                    ]
+                }
+            }
+        }));
+
+        let options = MdxOptions::default();
+        let mdx = generator.generate(&schema, &options).unwrap();
+
+        let total_value_lines = count_occurrences(&mdx, "**Value:**");
+        assert!(
+            total_value_lines <= 2,
+            "Should have at most 2 Value: lines. Found {}. MDX:\n{}",
+            total_value_lines,
+            mdx
+        );
+    }
+
+    // Pattern 4e: Untagged with Tuple
+    #[test]
+    fn test_pattern4e_untagged_tuple_no_duplicate_value() {
+        let generator = MdxGenerator::new().unwrap();
+        let schema = make_schema(json!({
+            "title": "Test",
+            "type": "object",
+            "properties": {
+                "spacing_options": {
+                    "description": "Grouped spacing options",
+                    "anyOf": [
+                        { "description": "Symmetrical", "type": "number", "format": "float" },
+                        {
+                            "description": "Split spacing",
+                            "type": "array",
+                            "maxItems": 2,
+                            "minItems": 2,
+                            "prefixItems": [
+                                { "type": "number", "format": "float" },
+                                { "type": "number", "format": "float" }
+                            ]
+                        }
+                    ]
+                }
+            }
+        }));
+
+        let options = MdxOptions::default();
+        let mdx = generator.generate(&schema, &options).unwrap();
+
+        let total_value_lines = count_occurrences(&mdx, "**Value:**");
+        assert!(
+            total_value_lines <= 2,
+            "Should have at most 2 Value: lines. Found {}. MDX:\n{}",
+            total_value_lines,
+            mdx
+        );
+    }
+
+    // Pattern 5: Internally Tagged Enum (Struct Variants with Discriminator)
+    // oneOf with discriminator field having const value
+    #[test]
+    fn test_pattern5_internally_tagged_no_duplicate_value() {
+        let generator = MdxGenerator::new().unwrap();
+        let schema = make_schema(json!({
+            "title": "Test",
+            "type": "object",
+            "$defs": {
+                "ThemeName": { "type": "string" }
+            },
+            "properties": {
+                "theme": {
+                    "description": "Theme selection",
+                    "oneOf": [
+                        {
+                            "title": "Catppuccin",
+                            "description": "A catppuccin theme",
+                            "type": "object",
+                            "properties": {
+                                "palette": { "type": "string", "const": "Catppuccin" },
+                                "name": { "$ref": "#/$defs/ThemeName" }
+                            },
+                            "required": ["palette", "name"]
+                        },
+                        {
+                            "title": "Base16",
+                            "type": "object",
+                            "properties": {
+                                "palette": { "type": "string", "const": "Base16" },
+                                "name": { "$ref": "#/$defs/ThemeName" }
+                            },
+                            "required": ["palette", "name"]
+                        }
+                    ]
+                }
+            }
+        }));
+
+        let options = MdxOptions::default();
+        let mdx = generator.generate(&schema, &options).unwrap();
+
+        // The discriminator const values should not cause duplicate Value: lines
+        // Catppuccin and Base16 are titles, not const values to be rendered
+        let total_value_lines = count_occurrences(&mdx, "**Value:**");
+        // With internally tagged, we typically don't render Value: for the discriminator
+        // but we might render it for the variant as a whole
+        assert!(
+            total_value_lines <= 2,
+            "Should have reasonable Value: count. Found {}. MDX:\n{}",
+            total_value_lines,
+            mdx
+        );
+    }
+
+    // Pattern 6: Internally Tagged Enum with Flattened Newtype Variants
+    // oneOf with properties + $ref at same level
+    #[test]
+    fn test_pattern6_internally_tagged_flatten_no_duplicate_value() {
+        let generator = MdxGenerator::new().unwrap();
+        let schema = make_schema(json!({
+            "title": "Test",
+            "type": "object",
+            "$defs": {
+                "GroupingConfig": {
+                    "type": "object",
+                    "properties": {
+                        "style": { "type": "string" }
+                    }
+                }
+            },
+            "properties": {
+                "grouping": {
+                    "description": "Grouping mode",
+                    "oneOf": [
+                        {
+                            "title": "None",
+                            "description": "No grouping",
+                            "type": "object",
+                            "properties": {
+                                "kind": { "type": "string", "const": "None" }
+                            },
+                            "required": ["kind"]
+                        },
+                        {
+                            "title": "Bar",
+                            "description": "Bar grouping",
+                            "type": "object",
+                            "properties": {
+                                "kind": { "type": "string", "const": "Bar" }
+                            },
+                            "$ref": "#/$defs/GroupingConfig",
+                            "required": ["kind"]
+                        }
+                    ]
+                }
+            }
+        }));
+
+        let options = MdxOptions::default();
+        let mdx = generator.generate(&schema, &options).unwrap();
+
+        let total_value_lines = count_occurrences(&mdx, "**Value:**");
+        assert!(
+            total_value_lines <= 2,
+            "Should have reasonable Value: count. Found {}. MDX:\n{}",
+            total_value_lines,
+            mdx
+        );
+    }
+
+    // Pattern 7: Externally Tagged Enum (Newtype Variants Only)
+    // oneOf with variant name as property key
+    #[test]
+    fn test_pattern7_externally_tagged_no_duplicate_value() {
+        let generator = MdxGenerator::new().unwrap();
+        let schema = make_schema(json!({
+            "title": "Test",
+            "type": "object",
+            "$defs": {
+                "ApplicationsConfig": { "type": "object" },
+                "BatteryConfig": { "type": "object" }
+            },
+            "properties": {
+                "widget": {
+                    "description": "Widget configuration",
+                    "oneOf": [
+                        {
+                            "title": "Applications",
+                            "description": "Applications widget",
+                            "type": "object",
+                            "properties": {
+                                "Applications": { "$ref": "#/$defs/ApplicationsConfig" }
+                            },
+                            "additionalProperties": false,
+                            "required": ["Applications"]
+                        },
+                        {
+                            "title": "Battery",
+                            "type": "object",
+                            "properties": {
+                                "Battery": { "$ref": "#/$defs/BatteryConfig" }
+                            },
+                            "additionalProperties": false,
+                            "required": ["Battery"]
+                        }
+                    ]
+                }
+            }
+        }));
+
+        let options = MdxOptions::default();
+        let mdx = generator.generate(&schema, &options).unwrap();
+
+        let total_value_lines = count_occurrences(&mdx, "**Value:**");
+        assert!(
+            total_value_lines <= 2,
+            "Should have reasonable Value: count. Found {}. MDX:\n{}",
+            total_value_lines,
+            mdx
+        );
+    }
+
+    // Pattern 9: Untagged Hybrid Enum (Unit Variants + $ref Fallback)
+    // anyOf mixing const strings + $ref
+    #[test]
+    fn test_pattern9_untagged_hybrid_no_duplicate_value() {
+        let generator = MdxGenerator::new().unwrap();
+        let schema = make_schema(json!({
+            "title": "Test",
+            "type": "object",
+            "$defs": {
+                "DisplayFormat": {
+                    "oneOf": [
+                        { "type": "string", "const": "Text" },
+                        { "type": "string", "const": "Icon" }
+                    ]
+                }
+            },
+            "properties": {
+                "format": {
+                    "description": "Display format",
+                    "anyOf": [
+                        { "description": "All icons", "type": "string", "const": "AllIcons" },
+                        { "description": "All icons and text", "type": "string", "const": "AllIconsAndText" },
+                        { "$ref": "#/$defs/DisplayFormat" }
+                    ]
+                }
+            }
+        }));
+
+        let options = MdxOptions::default();
+        let mdx = generator.generate(&schema, &options).unwrap();
+
+        assert_eq!(
+            count_value_occurrences(&mdx, "AllIcons"),
+            1,
+            "AllIcons Value: should appear exactly once. MDX:\n{}",
+            mdx
+        );
+        assert_eq!(
+            count_value_occurrences(&mdx, "AllIconsAndText"),
+            1,
+            "AllIconsAndText Value: should appear exactly once. MDX:\n{}",
+            mdx
+        );
+    }
+
+    // Pattern 10: Generic Enum Instantiations
+    // anyOf with {additionalProperties: T} + T
+    #[test]
+    fn test_pattern10_generic_enum_no_duplicate_value() {
+        let generator = MdxGenerator::new().unwrap();
+        let schema = make_schema(json!({
+            "title": "Test",
+            "type": "object",
+            "properties": {
+                "config": {
+                    "description": "Per-animation config",
+                    "anyOf": [
+                        {
+                            "description": "Prefixed config",
+                            "type": "object",
+                            "additionalProperties": { "type": "boolean" }
+                        },
+                        {
+                            "description": "Global config",
+                            "type": "boolean"
+                        }
+                    ]
+                }
+            }
+        }));
+
+        let options = MdxOptions::default();
+        let mdx = generator.generate(&schema, &options).unwrap();
+
+        let total_value_lines = count_occurrences(&mdx, "**Value:**");
+        assert!(
+            total_value_lines <= 2,
+            "Should have at most 2 Value: lines. Found {}. MDX:\n{}",
+            total_value_lines,
+            mdx
+        );
+    }
+
+    // Test for the specific issue reported - Pattern 1 with Axis enum
+    #[test]
+    fn test_axis_enum_exact_case_no_duplicate_value() {
+        let generator = MdxGenerator::new().unwrap();
+        // This is the exact schema structure from the bug report
+        let schema = make_schema(json!({
+            "title": "Test",
+            "type": "object",
+            "$defs": {
+                "Axis": {
+                    "description": "Axis",
+                    "oneOf": [
+                        { "description": "Horizontal axis", "type": "string", "const": "Horizontal" },
+                        { "description": "Vertical axis", "type": "string", "const": "Vertical" },
+                        { "description": "Both horizontal and vertical axes", "type": "string", "const": "HorizontalAndVertical" }
+                    ]
+                }
+            },
+            "properties": {
+                "axis": { "$ref": "#/$defs/Axis" }
+            }
+        }));
+
+        let options = MdxOptions::default();
+        let mdx = generator.generate(&schema, &options).unwrap();
+
+        // The bug was that each variant's Value: was appearing twice
+        assert_eq!(
+            count_value_occurrences(&mdx, "Horizontal"),
+            1,
+            "Horizontal Value: should appear exactly once (was appearing twice). MDX:\n{}",
+            mdx
+        );
+        assert_eq!(
+            count_value_occurrences(&mdx, "Vertical"),
+            1,
+            "Vertical Value: should appear exactly once (was appearing twice). MDX:\n{}",
+            mdx
+        );
+        assert_eq!(
+            count_value_occurrences(&mdx, "HorizontalAndVertical"),
+            1,
+            "HorizontalAndVertical Value: should appear exactly once (was appearing twice). MDX:\n{}",
+            mdx
+        );
     }
 }
