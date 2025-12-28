@@ -20,10 +20,20 @@
 {# SECTION 1: Type Badge Rendering                                             #}
 {# ============================================================================ #}
 {# Render the type badge for a schema - outputs inline code or links           #}
-{# Pattern 6: When node has BOTH type AND $ref (flattened config), prioritize type #}
+{# When node has $ref, always prioritize it over type (Pattern 6, etc.)        #}
 
 {% macro render_type_badge(node) %}
-{%- if node.type -%}
+{%- if node["$ref"] -%}
+  {# $ref always takes priority - render as link to type definition #}
+  {%- set ref_name = node["$ref"] | replace(from="#/$defs/", to="") -%}
+  {%- set display = display_names[ref_name] | default(value=ref_name) -%}
+  {%- if schema["$defs"][ref_name] -%}
+    {%- set ref_def = schema["$defs"][ref_name] -%}
+[`{{ display }}`](#{{ ref_name | lower }}){% if ref_def._wrapper_inner %} {{ self::render_type_badge(node=ref_def._wrapper_inner) }}{% endif -%}
+  {%- else -%}
+`$ref`
+  {%- endif -%}
+{%- elif node.type -%}
   {%- if node.type is string -%}
     {%- if node.type == "array" and node.prefixItems -%}
       {# Check if all prefixItems have the same type (homogeneous tuple) #}
@@ -116,16 +126,6 @@
   {%- endif -%}
 {%- elif node.allOf -%}
 `allOf`
-{%- elif node["$ref"] -%}
-  {# Reference type (no inline type field) #}
-  {%- set ref_name = node["$ref"] | replace(from="#/$defs/", to="") -%}
-  {%- set display = display_names[ref_name] | default(value=ref_name) -%}
-  {%- if schema["$defs"][ref_name] -%}
-    {%- set ref_def = schema["$defs"][ref_name] -%}
-[`{{ display }}`](#{{ ref_name | lower }}){% if ref_def._wrapper_inner %} {{ self::render_type_badge(node=ref_def._wrapper_inner) }}{% endif -%}
-  {%- else -%}
-`$ref`
-  {%- endif -%}
 {%- elif node.const -%}
 `const`
 {%- elif node.enum -%}
@@ -507,30 +507,8 @@
 {% endif -%}
 {%- endfor -%}
   {%- endif -%}
-{# Pattern 6: If node has both properties AND $ref, also render the referenced type's properties #}
-{%- if node["$ref"] -%}
-  {%- set ref_name = node["$ref"] | replace(from="#/$defs/", to="") -%}
-  {%- if schema["$defs"][ref_name] -%}
-    {%- set ref_def = schema["$defs"][ref_name] -%}
-    {%- if ref_def.properties -%}
-      {%- set ref_required_arr = ref_def.required | default(value=[]) -%}
-{# First render required properties from referenced type #}
-{% for prop_name, prop in ref_def.properties -%}
-{%- if prop_name in ref_required_arr -%}
-{%- set is_required = true -%}
-{{ self::render_nested_property(name=prop_name, node=prop, required=is_required, depth=depth + 1, path=path ~ "." ~ prop_name) }}
-{% endif -%}
-{%- endfor -%}
-{# Then render optional properties from referenced type #}
-{% for prop_name, prop in ref_def.properties -%}
-{%- if prop_name not in ref_required_arr -%}
-{%- set is_required = false -%}
-{{ self::render_nested_property(name=prop_name, node=prop, required=is_required, depth=depth + 1, path=path ~ "." ~ prop_name) }}
-{% endif -%}
-{%- endfor -%}
-    {%- endif -%}
-  {%- endif -%}
-{%- endif -%}
+{# Pattern 6: When node has both properties AND $ref, the $ref is shown as a link in Value: #}
+{# so we don't need to inline the referenced type's properties here #}
 {%- elif node["$ref"] -%}
   {# Reference only, already shown as type badge #}
 {%- elif node.patternProperties -%}

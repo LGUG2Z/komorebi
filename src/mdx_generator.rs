@@ -1371,6 +1371,34 @@ mod tests {
             total_value_lines,
             mdx
         );
+
+        // Pattern 6 variants with $ref should show the type link, not "object"
+        // The "Bar" variant has a $ref, so it should show the link
+        assert!(
+            mdx.contains("[`GroupingConfig`](#groupingconfig)"),
+            "Pattern 6 variant with $ref should show type link. MDX:\n{}",
+            mdx
+        );
+        // The "Bar" variant should NOT show "object" - it should show the $ref link
+        // Note: "None" variant has no $ref, so it correctly shows "object"
+        assert!(
+            !mdx.contains("**Value:** [`GroupingConfig`](#groupingconfig)")
+                || count_occurrences(&mdx, "**Value:** `object`") <= 1,
+            "Pattern 6 variant with $ref should show type link instead of 'object'. MDX:\n{}",
+            mdx
+        );
+
+        // Pattern 6 variants with $ref should NOT inline the referenced type's properties
+        // Since we show a link to the type, the properties are redundant
+        // The "style" property from GroupingConfig should NOT appear in the variant body
+        // (it should only appear in the type definition section, not in the enum variant)
+        let style_count = count_occurrences(&mdx, "#### style");
+        assert!(
+            style_count <= 1,
+            "Pattern 6 variant should not inline $ref properties. Found {} '#### style' occurrences (should be 0 or 1 for the $defs section only). MDX:\n{}",
+            style_count,
+            mdx
+        );
     }
 
     // Pattern 7: Externally Tagged Enum (Newtype Variants Only)
