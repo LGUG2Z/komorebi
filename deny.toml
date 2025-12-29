@@ -1,8 +1,8 @@
 [graph]
 targets = [
-    "x86_64-pc-windows-msvc",
-    "i686-pc-windows-msvc",
-    "aarch64-pc-windows-msvc",
+  "x86_64-pc-windows-msvc",
+  "i686-pc-windows-msvc",
+  "aarch64-pc-windows-msvc",
 ]
 all-features = false
 no-default-features = false
@@ -12,31 +12,31 @@ feature-depth = 1
 
 [advisories]
 ignore = [
-    { id = "RUSTSEC-2020-0016", reason = "local tcp connectivity is an opt-in feature, and there is no upgrade path for TcpStreamExt" },
-    { id = "RUSTSEC-2024-0436", reason = "paste being unmaintained is not an issue in our use" },
-    { id = "RUSTSEC-2024-0320", reason = "not using any yaml features from this library" },
-    { id = "RUSTSEC-2025-0056", reason = "only used for colour palette generation" }
+  { id = "RUSTSEC-2020-0016", reason = "local tcp connectivity is an opt-in feature, and there is no upgrade path for TcpStreamExt" },
+  { id = "RUSTSEC-2024-0436", reason = "paste being unmaintained is not an issue in our use" },
+  { id = "RUSTSEC-2024-0320", reason = "not using any yaml features from this library" },
+  { id = "RUSTSEC-2025-0056", reason = "only used for colour palette generation" },
 ]
 
 [licenses]
 allow = [
-    "0BSD",
-    "Apache-2.0",
-    "Apache-2.0 WITH LLVM-exception",
-    "Artistic-2.0",
-    "BSD-2-Clause",
-    "BSD-3-Clause",
-    "BSL-1.0",
-    "CC0-1.0",
-    "ISC",
-    "MIT",
-    "MIT-0",
-    "MPL-2.0",
-    "OFL-1.1",
-    "Ubuntu-font-1.0",
-    "Unicode-3.0",
-    "Zlib",
-    "LicenseRef-Komorebi-2.0"
+  "0BSD",
+  "Apache-2.0",
+  "Apache-2.0 WITH LLVM-exception",
+  "Artistic-2.0",
+  "BSD-2-Clause",
+  "BSD-3-Clause",
+  "BSL-1.0",
+  "CC0-1.0",
+  "ISC",
+  "MIT",
+  "MIT-0",
+  "MPL-2.0",
+  "OFL-1.1",
+  "Ubuntu-font-1.0",
+  "Unicode-3.0",
+  "Zlib",
+  "LicenseRef-Komorebi-2.0",
 ]
 confidence-threshold = 0.8
 
@@ -112,12 +112,12 @@ unknown-registry = "deny"
 unknown-git = "deny"
 allow-registry = ["https://github.com/rust-lang/crates.io-index"]
 allow-git = [
-    "https://github.com/LGUG2Z/base16-egui-themes",
-    "https://github.com/LGUG2Z/windows-icons",
-    "https://github.com/LGUG2Z/win32-display-data",
-    "https://github.com/LGUG2Z/flavours",
-    "https://github.com/LGUG2Z/base16_color_scheme",
-    "https://github.com/LGUG2Z/whkd",
-    "https://github.com/LGUG2Z/catppuccin-egui",
-    "https://github.com/amPerl/egui-phosphor",
+  "https://github.com/LGUG2Z/base16-egui-themes",
+  "https://github.com/LGUG2Z/windows-icons",
+  "https://github.com/LGUG2Z/win32-display-data",
+  "https://github.com/LGUG2Z/flavours",
+  "https://github.com/LGUG2Z/base16_color_scheme",
+  "https://github.com/LGUG2Z/whkd",
+  "https://github.com/LGUG2Z/catppuccin-egui",
+  "https://github.com/amPerl/egui-phosphor",
 ]

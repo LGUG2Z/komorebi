@@ -9,3 +9,6 @@ komorebic/applications.json
 /bar-schema
 /komorebi-schema
 /.wrangler
+/.xwin-cache
+result
+/.direnv

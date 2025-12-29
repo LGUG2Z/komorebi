@@ -16,7 +16,7 @@ use super::Sizing;
 pub enum DefaultLayout {
     /// BSP Layout
     ///
-    /// ```
+    /// ```text
     /// +-------+-----+
     /// |       |     |
     /// |       +--+--+
@@ -26,7 +26,7 @@ pub enum DefaultLayout {
     BSP,
     /// Columns Layout
     ///
-    /// ```
+    /// ```text
     /// +--+--+--+--+
     /// |  |  |  |  |
     /// |  |  |  |  |
@@ -36,7 +36,7 @@ pub enum DefaultLayout {
     Columns,
     /// Rows Layout
     ///
-    /// ```
+    /// ```text
     /// +-----------+
     /// |-----------|
     /// |-----------|
@@ -46,7 +46,7 @@ pub enum DefaultLayout {
     Rows,
     /// Vertical Stack Layout
     ///
-    /// ```
+    /// ```text
     /// +-------+-----+
     /// |       |     |
     /// |       +-----+
@@ -56,7 +56,7 @@ pub enum DefaultLayout {
     VerticalStack,
     /// Horizontal Stack Layout
     ///
-    /// ```
+    /// ```text
     /// +------+------+
     /// |             |
     /// |------+------+
@@ -66,7 +66,7 @@ pub enum DefaultLayout {
     HorizontalStack,
     /// Ultrawide Vertical Stack Layout
     ///
-    /// ```
+    /// ```text
     /// +-----+-----------+-----+
     /// |     |           |     |
     /// |     |           +-----+
@@ -78,7 +78,7 @@ pub enum DefaultLayout {
     UltrawideVerticalStack,
     /// Grid Layout
     ///
-    /// ```
+    /// ```text
     /// +-----+-----+   +---+---+---+   +---+---+---+   +---+---+---+
     /// |     |     |   |   |   |   |   |   |   |   |   |   |   |   |
     /// |     |     |   |   |   |   |   |   |   |   |   |   |   +---+
@@ -87,11 +87,11 @@ pub enum DefaultLayout {
     /// |     |     |   |   |   |   |   |   |   |   |   |   |   |   |
     /// +-----+-----+   +---+---+---+   +---+---+---+   +---+---+---+
     ///   4 windows       5 windows       6 windows       7 windows
-    ///```
+    /// ```
     Grid,
     /// Right Main Vertical Stack Layout
     ///
-    /// ```
+    /// ```text
     /// +-----+-------+
     /// |     |       |
     /// +-----+       |
@@ -101,7 +101,7 @@ pub enum DefaultLayout {
     RightMainVerticalStack,
     /// Scrolling Layout
     ///
-    /// ```
+    /// ```text
     /// +--+--+--+--+--+--+
     /// |     |     |     |
     /// |     |     |     |

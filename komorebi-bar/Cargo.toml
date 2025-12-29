@@ -44,4 +44,8 @@ windows-icons-fallback = { package = "windows-icons", git = "https://github.com/
 
 [features]
 default = ["schemars"]
-schemars = ["dep:schemars", "komorebi-client/default", "komorebi-themes/default"]
+schemars = [
+  "dep:schemars",
+  "komorebi-client/default",
+  "komorebi-themes/default",
+]

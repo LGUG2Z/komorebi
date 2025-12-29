@@ -96,6 +96,14 @@ schemapub:
     npx wrangler pages deploy --project-name komorebi .\komorebi-schema
     npx wrangler pages deploy --project-name komorebi-bar .\bar-schema
 
+depcheck:
+    cargo outdated --depth 2
+    cargo udeps --quiet
+
+deps:
+    cargo update
+    just depgen
+
 depgen:
     cargo deny check
     cargo deny list --format json | jq 'del(.unlicensed)' > dependencies.json
