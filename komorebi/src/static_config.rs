@@ -3,6 +3,8 @@ use crate::Axis;
 use crate::CrossBoundaryBehaviour;
 use crate::DATA_DIR;
 use crate::DEFAULT_CONTAINER_PADDING;
+use crate::DEFAULT_MOUSE_FOLLOWS_FOCUS;
+use crate::DEFAULT_RESIZE_DELTA;
 use crate::DEFAULT_WORKSPACE_PADDING;
 use crate::DISPLAY_INDEX_PREFERENCES;
 use crate::FLOATING_APPLICATIONS;
@@ -106,25 +108,6 @@ use std::sync::atomic::Ordering;
 use uds_windows::UnixListener;
 use uds_windows::UnixStream;
 
-mod defaults {
-    pub const RESIZE_DELTA: i32 = 50;
-    pub const BORDER_WIDTH: i32 = 8;
-    pub const BORDER_OFFSET: i32 = -1;
-    pub const BORDER_ENABLED: bool = true;
-    pub const TRANSPARENCY_ENABLED: bool = false;
-    pub const TRANSPARENCY_ALPHA: u8 = 200;
-    pub const DEFAULT_WORKSPACE_PADDING: i32 = 10;
-    pub const DEFAULT_CONTAINER_PADDING: i32 = 10;
-    pub const MOUSE_FOLLOWS_FOCUS: bool = true;
-    pub const FLOAT_OVERRIDE: bool = false;
-    pub const TILE: bool = true;
-    pub const APPLY_WINDOW_BASED_WORK_AREA_OFFSET: bool = true;
-    pub const WINDOW_BASED_WORK_AREA_OFFSET_LIMIT: isize = 1;
-    pub const GENERATE_THEME: bool = true;
-    pub const ANIMATION_FPS: u64 = 60;
-    pub const SLOW_APPLICATION_COMPENSATION_TIME: u64 = 20;
-}
-
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 /// Border colours for different container states
@@ -209,7 +192,7 @@ pub struct Wallpaper {
     pub path: PathBuf,
     /// Generate and apply Base16 theme for this wallpaper
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[cfg_attr(feature = "schemars", schemars(extend("default" = defaults::GENERATE_THEME)))]
+    #[cfg_attr(feature = "schemars", schemars(extend("default" = true)))]
     pub generate_theme: Option<bool>,
     /// Specify Light or Dark variant for theme generation
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -262,7 +245,7 @@ pub struct WorkspaceConfig {
     pub work_area_offset: Option<Rect>,
     /// Apply this monitor's window-based work area offset
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[cfg_attr(feature = "schemars", schemars(extend("default" = defaults::APPLY_WINDOW_BASED_WORK_AREA_OFFSET)))]
+    #[cfg_attr(feature = "schemars", schemars(extend("default" = true)))]
     pub apply_window_based_work_area_offset: Option<bool>,
     /// Determine what happens when a new window is opened
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -273,11 +256,11 @@ pub struct WorkspaceConfig {
     pub window_container_behaviour_rules: Option<HashMap<usize, WindowContainerBehaviour>>,
     /// Enable or disable float override, which makes it so every new window opens in floating mode
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[cfg_attr(feature = "schemars", schemars(extend("default" = defaults::FLOAT_OVERRIDE)))]
+    #[cfg_attr(feature = "schemars", schemars(extend("default" = false)))]
     pub float_override: Option<bool>,
     /// Enable or disable tiling for the workspace
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[cfg_attr(feature = "schemars", schemars(extend("default" = defaults::TILE)))]
+    #[cfg_attr(feature = "schemars", schemars(extend("default" = true)))]
     pub tile: Option<bool>,
     /// Specify an axis on which to flip the selected layout
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -391,7 +374,7 @@ pub struct MonitorConfig {
     pub window_based_work_area_offset: Option<Rect>,
     /// Open window limit after which the window based work area offset will no longer be applied
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[cfg_attr(feature = "schemars", schemars(extend("default" = defaults::WINDOW_BASED_WORK_AREA_OFFSET_LIMIT)))]
+    #[cfg_attr(feature = "schemars", schemars(extend("default" = 1)))]
     pub window_based_work_area_offset_limit: Option<isize>,
     /// Container padding (default: global)
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -476,7 +459,7 @@ pub struct StaticConfig {
     pub minimum_window_height: Option<i32>,
     /// Delta to resize windows by
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[cfg_attr(feature = "schemars", schemars(extend("default" = defaults::RESIZE_DELTA)))]
+    #[cfg_attr(feature = "schemars", schemars(extend("default" = DEFAULT_RESIZE_DELTA)))]
     pub resize_delta: Option<i32>,
     /// Determine what happens when a new window is opened
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -484,7 +467,7 @@ pub struct StaticConfig {
     pub window_container_behaviour: Option<WindowContainerBehaviour>,
     /// Enable or disable float override, which makes it so every new window opens in floating mode
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[cfg_attr(feature = "schemars", schemars(extend("default" = defaults::FLOAT_OVERRIDE)))]
+    #[cfg_attr(feature = "schemars", schemars(extend("default" = false)))]
     pub float_override: Option<bool>,
     /// Determines what happens on a new window when on the `FloatingLayer`
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -526,7 +509,7 @@ pub struct StaticConfig {
     pub focus_follows_mouse: Option<FocusFollowsMouseImplementation>,
     /// Enable or disable mouse follows focus
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[cfg_attr(feature = "schemars", schemars(extend("default" = defaults::MOUSE_FOLLOWS_FOCUS)))]
+    #[cfg_attr(feature = "schemars", schemars(extend("default" = DEFAULT_MOUSE_FOLLOWS_FOCUS)))]
     pub mouse_follows_focus: Option<bool>,
     /// Path to applications.json from komorebi-application-specific-configurations
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -534,17 +517,17 @@ pub struct StaticConfig {
     /// Width of window borders
     #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(alias = "active_window_border_width")]
-    #[cfg_attr(feature = "schemars", schemars(extend("default" = defaults::BORDER_WIDTH)))]
+    #[cfg_attr(feature = "schemars", schemars(extend("default" = border_manager::BORDER_WIDTH)))]
     pub border_width: Option<i32>,
     /// Offset of window borders
     #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(alias = "active_window_border_offset")]
-    #[cfg_attr(feature = "schemars", schemars(extend("default" = defaults::BORDER_OFFSET)))]
+    #[cfg_attr(feature = "schemars", schemars(extend("default" = border_manager::BORDER_OFFSET)))]
     pub border_offset: Option<i32>,
     /// Display window borders
     #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(alias = "active_window_border")]
-    #[cfg_attr(feature = "schemars", schemars(extend("default" = defaults::BORDER_ENABLED)))]
+    #[cfg_attr(feature = "schemars", schemars(extend("default" = border_manager::BORDER_ENABLED)))]
     pub border: Option<bool>,
     /// Window border colours for different container types (has no effect if [`theme`] is defined)
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -565,22 +548,22 @@ pub struct StaticConfig {
     pub border_implementation: Option<BorderImplementation>,
     /// Add transparency to unfocused windows
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[cfg_attr(feature = "schemars", schemars(extend("default" = defaults::TRANSPARENCY_ENABLED)))]
+    #[cfg_attr(feature = "schemars", schemars(extend("default" = transparency_manager::TRANSPARENCY_ENABLED)))]
     pub transparency: Option<bool>,
     /// Alpha value for unfocused window transparency [[0-255]]
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[cfg_attr(feature = "schemars", schemars(extend("default" = defaults::TRANSPARENCY_ALPHA)))]
+    #[cfg_attr(feature = "schemars", schemars(extend("default" = transparency_manager::TRANSPARENCY_ALPHA)))]
     pub transparency_alpha: Option<u8>,
     /// Individual window transparency ignore rules
     #[serde(skip_serializing_if = "Option::is_none")]
     pub transparency_ignore_rules: Option<Vec<MatchingRule>>,
     /// Global default workspace padding
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[cfg_attr(feature = "schemars", schemars(extend("default" = defaults::DEFAULT_WORKSPACE_PADDING)))]
+    #[cfg_attr(feature = "schemars", schemars(extend("default" = DEFAULT_WORKSPACE_PADDING)))]
     pub default_workspace_padding: Option<i32>,
     /// Global default container padding
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[cfg_attr(feature = "schemars", schemars(extend("default" = defaults::DEFAULT_CONTAINER_PADDING)))]
+    #[cfg_attr(feature = "schemars", schemars(extend("default" = DEFAULT_CONTAINER_PADDING)))]
     pub default_container_padding: Option<i32>,
     /// Monitor and workspace configurations
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -639,7 +622,7 @@ pub struct StaticConfig {
     pub slow_application_identifiers: Option<Vec<MatchingRule>>,
     /// How long to wait when compensating for slow applications, in milliseconds
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[cfg_attr(feature = "schemars", schemars(extend("default" = defaults::SLOW_APPLICATION_COMPENSATION_TIME)))]
+    #[cfg_attr(feature = "schemars", schemars(extend("default" = SLOW_APPLICATION_COMPENSATION_TIME)))]
     pub slow_application_compensation_time: Option<u64>,
     /// Komorebi status bar configuration files for multiple instances on different monitors
     // this option is a little special because it is only consumed by komorebic
@@ -675,7 +658,7 @@ pub struct AnimationsConfig {
     pub style: Option<PerAnimationPrefixConfig<AnimationStyle>>,
     /// Set the animation FPS
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[cfg_attr(feature = "schemars", schemars(extend("default" = defaults::ANIMATION_FPS)))]
+    #[cfg_attr(feature = "schemars", schemars(extend("default" = ANIMATION_FPS)))]
     pub fps: Option<u64>,
 }
 
@@ -1006,18 +989,17 @@ impl StaticConfig {
             DEFAULT_WORKSPACE_PADDING.store(workspace, Ordering::SeqCst);
         }
 
-        border_manager::BORDER_WIDTH.store(
-            self.border_width.unwrap_or(defaults::BORDER_WIDTH),
-            Ordering::SeqCst,
-        );
-        border_manager::BORDER_OFFSET.store(
-            self.border_offset.unwrap_or(defaults::BORDER_OFFSET),
-            Ordering::SeqCst,
-        );
-        border_manager::BORDER_ENABLED.store(
-            self.border.unwrap_or(defaults::BORDER_ENABLED),
-            Ordering::SeqCst,
-        );
+        if let Some(border_width) = self.border_width {
+            border_manager::BORDER_WIDTH.store(border_width, Ordering::SeqCst);
+        }
+
+        if let Some(border_offset) = self.border_offset {
+            border_manager::BORDER_OFFSET.store(border_offset, Ordering::SeqCst);
+        }
+
+        if let Some(border_enabled) = self.border {
+            border_manager::BORDER_ENABLED.store(border_enabled, Ordering::SeqCst);
+        }
 
         if let Some(colours) = &self.border_colours {
             if let Some(single) = colours.single {
@@ -1071,15 +1053,14 @@ impl StaticConfig {
             border_manager::send_notification(None);
         }
 
-        transparency_manager::TRANSPARENCY_ENABLED.store(
-            self.transparency.unwrap_or(defaults::TRANSPARENCY_ENABLED),
-            Ordering::SeqCst,
-        );
-        transparency_manager::TRANSPARENCY_ALPHA.store(
-            self.transparency_alpha
-                .unwrap_or(defaults::TRANSPARENCY_ALPHA),
-            Ordering::SeqCst,
-        );
+        if let Some(transparency_enabled) = self.transparency {
+            transparency_manager::TRANSPARENCY_ENABLED
+                .store(transparency_enabled, Ordering::SeqCst);
+        }
+
+        if let Some(transparency_alpha) = self.transparency_alpha {
+            transparency_manager::TRANSPARENCY_ALPHA.store(transparency_alpha, Ordering::SeqCst);
+        }
 
         let mut ignore_identifiers = IGNORE_IDENTIFIERS.lock();
         let mut regex_identifiers = REGEX_IDENTIFIERS.lock();
@@ -1303,12 +1284,12 @@ impl StaticConfig {
             unmanaged_window_operation_behaviour: value
                 .unmanaged_window_operation_behaviour
                 .unwrap_or(OperationBehaviour::Op),
-            resize_delta: value.resize_delta.unwrap_or(defaults::RESIZE_DELTA),
+            resize_delta: value.resize_delta.unwrap_or(DEFAULT_RESIZE_DELTA),
             #[allow(deprecated)]
             focus_follows_mouse: value.focus_follows_mouse,
             mouse_follows_focus: value
                 .mouse_follows_focus
-                .unwrap_or(defaults::MOUSE_FOLLOWS_FOCUS),
+                .unwrap_or(DEFAULT_MOUSE_FOLLOWS_FOCUS),
             hotwatch: Hotwatch::new()?,
             has_pending_raise_op: false,
             pending_move_op: Arc::new(None),
@@ -1398,7 +1379,7 @@ impl StaticConfig {
                     monitor_config.window_based_work_area_offset;
                 monitor.window_based_work_area_offset_limit = monitor_config
                     .window_based_work_area_offset_limit
-                    .unwrap_or(defaults::WINDOW_BASED_WORK_AREA_OFFSET_LIMIT);
+                    .unwrap_or(1);
                 monitor.container_padding = monitor_config.container_padding;
                 monitor.workspace_padding = monitor_config.workspace_padding;
                 monitor.wallpaper = monitor_config.wallpaper.clone();
@@ -1490,7 +1471,7 @@ impl StaticConfig {
                     m.window_based_work_area_offset = monitor_config.window_based_work_area_offset;
                     m.window_based_work_area_offset_limit = monitor_config
                         .window_based_work_area_offset_limit
-                        .unwrap_or(defaults::WINDOW_BASED_WORK_AREA_OFFSET_LIMIT);
+                        .unwrap_or(1);
                     m.container_padding = monitor_config.container_padding;
                     m.workspace_padding = monitor_config.workspace_padding;
                     m.floating_layer_behaviour = monitor_config.floating_layer_behaviour;
@@ -1571,7 +1552,7 @@ impl StaticConfig {
                     monitor_config.window_based_work_area_offset;
                 monitor.window_based_work_area_offset_limit = monitor_config
                     .window_based_work_area_offset_limit
-                    .unwrap_or(defaults::WINDOW_BASED_WORK_AREA_OFFSET_LIMIT);
+                    .unwrap_or(1);
                 monitor.container_padding = monitor_config.container_padding;
                 monitor.workspace_padding = monitor_config.workspace_padding;
                 monitor.wallpaper = monitor_config.wallpaper.clone();
@@ -1655,7 +1636,7 @@ impl StaticConfig {
                     m.window_based_work_area_offset = monitor_config.window_based_work_area_offset;
                     m.window_based_work_area_offset_limit = monitor_config
                         .window_based_work_area_offset_limit
-                        .unwrap_or(defaults::WINDOW_BASED_WORK_AREA_OFFSET_LIMIT);
+                        .unwrap_or(1);
                     m.container_padding = monitor_config.container_padding;
                     m.workspace_padding = monitor_config.workspace_padding;
                     m.floating_layer_behaviour = monitor_config.floating_layer_behaviour;
@@ -1675,10 +1656,10 @@ impl StaticConfig {
 
         wm.enforce_workspace_rules()?;
 
-        border_manager::BORDER_ENABLED.store(
-            value.border.unwrap_or(defaults::BORDER_ENABLED),
-            Ordering::SeqCst,
-        );
+        if let Some(border_enabled) = value.border {
+            border_manager::BORDER_ENABLED.store(border_enabled, Ordering::SeqCst);
+        }
+
         wm.window_management_behaviour.current_behaviour =
             value.window_container_behaviour.unwrap_or_default();
         wm.window_management_behaviour.float_override = value.float_override.unwrap_or_default();
@@ -1698,10 +1679,10 @@ impl StaticConfig {
         wm.unmanaged_window_operation_behaviour = value
             .unmanaged_window_operation_behaviour
             .unwrap_or_default();
-        wm.resize_delta = value.resize_delta.unwrap_or(defaults::RESIZE_DELTA);
+        wm.resize_delta = value.resize_delta.unwrap_or(DEFAULT_RESIZE_DELTA);
         wm.mouse_follows_focus = value
             .mouse_follows_focus
-            .unwrap_or(defaults::MOUSE_FOLLOWS_FOCUS);
+            .unwrap_or(DEFAULT_MOUSE_FOLLOWS_FOCUS);
         wm.work_area_offset = value.global_work_area_offset;
         #[allow(deprecated)]
         {

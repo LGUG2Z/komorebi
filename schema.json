@@ -2695,47 +2695,47 @@
       "description": "A predefined komorebi layout",
       "oneOf": [
         {
-          "description": "BSP Layout\n\n```\n+-------+-----+\n|       |     |\n|       +--+--+\n|       |  |--|\n+-------+--+--+\n```",
+          "description": "BSP Layout\n\n```text\n+-------+-----+\n|       |     |\n|       +--+--+\n|       |  |--|\n+-------+--+--+\n```",
           "type": "string",
           "const": "BSP"
         },
         {
-          "description": "Columns Layout\n\n```\n+--+--+--+--+\n|  |  |  |  |\n|  |  |  |  |\n|  |  |  |  |\n+--+--+--+--+\n```",
+          "description": "Columns Layout\n\n```text\n+--+--+--+--+\n|  |  |  |  |\n|  |  |  |  |\n|  |  |  |  |\n+--+--+--+--+\n```",
           "type": "string",
           "const": "Columns"
         },
         {
-          "description": "Rows Layout\n\n```\n+-----------+\n|-----------|\n|-----------|\n|-----------|\n+-----------+\n```",
+          "description": "Rows Layout\n\n```text\n+-----------+\n|-----------|\n|-----------|\n|-----------|\n+-----------+\n```",
           "type": "string",
           "const": "Rows"
         },
         {
-          "description": "Vertical Stack Layout\n\n```\n+-------+-----+\n|       |     |\n|       +-----+\n|       |     |\n+-------+-----+\n```",
+          "description": "Vertical Stack Layout\n\n```text\n+-------+-----+\n|       |     |\n|       +-----+\n|       |     |\n+-------+-----+\n```",
           "type": "string",
           "const": "VerticalStack"
         },
         {
-          "description": "Horizontal Stack Layout\n\n```\n+------+------+\n|             |\n|------+------+\n|      |      |\n+------+------+\n```",
+          "description": "Horizontal Stack Layout\n\n```text\n+------+------+\n|             |\n|------+------+\n|      |      |\n+------+------+\n```",
           "type": "string",
           "const": "HorizontalStack"
         },
         {
-          "description": "Ultrawide Vertical Stack Layout\n\n```\n+-----+-----------+-----+\n|     |           |     |\n|     |           +-----+\n|     |           |     |\n|     |           +-----+\n|     |           |     |\n+-----+-----------+-----+\n```",
+          "description": "Ultrawide Vertical Stack Layout\n\n```text\n+-----+-----------+-----+\n|     |           |     |\n|     |           +-----+\n|     |           |     |\n|     |           +-----+\n|     |           |     |\n+-----+-----------+-----+\n```",
           "type": "string",
           "const": "UltrawideVerticalStack"
         },
         {
-          "description": "Grid Layout\n\n```\n+-----+-----+   +---+---+---+   +---+---+---+   +---+---+---+\n|     |     |   |   |   |   |   |   |   |   |   |   |   |   |\n|     |     |   |   |   |   |   |   |   |   |   |   |   +---+\n+-----+-----+   |   +---+---+   +---+---+---+   +---+---|   |\n|     |     |   |   |   |   |   |   |   |   |   |   |   +---+\n|     |     |   |   |   |   |   |   |   |   |   |   |   |   |\n+-----+-----+   +---+---+---+   +---+---+---+   +---+---+---+\n  4 windows       5 windows       6 windows       7 windows\n```",
+          "description": "Grid Layout\n\n```text\n+-----+-----+   +---+---+---+   +---+---+---+   +---+---+---+\n|     |     |   |   |   |   |   |   |   |   |   |   |   |   |\n|     |     |   |   |   |   |   |   |   |   |   |   |   +---+\n+-----+-----+   |   +---+---+   +---+---+---+   +---+---|   |\n|     |     |   |   |   |   |   |   |   |   |   |   |   +---+\n|     |     |   |   |   |   |   |   |   |   |   |   |   |   |\n+-----+-----+   +---+---+---+   +---+---+---+   +---+---+---+\n  4 windows       5 windows       6 windows       7 windows\n```",
           "type": "string",
           "const": "Grid"
         },
         {
-          "description": "Right Main Vertical Stack Layout\n\n```\n+-----+-------+\n|     |       |\n+-----+       |\n|     |       |\n+-----+-------+\n```",
+          "description": "Right Main Vertical Stack Layout\n\n```text\n+-----+-------+\n|     |       |\n+-----+       |\n|     |       |\n+-----+-------+\n```",
           "type": "string",
           "const": "RightMainVerticalStack"
         },
         {
-          "description": "Scrolling Layout\n\n```\n+--+--+--+--+--+--+\n|     |     |     |\n|     |     |     |\n|     |     |     |\n+--+--+--+--+--+--+\n```",
+          "description": "Scrolling Layout\n\n```text\n+--+--+--+--+--+--+\n|     |     |     |\n|     |     |     |\n|     |     |     |\n+--+--+--+--+--+--+\n```",
           "type": "string",
           "const": "Scrolling"
         }
