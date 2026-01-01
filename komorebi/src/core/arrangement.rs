@@ -49,7 +49,7 @@ impl Arrangement for DefaultLayout {
                     .and_then(|o| o.scrolling.map(|s| s.columns))
                     .unwrap_or(3);
 
-                let column_width = area.right / column_count as i32;
+                let column_width = area.right / column_count.min(len) as i32;
                 let mut layouts = Vec::with_capacity(len);
 
                 let visible_columns = area.right / column_width;
