@@ -442,10 +442,12 @@ fn is_null_type(schema: &Value) -> bool {
         .unwrap_or(false)
 }
 
-/// Extract the inner type from a map schema (object with additionalProperties)
+/// Extract the inner type from a map schema
 ///
-/// Returns the additionalProperties schema if this is an object type with
-/// additionalProperties defined, None otherwise.
+/// Handles two patterns:
+/// 1. Old pattern (schemars 1.1): object with additionalProperties: { schema }
+/// 2. New pattern (schemars 1.2): object with properties: { key: { schema } } + additionalProperties: false
+///    This is used for HashMap<EnumKey, T> where enum keys become explicit property names
 fn get_map_inner_type(schema: &Value) -> Option<&Value> {
     let obj = schema.as_object()?;
 
@@ -455,13 +457,26 @@ fn get_map_inner_type(schema: &Value) -> Option<&Value> {
         return None;
     }
 
-    // Must have additionalProperties (and it must be an object, not boolean)
-    let additional = obj.get("additionalProperties")?;
-    if additional.is_object() {
-        Some(additional)
-    } else {
-        None
+    // Pattern 1: additionalProperties as object schema (schemars 1.1)
+    if let Some(additional) = obj.get("additionalProperties") {
+        if additional.is_object() {
+            return Some(additional);
+        }
     }
+
+    // Pattern 2: enum-keyed map (schemars 1.2)
+    // Has properties with additionalProperties: false
+    if let Some(props) = obj.get("properties").and_then(|v| v.as_object()) {
+        if obj.get("additionalProperties") == Some(&Value::Bool(false)) && !props.is_empty() {
+            // Return the first property's value as the inner type
+            // (all properties should have the same schema for enum-keyed maps)
+            if let Some((_, first_prop)) = props.iter().next() {
+                return Some(first_prop);
+            }
+        }
+    }
+
+    None
 }
 
 /// Check if two type schemas are equivalent
@@ -740,6 +755,24 @@ fn is_array_type(schema: &Value) -> bool {
     false
 }
 
+/// Check if schema is an enum-keyed map (schemars 1.2 pattern)
+///
+/// This pattern is generated for HashMap<EnumKey, T> where enum variant names
+/// become explicit property keys with additionalProperties: false.
+/// These properties are rendered inline in templates (Pattern 7), not as separate headings.
+fn is_enum_keyed_map(schema: &Value) -> bool {
+    if let Some(obj) = schema.as_object() {
+        if obj.get("type").and_then(|t| t.as_str()) == Some("object") {
+            if obj.get("additionalProperties") == Some(&Value::Bool(false)) {
+                if let Some(props) = obj.get("properties").and_then(|v| v.as_object()) {
+                    return !props.is_empty();
+                }
+            }
+        }
+    }
+    false
+}
+
 /// Collect all usages of type definitions ($refs) in the Configuration section
 ///
 /// Recursively traverses the schema and records where each type is referenced,
@@ -830,27 +863,30 @@ fn collect_config_usages(
     }
 
     // Recurse into properties
-    if let Some(props) = schema.get("properties").and_then(|v| v.as_object()) {
-        for (prop_name, prop_schema) in props {
-            let new_path = if path.is_empty() {
-                format!(".{}", prop_name)
-            } else {
-                format!("{}.{}", path, prop_name)
-            };
-            let new_type_relative = if type_relative_path.is_empty() {
-                prop_name.clone()
-            } else {
-                format!("{}.{}", type_relative_path, prop_name)
-            };
-            collect_config_usages(
-                prop_schema,
-                new_path,
-                usages,
-                defs,
-                visited,
-                current_type,
-                new_type_relative,
-            );
+    // Skip enum-keyed maps (schemars 1.2) - they render inline without heading anchors
+    if !is_enum_keyed_map(schema) {
+        if let Some(props) = schema.get("properties").and_then(|v| v.as_object()) {
+            for (prop_name, prop_schema) in props {
+                let new_path = if path.is_empty() {
+                    format!(".{}", prop_name)
+                } else {
+                    format!("{}.{}", path, prop_name)
+                };
+                let new_type_relative = if type_relative_path.is_empty() {
+                    prop_name.clone()
+                } else {
+                    format!("{}.{}", type_relative_path, prop_name)
+                };
+                collect_config_usages(
+                    prop_schema,
+                    new_path,
+                    usages,
+                    defs,
+                    visited,
+                    current_type,
+                    new_type_relative,
+                );
+            }
         }
     }
 
@@ -2733,6 +2769,198 @@ mod tests {
             style_prop.get("_default_ref"),
             Some(&json!("AnimationStyle")),
             "Nested default with $ref should have _default_ref"
+        );
+    }
+
+    // =========================================================================
+    // Schemars 1.2 Enum-Keyed Map Tests
+    // =========================================================================
+
+    #[test]
+    fn test_schemars_1_2_enum_keyed_map_wrapper_detection() {
+        // Test that enum-keyed maps (schemars 1.2 pattern) are detected as wrapper types
+        // This pattern is generated for HashMap<EnumKey, T>
+        let schema = json!({
+            "$defs": {
+                "PerAnimationPrefixConfig": {
+                    "anyOf": [
+                        {
+                            "type": "object",
+                            "properties": {
+                                "movement": { "type": "boolean" }
+                            },
+                            "additionalProperties": false
+                        },
+                        { "type": "boolean" }
+                    ]
+                }
+            }
+        });
+
+        let prepared = prepare_for_template(&schema);
+        let def = &prepared["$defs"]["PerAnimationPrefixConfig"];
+
+        assert_eq!(
+            def["_wrapper_type"],
+            json!(true),
+            "Enum-keyed map should be detected as wrapper type"
+        );
+        assert_eq!(
+            def["_wrapper_inner"]["type"],
+            json!("boolean"),
+            "Wrapper inner type should be boolean"
+        );
+    }
+
+    #[test]
+    fn test_schemars_1_2_enum_keyed_map_with_ref() {
+        // Test enum-keyed map where the value is a $ref
+        let schema = json!({
+            "$defs": {
+                "AnimationStyle": {
+                    "type": "string",
+                    "enum": ["Linear", "EaseIn"]
+                },
+                "PerAnimationPrefixConfig": {
+                    "anyOf": [
+                        {
+                            "type": "object",
+                            "properties": {
+                                "movement": { "$ref": "#/$defs/AnimationStyle" }
+                            },
+                            "additionalProperties": false
+                        },
+                        { "$ref": "#/$defs/AnimationStyle" }
+                    ]
+                }
+            }
+        });
+
+        let prepared = prepare_for_template(&schema);
+        let def = &prepared["$defs"]["PerAnimationPrefixConfig"];
+
+        assert_eq!(
+            def["_wrapper_type"],
+            json!(true),
+            "Enum-keyed map with $ref should be detected as wrapper type"
+        );
+        assert_eq!(
+            def["_wrapper_inner"]["$ref"],
+            json!("#/$defs/AnimationStyle"),
+            "Wrapper inner type should be the $ref"
+        );
+    }
+
+    #[test]
+    fn test_enum_keyed_map_usage_links_to_parent() {
+        // Test that usage links for enum-keyed map properties don't include the enum key name
+        // (since those properties are rendered inline without heading anchors)
+        let schema = json!({
+            "type": "object",
+            "$defs": {
+                "Config": {
+                    "anyOf": [
+                        {
+                            "type": "object",
+                            "properties": {
+                                "variant_a": { "$ref": "#/$defs/Inner" }
+                            },
+                            "additionalProperties": false
+                        },
+                        { "$ref": "#/$defs/Inner" }
+                    ]
+                },
+                "Inner": { "type": "string" }
+            },
+            "properties": {
+                "config": { "$ref": "#/$defs/Config" }
+            }
+        });
+
+        let prepared = prepare_for_template(&schema);
+        let nav = build_navigation(&prepared);
+        let inner_usages = nav.usages.get("Inner").unwrap();
+
+        // Should not have links containing "variant_a" (the enum key)
+        for usage in &inner_usages.config_usages {
+            assert!(
+                !usage.anchor.contains("variant_a"),
+                "Usage anchor should not contain enum key 'variant_a': {}",
+                usage.anchor
+            );
+        }
+    }
+
+    #[test]
+    fn test_is_enum_keyed_map() {
+        // Test the is_enum_keyed_map helper function
+        let enum_keyed_map = json!({
+            "type": "object",
+            "properties": {
+                "movement": { "type": "boolean" }
+            },
+            "additionalProperties": false
+        });
+
+        assert!(
+            is_enum_keyed_map(&enum_keyed_map),
+            "Should detect enum-keyed map pattern"
+        );
+
+        // Regular object with properties should NOT be detected
+        let regular_object = json!({
+            "type": "object",
+            "properties": {
+                "name": { "type": "string" }
+            }
+        });
+
+        assert!(
+            !is_enum_keyed_map(&regular_object),
+            "Regular object without additionalProperties: false should not be detected"
+        );
+
+        // Object with additionalProperties as schema should NOT be detected
+        let map_with_additional = json!({
+            "type": "object",
+            "additionalProperties": { "type": "string" }
+        });
+
+        assert!(
+            !is_enum_keyed_map(&map_with_additional),
+            "Map with additionalProperties schema should not be detected as enum-keyed"
+        );
+    }
+
+    #[test]
+    fn test_schemars_1_1_wrapper_still_works() {
+        // Ensure backward compatibility: schemars 1.1 pattern should still be detected
+        let schema = json!({
+            "$defs": {
+                "WrapperType": {
+                    "anyOf": [
+                        {
+                            "type": "object",
+                            "additionalProperties": { "type": "boolean" }
+                        },
+                        { "type": "boolean" }
+                    ]
+                }
+            }
+        });
+
+        let prepared = prepare_for_template(&schema);
+        let def = &prepared["$defs"]["WrapperType"];
+
+        assert_eq!(
+            def["_wrapper_type"],
+            json!(true),
+            "Schemars 1.1 wrapper pattern should still be detected"
+        );
+        assert_eq!(
+            def["_wrapper_inner"]["type"],
+            json!("boolean"),
+            "Wrapper inner type should be boolean"
         );
     }
 }
