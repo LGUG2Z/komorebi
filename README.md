@@ -46,6 +46,15 @@ This is currently a manual process - most days this shouldn't take more than
 If you haven't had a reply to your email within 24h you can reach out to me on
 Discord.
 
+## Note: Unexpected mobile device management (MDM) detection prompts
+
+You have most likely unintentionally enrolled your device in "Bring Your Own
+Device" (BYOD) MDM. You can confirm if this is the case by running `dsregcmd
+/status` and then take the appropriate steps to remove the MDM profile and take
+back full control of your system.
+
+If you need help doing this you can ask on Discord.
+
 ## Note: komorebi for Mac
 
 If you made your way to this repo looking for [komorebi for
