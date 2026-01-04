@@ -2520,27 +2520,37 @@ if (!(Get-Process whkd -ErrorAction SilentlyContinue))
                 komorebi_json.is_file().then_some(komorebi_json)
             });
 
-            if args.bar
-                && let Some(config) = &static_config
-            {
-                let mut config = StaticConfig::read(config)?;
-                if let Some(display_bar_configurations) = &mut config.bar_configurations {
-                    for config_file_path in &mut *display_bar_configurations {
-                        let script = format!(
-                            r#"Start-Process "komorebi-bar" '"--config" "{}"' -WindowStyle hidden"#,
-                            config_file_path.to_string_lossy()
-                        );
+            if args.bar {
+                let mut fallthrough = false;
+                match static_config {
+                    None => {
+                        fallthrough = true;
+                    }
+                    Some(ref config) => {
+                        let mut config = StaticConfig::read(config)?;
+                        if let Some(display_bar_configurations) = &mut config.bar_configurations {
+                            for config_file_path in &mut *display_bar_configurations {
+                                let script = format!(
+                                    r#"Start-Process "komorebi-bar" '"--config" "{}"' -WindowStyle hidden"#,
+                                    config_file_path.to_string_lossy()
+                                );
 
-                        match powershell_script::run(&script) {
-                            Ok(_) => {
-                                println!("{script}");
+                                match powershell_script::run(&script) {
+                                    Ok(_) => {
+                                        println!("{script}");
+                                    }
+                                    Err(error) => {
+                                        println!("Error: {error}");
+                                    }
+                                }
                             }
-                            Err(error) => {
-                                println!("Error: {error}");
-                            }
+                        } else {
+                            fallthrough = true;
                         }
                     }
-                } else {
+                }
+
+                if fallthrough {
                     let script = r"
 if (!(Get-Process komorebi-bar -ErrorAction SilentlyContinue))
 {
