@@ -18,20 +18,23 @@ pub fn mdm_enrollment() -> eyre::Result<(bool, Option<String>)> {
     command.args(["/status"]);
     let stdout = command.output()?.stdout;
     let output = std::str::from_utf8(&stdout)?;
-    if !output.contains("MdmUrl") {
+    if !output.contains("WorkspaceTenantName") {
         return Ok((false, None));
     }
 
-    let mut server = None;
+    let mut tenant = None;
 
     for line in output.lines() {
-        if line.contains("MdmUrl") {
+        if line.contains("WorkspaceTenantName") {
             let line = line.trim().to_string();
-            server = Some(line.trim_start_matches("MdmUrl : ").to_string())
+            tenant = Some(
+                line.trim_start_matches("WorkspaceTenantName : ")
+                    .to_string(),
+            )
         }
     }
 
-    Ok((true, server))
+    Ok((true, tenant))
 }
 
 fn is_valid_payload(raw: &str, fresh: bool) -> eyre::Result<bool> {
