@@ -14,10 +14,6 @@ use std::process::Command;
 use std::time::Duration;
 use std::time::Instant;
 
-mod defaults {
-    pub const DATA_REFRESH_INTERVAL: u64 = 12;
-}
-
 #[derive(Copy, Clone, Debug, Serialize, Deserialize)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 /// Update widget configuration
@@ -25,7 +21,7 @@ pub struct UpdateConfig {
     /// Enable the Update widget
     pub enable: bool,
     /// Data refresh interval in hours
-    #[cfg_attr(feature = "schemars", schemars(extend("default" = defaults::DATA_REFRESH_INTERVAL)))]
+    #[cfg_attr(feature = "schemars", schemars(extend("default" = 12)))]
     pub data_refresh_interval: Option<u64>,
     /// Display label prefix
     pub label_prefix: Option<LabelPrefix>,
@@ -33,9 +29,7 @@ pub struct UpdateConfig {
 
 impl From<UpdateConfig> for Update {
     fn from(value: UpdateConfig) -> Self {
-        let data_refresh_interval = value
-            .data_refresh_interval
-            .unwrap_or(defaults::DATA_REFRESH_INTERVAL);
+        let data_refresh_interval = value.data_refresh_interval.unwrap_or(12);
 
         let mut latest_version = String::new();
 

@@ -24,10 +24,6 @@ use std::time::Duration;
 use std::time::Instant;
 use sysinfo::Networks;
 
-mod defaults {
-    pub const DATA_REFRESH_INTERVAL: u64 = 10;
-}
-
 #[derive(Copy, Clone, Debug, Serialize, Deserialize)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 /// Network widget configuration
@@ -46,7 +42,7 @@ pub struct NetworkConfig {
     #[serde(alias = "network_activity_fill_characters")]
     pub activity_left_padding: Option<usize>,
     /// Data refresh interval in seconds
-    #[cfg_attr(feature = "schemars", schemars(extend("default" = defaults::DATA_REFRESH_INTERVAL)))]
+    #[cfg_attr(feature = "schemars", schemars(extend("default" = 10)))]
     pub data_refresh_interval: Option<u64>,
     /// Display label prefix
     pub label_prefix: Option<LabelPrefix>,
@@ -73,7 +69,7 @@ impl From<NetworkConfig> for Network {
         let default_refresh_interval = 10;
         let data_refresh_interval = value
             .data_refresh_interval
-            .unwrap_or(defaults::DATA_REFRESH_INTERVAL);
+            .unwrap_or(default_refresh_interval);
 
         Self {
             enable: value.enable,

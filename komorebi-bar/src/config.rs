@@ -13,24 +13,12 @@ use serde::Serialize;
 use std::collections::HashMap;
 use std::path::PathBuf;
 
-mod defaults {
-    pub const HEIGHT: f32 = 50.0;
-    pub const FONT_SIZE: f32 = 12.5;
-    pub const ICON_SCALE: f32 = 1.4;
-    pub const MAX_LABEL_WIDTH: f32 = 400.0;
-    pub const TRANSPARENCY_ALPHA: u8 = 200;
-    pub const WIDGET_SPACING: f32 = 10.0;
-    pub const SCROLL_THRESHOLD: f32 = 30.0;
-    pub const FOCUS_MONITOR_AT_CURSOR: bool = true;
-    pub const IGNORE_MOUSE_FOLLOWS_FOCUS: bool = true;
-}
-
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 /// The `komorebi.bar.json` configuration file reference for `v0.1.40`
 pub struct KomobarConfig {
     /// Bar height
-    #[cfg_attr(feature = "schemars", schemars(extend("default" = defaults::HEIGHT)))]
+    #[cfg_attr(feature = "schemars", schemars(extend("default" = 50)))]
     pub height: Option<f32>,
     /// Bar padding. Use one value for all sides or use a grouped padding for horizontal and/or
     /// vertical definition which can each take a single value for a symmetric padding or two
@@ -92,21 +80,21 @@ pub struct KomobarConfig {
     /// Font family
     pub font_family: Option<String>,
     /// Font size
-    #[cfg_attr(feature = "schemars", schemars(extend("default" = defaults::FONT_SIZE)))]
+    #[cfg_attr(feature = "schemars", schemars(extend("default" = 12.5)))]
     pub font_size: Option<f32>,
     /// Scale of the icons relative to the font_size [[1.0-2.0]]
-    #[cfg_attr(feature = "schemars", schemars(extend("default" = defaults::ICON_SCALE)))]
+    #[cfg_attr(feature = "schemars", schemars(extend("default" = 1.4)))]
     pub icon_scale: Option<f32>,
     /// Max label width before text truncation
-    #[cfg_attr(feature = "schemars", schemars(extend("default" = defaults::MAX_LABEL_WIDTH)))]
+    #[cfg_attr(feature = "schemars", schemars(extend("default" = 400.0)))]
     pub max_label_width: Option<f32>,
     /// Theme
     pub theme: Option<KomobarTheme>,
     /// Alpha value for the color transparency [[0-255]]
-    #[cfg_attr(feature = "schemars", schemars(extend("default" = defaults::TRANSPARENCY_ALPHA)))]
+    #[cfg_attr(feature = "schemars", schemars(extend("default" = 200)))]
     pub transparency_alpha: Option<u8>,
     /// Spacing between widgets
-    #[cfg_attr(feature = "schemars", schemars(extend("default" = defaults::WIDGET_SPACING)))]
+    #[cfg_attr(feature = "schemars", schemars(extend("default" = 10.0)))]
     pub widget_spacing: Option<f32>,
     /// Visual grouping for widgets
     pub grouping: Option<Grouping>,
@@ -419,10 +407,10 @@ pub enum MouseMessage {
 /// Komorebi socket mouse message
 pub struct KomorebiMouseMessage {
     /// Send the FocusMonitorAtCursor message
-    #[cfg_attr(feature = "schemars", schemars(extend("default" = defaults::FOCUS_MONITOR_AT_CURSOR)))]
+    #[cfg_attr(feature = "schemars", schemars(extend("default" = true)))]
     pub focus_monitor_at_cursor: Option<bool>,
     /// Wrap the {message} with a MouseFollowsFocus(false) and MouseFollowsFocus({original.value}) message
-    #[cfg_attr(feature = "schemars", schemars(extend("default" = defaults::IGNORE_MOUSE_FOLLOWS_FOCUS)))]
+    #[cfg_attr(feature = "schemars", schemars(extend("default" = true)))]
     pub ignore_mouse_follows_focus: Option<bool>,
     /// The message to send to the komorebi client
     pub message: komorebi_client::SocketMessage,
@@ -444,7 +432,7 @@ pub struct MouseConfig {
     pub on_extra2_click: Option<MouseMessage>,
 
     /// Defines how many points a user needs to scroll vertically to make a "tick" on a mouse/touchpad/touchscreen
-    #[cfg_attr(feature = "schemars", schemars(extend("default" = defaults::SCROLL_THRESHOLD)))]
+    #[cfg_attr(feature = "schemars", schemars(extend("default" = 30.0)))]
     pub vertical_scroll_threshold: Option<f32>,
     /// Command to send on scrolling up (every tick)
     pub on_scroll_up: Option<MouseMessage>,
@@ -452,7 +440,7 @@ pub struct MouseConfig {
     pub on_scroll_down: Option<MouseMessage>,
 
     /// Defines how many points a user needs to scroll horizontally to make a "tick" on a mouse/touchpad/touchscreen
-    #[cfg_attr(feature = "schemars", schemars(extend("default" = defaults::SCROLL_THRESHOLD)))]
+    #[cfg_attr(feature = "schemars", schemars(extend("default" = 30.0)))]
     pub horizontal_scroll_threshold: Option<f32>,
     /// Command to send on scrolling left (every tick)
     pub on_scroll_left: Option<MouseMessage>,
