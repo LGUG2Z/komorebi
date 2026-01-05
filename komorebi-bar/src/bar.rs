@@ -453,10 +453,11 @@ impl Komobar {
         self.right_widgets = right_widgets;
 
         let (usr_monitor_index, config_work_area_offset) = match &self.config.monitor {
-            MonitorConfigOrIndex::MonitorConfig(monitor_config) => {
+            Some(MonitorConfigOrIndex::MonitorConfig(monitor_config)) => {
                 (monitor_config.index, monitor_config.work_area_offset)
             }
-            MonitorConfigOrIndex::Index(idx) => (*idx, None),
+            Some(MonitorConfigOrIndex::Index(idx)) => (*idx, None),
+            None => (0, None),
         };
 
         let mapped_info = self.monitor_info.as_ref().map(|info| {
@@ -866,9 +867,13 @@ impl eframe::App for Komobar {
             Ok(KomorebiEvent::Notification(notification)) => {
                 let state = &notification.state;
                 let usr_monitor_index = match &self.config.monitor {
-                    MonitorConfigOrIndex::MonitorConfig(monitor_config) => monitor_config.index,
-                    MonitorConfigOrIndex::Index(idx) => *idx,
+                    Some(MonitorConfigOrIndex::MonitorConfig(monitor_config)) => {
+                        monitor_config.index
+                    }
+                    Some(MonitorConfigOrIndex::Index(idx)) => *idx,
+                    None => 0,
                 };
+
                 let monitor_index = state.monitor_usr_idx_map.get(&usr_monitor_index).copied();
                 self.monitor_index = monitor_index;
                 let mut should_apply_config = false;

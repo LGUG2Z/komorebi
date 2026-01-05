@@ -99,8 +99,9 @@ impl RenderExt for &KomobarConfig {
         icon_font_id.size *= icon_scale.unwrap_or(1.4).clamp(1.0, 2.0);
 
         let monitor_idx = match &self.monitor {
-            MonitorConfigOrIndex::MonitorConfig(monitor_config) => monitor_config.index,
-            MonitorConfigOrIndex::Index(idx) => *idx,
+            Some(MonitorConfigOrIndex::MonitorConfig(monitor_config)) => monitor_config.index,
+            Some(MonitorConfigOrIndex::Index(idx)) => *idx,
+            None => 0,
         };
 
         // check if any of the alignments have a komorebi widget with the workspace set to show all icons

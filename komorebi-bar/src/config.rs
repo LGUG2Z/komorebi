@@ -76,7 +76,8 @@ pub struct KomobarConfig {
     /// Frame options (see: https://docs.rs/egui/latest/egui/containers/frame/struct.Frame.html)
     pub frame: Option<FrameConfig>,
     /// The monitor index or the full monitor options
-    pub monitor: MonitorConfigOrIndex,
+    #[cfg_attr(feature = "schemars", schemars(extend("default" = MonitorConfigOrIndex::Index(0))))]
+    pub monitor: Option<MonitorConfigOrIndex>,
     /// Font family
     pub font_family: Option<String>,
     /// Font size
