@@ -3876,6 +3876,7 @@ impl WindowManager {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::DEFAULT_WORKSPACE_LAYOUT;
     use crate::monitor;
     use crossbeam_channel::Sender;
     use crossbeam_channel::bounded;
@@ -5202,6 +5203,7 @@ mod tests {
     #[test]
     fn test_toggle_tiling() {
         let (mut wm, _context) = setup_window_manager();
+        DEFAULT_WORKSPACE_LAYOUT.store(Some(DefaultLayout::BSP));
 
         {
             let mut m = monitor::new(

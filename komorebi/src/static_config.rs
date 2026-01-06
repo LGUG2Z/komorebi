@@ -5,6 +5,7 @@ use crate::DATA_DIR;
 use crate::DEFAULT_CONTAINER_PADDING;
 use crate::DEFAULT_MOUSE_FOLLOWS_FOCUS;
 use crate::DEFAULT_RESIZE_DELTA;
+use crate::DEFAULT_WORKSPACE_LAYOUT;
 use crate::DEFAULT_WORKSPACE_PADDING;
 use crate::DISPLAY_INDEX_PREFERENCES;
 use crate::FLOATING_APPLICATIONS;
@@ -557,6 +558,11 @@ pub struct StaticConfig {
     /// Individual window transparency ignore rules
     #[serde(skip_serializing_if = "Option::is_none")]
     pub transparency_ignore_rules: Option<Vec<MatchingRule>>,
+    /// Global default workspace layout for new workspaces
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "schemars", schemars(extend("default" = DefaultLayout::BSP)))]
+    #[serde(deserialize_with = "crate::default_layout::deserialize_option_none_default_layout")]
+    pub default_workspace_layout: Option<DefaultLayout>,
     /// Global default workspace padding
     #[serde(skip_serializing_if = "Option::is_none")]
     #[cfg_attr(feature = "schemars", schemars(extend("default" = DEFAULT_WORKSPACE_PADDING)))]
@@ -907,6 +913,7 @@ impl From<&WindowManager> for StaticConfig {
             remove_titlebar_applications: Option::from(NO_TITLEBAR.lock().clone()),
             floating_window_aspect_ratio: Option::from(*FLOATING_WINDOW_TOGGLE_ASPECT_RATIO.lock()),
             window_handling_behaviour: Option::from(WINDOW_HANDLING_BEHAVIOUR.load()),
+            default_workspace_layout: DEFAULT_WORKSPACE_LAYOUT.load(),
         }
     }
 }
@@ -984,6 +991,8 @@ impl StaticConfig {
         if let Some(container) = self.default_container_padding {
             DEFAULT_CONTAINER_PADDING.store(container, Ordering::SeqCst);
         }
+
+        DEFAULT_WORKSPACE_LAYOUT.store(self.default_workspace_layout);
 
         if let Some(workspace) = self.default_workspace_padding {
             DEFAULT_WORKSPACE_PADDING.store(workspace, Ordering::SeqCst);
