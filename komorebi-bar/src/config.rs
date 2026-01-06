@@ -18,7 +18,7 @@ use std::path::PathBuf;
 /// The `komorebi.bar.json` configuration file reference for `v0.1.40`
 pub struct KomobarConfig {
     /// Bar height
-    #[cfg_attr(feature = "schemars", schemars(extend("default" = 50)))]
+    #[cfg_attr(feature = "schemars", schemars(extend("default" = 50.0)))]
     pub height: Option<f32>,
     /// Bar padding. Use one value for all sides or use a grouped padding for horizontal and/or
     /// vertical definition which can each take a single value for a symmetric padding or two

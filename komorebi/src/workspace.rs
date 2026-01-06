@@ -8,6 +8,7 @@ use std::sync::atomic::Ordering;
 
 use crate::DATA_DIR;
 use crate::DEFAULT_CONTAINER_PADDING;
+use crate::DEFAULT_WORKSPACE_LAYOUT;
 use crate::DEFAULT_WORKSPACE_PADDING;
 use crate::FloatingLayerBehaviour;
 use crate::INITIAL_CONFIGURATION_LOADED;
@@ -107,6 +108,8 @@ impl_ring_elements!(Workspace, Window, "floating_window");
 
 impl Default for Workspace {
     fn default() -> Self {
+        let default_layout = DEFAULT_WORKSPACE_LAYOUT.load();
+
         Self {
             name: None,
             containers: Ring::default(),
@@ -115,7 +118,7 @@ impl Default for Workspace {
             maximized_window_restore_idx: None,
             monocle_container_restore_idx: None,
             floating_windows: Ring::default(),
-            layout: Layout::Default(DefaultLayout::BSP),
+            layout: Layout::Default(default_layout.unwrap_or(DefaultLayout::BSP)),
             layout_options: None,
             layout_rules: vec![],
             layout_flip: None,
@@ -123,7 +126,7 @@ impl Default for Workspace {
             container_padding: Option::from(DEFAULT_CONTAINER_PADDING.load(Ordering::SeqCst)),
             latest_layout: vec![],
             resize_dimensions: vec![],
-            tile: true,
+            tile: default_layout.is_some(),
             work_area_offset: None,
             apply_window_based_work_area_offset: true,
             window_container_behaviour: None,

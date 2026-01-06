@@ -68,7 +68,7 @@
         "null"
       ],
       "format": "float",
-      "default": 1.399999976158142
+      "default": 1.4
     },
     "left_widgets": {
       "description": "Left side widgets (ordered left-to-right)",
@@ -99,7 +99,15 @@
     },
     "monitor": {
       "description": "The monitor index or the full monitor options",
-      "$ref": "#/$defs/MonitorConfigOrIndex"
+      "anyOf": [
+        {
+          "$ref": "#/$defs/MonitorConfigOrIndex"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": 0
     },
     "mouse": {
       "description": "Options for mouse interaction on the bar",
@@ -174,7 +182,6 @@
     }
   },
   "required": [
-    "monitor",
     "left_widgets",
     "right_widgets"
   ],

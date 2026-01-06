@@ -1,4 +1,5 @@
 use clap::ValueEnum;
+use core::str::FromStr;
 use serde::Deserialize;
 use serde::Serialize;
 use strum::Display;
@@ -7,6 +8,22 @@ use strum::EnumString;
 use super::OperationDirection;
 use super::Rect;
 use super::Sizing;
+
+pub fn deserialize_option_none_default_layout<'de, D>(
+    deserializer: D,
+) -> Result<Option<DefaultLayout>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let s = String::deserialize(deserializer)?;
+    if s == "None" {
+        Ok(None)
+    } else {
+        <DefaultLayout as FromStr>::from_str(&s)
+            .map(Some)
+            .map_err(serde::de::Error::custom)
+    }
+}
 
 #[derive(
     Clone, Copy, Debug, Serialize, Deserialize, Eq, PartialEq, Display, EnumString, ValueEnum,

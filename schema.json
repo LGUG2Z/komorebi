@@ -152,6 +152,18 @@
       "format": "int32",
       "default": 10
     },
+    "default_workspace_layout": {
+      "description": "Global default workspace layout for new workspaces",
+      "anyOf": [
+        {
+          "$ref": "#/$defs/DefaultLayout"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": "BSP"
+    },
     "default_workspace_padding": {
       "description": "Global default workspace padding",
       "type": [

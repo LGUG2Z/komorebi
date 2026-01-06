@@ -240,6 +240,8 @@ lazy_static! {
     static ref CURRENT_VIRTUAL_DESKTOP: Arc<Mutex<Option<Vec<u8>>>> = Arc::new(Mutex::new(None));
 }
 
+pub static DEFAULT_WORKSPACE_LAYOUT: AtomicCell<Option<DefaultLayout>> =
+    AtomicCell::new(Some(DefaultLayout::BSP));
 pub static DEFAULT_WORKSPACE_PADDING: AtomicI32 = AtomicI32::new(10);
 pub static DEFAULT_CONTAINER_PADDING: AtomicI32 = AtomicI32::new(10);
 pub static DEFAULT_RESIZE_DELTA: i32 = 50;
