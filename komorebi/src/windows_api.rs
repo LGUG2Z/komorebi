@@ -10,6 +10,7 @@ use std::mem::size_of;
 use std::path::Path;
 use windows::Win32::Foundation::COLORREF;
 use windows::Win32::Foundation::CloseHandle;
+use windows::Win32::Foundation::GetLastError;
 use windows::Win32::Foundation::HANDLE;
 use windows::Win32::Foundation::HINSTANCE;
 use windows::Win32::Foundation::HMODULE;
@@ -17,6 +18,8 @@ use windows::Win32::Foundation::HWND;
 use windows::Win32::Foundation::LPARAM;
 use windows::Win32::Foundation::POINT;
 use windows::Win32::Foundation::RECT;
+use windows::Win32::Foundation::SetLastError;
+use windows::Win32::Foundation::WIN32_ERROR;
 use windows::Win32::Foundation::WPARAM;
 use windows::Win32::Graphics::Dwm::DWM_CLOAKED_APP;
 use windows::Win32::Graphics::Dwm::DWM_CLOAKED_INHERITED;
@@ -911,18 +914,42 @@ impl WindowsApi {
     fn window_long_ptr_w(hwnd: HWND, index: WINDOW_LONG_PTR_INDEX) -> eyre::Result<isize> {
         // Can return 0, which does not always mean that an error has occurred
         // https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getwindowlongptrw
-        Result::from(WindowsResult::from(unsafe {
-            GetWindowLongPtrW(hwnd, index)
-        }))
+        unsafe {
+            SetLastError(WIN32_ERROR(0));
+            let result = GetWindowLongPtrW(hwnd, index);
+
+            if result != 0 {
+                Ok(result)
+            } else {
+                let last_error = GetLastError();
+                if last_error == WIN32_ERROR(0) {
+                    Ok(0)
+                } else {
+                    Err(std::io::Error::from_raw_os_error(last_error.0 as i32).into())
+                }
+            }
+        }
     }
 
     #[cfg(target_pointer_width = "32")]
     fn window_long_ptr_w(hwnd: HWND, index: WINDOW_LONG_PTR_INDEX) -> eyre::Result<i32> {
         // Can return 0, which does not always mean that an error has occurred
         // https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getwindowlongptrw
-        Result::from(WindowsResult::from(unsafe {
-            GetWindowLongPtrW(hwnd, index)
-        }))
+        unsafe {
+            SetLastError(WIN32_ERROR(0));
+            let result = GetWindowLongPtrW(hwnd, index);
+
+            if result != 0 {
+                Ok(result)
+            } else {
+                let last_error = GetLastError();
+                if last_error == WIN32_ERROR(0) {
+                    Ok(0)
+                } else {
+                    Err(std::io::Error::from_raw_os_error(last_error.0 as i32).into())
+                }
+            }
+        }
     }
 
     #[cfg(target_pointer_width = "64")]
