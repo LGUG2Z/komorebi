@@ -3520,9 +3520,15 @@
         {
           "description": "Animation configuration prefixed for a specific animation kind",
           "type": "object",
-          "additionalProperties": {
-            "type": "boolean"
-          }
+          "properties": {
+            "movement": {
+              "type": "boolean"
+            },
+            "transparency": {
+              "type": "boolean"
+            }
+          },
+          "additionalProperties": false
         },
         {
           "description": "Animation configuration for all animation kinds",
@@ -3536,11 +3542,19 @@
         {
           "description": "Animation configuration prefixed for a specific animation kind",
           "type": "object",
-          "additionalProperties": {
-            "type": "integer",
-            "format": "uint64",
-            "minimum": 0
-          }
+          "properties": {
+            "movement": {
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0
+            },
+            "transparency": {
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0
+            }
+          },
+          "additionalProperties": false
         },
         {
           "description": "Animation configuration for all animation kinds",
@@ -3556,9 +3570,15 @@
         {
           "description": "Animation configuration prefixed for a specific animation kind",
           "type": "object",
-          "additionalProperties": {
-            "$ref": "#/$defs/AnimationStyle"
-          }
+          "properties": {
+            "movement": {
+              "$ref": "#/$defs/AnimationStyle"
+            },
+            "transparency": {
+              "$ref": "#/$defs/AnimationStyle"
+            }
+          },
+          "additionalProperties": false
         },
         {
           "description": "Animation configuration for all animation kinds",

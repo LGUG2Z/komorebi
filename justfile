@@ -86,19 +86,18 @@ jsonschema:
     cargo run --package komorebic -- application-specific-configuration-schema > schema.asc.json
     cargo run --package komorebi-bar -- --schema > schema.bar.json
 
-schemagen:
-    mkdir -Force komorebi-schema
-    mkdir -Force bar-schema
-    schemars-docgen .\schema.json -o .\komorebi-schema\schema.html
-    schemars-docgen .\schema.bar.json -o .\bar-schema\schema.html
+version := `cargo metadata --format-version 1 --no-deps | jq -r '.packages[] | select(.name == "komorebi") | .version'`
 
 schemapub:
-    npx wrangler pages deploy --project-name komorebi .\komorebi-schema
-    npx wrangler pages deploy --project-name komorebi-bar .\bar-schema
+    rm -Force komorebi-schema
+    mkdir -Force komorebi-schema
+    cp schema.json komorebi-schema/komorebi.{{ version }}.schema.json
+    cp schema.bar.json komorebi-schema/komorebi.bar.{{ version }}.schema.json
+    npx wrangler pages deploy --project-name komorebi --branch main .\komorebi-schema
 
 depcheck:
     cargo outdated --depth 2
-    cargo udeps --quiet
+    cargo +nightly udeps --quiet
 
 deps:
     cargo update
