@@ -106,3 +106,7 @@ deps:
 depgen:
     cargo deny check
     cargo deny list --format json | jq 'del(.unlicensed)' > dependencies.json
+
+procdump:
+    cargo build --bin komorebi
+    .\procdump.exe -ma -e -x . .\target\debug\komorebi.exe
