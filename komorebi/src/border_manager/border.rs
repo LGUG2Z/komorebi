@@ -313,6 +313,11 @@ impl Border {
     }
 
     pub fn destroy(&self) -> color_eyre::Result<()> {
+        // clear user data **BEFORE** closing window
+        // pending messages will see a null pointer and exit early
+        unsafe {
+            SetWindowLongPtrW(self.hwnd(), GWLP_USERDATA, 0);
+        }
         WindowsApi::close_window(self.hwnd)
     }
 
