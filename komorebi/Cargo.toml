@@ -30,7 +30,7 @@ parking_lot = { workspace = true }
 paste = { workspace = true }
 powershell_script = "1.0"
 regex = "1"
-reqwest = { version = "0.12", features = ["blocking"] }
+reqwest = { version = "0.13", features = ["blocking"] }
 schemars = { workspace = true, optional = true }
 serde = { workspace = true }
 serde_json = { workspace = true, features = ["preserve_order"] }
@@ -57,7 +57,7 @@ serde_with = { version = "3.12", features = ["schemars_1"] }
 shadow-rs = { workspace = true }
 
 [dev-dependencies]
-reqwest = { version = "0.12", features = ["blocking"] }
+reqwest = { version = "0.13", features = ["blocking"] }
 uuid = { version = "1", features = ["v4"] }
 
 [features]
