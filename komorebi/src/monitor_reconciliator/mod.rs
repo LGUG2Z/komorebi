@@ -89,7 +89,41 @@ where
     F: Fn() -> I + Copy,
     I: Iterator<Item = Result<win32_display_data::Device, win32_display_data::Error>>,
 {
-    let all_displays = display_provider().flatten().collect::<Vec<_>>();
+    let mut attempts = 0;
+
+    let (displays, errors) = loop {
+        let (displays, errors): (Vec<_>, Vec<_>) = display_provider().partition(Result::is_ok);
+
+        if errors.is_empty() {
+            break (displays, errors);
+        }
+
+        for err in &errors {
+            if let Err(e) = err {
+                tracing::warn!(
+                    "enumerating display in reconciliator (attempt {}): {:?}",
+                    attempts + 1,
+                    e
+                );
+            }
+        }
+
+        if attempts < 5 {
+            attempts += 1;
+            std::thread::sleep(std::time::Duration::from_millis(150));
+            continue;
+        }
+
+        break (displays, errors);
+    };
+
+    if !errors.is_empty() {
+        return Err(color_eyre::eyre::eyre!(
+            "could not successfully enumerate all displays"
+        ));
+    }
+
+    let all_displays = displays.into_iter().map(Result::unwrap).collect::<Vec<_>>();
 
     let mut serial_id_map = HashMap::new();
 
@@ -203,6 +237,8 @@ where
             border_manager::send_notification(None);
         }
 
+        // Keep reference to Arc for potential re-locking
+        let wm_arc = Arc::clone(&wm);
         let mut wm = wm.lock();
 
         let initial_state = State::from(wm.as_ref());
@@ -346,11 +382,179 @@ where
                     continue 'receiver;
                 }
 
-                if initial_monitor_count > attached_devices.len() {
+                // Handle potential monitor removal with verification
+                let attached_devices = if initial_monitor_count > attached_devices.len() {
                     tracing::info!(
-                        "monitor count mismatch ({initial_monitor_count} vs {}), removing disconnected monitors",
+                        "potential monitor removal detected ({initial_monitor_count} vs {}), verifying in 3s",
                         attached_devices.len()
                     );
+
+                    // Release locks before waiting
+                    drop(wm);
+                    drop(monitor_cache);
+
+                    // Wait 3 seconds for display state to stabilize
+                    std::thread::sleep(std::time::Duration::from_secs(3));
+
+                    // Re-query the Win32 display APIs
+                    let re_queried_devices = match attached_display_devices(display_provider) {
+                        Ok(devices) => devices,
+                        Err(e) => {
+                            tracing::error!("failed to re-query display devices: {}", e);
+                            continue 'receiver;
+                        }
+                    };
+
+                    tracing::debug!(
+                        "after verification: wm had {} monitors, initial query found {}, re-query found {}",
+                        initial_monitor_count,
+                        attached_devices.len(),
+                        re_queried_devices.len()
+                    );
+
+                    // If monitors are back, the removal was transient (spurious event)
+                    // Still try to restore state since windows might have been minimized
+                    if re_queried_devices.len() >= initial_monitor_count {
+                        tracing::info!(
+                            "monitor removal was transient (spurious event), attempting state restoration. Initial: {}, Re-queried: {}",
+                            initial_monitor_count,
+                            re_queried_devices.len()
+                        );
+
+                        // Re-acquire locks for state restoration
+                        wm = wm_arc.lock();
+
+                        // Update Win32 data for all monitors
+                        for monitor in wm.monitors_mut() {
+                            for attached in &re_queried_devices {
+                                let serial_number_ids_match =
+                                    if let (Some(attached_snid), Some(m_snid)) =
+                                        (&attached.serial_number_id, &monitor.serial_number_id)
+                                    {
+                                        attached_snid.eq(m_snid)
+                                    } else {
+                                        false
+                                    };
+
+                                if serial_number_ids_match
+                                    || attached.device_id.eq(&monitor.device_id)
+                                {
+                                    monitor.id = attached.id;
+                                    monitor.device = attached.device.clone();
+                                    monitor.device_id = attached.device_id.clone();
+                                    monitor.serial_number_id = attached.serial_number_id.clone();
+                                    monitor.name = attached.name.clone();
+                                    monitor.size = attached.size;
+                                    monitor.work_area_size = attached.work_area_size;
+                                }
+                            }
+                        }
+
+                        // Try to restore windows that might have been minimized
+                        let offset = wm.work_area_offset;
+                        for monitor in wm.monitors_mut() {
+                            let focused_workspace_idx = monitor.focused_workspace_idx();
+
+                            for (idx, workspace) in monitor.workspaces_mut().iter_mut().enumerate()
+                            {
+                                let is_focused_workspace = idx == focused_workspace_idx;
+
+                                if is_focused_workspace {
+                                    // Restore containers
+                                    for container in workspace.containers_mut() {
+                                        if let Some(window) = container.focused_window()
+                                            && WindowsApi::is_window(window.hwnd)
+                                        {
+                                            tracing::debug!(
+                                                "restoring window after transient removal: {}",
+                                                window.hwnd
+                                            );
+                                            WindowsApi::restore_window(window.hwnd);
+                                        } else if let Some(window) = container.focused_window() {
+                                            tracing::debug!(
+                                                "skipping restore of invalid window: {}",
+                                                window.hwnd
+                                            );
+                                        }
+                                    }
+
+                                    // Restore maximized window
+                                    if let Some(window) = &workspace.maximized_window
+                                        && WindowsApi::is_window(window.hwnd)
+                                    {
+                                        WindowsApi::restore_window(window.hwnd);
+                                    }
+
+                                    // Restore monocle container
+                                    if let Some(container) = &workspace.monocle_container
+                                        && let Some(window) = container.focused_window()
+                                        && WindowsApi::is_window(window.hwnd)
+                                    {
+                                        WindowsApi::restore_window(window.hwnd);
+                                    }
+
+                                    // Restore floating windows
+                                    for window in workspace.floating_windows() {
+                                        if WindowsApi::is_window(window.hwnd) {
+                                            WindowsApi::restore_window(window.hwnd);
+                                        }
+                                    }
+                                }
+                            }
+
+                            monitor.update_focused_workspace(offset)?;
+                        }
+
+                        border_manager::send_notification(None);
+                        continue 'receiver;
+                    }
+
+                    // If monitors are still missing, proceed with actual removal logic
+                    tracing::info!(
+                        "verified monitor removal ({initial_monitor_count} vs {}), removing disconnected monitors",
+                        re_queried_devices.len()
+                    );
+
+                    // Re-acquire locks for removal processing
+                    wm = wm_arc.lock();
+                    monitor_cache = MONITOR_CACHE
+                        .get_or_init(|| Mutex::new(HashMap::new()))
+                        .lock();
+
+                    // Make sure that in our state any attached displays have the latest Win32 data
+                    // We must do this again because we dropped the lock and are working with new data
+                    for monitor in wm.monitors_mut() {
+                        for attached in &re_queried_devices {
+                            let serial_number_ids_match =
+                                if let (Some(attached_snid), Some(m_snid)) =
+                                    (&attached.serial_number_id, &monitor.serial_number_id)
+                                {
+                                    attached_snid.eq(m_snid)
+                                } else {
+                                    false
+                                };
+
+                            if serial_number_ids_match || attached.device_id.eq(&monitor.device_id)
+                            {
+                                monitor.id = attached.id;
+                                monitor.device = attached.device.clone();
+                                monitor.device_id = attached.device_id.clone();
+                                monitor.serial_number_id = attached.serial_number_id.clone();
+                                monitor.name = attached.name.clone();
+                                monitor.size = attached.size;
+                                monitor.work_area_size = attached.work_area_size;
+                            }
+                        }
+                    }
+
+                    // Use re-queried devices for remaining logic
+                    re_queried_devices
+                } else {
+                    attached_devices
+                };
+
+                if initial_monitor_count > attached_devices.len() {
+                    tracing::info!("removing disconnected monitors");
 
                     // Windows to remove from `known_hwnds`
                     let mut windows_to_remove = Vec::new();
@@ -584,7 +788,9 @@ where
                                         }
 
                                         if is_focused_workspace {
-                                            if let Some(window) = container.focused_window() {
+                                            if let Some(window) = container.focused_window()
+                                                && WindowsApi::is_window(window.hwnd)
+                                            {
                                                 tracing::debug!(
                                                     "restoring window: {}",
                                                     window.hwnd
@@ -596,7 +802,9 @@ where
                                                 // first window and show that one
                                                 container.focus_window(0);
 
-                                                if let Some(window) = container.focused_window() {
+                                                if let Some(window) = container.focused_window()
+                                                    && WindowsApi::is_window(window.hwnd)
+                                                {
                                                     WindowsApi::restore_window(window.hwnd);
                                                 }
                                             }
@@ -617,7 +825,9 @@ where
                                             || known_hwnds.contains_key(&window.hwnd)
                                         {
                                             workspace.maximized_window = None;
-                                        } else if is_focused_workspace {
+                                        } else if is_focused_workspace
+                                            && WindowsApi::is_window(window.hwnd)
+                                        {
                                             WindowsApi::restore_window(window.hwnd);
                                         }
                                     }
@@ -631,7 +841,9 @@ where
                                         if container.windows().is_empty() {
                                             workspace.monocle_container = None;
                                         } else if is_focused_workspace {
-                                            if let Some(window) = container.focused_window() {
+                                            if let Some(window) = container.focused_window()
+                                                && WindowsApi::is_window(window.hwnd)
+                                            {
                                                 WindowsApi::restore_window(window.hwnd);
                                             } else {
                                                 // If the focused window was moved or removed by
@@ -639,7 +851,9 @@ where
                                                 // first window and show that one
                                                 container.focus_window(0);
 
-                                                if let Some(window) = container.focused_window() {
+                                                if let Some(window) = container.focused_window()
+                                                    && WindowsApi::is_window(window.hwnd)
+                                                {
                                                     WindowsApi::restore_window(window.hwnd);
                                                 }
                                             }
@@ -653,7 +867,9 @@ where
 
                                     if is_focused_workspace {
                                         for window in workspace.floating_windows() {
-                                            WindowsApi::restore_window(window.hwnd);
+                                            if WindowsApi::is_window(window.hwnd) {
+                                                WindowsApi::restore_window(window.hwnd);
+                                            }
                                         }
                                     }
 
