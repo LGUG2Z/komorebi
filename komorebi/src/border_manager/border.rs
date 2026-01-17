@@ -548,7 +548,12 @@ impl Border {
                     LRESULT(0)
                 }
                 WM_DESTROY => {
-                    SetWindowLongPtrW(window, GWLP_USERDATA, 0);
+                    let border_pointer: *mut Border = GetWindowLongPtrW(window, GWLP_USERDATA) as _;
+                    if !border_pointer.is_null() {
+                        (*border_pointer).render_target = None;
+                        (*border_pointer).brushes.clear();
+                        SetWindowLongPtrW(window, GWLP_USERDATA, 0);
+                    }
                     PostQuitMessage(0);
                     LRESULT(0)
                 }

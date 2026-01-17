@@ -767,12 +767,6 @@ fn remove_border(
 fn destroy_border(border: Box<Border>) -> color_eyre::Result<()> {
     let raw_pointer = Box::into_raw(border);
     unsafe {
-        // release d2d resources **BEFORE** destroying window
-        // this drops render_target and brushes while HWND is still valid
-        // prevents EndDraw() from accessing freed HWND resources
-        (*raw_pointer).render_target = None;
-        (*raw_pointer).brushes.clear();
-
         // Now safe to destroy window
         (*raw_pointer).destroy()?;
     }
