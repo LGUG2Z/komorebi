@@ -431,6 +431,24 @@ impl WindowManager {
                         proceed = false;
                     }
 
+                    // after enforce_workspace_rules() has run, check if window exists in ANY workspace
+                    // to prevent duplication when workspace rules move windows across workspaces
+                    if proceed {
+                        let window_already_managed = self
+                            .monitors()
+                            .iter()
+                            .flat_map(|m| m.workspaces())
+                            .any(|ws| ws.contains_window(window.hwnd));
+
+                        if window_already_managed {
+                            tracing::debug!(
+                                "skipping window addition, already managed after workspace rule enforcement"
+                            );
+
+                            proceed = false;
+                        }
+                    }
+
                     if proceed {
                         let behaviour = self.window_management_behaviour(
                             focused_monitor_idx,
