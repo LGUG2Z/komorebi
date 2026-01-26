@@ -7334,11 +7334,11 @@ dependencies = [
 
 [[package]]
 name = "win-msgbox"
-version = "0.2.1"
+version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2b293d082c6da3f8e9f58a9d2fb076a61737b8f752fb559550a0a864ccfa2bd8"
+checksum = "ca7be24c86cd92a000e8134404ac2657235a357097501a6a41f55b71c088a61a"
 dependencies = [
- "windows-sys 0.59.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
