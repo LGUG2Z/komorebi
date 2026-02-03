@@ -18,6 +18,7 @@ use crate::render::Color32Ext;
 use crate::render::Grouping;
 use crate::render::RenderConfig;
 use crate::render::RenderExt;
+use crate::take_widget_clicked;
 use crate::widgets::komorebi::Komorebi;
 use crate::widgets::komorebi::MonitorInfo;
 use crate::widgets::widget::BarWidget;
@@ -1082,6 +1083,10 @@ impl eframe::App for Komobar {
         let frame = render_config.change_frame_on_bar(frame, &ctx.style());
 
         CentralPanel::default().frame(frame).show(ctx, |ui| {
+            // Variable to store command to execute after widgets are rendered
+            // This allows widgets to mark clicks as consumed before bar processes them
+            let mut pending_command: Option<crate::config::MouseMessage> = None;
+
             if let Some(mouse_config) = &self.config.mouse {
                 let command = if ui
                     .input(|i| i.pointer.button_double_clicked(PointerButton::Primary))
@@ -1182,9 +1187,9 @@ impl eframe::App for Komobar {
                     &None
                 };
 
-                if let Some(command) = command {
-                    command.execute(self.mouse_follows_focus);
-                }
+                // Store the command to execute after widgets are rendered
+                // This allows widgets to mark clicks as consumed
+                pending_command = command.clone();
             }
 
             // Apply grouping logic for the bar as a whole
@@ -1315,6 +1320,13 @@ impl eframe::App for Komobar {
                             });
                         });
                     });
+            }
+
+            // Execute the deferred mouse command only if no widget consumed the click
+            if let Some(command) = pending_command
+                && !take_widget_clicked()
+            {
+                command.execute(self.mouse_follows_focus);
             }
         });
     }

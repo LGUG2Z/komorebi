@@ -19,6 +19,10 @@ use crate::widgets::network::Network;
 use crate::widgets::network::NetworkConfig;
 use crate::widgets::storage::Storage;
 use crate::widgets::storage::StorageConfig;
+#[cfg(target_os = "windows")]
+use crate::widgets::systray::Systray;
+#[cfg(target_os = "windows")]
+use crate::widgets::systray::SystrayConfig;
 use crate::widgets::time::Time;
 use crate::widgets::time::TimeConfig;
 use crate::widgets::update::Update;
@@ -66,6 +70,10 @@ pub enum WidgetConfig {
     /// Storage widget configuration
     #[cfg_attr(feature = "schemars", schemars(title = "Storage"))]
     Storage(StorageConfig),
+    /// System Tray widget configuration (Windows only)
+    #[cfg(target_os = "windows")]
+    #[cfg_attr(feature = "schemars", schemars(title = "Systray"))]
+    Systray(SystrayConfig),
     /// Time widget configuration
     #[cfg_attr(feature = "schemars", schemars(title = "Time"))]
     Time(TimeConfig),
@@ -87,6 +95,8 @@ impl WidgetConfig {
             WidgetConfig::Memory(config) => Box::new(Memory::from(*config)),
             WidgetConfig::Network(config) => Box::new(Network::from(*config)),
             WidgetConfig::Storage(config) => Box::new(Storage::from(*config)),
+            #[cfg(target_os = "windows")]
+            WidgetConfig::Systray(config) => Box::new(Systray::from(config)),
             WidgetConfig::Time(config) => Box::new(Time::from(config.clone())),
             WidgetConfig::Update(config) => Box::new(Update::from(*config)),
         }
@@ -112,6 +122,8 @@ impl WidgetConfig {
             WidgetConfig::Memory(config) => config.enable,
             WidgetConfig::Network(config) => config.enable,
             WidgetConfig::Storage(config) => config.enable,
+            #[cfg(target_os = "windows")]
+            WidgetConfig::Systray(config) => config.enable,
             WidgetConfig::Time(config) => config.enable,
             WidgetConfig::Update(config) => config.enable,
         }
