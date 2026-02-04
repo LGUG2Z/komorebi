@@ -947,6 +947,8 @@ impl WindowManager {
                             center_focused_column: Default::default(),
                         }),
                         grid: None,
+                        column_ratios: None,
+                        row_ratios: None,
                     },
                 };
 

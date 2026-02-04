@@ -3294,6 +3294,23 @@
       "description": "Options for specific layouts",
       "type": "object",
       "properties": {
+        "column_ratios": {
+          "description": "Column width ratios (up to MAX_RATIOS values between 0.1 and 0.9)\n\n- Used by Columns layout: ratios for each column width\n- Used by Grid layout: ratios for column widths\n- Used by BSP, VerticalStack, RightMainVerticalStack: column_ratios[0] as primary split ratio\n- Used by HorizontalStack: column_ratios[0] as primary split ratio (top area height)\n- Used by UltrawideVerticalStack: column_ratios[0] as center ratio, column_ratios[1] as left ratio\n\nColumns without a ratio share remaining space equally.\nExample: `[0.3, 0.4, 0.3]` for 30%-40%-30% columns",
+          "type": [
+            "array",
+            "null"
+          ],
+          "default": null,
+          "items": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "float"
+          },
+          "maxItems": 5,
+          "minItems": 5
+        },
         "grid": {
           "description": "Options related to the Grid layout",
           "anyOf": [
@@ -3304,6 +3321,23 @@
               "type": "null"
             }
           ]
+        },
+        "row_ratios": {
+          "description": "Row height ratios (up to MAX_RATIOS values between 0.1 and 0.9)\n\n- Used by Rows layout: ratios for each row height\n- Used by Grid layout: ratios for row heights\n\nRows without a ratio share remaining space equally.\nExample: `[0.5, 0.5]` for 50%-50% rows",
+          "type": [
+            "array",
+            "null"
+          ],
+          "default": null,
+          "items": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "float"
+          },
+          "maxItems": 5,
+          "minItems": 5
         },
         "scrolling": {
           "description": "Options related to the Scrolling layout",

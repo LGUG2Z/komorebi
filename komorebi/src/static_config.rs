@@ -325,7 +325,13 @@ impl From<&Workspace> for WorkspaceConfig {
                     Layout::Custom(_) => None,
                 })
                 .flatten(),
-            layout_options: value.layout_options,
+            layout_options: {
+                tracing::debug!(
+                    "Parsing workspace config - layout_options: {:?}",
+                    value.layout_options
+                );
+                value.layout_options
+            },
             #[allow(deprecated)]
             custom_layout: value
                 .workspace_config

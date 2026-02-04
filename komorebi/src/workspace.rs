@@ -242,6 +242,12 @@ impl Workspace {
         self.wallpaper = config.wallpaper.clone();
         self.layout_options = config.layout_options;
 
+        tracing::debug!(
+            "Workspace '{}' loaded layout_options: {:?}",
+            self.name.as_deref().unwrap_or("unnamed"),
+            self.layout_options
+        );
+
         self.workspace_config = Some(config.clone());
 
         Ok(())
@@ -550,6 +556,11 @@ impl Workspace {
             } else if let Some(window) = &mut self.maximized_window {
                 window.maximize();
             } else if !self.containers().is_empty() {
+                tracing::debug!(
+                    "Workspace '{}' update() - self.layout_options before calculate: {:?}",
+                    self.name.as_deref().unwrap_or("unnamed"),
+                    self.layout_options
+                );
                 let mut layouts = self.layout.as_boxed_arrangement().calculate(
                     &adjusted_work_area,
                     NonZeroUsize::new(self.containers().len()).ok_or_eyre(
