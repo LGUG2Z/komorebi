@@ -3863,6 +3863,17 @@
       "description": "Media widget configuration",
       "type": "object",
       "properties": {
+        "display": {
+          "description": "Display format of the media widget (defaults to IconAndText)",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/MediaDisplayFormat"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
         "enable": {
           "description": "Enable the Media widget",
           "type": "boolean"
@@ -3870,6 +3881,46 @@
       },
       "required": [
         "enable"
+      ]
+    },
+    "MediaDisplayFormat": {
+      "description": "Media widget display format",
+      "oneOf": [
+        {
+          "description": "Show only the media info icon",
+          "type": "string",
+          "const": "Icon"
+        },
+        {
+          "description": "Show only the media info text (artist - title)",
+          "type": "string",
+          "const": "Text"
+        },
+        {
+          "description": "Show both icon and text",
+          "type": "string",
+          "const": "IconAndText"
+        },
+        {
+          "description": "Show only the control buttons (previous, play/pause, next)",
+          "type": "string",
+          "const": "ControlsOnly"
+        },
+        {
+          "description": "Show icon with control buttons",
+          "type": "string",
+          "const": "IconAndControls"
+        },
+        {
+          "description": "Show text with control buttons",
+          "type": "string",
+          "const": "TextAndControls"
+        },
+        {
+          "description": "Show icon, text, and control buttons",
+          "type": "string",
+          "const": "Full"
+        }
       ]
     },
     "MemoryConfig": {

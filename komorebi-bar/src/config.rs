@@ -621,6 +621,26 @@ extend_enum!(
     AllIconsAndTextOnSelected,
 });
 
+#[derive(Copy, Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+/// Media widget display format
+pub enum MediaDisplayFormat {
+    /// Show only the media info icon
+    Icon,
+    /// Show only the media info text (artist - title)
+    Text,
+    /// Show both icon and text
+    IconAndText,
+    /// Show only the control buttons (previous, play/pause, next)
+    ControlsOnly,
+    /// Show icon with control buttons
+    IconAndControls,
+    /// Show text with control buttons
+    TextAndControls,
+    /// Show icon, text, and control buttons
+    Full,
+}
+
 #[cfg(test)]
 mod tests {
     use serde::Deserialize;
