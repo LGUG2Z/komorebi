@@ -1,5 +1,7 @@
 use serde::Deserialize;
 use serde::Serialize;
+
+#[cfg(feature = "win32")]
 use windows::Win32::Foundation::RECT;
 
 #[derive(Debug, Default, Clone, Copy, Serialize, Deserialize, Eq, PartialEq)]
@@ -16,6 +18,7 @@ pub struct Rect {
     pub bottom: i32,
 }
 
+#[cfg(feature = "win32")]
 impl From<RECT> for Rect {
     fn from(rect: RECT) -> Self {
         Self {
@@ -27,6 +30,7 @@ impl From<RECT> for Rect {
     }
 }
 
+#[cfg(feature = "win32")]
 impl From<Rect> for RECT {
     fn from(rect: Rect) -> Self {
         Self {
@@ -96,6 +100,7 @@ impl Rect {
         }
     }
 
+    #[cfg(feature = "win32")]
     #[must_use]
     pub const fn rect(&self) -> RECT {
         RECT {

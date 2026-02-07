@@ -8,6 +8,7 @@ edition = "2024"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+komorebi-layouts = { path = "../komorebi-layouts", features = ["win32"] }
 komorebi-themes = { path = "../komorebi-themes" }
 
 base64 = "0.22"
@@ -63,4 +64,4 @@ uuid = { version = "1", features = ["v4"] }
 [features]
 default = ["schemars"]
 deadlock_detection = ["parking_lot/deadlock_detection"]
-schemars = ["dep:schemars"]
+schemars = ["dep:schemars", "komorebi-layouts/schemars"]

@@ -15,37 +15,42 @@ use strum::EnumString;
 
 use crate::KomorebiTheme;
 use crate::animation::prefix::AnimationPrefix;
+
+// Re-export everything from komorebi-layouts
+pub use komorebi_layouts::Arrangement;
+pub use komorebi_layouts::Axis;
+pub use komorebi_layouts::Column;
+pub use komorebi_layouts::ColumnSplit;
+pub use komorebi_layouts::ColumnSplitWithCapacity;
+pub use komorebi_layouts::ColumnWidth;
+pub use komorebi_layouts::CustomLayout;
+pub use komorebi_layouts::CycleDirection;
+pub use komorebi_layouts::DEFAULT_RATIO;
+pub use komorebi_layouts::DEFAULT_SECONDARY_RATIO;
+pub use komorebi_layouts::DefaultLayout;
+pub use komorebi_layouts::Direction;
+pub use komorebi_layouts::GridLayoutOptions;
+pub use komorebi_layouts::Layout;
+pub use komorebi_layouts::LayoutOptions;
+pub use komorebi_layouts::MAX_RATIO;
+pub use komorebi_layouts::MAX_RATIOS;
+pub use komorebi_layouts::MIN_RATIO;
+pub use komorebi_layouts::OperationDirection;
+pub use komorebi_layouts::Rect;
+pub use komorebi_layouts::ScrollingLayoutOptions;
+pub use komorebi_layouts::Sizing;
+
+// Local modules and exports
 pub use animation::AnimationStyle;
-pub use arrangement::Arrangement;
-pub use arrangement::Axis;
-pub use custom_layout::Column;
-pub use custom_layout::ColumnSplit;
-pub use custom_layout::ColumnSplitWithCapacity;
-pub use custom_layout::ColumnWidth;
-pub use custom_layout::CustomLayout;
-pub use cycle_direction::CycleDirection;
-pub use default_layout::*;
-pub use direction::Direction;
-pub use layout::Layout;
-pub use operation_direction::OperationDirection;
 pub use pathext::PathExt;
 pub use pathext::ResolvedPathBuf;
 pub use pathext::replace_env_in_path;
 pub use pathext::resolve_option_hashmap_usize_path;
-pub use rect::Rect;
 
 pub mod animation;
-pub mod arrangement;
 pub mod asc;
 pub mod config_generation;
-pub mod custom_layout;
-pub mod cycle_direction;
-pub mod default_layout;
-pub mod direction;
-pub mod layout;
-pub mod operation_direction;
 pub mod pathext;
-pub mod rect;
 
 // serde_as must be before derive
 #[serde_with::serde_as]
@@ -543,32 +548,6 @@ pub enum OperationBehaviour {
     Op,
     /// Ignore commands on temporarily unmanaged/floated windows
     NoOp,
-}
-
-#[derive(Clone, Copy, Debug, Serialize, Deserialize, Display, EnumString, ValueEnum)]
-#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
-/// Sizing
-pub enum Sizing {
-    /// Increase
-    Increase,
-    /// Decrease
-    Decrease,
-}
-
-impl Sizing {
-    #[must_use]
-    pub const fn adjust_by(&self, value: i32, adjustment: i32) -> i32 {
-        match self {
-            Self::Increase => value + adjustment,
-            Self::Decrease => {
-                if value > 0 && value - adjustment >= 0 {
-                    value - adjustment
-                } else {
-                    value
-                }
-            }
-        }
-    }
 }
 
 #[derive(

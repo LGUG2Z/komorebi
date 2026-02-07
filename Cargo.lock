@@ -3134,6 +3134,7 @@ dependencies = [
  "dirs 6.0.0",
  "ed25519-dalek",
  "hotwatch",
+ "komorebi-layouts",
  "komorebi-themes",
  "lazy_static",
  "miow",
@@ -3229,6 +3230,21 @@ dependencies = [
  "serde_json_lenient",
  "windows 0.62.2",
  "windows-core 0.62.2",
+]
+
+[[package]]
+name = "komorebi-layouts"
+version = "0.1.40"
+dependencies = [
+ "clap",
+ "color-eyre",
+ "schemars 1.2.1",
+ "serde",
+ "serde_json_lenient",
+ "serde_yaml 0.9.34+deprecated",
+ "strum",
+ "tracing",
+ "windows 0.62.2",
 ]
 
 [[package]]

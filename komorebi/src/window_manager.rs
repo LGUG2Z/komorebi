@@ -28,6 +28,7 @@ use crate::animation::AnimationEngine;
 use crate::core::Arrangement;
 use crate::core::Axis;
 use crate::core::BorderImplementation;
+use crate::core::CustomLayout;
 use crate::core::CycleDirection;
 use crate::core::DefaultLayout;
 use crate::core::FocusFollowsMouseImplementation;
@@ -40,7 +41,6 @@ use crate::core::Sizing;
 use crate::core::WindowContainerBehaviour;
 use crate::core::WindowManagementBehaviour;
 use crate::core::config_generation::MatchingRule;
-use crate::core::custom_layout::CustomLayout;
 
 use crate::CrossBoundaryBehaviour;
 use crate::DATA_DIR;
