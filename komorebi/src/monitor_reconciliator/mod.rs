@@ -25,6 +25,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::OnceLock;
 use std::sync::atomic::AtomicBool;
+use std::sync::atomic::AtomicI64;
 use std::sync::atomic::Ordering;
 
 pub mod hidden;
@@ -44,6 +45,10 @@ pub enum MonitorNotification {
 
 static ACTIVE: AtomicBool = AtomicBool::new(true);
 
+/// Timestamp (epoch millis) of the last DisplayConnectionChange notification.
+/// Used to suppress OS-initiated window minimizes during transient display events.
+static LAST_DISPLAY_CHANGE_TIMESTAMP: AtomicI64 = AtomicI64::new(0);
+
 static CHANNEL: OnceLock<(Sender<MonitorNotification>, Receiver<MonitorNotification>)> =
     OnceLock::new();
 
@@ -62,9 +67,38 @@ fn event_rx() -> Receiver<MonitorNotification> {
 }
 
 pub fn send_notification(notification: MonitorNotification) {
+    if matches!(
+        notification,
+        MonitorNotification::DisplayConnectionChange
+            | MonitorNotification::ResumingFromSuspendedState
+            | MonitorNotification::SessionUnlocked
+    ) {
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_millis() as i64;
+        LAST_DISPLAY_CHANGE_TIMESTAMP.store(now, Ordering::SeqCst);
+    }
+
     if event_tx().try_send(notification).is_err() {
         tracing::warn!("channel is full; dropping notification")
     }
+}
+
+/// Returns true if a display connection change event was received within the
+/// last `grace_period` duration. This is used by the event processor to avoid
+/// treating OS-initiated minimizes (caused by transient monitor disconnects)
+/// as user-initiated minimizes.
+pub fn display_change_in_progress(grace_period: std::time::Duration) -> bool {
+    let last = LAST_DISPLAY_CHANGE_TIMESTAMP.load(Ordering::SeqCst);
+    if last == 0 {
+        return false;
+    }
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis() as i64;
+    (now - last) < grace_period.as_millis() as i64
 }
 
 pub fn insert_in_monitor_cache(serial_or_device_id: &str, monitor: Monitor) {
