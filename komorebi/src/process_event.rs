@@ -266,18 +266,33 @@ impl WindowManager {
                 }
             }
             WindowManagerEvent::Minimize(_, window) => {
-                let mut hide = false;
+                // During transient display connection changes (e.g. monitor
+                // briefly disconnecting and reconnecting), Windows may fire
+                // SystemMinimizeStart for windows on the affected monitor.
+                // We must not treat these OS-initiated minimizes as user
+                // actions, otherwise the window gets removed from the
+                // workspace and the reconciliator cannot restore it.
+                if crate::monitor_reconciliator::display_change_in_progress(
+                    std::time::Duration::from_secs(10),
+                ) {
+                    tracing::debug!(
+                        "ignoring minimize during display connection change for hwnd: {}",
+                        window.hwnd
+                    );
+                } else {
+                    let mut hide = false;
 
-                {
-                    let programmatically_hidden_hwnds = HIDDEN_HWNDS.lock();
-                    if !programmatically_hidden_hwnds.contains(&window.hwnd) {
-                        hide = true;
+                    {
+                        let programmatically_hidden_hwnds = HIDDEN_HWNDS.lock();
+                        if !programmatically_hidden_hwnds.contains(&window.hwnd) {
+                            hide = true;
+                        }
                     }
-                }
 
-                if hide {
-                    self.focused_workspace_mut()?.remove_window(window.hwnd)?;
-                    self.update_focused_workspace(false, false)?;
+                    if hide {
+                        self.focused_workspace_mut()?.remove_window(window.hwnd)?;
+                        self.update_focused_workspace(false, false)?;
+                    }
                 }
             }
             WindowManagerEvent::Hide(_, window) => {
