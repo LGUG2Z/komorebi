@@ -31,22 +31,22 @@
     },
     {
       "Media": {
-        "enable": true
+        "enable": false
       }
     },
     {
       "Storage": {
-        "enable": true
+        "enable": false
       }
     },
     {
       "Memory": {
-        "enable": true
+        "enable": false
       }
     },
     {
       "Network": {
-        "enable": true,
+        "enable": false,
         "show_activity": true,
         "show_total_activity": true
       }
