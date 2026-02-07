@@ -8,6 +8,7 @@
 //! behind the `win32` feature flag.
 
 pub mod arrangement;
+#[cfg(feature = "win32")]
 pub mod custom_layout;
 pub mod cycle_direction;
 pub mod default_layout;
@@ -18,6 +19,7 @@ pub mod rect;
 pub mod sizing;
 
 pub use arrangement::*;
+#[cfg(feature = "win32")]
 pub use custom_layout::*;
 pub use cycle_direction::*;
 pub use default_layout::*;

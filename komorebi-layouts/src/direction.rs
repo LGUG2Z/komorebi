@@ -1,8 +1,12 @@
 use super::DefaultLayout;
 use super::OperationDirection;
+#[cfg(feature = "win32")]
 use super::custom_layout::Column;
+#[cfg(feature = "win32")]
 use super::custom_layout::ColumnSplit;
+#[cfg(feature = "win32")]
 use super::custom_layout::ColumnSplitWithCapacity;
+#[cfg(feature = "win32")]
 use super::custom_layout::CustomLayout;
 use crate::default_layout::LayoutOptions;
 
@@ -400,6 +404,7 @@ fn grid_neighbor(
     }
 }
 
+#[cfg(feature = "win32")]
 impl Direction for CustomLayout {
     fn index_in_direction(
         &self,

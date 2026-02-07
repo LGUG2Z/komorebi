@@ -6,11 +6,15 @@ use serde::Serialize;
 use strum::Display;
 use strum::EnumString;
 
+#[cfg(feature = "win32")]
 use super::CustomLayout;
 use super::DefaultLayout;
 use super::Rect;
+#[cfg(feature = "win32")]
 use super::custom_layout::Column;
+#[cfg(feature = "win32")]
 use super::custom_layout::ColumnSplit;
+#[cfg(feature = "win32")]
 use super::custom_layout::ColumnSplitWithCapacity;
 use crate::default_layout::DEFAULT_RATIO;
 use crate::default_layout::DEFAULT_SECONDARY_RATIO;
@@ -719,6 +723,7 @@ impl Arrangement for DefaultLayout {
     }
 }
 
+#[cfg(feature = "win32")]
 impl Arrangement for CustomLayout {
     fn calculate(
         &self,
@@ -857,6 +862,7 @@ pub enum Axis {
     HorizontalAndVertical,
 }
 
+#[cfg(feature = "win32")]
 #[must_use]
 fn columns(area: &Rect, len: usize) -> Vec<Rect> {
     columns_with_ratios(area, len, None)
@@ -931,6 +937,7 @@ fn columns_with_ratios(
     layouts
 }
 
+#[cfg(feature = "win32")]
 #[must_use]
 fn rows(area: &Rect, len: usize) -> Vec<Rect> {
     rows_with_ratios(area, len, None)

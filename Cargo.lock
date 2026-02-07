@@ -3238,6 +3238,7 @@ version = "0.1.40"
 dependencies = [
  "clap",
  "color-eyre",
+ "objc2-core-foundation",
  "schemars 1.2.1",
  "serde",
  "serde_json_lenient",
