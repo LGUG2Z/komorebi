@@ -11,7 +11,9 @@ use crate::core::Rect;
 use crate::windows_api;
 use std::collections::HashMap;
 use std::ops::Deref;
+use std::sync::Arc;
 use std::sync::LazyLock;
+use std::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering;
 use std::sync::mpsc;
 use windows::Win32::Foundation::FALSE;
@@ -126,6 +128,7 @@ pub struct Border {
     pub brush_properties: D2D1_BRUSH_PROPERTIES,
     pub rounded_rect: D2D1_ROUNDED_RECT,
     pub brushes: HashMap<WindowKind, ID2D1SolidColorBrush>,
+    pub is_destroying: Arc<AtomicBool>,
 }
 
 impl From<isize> for Border {
@@ -144,6 +147,7 @@ impl From<isize> for Border {
             brush_properties: D2D1_BRUSH_PROPERTIES::default(),
             rounded_rect: D2D1_ROUNDED_RECT::default(),
             brushes: HashMap::new(),
+            is_destroying: Arc::new(AtomicBool::new(false)),
         }
     }
 }
@@ -192,6 +196,7 @@ impl Border {
                 brush_properties: Default::default(),
                 rounded_rect: Default::default(),
                 brushes: HashMap::new(),
+                is_destroying: Arc::new(AtomicBool::new(false)),
             };
 
             let border_pointer = &raw mut border;
@@ -313,6 +318,12 @@ impl Border {
     }
 
     pub fn destroy(&self) -> color_eyre::Result<()> {
+        // signal that we're destroying - prevents new render operations
+        self.is_destroying.store(true, Ordering::Release);
+
+        // small delay to allow in-flight render operations to complete
+        std::thread::sleep(std::time::Duration::from_millis(10));
+
         // clear user data **BEFORE** closing window
         // pending messages will see a null pointer and exit early
         unsafe {
@@ -386,6 +397,10 @@ impl Border {
                         return LRESULT(0);
                     }
 
+                    if (*border_pointer).is_destroying.load(Ordering::Acquire) {
+                        return LRESULT(0);
+                    }
+
                     let reference_hwnd = (*border_pointer).tracking_hwnd;
 
                     let old_rect = (*border_pointer).window_rect;
@@ -400,6 +415,11 @@ impl Border {
                     if (!rect.is_same_size_as(&old_rect) || !rect.has_same_position_as(&old_rect))
                         && let Some(render_target) = (*border_pointer).render_target.as_ref()
                     {
+                        // double-check destruction flag before rendering
+                        if (*border_pointer).is_destroying.load(Ordering::Acquire) {
+                            return LRESULT(0);
+                        }
+
                         let border_width = (*border_pointer).width;
                         let border_offset = (*border_pointer).offset;
 
@@ -468,6 +488,10 @@ impl Border {
                             return LRESULT(0);
                         }
 
+                        if (*border_pointer).is_destroying.load(Ordering::Acquire) {
+                            return LRESULT(0);
+                        }
+
                         let reference_hwnd = (*border_pointer).tracking_hwnd;
 
                         // Update position to update the ZOrder
@@ -481,6 +505,11 @@ impl Border {
                         }
 
                         if let Some(render_target) = (*border_pointer).render_target.as_ref() {
+                            // double-check destruction flag before rendering
+                            if (*border_pointer).is_destroying.load(Ordering::Acquire) {
+                                return LRESULT(0);
+                            }
+
                             (*border_pointer).width = BORDER_WIDTH.load(Ordering::Relaxed);
                             (*border_pointer).offset = BORDER_OFFSET.load(Ordering::Relaxed);
 
