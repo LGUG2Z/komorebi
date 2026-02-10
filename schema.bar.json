@@ -5421,6 +5421,46 @@
           "type": "object",
           "properties": {
             "content": {
+              "type": "array",
+              "maxItems": 2,
+              "minItems": 2,
+              "prefixItems": [
+                {
+                  "type": [
+                    "array",
+                    "null"
+                  ],
+                  "items": {
+                    "type": "number",
+                    "format": "float"
+                  }
+                },
+                {
+                  "type": [
+                    "array",
+                    "null"
+                  ],
+                  "items": {
+                    "type": "number",
+                    "format": "float"
+                  }
+                }
+              ]
+            },
+            "type": {
+              "type": "string",
+              "const": "LayoutRatios"
+            }
+          },
+          "required": [
+            "type",
+            "content"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "content": {
               "type": "integer",
               "format": "uint",
               "minimum": 1

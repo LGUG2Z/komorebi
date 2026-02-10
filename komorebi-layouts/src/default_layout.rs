@@ -23,6 +23,36 @@ pub const DEFAULT_RATIO: f32 = 0.5;
 /// Default secondary ratio value for UltrawideVerticalStack layout
 pub const DEFAULT_SECONDARY_RATIO: f32 = 0.25;
 
+/// Validates and converts a Vec of ratios into a fixed-size array.
+/// - Clamps values to MIN_RATIO..MAX_RATIO range
+/// - Truncates when cumulative sum reaches or exceeds 1.0
+/// - Limits to MAX_RATIOS values
+#[must_use]
+pub fn validate_ratios(ratios: &[f32]) -> [Option<f32>; MAX_RATIOS] {
+    let mut arr = [None; MAX_RATIOS];
+    let mut cumulative_sum = 0.0_f32;
+
+    for (i, &val) in ratios.iter().take(MAX_RATIOS).enumerate() {
+        let clamped_val = val.clamp(MIN_RATIO, MAX_RATIO);
+
+        // Only add this ratio if cumulative sum stays below 1.0
+        if cumulative_sum + clamped_val < 1.0 {
+            arr[i] = Some(clamped_val);
+            cumulative_sum += clamped_val;
+        } else {
+            // Stop adding ratios - cumulative sum would reach or exceed 1.0
+            tracing::debug!(
+                "Truncating ratios at index {} - cumulative sum {} + {} would reach/exceed 1.0",
+                i,
+                cumulative_sum,
+                clamped_val
+            );
+            break;
+        }
+    }
+    arr
+}
+
 #[derive(
     Clone, Copy, Debug, Serialize, Deserialize, Eq, PartialEq, Display, EnumString, ValueEnum,
 )]
@@ -137,30 +167,7 @@ where
     D: serde::Deserializer<'de>,
 {
     let opt: Option<Vec<f32>> = Option::deserialize(deserializer)?;
-    Ok(opt.map(|vec| {
-        let mut arr = [None; MAX_RATIOS];
-        let mut cumulative_sum = 0.0_f32;
-
-        for (i, &val) in vec.iter().take(MAX_RATIOS).enumerate() {
-            let clamped_val = val.clamp(MIN_RATIO, MAX_RATIO);
-
-            // Only add this ratio if cumulative sum stays below 1.0
-            if cumulative_sum + clamped_val < 1.0 {
-                arr[i] = Some(clamped_val);
-                cumulative_sum += clamped_val;
-            } else {
-                // Stop adding ratios - cumulative sum would reach or exceed 1.0
-                tracing::debug!(
-                    "Truncating ratios at index {} - cumulative sum {} + {} would reach/exceed 1.0",
-                    i,
-                    cumulative_sum,
-                    clamped_val
-                );
-                break;
-            }
-        }
-        arr
-    }))
+    Ok(opt.map(|vec| validate_ratios(&vec)))
 }
 
 /// Helper to serialize [Option<f32>; MAX_RATIOS] as a compact array (without trailing nulls)

@@ -39,6 +39,7 @@ pub use komorebi_layouts::OperationDirection;
 pub use komorebi_layouts::Rect;
 pub use komorebi_layouts::ScrollingLayoutOptions;
 pub use komorebi_layouts::Sizing;
+pub use komorebi_layouts::validate_ratios;
 
 // Local modules and exports
 pub use animation::AnimationStyle;
@@ -118,6 +119,7 @@ pub enum SocketMessage {
     AdjustWorkspacePadding(Sizing, i32),
     ChangeLayout(DefaultLayout),
     CycleLayout(CycleDirection),
+    LayoutRatios(Option<Vec<f32>>, Option<Vec<f32>>),
     ScrollingLayoutColumns(NonZeroUsize),
     ChangeLayoutCustom(#[serde_as(as = "ResolvedPathBuf")] PathBuf),
     FlipLayout(Axis),
