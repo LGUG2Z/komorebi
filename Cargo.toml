@@ -36,7 +36,7 @@ tracing-appender = "0.2"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 parking_lot = "0.12"
 paste = "1"
-sysinfo = "0.37"
+sysinfo = "0.38"
 uds_windows = "1"
 win32-display-data = { git = "https://github.com/LGUG2Z/win32-display-data", rev = "8c42d8db257d30fe95bc98c2e5cd8f75da861021" }
 windows-numerics = { version = "0.3" }
