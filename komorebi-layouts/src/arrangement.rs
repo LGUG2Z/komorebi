@@ -141,6 +141,15 @@ impl Arrangement for DefaultLayout {
                     });
                 }
 
+                // Last visible column absorbs any remainder from integer division
+                // so that visible columns tile the full area width without gaps
+                let width_remainder = area.right - column_width * visible_columns;
+                if width_remainder > 0 {
+                    let last_visible_idx =
+                        (first_visible as usize + visible_columns as usize - 1).min(len - 1);
+                    layouts[last_visible_idx].right += width_remainder;
+                }
+
                 let adjustment = calculate_scrolling_adjustment(resize_dimensions);
                 layouts
                     .iter_mut()
@@ -660,6 +669,16 @@ impl Arrangement for DefaultLayout {
                     current_left += width;
                 }
 
+                // Last column absorbs any remainder from integer division
+                // so that columns tile the full area width without gaps
+                let total_width: i32 = col_widths.iter().sum();
+                let width_remainder = area.right - total_width;
+                if width_remainder > 0
+                    && let Some(last) = col_widths.last_mut()
+                {
+                    *last += width_remainder;
+                }
+
                 // Pre-calculate flipped column positions: same widths laid out
                 // in reverse order so that the last column sits at area.left
                 let flipped_col_lefts = if matches!(
@@ -691,8 +710,10 @@ impl Arrangement for DefaultLayout {
                         remaining_windows / remaining_columns
                     };
 
-                    // Rows within each column are equal height (no row_ratios support for Grid)
-                    let win_height = area.bottom / num_rows_in_this_col;
+                    // Rows within each column: base height from integer division,
+                    // last row absorbs any remainder to cover the full area height
+                    let base_height = area.bottom / num_rows_in_this_col;
+                    let height_remainder = area.bottom - base_height * num_rows_in_this_col;
 
                     let col_idx = col as usize;
                     let win_width = col_widths[col_idx];
@@ -700,19 +721,34 @@ impl Arrangement for DefaultLayout {
 
                     for row in 0..num_rows_in_this_col {
                         if let Some((_idx, win)) = iter.next() {
+                            let is_last_row = row == num_rows_in_this_col - 1;
+                            let win_height = if is_last_row {
+                                base_height + height_remainder
+                            } else {
+                                base_height
+                            };
+
                             let mut left = col_left;
-                            let mut top = area.top + win_height * row;
+                            let mut top = area.top + base_height * row;
 
                             match layout_flip {
                                 Some(Axis::Horizontal) => {
                                     left = flipped_col_lefts[col_idx];
                                 }
                                 Some(Axis::Vertical) => {
-                                    top = area.bottom - win_height * (row + 1) + area.top;
+                                    top = if is_last_row {
+                                        area.top
+                                    } else {
+                                        area.top + area.bottom - base_height * (row + 1)
+                                    };
                                 }
                                 Some(Axis::HorizontalAndVertical) => {
                                     left = flipped_col_lefts[col_idx];
-                                    top = area.bottom - win_height * (row + 1) + area.top;
+                                    top = if is_last_row {
+                                        area.top
+                                    } else {
+                                        area.top + area.bottom - base_height * (row + 1)
+                                    };
                                 }
                                 None => {}
                             }
@@ -948,6 +984,16 @@ fn columns_with_ratios(
         left += right;
     }
 
+    // Last column absorbs any remainder from integer division
+    // so that columns tile the full area width without gaps
+    let total_width: i32 = layouts.iter().map(|r| r.right).sum();
+    let remainder = area.right - total_width;
+    if remainder > 0
+        && let Some(last) = layouts.last_mut()
+    {
+        last.right += remainder;
+    }
+
     layouts
 }
 
@@ -1017,6 +1063,16 @@ fn rows_with_ratios(
         });
 
         top += bottom;
+    }
+
+    // Last row absorbs any remainder from integer division
+    // so that rows tile the full area height without gaps
+    let total_height: i32 = layouts.iter().map(|r| r.bottom).sum();
+    let remainder = area.bottom - total_height;
+    if remainder > 0
+        && let Some(last) = layouts.last_mut()
+    {
+        last.bottom += remainder;
     }
 
     layouts
