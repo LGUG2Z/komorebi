@@ -1,6 +1,6 @@
 [package]
 name = "komorebi-client"
-version = "0.1.40"
+version = "0.1.41"
 edition = "2024"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
