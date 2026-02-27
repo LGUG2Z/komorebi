@@ -20,6 +20,7 @@ use crate::Layout;
 use crate::Notification;
 use crate::NotificationEvent;
 use crate::REGEX_IDENTIFIERS;
+use crate::SCROLLING_CLOAKED_HWNDS;
 use crate::TRAY_AND_MULTI_WINDOW_IDENTIFIERS;
 use crate::VirtualDesktopNotification;
 use crate::Window;
@@ -394,7 +395,18 @@ impl WindowManager {
             WindowManagerEvent::Show(_, window)
             | WindowManagerEvent::Manage(window)
             | WindowManagerEvent::Uncloak(_, window) => {
+                // Ignore uncloak events for windows managed by the scrolling layout
+                // cloaking system. When a window scrolls back into view, we uncloak it
+                // which fires an ObjectUncloaked WinEvent - we consume it here to prevent
+                // the window from being re-managed as a new window.
                 if matches!(event, WindowManagerEvent::Uncloak(_, _))
+                    && SCROLLING_CLOAKED_HWNDS.lock().remove(&window.hwnd)
+                {
+                    tracing::debug!(
+                        "ignoring uncloak for scrolling-managed window: {}",
+                        window.hwnd
+                    );
+                } else if matches!(event, WindowManagerEvent::Uncloak(_, _))
                     && self.uncloack_to_ignore >= 1
                 {
                     tracing::info!("ignoring uncloak after monocle move by mouse across monitors");
