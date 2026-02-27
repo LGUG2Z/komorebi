@@ -35,6 +35,7 @@ pub mod workspace;
 use lazy_static::lazy_static;
 use monitor_reconciliator::MonitorNotification;
 use std::collections::HashMap;
+use std::collections::HashSet;
 use std::collections::VecDeque;
 use std::fs::File;
 use std::io::Write;
@@ -80,6 +81,8 @@ use winreg::enums::HKEY_CURRENT_USER;
 
 lazy_static! {
     static ref HIDDEN_HWNDS: Arc<Mutex<Vec<isize>>> = Arc::new(Mutex::new(vec![]));
+    pub static ref SCROLLING_CLOAKED_HWNDS: Arc<Mutex<HashSet<isize>>> = Arc::new(Mutex::new(HashSet::new()));
+
     static ref LAYERED_WHITELIST: Arc<Mutex<Vec<MatchingRule>>> = Arc::new(Mutex::new(vec![
         MatchingRule::Simple(IdWithIdentifier {
             kind: ApplicationIdentifier::Exe,

@@ -15,10 +15,12 @@ use crate::KomorebiTheme;
 use crate::NO_TITLEBAR;
 use crate::REGEX_IDENTIFIERS;
 use crate::REMOVE_TITLEBARS;
+use crate::SCROLLING_CLOAKED_HWNDS;
 use crate::SocketMessage;
 use crate::Wallpaper;
 use crate::WindowContainerBehaviour;
 use crate::border_manager;
+use crate::com::SetCloak;
 use crate::container::Container;
 use crate::core::Axis;
 use crate::core::CustomLayout;
@@ -36,6 +38,7 @@ use crate::stackbar_manager::STACKBAR_TAB_HEIGHT;
 use crate::static_config::WorkspaceConfig;
 use crate::window::Window;
 use crate::window::WindowDetails;
+use crate::windows_api;
 use crate::windows_api::WindowsApi;
 use color_eyre::eyre;
 use color_eyre::eyre::OptionExt;
@@ -44,6 +47,7 @@ use komorebi_themes::KomorebiThemeCustom as Custom;
 use serde::Deserialize;
 use serde::Serialize;
 use uds_windows::UnixStream;
+use windows::Win32::Foundation::HWND;
 
 #[allow(clippy::struct_field_names)]
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -578,12 +582,29 @@ impl Workspace {
                 let no_titlebar = NO_TITLEBAR.lock().clone();
                 let regex_identifiers = REGEX_IDENTIFIERS.lock().clone();
 
+                let is_scrolling = matches!(self.layout, Layout::Default(DefaultLayout::Scrolling));
+
+                // Compute the right edge of the visible work area for scrolling
+                // visibility checks (in Rect, .right is width, not the right edge)
+                let area_right_edge = adjusted_work_area.left + adjusted_work_area.right;
+
                 let containers = self.containers_mut();
+
+                // Collect all current container window hwnds for stale-entry cleanup
+                let mut current_hwnds: Vec<isize> = Vec::new();
+                if is_scrolling {
+                    for container in containers.iter() {
+                        for window in container.windows() {
+                            current_hwnds.push(window.hwnd);
+                        }
+                    }
+                }
 
                 for (i, container) in containers.iter_mut().enumerate() {
                     let window_count = container.windows().len();
 
                     if let Some(layout) = layouts.get_mut(i) {
+                        // Always apply padding so latest_layout stays consistent
                         layout.add_padding(border_offset);
                         layout.add_padding(border_width);
 
@@ -595,36 +616,89 @@ impl Workspace {
                             layout.bottom -= total_height;
                         }
 
-                        for window in container.windows() {
-                            if container
-                                .focused_window()
-                                .is_some_and(|w| w.hwnd == window.hwnd)
-                            {
-                                let should_remove_titlebar_for_window = should_act(
-                                    &window.title().unwrap_or_default(),
-                                    &window.exe().unwrap_or_default(),
-                                    &window.class().unwrap_or_default(),
-                                    &window.path().unwrap_or_default(),
-                                    &no_titlebar,
-                                    &regex_identifiers,
-                                )
-                                .is_some();
+                        // For scrolling layout, check if this container is within the
+                        // visible work area. A container is visible if its horizontal
+                        // extent intersects the work area.
+                        let is_visible = !is_scrolling
+                            || (layout.left < area_right_edge
+                                && layout.left + layout.right > adjusted_work_area.left);
 
-                                if should_remove_titlebars && should_remove_titlebar_for_window {
-                                    window.remove_title_bar()?;
-                                } else if should_remove_titlebar_for_window {
-                                    window.add_title_bar()?;
-                                }
-
-                                // If a window has been unmaximized via toggle-maximize, this block
-                                // will make sure that it is unmaximized via restore_window
-                                if window.is_maximized() && !managed_maximized_window {
-                                    WindowsApi::restore_window(window.hwnd);
+                        if is_visible {
+                            // Uncloak windows that were previously scrolling-cloaked
+                            if is_scrolling {
+                                let cloaked = SCROLLING_CLOAKED_HWNDS.lock();
+                                for window in container.windows() {
+                                    if cloaked.contains(&window.hwnd) {
+                                        // Uncloak - the entry will be removed from the set
+                                        // when the Uncloak WinEvent is processed
+                                        SetCloak(HWND(windows_api::as_ptr!(window.hwnd)), 1, 0);
+                                        border_manager::show_border(window.hwnd);
+                                    }
                                 }
                             }
-                            window.set_position(layout, false)?;
+
+                            for window in container.windows() {
+                                if container
+                                    .focused_window()
+                                    .is_some_and(|w| w.hwnd == window.hwnd)
+                                {
+                                    let should_remove_titlebar_for_window = should_act(
+                                        &window.title().unwrap_or_default(),
+                                        &window.exe().unwrap_or_default(),
+                                        &window.class().unwrap_or_default(),
+                                        &window.path().unwrap_or_default(),
+                                        &no_titlebar,
+                                        &regex_identifiers,
+                                    )
+                                    .is_some();
+
+                                    if should_remove_titlebars && should_remove_titlebar_for_window
+                                    {
+                                        window.remove_title_bar()?;
+                                    } else if should_remove_titlebar_for_window {
+                                        window.add_title_bar()?;
+                                    }
+
+                                    // If a window has been unmaximized via toggle-maximize,
+                                    // this block will make sure that it is unmaximized via
+                                    // restore_window
+                                    if window.is_maximized() && !managed_maximized_window {
+                                        WindowsApi::restore_window(window.hwnd);
+                                    }
+                                }
+                                window.set_position(layout, false)?;
+                            }
+                        } else {
+                            // Off-screen in scrolling layout: cloak the windows and hide
+                            // their borders so they don't appear on adjacent monitors
+                            let mut cloaked = SCROLLING_CLOAKED_HWNDS.lock();
+                            for window in container.windows() {
+                                if cloaked.insert(window.hwnd) {
+                                    // Newly cloaked
+                                    SetCloak(HWND(windows_api::as_ptr!(window.hwnd)), 1, 2);
+                                    border_manager::hide_border(window.hwnd);
+                                }
+                            }
+                            // Skip set_position - window is invisible
                         }
                     }
+                }
+
+                // If layout changed away from Scrolling, uncloak all
+                // scrolling-cloaked windows so they become visible again
+                if !is_scrolling {
+                    let mut cloaked = SCROLLING_CLOAKED_HWNDS.lock();
+                    for hwnd in cloaked.drain() {
+                        SetCloak(HWND(windows_api::as_ptr!(hwnd)), 1, 0);
+                        border_manager::show_border(hwnd);
+                    }
+                }
+
+                // Clean up stale entries for windows no longer in any container
+                // (e.g. closed or moved to another workspace while off-screen)
+                if is_scrolling {
+                    let mut cloaked = SCROLLING_CLOAKED_HWNDS.lock();
+                    cloaked.retain(|hwnd| current_hwnds.contains(hwnd));
                 }
 
                 self.latest_layout = layouts;
