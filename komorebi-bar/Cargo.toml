@@ -34,6 +34,8 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 starship-battery = "0.10"
 sysinfo = { workspace = true }
+systray-util = "0.1.0"
+tokio = { version = "1", features = ["rt", "sync", "time"] }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
 which = { workspace = true }

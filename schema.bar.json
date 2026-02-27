@@ -353,7 +353,7 @@
         },
         {
           "title": "CubicBezier",
-          "description": "Custom Cubic Bézier function",
+          "description": "Custom Cubic B├®zier function",
           "type": "object",
           "properties": {
             "CubicBezier": {
@@ -4301,6 +4301,21 @@
         "Down"
       ]
     },
+    "OverflowTogglePosition": {
+      "description": "Position of the overflow toggle button",
+      "oneOf": [
+        {
+          "description": "Toggle button appears on the left side (before visible icons)",
+          "type": "string",
+          "const": "Left"
+        },
+        {
+          "description": "Toggle button appears on the right side (after visible icons)",
+          "type": "string",
+          "const": "Right"
+        }
+      ]
+    },
     "PathBuf": {
       "description": "A file system path. Environment variables like %VAR%, $Env:VAR, or $VAR are automatically resolved.",
       "type": "string"
@@ -8147,6 +8162,47 @@
         "filter_state_changes"
       ]
     },
+    "SystrayConfig": {
+      "description": "System tray widget configuration",
+      "type": "object",
+      "properties": {
+        "enable": {
+          "description": "Enable the System Tray widget",
+          "type": "boolean"
+        },
+        "hidden_icons": {
+          "description": "A list of exe names to hide from the system tray\n\nMatching is case-insensitive. Run komorebi-bar with RUST_LOG=info to see\nthe exe names of all systray icons in the log output.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "overflow_toggle_position": {
+          "description": "Position of the overflow toggle button (default: Right)",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/OverflowTogglePosition"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "show_exe_labels": {
+          "description": "Show exe names as labels next to icons (useful for identifying apps to filter)",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "enable"
+      ]
+    },
     "TimeConfig": {
       "description": "Time widget configuration",
       "type": "object",
@@ -8414,6 +8470,20 @@
           "additionalProperties": false,
           "required": [
             "Storage"
+          ]
+        },
+        {
+          "title": "Systray",
+          "description": "System Tray widget configuration (Windows only)",
+          "type": "object",
+          "properties": {
+            "Systray": {
+              "$ref": "#/$defs/SystrayConfig"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "Systray"
           ]
         },
         {

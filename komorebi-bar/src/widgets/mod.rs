@@ -20,6 +20,8 @@ pub mod media;
 pub mod memory;
 pub mod network;
 pub mod storage;
+#[cfg(target_os = "windows")]
+pub mod systray;
 pub mod time;
 pub mod update;
 pub mod widget;
@@ -156,6 +158,8 @@ pub enum ImageIconId {
     Path(Arc<Path>),
     /// Windows HWND handle.
     Hwnd(isize),
+    /// System tray icon identifier.
+    SystrayIcon(String),
 }
 
 impl From<&Path> for ImageIconId {
