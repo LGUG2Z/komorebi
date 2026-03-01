@@ -232,9 +232,7 @@ impl RenderDispatcher for MovementRenderDispatcher {
         Ok(())
     }
 
-    fn on_cancle(&mut self) {
-        
-    }
+    fn on_cancle(&mut self) {}
 }
 
 struct TransparencyRenderDispatcher {
@@ -302,9 +300,7 @@ impl RenderDispatcher for TransparencyRenderDispatcher {
         Ok(())
     }
 
-    fn on_cancle(&mut self) {
-        
-    }
+    fn on_cancle(&mut self) {}
 }
 
 #[derive(Copy, Clone, Debug, Display, EnumString, Serialize, Deserialize, PartialEq)]

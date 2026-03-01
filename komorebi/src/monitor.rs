@@ -4,38 +4,38 @@ use std::sync::atomic::Ordering;
 use std::time::Duration;
 
 use color_eyre::eyre;
-use color_eyre::eyre::bail;
 use color_eyre::eyre::OptionExt;
+use color_eyre::eyre::bail;
 use serde::Deserialize;
 use serde::Serialize;
 
-use crate::animation::lerp::Lerp;
-use crate::animation::prefix::new_animation_key;
-use crate::animation::prefix::AnimationPrefix;
-use crate::animation::workspace_switch::WorkspaceSwitchWindow;
+use crate::AnimationStyle;
+use crate::animation::ANIMATION_MANAGER;
 use crate::animation::AnimationEngine;
 use crate::animation::RenderDispatcher;
-use crate::animation::ANIMATION_MANAGER;
+use crate::animation::lerp::Lerp;
+use crate::animation::prefix::AnimationPrefix;
+use crate::animation::prefix::new_animation_key;
+use crate::animation::workspace_switch::WorkspaceSwitchWindow;
 use crate::border_manager::BORDER_ENABLED;
 use crate::border_manager::BORDER_OFFSET;
 use crate::border_manager::BORDER_WIDTH;
 use crate::core::Rect;
 use crate::stackbar_manager;
-use crate::AnimationStyle;
 
-use crate::container::Container;
-use crate::ring::Ring;
-use crate::workspace::Workspace;
-use crate::workspace::WorkspaceGlobals;
-use crate::workspace::WorkspaceLayer;
+use crate::DEFAULT_CONTAINER_PADDING;
+use crate::DEFAULT_WORKSPACE_PADDING;
 use crate::DefaultLayout;
 use crate::FloatingLayerBehaviour;
 use crate::Layout;
 use crate::OperationDirection;
 use crate::Wallpaper;
 use crate::WindowsApi;
-use crate::DEFAULT_CONTAINER_PADDING;
-use crate::DEFAULT_WORKSPACE_PADDING;
+use crate::container::Container;
+use crate::ring::Ring;
+use crate::workspace::Workspace;
+use crate::workspace::WorkspaceGlobals;
+use crate::workspace::WorkspaceLayer;
 
 struct WorkspaceSwitchRenderDispatcher {
     monitor: Monitor,
@@ -91,8 +91,12 @@ impl RenderDispatcher for WorkspaceSwitchRenderDispatcher {
                 .unwrap();
             render_window.begin_draw();
             let result = render_window.draw_workspace(
+                self.workspace_idx,
                 workspace,
-                (monitor_width).lerp(0, progress, self.style) as i32,
+                match self.to_left {
+                    true => (monitor_width).lerp(0, progress, self.style) as i32,
+                    false => (-monitor_width).lerp(0, progress, self.style) as i32,
+                },
             );
 
             println!("result: {result:?}");
@@ -100,10 +104,15 @@ impl RenderDispatcher for WorkspaceSwitchRenderDispatcher {
                 .monitor
                 .workspaces_mut()
                 .get_mut(monitor_previous_workspace_idx.unwrap())
+                && monitor_previous_workspace_idx.is_some_and(|idx| idx != self.workspace_idx)
             {
                 render_window.draw_workspace(
+                    monitor_previous_workspace_idx.unwrap(),
                     previous_workspace,
-                    (0).lerp(-monitor_width, progress, self.style) as i32,
+                    match self.to_left {
+                        true => (0).lerp(-monitor_width, progress, self.style) as i32,
+                        false => (0).lerp(monitor_width, progress, self.style) as i32,
+                    },
                 );
             }
             render_window.end_draw();
@@ -323,7 +332,7 @@ impl Monitor {
                         focused_idx > monitor.last_focused_workspace.unwrap_or(focused_idx),
                         AnimationStyle::EaseInSine,
                     ),
-                    Duration::from_millis(1000),
+                    Duration::from_millis(500),
                 )?;
                 // workspace.restore(mouse_follows_focus, hmonitor, &monitor_wp)?;
             } else {
