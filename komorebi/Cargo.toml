@@ -53,6 +53,8 @@ windows-interface = { workspace = true }
 winput = "0.2"
 winreg = "0.55"
 serde_with = { version = "3.12", features = ["schemars_1"] }
+windows-capture = "2.0.0-alpha.7"
+windows-future = "0.3.2"
 
 [build-dependencies]
 shadow-rs = { workspace = true }

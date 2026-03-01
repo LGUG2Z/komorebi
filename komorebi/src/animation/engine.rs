@@ -6,10 +6,10 @@ use std::sync::atomic::Ordering;
 use std::time::Duration;
 use std::time::Instant;
 
+use super::RenderDispatcher;
 use super::ANIMATION_DURATION_GLOBAL;
 use super::ANIMATION_FPS;
 use super::ANIMATION_MANAGER;
-use super::RenderDispatcher;
 
 #[derive(Debug, Default, Clone, Copy, Serialize, Deserialize, PartialEq)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
@@ -55,7 +55,7 @@ impl AnimationEngine {
 
     #[allow(clippy::cast_precision_loss)]
     pub fn animate(
-        render_dispatcher: impl RenderDispatcher + Send + 'static,
+        mut render_dispatcher: impl RenderDispatcher + Send + 'static,
         duration: Duration,
     ) -> eyre::Result<()> {
         std::thread::spawn(move || {
@@ -84,6 +84,7 @@ impl AnimationEngine {
                     .lock()
                     .is_cancelled(animation_key.as_str())
                 {
+                    render_dispatcher.on_cancle();
                     // cancel animation
                     ANIMATION_MANAGER.lock().cancel(animation_key.as_str());
                     return Ok(());

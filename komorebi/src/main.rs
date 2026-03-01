@@ -346,6 +346,7 @@ fn main() -> eyre::Result<()> {
         listen_for_movements(wm.clone());
     }
 
+
     let (ctrlc_sender, ctrlc_receiver) = crossbeam_channel::bounded(1);
     ctrlc::set_handler(move || {
         ctrlc_sender
