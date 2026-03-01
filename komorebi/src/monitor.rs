@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::collections::VecDeque;
 use std::sync::atomic::Ordering;
+use std::time::Duration;
 
 use color_eyre::eyre;
 use color_eyre::eyre::OptionExt;
@@ -8,10 +9,19 @@ use color_eyre::eyre::bail;
 use serde::Deserialize;
 use serde::Serialize;
 
+use crate::AnimationStyle;
+use crate::animation::ANIMATION_MANAGER;
+use crate::animation::AnimationEngine;
+use crate::animation::RenderDispatcher;
+use crate::animation::lerp::Lerp;
+use crate::animation::prefix::AnimationPrefix;
+use crate::animation::prefix::new_animation_key;
+use crate::animation::workspace_switch::WorkspaceSwitchWindow;
 use crate::border_manager::BORDER_ENABLED;
 use crate::border_manager::BORDER_OFFSET;
 use crate::border_manager::BORDER_WIDTH;
 use crate::core::Rect;
+use crate::stackbar_manager;
 
 use crate::DEFAULT_CONTAINER_PADDING;
 use crate::DEFAULT_WORKSPACE_PADDING;
@@ -26,6 +36,147 @@ use crate::ring::Ring;
 use crate::workspace::Workspace;
 use crate::workspace::WorkspaceGlobals;
 use crate::workspace::WorkspaceLayer;
+
+struct WorkspaceSwitchRenderDispatcher {
+    monitor: Monitor,
+    workspace_idx: usize,
+    render_window: Option<Box<WorkspaceSwitchWindow>>,
+    to_left: bool,
+    style: AnimationStyle,
+}
+
+impl WorkspaceSwitchRenderDispatcher {
+    const PREFIX: AnimationPrefix = AnimationPrefix::WrokspaceSwitch;
+
+    pub fn new(
+        monitor: &Monitor,
+        workspace_idx: usize,
+        to_left: bool,
+        style: AnimationStyle,
+    ) -> Self {
+        Self {
+            monitor: monitor.clone(),
+            workspace_idx,
+            to_left,
+            render_window: None,
+            style,
+        }
+    }
+}
+
+impl RenderDispatcher for WorkspaceSwitchRenderDispatcher {
+    fn get_animation_key(&self) -> String {
+        new_animation_key(
+            WorkspaceSwitchRenderDispatcher::PREFIX,
+            self.monitor.id.to_string(),
+        )
+    }
+
+    fn pre_render(&mut self) -> eyre::Result<()> {
+        stackbar_manager::STACKBAR_TEMPORARILY_DISABLED.store(true, Ordering::SeqCst);
+        stackbar_manager::send_notification();
+        self.render_window = Some(WorkspaceSwitchWindow::create(self.monitor.clone()).unwrap());
+
+        Ok(())
+    }
+
+    fn render(&mut self, progress: f64) -> eyre::Result<()> {
+        if let Some(render_window) = &mut self.render_window {
+            let monitor_width = self.monitor.size.right;
+            let monitor_previous_workspace_idx = self.monitor.last_focused_workspace;
+            let workspace = &mut self
+                .monitor
+                .workspaces_mut()
+                .get_mut(self.workspace_idx)
+                .unwrap();
+            render_window.begin_draw();
+            let result = render_window.draw_workspace(
+                self.workspace_idx,
+                workspace,
+                match self.to_left {
+                    true => (monitor_width).lerp(0, progress, self.style) as i32,
+                    false => (-monitor_width).lerp(0, progress, self.style) as i32,
+                },
+            );
+
+            println!("result: {result:?}");
+            if let Some(previous_workspace) = self
+                .monitor
+                .workspaces_mut()
+                .get_mut(monitor_previous_workspace_idx.unwrap())
+                && monitor_previous_workspace_idx.is_some_and(|idx| idx != self.workspace_idx)
+            {
+                render_window.draw_workspace(
+                    monitor_previous_workspace_idx.unwrap(),
+                    previous_workspace,
+                    match self.to_left {
+                        true => (0).lerp(-monitor_width, progress, self.style) as i32,
+                        false => (0).lerp(monitor_width, progress, self.style) as i32,
+                    },
+                );
+            }
+            render_window.end_draw();
+        }
+        // let new_rect = self.start_rect.lerp(self.target_rect, progress, self.style);
+
+        // we don't check WINDOW_HANDLING_BEHAVIOUR here because animations
+        // are always run on a separate thread
+        // WindowsApi::move_window(self.hwnd, &new_rect, false)?;
+        // WindowsApi::invalidate_rect(self.hwnd, None, false);
+
+        Ok(())
+    }
+
+    fn post_render(&mut self) -> eyre::Result<()> {
+        // let mut monitor = ;
+        let hmonitor = self.monitor.id;
+        let monitor_wp = self.monitor.wallpaper.clone();
+        let workspace = &mut self
+            .monitor
+            .workspaces_mut()
+            .get_mut(self.workspace_idx)
+            .unwrap();
+
+        if let Some(render_window) = self.render_window.take() {
+            let raw_pointer = Box::into_raw(render_window);
+            unsafe {
+                (*raw_pointer).destroy()?;
+            };
+            self.render_window = None;
+        }
+
+        workspace.restore(false, hmonitor, &monitor_wp)?;
+        // we don't add the async_window_pos flag here because animations
+        // are always run on a separate thread
+        // WindowsApi::position_window(self.hwnd, &self.target_rect, self.top, false)?;
+        if ANIMATION_MANAGER
+            .lock()
+            .count_in_progress(WorkspaceSwitchRenderDispatcher::PREFIX)
+            == 0
+        {
+            // if WindowsApi::foreground_window().unwrap_or_default() == self.hwnd {
+            //     focus_manager::send_notification(self.hwnd)
+            // }
+
+            stackbar_manager::STACKBAR_TEMPORARILY_DISABLED.store(false, Ordering::SeqCst);
+
+            stackbar_manager::send_notification();
+            // transparency_manager::send_notification();
+        }
+
+        Ok(())
+    }
+
+    fn on_cancle(&mut self) {
+        if let Some(render_window) = self.render_window.take() {
+            let raw_pointer = Box::into_raw(render_window);
+            unsafe {
+                (*raw_pointer).destroy().unwrap();
+            };
+            self.render_window = None;
+        }
+    }
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
@@ -171,9 +322,19 @@ impl Monitor {
         let focused_idx = self.focused_workspace_idx();
         let hmonitor = self.id;
         let monitor_wp = self.wallpaper.clone();
+        let monitor = self.clone();
         for (i, workspace) in self.workspaces_mut().iter_mut().enumerate() {
             if i == focused_idx {
-                workspace.restore(mouse_follows_focus, hmonitor, &monitor_wp)?;
+                AnimationEngine::animate(
+                    WorkspaceSwitchRenderDispatcher::new(
+                        &monitor,
+                        i,
+                        focused_idx > monitor.last_focused_workspace.unwrap_or(focused_idx),
+                        AnimationStyle::CubicBezier(0.32, 0.72, 0.0, 1.0),
+                    ),
+                    Duration::from_millis(500),
+                )?;
+                // workspace.restore(mouse_follows_focus, hmonitor, &monitor_wp)?;
             } else {
                 workspace.hide(None);
             }

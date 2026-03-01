@@ -55,7 +55,7 @@ impl AnimationEngine {
 
     #[allow(clippy::cast_precision_loss)]
     pub fn animate(
-        render_dispatcher: impl RenderDispatcher + Send + 'static,
+        mut render_dispatcher: impl RenderDispatcher + Send + 'static,
         duration: Duration,
     ) -> eyre::Result<()> {
         std::thread::spawn(move || {
@@ -84,6 +84,7 @@ impl AnimationEngine {
                     .lock()
                     .is_cancelled(animation_key.as_str())
                 {
+                    render_dispatcher.on_cancle();
                     // cancel animation
                     ANIMATION_MANAGER.lock().cancel(animation_key.as_str());
                     return Ok(());
