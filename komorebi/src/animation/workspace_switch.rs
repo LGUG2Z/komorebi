@@ -1,9 +1,9 @@
-use crate::WindowManager;
-use crate::WindowsApi;
 use crate::as_ptr;
 use crate::monitor::Monitor;
 use crate::windows_api;
 use crate::workspace::Workspace;
+use crate::WindowManager;
+use crate::WindowsApi;
 
 use komorebi_layouts::Rect;
 use lazy_static::lazy_static;
@@ -15,12 +15,12 @@ use std::ops::Deref;
 use std::os::raw::c_void;
 use std::os::windows::raw::HANDLE;
 use std::ptr::null_mut;
-use std::sync::Arc;
-use std::sync::LazyLock;
-use std::sync::OnceLock;
 use std::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering;
 use std::sync::mpsc;
+use std::sync::Arc;
+use std::sync::LazyLock;
+use std::sync::OnceLock;
 use std::time::Instant;
 use windows::Graphics::DirectX::Direct3D11::IDirect3DSurface;
 use windows::Win32::Foundation::FALSE;
@@ -32,27 +32,11 @@ use windows::Win32::Foundation::POINT;
 use windows::Win32::Foundation::S_FALSE;
 use windows::Win32::Foundation::TRUE;
 use windows::Win32::Foundation::WPARAM;
-use windows::Win32::Graphics::Direct2D::Common::D2D_RECT_F;
-use windows::Win32::Graphics::Direct2D::Common::D2D_SIZE_U;
 use windows::Win32::Graphics::Direct2D::Common::D2D1_ALPHA_MODE_PREMULTIPLIED;
 use windows::Win32::Graphics::Direct2D::Common::D2D1_COLOR_F;
 use windows::Win32::Graphics::Direct2D::Common::D2D1_PIXEL_FORMAT;
-use windows::Win32::Graphics::Direct2D::D2D1_ANTIALIAS_MODE_PER_PRIMITIVE;
-use windows::Win32::Graphics::Direct2D::D2D1_BITMAP_INTERPOLATION_MODE_NEAREST_NEIGHBOR;
-use windows::Win32::Graphics::Direct2D::D2D1_BITMAP_OPTIONS_CANNOT_DRAW;
-use windows::Win32::Graphics::Direct2D::D2D1_BITMAP_OPTIONS_TARGET;
-use windows::Win32::Graphics::Direct2D::D2D1_BITMAP_PROPERTIES;
-use windows::Win32::Graphics::Direct2D::D2D1_BITMAP_PROPERTIES1;
-use windows::Win32::Graphics::Direct2D::D2D1_BITMAPSOURCE_INTERPOLATION_MODE;
-use windows::Win32::Graphics::Direct2D::D2D1_BITMAPSOURCE_INTERPOLATION_MODE_NEAREST_NEIGHBOR;
-use windows::Win32::Graphics::Direct2D::D2D1_BRUSH_PROPERTIES;
-use windows::Win32::Graphics::Direct2D::D2D1_DEVICE_CONTEXT_OPTIONS_NONE;
-use windows::Win32::Graphics::Direct2D::D2D1_FACTORY_TYPE_MULTI_THREADED;
-use windows::Win32::Graphics::Direct2D::D2D1_HWND_RENDER_TARGET_PROPERTIES;
-use windows::Win32::Graphics::Direct2D::D2D1_INTERPOLATION_MODE_NEAREST_NEIGHBOR;
-use windows::Win32::Graphics::Direct2D::D2D1_PRESENT_OPTIONS_IMMEDIATELY;
-use windows::Win32::Graphics::Direct2D::D2D1_RENDER_TARGET_PROPERTIES;
-use windows::Win32::Graphics::Direct2D::D2D1_RENDER_TARGET_TYPE_DEFAULT;
+use windows::Win32::Graphics::Direct2D::Common::D2D_RECT_F;
+use windows::Win32::Graphics::Direct2D::Common::D2D_SIZE_U;
 use windows::Win32::Graphics::Direct2D::D2D1CreateFactory;
 use windows::Win32::Graphics::Direct2D::ID2D1Bitmap;
 use windows::Win32::Graphics::Direct2D::ID2D1Bitmap1;
@@ -64,31 +48,47 @@ use windows::Win32::Graphics::Direct2D::ID2D1Factory2;
 use windows::Win32::Graphics::Direct2D::ID2D1HwndRenderTarget;
 use windows::Win32::Graphics::Direct2D::ID2D1RenderTarget;
 use windows::Win32::Graphics::Direct2D::ID2D1SolidColorBrush;
+use windows::Win32::Graphics::Direct2D::D2D1_ANTIALIAS_MODE_PER_PRIMITIVE;
+use windows::Win32::Graphics::Direct2D::D2D1_BITMAPSOURCE_INTERPOLATION_MODE;
+use windows::Win32::Graphics::Direct2D::D2D1_BITMAPSOURCE_INTERPOLATION_MODE_NEAREST_NEIGHBOR;
+use windows::Win32::Graphics::Direct2D::D2D1_BITMAP_INTERPOLATION_MODE_NEAREST_NEIGHBOR;
+use windows::Win32::Graphics::Direct2D::D2D1_BITMAP_OPTIONS_CANNOT_DRAW;
+use windows::Win32::Graphics::Direct2D::D2D1_BITMAP_OPTIONS_TARGET;
+use windows::Win32::Graphics::Direct2D::D2D1_BITMAP_PROPERTIES;
+use windows::Win32::Graphics::Direct2D::D2D1_BITMAP_PROPERTIES1;
+use windows::Win32::Graphics::Direct2D::D2D1_BRUSH_PROPERTIES;
+use windows::Win32::Graphics::Direct2D::D2D1_DEVICE_CONTEXT_OPTIONS_NONE;
+use windows::Win32::Graphics::Direct2D::D2D1_FACTORY_TYPE_MULTI_THREADED;
+use windows::Win32::Graphics::Direct2D::D2D1_HWND_RENDER_TARGET_PROPERTIES;
+use windows::Win32::Graphics::Direct2D::D2D1_INTERPOLATION_MODE_NEAREST_NEIGHBOR;
+use windows::Win32::Graphics::Direct2D::D2D1_PRESENT_OPTIONS_IMMEDIATELY;
+use windows::Win32::Graphics::Direct2D::D2D1_RENDER_TARGET_PROPERTIES;
+use windows::Win32::Graphics::Direct2D::D2D1_RENDER_TARGET_TYPE_DEFAULT;
 use windows::Win32::Graphics::Direct3D::D3D_DRIVER_TYPE_HARDWARE;
 use windows::Win32::Graphics::Direct3D::D3D_FEATURE_LEVEL;
 use windows::Win32::Graphics::Direct3D::D3D_FEATURE_LEVEL_10_0;
 use windows::Win32::Graphics::Direct3D::D3D_FEATURE_LEVEL_10_1;
 use windows::Win32::Graphics::Direct3D::D3D_FEATURE_LEVEL_11_0;
 use windows::Win32::Graphics::Direct3D::D3D_FEATURE_LEVEL_11_1;
+use windows::Win32::Graphics::Direct3D11::D3D11CreateDevice;
+use windows::Win32::Graphics::Direct3D11::ID3D11Device;
+use windows::Win32::Graphics::Direct3D11::ID3D11DeviceContext;
+use windows::Win32::Graphics::Direct3D11::ID3D11Texture2D;
 use windows::Win32::Graphics::Direct3D11::D3D11_CREATE_DEVICE_BGRA_SUPPORT;
 use windows::Win32::Graphics::Direct3D11::D3D11_CREATE_DEVICE_DEBUG;
 use windows::Win32::Graphics::Direct3D11::D3D11_RESOURCE_MISC_SHARED;
 use windows::Win32::Graphics::Direct3D11::D3D11_SDK_VERSION;
 use windows::Win32::Graphics::Direct3D11::D3D11_TEXTURE2D_DESC;
 use windows::Win32::Graphics::Direct3D11::D3D11_USAGE_DEFAULT;
-use windows::Win32::Graphics::Direct3D11::D3D11CreateDevice;
-use windows::Win32::Graphics::Direct3D11::ID3D11Device;
-use windows::Win32::Graphics::Direct3D11::ID3D11DeviceContext;
-use windows::Win32::Graphics::Direct3D11::ID3D11Texture2D;
 use windows::Win32::Graphics::DirectComposition::DCompositionCreateDevice2;
 use windows::Win32::Graphics::DirectComposition::IDCompositionDevice;
 use windows::Win32::Graphics::DirectComposition::IDCompositionSurface;
 use windows::Win32::Graphics::DirectComposition::IDCompositionTarget;
 use windows::Win32::Graphics::DirectComposition::IDCompositionVisual;
+use windows::Win32::Graphics::Dwm::DwmEnableBlurBehindWindow;
 use windows::Win32::Graphics::Dwm::DWM_BB_BLURREGION;
 use windows::Win32::Graphics::Dwm::DWM_BB_ENABLE;
 use windows::Win32::Graphics::Dwm::DWM_BLURBEHIND;
-use windows::Win32::Graphics::Dwm::DwmEnableBlurBehindWindow;
 use windows::Win32::Graphics::Dxgi::Common::DXGI_ALPHA_MODE_PREMULTIPLIED;
 use windows::Win32::Graphics::Dxgi::Common::DXGI_FORMAT_R8G8B8A8_UNORM;
 use windows::Win32::Graphics::Dxgi::Common::DXGI_FORMAT_UNKNOWN;
@@ -100,28 +100,28 @@ use windows::Win32::Graphics::Gdi::ValidateRect;
 use windows::Win32::System::Com::CoIncrementMTAUsage;
 use windows::Win32::System::Threading::GetCurrentThreadId;
 use windows::Win32::System::WinRT::CreateDispatcherQueueController;
+use windows::Win32::System::WinRT::DispatcherQueueOptions;
+use windows::Win32::System::WinRT::RoInitialize;
 use windows::Win32::System::WinRT::DQTAT_COM_NONE;
 use windows::Win32::System::WinRT::DQTYPE_THREAD_CURRENT;
-use windows::Win32::System::WinRT::DispatcherQueueOptions;
 use windows::Win32::System::WinRT::RO_INIT_MULTITHREADED;
-use windows::Win32::System::WinRT::RoInitialize;
-use windows::Win32::UI::WindowsAndMessaging::CREATESTRUCTW;
 use windows::Win32::UI::WindowsAndMessaging::DefWindowProcW;
 use windows::Win32::UI::WindowsAndMessaging::DestroyWindow;
 use windows::Win32::UI::WindowsAndMessaging::DispatchMessageW;
-use windows::Win32::UI::WindowsAndMessaging::GWLP_USERDATA;
 use windows::Win32::UI::WindowsAndMessaging::GetMessageW;
 use windows::Win32::UI::WindowsAndMessaging::GetSystemMetrics;
 use windows::Win32::UI::WindowsAndMessaging::GetWindowLongPtrW;
-use windows::Win32::UI::WindowsAndMessaging::MSG;
 use windows::Win32::UI::WindowsAndMessaging::PostQuitMessage;
+use windows::Win32::UI::WindowsAndMessaging::SetWindowLongPtrW;
+use windows::Win32::UI::WindowsAndMessaging::ShowWindow;
+use windows::Win32::UI::WindowsAndMessaging::TranslateMessage;
+use windows::Win32::UI::WindowsAndMessaging::CREATESTRUCTW;
+use windows::Win32::UI::WindowsAndMessaging::GWLP_USERDATA;
+use windows::Win32::UI::WindowsAndMessaging::MSG;
 use windows::Win32::UI::WindowsAndMessaging::SM_CXVIRTUALSCREEN;
 use windows::Win32::UI::WindowsAndMessaging::SW_HIDE;
 use windows::Win32::UI::WindowsAndMessaging::SW_MAXIMIZE;
 use windows::Win32::UI::WindowsAndMessaging::SW_MINIMIZE;
-use windows::Win32::UI::WindowsAndMessaging::SetWindowLongPtrW;
-use windows::Win32::UI::WindowsAndMessaging::ShowWindow;
-use windows::Win32::UI::WindowsAndMessaging::TranslateMessage;
 use windows::Win32::UI::WindowsAndMessaging::WM_CREATE;
 use windows::Win32::UI::WindowsAndMessaging::WM_DESTROY;
 use windows::Win32::UI::WindowsAndMessaging::WM_PAINT;
@@ -859,12 +859,12 @@ impl WorkspaceSwitchWindow {
                                 bottom: ((rect.top - monitor_rect.top) + rect.bottom) as f32,
                             };
                             //
-                            d2d_resources.context.DrawRectangle(
-                                &target_rect,
-                                &d2d_resources.brush,
-                                3.0,
-                                None,
-                            );
+                            // d2d_resources.context.DrawRectangle(
+                            //     &target_rect,
+                            //     &d2d_resources.brush,
+                            //     3.0,
+                            //     None,
+                            // );
                             // d2d_resources.context.FillRectangle(&target_rect, &d2d_resources.brush);
                             println!("rect: {target_rect:?}");
 

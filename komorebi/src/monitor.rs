@@ -330,7 +330,7 @@ impl Monitor {
                         &monitor,
                         i,
                         focused_idx > monitor.last_focused_workspace.unwrap_or(focused_idx),
-                        AnimationStyle::EaseInSine,
+                        AnimationStyle::CubicBezier(0.32, 0.72, 0.0, 1.0),
                     ),
                     Duration::from_millis(500),
                 )?;
