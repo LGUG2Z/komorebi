@@ -192,14 +192,14 @@ impl RenderDispatcher for MovementRenderDispatcher {
         new_animation_key(MovementRenderDispatcher::PREFIX, self.hwnd.to_string())
     }
 
-    fn pre_render(&self) -> eyre::Result<()> {
+    fn pre_render(&mut self) -> eyre::Result<()> {
         stackbar_manager::STACKBAR_TEMPORARILY_DISABLED.store(true, Ordering::SeqCst);
         stackbar_manager::send_notification();
 
         Ok(())
     }
 
-    fn render(&self, progress: f64) -> eyre::Result<()> {
+    fn render(&mut self, progress: f64) -> eyre::Result<()> {
         let new_rect = self.start_rect.lerp(self.target_rect, progress, self.style);
 
         // we don't check WINDOW_HANDLING_BEHAVIOUR here because animations
@@ -210,7 +210,7 @@ impl RenderDispatcher for MovementRenderDispatcher {
         Ok(())
     }
 
-    fn post_render(&self) -> eyre::Result<()> {
+    fn post_render(&mut self) -> eyre::Result<()> {
         // we don't add the async_window_pos flag here because animations
         // are always run on a separate thread
         WindowsApi::position_window(self.hwnd, &self.target_rect, self.top, false)?;
@@ -230,6 +230,10 @@ impl RenderDispatcher for MovementRenderDispatcher {
         }
 
         Ok(())
+    }
+
+    fn on_cancle(&mut self) {
+        
     }
 }
 
@@ -266,7 +270,7 @@ impl RenderDispatcher for TransparencyRenderDispatcher {
         new_animation_key(TransparencyRenderDispatcher::PREFIX, self.hwnd.to_string())
     }
 
-    fn pre_render(&self) -> eyre::Result<()> {
+    fn pre_render(&mut self) -> eyre::Result<()> {
         //transparent
         if !self.is_opaque {
             let window = Window::from(self.hwnd);
@@ -278,7 +282,7 @@ impl RenderDispatcher for TransparencyRenderDispatcher {
         Ok(())
     }
 
-    fn render(&self, progress: f64) -> eyre::Result<()> {
+    fn render(&mut self, progress: f64) -> eyre::Result<()> {
         WindowsApi::set_transparent(
             self.hwnd,
             self.start_opacity
@@ -286,7 +290,7 @@ impl RenderDispatcher for TransparencyRenderDispatcher {
         )
     }
 
-    fn post_render(&self) -> eyre::Result<()> {
+    fn post_render(&mut self) -> eyre::Result<()> {
         //opaque
         if self.is_opaque {
             let window = Window::from(self.hwnd);
@@ -296,6 +300,10 @@ impl RenderDispatcher for TransparencyRenderDispatcher {
         }
 
         Ok(())
+    }
+
+    fn on_cancle(&mut self) {
+        
     }
 }
 

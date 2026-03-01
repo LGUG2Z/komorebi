@@ -2,6 +2,7 @@ use color_eyre::eyre;
 use color_eyre::eyre::Error;
 use color_eyre::eyre::OptionExt;
 use color_eyre::eyre::bail;
+use windows::Win32::UI::WindowsAndMessaging::WS_MAXIMIZE;
 use core::ffi::c_void;
 use std::collections::HashMap;
 use std::collections::VecDeque;
@@ -153,6 +154,7 @@ use windows::core::Result as WindowsCrateResult;
 use windows_core::BOOL;
 use windows_core::HSTRING;
 
+use crate::animation::workspace_switch::WorkspaceSwitchWindow;
 use crate::core::Rect;
 
 use crate::DISPLAY_INDEX_PREFERENCES;
@@ -1309,6 +1311,30 @@ impl WindowsApi {
                 None,
                 Option::from(HINSTANCE(as_ptr!(instance))),
                 Some(border as _),
+            )?
+        }
+        .process()
+    }
+
+    pub fn create_workspace_switch_window(
+        name: PCWSTR,
+        instance: isize,
+        workspace_switch_window: *mut WorkspaceSwitchWindow,
+    ) -> eyre::Result<isize> {
+        unsafe {
+            CreateWindowExW(
+                WS_EX_TOOLWINDOW | WS_EX_TOPMOST | WS_EX_NOACTIVATE , 
+                name,
+                name,
+                WS_POPUP | WS_SYSMENU,
+                CW_USEDEFAULT,
+                CW_USEDEFAULT,
+                CW_USEDEFAULT,
+                CW_USEDEFAULT,
+                None,
+                None,
+                Option::from(HINSTANCE(as_ptr!(instance))),
+                Some(workspace_switch_window as _),
             )?
         }
         .process()
