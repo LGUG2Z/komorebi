@@ -2,7 +2,6 @@ use color_eyre::eyre;
 use color_eyre::eyre::Error;
 use color_eyre::eyre::OptionExt;
 use color_eyre::eyre::bail;
-use windows::Win32::UI::WindowsAndMessaging::WS_MAXIMIZE;
 use core::ffi::c_void;
 use std::collections::HashMap;
 use std::collections::VecDeque;
@@ -145,6 +144,7 @@ use windows::Win32::UI::WindowsAndMessaging::WS_DISABLED;
 use windows::Win32::UI::WindowsAndMessaging::WS_EX_NOACTIVATE;
 use windows::Win32::UI::WindowsAndMessaging::WS_EX_TOOLWINDOW;
 use windows::Win32::UI::WindowsAndMessaging::WS_EX_TOPMOST;
+use windows::Win32::UI::WindowsAndMessaging::WS_MAXIMIZE;
 use windows::Win32::UI::WindowsAndMessaging::WS_POPUP;
 use windows::Win32::UI::WindowsAndMessaging::WS_SYSMENU;
 use windows::Win32::UI::WindowsAndMessaging::WindowFromPoint;
@@ -1323,7 +1323,7 @@ impl WindowsApi {
     ) -> eyre::Result<isize> {
         unsafe {
             CreateWindowExW(
-                WS_EX_TOOLWINDOW | WS_EX_TOPMOST | WS_EX_NOACTIVATE , 
+                WS_EX_TOOLWINDOW | WS_EX_TOPMOST | WS_EX_NOACTIVATE,
                 name,
                 name,
                 WS_POPUP | WS_SYSMENU,
