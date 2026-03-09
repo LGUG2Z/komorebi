@@ -44,6 +44,8 @@ use windows::Win32::Foundation::HWND;
 use windows::Win32::UI::WindowsAndMessaging::SHOW_WINDOW_CMD;
 use windows::Win32::UI::WindowsAndMessaging::SW_RESTORE;
 use windows::Win32::UI::WindowsAndMessaging::ShowWindow;
+use winreg::enums::*;
+use winreg::RegKey;
 
 use komorebi_client::ApplicationConfigurationGenerator;
 use komorebi_client::ApplicationIdentifier;
@@ -972,6 +974,9 @@ struct EnableAutostart {
     /// Enable autostart of masir
     #[clap(long)]
     masir: bool,
+    /// Use Registry to for autostart
+    #[clap(long)]
+    registry: bool,
 }
 
 #[derive(Parser)]
@@ -1565,7 +1570,7 @@ enum SubCommand {
     GenerateStaticConfig,
     /// Generates the komorebi.lnk shortcut in shell:startup to autostart komorebi
     EnableAutostart(EnableAutostart),
-    /// Deletes the komorebi.lnk shortcut in shell:startup to disable autostart
+    /// Deletes the komorebi.lnk shortcut in shell:startup and registry to disable autostart
     DisableAutostart,
 }
 
@@ -1836,13 +1841,39 @@ fn main() -> eyre::Result<()> {
                 arguments.push_str(" --masir");
             }
 
-            Command::new("powershell")
+            // Initialize the registry key for autostart, just in case
+            let hkcu = RegKey::predef(HKEY_CURRENT_USER);
+            let run_key = hkcu.open_subkey_with_flags(
+                "Software\\Microsoft\\Windows\\CurrentVersion\\Run",
+                KEY_WRITE | KEY_READ,
+            )?;
+
+            if args.registry {
+                // Remove the old shortcut file if it exists
+                if shortcut_file.is_file() {
+                    std::fs::remove_file(shortcut_file)?;
+                }
+
+                // Create the registry entry for autostart
+                let concat_exe = format!("\"{}\" {}", komorebic_exe.to_string_lossy(), arguments);
+                run_key.set_value("komorebi", &concat_exe)?;
+            } else {
+                // Remove the registry entry if it exists
+                if run_key.get_value::<String, _>("komorebi").is_ok() {
+                    run_key.delete_value("komorebi")?;
+                }
+
+                // Create the shortcut in the startup directory
+                Command::new("powershell")
                 .arg("-c")
                 .arg("$WshShell = New-Object -comObject WScript.Shell; $Shortcut = $WshShell.CreateShortcut($env:SHORTCUT_PATH); $Shortcut.TargetPath = $env:TARGET_PATH; $Shortcut.Arguments = $env:TARGET_ARGS; $Shortcut.Save()")
                 .env("SHORTCUT_PATH", shortcut_file.as_os_str())
                 .env("TARGET_PATH", komorebic_exe.as_os_str())
                 .env("TARGET_ARGS", arguments)
                 .output()?;
+            }
+
+            println!("Autostart enabled!");
 
             println!(
                 "NOTE: If your komorebi.json file contains a reference to $Env:KOMOREBI_CONFIG_HOME,"
@@ -1853,12 +1884,25 @@ fn main() -> eyre::Result<()> {
             println!("in order for the autostart command to work properly");
         }
         SubCommand::DisableAutostart => {
+            // keeping this for compatibility with the old autostart
             let startup_dir = startup_dir()?;
             let shortcut_file = startup_dir.join("komorebi.lnk");
 
             if shortcut_file.is_file() {
                 std::fs::remove_file(shortcut_file)?;
             }
+
+            let hkcu = RegKey::predef(HKEY_CURRENT_USER);
+            let run_key = hkcu.open_subkey_with_flags(
+                "Software\\Microsoft\\Windows\\CurrentVersion\\Run",
+                KEY_WRITE | KEY_READ,
+            )?;
+
+            if run_key.get_value::<String, _>("komorebi").is_ok() {
+                run_key.delete_value("komorebi")?;
+            }
+
+            println!("Autostart disabled!");
         }
         SubCommand::Check(args) => {
             let home_display = HOME_DIR.display();
