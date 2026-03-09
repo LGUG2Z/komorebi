@@ -296,6 +296,11 @@ impl Deref for RenderTarget {
     }
 }
 
+lazy_static! {
+    pub static ref WORKSPACE_SWITCH_WINDOWS: Arc<Mutex<HashMap<isize, Box<WorkspaceSwitchWindow>>>> =
+        Arc::new(Mutex::new(HashMap::new()));
+}
+
 #[derive(Debug, Clone)]
 pub struct WorkspaceSwitchWindow {
     pub hwnd: isize,
@@ -598,9 +603,19 @@ impl WorkspaceSwitchWindow {
         HWND(windows_api::as_ptr!(self.hwnd))
     }
 
+    pub fn cache_window(window: Box<Self>) {
+        let monitor_id: isize = window.monitor_id.unwrap();
+        WORKSPACE_SWITCH_WINDOWS.lock().insert(monitor_id, window);
+    }
+
     pub fn create(monitor: Monitor) -> color_eyre::Result<Box<Self>> {
         // println!("create workspace for rect: {monitor:#?}");
         let monitor_id: isize = monitor.id;
+
+        if let Some(window) = WORKSPACE_SWITCH_WINDOWS.lock().remove(&monitor_id) {
+            return Ok(window);
+        }
+
         let name: Vec<u16> = format!("komoanimation-{monitor_id}\0")
             .encode_utf16()
             .collect();
@@ -819,7 +834,14 @@ impl WorkspaceSwitchWindow {
                                 continue;
                             }
 
-                            let layout = workspace.latest_layout.get(container_index).unwrap();
+                            let layout = workspace.latest_layout.get(container_index);
+
+                            if layout.is_none() {
+                                continue;
+                            }
+
+                            let layout = layout.unwrap();
+
                             for window in container.windows() {
                                 if !window.is_visible() {
                                     println!("window not visible");

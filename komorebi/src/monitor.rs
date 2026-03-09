@@ -10,6 +10,7 @@ use serde::Deserialize;
 use serde::Serialize;
 
 use crate::AnimationStyle;
+use crate::animation::ANIMATION_ENABLED_GLOBAL;
 use crate::animation::ANIMATION_MANAGER;
 use crate::animation::AnimationEngine;
 use crate::animation::RenderDispatcher;
@@ -43,6 +44,7 @@ struct WorkspaceSwitchRenderDispatcher {
     render_window: Option<Box<WorkspaceSwitchWindow>>,
     to_left: bool,
     style: AnimationStyle,
+    mouse_follows_focus: bool,
 }
 
 impl WorkspaceSwitchRenderDispatcher {
@@ -51,15 +53,16 @@ impl WorkspaceSwitchRenderDispatcher {
     pub fn new(
         monitor: &Monitor,
         workspace_idx: usize,
-        to_left: bool,
         style: AnimationStyle,
+        mouse_follows_focus: bool,
     ) -> Self {
         Self {
             monitor: monitor.clone(),
             workspace_idx,
-            to_left,
+            to_left: workspace_idx > monitor.last_focused_workspace.unwrap_or(workspace_idx),
             render_window: None,
             style,
+            mouse_follows_focus,
         }
     }
 }
@@ -77,6 +80,12 @@ impl RenderDispatcher for WorkspaceSwitchRenderDispatcher {
         stackbar_manager::send_notification();
         self.render_window = Some(WorkspaceSwitchWindow::create(self.monitor.clone()).unwrap());
 
+        self.render(0.0)?;
+
+        for workspace in self.monitor.workspaces_mut().iter_mut() {
+            workspace.hide(None);
+        }
+
         Ok(())
     }
 
@@ -89,7 +98,7 @@ impl RenderDispatcher for WorkspaceSwitchRenderDispatcher {
                 .workspaces_mut()
                 .get_mut(self.workspace_idx)
                 .unwrap();
-            render_window.begin_draw();
+            render_window.begin_draw()?;
             let result = render_window.draw_workspace(
                 self.workspace_idx,
                 workspace,
@@ -106,7 +115,7 @@ impl RenderDispatcher for WorkspaceSwitchRenderDispatcher {
                 .get_mut(monitor_previous_workspace_idx.unwrap())
                 && monitor_previous_workspace_idx.is_some_and(|idx| idx != self.workspace_idx)
             {
-                render_window.draw_workspace(
+                let result = render_window.draw_workspace(
                     monitor_previous_workspace_idx.unwrap(),
                     previous_workspace,
                     match self.to_left {
@@ -114,6 +123,8 @@ impl RenderDispatcher for WorkspaceSwitchRenderDispatcher {
                         false => (0).lerp(monitor_width, progress, self.style) as i32,
                     },
                 );
+
+                println!("result 2: {result:?}");
             }
             render_window.end_draw();
         }
@@ -137,6 +148,8 @@ impl RenderDispatcher for WorkspaceSwitchRenderDispatcher {
             .get_mut(self.workspace_idx)
             .unwrap();
 
+        workspace.restore(self.mouse_follows_focus, hmonitor, &monitor_wp)?;
+
         if let Some(render_window) = self.render_window.take() {
             let raw_pointer = Box::into_raw(render_window);
             unsafe {
@@ -145,7 +158,6 @@ impl RenderDispatcher for WorkspaceSwitchRenderDispatcher {
             self.render_window = None;
         }
 
-        workspace.restore(false, hmonitor, &monitor_wp)?;
         // we don't add the async_window_pos flag here because animations
         // are always run on a separate thread
         // WindowsApi::position_window(self.hwnd, &self.target_rect, self.top, false)?;
@@ -169,11 +181,7 @@ impl RenderDispatcher for WorkspaceSwitchRenderDispatcher {
 
     fn on_cancle(&mut self) {
         if let Some(render_window) = self.render_window.take() {
-            let raw_pointer = Box::into_raw(render_window);
-            unsafe {
-                (*raw_pointer).destroy().unwrap();
-            };
-            self.render_window = None;
+            WorkspaceSwitchWindow::cache_window(render_window);
         }
     }
 }
@@ -323,20 +331,24 @@ impl Monitor {
         let hmonitor = self.id;
         let monitor_wp = self.wallpaper.clone();
         let monitor = self.clone();
-        for (i, workspace) in self.workspaces_mut().iter_mut().enumerate() {
-            if i == focused_idx {
-                AnimationEngine::animate(
-                    WorkspaceSwitchRenderDispatcher::new(
-                        &monitor,
-                        i,
-                        focused_idx > monitor.last_focused_workspace.unwrap_or(focused_idx),
-                        AnimationStyle::CubicBezier(0.32, 0.72, 0.0, 1.0),
-                    ),
-                    Duration::from_millis(500),
-                )?;
-                // workspace.restore(mouse_follows_focus, hmonitor, &monitor_wp)?;
-            } else {
-                workspace.hide(None);
+
+        if ANIMATION_ENABLED_GLOBAL.load(Ordering::SeqCst) {
+            AnimationEngine::animate(
+                WorkspaceSwitchRenderDispatcher::new(
+                    &monitor,
+                    focused_idx,
+                    AnimationStyle::CubicBezier(0.32, 0.72, 0.0, 1.0),
+                    mouse_follows_focus,
+                ),
+                Duration::from_millis(500),
+            )?;
+        } else {
+            for (i, workspace) in self.workspaces_mut().iter_mut().enumerate() {
+                if i == focused_idx {
+                    workspace.restore(mouse_follows_focus, hmonitor, &monitor_wp)?;
+                } else {
+                    workspace.hide(None);
+                }
             }
         }
 
