@@ -50,6 +50,8 @@ which = "8"
 version = "0.62"
 features = [
   "Foundation_Numerics",
+    "Graphics_Capture",
+    "Graphics_DirectX_Direct3D11",
   "Win32_Devices",
   "Win32_Devices_Display",
   "Win32_System_Com",
@@ -61,6 +63,12 @@ features = [
   "Win32_Graphics_Direct2D",
   "Win32_Graphics_Direct2D_Common",
   "Win32_Graphics_Dxgi_Common",
+    "Win32_Graphics_Dxgi",
+    "Win32_Graphics_Direct3D",
+    "Win32_Graphics_Direct3D11",
+    "Win32_System_WinRT_Direct3D11",
+    "Win32_System_WinRT_Graphics_Capture",
+        "Win32_Graphics_DirectComposition",
   "Win32_System_LibraryLoader",
   "Win32_System_Power",
   "Win32_System_RemoteDesktop",

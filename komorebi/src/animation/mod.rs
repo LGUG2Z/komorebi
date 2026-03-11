@@ -18,6 +18,7 @@ pub mod prefix;
 pub mod render_dispatcher;
 pub use render_dispatcher::RenderDispatcher;
 pub mod style;
+pub mod workspace_switch;
 
 use serde::Deserialize;
 use serde::Serialize;
