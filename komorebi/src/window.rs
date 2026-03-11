@@ -538,6 +538,21 @@ impl Window {
         self.restore_with_border(true);
     }
 
+    /// Cloak this window directly via SetCloak without touching HIDDEN_HWNDS.
+    /// Used for scrolling layout visibility management where windows are not
+    /// "hidden" in the workspace-switching sense, just scrolled off-screen.
+    pub fn cloak(self) {
+        SetCloak(self.hwnd(), 1, 2);
+        border_manager::hide_border(self.hwnd);
+    }
+
+    /// Uncloak this window directly via SetCloak without touching HIDDEN_HWNDS.
+    /// Counterpart to [`Self::cloak`] for scrolling layout visibility.
+    pub fn uncloak(self) {
+        SetCloak(self.hwnd(), 1, 0);
+        border_manager::show_border(self.hwnd);
+    }
+
     pub fn minimize(self) {
         let exe = self.exe().unwrap_or_default();
         if !exe.contains("komorebi-bar") {

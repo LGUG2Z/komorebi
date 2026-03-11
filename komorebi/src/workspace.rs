@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::collections::VecDeque;
 use std::ffi::OsStr;
 use std::fmt::Display;
@@ -83,6 +84,11 @@ pub struct Workspace {
     pub preselected_container_idx: Option<usize>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub promotion_swap_container_idx: Option<usize>,
+    /// HWNDs of windows currently cloaked because they are scrolled off-screen.
+    /// Tracked separately from HIDDEN_HWNDS to avoid interfering with workspace
+    /// hide/restore cycles.
+    #[serde(skip)]
+    pub scrolling_cloaked_hwnds: HashSet<isize>,
 }
 
 #[derive(Debug, Default, Copy, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -136,6 +142,7 @@ impl Default for Workspace {
             wallpaper: None,
             preselected_container_idx: None,
             promotion_swap_container_idx: None,
+            scrolling_cloaked_hwnds: HashSet::new(),
         }
     }
 }
@@ -419,11 +426,27 @@ impl Workspace {
         let idx = self.focused_container_idx();
         let mut to_focus = None;
 
+        let is_scrolling = matches!(self.layout, Layout::Default(DefaultLayout::Scrolling));
+        // Clone the set before the mutable borrow on containers
+        let scrolling_cloaked = self.scrolling_cloaked_hwnds.clone();
+
         for (i, container) in self.containers_mut().iter_mut().enumerate() {
             if let Some(window) = container.focused_window_mut()
                 && idx == i
             {
                 to_focus = Option::from(*window);
+            }
+
+            // For scrolling layout, skip restoring containers whose windows are
+            // scrolling-cloaked (off-screen). The subsequent update() call will
+            // handle correct visibility so they don't flash on neighbouring monitors.
+            if is_scrolling
+                && container
+                    .windows()
+                    .iter()
+                    .any(|w| scrolling_cloaked.contains(&w.hwnd))
+            {
+                continue;
             }
 
             container.restore();
@@ -543,6 +566,24 @@ impl Workspace {
             self.window_container_behaviour = updated_behaviour;
         }
 
+        // If we are no longer in a state where scrolling cloaking should apply
+        // (e.g. layout changed from Scrolling, monocle toggled on, etc.),
+        // uncloak any previously scrolling-cloaked windows.
+        if !self.scrolling_cloaked_hwnds.is_empty() {
+            let needs_scrolling_cloaking =
+                matches!(self.layout, Layout::Default(DefaultLayout::Scrolling))
+                    && self.tile
+                    && self.monocle_container.is_none()
+                    && self.maximized_window.is_none()
+                    && !self.containers().is_empty();
+
+            if !needs_scrolling_cloaking {
+                for hwnd in self.scrolling_cloaked_hwnds.drain() {
+                    Window { hwnd }.uncloak();
+                }
+            }
+        }
+
         let managed_maximized_window = self.maximized_window.is_some();
 
         if self.tile {
@@ -578,6 +619,17 @@ impl Workspace {
                 let no_titlebar = NO_TITLEBAR.lock().clone();
                 let regex_identifiers = REGEX_IDENTIFIERS.lock().clone();
 
+                let is_scrolling = matches!(self.layout, Layout::Default(DefaultLayout::Scrolling));
+
+                // For scrolling layout: take the old cloaked set so we can reconcile
+                // which windows need to be cloaked/uncloaked after this update.
+                let old_scrolling_cloaked = if is_scrolling {
+                    std::mem::take(&mut self.scrolling_cloaked_hwnds)
+                } else {
+                    HashSet::new()
+                };
+                let mut new_scrolling_cloaked = HashSet::new();
+
                 let containers = self.containers_mut();
 
                 for (i, container) in containers.iter_mut().enumerate() {
@@ -595,7 +647,26 @@ impl Workspace {
                             layout.bottom -= total_height;
                         }
 
+                        // For scrolling layout, check if this container is within the
+                        // visible workspace area. Off-screen containers are cloaked so
+                        // they don't appear on neighbouring monitors.
+                        if is_scrolling && !layout.overlaps_horizontally(&adjusted_work_area) {
+                            for window in container.windows() {
+                                if !old_scrolling_cloaked.contains(&window.hwnd) {
+                                    window.cloak();
+                                }
+                                new_scrolling_cloaked.insert(window.hwnd);
+                            }
+                            continue;
+                        }
+
                         for window in container.windows() {
+                            // Uncloak windows that were scrolling-cloaked but are now
+                            // back in the visible area
+                            if is_scrolling && old_scrolling_cloaked.contains(&window.hwnd) {
+                                window.uncloak();
+                            }
+
                             if container
                                 .focused_window()
                                 .is_some_and(|w| w.hwnd == window.hwnd)
@@ -626,6 +697,17 @@ impl Workspace {
                         }
                     }
                 }
+
+                // Uncloak windows that were scrolling-cloaked but have been removed
+                // from the workspace (e.g. moved to another workspace while off-screen)
+                if is_scrolling {
+                    for hwnd in &old_scrolling_cloaked {
+                        if !new_scrolling_cloaked.contains(hwnd) {
+                            Window { hwnd: *hwnd }.uncloak();
+                        }
+                    }
+                }
+                self.scrolling_cloaked_hwnds = new_scrolling_cloaked;
 
                 self.latest_layout = layouts;
             }
@@ -918,6 +1000,12 @@ impl Workspace {
     }
 
     pub fn remove_window(&mut self, hwnd: isize) -> eyre::Result<()> {
+        // If this window was scrolling-cloaked, uncloak it before removal so it
+        // is visible when managed elsewhere (e.g. moved to another workspace).
+        if self.scrolling_cloaked_hwnds.remove(&hwnd) {
+            Window { hwnd }.uncloak();
+        }
+
         border_manager::delete_border(hwnd);
 
         if self.floating_windows().iter().any(|w| w.hwnd == hwnd) {

@@ -399,6 +399,18 @@ impl WindowManager {
                 {
                     tracing::info!("ignoring uncloak after monocle move by mouse across monitors");
                     self.uncloack_to_ignore = self.uncloack_to_ignore.saturating_sub(1);
+                } else if matches!(event, WindowManagerEvent::Uncloak(_, _))
+                    && self
+                        .focused_workspace()
+                        .map(|ws| ws.scrolling_cloaked_hwnds.contains(&window.hwnd))
+                        .unwrap_or(false)
+                {
+                    // A scrolling-cloaked window was uncloaked externally (e.g. via
+                    // Alt-Tab). Scroll the layout to reveal the container holding it.
+                    tracing::info!("scrolling to reveal uncloaked window on scrolling workspace");
+                    self.focused_workspace_mut()?
+                        .focus_container_by_window(window.hwnd)?;
+                    self.update_focused_workspace(self.mouse_follows_focus, false)?;
                 } else {
                     let focused_monitor_idx = self.focused_monitor_idx();
                     let focused_workspace_idx =

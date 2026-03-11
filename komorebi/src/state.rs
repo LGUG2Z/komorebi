@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use crate::BorderColours;
 use crate::BorderStyle;
 use crate::CURRENT_VIRTUAL_DESKTOP;
@@ -274,6 +276,7 @@ impl From<&WindowManager> for State {
                             workspace_config: None,
                             preselected_container_idx: None,
                             promotion_swap_container_idx: None,
+                            scrolling_cloaked_hwnds: HashSet::new(),
                         })
                         .collect::<VecDeque<_>>();
                     ws.focus(monitor.workspaces.focused_idx());

@@ -167,6 +167,15 @@ impl Rect {
         }
     }
 
+    /// Returns true if this rect overlaps horizontally with the given area.
+    /// Both rects use `right` as width (not as right edge).
+    #[must_use]
+    pub const fn overlaps_horizontally(&self, area: &Rect) -> bool {
+        let self_right_edge = self.left + self.right;
+        let area_right_edge = area.left + area.right;
+        self.left < area_right_edge && self_right_edge > area.left
+    }
+
     #[cfg(feature = "darwin")]
     #[must_use]
     pub fn percentage_within_horizontal_bounds(&self, other: &Rect) -> f64 {
