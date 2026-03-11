@@ -795,7 +795,7 @@ impl WorkspaceSwitchWindow {
 
     pub fn end_draw(&mut self) {
         unsafe {
-            if let Some(mut d2d_resources) = self.d2d_resources.as_mut() {
+            if let Some(d2d_resources) = self.d2d_resources.as_mut() {
                 let result = d2d_resources.context.EndDraw(None, None);
                 println!("EndDraw d2d result: {result:?}");
                 d2d_resources.target = None;
@@ -880,15 +880,14 @@ impl WorkspaceSwitchWindow {
                                     as f32,
                                 bottom: ((rect.top - monitor_rect.top) + rect.bottom) as f32,
                             };
-                            //
-                            // d2d_resources.context.DrawRectangle(
-                            //     &target_rect,
-                            //     &d2d_resources.brush,
-                            //     3.0,
-                            //     None,
-                            // );
+
+                            d2d_resources.context.DrawRectangle(
+                                &target_rect,
+                                &d2d_resources.brush,
+                                3.0,
+                                None,
+                            );
                             // d2d_resources.context.FillRectangle(&target_rect, &d2d_resources.brush);
-                            println!("rect: {target_rect:?}");
 
                             let capture = self
                                 .capture_hash_map
@@ -898,11 +897,9 @@ impl WorkspaceSwitchWindow {
                             }
 
                             let capture = capture.unwrap().lock();
-                            println!("capture: {capture:?}");
                             let last_frame = &capture.last_frame;
-                            println!("last_frame: {last_frame:?}");
 
-                            if let Some(mut texture) = last_frame.lock().as_ref() {
+                            if let Some(texture) = last_frame.lock().as_ref() {
                                 let bitmap_properties = D2D1_BITMAP_PROPERTIES1 {
                                     pixelFormat: D2D1_PIXEL_FORMAT {
                                         format: DXGI_FORMAT_R8G8B8A8_UNORM,
@@ -918,8 +915,6 @@ impl WorkspaceSwitchWindow {
                                     &texture_surface,
                                     Some(&bitmap_properties as *const _),
                                 )?;
-                                println!("bitmap: {bitmap:?}");
-                                // println!("CreateSharedBitmap result: {:?}");
                                 d2d_resources.context.DrawBitmap(
                                     &bitmap,
                                     Some(&target_rect as *const _),

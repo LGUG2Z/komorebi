@@ -1737,14 +1737,24 @@ impl WindowManager {
         tracing::info!("moving container");
 
         let mouse_follows_focus = self.mouse_follows_focus;
-        let monitor = self
-            .focused_monitor_mut()
-            .ok_or_eyre("there is no monitor")?;
 
-        monitor.move_container_to_workspace(idx, follow, direction)?;
-        monitor.load_focused_workspace(mouse_follows_focus)?;
+        {
+            let monitor = self
+                .focused_monitor_mut()
+                .ok_or_eyre("there is no monitor")?;
+
+            monitor.move_container_to_workspace(idx, follow, direction)?;
+        }
 
         self.update_focused_workspace(mouse_follows_focus, true)?;
+
+        {
+            let monitor = self
+                .focused_monitor_mut()
+                .ok_or_eyre("there is no monitor")?;
+            monitor.load_focused_workspace(mouse_follows_focus)?;
+        }
+
 
         Ok(())
     }
