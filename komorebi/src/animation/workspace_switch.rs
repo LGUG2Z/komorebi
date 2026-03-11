@@ -5,6 +5,7 @@ use crate::workspace::Workspace;
 use crate::WindowManager;
 use crate::WindowsApi;
 
+use color_eyre::eyre::OptionExt;
 use komorebi_layouts::Rect;
 use lazy_static::lazy_static;
 use parking_lot::Mutex;
@@ -529,64 +530,9 @@ impl windows_capture::capture::GraphicsCaptureApiHandler for Capture {
             return Ok(());
         }
         let texture = frame.as_raw_texture();
-        self.last_frame.lock().replace(texture.clone());
-        /* if let Some(render_target) = self.render_target.lock().as_ref() {
-            let mut bitmap: Option<ID2D1Bitmap> = None;
-            unsafe {
-                // let mut surface = frame.as_raw_surface();
-        //         let mut desc = D3D11_TEXTURE2D_DESC::default();
-        //          texture.GetDesc(&mut desc);
-        //         println!("desc: {desc:?}");
-        //
-        // let texture_desc = D3D11_TEXTURE2D_DESC {
-        //     Width: desc.Width,
-        //     Height: desc.Height,
-        //     MipLevels: desc.MipLevels,
-        //     ArraySize: desc.ArraySize,
-        //             Format: desc.Format,
-        //     SampleDesc: desc.SampleDesc,
-        //     Usage: D3D11_USAGE_DEFAULT,
-        //     BindFlags: desc.BindFlags,
-        //     CPUAccessFlags: 0,
-        //     MiscFlags: desc.MiscFlags | D3D11_RESOURCE_MISC_SHARED.0 as u32,
-        // };
-        //         let device: ID3D11Device = texture.GetDevice()?;
-        //         println!("device: {device:?}");
-        //         let device_context= device.GetImmediateContext()?;
-        //         println!("device_context: {device_context:?}");
-        //
-        //         let mut shared_texture: Option<ID3D11Texture2D> = None;
-        //         device.CreateTexture2D(
-        //             &texture_desc,
-        //             None,
-        //             Some(&mut shared_texture));
-        //         println!("shared_texture: {shared_texture:?}");
-        //         device_context.CopyResource(shared_texture.as_ref().unwrap(), texture);
-        //         println!("CopyResource");
-        //
-        //         let resource: IDXGIResource = shared_texture.as_ref().unwrap().cast()?;
-        //         println!("resource: {resource:?}");
-                // let handle = resource.GetSharedHandle().unwrap();
-                let result = render_target.CreateSharedBitmap(
-                    &IDXGISurface::IID as *const windows_core::GUID,
-                    std::mem::transmute_copy(&mut texture),
-                    Some(&D2D1_BITMAP_PROPERTIES {
-                    pixelFormat: D2D1_PIXEL_FORMAT {
-                        format: DXGI_FORMAT_R8G8B8A8_UNORM,
-                        alphaMode: D2D1_ALPHA_MODE_PREMULTIPLIED,
-                    }   ,
-                    dpiX: 96.0,
-                    dpiY: 96.0,
-                    }),
-                    &mut bitmap,
-                );
-                println!("CreateSharedBitmap result: {result:?}");
 
-            }
-            let mut last_frame = self.last_frame.lock();
-            *last_frame = bitmap;
-            drop(last_frame);
-        } */
+        self.last_frame.lock().replace(texture.clone());
+
         Ok(())
     }
 
@@ -609,7 +555,6 @@ impl WorkspaceSwitchWindow {
     }
 
     pub fn create(monitor: Monitor) -> color_eyre::Result<Box<Self>> {
-        // println!("create workspace for rect: {monitor:#?}");
         let monitor_id: isize = monitor.id;
 
         if let Some(window) = WORKSPACE_SWITCH_WINDOWS.lock().remove(&monitor_id) {
@@ -821,16 +766,17 @@ impl WorkspaceSwitchWindow {
         x_offset: i32,
     ) -> color_eyre::Result<()> {
         unsafe {
+            let monitor_id = self.monitor_id.ok_or_eyre("monitor id not set")?;
+
             if let Some(d2d_resources) = self.d2d_resources.as_ref() {
                 if let Some(monitor_rect) = self.monitor_rect.as_ref() {
                     if workspace.containers().len() > 0 {
                         for (container_index, container) in
                             workspace.containers().iter().enumerate()
                         {
-                            if self
-                                .capture_hash_map
-                                .contains_key(&format!("{workspace_id}:{container_index}"))
-                            {
+                            if self.capture_hash_map.contains_key(&format!(
+                                "{monitor_id}:{workspace_id}:{container_index}"
+                            )) {
                                 continue;
                             }
 
@@ -866,7 +812,7 @@ impl WorkspaceSwitchWindow {
                                     settings,
                                 )?;
                                 self.capture_hash_map.insert(
-                                    format!("{workspace_id}:{container_index}"),
+                                    format!("{monitor_id}:{workspace_id}:{container_index}"),
                                     capture.callback(),
                                 );
                                 println!("capture started: {container_index} {hwnd}");
@@ -891,7 +837,7 @@ impl WorkspaceSwitchWindow {
 
                             let capture = self
                                 .capture_hash_map
-                                .get(&format!("{workspace_id}:{index}"));
+                                .get(&format!("{monitor_id}:{workspace_id}:{index}"));
                             if capture.is_none() {
                                 continue;
                             }
