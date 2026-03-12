@@ -81,6 +81,8 @@ nav:
           - common-workflows/mouse-follows-focus.md
           - common-workflows/dynamic-layout-switching.md
           - common-workflows/multiple-bar-instances.md
+          - common-workflows/bar.md
+          - common-workflows/bar-widgets/systray.md
           - common-workflows/multi-monitor-setup.md
   - CLI reference:
       - cli/quickstart.md
