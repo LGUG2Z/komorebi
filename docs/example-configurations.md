@@ -83,7 +83,7 @@ is a crude hack trying to compensate for the insistence of Microsoft Windows
 design teams to make custom borders with widths that are actually visible to
 the user a thing of the past and removing this capability from the Win32 API.
 
-I know it's buggy, and I know that most of the it sucks, but this is something
+I know it's buggy, and I know that most of the time it sucks, but this is something
 you should be bring up with the billion dollar company and not with me, the
 solo developer.
 
