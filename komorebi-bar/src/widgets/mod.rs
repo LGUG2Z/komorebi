@@ -20,6 +20,8 @@ pub mod media;
 pub mod memory;
 pub mod network;
 pub mod storage;
+#[cfg(target_os = "windows")]
+pub mod systray;
 pub mod time;
 pub mod update;
 pub mod widget;
@@ -92,10 +94,16 @@ impl IconsCache {
     pub fn insert_image(&self, id: ImageIconId, image: Arc<ColorImage>) {
         self.images.write().unwrap().insert(id, image);
     }
+
+    /// Removes the cached image and texture for the given icon ID.
+    pub fn remove(&self, id: &ImageIconId) {
+        self.images.write().unwrap().remove(id);
+        self.textures.write().unwrap().1.remove(id);
+    }
 }
 
 #[inline]
-fn rgba_to_color_image(rgba_image: &RgbaImage) -> ColorImage {
+pub(crate) fn rgba_to_color_image(rgba_image: &RgbaImage) -> ColorImage {
     let size = [rgba_image.width() as usize, rgba_image.height() as usize];
     let pixels = rgba_image.as_flat_samples();
     ColorImage::from_rgba_unmultiplied(size, pixels.as_slice())
@@ -156,6 +164,8 @@ pub enum ImageIconId {
     Path(Arc<Path>),
     /// Windows HWND handle.
     Hwnd(isize),
+    /// System tray icon identifier.
+    SystrayIcon(String),
 }
 
 impl From<&Path> for ImageIconId {
