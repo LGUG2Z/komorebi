@@ -709,6 +709,8 @@ impl Workspace {
                                 // We intentionally skip movement animations when parking a window.
                                 // Animating between the visible monitor and an off-screen parking
                                 // slot would drag the window across the user's displays.
+                                //
+                                // Could becom a setting ?
                                 let current_window_rect = WindowsApi::window_rect(window.hwnd)?;
                                 let parked_layout = Self::scrolling_offscreen_render_rect(
                                     &adjusted_work_area,
