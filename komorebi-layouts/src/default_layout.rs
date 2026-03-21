@@ -528,8 +528,8 @@ mod tests {
 
             let ratios = opts.column_ratios.unwrap();
             // Only MAX_RATIOS (5) values should be stored
-            for i in 0..MAX_RATIOS {
-                assert_eq!(ratios[i], Some(0.1));
+            for item in ratios.iter().take(MAX_RATIOS) {
+                assert_eq!(*item, Some(0.1));
             }
         }
 
@@ -539,8 +539,8 @@ mod tests {
             let opts: LayoutOptions = serde_json::from_str(json).unwrap();
 
             let ratios = opts.column_ratios.unwrap();
-            for i in 0..MAX_RATIOS {
-                assert_eq!(ratios[i], None);
+            for item in ratios.iter().take(MAX_RATIOS) {
+                assert_eq!(*item, None);
             }
         }
 
@@ -633,12 +633,16 @@ mod tests {
 
         #[test]
         fn test_constants_valid_ranges() {
-            assert!(MIN_RATIO > 0.0);
-            assert!(MIN_RATIO < MAX_RATIO);
-            assert!(MAX_RATIO < 1.0);
-            assert!(DEFAULT_RATIO >= MIN_RATIO && DEFAULT_RATIO <= MAX_RATIO);
-            assert!(DEFAULT_SECONDARY_RATIO >= MIN_RATIO && DEFAULT_SECONDARY_RATIO <= MAX_RATIO);
-            assert!(MAX_RATIOS >= 1);
+            const {
+                assert!(MIN_RATIO > 0.0);
+                assert!(MIN_RATIO < MAX_RATIO);
+                assert!(MAX_RATIO < 1.0);
+                assert!(DEFAULT_RATIO >= MIN_RATIO && DEFAULT_RATIO <= MAX_RATIO);
+                assert!(
+                    DEFAULT_SECONDARY_RATIO >= MIN_RATIO && DEFAULT_SECONDARY_RATIO <= MAX_RATIO
+                );
+                assert!(MAX_RATIOS >= 1);
+            }
         }
 
         #[test]
