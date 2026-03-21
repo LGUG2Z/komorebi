@@ -164,6 +164,18 @@ pub struct WorkspaceGlobals {
 }
 
 impl Workspace {
+    fn layout_intersects_work_area(work_area: &Rect, layout: &Rect) -> bool {
+        let work_area_right = work_area.left + work_area.right;
+        let work_area_bottom = work_area.top + work_area.bottom;
+        let layout_right = layout.left + layout.right;
+        let layout_bottom = layout.top + layout.bottom;
+
+        layout.left < work_area_right
+            && layout_right > work_area.left
+            && layout.top < work_area_bottom
+            && layout_bottom > work_area.top
+    }
+
     pub fn load_static_config(&mut self, config: &WorkspaceConfig) -> eyre::Result<()> {
         self.name = Option::from(config.name.clone());
 
@@ -577,6 +589,8 @@ impl Workspace {
                 let should_remove_titlebars = REMOVE_TITLEBARS.load(Ordering::SeqCst);
                 let no_titlebar = NO_TITLEBAR.lock().clone();
                 let regex_identifiers = REGEX_IDENTIFIERS.lock().clone();
+                let should_hide_offscreen_containers =
+                    matches!(self.layout, Layout::Default(DefaultLayout::Scrolling));
 
                 let containers = self.containers_mut();
 
@@ -584,6 +598,14 @@ impl Workspace {
                     let window_count = container.windows().len();
 
                     if let Some(layout) = layouts.get_mut(i) {
+                        if should_hide_offscreen_containers
+                            && !Self::layout_intersects_work_area(&adjusted_work_area, layout)
+                        {
+                            container.hide(None);
+                            continue;
+                        }
+
+                        container.restore();
                         layout.add_padding(border_offset);
                         layout.add_padding(border_width);
 
@@ -2541,5 +2563,41 @@ mod tests {
             assert_eq!(visible_windows[1].unwrap().hwnd, 100);
             assert_eq!(visible_windows[2].unwrap().hwnd, 300);
         }
+    }
+
+    #[test]
+    fn test_layout_intersects_work_area_when_layout_is_partially_visible() {
+        let work_area = Rect {
+            left: 0,
+            top: 0,
+            right: 1920,
+            bottom: 1080,
+        };
+        let layout = Rect {
+            left: 1600,
+            top: 0,
+            right: 640,
+            bottom: 1080,
+        };
+
+        assert!(Workspace::layout_intersects_work_area(&work_area, &layout));
+    }
+
+    #[test]
+    fn test_layout_intersects_work_area_when_layout_is_fully_offscreen() {
+        let work_area = Rect {
+            left: 0,
+            top: 0,
+            right: 1920,
+            bottom: 1080,
+        };
+        let layout = Rect {
+            left: 1920,
+            top: 0,
+            right: 640,
+            bottom: 1080,
+        };
+
+        assert!(!Workspace::layout_intersects_work_area(&work_area, &layout));
     }
 }
