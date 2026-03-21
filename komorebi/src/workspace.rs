@@ -190,16 +190,22 @@ impl Workspace {
 
     /// Park a non-visible scrolling column beyond the virtual desktop so that it cannot spill onto
     /// an adjacent monitor. We preserve the window's current size while parking it so that apps do
-    /// not see an off-screen resize and recompute their layout unnecessarily. The parking slot is
-    /// deterministic per container index to reduce the chance of multiple parked windows
-    /// overlapping exactly while still keeping them out of view.
+    /// not see an off-screen resize and recompute their layout unnecessarily.
+    ///
+    /// We also preserve which side of the workspace the logical scrolling column belongs to. That
+    /// keeps reveal animations directionally consistent: columns hidden off the left edge return
+    /// from the left, and columns hidden off the right edge return from the right.
     fn scrolling_offscreen_render_rect(
+        work_area: &Rect,
+        logical_layout: &Rect,
         current_window_rect: &Rect,
         container_idx: usize,
     ) -> eyre::Result<Rect> {
         let virtual_screen = WindowsApi::virtual_screen()?;
         Ok(Self::scrolling_offscreen_render_rect_for_virtual_screen(
             &virtual_screen,
+            work_area,
+            logical_layout,
             current_window_rect,
             container_idx,
         ))
@@ -207,6 +213,8 @@ impl Workspace {
 
     fn scrolling_offscreen_render_rect_for_virtual_screen(
         virtual_screen: &Rect,
+        work_area: &Rect,
+        logical_layout: &Rect,
         current_window_rect: &Rect,
         container_idx: usize,
     ) -> Rect {
@@ -214,12 +222,19 @@ impl Workspace {
         let slot = i32::try_from(container_idx).unwrap_or(i32::MAX);
         let width = current_window_rect.right.max(1);
         let height = current_window_rect.bottom.max(1);
+        let logical_layout_right = logical_layout.left + logical_layout.right;
 
-        Rect {
-            left: virtual_screen.left
+        let left = if logical_layout_right <= work_area.left {
+            virtual_screen.left - width - gap - slot.saturating_mul(width.saturating_add(gap))
+        } else {
+            virtual_screen.left
                 + virtual_screen.right
                 + gap
-                + slot.saturating_mul(width.saturating_add(gap)),
+                + slot.saturating_mul(width.saturating_add(gap))
+        };
+
+        Rect {
+            left,
             top: virtual_screen.top + gap,
             right: width,
             bottom: height,
@@ -695,8 +710,12 @@ impl Workspace {
                                 // Animating between the visible monitor and an off-screen parking
                                 // slot would drag the window across the user's displays.
                                 let current_window_rect = WindowsApi::window_rect(window.hwnd)?;
-                                let parked_layout =
-                                    Self::scrolling_offscreen_render_rect(&current_window_rect, i)?;
+                                let parked_layout = Self::scrolling_offscreen_render_rect(
+                                    &adjusted_work_area,
+                                    layout,
+                                    &current_window_rect,
+                                    i,
+                                )?;
 
                                 WindowsApi::position_window(
                                     window.hwnd,
@@ -2667,11 +2686,24 @@ mod tests {
     }
 
     #[test]
-    fn test_scrolling_offscreen_render_rect_for_virtual_screen_places_layout_outside_bounds() {
+    fn test_scrolling_offscreen_render_rect_for_virtual_screen_places_right_layout_outside_bounds()
+    {
         let virtual_screen = Rect {
             left: -1920,
             top: 0,
             right: 3840,
+            bottom: 1080,
+        };
+        let work_area = Rect {
+            left: 0,
+            top: 0,
+            right: 1920,
+            bottom: 1080,
+        };
+        let logical_layout = Rect {
+            left: 1920,
+            top: 0,
+            right: 640,
             bottom: 1080,
         };
         let current_window_rect = Rect {
@@ -2683,11 +2715,53 @@ mod tests {
 
         let parked = Workspace::scrolling_offscreen_render_rect_for_virtual_screen(
             &virtual_screen,
+            &work_area,
+            &logical_layout,
             &current_window_rect,
             2,
         );
 
         assert!(parked.left >= virtual_screen.left + virtual_screen.right);
+        assert_eq!(parked.right, current_window_rect.right);
+        assert_eq!(parked.bottom, current_window_rect.bottom);
+    }
+
+    #[test]
+    fn test_scrolling_offscreen_render_rect_for_virtual_screen_places_left_layout_outside_bounds() {
+        let virtual_screen = Rect {
+            left: -1920,
+            top: 0,
+            right: 3840,
+            bottom: 1080,
+        };
+        let work_area = Rect {
+            left: 0,
+            top: 0,
+            right: 1920,
+            bottom: 1080,
+        };
+        let logical_layout = Rect {
+            left: -640,
+            top: 0,
+            right: 640,
+            bottom: 1080,
+        };
+        let current_window_rect = Rect {
+            left: 500,
+            top: 0,
+            right: 640,
+            bottom: 1080,
+        };
+
+        let parked = Workspace::scrolling_offscreen_render_rect_for_virtual_screen(
+            &virtual_screen,
+            &work_area,
+            &logical_layout,
+            &current_window_rect,
+            2,
+        );
+
+        assert!(parked.left + parked.right <= virtual_screen.left);
         assert_eq!(parked.right, current_window_rect.right);
         assert_eq!(parked.bottom, current_window_rect.bottom);
     }
