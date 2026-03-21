@@ -189,26 +189,31 @@ impl Workspace {
     }
 
     /// Park a non-visible scrolling column beyond the virtual desktop so that it cannot spill onto
-    /// an adjacent monitor. The parking slot is deterministic per container index to reduce the
-    /// chance of multiple parked windows overlapping exactly while still keeping them out of view.
-    fn scrolling_offscreen_render_rect(layout: &Rect, container_idx: usize) -> eyre::Result<Rect> {
+    /// an adjacent monitor. We preserve the window's current size while parking it so that apps do
+    /// not see an off-screen resize and recompute their layout unnecessarily. The parking slot is
+    /// deterministic per container index to reduce the chance of multiple parked windows
+    /// overlapping exactly while still keeping them out of view.
+    fn scrolling_offscreen_render_rect(
+        current_window_rect: &Rect,
+        container_idx: usize,
+    ) -> eyre::Result<Rect> {
         let virtual_screen = WindowsApi::virtual_screen()?;
         Ok(Self::scrolling_offscreen_render_rect_for_virtual_screen(
             &virtual_screen,
-            layout,
+            current_window_rect,
             container_idx,
         ))
     }
 
     fn scrolling_offscreen_render_rect_for_virtual_screen(
         virtual_screen: &Rect,
-        layout: &Rect,
+        current_window_rect: &Rect,
         container_idx: usize,
     ) -> Rect {
         let gap = 32;
         let slot = i32::try_from(container_idx).unwrap_or(i32::MAX);
-        let width = layout.right.max(1);
-        let height = layout.bottom.max(1);
+        let width = current_window_rect.right.max(1);
+        let height = current_window_rect.bottom.max(1);
 
         Rect {
             left: virtual_screen.left
@@ -657,12 +662,6 @@ impl Workspace {
                             layout.bottom -= total_height;
                         }
 
-                        let parked_layout = if should_park {
-                            Some(Self::scrolling_offscreen_render_rect(layout, i)?)
-                        } else {
-                            None
-                        };
-
                         for window in container.windows() {
                             if container
                                 .focused_window()
@@ -691,13 +690,17 @@ impl Workspace {
                                 }
                             }
 
-                            if let Some(parked_layout) = parked_layout.as_ref() {
+                            if should_park {
                                 // We intentionally skip movement animations when parking a window.
                                 // Animating between the visible monitor and an off-screen parking
                                 // slot would drag the window across the user's displays.
+                                let current_window_rect = WindowsApi::window_rect(window.hwnd)?;
+                                let parked_layout =
+                                    Self::scrolling_offscreen_render_rect(&current_window_rect, i)?;
+
                                 WindowsApi::position_window(
                                     window.hwnd,
-                                    parked_layout,
+                                    &parked_layout,
                                     false,
                                     true,
                                 )?;
@@ -2671,7 +2674,7 @@ mod tests {
             right: 3840,
             bottom: 1080,
         };
-        let layout = Rect {
+        let current_window_rect = Rect {
             left: 500,
             top: 0,
             right: 640,
@@ -2680,12 +2683,12 @@ mod tests {
 
         let parked = Workspace::scrolling_offscreen_render_rect_for_virtual_screen(
             &virtual_screen,
-            &layout,
+            &current_window_rect,
             2,
         );
 
         assert!(parked.left >= virtual_screen.left + virtual_screen.right);
-        assert_eq!(parked.right, layout.right);
-        assert_eq!(parked.bottom, layout.bottom);
+        assert_eq!(parked.right, current_window_rect.right);
+        assert_eq!(parked.bottom, current_window_rect.bottom);
     }
 }
