@@ -4286,6 +4286,19 @@
             }
           ]
         },
+        "work_area_offset_rules": {
+          "description": "Work area offset rules in the format of threshold => Rect (default: None)",
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": false,
+          "patternProperties": {
+            "^\\d+$": {
+              "$ref": "#/$defs/Rect"
+            }
+          }
+        },
         "workspace_padding": {
           "description": "Workspace padding (default: global)",
           "type": [
