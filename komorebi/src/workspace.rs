@@ -493,20 +493,21 @@ impl Workspace {
         let window_based_work_area_offset = self.globals.window_based_work_area_offset;
         let window_based_work_area_offset_limit = self.globals.window_based_work_area_offset_limit;
         let mut rules_work_area_offset = None;
-        if !self.work_area_offset_rules.is_empty() && self.monocle_container.is_none() {
+
+        if !self.work_area_offset_rules.is_empty() {
+            let count = if self.monocle_container.is_some() {
+                1
+            } else {
+                self.containers().len()
+            };
+
             for (threshold, work_area_offset_rule) in &self.work_area_offset_rules {
-                if self.containers().len() >= *threshold {
+                if count >= *threshold {
                     rules_work_area_offset = Some(*work_area_offset_rule);
                 }
             }
-            // if self.monocle_container.is_some() {
-            //     for (threshold, work_area_offset) in &self.work_area_offset_rules {
-            //         if 1 >= *threshold {
-            //             updated_work_area_offset = Option::from(work_area_offset);
-            //         }
-            //     }
-            // }
         };
+
         let work_area_offset = rules_work_area_offset
             .or(self.work_area_offset)
             .or(self.globals.work_area_offset);
