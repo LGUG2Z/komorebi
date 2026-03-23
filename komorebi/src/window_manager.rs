@@ -1166,6 +1166,20 @@ impl WindowManager {
         Ok(())
     }
 
+    fn reveal_focused_scrolling_container(&mut self) -> eyre::Result<()> {
+        let should_reveal = {
+            let workspace = self.focused_workspace()?;
+            matches!(workspace.layout, Layout::Default(DefaultLayout::Scrolling))
+                && !workspace.containers().is_empty()
+        };
+
+        if should_reveal {
+            self.update_focused_workspace(false, false)?;
+        }
+
+        Ok(())
+    }
+
     #[tracing::instrument(skip(self))]
     pub fn resize_window(
         &mut self,
@@ -1968,6 +1982,12 @@ impl WindowManager {
                 };
             }
 
+            self.reveal_focused_scrolling_container()?;
+
+            if let Ok(focused_window) = self.focused_window() {
+                focused_window.focus(self.mouse_follows_focus)?;
+            }
+
             return Ok(());
         }
 
@@ -2119,7 +2139,11 @@ impl WindowManager {
 
         let mut cross_monitor_monocle_or_max = false;
 
-        // this is for when we are scrolling across workspaces like PaperWM
+        // Scrolling now keeps off-screen columns parked outside the virtual desktop so hidden
+        // columns remain attached to their current monitor. We still allow explicit workspace
+        // boundary traversal below, but multi-monitor scrolling focus may eventually want a
+        // dedicated config option so users can choose whether horizontal focus wraps to another
+        // monitor/workspace or stays monitor-local.
         if new_idx.is_none()
             && matches!(
                 self.cross_boundary_behaviour,
@@ -2235,6 +2259,10 @@ impl WindowManager {
                 let workspace = self.focused_workspace_mut()?;
                 workspace.focus_container(idx);
             }
+        }
+
+        if !cross_monitor_monocle_or_max {
+            self.reveal_focused_scrolling_container()?;
         }
 
         if !cross_monitor_monocle_or_max {
@@ -2594,6 +2622,8 @@ impl WindowManager {
             .ok_or_eyre("this is not a valid direction from the current position")?;
 
         workspace.focus_container(new_idx);
+
+        self.reveal_focused_scrolling_container()?;
 
         if maximize_next {
             self.toggle_maximize()?;

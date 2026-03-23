@@ -173,9 +173,9 @@ impl Workspace {
     /// rendering separately: any scrolling column that is fully outside this workspace's work area
     /// is parked just beyond the virtual desktop instead of being placed at its logical x/y.
     ///
-    /// This is intentionally a rendering hack rather than a change to scrolling state. It lets us
-    /// test scrolling on multi-monitor setups without minimizing or unmanaging the windows that are
-    /// temporarily outside the visible range.
+    /// This keeps scrolling behavior monitor-local without minimizing or unmanaging windows that
+    /// are temporarily outside the visible range, and it leaves room for this parking behavior to
+    /// become a user-facing configuration option later if we want to make it selectable.
     fn layout_intersects_work_area(work_area: &Rect, layout: &Rect) -> bool {
         let work_area_right = work_area.left + work_area.right;
         let work_area_bottom = work_area.top + work_area.bottom;
@@ -194,7 +194,8 @@ impl Workspace {
     ///
     /// We also preserve which side of the workspace the logical scrolling column belongs to. That
     /// keeps reveal animations directionally consistent: columns hidden off the left edge return
-    /// from the left, and columns hidden off the right edge return from the right.
+    /// from the left, and columns hidden off the right edge return from the right. This parking
+    /// strategy can also become a user-facing configuration option later if we decide to expose it.
     fn scrolling_offscreen_render_rect(
         work_area: &Rect,
         logical_layout: &Rect,
