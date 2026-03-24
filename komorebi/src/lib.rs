@@ -322,7 +322,7 @@ pub fn current_virtual_desktop() -> Option<Vec<u8>> {
     // the latter case, if the user desires this validation after initiating the task view, komorebi
     // should be restarted, and then when this // fn runs again for the first time, it will pick up
     // the value of CurrentVirtualDesktop and validate against it accordingly
-    current
+    current.map(|current| current.to_vec())
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

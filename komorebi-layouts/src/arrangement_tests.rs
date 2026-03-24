@@ -199,8 +199,8 @@ mod columns_with_ratios_tests {
         // First column: 20% = 200
         assert_eq!(layouts[0].right, 200);
         // Remaining 800 split among 4 columns = 200 each
-        for i in 1..5 {
-            assert_eq!(layouts[i].right, 200);
+        for item in layouts.iter().take(5).skip(1) {
+            assert_eq!(item.right, 200);
         }
     }
 

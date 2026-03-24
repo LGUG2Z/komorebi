@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "KomobarConfig",
-  "description": "The `komorebi.bar.json` configuration file reference for `v0.1.40`",
+  "description": "The `komorebi.bar.json` configuration file reference for `v0.1.41`",
   "type": "object",
   "properties": {
     "center_widgets": {
@@ -353,7 +353,7 @@
         },
         {
           "title": "CubicBezier",
-          "description": "Custom Cubic Bézier function",
+          "description": "Custom Cubic Bezier function",
           "type": "object",
           "properties": {
             "CubicBezier": {
@@ -2158,6 +2158,21 @@
         }
       ]
     },
+    "ButtonPosition": {
+      "description": "Where to place a systray button (refresh, info, shortcuts, etc.)",
+      "oneOf": [
+        {
+          "description": "Show in the main visible area",
+          "type": "string",
+          "const": "Visible"
+        },
+        {
+          "description": "Show in the overflow/hidden section",
+          "type": "string",
+          "const": "Overflow"
+        }
+      ]
+    },
     "Catppuccin": {
       "description": "Catppuccin palette",
       "oneOf": [
@@ -2331,6 +2346,147 @@
         }
       ]
     },
+    "Column": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "column": {
+              "type": "string",
+              "const": "Primary"
+            },
+            "configuration": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/ColumnWidth"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "column",
+            "configuration"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "column": {
+              "type": "string",
+              "const": "Secondary"
+            },
+            "configuration": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/ColumnSplitWithCapacity"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "column",
+            "configuration"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "column": {
+              "type": "string",
+              "const": "Tertiary"
+            },
+            "configuration": {
+              "$ref": "#/$defs/ColumnSplit"
+            }
+          },
+          "required": [
+            "column",
+            "configuration"
+          ]
+        }
+      ]
+    },
+    "ColumnSplit": {
+      "type": "string",
+      "enum": [
+        "Horizontal",
+        "Vertical"
+      ]
+    },
+    "ColumnSplitWithCapacity": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "Horizontal": {
+              "type": "integer",
+              "format": "uint",
+              "minimum": 0
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "Horizontal"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "Vertical": {
+              "type": "integer",
+              "format": "uint",
+              "minimum": 0
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "Vertical"
+          ]
+        }
+      ]
+    },
+    "ColumnWidth": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "WidthPercentage": {
+              "type": "number",
+              "format": "float"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "WidthPercentage"
+          ]
+        }
+      ]
+    },
+    "Container": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "locked": {
+          "type": "boolean",
+          "default": false
+        },
+        "windows": {
+          "$ref": "#/$defs/Ring4"
+        }
+      },
+      "required": [
+        "id",
+        "windows"
+      ]
+    },
     "CpuConfig": {
       "description": "CPU widget configuration",
       "type": "object",
@@ -2374,6 +2530,12 @@
       "required": [
         "enable"
       ]
+    },
+    "CustomLayout": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/Column"
+      }
     },
     "CustomModifiers": {
       "description": "Custom format with additive modifiers for integer format specifiers",
@@ -2573,6 +2735,48 @@
         }
       ]
     },
+    "FieldMatch": {
+      "description": "A field value with an optional matching strategy.\n\nA plain string uses exact (case-insensitive) matching.\nAn object with `value` and `matching_strategy` uses the specified strategy.",
+      "anyOf": [
+        {
+          "description": "Exact case-insensitive match",
+          "type": "string"
+        },
+        {
+          "description": "Match using a specific strategy",
+          "type": "object",
+          "properties": {
+            "matching_strategy": {
+              "description": "How to match (Equals, StartsWith, EndsWith, Contains, Regex, etc.)",
+              "$ref": "#/$defs/MatchingStrategy"
+            },
+            "value": {
+              "description": "The value to match against",
+              "type": "string"
+            }
+          },
+          "required": [
+            "value",
+            "matching_strategy"
+          ]
+        }
+      ]
+    },
+    "FloatingLayerBehaviour": {
+      "description": "Floating layer behaviour when a new window is opened",
+      "oneOf": [
+        {
+          "description": "Tile new windows (unless they match a float rule or float override is active)",
+          "type": "string",
+          "const": "Tile"
+        },
+        {
+          "description": "Float new windows",
+          "type": "string",
+          "const": "Float"
+        }
+      ]
+    },
     "FocusFollowsMouseImplementation": {
       "description": "Focus follows mouse implementation",
       "oneOf": [
@@ -2599,6 +2803,21 @@
       },
       "required": [
         "inner_margin"
+      ]
+    },
+    "GridLayoutOptions": {
+      "description": "Options for the Grid layout",
+      "type": "object",
+      "properties": {
+        "rows": {
+          "description": "Maximum number of rows per grid column",
+          "type": "integer",
+          "format": "uint",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "rows"
       ]
     },
     "GroupedSpacingConfig": {
@@ -2802,6 +3021,54 @@
       "type": "string",
       "format": "color-hex"
     },
+    "HiddenIconRule": {
+      "description": "Rule for matching a systray icon to hide\n\nA plain string matches the exe name (backward compatible).\nAn object with optional `exe`, `tooltip`, and/or `guid` fields\nuses AND logic: all specified fields must match.\nEach field can be a plain string (exact match) or an object with\n`value` and `matching_strategy` for advanced matching.",
+      "anyOf": [
+        {
+          "description": "Match by exe name (case-insensitive, exact)",
+          "type": "string"
+        },
+        {
+          "description": "Match by one or more properties (all specified fields must match)",
+          "type": "object",
+          "properties": {
+            "exe": {
+              "description": "Exe name to match",
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/FieldMatch"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "guid": {
+              "description": "Icon GUID to match (most stable identifier across restarts)",
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/FieldMatch"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "tooltip": {
+              "description": "Tooltip text to match",
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/FieldMatch"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
     "HidingBehaviour": {
       "description": "Window hiding behaviour",
       "oneOf": [
@@ -2821,6 +3088,35 @@
           "type": "string",
           "const": "Cloak"
         }
+      ]
+    },
+    "IdWithIdentifier": {
+      "description": "Rule for matching applications",
+      "type": "object",
+      "properties": {
+        "id": {
+          "description": "Target identifier",
+          "type": "string"
+        },
+        "kind": {
+          "description": "Kind of identifier to target",
+          "$ref": "#/$defs/ApplicationIdentifier"
+        },
+        "matching_strategy": {
+          "description": "Matching strategy to use",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/MatchingStrategy"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "kind",
+        "id"
       ]
     },
     "IndividualSpacingConfig": {
@@ -3859,6 +4155,167 @@
         }
       ]
     },
+    "Layout": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "Default": {
+              "$ref": "#/$defs/DefaultLayout"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "Default"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "Custom": {
+              "$ref": "#/$defs/CustomLayout"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "Custom"
+          ]
+        }
+      ]
+    },
+    "LayoutOptions": {
+      "description": "Options for specific layouts",
+      "type": "object",
+      "properties": {
+        "column_ratios": {
+          "description": "Column width ratios (up to MAX_RATIOS values between 0.1 and 0.9)\n\n- Used by Columns layout: ratios for each column width\n- Used by Grid layout: ratios for column widths\n- Used by BSP, VerticalStack, RightMainVerticalStack: column_ratios[0] as primary split ratio\n- Used by HorizontalStack: column_ratios[0] as primary split ratio (top area height)\n- Used by UltrawideVerticalStack: column_ratios[0] as center ratio, column_ratios[1] as left ratio\n\nColumns without a ratio share remaining space equally.\nExample: `[0.3, 0.4, 0.3]` for 30%-40%-30% columns",
+          "type": [
+            "array",
+            "null"
+          ],
+          "default": null,
+          "items": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "float"
+          },
+          "maxItems": 5,
+          "minItems": 5
+        },
+        "grid": {
+          "description": "Options related to the Grid layout",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/GridLayoutOptions"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "row_ratios": {
+          "description": "Row height ratios (up to MAX_RATIOS values between 0.1 and 0.9)\n\n- Used by Rows layout: ratios for each row height\n- Used by Grid layout: ratios for row heights\n\nRows without a ratio share remaining space equally.\nExample: `[0.5, 0.5]` for 50%-50% rows",
+          "type": [
+            "array",
+            "null"
+          ],
+          "default": null,
+          "items": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "float"
+          },
+          "maxItems": 5,
+          "minItems": 5
+        },
+        "scrolling": {
+          "description": "Options related to the Scrolling layout",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ScrollingLayoutOptions"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "MatchingRule": {
+      "description": "Rule for matching applications",
+      "anyOf": [
+        {
+          "description": "Simple matching rule which must evaluate to true",
+          "$ref": "#/$defs/IdWithIdentifier"
+        },
+        {
+          "description": "Composite matching rule where all conditions must evaluate to true",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/IdWithIdentifier"
+          }
+        }
+      ]
+    },
+    "MatchingStrategy": {
+      "description": "Strategy for matching identifiers",
+      "oneOf": [
+        {
+          "description": "Should not be used, only kept for backward compatibility",
+          "type": "string",
+          "const": "Legacy"
+        },
+        {
+          "description": "Equals",
+          "type": "string",
+          "const": "Equals"
+        },
+        {
+          "description": "Starts With",
+          "type": "string",
+          "const": "StartsWith"
+        },
+        {
+          "description": "Ends With",
+          "type": "string",
+          "const": "EndsWith"
+        },
+        {
+          "description": "Contains",
+          "type": "string",
+          "const": "Contains"
+        },
+        {
+          "description": "Regex",
+          "type": "string",
+          "const": "Regex"
+        },
+        {
+          "description": "Does not end with",
+          "type": "string",
+          "const": "DoesNotEndWith"
+        },
+        {
+          "description": "Does not start with",
+          "type": "string",
+          "const": "DoesNotStartWith"
+        },
+        {
+          "description": "Does not equal",
+          "type": "string",
+          "const": "DoesNotEqual"
+        },
+        {
+          "description": "Does not contain",
+          "type": "string",
+          "const": "DoesNotContain"
+        }
+      ]
+    },
     "MediaConfig": {
       "description": "Media widget configuration",
       "type": "object",
@@ -3965,6 +4422,125 @@
       },
       "required": [
         "enable"
+      ]
+    },
+    "Monitor": {
+      "type": "object",
+      "properties": {
+        "container_padding": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "int32"
+        },
+        "device": {
+          "type": "string"
+        },
+        "device_id": {
+          "type": "string"
+        },
+        "floating_layer_behaviour": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/FloatingLayerBehaviour"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "id": {
+          "type": "integer",
+          "format": "int"
+        },
+        "last_focused_workspace": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint",
+          "minimum": 0
+        },
+        "name": {
+          "type": "string"
+        },
+        "serial_number_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "size": {
+          "$ref": "#/$defs/Rect"
+        },
+        "wallpaper": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Wallpaper"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "window_based_work_area_offset": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Rect"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "window_based_work_area_offset_limit": {
+          "type": "integer",
+          "format": "int"
+        },
+        "work_area_offset": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Rect"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "work_area_size": {
+          "$ref": "#/$defs/Rect"
+        },
+        "workspace_names": {
+          "type": "object",
+          "additionalProperties": false,
+          "patternProperties": {
+            "^\\d+$": {
+              "type": "string"
+            }
+          }
+        },
+        "workspace_padding": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "int32"
+        },
+        "workspaces": {
+          "$ref": "#/$defs/Ring2"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "device",
+        "device_id",
+        "size",
+        "work_area_size",
+        "window_based_work_area_offset_limit",
+        "workspaces",
+        "workspace_names"
       ]
     },
     "MonitorConfig": {
@@ -4301,6 +4877,21 @@
         "Down"
       ]
     },
+    "OverflowTogglePosition": {
+      "description": "Position of the overflow toggle button",
+      "oneOf": [
+        {
+          "description": "Toggle button appears on the left side (before visible icons)",
+          "type": "string",
+          "const": "Left"
+        },
+        {
+          "description": "Toggle button appears on the right side (after visible icons)",
+          "type": "string",
+          "const": "Right"
+        }
+      ]
+    },
     "PathBuf": {
       "description": "A file system path. Environment variables like %VAR%, $Env:VAR, or $VAR are automatically resolved.",
       "type": "string"
@@ -4414,6 +5005,86 @@
         "b"
       ]
     },
+    "Ring": {
+      "type": "object",
+      "properties": {
+        "elements": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Monitor"
+          }
+        },
+        "focused": {
+          "type": "integer",
+          "format": "uint",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "elements",
+        "focused"
+      ]
+    },
+    "Ring2": {
+      "type": "object",
+      "properties": {
+        "elements": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Workspace"
+          }
+        },
+        "focused": {
+          "type": "integer",
+          "format": "uint",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "elements",
+        "focused"
+      ]
+    },
+    "Ring3": {
+      "type": "object",
+      "properties": {
+        "elements": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Container"
+          }
+        },
+        "focused": {
+          "type": "integer",
+          "format": "uint",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "elements",
+        "focused"
+      ]
+    },
+    "Ring4": {
+      "type": "object",
+      "properties": {
+        "elements": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Window"
+          }
+        },
+        "focused": {
+          "type": "integer",
+          "format": "uint",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "elements",
+        "focused"
+      ]
+    },
     "RoundingConfig": {
       "description": "Rounding configuration",
       "anyOf": [
@@ -4432,6 +5103,28 @@
           "maxItems": 4,
           "minItems": 4
         }
+      ]
+    },
+    "ScrollingLayoutOptions": {
+      "description": "Options for the Scrolling layout",
+      "type": "object",
+      "properties": {
+        "center_focused_column": {
+          "description": "With an odd number of visible columns, keep the focused window column centered",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "columns": {
+          "description": "Desired number of visible columns (default: 3)",
+          "type": "integer",
+          "format": "uint",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "columns"
       ]
     },
     "Sizing": {
@@ -7996,6 +8689,22 @@
             "type",
             "content"
           ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "content": {
+              "$ref": "#/$defs/State"
+            },
+            "type": {
+              "type": "string",
+              "const": "ApplyState"
+            }
+          },
+          "required": [
+            "type",
+            "content"
+          ]
         }
       ]
     },
@@ -8050,6 +8759,94 @@
           "type": "string",
           "const": "OnStack"
         }
+      ]
+    },
+    "State": {
+      "type": "object",
+      "properties": {
+        "cross_monitor_move_behaviour": {
+          "$ref": "#/$defs/MoveBehaviour"
+        },
+        "float_override": {
+          "type": "boolean"
+        },
+        "focus_follows_mouse": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/FocusFollowsMouseImplementation"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "has_pending_raise_op": {
+          "type": "boolean"
+        },
+        "is_paused": {
+          "type": "boolean"
+        },
+        "monitor_usr_idx_map": {
+          "type": "object",
+          "additionalProperties": false,
+          "patternProperties": {
+            "^\\d+$": {
+              "type": "integer",
+              "format": "uint",
+              "minimum": 0
+            }
+          }
+        },
+        "monitors": {
+          "$ref": "#/$defs/Ring"
+        },
+        "mouse_follows_focus": {
+          "type": "boolean"
+        },
+        "new_window_behaviour": {
+          "$ref": "#/$defs/WindowContainerBehaviour"
+        },
+        "resize_delta": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "unmanaged_window_operation_behaviour": {
+          "$ref": "#/$defs/OperationBehaviour"
+        },
+        "virtual_desktop_id": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "integer",
+            "format": "uint8",
+            "maximum": 255,
+            "minimum": 0
+          }
+        },
+        "work_area_offset": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Rect"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "monitors",
+        "monitor_usr_idx_map",
+        "is_paused",
+        "resize_delta",
+        "new_window_behaviour",
+        "float_override",
+        "cross_monitor_move_behaviour",
+        "unmanaged_window_operation_behaviour",
+        "mouse_follows_focus",
+        "has_pending_raise_op"
       ]
     },
     "StateQuery": {
@@ -8129,10 +8926,45 @@
             "null"
           ],
           "default": true
+        },
+        "storage_display_name": {
+          "description": "Storage display name",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/StorageDisplayName"
+            },
+            {
+              "type": "null"
+            }
+          ]
         }
       },
       "required": [
         "enable"
+      ]
+    },
+    "StorageDisplayName": {
+      "oneOf": [
+        {
+          "description": "Display label as mount point eg. C:\\",
+          "type": "string",
+          "const": "Mount"
+        },
+        {
+          "description": "Display label as name eg. Local Disk",
+          "type": "string",
+          "const": "Name"
+        },
+        {
+          "description": "Display label as mount then name eg. C:\\ Local Disk",
+          "type": "string",
+          "const": "MountAndName"
+        },
+        {
+          "description": "Display label as name then mount eg. Local Disk C:\\",
+          "type": "string",
+          "const": "NameAndMount"
+        }
       ]
     },
     "SubscribeOptions": {
@@ -8145,6 +8977,235 @@
       },
       "required": [
         "filter_state_changes"
+      ]
+    },
+    "SystrayConfig": {
+      "description": "System tray widget configuration",
+      "type": "object",
+      "properties": {
+        "enable": {
+          "description": "Enable the System Tray widget",
+          "type": "boolean"
+        },
+        "hidden_icons": {
+          "description": "A list of rules for icons to hide from the system tray\n\nEach entry can be a plain string (matches exe name, case-insensitive)\nor an object with optional `exe`, `tooltip`, and/or `guid` fields\n(all specified fields must match, AND logic, case-insensitive).\n\nRun komorebi-bar with RUST_LOG=info to see the properties of all\nsystray icons in the log output.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "$ref": "#/$defs/HiddenIconRule"
+          }
+        },
+        "info_button": {
+          "description": "Show an info button that opens a floating panel listing all systray icons\nwith their exe, tooltip, and GUID. Set to \"Visible\" to show it in the main\narea, or \"Overflow\" to show it in the hidden/overflow section.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ButtonPosition"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "overflow_toggle_position": {
+          "description": "Position of the overflow toggle button (default: Right)",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/OverflowTogglePosition"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "refresh_button": {
+          "description": "Show a refresh button that manually triggers stale icon cleanup.\nSet to \"Visible\" to show it in the main area, or \"Overflow\" to\nshow it in the hidden/overflow section.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ButtonPosition"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "shortcuts_button": {
+          "description": "Show a button that toggles komorebi-shortcuts (kills the process if\nrunning, starts it otherwise). Set to \"Visible\" to show it in the main\narea, or \"Overflow\" to show it in the hidden/overflow section.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ButtonPosition"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "stale_icons_check_interval": {
+          "description": "Interval in seconds to automatically check for and remove stale icons\nwhose owning process has exited. Clamped between 30 and 600 seconds.\nDefaults to 60. Set to 0 to disable.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "enable"
+      ]
+    },
+    "ThemeOptions": {
+      "description": "Theme options",
+      "type": "object",
+      "properties": {
+        "bar_accent": {
+          "description": "Komorebi status bar accent",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Base16Value"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": "Base0D"
+        },
+        "floating_border": {
+          "description": "Border colour when the window is floating",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Base16Value"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": "Base09"
+        },
+        "monocle_border": {
+          "description": "Border colour when the container is in monocle mode",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Base16Value"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": "Base0F"
+        },
+        "single_border": {
+          "description": "Border colour when the container contains a single window",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Base16Value"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": "Base0D"
+        },
+        "stack_border": {
+          "description": "Border colour when the container contains multiple windows",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Base16Value"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": "Base0B"
+        },
+        "stackbar_background": {
+          "description": "Stackbar tab background colour",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Base16Value"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": "Base01"
+        },
+        "stackbar_focused_text": {
+          "description": "Stackbar focused tab text colour",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Base16Value"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": "Base0B"
+        },
+        "stackbar_unfocused_text": {
+          "description": "Stackbar unfocused tab text colour",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Base16Value"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": "Base05"
+        },
+        "theme_variant": {
+          "description": "Specify Light or Dark variant for theme generation",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ThemeVariant"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": "Dark"
+        },
+        "unfocused_border": {
+          "description": "Border colour when the container is unfocused",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Base16Value"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": "Base01"
+        },
+        "unfocused_locked_border": {
+          "description": "Border colour when the container is unfocused and locked",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Base16Value"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": "Base08"
+        }
+      }
+    },
+    "ThemeVariant": {
+      "description": "Theme variant",
+      "oneOf": [
+        {
+          "description": "Dark variant",
+          "type": "string",
+          "const": "Dark"
+        },
+        {
+          "description": "Light variant",
+          "type": "string",
+          "const": "Light"
+        }
       ]
     },
     "TimeConfig": {
@@ -8271,6 +9332,39 @@
       },
       "required": [
         "enable"
+      ]
+    },
+    "Wallpaper": {
+      "description": "Wallpaper configuration",
+      "type": "object",
+      "properties": {
+        "generate_theme": {
+          "description": "Generate and apply Base16 theme for this wallpaper",
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "default": true
+        },
+        "path": {
+          "description": "Path to the wallpaper image file",
+          "$ref": "#/$defs/PathBuf"
+        },
+        "theme_options": {
+          "description": "Specify Light or Dark variant for theme generation",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ThemeOptions"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": "Dark"
+        }
+      },
+      "required": [
+        "path"
       ]
     },
     "WidgetConfig": {
@@ -8417,6 +9511,20 @@
           ]
         },
         {
+          "title": "Systray",
+          "description": "System Tray widget configuration (Windows only)",
+          "type": "object",
+          "properties": {
+            "Systray": {
+              "$ref": "#/$defs/SystrayConfig"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "Systray"
+          ]
+        },
+        {
           "title": "Time",
           "description": "Time widget configuration",
           "type": "object",
@@ -8443,6 +9551,33 @@
           "required": [
             "Update"
           ]
+        }
+      ]
+    },
+    "Window": {
+      "type": "object",
+      "properties": {
+        "hwnd": {
+          "type": "integer",
+          "format": "int"
+        }
+      },
+      "required": [
+        "hwnd"
+      ]
+    },
+    "WindowContainerBehaviour": {
+      "description": "Window container behaviour when a new window is opened",
+      "oneOf": [
+        {
+          "description": "Create a new container for each new window",
+          "type": "string",
+          "const": "Create"
+        },
+        {
+          "description": "Append new windows to the focused window container",
+          "type": "string",
+          "const": "Append"
         }
       ]
     },
@@ -8479,6 +9614,490 @@
           "type": "string",
           "const": "Floating"
         }
+      ]
+    },
+    "Workspace": {
+      "type": "object",
+      "properties": {
+        "apply_window_based_work_area_offset": {
+          "type": "boolean"
+        },
+        "container_padding": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "int32"
+        },
+        "containers": {
+          "$ref": "#/$defs/Ring3"
+        },
+        "float_override": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "floating_layer_behaviour": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/FloatingLayerBehaviour"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "floating_windows": {
+          "$ref": "#/$defs/Ring4"
+        },
+        "latest_layout": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Rect"
+          }
+        },
+        "layer": {
+          "$ref": "#/$defs/WorkspaceLayer"
+        },
+        "layout": {
+          "$ref": "#/$defs/Layout"
+        },
+        "layout_flip": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Axis"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "layout_options": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/LayoutOptions"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "layout_rules": {
+          "type": "array",
+          "items": {
+            "type": "array",
+            "maxItems": 2,
+            "minItems": 2,
+            "prefixItems": [
+              {
+                "type": "integer",
+                "format": "uint",
+                "minimum": 0
+              },
+              {
+                "$ref": "#/$defs/Layout"
+              }
+            ]
+          }
+        },
+        "maximized_window": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Window"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "maximized_window_restore_idx": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint",
+          "minimum": 0
+        },
+        "monocle_container": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Container"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "monocle_container_restore_idx": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint",
+          "minimum": 0
+        },
+        "name": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "preselected_container_idx": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint",
+          "minimum": 0
+        },
+        "promotion_swap_container_idx": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint",
+          "minimum": 0
+        },
+        "resize_dimensions": {
+          "type": "array",
+          "items": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Rect"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "tile": {
+          "type": "boolean"
+        },
+        "wallpaper": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Wallpaper"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "window_container_behaviour": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/WindowContainerBehaviour"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "window_container_behaviour_rules": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "array",
+            "maxItems": 2,
+            "minItems": 2,
+            "prefixItems": [
+              {
+                "type": "integer",
+                "format": "uint",
+                "minimum": 0
+              },
+              {
+                "$ref": "#/$defs/WindowContainerBehaviour"
+              }
+            ]
+          }
+        },
+        "work_area_offset": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Rect"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "work_area_offset_rules": {
+          "type": "array",
+          "items": {
+            "type": "array",
+            "maxItems": 2,
+            "minItems": 2,
+            "prefixItems": [
+              {
+                "type": "integer",
+                "format": "uint",
+                "minimum": 0
+              },
+              {
+                "$ref": "#/$defs/Rect"
+              }
+            ]
+          }
+        },
+        "workspace_config": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/WorkspaceConfig"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "workspace_padding": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "int32"
+        }
+      },
+      "required": [
+        "containers",
+        "floating_windows",
+        "layout",
+        "layout_rules",
+        "work_area_offset_rules",
+        "latest_layout",
+        "resize_dimensions",
+        "tile",
+        "apply_window_based_work_area_offset",
+        "layer"
+      ]
+    },
+    "WorkspaceConfig": {
+      "description": "Workspace configuration",
+      "type": "object",
+      "properties": {
+        "apply_window_based_work_area_offset": {
+          "description": "Apply this monitor's window-based work area offset",
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "default": true
+        },
+        "container_padding": {
+          "description": "Container padding (default: global)",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "int32"
+        },
+        "custom_layout": {
+          "description": "END OF LIFE FEATURE: Custom Layout",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PathBuf"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "deprecated": true
+        },
+        "custom_layout_rules": {
+          "description": "END OF LIFE FEATURE: Custom layout rules",
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": false,
+          "deprecated": true,
+          "patternProperties": {
+            "^\\d+$": {
+              "type": "string"
+            }
+          }
+        },
+        "float_override": {
+          "description": "Enable or disable float override, which makes it so every new window opens in floating mode",
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "default": false
+        },
+        "floating_layer_behaviour": {
+          "description": "Determine what happens to a new window when the Floating workspace layer is active",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/FloatingLayerBehaviour"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": "Tile"
+        },
+        "initial_workspace_rules": {
+          "description": "Initial workspace application rules",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "$ref": "#/$defs/MatchingRule"
+          }
+        },
+        "layout": {
+          "description": "Layout",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DefaultLayout"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": "BSP"
+        },
+        "layout_flip": {
+          "description": "Specify an axis on which to flip the selected layout",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Axis"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "layout_options": {
+          "description": "Layout-specific options",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/LayoutOptions"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "layout_rules": {
+          "description": "Layout rules in the format of threshold => layout",
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": false,
+          "patternProperties": {
+            "^\\d+$": {
+              "$ref": "#/$defs/DefaultLayout"
+            }
+          }
+        },
+        "name": {
+          "description": "Name",
+          "type": "string"
+        },
+        "tile": {
+          "description": "Enable or disable tiling for the workspace",
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "default": true
+        },
+        "wallpaper": {
+          "description": "Specify a wallpaper for this workspace",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Wallpaper"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "window_container_behaviour": {
+          "description": "Determine what happens when a new window is opened",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/WindowContainerBehaviour"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": "Create"
+        },
+        "window_container_behaviour_rules": {
+          "description": "Window container behaviour rules in the format of threshold => behaviour",
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": false,
+          "patternProperties": {
+            "^\\d+$": {
+              "$ref": "#/$defs/WindowContainerBehaviour"
+            }
+          }
+        },
+        "work_area_offset": {
+          "description": "Workspace specific work area offset",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Rect"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "work_area_offset_rules": {
+          "description": "Work area offset rules in the format of threshold => Rect (default: None)",
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": false,
+          "patternProperties": {
+            "^\\d+$": {
+              "$ref": "#/$defs/Rect"
+            }
+          }
+        },
+        "workspace_padding": {
+          "description": "Workspace padding (default: global)",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "int32"
+        },
+        "workspace_rules": {
+          "description": "Permanent workspace application rules",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "$ref": "#/$defs/MatchingRule"
+          }
+        }
+      },
+      "required": [
+        "name"
+      ]
+    },
+    "WorkspaceLayer": {
+      "type": "string",
+      "enum": [
+        "Tiling",
+        "Floating"
       ]
     },
     "WorkspacesDisplayFormat": {

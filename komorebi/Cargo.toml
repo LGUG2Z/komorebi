@@ -51,7 +51,7 @@ windows-numerics = { workspace = true }
 windows-implement = { workspace = true }
 windows-interface = { workspace = true }
 winput = "0.2"
-winreg = "0.55"
+winreg = "0.56"
 serde_with = { version = "3.12", features = ["schemars_1"] }
 
 [build-dependencies]

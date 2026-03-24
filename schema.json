@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "StaticConfig",
-  "description": "The `komorebi.json` static configuration file reference for `v0.1.40`",
+  "description": "The `komorebi.json` static configuration file reference for `v0.1.41`",
   "type": "object",
   "properties": {
     "animation": {
@@ -703,7 +703,7 @@
         },
         {
           "title": "CubicBezier",
-          "description": "Custom Cubic Bézier function",
+          "description": "Custom Cubic Bezier function",
           "type": "object",
           "properties": {
             "CubicBezier": {
@@ -4285,6 +4285,19 @@
               "type": "null"
             }
           ]
+        },
+        "work_area_offset_rules": {
+          "description": "Work area offset rules in the format of threshold => Rect (default: None)",
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": false,
+          "patternProperties": {
+            "^\\d+$": {
+              "$ref": "#/$defs/Rect"
+            }
+          }
         },
         "workspace_padding": {
           "description": "Workspace padding (default: global)",
