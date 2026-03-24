@@ -244,6 +244,57 @@ impl Workspace {
         }
     }
 
+    fn rect_is_outside_virtual_screen_horizontally(virtual_screen: &Rect, rect: &Rect) -> bool {
+        let virtual_screen_right = virtual_screen.left + virtual_screen.right;
+        let rect_right = rect.left + rect.right;
+
+        rect_right <= virtual_screen.left || rect.left >= virtual_screen_right
+    }
+
+    fn scrolling_reveal_render_rect(
+        work_area: &Rect,
+        logical_layout: &Rect,
+        current_window_rect: &Rect,
+    ) -> eyre::Result<Option<Rect>> {
+        let virtual_screen = WindowsApi::virtual_screen()?;
+        Ok(Self::scrolling_reveal_render_rect_for_virtual_screen(
+            &virtual_screen,
+            work_area,
+            logical_layout,
+            current_window_rect,
+        ))
+    }
+
+    fn scrolling_reveal_render_rect_for_virtual_screen(
+        virtual_screen: &Rect,
+        work_area: &Rect,
+        logical_layout: &Rect,
+        current_window_rect: &Rect,
+    ) -> Option<Rect> {
+        if !Self::rect_is_outside_virtual_screen_horizontally(virtual_screen, current_window_rect) {
+            return None;
+        }
+
+        let width = current_window_rect.right.max(1);
+        let height = current_window_rect.bottom.max(1);
+        let work_area_right = work_area.left + work_area.right;
+        let max_left = (work_area_right - width).max(work_area.left);
+        let current_rect_right = current_window_rect.left + current_window_rect.right;
+
+        let left = if current_rect_right <= virtual_screen.left {
+            work_area.left
+        } else {
+            max_left
+        };
+
+        Some(Rect {
+            left,
+            top: logical_layout.top,
+            right: width,
+            bottom: height,
+        })
+    }
+
     pub fn load_static_config(&mut self, config: &WorkspaceConfig) -> eyre::Result<()> {
         self.name = Option::from(config.name.clone());
 
@@ -734,17 +785,22 @@ impl Workspace {
                                 }
                             }
 
+                            let current_window_rect = if should_park_offscreen_containers {
+                                Some(WindowsApi::window_rect(window.hwnd)?)
+                            } else {
+                                None
+                            };
+
                             if should_park {
                                 // We intentionally skip movement animations when parking a window.
                                 // Animating between the visible monitor and an off-screen parking
                                 // slot would drag the window across the user's displays.
                                 //
                                 // Could becom a setting ?
-                                let current_window_rect = WindowsApi::window_rect(window.hwnd)?;
                                 let parked_layout = Self::scrolling_offscreen_render_rect(
                                     &adjusted_work_area,
                                     layout,
-                                    &current_window_rect,
+                                    &current_window_rect.unwrap_or_default(),
                                     i,
                                 )?;
 
@@ -755,7 +811,27 @@ impl Workspace {
                                     true,
                                 )?;
                             } else {
-                                window.set_position(layout, false)?;
+                                if let Some(current_window_rect) = current_window_rect {
+                                    if let Some(reveal_layout) = Self::scrolling_reveal_render_rect(
+                                        &adjusted_work_area,
+                                        layout,
+                                        &current_window_rect,
+                                    )? {
+                                        window.set_position_from_rect(
+                                            reveal_layout,
+                                            layout,
+                                            false,
+                                        )?;
+                                    } else {
+                                        window.set_position_from_rect(
+                                            current_window_rect,
+                                            layout,
+                                            false,
+                                        )?;
+                                    }
+                                } else {
+                                    window.set_position(layout, false)?;
+                                }
                             }
                         }
                     }
@@ -2795,5 +2871,124 @@ mod tests {
         assert!(parked.left + parked.right <= virtual_screen.left);
         assert_eq!(parked.right, current_window_rect.right);
         assert_eq!(parked.bottom, current_window_rect.bottom);
+    }
+
+    #[test]
+    fn test_scrolling_reveal_render_rect_for_virtual_screen_starts_at_workspace_left_edge() {
+        let virtual_screen = Rect {
+            left: -1920,
+            top: 0,
+            right: 5760,
+            bottom: 1440,
+        };
+        let work_area = Rect {
+            left: 0,
+            top: 0,
+            right: 1920,
+            bottom: 1080,
+        };
+        let logical_layout = Rect {
+            left: 640,
+            top: 20,
+            right: 640,
+            bottom: 1040,
+        };
+        let current_window_rect = Rect {
+            left: -2600,
+            top: 32,
+            right: 640,
+            bottom: 1040,
+        };
+
+        let reveal = Workspace::scrolling_reveal_render_rect_for_virtual_screen(
+            &virtual_screen,
+            &work_area,
+            &logical_layout,
+            &current_window_rect,
+        )
+        .unwrap();
+
+        assert_eq!(reveal.left, work_area.left);
+        assert_eq!(reveal.top, logical_layout.top);
+        assert_eq!(reveal.right, current_window_rect.right);
+        assert_eq!(reveal.bottom, current_window_rect.bottom);
+    }
+
+    #[test]
+    fn test_scrolling_reveal_render_rect_for_virtual_screen_starts_at_workspace_right_edge() {
+        let virtual_screen = Rect {
+            left: -1920,
+            top: 0,
+            right: 5760,
+            bottom: 1440,
+        };
+        let work_area = Rect {
+            left: 1920,
+            top: 0,
+            right: 1920,
+            bottom: 1080,
+        };
+        let logical_layout = Rect {
+            left: 2240,
+            top: 40,
+            right: 640,
+            bottom: 1000,
+        };
+        let current_window_rect = Rect {
+            left: 3900,
+            top: 32,
+            right: 640,
+            bottom: 1000,
+        };
+
+        let reveal = Workspace::scrolling_reveal_render_rect_for_virtual_screen(
+            &virtual_screen,
+            &work_area,
+            &logical_layout,
+            &current_window_rect,
+        )
+        .unwrap();
+
+        assert_eq!(reveal.left, 3200);
+        assert_eq!(reveal.top, logical_layout.top);
+        assert_eq!(reveal.right, current_window_rect.right);
+        assert_eq!(reveal.bottom, current_window_rect.bottom);
+    }
+
+    #[test]
+    fn test_scrolling_reveal_render_rect_for_virtual_screen_ignores_non_parked_windows() {
+        let virtual_screen = Rect {
+            left: -1920,
+            top: 0,
+            right: 5760,
+            bottom: 1440,
+        };
+        let work_area = Rect {
+            left: 1920,
+            top: 0,
+            right: 1920,
+            bottom: 1080,
+        };
+        let logical_layout = Rect {
+            left: 2240,
+            top: 40,
+            right: 640,
+            bottom: 1000,
+        };
+        let current_window_rect = Rect {
+            left: 2240,
+            top: 40,
+            right: 640,
+            bottom: 1000,
+        };
+
+        let reveal = Workspace::scrolling_reveal_render_rect_for_virtual_screen(
+            &virtual_screen,
+            &work_area,
+            &logical_layout,
+            &current_window_rect,
+        );
+
+        assert!(reveal.is_none());
     }
 }
