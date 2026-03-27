@@ -215,6 +215,12 @@ pub struct WorkspaceConfig {
     /// Layout-specific options
     #[serde(skip_serializing_if = "Option::is_none")]
     pub layout_options: Option<LayoutOptions>,
+    /// Threshold-based layout options rules in the format of threshold => options.
+    /// When container count >= threshold, the highest matching threshold's options
+    /// fully replace the base `layout_options`.
+    /// This follows the same threshold logic as `layout_rules`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub layout_options_rules: Option<HashMap<usize, LayoutOptions>>,
     /// END OF LIFE FEATURE: Custom Layout
     #[deprecated(note = "End of life feature")]
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -341,6 +347,11 @@ impl From<&Workspace> for WorkspaceConfig {
                     value.layout_options
                 );
                 value.layout_options
+            },
+            layout_options_rules: if value.layout_options_rules.is_empty() {
+                None
+            } else {
+                Some(value.layout_options_rules.iter().copied().collect())
             },
             #[allow(deprecated)]
             custom_layout: value
