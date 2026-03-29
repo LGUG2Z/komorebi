@@ -9683,6 +9683,26 @@
             }
           ]
         },
+        "layout_options_rules": {
+          "description": "Threshold-based layout options rules (container_count >= threshold -> use these options).\nSorted by threshold ascending at load time.",
+          "type": "array",
+          "default": [],
+          "items": {
+            "type": "array",
+            "maxItems": 2,
+            "minItems": 2,
+            "prefixItems": [
+              {
+                "type": "integer",
+                "format": "uint",
+                "minimum": 0
+              },
+              {
+                "$ref": "#/$defs/LayoutOptions"
+              }
+            ]
+          }
+        },
         "layout_rules": {
           "type": "array",
           "items": {
@@ -9984,6 +10004,19 @@
               "type": "null"
             }
           ]
+        },
+        "layout_options_rules": {
+          "description": "Threshold-based layout options rules in the format of threshold => options.\nWhen container count >= threshold, the highest matching threshold's options\nfully replace the base `layout_options`.\nThis follows the same threshold logic as `layout_rules`.",
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": false,
+          "patternProperties": {
+            "^\\d+$": {
+              "$ref": "#/$defs/LayoutOptions"
+            }
+          }
         },
         "layout_rules": {
           "description": "Layout rules in the format of threshold => layout",

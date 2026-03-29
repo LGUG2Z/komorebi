@@ -61,6 +61,10 @@ pub struct Workspace {
     pub layout: Layout,
     pub layout_options: Option<LayoutOptions>,
     pub layout_rules: Vec<(usize, Layout)>,
+    /// Threshold-based layout options rules (container_count >= threshold -> use these options).
+    /// Sorted by threshold ascending at load time.
+    #[serde(default)]
+    pub layout_options_rules: Vec<(usize, LayoutOptions)>,
     pub work_area_offset_rules: Vec<(usize, Rect)>,
     pub layout_flip: Option<Axis>,
     pub workspace_padding: Option<i32>,
@@ -119,6 +123,7 @@ impl Default for Workspace {
             layout: Layout::Default(DefaultLayout::BSP),
             layout_options: None,
             layout_rules: vec![],
+            layout_options_rules: vec![],
             work_area_offset_rules: vec![],
             layout_flip: None,
             workspace_padding: Option::from(DEFAULT_WORKSPACE_PADDING.load(Ordering::SeqCst)),
@@ -251,12 +256,25 @@ impl Workspace {
         self.layout_flip = config.layout_flip;
         self.floating_layer_behaviour = config.floating_layer_behaviour;
         self.wallpaper = config.wallpaper.clone();
+
+        // Load layout options directly (LayoutOptions is used in both config and runtime)
         self.layout_options = config.layout_options;
 
+        // Load threshold-based layout options rules, sorted by threshold ascending
+        self.layout_options_rules = if let Some(rules) = &config.layout_options_rules {
+            let mut sorted_rules: Vec<(usize, LayoutOptions)> =
+                rules.iter().map(|(t, o)| (*t, *o)).collect();
+            sorted_rules.sort_by_key(|(t, _)| *t);
+            sorted_rules
+        } else {
+            vec![]
+        };
+
         tracing::debug!(
-            "Workspace '{}' loaded layout_options: {:?}",
+            "Workspace '{}' loaded layout_options: {:?}, layout_options_rules: {} entries",
             self.name.as_deref().unwrap_or("unnamed"),
-            self.layout_options
+            self.layout_options,
+            self.layout_options_rules.len(),
         );
 
         self.workspace_config = Some(config.clone());
@@ -584,10 +602,34 @@ impl Workspace {
             } else if let Some(window) = &mut self.maximized_window {
                 window.maximize();
             } else if !self.containers().is_empty() {
-                tracing::debug!(
-                    "Workspace '{}' update() - self.layout_options before calculate: {:?}",
-                    self.name.as_deref().unwrap_or("unnamed"),
+                // Compute effective layout options:
+                //   1. If layout_options_rules has a matching threshold (container_count >= threshold),
+                //      use the highest matching threshold's options (full replacement)
+                //   2. Otherwise, use the workspace base layout_options
+                let effective_layout_options = if !self.layout_options_rules.is_empty() {
+                    let container_count = self.containers().len();
+                    let mut matched = None;
+                    for (threshold, opts) in &self.layout_options_rules {
+                        if container_count >= *threshold {
+                            matched = Some(*opts);
+                        }
+                    }
+                    // If a rule matched, use it entirely (replaces base layout_options)
+                    if matched.is_some() {
+                        matched
+                    } else {
+                        self.layout_options
+                    }
+                } else {
                     self.layout_options
+                };
+
+                tracing::debug!(
+                    "Workspace '{}' update() - effective_layout_options: {:?} (base: {:?}, rules: {})",
+                    self.name.as_deref().unwrap_or("unnamed"),
+                    effective_layout_options,
+                    self.layout_options,
+                    self.layout_options_rules.len(),
                 );
                 let mut layouts = self.layout.as_boxed_arrangement().calculate(
                     &adjusted_work_area,
@@ -598,7 +640,7 @@ impl Workspace {
                     self.layout_flip,
                     &self.resize_dimensions,
                     self.focused_container_idx(),
-                    self.layout_options,
+                    effective_layout_options,
                     &self.latest_layout,
                 );
 

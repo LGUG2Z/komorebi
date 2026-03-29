@@ -172,6 +172,71 @@ consistently to all splits of that type throughout the layout. Additional values
 - Unspecified ratios default to sharing the remaining space equally
 - You only need to specify the ratios you want to customize; trailing values can be omitted
 
+## Layout Options Rules
+
+You can dynamically change `layout_options` based on the number of containers on a workspace
+using `layout_options_rules`. This uses the same threshold-based logic as `layout_rules`:
+when the container count is greater than or equal to a threshold, the highest matching
+threshold's options are used.
+
+Rules **fully replace** the base `layout_options` when they match. If no rule matches, the
+base `layout_options` is used.
+
+### Configuration
+
+```json
+{
+  "monitors": [
+    {
+      "workspaces": [
+        {
+          "name": "main",
+          "layout": "VerticalStack",
+          "layout_options": {
+            "column_ratios": [0.6],
+            "row_ratios": [0.4]
+          },
+          "layout_options_rules": {
+            "3": { "column_ratios": [0.55] },
+            "5": { "column_ratios": [0.3, 0.3, 0.3], "row_ratios": [0.5] }
+          }
+        }
+      ]
+    }
+  ]
+}
+```
+
+In the example above:
+
+| Container Count | Effective `layout_options` |
+|-----------------|---------------------------|
+| 1-2 | Base: `column_ratios: [0.6]`, `row_ratios: [0.4]` |
+| 3-4 | Rule "3": `column_ratios: [0.55]` (no row_ratios, no scrolling, no grid) |
+| 5+ | Rule "5": `column_ratios: [0.3, 0.3, 0.3]`, `row_ratios: [0.5]` |
+
+Rules can include any field that `layout_options` supports: `column_ratios`, `row_ratios`,
+`scrolling`, and `grid`. When a rule matches, it completely replaces the base options. Fields
+not specified in the matching rule default to their standard defaults (not the base
+`layout_options` values).
+
+### Example: Scrolling Layout with Dynamic Columns
+
+```json
+{
+  "layout": "Scrolling",
+  "layout_options": {
+    "scrolling": { "columns": 2 }
+  },
+  "layout_options_rules": {
+    "4": { "scrolling": { "columns": 3 } },
+    "7": { "scrolling": { "columns": 4 } }
+  }
+}
+```
+
+This increases the visible scrolling columns as more windows are added.
+
 ## Progressive Ratio Behavior
 
 Ratios are applied progressively as windows are added. For example, with `row_ratios: [0.3, 0.5]` in a VerticalStack:
