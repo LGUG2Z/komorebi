@@ -58,6 +58,7 @@ use windows::Win32::UI::WindowsAndMessaging::GetWindowLongPtrW;
 use windows::Win32::UI::WindowsAndMessaging::IDC_ARROW;
 use windows::Win32::UI::WindowsAndMessaging::LoadCursorW;
 use windows::Win32::UI::WindowsAndMessaging::MSG;
+use windows::Win32::UI::WindowsAndMessaging::PostMessageW;
 use windows::Win32::UI::WindowsAndMessaging::PostQuitMessage;
 use windows::Win32::UI::WindowsAndMessaging::SM_CXVIRTUALSCREEN;
 use windows::Win32::UI::WindowsAndMessaging::SetCursor;
@@ -67,10 +68,15 @@ use windows::Win32::UI::WindowsAndMessaging::WM_CREATE;
 use windows::Win32::UI::WindowsAndMessaging::WM_DESTROY;
 use windows::Win32::UI::WindowsAndMessaging::WM_PAINT;
 use windows::Win32::UI::WindowsAndMessaging::WM_SETCURSOR;
+use windows::Win32::UI::WindowsAndMessaging::WM_USER;
 use windows::Win32::UI::WindowsAndMessaging::WNDCLASSW;
 use windows_core::BOOL;
 use windows_core::PCWSTR;
 use windows_numerics::Matrix3x2;
+
+/// Custom WM_USER message that tells the border window thread to call update_brushes() on itself,
+/// avoiding a data race between the border manager thread and the border's message loop thread.
+pub const WM_UPDATE_BRUSHES: u32 = WM_USER + 1;
 
 pub struct RenderFactory(ID2D1Factory);
 unsafe impl Sync for RenderFactory {}
@@ -318,18 +324,29 @@ impl Border {
     }
 
     pub fn destroy(&self) -> color_eyre::Result<()> {
-        // signal that we're destroying - prevents new render operations
+        // signal that we're destroying - prevents new render operations from starting
         self.is_destroying.store(true, Ordering::Release);
 
         // small delay to allow in-flight render operations to complete
         std::thread::sleep(std::time::Duration::from_millis(10));
 
-        // clear user data **BEFORE** closing window
-        // pending messages will see a null pointer and exit early
-        unsafe {
-            SetWindowLongPtrW(self.hwnd(), GWLP_USERDATA, 0);
-        }
+        // WM_DESTROY will clear GWLP_USERDATA and drop the render target before D2D
+        // frees its internal HwndPresenter during WM_NCDESTROY
         WindowsApi::close_window(self.hwnd)
+    }
+
+    /// Post a message to the border's own message loop thread requesting a brush update.
+    /// This ensures update_brushes() always runs on the window thread that owns the D2D
+    /// render target, preventing a data race with concurrent WndProc render operations.
+    pub fn request_brush_update(&self) {
+        let _ = unsafe {
+            PostMessageW(
+                Option::from(self.hwnd()),
+                WM_UPDATE_BRUSHES,
+                WPARAM(0),
+                LPARAM(0),
+            )
+        };
     }
 
     pub fn set_position(&self, rect: &Rect, reference_hwnd: isize) -> color_eyre::Result<()> {
@@ -574,6 +591,20 @@ impl Border {
                         }
                     }
                     let _ = ValidateRect(Option::from(window), None);
+                    LRESULT(0)
+                }
+                WM_UPDATE_BRUSHES => {
+                    let border_pointer: *mut Border = GetWindowLongPtrW(window, GWLP_USERDATA) as _;
+                    if border_pointer.is_null() {
+                        return LRESULT(0);
+                    }
+                    if (*border_pointer).is_destroying.load(Ordering::Acquire) {
+                        return LRESULT(0);
+                    }
+                    if let Err(error) = (*border_pointer).update_brushes() {
+                        tracing::error!("failed to update brushes: {error}");
+                    }
+                    (*border_pointer).invalidate();
                     LRESULT(0)
                 }
                 WM_DESTROY => {
