@@ -451,8 +451,11 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                             } else if matches!(notification, Notification::ForceUpdate) {
                                 // Update the border brushes if there was a forced update
                                 // notification and this is not a new border (new border's
-                                // already have their brushes updated on creation)
-                                border.update_brushes()?;
+                                // already have their brushes updated on creation).
+                                // Post to the border's own thread to avoid a data race between
+                                // this thread dropping the old render target and the window
+                                // thread mid-render holding a reference to it.
+                                border.request_brush_update();
                             }
 
                             border.invalidate();
@@ -616,8 +619,11 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                                 if forced_update && !new_border {
                                     // Update the border brushes if there was a forced update
                                     // notification and this is not a new border (new border's
-                                    // already have their brushes updated on creation)
-                                    border.update_brushes()?;
+                                    // already have their brushes updated on creation).
+                                    // Post to the border's own thread to avoid a data race between
+                                    // this thread dropping the old render target and the window
+                                    // thread mid-render holding a reference to it.
+                                    border.request_brush_update();
                                 }
                                 border.set_position(&rect, focused_window_hwnd)?;
                                 border.invalidate();
@@ -699,8 +705,11 @@ fn handle_floating_borders(
             if forced_update && !new_border {
                 // Update the border brushes if there was a forced update
                 // notification and this is not a new border (new border's
-                // already have their brushes updated on creation)
-                border.update_brushes()?;
+                // already have their brushes updated on creation).
+                // Post to the border's own thread to avoid a data race between
+                // this thread dropping the old render target and the window
+                // thread mid-render holding a reference to it.
+                border.request_brush_update();
             }
             border.set_position(&rect, window.hwnd)?;
             border.invalidate();
