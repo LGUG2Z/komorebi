@@ -295,6 +295,93 @@ impl Workspace {
         })
     }
 
+    fn clamp_scrolling_render_rect_to_work_area(work_area: &Rect, logical_layout: &Rect) -> Rect {
+        let work_area_right = work_area.left + work_area.right;
+        let max_left = (work_area_right - logical_layout.right).max(work_area.left);
+        let left = logical_layout.left.clamp(work_area.left, max_left);
+
+        Rect {
+            left,
+            top: logical_layout.top,
+            right: logical_layout.right,
+            bottom: logical_layout.bottom,
+        }
+    }
+
+    fn scrolling_render_layouts(
+        work_area: &Rect,
+        logical_layouts: &[Rect],
+        focused_idx: usize,
+    ) -> Vec<Option<Rect>> {
+        let mut render_layouts = vec![None; logical_layouts.len()];
+
+        if logical_layouts.is_empty() {
+            return render_layouts;
+        }
+
+        let anchor_idx = if logical_layouts
+            .get(focused_idx)
+            .is_some_and(|layout| Self::layout_intersects_work_area(work_area, layout))
+        {
+            focused_idx
+        } else if let Some(idx) = logical_layouts
+            .iter()
+            .position(|layout| Self::layout_intersects_work_area(work_area, layout))
+        {
+            idx
+        } else {
+            return render_layouts;
+        };
+
+        let anchor_layout =
+            Self::clamp_scrolling_render_rect_to_work_area(work_area, &logical_layouts[anchor_idx]);
+        render_layouts[anchor_idx] = Some(anchor_layout);
+
+        let mut left_boundary = anchor_layout.left;
+        for idx in (0..anchor_idx).rev() {
+            let logical_layout = &logical_layouts[idx];
+            if !Self::layout_intersects_work_area(work_area, logical_layout) {
+                continue;
+            }
+
+            let left = left_boundary - logical_layout.right;
+            if left < work_area.left {
+                continue;
+            }
+
+            render_layouts[idx] = Some(Rect {
+                left,
+                top: logical_layout.top,
+                right: logical_layout.right,
+                bottom: logical_layout.bottom,
+            });
+            left_boundary = left;
+        }
+
+        let work_area_right = work_area.left + work_area.right;
+        let mut right_boundary = anchor_layout.left + anchor_layout.right;
+        for (idx, logical_layout) in logical_layouts.iter().enumerate().skip(anchor_idx + 1) {
+            if !Self::layout_intersects_work_area(work_area, logical_layout) {
+                continue;
+            }
+
+            let right = right_boundary + logical_layout.right;
+            if right > work_area_right {
+                continue;
+            }
+
+            render_layouts[idx] = Some(Rect {
+                left: right_boundary,
+                top: logical_layout.top,
+                right: logical_layout.right,
+                bottom: logical_layout.bottom,
+            });
+            right_boundary = right;
+        }
+
+        render_layouts
+    }
+
     pub fn load_static_config(&mut self, config: &WorkspaceConfig) -> eyre::Result<()> {
         self.name = Option::from(config.name.clone());
 
@@ -736,6 +823,37 @@ impl Workspace {
                 let regex_identifiers = REGEX_IDENTIFIERS.lock().clone();
                 let should_park_offscreen_containers =
                     matches!(self.layout, Layout::Default(DefaultLayout::Scrolling));
+                let focused_container_idx = self.focused_container_idx();
+                let container_window_counts = self
+                    .containers()
+                    .iter()
+                    .map(|container| container.windows().len())
+                    .collect::<Vec<_>>();
+
+                if should_park_offscreen_containers {
+                    for (layout, window_count) in
+                        layouts.iter_mut().zip(container_window_counts.iter())
+                    {
+                        layout.add_padding(border_offset);
+                        layout.add_padding(border_width);
+
+                        if stackbar_manager::should_have_stackbar(*window_count) {
+                            let tab_height = STACKBAR_TAB_HEIGHT.load(Ordering::SeqCst);
+                            let total_height = tab_height + container_padding;
+
+                            layout.top += total_height;
+                            layout.bottom -= total_height;
+                        }
+                    }
+                }
+
+                let scrolling_render_layouts = should_park_offscreen_containers.then(|| {
+                    Self::scrolling_render_layouts(
+                        &adjusted_work_area,
+                        &layouts,
+                        focused_container_idx,
+                    )
+                });
 
                 let containers = self.containers_mut();
 
@@ -743,19 +861,28 @@ impl Workspace {
                     let window_count = container.windows().len();
 
                     if let Some(layout) = layouts.get_mut(i) {
-                        let should_park = should_park_offscreen_containers
-                            && !Self::layout_intersects_work_area(&adjusted_work_area, layout);
+                        let render_layout = scrolling_render_layouts
+                            .as_ref()
+                            .and_then(|render_layouts| render_layouts.get(i))
+                            .copied()
+                            .flatten();
+                        let should_park =
+                            should_park_offscreen_containers && render_layout.is_none();
 
-                        layout.add_padding(border_offset);
-                        layout.add_padding(border_width);
+                        if !should_park_offscreen_containers {
+                            layout.add_padding(border_offset);
+                            layout.add_padding(border_width);
 
-                        if stackbar_manager::should_have_stackbar(window_count) {
-                            let tab_height = STACKBAR_TAB_HEIGHT.load(Ordering::SeqCst);
-                            let total_height = tab_height + container_padding;
+                            if stackbar_manager::should_have_stackbar(window_count) {
+                                let tab_height = STACKBAR_TAB_HEIGHT.load(Ordering::SeqCst);
+                                let total_height = tab_height + container_padding;
 
-                            layout.top += total_height;
-                            layout.bottom -= total_height;
+                                layout.top += total_height;
+                                layout.bottom -= total_height;
+                            }
                         }
+
+                        let applied_layout = render_layout.unwrap_or(*layout);
 
                         for window in container.windows() {
                             if container
@@ -814,23 +941,23 @@ impl Workspace {
                                 if let Some(current_window_rect) = current_window_rect {
                                     if let Some(reveal_layout) = Self::scrolling_reveal_render_rect(
                                         &adjusted_work_area,
-                                        layout,
+                                        &applied_layout,
                                         &current_window_rect,
                                     )? {
                                         window.set_position_from_rect(
                                             reveal_layout,
-                                            layout,
+                                            &applied_layout,
                                             false,
                                         )?;
                                     } else {
                                         window.set_position_from_rect(
                                             current_window_rect,
-                                            layout,
+                                            &applied_layout,
                                             false,
                                         )?;
                                     }
                                 } else {
-                                    window.set_position(layout, false)?;
+                                    window.set_position(&applied_layout, false)?;
                                 }
                             }
                         }
@@ -2990,5 +3117,86 @@ mod tests {
         );
 
         assert!(reveal.is_none());
+    }
+
+    #[test]
+    fn test_scrolling_render_layouts_scrolls_left_neighbor_offscreen_when_focused_grows_right() {
+        let work_area = Rect {
+            left: 0,
+            top: 0,
+            right: 1000,
+            bottom: 800,
+        };
+        let logical_layouts = vec![
+            Rect {
+                left: 0,
+                top: 0,
+                right: 400,
+                bottom: 800,
+            },
+            Rect {
+                left: 400,
+                top: 0,
+                right: 700,
+                bottom: 800,
+            },
+            Rect {
+                left: 1100,
+                top: 0,
+                right: 300,
+                bottom: 800,
+            },
+        ];
+
+        let render_layouts = Workspace::scrolling_render_layouts(&work_area, &logical_layouts, 1);
+
+        assert!(render_layouts[0].is_none());
+        assert_eq!(
+            render_layouts[1],
+            Some(Rect {
+                left: 300,
+                top: 0,
+                right: 700,
+                bottom: 800,
+            })
+        );
+        assert!(render_layouts[2].is_none());
+    }
+
+    #[test]
+    fn test_scrolling_render_layouts_scrolls_right_neighbor_offscreen_when_focused_grows_left() {
+        let work_area = Rect {
+            left: 0,
+            top: 0,
+            right: 1000,
+            bottom: 800,
+        };
+        let logical_layouts = vec![
+            Rect {
+                left: -100,
+                top: 0,
+                right: 700,
+                bottom: 800,
+            },
+            Rect {
+                left: 600,
+                top: 0,
+                right: 400,
+                bottom: 800,
+            },
+        ];
+
+        let render_layouts = Workspace::scrolling_render_layouts(&work_area, &logical_layouts, 0);
+
+        assert_eq!(
+            render_layouts[0],
+            Some(Rect {
+                left: 0,
+                top: 0,
+                right: 700,
+                bottom: 800,
+            })
+        );
+        assert!(render_layouts[1].is_none());
     }
 }
