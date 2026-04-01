@@ -335,48 +335,34 @@ impl Workspace {
 
         let anchor_layout =
             Self::clamp_scrolling_render_rect_to_work_area(work_area, &logical_layouts[anchor_idx]);
-        render_layouts[anchor_idx] = Some(anchor_layout);
+        let work_area_right = work_area.left + work_area.right;
+        let work_area_bottom = work_area.top + work_area.bottom;
+        let translation = anchor_layout.left - logical_layouts[anchor_idx].left;
 
-        let mut left_boundary = anchor_layout.left;
-        for idx in (0..anchor_idx).rev() {
-            let logical_layout = &logical_layouts[idx];
+        for (idx, logical_layout) in logical_layouts.iter().enumerate() {
             if !Self::layout_intersects_work_area(work_area, logical_layout) {
                 continue;
             }
 
-            let left = left_boundary - logical_layout.right;
-            if left < work_area.left {
+            let left = logical_layout.left + translation;
+            let top = logical_layout.top;
+            let right = left + logical_layout.right;
+            let bottom = top + logical_layout.bottom;
+
+            if left < work_area.left
+                || right > work_area_right
+                || top < work_area.top
+                || bottom > work_area_bottom
+            {
                 continue;
             }
 
             render_layouts[idx] = Some(Rect {
                 left,
-                top: logical_layout.top,
+                top,
                 right: logical_layout.right,
                 bottom: logical_layout.bottom,
             });
-            left_boundary = left;
-        }
-
-        let work_area_right = work_area.left + work_area.right;
-        let mut right_boundary = anchor_layout.left + anchor_layout.right;
-        for (idx, logical_layout) in logical_layouts.iter().enumerate().skip(anchor_idx + 1) {
-            if !Self::layout_intersects_work_area(work_area, logical_layout) {
-                continue;
-            }
-
-            let right = right_boundary + logical_layout.right;
-            if right > work_area_right {
-                continue;
-            }
-
-            render_layouts[idx] = Some(Rect {
-                left: right_boundary,
-                top: logical_layout.top,
-                right: logical_layout.right,
-                bottom: logical_layout.bottom,
-            });
-            right_boundary = right;
         }
 
         render_layouts
@@ -3161,6 +3147,50 @@ mod tests {
             })
         );
         assert!(render_layouts[2].is_none());
+    }
+
+    #[test]
+    fn test_scrolling_render_layouts_preserves_gap_between_visible_windows() {
+        let work_area = Rect {
+            left: 0,
+            top: 0,
+            right: 1000,
+            bottom: 800,
+        };
+        let logical_layouts = vec![
+            Rect {
+                left: 200,
+                top: 0,
+                right: 300,
+                bottom: 800,
+            },
+            Rect {
+                left: 550,
+                top: 0,
+                right: 600,
+                bottom: 800,
+            },
+        ];
+
+        let render_layouts = Workspace::scrolling_render_layouts(&work_area, &logical_layouts, 1);
+
+        assert_eq!(
+            render_layouts,
+            vec![
+                Some(Rect {
+                    left: 50,
+                    top: 0,
+                    right: 300,
+                    bottom: 800,
+                }),
+                Some(Rect {
+                    left: 400,
+                    top: 0,
+                    right: 600,
+                    bottom: 800,
+                }),
+            ]
+        );
     }
 
     #[test]
