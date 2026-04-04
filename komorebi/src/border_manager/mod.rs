@@ -125,6 +125,14 @@ pub fn send_force_update() {
     }
 }
 
+fn has_pending_border_resize() -> bool {
+    BORDER_STATE.lock().values().any(|border| {
+        WindowsApi::window_rect(border.tracking_hwnd)
+            .map(|rect| rect != border.window_rect)
+            .unwrap_or(true)
+    })
+}
+
 pub fn destroy_all_borders() -> color_eyre::Result<()> {
     let mut borders = BORDER_STATE.lock();
     tracing::info!(
@@ -313,6 +321,11 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                             should_process_notification = true;
                         }
 
+                        // geometry-only changes need a full border pass too
+                        if !should_process_notification && has_pending_border_resize() {
+                            should_process_notification = true;
+                        }
+
                         // when we switch focus to/from a floating window
                         let switch_focus_to_from_floating_window =
                             floating_window_hwnds.iter().any(|fw| {
@@ -444,11 +457,14 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                             border.monitor_idx = Some(monitor_idx);
 
                             let rect = WindowsApi::window_rect(focused_window_hwnd)?;
+                            let rect_changed = border.window_rect != rect;
                             border.window_rect = rect;
 
-                            if new_border {
+                            if new_border || rect_changed {
                                 border.set_position(&rect, focused_window_hwnd)?;
-                            } else if matches!(notification, Notification::ForceUpdate) {
+                            }
+
+                            if matches!(notification, Notification::ForceUpdate) && !new_border {
                                 // Update the border brushes if there was a forced update
                                 // notification and this is not a new border (new border's
                                 // already have their brushes updated on creation)
@@ -605,9 +621,11 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                                     continue 'containers;
                                 }
                             };
+                            let rect_changed = border.window_rect != rect;
                             border.window_rect = rect;
 
                             let should_invalidate = new_border
+                                || rect_changed
                                 || (last_focus_state != new_focus_state)
                                 || layer_changed
                                 || forced_update;
@@ -690,10 +708,14 @@ fn handle_floating_borders(
         border.monitor_idx = Some(monitor_idx);
 
         let rect = WindowsApi::window_rect(window.hwnd)?;
+        let rect_changed = border.window_rect != rect;
         border.window_rect = rect;
 
-        let should_invalidate =
-            new_border || (last_focus_state != new_focus_state) || layer_changed || forced_update;
+        let should_invalidate = new_border
+            || rect_changed
+            || (last_focus_state != new_focus_state)
+            || layer_changed
+            || forced_update;
 
         if should_invalidate {
             if forced_update && !new_border {
