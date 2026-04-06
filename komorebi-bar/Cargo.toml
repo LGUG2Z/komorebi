@@ -34,7 +34,7 @@ reqwest = { version = "0.12", features = ["blocking"] }
 schemars = { workspace = true, optional = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
-starship-battery = "0.10"
+starship-battery = "0.11"
 sysinfo = { workspace = true }
 systray-util = "0.2.0"
 tokio = { version = "1", features = ["rt", "sync", "time"] }
