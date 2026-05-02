@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use clap::ValueEnum;
 use serde::Deserialize;
 use serde::Serialize;
@@ -54,7 +56,7 @@ pub fn validate_ratios(ratios: &[f32]) -> [Option<f32>; MAX_RATIOS] {
 }
 
 #[derive(
-    Clone, Copy, Debug, Serialize, Deserialize, Eq, PartialEq, Display, EnumString, ValueEnum,
+    Clone, Copy, Debug, Serialize, Deserialize, Eq, PartialEq, Hash, Display, EnumString, ValueEnum,
 )]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 /// A predefined komorebi layout
@@ -248,6 +250,21 @@ pub struct ScrollingLayoutOptions {
 pub struct GridLayoutOptions {
     /// Maximum number of rows per grid column
     pub rows: usize,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+/// Per-layout default options entry for the `layout_defaults` global setting.
+/// Contains both base layout options and threshold-based layout options rules.
+pub struct LayoutDefaultEntry {
+    /// Default layout options for this layout
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub layout_options: Option<LayoutOptions>,
+    /// Threshold-based layout options rules in the format of threshold => options.
+    /// When container count >= threshold, the highest matching threshold's options
+    /// fully replace the base `layout_options`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub layout_options_rules: Option<HashMap<usize, LayoutOptions>>,
 }
 
 impl DefaultLayout {

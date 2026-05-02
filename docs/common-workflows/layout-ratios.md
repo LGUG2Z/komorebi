@@ -237,6 +237,78 @@ not specified in the matching rule default to their standard defaults (not the b
 
 This increases the visible scrolling columns as more windows are added.
 
+## Layout Defaults
+
+You can define global per-layout default `layout_options` and `layout_options_rules` using
+the top-level `layout_defaults` setting. This avoids repeating the same configuration across
+every workspace that uses the same layout.
+
+### Configuration
+
+```json
+{
+  "layout_defaults": {
+    "VerticalStack": {
+      "layout_options": { "column_ratios": [0.7] },
+      "layout_options_rules": {
+        "2": { "column_ratios": [0.7] },
+        "3": { "column_ratios": [0.55] },
+        "5": { "column_ratios": [0.4] }
+      }
+    },
+    "Columns": {
+      "layout_options": { "column_ratios": [0.3, 0.4] },
+      "layout_options_rules": {
+        "4": { "column_ratios": [0.2, 0.3, 0.3] }
+      }
+    },
+    "HorizontalStack": {
+      "layout_options": { "row_ratios": [0.6] }
+    }
+  },
+  "monitors": [
+    {
+      "workspaces": [
+        {
+          "name": "main",
+          "layout": "VerticalStack"
+        }
+      ]
+    }
+  ]
+}
+```
+
+In this example, every workspace using `VerticalStack`, `Columns`, or `HorizontalStack`
+automatically gets the global `layout_options` and `layout_options_rules` without needing
+to specify them per-workspace. Note that `VerticalStack` only has 2 columns (main + stack),
+so only a single `column_ratios` value is meaningful, while `Columns` distributes windows
+across multiple columns where additional ratios control each column's width.
+
+### Resolution Cascade
+
+Global defaults act as a fallback. If a workspace defines **either** `layout_options` or
+`layout_options_rules`, it **completely replaces** all global `layout_defaults` for that
+layout. Global defaults are only used when the workspace has **neither** setting.
+
+Within the effective source (workspace or global):
+1. Try threshold match from the rules (highest matching threshold wins)
+2. If a rule matches → use it (full replacement of base options)
+3. Otherwise → use the base `layout_options`
+
+### Override Examples
+
+| Workspace Config | Global Config | Effective Behavior |
+|------------------|---------------|--------------------|
+| No `layout_options`, no rules | `layout_defaults` has both | Uses global base + global rules |
+| Has `layout_options` only | `layout_defaults` has both | Workspace base only (all globals ignored) |
+| Has `layout_options_rules` only | `layout_defaults` has both | Workspace rules only (all globals ignored) |
+| Has both | `layout_defaults` has both | All workspace (all globals ignored) |
+
+This "complete replacement" semantic means you never get a mix of workspace and global
+settings for the same layout. If you override anything at the workspace level, you take
+full control of that layout's options for that workspace.
+
 ## Progressive Ratio Behavior
 
 Ratios are applied progressively as windows are added. For example, with `row_ratios: [0.3, 0.5]` in a VerticalStack:

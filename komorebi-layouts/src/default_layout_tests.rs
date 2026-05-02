@@ -433,3 +433,522 @@ mod layout_options_rules_tests {
         assert!(opts.grid.is_none());
     }
 }
+
+mod layout_default_entry_tests {
+    use super::*;
+    use std::collections::HashMap;
+
+    #[test]
+    fn test_default_layout_as_hashmap_key() {
+        let mut map: HashMap<DefaultLayout, &str> = HashMap::new();
+        map.insert(DefaultLayout::BSP, "bsp");
+        map.insert(DefaultLayout::VerticalStack, "vstack");
+        map.insert(DefaultLayout::Columns, "cols");
+
+        assert_eq!(map.len(), 3);
+        assert_eq!(map[&DefaultLayout::BSP], "bsp");
+        assert_eq!(map[&DefaultLayout::VerticalStack], "vstack");
+        assert_eq!(map[&DefaultLayout::Columns], "cols");
+    }
+
+    #[test]
+    fn test_default_layout_hash_consistency() {
+        // Same variant inserted twice should overwrite
+        let mut map: HashMap<DefaultLayout, i32> = HashMap::new();
+        map.insert(DefaultLayout::Grid, 1);
+        map.insert(DefaultLayout::Grid, 2);
+        assert_eq!(map.len(), 1);
+        assert_eq!(map[&DefaultLayout::Grid], 2);
+    }
+
+    #[test]
+    fn test_layout_default_entry_deserialize_full() {
+        let json = r#"{
+            "layout_options": {"column_ratios": [0.7]},
+            "layout_options_rules": {
+                "2": {"column_ratios": [0.7]},
+                "3": {"column_ratios": [0.55]},
+                "5": {"column_ratios": [0.3, 0.3, 0.3]}
+            }
+        }"#;
+        let entry: LayoutDefaultEntry = serde_json::from_str(json).unwrap();
+
+        let base = entry.layout_options.unwrap();
+        assert_eq!(base.column_ratios.unwrap()[0], Some(0.7));
+
+        let rules = entry.layout_options_rules.unwrap();
+        assert_eq!(rules.len(), 3);
+        assert_eq!(rules[&2].column_ratios.unwrap()[0], Some(0.7));
+        assert_eq!(rules[&3].column_ratios.unwrap()[0], Some(0.55));
+        let r5 = rules[&5].column_ratios.unwrap();
+        assert_eq!(r5[0], Some(0.3));
+        assert_eq!(r5[1], Some(0.3));
+        assert_eq!(r5[2], Some(0.3));
+    }
+
+    #[test]
+    fn test_layout_default_entry_deserialize_only_base() {
+        let json = r#"{
+            "layout_options": {"column_ratios": [0.6]}
+        }"#;
+        let entry: LayoutDefaultEntry = serde_json::from_str(json).unwrap();
+
+        assert!(entry.layout_options.is_some());
+        assert_eq!(
+            entry.layout_options.unwrap().column_ratios.unwrap()[0],
+            Some(0.6)
+        );
+        assert!(entry.layout_options_rules.is_none());
+    }
+
+    #[test]
+    fn test_layout_default_entry_deserialize_only_rules() {
+        let json = r#"{
+            "layout_options_rules": {
+                "3": {"column_ratios": [0.4]}
+            }
+        }"#;
+        let entry: LayoutDefaultEntry = serde_json::from_str(json).unwrap();
+
+        assert!(entry.layout_options.is_none());
+        let rules = entry.layout_options_rules.unwrap();
+        assert_eq!(rules.len(), 1);
+        assert_eq!(rules[&3].column_ratios.unwrap()[0], Some(0.4));
+    }
+
+    #[test]
+    fn test_layout_default_entry_deserialize_empty() {
+        let json = r#"{}"#;
+        let entry: LayoutDefaultEntry = serde_json::from_str(json).unwrap();
+        assert!(entry.layout_options.is_none());
+        assert!(entry.layout_options_rules.is_none());
+    }
+
+    #[test]
+    fn test_layout_default_entry_roundtrip() {
+        let json = r#"{
+            "layout_options": {"column_ratios": [0.7]},
+            "layout_options_rules": {
+                "2": {"column_ratios": [0.6]},
+                "5": {"column_ratios": [0.3, 0.3, 0.3]}
+            }
+        }"#;
+        let original: LayoutDefaultEntry = serde_json::from_str(json).unwrap();
+        let serialized = serde_json::to_string(&original).unwrap();
+        let deserialized: LayoutDefaultEntry = serde_json::from_str(&serialized).unwrap();
+
+        assert_eq!(
+            original.layout_options.unwrap().column_ratios,
+            deserialized.layout_options.unwrap().column_ratios
+        );
+        let orig_rules = original.layout_options_rules.unwrap();
+        let deser_rules = deserialized.layout_options_rules.unwrap();
+        assert_eq!(orig_rules.len(), deser_rules.len());
+        for (key, orig_opts) in &orig_rules {
+            let deser_opts = &deser_rules[key];
+            assert_eq!(orig_opts.column_ratios, deser_opts.column_ratios);
+        }
+    }
+
+    #[test]
+    fn test_layout_defaults_full_config_deserialize() {
+        // Simulate the top-level layout_defaults field
+        let json = r#"{
+            "VerticalStack": {
+                "layout_options": {"column_ratios": [0.7]},
+                "layout_options_rules": {
+                    "2": {"column_ratios": [0.7]},
+                    "3": {"column_ratios": [0.55]}
+                }
+            },
+            "HorizontalStack": {
+                "layout_options": {"column_ratios": [0.6]}
+            },
+            "Columns": {
+                "layout_options_rules": {
+                    "4": {"column_ratios": [0.3, 0.3, 0.3]}
+                }
+            }
+        }"#;
+        let defaults: HashMap<DefaultLayout, LayoutDefaultEntry> =
+            serde_json::from_str(json).unwrap();
+
+        assert_eq!(defaults.len(), 3);
+
+        // VerticalStack: has both base and rules
+        let vs = &defaults[&DefaultLayout::VerticalStack];
+        assert!(vs.layout_options.is_some());
+        assert_eq!(vs.layout_options_rules.as_ref().unwrap().len(), 2);
+
+        // HorizontalStack: has only base
+        let hs = &defaults[&DefaultLayout::HorizontalStack];
+        assert!(hs.layout_options.is_some());
+        assert!(hs.layout_options_rules.is_none());
+
+        // Columns: has only rules
+        let cols = &defaults[&DefaultLayout::Columns];
+        assert!(cols.layout_options.is_none());
+        assert_eq!(cols.layout_options_rules.as_ref().unwrap().len(), 1);
+    }
+
+    #[test]
+    fn test_layout_default_entry_with_scrolling_and_grid() {
+        let json = r#"{
+            "layout_options": {
+                "column_ratios": [0.5],
+                "scrolling": {"columns": 3},
+                "grid": {"rows": 2}
+            },
+            "layout_options_rules": {
+                "4": {
+                    "scrolling": {"columns": 5, "center_focused_column": true}
+                }
+            }
+        }"#;
+        let entry: LayoutDefaultEntry = serde_json::from_str(json).unwrap();
+
+        let base = entry.layout_options.unwrap();
+        assert_eq!(base.scrolling.unwrap().columns, 3);
+        assert_eq!(base.grid.unwrap().rows, 2);
+
+        let rules = entry.layout_options_rules.unwrap();
+        let r4 = &rules[&4];
+        assert_eq!(r4.scrolling.unwrap().columns, 5);
+        assert_eq!(r4.scrolling.unwrap().center_focused_column, Some(true));
+        // Rule doesn't inherit base fields - full replacement
+        assert!(r4.column_ratios.is_none());
+        assert!(r4.grid.is_none());
+    }
+
+    #[test]
+    fn test_layout_default_entry_skip_serializing_none() {
+        // When both fields are None, they should not appear in output
+        let entry = LayoutDefaultEntry {
+            layout_options: None,
+            layout_options_rules: None,
+        };
+        let json = serde_json::to_string(&entry).unwrap();
+        assert!(!json.contains("layout_options"));
+        assert!(!json.contains("layout_options_rules"));
+        assert_eq!(json, "{}");
+    }
+}
+
+/// Tests for the complete-replacement cascade logic.
+///
+/// This mirrors the resolution algorithm in workspace.rs::update():
+///   - If the workspace defines EITHER layout_options OR layout_options_rules,
+///     it completely replaces the global layout_defaults for this layout.
+///   - Global defaults are only used when the workspace has NEITHER setting.
+///   - Within the effective source (workspace or global):
+///     1. Try threshold match from rules (highest matching threshold wins)
+///     2. If a rule matches -> use it (full replacement of base)
+///     3. Else -> use the base layout_options
+///
+/// Since the actual cascade is in workspace.rs (which has heavy WM dependencies),
+/// we test the pure algorithm here using the same data structures.
+mod cascade_resolution_tests {
+    use super::*;
+
+    /// Simulates the cascade resolution logic from workspace.rs::update().
+    /// This is a pure function equivalent of the inline code in update().
+    fn resolve_effective_options(
+        container_count: usize,
+        workspace_base: Option<LayoutOptions>,
+        workspace_rules: &[(usize, LayoutOptions)], // sorted by threshold ascending
+        global_base: Option<LayoutOptions>,
+        global_rules: &[(usize, LayoutOptions)], // sorted by threshold ascending
+    ) -> Option<LayoutOptions> {
+        let has_workspace_overrides = workspace_base.is_some() || !workspace_rules.is_empty();
+
+        let (effective_base, effective_rules): (Option<LayoutOptions>, &[(usize, LayoutOptions)]) =
+            if has_workspace_overrides {
+                (workspace_base, workspace_rules)
+            } else {
+                (global_base, global_rules)
+            };
+
+        // Try threshold match from effective rules
+        let mut matched = None;
+        for (threshold, opts) in effective_rules {
+            if container_count >= *threshold {
+                matched = Some(*opts);
+            }
+        }
+
+        // If a rule matched, use it (full replacement); otherwise use effective base
+        if matched.is_some() {
+            matched
+        } else {
+            effective_base
+        }
+    }
+
+    fn opts_with_ratio(ratio: f32) -> LayoutOptions {
+        layout_options_with_column_ratios(&[ratio])
+    }
+
+    // --- No overrides ---
+
+    #[test]
+    fn test_no_workspace_no_global_returns_none() {
+        let result = resolve_effective_options(3, None, &[], None, &[]);
+        assert!(result.is_none());
+    }
+
+    // --- Base-only scenarios ---
+
+    #[test]
+    fn test_workspace_base_only() {
+        let ws_base = opts_with_ratio(0.7);
+        let result = resolve_effective_options(3, Some(ws_base), &[], None, &[]);
+        assert_eq!(result.unwrap().column_ratios, ws_base.column_ratios);
+    }
+
+    #[test]
+    fn test_global_base_only() {
+        let global_base = opts_with_ratio(0.6);
+        let result = resolve_effective_options(3, None, &[], Some(global_base), &[]);
+        assert_eq!(result.unwrap().column_ratios, global_base.column_ratios);
+    }
+
+    #[test]
+    fn test_workspace_base_overrides_all_globals() {
+        // Workspace has base → globals (both base and rules) are ignored entirely
+        let ws_base = opts_with_ratio(0.7);
+        let global_base = opts_with_ratio(0.6);
+        let global_rules = vec![(2, opts_with_ratio(0.5))];
+        let result =
+            resolve_effective_options(3, Some(ws_base), &[], Some(global_base), &global_rules);
+        // Workspace base wins; global rules are NOT used even though they would match
+        assert_eq!(result.unwrap().column_ratios, ws_base.column_ratios);
+    }
+
+    // --- Rules-only scenarios ---
+
+    #[test]
+    fn test_global_rules_match() {
+        let global_rules = vec![(2, opts_with_ratio(0.6)), (4, opts_with_ratio(0.5))];
+        // 3 containers: matches threshold 2, not 4
+        let result = resolve_effective_options(3, None, &[], None, &global_rules);
+        assert_eq!(result.unwrap().column_ratios.unwrap()[0], Some(0.6));
+    }
+
+    #[test]
+    fn test_global_rules_highest_matching_threshold_wins() {
+        let global_rules = vec![(2, opts_with_ratio(0.6)), (4, opts_with_ratio(0.5))];
+        // 5 containers: matches both thresholds 2 and 4; highest (4) wins
+        let result = resolve_effective_options(5, None, &[], None, &global_rules);
+        assert_eq!(result.unwrap().column_ratios.unwrap()[0], Some(0.5));
+    }
+
+    #[test]
+    fn test_global_rules_no_match_falls_through_to_none() {
+        let global_rules = vec![(5, opts_with_ratio(0.5))];
+        // 3 containers: doesn't match threshold 5
+        let result = resolve_effective_options(3, None, &[], None, &global_rules);
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_global_rules_no_match_falls_through_to_global_base() {
+        let global_base = opts_with_ratio(0.6);
+        let global_rules = vec![(5, opts_with_ratio(0.5))];
+        // 3 containers: doesn't match threshold 5, falls back to global base
+        let result = resolve_effective_options(3, None, &[], Some(global_base), &global_rules);
+        assert_eq!(result.unwrap().column_ratios, global_base.column_ratios);
+    }
+
+    #[test]
+    fn test_workspace_rules_override_global_rules() {
+        let ws_rules = vec![(2, opts_with_ratio(0.8))];
+        let global_rules = vec![(2, opts_with_ratio(0.6))];
+        // Workspace has rules → global rules are ignored entirely
+        let result = resolve_effective_options(3, None, &ws_rules, None, &global_rules);
+        assert_eq!(result.unwrap().column_ratios.unwrap()[0], Some(0.8));
+    }
+
+    // --- Complete replacement: workspace having EITHER setting disables ALL globals ---
+
+    #[test]
+    fn test_workspace_rules_disable_global_base() {
+        // Workspace has rules but no base. Global has base.
+        // Since workspace has a setting, globals are completely replaced.
+        let ws_rules = vec![(2, opts_with_ratio(0.8))];
+        let global_base = opts_with_ratio(0.6);
+        // Rule matches → use it. Global base is NOT available as fallback.
+        let result = resolve_effective_options(3, None, &ws_rules, Some(global_base), &[]);
+        assert_eq!(result.unwrap().column_ratios.unwrap()[0], Some(0.8));
+    }
+
+    #[test]
+    fn test_workspace_rules_no_match_does_not_fall_to_global_base() {
+        // Workspace has rules (but they don't match). Global has base.
+        // Since workspace has a setting, globals are completely replaced → returns None.
+        let ws_rules = vec![(5, opts_with_ratio(0.8))];
+        let global_base = opts_with_ratio(0.6);
+        let result = resolve_effective_options(3, None, &ws_rules, Some(global_base), &[]);
+        // No workspace base, no rule match, globals ignored → None
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_workspace_base_disables_global_rules() {
+        // Workspace has base but no rules. Global has rules.
+        // Since workspace has a setting, globals are completely replaced.
+        let ws_base = opts_with_ratio(0.7);
+        let global_rules = vec![(2, opts_with_ratio(0.5))];
+        // No workspace rules → no rule match → use workspace base. Global rules ignored.
+        let result = resolve_effective_options(3, Some(ws_base), &[], None, &global_rules);
+        assert_eq!(result.unwrap().column_ratios, ws_base.column_ratios);
+    }
+
+    #[test]
+    fn test_workspace_base_disables_global_rules_and_base() {
+        // Workspace has base. Global has both rules and base.
+        // Since workspace has a setting, all globals are completely replaced.
+        let ws_base = opts_with_ratio(0.7);
+        let global_base = opts_with_ratio(0.6);
+        let global_rules = vec![(2, opts_with_ratio(0.5))];
+        let result =
+            resolve_effective_options(3, Some(ws_base), &[], Some(global_base), &global_rules);
+        // Only workspace base is used; global rules and base are both ignored
+        assert_eq!(result.unwrap().column_ratios, ws_base.column_ratios);
+    }
+
+    #[test]
+    fn test_workspace_rules_disable_global_rules_and_base() {
+        // Workspace has rules. Global has both rules and base.
+        // Since workspace has a setting, all globals are completely replaced.
+        let ws_rules = vec![(2, opts_with_ratio(0.8))];
+        let global_base = opts_with_ratio(0.6);
+        let global_rules = vec![(2, opts_with_ratio(0.5))];
+        let result =
+            resolve_effective_options(3, None, &ws_rules, Some(global_base), &global_rules);
+        // Workspace rule matches → 0.8. Global base and rules both ignored.
+        assert_eq!(result.unwrap().column_ratios.unwrap()[0], Some(0.8));
+    }
+
+    // --- Full replacement semantics (rule match replaces base) ---
+
+    #[test]
+    fn test_rule_match_is_full_replacement_not_merge() {
+        // When a rule matches, its options FULLY REPLACE the base.
+        // Fields not specified in the rule default to their standard defaults.
+        let ws_base = layout_options_with_ratios(&[0.7], &[0.4]);
+        let rule_opts = layout_options_with_column_ratios(&[0.5]);
+        // rule_opts has column_ratios but no row_ratios
+        let ws_rules = vec![(2, rule_opts)];
+        let result = resolve_effective_options(3, Some(ws_base), &ws_rules, None, &[]);
+        let effective = result.unwrap();
+        // Column ratios come from the rule
+        assert_eq!(effective.column_ratios.unwrap()[0], Some(0.5));
+        // Row ratios are NOT inherited from ws_base - they're None (full replacement)
+        assert!(effective.row_ratios.is_none());
+    }
+
+    // --- Edge cases ---
+
+    #[test]
+    fn test_exact_threshold_match() {
+        let rules = vec![(3, opts_with_ratio(0.6))];
+        let result = resolve_effective_options(3, None, &rules, None, &[]);
+        assert_eq!(result.unwrap().column_ratios.unwrap()[0], Some(0.6));
+    }
+
+    #[test]
+    fn test_container_count_one_below_threshold() {
+        let rules = vec![(3, opts_with_ratio(0.6))];
+        let result = resolve_effective_options(2, None, &rules, None, &[]);
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_zero_containers() {
+        let ws_base = opts_with_ratio(0.7);
+        let rules = vec![(1, opts_with_ratio(0.5))];
+        let result = resolve_effective_options(0, Some(ws_base), &rules, None, &[]);
+        // 0 containers doesn't match threshold 1 → falls back to workspace base
+        assert_eq!(result.unwrap().column_ratios, ws_base.column_ratios);
+    }
+
+    #[test]
+    fn test_many_thresholds_correct_match() {
+        let rules = vec![
+            (1, opts_with_ratio(0.8)),
+            (3, opts_with_ratio(0.6)),
+            (5, opts_with_ratio(0.4)),
+            (8, opts_with_ratio(0.3)),
+        ];
+        // 6 containers: matches 1, 3, 5 but not 8. Highest match is 5.
+        let result = resolve_effective_options(6, None, &rules, None, &[]);
+        assert_eq!(result.unwrap().column_ratios.unwrap()[0], Some(0.4));
+    }
+
+    #[test]
+    fn test_workspace_rules_disable_global_rules_even_if_ws_rules_dont_match() {
+        // Key behavior: if workspace has ANY setting, globals are entirely ignored.
+        // Even if workspace rules don't match, we don't fall back to global rules.
+        let ws_rules = vec![(10, opts_with_ratio(0.8))]; // threshold too high
+        let global_rules = vec![(2, opts_with_ratio(0.5))]; // would match
+        let result = resolve_effective_options(3, None, &ws_rules, None, &global_rules);
+        // Workspace has rules → all globals ignored. WS rules don't match → None.
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_all_four_sources_present_rules_match() {
+        // All four sources present: workspace base, workspace rules, global base, global rules
+        let ws_base = opts_with_ratio(0.7);
+        let ws_rules = vec![(2, opts_with_ratio(0.8))];
+        let global_base = opts_with_ratio(0.6);
+        let global_rules = vec![(2, opts_with_ratio(0.5))];
+        let result = resolve_effective_options(
+            3,
+            Some(ws_base),
+            &ws_rules,
+            Some(global_base),
+            &global_rules,
+        );
+        // Workspace has settings → uses workspace only. Rule matches → 0.8
+        assert_eq!(result.unwrap().column_ratios.unwrap()[0], Some(0.8));
+    }
+
+    #[test]
+    fn test_all_four_sources_present_rules_no_match() {
+        // All four sources present, but workspace rules don't match
+        let ws_base = opts_with_ratio(0.7);
+        let ws_rules = vec![(10, opts_with_ratio(0.8))]; // threshold too high
+        let global_base = opts_with_ratio(0.6);
+        let global_rules = vec![(10, opts_with_ratio(0.5))]; // also too high
+        let result = resolve_effective_options(
+            3,
+            Some(ws_base),
+            &ws_rules,
+            Some(global_base),
+            &global_rules,
+        );
+        // Workspace has settings → uses workspace only. No rule match → workspace base 0.7
+        assert_eq!(result.unwrap().column_ratios, ws_base.column_ratios);
+    }
+
+    // --- Workspace with both base and rules ---
+
+    #[test]
+    fn test_workspace_both_rule_matches() {
+        let ws_base = opts_with_ratio(0.7);
+        let ws_rules = vec![(2, opts_with_ratio(0.5))];
+        let result = resolve_effective_options(3, Some(ws_base), &ws_rules, None, &[]);
+        // Rule matches → use rule (full replacement), not ws_base
+        assert_eq!(result.unwrap().column_ratios.unwrap()[0], Some(0.5));
+    }
+
+    #[test]
+    fn test_workspace_both_rule_no_match() {
+        let ws_base = opts_with_ratio(0.7);
+        let ws_rules = vec![(10, opts_with_ratio(0.5))];
+        let result = resolve_effective_options(3, Some(ws_base), &ws_rules, None, &[]);
+        // Rule doesn't match → fall back to ws_base
+        assert_eq!(result.unwrap().column_ratios, ws_base.column_ratios);
+    }
+}

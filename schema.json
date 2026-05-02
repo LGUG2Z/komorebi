@@ -304,6 +304,16 @@
         "$ref": "#/$defs/MatchingRule"
       }
     },
+    "layout_defaults": {
+      "description": "Per-layout default options and rules, keyed by layout name.\nApplied as fallback when a workspace does not define its own layout_options or layout_options_rules.\nIf a workspace defines either setting, all global defaults for that layout are completely replaced.",
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": {
+        "$ref": "#/$defs/LayoutDefaultEntry"
+      }
+    },
     "manage_rules": {
       "description": "Individual window force-manage rules",
       "type": [
@@ -3289,6 +3299,36 @@
       "required": [
         "colours"
       ]
+    },
+    "LayoutDefaultEntry": {
+      "description": "Per-layout default options entry for the `layout_defaults` global setting.\nContains both base layout options and threshold-based layout options rules.",
+      "type": "object",
+      "properties": {
+        "layout_options": {
+          "description": "Default layout options for this layout",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/LayoutOptions"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "layout_options_rules": {
+          "description": "Threshold-based layout options rules in the format of threshold => options.\nWhen container count >= threshold, the highest matching threshold's options\nfully replace the base `layout_options`.",
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": false,
+          "patternProperties": {
+            "^\\d+$": {
+              "$ref": "#/$defs/LayoutOptions"
+            }
+          }
+        }
+      }
     },
     "LayoutOptions": {
       "description": "Options for specific layouts",

@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::collections::VecDeque;
 use std::ffi::OsStr;
 use std::fmt::Display;
@@ -25,6 +26,7 @@ use crate::core::CustomLayout;
 use crate::core::CycleDirection;
 use crate::core::DefaultLayout;
 use crate::core::Layout;
+use crate::core::LayoutDefaultEntry;
 use crate::core::LayoutOptions;
 use crate::core::OperationDirection;
 use crate::core::Rect;
@@ -65,6 +67,10 @@ pub struct Workspace {
     /// Sorted by threshold ascending at load time.
     #[serde(default)]
     pub layout_options_rules: Vec<(usize, LayoutOptions)>,
+    /// Cached per-layout defaults from the global `layout_defaults` config setting.
+    /// Pre-sorted at config load time; used as fallback when workspace has no overrides.
+    #[serde(skip)]
+    pub(crate) layout_defaults_cache: HashMap<DefaultLayout, CachedLayoutDefault>,
     pub work_area_offset_rules: Vec<(usize, Rect)>,
     pub layout_flip: Option<Axis>,
     pub workspace_padding: Option<i32>,
@@ -124,6 +130,7 @@ impl Default for Workspace {
             layout_options: None,
             layout_rules: vec![],
             layout_options_rules: vec![],
+            layout_defaults_cache: HashMap::new(),
             work_area_offset_rules: vec![],
             layout_flip: None,
             workspace_padding: Option::from(DEFAULT_WORKSPACE_PADDING.load(Ordering::SeqCst)),
@@ -170,8 +177,49 @@ pub struct WorkspaceGlobals {
     pub floating_layer_behaviour: Option<FloatingLayerBehaviour>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+/// Cached per-layout default options (pre-sorted rules) derived from the global `layout_defaults`.
+pub(crate) struct CachedLayoutDefault {
+    pub layout_options: Option<LayoutOptions>,
+    /// Threshold-based rules, sorted by threshold ascending at load time
+    pub layout_options_rules: Vec<(usize, LayoutOptions)>,
+}
+
+/// Convert an optional HashMap of threshold-based layout options rules into a Vec sorted by
+/// threshold ascending.
+fn sorted_layout_options_rules(
+    rules: Option<&HashMap<usize, LayoutOptions>>,
+) -> Vec<(usize, LayoutOptions)> {
+    match rules {
+        Some(rules) => {
+            let mut sorted: Vec<(usize, LayoutOptions)> =
+                rules.iter().map(|(t, o)| (*t, *o)).collect();
+            sorted.sort_by_key(|(t, _)| *t);
+            sorted
+        }
+        None => vec![],
+    }
+}
+
+/// Find the highest matching threshold rule for the given container count.
+/// Rules must be sorted by threshold ascending.
+fn resolve_threshold_match(
+    rules: &[(usize, LayoutOptions)],
+    container_count: usize,
+) -> Option<LayoutOptions> {
+    rules
+        .iter()
+        .rev()
+        .find(|(threshold, _)| container_count >= *threshold)
+        .map(|(_, opts)| *opts)
+}
+
 impl Workspace {
-    pub fn load_static_config(&mut self, config: &WorkspaceConfig) -> eyre::Result<()> {
+    pub fn load_static_config(
+        &mut self,
+        config: &WorkspaceConfig,
+        layout_defaults: Option<&HashMap<DefaultLayout, LayoutDefaultEntry>>,
+    ) -> eyre::Result<()> {
         self.name = Option::from(config.name.clone());
 
         self.container_padding = config.container_padding;
@@ -261,14 +309,8 @@ impl Workspace {
         self.layout_options = config.layout_options;
 
         // Load threshold-based layout options rules, sorted by threshold ascending
-        self.layout_options_rules = if let Some(rules) = &config.layout_options_rules {
-            let mut sorted_rules: Vec<(usize, LayoutOptions)> =
-                rules.iter().map(|(t, o)| (*t, *o)).collect();
-            sorted_rules.sort_by_key(|(t, _)| *t);
-            sorted_rules
-        } else {
-            vec![]
-        };
+        self.layout_options_rules =
+            sorted_layout_options_rules(config.layout_options_rules.as_ref());
 
         tracing::debug!(
             "Workspace '{}' loaded layout_options: {:?}, layout_options_rules: {} entries",
@@ -277,9 +319,61 @@ impl Workspace {
             self.layout_options_rules.len(),
         );
 
+        // Cache per-layout defaults from global layout_defaults, pre-sorting rules
+        self.layout_defaults_cache = if let Some(defaults) = layout_defaults {
+            defaults
+                .iter()
+                .map(|(layout, entry)| {
+                    (
+                        *layout,
+                        CachedLayoutDefault {
+                            layout_options: entry.layout_options,
+                            layout_options_rules: sorted_layout_options_rules(
+                                entry.layout_options_rules.as_ref(),
+                            ),
+                        },
+                    )
+                })
+                .collect()
+        } else {
+            HashMap::new()
+        };
+
         self.workspace_config = Some(config.clone());
 
         Ok(())
+    }
+
+    /// Compute effective layout options using the complete-replacement cascade:
+    ///
+    /// If the workspace defines EITHER `layout_options` OR `layout_options_rules`,
+    /// it completely replaces the global `layout_defaults` for this layout.
+    /// Global defaults are only used when the workspace has NEITHER setting.
+    ///
+    /// Within the effective source (workspace or global):
+    ///   1. Try threshold match from rules (highest matching threshold wins)
+    ///   2. If a rule matches -> use it (full replacement of base)
+    ///   3. Else -> use the base `layout_options`
+    fn effective_layout_options(&self) -> Option<LayoutOptions> {
+        let container_count = self.containers().len();
+
+        let has_workspace_overrides =
+            self.layout_options.is_some() || !self.layout_options_rules.is_empty();
+
+        let (effective_base, effective_rules): (Option<LayoutOptions>, &[(usize, LayoutOptions)]) =
+            if has_workspace_overrides {
+                (self.layout_options, &self.layout_options_rules)
+            } else {
+                match &self.layout {
+                    Layout::Default(dl) => match self.layout_defaults_cache.get(dl) {
+                        Some(entry) => (entry.layout_options, &entry.layout_options_rules),
+                        None => (None, &[]),
+                    },
+                    Layout::Custom(_) => (None, &[]),
+                }
+            };
+
+        resolve_threshold_match(effective_rules, container_count).or(effective_base)
     }
 
     pub fn hide(&mut self, omit: Option<isize>) {
@@ -602,27 +696,7 @@ impl Workspace {
             } else if let Some(window) = &mut self.maximized_window {
                 window.maximize();
             } else if !self.containers().is_empty() {
-                // Compute effective layout options:
-                //   1. If layout_options_rules has a matching threshold (container_count >= threshold),
-                //      use the highest matching threshold's options (full replacement)
-                //   2. Otherwise, use the workspace base layout_options
-                let effective_layout_options = if !self.layout_options_rules.is_empty() {
-                    let container_count = self.containers().len();
-                    let mut matched = None;
-                    for (threshold, opts) in &self.layout_options_rules {
-                        if container_count >= *threshold {
-                            matched = Some(*opts);
-                        }
-                    }
-                    // If a rule matched, use it entirely (replaces base layout_options)
-                    if matched.is_some() {
-                        matched
-                    } else {
-                        self.layout_options
-                    }
-                } else {
-                    self.layout_options
-                };
+                let effective_layout_options = self.effective_layout_options();
 
                 tracing::debug!(
                     "Workspace '{}' update() - effective_layout_options: {:?} (base: {:?}, rules: {})",

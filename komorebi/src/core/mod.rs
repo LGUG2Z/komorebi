@@ -32,6 +32,7 @@ pub use komorebi_layouts::DefaultLayout;
 pub use komorebi_layouts::Direction;
 pub use komorebi_layouts::GridLayoutOptions;
 pub use komorebi_layouts::Layout;
+pub use komorebi_layouts::LayoutDefaultEntry;
 pub use komorebi_layouts::LayoutOptions;
 pub use komorebi_layouts::MAX_RATIO;
 pub use komorebi_layouts::MAX_RATIOS;
