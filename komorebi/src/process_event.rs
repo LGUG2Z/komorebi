@@ -215,7 +215,31 @@ impl WindowManager {
             WindowManagerEvent::FocusChange(_, window)
             | WindowManagerEvent::Show(_, window)
             | WindowManagerEvent::MoveResizeEnd(_, window) => {
-                if let Some(monitor_idx) = self.monitor_idx_from_window(window) {
+                let scrolling_assigned_monitor_idx =
+                    self.known_hwnds
+                        .get(&window.hwnd)
+                        .and_then(|(monitor_idx, workspace_idx)| {
+                            self.monitors()
+                                .get(*monitor_idx)
+                                .and_then(|monitor| monitor.workspaces().get(*workspace_idx))
+                                .and_then(|workspace| {
+                                    // Scrolling can temporarily park non-visible tiled windows beyond
+                                    // the virtual desktop to keep them off neighboring monitors. In
+                                    // that state, MonitorFromWindow reports the parked coordinates
+                                    // rather than the workspace that logically owns the window, so we
+                                    // prefer the assigned monitor for managed scrolling containers.
+                                    (matches!(
+                                        workspace.layout,
+                                        Layout::Default(DefaultLayout::Scrolling)
+                                    ) && workspace.container_idx_for_window(window.hwnd).is_some())
+                                    .then_some(*monitor_idx)
+                                })
+                        });
+
+                let monitor_idx =
+                    scrolling_assigned_monitor_idx.or_else(|| self.monitor_idx_from_window(window));
+
+                if let Some(monitor_idx) = monitor_idx {
                     // This is a hidden window apparently associated with COM support mechanisms (based
                     // on a post from http://www.databaseteam.org/1-ms-sql-server/a5bb344836fb889c.htm)
                     //

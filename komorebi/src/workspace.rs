@@ -166,6 +166,208 @@ pub struct WorkspaceGlobals {
 }
 
 impl Workspace {
+    /// Scrolling layout computes a logical strip of container rectangles in virtual-desktop
+    /// coordinates. On horizontally arranged multi-monitor setups, a column that is logically
+    /// outside one monitor can still become physically visible on a neighboring monitor because
+    /// Windows positions top-level windows in global desktop space.
+    ///
+    /// We keep that logical strip intact for focus, resize, and scroll calculations, but we treat
+    /// rendering separately: any scrolling column that is fully outside this workspace's work area
+    /// is parked just beyond the virtual desktop instead of being placed at its logical x/y.
+    ///
+    /// This keeps scrolling behavior monitor-local without minimizing or unmanaging windows that
+    /// are temporarily outside the visible range, and it leaves room for this parking behavior to
+    /// become a user-facing configuration option later if we want to make it selectable.
+    fn layout_intersects_work_area(work_area: &Rect, layout: &Rect) -> bool {
+        let work_area_right = work_area.left + work_area.right;
+        let work_area_bottom = work_area.top + work_area.bottom;
+        let layout_right = layout.left + layout.right;
+        let layout_bottom = layout.top + layout.bottom;
+
+        layout.left < work_area_right
+            && layout_right > work_area.left
+            && layout.top < work_area_bottom
+            && layout_bottom > work_area.top
+    }
+
+    /// Park a non-visible scrolling column beyond the virtual desktop so that it cannot spill onto
+    /// an adjacent monitor. We preserve the window's current size while parking it so that apps do
+    /// not see an off-screen resize and recompute their layout unnecessarily.
+    ///
+    /// We also preserve which side of the workspace the logical scrolling column belongs to. That
+    /// keeps reveal animations directionally consistent: columns hidden off the left edge return
+    /// from the left, and columns hidden off the right edge return from the right. This parking
+    /// strategy can also become a user-facing configuration option later if we decide to expose it.
+    fn scrolling_offscreen_render_rect(
+        work_area: &Rect,
+        logical_layout: &Rect,
+        current_window_rect: &Rect,
+        container_idx: usize,
+    ) -> eyre::Result<Rect> {
+        let virtual_screen = WindowsApi::virtual_screen()?;
+        Ok(Self::scrolling_offscreen_render_rect_for_virtual_screen(
+            &virtual_screen,
+            work_area,
+            logical_layout,
+            current_window_rect,
+            container_idx,
+        ))
+    }
+
+    fn scrolling_offscreen_render_rect_for_virtual_screen(
+        virtual_screen: &Rect,
+        work_area: &Rect,
+        logical_layout: &Rect,
+        current_window_rect: &Rect,
+        container_idx: usize,
+    ) -> Rect {
+        let gap = 32;
+        let slot = i32::try_from(container_idx).unwrap_or(i32::MAX);
+        let width = current_window_rect.right.max(1);
+        let height = current_window_rect.bottom.max(1);
+        let logical_layout_right = logical_layout.left + logical_layout.right;
+
+        let left = if logical_layout_right <= work_area.left {
+            virtual_screen.left - width - gap - slot.saturating_mul(width.saturating_add(gap))
+        } else {
+            virtual_screen.left
+                + virtual_screen.right
+                + gap
+                + slot.saturating_mul(width.saturating_add(gap))
+        };
+
+        Rect {
+            left,
+            top: virtual_screen.top + gap,
+            right: width,
+            bottom: height,
+        }
+    }
+
+    fn rect_is_outside_virtual_screen_horizontally(virtual_screen: &Rect, rect: &Rect) -> bool {
+        let virtual_screen_right = virtual_screen.left + virtual_screen.right;
+        let rect_right = rect.left + rect.right;
+
+        rect_right <= virtual_screen.left || rect.left >= virtual_screen_right
+    }
+
+    fn scrolling_reveal_render_rect(
+        work_area: &Rect,
+        logical_layout: &Rect,
+        current_window_rect: &Rect,
+    ) -> eyre::Result<Option<Rect>> {
+        let virtual_screen = WindowsApi::virtual_screen()?;
+        Ok(Self::scrolling_reveal_render_rect_for_virtual_screen(
+            &virtual_screen,
+            work_area,
+            logical_layout,
+            current_window_rect,
+        ))
+    }
+
+    fn scrolling_reveal_render_rect_for_virtual_screen(
+        virtual_screen: &Rect,
+        work_area: &Rect,
+        logical_layout: &Rect,
+        current_window_rect: &Rect,
+    ) -> Option<Rect> {
+        if !Self::rect_is_outside_virtual_screen_horizontally(virtual_screen, current_window_rect) {
+            return None;
+        }
+
+        let width = current_window_rect.right.max(1);
+        let height = current_window_rect.bottom.max(1);
+        let work_area_right = work_area.left + work_area.right;
+        let max_left = (work_area_right - width).max(work_area.left);
+        let current_rect_right = current_window_rect.left + current_window_rect.right;
+
+        let left = if current_rect_right <= virtual_screen.left {
+            work_area.left
+        } else {
+            max_left
+        };
+
+        Some(Rect {
+            left,
+            top: logical_layout.top,
+            right: width,
+            bottom: height,
+        })
+    }
+
+    fn clamp_scrolling_render_rect_to_work_area(work_area: &Rect, logical_layout: &Rect) -> Rect {
+        let work_area_right = work_area.left + work_area.right;
+        let max_left = (work_area_right - logical_layout.right).max(work_area.left);
+        let left = logical_layout.left.clamp(work_area.left, max_left);
+
+        Rect {
+            left,
+            top: logical_layout.top,
+            right: logical_layout.right,
+            bottom: logical_layout.bottom,
+        }
+    }
+
+    fn scrolling_render_layouts(
+        work_area: &Rect,
+        logical_layouts: &[Rect],
+        focused_idx: usize,
+    ) -> Vec<Option<Rect>> {
+        let mut render_layouts = vec![None; logical_layouts.len()];
+
+        if logical_layouts.is_empty() {
+            return render_layouts;
+        }
+
+        let anchor_idx = if logical_layouts
+            .get(focused_idx)
+            .is_some_and(|layout| Self::layout_intersects_work_area(work_area, layout))
+        {
+            focused_idx
+        } else if let Some(idx) = logical_layouts
+            .iter()
+            .position(|layout| Self::layout_intersects_work_area(work_area, layout))
+        {
+            idx
+        } else {
+            return render_layouts;
+        };
+
+        let anchor_layout =
+            Self::clamp_scrolling_render_rect_to_work_area(work_area, &logical_layouts[anchor_idx]);
+        let work_area_right = work_area.left + work_area.right;
+        let work_area_bottom = work_area.top + work_area.bottom;
+        let translation = anchor_layout.left - logical_layouts[anchor_idx].left;
+
+        for (idx, logical_layout) in logical_layouts.iter().enumerate() {
+            if !Self::layout_intersects_work_area(work_area, logical_layout) {
+                continue;
+            }
+
+            let left = logical_layout.left + translation;
+            let top = logical_layout.top;
+            let right = left + logical_layout.right;
+            let bottom = top + logical_layout.bottom;
+
+            if left < work_area.left
+                || right > work_area_right
+                || top < work_area.top
+                || bottom > work_area_bottom
+            {
+                continue;
+            }
+
+            render_layouts[idx] = Some(Rect {
+                left,
+                top,
+                right: logical_layout.right,
+                bottom: logical_layout.bottom,
+            });
+        }
+
+        render_layouts
+    }
+
     pub fn load_static_config(&mut self, config: &WorkspaceConfig) -> eyre::Result<()> {
         self.name = Option::from(config.name.clone());
 
@@ -605,6 +807,39 @@ impl Workspace {
                 let should_remove_titlebars = REMOVE_TITLEBARS.load(Ordering::SeqCst);
                 let no_titlebar = NO_TITLEBAR.lock().clone();
                 let regex_identifiers = REGEX_IDENTIFIERS.lock().clone();
+                let should_park_offscreen_containers =
+                    matches!(self.layout, Layout::Default(DefaultLayout::Scrolling));
+                let focused_container_idx = self.focused_container_idx();
+                let container_window_counts = self
+                    .containers()
+                    .iter()
+                    .map(|container| container.windows().len())
+                    .collect::<Vec<_>>();
+
+                if should_park_offscreen_containers {
+                    for (layout, window_count) in
+                        layouts.iter_mut().zip(container_window_counts.iter())
+                    {
+                        layout.add_padding(border_offset);
+                        layout.add_padding(border_width);
+
+                        if stackbar_manager::should_have_stackbar(*window_count) {
+                            let tab_height = STACKBAR_TAB_HEIGHT.load(Ordering::SeqCst);
+                            let total_height = tab_height + container_padding;
+
+                            layout.top += total_height;
+                            layout.bottom -= total_height;
+                        }
+                    }
+                }
+
+                let scrolling_render_layouts = should_park_offscreen_containers.then(|| {
+                    Self::scrolling_render_layouts(
+                        &adjusted_work_area,
+                        &layouts,
+                        focused_container_idx,
+                    )
+                });
 
                 let containers = self.containers_mut();
 
@@ -612,16 +847,28 @@ impl Workspace {
                     let window_count = container.windows().len();
 
                     if let Some(layout) = layouts.get_mut(i) {
-                        layout.add_padding(border_offset);
-                        layout.add_padding(border_width);
+                        let render_layout = scrolling_render_layouts
+                            .as_ref()
+                            .and_then(|render_layouts| render_layouts.get(i))
+                            .copied()
+                            .flatten();
+                        let should_park =
+                            should_park_offscreen_containers && render_layout.is_none();
 
-                        if stackbar_manager::should_have_stackbar(window_count) {
-                            let tab_height = STACKBAR_TAB_HEIGHT.load(Ordering::SeqCst);
-                            let total_height = tab_height + container_padding;
+                        if !should_park_offscreen_containers {
+                            layout.add_padding(border_offset);
+                            layout.add_padding(border_width);
 
-                            layout.top += total_height;
-                            layout.bottom -= total_height;
+                            if stackbar_manager::should_have_stackbar(window_count) {
+                                let tab_height = STACKBAR_TAB_HEIGHT.load(Ordering::SeqCst);
+                                let total_height = tab_height + container_padding;
+
+                                layout.top += total_height;
+                                layout.bottom -= total_height;
+                            }
                         }
+
+                        let applied_layout = render_layout.unwrap_or(*layout);
 
                         for window in container.windows() {
                             if container
@@ -650,11 +897,62 @@ impl Workspace {
                                     WindowsApi::restore_window(window.hwnd);
                                 }
                             }
-                            window.set_position(layout, false)?;
+
+                            let current_window_rect = if should_park_offscreen_containers {
+                                Some(WindowsApi::window_rect(window.hwnd)?)
+                            } else {
+                                None
+                            };
+
+                            if should_park {
+                                // We intentionally skip movement animations when parking a window.
+                                // Animating between the visible monitor and an off-screen parking
+                                // slot would drag the window across the user's displays.
+                                //
+                                // Could becom a setting ?
+                                let parked_layout = Self::scrolling_offscreen_render_rect(
+                                    &adjusted_work_area,
+                                    layout,
+                                    &current_window_rect.unwrap_or_default(),
+                                    i,
+                                )?;
+
+                                WindowsApi::position_window(
+                                    window.hwnd,
+                                    &parked_layout,
+                                    false,
+                                    true,
+                                )?;
+                            } else {
+                                if let Some(current_window_rect) = current_window_rect {
+                                    if let Some(reveal_layout) = Self::scrolling_reveal_render_rect(
+                                        &adjusted_work_area,
+                                        &applied_layout,
+                                        &current_window_rect,
+                                    )? {
+                                        window.set_position_from_rect(
+                                            reveal_layout,
+                                            &applied_layout,
+                                            false,
+                                        )?;
+                                    } else {
+                                        window.set_position_from_rect(
+                                            current_window_rect,
+                                            &applied_layout,
+                                            false,
+                                        )?;
+                                    }
+                                } else {
+                                    window.set_position(&applied_layout, false)?;
+                                }
+                            }
                         }
                     }
                 }
 
+                // Keep latest_layout as the logical scrolling strip rather than the parked render
+                // positions so focus, hit-testing, resize constraints, and future scroll updates
+                // continue to operate on the workspace-relative layout model.
                 self.latest_layout = layouts;
             }
         }
@@ -2569,5 +2867,366 @@ mod tests {
             assert_eq!(visible_windows[1].unwrap().hwnd, 100);
             assert_eq!(visible_windows[2].unwrap().hwnd, 300);
         }
+    }
+
+    #[test]
+    fn test_layout_intersects_work_area_when_layout_is_partially_visible() {
+        let work_area = Rect {
+            left: 0,
+            top: 0,
+            right: 1920,
+            bottom: 1080,
+        };
+        let layout = Rect {
+            left: 1600,
+            top: 0,
+            right: 640,
+            bottom: 1080,
+        };
+
+        assert!(Workspace::layout_intersects_work_area(&work_area, &layout));
+    }
+
+    #[test]
+    fn test_layout_intersects_work_area_when_layout_is_fully_offscreen() {
+        let work_area = Rect {
+            left: 0,
+            top: 0,
+            right: 1920,
+            bottom: 1080,
+        };
+        let layout = Rect {
+            left: 1920,
+            top: 0,
+            right: 640,
+            bottom: 1080,
+        };
+
+        assert!(!Workspace::layout_intersects_work_area(&work_area, &layout));
+    }
+
+    #[test]
+    fn test_scrolling_offscreen_render_rect_for_virtual_screen_places_right_layout_outside_bounds()
+    {
+        let virtual_screen = Rect {
+            left: -1920,
+            top: 0,
+            right: 3840,
+            bottom: 1080,
+        };
+        let work_area = Rect {
+            left: 0,
+            top: 0,
+            right: 1920,
+            bottom: 1080,
+        };
+        let logical_layout = Rect {
+            left: 1920,
+            top: 0,
+            right: 640,
+            bottom: 1080,
+        };
+        let current_window_rect = Rect {
+            left: 500,
+            top: 0,
+            right: 640,
+            bottom: 1080,
+        };
+
+        let parked = Workspace::scrolling_offscreen_render_rect_for_virtual_screen(
+            &virtual_screen,
+            &work_area,
+            &logical_layout,
+            &current_window_rect,
+            2,
+        );
+
+        assert!(parked.left >= virtual_screen.left + virtual_screen.right);
+        assert_eq!(parked.right, current_window_rect.right);
+        assert_eq!(parked.bottom, current_window_rect.bottom);
+    }
+
+    #[test]
+    fn test_scrolling_offscreen_render_rect_for_virtual_screen_places_left_layout_outside_bounds() {
+        let virtual_screen = Rect {
+            left: -1920,
+            top: 0,
+            right: 3840,
+            bottom: 1080,
+        };
+        let work_area = Rect {
+            left: 0,
+            top: 0,
+            right: 1920,
+            bottom: 1080,
+        };
+        let logical_layout = Rect {
+            left: -640,
+            top: 0,
+            right: 640,
+            bottom: 1080,
+        };
+        let current_window_rect = Rect {
+            left: 500,
+            top: 0,
+            right: 640,
+            bottom: 1080,
+        };
+
+        let parked = Workspace::scrolling_offscreen_render_rect_for_virtual_screen(
+            &virtual_screen,
+            &work_area,
+            &logical_layout,
+            &current_window_rect,
+            2,
+        );
+
+        assert!(parked.left + parked.right <= virtual_screen.left);
+        assert_eq!(parked.right, current_window_rect.right);
+        assert_eq!(parked.bottom, current_window_rect.bottom);
+    }
+
+    #[test]
+    fn test_scrolling_reveal_render_rect_for_virtual_screen_starts_at_workspace_left_edge() {
+        let virtual_screen = Rect {
+            left: -1920,
+            top: 0,
+            right: 5760,
+            bottom: 1440,
+        };
+        let work_area = Rect {
+            left: 0,
+            top: 0,
+            right: 1920,
+            bottom: 1080,
+        };
+        let logical_layout = Rect {
+            left: 640,
+            top: 20,
+            right: 640,
+            bottom: 1040,
+        };
+        let current_window_rect = Rect {
+            left: -2600,
+            top: 32,
+            right: 640,
+            bottom: 1040,
+        };
+
+        let reveal = Workspace::scrolling_reveal_render_rect_for_virtual_screen(
+            &virtual_screen,
+            &work_area,
+            &logical_layout,
+            &current_window_rect,
+        )
+        .unwrap();
+
+        assert_eq!(reveal.left, work_area.left);
+        assert_eq!(reveal.top, logical_layout.top);
+        assert_eq!(reveal.right, current_window_rect.right);
+        assert_eq!(reveal.bottom, current_window_rect.bottom);
+    }
+
+    #[test]
+    fn test_scrolling_reveal_render_rect_for_virtual_screen_starts_at_workspace_right_edge() {
+        let virtual_screen = Rect {
+            left: -1920,
+            top: 0,
+            right: 5760,
+            bottom: 1440,
+        };
+        let work_area = Rect {
+            left: 1920,
+            top: 0,
+            right: 1920,
+            bottom: 1080,
+        };
+        let logical_layout = Rect {
+            left: 2240,
+            top: 40,
+            right: 640,
+            bottom: 1000,
+        };
+        let current_window_rect = Rect {
+            left: 3900,
+            top: 32,
+            right: 640,
+            bottom: 1000,
+        };
+
+        let reveal = Workspace::scrolling_reveal_render_rect_for_virtual_screen(
+            &virtual_screen,
+            &work_area,
+            &logical_layout,
+            &current_window_rect,
+        )
+        .unwrap();
+
+        assert_eq!(reveal.left, 3200);
+        assert_eq!(reveal.top, logical_layout.top);
+        assert_eq!(reveal.right, current_window_rect.right);
+        assert_eq!(reveal.bottom, current_window_rect.bottom);
+    }
+
+    #[test]
+    fn test_scrolling_reveal_render_rect_for_virtual_screen_ignores_non_parked_windows() {
+        let virtual_screen = Rect {
+            left: -1920,
+            top: 0,
+            right: 5760,
+            bottom: 1440,
+        };
+        let work_area = Rect {
+            left: 1920,
+            top: 0,
+            right: 1920,
+            bottom: 1080,
+        };
+        let logical_layout = Rect {
+            left: 2240,
+            top: 40,
+            right: 640,
+            bottom: 1000,
+        };
+        let current_window_rect = Rect {
+            left: 2240,
+            top: 40,
+            right: 640,
+            bottom: 1000,
+        };
+
+        let reveal = Workspace::scrolling_reveal_render_rect_for_virtual_screen(
+            &virtual_screen,
+            &work_area,
+            &logical_layout,
+            &current_window_rect,
+        );
+
+        assert!(reveal.is_none());
+    }
+
+    #[test]
+    fn test_scrolling_render_layouts_scrolls_left_neighbor_offscreen_when_focused_grows_right() {
+        let work_area = Rect {
+            left: 0,
+            top: 0,
+            right: 1000,
+            bottom: 800,
+        };
+        let logical_layouts = vec![
+            Rect {
+                left: 0,
+                top: 0,
+                right: 400,
+                bottom: 800,
+            },
+            Rect {
+                left: 400,
+                top: 0,
+                right: 700,
+                bottom: 800,
+            },
+            Rect {
+                left: 1100,
+                top: 0,
+                right: 300,
+                bottom: 800,
+            },
+        ];
+
+        let render_layouts = Workspace::scrolling_render_layouts(&work_area, &logical_layouts, 1);
+
+        assert!(render_layouts[0].is_none());
+        assert_eq!(
+            render_layouts[1],
+            Some(Rect {
+                left: 300,
+                top: 0,
+                right: 700,
+                bottom: 800,
+            })
+        );
+        assert!(render_layouts[2].is_none());
+    }
+
+    #[test]
+    fn test_scrolling_render_layouts_preserves_gap_between_visible_windows() {
+        let work_area = Rect {
+            left: 0,
+            top: 0,
+            right: 1000,
+            bottom: 800,
+        };
+        let logical_layouts = vec![
+            Rect {
+                left: 200,
+                top: 0,
+                right: 300,
+                bottom: 800,
+            },
+            Rect {
+                left: 550,
+                top: 0,
+                right: 600,
+                bottom: 800,
+            },
+        ];
+
+        let render_layouts = Workspace::scrolling_render_layouts(&work_area, &logical_layouts, 1);
+
+        assert_eq!(
+            render_layouts,
+            vec![
+                Some(Rect {
+                    left: 50,
+                    top: 0,
+                    right: 300,
+                    bottom: 800,
+                }),
+                Some(Rect {
+                    left: 400,
+                    top: 0,
+                    right: 600,
+                    bottom: 800,
+                }),
+            ]
+        );
+    }
+
+    #[test]
+    fn test_scrolling_render_layouts_scrolls_right_neighbor_offscreen_when_focused_grows_left() {
+        let work_area = Rect {
+            left: 0,
+            top: 0,
+            right: 1000,
+            bottom: 800,
+        };
+        let logical_layouts = vec![
+            Rect {
+                left: -100,
+                top: 0,
+                right: 700,
+                bottom: 800,
+            },
+            Rect {
+                left: 600,
+                top: 0,
+                right: 400,
+                bottom: 800,
+            },
+        ];
+
+        let render_layouts = Workspace::scrolling_render_layouts(&work_area, &logical_layouts, 0);
+
+        assert_eq!(
+            render_layouts[0],
+            Some(Rect {
+                left: 0,
+                top: 0,
+                right: 700,
+                bottom: 800,
+            })
+        );
+        assert!(render_layouts[1].is_none());
     }
 }

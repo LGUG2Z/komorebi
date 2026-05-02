@@ -443,10 +443,13 @@ impl Window {
         )
     }
 
-    pub fn set_position(&self, layout: &Rect, top: bool) -> eyre::Result<()> {
-        let window_rect = WindowsApi::window_rect(self.hwnd)?;
-
-        if window_rect.eq(layout) {
+    pub fn set_position_from_rect(
+        &self,
+        start_rect: Rect,
+        layout: &Rect,
+        top: bool,
+    ) -> eyre::Result<()> {
+        if start_rect.eq(layout) {
             return Ok(());
         }
 
@@ -468,12 +471,18 @@ impl Window {
                 .unwrap_or(&ANIMATION_STYLE_GLOBAL.lock());
 
             let render_dispatcher =
-                MovementRenderDispatcher::new(self.hwnd, window_rect, *layout, top, style);
+                MovementRenderDispatcher::new(self.hwnd, start_rect, *layout, top, style);
 
             AnimationEngine::animate(render_dispatcher, duration)
         } else {
             WindowsApi::position_window(self.hwnd, layout, top, true)
         }
+    }
+
+    pub fn set_position(&self, layout: &Rect, top: bool) -> eyre::Result<()> {
+        let window_rect = WindowsApi::window_rect(self.hwnd)?;
+
+        self.set_position_from_rect(window_rect, layout, top)
     }
 
     pub fn is_maximized(self) -> bool {

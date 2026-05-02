@@ -90,6 +90,7 @@ use windows::Win32::UI::WindowsAndMessaging::GetCursorPos;
 use windows::Win32::UI::WindowsAndMessaging::GetDesktopWindow;
 use windows::Win32::UI::WindowsAndMessaging::GetForegroundWindow;
 use windows::Win32::UI::WindowsAndMessaging::GetLayeredWindowAttributes;
+use windows::Win32::UI::WindowsAndMessaging::GetSystemMetrics;
 use windows::Win32::UI::WindowsAndMessaging::GetTopWindow;
 use windows::Win32::UI::WindowsAndMessaging::GetWindow;
 use windows::Win32::UI::WindowsAndMessaging::GetWindowLongPtrW;
@@ -112,6 +113,10 @@ use windows::Win32::UI::WindowsAndMessaging::RegisterClassW;
 use windows::Win32::UI::WindowsAndMessaging::RegisterDeviceNotificationW;
 use windows::Win32::UI::WindowsAndMessaging::SET_WINDOW_POS_FLAGS;
 use windows::Win32::UI::WindowsAndMessaging::SHOW_WINDOW_CMD;
+use windows::Win32::UI::WindowsAndMessaging::SM_CXVIRTUALSCREEN;
+use windows::Win32::UI::WindowsAndMessaging::SM_CYVIRTUALSCREEN;
+use windows::Win32::UI::WindowsAndMessaging::SM_XVIRTUALSCREEN;
+use windows::Win32::UI::WindowsAndMessaging::SM_YVIRTUALSCREEN;
 use windows::Win32::UI::WindowsAndMessaging::SPI_GETACTIVEWINDOWTRACKING;
 use windows::Win32::UI::WindowsAndMessaging::SPI_GETFOREGROUNDLOCKTIMEOUT;
 use windows::Win32::UI::WindowsAndMessaging::SPI_SETACTIVEWINDOWTRACKING;
@@ -472,6 +477,18 @@ impl WindowsApi {
         // MONITOR_DEFAULTTONEAREST ensures that the return value will never be NULL
         // https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-monitorfromwindow
         unsafe { MonitorFromPoint(point, MONITOR_DEFAULTTONEAREST) }.0 as isize
+    }
+
+    pub fn virtual_screen() -> eyre::Result<Rect> {
+        // The virtual screen is the bounding rectangle that contains all attached displays in
+        // desktop coordinates. Scrolling layout uses this to park non-visible columns completely
+        // outside the user's visible monitor arrangement while keeping the windows managed.
+        Ok(Rect {
+            left: unsafe { GetSystemMetrics(SM_XVIRTUALSCREEN) },
+            top: unsafe { GetSystemMetrics(SM_YVIRTUALSCREEN) },
+            right: unsafe { GetSystemMetrics(SM_CXVIRTUALSCREEN) },
+            bottom: unsafe { GetSystemMetrics(SM_CYVIRTUALSCREEN) },
+        })
     }
 
     /// position window resizes the target window to the given layout, adjusting
