@@ -154,7 +154,7 @@ jobs:
           if ! type kokai >/dev/null; then cargo install --locked kokai --force; fi
           git tag -d nightly || true
           kokai release --no-emoji --add-links github:commits,issues --ref "${{ github.ref_name }}" >"CHANGELOG.md"
-      - uses: softprops/action-gh-release@v2
+      - uses: softprops/action-gh-release@v3
         with:
           draft: true
           body_path: "CHANGELOG.md"
@@ -196,7 +196,7 @@ jobs:
           if ! type kokai >/dev/null; then cargo install --locked kokai --force; fi
           git tag -d nightly || true
           kokai release --no-emoji --add-links github:commits,issues --ref "$(git tag --points-at HEAD)" >"CHANGELOG.md"
-      - uses: softprops/action-gh-release@v2
+      - uses: softprops/action-gh-release@v3
         with:
           body_path: "CHANGELOG.md"
           files: |
