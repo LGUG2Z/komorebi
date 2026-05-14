@@ -301,6 +301,27 @@ impl DefaultLayout {
         }
     }
 
+    /// Returns the container index of the primary (largest) pane for this layout.
+    ///
+    /// For all default layouts, the primary container is always at index 0.
+    #[must_use]
+    pub fn primary_index(&self) -> usize {
+        0
+    }
+
+    /// Returns the container index of the secondary pane for this layout,
+    /// if there are enough containers. Returns `None` if there are fewer than 2 containers.
+    ///
+    /// For all default layouts, the secondary container is at index 1.
+    /// - **BSP**: the second-largest split area
+    /// - **UltrawideVerticalStack**: the left (secondary) column
+    /// - **VerticalStack / HorizontalStack / RightMainVerticalStack**: the first container in the stack area
+    /// - **Columns / Rows / Grid / Scrolling**: simply the second container
+    #[must_use]
+    pub fn secondary_index(&self, container_count: usize) -> Option<usize> {
+        if container_count >= 2 { Some(1) } else { None }
+    }
+
     #[must_use]
     #[allow(clippy::cast_precision_loss, clippy::only_used_in_recursion)]
     pub fn resize(
