@@ -283,6 +283,9 @@ impl From<&WindowManager> for State {
                             workspace_config: None,
                             preselected_container_idx: None,
                             promotion_swap_container_idx: None,
+                            initial_window_placement_rules: workspace
+                                .initial_window_placement_rules
+                                .clone(),
                         })
                         .collect::<VecDeque<_>>();
                     ws.focus(monitor.workspaces.focused_idx());

@@ -55,6 +55,7 @@ use crate::core::BorderStyle;
 use crate::core::DefaultLayout;
 use crate::core::FocusFollowsMouseImplementation;
 use crate::core::HidingBehaviour;
+use crate::core::InitialWindowPlacementRules;
 use crate::core::Layout;
 use crate::core::LayoutDefaultEntry;
 use crate::core::LayoutOptions;
@@ -286,6 +287,11 @@ pub struct WorkspaceConfig {
     /// Specify a wallpaper for this workspace
     #[serde(skip_serializing_if = "Option::is_none")]
     pub wallpaper: Option<Wallpaper>,
+    /// Initial window placement rules that determine where new tiled windows are placed
+    /// in the container list. Can be a placement target (a `WindowPlacement` string like
+    /// `"Primary"` or a 1-based container index), or a map of placement targets to matching rules.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub initial_window_placement_rules: Option<InitialWindowPlacementRules>,
 }
 
 impl From<&Workspace> for WorkspaceConfig {
@@ -389,6 +395,7 @@ impl From<&Workspace> for WorkspaceConfig {
             layout_flip: value.layout_flip,
             floating_layer_behaviour: value.floating_layer_behaviour,
             wallpaper: None,
+            initial_window_placement_rules: value.initial_window_placement_rules.clone(),
         }
     }
 }
