@@ -67,6 +67,38 @@ impl CustomLayout {
         None
     }
 
+    /// Returns the container index of the primary container in the custom layout.
+    ///
+    /// This converts the column index of the `Column::Primary` variant to a container index.
+    #[must_use]
+    pub fn primary_container_index(&self) -> Option<usize> {
+        self.primary_idx()
+            .map(|col_idx| self.first_container_idx(col_idx))
+    }
+
+    /// Returns the container index of the secondary container in the custom layout.
+    ///
+    /// This finds the `Column::Secondary` variant and converts its column index to a container index.
+    /// Returns `None` if there is no secondary column or if there are not enough containers.
+    #[must_use]
+    pub fn secondary_container_index(&self, container_count: usize) -> Option<usize> {
+        if container_count < 2 {
+            return None;
+        }
+
+        for (i, column) in self.iter().enumerate() {
+            if let Column::Secondary(_) = column {
+                let idx = self.first_container_idx(i);
+                if idx < container_count {
+                    return Some(idx);
+                }
+            }
+        }
+
+        // Fallback: if no secondary column, return index 1 if it exists
+        if container_count >= 2 { Some(1) } else { None }
+    }
+
     #[must_use]
     pub fn primary_width_percentage(&self) -> Option<f32> {
         for column in self.iter() {
