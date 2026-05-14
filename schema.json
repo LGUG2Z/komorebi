@@ -363,6 +363,18 @@
         "$ref": "#/$defs/MonitorConfig"
       }
     },
+    "monocle_focus_behaviour": {
+      "description": "Determine what happens when focusing in a direction while a monocle container is active",
+      "anyOf": [
+        {
+          "$ref": "#/$defs/MonocleFocusBehaviour"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": "NoOp"
+    },
     "mouse_follows_focus": {
       "description": "Enable or disable mouse follows focus",
       "type": [
@@ -784,7 +796,7 @@
             "boolean",
             "null"
           ],
-          "default": true
+          "default": false
         },
         "style": {
           "description": "Set the animation style",
@@ -2859,6 +2871,22 @@
         "id"
       ]
     },
+    "InitialWindowPlacementRules": {
+      "description": "Configuration for initial window placement rules on a workspace.\n\nThis can be specified in two forms in the JSON config:\n- A placement target (string or integer) ÔÇö applies the same placement to all windows.\n  Strings are `WindowPlacement` variant names (e.g. `\"Primary\"`, `\"AfterFocused\"`),\n  integers are 1-based container indices.\n- A map of placement targets to matching rules ÔÇö keys can be `WindowPlacement` variant names\n  (e.g. `\"Primary\"`, `\"Secondary\"`) or 1-based container indices (e.g. `\"1\"`, `\"3\"`).\n  Rules are evaluated in key order; the first matching rule determines placement.\n\nNOTE: Container indices in the config are 1-based for user-friendliness.\nThey are converted to 0-based internally during resolution.\n\nNOTE: This feature currently only applies when `WindowContainerBehaviour::Create` is active.\nFuture versions may support toggling this for `Append` mode as well.",
+      "anyOf": [
+        {
+          "description": "A single placement target applied to all new windows (string or integer in config)",
+          "$ref": "#/$defs/PlacementTarget"
+        },
+        {
+          "description": "A map of placement targets to matching rules.\nKeys can be `WindowPlacement` variant names (e.g. `\"Primary\"`) or 1-based container indices (e.g. `\"1\"`).\nValues can be:\n- A single `IdWithIdentifier` object (simple rule)\n- An array containing objects and/or arrays:\n  - Each object in the array is an independent simple rule (OR logic between entries)\n  - Each inner array is a composite rule where all conditions must match (AND logic)\n  - The outer array entries are evaluated with OR logic\nRules are evaluated in key order; the first matching rule determines placement.",
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/PlacementMatchingRules"
+          }
+        }
+      ]
+    },
     "KomorebiTheme": {
       "description": "Komorebi theme",
       "oneOf": [
@@ -3557,6 +3585,21 @@
         "workspaces"
       ]
     },
+    "MonocleFocusBehaviour": {
+      "description": "Behaviour when focusing in a direction while a monocle container is active",
+      "oneOf": [
+        {
+          "description": "Cycle the monocle container to the next/previous container in the workspace",
+          "type": "string",
+          "const": "Cycle"
+        },
+        {
+          "description": "Do nothing, allowing focus to fall through to cross-monitor logic",
+          "type": "string",
+          "const": "NoOp"
+        }
+      ]
+    },
     "MoveBehaviour": {
       "description": "Move behaviour when the operation works across a monitor boundary",
       "oneOf": [
@@ -3685,6 +3728,55 @@
           "description": "Center the window and resize it according to the `AspectRatio`",
           "type": "string",
           "const": "CenterAndResize"
+        }
+      ]
+    },
+    "PlacementMatchingRules": {
+      "description": "Matching rules for a placement target.\n\nCan be specified in JSON as:\n- A single `IdWithIdentifier` object ÔÇö one simple rule\n- An array of `MatchingRule`s ÔÇö multiple rules with OR logic between them\n  (each element can be a simple rule object or a composite rule array with AND logic)\n\nExamples:\n```json\n// Single rule\n{ \"kind\": \"Exe\", \"id\": \"chrome.exe\", \"matching_strategy\": \"Equals\" }\n\n// Multiple rules (OR): chrome OR teams\n[\n  { \"kind\": \"Exe\", \"id\": \"chrome.exe\", \"matching_strategy\": \"Equals\" },\n  { \"kind\": \"Title\", \"id\": \"Microsoft Teams\", \"matching_strategy\": \"Equals\" }\n]\n\n// Mixed: chrome OR (code.exe AND title contains \"workspace\")\n[\n  { \"kind\": \"Exe\", \"id\": \"chrome.exe\", \"matching_strategy\": \"Equals\" },\n  [\n    { \"kind\": \"Exe\", \"id\": \"code.exe\", \"matching_strategy\": \"Equals\" },\n    { \"kind\": \"Title\", \"id\": \"workspace\", \"matching_strategy\": \"Contains\" }\n  ]\n]\n```",
+      "anyOf": [
+        {
+          "description": "A single simple matching rule",
+          "$ref": "#/$defs/IdWithIdentifier"
+        },
+        {
+          "description": "Multiple matching rules evaluated with OR logic.\nEach entry is a `MatchingRule`: either a simple rule (object) or composite rule (array, AND logic).",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/MatchingRule"
+          }
+        }
+      ]
+    },
+    "PlacementTarget": {
+      "description": "A target position for window placement, used as a key in `InitialWindowPlacementRules::Rules`.\n\nCan be either a `WindowPlacement` variant name (e.g. `\"Primary\"`, `\"Last\"`)\nor a 1-based container index (e.g. `\"1\"`, `\"3\"`).\n\nNOTE: Integer indices are 1-based in the config for user-friendliness.",
+      "oneOf": [
+        {
+          "description": "A named placement strategy",
+          "type": "object",
+          "properties": {
+            "Placement": {
+              "$ref": "#/$defs/WindowPlacement"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "Placement"
+          ]
+        },
+        {
+          "description": "A 1-based container index",
+          "type": "object",
+          "properties": {
+            "Index": {
+              "type": "integer",
+              "format": "uint",
+              "minimum": 0
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "Index"
+          ]
         }
       ]
     },
@@ -4152,6 +4244,36 @@
         }
       ]
     },
+    "WindowPlacement": {
+      "description": "Placement strategy for new windows in a workspace",
+      "oneOf": [
+        {
+          "description": "Place the new window at the primary (largest) container position",
+          "type": "string",
+          "const": "Primary"
+        },
+        {
+          "description": "Place the new window at the secondary container position",
+          "type": "string",
+          "const": "Secondary"
+        },
+        {
+          "description": "Place the new window before the currently focused container",
+          "type": "string",
+          "const": "BeforeFocused"
+        },
+        {
+          "description": "Place the new window after the currently focused container (default behaviour)",
+          "type": "string",
+          "const": "AfterFocused"
+        },
+        {
+          "description": "Place the new window at the end of the container list",
+          "type": "string",
+          "const": "Last"
+        }
+      ]
+    },
     "WorkspaceConfig": {
       "description": "Workspace configuration",
       "type": "object",
@@ -4217,6 +4339,17 @@
             }
           ],
           "default": "Tile"
+        },
+        "initial_window_placement_rules": {
+          "description": "Initial window placement rules that determine where new windows are placed\nin the container list. Can be a placement strategy string, a 1-based container\nindex, or a map of 1-based container indices to matching rules.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/InitialWindowPlacementRules"
+            },
+            {
+              "type": "null"
+            }
+          ]
         },
         "initial_workspace_rules": {
           "description": "Initial workspace application rules",
