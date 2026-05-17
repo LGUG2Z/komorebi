@@ -14,6 +14,7 @@ use std::io::Read;
 use std::net::TcpListener;
 use std::net::TcpStream;
 use std::num::NonZeroUsize;
+use std::os::windows::process::CommandExt;
 use std::str::FromStr;
 use std::sync::Arc;
 use std::sync::atomic::Ordering;
@@ -1772,12 +1773,13 @@ Stop-Process -Name:komorebi-bar -ErrorAction SilentlyContinue
                                     &mut config.bar_configurations
                                 {
                                     for config_file_path in &mut *display_bar_configurations {
-                                        let script = r#"Start-Process "komorebi-bar" '"--config" "CONFIGFILE"' -WindowStyle hidden"#
-                                            .replace("CONFIGFILE", &config_file_path.to_string_lossy());
-
-                                        match powershell_script::run(&script) {
+                                        match std::process::Command::new("komorebi-bar")
+                                            .args(["--config", &config_file_path.to_string_lossy()])
+                                            .creation_flags(0x0800_0000) // CREATE_NO_WINDOW
+                                            .spawn()
+                                        {
                                             Ok(_) => {
-                                                println!("{script}");
+                                                println!("Started komorebi-bar with config: {}", config_file_path.display());
                                             }
                                             Err(error) => {
                                                 println!("Error: {error}");
