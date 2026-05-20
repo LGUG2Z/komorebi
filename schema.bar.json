@@ -4800,6 +4800,17 @@
             "null"
           ]
         },
+        "default_interface_options": {
+          "description": "Options related to showing the default interface",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DefaultInterfaceOptions"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
         "show_total_activity": {
           "description": "Show total received and transmitted activity",
           "type": "boolean"
@@ -4850,6 +4861,21 @@
           ],
           "format": "uint64",
           "minimum": 0
+        }
+      }
+    },
+    "DefaultInterfaceOptions": {
+      "description": "Options related to showing the default network interface",
+      "type": "object",
+      "properties": {
+        "display_type": {
+          "description": "What to display from the default interface",
+          "type": "string",
+          "enum": [
+            "FriendlyName", 
+            "Ipv4", 
+            "Ipv6"
+          ]
         }
       }
     },
