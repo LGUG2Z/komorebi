@@ -114,14 +114,6 @@ struct EnforceWorkspaceRuleOp {
     floating: bool,
 }
 impl EnforceWorkspaceRuleOp {
-    const fn is_origin(&self, monitor_idx: usize, workspace_idx: usize) -> bool {
-        self.origin_monitor_idx == monitor_idx && self.origin_workspace_idx == workspace_idx
-    }
-
-    const fn is_target(&self, monitor_idx: usize, workspace_idx: usize) -> bool {
-        self.target_monitor_idx == monitor_idx && self.target_workspace_idx == workspace_idx
-    }
-
     const fn is_enforced(&self) -> bool {
         (self.origin_monitor_idx == self.target_monitor_idx)
             && (self.origin_workspace_idx == self.target_workspace_idx)
@@ -565,17 +557,9 @@ impl WindowManager {
 
     #[tracing::instrument(skip(self), level = "debug")]
     pub fn enforce_workspace_rules(&mut self) -> eyre::Result<()> {
+        let pre_enforce_focused_monitor = self.focused_monitor_idx();
         let mut to_move = vec![];
 
-        let focused_monitor_idx = self.focused_monitor_idx();
-        let focused_workspace_idx = self
-            .monitors()
-            .get(focused_monitor_idx)
-            .ok_or_eyre("there is no monitor with that index")?
-            .focused_workspace_idx();
-
-        // scope mutex locks to avoid deadlock if should_update_focused_workspace evaluates to true
-        // at the end of this function
         {
             let workspace_matching_rules = WORKSPACE_MATCHING_RULES.lock();
             let regex_identifiers = REGEX_IDENTIFIERS.lock();
@@ -655,12 +639,10 @@ impl WindowManager {
             }
         }
 
-        // Only retain operations where the target is not the current workspace
-        to_move.retain(|op| !op.is_target(focused_monitor_idx, focused_workspace_idx));
-        // Only retain operations where the rule has not already been enforced
         to_move.retain(|op| !op.is_enforced());
 
-        let mut should_update_focused_workspace = false;
+        let mut origin_monitors = std::collections::HashSet::new();
+        let mut target_monitors = std::collections::HashSet::new();
 
         // Parse the operation and remove any windows that are not placed according to their rules
         for op in &to_move {
@@ -689,11 +671,11 @@ impl WindowManager {
                 window.move_to_area(&origin_area, &target_area)?;
             }
 
-            // Hide the window we are about to remove if it is on the currently focused workspace
-            if op.is_origin(focused_monitor_idx, focused_workspace_idx) {
-                window.hide();
-                should_update_focused_workspace = true;
-            }
+            // Do not hide here — load_focused_workspace handles visibility on
+            // the target monitor. Hiding unconditionally races with in-flight
+            // animation threads and can leave the window invisible.
+            origin_monitors.insert(op.origin_monitor_idx);
+            target_monitors.insert(op.target_monitor_idx);
 
             origin_workspace.remove_window(op.hwnd)?;
         }
@@ -738,9 +720,29 @@ impl WindowManager {
             }
         }
 
-        // Only re-tile the focused workspace if we need to
-        if should_update_focused_workspace {
-            self.update_focused_workspace(false, false)?;
+        let offset = self.work_area_offset;
+
+        for monitor_idx in &target_monitors {
+            if let Some(monitor) = self.monitors_mut().get_mut(*monitor_idx) {
+                monitor.load_focused_workspace(false)?;
+                monitor.update_focused_workspace(offset)?;
+            }
+        }
+
+        for monitor_idx in &origin_monitors {
+            if !target_monitors.contains(monitor_idx) {
+                if let Some(monitor) = self.monitors_mut().get_mut(*monitor_idx) {
+                    monitor.update_focused_workspace(offset)?;
+                }
+            }
+        }
+
+        // If the focused monitor lost a window to enforcement, follow it to its destination.
+        if !to_move.is_empty()
+            && origin_monitors.contains(&pre_enforce_focused_monitor)
+            && !target_monitors.contains(&pre_enforce_focused_monitor)
+        {
+            self.focus_monitor(to_move[0].target_monitor_idx)?;
         }
 
         Ok(())
@@ -1731,6 +1733,7 @@ impl WindowManager {
         }
 
         self.update_focused_workspace(self.mouse_follows_focus, true)?;
+        self.enforce_workspace_rules()?;
 
         Ok(())
     }
@@ -1755,6 +1758,7 @@ impl WindowManager {
         monitor.load_focused_workspace(mouse_follows_focus)?;
 
         self.update_focused_workspace(mouse_follows_focus, true)?;
+        self.enforce_workspace_rules()?;
 
         Ok(())
     }

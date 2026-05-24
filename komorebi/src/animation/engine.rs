@@ -60,17 +60,30 @@ impl AnimationEngine {
     ) -> eyre::Result<()> {
         std::thread::spawn(move || {
             let animation_key = render_dispatcher.get_animation_key();
-            if ANIMATION_MANAGER.lock().in_progress(animation_key.as_str()) {
-                let should_animate = Self::cancel(animation_key.as_str());
 
+            // Hold the lock across both the check and the start so two threads
+            // can't both see in_progress=false and race into pre_render.
+            let was_in_progress = {
+                let mut manager = ANIMATION_MANAGER.lock();
+                let running = manager.in_progress(animation_key.as_str());
+                if !running {
+                    manager.start(animation_key.as_str());
+                }
+                running
+            };
+
+            if was_in_progress {
+                let should_animate = Self::cancel(animation_key.as_str());
                 if !should_animate {
                     return Ok(());
                 }
+                ANIMATION_MANAGER.lock().start(animation_key.as_str());
             }
 
-            render_dispatcher.pre_render()?;
-
-            ANIMATION_MANAGER.lock().start(animation_key.as_str());
+            if let Err(e) = render_dispatcher.pre_render() {
+                ANIMATION_MANAGER.lock().end(animation_key.as_str());
+                return Err(e);
+            }
 
             let target_frame_time =
                 Duration::from_millis(1000 / ANIMATION_FPS.load(Ordering::Relaxed));
