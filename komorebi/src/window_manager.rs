@@ -2555,29 +2555,22 @@ impl WindowManager {
         let mouse_follows_focus = self.mouse_follows_focus;
         let focused_workspace = self.focused_workspace()?;
 
+        let floating_windows = focused_workspace.floating_windows();
+        let len = floating_windows.len();
+
         let mut target_idx = None;
-        let len = focused_workspace.floating_windows().len();
 
         if len > 1 {
             let focused_hwnd = WindowsApi::foreground_window()?;
-            for (idx, window) in focused_workspace.floating_windows().iter().enumerate() {
+
+            for (idx, window) in floating_windows.iter().enumerate() {
                 if window.hwnd == focused_hwnd {
-                    match direction {
-                        CycleDirection::Previous => {
-                            if idx == 0 {
-                                target_idx = Some(len - 1)
-                            } else {
-                                target_idx = Some(idx - 1)
-                            }
-                        }
-                        CycleDirection::Next => {
-                            if idx == len - 1 {
-                                target_idx = Some(0)
-                            } else {
-                                target_idx = Some(idx - 1)
-                            }
-                        }
-                    }
+                    target_idx = Some(match direction {
+                        CycleDirection::Previous => (idx + len - 1) % len,
+                        CycleDirection::Next => (idx + 1) % len,
+                    });
+
+                    break;
                 }
             }
 
@@ -2587,7 +2580,7 @@ impl WindowManager {
         }
 
         if let Some(idx) = target_idx
-            && let Some(window) = focused_workspace.floating_windows().get(idx)
+            && let Some(window) = floating_windows.get(idx)
         {
             window.focus(mouse_follows_focus)?;
         }
