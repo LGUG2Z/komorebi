@@ -1338,7 +1338,7 @@ impl StaticConfig {
                     .unwrap_or(WindowContainerBehaviour::Create),
                 float_override: value.float_override.unwrap_or_default(),
                 floating_layer_override: false, // this value is always automatically calculated
-                floating_layer_behaviour: FloatingLayerBehaviour::default(),
+                floating_layer_behaviour: value.floating_layer_behaviour.unwrap_or_default(),
                 toggle_float_placement: value
                     .toggle_float_placement
                     .unwrap_or(Placement::CenterAndResize),
