@@ -641,6 +641,18 @@ impl WindowManager {
 
         to_move.retain(|op| !op.is_enforced());
 
+        // A window may match multiple rules; keep only the last match per hwnd so that
+        // remove_window is called exactly once and later rules take precedence.
+        {
+            let mut seen = std::collections::HashSet::new();
+            to_move = to_move
+                .into_iter()
+                .rev()
+                .filter(|op| seen.insert(op.hwnd))
+                .collect::<Vec<_>>();
+            to_move.reverse();
+        }
+
         let mut origin_monitors = std::collections::HashSet::new();
         let mut target_monitors = std::collections::HashSet::new();
 
