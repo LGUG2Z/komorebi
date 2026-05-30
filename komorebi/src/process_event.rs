@@ -41,6 +41,30 @@ use crate::windows_api::WindowsApi;
 use crate::winevent::WinEvent;
 use crate::workspace::WorkspaceLayer;
 
+fn should_skip_focus_change(foreground_hwnd: Option<isize>, window_hwnd: isize) -> bool {
+    matches!(foreground_hwnd, Some(hwnd) if hwnd != window_hwnd)
+}
+
+#[cfg(test)]
+mod focus_change_tests {
+    use super::should_skip_focus_change;
+
+    #[test]
+    fn skips_focus_change_from_background_window() {
+        assert!(should_skip_focus_change(Some(1), 2));
+    }
+
+    #[test]
+    fn allows_focus_change_for_foreground_window() {
+        assert!(!should_skip_focus_change(Some(1), 1));
+    }
+
+    #[test]
+    fn allows_focus_change_when_foreground_unknown() {
+        assert!(!should_skip_focus_change(None, 1));
+    }
+}
+
 #[tracing::instrument]
 pub fn listen_for_events(wm: Arc<Mutex<WindowManager>>) {
     let receiver = wm.lock().incoming_events.clone();
@@ -341,6 +365,13 @@ impl WindowManager {
                 already_moved_window_handles.remove(&window.hwnd);
             }
             WindowManagerEvent::FocusChange(_, window) => {
+                if should_skip_focus_change(WindowsApi::foreground_window().ok(), window.hwnd) {
+                    tracing::debug!(
+                        "ignoring stale focus change for hwnd {} as it is not the foreground window",
+                        window.hwnd
+                    );
+                    return Ok(());
+                }
                 // don't want to trigger the full workspace updates when there are no managed
                 // containers - this makes floating windows on empty workspaces go into very
                 // annoying focus change loops which prevents users from interacting with them
