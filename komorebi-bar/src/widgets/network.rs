@@ -38,6 +38,8 @@ pub struct NetworkConfig {
     pub show_activity: bool,
     /// Show default interface
     pub show_default_interface: Option<bool>,
+    /// Default interface options: whether to show the friendly name, IPv4 or IPv6 address
+    pub default_interface_options: Option<DefaultInterfaceConfig>,
     /// Characters to reserve for received and transmitted activity
     #[serde(alias = "network_activity_fill_characters")]
     pub activity_left_padding: Option<usize>,
@@ -64,6 +66,24 @@ pub struct NetworkSelectConfig {
     pub transmitted_over: Option<u64>,
 }
 
+#[derive(Copy, Clone, Debug, Serialize, Deserialize, Default)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+/// Which IP address to show for the default interface
+pub enum InterfaceDisplayType {
+    #[default]
+    FriendlyName,
+    Ipv4,
+    Ipv6,
+}
+
+#[derive(Copy, Clone, Debug, Serialize, Deserialize)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+/// Default interface configuration
+pub struct DefaultInterfaceConfig {
+    #[serde(default)]
+    pub display_type: InterfaceDisplayType,
+}
+
 impl From<NetworkConfig> for Network {
     fn from(value: NetworkConfig) -> Self {
         let default_refresh_interval = 10;
@@ -76,6 +96,7 @@ impl From<NetworkConfig> for Network {
             show_total_activity: value.show_total_activity,
             show_activity: value.show_activity,
             show_default_interface: value.show_default_interface.unwrap_or(true),
+            default_interface_options: value.default_interface_options,
             networks_network_activity: Arc::new(Mutex::new(Networks::new_with_refreshed_list())),
             default_interface: Arc::new(Mutex::new(String::new())),
             interface_generation: Arc::new(AtomicU64::new(0)),
@@ -104,6 +125,7 @@ pub struct Network {
     pub show_total_activity: bool,
     pub show_activity: bool,
     pub show_default_interface: bool,
+    pub default_interface_options: Option<DefaultInterfaceConfig>,
     networks_network_activity: Arc<Mutex<Networks>>,
     default_refresh_interval: u64,
     data_refresh_interval: u64,
@@ -124,16 +146,37 @@ impl Network {
         let gen_ = self.interface_generation.fetch_add(1, Ordering::SeqCst) + 1;
         let gen_arc = Arc::clone(&self.interface_generation);
         let iface_arc = Arc::clone(&self.default_interface);
+        let default_interface_options = self.default_interface_options;
 
         thread::spawn(move || {
-            if let Ok(interface) = netdev::get_default_interface()
-                && let Some(friendly_name) = &interface.friendly_name
-            {
+            if let Ok(interface) = netdev::get_default_interface() {
+                // Determine what to show based on the configuration
+                let display_type = default_interface_options
+                    .map(|config| config.display_type)
+                    .unwrap_or(InterfaceDisplayType::FriendlyName);
+
+                let value_to_show = match display_type {
+                    InterfaceDisplayType::FriendlyName => interface
+                        .friendly_name
+                        .clone()
+                        .unwrap_or_else(|| "Unknown Interface".to_string()),
+                    InterfaceDisplayType::Ipv4 => interface
+                        .ipv4
+                        .first()
+                        .map(|ip| ip.to_string())
+                        .unwrap_or_else(|| "No IPv4".to_string()),
+                    InterfaceDisplayType::Ipv6 => interface
+                        .ipv6
+                        .first()
+                        .map(|ip| ip.to_string())
+                        .unwrap_or_else(|| "No IPv6".to_string()),
+                };
+
                 // Only update if this is the latest request
                 if gen_ == gen_arc.load(Ordering::SeqCst)
                     && let Ok(mut iface) = iface_arc.lock()
                 {
-                    *iface = friendly_name.clone();
+                    *iface = value_to_show;
                 }
             }
         });
