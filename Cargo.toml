@@ -43,7 +43,7 @@ windows-numerics = { version = "0.3" }
 windows-implement = { version = "0.60" }
 windows-interface = { version = "0.59" }
 windows-core = { version = "0.62" }
-shadow-rs = "1"
+shadow-rs = "2"
 which = "8"
 
 [workspace.dependencies.windows]
