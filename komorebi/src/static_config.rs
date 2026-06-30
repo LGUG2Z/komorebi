@@ -1338,7 +1338,7 @@ impl StaticConfig {
                     .unwrap_or(WindowContainerBehaviour::Create),
                 float_override: value.float_override.unwrap_or_default(),
                 floating_layer_override: false, // this value is always automatically calculated
-                floating_layer_behaviour: FloatingLayerBehaviour::default(),
+                floating_layer_behaviour: value.floating_layer_behaviour.unwrap_or_default(),
                 toggle_float_placement: value
                     .toggle_float_placement
                     .unwrap_or(Placement::CenterAndResize),
@@ -1486,9 +1486,11 @@ impl StaticConfig {
                 }
 
                 let mut workspace_matching_rules = WORKSPACE_MATCHING_RULES.lock();
+                let mut regex_identifiers = REGEX_IDENTIFIERS.lock();
                 for (j, ws) in monitor_config.workspaces.iter().enumerate() {
                     if let Some(rules) = &ws.workspace_rules {
                         for r in rules {
+                            register_workspace_rule_regex(r, &mut regex_identifiers)?;
                             workspace_matching_rules.push(WorkspaceMatchingRule {
                                 monitor_index: i,
                                 workspace_index: j,
@@ -1500,6 +1502,7 @@ impl StaticConfig {
 
                     if let Some(rules) = &ws.initial_workspace_rules {
                         for r in rules {
+                            register_workspace_rule_regex(r, &mut regex_identifiers)?;
                             workspace_matching_rules.push(WorkspaceMatchingRule {
                                 monitor_index: i,
                                 workspace_index: j,
@@ -1654,9 +1657,11 @@ impl StaticConfig {
                 }
 
                 let mut workspace_matching_rules = WORKSPACE_MATCHING_RULES.lock();
+                let mut regex_identifiers = REGEX_IDENTIFIERS.lock();
                 for (j, ws) in monitor_config.workspaces.iter().enumerate() {
                     if let Some(rules) = &ws.workspace_rules {
                         for r in rules {
+                            register_workspace_rule_regex(r, &mut regex_identifiers)?;
                             workspace_matching_rules.push(WorkspaceMatchingRule {
                                 monitor_index: i,
                                 workspace_index: j,
@@ -1668,6 +1673,7 @@ impl StaticConfig {
 
                     if let Some(rules) = &ws.initial_workspace_rules {
                         for r in rules {
+                            register_workspace_rule_regex(r, &mut regex_identifiers)?;
                             workspace_matching_rules.push(WorkspaceMatchingRule {
                                 monitor_index: i,
                                 workspace_index: j,
@@ -1813,6 +1819,22 @@ fn populate_option(
         }
     }
 
+    Ok(())
+}
+
+fn register_workspace_rule_regex(
+    rule: &MatchingRule,
+    regex_identifiers: &mut HashMap<String, Regex>,
+) -> eyre::Result<()> {
+    let identifiers = match rule {
+        MatchingRule::Simple(r) => std::slice::from_ref(r),
+        MatchingRule::Composite(r) => r.as_slice(),
+    };
+    for identifier in identifiers {
+        if matches!(identifier.matching_strategy, Some(MatchingStrategy::Regex)) {
+            regex_identifiers.insert(identifier.id.clone(), Regex::new(&identifier.id)?);
+        }
+    }
     Ok(())
 }
 
