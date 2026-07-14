@@ -1954,8 +1954,11 @@ impl WindowManager {
                 match direction {
                     OperationDirection::Left => match focused_workspace.layout {
                         Layout::Default(layout) => {
-                            let target_index =
-                                layout.rightmost_index(focused_workspace.containers().len());
+                            let target_index = direction.cross_boundary_edge_index(
+                                layout,
+                                focused_workspace.containers().len(),
+                                focused_workspace.layout_flip,
+                            );
                             focused_workspace.focus_container(target_index);
                         }
                         Layout::Custom(_) => {
@@ -1966,8 +1969,11 @@ impl WindowManager {
                     },
                     OperationDirection::Right => match focused_workspace.layout {
                         Layout::Default(layout) => {
-                            let target_index =
-                                layout.leftmost_index(focused_workspace.containers().len());
+                            let target_index = direction.cross_boundary_edge_index(
+                                layout,
+                                focused_workspace.containers().len(),
+                                focused_workspace.layout_flip,
+                            );
                             focused_workspace.focus_container(target_index);
                         }
                         Layout::Custom(_) => {
@@ -2002,8 +2008,11 @@ impl WindowManager {
                 match direction {
                     OperationDirection::Left => match focused_workspace.layout {
                         Layout::Default(layout) => {
-                            let target_index =
-                                layout.rightmost_index(focused_workspace.containers().len());
+                            let target_index = direction.cross_boundary_edge_index(
+                                layout,
+                                focused_workspace.containers().len(),
+                                focused_workspace.layout_flip,
+                            );
                             focused_workspace.focus_container(target_index);
                         }
                         Layout::Custom(_) => {
@@ -2014,8 +2023,11 @@ impl WindowManager {
                     },
                     OperationDirection::Right => match focused_workspace.layout {
                         Layout::Default(layout) => {
-                            let target_index =
-                                layout.leftmost_index(focused_workspace.containers().len());
+                            let target_index = direction.cross_boundary_edge_index(
+                                layout,
+                                focused_workspace.containers().len(),
+                                focused_workspace.layout_flip,
+                            );
                             focused_workspace.focus_container(target_index);
                         }
                         Layout::Custom(_) => {
@@ -2169,8 +2181,11 @@ impl WindowManager {
                 match direction {
                     OperationDirection::Left => match focused_workspace.layout {
                         Layout::Default(layout) => {
-                            let target_index =
-                                layout.rightmost_index(focused_workspace.containers().len());
+                            let target_index = direction.cross_boundary_edge_index(
+                                layout,
+                                focused_workspace.containers().len(),
+                                focused_workspace.layout_flip,
+                            );
                             focused_workspace.focus_container(target_index);
                         }
                         Layout::Custom(_) => {
@@ -2181,8 +2196,11 @@ impl WindowManager {
                     },
                     OperationDirection::Right => match focused_workspace.layout {
                         Layout::Default(layout) => {
-                            let target_index =
-                                layout.leftmost_index(focused_workspace.containers().len());
+                            let target_index = direction.cross_boundary_edge_index(
+                                layout,
+                                focused_workspace.containers().len(),
+                                focused_workspace.layout_flip,
+                            );
                             focused_workspace.focus_container(target_index);
                         }
                         Layout::Custom(_) => {
@@ -2219,8 +2237,11 @@ impl WindowManager {
                         match direction {
                             OperationDirection::Left => match focused_workspace.layout {
                                 Layout::Default(layout) => {
-                                    let target_index = layout
-                                        .rightmost_index(focused_workspace.containers().len());
+                                    let target_index = direction.cross_boundary_edge_index(
+                                        layout,
+                                        focused_workspace.containers().len(),
+                                        focused_workspace.layout_flip,
+                                    );
                                     focused_workspace.focus_container(target_index);
                                 }
                                 Layout::Custom(_) => {
@@ -2231,8 +2252,11 @@ impl WindowManager {
                             },
                             OperationDirection::Right => match focused_workspace.layout {
                                 Layout::Default(layout) => {
-                                    let target_index =
-                                        layout.leftmost_index(focused_workspace.containers().len());
+                                    let target_index = direction.cross_boundary_edge_index(
+                                        layout,
+                                        focused_workspace.containers().len(),
+                                        focused_workspace.layout_flip,
+                                    );
                                     focused_workspace.focus_container(target_index);
                                 }
                                 Layout::Custom(_) => {

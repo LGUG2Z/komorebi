@@ -2,6 +2,7 @@ use std::num::NonZeroUsize;
 
 use super::Axis;
 use super::direction::Direction;
+use crate::default_layout::DefaultLayout;
 use crate::default_layout::LayoutOptions;
 use clap::ValueEnum;
 use serde::Deserialize;
@@ -61,4 +62,34 @@ impl OperationDirection {
     ) -> Option<usize> {
         layout.index_in_direction(self.flip(layout_flip), idx, len.get(), layout_options)
     }
+
+    /// Index of the container to focus when crossing a workspace or monitor
+    /// boundary by moving in `self` direction into `layout`.
+    ///
+    /// `layout_flip` mirrors a layout's geometry without reordering its
+    /// containers, so the structural [`DefaultLayout::leftmost_index`] /
+    /// [`DefaultLayout::rightmost_index`] must be selected against the *flipped*
+    /// direction to match the adjustment [`OperationDirection::destination`] makes
+    /// for intra-workspace focus. Otherwise, focus crossing a boundary into a
+    /// flipped workspace lands on the container at the far edge instead of the
+    /// one the user crossed toward.
+    #[must_use]
+    pub fn cross_boundary_edge_index(
+        self,
+        layout: DefaultLayout,
+        len: usize,
+        layout_flip: Option<Axis>,
+    ) -> usize {
+        match self.flip(layout_flip) {
+            Self::Left => layout.rightmost_index(len),
+            Self::Right => layout.leftmost_index(len),
+            Self::Up | Self::Down => {
+                unreachable!("only called for horizontal Left/Right crossings")
+            }
+        }
+    }
 }
+
+#[cfg(test)]
+#[path = "operation_direction_tests.rs"]
+mod tests;
