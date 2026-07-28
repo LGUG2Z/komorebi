@@ -174,10 +174,8 @@ impl Stackbar {
         let focused_text_colour = STACKBAR_FOCUSED_TEXT_COLOUR.load_consume();
         let unfocused_text_colour = STACKBAR_UNFOCUSED_TEXT_COLOUR.load_consume();
 
-        // Scope the lock so it is released before the synchronous position_window
-        // call below; the window's wndproc takes the same lock on WM_LBUTTONDOWN,
-        // and holding it across a cross-thread SetWindowPos deadlocks the two
-        // threads against each other (mutex <-> message queue cycle)
+        // The wndproc takes this lock on WM_LBUTTONDOWN, so release it before the
+        // synchronous position_window call below or the two threads can deadlock
         {
             let mut stackbars_containers = STACKBARS_CONTAINERS.lock();
             stackbars_containers.insert(self.hwnd, container.clone());
