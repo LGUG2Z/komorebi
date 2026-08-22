@@ -377,7 +377,7 @@ impl Monitor {
     }
 
     pub fn remove_workspaces(&mut self) -> VecDeque<Workspace> {
-        self.workspaces_mut().drain(..).collect()
+        std::mem::take(self.workspaces_mut())
     }
 
     #[tracing::instrument(skip(self))]
