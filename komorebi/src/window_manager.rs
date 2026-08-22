@@ -768,9 +768,7 @@ impl WindowManager {
 
             // Reset any resize adjustments if we want to force a retile
             if !preserve_resize_dimensions {
-                for resize in &mut workspace.resize_dimensions {
-                    *resize = None;
-                }
+                workspace.resize_dimensions.fill(None);
             }
 
             if (workspace.wallpaper.is_some() || monitor_wp.is_some())
@@ -2987,7 +2985,7 @@ impl WindowManager {
         let target_idx = match &workspace.layout {
             Layout::Default(_) => 0,
             Layout::Custom(custom) => custom
-                .first_container_idx(custom.primary_idx().map_or(0, |primary_idx| primary_idx)),
+                .first_container_idx(custom.primary_idx().unwrap_or(0)),
         };
 
         workspace.focus_container(target_idx);
