@@ -11,7 +11,7 @@ edition = "2024"
 komorebi-layouts = { path = "../komorebi-layouts", features = ["win32"] }
 komorebi-themes = { path = "../komorebi-themes" }
 
-base64 = "0.22"
+base64 = "0.23"
 bitflags = { version = "2", features = ["serde"] }
 clap = { workspace = true }
 chrono = { workspace = true }
