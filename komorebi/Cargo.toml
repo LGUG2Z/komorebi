@@ -20,7 +20,7 @@ crossbeam-channel = { workspace = true }
 crossbeam-utils = { workspace = true }
 ctrlc = { version = "3", features = ["termination"] }
 dirs = { workspace = true }
-ed25519-dalek = "2"
+ed25519-dalek = "3"
 hotwatch = { workspace = true }
 lazy_static = { workspace = true }
 miow = "0.6"
