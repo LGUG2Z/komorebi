@@ -233,10 +233,24 @@ fn main() -> eyre::Result<()> {
     if matched_procs.len() > 1 {
         let mut len = matched_procs.len();
         for proc in matched_procs {
+            let proc_session_id = proc.session_id();
+            match proc_session_id {
+                Some(p) if p.as_u32() != session_id => {
+                    len -= 1;
+                    continue;
+                }
+                None => {
+                    len -= 1;
+                    continue;
+                }
+                _ => {}
+            }
+
             if let Some(executable_path) = proc.exe()
                 && executable_path.to_string_lossy().contains("shims")
             {
                 len -= 1;
+                continue;
             }
         }
 
