@@ -39,6 +39,9 @@ komorebic start --whkd --bar
 If you don't want to use the komorebi status bar, you can remove the `--bar` option
 from the above command.
 
+To show the selected workspace in the Windows notification area, use `--tray`
+instead of or alongside `--bar`, for example `komorebic start --whkd --tray`.
+
 ## komorebi.json
 
 The example window manager configuration sets some sane defaults and provides

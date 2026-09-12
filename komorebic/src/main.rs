@@ -2,6 +2,8 @@
 #![allow(clippy::missing_errors_doc, clippy::doc_markdown)]
 #![allow(unused_assignments)] // false positives for the error reporter
 
+mod tray;
+
 use chrono::Utc;
 use komorebi_client::PathExt;
 use komorebi_client::replace_env_in_path;
@@ -826,6 +828,9 @@ struct Start {
     /// Start komorebi-bar in a background process
     #[clap(long)]
     bar: bool,
+    /// Start komorebi-tray in a background process
+    #[clap(long)]
+    tray: bool,
     /// Start masir in a background process for focus-follows-mouse
     #[clap(long)]
     masir: bool,
@@ -846,6 +851,9 @@ struct Stop {
     /// Stop komorebi-bar if it is running as a background process
     #[clap(long)]
     bar: bool,
+    /// Stop komorebi-tray if it is running
+    #[clap(long)]
+    tray: bool,
     /// Stop masir if it is running as a background process
     #[clap(long)]
     masir: bool,
@@ -866,6 +874,9 @@ struct Kill {
     /// Kill komorebi-bar if it is running as a background process
     #[clap(long)]
     bar: bool,
+    /// Kill komorebi-tray if it is running
+    #[clap(long)]
+    tray: bool,
     /// Kill masir if it is running as a background process
     #[clap(long)]
     masir: bool,
@@ -976,9 +987,35 @@ struct EnableAutostart {
     /// Enable autostart of komorebi-bar
     #[clap(long)]
     bar: bool,
+    /// Enable autostart of komorebi-tray
+    #[clap(long)]
+    tray: bool,
     /// Enable autostart of masir
     #[clap(long)]
     masir: bool,
+}
+
+impl EnableAutostart {
+    fn start_arguments(&self) -> String {
+        let mut arguments = String::from("start");
+        if let Some(config) = &self.config {
+            arguments.push_str(&format!(" --config \"{}\"", config.display()));
+        }
+        for (enabled, flag) in [
+            (self.ffm, "--ffm"),
+            (self.bar, "--bar"),
+            (self.tray, "--tray"),
+            (self.whkd, "--whkd"),
+            (self.ahk && !self.whkd, "--ahk"),
+            (self.masir, "--masir"),
+        ] {
+            if enabled {
+                arguments.push(' ');
+                arguments.push_str(flag);
+            }
+        }
+        arguments
+    }
 }
 
 #[derive(Parser)]
@@ -1806,6 +1843,7 @@ fn main() -> eyre::Result<()> {
             }
 
             println!("\nYou can now run komorebic start --whkd --bar");
+            println!("For the workspace tray indicator, use --tray instead of or alongside --bar");
         }
         SubCommand::EnableAutostart(args) => {
             if args.ahk {
@@ -1823,30 +1861,7 @@ fn main() -> eyre::Result<()> {
             let shortcut_file = startup_dir.join("komorebi.lnk");
             let shortcut_file = dunce::simplified(&shortcut_file);
 
-            let mut arguments = String::from("start");
-
-            if let Some(config) = args.config {
-                arguments.push_str(" --config ");
-                arguments.push_str(&config.to_string_lossy());
-            }
-
-            if args.ffm {
-                arguments.push_str(" --ffm");
-            }
-
-            if args.bar {
-                arguments.push_str(" --bar");
-            }
-
-            if args.whkd {
-                arguments.push_str(" --whkd");
-            } else if args.ahk {
-                arguments.push_str(" --ahk");
-            }
-
-            if args.masir {
-                arguments.push_str(" --masir");
-            }
+            let arguments = args.start_arguments();
 
             Command::new("powershell")
                 .arg("-c")
@@ -2362,6 +2377,12 @@ fn main() -> eyre::Result<()> {
                 );
             }
 
+            let tray_executable = if args.tray {
+                tray::prepare_start()?
+            } else {
+                None
+            };
+
             let mut ahk: String = String::from("autohotkey.exe");
 
             if let Ok(komorebi_ahk_exe) = std::env::var("KOMOREBI_AHK_EXE")
@@ -2497,6 +2518,10 @@ fn main() -> eyre::Result<()> {
                 }
 
                 return Ok(());
+            }
+
+            if args.tray {
+                tray::start(tray_executable)?;
             }
 
             if args.whkd {
@@ -2677,6 +2702,10 @@ if (!(Get-Process masir -ErrorAction SilentlyContinue))
             }
         }
         SubCommand::Stop(args) => {
+            if args.tray {
+                tray::stop(false)?;
+            }
+
             if args.ahk {
                 println!(
                     "EOL: The --ahk flag is now end-of-life and will not receive any further updates or bug fixes"
@@ -2789,6 +2818,10 @@ Stop-Process -Name:komorebi -ErrorAction SilentlyContinue
             }
         }
         SubCommand::Kill(args) => {
+            if args.tray {
+                tray::stop(true)?;
+            }
+
             if args.ahk {
                 println!(
                     "EOL: The --ahk flag is now end-of-life and will not receive any further updates or bug fixes"
@@ -3434,4 +3467,59 @@ fn remove_transparency(hwnd: isize) {
 fn restore_window(hwnd: isize) {
     show_window(HWND(hwnd as *mut core::ffi::c_void), SW_RESTORE);
     remove_transparency(hwnd);
+}
+
+#[cfg(test)]
+mod lifecycle_tests {
+    use super::*;
+
+    #[test]
+    fn tray_flags_are_optional_and_combine_with_other_helpers() {
+        for command in ["start", "stop", "kill", "enable-autostart"] {
+            for enabled in [false, true] {
+                let mut args = vec!["komorebic", command, "--bar", "--whkd", "--masir"];
+                if enabled {
+                    args.push("--tray");
+                }
+                let opts = Opts::try_parse_from(args).unwrap();
+                let (tray, bar, whkd, masir) = match opts.subcmd {
+                    SubCommand::Start(a) => (a.tray, a.bar, a.whkd, a.masir),
+                    SubCommand::Stop(a) => (a.tray, a.bar, a.whkd, a.masir),
+                    SubCommand::Kill(a) => (a.tray, a.bar, a.whkd, a.masir),
+                    SubCommand::EnableAutostart(a) => (a.tray, a.bar, a.whkd, a.masir),
+                    _ => unreachable!(),
+                };
+                assert_eq!(tray, enabled);
+                assert!(bar && whkd && masir);
+            }
+        }
+    }
+
+    #[test]
+    fn autostart_arguments_preserve_paths_and_forward_tray() {
+        let path = r"C:\Config Folder\komorebi.json";
+        let opts = Opts::try_parse_from([
+            "komorebic",
+            "enable-autostart",
+            "--tray",
+            "--bar",
+            "--whkd",
+            "--masir",
+            "--config",
+            path,
+        ])
+        .unwrap();
+        let SubCommand::EnableAutostart(args) = opts.subcmd else {
+            unreachable!()
+        };
+        assert_eq!(
+            args.start_arguments(),
+            format!("start --config \"{path}\" --bar --tray --whkd --masir")
+        );
+        let opts = Opts::try_parse_from(["komorebic", "enable-autostart"]).unwrap();
+        let SubCommand::EnableAutostart(args) = opts.subcmd else {
+            unreachable!()
+        };
+        assert_eq!(args.start_arguments(), "start");
+    }
 }

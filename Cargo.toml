@@ -9,6 +9,7 @@ members = [
   "komorebic",
   "komorebic-no-console",
   "komorebi-bar",
+  "komorebi-tray",
   "komorebi-themes",
   "komorebi-shortcuts",
 ]

@@ -137,7 +137,7 @@ first-time set up and running komorebi require an internet connection).
 
 ## Upgrades
 
-Before upgrading, make sure to run `komorebic stop --whkd --bar`. This is to ensure that all the current
+Before upgrading, make sure to run `komorebic stop --whkd --bar --tray`. This is to ensure that all the current
 komorebi-related exe files can be replaced without issue.
 
 Then, depending on whether you installed via `scoop` or `winget`, you can run the appropriate command:
@@ -153,12 +153,12 @@ scoop update komorebi
 ```
 
 Once the upgrade is completed you can confirm that you have the latest version by running `komorebic --version`, and
-then start it with `komorebic start --whkd --bar`.
+then start it with `komorebic start --whkd --bar`. Add `--tray` if you use the workspace tray indicator.
 
 ## Uninstallation
 
-Before uninstalling, first run `komorebic stop --whkd --bar` to make sure that
-the `komorebi`, `komorebi-bar` and `whkd` processes have been stopped.
+Before uninstalling, first run `komorebic stop --whkd --bar --tray` to make sure that
+the `komorebi`, `komorebi-bar`, `komorebi-tray` and `whkd` processes have been stopped.
 
 Then, depending on whether you installed with Scoop or WinGet, run `scoop
 uninstall komorebi whkd` or `winget uninstall LGUG2Z.komorebi LGUG2Z.whkd`.

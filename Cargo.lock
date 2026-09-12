@@ -3416,6 +3416,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "komorebi-tray"
+version = "0.1.42"
+dependencies = [
+ "color-eyre",
+ "dirs 6.0.0",
+ "komorebi-client",
+ "serde",
+ "serde_json_lenient",
+ "windows 0.62.2",
+]
+
+[[package]]
 name = "komorebic"
 version = "0.1.42"
 dependencies = [
