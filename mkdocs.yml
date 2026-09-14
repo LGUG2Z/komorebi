@@ -77,6 +77,7 @@ nav:
           - common-workflows/ignore-windows.md
           - common-workflows/force-manage-windows.md
           - common-workflows/floating-applications.md
+          - common-workflows/tiled-layer-auto-show.md
           - common-workflows/tray-and-multi-window-applications.md
           - common-workflows/mouse-follows-focus.md
           - common-workflows/dynamic-layout-switching.md

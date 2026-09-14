@@ -803,6 +803,152 @@ impl Workspace {
         Ok(())
     }
 
+    /// Raise the visible tiled layer without activating windows or moving the cursor.
+    pub fn raise_tiled_windows(&self, focused_hwnd: isize) {
+        let maximized = Window::from(focused_hwnd).is_maximized();
+        tracing::info!(
+            focused_hwnd,
+            foreground = ?WindowsApi::foreground_window().ok(),
+            tile = self.tile,
+            layer = ?self.layer,
+            selected_hwnd = ?self.focused_container().and_then(Container::focused_window).map(|w| w.hwnd),
+            containers = self.containers().len(),
+            monocle = self.monocle_container.is_some(),
+            maximized_hwnd = ?self.maximized_window.map(|w| w.hwnd),
+            native_maximized = maximized,
+            "tiled-layer-auto-show: begin"
+        );
+        if maximized {
+            tracing::info!(
+                focused_hwnd,
+                "tiled-layer-auto-show: skipped native maximized window"
+            );
+            return;
+        }
+
+        let windows = self.tiled_siblings_to_raise(focused_hwnd, |window| {
+            let visible = window.is_visible();
+            let minimized = window.is_miminized();
+            let cloaked = window.is_cloaked();
+            tracing::info!(
+                hwnd = window.hwnd,
+                visible,
+                minimized,
+                cloaked = ?cloaked,
+                "tiled-layer-auto-show: candidate"
+            );
+            visible && !minimized && cloaked.is_ok_and(|cloaked| !cloaked)
+        });
+        tracing::info!(
+            focused_hwnd,
+            anchor = focused_hwnd,
+            placement_order = ?windows.iter().rev().map(|w| w.hwnd).collect::<Vec<_>>(),
+            "tiled-layer-auto-show: selected windows"
+        );
+        self.log_tiled_layer_z_order("before");
+
+        // Keep the clicked window fixed and insert siblings directly beneath it. Using the
+        // same anchor also avoids depending on other threads completing asynchronous moves.
+        for window in windows.into_iter().rev() {
+            // The user may have focused another app while this event was queued or processed.
+            let foreground = WindowsApi::foreground_window().ok();
+            if foreground != Some(focused_hwnd) {
+                tracing::info!(
+                    focused_hwnd,
+                    ?foreground,
+                    next_hwnd = window.hwnd,
+                    "tiled-layer-auto-show: stopped because foreground changed"
+                );
+                break;
+            }
+
+            // A window closing during the operation must not prevent placing its siblings.
+            match window.position_behind(focused_hwnd) {
+                Ok(()) => tracing::info!(
+                    hwnd = window.hwnd,
+                    foreground = ?WindowsApi::foreground_window().ok(),
+                    "tiled-layer-auto-show: relative placement succeeded"
+                ),
+                Err(error) => tracing::warn!(
+                    hwnd = window.hwnd,
+                    ?error,
+                    "tiled-layer-auto-show: relative placement failed"
+                ),
+            }
+        }
+        self.log_tiled_layer_z_order("after");
+    }
+
+    fn log_tiled_layer_z_order(&self, phase: &str) {
+        if !tracing::enabled!(tracing::Level::INFO) {
+            return;
+        }
+
+        let tiled: Vec<_> = self
+            .containers()
+            .iter()
+            .filter_map(Container::focused_window)
+            .map(|w| w.hwnd)
+            .collect();
+        let floating: Vec<_> = self.floating_windows().iter().map(|w| w.hwnd).collect();
+        let mut order = vec![];
+        let mut seen = vec![];
+        let mut current = WindowsApi::top_window().ok();
+        // Windows can disappear or change order during enumeration. Bound the diagnostic walk.
+        while let Some(hwnd) = current {
+            if hwnd == 0 || seen.contains(&hwnd) || seen.len() >= 1024 {
+                break;
+            }
+            seen.push(hwnd);
+            if tiled.contains(&hwnd) || floating.contains(&hwnd) {
+                order.push(hwnd);
+            }
+            current = WindowsApi::next_window(hwnd).ok();
+        }
+        tracing::info!(
+            phase,
+            ?tiled,
+            ?floating,
+            top_to_bottom = ?order,
+            foreground = ?WindowsApi::foreground_window().ok(),
+            "tiled-layer-auto-show: stacking order"
+        );
+    }
+
+    fn tiled_siblings_to_raise(
+        &self,
+        focused_hwnd: isize,
+        mut is_visible: impl FnMut(&Window) -> bool,
+    ) -> Vec<Window> {
+        if !self.tile
+            || self.layer != WorkspaceLayer::Tiling
+            || self.monocle_container.is_some()
+            || self.maximized_window.is_some()
+            || self
+                .focused_container()
+                .and_then(Container::focused_window)
+                .is_none_or(|window| window.hwnd != focused_hwnd)
+        {
+            return vec![];
+        }
+
+        let mut windows: Vec<_> = self
+            .containers()
+            .iter()
+            .filter_map(Container::focused_window)
+            .filter(|window| is_visible(window))
+            .copied()
+            .collect();
+
+        if !windows.iter().any(|window| window.hwnd == focused_hwnd) {
+            return vec![];
+        }
+
+        // The clicked app is the fixed anchor. Never reposition it or its border.
+        windows.retain(|window| window.hwnd != focused_hwnd);
+        windows
+    }
+
     pub fn container_for_window(&self, hwnd: isize) -> Option<&Container> {
         self.containers().get(self.container_idx_for_window(hwnd)?)
     }
@@ -2010,6 +2156,91 @@ mod tests {
     use crate::Window;
     use crate::container::Container;
     use std::collections::HashMap;
+
+    fn workspace_for_tiled_layer_test() -> Workspace {
+        let mut workspace = Workspace::default();
+        for handles in [[123, 124], [234, 235], [345, 346]] {
+            let mut container = Container::default();
+            container.windows_mut().extend(handles.map(Window::from));
+            container.focus_window(0);
+            workspace.add_container_to_back(container);
+        }
+        workspace.focus_container(1);
+        workspace
+            .floating_windows_mut()
+            .push_back(Window::from(456));
+        workspace
+    }
+
+    #[test]
+    fn tiled_layer_selects_only_siblings_and_leaves_focused_app_untouched() {
+        let workspace = workspace_for_tiled_layer_test();
+        let windows = workspace.tiled_siblings_to_raise(234, |_| true);
+        assert_eq!(windows, [Window::from(123), Window::from(345)]);
+        // Inactive stack members and the floating window must not be raised.
+        assert_eq!(workspace.focused_container_idx(), 1);
+    }
+
+    #[test]
+    fn tiled_layer_tracks_stack_and_container_focus_changes() {
+        let mut workspace = workspace_for_tiled_layer_test();
+        workspace.containers_mut()[0].focus_window(1);
+        workspace.focus_container(0);
+        let windows = workspace.tiled_siblings_to_raise(124, |_| true);
+        assert_eq!(windows, [Window::from(234), Window::from(345)]);
+        assert!(workspace.tiled_siblings_to_raise(234, |_| true).is_empty());
+    }
+
+    #[test]
+    fn tiled_layer_skips_windows_excluded_by_visibility_check() {
+        let workspace = workspace_for_tiled_layer_test();
+        let windows = workspace.tiled_siblings_to_raise(234, |window| window.hwnd != 123);
+        assert_eq!(windows, [Window::from(345)]);
+        // If the selected window is no longer visible, do not raise its siblings.
+        assert!(
+            workspace
+                .tiled_siblings_to_raise(234, |window| window.hwnd != 234)
+                .is_empty()
+        );
+    }
+
+    #[test]
+    fn tiled_layer_ignores_floating_unknown_and_inactive_stack_windows() {
+        let workspace = workspace_for_tiled_layer_test();
+        for hwnd in [456, 999, 235] {
+            assert!(workspace.tiled_siblings_to_raise(hwnd, |_| true).is_empty());
+        }
+        assert!(
+            Workspace::default()
+                .tiled_siblings_to_raise(234, |_| true)
+                .is_empty()
+        );
+    }
+
+    #[test]
+    fn tiled_layer_preserves_special_modes_and_disabled_tiling() {
+        let mut workspace = workspace_for_tiled_layer_test();
+        workspace.tile = false;
+        assert!(workspace.tiled_siblings_to_raise(234, |_| true).is_empty());
+        workspace.tile = true;
+        workspace.layer = WorkspaceLayer::Floating;
+        assert!(workspace.tiled_siblings_to_raise(234, |_| true).is_empty());
+        workspace.layer = WorkspaceLayer::Tiling;
+        workspace.monocle_container = Some(Container::default());
+        assert!(workspace.tiled_siblings_to_raise(234, |_| true).is_empty());
+        workspace.monocle_container = None;
+        workspace.maximized_window = Some(Window::from(234));
+        assert!(workspace.tiled_siblings_to_raise(234, |_| true).is_empty());
+    }
+
+    #[test]
+    fn tiled_layer_supports_scrolling_without_changing_layout() {
+        let mut workspace = workspace_for_tiled_layer_test();
+        workspace.layout = Layout::Default(DefaultLayout::Scrolling);
+        let before = workspace.clone();
+        assert_eq!(workspace.tiled_siblings_to_raise(234, |_| true).len(), 2);
+        assert_eq!(workspace, before);
+    }
 
     #[test]
     fn test_locked_containers_with_new_window() {

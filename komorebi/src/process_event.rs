@@ -450,6 +450,10 @@ impl WindowManager {
                         {
                             self.update_focused_workspace(self.mouse_follows_focus, false)?;
                         }
+
+                        if self.tiled_layer_auto_show {
+                            self.focused_workspace()?.raise_tiled_windows(window.hwnd);
+                        }
                     }
                     Some(idx) => {
                         if let Some(_window) = workspace.floating_windows().get(idx) {
@@ -997,6 +1001,7 @@ impl WindowManager {
         tracing::debug!("performing reconciliation");
         self.focus_monitor(m_idx)?;
         let mouse_follows_focus = self.mouse_follows_focus;
+        let tiled_layer_auto_show = self.tiled_layer_auto_show;
         let offset = self.work_area_offset;
 
         if let Some(monitor) = self.focused_monitor_mut() {
@@ -1042,6 +1047,17 @@ impl WindowManager {
             }
             monitor.load_focused_workspace(mouse_follows_focus)?;
             monitor.update_focused_workspace(offset)?;
+
+            // Cross-workspace taskbar/alt-tab activation may only emit Show/Uncloak,
+            // without a subsequent FocusChange. Order the tiled layer after restoration,
+            // when its siblings are visible and floating windows have also been restored.
+            if tiled_layer_auto_show && let Some(workspace) = monitor.focused_workspace() {
+                tracing::info!(
+                    hwnd = window.hwnd,
+                    "tiled-layer-auto-show: after reconciliation"
+                );
+                workspace.raise_tiled_windows(window.hwnd);
+            }
         }
 
         Ok(())

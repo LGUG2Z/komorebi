@@ -86,6 +86,7 @@ pub struct WindowManager {
     pub unmanaged_window_operation_behaviour: OperationBehaviour,
     pub focus_follows_mouse: Option<FocusFollowsMouseImplementation>,
     pub mouse_follows_focus: bool,
+    pub tiled_layer_auto_show: bool,
     pub hotwatch: Hotwatch,
     pub virtual_desktop_id: Option<Vec<u8>>,
     pub has_pending_raise_op: bool,
@@ -165,6 +166,7 @@ impl WindowManager {
             resize_delta: 50,
             focus_follows_mouse: None,
             mouse_follows_focus: true,
+            tiled_layer_auto_show: false,
             hotwatch: Hotwatch::new()?,
             has_pending_raise_op: false,
             pending_move_op: Arc::new(None),
@@ -3979,6 +3981,17 @@ mod tests {
                 socket_path: Some(socket_path),
             },
         )
+    }
+
+    #[test]
+    fn tiled_layer_auto_show_defaults_and_config_export() {
+        let (mut wm, _test_context) = setup_window_manager();
+        assert!(!wm.tiled_layer_auto_show);
+        for enabled in [true, false] {
+            wm.tiled_layer_auto_show = enabled;
+            let config = crate::StaticConfig::from(&wm);
+            assert_eq!(config.tiled_layer_auto_show, Some(enabled));
+        }
     }
 
     #[test]
