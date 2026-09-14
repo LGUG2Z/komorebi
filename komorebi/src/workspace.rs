@@ -807,6 +807,17 @@ impl Workspace {
         self.containers().get(self.container_idx_for_window(hwnd)?)
     }
 
+    /// Update the floating selection without changing the OS foreground window.
+    /// Returns false if the window is not floating in this workspace.
+    pub fn focus_floating_window_by_hwnd(&mut self, hwnd: isize) -> bool {
+        if let Some(idx) = self.floating_windows().iter().position(|w| w.hwnd == hwnd) {
+            self.floating_windows.focus(idx);
+            true
+        } else {
+            false
+        }
+    }
+
     /// If there is a container which holds the window with `hwnd` it will focus that container.
     /// This function will only emit a focus on the window if it isn't the focused window of that
     /// container already.
@@ -2010,6 +2021,56 @@ mod tests {
     use crate::Window;
     use crate::container::Container;
     use std::collections::HashMap;
+
+    #[test]
+    fn floating_focus_selects_requested_window_for_workspace_restore() {
+        let mut ws = Workspace::default();
+        ws.floating_windows_mut()
+            .extend([Window::from(123), Window::from(234), Window::from(345)]);
+        ws.floating_windows.focus(0);
+
+        // A taskbar activation must replace the destination workspace's old selection.
+        assert!(ws.focus_floating_window_by_hwnd(234));
+        assert_eq!(ws.focused_floating_window().unwrap().hwnd, 234);
+        assert_eq!(ws.focused_floating_window_idx(), 1);
+
+        // Later focus changes must keep the selection current in either direction.
+        assert!(ws.focus_floating_window_by_hwnd(345));
+        assert_eq!(ws.focused_floating_window().unwrap().hwnd, 345);
+        assert!(ws.focus_floating_window_by_hwnd(123));
+        assert_eq!(ws.focused_floating_window().unwrap().hwnd, 123);
+    }
+
+    #[test]
+    fn floating_focus_ignores_tiled_and_unknown_windows() {
+        let mut ws = Workspace::default();
+        let mut container = Container::default();
+        container.windows_mut().push_back(Window::from(456));
+        ws.add_container_to_back(container);
+        ws.floating_windows_mut()
+            .extend([Window::from(123), Window::from(234)]);
+        ws.floating_windows.focus(1);
+
+        for hwnd in [456, 999] {
+            assert!(!ws.focus_floating_window_by_hwnd(hwnd));
+            assert_eq!(ws.focused_floating_window().unwrap().hwnd, 234);
+            assert_eq!(
+                ws.focused_container()
+                    .unwrap()
+                    .focused_window()
+                    .unwrap()
+                    .hwnd,
+                456
+            );
+        }
+    }
+
+    #[test]
+    fn floating_focus_handles_empty_workspace() {
+        let mut ws = Workspace::default();
+        assert!(!ws.focus_floating_window_by_hwnd(123));
+        assert!(ws.focused_floating_window().is_none());
+    }
 
     #[test]
     fn test_locked_containers_with_new_window() {

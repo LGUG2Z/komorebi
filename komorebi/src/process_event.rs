@@ -420,41 +420,31 @@ impl WindowManager {
                 }
 
                 let workspace = self.focused_workspace_mut()?;
-                let floating_window_idx = workspace
-                    .floating_windows()
-                    .iter()
-                    .position(|w| w.hwnd == window.hwnd);
-
-                match floating_window_idx {
-                    None => {
-                        if let Some(w) = &workspace.maximized_window
-                            && w.hwnd == window.hwnd
-                        {
-                            return Ok(());
-                        }
-
-                        if let Some(monocle) = &workspace.monocle_container {
-                            if let Some(window) = monocle.focused_window() {
-                                window.focus(false)?;
-                            }
-                        } else {
-                            workspace.focus_container_by_window(window.hwnd)?;
-                        }
-
-                        workspace.layer = WorkspaceLayer::Tiling;
-
-                        if matches!(
-                            self.focused_workspace()?.layout,
-                            Layout::Default(DefaultLayout::Scrolling)
-                        ) && !self.focused_workspace()?.containers().is_empty()
-                        {
-                            self.update_focused_workspace(self.mouse_follows_focus, false)?;
-                        }
+                if workspace.focus_floating_window_by_hwnd(window.hwnd) {
+                    workspace.layer = WorkspaceLayer::Floating;
+                } else {
+                    if let Some(w) = &workspace.maximized_window
+                        && w.hwnd == window.hwnd
+                    {
+                        return Ok(());
                     }
-                    Some(idx) => {
-                        if let Some(_window) = workspace.floating_windows().get(idx) {
-                            workspace.layer = WorkspaceLayer::Floating;
+
+                    if let Some(monocle) = &workspace.monocle_container {
+                        if let Some(window) = monocle.focused_window() {
+                            window.focus(false)?;
                         }
+                    } else {
+                        workspace.focus_container_by_window(window.hwnd)?;
+                    }
+
+                    workspace.layer = WorkspaceLayer::Tiling;
+
+                    if matches!(
+                        self.focused_workspace()?.layout,
+                        Layout::Default(DefaultLayout::Scrolling)
+                    ) && !self.focused_workspace()?.containers().is_empty()
+                    {
+                        self.update_focused_workspace(self.mouse_follows_focus, false)?;
                     }
                 }
             }
@@ -1013,11 +1003,8 @@ impl WindowManager {
                     .and_then(|m| m.idx_for_window(window.hwnd).map(|i| (m, i)))
                 {
                     monocle.focus_window(idx);
-                } else if workspace
-                    .floating_windows()
-                    .iter()
-                    .any(|w| w.hwnd == window.hwnd)
-                {
+                } else if workspace.focus_floating_window_by_hwnd(window.hwnd) {
+                    // Select the activated window before restoring the destination workspace.
                     layer = WorkspaceLayer::Floating;
                 } else if workspace
                     .maximized_window
