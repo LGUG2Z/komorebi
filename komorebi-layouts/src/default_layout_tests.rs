@@ -952,3 +952,76 @@ mod cascade_resolution_tests {
         assert_eq!(result.unwrap().column_ratios, ws_base.column_ratios);
     }
 }
+
+mod width_step_tests {
+    use super::*;
+
+    #[test]
+    fn test_validate_width_steps_allows_sum_above_one() {
+        // Unlike column ratios, steps are alternatives and may sum past 1.0
+        let steps = validate_width_steps(&DEFAULT_WIDTH_STEPS);
+        assert_eq!(steps[0], Some(0.381_966));
+        assert_eq!(steps[1], Some(0.5));
+        assert_eq!(steps[2], Some(0.618_034));
+        assert_eq!(steps[3], None);
+    }
+
+    #[test]
+    fn test_validate_width_steps_sorts_clamps_and_dedupes() {
+        let steps = validate_width_steps(&[0.8, 0.2, 0.8, 0.05, 0.99]);
+        // 0.05 clamps up to MIN_RATIO, 0.99 clamps down to MAX_RATIO,
+        // duplicate 0.8 is removed, result is ascending
+        assert_eq!(steps[0], Some(MIN_RATIO));
+        assert_eq!(steps[1], Some(0.2));
+        assert_eq!(steps[2], Some(0.8));
+        assert_eq!(steps[3], Some(MAX_RATIO));
+        assert_eq!(steps[4], None);
+    }
+
+    #[test]
+    fn test_cycle_width_step_next_walks_up_then_wraps() {
+        let steps = DEFAULT_WIDTH_STEPS;
+
+        let from_narrow = cycle_width_step(0.381_966, &steps, CycleDirection::Next);
+        assert_eq!(from_narrow, Some(0.5));
+
+        let from_middle = cycle_width_step(0.5, &steps, CycleDirection::Next);
+        assert_eq!(from_middle, Some(0.618_034));
+
+        // at the widest step, wrap back around to the narrowest
+        let from_widest = cycle_width_step(0.618_034, &steps, CycleDirection::Next);
+        assert_eq!(from_widest, Some(0.381_966));
+    }
+
+    #[test]
+    fn test_cycle_width_step_previous_walks_down_then_wraps() {
+        let steps = DEFAULT_WIDTH_STEPS;
+
+        let from_widest = cycle_width_step(0.618_034, &steps, CycleDirection::Previous);
+        assert_eq!(from_widest, Some(0.5));
+
+        // at the narrowest step, wrap around to the widest
+        let from_narrow = cycle_width_step(0.381_966, &steps, CycleDirection::Previous);
+        assert_eq!(from_narrow, Some(0.618_034));
+    }
+
+    #[test]
+    fn test_cycle_width_step_from_full_width_column() {
+        // A column occupying the whole work area (the default single-container
+        // case) has no wider step, so Next wraps to the narrowest
+        let steps = DEFAULT_WIDTH_STEPS;
+        assert_eq!(
+            cycle_width_step(1.0, &steps, CycleDirection::Next),
+            Some(0.381_966)
+        );
+        assert_eq!(
+            cycle_width_step(1.0, &steps, CycleDirection::Previous),
+            Some(0.618_034)
+        );
+    }
+
+    #[test]
+    fn test_cycle_width_step_empty_steps() {
+        assert_eq!(cycle_width_step(0.5, &[], CycleDirection::Next), None);
+    }
+}

@@ -125,6 +125,7 @@ pub enum SocketMessage {
     CycleLayout(CycleDirection),
     LayoutRatios(Option<Vec<f32>>, Option<Vec<f32>>),
     ScrollingLayoutColumns(NonZeroUsize),
+    ScrollingCycleColumnWidth(CycleDirection),
     ChangeLayoutCustom(#[serde_as(as = "ResolvedPathBuf")] PathBuf),
     FlipLayout(Axis),
     ToggleWorkspaceWindowContainerBehaviour,

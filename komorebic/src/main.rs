@@ -1009,6 +1009,13 @@ struct ScrollingLayoutColumns {
 }
 
 #[derive(Parser)]
+struct ScrollingCycleColumnWidth {
+    /// Direction to cycle through the configured width steps
+    #[clap(value_enum)]
+    cycle_direction: CycleDirection,
+}
+
+#[derive(Parser)]
 struct LayoutRatios {
     /// Column width ratios (space-separated values between 0.1 and 0.9)
     #[clap(short, long, num_args = 1..)]
@@ -1284,6 +1291,9 @@ enum SubCommand {
     /// Set the number of visible columns for the Scrolling layout on the focused workspace
     #[clap(arg_required_else_help = true)]
     ScrollingLayoutColumns(ScrollingLayoutColumns),
+    /// Cycle the focused Scrolling layout column through the configured width steps
+    #[clap(arg_required_else_help = true)]
+    ScrollingCycleColumnWidth(ScrollingCycleColumnWidth),
     /// Set the layout column and row ratios for the focused workspace
     LayoutRatios(LayoutRatios),
     /// Load a custom layout from file for the focused workspace
@@ -2952,6 +2962,11 @@ if (Get-Command Get-CimInstance -ErrorAction SilentlyContinue) {
         }
         SubCommand::CycleLayout(args) => {
             send_message(&SocketMessage::CycleLayout(args.cycle_direction))?;
+        }
+        SubCommand::ScrollingCycleColumnWidth(args) => {
+            send_message(&SocketMessage::ScrollingCycleColumnWidth(
+                args.cycle_direction,
+            ))?;
         }
         SubCommand::ScrollingLayoutColumns(args) => {
             send_message(&SocketMessage::ScrollingLayoutColumns(args.count))?;

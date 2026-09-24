@@ -6,6 +6,7 @@ use serde::Serialize;
 use strum::Display;
 use strum::EnumString;
 
+use super::CycleDirection;
 use super::OperationDirection;
 use super::Rect;
 use super::Sizing;
@@ -24,6 +25,35 @@ pub const DEFAULT_RATIO: f32 = 0.5;
 
 /// Default secondary ratio value for UltrawideVerticalStack layout
 pub const DEFAULT_SECONDARY_RATIO: f32 = 0.25;
+
+/// Default width steps for the Scrolling layout's column width cycling.
+/// These are the golden ratio steps used by PaperWM: 1/phi^2, 1/2, 1/phi
+pub const DEFAULT_WIDTH_STEPS: [f32; 3] = [0.381_966, 0.5, 0.618_034];
+
+/// Validates and converts a Vec of width steps into a fixed-size array.
+///
+/// Unlike [`validate_ratios`], width steps are *alternatives* rather than a
+/// partition of the available space, so there is no cumulative sum rule: a set
+/// of steps such as `[0.382, 0.5, 0.618]` sums to well over 1.0 and is valid.
+/// Values are clamped, sorted ascending and deduplicated so that cycling
+/// through them is predictable.
+#[must_use]
+pub fn validate_width_steps(steps: &[f32]) -> [Option<f32>; MAX_RATIOS] {
+    let mut collected: Vec<f32> = steps
+        .iter()
+        .map(|&val| val.clamp(MIN_RATIO, MAX_RATIO))
+        .collect();
+
+    collected.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+    collected.dedup_by(|a, b| (*a - *b).abs() < f32::EPSILON);
+
+    let mut arr = [None; MAX_RATIOS];
+    for (i, &val) in collected.iter().take(MAX_RATIOS).enumerate() {
+        arr[i] = Some(val);
+    }
+
+    arr
+}
 
 /// Validates and converts a Vec of ratios into a fixed-size array.
 /// - Clamps values to MIN_RATIO..MAX_RATIO range
@@ -53,6 +83,45 @@ pub fn validate_ratios(ratios: &[f32]) -> [Option<f32>; MAX_RATIOS] {
         }
     }
     arr
+}
+
+/// Tolerance used when deciding whether the current width already matches a
+/// step, expressed as a ratio of the work area. Without it, integer rounding of
+/// pixel widths would make a column appear to sit just below its own step and
+/// cycling would stall.
+const WIDTH_STEP_SLACK: f32 = 0.01;
+
+/// Returns the next width step for a column currently occupying `current_ratio`
+/// of the work area.
+///
+/// Mirrors PaperWM's `cycleWindowWidth`: `Next` picks the smallest step wider
+/// than the current width and wraps around to the narrowest, `Previous` picks
+/// the largest step narrower than the current width and wraps to the widest.
+/// `steps` is expected to be sorted ascending, as produced by
+/// [`validate_width_steps`].
+#[must_use]
+pub fn cycle_width_step(
+    current_ratio: f32,
+    steps: &[f32],
+    direction: CycleDirection,
+) -> Option<f32> {
+    if steps.is_empty() {
+        return None;
+    }
+
+    match direction {
+        CycleDirection::Next => steps
+            .iter()
+            .find(|&&step| step > current_ratio + WIDTH_STEP_SLACK)
+            .or_else(|| steps.first())
+            .copied(),
+        CycleDirection::Previous => steps
+            .iter()
+            .rev()
+            .find(|&&step| step < current_ratio - WIDTH_STEP_SLACK)
+            .or_else(|| steps.last())
+            .copied(),
+    }
 }
 
 #[derive(
@@ -172,6 +241,19 @@ where
     Ok(opt.map(|vec| validate_ratios(&vec)))
 }
 
+/// Helper to deserialize a variable-length array of Scrolling width steps into a
+/// fixed [Option<f32>; MAX_RATIOS]. Unlike ratios, steps are not subject to a
+/// cumulative sum rule; see [`validate_width_steps`].
+fn deserialize_width_steps<'de, D>(
+    deserializer: D,
+) -> Result<Option<[Option<f32>; MAX_RATIOS]>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let opt: Option<Vec<f32>> = Option::deserialize(deserializer)?;
+    Ok(opt.map(|vec| validate_width_steps(&vec)))
+}
+
 /// Helper to serialize [Option<f32>; MAX_RATIOS] as a compact array (without trailing nulls)
 fn serialize_ratios<S>(
     value: &Option<[Option<f32>; MAX_RATIOS]>,
@@ -234,7 +316,7 @@ pub struct LayoutOptions {
     pub row_ratios: Option<[Option<f32>; MAX_RATIOS]>,
 }
 
-#[derive(Clone, Copy, Debug, Serialize, Deserialize, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 /// Options for the Scrolling layout
 pub struct ScrollingLayoutOptions {
@@ -242,6 +324,28 @@ pub struct ScrollingLayoutOptions {
     pub columns: usize,
     /// With an odd number of visible columns, keep the focused window column centered
     pub center_focused_column: Option<bool>,
+    /// Keep columns at their full width when there are fewer containers than
+    /// visible columns, instead of expanding them to fill the work area.
+    ///
+    /// With `columns: 3` and a single container, the default behaviour gives that
+    /// container the entire work area. When this is enabled the container keeps
+    /// one third of the work area and the rest of the strip is left empty, which
+    /// is how scrollable tiling window managers such as PaperWM and niri behave.
+    pub fixed_column_width: Option<bool>,
+    /// Width steps (ratios of the work area between 0.1 and 0.9) that
+    /// `komorebic scrolling-cycle-column-width` snaps the focused column to.
+    ///
+    /// Unlike `column_ratios` these are alternatives rather than a partition of
+    /// the work area, so they are not required to sum to less than 1.0. Values
+    /// are clamped, sorted ascending and deduplicated.
+    ///
+    /// Defaults to the golden ratio steps `[0.382, 0.5, 0.618]`.
+    #[serde(
+        default,
+        deserialize_with = "deserialize_width_steps",
+        serialize_with = "serialize_ratios"
+    )]
+    pub width_steps: Option<[Option<f32>; MAX_RATIOS]>,
 }
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, Eq, PartialEq)]

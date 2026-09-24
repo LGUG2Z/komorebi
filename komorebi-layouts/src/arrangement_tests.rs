@@ -500,6 +500,8 @@ mod scrolling_layout_tests {
             scrolling: Some(crate::ScrollingLayoutOptions {
                 columns: 3,
                 center_focused_column: None,
+                fixed_column_width: None,
+                width_steps: None,
             }),
             grid: None,
             column_ratios: None,
@@ -517,6 +519,313 @@ mod scrolling_layout_tests {
             area.left + area.right,
             "visible columns should cover full width, right edge is {right_edge} expected {}",
             area.left + area.right,
+        );
+    }
+
+    fn scrolling_opts(columns: usize, fixed_column_width: Option<bool>) -> LayoutOptions {
+        LayoutOptions {
+            scrolling: Some(crate::ScrollingLayoutOptions {
+                columns,
+                center_focused_column: None,
+                fixed_column_width,
+                width_steps: None,
+            }),
+            grid: None,
+            column_ratios: None,
+            row_ratios: None,
+        }
+    }
+
+    /// A 32:9 super ultrawide is the case that motivated `fixed_column_width`:
+    /// a single container on a 7632px work area was being stretched across the
+    /// whole panel instead of occupying one column.
+    fn ultrawide_area() -> Rect {
+        Rect {
+            left: 0,
+            top: 0,
+            right: 7632,
+            bottom: 2062,
+        }
+    }
+
+    #[test]
+    fn test_scrolling_single_container_fills_area_by_default() {
+        let area = ultrawide_area();
+        let len = NonZeroUsize::new(1).unwrap();
+        let opts = scrolling_opts(3, None);
+
+        let layouts =
+            DefaultLayout::Scrolling.calculate(&area, len, None, None, &[], 0, Some(opts), &[]);
+
+        assert_eq!(
+            layouts[0].right, 7632,
+            "default behaviour must be unchanged: a lone container fills the work area"
+        );
+    }
+
+    #[test]
+    fn test_scrolling_single_container_keeps_column_width_when_fixed() {
+        let area = ultrawide_area();
+        let len = NonZeroUsize::new(1).unwrap();
+        let opts = scrolling_opts(3, Some(true));
+
+        let layouts =
+            DefaultLayout::Scrolling.calculate(&area, len, None, None, &[], 0, Some(opts), &[]);
+
+        assert_eq!(
+            layouts[0].right,
+            7632 / 3,
+            "a lone container should keep a single column's width"
+        );
+        assert_eq!(layouts[0].left, area.left, "and stay at the left edge");
+    }
+
+    #[test]
+    fn test_scrolling_partial_strip_keeps_column_width_when_fixed() {
+        let area = ultrawide_area();
+        let len = NonZeroUsize::new(2).unwrap();
+        let opts = scrolling_opts(3, Some(true));
+
+        let layouts =
+            DefaultLayout::Scrolling.calculate(&area, len, None, None, &[], 0, Some(opts), &[]);
+
+        let column_width = 7632 / 3;
+        assert_eq!(layouts[0].right, column_width);
+        assert_eq!(layouts[1].right, column_width);
+        assert_eq!(
+            layouts[1].left,
+            area.left + column_width,
+            "the second column should sit immediately right of the first"
+        );
+
+        let covered = layouts[1].left + layouts[1].right;
+        assert!(
+            covered < area.left + area.right,
+            "two of three columns should leave the rest of the strip empty, covered {covered}"
+        );
+    }
+
+    #[test]
+    fn test_scrolling_full_strip_is_contiguous_when_fixed() {
+        // A width that does not divide evenly, to show the columns still abut
+        // one another exactly even when the division leaves a remainder
+        let area = Rect {
+            left: 0,
+            top: 0,
+            right: 1921,
+            bottom: 800,
+        };
+        let len = NonZeroUsize::new(5).unwrap();
+        let opts = scrolling_opts(3, Some(true));
+
+        let layouts =
+            DefaultLayout::Scrolling.calculate(&area, len, None, None, &[], 0, Some(opts), &[]);
+
+        for pair in layouts.windows(2) {
+            assert_eq!(
+                pair[1].left,
+                pair[0].left + pair[0].right,
+                "columns on the strip must abut exactly, with no gap or overlap"
+            );
+        }
+    }
+
+    fn width_delta(px: i32) -> Option<Rect> {
+        Some(Rect {
+            left: 0,
+            top: 0,
+            right: px,
+            bottom: 0,
+        })
+    }
+
+    /// A column whose right edge falls beyond the viewport should pull the strip
+    /// along when it is focused, rather than being left hanging off the edge.
+    #[test]
+    fn test_scrolling_focused_column_past_right_edge_scrolls_into_view() {
+        let area = ultrawide_area();
+        let len = NonZeroUsize::new(3).unwrap();
+        let opts = scrolling_opts(3, Some(true));
+
+        // widen the first two columns so the third is pushed off the right edge
+        let resize = vec![width_delta(3000), width_delta(3000), None];
+
+        let layouts =
+            DefaultLayout::Scrolling.calculate(&area, len, None, None, &resize, 2, Some(opts), &[]);
+
+        let focused = layouts[2];
+        assert_eq!(
+            focused.left + focused.right,
+            area.left + area.right,
+            "the focused column's right edge should sit at the viewport's right edge"
+        );
+        assert!(
+            layouts[0].left < area.left,
+            "and the columns before it should be pushed off the left edge"
+        );
+    }
+
+    /// Focusing a column that is off to the left should bring its left edge back
+    /// on screen.
+    #[test]
+    fn test_scrolling_focused_column_past_left_edge_scrolls_into_view() {
+        let area = ultrawide_area();
+        let len = NonZeroUsize::new(3).unwrap();
+        let opts = scrolling_opts(3, Some(true));
+        let resize = vec![width_delta(3000), width_delta(3000), None];
+
+        // the strip is currently scrolled to show the last column
+        let scrolled =
+            DefaultLayout::Scrolling.calculate(&area, len, None, None, &resize, 2, Some(opts), &[]);
+
+        // now focus the first column
+        let layouts = DefaultLayout::Scrolling.calculate(
+            &area,
+            len,
+            None,
+            None,
+            &resize,
+            0,
+            Some(opts),
+            &scrolled,
+        );
+
+        assert_eq!(
+            layouts[0].left, area.left,
+            "the focused column should be brought back to the viewport's left edge"
+        );
+    }
+
+    /// A column wider than the whole viewport cannot be shown in full, so it is
+    /// left-aligned and the rest of it runs off the right edge.
+    #[test]
+    fn test_scrolling_column_wider_than_viewport_is_left_aligned() {
+        let area = ultrawide_area();
+        let len = NonZeroUsize::new(2).unwrap();
+        let opts = scrolling_opts(3, Some(true));
+
+        // 2544 + 6000 = 8544, wider than the 7632 viewport
+        let resize = vec![width_delta(12000), None];
+
+        let layouts =
+            DefaultLayout::Scrolling.calculate(&area, len, None, None, &resize, 0, Some(opts), &[]);
+
+        assert!(
+            layouts[0].right > area.right,
+            "this column should be wider than the viewport for the test to mean anything"
+        );
+        assert_eq!(
+            layouts[0].left, area.left,
+            "a column too wide to fit should show its left edge"
+        );
+    }
+
+    /// The strip should not scroll while the focused column is already fully on
+    /// screen.
+    #[test]
+    fn test_scrolling_does_not_move_when_focused_column_is_visible() {
+        let area = ultrawide_area();
+        let len = NonZeroUsize::new(3).unwrap();
+        let opts = scrolling_opts(3, Some(true));
+        let resize = vec![width_delta(3000), width_delta(3000), None];
+
+        let first =
+            DefaultLayout::Scrolling.calculate(&area, len, None, None, &resize, 2, Some(opts), &[]);
+
+        // focus the second column, which is already visible in that arrangement
+        let second = DefaultLayout::Scrolling.calculate(
+            &area,
+            len,
+            None,
+            None,
+            &resize,
+            1,
+            Some(opts),
+            &first,
+        );
+
+        assert_eq!(
+            first[1].left, second[1].left,
+            "the strip should stay put when the focused column is already visible"
+        );
+    }
+
+    #[test]
+    fn test_scrolling_widening_a_column_pushes_neighbours_right() {
+        // Widening a column on a scrolling strip should move the columns to its
+        // right further along, not shrink them. Taking space from the neighbour
+        // is split-layout behaviour and is wrong for a strip.
+        let area = ultrawide_area();
+        let len = NonZeroUsize::new(3).unwrap();
+        let opts = scrolling_opts(3, Some(true));
+
+        let before =
+            DefaultLayout::Scrolling.calculate(&area, len, None, None, &[], 0, Some(opts), &[]);
+
+        // widen the leftmost column (deltas are halved when applied)
+        let resize = vec![
+            Some(Rect {
+                left: 0,
+                top: 0,
+                right: 600,
+                bottom: 0,
+            }),
+            None,
+            None,
+        ];
+
+        let after =
+            DefaultLayout::Scrolling.calculate(&area, len, None, None, &resize, 0, Some(opts), &[]);
+
+        assert_eq!(
+            after[0].right,
+            before[0].right + 300,
+            "the resized column should get wider"
+        );
+
+        assert_eq!(
+            after[1].right, before[1].right,
+            "its neighbour must keep its width"
+        );
+        assert_eq!(
+            after[2].right, before[2].right,
+            "and so must every other column"
+        );
+
+        assert_eq!(
+            after[1].left,
+            before[1].left + 300,
+            "the neighbour should be pushed right by the full amount"
+        );
+        assert_eq!(
+            after[2].left,
+            before[2].left + 300,
+            "and columns beyond it should move with it"
+        );
+    }
+
+    #[test]
+    fn test_scrolling_single_container_honours_resize_dimensions() {
+        let area = ultrawide_area();
+        let len = NonZeroUsize::new(1).unwrap();
+        let opts = scrolling_opts(3, Some(true));
+
+        let resize = vec![Some(Rect {
+            left: 0,
+            top: 0,
+            right: 400,
+            bottom: 0,
+        })];
+
+        let layouts =
+            DefaultLayout::Scrolling.calculate(&area, len, None, None, &resize, 0, Some(opts), &[]);
+
+        // resize deltas are halved by convention (see `resize_right`), since a
+        // delta is normally shared between two adjacent columns
+        assert_eq!(
+            layouts[0].right,
+            (7632 / 3) + (400 / 2),
+            "resizing a lone column must not be silently ignored"
         );
     }
 }

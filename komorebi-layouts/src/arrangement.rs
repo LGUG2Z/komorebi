@@ -71,7 +71,26 @@ impl Arrangement for DefaultLayout {
                     .and_then(|o| o.scrolling.map(|s| s.columns))
                     .unwrap_or(3);
 
-                let column_width = area.right / column_count.min(len) as i32;
+                let fixed_column_width = layout_options
+                    .as_ref()
+                    .and_then(|o| {
+                        o.scrolling
+                            .map(|s| s.fixed_column_width.unwrap_or_default())
+                    })
+                    .unwrap_or(false);
+
+                // By default a strip holding fewer containers than `columns`
+                // widens them to fill the work area. When `fixed_column_width`
+                // is set, a column is always `work_area / columns` wide and any
+                // unused part of the strip is simply left empty, which is how
+                // PaperWM and niri behave.
+                let divisor = if fixed_column_width {
+                    column_count
+                } else {
+                    column_count.min(len)
+                };
+
+                let column_width = area.right / divisor as i32;
                 let mut layouts = Vec::with_capacity(len);
 
                 let visible_columns = area.right / column_width;
@@ -129,39 +148,133 @@ impl Arrangement for DefaultLayout {
                     }
                 };
 
-                for i in 0..len {
-                    let position = (i as isize) - first_visible;
-                    let left = area.left + (position as i32 * column_width);
+                if fixed_column_width {
+                    // Each column carries its own width, and the strip is laid
+                    // out by walking those widths outwards from the first
+                    // visible column. Widening a column therefore pushes the
+                    // columns to its right further along the strip rather than
+                    // taking space from its neighbour, which is what makes a
+                    // scrolling strip behave like PaperWM instead of like a
+                    // split layout.
+                    let widths: Vec<i32> = (0..len)
+                        .map(|i| {
+                            // Deltas are halved when applied, matching
+                            // `resize_left` and `resize_right`. Dragging either
+                            // edge of a column changes that column's own width;
+                            // the strip then reflows around it.
+                            let delta =
+                                resize_dimensions
+                                    .get(i)
+                                    .copied()
+                                    .flatten()
+                                    .map_or(0, |rect| {
+                                        let right = rect.right / 2;
+                                        let left = rect.left / 2;
+                                        right - left
+                                    });
 
-                    layouts.push(Rect {
-                        left,
-                        top: area.top,
-                        right: column_width,
-                        bottom: area.bottom,
-                    });
+                            (column_width + delta).max(1)
+                        })
+                        .collect();
+
+                    // Offsets along the strip, measured from its start. The strip
+                    // is a continuous run of columns; how much of it is on screen
+                    // is decided below by a single scroll offset.
+                    let mut offsets = Vec::with_capacity(len);
+                    let mut total = 0i32;
+                    for width in &widths {
+                        offsets.push(total);
+                        total = total.saturating_add(*width);
+                    }
+
+                    let viewport = area.right;
+                    let focused_left = offsets[focused_idx.min(len - 1)];
+                    let focused_width = widths[focused_idx.min(len - 1)];
+                    let focused_right = focused_left.saturating_add(focused_width);
+
+                    // Carry the previous scroll position so the strip only moves
+                    // when it has to. Column 0 sits at the start of the strip, so
+                    // its last position tells us where the strip was.
+                    let previous_scroll = if latest_layout.len() == len {
+                        area.left - latest_layout[0].left
+                    } else {
+                        0
+                    };
+
+                    let max_scroll = total.saturating_sub(viewport).max(0);
+
+                    let mut scroll = if keep_centered {
+                        focused_left + focused_width / 2 - viewport / 2
+                    } else {
+                        previous_scroll
+                    };
+
+                    // Scroll forward far enough to bring the focused column's
+                    // right edge on screen, then back far enough to bring its
+                    // left edge on screen. Applying them in that order means a
+                    // column wider than the viewport ends up left-aligned, so
+                    // the start of it is what you see.
+                    let lower = focused_right.saturating_sub(viewport);
+                    let upper = focused_left;
+
+                    if scroll < lower {
+                        scroll = lower;
+                    }
+
+                    if scroll > upper {
+                        scroll = upper;
+                    }
+
+                    scroll = scroll.clamp(0, max_scroll);
+
+                    for i in 0..len {
+                        layouts.push(Rect {
+                            left: area.left - scroll + offsets[i],
+                            top: area.top,
+                            right: widths[i],
+                            bottom: area.bottom,
+                        });
+                    }
+
+                    // No resize adjustment pass here: the horizontal component is
+                    // already folded into the widths above, and the Scrolling
+                    // layout does not permit vertical resizing.
+                    layouts
+                } else {
+                    for i in 0..len {
+                        let position = (i as isize) - first_visible;
+                        let left = area.left + (position as i32 * column_width);
+
+                        layouts.push(Rect {
+                            left,
+                            top: area.top,
+                            right: column_width,
+                            bottom: area.bottom,
+                        });
+                    }
+
+                    // Last visible column absorbs any remainder from integer division
+                    // so that visible columns tile the full area width without gaps
+                    let width_remainder = area.right - column_width * visible_columns;
+                    if width_remainder > 0 {
+                        let last_visible_idx =
+                            (first_visible as usize + visible_columns as usize - 1).min(len - 1);
+                        layouts[last_visible_idx].right += width_remainder;
+                    }
+
+                    let adjustment = calculate_scrolling_adjustment(resize_dimensions);
+                    layouts
+                        .iter_mut()
+                        .zip(adjustment.iter())
+                        .for_each(|(layout, adjustment)| {
+                            layout.top += adjustment.top;
+                            layout.bottom += adjustment.bottom;
+                            layout.left += adjustment.left;
+                            layout.right += adjustment.right;
+                        });
+
+                    layouts
                 }
-
-                // Last visible column absorbs any remainder from integer division
-                // so that visible columns tile the full area width without gaps
-                let width_remainder = area.right - column_width * visible_columns;
-                if width_remainder > 0 {
-                    let last_visible_idx =
-                        (first_visible as usize + visible_columns as usize - 1).min(len - 1);
-                    layouts[last_visible_idx].right += width_remainder;
-                }
-
-                let adjustment = calculate_scrolling_adjustment(resize_dimensions);
-                layouts
-                    .iter_mut()
-                    .zip(adjustment.iter())
-                    .for_each(|(layout, adjustment)| {
-                        layout.top += adjustment.top;
-                        layout.bottom += adjustment.bottom;
-                        layout.left += adjustment.left;
-                        layout.right += adjustment.right;
-                    });
-
-                layouts
             }
             Self::BSP => {
                 let column_split_ratio = layout_options
@@ -1551,7 +1664,7 @@ fn calculate_scrolling_adjustment(resize_dimensions: &[Option<Rect>]) -> Vec<Rec
     let len = resize_dimensions.len();
     let mut result = vec![Rect::default(); len];
 
-    if len <= 1 {
+    if len == 0 {
         return result;
     }
 
