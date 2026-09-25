@@ -30,6 +30,8 @@ use std::sync::OnceLock;
 use std::sync::atomic::AtomicBool;
 use std::sync::atomic::AtomicI32;
 use std::sync::atomic::AtomicU32;
+use std::sync::atomic::AtomicU64;
+use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering;
 use strum::Display;
 use windows::Win32::Foundation::HWND;
@@ -39,6 +41,9 @@ pub static BORDER_WIDTH: AtomicI32 = AtomicI32::new(8);
 pub static BORDER_OFFSET: AtomicI32 = AtomicI32::new(-1);
 
 pub static BORDER_ENABLED: AtomicBool = AtomicBool::new(true);
+
+/// Workspace slides hide borders until the transition finishes.
+static BORDER_SUPPRESS_COUNT: AtomicUsize = AtomicUsize::new(0);
 
 lazy_static! {
     pub static ref STYLE: AtomicCell<BorderStyle> = AtomicCell::new(BorderStyle::System);
@@ -136,6 +141,34 @@ pub fn send_notification(hwnd: Option<isize>) {
 pub fn send_force_update() {
     if event_tx().try_send(Notification::ForceUpdate).is_err() {
         tracing::warn!("channel is full; dropping notification")
+    }
+}
+
+/// Hide existing borders and ignore border updates until [`restore_borders`]
+/// drops the suppress count back to zero.
+pub fn suppress_borders() {
+    BORDER_SUPPRESS_COUNT.fetch_add(1, Ordering::SeqCst);
+    let borders = BORDER_STATE.lock();
+    for (_, border) in borders.iter() {
+        WindowsApi::hide_window(border.hwnd);
+    }
+}
+
+/// Bumped when borders are shown again. A `hide_border` queued before that
+/// bump must not run afterwards and cover the restored outline.
+static BORDER_HIDE_EPOCH: AtomicU64 = AtomicU64::new(0);
+
+/// Pair of [`suppress_borders`]. The last caller asks the border thread to draw again.
+pub fn restore_borders() {
+    let previous = BORDER_SUPPRESS_COUNT.fetch_sub(1, Ordering::SeqCst);
+    if previous == 1 {
+        // Hold the border map so a hide that already passed its epoch check
+        // finishes before the generation moves, and a later hide sees the bump.
+        {
+            let _borders = BORDER_STATE.lock();
+            BORDER_HIDE_EPOCH.fetch_add(1, Ordering::SeqCst);
+        }
+        send_force_update();
     }
 }
 
@@ -374,6 +407,13 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
 
                 let mut borders = BORDER_STATE.lock();
                 let mut windows_borders = WINDOWS_BORDERS.lock();
+
+                if BORDER_SUPPRESS_COUNT.load(Ordering::SeqCst) > 0 {
+                    for (_, border) in borders.iter() {
+                        WindowsApi::hide_window(border.hwnd);
+                    }
+                    continue 'receiver;
+                }
 
                 // If borders are disabled
                 if !BORDER_ENABLED.load_consume()
@@ -827,10 +867,27 @@ pub fn show_border(tracking_hwnd: isize) {
 
 /// Hides the border around window with `tracking_hwnd` if it exists, unless the border kind is a
 /// `Stack` border.
+///
+/// The hide is dropped when [`restore_borders`] has already asked the border thread to draw
+/// again. Otherwise a hide spawned during a workspace slide lands after that draw and the
+/// outline stays missing until the next focus change.
 pub fn hide_border(tracking_hwnd: isize) {
+    let epoch = BORDER_HIDE_EPOCH.load(Ordering::SeqCst);
     std::thread::spawn(move || {
-        if let Some(border_info) = window_border(tracking_hwnd) {
-            WindowsApi::hide_window(border_info.border_hwnd);
+        let id = {
+            let windows_borders = WINDOWS_BORDERS.lock();
+            let Some(id) = windows_borders.get(&tracking_hwnd).cloned() else {
+                return;
+            };
+            id
+        };
+
+        let borders = BORDER_STATE.lock();
+        if BORDER_HIDE_EPOCH.load(Ordering::SeqCst) != epoch {
+            return;
+        }
+        if let Some(border) = borders.get(&id) {
+            WindowsApi::hide_window(border.hwnd);
         }
     });
 }

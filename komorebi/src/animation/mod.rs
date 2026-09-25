@@ -17,6 +17,7 @@ pub mod ghost;
 pub mod lerp;
 pub mod prefix;
 pub mod render_dispatcher;
+pub mod workspace;
 pub use render_dispatcher::RenderDispatcher;
 pub mod style;
 

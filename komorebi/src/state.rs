@@ -292,6 +292,7 @@ impl From<&WindowManager> for State {
                     ws
                 },
                 last_focused_workspace: monitor.last_focused_workspace,
+                loaded_workspace: None,
                 workspace_names: monitor.workspace_names.clone(),
                 container_padding: monitor.container_padding,
                 workspace_padding: monitor.workspace_padding,

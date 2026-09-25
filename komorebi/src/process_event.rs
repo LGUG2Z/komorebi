@@ -148,6 +148,21 @@ impl WindowManager {
             return Ok(());
         }
 
+        // Showing, uncloaking, or focusing a window that the workspace slide is
+        // moving must not be treated as the user switching back to that workspace.
+        if crate::animation::workspace::slide_event_suppressed(event.hwnd())
+            && matches!(
+                event,
+                WindowManagerEvent::Show(_, _)
+                    | WindowManagerEvent::Uncloak(_, _)
+                    | WindowManagerEvent::FocusChange(_, _)
+                    | WindowManagerEvent::Hide(_, _)
+                    | WindowManagerEvent::Cloak(_, _)
+            )
+        {
+            return Ok(());
+        }
+
         let mut rule_debug = RuleDebug::default();
 
         let should_manage = event.window().should_manage(Some(event), &mut rule_debug)?;

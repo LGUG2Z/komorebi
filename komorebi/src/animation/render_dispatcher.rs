@@ -11,4 +11,17 @@ pub trait RenderDispatcher {
     /// resources allocated in `pre_render` and bring the underlying window
     /// back to a consistent visible state. Default: no-op.
     fn cleanup_on_cancel(&self) {}
+
+    /// When true, `render` already waits for the next composed frame (via
+    /// `DwmFlush`). The engine must not also `thread::sleep`, or the slide
+    /// stalls for two frame times.
+    fn vblank_paced(&self) -> bool {
+        false
+    }
+
+    /// Stop the frame loop early. Workspace slides set this when every window
+    /// was shown or hidden immediately and there is nothing left to draw.
+    fn completed(&self) -> bool {
+        false
+    }
 }

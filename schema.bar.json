@@ -190,7 +190,8 @@
       "type": "string",
       "enum": [
         "movement",
-        "transparency"
+        "transparency",
+        "workspace"
       ]
     },
     "AnimationStyle": {

@@ -1,6 +1,10 @@
 use std::collections::HashMap;
+use std::collections::HashSet;
 use std::collections::VecDeque;
 use std::sync::atomic::Ordering;
+
+use crate::INITIAL_CONFIGURATION_LOADED;
+use crate::animation::workspace as workspace_animation;
 
 use color_eyre::eyre;
 use color_eyre::eyre::OptionExt;
@@ -43,6 +47,10 @@ pub struct Monitor {
     pub workspaces: Ring<Workspace>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub last_focused_workspace: Option<usize>,
+    /// Workspace index currently shown. Skipped so state restore stays instant.
+    #[serde(skip)]
+    #[cfg_attr(feature = "schemars", schemars(skip))]
+    pub loaded_workspace: Option<usize>,
     pub workspace_names: HashMap<usize, String>,
     pub container_padding: Option<i32>,
     pub workspace_padding: Option<i32>,
@@ -100,6 +108,7 @@ pub fn new(
         window_based_work_area_offset_limit: 1,
         workspaces,
         last_focused_workspace: None,
+        loaded_workspace: None,
         workspace_names: HashMap::default(),
         container_padding: None,
         workspace_padding: None,
@@ -143,6 +152,7 @@ impl Monitor {
             window_based_work_area_offset_limit: 0,
             workspaces: Default::default(),
             last_focused_workspace: None,
+            loaded_workspace: None,
             workspace_names: Default::default(),
             container_padding: None,
             workspace_padding: None,
@@ -168,6 +178,128 @@ impl Monitor {
     }
 
     pub fn load_focused_workspace(&mut self, mouse_follows_focus: bool) -> eyre::Result<()> {
+        let focused_idx = self.focused_workspace_idx();
+        let previously_loaded = self.loaded_workspace;
+        self.loaded_workspace = Some(focused_idx);
+
+        if let Some(from_idx) = previously_loaded
+            && from_idx != focused_idx
+            && INITIAL_CONFIGURATION_LOADED.load(Ordering::SeqCst)
+            && let Some((duration, style)) = workspace_animation::animation_settings()
+        {
+            let offset =
+                workspace_animation::slide_offset(from_idx, focused_idx, self.work_area_size.right);
+            if offset != 0 {
+                let outgoing = self
+                    .workspaces()
+                    .get(from_idx)
+                    .map(|workspace| {
+                        workspace
+                            .slide_windows()
+                            .iter()
+                            .map(|window| window.hwnd)
+                            .collect::<Vec<_>>()
+                    })
+                    .unwrap_or_default();
+                let incoming = self
+                    .workspaces()
+                    .get(focused_idx)
+                    .map(|workspace| {
+                        workspace
+                            .slide_windows()
+                            .iter()
+                            .map(|window| window.hwnd)
+                            .collect::<Vec<_>>()
+                    })
+                    .unwrap_or_default();
+
+                if !outgoing.is_empty() || !incoming.is_empty() {
+                    for (i, workspace) in self.workspaces_mut().iter_mut().enumerate() {
+                        if i != from_idx && i != focused_idx {
+                            workspace.hide(None);
+                        }
+                    }
+
+                    // A slide already on this monitor has to finish before the new
+                    // layout is applied, otherwise it keeps moving these windows.
+                    // Settle first: its finish uncloaks, and a snapshot taken before
+                    // that would be undone.
+                    workspace_animation::settle_slide(self.id);
+
+                    // Snapshot before the layout moves anything. The moved window is
+                    // still at its old tile; existing destination windows keep the
+                    // rect they had when this workspace was last shown.
+                    let mut incoming_from = HashMap::new();
+                    for hwnd in &incoming {
+                        if let Some(rect) = workspace_animation::snapshot_visible(*hwnd) {
+                            incoming_from.insert(*hwnd, rect);
+                        }
+                    }
+                    let (floating, floating_outer) = self
+                        .workspaces()
+                        .get(focused_idx)
+                        .map(floating_slide_state)
+                        .unwrap_or_default();
+
+                    let participants = outgoing
+                        .iter()
+                        .chain(incoming.iter())
+                        .copied()
+                        .collect::<Vec<_>>();
+                    // Cloak before the layout so a retile on an occupied workspace
+                    // is not visible as a snap. The ghost plays that change.
+                    // Outgoing windows are not moved, and stay on screen until their
+                    // ghosts replace them.
+                    workspace_animation::cloak_windows(&incoming);
+                    workspace_animation::begin_instant_position();
+                    let laid_out = self.update_focused_workspace(None);
+                    workspace_animation::end_instant_position();
+                    if let Err(error) = laid_out {
+                        workspace_animation::uncloak_windows(&participants);
+                        return Err(error);
+                    }
+
+                    let focus_hwnd = self
+                        .workspaces()
+                        .get(focused_idx)
+                        .and_then(|workspace| workspace.focus_target_hwnd());
+                    let hmonitor = self.id;
+                    let monitor_wp = self.wallpaper.clone();
+                    if let Some(workspace) = self.workspaces().get(focused_idx) {
+                        workspace.apply_wallpaper(hmonitor, &monitor_wp)?;
+                    }
+
+                    if workspace_animation::start_slide(
+                        workspace_animation::SlideRequest {
+                            monitor_id: self.id,
+                            outgoing,
+                            incoming,
+                            focus_hwnd,
+                            mouse_follows_focus,
+                            offset,
+                            monitor_bounds: self.size,
+                            duration,
+                            incoming_from,
+                            floating,
+                            floating_outer,
+                        },
+                        duration,
+                        style,
+                    )
+                    .is_ok()
+                    {
+                        return Ok(());
+                    }
+
+                    workspace_animation::uncloak_windows(&participants);
+                }
+            }
+        }
+
+        self.load_focused_workspace_immediate(mouse_follows_focus)
+    }
+
+    fn load_focused_workspace_immediate(&mut self, mouse_follows_focus: bool) -> eyre::Result<()> {
         let focused_idx = self.focused_workspace_idx();
         let hmonitor = self.id;
         let monitor_wp = self.wallpaper.clone();
@@ -511,6 +643,21 @@ impl Monitor {
 
         Ok(())
     }
+}
+
+fn floating_slide_state(workspace: &Workspace) -> (HashSet<isize>, HashMap<isize, Rect>) {
+    let mut floating = HashSet::new();
+    let mut floating_outer = HashMap::new();
+    for window in workspace.floating_windows() {
+        floating.insert(window.hwnd);
+        if let Ok(outer) = WindowsApi::outer_window_rect(window.hwnd)
+            && outer.left > -30_000
+            && outer.top > -30_000
+        {
+            floating_outer.insert(window.hwnd, outer);
+        }
+    }
+    (floating, floating_outer)
 }
 
 #[cfg(test)]

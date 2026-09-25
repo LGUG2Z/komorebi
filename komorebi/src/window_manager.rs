@@ -1113,7 +1113,7 @@ impl WindowManager {
             .ok_or_eyre("there is no monitor")?
             .update_focused_workspace(offset)?;
 
-        if follow_focus {
+        if follow_focus && !crate::animation::workspace::slide_in_progress() {
             if let Some(window) = self.focused_workspace()?.maximized_window {
                 if trigger_focus {
                     window.focus(self.mouse_follows_focus)?;

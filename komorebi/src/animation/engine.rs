@@ -43,7 +43,9 @@ impl AnimationEngine {
                 ANIMATION_MANAGER.lock().end(animation_key);
             }
 
-            std::thread::sleep(Duration::from_millis(250 / 2));
+            // The caller usually holds the window manager lock; poll finely so a
+            // cancelled animation hands over within a frame.
+            std::thread::sleep(Duration::from_millis(2));
         }
 
         let latest_cancel_idx = ANIMATION_MANAGER.lock().latest_cancel_idx(animation_key);
@@ -78,7 +80,7 @@ impl AnimationEngine {
             let animation_start = Instant::now();
 
             // start animation
-            while progress < 1.0 {
+            while progress < 1.0 && !render_dispatcher.completed() {
                 // check if animation is cancelled
                 if ANIMATION_MANAGER
                     .lock()
@@ -96,18 +98,20 @@ impl AnimationEngine {
                     animation_start.elapsed().as_millis() as f64 / duration.as_millis() as f64;
                 render_dispatcher.render(progress).ok();
 
-                // sleep until next frame
-                let frame_time_elapsed = frame_start.elapsed();
-
-                if frame_time_elapsed < target_frame_time {
-                    std::thread::sleep(target_frame_time - frame_time_elapsed);
+                // Workspace slides wait on DwmFlush inside render. Sleeping here
+                // as well drops the frame rate in half and makes the slide stutter.
+                if !render_dispatcher.vblank_paced() {
+                    let frame_time_elapsed = frame_start.elapsed();
+                    if frame_time_elapsed < target_frame_time {
+                        std::thread::sleep(target_frame_time - frame_time_elapsed);
+                    }
                 }
             }
 
             ANIMATION_MANAGER.lock().end(animation_key.as_str());
 
             // limit progress to 1.0 if animation took longer
-            if progress != 1.0 {
+            if !render_dispatcher.completed() && progress != 1.0 {
                 progress = 1.0;
 
                 // process animation for 1.0 to set target position

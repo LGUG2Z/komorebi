@@ -3651,6 +3651,9 @@
             },
             "transparency": {
               "type": "boolean"
+            },
+            "workspace": {
+              "type": "boolean"
             }
           },
           "additionalProperties": false
@@ -3677,6 +3680,11 @@
               "type": "integer",
               "format": "uint64",
               "minimum": 0
+            },
+            "workspace": {
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0
             }
           },
           "additionalProperties": false
@@ -3700,6 +3708,9 @@
               "$ref": "#/$defs/AnimationStyle"
             },
             "transparency": {
+              "$ref": "#/$defs/AnimationStyle"
+            },
+            "workspace": {
               "$ref": "#/$defs/AnimationStyle"
             }
           },
