@@ -348,74 +348,23 @@ impl DefaultLayout {
 
         let mut r = resize.unwrap_or_default();
 
-        let resize_delta = delta;
+        let resize_delta = match sizing {
+            Sizing::Increase => delta,
+            Sizing::Decrease => -delta,
+        };
 
         match edge {
-            OperationDirection::Left => match sizing {
-                Sizing::Increase => {
-                    // Some final checks to make sure the user can't infinitely resize to
-                    // the point of pushing other windows out of bounds
-
-                    // Note: These checks cannot take into account the changes made to the
-                    // edges of adjacent windows at operation time, so it is still possible
-                    // to push windows out of bounds by maxing out an Increase Left on a
-                    // Window with index 1, and then maxing out a Decrease Right on a Window
-                    // with index 0. I don't think it's worth trying to defensively program
-                    // against this; if people end up in this situation they are better off
-                    // just hitting the retile command
-                    let diff = ((r.left + -resize_delta) as f32).abs();
-                    if diff < unaltered.right as f32 {
-                        r.left += -resize_delta;
-                    }
-                }
-                Sizing::Decrease => {
-                    let diff = ((r.left - -resize_delta) as f32).abs();
-                    if diff < unaltered.right as f32 {
-                        r.left -= -resize_delta;
-                    }
-                }
+            OperationDirection::Left => {
+                r.left -= resize_delta;
             },
-            OperationDirection::Up => match sizing {
-                Sizing::Increase => {
-                    let diff = ((r.top + resize_delta) as f32).abs();
-                    if diff < unaltered.bottom as f32 {
-                        r.top += -resize_delta;
-                    }
-                }
-                Sizing::Decrease => {
-                    let diff = ((r.top - resize_delta) as f32).abs();
-                    if diff < unaltered.bottom as f32 {
-                        r.top -= -resize_delta;
-                    }
-                }
+            OperationDirection::Up => {
+                r.top -= resize_delta;
             },
-            OperationDirection::Right => match sizing {
-                Sizing::Increase => {
-                    let diff = ((r.right + resize_delta) as f32).abs();
-                    if diff < unaltered.right as f32 {
-                        r.right += resize_delta;
-                    }
-                }
-                Sizing::Decrease => {
-                    let diff = ((r.right - resize_delta) as f32).abs();
-                    if diff < unaltered.right as f32 {
-                        r.right -= resize_delta;
-                    }
-                }
+            OperationDirection::Right => {
+                r.right += resize_delta;
             },
-            OperationDirection::Down => match sizing {
-                Sizing::Increase => {
-                    let diff = ((r.bottom + resize_delta) as f32).abs();
-                    if diff < unaltered.bottom as f32 {
-                        r.bottom += resize_delta;
-                    }
-                }
-                Sizing::Decrease => {
-                    let diff = ((r.bottom - resize_delta) as f32).abs();
-                    if diff < unaltered.bottom as f32 {
-                        r.bottom -= resize_delta;
-                    }
-                }
+            OperationDirection::Down => {
+                r.bottom += resize_delta;
             },
         };
 
