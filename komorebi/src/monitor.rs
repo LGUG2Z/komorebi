@@ -173,7 +173,11 @@ impl Monitor {
         let monitor_wp = self.wallpaper.clone();
         for (i, workspace) in self.workspaces_mut().iter_mut().enumerate() {
             if i == focused_idx {
-                workspace.restore(mouse_follows_focus, hmonitor, &monitor_wp)?;
+                // Don't return early: the remaining workspaces still have to be hidden,
+                // and SetForegroundWindow refusing to focus the window isn't fatal here
+                if let Err(error) = workspace.restore(mouse_follows_focus, hmonitor, &monitor_wp) {
+                    tracing::warn!("{} {}:{}", error, file!(), line!());
+                }
             } else {
                 workspace.hide(None);
             }
