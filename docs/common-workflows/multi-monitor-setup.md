@@ -219,7 +219,7 @@ Consider this setup with 3 monitors (A, B and C):
 ```json
 // HOME_MONITOR_1_BAR.json
 {
-  "monitor_index": 0
+  "monitor": 0
   //...
 }
 ```
@@ -227,7 +227,7 @@ Consider this setup with 3 monitors (A, B and C):
 ```json
 // HOME_MONITOR_2_BAR.json
 {
-  "monitor_index": 1
+  "monitor": 1
   //...
 }
 ```
@@ -235,7 +235,7 @@ Consider this setup with 3 monitors (A, B and C):
 ```json
 // WORK_MONITOR_1_BAR.json
 {
-  "monitor_index": 2
+  "monitor": 2
   //...
 }
 ```
@@ -248,11 +248,11 @@ Consider this setup with 3 monitors (A, B and C):
     "2": "MONITOR_3_ID"
   },
   "bar_configurations": [
-    // this bar uses "monitor_index": 0,
+    // this bar uses "monitor": 0,
     "path/to/bar_config_1.json",
-    // this bar uses "monitor_index": 1,
+    // this bar uses "monitor": 1,
     "path/to/bar_config_2.json",
-    // this bar uses "monitor_index": 2,
+    // this bar uses "monitor": 2,
     "path/to/bar_config_3.json"
   ]
 }
@@ -357,7 +357,7 @@ Then on the bar configs you need to set the bar's monitor index like this:
 ```json
 // HOME_MONITOR_1_BAR.json
 {
-  "monitor_index": 0
+  "monitor": 0
   //...
 }
 ```
@@ -365,7 +365,7 @@ Then on the bar configs you need to set the bar's monitor index like this:
 ```json
 // HOME_MONITOR_2_BAR.json
 {
-  "monitor_index": 1
+  "monitor": 1
   //...
 }
 ```
@@ -373,7 +373,7 @@ Then on the bar configs you need to set the bar's monitor index like this:
 ```json
 // WORK_MONITOR_1_BAR.json
 {
-  "monitor_index": 2
+  "monitor": 2
   //...
 }
 ```
@@ -381,7 +381,7 @@ Then on the bar configs you need to set the bar's monitor index like this:
 ```json
 // WORK_MONITOR_2_BAR.json
 {
-  "monitor_index": 3
+  "monitor": 3
   //...
 }
 ```
