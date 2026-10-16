@@ -1048,6 +1048,36 @@ impl Workspace {
         insertion_idx
     }
 
+    pub(crate) fn remove_empty_containers(&mut self) {
+        let focused_id = self
+            .focused_container()
+            .map(|container| container.id.clone());
+        let empty_ids: Vec<_> = self
+            .containers()
+            .iter()
+            .filter(|container| container.windows().is_empty())
+            .map(|container| container.id.clone())
+            .collect();
+        for id in empty_ids {
+            // Removing a container can shift indices and reposition locked containers.
+            if let Some(index) = self
+                .containers()
+                .iter()
+                .position(|container| container.id == id)
+            {
+                self.remove_container_by_idx(index);
+            }
+        }
+        let focused = focused_id
+            .and_then(|id| {
+                self.containers()
+                    .iter()
+                    .position(|container| container.id == id)
+            })
+            .unwrap_or_default();
+        self.focus_container(focused);
+    }
+
     // this fn respects locked container indexes - we should use it for pretty much everything
     // except monocle and maximize toggles
     pub fn remove_container_by_idx(&mut self, idx: usize) -> Option<Container> {
@@ -2010,6 +2040,64 @@ mod tests {
     use crate::Window;
     use crate::container::Container;
     use std::collections::HashMap;
+
+    #[test]
+    fn test_remove_empty_containers_preserves_windows_and_focus() {
+        for empty_mask in 0..16 {
+            for locked_mask in 0..16 {
+                for focused in 0..4 {
+                    let mut workspace = Workspace::default();
+                    for index in 0..4 {
+                        let mut container = Container::default();
+                        container.id = index.to_string();
+                        container.locked = locked_mask & (1 << index) != 0;
+                        if empty_mask & (1 << index) == 0 {
+                            container
+                                .windows_mut()
+                                .push_back(Window::from(100 + index as isize));
+                        }
+                        workspace.containers_mut().push_back(container);
+                        workspace.resize_dimensions.push(None);
+                    }
+                    workspace.focus_container(focused);
+                    assert_eq!(workspace.containers().len(), 4);
+                    let expected: Vec<_> = (0..4)
+                        .filter(|index| empty_mask & (1 << index) == 0)
+                        .map(|index| 100 + index as isize)
+                        .collect();
+
+                    workspace.remove_empty_containers();
+
+                    let mut actual: Vec<_> = workspace
+                        .containers()
+                        .iter()
+                        .flat_map(|container| container.windows().iter().map(|window| window.hwnd))
+                        .collect();
+                    actual.sort();
+                    assert_eq!(
+                        actual, expected,
+                        "empty={empty_mask}, locked={locked_mask}, focus={focused}"
+                    );
+                    assert_eq!(workspace.containers().len(), expected.len());
+                    assert_eq!(workspace.resize_dimensions.len(), expected.len());
+                    if empty_mask & (1 << focused) == 0 {
+                        assert_eq!(
+                            workspace.focused_container().unwrap().id,
+                            focused.to_string()
+                        );
+                    } else if !expected.is_empty() {
+                        assert!(workspace.focused_container().is_some());
+                    } else {
+                        assert_eq!(workspace.focused_container_idx(), 0);
+                    }
+                    for container in workspace.containers() {
+                        let original: usize = container.id.parse().unwrap();
+                        assert_eq!(container.locked, locked_mask & (1 << original) != 0);
+                    }
+                }
+            }
+        }
+    }
 
     #[test]
     fn test_locked_containers_with_new_window() {

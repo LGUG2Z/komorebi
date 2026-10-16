@@ -794,20 +794,11 @@ where
                                     // windows that were visible since they were probably minimized by
                                     // Windows.
                                     let is_focused_workspace = j == focused_workspace_idx;
-                                    let focused_container_idx = workspace.focused_container_idx();
-
-                                    let mut empty_containers = Vec::new();
-                                    for (idx, container) in
-                                        workspace.containers_mut().iter_mut().enumerate()
-                                    {
+                                    for container in workspace.containers_mut() {
                                         container.windows_mut().retain(|window| {
                                             window.exe().is_ok()
                                                 && !known_hwnds.contains_key(&window.hwnd)
                                         });
-
-                                        if container.windows().is_empty() {
-                                            empty_containers.push(idx);
-                                        }
 
                                         if is_focused_workspace {
                                             if let Some(window) = container.focused_window()
@@ -833,14 +824,7 @@ where
                                         }
                                     }
 
-                                    // Remove empty containers
-                                    for empty_idx in empty_containers {
-                                        if empty_idx == focused_container_idx {
-                                            workspace.remove_container(empty_idx);
-                                        } else {
-                                            workspace.remove_container_by_idx(empty_idx);
-                                        }
-                                    }
+                                    workspace.remove_empty_containers();
 
                                     if let Some(window) = &workspace.maximized_window {
                                         if window.exe().is_err()
