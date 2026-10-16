@@ -127,6 +127,7 @@ fn monitor_is_disconnected(monitor: &Monitor, attached_devices: &[Monitor]) -> b
         serial_matches || attached.device_id == monitor.device_id
     })
 }
+
 fn monitor_topology_matches(
     monitors: &std::collections::VecDeque<Monitor>,
     attached_devices: &[Monitor],
@@ -270,9 +271,19 @@ where
     F: Fn() -> I + Copy,
     I: Iterator<Item = Result<win32_display_data::Device, win32_display_data::Error>>,
 {
-    tracing::info!("listening");
+    handle_notifications_with_receiver(wm, display_provider, event_rx())
+}
 
-    let receiver = event_rx();
+fn handle_notifications_with_receiver<F, I>(
+    wm: Arc<Mutex<WindowManager>>,
+    display_provider: F,
+    receiver: Receiver<MonitorNotification>,
+) -> color_eyre::Result<()>
+where
+    F: Fn() -> I + Copy,
+    I: Iterator<Item = Result<win32_display_data::Device, win32_display_data::Error>>,
+{
+    tracing::info!("listening");
 
     'receiver: for notification in receiver {
         if !ACTIVE.load_consume()
@@ -962,8 +973,6 @@ mod tests {
     use crate::window_manager_event::WindowManagerEvent;
     use crossbeam_channel::Sender;
     use crossbeam_channel::bounded;
-    use std::path::PathBuf;
-    use uuid::Uuid;
     use windows::Win32::Devices::Display::DISPLAYCONFIG_VIDEO_OUTPUT_TECHNOLOGY;
     // NOTE: Using RECT instead of RECT since I get a mismatched type error. Can be updated if
     // needed.
@@ -999,44 +1008,47 @@ mod tests {
         }
     }
 
-    // Creating a Window Manager Instance
     struct TestContext {
-        socket_path: Option<PathBuf>,
+        _shared: crate::test_support::TestContext,
+        monitor_cache: HashMap<String, Monitor>,
     }
 
-    impl Drop for TestContext {
-        fn drop(&mut self) {
-            if let Some(socket_path) = &self.socket_path {
-                // Clean up the socket file
-                if let Err(e) = std::fs::remove_file(socket_path) {
-                    tracing::warn!("Failed to remove socket file: {}", e);
-                }
+    impl TestContext {
+        fn new() -> Self {
+            let shared = crate::test_support::TestContext::new();
+            let monitor_cache = std::mem::take(
+                &mut *MONITOR_CACHE
+                    .get_or_init(|| Mutex::new(HashMap::new()))
+                    .lock(),
+            );
+            Self {
+                _shared: shared,
+                monitor_cache,
             }
         }
     }
 
-    fn setup_window_manager() -> (WindowManager, TestContext) {
+    impl Drop for TestContext {
+        fn drop(&mut self) {
+            *MONITOR_CACHE
+                .get_or_init(|| Mutex::new(HashMap::new()))
+                .lock() = std::mem::take(&mut self.monitor_cache);
+        }
+    }
+
+    fn setup_window_manager() -> (TestContext, WindowManager) {
+        let context = TestContext::new();
+        let wm = create_window_manager(&context);
+        (context, wm)
+    }
+
+    fn create_window_manager(context: &TestContext) -> WindowManager {
         let (_sender, receiver): (Sender<WindowManagerEvent>, Receiver<WindowManagerEvent>) =
             bounded(1);
-
-        // Temporary socket path for testing
-        let socket_name = format!("komorebi-test-{}.sock", Uuid::new_v4());
-        let socket_path = PathBuf::from(socket_name);
-
-        // Create a new WindowManager instance
-        let wm = match WindowManager::new(receiver, Some(socket_path.clone())) {
-            Ok(manager) => manager,
-            Err(e) => {
-                panic!("Failed to create WindowManager: {e}");
-            }
-        };
-
-        (
-            wm,
-            TestContext {
-                socket_path: Some(socket_path),
-            },
-        )
+        match WindowManager::new(receiver, Some(context._shared.socket_path())) {
+            Ok(wm) => wm,
+            Err(error) => panic!("failed to create test manager: {error}"),
+        }
     }
 
     fn identity_monitor(device_id: &str, serial_number_id: Option<&str>) -> Monitor {
@@ -1198,6 +1210,7 @@ mod tests {
 
     #[test]
     fn test_insert_in_monitor_cache() {
+        let _context = TestContext::new();
         let m = monitor::new(
             0,
             Rect::default(),
@@ -1223,6 +1236,7 @@ mod tests {
 
     #[test]
     fn test_insert_two_monitors_cache() {
+        let _context = TestContext::new();
         let m1 = monitor::new(
             0,
             Rect::default(),
@@ -1270,29 +1284,32 @@ mod tests {
     }
 
     #[test]
-    fn test_listen_for_notifications() {
-        // Create a WindowManager instance for testing
-        let (wm, _test_context) = setup_window_manager();
+    fn test_handle_display_connection_notification() -> color_eyre::Result<()> {
+        let (_context, wm) = setup_window_manager();
+        assert!(wm.monitors().is_empty());
+        let wm = Arc::new(Mutex::new(wm));
+        let device = MockDevice {
+            hmonitor: 1,
+            device_path: r"\\?\DISPLAY#TEST#instance#{test}".to_string(),
+            device_name: r"\\.\DISPLAY1".to_string(),
+            device_description: String::new(),
+            serial_number_id: None,
+            size: RECT::default(),
+            work_area_size: RECT::default(),
+            device_key: String::new(),
+            output_technology: None,
+        };
+        let provider = || std::iter::once(Ok(device.clone().into()));
+        let (sender, receiver) = bounded(1);
+        sender.send(MonitorNotification::DisplayConnectionChange)?;
+        drop(sender);
 
-        // Start the notification listener
-        let result = listen_for_notifications(Arc::new(Mutex::new(wm)));
+        handle_notifications_with_receiver(Arc::clone(&wm), provider, receiver)?;
 
-        // Check if the listener started successfully
-        assert!(result.is_ok(), "Failed to start notification listener");
-
-        // Test sending a notification
-        send_notification(MonitorNotification::DisplayConnectionChange);
-
-        // Receive the notification from the channel
-        let received = event_rx().try_recv();
-
-        // Check if we received the notification and if it matches what we sent
-        match received {
-            Ok(notification) => {
-                assert_eq!(notification, MonitorNotification::DisplayConnectionChange);
-            }
-            Err(e) => panic!("Failed to receive MonitorNotification: {e}"),
-        }
+        let wm = wm.lock();
+        assert_eq!(wm.monitors().len(), 1);
+        assert_eq!(wm.monitors()[0].device_id, "TEST-instance");
+        Ok(())
     }
 
     #[test]

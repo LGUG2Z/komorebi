@@ -32,6 +32,9 @@ pub mod winevent;
 pub mod winevent_listener;
 pub mod workspace;
 
+#[cfg(test)]
+mod test_support;
+
 use lazy_static::lazy_static;
 use monitor_reconciliator::MonitorNotification;
 use std::collections::HashMap;
@@ -210,7 +213,6 @@ lazy_static! {
             home
         })
     };
-    pub static ref DATA_DIR: PathBuf = dirs::data_local_dir().expect("there is no local data directory").join("komorebi");
     pub static ref AHK_EXE: String = {
         let mut ahk: String = String::from("autohotkey.exe");
 
@@ -241,6 +243,19 @@ lazy_static! {
 
     pub static ref LAYOUT_DEFAULTS: Arc<Mutex<HashMap<DefaultLayout, LayoutDefaultEntry>>> =
         Arc::new(Mutex::new(HashMap::new()));
+}
+
+#[cfg(not(test))]
+lazy_static! {
+    pub static ref DATA_DIR: PathBuf = dirs::data_local_dir()
+        .expect("there is no local data directory")
+        .join("komorebi");
+}
+
+#[cfg(test)]
+lazy_static! {
+    pub static ref DATA_DIR: PathBuf =
+        std::env::temp_dir().join(format!("kt-{}", uuid::Uuid::new_v4().simple()));
 }
 
 pub static DEFAULT_WORKSPACE_PADDING: AtomicI32 = AtomicI32::new(10);
