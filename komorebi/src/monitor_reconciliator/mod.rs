@@ -118,6 +118,15 @@ pub fn insert_in_monitor_cache(serial_or_device_id: &str, monitor: Monitor) {
     monitor_cache.insert(preferred_id, monitor);
 }
 
+fn monitor_is_disconnected(monitor: &Monitor, attached_devices: &[Monitor]) -> bool {
+    !attached_devices.iter().any(|attached| {
+        let serial_matches = match (&attached.serial_number_id, &monitor.serial_number_id) {
+            (Some(attached), Some(tracked)) => attached == tracked,
+            _ => false,
+        };
+        serial_matches || attached.device_id == monitor.device_id
+    })
+}
 pub fn attached_display_devices<F, I>(display_provider: F) -> color_eyre::Result<Vec<Monitor>>
 where
     F: Fn() -> I + Copy,
@@ -590,24 +599,21 @@ where
                 if initial_monitor_count > attached_devices.len() {
                     tracing::info!("removing disconnected monitors");
 
-                    // Windows to remove from `known_hwnds`
-                    let mut windows_to_remove = Vec::new();
+                    let removed_monitor_indices: Vec<_> = wm
+                        .monitors()
+                        .iter()
+                        .enumerate()
+                        .filter_map(|(index, monitor)| {
+                            monitor_is_disconnected(monitor, &attached_devices).then_some(index)
+                        })
+                        .collect();
 
-                    // Collect the ids in our state which aren't in the current attached display ids
-                    // These are monitors that have been removed
-                    let mut newly_removed_displays = vec![];
-
-                    for (m_idx, m) in wm.monitors().iter().enumerate() {
-                        if !attached_devices.iter().any(|attached| {
-                            attached.serial_number_id.eq(&m.serial_number_id)
-                                || attached.device_id.eq(&m.device_id)
-                        }) {
+                    for &m_idx in &removed_monitor_indices {
+                        if let Some(m) = wm.monitors().get(m_idx) {
                             let id = m
                                 .serial_number_id
                                 .as_ref()
                                 .map_or(m.device_id.clone(), |sn| sn.clone());
-
-                            newly_removed_displays.push(id.clone());
 
                             let focused_workspace_idx = m.focused_workspace_idx();
 
@@ -618,7 +624,6 @@ where
                                 {
                                     let focused_window_idx = container.focused_window_idx();
                                     for (w_idx, window) in container.windows().iter().enumerate() {
-                                        windows_to_remove.push(window.hwnd);
                                         if is_focused_workspace
                                             && c_idx == focused_container_idx
                                             && w_idx == focused_window_idx
@@ -633,7 +638,6 @@ where
                                 }
 
                                 if let Some(maximized) = &workspace.maximized_window {
-                                    windows_to_remove.push(maximized.hwnd);
                                     // Minimize the focused window since Windows might try
                                     // to move it to another monitor if it was focused.
                                     if maximized.is_focused() {
@@ -641,39 +645,23 @@ where
                                     }
                                 }
 
-                                if let Some(container) = &workspace.monocle_container {
-                                    for window in container.windows() {
-                                        windows_to_remove.push(window.hwnd);
-                                    }
-                                    if let Some(window) = container.focused_window() {
-                                        // Minimize the focused window since Windows might try
-                                        // to move it to another monitor if it was focused.
-                                        if window.is_focused() {
-                                            window.minimize();
-                                        }
-                                    }
-                                }
-
-                                for window in workspace.floating_windows() {
-                                    windows_to_remove.push(window.hwnd);
+                                if let Some(container) = &workspace.monocle_container
+                                    && let Some(window) = container.focused_window()
+                                {
                                     // Minimize the focused window since Windows might try
                                     // to move it to another monitor if it was focused.
                                     if window.is_focused() {
                                         window.minimize();
                                     }
                                 }
-                            }
 
-                            // Remove any workspace_rules for this specific monitor
-                            let mut workspace_rules = WORKSPACE_MATCHING_RULES.lock();
-                            let mut rules_to_remove = Vec::new();
-                            for (i, rule) in workspace_rules.iter().enumerate().rev() {
-                                if rule.monitor_index == m_idx {
-                                    rules_to_remove.push(i);
+                                for window in workspace.floating_windows() {
+                                    // Minimize the focused window since Windows might try
+                                    // to move it to another monitor if it was focused.
+                                    if window.is_focused() {
+                                        window.minimize();
+                                    }
                                 }
-                            }
-                            for i in rules_to_remove {
-                                workspace_rules.remove(i);
                             }
 
                             // Let's add their state to the cache for later, make sure to use what
@@ -691,24 +679,9 @@ where
                         }
                     }
 
-                    // Update known_hwnds
-                    wm.known_hwnds.retain(|i, _| !windows_to_remove.contains(i));
-
-                    if !newly_removed_displays.is_empty() {
-                        // After we have cached them, remove them from our state
-                        wm.monitors_mut().retain(|m| {
-                            !newly_removed_displays.iter().any(|id| {
-                                m.serial_number_id.as_ref().is_some_and(|sn| sn == id)
-                                    || m.device_id.eq(id)
-                            })
-                        });
-                    }
+                    wm.remove_monitors(&removed_monitor_indices);
 
                     let post_removal_monitor_count = wm.monitors().len();
-                    let focused_monitor_idx = wm.focused_monitor_idx();
-                    if focused_monitor_idx >= post_removal_monitor_count {
-                        wm.focus_monitor(0)?;
-                    }
 
                     let offset = wm.work_area_offset;
 
@@ -1065,6 +1038,92 @@ mod tests {
                 socket_path: Some(socket_path),
             },
         )
+    }
+
+    fn identity_monitor(device_id: &str, serial_number_id: Option<&str>) -> Monitor {
+        monitor::new(
+            0,
+            Rect::default(),
+            Rect::default(),
+            String::new(),
+            String::new(),
+            device_id.to_string(),
+            serial_number_id.map(str::to_string),
+        )
+    }
+
+    #[test]
+    fn test_disconnected_monitors_without_serial_numbers() {
+        let attached = vec![
+            identity_monitor("DELA0DE-5&42b49c9&0&UID264", None),
+            identity_monitor("GSM76E4-5&42b49c9&0&UID256", None),
+        ];
+        let mut tracked = attached.clone();
+        tracked.push(identity_monitor(
+            "Default_Monitor-1&1f0c3c2f&1&UID256",
+            None,
+        ));
+        tracked.push(identity_monitor("UNKNOWN", None));
+
+        assert_eq!(tracked.len(), 4);
+        assert_eq!(attached.len(), 2);
+        let disconnected: Vec<_> = tracked
+            .iter()
+            .filter(|monitor| monitor_is_disconnected(monitor, &attached))
+            .map(|monitor| monitor.device_id.as_str())
+            .collect();
+        assert_eq!(
+            disconnected,
+            ["Default_Monitor-1&1f0c3c2f&1&UID256", "UNKNOWN"]
+        );
+    }
+
+    #[test]
+    fn test_attached_monitor_identity() {
+        let cases = [
+            ("same-device", None, "same-device", None, true),
+            (
+                "old-device",
+                Some("serial"),
+                "new-device",
+                Some("serial"),
+                true,
+            ),
+            (
+                "old-device",
+                Some("old-serial"),
+                "new-device",
+                Some("new-serial"),
+                false,
+            ),
+            ("old-device", None, "new-device", None, false),
+            ("old-device", Some("serial"), "new-device", None, false),
+            ("old-device", None, "new-device", Some("serial"), false),
+            ("same-device", Some("serial"), "same-device", None, true),
+            ("same-device", None, "same-device", Some("serial"), true),
+            (
+                "same-device",
+                Some("old-serial"),
+                "same-device",
+                Some("new-serial"),
+                true,
+            ),
+        ];
+
+        for (device, serial, attached_device, attached_serial, expected) in cases {
+            let monitor = identity_monitor(device, serial);
+            let attached = identity_monitor(attached_device, attached_serial);
+            assert_eq!(
+                !monitor_is_disconnected(&monitor, &[attached]),
+                expected,
+                "tracked: ({device}, {serial:?}), attached: ({attached_device}, {attached_serial:?})"
+            );
+        }
+
+        assert!(monitor_is_disconnected(
+            &identity_monitor("device", Some("serial")),
+            &[]
+        ));
     }
 
     #[test]

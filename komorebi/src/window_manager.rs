@@ -174,6 +174,54 @@ impl WindowManager {
         })
     }
 
+    /// Removes monitors and remaps focus, user monitor indices and workspace rules.
+    ///
+    /// Refreshes known HWNDs for the surviving monitors.
+    pub(crate) fn remove_monitors(&mut self, removed_indices: &[usize]) {
+        let mut next_index = 0;
+        let index_map: Vec<_> = (0..self.monitors().len())
+            .map(|index| {
+                if removed_indices.contains(&index) {
+                    None
+                } else {
+                    let new_index = next_index;
+                    next_index += 1;
+                    Some(new_index)
+                }
+            })
+            .collect();
+
+        let focused = index_map
+            .get(self.focused_monitor_idx())
+            .copied()
+            .flatten()
+            .unwrap_or_default();
+        let mut index = 0;
+        self.monitors_mut().retain(|_| {
+            let keep = index_map[index].is_some();
+            index += 1;
+            keep
+        });
+        self.monitors.focus(focused);
+        self.monitor_usr_idx_map.retain(|_, index| {
+            if let Some(new_index) = index_map.get(*index).copied().flatten() {
+                *index = new_index;
+                true
+            } else {
+                false
+            }
+        });
+        WORKSPACE_MATCHING_RULES.lock().retain_mut(|rule| {
+            if let Some(new_index) = index_map.get(rule.monitor_index).copied().flatten() {
+                rule.monitor_index = new_index;
+                true
+            } else {
+                false
+            }
+        });
+        self.update_known_hwnds();
+    }
+
     #[tracing::instrument(skip(self))]
     pub fn init(&mut self) -> eyre::Result<()> {
         tracing::info!("initialising");
@@ -3979,6 +4027,85 @@ mod tests {
                 socket_path: Some(socket_path),
             },
         )
+    }
+
+    #[test]
+    fn test_remove_monitors_repairs_references() {
+        use crate::config_generation::MatchingRule;
+        use crate::config_generation::WorkspaceMatchingRule;
+
+        let (mut wm, _context) = setup_window_manager();
+        let original_rules = WORKSPACE_MATCHING_RULES.lock().clone();
+        for mask in 0..16 {
+            for focused in 0..4 {
+                wm.monitors = Ring::default();
+                wm.monitor_usr_idx_map.clear();
+                let rules: Vec<_> = (0..4)
+                    .map(|index| WorkspaceMatchingRule {
+                        monitor_index: index,
+                        workspace_index: 0,
+                        matching_rule: MatchingRule::Composite(vec![]),
+                        initial_only: index % 2 == 0,
+                    })
+                    .collect();
+                *WORKSPACE_MATCHING_RULES.lock() = rules.clone();
+                for index in 0..4 {
+                    let mut monitor = Monitor::placeholder();
+                    monitor.device_id = index.to_string();
+                    let mut workspace = Workspace::default();
+                    workspace
+                        .floating_windows_mut()
+                        .push_back(Window::from(100 + index as isize));
+                    monitor.workspaces_mut().push_back(workspace);
+                    wm.monitors_mut().push_back(monitor);
+                    wm.monitor_usr_idx_map.insert(index + 10, index);
+                }
+                wm.monitors.focus(focused);
+                wm.update_known_hwnds();
+                assert_eq!(wm.known_hwnds.len(), 4);
+                let removed: Vec<_> = (0..4).filter(|index| mask & (1 << index) != 0).collect();
+                let survivors: Vec<_> = (0..4).filter(|index| !removed.contains(index)).collect();
+
+                wm.remove_monitors(&removed);
+
+                assert_eq!(
+                    wm.monitors()
+                        .iter()
+                        .map(|m| m.device_id.clone())
+                        .collect::<Vec<_>>(),
+                    survivors.iter().map(usize::to_string).collect::<Vec<_>>()
+                );
+                assert_eq!(
+                    wm.focused_monitor_idx(),
+                    survivors
+                        .iter()
+                        .position(|index| *index == focused)
+                        .unwrap_or_default()
+                );
+                assert_eq!(wm.known_hwnds.len(), survivors.len());
+                assert_eq!(wm.monitor_usr_idx_map.len(), survivors.len());
+                let expected_rules: Vec<_> = survivors
+                    .iter()
+                    .enumerate()
+                    .map(|(new, old)| {
+                        assert_eq!(wm.known_hwnds[&(100 + *old as isize)], (new, 0));
+                        assert_eq!(wm.monitor_usr_idx_map[&(old + 10)], new);
+                        let mut rule = rules[*old].clone();
+                        rule.monitor_index = new;
+                        rule
+                    })
+                    .collect();
+                assert_eq!(*WORKSPACE_MATCHING_RULES.lock(), expected_rules);
+                assert_eq!(*crate::reaper::HWNDS_CACHE.lock(), wm.known_hwnds);
+                if survivors.is_empty() {
+                    wm.monitors_mut().push_back(Monitor::placeholder());
+                    assert!(wm.focused_monitor().is_some());
+                }
+            }
+        }
+        *WORKSPACE_MATCHING_RULES.lock() = original_rules;
+        wm.monitors_mut().clear();
+        wm.update_known_hwnds();
     }
 
     #[test]
