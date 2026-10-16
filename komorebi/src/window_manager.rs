@@ -4030,12 +4030,71 @@ mod tests {
     }
 
     #[test]
+    fn test_monitor_replacement_repairs_references() {
+        use crate::DISPLAY_INDEX_PREFERENCES;
+        use crate::config_generation::MatchingRule;
+        use crate::config_generation::WorkspaceMatchingRule;
+
+        let (mut wm, _context) = setup_window_manager();
+        let make_monitor = |id: &str| {
+            monitor::new(
+                0,
+                Rect::default(),
+                Rect::default(),
+                id.to_string(),
+                id.to_string(),
+                id.to_string(),
+                None,
+            )
+        };
+        for preference in [0, 1] {
+            wm.monitors = Ring::default();
+            wm.monitors_mut()
+                .extend([make_monitor("A"), make_monitor("B")]);
+            wm.monitors.focus(1);
+            wm.monitors_mut()[1].workspaces_mut()[0]
+                .floating_windows_mut()
+                .push_back(Window::from(123));
+            *WORKSPACE_MATCHING_RULES.lock() = vec![WorkspaceMatchingRule {
+                monitor_index: 1,
+                workspace_index: 0,
+                matching_rule: MatchingRule::Composite(vec![]),
+                initial_only: false,
+            }];
+            DISPLAY_INDEX_PREFERENCES.write().clear();
+            DISPLAY_INDEX_PREFERENCES
+                .write()
+                .insert(preference, "C".to_string());
+            assert_eq!(wm.focused_monitor().unwrap().device_id, "B");
+
+            wm.remove_monitors(&[0]);
+            // This verified snapshot is sufficient; applying it must not enumerate Windows again.
+            WindowsApi::apply_monitor_information(&mut wm, &[make_monitor("C"), make_monitor("B")]);
+
+            assert_eq!(wm.monitors().len(), 2);
+            let survivor = wm
+                .monitors()
+                .iter()
+                .position(|m| m.device_id == "B")
+                .unwrap();
+            assert_eq!(wm.focused_monitor_idx(), survivor);
+            assert_eq!(WORKSPACE_MATCHING_RULES.lock()[0].monitor_index, survivor);
+            assert_eq!(wm.known_hwnds[&123], (survivor, 0));
+            assert_eq!(wm.monitor_usr_idx_map[&preference], 1 - survivor);
+        }
+
+        wm.remove_monitors(&[0, 1]);
+        assert!(wm.monitors().is_empty());
+        WindowsApi::apply_monitor_information(&mut wm, &[make_monitor("RDP")]);
+        assert_eq!(wm.focused_monitor().unwrap().device_id, "RDP");
+    }
+
+    #[test]
     fn test_remove_monitors_repairs_references() {
         use crate::config_generation::MatchingRule;
         use crate::config_generation::WorkspaceMatchingRule;
 
         let (mut wm, _context) = setup_window_manager();
-        let original_rules = WORKSPACE_MATCHING_RULES.lock().clone();
         for mask in 0..16 {
             for focused in 0..4 {
                 wm.monitors = Ring::default();
@@ -4103,7 +4162,6 @@ mod tests {
                 }
             }
         }
-        *WORKSPACE_MATCHING_RULES.lock() = original_rules;
         wm.monitors_mut().clear();
         wm.update_known_hwnds();
     }

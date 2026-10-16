@@ -127,6 +127,16 @@ fn monitor_is_disconnected(monitor: &Monitor, attached_devices: &[Monitor]) -> b
         serial_matches || attached.device_id == monitor.device_id
     })
 }
+fn monitor_topology_matches(
+    monitors: &std::collections::VecDeque<Monitor>,
+    attached_devices: &[Monitor],
+) -> bool {
+    monitors.len() == attached_devices.len()
+        && !monitors
+            .iter()
+            .any(|monitor| monitor_is_disconnected(monitor, attached_devices))
+}
+
 pub fn attached_display_devices<F, I>(display_provider: F) -> color_eyre::Result<Vec<Monitor>>
 where
     F: Fn() -> I + Copy,
@@ -411,8 +421,8 @@ where
                     }
                 }
 
-                if initial_monitor_count == attached_devices.len() {
-                    tracing::debug!("monitor counts match, reconciliation not required");
+                if monitor_topology_matches(wm.monitors(), &attached_devices) {
+                    tracing::debug!("monitor identities match, reconciliation not required");
                     drop(wm);
                     continue 'receiver;
                 }
@@ -426,7 +436,11 @@ where
                 }
 
                 // Handle potential monitor removal with verification
-                let attached_devices = if initial_monitor_count > attached_devices.len() {
+                let attached_devices = if wm
+                    .monitors()
+                    .iter()
+                    .any(|monitor| monitor_is_disconnected(monitor, &attached_devices))
+                {
                     tracing::info!(
                         "potential monitor removal detected ({initial_monitor_count} vs {}), verifying in 3s",
                         attached_devices.len()
@@ -455,17 +469,20 @@ where
                         re_queried_devices.len()
                     );
 
-                    // If monitors are back, the removal was transient (spurious event)
-                    // Still try to restore state since windows might have been minimized
-                    if re_queried_devices.len() >= initial_monitor_count {
+                    wm = wm_arc.lock();
+                    if re_queried_devices.is_empty() {
+                        tracing::debug!("no devices found during verification, preserving state");
+                        continue 'receiver;
+                    }
+
+                    // If the same monitors are back, the removal was transient.
+                    // Still try to restore state since windows might have been minimized.
+                    if monitor_topology_matches(wm.monitors(), &re_queried_devices) {
                         tracing::info!(
                             "monitor removal was transient (spurious event), attempting state restoration. Initial: {}, Re-queried: {}",
                             initial_monitor_count,
                             re_queried_devices.len()
                         );
-
-                        // Re-acquire locks for state restoration
-                        wm = wm_arc.lock();
 
                         // Update Win32 data for all monitors
                         for monitor in wm.monitors_mut() {
@@ -558,8 +575,7 @@ where
                         re_queried_devices.len()
                     );
 
-                    // Re-acquire locks for removal processing
-                    wm = wm_arc.lock();
+                    // Re-acquire the cache lock for removal processing.
                     monitor_cache = MONITOR_CACHE
                         .get_or_init(|| Mutex::new(HashMap::new()))
                         .lock();
@@ -596,17 +612,16 @@ where
                     attached_devices
                 };
 
-                if initial_monitor_count > attached_devices.len() {
+                let removed_monitor_indices: Vec<_> = wm
+                    .monitors()
+                    .iter()
+                    .enumerate()
+                    .filter_map(|(index, monitor)| {
+                        monitor_is_disconnected(monitor, &attached_devices).then_some(index)
+                    })
+                    .collect();
+                if !removed_monitor_indices.is_empty() {
                     tracing::info!("removing disconnected monitors");
-
-                    let removed_monitor_indices: Vec<_> = wm
-                        .monitors()
-                        .iter()
-                        .enumerate()
-                        .filter_map(|(index, monitor)| {
-                            monitor_is_disconnected(monitor, &attached_devices).then_some(index)
-                        })
-                        .collect();
 
                     for &m_idx in &removed_monitor_indices {
                         if let Some(m) = wm.monitors().get(m_idx) {
@@ -709,7 +724,7 @@ where
 
                 // Check for and add any new monitors that may have been plugged in
                 // Monitor and display index preferences get applied in this function
-                WindowsApi::load_monitor_information(&mut wm)?;
+                WindowsApi::apply_monitor_information(&mut wm, &attached_devices);
 
                 let post_addition_monitor_count = wm.monitors().len();
 
@@ -1076,6 +1091,25 @@ mod tests {
             disconnected,
             ["Default_Monitor-1&1f0c3c2f&1&UID256", "UNKNOWN"]
         );
+    }
+
+    #[test]
+    fn test_same_count_monitor_replacement() {
+        let tracked: std::collections::VecDeque<_> = [identity_monitor("console", None)].into();
+        let attached = [identity_monitor("RDP", None)];
+        assert_eq!(tracked.len(), attached.len());
+        assert!(!monitor_topology_matches(&tracked, &attached));
+        assert!(monitor_topology_matches(
+            &tracked,
+            &[identity_monitor("console", None)]
+        ));
+        assert!(!monitor_topology_matches(&tracked, &[]));
+
+        let tracked = [identity_monitor("old-device", Some("serial"))].into();
+        assert!(monitor_topology_matches(
+            &tracked,
+            &[identity_monitor("new-device", Some("serial"))]
+        ));
     }
 
     #[test]
