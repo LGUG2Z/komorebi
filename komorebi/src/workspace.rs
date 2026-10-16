@@ -541,55 +541,52 @@ impl Workspace {
         hmonitor: isize,
         monitor_wp: &Option<Wallpaper>,
     ) -> eyre::Result<()> {
+        self.restore_windows();
+        if let Some(window) = self.focus_target() {
+            window.focus(mouse_follows_focus)?;
+        }
+        self.apply_wallpaper(hmonitor, monitor_wp)
+    }
+
+    pub(crate) fn focus_target(&self) -> Option<Window> {
+        if let Some(window) = self
+            .monocle_container
+            .as_ref()
+            .and_then(|container| container.focused_window())
+        {
+            return Some(*window);
+        }
+        if let Some(window) = self.maximized_window {
+            return Some(window);
+        }
+        if matches!(self.layer, WorkspaceLayer::Tiling)
+            && let Some(window) = self.focused_container().and_then(|c| c.focused_window())
+        {
+            return Some(*window);
+        }
+        self.focused_floating_window().copied()
+    }
+
+    pub(crate) fn restore_windows(&mut self) {
         if let Some(container) = &self.monocle_container
-            && let Some(window) = container.focused_window()
+            && container.focused_window().is_some()
         {
             container.restore();
-            window.focus(mouse_follows_focus)?;
-            return self.apply_wallpaper(hmonitor, monitor_wp);
+            return;
         }
 
-        let idx = self.focused_container_idx();
-        let mut to_focus = None;
-
-        for (i, container) in self.containers_mut().iter_mut().enumerate() {
-            if let Some(window) = container.focused_window_mut()
-                && idx == i
-            {
-                to_focus = Option::from(*window);
-            }
-
+        for container in self.containers_mut() {
             container.restore();
         }
-
         if let Some(container) = self.focused_container_mut() {
             container.focus_window(container.focused_window_idx());
         }
-
         for window in self.floating_windows() {
             window.restore();
         }
-
-        // Do this here to make sure that an error doesn't stop the restoration of other windows
-        // Maximised windows and floating windows should always be drawn at the top of the Z order
-        // when switching to a workspace
-        if let Some(window) = to_focus {
-            if self.maximized_window.is_none() && matches!(self.layer, WorkspaceLayer::Tiling) {
-                window.focus(mouse_follows_focus)?;
-            } else if let Some(maximized_window) = self.maximized_window {
-                maximized_window.restore();
-                maximized_window.focus(mouse_follows_focus)?;
-            } else if let Some(floating_window) = self.focused_floating_window() {
-                floating_window.focus(mouse_follows_focus)?;
-            }
-        } else if let Some(maximized_window) = self.maximized_window {
-            maximized_window.restore();
-            maximized_window.focus(mouse_follows_focus)?;
-        } else if let Some(floating_window) = self.focused_floating_window() {
-            floating_window.focus(mouse_follows_focus)?;
+        if let Some(window) = self.maximized_window {
+            window.restore();
         }
-
-        self.apply_wallpaper(hmonitor, monitor_wp)
     }
 
     pub fn update(&mut self) -> eyre::Result<()> {
@@ -2097,6 +2094,36 @@ mod tests {
                 }
             }
         }
+    }
+
+    #[test]
+    fn test_restoration_focus_target() {
+        let container = |hwnd| {
+            let mut container = Container::default();
+            container.windows_mut().push_back(Window::from(hwnd));
+            container
+        };
+        let mut workspace = Workspace::default();
+        assert!(workspace.focus_target().is_none());
+        workspace.containers_mut().push_back(container(10));
+        workspace.containers_mut().push_back(container(1));
+        workspace.focus_container(1);
+        workspace.floating_windows_mut().push_back(Window::from(20));
+        workspace.floating_windows_mut().push_back(Window::from(2));
+        workspace.floating_windows.focus(1);
+        assert_eq!(workspace.focus_target().unwrap().hwnd, 1);
+        workspace.layer = WorkspaceLayer::Floating;
+        assert_eq!(workspace.focus_target().unwrap().hwnd, 2);
+        workspace.maximized_window = Some(Window::from(3));
+        assert_eq!(workspace.focus_target().unwrap().hwnd, 3);
+        workspace.monocle_container = Some(container(4));
+        assert_eq!(workspace.focus_target().unwrap().hwnd, 4);
+        workspace.monocle_container = Some(Container::default());
+        assert_eq!(workspace.focus_target().unwrap().hwnd, 3);
+        workspace.maximized_window = None;
+        workspace.containers_mut().clear();
+        workspace.layer = WorkspaceLayer::Tiling;
+        assert_eq!(workspace.focus_target().unwrap().hwnd, 2);
     }
 
     #[test]

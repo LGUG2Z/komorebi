@@ -746,9 +746,6 @@ where
 
                     let known_hwnds = wm.known_hwnds.clone();
                     let offset = wm.work_area_offset;
-                    let mouse_follows_focus = wm.mouse_follows_focus;
-                    let focused_monitor_idx = wm.focused_monitor_idx();
-                    let focused_workspace_idx = wm.focused_workspace_idx()?;
 
                     // Look in the updated state for new monitors
                     for (i, m) in wm.monitors_mut().iter_mut().enumerate() {
@@ -926,7 +923,7 @@ where
 
                                 // Restore windows from new monitor and update the focused
                                 // workspace
-                                m.load_focused_workspace(mouse_follows_focus)?;
+                                m.load_focused_workspace_without_focus()?;
                                 m.update_focused_workspace(offset)?;
                             }
 
@@ -936,11 +933,6 @@ where
                             }
                         }
                     }
-
-                    // Refocus the previously focused monitor since the code above might
-                    // steal the focus away.
-                    wm.focus_monitor(focused_monitor_idx)?;
-                    wm.focus_workspace(focused_workspace_idx)?;
                 }
 
                 let final_count = wm.monitors().len();
@@ -952,6 +944,8 @@ where
                     // Border updates to fix DPI/resolution related jank
                     border_manager::send_notification(None);
                 }
+
+                wm.update_known_hwnds();
             }
         }
 
@@ -962,6 +956,21 @@ where
             },
             initial_state.has_been_modified(&wm),
         )?;
+
+        // Foreground activation is best effort, after restoration and bookkeeping.
+        if matches!(
+            notification,
+            MonitorNotification::DisplayConnectionChange
+                | MonitorNotification::SessionUnlocked
+                | MonitorNotification::ResumingFromSuspendedState
+        ) && let Some(window) = wm
+            .focused_monitor()
+            .and_then(|monitor| monitor.focused_workspace())
+            .and_then(|workspace| workspace.focus_target())
+            && let Err(error) = window.focus(wm.mouse_follows_focus)
+        {
+            tracing::warn!("could not focus restored window {}: {error}", window.hwnd);
+        }
     }
 
     Ok(())
@@ -973,10 +982,146 @@ mod tests {
     use crate::window_manager_event::WindowManagerEvent;
     use crossbeam_channel::Sender;
     use crossbeam_channel::bounded;
+    use uuid::Uuid;
     use windows::Win32::Devices::Display::DISPLAYCONFIG_VIDEO_OUTPUT_TECHNOLOGY;
     // NOTE: Using RECT instead of RECT since I get a mismatched type error. Can be updated if
     // needed.
     use windows::Win32::Foundation::RECT;
+
+    #[test]
+    fn test_focus_refusal_finishes_cached_restoration() -> color_eyre::Result<()> {
+        match std::thread::spawn(check_focus_refusal_finishes_cached_restoration).join() {
+            Ok(result) => result,
+            Err(panic) => std::panic::resume_unwind(panic),
+        }
+    }
+
+    fn check_focus_refusal_finishes_cached_restoration() -> color_eyre::Result<()> {
+        use crate::Window;
+        use windows::Win32::Foundation::HWND;
+        use windows::Win32::System::StationsAndDesktops::CloseDesktop;
+        use windows::Win32::System::StationsAndDesktops::CreateDesktopW;
+        use windows::Win32::System::StationsAndDesktops::DESKTOP_CREATEWINDOW;
+        use windows::Win32::System::StationsAndDesktops::DESKTOP_READOBJECTS;
+        use windows::Win32::System::StationsAndDesktops::DESKTOP_WRITEOBJECTS;
+        use windows::Win32::System::StationsAndDesktops::GetThreadDesktop;
+        use windows::Win32::System::StationsAndDesktops::HDESK;
+        use windows::Win32::System::StationsAndDesktops::SetThreadDesktop;
+        use windows::Win32::System::Threading::GetCurrentThreadId;
+        use windows::Win32::UI::WindowsAndMessaging::DestroyWindow;
+        use windows::core::HSTRING;
+        use windows::core::w;
+
+        let _context = TestContext::new();
+
+        struct TestDesktop {
+            original: HDESK,
+            desktop: HDESK,
+            windows: Vec<Window>,
+        }
+
+        impl Drop for TestDesktop {
+            fn drop(&mut self) {
+                for window in &self.windows {
+                    crate::HIDDEN_HWNDS
+                        .lock()
+                        .retain(|hwnd| *hwnd != window.hwnd);
+                    if let Err(error) = unsafe { DestroyWindow(HWND(window.hwnd as _)) } {
+                        tracing::error!("failed to destroy test window: {error}");
+                    }
+                }
+                unsafe {
+                    if let Err(error) = SetThreadDesktop(self.original) {
+                        tracing::error!("failed to restore test thread desktop: {error}");
+                    }
+                    if let Err(error) = CloseDesktop(self.desktop) {
+                        tracing::error!("failed to close test desktop: {error}");
+                    }
+                }
+            }
+        }
+
+        // Windows on a non-input desktop cannot take the foreground. Never switch
+        // the input desktop; only this isolated test thread uses the new desktop.
+        let original_desktop = unsafe { GetThreadDesktop(GetCurrentThreadId())? };
+        let desktop_name = HSTRING::from(format!("komorebi-test-{}", Uuid::new_v4()));
+        let desktop = unsafe {
+            CreateDesktopW(
+                &desktop_name,
+                None,
+                None,
+                Default::default(),
+                DESKTOP_CREATEWINDOW.0 | DESKTOP_READOBJECTS.0 | DESKTOP_WRITEOBJECTS.0,
+                None,
+            )?
+        };
+        let mut desktop = TestDesktop {
+            original: original_desktop,
+            desktop,
+            windows: Vec::new(),
+        };
+        unsafe { SetThreadDesktop(desktop.desktop)? };
+
+        let mut wm = create_window_manager(&_context);
+        let devices: Vec<_> = (1..=2)
+            .map(|id| MockDevice {
+                hmonitor: id,
+                device_path: format!(r"\\?\DISPLAY#TEST{id}#instance#{{test}}"),
+                device_name: format!(r"\\.\DISPLAY{id}"),
+                device_description: String::new(),
+                serial_number_id: None,
+                size: RECT::default(),
+                work_area_size: RECT::default(),
+                device_key: String::new(),
+                output_technology: None,
+            })
+            .collect();
+        let provider = || devices.iter().cloned().map(|d| Ok(d.into()));
+        let monitors = attached_display_devices(provider)?;
+        for mut monitor in monitors {
+            // Use a real HWND; foreground refusal is not an invalid-handle error.
+            let window = Window::from(WindowsApi::create_hidden_window(w!("STATIC"), 0)?);
+            desktop.windows.push(window);
+            assert!(window.is_window());
+            assert!(window.focus(false).is_err());
+            WindowsApi::hide_window(window.hwnd);
+            assert!(!window.is_visible());
+            monitor.workspaces_mut()[0]
+                .floating_windows_mut()
+                .push_back(window);
+            insert_in_monitor_cache(&monitor.device_id, monitor.clone());
+        }
+        assert_eq!(
+            MONITOR_CACHE
+                .get_or_init(|| Mutex::new(HashMap::new()))
+                .lock()
+                .len(),
+            2
+        );
+
+        wm.monitors_mut().clear();
+        assert!(wm.known_hwnds.is_empty());
+        let wm = Arc::new(Mutex::new(wm));
+        let (sender, receiver) = bounded(1);
+        sender.send(MonitorNotification::DisplayConnectionChange)?;
+        drop(sender);
+        handle_notifications_with_receiver(Arc::clone(&wm), provider, receiver)?;
+
+        assert!(
+            MONITOR_CACHE
+                .get_or_init(|| Mutex::new(HashMap::new()))
+                .lock()
+                .is_empty()
+        );
+        let wm = wm.lock();
+        assert_eq!(wm.monitors().len(), 2);
+        assert_eq!(wm.known_hwnds.len(), 2);
+        for window in &desktop.windows {
+            assert!(window.is_visible());
+            assert!(wm.known_hwnds.contains_key(&window.hwnd));
+        }
+        Ok(())
+    }
 
     // Creating a Mock Display Provider
     #[derive(Clone)]

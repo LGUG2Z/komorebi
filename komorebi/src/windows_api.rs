@@ -742,10 +742,11 @@ impl WindowsApi {
                 SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW | SWP_ASYNCWINDOWPOS,
             )
             .process();
-            SetForegroundWindow(HWND(as_ptr!(hwnd)))
+            if !SetForegroundWindow(HWND(as_ptr!(hwnd))).as_bool() {
+                bail!("Windows declined foreground activation for window {hwnd}");
+            }
         }
-        .ok()
-        .process()
+        Ok(())
     }
 
     #[allow(dead_code)]
