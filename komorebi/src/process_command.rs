@@ -2441,7 +2441,6 @@ mod tests {
     use std::str::FromStr;
     use std::time::Duration;
     use uds_windows::UnixStream;
-    use uuid::Uuid;
 
     fn send_socket_message(socket: &PathBuf, message: SocketMessage) {
         let mut stream = UnixStream::connect(socket).unwrap();
@@ -2455,10 +2454,10 @@ mod tests {
 
     #[test]
     fn test_receive_socket_message() {
+        let context = crate::test_support::TestContext::new();
         let (_sender, receiver): (Sender<WindowManagerEvent>, Receiver<WindowManagerEvent>) =
             bounded(1);
-        let socket_name = format!("komorebi-test-{}.sock", Uuid::new_v4());
-        let socket_path = PathBuf::from(&socket_name);
+        let socket_path = context.socket_path();
         let mut wm = WindowManager::new(receiver, Some(socket_path.clone())).unwrap();
         let m = monitor::new(
             0,

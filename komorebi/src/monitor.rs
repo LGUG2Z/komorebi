@@ -167,18 +167,31 @@ impl Monitor {
         })
     }
 
+    /// Restores the focused workspace and requests focus, propagating activation errors.
     pub fn load_focused_workspace(&mut self, mouse_follows_focus: bool) -> eyre::Result<()> {
+        self.load_focused_workspace_without_focus()?;
+        if let Some(window) = self
+            .focused_workspace()
+            .and_then(|workspace| workspace.focus_target())
+        {
+            window.focus(mouse_follows_focus)?;
+        }
+        Ok(())
+    }
+
+    /// Restores the focused workspace and wallpaper without explicitly requesting focus.
+    pub(crate) fn load_focused_workspace_without_focus(&mut self) -> eyre::Result<()> {
         let focused_idx = self.focused_workspace_idx();
         let hmonitor = self.id;
         let monitor_wp = self.wallpaper.clone();
         for (i, workspace) in self.workspaces_mut().iter_mut().enumerate() {
             if i == focused_idx {
-                workspace.restore(mouse_follows_focus, hmonitor, &monitor_wp)?;
+                workspace.restore_windows();
+                workspace.apply_wallpaper(hmonitor, &monitor_wp)?;
             } else {
                 workspace.hide(None);
             }
         }
-
         Ok(())
     }
 

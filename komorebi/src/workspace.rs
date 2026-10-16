@@ -541,55 +541,52 @@ impl Workspace {
         hmonitor: isize,
         monitor_wp: &Option<Wallpaper>,
     ) -> eyre::Result<()> {
+        self.restore_windows();
+        if let Some(window) = self.focus_target() {
+            window.focus(mouse_follows_focus)?;
+        }
+        self.apply_wallpaper(hmonitor, monitor_wp)
+    }
+
+    pub(crate) fn focus_target(&self) -> Option<Window> {
+        if let Some(window) = self
+            .monocle_container
+            .as_ref()
+            .and_then(|container| container.focused_window())
+        {
+            return Some(*window);
+        }
+        if let Some(window) = self.maximized_window {
+            return Some(window);
+        }
+        if matches!(self.layer, WorkspaceLayer::Tiling)
+            && let Some(window) = self.focused_container().and_then(|c| c.focused_window())
+        {
+            return Some(*window);
+        }
+        self.focused_floating_window().copied()
+    }
+
+    pub(crate) fn restore_windows(&mut self) {
         if let Some(container) = &self.monocle_container
-            && let Some(window) = container.focused_window()
+            && container.focused_window().is_some()
         {
             container.restore();
-            window.focus(mouse_follows_focus)?;
-            return self.apply_wallpaper(hmonitor, monitor_wp);
+            return;
         }
 
-        let idx = self.focused_container_idx();
-        let mut to_focus = None;
-
-        for (i, container) in self.containers_mut().iter_mut().enumerate() {
-            if let Some(window) = container.focused_window_mut()
-                && idx == i
-            {
-                to_focus = Option::from(*window);
-            }
-
+        for container in self.containers_mut() {
             container.restore();
         }
-
         if let Some(container) = self.focused_container_mut() {
             container.focus_window(container.focused_window_idx());
         }
-
         for window in self.floating_windows() {
             window.restore();
         }
-
-        // Do this here to make sure that an error doesn't stop the restoration of other windows
-        // Maximised windows and floating windows should always be drawn at the top of the Z order
-        // when switching to a workspace
-        if let Some(window) = to_focus {
-            if self.maximized_window.is_none() && matches!(self.layer, WorkspaceLayer::Tiling) {
-                window.focus(mouse_follows_focus)?;
-            } else if let Some(maximized_window) = self.maximized_window {
-                maximized_window.restore();
-                maximized_window.focus(mouse_follows_focus)?;
-            } else if let Some(floating_window) = self.focused_floating_window() {
-                floating_window.focus(mouse_follows_focus)?;
-            }
-        } else if let Some(maximized_window) = self.maximized_window {
-            maximized_window.restore();
-            maximized_window.focus(mouse_follows_focus)?;
-        } else if let Some(floating_window) = self.focused_floating_window() {
-            floating_window.focus(mouse_follows_focus)?;
+        if let Some(window) = self.maximized_window {
+            window.restore();
         }
-
-        self.apply_wallpaper(hmonitor, monitor_wp)
     }
 
     pub fn update(&mut self) -> eyre::Result<()> {
@@ -1046,6 +1043,36 @@ impl Workspace {
         self.focus_container(insertion_idx);
 
         insertion_idx
+    }
+
+    pub(crate) fn remove_empty_containers(&mut self) {
+        let focused_id = self
+            .focused_container()
+            .map(|container| container.id.clone());
+        let empty_ids: Vec<_> = self
+            .containers()
+            .iter()
+            .filter(|container| container.windows().is_empty())
+            .map(|container| container.id.clone())
+            .collect();
+        for id in empty_ids {
+            // Removing a container can shift indices and reposition locked containers.
+            if let Some(index) = self
+                .containers()
+                .iter()
+                .position(|container| container.id == id)
+            {
+                self.remove_container_by_idx(index);
+            }
+        }
+        let focused = focused_id
+            .and_then(|id| {
+                self.containers()
+                    .iter()
+                    .position(|container| container.id == id)
+            })
+            .unwrap_or_default();
+        self.focus_container(focused);
     }
 
     // this fn respects locked container indexes - we should use it for pretty much everything
@@ -2010,6 +2037,94 @@ mod tests {
     use crate::Window;
     use crate::container::Container;
     use std::collections::HashMap;
+
+    #[test]
+    fn test_remove_empty_containers_preserves_windows_and_focus() {
+        for empty_mask in 0..16 {
+            for locked_mask in 0..16 {
+                for focused in 0..4 {
+                    let mut workspace = Workspace::default();
+                    for index in 0..4 {
+                        let mut container = Container::default();
+                        container.id = index.to_string();
+                        container.locked = locked_mask & (1 << index) != 0;
+                        if empty_mask & (1 << index) == 0 {
+                            container
+                                .windows_mut()
+                                .push_back(Window::from(100 + index as isize));
+                        }
+                        workspace.containers_mut().push_back(container);
+                        workspace.resize_dimensions.push(None);
+                    }
+                    workspace.focus_container(focused);
+                    assert_eq!(workspace.containers().len(), 4);
+                    let expected: Vec<_> = (0..4)
+                        .filter(|index| empty_mask & (1 << index) == 0)
+                        .map(|index| 100 + index as isize)
+                        .collect();
+
+                    workspace.remove_empty_containers();
+
+                    let mut actual: Vec<_> = workspace
+                        .containers()
+                        .iter()
+                        .flat_map(|container| container.windows().iter().map(|window| window.hwnd))
+                        .collect();
+                    actual.sort();
+                    assert_eq!(
+                        actual, expected,
+                        "empty={empty_mask}, locked={locked_mask}, focus={focused}"
+                    );
+                    assert_eq!(workspace.containers().len(), expected.len());
+                    assert_eq!(workspace.resize_dimensions.len(), expected.len());
+                    if empty_mask & (1 << focused) == 0 {
+                        assert_eq!(
+                            workspace.focused_container().unwrap().id,
+                            focused.to_string()
+                        );
+                    } else if !expected.is_empty() {
+                        assert!(workspace.focused_container().is_some());
+                    } else {
+                        assert_eq!(workspace.focused_container_idx(), 0);
+                    }
+                    for container in workspace.containers() {
+                        let original: usize = container.id.parse().unwrap();
+                        assert_eq!(container.locked, locked_mask & (1 << original) != 0);
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn test_restoration_focus_target() {
+        let container = |hwnd| {
+            let mut container = Container::default();
+            container.windows_mut().push_back(Window::from(hwnd));
+            container
+        };
+        let mut workspace = Workspace::default();
+        assert!(workspace.focus_target().is_none());
+        workspace.containers_mut().push_back(container(10));
+        workspace.containers_mut().push_back(container(1));
+        workspace.focus_container(1);
+        workspace.floating_windows_mut().push_back(Window::from(20));
+        workspace.floating_windows_mut().push_back(Window::from(2));
+        workspace.floating_windows.focus(1);
+        assert_eq!(workspace.focus_target().unwrap().hwnd, 1);
+        workspace.layer = WorkspaceLayer::Floating;
+        assert_eq!(workspace.focus_target().unwrap().hwnd, 2);
+        workspace.maximized_window = Some(Window::from(3));
+        assert_eq!(workspace.focus_target().unwrap().hwnd, 3);
+        workspace.monocle_container = Some(container(4));
+        assert_eq!(workspace.focus_target().unwrap().hwnd, 4);
+        workspace.monocle_container = Some(Container::default());
+        assert_eq!(workspace.focus_target().unwrap().hwnd, 3);
+        workspace.maximized_window = None;
+        workspace.containers_mut().clear();
+        workspace.layer = WorkspaceLayer::Tiling;
+        assert_eq!(workspace.focus_target().unwrap().hwnd, 2);
+    }
 
     #[test]
     fn test_locked_containers_with_new_window() {
