@@ -7,6 +7,8 @@ use crate::widgets::cpu::Cpu;
 use crate::widgets::cpu::CpuConfig;
 use crate::widgets::date::Date;
 use crate::widgets::date::DateConfig;
+use crate::widgets::date_localized::DateLocalized;
+use crate::widgets::date_localized::DateLocalizedConfig;
 use crate::widgets::keyboard::Keyboard;
 use crate::widgets::keyboard::KeyboardConfig;
 use crate::widgets::komorebi::Komorebi;
@@ -52,6 +54,9 @@ pub enum WidgetConfig {
     /// Date widget configuration
     #[cfg_attr(feature = "schemars", schemars(title = "Date"))]
     Date(DateConfig),
+    /// Windows-localized date widget configuration
+    #[cfg_attr(feature = "schemars", schemars(title = "DateLocalized"))]
+    DateLocalized(DateLocalizedConfig),
     /// Keyboard widget configuration
     #[cfg_attr(feature = "schemars", schemars(title = "Keyboard"))]
     Keyboard(KeyboardConfig),
@@ -89,6 +94,7 @@ impl WidgetConfig {
             WidgetConfig::Battery(config) => Box::new(Battery::from(*config)),
             WidgetConfig::Cpu(config) => Box::new(Cpu::from(*config)),
             WidgetConfig::Date(config) => Box::new(Date::from(config.clone())),
+            WidgetConfig::DateLocalized(config) => Box::new(DateLocalized::from(config.clone())),
             WidgetConfig::Keyboard(config) => Box::new(Keyboard::from(*config)),
             WidgetConfig::Komorebi(config) => Box::new(Komorebi::from(config)),
             WidgetConfig::Media(config) => Box::new(Media::from(*config)),
@@ -108,6 +114,7 @@ impl WidgetConfig {
             WidgetConfig::Battery(config) => config.enable,
             WidgetConfig::Cpu(config) => config.enable,
             WidgetConfig::Date(config) => config.enable,
+            WidgetConfig::DateLocalized(config) => config.enable,
             WidgetConfig::Keyboard(config) => config.enable,
             WidgetConfig::Komorebi(config) => {
                 config.workspaces.as_ref().is_some_and(|w| w.enable)

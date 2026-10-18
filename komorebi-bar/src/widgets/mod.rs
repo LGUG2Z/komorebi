@@ -13,6 +13,7 @@ pub mod applications;
 pub mod battery;
 pub mod cpu;
 pub mod date;
+pub mod date_localized;
 pub mod keyboard;
 pub mod komorebi;
 mod komorebi_layout;
