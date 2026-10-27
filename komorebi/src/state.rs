@@ -80,6 +80,7 @@ impl From<&WindowManager> for State {
                         .iter()
                         .map(|workspace| Workspace {
                             containers: workspace.containers.clone(),
+                            floating_windows: workspace.floating_windows.clone(),
                             layout: workspace.layout.clone(),
                             layout_options: workspace.layout_options,
                             layout_flip: workspace.layout_flip,

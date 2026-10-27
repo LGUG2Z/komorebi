@@ -5,6 +5,7 @@
 //! container on its tile with [`Window::set_position`]. The work area and the padding a workspace
 //! falls back to come from the monitor it is on ([`WorkspaceGlobals`]).
 
+use crate::backend::backend;
 use crate::container::Container;
 use crate::core::Axis;
 use crate::core::CycleDirection;
@@ -27,6 +28,7 @@ use std::num::NonZeroUsize;
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct Workspace {
     pub containers: Ring<Container>,
+    pub floating_windows: Ring<Window>,
     pub layout: Layout,
     pub layout_options: Option<LayoutOptions>,
     pub layout_flip: Option<Axis>,
@@ -44,6 +46,7 @@ pub struct Workspace {
 }
 
 impl_ring_elements!(Workspace, Container);
+impl_ring_elements!(Workspace, Window, "floating_window");
 
 impl Default for Workspace {
     fn default() -> Self {
@@ -58,6 +61,7 @@ impl Default for Workspace {
             layout_options: None,
             globals: Default::default(),
             tile: true,
+            floating_windows: Default::default(),
             preselected_container_idx: None,
             promotion_swap_container_idx: None,
         }
@@ -225,6 +229,7 @@ impl Workspace {
     pub fn prune_duplicate_windows(&mut self) -> eyre::Result<()> {
         let mut tracker = HashMap::new();
         let mut to_prune_from_containers = vec![];
+        let mut to_prune_from_floating = vec![];
 
         for container in self.containers() {
             for window in container.windows() {
@@ -244,6 +249,22 @@ impl Workspace {
             tracker.remove(&id);
         }
 
+        for window in self.floating_windows() {
+            let entry = tracker.entry(window.id).or_insert(0);
+            *entry += 1;
+        }
+
+        for (window_id, count) in &tracker {
+            if *count > 1 {
+                to_prune_from_floating.push(*window_id);
+            }
+        }
+
+        for id in to_prune_from_floating {
+            self.remove_window(id)?;
+            tracker.remove(&id);
+        }
+
         Ok(())
     }
 
@@ -251,6 +272,7 @@ impl Workspace {
     #[tracing::instrument(skip(self))]
     pub fn reap_invalid_windows(&mut self) -> eyre::Result<usize> {
         let mut invalid_window_ids = vec![];
+        let mut invalid_floating_window_ids = vec![];
 
         for container in self.containers() {
             for window in container.windows() {
@@ -260,13 +282,25 @@ impl Workspace {
             }
         }
 
+        for window in self.floating_windows() {
+            if !window.is_valid() {
+                invalid_floating_window_ids.push(window.id);
+            }
+        }
+
         for window_id in &invalid_window_ids {
             let _ = self.remove_window(*window_id);
         }
 
-        tracing::debug!("reaping invalid windows {invalid_window_ids:?}");
+        for window_id in &invalid_floating_window_ids {
+            self.remove_floating_window(*window_id);
+        }
 
-        Ok(invalid_window_ids.len())
+        tracing::debug!(
+            "reaping invalid windows {invalid_window_ids:?} {invalid_floating_window_ids:?}"
+        );
+
+        Ok(invalid_window_ids.len() + invalid_floating_window_ids.len())
     }
 
     pub fn remove_window(&mut self, window_id: u32) -> eyre::Result<Window> {
@@ -315,12 +349,18 @@ impl Workspace {
     }
 
     pub fn is_empty(&self) -> bool {
-        self.containers().is_empty()
+        self.containers().is_empty() && self.floating_windows().is_empty()
     }
 
     pub fn contains_window(&self, window_id: u32) -> bool {
         for container in self.containers() {
             if container.contains_window(window_id) {
+                return true;
+            }
+        }
+
+        for window in self.floating_windows() {
+            if window_id == window.id {
                 return true;
             }
         }
@@ -384,6 +424,97 @@ impl Workspace {
 
     fn focus_first_container(&mut self) {
         self.focus_container(0);
+    }
+
+    /// Takes the focused window out of its container, and out of the layout, into the floating
+    /// windows of the workspace; a container that is left with no window is removed
+    ///
+    /// # Errors
+    ///
+    /// The workspace has no containers, or the focused one has no window.
+    pub fn new_floating_window(&mut self) -> eyre::Result<()> {
+        let window = {
+            let focused_idx = self.focused_container_idx();
+
+            let container = self
+                .focused_container_mut()
+                .ok_or_eyre("there is no container")?;
+
+            let window = container
+                .remove_focused_window()
+                .ok_or_eyre("there is no window")?;
+
+            if container.windows().is_empty() {
+                self.remove_container_by_idx(focused_idx);
+
+                if focused_idx == self.containers().len() {
+                    self.focus_container(focused_idx.saturating_sub(1));
+                }
+            }
+
+            window
+        };
+
+        self.floating_windows_mut().push_back(window);
+
+        Ok(())
+    }
+
+    /// Puts the floating window that has the focus in the compositor back in the layout, in a
+    /// container of its own at the index of the focused container
+    ///
+    /// # Errors
+    ///
+    /// The window the compositor has focused is not a floating window of the workspace.
+    pub fn new_container_for_floating_window(&mut self) -> eyre::Result<()> {
+        let focused_idx = self.focused_container_idx();
+        let window = self
+            .remove_focused_floating_window()
+            .ok_or_eyre("there is no floating window")?;
+
+        let mut container = Container::default();
+        container.add_window(&window)?;
+
+        self.insert_container_at_idx(focused_idx, container);
+
+        Ok(())
+    }
+
+    pub fn remove_focused_floating_window(&mut self) -> Option<Window> {
+        let window_id = backend().foreground_window()?;
+        self.remove_floating_window(window_id)
+    }
+
+    pub fn remove_floating_window(&mut self, window_id: u32) -> Option<Window> {
+        let mut idx = None;
+        for (i, window) in self.floating_windows().iter().enumerate() {
+            if window_id == window.id {
+                idx = Option::from(i);
+            }
+        }
+
+        match idx {
+            None => None,
+            Some(idx) => {
+                if self.floating_windows().get(idx).is_some() {
+                    self.focus_previous_floating_window();
+                    self.floating_windows_mut().remove(idx)
+                } else {
+                    None
+                }
+            }
+        }
+    }
+
+    pub fn focus_previous_floating_window(&mut self) {
+        let focused_idx = self.focused_floating_window_idx();
+        self.focus_floating_window(focused_idx.saturating_sub(1));
+    }
+
+    pub fn focus_floating_window(&mut self, idx: usize) {
+        tracing::info!("focusing floating window");
+
+        self.floating_windows.focus(idx);
     }
 }
 
@@ -509,7 +640,7 @@ impl Workspace {
                                     && resize_dimensions_is_empty;
 
                                 if percentage_override {
-                                    window.center(&work_area)?;
+                                    window.center(&work_area, false)?;
                                 } else if let Err(error) = window.set_position(layout) {
                                     tracing::warn!("failed to set window position: {error}")
                                 }
@@ -885,6 +1016,45 @@ mod tests {
         // index 1 should still be the same
         assert_eq!(ws.containers()[1].focused_window().unwrap().id, 1);
         assert_eq!(ws.containers()[2].focused_window().unwrap().id, 3);
+    }
+
+    #[test]
+    fn test_locked_containers_toggle_float() {
+        let mut ws = Workspace::default();
+
+        // add 4 containers
+        for i in 0..4 {
+            let mut container = Container::default();
+            container.windows_mut().push_back(Window::from(i));
+            if i == 1 {
+                container.locked = true;
+            }
+            ws.add_container_to_back(container);
+        }
+        assert_eq!(ws.containers().len(), 4);
+
+        // set index 0 focused
+        ws.focus_container(0);
+
+        // float index 0
+        ws.new_floating_window().unwrap();
+
+        assert_eq!(ws.containers()[0].focused_window().unwrap().id, 2);
+        // index 1 should still be the same
+        assert_eq!(ws.containers()[1].focused_window().unwrap().id, 1);
+        assert_eq!(ws.containers()[2].focused_window().unwrap().id, 3);
+
+        // unfloat - have to do this semi-manually becuase of calls to WindowsApi in
+        // new_container_for_floating_window which usually handles unfloating
+        let window = ws.floating_windows_mut().pop_back().unwrap();
+        let mut container = Container::default();
+        container.add_window(&window).unwrap();
+        ws.insert_container_at_idx(ws.focused_container_idx(), container);
+
+        // all indexes should be at their original position
+        for i in 0..4 {
+            assert_eq!(ws.containers()[i].focused_window().unwrap().id, i as u32);
+        }
     }
 
     #[test]
@@ -1348,6 +1518,40 @@ mod tests {
         let focused_container = workspace.focused_container_mut().unwrap();
         assert_eq!(focused_container.focused_window().unwrap().id, 1);
         assert_eq!(focused_container.focused_window_idx(), 1);
+    }
+
+    #[test]
+    fn test_new_floating_window() {
+        let mut workspace = Workspace::default();
+
+        {
+            // Container with 3 windows
+            let mut container = Container::default();
+            for i in 0..3 {
+                container.windows_mut().push_back(Window::from(i));
+            }
+            workspace.add_container_to_back(container);
+        }
+
+        // Add window to floating_windows
+        workspace.new_floating_window().ok();
+
+        // Should have 1 floating window
+        assert_eq!(workspace.floating_windows().len(), 1);
+
+        // Should have only 2 windows now
+        let container = workspace.focused_container_mut().unwrap();
+        assert_eq!(container.windows().len(), 2);
+
+        // Should contain hwnd 0 since this is the first window in the container
+        let floating_windows = workspace.floating_windows_mut();
+        let mut contains = false;
+        for w in floating_windows {
+            if w.id == 0 {
+                contains = true;
+            }
+        }
+        assert!(contains);
     }
 
     #[test]

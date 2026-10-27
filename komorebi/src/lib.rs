@@ -24,6 +24,8 @@
 use crate::core::SocketMessage;
 use crate::core::SubscribeOptions;
 use crate::state::State;
+use crate::window::AspectRatio;
+use crate::window::PredefinedAspectRatio;
 use crate::window_manager_event::WindowManagerEvent;
 use color_eyre::eyre;
 use lazy_static::lazy_static;
@@ -88,6 +90,11 @@ lazy_static! {
     /// same name, without options, keeps the options it had.
     pub static ref SUBSCRIPTION_SOCKET_OPTIONS: Arc<Mutex<HashMap<String, SubscribeOptions>>> =
         Arc::new(Mutex::new(HashMap::new()));
+    /// The aspect ratio a window that is floated by `ToggleFloat` is given when the placement of
+    /// floated windows centers and resizes them
+    static ref FLOATING_WINDOW_TOGGLE_ASPECT_RATIO: Arc<Mutex<AspectRatio>> = Arc::new(Mutex::new(
+        AspectRatio::Predefined(PredefinedAspectRatio::Widescreen)
+    ));
 }
 
 /// The padding, in pixels, between the edge of a monitor's work area and the tiles of its

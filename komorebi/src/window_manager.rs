@@ -29,6 +29,7 @@ use crate::core::Layout;
 use crate::core::OperationDirection;
 use crate::core::Rect;
 use crate::core::Sizing;
+use crate::core::WindowManagementBehaviour;
 use crate::desktop;
 use crate::monitor::Monitor;
 use crate::ring::Ring;
@@ -58,6 +59,8 @@ pub struct WindowManager {
     pub command_listener: UnixListener,
     /// How many pixels `ResizeWindowEdge` and `ResizeWindowAxis` resize by
     pub resize_delta: i32,
+    /// How new and floated windows are placed: `ToggleFloat` reads its `toggle_float_placement`
+    pub window_management_behaviour: WindowManagementBehaviour,
     /// Whether the pointer is moved to the window that is given the focus, which is the default
     pub mouse_follows_focus: bool,
     pub work_area_offset: Option<Rect>,
@@ -111,6 +114,7 @@ impl WindowManager {
             monitors: Ring::default(),
             command_listener: listener,
             resize_delta: 50,
+            window_management_behaviour: WindowManagementBehaviour::default(),
             mouse_follows_focus: true,
             work_area_offset: None,
             incoming_events: incoming,
@@ -404,6 +408,88 @@ impl WindowManager {
         backend().shutdown();
 
         std::process::exit(0)
+    }
+
+    /// Takes the window that has the focus in the compositor out of the layout of the focused
+    /// workspace, or puts it back when it is one of its floating windows and `force_float` is not
+    /// set, and tiles the workspace again
+    ///
+    /// # Errors
+    ///
+    /// - The compositor reports no focused window.
+    /// - There is no focused workspace, or the window cannot be floated or put back, for one of
+    ///   the reasons [`WindowManager::float_window`] and [`WindowManager::unfloat_window`] give.
+    /// - The workspace cannot be tiled again.
+    #[tracing::instrument(skip(self))]
+    pub fn toggle_float(&mut self, force_float: bool) -> eyre::Result<()> {
+        let window_id = backend()
+            .foreground_window()
+            .ok_or_eyre("no foreground window")?;
+
+        let workspace = self.focused_workspace_mut()?;
+
+        let mut is_floating_window = false;
+
+        for window in workspace.floating_windows() {
+            if window.id == window_id {
+                is_floating_window = true;
+            }
+        }
+
+        if is_floating_window && !force_float {
+            self.unfloat_window()?;
+        } else {
+            self.float_window()?;
+        }
+
+        self.update_focused_workspace(is_floating_window, true)
+    }
+
+    /// Takes the focused window out of its container into the floating windows of the focused
+    /// workspace ([`Workspace::new_floating_window`]), places it as
+    /// [`WindowManagementBehaviour::toggle_float_placement`] says, and gives it the focus
+    ///
+    /// # Errors
+    ///
+    /// There is no focused monitor, workspace, container or window, or the backend refuses to
+    /// move or focus the window.
+    #[tracing::instrument(skip(self))]
+    pub fn float_window(&mut self) -> eyre::Result<()> {
+        tracing::info!("floating window");
+
+        let mouse_follows_focus = self.mouse_follows_focus;
+        let work_area = self.focused_monitor_work_area()?;
+
+        let toggle_float_placement = self.window_management_behaviour.toggle_float_placement;
+
+        let workspace = self.focused_workspace_mut()?;
+        workspace.new_floating_window()?;
+
+        let window = workspace
+            .floating_windows_mut()
+            .back_mut()
+            .ok_or_eyre("there is no floating window")?;
+
+        if toggle_float_placement.should_center() {
+            window.center(&work_area, toggle_float_placement.should_resize())?;
+        }
+        window.focus(mouse_follows_focus)?;
+
+        Ok(())
+    }
+
+    /// Puts the floating window that has the focus in the compositor back in the layout of the
+    /// focused workspace ([`Workspace::new_container_for_floating_window`])
+    ///
+    /// # Errors
+    ///
+    /// There is no focused workspace, or the focused window is not one of its floating windows.
+    #[tracing::instrument(skip(self))]
+    pub fn unfloat_window(&mut self) -> eyre::Result<()> {
+        tracing::info!("unfloating window");
+
+        let workspace = self.focused_workspace_mut()?;
+        workspace.new_container_for_floating_window()
     }
 
     /// Resizes the focused container by `delta` pixels on its `direction` side, by giving it a
@@ -854,6 +940,10 @@ impl WindowManager {
                         known_window_ids.insert(window.id, (m_idx, w_idx));
                     }
                 }
+
+                for window in workspace.floating_windows() {
+                    known_window_ids.insert(window.id, (m_idx, w_idx));
+                }
             }
         }
 
@@ -1119,5 +1209,113 @@ mod tests {
         assert!(wm.focused_workspace()?.is_empty());
         assert_eq!(wm.minimized_windows.get(&631), Some(&Window::from(631)));
         Ok(())
+    }
+
+    #[test]
+    fn test_float_window() {
+        let (mut wm, _context) = setup_window_manager();
+
+        {
+            // Create a monitor
+            let mut m = monitor::new(
+                0,
+                Rect::default(),
+                Rect::default(),
+                "TestMonitor".to_string(),
+                "TestDeviceID".to_string(),
+            );
+
+            // Create a container
+            let mut container = Container::default();
+
+            // Add three windows to the container
+            for i in 0..3 {
+                container.windows_mut().push_back(Window::from(i));
+            }
+
+            // Should have 3 windows in the container
+            assert_eq!(container.windows().len(), 3);
+
+            // Add the container to the workspace
+            let workspace = m.focused_workspace_mut().unwrap();
+            workspace.add_container_to_back(container);
+
+            // Add monitor to the window manager
+            wm.monitors_mut().push_back(m);
+        }
+
+        // Add focused window to floating window list
+        wm.float_window().ok();
+
+        {
+            let workspace = wm.focused_workspace().unwrap();
+            let floating_windows = workspace.floating_windows();
+            let container = workspace.focused_container().unwrap();
+
+            // Hwnd 0 should be added to floating_windows
+            assert_eq!(floating_windows[0].id, 0);
+
+            // Should have a length of 1
+            assert_eq!(floating_windows.len(), 1);
+
+            // Should have 2 windows in the container
+            assert_eq!(container.windows().len(), 2);
+
+            // Should be focused on window 1
+            assert_eq!(container.focused_window().unwrap().id, 1);
+        }
+
+        // Add focused window to floating window list
+        wm.float_window().ok();
+
+        {
+            let workspace = wm.focused_workspace().unwrap();
+            let floating_windows = workspace.floating_windows();
+            let container = workspace.focused_container().unwrap();
+
+            // Hwnd 1 should be added to floating_windows
+            assert_eq!(floating_windows[1].id, 1);
+
+            // Should have a length of 2
+            assert_eq!(floating_windows.len(), 2);
+
+            // Should have 1 window in the container
+            assert_eq!(container.windows().len(), 1);
+
+            // Should be focused on window 2
+            assert_eq!(container.focused_window().unwrap().id, 2);
+        }
+    }
+
+    #[test]
+    fn test_float_nonexistent_window() {
+        let (mut wm, _context) = setup_window_manager();
+
+        {
+            let mut m = monitor::new(
+                0,
+                Rect::default(),
+                Rect::default(),
+                "TestMonitor".to_string(),
+                "TestDeviceID".to_string(),
+            );
+
+            // Add another workspace
+            let new_workspace_index = m.new_workspace_idx();
+            m.focus_workspace(new_workspace_index).unwrap();
+
+            // Should have 2 workspaces
+            assert_eq!(m.workspaces().len(), 2);
+
+            // Add monitor to window manager
+            wm.monitors_mut().push_back(m);
+        }
+
+        // Should return an error when trying to float a non-existent window
+        let result = wm.float_window();
+        assert!(
+            result.is_err(),
+            "Expected an error when trying to float a non-existent window"
+        );
     }
 }

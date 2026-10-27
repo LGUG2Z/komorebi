@@ -37,6 +37,9 @@
 //!   already, and **CancelPreselect** gives the reserved place up.
 //! - **MouseFollowsFocus** and **ToggleMouseFollowsFocus** set whether the pointer is moved to
 //!   the window that is given the focus.
+//! - **ToggleFloat** takes the focused window out of the layout into the floating windows of the
+//!   workspace, which komorebi does not move, or puts a floating window back
+//!   ([`WindowManager::toggle_float`]).
 //! - **ResizeWindowEdge** and **ResizeWindowAxis** resize the focused container by the
 //!   [`WindowManager::resize_delta`] that **ResizeDelta** sets ([`WindowManager::resize_window`]),
 //!   and **QuickSave**, **QuickLoad**, **Save** and **Load** write the resize adjustments of the
@@ -144,6 +147,8 @@ impl WindowManager {
     ///   [`WindowManager::move_container_in_cycle_direction`] give.
     /// - There is no focused workspace to change the layout or the tiling of, to preselect a
     ///   place in, or to resize or promote a container of, or it cannot be tiled again.
+    /// - The focused window cannot be floated or put back, for one of the reasons
+    ///   [`WindowManager::toggle_float`] gives.
     /// - The file of `QuickSave` or `Save` cannot be written, or the file of `QuickLoad` or
     ///   `Load` cannot be read or is not a list of resize adjustments.
     /// - The window manager fails to retile, for one of the reasons
@@ -205,6 +210,7 @@ impl WindowManager {
             SocketMessage::CycleMoveWindow(direction) => {
                 self.move_container_in_cycle_direction(direction)?;
             }
+            SocketMessage::ToggleFloat => self.toggle_float(false)?,
             SocketMessage::ResizeWindowEdge(direction, sizing) => {
                 self.resize_window(direction, sizing, self.resize_delta, true)?;
             }

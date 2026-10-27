@@ -352,6 +352,7 @@ pub enum SocketMessage {
     PromoteSwap,
     PromoteFocus,
     PromoteWindow(OperationDirection),
+    ToggleFloat,
     // Current Workspace Commands
     ChangeLayout(DefaultLayout),
     CycleLayout(CycleDirection),

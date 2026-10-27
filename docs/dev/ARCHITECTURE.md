@@ -85,7 +85,8 @@ the same thing at every level.
 
 - A **monitor** ([`Monitor`]) is one of the backend's monitors: its bounds, its work area,
   its padding, an optional work area offset, and its workspaces. It shows the focused one.
-- A **workspace** ([`Workspace`]) has a layout, its padding, and its containers, in order.
+- A **workspace** ([`Workspace`]) has a layout, its padding, its containers, in order, and its
+  floating windows, which are in no container and which the layout does not tile.
 - A **container** ([`Container`]) has its windows. A new window gets a container of its
   own. A container can be locked, which keeps it at its index while others are inserted,
   removed or swapped around it.
@@ -294,6 +295,13 @@ focuses the container at index 0 ([`WindowManager::promote_focus_to_front`]), an
 `PromoteWindow` focuses the container in a direction and promotes it. On the grid layout they
 change nothing.
 
+`ToggleFloat` takes the window the compositor has focused out of its container into the
+workspace's floating windows, and back into a container of its own at the focused index
+([`WindowManager::toggle_float`]). A floating window is in the index of managed windows like
+any other, so its events find it, and [`Workspace::update`] leaves it where it is. Where a
+floated window goes is [`WindowManagementBehaviour::toggle_float_placement`]: by default it
+stays where it is.
+
 `ResizeWindowEdge` and `ResizeWindowAxis` resize the focused container
 ([`WindowManager::resize_window`]). A resize is an adjustment of the container's tile, kept in
 [`Workspace::resize_dimensions`], one per container, which the layout applies when it calculates
@@ -362,7 +370,7 @@ module's unit.
 - [`window_manager`](../../komorebi/src/window_manager.rs): the [`WindowManager`] and the
   operations on it (tile the workspace in front, tile every monitor, take a minimized
   window out, move the focus, move the focused container, change the layout, resize or
-  promote the focused container).
+  promote the focused container, float a window).
 - [`desktop`](../../komorebi/src/desktop.rs): loads the monitors and the open windows from
   the backend.
 - [`window_manager_event`](../../komorebi/src/window_manager_event.rs) and
@@ -563,7 +571,8 @@ A window is shown, and ends up on a tile:
   [`komorebi/tests/layout_options.rs`](../../komorebi/tests/layout_options.rs) and
   [`komorebi/tests/scrolling.rs`](../../komorebi/tests/scrolling.rs), the layout options and the
   scrolling layout; [`komorebi/tests/resize.rs`](../../komorebi/tests/resize.rs), resizing;
-  [`komorebi/tests/promote.rs`](../../komorebi/tests/promote.rs), promoting.
+  [`komorebi/tests/promote.rs`](../../komorebi/tests/promote.rs), promoting;
+  [`komorebi/tests/float.rs`](../../komorebi/tests/float.rs), floating.
 - [`nix/tests/vm/suites/scrolling`](../../nix/tests/vm/suites/scrolling/test.py): the scrolling
   strip in a real KWin, with its columns out of view off the screen.
 - [`nix/tests/vm/suites/commands`](../../nix/tests/vm/suites/commands/test.py): every layout,
@@ -603,6 +612,8 @@ A window is shown, and ends up on a tile:
 [`Workspace::layout_options`]: ../../komorebi/src/workspace.rs
 [`Workspace::resize_dimensions`]: ../../komorebi/src/workspace.rs
 [`WindowManager::resize_window`]: ../../komorebi/src/window_manager.rs
+[`WindowManager::toggle_float`]: ../../komorebi/src/window_manager.rs
+[`WindowManagementBehaviour::toggle_float_placement`]: ../../komorebi/src/core/mod.rs
 [`WindowManager::promote_container_to_front`]: ../../komorebi/src/window_manager.rs
 [`WindowManager::promote_container_swap`]: ../../komorebi/src/window_manager.rs
 [`WindowManager::promote_focus_to_front`]: ../../komorebi/src/window_manager.rs

@@ -182,6 +182,8 @@ scrolling-layout-columns 2
 change-layout bsp
 preselect-direction left
 cancel-preselect
+toggle-float
+toggle-float
 toggle-tiling
 toggle-tiling
 mouse-follows-focus enable

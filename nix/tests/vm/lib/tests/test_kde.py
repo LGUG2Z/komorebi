@@ -349,8 +349,13 @@ def container(*titles: str, focused: int = 0) -> dict[str, object]:
     }
 
 
-def workspace(*containers: dict[str, object], focused: int = 0) -> dict[str, object]:
-    return {"containers": {"elements": list(containers), "focused": focused}}
+def workspace(
+    *containers: dict[str, object], focused: int = 0, floating: tuple[str, ...] = ()
+) -> dict[str, object]:
+    return {
+        "containers": {"elements": list(containers), "focused": focused},
+        "floating_windows": {"elements": [window(t) for t in floating], "focused": 0},
+    }
 
 
 def a_state(*workspaces: dict[str, object]) -> str:
@@ -381,10 +386,13 @@ def test_managed_counts_the_windows_of_every_container_of_the_workspace(
     assert kde.managed(1) == 1
 
 
-def test_managed_all_counts_the_windows_of_every_workspace_of_every_monitor(
+def test_managed_all_counts_the_windows_and_the_floating_windows_of_every_workspace(
     machine: FakeMachine,
 ) -> None:
-    first = {"id": 1, "workspaces": {"elements": [workspace(container("a", "b"))], "focused": 0}}
+    first = {
+        "id": 1,
+        "workspaces": {"elements": [workspace(container("a", "b"), floating=("f",))], "focused": 0},
+    }
     second = {
         "id": 2,
         "workspaces": {"elements": [workspace(container("c")), workspace()], "focused": 0},
@@ -394,7 +402,7 @@ def test_managed_all_counts_the_windows_of_every_workspace_of_every_monitor(
         output=json.dumps({"monitors": {"elements": [first, second], "focused": 0}}),
     )
 
-    assert Kde(machine, "main").managed_all() == 3
+    assert Kde(machine, "main").managed_all() == 4
 
 
 def test_managed_is_zero_for_a_workspace_without_containers(machine: FakeMachine) -> None:

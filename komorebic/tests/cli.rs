@@ -209,6 +209,7 @@ fn the_layout_subcommands_send_the_layout_axis_or_direction_they_are_given() {
         r#"{"type":"FlipLayout","content":"HorizontalAndVertical"}"#,
     );
     sends(&["toggle-tiling"], r#"{"type":"ToggleTiling"}"#);
+    sends(&["toggle-float"], r#"{"type":"ToggleFloat"}"#);
     sends(
         &["preselect-direction", "up"],
         r#"{"type":"PreselectDirection","content":"Up"}"#,
@@ -383,6 +384,7 @@ fn docgen_writes_the_help_of_every_subcommand_in_a_text_fence() {
             "state.md",
             "stop.md",
             "subscribe-socket.md",
+            "toggle-float.md",
             "toggle-mouse-follows-focus.md",
             "toggle-tiling.md",
             "unsubscribe-socket.md",

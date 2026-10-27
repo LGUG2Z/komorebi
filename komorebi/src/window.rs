@@ -6,6 +6,7 @@
 //! focus, a close) is a command to the backend. Nothing is cached, so a window that changed its
 //! title, or closed, is seen as it is now.
 
+use crate::FLOATING_WINDOW_TOGGLE_ASPECT_RATIO;
 use crate::backend::backend;
 use crate::core::Rect;
 use color_eyre::eyre;
@@ -18,6 +19,8 @@ use std::fmt::Display;
 use std::fmt::Formatter;
 use std::fmt::Write;
 use std::path::PathBuf;
+use strum::Display;
+use strum::EnumString;
 
 /// A handle to a window on the desktop: just its id.
 ///
@@ -191,13 +194,21 @@ impl Window {
         backend().unminimize(self.id)
     }
 
-    /// Moves the window to the middle of `work_area`, keeping its size
+    /// Moves the window to the middle of `work_area`, keeping its size, or with `resize` making it
+    /// half as high as the work area and as wide as the aspect ratio of floating windows says
     ///
     /// # Errors
     ///
     /// The backend does not know the window, or refuses to move it.
-    pub fn center(&mut self, work_area: &Rect) -> eyre::Result<()> {
-        let (target_width, target_height) = {
+    pub fn center(&mut self, work_area: &Rect, resize: bool) -> eyre::Result<()> {
+        let (target_width, target_height) = if resize {
+            let (aspect_ratio_width, aspect_ratio_height) = FLOATING_WINDOW_TOGGLE_ASPECT_RATIO
+                .lock()
+                .width_and_height();
+            let target_height = work_area.bottom / 2;
+            let target_width = (target_height * aspect_ratio_width) / aspect_ratio_height;
+            (target_width, target_height)
+        } else {
             let current_rect = self.rect()?;
             (current_rect.right, current_rect.bottom)
         };
@@ -231,6 +242,51 @@ impl Window {
 
         // dialogs, splash screens, utility windows, docks and the like are not for tiling
         info.normal
+    }
+}
+
+#[derive(Copy, Clone, Debug, Display, EnumString, Serialize, Deserialize, PartialEq)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+#[serde(untagged)]
+/// Aspect ratio for temporarily floating windows
+pub enum AspectRatio {
+    /// A predefined aspect ratio
+    #[cfg_attr(feature = "schemars", schemars(title = "Predefined"))]
+    Predefined(PredefinedAspectRatio),
+    /// A custom W:H aspect ratio
+    #[cfg_attr(feature = "schemars", schemars(title = "Custom"))]
+    Custom(i32, i32),
+}
+
+impl Default for AspectRatio {
+    fn default() -> Self {
+        AspectRatio::Predefined(PredefinedAspectRatio::default())
+    }
+}
+
+#[derive(Copy, Clone, Debug, Default, Display, EnumString, Serialize, Deserialize, PartialEq)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+/// Predefined aspect ratio
+pub enum PredefinedAspectRatio {
+    /// 21:9
+    Ultrawide,
+    /// 16:9
+    Widescreen,
+    /// 4:3
+    #[default]
+    Standard,
+}
+
+impl AspectRatio {
+    pub fn width_and_height(self) -> (i32, i32) {
+        match self {
+            AspectRatio::Predefined(predefined) => match predefined {
+                PredefinedAspectRatio::Ultrawide => (21, 9),
+                PredefinedAspectRatio::Widescreen => (16, 9),
+                PredefinedAspectRatio::Standard => (4, 3),
+            },
+            AspectRatio::Custom(w, h) => (w, h),
+        }
     }
 }
 
