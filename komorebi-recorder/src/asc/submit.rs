@@ -187,7 +187,7 @@ impl Proposal {
             ),
         };
         let recorded_with = match platform {
-            Platform::Windows => "with `komorebi-recorder record --probe-windows`",
+            Platform::Windows => "with window probes on (komorebi-recorder's default on Windows)",
             Platform::Macos => "of komorebi for Mac",
         };
         let reads = match platform {

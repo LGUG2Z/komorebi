@@ -92,7 +92,7 @@ Useful options:
 | `--oslog-all`                              | One extra unfiltered system-wide stream (very large)                                    |
 | `--no-oslog`, `--no-komorebi`              | Skip the OS trace, or skip touching komorebi entirely                                   |
 | `--no-video`                               | Do not capture the screen; record everything else on the same clock (see below)         |
-| `--probe-windows`                          | Windows: after each window event, record what Windows says about that window (see below) |
+| `--no-probe-windows`                       | Windows: do not record what Windows says about each window event, which is on by default (see below) |
 | `--fps N`, `--retina`, `--codec hevc\|h264` | Video settings (30 fps cap, logical points, HEVC by default)                           |
 
 ### Marking where the bug is
@@ -116,14 +116,15 @@ started, and there is nothing for `frames` to show.
 ### Probing windows on Windows
 
 komorebi for Windows hides a window by _cloaking_ it where it is, so its state cannot show whether a
-window is really hidden. `record --probe-windows` follows each window event with a read of the
+window is really hidden. So on Windows `record` follows each window event with a read of the
 window's real state from Windows (visible, cloaked, minimized, where it is) and, now and then, asks
 komorebi whether it manages the window and which rules matched. `overview` then compares the two:
 a window komorebi shows that Windows has hidden, one it hides that Windows shows, and a visible
 window it does not manage (usually correct, with komorebi's explanation). It costs a few system
 calls per event and a query to komorebi the first time a window is seen, and it reads nothing but
-those facts. It does nothing on a Mac, where a hidden window is parked in a corner and the state
-says so.
+those facts. `--no-probe-windows` turns it off, and without it `overview` cannot say whether a window is
+really hidden, nor find a ghost tile. It does nothing on a Mac, where a hidden window is parked in a
+corner and the state says so, and asking for `--probe-windows` there is an error.
 
 ### Checking your setup
 

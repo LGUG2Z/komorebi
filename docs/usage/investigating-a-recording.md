@@ -71,7 +71,8 @@ enough to leave the application's other windows alone:
 
 The entry is put where it sorts and the rest of the file is unchanged, line for line.
 
-What counts as a ghost tile depends on what the recording can say. On Windows it needs `record --probe-windows` (see
+What counts as a ghost tile depends on what the recording can say. On Windows it needs the window probes that `record` takes by
+default (see
 [Probing windows on Windows](recording-a-bug-repro.md#probing-windows-on-windows)): Windows says whether each window is
 on screen, and a ghost is one it said was cloaked or not visible on every read and never on screen. A Mac cannot be
 asked, so there it is a window whose frame, as komorebi read it from the accessibility API, was never one a person

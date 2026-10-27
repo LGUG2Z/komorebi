@@ -19,7 +19,7 @@
 //! them can be asked:
 //!
 //! - **komorebi for Windows.** Windows can be asked whether a window is on screen, and a recording
-//!   made with `--probe-windows` has the answer for the window of each event
+//!   made with window probes (on by default on Windows) has the answer for the window of each event
 //!   ([`crate::sources::winprobe`]). A ghost is a window Windows said was `cloaked` or `not
 //!   visible` on every probe of it, and never on screen or minimized (a window that was ever shown
 //!   and is hidden now is in a transition, and a minimized one is something a person did).
@@ -229,7 +229,7 @@ impl Analysis {
     /// Returns the ghost tiles of the recording, the longest-lived first.
     ///
     /// What is one, and what a recording needs for there to be any, is in the [module](self)
-    /// documentation. A recording of komorebi for Windows made without `--probe-windows` has none.
+    /// documentation. A recording of komorebi for Windows made with `--no-probe-windows` has none.
     ///
     /// # Errors
     ///

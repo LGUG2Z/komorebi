@@ -281,3 +281,20 @@ fn a_host_that_is_not_windows_refuses_to_probe_windows_before_it_records_anythin
     assert!(stderr.contains("not Windows"), "{stderr}");
     assert!(!out.exists(), "no session was started");
 }
+
+#[test]
+fn asking_for_window_probes_and_against_them_is_an_error_on_any_host() {
+    let output = Command::new(env!("CARGO_BIN_EXE_komorebi-recorder"))
+        .args([
+            "record",
+            "--probe-windows",
+            "--no-probe-windows",
+            "--no-video",
+        ])
+        .output()
+        .expect("run");
+
+    assert!(!output.status.success());
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("cannot be used with"), "{stderr}");
+}

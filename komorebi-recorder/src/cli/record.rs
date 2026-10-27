@@ -63,12 +63,18 @@ pub struct RecordArgs {
     #[arg(long)]
     pub no_komorebi: bool,
     /// komorebi for Windows hides a window by cloaking it in place, which its state cannot show.
-    /// With this, each window event is followed by a read of what Windows says about that window
-    /// (visible, cloaked, minimized, where it is) and, now and then, komorebi's own answer to "would
-    /// you manage this window, and why", so that a window komorebi shows but Windows has hidden (or
-    /// the reverse) can be found. Windows only
-    #[arg(long)]
+    /// So each window event is followed by a read of what Windows says about that window (visible,
+    /// cloaked, minimized, where it is) and, now and then, komorebi's own answer to "would you manage
+    /// this window, and why", so that a window komorebi shows but Windows has hidden (or the
+    /// reverse) can be found. This is what a recording on Windows does unless told not to
+    /// (`--no-probe-windows`); on a Mac there is nothing to read, and asking for it is an error
+    #[arg(long, conflicts_with = "no_probe_windows")]
     pub probe_windows: bool,
+    /// Do not read what Windows says about each window (see `--probe-windows`, which Windows
+    /// recordings do by default): the recording then cannot show a window komorebi has in front that
+    /// Windows has hidden, such as a ghost tile
+    #[arg(long)]
+    pub no_probe_windows: bool,
     /// Do not capture the screen: record everything else (komorebi's events and log, the OS
     /// trace and incidents) on the same clock
     #[arg(long, conflicts_with = "displays")]
@@ -114,6 +120,7 @@ impl Default for RecordArgs {
             no_komorebi: false,
             no_video: false,
             probe_windows: false,
+            no_probe_windows: false,
             no_oslog: false,
             oslog_apps: AppsMode::Managed,
             oslog_all: false,
@@ -178,8 +185,42 @@ impl RecordArgs {
             duration: self.duration.map(Duration::from_secs_f64),
             no_komorebi: self.no_komorebi,
             no_video: self.no_video,
-            probe_windows: self.probe_windows,
+            probe_windows: self.probes_windows(),
         }
+    }
+
+    /// Returns whether the recording reads what Windows says about each window.
+    ///
+    /// It does on Windows, unless `--no-probe-windows` says not to, and it does not elsewhere,
+    /// where there is nothing to read: `--probe-windows` asked for outright is kept as asked, so
+    /// that a host that cannot do it says so instead of recording without it. The recorder window
+    /// takes its options from [`RecordArgs::default`], so it follows the same rule.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use komorebi_recorder::cli::RecordArgs;
+    ///
+    /// // the default follows the host: Windows can be asked, a Mac cannot
+    /// assert_eq!(RecordArgs::default().probes_windows(), cfg!(windows));
+    ///
+    /// // and can be turned off
+    /// let off = RecordArgs {
+    ///     no_probe_windows: true,
+    ///     ..RecordArgs::default()
+    /// };
+    /// assert!(!off.probes_windows());
+    ///
+    /// // asking for it where it cannot be done is kept, to be refused when recording starts
+    /// let asked = RecordArgs {
+    ///     probe_windows: true,
+    ///     ..RecordArgs::default()
+    /// };
+    /// assert!(asked.probes_windows());
+    /// ```
+    #[must_use]
+    pub fn probes_windows(&self) -> bool {
+        !self.no_probe_windows && (self.probe_windows || cfg!(windows))
     }
 }
 

@@ -70,7 +70,7 @@ locations as hints.
 - An `AXError` in komorebi's log comes from the application or the OS, not from komorebi.
 - komorebi for Windows hides a window by **cloaking it where it is**, so its `State` cannot say
   whether a window is really hidden, and the position-based hidden-window checks do not apply. A
-  recording made with `--probe-windows` stores, with each window event, what Windows said about that
+  recording made on Windows (unless with `--no-probe-windows`) stores, with each window event, what Windows said about that
   window just after it (`exists`, `visible`, `cloaked`, `minimized`, `rect`, and now and then
   komorebi's own `DebugWindow` verdict with the rules that matched); `overview` then reports
   `visible-window-hidden` (komorebi has it in front, Windows has it cloaked or minimized),

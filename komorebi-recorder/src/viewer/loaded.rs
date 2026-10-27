@@ -92,7 +92,8 @@ pub struct Loaded {
     /// How the komorebi source this build indexed compares with the komorebi that was recorded.
     pub skew: Skew,
     /// The ghost tiles the recording shows: tiles that held a window a person could not see.
-    /// Empty for a recording made without `--probe-windows`, and for one of komorebi for Mac.
+    /// Empty for a recording of komorebi for Windows made without window probes
+    /// (`--no-probe-windows`).
     pub ghosts: Vec<GhostTile>,
 }
 
