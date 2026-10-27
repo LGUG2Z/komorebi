@@ -22,9 +22,10 @@ without a checkout of the toolchain.
 ## Crates
 
 - [`komorebi`](komorebi): the daemon, and the library behind it. The library has
-  the vocabulary the window manager is written in (`core`), the `Ring` that
-  holds monitors, workspaces and containers, and the lists in which some
-  elements are locked in place.
+  the vocabulary the window manager is written in (`core`), the `Backend` trait
+  through which it reaches a compositor and the in-memory desktop the tests use
+  (`backend`), the `Ring` that holds monitors, workspaces and containers, and the
+  lists in which some elements are locked in place.
 - [`version`](version): the version string every binary reports.
 
 The layouts, which turn a work area and a number of containers into a rectangle
@@ -45,10 +46,20 @@ The VM tests boot NixOS with Plasma and run a real KWin. `just vm NAME` runs
 one; [`docs/dev/vm-tests.md`](docs/dev/vm-tests.md) has the details, including
 how to run them on a Mac.
 
+## How it fits together
+
+The daemon decides where every window goes and asks the compositor to put it
+there. Everything it needs from the compositor is behind one trait, `Backend`,
+so the window manager logic runs against a real compositor and against an
+in-memory fake desktop alike. [`docs/dev/ARCHITECTURE.md`](docs/dev/ARCHITECTURE.md)
+describes the trait and where each of its rules is enforced.
+
 ## Documentation
 
 `cargo doc --workspace --no-deps --open` builds the API documentation.
-[`CONTRIBUTING.md`](CONTRIBUTING.md) says how to work on the code, and
+[`CONTRIBUTING.md`](CONTRIBUTING.md) says how to work on the code.
+[`docs/dev/ARCHITECTURE.md`](docs/dev/ARCHITECTURE.md) describes the model,
+[`docs/dev/DESIGN.md`](docs/dev/DESIGN.md) says why it is built that way, and
 [`docs/dev/vm-tests.md`](docs/dev/vm-tests.md) how the VM tests work.
 
 ## License

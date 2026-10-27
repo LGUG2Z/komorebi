@@ -4,5 +4,6 @@
 #[macro_use]
 pub mod ring;
 
+pub mod backend;
 pub mod core;
 pub mod lockable_sequence;

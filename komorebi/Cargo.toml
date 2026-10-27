@@ -9,6 +9,8 @@ komorebi-layouts = { workspace = true }
 version = { path = "../version" }
 
 clap = { workspace = true }
+color-eyre = { workspace = true }
+parking_lot = "0.12"
 schemars = { workspace = true, optional = true }
 serde = { workspace = true }
 serde_with = { version = "3", features = ["schemars_1"] }
