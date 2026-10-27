@@ -51,6 +51,10 @@
 //! | [`capture`] | capturing the screen into segments of video |
 //! | [`power`] and [`system_state`] | sleep, wake, lock and display changes |
 //! | [`timeline`] and [`frames`] | the time-sorted index of a session and the frame times of its video |
+//! | [`recorder`] | starting every source, keeping them running and stopping them |
+//! | [`annotations`] | the bug regions, notes and findings written into a session |
+//! | [`recovery`] | rebuilding a session whose recorder died |
+//! | [`cli`] | the command line |
 //!
 //! # What is not supported
 //!
@@ -64,7 +68,9 @@
 //! [`platform`] for what each host provides.
 
 pub mod analysis;
+pub mod annotations;
 pub mod capture;
+pub mod cli;
 pub mod clock;
 pub mod frames;
 pub mod incidents;
@@ -72,8 +78,14 @@ pub mod komorebi_link;
 pub mod lock;
 pub mod platform;
 pub mod power;
+pub mod recorder;
+pub mod recovery;
 pub mod session;
 pub mod sources;
 pub mod system_state;
+// Test scaffolding, public only because the integration tests in `tests/` are separate crates and
+// have to reach it. It is not part of the interface, so it is kept out of the documentation.
+#[doc(hidden)]
+pub mod testkit;
 pub mod timecode;
 pub mod timeline;

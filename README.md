@@ -35,6 +35,18 @@ cargo install --path komorebi-recorder --locked
 `komorebi-recorder.exe` and, with it, `komorebi-recorder-gui.exe` from a Mac. `nix run github:LGUG2Z/komorebi-recorder`
 runs the latest commit without a checkout.
 
+## Record a bug
+
+```sh
+komorebi-recorder displays                       # which displays can be recorded
+komorebi-recorder record --duration 30 --out ./repro
+```
+
+On macOS the terminal needs the Screen Recording permission, as `komorebi` does. For a useful recording, start komorebi
+with `--log-level trace` first: the recorder never changes komorebi's log level, it only warns. A session made with
+`--no-video` has everything but the screen. [Recording a bug repro](docs/usage/recording-a-bug-repro.md) has the rest:
+what is captured on each OS, docking, sleep and lock, and recovering a recording after a crash.
+
 ## How it fits together
 
 Two things vary independently: the _host_ the recorder runs on (macOS or Windows) and the _flavor_ of komorebi it

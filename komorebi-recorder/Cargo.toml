@@ -10,12 +10,15 @@ chrono = { workspace = true }
 clap = { workspace = true }
 color-eyre = { workspace = true }
 crossbeam-channel = { workspace = true }
+ctrlc = { version = "3", features = ["termination"] }
 dirs = { workspace = true }
+dunce = { workspace = true }
 parking_lot = { workspace = true }
 png = "0.18"
 schemars = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
+sysinfo = { workspace = true }
 
 [target.'cfg(target_os = "macos")'.dependencies]
 block2 = "0.6"
