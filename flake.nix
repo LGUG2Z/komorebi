@@ -56,7 +56,9 @@
             path: type:
             (craneLib.filterCargoSources path type)
             || (pkgs.lib.hasSuffix "/komorebi-recorder/src/guide.md" path)
-            || (pkgs.lib.hasInfix "/komorebi-recorder/tests/fixtures/" path);
+            || (pkgs.lib.hasInfix "/komorebi-recorder/tests/fixtures/" path)
+            # the installer, which `tests/packaging.rs` checks
+            || (pkgs.lib.hasInfix "/wix/" path);
         };
 
       mkPackages =

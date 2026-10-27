@@ -108,12 +108,17 @@ jobs:
           command: "build"
           target: ${{ matrix.platform.target }}
           args: "--locked --release"
+      - shell: pwsh
+        run: |
+          cargo install cargo-wix
+          cargo wix --no-build -p komorebi-recorder --nocapture -I .\wix\main.wxs --target ${{ matrix.platform.target }}
       - uses: actions/upload-artifact@v7
         with:
           name: komorebi-recorder-${{ matrix.platform.target }}-${{ github.sha }}
           path: |
             target/${{ matrix.platform.target }}/release/*.exe
             target/${{ matrix.platform.target }}/release/*.pdb
+            target/wix/komorebi-recorder-*.msi
           retention-days: 14
 
   # Packages what the two builds made and publishes it. What kind of publication depends on the
@@ -153,8 +158,11 @@ jobs:
           zip -j "dist/komorebi-recorder-${VERSION}-aarch64-apple-darwin.zip" \
             "komorebi-recorder-aarch64-apple-darwin-${GITHUB_SHA}/komorebi-recorder"
           for triple in x86_64-pc-windows-msvc aarch64-pc-windows-msvc; do
+            arch="${triple%%-*}"
             zip -j "dist/komorebi-recorder-${VERSION}-${triple}.zip" \
               "komorebi-recorder-${triple}-${GITHUB_SHA}/${triple}/release/"*.exe
+            cp "komorebi-recorder-${triple}-${GITHUB_SHA}/wix/"*"-${arch}.msi" \
+              "dist/komorebi-recorder-${VERSION}-${arch}.msi"
           done
           (cd dist && shasum -a 256 -- * > checksums.txt)
       - name: Write the release notes
@@ -202,3 +210,12 @@ jobs:
                 dist/* ;;
           esac
 
+  winget:
+    if: github.repository == 'LGUG2Z/komorebi-recorder' && startsWith(github.ref, 'refs/tags/v')
+    needs: publish
+    runs-on: ubuntu-latest
+    steps:
+      - uses: vedantmgoyal2009/winget-releaser@main
+        with:
+          identifier: LGUG2Z.komorebi-recorder
+          token: ${{ secrets.WINGET_TOKEN }}

@@ -9,7 +9,18 @@ and for an agent, with commands that print JSON.
 
 ## Install
 
-There are no releases yet: build it from source, below.
+Every release has, for macOS and for both architectures of Windows, a zip of the executables and, for Windows, an MSI
+installer that puts them in `Program Files\komorebi-recorder\bin` and optionally on the `PATH`. The nightly release
+is rebuilt every week from `master`.
+
+| | file |
+|---|---|
+| macOS (Apple silicon) | `komorebi-recorder-<version>-aarch64-apple-darwin.zip` |
+| Windows x86_64 | `komorebi-recorder-<version>-x86_64.msi` or `komorebi-recorder-<version>-x86_64-pc-windows-msvc.zip` |
+| Windows ARM64 | `komorebi-recorder-<version>-aarch64.msi` or `komorebi-recorder-<version>-aarch64-pc-windows-msvc.zip` |
+
+`checksums.txt` lists the SHA-256 of every file. The installers and executables are not signed, so Windows
+SmartScreen and Defender may warn about them.
 
 ### From source
 
