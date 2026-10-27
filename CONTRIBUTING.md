@@ -39,8 +39,9 @@ formatter is a nightly one.
 `just check` runs everything a change has to pass before it is pushed: the
 formatting check, clippy with warnings denied, the tests, and rustdoc with
 warnings denied. `just fmt` formats the Rust sources, and `nix fmt` every file
-type the repository has. `nix flake check` is what CI runs; it builds the same
-checks, plus `cargo deny`, as derivations.
+type the repository has. `nix flake check` builds the same checks, plus
+`cargo deny`, as derivations; on Linux it also boots every VM test, which needs
+KVM.
 
 ## VM tests
 
@@ -53,8 +54,10 @@ to run one (`just vm NAME`) and how to add one.
 
 [`ci.yaml`](.github/workflows/ci.yaml) runs on every pull request and on every
 push to `master`, `feature/*` and `hotfix/*`, in this repository only. The
-`lint` job runs `nix flake check` and the repository's own lint rules, and
-`cargo-deny` checks licenses and advisories. A weekly
+`lint` job builds every check that needs no virtual machine and runs the
+repository's own lint rules, `cargo-deny` checks licenses and advisories, and
+the VM tests run on KVM in two jobs: `vm-fast` on every pull request and
+`vm-slow` on `master`, every week, and on pull requests labeled `ci:vm-slow`. A weekly
 [workflow](.github/workflows/update-flake-lock.yaml) opens a pull request that
 moves `flake.lock`, and the same jobs run on it.
 

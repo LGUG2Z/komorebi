@@ -14,6 +14,14 @@ they are laid out, how to run them, and how to add one.
 | A Mac | `just vm NAME`, which runs `scripts/vm-mac` | HVF |
 | A Linux machine with no KVM | `nix build -L .#legacyPackages.SYSTEM.vmTcg.NAME` | TCG |
 
+CI runs the `fast` tier on every pull request and the `slow` tier on `master`,
+every week, and on pull requests labeled `ci:vm-slow`
+([`ci.yaml`](../../.github/workflows/ci.yaml)). The slow jobs run the driver
+by hand instead of building the check, so that the screenshots and journals of a
+failed run can be uploaded as an artifact. KVM on GitHub-hosted runners is
+documented for public repositories; the first step of each VM job checks that
+`/dev/kvm` is writable and fails there if it is not.
+
 TCG is software emulation. It is slow enough that only short suites are worth
 running that way, and the library's `scale` argument (below) is 8 for it.
 

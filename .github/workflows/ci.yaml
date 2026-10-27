@@ -27,8 +27,9 @@ jobs:
           fetch-depth: 0
       - uses: EmbarkStudios/cargo-deny-action@v2
 
-  # Everything that does not need a virtual machine: the formatting, clippy, rustdoc and the tests,
-  # as derivations. The jobs that boot KWin are separate.
+  # Everything that does not need a virtual machine: the formatting, clippy, rustdoc, the tests and
+  # the VM library's own tests, as derivations. The jobs that boot KWin are separate, and `nix flake
+  # check` is not used here because on Linux it would run those suites with no KVM.
   lint:
     if: github.repository == 'LGUG2Z/komorebi-for-kde'
     runs-on: ubuntu-24.04
@@ -36,11 +37,76 @@ jobs:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
-      - uses: cachix/install-nix-action@v31
-      - uses: nix-community/cache-nix-action@v7
-        with:
-          primary-key: nix-${{ runner.os }}-${{ hashFiles('flake.lock', '**/Cargo.lock') }}
-          restore-prefixes-first-match: nix-${{ runner.os }}-
-          gc-max-store-size-linux: 8G
-      - run: nix flake check -L
+      - uses: ./.github/actions/nix
+      - name: Build every check that needs no virtual machine
+        run: |
+          nix eval --json .#checks.x86_64-linux --apply builtins.attrNames |
+            jq -r '(.[] | select(startswith("vm-") | not)), "vm-lib"' |
+            sed 's|^|.#checks.x86_64-linux.|' |
+            xargs nix build -L --no-link
       - run: nix develop --command just lint
+
+  # The suites are found in the flake, so that a new directory under nix/tests/vm/suites is run
+  # without an edit here.
+  discover:
+    if: github.repository == 'LGUG2Z/komorebi-for-kde'
+    runs-on: ubuntu-24.04
+    outputs:
+      fast: ${{ steps.tiers.outputs.fast }}
+      slow: ${{ steps.tiers.outputs.slow }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/nix
+      - id: tiers
+        run: |
+          tiers=$(nix eval --json .#legacyPackages.x86_64-linux.vmTiers)
+          echo "fast=$(jq -c '.fast // []' <<<"$tiers")" >> "$GITHUB_OUTPUT"
+          echo "slow=$(jq -c '.slow // []' <<<"$tiers")" >> "$GITHUB_OUTPUT"
+
+  # The pull request gate: the suites that take minutes, each in its own machine, in a sandboxed
+  # `nix build` like any other check.
+  vm-fast:
+    needs: discover
+    if: github.repository == 'LGUG2Z/komorebi-for-kde' && needs.discover.outputs.fast != '[]'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        suite: ${{ fromJson(needs.discover.outputs.fast) }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/nix
+        with:
+          kvm: "true"
+      - run: nix build -L .#checks.x86_64-linux.vm-${{ matrix.suite }}
+
+  # The suites that draw and move a pointer. They run on master, every week, and on a pull
+  # request with the label `ci:vm-slow`. The driver is run by hand, outside the sandbox, so that
+  # the screenshots and the journals of a failed run can be uploaded.
+  vm-slow:
+    needs: discover
+    if: >-
+      github.repository == 'LGUG2Z/komorebi-for-kde' && needs.discover.outputs.slow != '[]' &&
+      (github.ref == 'refs/heads/master' || github.event_name == 'schedule' ||
+      github.event_name == 'workflow_dispatch' ||
+      contains(github.event.pull_request.labels.*.name, 'ci:vm-slow'))
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        suite: ${{ fromJson(needs.discover.outputs.slow) }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/nix
+        with:
+          kvm: "true"
+      - run: nix build -L .#legacyPackages.x86_64-linux.vm.${{ matrix.suite }}.driver -o driver
+      - run: mkdir -p out && cd out && ../driver/bin/nixos-test-driver -o .
+      - if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: vm-${{ matrix.suite }}-${{ github.sha }}
+          path: out/
+          retention-days: 7

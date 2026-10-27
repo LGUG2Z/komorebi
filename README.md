@@ -29,7 +29,8 @@ without a checkout of the toolchain.
 `just check` runs the formatting check, clippy with warnings denied, the tests
 and rustdoc with warnings denied, inside `nix develop`. `nix flake check` runs
 the same checks as derivations, plus `cargo deny`, the TOML and Nix formatting,
-and the tests under `cargo nextest`, on Linux and on an Apple silicon Mac. A Mac
+and the tests under `cargo nextest`, on Linux and on an Apple silicon Mac. On
+Linux it also boots every VM test, which needs KVM. A Mac
 runs the tests against the fake desktop, since KWin only exists on Linux.
 `nix fmt` formats every file the checks look at.
 
