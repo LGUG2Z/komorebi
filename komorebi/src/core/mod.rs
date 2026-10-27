@@ -6,8 +6,9 @@
 //! import from. [`pathext`] resolves environment variables in configured paths and
 //! [`config_generation`] holds the rules that match applications by what they are called.
 //!
-//! [`SocketMessage`] is every message the daemon takes on its socket, and [`StateQuery`] every
-//! question [`SocketMessage::Query`] can ask.
+//! [`SocketMessage`] is every message the daemon takes on its socket, [`StateQuery`] every
+//! question [`SocketMessage::Query`] can ask, and [`SubscribeOptions`] what a subscriber can ask
+//! of its notifications.
 
 use clap::ValueEnum;
 use color_eyre::eyre;
@@ -273,6 +274,40 @@ pub enum StateQuery {
     Version,
 }
 
+/// The options of a subscriber, which [`SocketMessage::AddSubscriberSocketWithOptions`] sets
+///
+/// A subscriber added with [`SocketMessage::AddSubscriberSocket`] has the default options, and is
+/// sent a notification for every event and message the window manager handles. With
+/// `filter_state_changes`, it is sent one only when the event or the message changed the
+/// [`State`](crate::state::State), and always when a window is shown and when a subscriber is
+/// added, so a new subscriber receives the state as soon as it subscribes.
+///
+/// # Example
+///
+/// ```rust
+/// use komorebi::core::SocketMessage;
+/// use komorebi::core::SubscribeOptions;
+///
+/// let options = SubscribeOptions {
+///     filter_state_changes: true,
+/// };
+/// let message = SocketMessage::AddSubscriberSocketWithOptions(String::from("bar.sock"), options);
+/// assert_eq!(
+///     String::from_utf8(message.as_bytes()?)?,
+///     r#"{"type":"AddSubscriberSocketWithOptions","content":["bar.sock",{"filter_state_changes":true}]}"#,
+/// );
+///
+/// assert!(!SubscribeOptions::default().filter_state_changes);
+///
+/// # Ok::<(), Box<dyn std::error::Error>>(())
+/// ```
+#[derive(Default, Debug, Copy, Clone, Eq, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+pub struct SubscribeOptions {
+    /// Only emit notifications when the window manager state has changed
+    pub filter_state_changes: bool,
+}
+
 /// A message to the daemon, as it is written on its socket: JSON, with the variant's name in
 /// `type` and its arguments, if it has any, in `content`.
 ///
@@ -304,6 +339,11 @@ pub enum SocketMessage {
     State,
     MonitorInformation,
     Query(StateQuery),
+    AddSubscriberSocket(String),
+    AddSubscriberSocketWithOptions(String, SubscribeOptions),
+    RemoveSubscriberSocket(String),
+    // AddSubscriberPipe(String),
+    // RemoveSubscriberPipe(String),
 }
 
 impl SocketMessage {

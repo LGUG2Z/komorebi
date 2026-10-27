@@ -1,9 +1,12 @@
 //! [`State`], the window manager as the daemon shows it: every monitor, with its workspaces, their
 //! containers and the windows in them, and the settings that apply to all of them.
 //!
-//! The daemon writes it as JSON in answer to [`SocketMessage::State`].
+//! The daemon writes it as JSON in answer to [`SocketMessage::State`], and sends it to its
+//! subscribers in every [`Notification`]. [`State::has_been_modified`] decides whether an event or
+//! a message changed it, for the subscribers that want a notification only then.
 //!
 //! [`SocketMessage::State`]: crate::core::SocketMessage::State
+//! [`Notification`]: crate::Notification
 
 use crate::core::Rect;
 use crate::monitor::Monitor;
@@ -96,5 +99,31 @@ impl From<&WindowManager> for State {
             work_area_offset: wm.work_area_offset,
             mouse_follows_focus: wm.mouse_follows_focus,
         }
+    }
+}
+
+impl State {
+    /// Returns true if and only if the window manager's monitors (with their workspaces,
+    /// containers and windows), its work area offset or its mouse follows focus setting differ
+    /// from this state's
+    ///
+    /// A window is compared by its id only, so a window that moved or was renamed is not a
+    /// change.
+    pub fn has_been_modified(&self, wm: &WindowManager) -> bool {
+        let new = Self::from(wm);
+
+        if self.monitors != new.monitors {
+            return true;
+        }
+
+        if self.work_area_offset != new.work_area_offset {
+            return true;
+        }
+
+        if self.mouse_follows_focus != new.mouse_follows_focus {
+            return true;
+        }
+
+        false
     }
 }

@@ -9,6 +9,10 @@
 //! daemon that is not running is an [`std::io::ErrorKind::NotFound`] or a
 //! [`std::io::ErrorKind::ConnectionRefused`].
 //!
+//! [`subscribe`] and [`subscribe_with_options`] make the program a subscriber: they listen on a
+//! socket of its own in [`struct@DATA_DIR`], and ask the daemon to send a [`Notification`] to it
+//! after each event and each message the window manager handles.
+//!
 //! The crate also re-exports the types the messages and the answers are made of, so that a client
 //! needs nothing else.
 //!
@@ -51,6 +55,8 @@
 
 pub use komorebi::DATA_DIR;
 pub use komorebi::LOG_DIR;
+pub use komorebi::Notification;
+pub use komorebi::NotificationEvent;
 pub use komorebi::container::Container;
 pub use komorebi::core::ApplicationIdentifier;
 pub use komorebi::core::Axis;
@@ -66,6 +72,7 @@ pub use komorebi::core::Rect;
 pub use komorebi::core::Sizing;
 pub use komorebi::core::SocketMessage;
 pub use komorebi::core::StateQuery;
+pub use komorebi::core::SubscribeOptions;
 pub use komorebi::core::WindowKind;
 pub use komorebi::core::pathext::PathExt;
 pub use komorebi::core::pathext::replace_env_in_path;
@@ -77,6 +84,7 @@ use std::io::BufReader;
 use std::io::Read;
 use std::io::Write;
 use std::net::Shutdown;
+use std::os::unix::net::UnixListener;
 use std::os::unix::net::UnixStream;
 use std::time::Duration;
 
@@ -218,4 +226,156 @@ pub fn send_query(message: &SocketMessage) -> std::io::Result<String> {
     reader.read_to_string(&mut response)?;
 
     Ok(response)
+}
+
+/// Listens on the socket `name` in [`struct@DATA_DIR`], and asks the daemon to send a
+/// [`Notification`] to it after each event and each message the window manager handles
+///
+/// A socket file that is left over at that path is removed first. Each notification comes on a
+/// new connection, as JSON, and ends when the daemon closes the connection; the first is the
+/// notification of the subscription itself. When the daemon stops, it connects and closes the
+/// connection without writing anything.
+///
+/// A subscriber that the daemon cannot connect to, because its program has exited or its socket
+/// was removed, is removed at the next notification, with its socket file. It has to subscribe
+/// again: the daemon does not try it again, and does not keep its subscribers when it restarts.
+///
+/// # Errors
+///
+/// - The socket file left over at that path cannot be removed.
+/// - The socket cannot be bound, for example because [`struct@DATA_DIR`] does not exist.
+/// - The subscription cannot be sent, for one of the reasons [`send_message`] gives.
+///
+/// # Example
+///
+/// ```rust
+/// # use std::io::{BufRead, BufReader, Write};
+/// # let runtime = format!("/tmp/komorebi-client-doc-subscribe-{}", std::process::id());
+/// # std::fs::create_dir_all(format!("{runtime}/komorebi"))?;
+/// # unsafe { std::env::set_var("XDG_RUNTIME_DIR", &runtime) }; // the sockets are in it
+/// # let socket = komorebi_client::DATA_DIR.join("komorebi.sock");
+/// # let listener = std::os::unix::net::UnixListener::bind(&socket)?;
+/// # let daemon = std::thread::spawn(move || -> std::io::Result<String> {
+/// #     let (stream, _) = listener.accept()?;
+/// #     let mut message = String::new();
+/// #     BufReader::new(stream).read_line(&mut message)?;
+/// #     let subscriber = komorebi_client::DATA_DIR.join("bar.sock");
+/// #     let state = r#"{"monitors":{"elements":[],"focused":0},"work_area_offset":null,"mouse_follows_focus":true}"#;
+/// #     let notification = format!(r#"{{"event":{message},"state":{state}}}"#);
+/// #     std::os::unix::net::UnixStream::connect(subscriber)?.write_all(notification.as_bytes())?;
+/// #     Ok(message)
+/// # });
+/// use std::io::Read;
+///
+/// use komorebi_client::Notification;
+/// use komorebi_client::NotificationEvent;
+/// use komorebi_client::SocketMessage;
+/// use komorebi_client::subscribe;
+///
+/// let listener = subscribe("bar.sock")?;
+///
+/// // the first notification is the one of the subscription
+/// let (mut connection, _) = listener.accept()?;
+/// let mut json = String::new();
+/// connection.read_to_string(&mut json)?;
+/// let notification: Notification = serde_json::from_str(&json)?;
+/// assert!(matches!(
+///     notification.event,
+///     NotificationEvent::Socket(SocketMessage::AddSubscriberSocket(name)) if name == "bar.sock"
+/// ));
+///
+/// # assert_eq!(
+/// #     daemon.join().unwrap()?,
+/// #     r#"{"type":"AddSubscriberSocket","content":"bar.sock"}"#
+/// # );
+/// # std::fs::remove_dir_all(&runtime)?;
+/// # Ok::<(), Box<dyn std::error::Error>>(())
+/// ```
+pub fn subscribe(name: &str) -> std::io::Result<UnixListener> {
+    let socket = DATA_DIR.join(name);
+
+    match std::fs::remove_file(&socket) {
+        Ok(()) => {}
+        Err(error) => match error.kind() {
+            std::io::ErrorKind::NotFound => {}
+            _ => {
+                return Err(error);
+            }
+        },
+    };
+
+    let listener = UnixListener::bind(&socket)?;
+
+    send_message(&SocketMessage::AddSubscriberSocket(name.to_string()))?;
+
+    Ok(listener)
+}
+
+/// The same as [`subscribe`], with the [`SubscribeOptions`] the daemon applies to this subscriber
+///
+/// With `filter_state_changes`, the daemon sends a notification only when the event or the message
+/// changed the [`State`], and always when a window is shown and when a subscriber is added.
+///
+/// # Errors
+///
+/// The same as [`subscribe`].
+///
+/// # Example
+///
+/// ```rust
+/// # use std::io::{BufRead, BufReader};
+/// # let runtime = format!("/tmp/komorebi-client-doc-options-{}", std::process::id());
+/// # std::fs::create_dir_all(format!("{runtime}/komorebi"))?;
+/// # unsafe { std::env::set_var("XDG_RUNTIME_DIR", &runtime) }; // the sockets are in it
+/// # let socket = komorebi_client::DATA_DIR.join("komorebi.sock");
+/// # let listener = std::os::unix::net::UnixListener::bind(&socket)?;
+/// # let daemon = std::thread::spawn(move || -> std::io::Result<String> {
+/// #     let (stream, _) = listener.accept()?;
+/// #     let mut message = String::new();
+/// #     BufReader::new(stream).read_line(&mut message)?;
+/// #     Ok(message)
+/// # });
+/// use komorebi_client::DATA_DIR;
+/// use komorebi_client::SubscribeOptions;
+/// use komorebi_client::subscribe_with_options;
+///
+/// let options = SubscribeOptions {
+///     filter_state_changes: true,
+/// };
+/// let listener = subscribe_with_options("bar.sock", options)?;
+///
+/// let socket = DATA_DIR.join("bar.sock");
+/// assert_eq!(listener.local_addr()?.as_pathname(), Some(socket.as_path()));
+///
+/// # assert_eq!(
+/// #     daemon.join().unwrap()?,
+/// #     r#"{"type":"AddSubscriberSocketWithOptions","content":["bar.sock",{"filter_state_changes":true}]}"#
+/// # );
+/// # std::fs::remove_dir_all(&runtime)?;
+/// # Ok::<(), Box<dyn std::error::Error>>(())
+/// ```
+pub fn subscribe_with_options(
+    name: &str,
+    options: SubscribeOptions,
+) -> std::io::Result<UnixListener> {
+    let socket = DATA_DIR.join(name);
+
+    match std::fs::remove_file(&socket) {
+        Ok(()) => {}
+        Err(error) => match error.kind() {
+            std::io::ErrorKind::NotFound => {}
+            _ => {
+                return Err(error);
+            }
+        },
+    };
+
+    let listener = UnixListener::bind(&socket)?;
+
+    send_message(&SocketMessage::AddSubscriberSocketWithOptions(
+        name.to_string(),
+        options,
+    ))?;
+
+    Ok(listener)
 }

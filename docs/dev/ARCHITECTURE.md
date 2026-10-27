@@ -7,8 +7,9 @@ tested, without one.
 
 This page describes that trait, who implements and calls it, where each of its rules is
 enforced, the model of the desktop the window manager tiles, the backend that reaches KWin,
-how an event about a window becomes a tile, and how a message on the daemon's socket is
-answered. It grows with the code: each part of the daemon that is added has its place here.
+how an event about a window becomes a tile, how a message on the daemon's socket is
+answered, and how subscribers are notified of both. It grows with the code: each part of the
+daemon that is added has its place here.
 
 ## Vocabulary
 
@@ -28,6 +29,10 @@ answered. It grows with the code: each part of the daemon that is added has its 
   (retile, stop) or a question (the state, the monitors, one [`StateQuery`]).
 - **State**: the window manager's monitors, workspaces, containers and windows, and its
   settings, as the daemon answers a `State` message with them ([`State`]).
+- **Subscriber**: a program that listens on a socket of its own in [`DATA_DIR`] and has
+  asked the daemon, by the name of that socket, to send it notifications.
+- **Notification**: what a subscriber is sent after each event and each message the window
+  manager handles: the event or the message, and the state after it ([`Notification`]).
 - **Compositor**: the program that owns the screen and the windows. On KDE Plasma it is
   KWin.
 - **Backend**: the implementation of the [`Backend`](../../komorebi/src/backend/mod.rs)
@@ -191,6 +196,37 @@ connection close with no answer.
 what it set up in the compositor (the KWin backend unloads the bridge), and exits with
 status 0. `SIGINT` and `SIGTERM` do the same from `main.rs`, with the exit status 130.
 
+## Notifications
+
+A subscriber binds a socket in [`DATA_DIR`] and sends `AddSubscriberSocket` with its name,
+or `AddSubscriberSocketWithOptions` with its name and [`SubscribeOptions`]
+([`subscribe`], [`subscribe_with_options`], `komorebic subscribe-socket`).
+[`WindowManager::process_command`] records it in [`SUBSCRIPTION_SOCKETS`], and its options in
+[`SUBSCRIPTION_SOCKET_OPTIONS`]. `RemoveSubscriberSocket` takes it out again. The
+subscribers are kept in memory only, and a daemon that restarts has none.
+
+At the end of [`WindowManager::process_event`] and of [`WindowManager::process_command`],
+the window manager calls [`notify_subscribers`] with a [`Notification`]: the event or the
+message ([`NotificationEvent`]), and the [`State`] after it. A [`State`] made before the event
+or the message is compared with the window manager after it ([`State::has_been_modified`]);
+the monitors are compared down to the windows, and a window by its id only. An event about a
+window komorebi does not manage, and a message that fails, return before this and are not
+notified.
+
+[`notify_subscribers`] serializes the notification once, and for each subscriber connects to
+its socket, writes the JSON and closes the connection, all on the thread that handled the
+event or the message, with the window manager still locked. A subscriber with
+`filter_state_changes` is skipped when the state did not change, unless the notification is
+about a window being shown or a subscriber being added. A subscriber that cannot be
+connected to is removed, with its socket file, after the loop. Writing to a subscriber that
+was connected to has no timeout, and a failed write returns an error from the call that
+handled the event or the message. A subscriber that stops reading therefore holds the window
+manager, and with it the thread that handles events: the backend's events wait in the
+channel of [`window_manager_event_listener`], and past 20 the backend drops them.
+
+When the daemon stops ([`WindowManager::stop`], or `SIGINT` and `SIGTERM` in `main.rs`), it
+connects to each subscriber and shuts the connection down without writing anything.
+
 ## The parts
 
 - [`backend`](../../komorebi/src/backend/mod.rs): the trait, the two data types, and the
@@ -220,9 +256,13 @@ status 0. `SIGINT` and `SIGTERM` do the same from `main.rs`, with the exit statu
   [`bridge.js`](../../komorebi/src/kwin/bridge.js), the bridge.
 - [`process_command`](../../komorebi/src/process_command.rs): the thread that listens on the
   socket, and what the window manager does with each message.
-- [`state`](../../komorebi/src/state.rs): the [`State`] a `State` message is answered with.
+- [`state`](../../komorebi/src/state.rs): the [`State`] a `State` message is answered with,
+  and whether an event or a message changed it.
+- [`lib.rs`](../../komorebi/src/lib.rs): the subscribers, the [`Notification`], and
+  [`notify_subscribers`].
 - [`komorebi-client`](../../komorebi-client/src/lib.rs): a library that writes messages on
-  the socket and reads the answers, for programs that talk to the daemon.
+  the socket and reads the answers, and subscribes to notifications, for programs that talk
+  to the daemon.
 - [`komorebic`](../../komorebic/src/main.rs): the command line. A subcommand that asks
   something of the daemon is one message, sent with `komorebi-client`; `start` runs the
   daemon, `log` follows its log file in [`LOG_DIR`], and the hidden `docgen` writes
@@ -282,6 +322,7 @@ the fake. The window manager is its only caller, through [`backend`]. The contra
 | Messages are handled one at a time, and in order on one connection | framework path: [`read_commands_uds`] reads a connection line by line and handles each message with the window manager locked | `the_messages_on_one_connection_are_handled_in_order` | none |
 | A socket left behind by a daemon that did not stop cleanly does not keep the next one from starting | framework path: [`WindowManager::new`] removes the file before it binds | `a_socket_file_left_behind_is_replaced` | none |
 | A daemon that is told to stop leaves no socket behind | framework path: [`WindowManager::stop`] removes it before it exits | `the_daemon_answers_on_its_socket_and_stops_when_it_is_told_to` | `SIGKILL` |
+| A subscriber that is gone is dropped, not retried | test | `a_subscriber_that_is_gone_is_dropped_and_not_tried_again` | none |
 | The bridge holds no window manager logic | convention, with every decision about an event in the table, which the `kwin::state` unit tests pin | the unit tests in `komorebi/src/kwin/state.rs` | none |
 | What the bridge sends is what the table reads | type checker: the JSDoc types of the messages in [`bridge.js`]; tests: the events of [`fixtures`] are what the bridge's tests check it sends and what the table's tests feed it | `what the bridge sends for a session is what the daemon's tests read`, `the_bridges_events_for_a_session_are_the_window_events_komorebi_expects` | none |
 | What the backend sends is what the bridge carries out | tests: the commands of [`fixtures`] are what the backend's tests check it sends and what the bridge's tests answer it with, checking what KWin is asked to do for each | `the_commands_of_a_session_go_to_the_bridge_as_the_bridges_tests_answer_it`, `what the bridge sends for a session is what the daemon's tests read`, `a command for a window KWin no longer has is given back, and the rest are carried out` | none |
@@ -326,6 +367,9 @@ A window is shown, and ends up on a tile:
    `focus`, and the pointer follows it (on KWin, through its "Move Mouse to Focus"
    shortcut).
 8. The index is rebuilt again, so the next event finds the window.
+9. [`notify_subscribers`] sends every subscriber a [`Notification`] of the `Show`, with the
+   state that now has the window. A `Show` is sent to a subscriber with
+   `filter_state_changes` too, whether or not it changed the state.
 
 ## One message, end to end
 
@@ -341,7 +385,8 @@ A window is shown, and ends up on a tile:
    every monitor with its workspaces, containers and windows. Each window is serialized
    with what the backend reports about it now: its frame, title, executable, class and path.
 5. The state is written to the connection as pretty-printed JSON, and the index of managed
-   windows is rebuilt, as after every message.
+   windows is rebuilt, as after every message. The subscribers are sent a notification of
+   the `State` message, except those with `filter_state_changes`: it changed nothing.
 6. There are no more lines, so `read_commands_uds` returns and the connection is closed.
    `send_query` has read to the end, and returns the JSON, which `komorebic` prints.
 
@@ -362,6 +407,8 @@ A window is shown, and ends up on a tile:
   each message does, and the tests that send messages through a real socket.
 - [`komorebi-client/src/lib.rs`](../../komorebi-client/src/lib.rs): the client side of the
   socket.
+- [`komorebi-client/tests/subscribe.rs`](../../komorebi-client/tests/subscribe.rs):
+  subscribers and the notifications they are sent, through real sockets.
 - [`komorebic/src/main.rs`](../../komorebic/src/main.rs): the subcommands, and
   [`komorebic/tests/cli.rs`](../../komorebic/tests/cli.rs), what each writes on the socket.
 - [`komorebi/src/kwin/mod.rs`](../../komorebi/src/kwin/mod.rs): the KWin backend, its D-Bus
@@ -421,6 +468,13 @@ A window is shown, and ends up on a tile:
 [`SocketMessage`]: ../../komorebi/src/core/mod.rs
 [`StateQuery`]: ../../komorebi/src/core/mod.rs
 [`State`]: ../../komorebi/src/state.rs
+[`State::has_been_modified`]: ../../komorebi/src/state.rs
+[`SubscribeOptions`]: ../../komorebi/src/core/mod.rs
+[`Notification`]: ../../komorebi/src/lib.rs
+[`NotificationEvent`]: ../../komorebi/src/lib.rs
+[`notify_subscribers`]: ../../komorebi/src/lib.rs
+[`SUBSCRIPTION_SOCKETS`]: ../../komorebi/src/lib.rs
+[`SUBSCRIPTION_SOCKET_OPTIONS`]: ../../komorebi/src/lib.rs
 [`WindowManager::new`]: ../../komorebi/src/window_manager.rs
 [`WindowManager::stop`]: ../../komorebi/src/window_manager.rs
 [`WindowManager::process_command`]: ../../komorebi/src/process_command.rs
@@ -429,3 +483,5 @@ A window is shown, and ends up on a tile:
 [`send_query`]: ../../komorebi-client/src/lib.rs
 [`send_message`]: ../../komorebi-client/src/lib.rs
 [`send_batch`]: ../../komorebi-client/src/lib.rs
+[`subscribe`]: ../../komorebi-client/src/lib.rs
+[`subscribe_with_options`]: ../../komorebi-client/src/lib.rs

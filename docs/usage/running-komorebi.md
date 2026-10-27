@@ -66,6 +66,9 @@ a window that was moved by hand back on its tile.
 
 When the daemon is not running, these commands fail: there is no socket to write to.
 
+A program that wants to know what komorebi does without asking can subscribe to its
+notifications instead ([Subscribing to notifications](subscribing-to-notifications.md)).
+
 ## The socket and the data directory
 
 The daemon listens on `komorebi.sock` in its data directory, `$XDG_RUNTIME_DIR/komorebi`

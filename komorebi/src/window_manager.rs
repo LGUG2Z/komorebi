@@ -14,6 +14,7 @@
 
 use crate::DATA_DIR;
 use crate::LibraryError;
+use crate::SUBSCRIPTION_SOCKETS;
 use crate::backend::backend;
 use crate::container::Container;
 use crate::core::Rect;
@@ -28,7 +29,9 @@ use color_eyre::eyre::OptionExt;
 use crossbeam_channel::Receiver;
 use std::collections::HashMap;
 use std::io::ErrorKind;
+use std::net::Shutdown;
 use std::os::unix::net::UnixListener;
+use std::os::unix::net::UnixStream;
 use std::path::PathBuf;
 
 #[derive(Debug)]
@@ -48,6 +51,12 @@ pub struct WindowManager {
 }
 
 impl_ring_elements!(WindowManager, Monitor);
+
+impl AsRef<Self> for WindowManager {
+    fn as_ref(&self) -> &Self {
+        self
+    }
+}
 
 impl WindowManager {
     /// Returns a window manager with no monitors, which handles the events that arrive on
@@ -196,11 +205,23 @@ impl WindowManager {
         self.update_focused_workspace(false, false)
     }
 
-    /// Stops the daemon: removes the command socket, lets the backend give up what it set up in
-    /// the compositor, and exits the process with status 0
+    /// Stops the daemon: connects to every subscriber and closes the connection without writing
+    /// anything, removes the command socket, lets the backend give up what it set up in the
+    /// compositor, and exits the process with status 0
+    ///
+    /// # Errors
+    ///
+    /// A connection to a subscriber cannot be shut down. The daemon does not stop.
     #[tracing::instrument(skip(self))]
     pub fn stop(&mut self) -> eyre::Result<()> {
         tracing::info!("received stop command, terminating process");
+
+        let sockets = SUBSCRIPTION_SOCKETS.lock();
+        for path in (*sockets).values() {
+            if let Ok(stream) = UnixStream::connect(path) {
+                stream.shutdown(Shutdown::Both)?;
+            }
+        }
 
         let socket = DATA_DIR.join("komorebi.sock");
         let _ = std::fs::remove_file(socket);

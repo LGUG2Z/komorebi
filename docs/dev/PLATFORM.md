@@ -89,10 +89,10 @@ an owner again; the VM test `vm-kwin-restart` restarts KWin twice under a runnin
 #### What komorebi leaves behind
 
 When it is stopped with `SIGINT`, `SIGTERM` or a `Stop` message on its socket, it asks KWin
-to unload the script and removes the socket. The file `bridge.js` stays in the runtime
-directory, which is removed at logout. A daemon that is killed leaves the script running in
-KWin, reporting to nobody, and the socket file in the runtime directory, until the next start
-replaces both or the session ends.
+to unload the script, closes an empty connection to each subscriber, and removes the socket.
+The file `bridge.js` stays in the runtime directory, which is removed at logout. A daemon
+that is killed leaves the script running in KWin, reporting to nobody, and the socket file in
+the runtime directory, until the next start replaces both or the session ends.
 
 ### A headless KWin
 
@@ -144,6 +144,7 @@ What komorebi calls:
 |---|---|---|
 | `$XDG_RUNTIME_DIR/komorebi/bridge.js` | the script KWin loads, with its configuration (the D-Bus names and the hold time of `Poll`) on its first line | written at every start; the directory is removed at logout |
 | `$XDG_RUNTIME_DIR/komorebi/komorebi.sock` | the command socket | bound once the daemon is connected to KWin, after a file left there is removed; removed when the daemon stops |
+| `$XDG_RUNTIME_DIR/komorebi/NAME` | the socket of a subscriber, which the subscriber binds and names in its subscription | removed by the daemon, with the subscriber, when it cannot connect to it |
 | `$XDG_DATA_HOME/komorebi/komorebi.log.YYYY-MM-DD` | the daemon's log, with colors, which `komorebic log` follows | a file a day (the UTC date), never removed by komorebi |
 | `$XDG_DATA_HOME/komorebi/komorebi_plaintext.log.YYYY-MM-DD` | the same log without colors | as above |
 

@@ -62,10 +62,12 @@ without a checkout of the toolchain.
   (`window_manager_event`, `window_manager_event_listener`, `process_event`), the
   `Ring` that holds monitors, workspaces and containers, and the lists in which
   some elements are locked in place. It answers the messages on the daemon's
-  socket (`core::SocketMessage`, `process_command`) and shows its state
-  (`state`).
+  socket (`core::SocketMessage`, `process_command`), shows its state (`state`),
+  and sends its subscribers a notification of each event and message it handles
+  (`notify_subscribers`).
 - [`komorebi-client`](komorebi-client): a library that sends messages to the
-  daemon and reads its answers, and re-exports the types they are made of.
+  daemon, reads its answers, subscribes to its notifications, and re-exports
+  the types they are made of.
 - [`komorebic`](komorebic): the command line. A subcommand that asks something
   of the daemon is one message on its socket; `start`, `log`, `data-directory`,
   `completions` and the hidden `docgen` work without the daemon.
@@ -117,6 +119,11 @@ tiles the workspace in front again.
 Everything else reaches the daemon as a message on its socket: one JSON
 `SocketMessage` per line, handled one at a time with the window manager
 locked. A message that asks a question is answered on the same connection.
+
+A program such as a status bar can subscribe to the daemon's notifications: it
+listens on a socket of its own, and after each event and each message, the
+daemon connects to it and writes the event or the message with the state of
+the window manager.
 
 ## Documentation
 

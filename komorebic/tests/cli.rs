@@ -122,6 +122,29 @@ fn stop_and_retile_send_their_message_and_print_nothing() {
 }
 
 #[test]
+fn subscribe_socket_and_unsubscribe_socket_send_the_name_they_are_given() {
+    for (subcommand, message) in [
+        (
+            "subscribe-socket",
+            r#"{"type":"AddSubscriberSocket","content":"bar.sock"}"#,
+        ),
+        (
+            "unsubscribe-socket",
+            r#"{"type":"RemoveSubscriberSocket","content":"bar.sock"}"#,
+        ),
+    ] {
+        let runtime = Runtime::new();
+        let daemon = runtime.serve("");
+
+        let output = runtime.komorebic(&[subcommand, "bar.sock"]);
+
+        assert!(output.status.success(), "{subcommand}: {output:?}");
+        assert_eq!(daemon.join().unwrap(), message, "{subcommand}");
+        assert_eq!(stdout(&output), "", "{subcommand}");
+    }
+}
+
+#[test]
 fn without_a_daemon_a_question_fails() {
     let runtime = Runtime::new();
 
@@ -169,6 +192,8 @@ fn docgen_writes_the_help_of_every_subcommand_in_a_text_fence() {
             "start.md",
             "state.md",
             "stop.md",
+            "subscribe-socket.md",
+            "unsubscribe-socket.md",
         ]
     );
 

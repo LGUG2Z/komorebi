@@ -171,3 +171,14 @@ Because the daemon takes no input but its socket. `komorebic` turns a command li
 message on the socket and, for a question, prints the answer. A key binding, a script and a
 person at a terminal all drive komorebi the same way, by running `komorebic` (the design
 notes of komorebi for Mac, linked above).
+
+## Why does komorebi send notifications to subscribers?
+
+So that a program such as a status bar can follow the window manager. The README of komorebi
+for Windows demonstrates a custom status bar integrated through its notifications
+([Window Manager Event Subscriptions](https://github.com/LGUG2Z/komorebi#window-manager-event-subscriptions)),
+and komorebi for Mac sends the same notifications to Unix sockets, which is also how
+`komorebic` talks to its daemon
+([its README](https://github.com/LGUG2Z/komorebi-for-mac#window-manager-event-subscriptions)).
+A subscriber here is a Unix socket, as on macOS. The named pipes that komorebi on Windows
+sends notifications to are not ported, since the socket subscribers do the same.

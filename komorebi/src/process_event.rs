@@ -15,9 +15,16 @@
 //! The daemon hands events to the window manager on a thread of their own,
 //! [`listen_for_events`], one at a time and in the order the backend raised them.
 //!
+//! Once an event about a managed window has been handled, every subscriber is sent a notification
+//! of it ([`notify_subscribers`]).
+//!
 //! [`Window::should_manage`]: crate::window::Window::should_manage
 
+use crate::Notification;
+use crate::NotificationEvent;
 use crate::backend::backend;
+use crate::notify_subscribers;
+use crate::state::State;
 use crate::window_manager::WindowManager;
 use crate::window_manager_event::WindowManagerEvent;
 use color_eyre::eyre;
@@ -63,6 +70,10 @@ fn should_refocus_after_destroy(foreground: Option<u32>) -> bool {
 
 impl WindowManager {
     /// Handle an event from the compositor, and log how long it took
+    ///
+    /// The subscribers are sent a notification of an event that was handled
+    /// ([`notify_subscribers`]), and a notification that cannot be sent is an error. An event
+    /// that fails, or is about a window komorebi does not manage, is not notified.
     pub fn process_event(&mut self, event: WindowManagerEvent) -> eyre::Result<()> {
         let started = std::time::Instant::now();
         let result = self.handle_event(event);
@@ -96,6 +107,10 @@ impl WindowManager {
         // events are read against what is in the containers now, not against what was there when the
         // last one finished
         self.update_known_window_ids();
+
+        #[allow(clippy::useless_asref)]
+        // We don't have From implemented for &mut WindowManager
+        let initial_state = State::from(self.as_ref());
 
         match event {
             WindowManagerEvent::FocusChange(_, _) => {
@@ -188,6 +203,14 @@ impl WindowManager {
         }
 
         self.update_known_window_ids();
+
+        notify_subscribers(
+            Notification {
+                event: NotificationEvent::WindowManager(event),
+                state: self.as_ref().into(),
+            },
+            initial_state.has_been_modified(self.as_ref()),
+        )?;
 
         Ok(())
     }

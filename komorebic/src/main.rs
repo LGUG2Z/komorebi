@@ -5,6 +5,10 @@
 //! is written and the answer is printed. The messages are [`komorebi_client::SocketMessage`]s,
 //! sent with [`komorebi_client::send_message`] and [`komorebi_client::send_query`].
 //!
+//! `subscribe-socket` and `unsubscribe-socket` add and remove a subscriber: a program that listens
+//! on a socket in the daemon's data directory, to which the daemon sends a notification after each
+//! event and each message it handles.
+//!
 //! The others work without the daemon: `start` runs `komorebi` in the background, `log` follows
 //! its log, `data-directory` shows where its socket is, and `completions` prints a completion
 //! script for a shell. The hidden `docgen` writes the help of every subcommand as Markdown, wrapped
@@ -45,6 +49,18 @@ macro_rules! gen_enum_subcommand_args {
 
 gen_enum_subcommand_args! {
     Query: StateQuery,
+}
+
+#[derive(Parser)]
+struct SubscribeSocket {
+    /// Name of the socket to send event notifications to
+    socket: String,
+}
+
+#[derive(Parser)]
+struct UnsubscribeSocket {
+    /// Name of the socket to stop sending event notifications to
+    socket: String,
 }
 
 #[derive(Parser)]
@@ -100,6 +116,20 @@ enum SubCommand {
     /// Query the current window manager state
     #[clap(arg_required_else_help = true)]
     Query(Query),
+    /// Subscribe to komorebi events using a Unix Domain Socket
+    #[clap(arg_required_else_help = true)]
+    SubscribeSocket(SubscribeSocket),
+    /// Unsubscribe from komorebi events
+    #[clap(arg_required_else_help = true)]
+    UnsubscribeSocket(UnsubscribeSocket),
+    // /// Subscribe to komorebi events using a Named Pipe
+    // #[clap(arg_required_else_help = true)]
+    // #[clap(alias = "subscribe")]
+    // SubscribePipe(SubscribePipe),
+    // /// Unsubscribe from komorebi events
+    // #[clap(arg_required_else_help = true)]
+    // #[clap(alias = "unsubscribe")]
+    // UnsubscribePipe(UnsubscribePipe),
     /// Tail komorebi's process logs (cancel with Ctrl-C)
     Log,
     /// Force the retiling of all managed windows
@@ -232,6 +262,12 @@ fn main() -> eyre::Result<()> {
         }
         SubCommand::MonitorInformation => {
             print_query(&SocketMessage::MonitorInformation);
+        }
+        SubCommand::SubscribeSocket(args) => {
+            send_message(&SocketMessage::AddSubscriberSocket(args.socket))?;
+        }
+        SubCommand::UnsubscribeSocket(args) => {
+            send_message(&SocketMessage::RemoveSubscriberSocket(args.socket))?;
         }
     }
 

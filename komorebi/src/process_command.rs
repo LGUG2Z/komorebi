@@ -10,13 +10,24 @@
 //! - **MonitorInformation**: the id, the name and the bounds of each monitor, as JSON.
 //! - **Query**: one value as text, the answer to a [`StateQuery`].
 //!
-//! The others answer nothing: **Retile** tiles the focused workspace of every monitor again, and
-//! **Stop** stops the daemon ([`WindowManager::stop`]).
+//! The others answer nothing: **Retile** tiles the focused workspace of every monitor again,
+//! **AddSubscriberSocket** and **AddSubscriberSocketWithOptions** add a subscriber by the name of
+//! its socket in the data directory, **RemoveSubscriberSocket** removes one, and **Stop** stops the
+//! daemon ([`WindowManager::stop`]).
+//!
+//! Once a message has been handled, every subscriber is sent a notification of it
+//! ([`notify_subscribers`]).
 
+use crate::DATA_DIR;
+use crate::Notification;
+use crate::NotificationEvent;
+use crate::SUBSCRIPTION_SOCKET_OPTIONS;
+use crate::SUBSCRIPTION_SOCKETS;
 use crate::core::Layout;
 use crate::core::SocketMessage;
 use crate::core::StateQuery;
 use crate::monitor::MonitorInformation;
+use crate::notify_subscribers;
 use crate::state::State;
 use crate::window_manager::WindowManager;
 use color_eyre::eyre;
@@ -77,7 +88,10 @@ pub fn listen_for_commands(wm: Arc<Mutex<WindowManager>>) {
 }
 
 impl WindowManager {
-    /// Handles one message, and writes the answer to a question to `reply`
+    /// Handles one message, writes the answer to a question to `reply`, and sends the subscribers
+    /// a notification of the message
+    ///
+    /// A message that fails is not notified.
     ///
     /// # Errors
     ///
@@ -85,6 +99,8 @@ impl WindowManager {
     /// - The window manager fails to retile, for one of the reasons
     ///   [`WindowManager::retile_all`] gives.
     /// - The answer cannot be written to `reply`.
+    /// - `Stop` fails, for the reason [`WindowManager::stop`] gives.
+    /// - The notification cannot be sent, for one of the reasons [`notify_subscribers`] gives.
     #[tracing::instrument(skip(self, reply, message))]
     pub fn process_command(
         &mut self,
@@ -92,6 +108,10 @@ impl WindowManager {
         mut reply: impl std::io::Write,
     ) -> eyre::Result<()> {
         tracing::info!("processing command: {message}");
+
+        #[allow(clippy::useless_asref)]
+        // We don't have From implemented for &mut WindowManager
+        let initial_state = State::from(self.as_ref());
 
         match message {
             SocketMessage::Retile => self.retile_all()?,
@@ -161,12 +181,37 @@ impl WindowManager {
 
                 reply.write_all(response.as_bytes())?;
             }
+            SocketMessage::AddSubscriberSocket(ref socket) => {
+                let mut sockets = SUBSCRIPTION_SOCKETS.lock();
+                let socket_path = DATA_DIR.join(socket);
+                sockets.insert(socket.clone(), socket_path);
+            }
+            SocketMessage::AddSubscriberSocketWithOptions(ref socket, options) => {
+                let mut sockets = SUBSCRIPTION_SOCKETS.lock();
+                let socket_path = DATA_DIR.join(socket);
+                sockets.insert(socket.clone(), socket_path);
+
+                let mut socket_options = SUBSCRIPTION_SOCKET_OPTIONS.lock();
+                socket_options.insert(socket.clone(), options);
+            }
+            SocketMessage::RemoveSubscriberSocket(ref socket) => {
+                let mut sockets = SUBSCRIPTION_SOCKETS.lock();
+                sockets.remove(socket);
+            }
             SocketMessage::Stop => {
                 self.stop()?;
             }
         }
 
         self.update_known_window_ids();
+
+        notify_subscribers(
+            Notification {
+                event: NotificationEvent::Socket(message.clone()),
+                state: self.as_ref().into(),
+            },
+            initial_state.has_been_modified(self.as_ref()),
+        )?;
 
         tracing::info!("processed command: {message}");
 

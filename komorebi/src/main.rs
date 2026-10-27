@@ -13,6 +13,9 @@
 //!
 //! It logs to standard output and to a file a day in [`struct@LOG_DIR`], which `komorebic log`
 //! follows.
+//!
+//! When it stops, it connects to the socket of each subscriber and closes the connection without
+//! writing anything, so a subscriber sees the daemon stop as a connection with nothing on it.
 
 use clap::Parser;
 use clap::ValueEnum;
@@ -27,6 +30,8 @@ use komorebi::window_manager::WindowManager;
 use komorebi::window_manager_event_listener;
 use parking_lot::Mutex;
 use serde::Deserialize;
+use std::net::Shutdown;
+use std::os::unix::net::UnixStream;
 use std::sync::Arc;
 use tracing_appender::non_blocking::WorkerGuard;
 use tracing_subscriber::EnvFilter;
@@ -190,6 +195,13 @@ fn main() -> eyre::Result<()> {
     tracing::info!("stop signal received");
 
     backend::backend().shutdown();
+
+    let sockets = komorebi::SUBSCRIPTION_SOCKETS.lock();
+    for path in (*sockets).values() {
+        if let Ok(stream) = UnixStream::connect(path) {
+            stream.shutdown(Shutdown::Both)?;
+        }
+    }
 
     let socket = DATA_DIR.join("komorebi.sock");
     let _ = std::fs::remove_file(socket);
