@@ -87,6 +87,17 @@ fixture corpus with `nix/tests/keybindings.expected`: write the file again with
 the loop in `nix/tests/keybindings.nix`, and read the difference before
 committing it.
 
+[`nix/supported-kwin.nix`](nix/supported-kwin.nix) has the oldest KWin komorebi
+supports, `min`, and the newest one every VM suite has passed against,
+`testedMax`, which the module checks a system's KWin against. `testedMax` is
+raised by hand, once every suite has passed against a newer KWin: in the weekly
+canary job, or on a branch whose `flake.lock` has it. The commit changes
+`testedMax` and the dated comment above it (the date, the nixpkgs revision and
+the KWin), and its message says which run that was and which suites ran.
+`nix eval --raw --file nix/supported-kwin.nix testedMax` reads it without the
+flake. `min` changes with the code, in the commit that starts to use something an
+older KWin does not have.
+
 ## VM tests
 
 A change that needs a real KWin to be checked comes with a VM test, next to

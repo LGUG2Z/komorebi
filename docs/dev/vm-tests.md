@@ -34,6 +34,13 @@ it.
 TCG is software emulation. It is slow enough that only short suites are worth
 running that way, and the library's `scale` argument (below) is 8 for it.
 
+The suites are what `testedMax` in
+[`nix/supported-kwin.nix`](../../nix/supported-kwin.nix) means: the newest KWin
+every suite has passed against. When the weekly canary job, which runs every
+suite against the tip of nixpkgs-unstable, passes with a newer KWin, a commit
+raises `testedMax` to it and says which suites ran
+([CONTRIBUTING.md](../../CONTRIBUTING.md#the-nixos-module)).
+
 Each suite is a directory under
 [`nix/tests/vm/suites`](../../nix/tests/vm/suites). The generator in
 [`nix/tests/vm/default.nix`](../../nix/tests/vm/default.nix) lists that

@@ -27,7 +27,8 @@ cargo run --bin komorebi --locked -- --fake-backend
 Inside a Plasma Wayland session, `komorebi` loads a script into KWin, reads the
 monitors and the windows that are open, tiles them, and tiles the windows again
 whenever one opens, closes, takes the focus, is minimized or comes back, until
-it is stopped with Ctrl-C. It needs KWin 6.8 or newer;
+it is stopped with Ctrl-C. It needs KWin 6.8 or newer, which the NixOS module
+checks against [`nix/supported-kwin.nix`](nix/supported-kwin.nix);
 [`docs/dev/PLATFORM.md`](docs/dev/PLATFORM.md) has what it expects of the
 session. Outside a Plasma session it exits with an error that says what is
 missing. `--fake-backend` runs the window manager against an in-memory desktop

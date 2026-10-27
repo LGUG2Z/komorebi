@@ -1,8 +1,8 @@
 # `nixos-module-eval`: `services.komorebi` in real NixOS systems, evaluated and never built. Each
 # scenario is a `nixosSystem` with the module, and the checks read what it evaluates to: the
-# assertions, the unit the module defines, and its read-only `execStart`. A scenario that must
-# not evaluate is caught with `builtins.tryEval`. Nothing here builds a Linux package (the
-# derivation below gets only check names and booleans), so a Mac runs it too.
+# assertions and warnings, the unit the module defines, and its read-only `execStart`. A scenario
+# that must not evaluate is caught with `builtins.tryEval`. Nothing here builds a Linux package
+# (the derivation below gets only check names and booleans), so a Mac runs it too.
 {
   pkgs,
   # nixpkgs' `lib.nixosSystem`
@@ -397,7 +397,57 @@ let
 
   installed = config: map (p: p.name) config.environment.systemPackages;
 
+  supportedKwin = import ../supported-kwin.nix;
+
+  # The scenarios above have the KWin of the flake's nixpkgs, which the weekly canary moves to the
+  # tip of nixpkgs-unstable, so no check depends on its version. These give the system a KWin of
+  # a version of their own: nothing is built, so the package keeps its store path and only the
+  # version the module reads changes.
+  kwinAt = version: {
+    nixpkgs.overlays = [
+      (_: prev: {
+        kdePackages = prev.kdePackages // {
+          kwin = prev.kdePackages.kwin // {
+            inherit version;
+          };
+        };
+      })
+    ];
+  };
+
+  withKwin =
+    version: settings:
+    eval {
+      imports = [
+        plasma
+        (kwinAt version)
+      ];
+      services.komorebi = {
+        enable = true;
+      }
+      // settings;
+    };
+
+  # a KWin of Plasma 6.7, and one of the next major version after the newest one tested
+  olderKwin = "6.7.5";
+  newerKwin = "${toString (lib.toInt (lib.versions.major supportedKwin.testedMax) + 1)}.0";
+
+  kwinTooOld = withKwin olderKwin { };
+  kwinAtMin = withKwin supportedKwin.min { };
+  kwinTested = withKwin supportedKwin.testedMax { };
+  kwinNewer = withKwin newerKwin { };
+  kwinNewerIsError = withKwin newerKwin { kwin.untestedIsError = true; };
+  kwinTestedIsError = withKwin supportedKwin.testedMax { kwin.untestedIsError = true; };
+  kwinTooOldDisabled = eval {
+    imports = [
+      plasma
+      (kwinAt olderKwin)
+    ];
+  };
+
   failed = config: map (a: a.message) (lib.filter (a: !a.assertion) config.assertions);
+  # the module's warnings, and not those other modules may have
+  kwinWarnings = config: lib.filter (lib.hasInfix "untestedIsError") config.warnings;
   unit = config: config.systemd.user.services.komorebi;
   evaluates = value: (builtins.tryEval value).success;
 
@@ -749,6 +799,61 @@ let
             layout = "de";
           }).services.komorebi.keybindings.layout
         );
+    }
+    {
+      name = "untestedIsError is false by default";
+      ok = enabled.services.komorebi.kwin.untestedIsError == false;
+    }
+    {
+      name = "a KWin older than min fails an assertion that names min and the version";
+      ok = lib.any (
+        message: lib.hasInfix "KWin ${supportedKwin.min} or newer" message && lib.hasInfix olderKwin message
+      ) (failed kwinTooOld);
+      got = failed kwinTooOld;
+    }
+    {
+      name = "with a KWin older than min, the system does not evaluate";
+      ok = !(evaluates kwinTooOld.system.build.toplevel.drvPath);
+    }
+    {
+      name = "with the KWin of min, the system evaluates";
+      ok = evaluates kwinAtMin.system.build.toplevel.drvPath;
+    }
+    {
+      name = "the KWin of min is supported, with no warning";
+      ok = failed kwinAtMin == [ ] && kwinWarnings kwinAtMin == [ ];
+      got = failed kwinAtMin ++ kwinWarnings kwinAtMin;
+    }
+    {
+      name = "the KWin of testedMax is supported, with no warning";
+      ok = failed kwinTested == [ ] && kwinWarnings kwinTested == [ ];
+      got = failed kwinTested ++ kwinWarnings kwinTested;
+    }
+    {
+      name = "a KWin newer than testedMax is a warning that names it and testedMax";
+      ok =
+        failed kwinNewer == [ ]
+        && lib.any (
+          warning: lib.hasInfix newerKwin warning && lib.hasInfix supportedKwin.testedMax warning
+        ) (kwinWarnings kwinNewer);
+      got = failed kwinNewer ++ kwinWarnings kwinNewer;
+    }
+    {
+      name = "with untestedIsError, a KWin newer than testedMax fails an assertion, with no warning";
+      ok =
+        lib.any (lib.hasInfix "untestedIsError is true") (failed kwinNewerIsError)
+        && kwinWarnings kwinNewerIsError == [ ];
+      got = failed kwinNewerIsError ++ kwinWarnings kwinNewerIsError;
+    }
+    {
+      name = "with untestedIsError, the KWin of testedMax is supported";
+      ok = failed kwinTestedIsError == [ ];
+      got = failed kwinTestedIsError;
+    }
+    {
+      name = "disabled, a KWin older than min is not refused";
+      ok = failed kwinTooOldDisabled == [ ] && kwinWarnings kwinTooOldDisabled == [ ];
+      got = failed kwinTooOldDisabled;
     }
   ];
 

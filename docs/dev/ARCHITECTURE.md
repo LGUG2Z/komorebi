@@ -1178,10 +1178,10 @@ The flake exports one module under two names, `nixosModules.default` and
 `effects.borders.package` (by default `pkgs.kde-rounded-corners-komorebi`, from the overlay),
 `effects.animation.enable` and `effects.animation.package`
 (`pkgs.kwin-effect-geometry-change-komorebi`), `keybindings` (`format`, `text` or `file`, `mode`,
-`chordTimeout`, `layout`, `strict`, `appAliases`), and `execStart`, which is read-only: the module
-sets it to `bin/komorebi` of the package with `--log-level`, `--config` with a `komorebi.json`
-when `configFile` or `config` is set, and `--keybindings` and the options of the engine when there
-are key bindings. `config` is typed from
+`chordTimeout`, `layout`, `strict`, `appAliases`), `kwin.untestedIsError`, and `execStart`, which is
+read-only: the module sets it to `bin/komorebi` of the package with `--log-level`, `--config` with a
+`komorebi.json` when `configFile` or `config` is set, and `--keybindings` and the options of the
+engine when there are key bindings. `config` is typed from
 `nix/komorebi-options.nix`, the options `schemars-nixgen` makes from the schema of `komorebi.json`;
 the module writes it as JSON, with no null in it, and `configFile` and the written file both go
 through `check-jsonschema` against `schema.json` when the system is built (comment lines taken out
@@ -1208,7 +1208,10 @@ With `services.komorebi.enable`, the module:
   `share/kglobalaccel/*.desktop` (the static shortcuts) it installs in the system profile, with
   the diagnostics in its `diagnostics.txt` and in the build log; and passes the file (a store
   path), its format and mode, the chord timeout and the aliases to the daemon in `execStart`,
-  so that the daemon plans the file as the build did and runs the rest.
+  so that the daemon plans the file as the build did and runs the rest;
+- checks the system's KWin, `pkgs.kdePackages.kwin.version`, against
+  [`supported-kwin.nix`]: it asserts that it is `min` or newer, and warns when it is newer than
+  `testedMax`, or asserts that it is not when `kwin.untestedIsError` is set.
 
 The VM tests run on machines built with it ([vm-tests.md](vm-tests.md)). Their headless node
 runs the daemon in test sessions, with a template unit, `komorebi@NAME`, that runs the module's
@@ -1218,6 +1221,9 @@ module's unit.
 | Rule | Enforced by | Proof | Escape hatch |
 |---|---|---|---|
 | komorebi is enabled only on a machine with Plasma 6 | evaluation error: an assertion of the module | `nixos-module-eval` ("without Plasma 6, an assertion fails") | none |
+| komorebi is enabled only with a KWin it supports, `min` of [`supported-kwin.nix`] or newer | evaluation error: an assertion of the module | `nixos-module-eval` ("a KWin older than min fails an assertion", "with a KWin older than min, the system does not evaluate") | none |
+| A KWin newer than any every VM suite has passed against is reported | a warning of the module, at evaluation; an assertion with `kwin.untestedIsError` | `nixos-module-eval` ("a KWin newer than testedMax is a warning", "with untestedIsError, a KWin newer than testedMax fails an assertion") | `kwin.untestedIsError = false`, the default |
+| `testedMax` is a KWin every VM suite has passed against | convention: a commit raises it after a run of every suite, and says which | none | none |
 | The log level is one the daemon accepts | evaluation error: `logLevel` is an enum of the daemon's `--log-level` values | `nixos-module-eval` ("a log level the daemon does not have does not evaluate") | none |
 | The unit runs `execStart`, and nothing but the module sets it | evaluation error: the option is read-only | `nixos-module-eval` ("execStart cannot be set", "the unit runs execStart") | a unit of your own |
 | The daemon is configured by `configFile` when it is set, else by `config` | framework path: `execStart` passes the checked file as `--config`, which comes before the config home | `nixos-module-eval` ("configFile reaches execStart and the unit as --config", "config reaches execStart ..."), `vm-module` | none: with neither the daemon reads the file of the config home |
@@ -1958,11 +1964,13 @@ plan needs no engine. A failure to start is logged, and the window manager runs 
   [`nix/tests/vm/keys-corpus.py`](../../nix/tests/vm/keys-corpus.py), the corpus case `vm`
   pressed in the three formats on a machine the module configured.
 - [`nix/nixos-module.nix`](../../nix/nixos-module.nix): the NixOS module;
+  [`nix/supported-kwin.nix`](../../nix/supported-kwin.nix), the KWin versions it checks;
   [`nix/tests/nixos-module.nix`](../../nix/tests/nixos-module.nix), its scenarios, evaluated in
   real NixOS systems; and [`nix/tests/vm/suites/module`](../../nix/tests/vm/suites/module/test.py),
   a Plasma session in which the module's unit runs the daemon.
 
 [`nixos-module.nix`]: ../../nix/nixos-module.nix
+[`supported-kwin.nix`]: ../../nix/supported-kwin.nix
 [`StaticConfig`]: ../../komorebi/src/static_config.rs
 [`StaticConfig::preload`]: ../../komorebi/src/static_config.rs
 [`StaticConfig::postload`]: ../../komorebi/src/static_config.rs

@@ -793,3 +793,19 @@ lock every week runs the slow tier only when it is labeled. The canary job build
 check, both VM tiers included, against the tip every week, without changing the repository,
 and opens an issue when one fails, so that a break is known before the lock moves to it. A
 break is fixed in a commit of its own rather than by pinning nixpkgs back.
+
+## Why does the module check the version of KWin?
+
+KWin 6.8 is the oldest KWin komorebi supports, because komorebi relies on the per-output virtual
+desktops it introduced: the bridge reads the work area of each output for the desktop that output
+shows. A NixOS system with an older KWin fails at evaluation, with a message that names both
+versions.
+
+The repository develops against the tip of nixpkgs-unstable, a weekly workflow moves
+`flake.lock` to the tip, and a user's own nixpkgs can be newer still, so a system can have a
+KWin that no VM suite has run against. Next to the floor,
+[`nix/supported-kwin.nix`](../../nix/supported-kwin.nix) records `testedMax`, the newest KWin
+every suite has passed against, and the module warns above it.
+`services.komorebi.kwin.untestedIsError` turns the warning into an error. The two versions are
+written down in that one file, which the module imports and anything else can read with `nix
+eval`.

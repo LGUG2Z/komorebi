@@ -83,6 +83,19 @@ komorebi's use of them in a headless KWin:
   lists it depends on the task manager's setting for showing the windows of the current desktop
   only; the VM tests have no panel, so this is not measured.
 
+[`nix/supported-kwin.nix`](../../nix/supported-kwin.nix) records both ends: `min`, the oldest
+KWin komorebi supports (6.8), and `testedMax`, the newest KWin every VM suite has passed against
+(6.8.1, with nixpkgs-unstable `d3b13ad`). The NixOS module reads the file. A system whose KWin
+is older than `min` does not evaluate; one whose KWin is newer than `testedMax` builds with a
+warning, unless `services.komorebi.kwin.untestedIsError` is set, which makes it an error. Outside
+NixOS nothing checks the version.
+
+The repository follows the tip of nixpkgs-unstable, so a newer KWin reaches it with a
+`flake.lock` update or shows up first in the weekly canary job, which builds every check and runs
+every VM suite against the tip. Once every suite has passed against a newer KWin, a commit raises
+`testedMax` to it, with the date and the nixpkgs revision in the file's comment, and says in its
+message which run it was and which suites ran ([CONTRIBUTING.md](../../CONTRIBUTING.md#the-nixos-module)).
+
 ### Wayland
 
 komorebi runs in a Plasma Wayland session. There is no X11 session of Plasma 6.8 to run it in.

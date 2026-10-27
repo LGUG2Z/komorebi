@@ -72,6 +72,10 @@ the repository's `rust-toolchain.toml` selects, whatever nixpkgs your system use
   killed could not, and KDE would keep them, doing nothing, until the next start.
 - Without `services.desktopManager.plasma6.enable`, the configuration does not evaluate: an
   assertion of the module fails, and its message names the option to set.
+- It checks the KWin of your nixpkgs (`pkgs.kdePackages.kwin`) against the versions in the
+  repository's [`nix/supported-kwin.nix`](../nix/supported-kwin.nix). A KWin older than 6.8 is an
+  error. A KWin newer than the newest one komorebi has been tested with is a warning when you build
+  the system, or an error with `services.komorebi.kwin.untestedIsError`.
 
 ### Options
 
@@ -95,6 +99,7 @@ the repository's `rust-toolchain.toml` selects, whatever nixpkgs your system use
 | `services.komorebi.keybindings.layout` | `"us"` | The keyboard layout of positional key names; `"us"` is the only one. |
 | `services.komorebi.keybindings.strict` | `false` | Fail the build when something in the key bindings is not realized as its own hotkey daemon realizes it. |
 | `services.komorebi.keybindings.appAliases` | `{ }` | Other names of an application, for the bindings that are for one application. |
+| `services.komorebi.kwin.untestedIsError` | `false` | Makes a KWin newer than the newest one komorebi has been tested with an error instead of a warning. |
 
 [Key bindings](usage/keybindings.md) explains the key binding options.
 

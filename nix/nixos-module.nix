@@ -124,6 +124,11 @@ let
     "--app-alias"
     (lib.escapeShellArg "${name}=${lib.concatStringsSep "," kb.appAliases.${name}}")
   ]) (lib.attrNames kb.appAliases);
+
+  # the KWin versions komorebi supports, and the KWin of this system
+  supportedKwin = import ./supported-kwin.nix;
+  kwinVersion = pkgs.kdePackages.kwin.version;
+  kwinUntested = lib.versionOlder supportedKwin.testedMax kwinVersion;
 in
 {
   options.services.komorebi = {
@@ -420,6 +425,16 @@ in
         '';
       };
     };
+
+    kwin.untestedIsError = lib.mkOption {
+      type = lib.types.bool;
+      default = false;
+      description = ''
+        Refuse a KWin newer than the newest one komorebi has been tested with (`testedMax` in
+        the repository's `nix/supported-kwin.nix`), instead of warning about it. A KWin older than
+        the oldest one komorebi supports (`min`) is refused either way.
+      '';
+    };
   };
 
   config = lib.mkMerge [
@@ -475,6 +490,21 @@ in
             which would not be in the store; put its bindings in this one.
           '';
         }
+        {
+          assertion = lib.versionAtLeast kwinVersion supportedKwin.min;
+          message = ''
+            services.komorebi needs KWin ${supportedKwin.min} or newer, and pkgs.kdePackages.kwin is
+            ${kwinVersion}. Use a nixpkgs with Plasma ${supportedKwin.min} or newer.
+          '';
+        }
+        {
+          assertion = !(cfg.kwin.untestedIsError && kwinUntested);
+          message = ''
+            pkgs.kdePackages.kwin is ${kwinVersion}, and komorebi has been tested with KWin
+            ${supportedKwin.testedMax} and older. services.komorebi.kwin.untestedIsError is true, so
+            this is an error; set it to false to build the system with a warning instead.
+          '';
+        }
       ];
 
       warnings =
@@ -492,7 +522,12 @@ in
               && (cfg.config.border or null) == true
               && !cfg.effects.borders.enable
             )
-            "services.komorebi.config sets border to true, but services.komorebi.effects.borders.enable is false: without the effect, komorebi draws no border.";
+            "services.komorebi.config sets border to true, but services.komorebi.effects.borders.enable is false: without the effect, komorebi draws no border."
+        ++ lib.optional (kwinUntested && !cfg.kwin.untestedIsError) ''
+          pkgs.kdePackages.kwin is ${kwinVersion}, and komorebi has been tested with KWin
+          ${supportedKwin.testedMax} and older. Set services.komorebi.kwin.untestedIsError = true
+          to make this an error.
+        '';
 
       environment.systemPackages = [
         cfg.package
