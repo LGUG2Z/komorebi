@@ -33,6 +33,11 @@ komorebic cycle-focus next
 komorebic cycle-focus previous
 ```
 
+## The largest tile
+
+[`komorebic promote-focus`](../cli/promote-focus.md) focuses the window on the first tile of the
+layout, which is its largest ([Moving windows](moving-windows.md#to-the-largest-tile)).
+
 ## The pointer
 
 By default the pointer moves to the middle of the window that is given the focus. komorebi asks

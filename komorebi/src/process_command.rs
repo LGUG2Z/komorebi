@@ -20,6 +20,11 @@
 //!   of it, or with the next or the previous one, and tile the workspace again
 //!   ([`WindowManager::move_container_in_direction`],
 //!   [`WindowManager::move_container_in_cycle_direction`]).
+//! - **Promote** moves the focused container to the largest tile, **PromoteSwap** swaps it with
+//!   the container there (and back), **PromoteFocus** gives that container the focus, and
+//!   **PromoteWindow** promotes the container on one side of the focused one
+//!   ([`WindowManager::promote_container_to_front`], [`WindowManager::promote_container_swap`],
+//!   [`WindowManager::promote_focus_to_front`]).
 //! - **ChangeLayout**, **CycleLayout** and **FlipLayout** give the focused workspace another
 //!   layout, or mirror it, and **ToggleTiling** turns its tiling off and on
 //!   ([`WindowManager::change_workspace_layout_default`], [`WindowManager::cycle_layout`],
@@ -138,7 +143,7 @@ impl WindowManager {
     ///   [`WindowManager::move_container_in_direction`] and
     ///   [`WindowManager::move_container_in_cycle_direction`] give.
     /// - There is no focused workspace to change the layout or the tiling of, to preselect a
-    ///   place in, or to resize a container of, or it cannot be tiled again.
+    ///   place in, or to resize or promote a container of, or it cannot be tiled again.
     /// - The file of `QuickSave` or `Save` cannot be written, or the file of `QuickLoad` or
     ///   `Load` cannot be read or is not a list of resize adjustments.
     /// - The window manager fails to retile, for one of the reasons
@@ -159,6 +164,13 @@ impl WindowManager {
         let initial_state = State::from(self.as_ref());
 
         match message {
+            SocketMessage::Promote => self.promote_container_to_front()?,
+            SocketMessage::PromoteSwap => self.promote_container_swap()?,
+            SocketMessage::PromoteFocus => self.promote_focus_to_front()?,
+            SocketMessage::PromoteWindow(direction) => {
+                self.focus_container_in_direction(direction)?;
+                self.promote_container_to_front()?
+            }
             SocketMessage::FocusWindow(direction) => {
                 self.focus_container_in_direction(direction)?;
             }

@@ -348,6 +348,10 @@ pub enum SocketMessage {
     CycleMoveWindow(CycleDirection),
     ResizeWindowEdge(OperationDirection, Sizing),
     ResizeWindowAxis(Axis, Sizing),
+    Promote,
+    PromoteSwap,
+    PromoteFocus,
+    PromoteWindow(OperationDirection),
     // Current Workspace Commands
     ChangeLayout(DefaultLayout),
     CycleLayout(CycleDirection),

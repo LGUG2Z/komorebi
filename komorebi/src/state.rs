@@ -90,6 +90,7 @@ impl From<&WindowManager> for State {
                             tile: workspace.tile,
                             globals: workspace.globals,
                             preselected_container_idx: None,
+                            promotion_swap_container_idx: None,
                         })
                         .collect::<VecDeque<_>>();
                     ws.focus(monitor.workspaces.focused_idx());

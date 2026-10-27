@@ -285,6 +285,17 @@ fn the_resize_subcommands_send_what_they_are_given() {
 }
 
 #[test]
+fn the_promote_subcommands_send_their_message() {
+    sends(&["promote"], r#"{"type":"Promote"}"#);
+    sends(&["promote-swap"], r#"{"type":"PromoteSwap"}"#);
+    sends(&["promote-focus"], r#"{"type":"PromoteFocus"}"#);
+    sends(
+        &["promote-window", "right"],
+        r#"{"type":"PromoteWindow","content":"Right"}"#,
+    );
+}
+
+#[test]
 fn mouse_follows_focus_is_set_with_enable_and_disable_or_toggled() {
     sends(
         &["mouse-follows-focus", "enable"],
@@ -355,6 +366,10 @@ fn docgen_writes_the_help_of_every_subcommand_in_a_text_fence() {
             "mouse-follows-focus.md",
             "move.md",
             "preselect-direction.md",
+            "promote-focus.md",
+            "promote-swap.md",
+            "promote-window.md",
+            "promote.md",
             "query.md",
             "quick-load-resize.md",
             "quick-save-resize.md",

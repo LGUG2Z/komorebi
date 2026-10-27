@@ -39,6 +39,8 @@ pub struct Workspace {
     pub globals: WorkspaceGlobals,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub preselected_container_idx: Option<usize>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub promotion_swap_container_idx: Option<usize>,
 }
 
 impl_ring_elements!(Workspace, Container);
@@ -57,6 +59,7 @@ impl Default for Workspace {
             globals: Default::default(),
             tile: true,
             preselected_container_idx: None,
+            promotion_swap_container_idx: None,
         }
     }
 }
@@ -338,6 +341,31 @@ impl Workspace {
         self.focus_previous_container();
 
         container
+    }
+
+    /// Moves the focused container to the first index, the largest tile in every layout but the
+    /// grid, and keeps the focus on it
+    ///
+    /// # Errors
+    ///
+    /// The workspace has no containers.
+    pub fn promote_container(&mut self) -> eyre::Result<()> {
+        let focused_idx = self.focused_container_idx();
+        let container = self
+            .containers_mut()
+            .remove_respecting_locks(focused_idx)
+            .ok_or_eyre("there is no container")?;
+
+        let primary_idx = match &self.layout {
+            Layout::Default(_) => 0,
+        };
+
+        let insertion_idx = self
+            .containers_mut()
+            .insert_respecting_locks(primary_idx, container);
+        self.focus_container(insertion_idx);
+
+        Ok(())
     }
 
     pub fn add_container_to_back(&mut self, container: Container) {

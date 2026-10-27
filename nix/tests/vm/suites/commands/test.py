@@ -165,6 +165,10 @@ resize-axis horizontal increase
 resize-axis vertical decrease
 resize-delta 50
 resize-delta 100
+promote
+promote-swap
+promote-focus
+promote-window left
 retile
 flip-layout horizontal
 flip-layout vertical

@@ -138,8 +138,9 @@ one in the layout, or to the next one in the workspace's order, and `move` and
 again. `change-layout`, `cycle-layout` and `flip-layout` tile the workspace in
 another layout, `layout-ratios` and `scrolling-layout-columns` tune it,
 `toggle-tiling` stops it moving windows and starts it again,
-`preselect-direction` reserves a tile for the next window, and `resize-edge`
-and `resize-axis` move the edges of the focused tile. The scrolling layout
+`preselect-direction` reserves a tile for the next window, `resize-edge` and
+`resize-axis` move the edges of the focused tile, and `promote` brings the
+focused window to the largest tile. The scrolling layout
 is a strip of columns that runs past the edges of the monitor and scrolls to
 the window that has the focus.
 

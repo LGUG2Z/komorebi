@@ -14,6 +14,8 @@
 //!   workspace, `scrolling-layout-columns` and `layout-ratios` tune it, `toggle-tiling` turns its
 //!   tiling off and on, and `preselect-direction` and `cancel-preselect` reserve the place of the
 //!   next window and give it up.
+//! - `promote`, `promote-swap`, `promote-focus` and `promote-window` bring a window to the largest
+//!   tile, or the focus to it.
 //! - `resize-edge` and `resize-axis` resize the focused window by the `resize-delta`, and
 //!   `quick-save-resize`, `quick-load-resize`, `save-resize` and `load-resize` save the sizes of
 //!   the tiles of the focused workspace and load them back.
@@ -95,6 +97,7 @@ gen_enum_subcommand_args! {
     // WatchConfiguration: BooleanState,
     MouseFollowsFocus: BooleanState,
     Query: StateQuery,
+    PromoteWindow: OperationDirection,
 }
 
 #[derive(Parser)]
@@ -289,6 +292,14 @@ enum SubCommand {
     /// Flip the layout on the focused workspace
     #[clap(arg_required_else_help = true)]
     FlipLayout(FlipLayout),
+    /// Promote the focused window to the largest tile via container removal and re-insertion
+    Promote,
+    /// Promote the focused window to the largest tile by swapping container indices with the largest tile
+    PromoteSwap,
+    /// Promote the user focus to the largest window container
+    PromoteFocus,
+    /// Promote the window in the specified direction
+    PromoteWindow(PromoteWindow),
     /// Force the retiling of all managed windows
     Retile,
     /// Toggle window tiling on the focused workspace
@@ -450,6 +461,18 @@ fn main() -> eyre::Result<()> {
         }
         SubCommand::Retile => {
             send_message(&SocketMessage::Retile)?;
+        }
+        SubCommand::Promote => {
+            send_message(&SocketMessage::Promote)?;
+        }
+        SubCommand::PromoteSwap => {
+            send_message(&SocketMessage::PromoteSwap)?;
+        }
+        SubCommand::PromoteFocus => {
+            send_message(&SocketMessage::PromoteFocus)?;
+        }
+        SubCommand::PromoteWindow(args) => {
+            send_message(&SocketMessage::PromoteWindow(args.operation_direction))?;
         }
         SubCommand::ToggleTiling => {
             send_message(&SocketMessage::ToggleTiling)?;

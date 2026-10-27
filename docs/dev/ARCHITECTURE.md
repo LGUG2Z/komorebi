@@ -285,6 +285,15 @@ focused container has changed, which scrolls the strip to it. KWin keeps part of
 resizes on an output, so the bridge asks again for the position of a window KWin pulled back
 within a second of the command, three times at most ([`bridge.js`]'s `settle`).
 
+`Promote` moves the focused container to index 0, the largest tile of every layout but the grid,
+through `LockableSequence`, so the containers before it move one index on
+([`WindowManager::promote_container_to_front`]). `PromoteSwap` swaps it with the container at
+index 0 and records the index it came from in [`Workspace::promotion_swap_container_idx`], so
+that from index 0 it swaps back ([`WindowManager::promote_container_swap`]). `PromoteFocus`
+focuses the container at index 0 ([`WindowManager::promote_focus_to_front`]), and
+`PromoteWindow` focuses the container in a direction and promotes it. On the grid layout they
+change nothing.
+
 `ResizeWindowEdge` and `ResizeWindowAxis` resize the focused container
 ([`WindowManager::resize_window`]). A resize is an adjustment of the container's tile, kept in
 [`Workspace::resize_dimensions`], one per container, which the layout applies when it calculates
@@ -352,8 +361,8 @@ module's unit.
   changes its containers.
 - [`window_manager`](../../komorebi/src/window_manager.rs): the [`WindowManager`] and the
   operations on it (tile the workspace in front, tile every monitor, take a minimized
-  window out, move the focus, move the focused container, change the layout, resize the
-  focused container).
+  window out, move the focus, move the focused container, change the layout, resize or
+  promote the focused container).
 - [`desktop`](../../komorebi/src/desktop.rs): loads the monitors and the open windows from
   the backend.
 - [`window_manager_event`](../../komorebi/src/window_manager_event.rs) and
@@ -553,7 +562,8 @@ A window is shown, and ends up on a tile:
   commands against the fake;
   [`komorebi/tests/layout_options.rs`](../../komorebi/tests/layout_options.rs) and
   [`komorebi/tests/scrolling.rs`](../../komorebi/tests/scrolling.rs), the layout options and the
-  scrolling layout; [`komorebi/tests/resize.rs`](../../komorebi/tests/resize.rs), resizing.
+  scrolling layout; [`komorebi/tests/resize.rs`](../../komorebi/tests/resize.rs), resizing;
+  [`komorebi/tests/promote.rs`](../../komorebi/tests/promote.rs), promoting.
 - [`nix/tests/vm/suites/scrolling`](../../nix/tests/vm/suites/scrolling/test.py): the scrolling
   strip in a real KWin, with its columns out of view off the screen.
 - [`nix/tests/vm/suites/commands`](../../nix/tests/vm/suites/commands/test.py): every layout,
@@ -593,6 +603,10 @@ A window is shown, and ends up on a tile:
 [`Workspace::layout_options`]: ../../komorebi/src/workspace.rs
 [`Workspace::resize_dimensions`]: ../../komorebi/src/workspace.rs
 [`WindowManager::resize_window`]: ../../komorebi/src/window_manager.rs
+[`WindowManager::promote_container_to_front`]: ../../komorebi/src/window_manager.rs
+[`WindowManager::promote_container_swap`]: ../../komorebi/src/window_manager.rs
+[`WindowManager::promote_focus_to_front`]: ../../komorebi/src/window_manager.rs
+[`Workspace::promotion_swap_container_idx`]: ../../komorebi/src/workspace.rs
 [`WindowManager::resize_delta`]: ../../komorebi/src/window_manager.rs
 [`Workspace::latest_layout`]: ../../komorebi/src/workspace.rs
 [`LayoutOptions`]: ../../komorebi/src/core/mod.rs
