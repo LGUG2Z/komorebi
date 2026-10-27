@@ -12,6 +12,7 @@
 
 use crate::analysis::Analysis;
 use crate::analysis::catalog::Skew;
+use crate::analysis::ghost::GhostTile;
 use crate::analysis::logparse::Level;
 use crate::analysis::overview::Finding;
 use crate::analysis::overview::IncidentView;
@@ -90,6 +91,9 @@ pub struct Loaded {
     pub warnings: Vec<String>,
     /// How the komorebi source this build indexed compares with the komorebi that was recorded.
     pub skew: Skew,
+    /// The ghost tiles the recording shows: tiles that held a window a person could not see.
+    /// Empty for a recording made without `--probe-windows`, and for one of komorebi for Mac.
+    pub ghosts: Vec<GhostTile>,
 }
 
 impl Loaded {
@@ -179,6 +183,10 @@ impl Loaded {
         let mut warnings = analysis.warnings();
         warnings.extend(loaded_annotations.warnings.clone());
         let skew = analysis.skew();
+        let ghosts = analysis.ghost_tiles().unwrap_or_else(|error| {
+            warnings.push(format!("could not look for ghost tiles: {error:#}"));
+            Vec::new()
+        });
 
         Ok(Self {
             incidents: analysis.incidents(),
@@ -198,6 +206,7 @@ impl Loaded {
             displays,
             warnings,
             skew,
+            ghosts,
         })
     }
 

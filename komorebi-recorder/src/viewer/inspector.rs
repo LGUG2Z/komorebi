@@ -24,6 +24,9 @@ use super::app::Open;
 use super::app::Tab;
 use super::theme;
 use crate::analysis::classify::Class;
+use crate::analysis::ghost::GhostTile;
+use crate::asc::Platform;
+use crate::asc::rule::Rule;
 use crate::analysis::os_trace::GroupKind;
 use crate::analysis::os_trace::OsTraceData;
 use crate::analysis::os_trace::Phase;
@@ -48,6 +51,7 @@ struct Wants {
     loop_region: Option<(f64, f64)>,
     copy: Option<String>,
     mark: bool,
+    propose_rule: Option<u64>,
 }
 
 fn chip(ui: &mut egui::Ui, text: &str, colour: Color32) {
@@ -57,6 +61,60 @@ fn chip(ui: &mut egui::Ui, text: &str, colour: Color32) {
             .color(Color32::BLACK)
             .background_color(colour),
     );
+}
+
+/// What the Bugs tab says under a bug region that was marked while a ghost tile was there: that
+/// it looks like one, and the button that proposes a rule for it.
+fn ghost_name(ghost: &GhostTile) -> String {
+    match ghost.platform {
+        Platform::Windows => format!("{} ({})", ghost.exe, ghost.class),
+        Platform::Macos if ghost.title.is_empty() => ghost.exe.clone(),
+        Platform::Macos => format!("{} ({:?})", ghost.exe, ghost.title),
+    }
+}
+
+fn ghost_card(ui: &mut egui::Ui, ghost: &GhostTile, wants: &mut Wants) {
+    egui::Frame::new()
+        .fill(Color32::from_rgb(40, 38, 24))
+        .corner_radius(4.0)
+        .inner_margin(egui::Margin::same(8))
+        .show(ui, |ui| {
+            ui.horizontal_wrapped(|ui| {
+                chip(ui, "ghost tile", Color32::from_rgb(235, 185, 60));
+                ui.label(RichText::new(ghost_name(ghost)).strong());
+            });
+            ui.label(
+                RichText::new(format!(
+                    "komorebi tiled it at {}, and on {} reads from {} it was {}, and never on \
+                     screen: an empty tile, where a person expects a window.",
+                    ghost.place,
+                    ghost.reads,
+                    timecode::format(ghost.first_video_s),
+                    ghost.hidden_how,
+                ))
+                .small()
+                .color(theme::TEXT_DIM),
+            );
+            let rule = Rule::for_ghost(ghost);
+            if rule.is_ok() {
+                if ui
+                    .button("Propose a rule to komorebi-application-specific-configuration…")
+                    .on_hover_text("shows the rule first; nothing is sent until you say so")
+                    .clicked()
+                {
+                    wants.propose_rule = Some(ghost.hwnd);
+                }
+            } else {
+                let why = rule.err().map_or_else(String::new, |error| error.to_string());
+                ui.label(
+                    RichText::new(format!(
+                        "No rule can be written that catches it and nothing else: {why}."
+                    ))
+                    .small()
+                    .color(theme::TEXT_DIM),
+                );
+            }
+        });
 }
 
 fn class_name(class: Class) -> String {
@@ -182,6 +240,9 @@ impl Open {
         }
         if wants.mark {
             self.open_composer();
+        }
+        if let Some(hwnd) = wants.propose_rule {
+            self.open_rule_form(hwnd);
         }
     }
 
@@ -636,6 +697,11 @@ impl Open {
                                 }
                             });
                         });
+                    if kind == Kind::Bug {
+                        for ghost in self.ghosts_during(annotation.start_video_s, annotation.end_video_s) {
+                            ghost_card(ui, &ghost, wants);
+                        }
+                    }
                     ui.add_space(4.0);
                 }
             }

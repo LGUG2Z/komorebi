@@ -109,6 +109,8 @@ pub struct Open {
     pub help: bool,
     /// The form for marking or editing a bug region, while it is open.
     pub composer: Option<super::composer::Composer>,
+    /// The form for proposing a rule for a ghost tile, while it is open.
+    pub rule: Option<super::rules::RuleForm>,
     /// The trace of each event looked at, by sequence number, worked out once.
     pub traces: HashMap<u64, Arc<TraceData>>,
     /// The OS trace around each event looked at, by sequence number, worked out once.
@@ -258,6 +260,7 @@ impl ViewerApp {
             overlay: self.prefs.overlay,
             help: false,
             composer: None,
+            rule: None,
             traces: HashMap::new(),
             os_traces: HashMap::new(),
             state: None,
@@ -615,6 +618,8 @@ impl Open {
                     self.help = false;
                 } else if self.composer.is_some() {
                     self.composer = None;
+                } else if self.rule.is_some() && !self.is_sending() {
+                    self.rule = None;
                 } else {
                     self.selection = None;
                     self.playback.set_loop(None);
@@ -772,6 +777,7 @@ impl Open {
             .show(ctx, |ui| self.video_ui(ui, ctx));
 
         self.composer_window(ctx);
+        self.rule_window(ctx);
         if self.help {
             self.help_window(ctx);
         }
@@ -987,6 +993,149 @@ mod tests {
         let changes = open(&mut app).changes.clone().expect("the scan finished");
         assert_eq!(changes.spans.len(), 1, "{changes:#?}");
         assert!(changes.spans[0].end_video_s < 1.1);
+        frame(&mut app, &ctx, vec![]);
+    }
+
+    /// A Windows session in which komorebi tiles a window that Windows says is cloaked on every
+    /// read of it, with a bug marked from 1.5 s to 3.5 s and another from 20 s to 21 s.
+    fn ghost_session(name: &str) -> PathBuf {
+        use crate::analysis::flavor::Flavor;
+        use crate::sources::winprobe::WindowFacts;
+
+        const GHOST: i64 = 131_072;
+        let window = || testkit::windows_window(GHOST, "DDM.exe", Some([0, 0, 960, 1040]));
+        let state = || testkit::windows_state(65_537, vec![vec![window()]]);
+        let event = json!({"type": "FocusChange", "content": ["SystemForeground", window()]});
+        let cloaked = WindowFacts {
+            hwnd: GHOST as u32,
+            at_ns: 0,
+            exists: true,
+            visible: true,
+            cloaked: true,
+            minimized: false,
+            rect: Some([0, 0, 960, 1040]),
+            komorebi_says: None,
+        };
+        let (session, manifest) = SessionBuilder::new(name)
+            .flavor(Flavor::Windows)
+            .event(2.0, event.clone(), Some(state()))
+            .probe(cloaked.clone())
+            .event(3.0, event, Some(state()))
+            .probe(cloaked)
+            .build();
+
+        for (from, to, text) in [(1.5, 3.5, "an empty tile"), (20.0, 21.0, "something else")] {
+            annotations::add(
+                &session.dir,
+                annotations::New {
+                    kind: Some(annotations::Kind::Bug),
+                    start_mach_ns: manifest.mach_at_video_seconds(from),
+                    end_mach_ns: Some(manifest.mach_at_video_seconds(to)),
+                    text: text.to_string(),
+                    ..annotations::New::default()
+                },
+            )
+            .expect("bug");
+        }
+        session.dir
+    }
+
+    #[test]
+    fn a_bug_marked_while_a_ghost_tile_was_there_is_offered_a_rule() {
+        let dir = ghost_session("viewer-ghost");
+        let mut app = ViewerApp::new(prefs_dir("ghost"));
+        app.open_now(&dir).expect("open");
+        let ctx = egui::Context::default();
+
+        assert_eq!(open(&mut app).loaded.ghosts.len(), 1);
+        let ghost = open(&mut app).loaded.ghosts[0].clone();
+        assert_eq!((ghost.exe.as_str(), ghost.class.as_str()), ("DDM.exe", "Window"));
+
+        assert_eq!(
+            open(&mut app).ghosts_during(1.5, 3.5),
+            std::slice::from_ref(&ghost)
+        );
+        assert!(open(&mut app).ghosts_during(20.0, 21.0).is_empty());
+
+        // the Bugs tab draws the card, and its button opens the form
+        open(&mut app).tab = Tab::Bugs;
+        frame(&mut app, &ctx, vec![]);
+        open(&mut app).open_rule_form(ghost.hwnd);
+        let form = open(&mut app).rule.as_ref().expect("the form is open");
+        assert_eq!(form.app, "DDM");
+        let rule = form.rule().expect("a rule");
+        assert_eq!(rule.identifiers.len(), 2, "the program and the class together");
+        frame(&mut app, &ctx, vec![]);
+
+        // a blank name has no rule to send, and sending then does nothing
+        open(&mut app).rule.as_mut().expect("form").app = "  ".to_string();
+        assert!(open(&mut app).rule.as_ref().expect("form").rule().is_err());
+        open(&mut app).start_sending(|| unreachable!("there is nothing to send"));
+        assert!(!open(&mut app).is_sending());
+
+        // and Escape closes the form
+        frame(&mut app, &ctx, vec![key(egui::Key::Escape)]);
+        assert!(open(&mut app).rule.is_none());
+    }
+
+    #[test]
+    fn a_rule_is_sent_in_the_background_and_what_came_of_it_is_shown() {
+        use crate::asc::submit::Outcome;
+        use crate::asc::submit::Tools;
+        use crate::asc::submit::Upstream;
+        use crate::viewer::rules::Stage;
+
+        let dir = ghost_session("viewer-send");
+        let mut app = ViewerApp::new(prefs_dir("send"));
+        app.open_now(&dir).expect("open");
+        let ctx = egui::Context::default();
+        let hwnd = open(&mut app).loaded.ghosts[0].hwnd;
+        open(&mut app).open_rule_form(hwnd);
+
+        // to a repository that is not there: nothing is sent anywhere
+        let nowhere = std::env::temp_dir().join(format!(
+            "komorebi-recorder-viewer-no-such-repository-{}",
+            std::process::id()
+        ));
+        let upstream = Upstream {
+            url: nowhere.to_string_lossy().into_owned(),
+            ..Upstream::komorebi_asc()
+        };
+        open(&mut app).start_sending(move || {
+            (
+                Tools {
+                    git: "git".into(),
+                    gh: None,
+                    env: Vec::new(),
+                },
+                upstream,
+            )
+        });
+        assert!(open(&mut app).is_sending());
+        // pressing it again while it goes does nothing more
+        open(&mut app).start_sending(|| unreachable!("it is being sent"));
+
+        let deadline = Instant::now() + Duration::from_secs(30);
+        while open(&mut app).is_sending() && Instant::now() < deadline {
+            frame(&mut app, &ctx, vec![]);
+            std::thread::sleep(Duration::from_millis(30));
+        }
+
+        let form = open(&mut app).rule.take().expect("the form is still open");
+        let Stage::Done(Outcome::Failed(failure)) = form.stage else {
+            panic!("it did not fail as it should: done is {}", matches!(form.stage, Stage::Done(_)));
+        };
+        assert_eq!(failure.step, "cloning the repository");
+        assert!(failure.instructions.contains("DDMWindow") || failure.instructions.contains("\"Window\""));
+        if let Some(kept) = &failure.dir {
+            let _ = std::fs::remove_dir_all(kept);
+        }
+
+        // what the form says when it is over draws
+        open(&mut app).rule = Some(crate::viewer::rules::RuleForm {
+            stage: Stage::Done(Outcome::Failed(failure.clone())),
+            ..form
+        });
         frame(&mut app, &ctx, vec![]);
     }
 

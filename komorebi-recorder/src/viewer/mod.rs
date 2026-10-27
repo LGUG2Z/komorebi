@@ -79,6 +79,7 @@ pub mod keymap;
 mod lanes;
 pub mod loaded;
 pub mod prefs;
+mod rules;
 pub mod theme;
 pub mod timeline;
 mod video;
