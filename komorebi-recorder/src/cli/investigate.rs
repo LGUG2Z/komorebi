@@ -309,6 +309,10 @@ pub struct TraceArgs {
     pub session: PathBuf,
     /// The event: `event:<seq>` or just the number
     pub event: String,
+    /// Also show what the OS trace recorded around it: komorebi's own calls into the OS, the
+    /// system, and how each application reacted
+    #[arg(long)]
+    pub os: bool,
     /// Machine-readable JSON output
     #[arg(long)]
     pub json: bool,
@@ -328,7 +332,10 @@ pub(super) fn trace(args: &TraceArgs) -> eyre::Result<()> {
         )));
     };
 
-    let data = analysis.trace(seq)?;
+    let mut data = analysis.trace(seq)?;
+    if args.os {
+        data.os_trace = Some(analysis.os_trace(seq)?);
+    }
     if args.json {
         let mut warnings = analysis.warnings();
         let skew = analysis.skew();

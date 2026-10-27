@@ -1065,6 +1065,9 @@ pub fn trace_text(data: &TraceData) -> String {
         let _ = writeln!(out, "\nwrong before this event, and not after:");
         violation_lines(&mut out, &data.violations_resolved);
     }
+    if let Some(os) = &data.os_trace {
+        os_trace_text(&mut out, os);
+    }
     if !data.notes.is_empty() {
         let _ = writeln!(out, "\nnotes:");
         for note in &data.notes {
@@ -1073,6 +1076,58 @@ pub fn trace_text(data: &TraceData) -> String {
     }
 
     out
+}
+
+/// The OS trace around an event, grouped by where it came from.
+fn os_trace_text(out: &mut String, os: &crate::analysis::os_trace::OsTraceData) {
+    use crate::analysis::os_trace::Phase;
+
+    let _ = writeln!(
+        out,
+        "\nthe OS trace around it: {} record(s) from {} (the handler began) to {}, of which {} \
+         after it was received:",
+        os.total,
+        timecode::format(os.started_s),
+        timecode::format(os.until_s),
+        os.groups.iter().map(|group| group.after).sum::<usize>(),
+    );
+    for group in &os.groups {
+        let pid = group
+            .pid
+            .map_or_else(String::new, |pid| format!(" [{pid}]"));
+        let _ = writeln!(
+            out,
+            "  {}{pid}: {} during the handler, {} after",
+            group.label, group.during, group.after
+        );
+        for record in &group.records {
+            let _ = writeln!(
+                out,
+                "    {}{} {}",
+                timecode::format(record.video_s),
+                if record.phase == Phase::After {
+                    "+"
+                } else {
+                    " "
+                },
+                record.text
+            );
+        }
+        if group.omitted() > 0 {
+            let _ = writeln!(out, "    ... {} more ({})", group.omitted(), group.source);
+        }
+    }
+    if !os.overlapping_events.is_empty() {
+        let seqs: Vec<String> = os
+            .overlapping_events
+            .iter()
+            .map(|seq| format!("#{seq}"))
+            .collect();
+        let _ = writeln!(out, "  other events in this window: {}", seqs.join(", "));
+    }
+    for note in &os.notes {
+        let _ = writeln!(out, "  - {note}");
+    }
 }
 
 /// Renders the answer to `window`: the windows the query matched, then an entry for each event that

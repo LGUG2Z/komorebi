@@ -160,6 +160,11 @@ pub struct TraceData {
     pub violations_resolved: Vec<Violation>,
     /// Things worth knowing that are not data: a slow handler, errors, a missing log.
     pub notes: Vec<String>,
+    /// The OS trace around this event, what the rest of the system did (an `OsTraceData`, from
+    /// `Analysis::os_trace`): only when asked for (`trace --os`), as the OS trace can be large.
+    /// [`Analysis::trace`] always leaves it `None`, and the caller fills it in.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub os_trace: Option<super::os_trace::OsTraceData>,
 }
 
 fn spans_of(line: &Line) -> String {
@@ -444,6 +449,7 @@ impl Analysis {
             violations_appeared: appeared,
             violations_resolved: resolved,
             notes,
+            os_trace: None,
         })
     }
 
