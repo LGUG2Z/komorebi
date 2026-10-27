@@ -59,7 +59,9 @@
 //! under it) is found in the first snapshot, its windows are sent home and it is removed.
 //!
 //! The engine of the key bindings reaches KWin's global shortcut daemon in [`hotkeys`], on a
-//! connection and a thread of its own.
+//! connection and a thread of its own. After each event of the bridge, the backend tells it
+//! which application has the focus ([`hotkeys::focus`], from
+//! [`state::Table::focused_application`]).
 //!
 //! [`WorkspaceChange`]: crate::window_manager_event::WindowManagerEvent::WorkspaceChange
 //! [`WorkspaceMove`]: crate::window_manager_event::WindowManagerEvent::WorkspaceMove
@@ -234,8 +236,14 @@ impl Events {
         };
 
         let is_snapshot = value["type"] == "snapshot";
-        let outputs = self.shared.table.lock().handle(&value, Instant::now());
+        let (outputs, focus) = {
+            let mut table = self.shared.table.lock();
+            let outputs = table.handle(&value, Instant::now());
+            (outputs, table.focused_application())
+        };
         self.shared.dispatch(outputs);
+        // the key bindings that are for one application follow the focus
+        hotkeys::focus(focus);
 
         if is_snapshot {
             self.shared.mark_ready();

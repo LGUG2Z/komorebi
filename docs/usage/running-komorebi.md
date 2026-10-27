@@ -88,6 +88,17 @@ of an sxhkdrc (`alt + w ; h`) works the same way: after `alt + w`, only the keys
 come next and Escape are taken, until one of them is pressed or 3 seconds pass
 (`--chord-timeout 1500` waits 1.5 seconds instead).
 
+A binding that does something else in each application (skhd's `[ ... ]` list, whkd's
+per-application list) takes its key only while an application it names has the focus, or
+any application for a `*` or `Default` entry; everywhere else the key reaches the application.
+A name matches the executable, the Wayland app id (`org.kde.konsole`) or the desktop entry of
+the focused window, whatever the case. skhd and whkd name applications as macOS and Windows
+do, so give the daemon the names they have on KDE:
+
+```sh
+komorebic start -- --app-alias firefox=firefox-esr,librewolf --app-alias Terminal=konsole
+```
+
 A daemon that is killed leaves its keys swallowed until it is started again; `komorebic stop`
 gives them back.
 

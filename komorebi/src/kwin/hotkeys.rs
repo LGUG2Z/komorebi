@@ -46,6 +46,17 @@
 //! chain goes on until the timeout. kglobalaccel's own key sequences are not used: they do not
 //! fire on KWin 6.8 (`docs/dev/PLATFORM.md`).
 //!
+//! # Per-application bindings
+//!
+//! A binding that does something else in each application (a scope) is grabbed only while the
+//! focused application has an action for it, so that elsewhere the key reaches the application.
+//! The KWin backend tells the engine which application has the focus ([`focus`]) after every
+//! event of the bridge that changes it: the executable, the Wayland app id (or X11 class) and
+//! the desktop entry of the window KWin activated, a dialog included. The engine matches a name
+//! of the key binding file against each of the three, ignoring case, and against the aliases
+//! the daemon is given (`--app-alias`). skhd's blacklist works the same way: while a
+//! blacklisted application has the focus, every key is let go.
+//!
 //! # Start and stop
 //!
 //! kglobalaccel keeps an action, and the grab of its key, until it is unregistered: a komorebi
@@ -66,6 +77,7 @@ use komorebi_hotkeys::Keymap;
 use komorebi_hotkeys::engine::Effect;
 use komorebi_hotkeys::engine::Engine;
 use komorebi_hotkeys::engine::EngineOptions;
+use komorebi_hotkeys::engine::Focus;
 use komorebi_hotkeys::qt::Combo;
 use komorebi_hotkeys::qt::Key;
 use komorebi_hotkeys::qt::Mods;
@@ -363,7 +375,29 @@ fn spawn(effect: &Effect) {
 
 /// What the thread of the keys is told
 enum Message {
+    Focus(Option<Focus>),
     Stop(std::sync::mpsc::Sender<()>),
+}
+
+/// The application that has the focus, as [`focus`] was last told
+static FOCUS: Mutex<Option<Focus>> = Mutex::new(None);
+
+/// Tells the engine which application has the focus, `None` for none.
+///
+/// The KWin backend calls this after every event of the bridge; only a change reaches the engine,
+/// which then grabs the keys of the bindings that do something in that application and lets the
+/// others go. The focus is remembered when no engine runs, and an engine that starts begins with
+/// it.
+pub fn focus(focus: Option<Focus>) {
+    let mut last = FOCUS.lock();
+    if *last == focus {
+        return;
+    }
+    *last = focus.clone();
+    drop(last);
+    if let Some(messages) = RUNNING.lock().as_ref() {
+        let _ = messages.send(Message::Focus(focus));
+    }
 }
 
 /// The engine that runs, if one does: the way to its thread (`kwin-hotkeys`)
@@ -427,6 +461,8 @@ pub fn start(keymap: Keymap, options: EngineOptions) -> eyre::Result<()> {
 
     wait.recv()
         .map_err(|_| eyre::Report::msg("the thread of the keys exited before starting"))??;
+    // a change of focus while the engine was starting reached no engine
+    let _ = messages.send(Message::Focus(FOCUS.lock().clone()));
     *RUNNING.lock() = Some(messages);
     Ok(())
 }
@@ -513,6 +549,8 @@ async fn serve(
     let known = combos(&keymap);
     let mut engine = Engine::new(keymap, options);
     let mut registry = Registry::default();
+    // the bindings of the application that has the focus are the ones to grab at start
+    let mut start = engine.on_focus(FOCUS.lock().clone());
 
     let existing: Vec<String> = kglobalaccel
         .call::<_, _, Vec<Vec<String>>>("allActionsForComponent", &(action_id(""),))
@@ -521,7 +559,7 @@ async fn serve(
         .into_iter()
         .filter_map(|id| id.get(1).cloned())
         .collect();
-    let start = engine.start();
+    start.extend(engine.start());
     let calls = registry.startup(&existing, &known, &start);
     let registered = calls.iter().filter(|c| matches!(c, Call::Grab(_))).count();
     execute(&kglobalaccel, calls).await;
@@ -572,6 +610,18 @@ async fn serve(
             }
             () = until(engine.deadline()) => engine.on_tick(Instant::now()),
             message = messages.recv() => match message {
+                Some(Message::Focus(focus)) => {
+                    match &focus {
+                        Some(focus) => tracing::debug!(
+                            "key bindings: the focus is now {} ({}, {})",
+                            focus.exe,
+                            focus.app_id,
+                            focus.desktop_entry
+                        ),
+                        None => tracing::debug!("key bindings: nothing has the focus"),
+                    }
+                    engine.on_focus(focus)
+                }
                 Some(Message::Stop(done)) => {
                     let mut calls = registry.calls(&engine.stop());
                     calls.extend(registry.unregister_all());
@@ -757,6 +807,41 @@ mod tests {
                 Call::Grab(alt_q),
                 Call::Grab(alt_w),
             ]
+        );
+    }
+
+    #[test]
+    fn a_scoped_key_is_grabbed_only_while_its_application_has_the_focus() {
+        let keymap = keymap("alt - g [\n    \"foot\" : echo foot\n]\nalt - h : echo h\n");
+        let known = combos(&keymap);
+        let options = EngineOptions {
+            app_aliases: BTreeMap::from([("foot".into(), vec!["footclient".into()])]),
+            ..EngineOptions::default()
+        };
+        let mut engine = Engine::new(keymap, options);
+        let mut registry = Registry::default();
+        let alt_g = known["Alt+G"];
+        let focus = |name: &str| {
+            Some(Focus {
+                app_id: name.into(),
+                ..Focus::default()
+            })
+        };
+
+        // nothing has the focus: only the binding that is for every application is grabbed
+        let calls = registry.startup(&[], &known, &engine.start());
+        assert!(!calls.contains(&Call::Grab(alt_g)), "{calls:?}");
+
+        let calls = registry.calls(&engine.on_focus(focus("Foot")));
+        assert_eq!(calls, [Call::Register(alt_g), Call::Grab(alt_g)]);
+        let calls = registry.calls(&engine.on_focus(focus("wev")));
+        assert_eq!(calls, [Call::Release(alt_g)]);
+        // an alias is the application too
+        let calls = registry.calls(&engine.on_focus(focus("footclient")));
+        assert_eq!(calls, [Call::Grab(alt_g)]);
+        assert_eq!(
+            engine.on_pressed(alt_g, Instant::now()),
+            [Effect::Shell("echo foot".into())]
         );
     }
 

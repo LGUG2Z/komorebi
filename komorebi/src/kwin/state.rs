@@ -73,6 +73,7 @@ use crate::window::Window;
 use crate::window_manager_event::KWinNotification;
 use crate::window_manager_event::SystemNotification;
 use crate::window_manager_event::WindowManagerEvent;
+use komorebi_hotkeys::engine::Focus;
 use serde_json::Value;
 use serde_json::json;
 use std::collections::HashMap;
@@ -97,6 +98,8 @@ enum Drag {
 struct Entry {
     uuid: String,
     info: WindowInfo,
+    /// The name of the window's desktop entry, without `.desktop`, as KWin says
+    desktop_file: String,
     /// What KWin says: a normal window, as opposed to a dialog, splash, panel, popup...
     kwin_normal: bool,
     desktops: Vec<String>,
@@ -277,6 +280,20 @@ impl Table {
     pub fn foreground(&self) -> Option<u32> {
         self.foreground
             .filter(|id| self.windows.get(id).is_some_and(|e| e.info.alive))
+    }
+
+    /// Returns the application of the window that has the focus, as key bindings name
+    /// applications, or `None` when no window that is open has the focus.
+    ///
+    /// The window can be one komorebi does not manage, such as a dialog: a key binding for an
+    /// application is for its dialogs too.
+    pub fn focused_application(&self) -> Option<Focus> {
+        let entry = self.windows.get(&self.foreground()?)?;
+        Some(Focus {
+            exe: entry.info.exe.clone(),
+            app_id: entry.info.class.clone(),
+            desktop_entry: entry.desktop_file.clone(),
+        })
     }
 
     /// Returns where the pointer was the last time the script said.
@@ -619,6 +636,7 @@ impl Table {
         let entry = Entry {
             uuid,
             info,
+            desktop_file: w["desktopFile"].as_str().unwrap_or_default().to_string(),
             kwin_normal: w["normal"].as_bool().unwrap_or(false),
             desktops: strings(&w["desktops"]),
             drag: None,
@@ -1546,6 +1564,33 @@ mod tests {
         );
         assert_eq!(t.cursor(), Some((5, 6)));
         assert_eq!(t.current_workspaces(), vec![(t.monitors()[0].id, 0)]);
+    }
+
+    #[test]
+    fn the_focused_application_is_the_one_of_the_window_kwin_activated() {
+        let mut dialog = win("b", &["d1"]);
+        dialog["normal"] = json!(false);
+        dialog["desktopFile"] = json!("org.codeberg.dnkl.foot");
+        let mut t = table(vec![win("a", &["d1"]), dialog]);
+        assert_eq!(t.focused_application(), None);
+
+        // a dialog is its application's too
+        t.handle(&json!({ "type": "activated", "id": "b" }), Instant::now());
+        assert_eq!(
+            t.focused_application(),
+            Some(Focus {
+                // pid 0 has no executable to read: the class stands in for it
+                exe: "foot".into(),
+                app_id: "foot".into(),
+                desktop_entry: "org.codeberg.dnkl.foot".into(),
+            })
+        );
+
+        t.handle(&json!({ "type": "activated", "id": null }), Instant::now());
+        assert_eq!(t.focused_application(), None);
+        t.handle(&json!({ "type": "activated", "id": "b" }), Instant::now());
+        t.handle(&json!({ "type": "removed", "id": "b" }), Instant::now());
+        assert_eq!(t.focused_application(), None);
     }
 
     #[test]

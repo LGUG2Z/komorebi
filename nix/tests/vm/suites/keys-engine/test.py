@@ -25,12 +25,12 @@ def press(combo: str, marker: str) -> bool:
     return kde.wait_for(lambda: ran(marker), timeout=10)
 
 
-def start(skhdrc: str) -> None:
+def start(skhdrc: str, *args: str) -> None:
     kde.sh(
         f"mkdir -p ~/.config/komorebi && printf '%s' {shlex.quote(skhdrc)} > ~/.config/komorebi/skhdrc"
     )
     # no --keybindings: the daemon finds the skhdrc in the config directory
-    kde.spawn_komorebi("--log-level", "debug")
+    kde.spawn_komorebi("--log-level", "debug", *args)
     if not kde.wait_for(lambda: "keys in kglobalaccel" in kde.komorebi_log(), timeout=60):
         raise AssertionError(f"the keys were not registered:\n{kde.komorebi_log()}")
 
@@ -142,6 +142,52 @@ time.sleep(2 * SCALE)
 keys.send("l")
 checks.check("after Alt+W and the timeout, L reaches the window", reaches_wev("l", 1))
 checks.check("and runs nothing", not ran("keys-chords-l"))
+kde.komorebic("stop")
+
+# per-application bindings: a key is grabbed only while the focused application has an action
+start(
+    'alt - g [\n    "terminal" : touch /tmp/keys-scopes-terminal\n]\n'
+    'alt - n [\n    "wev" ~\n    * : touch /tmp/keys-scopes-other\n]\n',
+    "--app-alias",
+    "terminal=foot",
+)
+kde.spawn("foot")
+if not kde.wait_for(lambda: kde.wid_by_class("foot") != "", timeout=30):
+    raise AssertionError("foot did not open")
+wev, foot = kde.wid_by_class("wev"), kde.wid_by_class("foot")
+
+
+def focus(wid: str, app_id: str) -> None:
+    """Activates the window and waits for the engine to see its application take the focus."""
+    kde.activate(wid)
+
+    def seen() -> bool:
+        lines = [x for x in kde.komorebi_log().splitlines() if "the focus is now" in x]
+        return bool(lines) and f"({app_id}, " in lines[-1]
+
+    if not kde.wait_for(seen, timeout=10):
+        raise AssertionError(f"the engine did not see {app_id} take the focus")
+
+
+focus(wev, "wev")
+g_before, n_before = typed("g"), typed("n")
+keys.send("alt-g")
+checks.check("in wev, Alt+G (for the terminal only) reaches wev", reaches_wev("g", g_before + 1))
+keys.send("alt-n")
+checks.check("in wev, Alt+N (which wev ignores) reaches wev", reaches_wev("n", n_before + 1))
+checks.check("and runs nothing", not ran("keys-scopes-other"))
+focus(foot, "foot")
+checks.check(
+    "in foot, Alt+G runs the terminal's binding, by the alias",
+    press("alt-g", "keys-scopes-terminal"),
+)
+checks.check(
+    "in foot, Alt+N runs the binding for every other application",
+    press("alt-n", "keys-scopes-other"),
+)
+focus(wev, "wev")
+keys.send("alt-g")
+checks.check("back in wev, Alt+G reaches wev again", reaches_wev("g", g_before + 2))
 kde.komorebic("stop")
 
 checks.finish()

@@ -1678,6 +1678,11 @@ plan needs no engine. A failure to start is logged, and the window manager runs 
   are grabbed. The transport sleeps until `Engine::deadline` (the chord timeout after the last
   combo of the chain, `--chord-timeout`, 3 seconds by default) and calls `Engine::on_tick`
   then, which abandons the chain; there is no timer otherwise.
+- **Focus**: after every event of the bridge, the KWin backend gives the engine the
+  application of the window KWin activated (`Table::focused_application`: its executable, app id
+  and desktop entry), and a change makes the engine grab the keys of the bindings that do
+  something there and let the others go. The aliases of `--app-alias` are names of an
+  application too.
 - **Start**: the component's actions that the keymap names are taken over, and released
   unless the default mode wants them; the others are unregistered. The engine starts in the
   default mode.
@@ -1717,6 +1722,8 @@ plan needs no engine. A failure to start is logged, and the window manager runs 
 | A press of a grabbed key runs its binding's command, `komorebic` without a shell where it needs none | test, of the process; VM test | `command` doctest, `a_press_runs_the_command_and_changes_no_key`, `vm-keys-engine` | none |
 | Entering a mode lets go of the keys of the mode it leaves and grabs its own, a bare key among them | test, of the calls; VM test | `entering_a_mode_lets_the_keys_of_the_other_go_and_grabs_its_own`, `vm-keys-engine` | none |
 | After the prefix of a chain only its next keys and Escape are grabbed, until a key ends the chain or its deadline passes, and the keys of the mode come back then | test, of the calls; VM test | `a_chain_grabs_its_next_keys_until_its_deadline`, the `Engine::deadline` doctest, `vm-keys-engine` | none |
+| The application of the focus is the one of the window KWin activated, a dialog included, and none once that window is gone | test | `the_focused_application_is_the_one_of_the_window_kwin_activated` | none |
+| A per-application key is grabbed only while the focused application (or an alias of it) has an action for it, and reaches the application otherwise | test, of the calls; VM test | `a_scoped_key_is_grabbed_only_while_its_application_has_the_focus`, `vm-keys-engine` | none |
 | Holding a key runs its binding once | convention only: the transport listens to `globalShortcutPressed` and not to `globalShortcutRepeated` | none (measured in PLATFORM.md) | none |
 
 ## Where to look in the code

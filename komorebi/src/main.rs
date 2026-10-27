@@ -22,7 +22,8 @@
 //! their commands ([`komorebi::kwin::hotkeys`]). The bindings it takes are the engine's part of
 //! the file's plan in `--keybindings-mode`, the mode `komorebic hotkeys compile --mode` wrote the
 //! static shortcuts in. `--chord-timeout` is how long the next key of a chord chain is waited
-//! for.
+//! for, and `--app-alias` gives an application other names for the bindings that are for one
+//! application.
 //!
 //! It logs to standard output and to a file a day in [`struct@LOG_DIR`], which `komorebic log`
 //! follows.
@@ -55,6 +56,7 @@ use komorebi_hotkeys::plan::PlanMode;
 use komorebi_hotkeys::plan::PlanOptions;
 use parking_lot::Mutex;
 use serde::Deserialize;
+use std::collections::BTreeMap;
 use std::net::Shutdown;
 use std::os::unix::net::UnixStream;
 use std::path::PathBuf;
@@ -244,6 +246,27 @@ struct Opts {
     /// How long, in milliseconds, the next key of a chord chain is waited for
     #[clap(long, default_value_t = EngineOptions::default().chord_timeout.as_millis() as u64)]
     chord_timeout: u64,
+    /// Other names of an application, for the bindings of the key binding file that are for one
+    /// application: `--app-alias firefox=firefox-esr,librewolf` makes a binding for firefox work
+    /// in either of the two. May be given more than once
+    #[clap(long, value_name = "NAME=ALIAS[,ALIAS]...", value_parser = app_alias)]
+    app_alias: Vec<(String, Vec<String>)>,
+}
+
+/// Reads `NAME=ALIAS[,ALIAS]...`, for `--app-alias`
+fn app_alias(value: &str) -> Result<(String, Vec<String>), String> {
+    let refused = || format!("{value:?} is not NAME=ALIAS[,ALIAS]...");
+    let (name, aliases) = value.split_once('=').ok_or_else(refused)?;
+    let aliases: Vec<String> = aliases
+        .split(',')
+        .map(str::trim)
+        .filter(|alias| !alias.is_empty())
+        .map(String::from)
+        .collect();
+    if name.trim().is_empty() || aliases.is_empty() {
+        return Err(refused());
+    }
+    Ok((name.trim().to_string(), aliases))
 }
 
 /// Reads the key binding file, and starts the engine for the bindings that are not static
@@ -308,9 +331,16 @@ fn keybindings(opts: &Opts) -> eyre::Result<()> {
         plan.static_files.len(),
         diagnostics.count()
     );
+    let mut app_aliases: BTreeMap<String, Vec<String>> = BTreeMap::new();
+    for (name, aliases) in &opts.app_alias {
+        app_aliases
+            .entry(name.clone())
+            .or_default()
+            .extend(aliases.iter().cloned());
+    }
     let options = EngineOptions {
         chord_timeout: Duration::from_millis(opts.chord_timeout),
-        ..EngineOptions::default()
+        app_aliases,
     };
     if plan.needs_engine()
         && let Err(error) = komorebi::kwin::hotkeys::start(plan.engine, options)
@@ -431,4 +461,23 @@ fn main() -> eyre::Result<()> {
     let _ = std::fs::remove_file(socket);
 
     std::process::exit(130);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn an_app_alias_is_a_name_and_its_other_names() {
+        assert_eq!(
+            app_alias("firefox=firefox-esr, librewolf"),
+            Ok((
+                "firefox".to_string(),
+                vec!["firefox-esr".to_string(), "librewolf".to_string()]
+            ))
+        );
+        assert!(app_alias("firefox").is_err());
+        assert!(app_alias("firefox=").is_err());
+        assert!(app_alias("=librewolf").is_err());
+    }
 }
