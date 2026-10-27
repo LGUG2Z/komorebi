@@ -30,6 +30,7 @@ use super::Flavor;
 use super::Rules;
 use crate::analysis::blocks::Block;
 use crate::analysis::blocks::BlockKind;
+use crate::analysis::catalog::Role;
 use crate::analysis::classify::Class;
 use crate::analysis::events::EventInfo;
 use crate::analysis::events::EventRecord;
@@ -311,10 +312,125 @@ impl Rules for WindowsRules {
         }
     }
 
+    fn role(&self, target: &str) -> Role {
+        crate::analysis::catalog::role_in(ROLES, target)
+    }
+
     fn slow_handler_cause(&self) -> &'static str {
         "slow Win32 calls into other programs' windows (positioning one that is busy or hung, or an animation), or waiting for the lock another handler held"
     }
 }
+
+/// The modules of komorebi for Windows and what each does, for [`Rules::role`].
+///
+/// Each entry is `(module, summary, changes_state_silently)`: the module path that appears as a log
+/// line's target, a sentence about what the part does, and whether it changes komorebi's state
+/// without sending a subscriber notification. No part of komorebi for Windows does: its reaper
+/// sends a synthetic `Destroy`. A target is matched to the entry with the longest module that is a
+/// prefix of it, so `komorebi::windows_api::error` finds `komorebi::windows_api`.
+pub const ROLES: &[(&str, &str, bool)] = &[
+    (
+        "komorebi::process_event",
+        "handles events from the OS one at a time under the window-manager lock; the subscriber notification is sent after the handler body, just before it logs 'processed'",
+        false,
+    ),
+    (
+        "komorebi::process_command",
+        "handles commands from komorebic or a hotkey daemon one at a time under the lock",
+        false,
+    ),
+    (
+        "komorebi::window_manager",
+        "window-manager operations, called from the handlers",
+        false,
+    ),
+    (
+        "komorebi::workspace",
+        "operations on a workspace's containers: layout, focus, adding and removing",
+        false,
+    ),
+    (
+        "komorebi::container",
+        "operations on a container and its stacked windows",
+        false,
+    ),
+    (
+        "komorebi::monitor",
+        "operations on a monitor and its workspaces",
+        false,
+    ),
+    (
+        "komorebi::window",
+        "operations on one window, through the Win32 API",
+        false,
+    ),
+    (
+        "komorebi::windows_api",
+        "calls into Win32; an error comes from the target window or the OS, not from komorebi",
+        false,
+    ),
+    (
+        "komorebi::set_window_position",
+        "moving and sizing a window, possibly animated",
+        false,
+    ),
+    (
+        "komorebi::process_movement",
+        "reacts to a window being dragged with the mouse",
+        false,
+    ),
+    (
+        "komorebi::winevent_listener",
+        "a hook that receives WinEvents from the OS and queues them for the event handler",
+        false,
+    ),
+    (
+        "komorebi::windows_callbacks",
+        "callbacks Windows calls with window and display events",
+        false,
+    ),
+    (
+        "komorebi::reaper",
+        "background thread that removes windows that no longer exist; it takes the lock and sends a synthetic Destroy notification when it does",
+        false,
+    ),
+    (
+        "komorebi::monitor_reconciliator",
+        "a hidden window that hears of display, power and session changes (WM_DISPLAYCHANGE, suspend, lock) and reconciles komorebi's monitors with them, sending a monitor notification",
+        false,
+    ),
+    (
+        "komorebi::border_manager",
+        "draws window borders on its own thread; cosmetic, never changes the layout state",
+        false,
+    ),
+    (
+        "komorebi::focus_manager",
+        "keeps the focus where komorebi wants it on its own thread",
+        false,
+    ),
+    (
+        "komorebi::transparency_manager",
+        "applies transparency to unfocused windows; cosmetic",
+        false,
+    ),
+    (
+        "komorebi::stackbar_manager",
+        "draws the tab bars of stacked windows; cosmetic",
+        false,
+    ),
+    (
+        "komorebi::static_config",
+        "loads and applies komorebi.json",
+        false,
+    ),
+    (
+        "komorebi::theme_manager",
+        "applies border and bar themes",
+        false,
+    ),
+    ("komorebi::animation", "animates window movement", false),
+];
 
 #[cfg(test)]
 mod tests {
@@ -423,5 +539,24 @@ mod tests {
         assert!(WindowsRules.window_is_unreadable(&json!({"title": "could not get window title"})));
         assert!(!WindowsRules.window_is_unreadable(&window(1, "a.exe")));
         assert!(!WindowsRules.hides_windows_by_position());
+    }
+
+    #[test]
+    fn roles_are_found_and_the_reaper_notifies() {
+        let reaper = WindowsRules.role("komorebi::reaper");
+        assert!(
+            !reaper.changes_state_silently,
+            "the Windows reaper sends a Destroy"
+        );
+        assert!(
+            WindowsRules
+                .role("komorebi::windows_api::error")
+                .summary
+                .contains("Win32")
+        );
+        assert_eq!(
+            WindowsRules.role("komorebi::brand_new").summary,
+            "komorebi internals"
+        );
     }
 }

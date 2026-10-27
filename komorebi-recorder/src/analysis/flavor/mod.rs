@@ -43,6 +43,7 @@
 //! | [`is_hidden_position`](Rules::is_hidden_position) | whether a rect is where a hidden window is parked | `Snapshot::is_hidden_position` | a one-point sliver inside the display | never |
 //! | [`block_header`](Rules::block_header) | whether a log line starts a handler's block | `blocks::build` | the `processing event:` and `processing command:` lines | the first line of a `process_event{...}` or `process_command{...}` span whose fields differ from the open block's |
 //! | [`is_block_end`](Rules::is_block_end) | whether a log line ends a handler's block | `blocks::build` | `processed command: ...`, for commands only | `processed: ...` for events, `processed` for commands |
+//! | [`role`](Rules::role) | what the part of komorebi that logged a line does | the `code` and `trace` answers | `mac::ROLES` | `windows::ROLES` |
 //! | [`slow_handler_cause`](Rules::slow_handler_cause) | what a slow handler was probably doing | the `overview` and `trace` answers | accessibility calls | Win32 calls |
 //! | [`verified`](Rules::verified) | whether the rules were checked against a recording | `Analysis::warnings` | the default: yes | no |
 //! | [`flavor`](Rules::flavor) | which flavor the rules are for | tests | [`Flavor::Macos`] | [`Flavor::Windows`] |
@@ -83,6 +84,9 @@
 //!    [`window_is_unreadable`](Rules::window_is_unreadable) for every window. The snapshot keeps
 //!    its flavor for [`hides_windows_by_position`](Rules::hides_windows_by_position) and
 //!    `is_hidden_position`.
+//! 1. Answers that explain a log line or a slow handler ask `role` and
+//!    [`slow_handler_cause`](Rules::slow_handler_cause). `Analysis::warnings` asks
+//!    [`verified`](Rules::verified).
 //!
 //! [`MacRules`]: mac::MacRules
 //! [`WindowsRules`]: windows::WindowsRules
@@ -95,6 +99,7 @@ pub mod windows;
 
 use super::blocks::Block;
 use super::blocks::BlockKind;
+use super::catalog::Role;
 use super::classify::Class;
 use super::events::EventInfo;
 use super::events::EventRecord;
@@ -342,6 +347,7 @@ pub struct BlockHeader {
 ///
 /// ```rust
 /// # use komorebi_recorder::analysis::blocks::{Block, BlockKind};
+/// # use komorebi_recorder::analysis::catalog::Role;
 /// # use komorebi_recorder::analysis::classify::Class;
 /// # use komorebi_recorder::analysis::events::{EventInfo, EventRecord};
 /// # use komorebi_recorder::analysis::flavor::mac::MacRules;
@@ -370,6 +376,7 @@ pub struct BlockHeader {
 ///     fn is_block_end(&self, line: &Line, kind: BlockKind) -> bool {
 ///         MacRules.is_block_end(line, kind)
 ///     }
+///     fn role(&self, target: &str) -> Role { MacRules.role(target) }
 ///     fn slow_handler_cause(&self) -> &'static str { MacRules.slow_handler_cause() }
 /// }
 ///
@@ -388,6 +395,7 @@ pub struct BlockHeader {
 ///
 /// ```rust,compile_fail,E0046
 /// # use komorebi_recorder::analysis::blocks::{Block, BlockKind};
+/// # use komorebi_recorder::analysis::catalog::Role;
 /// # use komorebi_recorder::analysis::classify::Class;
 /// # use komorebi_recorder::analysis::events::{EventInfo, EventRecord};
 /// # use komorebi_recorder::analysis::flavor::mac::MacRules;
@@ -416,6 +424,7 @@ pub struct BlockHeader {
 ///     fn is_block_end(&self, line: &Line, kind: BlockKind) -> bool {
 ///         MacRules.is_block_end(line, kind)
 ///     }
+///     fn role(&self, target: &str) -> Role { MacRules.role(target) }
 ///     // no `slow_handler_cause`
 /// }
 /// ```
@@ -559,6 +568,13 @@ pub trait Rules: Sync {
     /// Windows logs `processed: <window>` for an event (at INFO, or TRACE for the noisiest
     /// ones) and `processed` for a command.
     fn is_block_end(&self, line: &Line, kind: BlockKind) -> bool;
+
+    /// Returns what the part of komorebi that logs from `target` does.
+    ///
+    /// `target` is the module that logged, e.g. `komorebi::container`. The answer is for the
+    /// longest module prefix in the flavor's table, which is `ROLES` in [`mac`] or [`windows`],
+    /// and for a target with no such prefix the answer is `komorebi internals`.
+    fn role(&self, target: &str) -> Role;
 
     /// Returns what a handler that took long was most likely doing, as a phrase that completes a
     /// sentence such as "took at least 250 ms to handle: ...".

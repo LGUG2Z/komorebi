@@ -640,6 +640,28 @@ pub fn numbered_frame_index(bgra: &[u8], width: u32, height: u32) -> u32 {
     index
 }
 
+/// The checkout of komorebi for Mac that the tests which read komorebi's source read it from.
+///
+/// That is the catalog and `code`. It is the checkout `KOMOREBI_MAC_SRC` names, which `nix develop`
+/// sets to the revision pinned in `flake.lock`.
+///
+/// # Panics
+///
+/// Panics, naming the variable, when it is not set: those tests have nothing to check without a
+/// tree.
+#[must_use]
+pub fn komorebi_mac_src() -> PathBuf {
+    std::env::var_os("KOMOREBI_MAC_SRC")
+        .map(PathBuf::from)
+        .filter(|path| !path.as_os_str().is_empty())
+        .unwrap_or_else(|| {
+            panic!(
+                "KOMOREBI_MAC_SRC is not set: it names the checkout of komorebi for Mac that these \
+                 tests read (`nix develop` sets it)"
+            )
+        })
+}
+
 /// Whether `ffmpeg` is there to make test videos with.
 #[must_use]
 pub fn ffmpeg_available() -> bool {

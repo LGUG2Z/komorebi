@@ -803,10 +803,21 @@ mod tests {
             .iter()
             .filter(|line| matches!(line.root_span(), Some("process_event" | "process_command")))
             .count();
+        let found = lines
+            .iter()
+            .filter(|line| !line.continuation)
+            .filter(|line| {
+                matches!((&line.target, line.level), (Some(target), Some(level))
+                    if crate::analysis::catalog::of(Flavor::Macos).find(target, level, &line.message).is_some())
+            })
+            .count();
+        let structured = lines.iter().filter(|line| !line.continuation).count();
 
         eprintln!(
-            "{} lines: {events} event blocks, {commands} command blocks holding {in_blocks} of {handler_lines} handler lines",
-            lines.len()
+            "{} lines: {events} event blocks, {commands} command blocks holding {in_blocks} of {handler_lines} handler lines; \
+             {found} of {structured} lines found in the source ({}%)",
+            lines.len(),
+            found * 100 / structured.max(1)
         );
         assert!(events > 0);
         assert!(

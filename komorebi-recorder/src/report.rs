@@ -26,6 +26,8 @@
 //!
 //! Times are written as timecodes (`00:12.500`, see [`crate::timecode::format`]) in video time.
 
+use crate::analysis::code::CodeData;
+use crate::analysis::history::HistoryData;
 use crate::annotations::AnnotationView;
 use crate::annotations::Kind;
 use crate::timecode;
@@ -448,6 +450,203 @@ pub fn annotation_text(view: &AnnotationView) -> String {
     if !view.refs.is_empty() {
         let refs: Vec<String> = view.refs.iter().map(ToString::to_string).collect();
         let _ = writeln!(out, "  evidence: {}", refs.join(", "));
+    }
+
+    out
+}
+
+fn rect_text(rect: &Option<crate::analysis::state::Rect>) -> String {
+    rect.as_ref()
+        .map_or_else(|| "rect unknown".to_string(), |rect| rect.describe())
+}
+
+/// Renders the answer to `code`: for each log line asked about, the statement in komorebi's source
+/// that wrote it, and for a search, the statements that matched.
+///
+/// The text opens with a warning if the source is not the version that was recorded. For each log
+/// line it gives how sure the match is, the code around it and what the part of komorebi it came
+/// from does. A line that no statement in the indexed source explains says so. A match is `exact`, `likely`,
+/// `ambiguous` (with how many other statements read the same) or `generic` (the statement only
+/// prints a value, so the match says little).
+///
+/// # Example
+///
+/// ```rust
+/// use komorebi_recorder::analysis::Analysis;
+/// use komorebi_recorder::report::code_text;
+/// use komorebi_recorder::testkit::SessionBuilder;
+///
+/// let (session, _) = SessionBuilder::new("doc-code-text")
+///     .log(2.0, "INFO", "process_command: komorebi::process_command: processing command: Retile")
+///     .build();
+/// let analysis = Analysis::open(&session.dir)?;
+///
+/// // the log line is named whether or not this build has komorebi's source to match it against
+/// let data = analysis.code_for_lines("log:1", &[1], 3, None)?;
+/// assert!(code_text(&data).contains("log:1  "));
+/// # Ok::<(), Box<dyn std::error::Error>>(())
+/// ```
+#[must_use]
+pub fn code_text(data: &CodeData) -> String {
+    let mut out = String::new();
+    if let Some(warning) = &data.skew.warning {
+        let _ = writeln!(out, "WARNING: {warning}\n");
+    }
+
+    for line in &data.lines {
+        let time = line.video_s.map_or_else(String::new, |seconds| {
+            format!("  {}", timecode::format(seconds))
+        });
+        let _ = writeln!(
+            out,
+            "log:{}{time}  {}  {}\n  {}",
+            line.line,
+            line.level.as_deref().unwrap_or(""),
+            line.target.as_deref().unwrap_or(""),
+            line.message,
+        );
+
+        match &line.source {
+            Some(source) => {
+                let note = match source.confidence {
+                    crate::analysis::catalog::Confidence::Exact => "exact".to_string(),
+                    crate::analysis::catalog::Confidence::Likely => "likely".to_string(),
+                    crate::analysis::catalog::Confidence::Ambiguous => format!(
+                        "ambiguous: {} other statement(s) read the same",
+                        source.alternatives.len()
+                    ),
+                    crate::analysis::catalog::Confidence::Generic => {
+                        "generic: the statement only prints a value, so this says little"
+                            .to_string()
+                    }
+                };
+                let _ = writeln!(
+                    out,
+                    "  -> {}  in {}  ({note}){}",
+                    source.statement.location(),
+                    source.statement.qualified_function(),
+                    if line.file_changed {
+                        "  [this file differs from the recorded komorebi]"
+                    } else {
+                        ""
+                    }
+                );
+                for other in &source.alternatives {
+                    let _ = writeln!(
+                        out,
+                        "     or {}  in {}",
+                        other.location(),
+                        other.qualified_function()
+                    );
+                }
+            }
+            None => {
+                let _ = writeln!(out, "  -> no statement in the indexed source writes this");
+            }
+        }
+
+        if let Some(snippet) = &line.snippet {
+            for (number, text) in &snippet.lines {
+                let marker = if *number == snippet.line { ">" } else { " " };
+                let _ = writeln!(out, "     {number:>5} {marker} {text}");
+            }
+        }
+        if let Some(role) = &line.role {
+            let _ = writeln!(
+                out,
+                "  role: {role}{}",
+                if line.changes_state_silently {
+                    "  [CHANGES STATE WITHOUT A NOTIFICATION]"
+                } else {
+                    ""
+                }
+            );
+        }
+        out.push('\n');
+    }
+
+    for statement in &data.statements {
+        let _ = writeln!(
+            out,
+            "{}  {}  in {}\n  {} {}",
+            statement.location(),
+            statement.level,
+            statement.qualified_function(),
+            statement.target,
+            statement.template
+        );
+    }
+
+    out
+}
+
+/// Renders the answer to `window`: the windows the query matched, then an entry for each event that
+/// came with a change to one of them.
+///
+/// An entry says where the window was afterwards, where it really was and what changed. An entry for
+/// an event that was about the window but changed nothing about it says so. If more
+/// entries matched than the data holds, the last line says how many more.
+///
+/// # Example
+///
+/// ```rust
+/// use komorebi_recorder::analysis::Analysis;
+/// use komorebi_recorder::report::history_text;
+/// use komorebi_recorder::testkit::{SessionBuilder, state_with_windows};
+/// use serde_json::json;
+///
+/// let (session, _) = SessionBuilder::new("doc-history-text")
+///     .event(2.0, json!({"type": "Retile"}), Some(state_with_windows(&[(7, "Terminal")])))
+///     .build();
+/// let analysis = Analysis::open(&session.dir)?;
+///
+/// let text = history_text(&analysis.window_history("Terminal", None, None)?);
+/// assert!(text.starts_with("'Terminal' matched: Terminal"));
+/// # Ok::<(), Box<dyn std::error::Error>>(())
+/// ```
+#[must_use]
+pub fn history_text(data: &HistoryData) -> String {
+    let mut out = String::new();
+    let names: Vec<String> = data
+        .windows
+        .iter()
+        .map(|window| format!("{} \"{}\" (window {})", window.exe, window.title, window.id))
+        .collect();
+    let _ = writeln!(out, "'{}' matched: {}", data.query, names.join("; "));
+
+    for entry in &data.entries {
+        let place = entry
+            .location
+            .as_ref()
+            .map_or_else(|| "gone".to_string(), |location| location.describe());
+        let _ = writeln!(
+            out,
+            "#{:<5} {}  window {}  {}\n         after: {}  {}{}",
+            entry.seq,
+            timecode::format(entry.video_s),
+            entry.window_id,
+            entry.event,
+            place,
+            rect_text(&entry.rect),
+            if entry.hidden {
+                "  (parked off screen)"
+            } else {
+                ""
+            },
+        );
+        for change in &entry.changes {
+            let _ = writeln!(out, "         - {change}");
+        }
+        if entry.changes.is_empty() && entry.about_window {
+            let _ = writeln!(
+                out,
+                "         - the event was about this window; nothing about it changed"
+            );
+        }
+    }
+
+    if data.matching > data.entries.len() {
+        let _ = writeln!(out, "... {} more", data.matching - data.entries.len());
     }
 
     out

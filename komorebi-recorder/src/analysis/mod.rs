@@ -7,14 +7,21 @@
 //! file access inside the session ([`guard`]).
 
 pub mod blocks;
+pub mod catalog;
 pub mod classify;
+pub mod code;
 pub mod diff;
 pub mod envelope;
 pub mod events;
+pub mod facade;
 pub mod flavor;
 pub mod guard;
+pub mod history;
 pub mod ids;
 pub mod logparse;
 pub mod lookup;
 pub mod state;
 pub mod timespec;
+pub mod views;
+
+pub use facade::Analysis;

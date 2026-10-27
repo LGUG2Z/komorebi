@@ -29,6 +29,7 @@ use super::Flavor;
 use super::Rules;
 use crate::analysis::blocks::Block;
 use crate::analysis::blocks::BlockKind;
+use crate::analysis::catalog::Role;
 use crate::analysis::classify::Class;
 use crate::analysis::events::EventInfo;
 use crate::analysis::events::EventRecord;
@@ -259,10 +260,124 @@ impl Rules for MacRules {
         kind == BlockKind::Command && line.message.starts_with(COMMAND_FINISHED)
     }
 
+    fn role(&self, target: &str) -> Role {
+        crate::analysis::catalog::role_in(ROLES, target)
+    }
+
     fn slow_handler_cause(&self) -> &'static str {
         "slow accessibility calls into other applications, or waiting for the lock another handler held"
     }
 }
+
+/// The modules of komorebi for Mac and what each does, for [`Rules::role`].
+///
+/// Each entry is `(module, summary, changes_state_silently)`: the module path that appears as a log
+/// line's target, a sentence about what the part does, and whether it changes komorebi's state
+/// without sending a subscriber notification (the reaper and the workspace reconciliator do). A
+/// target is matched to the entry with the longest module that is a prefix of it, so
+/// `komorebi::accessibility::error` finds `komorebi::accessibility`.
+pub const ROLES: &[(&str, &str, bool)] = &[
+    (
+        "komorebi::process_event",
+        "handles events from the OS one at a time under the window-manager lock; the subscriber notification is sent after the handler body",
+        false,
+    ),
+    (
+        "komorebi::process_command",
+        "handles commands from komorebic or a hotkey daemon one at a time under the lock; notifies subscribers before it logs 'processed command'",
+        false,
+    ),
+    (
+        "komorebi::window_manager",
+        "window-manager operations, called from the handlers",
+        false,
+    ),
+    (
+        "komorebi::workspace",
+        "operations on a workspace's containers: layout, focus, adding and removing",
+        false,
+    ),
+    (
+        "komorebi::container",
+        "operations on a container and its tabbed windows",
+        false,
+    ),
+    (
+        "komorebi::monitor",
+        "operations on a monitor and its workspaces",
+        false,
+    ),
+    (
+        "komorebi::window",
+        "operations on one window, through the accessibility API",
+        false,
+    ),
+    (
+        "komorebi::macos_api",
+        "calls into macOS; an AXError comes from the target application or the OS, not from komorebi",
+        false,
+    ),
+    (
+        "komorebi::accessibility",
+        "calls into the macOS accessibility API; an AXError comes from the target application or the OS",
+        false,
+    ),
+    (
+        "komorebi::application",
+        "per-application accessibility observers",
+        false,
+    ),
+    (
+        "komorebi::border_manager",
+        "draws window borders on its own thread; cosmetic, never changes the layout state",
+        false,
+    ),
+    (
+        "komorebi::reaper",
+        "background thread that removes windows that no longer exist; it takes the lock and changes state without sending a notification",
+        true,
+    ),
+    (
+        "komorebi::workspace_reconciliator",
+        "background thread that moves windows between workspaces after a space change; it takes the lock and changes state without sending a notification",
+        true,
+    ),
+    (
+        "komorebi::monitor_reconciliator",
+        "background thread that reacts to displays connecting, disconnecting and resizing; it sends a monitor notification when done",
+        false,
+    ),
+    (
+        "komorebi::display_reconfiguration_listener",
+        "macOS callback for display changes, feeding the monitor reconciliator",
+        false,
+    ),
+    (
+        "komorebi::static_config",
+        "loads and applies komorebi.json",
+        false,
+    ),
+    (
+        "komorebi::theme_manager",
+        "applies border and bar themes",
+        false,
+    ),
+    (
+        "komorebi::input_event_listener",
+        "watches the mouse and keyboard for the hacks that need them",
+        false,
+    ),
+    (
+        "komorebi::window_manager_event_listener",
+        "receives OS notifications and queues them for the event handler",
+        false,
+    ),
+    (
+        "komorebi::notification_center_listener",
+        "receives macOS workspace notifications (app activation, space change, screen lock)",
+        false,
+    ),
+];
 
 #[cfg(test)]
 mod tests {
@@ -333,5 +448,19 @@ mod tests {
         assert_eq!(describe(&json!(12)).family, Family::Unknown);
         assert_eq!(describe(&json!({"a": 1, "b": 2})).family, Family::Unknown);
         assert_eq!(describe(&json!({"type": 3})).family, Family::Unknown);
+    }
+
+    #[test]
+    fn roles_are_found_by_the_longest_module_prefix() {
+        let role = |target: &str| MacRules.role(target);
+        assert!(role("komorebi::reaper").changes_state_silently);
+        assert!(role("komorebi::workspace_reconciliator").changes_state_silently);
+        assert!(!role("komorebi::process_event").changes_state_silently);
+        assert!(
+            role("komorebi::accessibility::error")
+                .summary
+                .contains("accessibility")
+        );
+        assert_eq!(role("komorebi::brand_new").summary, "komorebi internals");
     }
 }
