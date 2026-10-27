@@ -1674,6 +1674,10 @@ plan needs no engine. A failure to start is logged, and the window manager runs 
   daemon does not wait for.
 - **Modes**: a mode switch is the engine's deactivations and activations, carried out like
   any others; the daemon logs the mode after each change.
+- **Chord chains**: after the prefix of a chain, only the keys that can come next and Escape
+  are grabbed. The transport sleeps until `Engine::deadline` (the chord timeout after the last
+  combo of the chain, `--chord-timeout`, 3 seconds by default) and calls `Engine::on_tick`
+  then, which abandons the chain; there is no timer otherwise.
 - **Start**: the component's actions that the keymap names are taken over, and released
   unless the default mode wants them; the others are unregistered. The engine starts in the
   default mode.
@@ -1712,6 +1716,7 @@ plan needs no engine. A failure to start is logged, and the window manager runs 
 | A stop of the daemon unregisters every action | framework path: `KWinBackend::shutdown` calls `kwin::hotkeys::stop`, and both ways to stop call it; VM test | `vm-keys-engine` (`komorebic stop`) | `SIGKILL` leaves the keys until the next start |
 | A press of a grabbed key runs its binding's command, `komorebic` without a shell where it needs none | test, of the process; VM test | `command` doctest, `a_press_runs_the_command_and_changes_no_key`, `vm-keys-engine` | none |
 | Entering a mode lets go of the keys of the mode it leaves and grabs its own, a bare key among them | test, of the calls; VM test | `entering_a_mode_lets_the_keys_of_the_other_go_and_grabs_its_own`, `vm-keys-engine` | none |
+| After the prefix of a chain only its next keys and Escape are grabbed, until a key ends the chain or its deadline passes, and the keys of the mode come back then | test, of the calls; VM test | `a_chain_grabs_its_next_keys_until_its_deadline`, the `Engine::deadline` doctest, `vm-keys-engine` | none |
 | Holding a key runs its binding once | convention only: the transport listens to `globalShortcutPressed` and not to `globalShortcutRepeated` | none (measured in PLATFORM.md) | none |
 
 ## Where to look in the code

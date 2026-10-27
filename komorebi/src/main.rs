@@ -21,7 +21,8 @@
 //! keys of the bindings that are not static shortcuts with KWin's global shortcut daemon and runs
 //! their commands ([`komorebi::kwin::hotkeys`]). The bindings it takes are the engine's part of
 //! the file's plan in `--keybindings-mode`, the mode `komorebic hotkeys compile --mode` wrote the
-//! static shortcuts in.
+//! static shortcuts in. `--chord-timeout` is how long the next key of a chord chain is waited
+//! for.
 //!
 //! It logs to standard output and to a file a day in [`struct@LOG_DIR`], which `komorebic log`
 //! follows.
@@ -58,6 +59,7 @@ use std::net::Shutdown;
 use std::os::unix::net::UnixStream;
 use std::path::PathBuf;
 use std::sync::Arc;
+use std::time::Duration;
 use tracing_appender::non_blocking::WorkerGuard;
 use tracing_subscriber::EnvFilter;
 use tracing_subscriber::layer::SubscriberExt;
@@ -239,6 +241,9 @@ struct Opts {
     /// the same mode does not write as static shortcuts
     #[clap(long, value_enum, default_value_t = PlanMode::default().into())]
     keybindings_mode: KeyPlanMode,
+    /// How long, in milliseconds, the next key of a chord chain is waited for
+    #[clap(long, default_value_t = EngineOptions::default().chord_timeout.as_millis() as u64)]
+    chord_timeout: u64,
 }
 
 /// Reads the key binding file, and starts the engine for the bindings that are not static
@@ -303,8 +308,12 @@ fn keybindings(opts: &Opts) -> eyre::Result<()> {
         plan.static_files.len(),
         diagnostics.count()
     );
+    let options = EngineOptions {
+        chord_timeout: Duration::from_millis(opts.chord_timeout),
+        ..EngineOptions::default()
+    };
     if plan.needs_engine()
-        && let Err(error) = komorebi::kwin::hotkeys::start(plan.engine, EngineOptions::default())
+        && let Err(error) = komorebi::kwin::hotkeys::start(plan.engine, options)
     {
         tracing::error!("the key bindings are not active: {error}");
     }

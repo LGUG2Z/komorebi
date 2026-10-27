@@ -36,6 +36,16 @@
 //! the engine is in. A start puts the engine in the default mode, whatever mode an earlier
 //! komorebi was in.
 //!
+//! # Chord chains
+//!
+//! The first combo of a chain is a key like any other. When it is pressed, the engine lets go
+//! of every key but those that can come next and Escape, and the transport sleeps until the
+//! chain's [deadline](Engine::deadline), the chord timeout after the last combo of the chain:
+//! then [`Engine::on_tick`] abandons the chain and the keys of the mode are grabbed again. A key
+//! that is not the next of the chain is not grabbed, so it reaches the focused window and the
+//! chain goes on until the timeout. kglobalaccel's own key sequences are not used: they do not
+//! fire on KWin 6.8 (`docs/dev/PLATFORM.md`).
+//!
 //! # Start and stop
 //!
 //! kglobalaccel keeps an action, and the grab of its key, until it is unregistered: a komorebi
@@ -430,6 +440,14 @@ fn action_id(action: &str) -> Vec<String> {
     ]
 }
 
+/// Returns at `deadline`, or never
+async fn until(deadline: Option<Instant>) {
+    match deadline {
+        Some(deadline) => tokio::time::sleep_until(deadline.into()).await,
+        None => std::future::pending().await,
+    }
+}
+
 /// Sends the calls, those of different actions without waiting for each other
 async fn execute(kglobalaccel: &Proxy<'_>, calls: Vec<Call>) {
     let mut by_action: BTreeMap<String, Vec<Call>> = BTreeMap::new();
@@ -552,6 +570,7 @@ async fn serve(
                     _ => continue,
                 }
             }
+            () = until(engine.deadline()) => engine.on_tick(Instant::now()),
             message = messages.recv() => match message {
                 Some(Message::Stop(done)) => {
                     let mut calls = registry.calls(&engine.stop());
@@ -683,6 +702,60 @@ mod tests {
                 Call::Release(escape),
                 Call::Grab(known["Alt+H"]),
                 Call::Grab(known["Alt+R"]),
+            ]
+        );
+    }
+
+    #[test]
+    fn a_chain_grabs_its_next_keys_until_its_deadline() {
+        let keymap = parse(
+            Format::Sxhkd,
+            "alt + w ; h\n    komorebic focus left\nalt + q\n    komorebic close\n",
+            &ParseOptions::default(),
+        )
+        .keymap;
+        let known = combos(&keymap);
+        let options = EngineOptions {
+            chord_timeout: Duration::from_millis(1500),
+            ..EngineOptions::default()
+        };
+        let mut engine = Engine::new(keymap, options);
+        let mut registry = Registry::default();
+        registry.startup(&[], &known, &engine.start());
+        let (alt_q, alt_w, h, escape) = (known["Alt+Q"], known["Alt+W"], known["H"], known["Esc"]);
+        let start = Instant::now();
+
+        let effects = engine.on_pressed(alt_w, start);
+
+        assert_eq!(
+            registry.calls(&effects),
+            [
+                Call::Release(alt_q),
+                Call::Release(alt_w),
+                Call::Register(h),
+                Call::Grab(h),
+                Call::Register(escape),
+                Call::Grab(escape),
+            ]
+        );
+        let deadline = engine.deadline().unwrap();
+        assert_eq!(deadline, start + Duration::from_millis(1500));
+        assert!(
+            engine
+                .on_tick(deadline - Duration::from_millis(1))
+                .is_empty()
+        );
+
+        let effects = engine.on_tick(deadline);
+
+        assert_eq!(engine.deadline(), None);
+        assert_eq!(
+            registry.calls(&effects),
+            [
+                Call::Release(h),
+                Call::Release(escape),
+                Call::Grab(alt_q),
+                Call::Grab(alt_w),
             ]
         );
     }

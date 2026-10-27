@@ -59,7 +59,8 @@
 //!   active.
 //! - **Chord chains**: the first combo of a chain is an active key. When it is pressed, only the
 //!   combos that can come next, and Escape, are active, until one of them is pressed or the chord
-//!   timeout ([`EngineOptions::chord_timeout`]) passes, which [`Engine::on_tick`] checks. Escape,
+//!   timeout ([`EngineOptions::chord_timeout`]) passes, which [`Engine::on_tick`] checks
+//!   ([`Engine::deadline`] says when it passes). Escape,
 //!   unless a chain is bound to it, abandons the chain. A key that is not the next of the chain is
 //!   not active, so it reaches the application and does not end the chain.
 //! - **Per-application bindings**: a scoped binding's key is active if and only if a [`Scope`]
@@ -220,6 +221,41 @@ impl Engine {
             .modes
             .get(self.mode)
             .map_or(DEFAULT_MODE, |mode| mode.name.as_str())
+    }
+
+    /// Returns when the chord chain being typed times out, or `None` when no chain is pending.
+    ///
+    /// [`Engine::on_tick`] at that instant or later abandons the chain, so a caller can sleep
+    /// until then instead of calling it on a timer. Each combo of the chain that is pressed
+    /// moves the deadline.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use std::time::{Duration, Instant};
+    /// use komorebi_hotkeys::engine::{Engine, EngineOptions};
+    /// use komorebi_hotkeys::qt::{Combo, Key, Mods, key_to_qt};
+    /// use komorebi_hotkeys::{Format, ParseOptions, parse};
+    ///
+    /// let text = "super + w ; h\n    komorebic focus left\n";
+    /// let keymap = parse(Format::Sxhkd, text, &ParseOptions::default()).keymap;
+    /// let mut engine = Engine::new(keymap, EngineOptions::default());
+    /// engine.start();
+    /// assert_eq!(engine.deadline(), None);
+    ///
+    /// let start = Instant::now();
+    /// let super_w = Combo::new(Mods::META, key_to_qt(Format::Sxhkd, "w").unwrap());
+    /// engine.on_pressed(super_w, start);
+    /// assert_eq!(engine.deadline(), Some(start + Duration::from_millis(3000)));
+    ///
+    /// engine.on_tick(start + Duration::from_millis(3000));
+    /// assert_eq!(engine.deadline(), None);
+    /// assert!(engine.active().all(|combo| combo.key() != Key::ESCAPE));
+    /// ```
+    pub fn deadline(&self) -> Option<Instant> {
+        self.pending
+            .as_ref()
+            .map(|pending| pending.since + self.options.chord_timeout)
     }
 
     /// Returns the combos that are active, in order.

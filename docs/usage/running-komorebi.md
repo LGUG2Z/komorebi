@@ -83,7 +83,10 @@ komorebic start -- --keybindings-mode auto
 
 The daemon realizes the modes of an skhdrc (and the chains of an sxhkdrc that stay open)
 itself: while a mode is active, only its keys are taken, and every other key reaches the
-window as usual. The log says which mode the daemon is in after each change.
+window as usual. The log says which mode the daemon is in after each change. A chord chain
+of an sxhkdrc (`alt + w ; h`) works the same way: after `alt + w`, only the keys that can
+come next and Escape are taken, until one of them is pressed or 3 seconds pass
+(`--chord-timeout 1500` waits 1.5 seconds instead).
 
 A daemon that is killed leaves its keys swallowed until it is started again; `komorebic stop`
 gives them back.

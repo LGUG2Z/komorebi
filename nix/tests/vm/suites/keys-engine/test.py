@@ -4,6 +4,7 @@
 # that the keys of a killed daemon stay registered until the next start takes them over, and that
 # a stop gives them back.
 import shlex
+import time
 
 from komorebi_vm import Checks, Kde, Keys
 
@@ -119,6 +120,28 @@ checks.check(
 )
 keys.send("h")
 checks.check("back in the default mode H reaches the window again", reaches_wev("h", 2))
+kde.komorebic("stop")
+
+# chord chains: the prefix grabs the keys that can come next, until a key, Escape or the timeout
+sxhkdrc = "/home/komorebi/.config/komorebi/sxhkdrc"
+chain = "alt + w ; {h,l}\n    touch /tmp/keys-chords-{h,l}\n"
+kde.sh(f"printf '%s' {shlex.quote(chain)} > {sxhkdrc}")
+kde.spawn_komorebi("--log-level", "debug", "--keybindings", sxhkdrc, "--chord-timeout", "1500")
+if not kde.wait_for(lambda: "keys in kglobalaccel" in kde.komorebi_log(), timeout=60):
+    raise AssertionError(f"the keys were not registered:\n{kde.komorebi_log()}")
+h_before = typed("h")
+keys.send("alt-w")
+checks.check("Alt+W, H runs the binding of the chain", press("h", "keys-chords-h"))
+checks.check("the H of the chain does not reach the window", typed("h") == h_before)
+keys.send("alt-w")
+keys.send("esc")
+keys.send("h")
+checks.check("after Alt+W, Escape, H reaches the window", reaches_wev("h", h_before + 1))
+keys.send("alt-w")
+time.sleep(2 * SCALE)
+keys.send("l")
+checks.check("after Alt+W and the timeout, L reaches the window", reaches_wev("l", 1))
+checks.check("and runs nothing", not ran("keys-chords-l"))
 kde.komorebic("stop")
 
 checks.finish()
