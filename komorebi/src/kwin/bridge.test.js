@@ -57,7 +57,8 @@ function geometry(x, y, width, height) {
 }
 
 // A window. `id` becomes its `internalId`, which is a QUuid in KWin: an object, not a string.
-// Setting `minimized` or `frameGeometry` raises the signal KWin raises.
+// Setting `minimized` or `frameGeometry` raises the signal KWin raises, and `closeWindow` closes it
+// once it is in a KWin.
 function window({ id, minimized = false, frameGeometry = geometry(0, 0, 100, 100), ...rest }) {
     const w = {
         internalId: { toString: () => id },
@@ -76,6 +77,7 @@ function window({ id, minimized = false, frameGeometry = geometry(0, 0, 100, 100
         desktops: [],
         frameGeometryChanged: new Signal(),
         minimizedChanged: new Signal(),
+        closeWindow: () => assert.fail("a window that is in no KWin was closed"),
         ...rest,
     };
     let state = { minimized, frameGeometry };
@@ -115,9 +117,10 @@ const DP1 = {
 function kwin({ windows = [], screens = [DP1], active = null, cursor = { x: 0, y: 0 } } = {}) {
     const calls = [];
     const printed = [];
+    const raised = [];
     const timers = [];
     const clock = { now: 1000 };
-    const open = windows.slice();
+    const open = [];
     let activeWindow = active;
 
     const workspace = {
@@ -130,6 +133,7 @@ function kwin({ windows = [], screens = [DP1], active = null, cursor = { x: 0, y
             return output.placementArea;
         },
         currentDesktopForScreen: (output) => ({ id: `desktop of ${output.name}` }),
+        raiseWindow: (w) => raised.push(w),
         windowAdded: new Signal(),
         windowRemoved: new Signal(),
         windowActivated: new Signal(),
@@ -155,6 +159,13 @@ function kwin({ windows = [], screens = [DP1], active = null, cursor = { x: 0, y
         }
     }
 
+    // a window KWin has: it can close
+    function adopt(w) {
+        open.push(w);
+        w.closeWindow = () => k.close(w);
+    }
+    windows.forEach(adopt);
+
     const context = vm.createContext({
         workspace,
         KWin: { PlacementArea: 7 },
@@ -173,6 +184,7 @@ function kwin({ windows = [], screens = [DP1], active = null, cursor = { x: 0, y
         workspace,
         calls,
         printed,
+        raised,
         timers,
         clock,
         // what the bridge has sent with `Event`, oldest first
@@ -182,7 +194,7 @@ function kwin({ windows = [], screens = [DP1], active = null, cursor = { x: 0, y
         reply: (text) => calls.filter((c) => c.method === "Poll").at(-1).callback(text),
         // a window opens: KWin activates it before it announces it, unless it is not to be focused
         open: (w, { focus = true } = {}) => {
-            open.push(w);
+            adopt(w);
             if (focus) {
                 workspace.activeWindow = w;
             }
@@ -245,14 +257,24 @@ test("what the bridge sends for a session is what the daemon's tests read", () =
     // the client took the frame it was given to whole cells of its font
     terminal.frameGeometry = geometry(480.4, 270, 956, 532);
 
-    const [cursorQuery] = commands;
+    const [cursorQuery, windowCommands] = commands;
     assert.equal(k.events().at(-1).seq, cursorQuery.after_seq);
     k.workspace.cursorPos = { x: 1200, y: 700.5 };
     k.answer([cursorQuery.batch]);
 
     k.close(terminal);
 
+    // the editor is tiled, focused, raised, minimized and brought back, the dialog closed, and the
+    // terminal, which has closed, is asked for a frame
+    assert.equal(k.events().at(-1).seq, windowCommands.after_seq);
+    k.answer([windowCommands.batch]);
+
     assert.deepStrictEqual(k.events(), events);
+    assert.deepStrictEqual(editor.frameGeometry, geometry(0, 0, 960, 1050));
+    assert.equal(k.workspace.activeWindow, editor);
+    assert.deepStrictEqual(k.raised, [editor]);
+    assert.equal(editor.minimized, false);
+    assert.deepStrictEqual(k.workspace.windowList(), [editor]);
 });
 
 test("a window KWin activates before announcing it is announced first, and once", () => {
@@ -386,4 +408,53 @@ test("a command the bridge does not know is given back as failed", () => {
         { type: "cursor", token: 9, x: 0, y: 0, seq: 2 },
         { type: "failed", batch: 4, cmds: [{ op: "teleport" }], seq: 3 },
     ]);
+});
+
+test("a frame is set as a plain object, and the frame KWin gives comes back as an event", () => {
+    const w = window({ id: "{w}", frameGeometry: geometry(0, 0, 100, 100) });
+    const k = kwin({ windows: [w] });
+
+    k.answer([{ batch: 1, cmds: [{ op: "geo", id: "{w}", x: 10, y: 20, w: 300, h: 400 }] }]);
+
+    assert.deepStrictEqual(w.frameGeometry, geometry(10, 20, 300, 400));
+    assert.deepStrictEqual(k.events().slice(1), [
+        { type: "geometry", id: "{w}", geo: { x: 10, y: 20, w: 300, h: 400 }, seq: 2 },
+    ]);
+});
+
+test("a window the bridge has not seen is found in KWin's list", () => {
+    const k = kwin();
+    const unseen = window({ id: "{unseen}" });
+    // in KWin's list, without a windowAdded
+    k.workspace.windowList = () => [unseen];
+
+    k.answer([{ batch: 1, cmds: [{ op: "min", id: "{unseen}", v: true }] }]);
+
+    assert.equal(unseen.minimized, true);
+    assert.equal(k.events().length, 1, "and nothing failed");
+});
+
+test("a command for a window KWin no longer has is given back, and the rest are carried out", () => {
+    const w = window({ id: "{w}" });
+    const k = kwin({ windows: [w] });
+    const gone = { op: "activate", id: "{gone}" };
+
+    k.answer([{ batch: 3, cmds: [gone, { op: "raise", id: "{w}" }] }]);
+
+    assert.deepStrictEqual(k.raised, [w]);
+    assert.deepStrictEqual(k.events().at(-1), { type: "failed", batch: 3, cmds: [gone], seq: 2 });
+});
+
+test("a command KWin throws on is printed and given back as failed", () => {
+    const w = window({ id: "{w}" });
+    const k = kwin({ windows: [w] });
+    w.closeWindow = () => {
+        throw new Error("the window is being destroyed");
+    };
+    const close = { op: "close", id: "{w}" };
+
+    k.answer([{ batch: 5, cmds: [close] }]);
+
+    assert.match(k.printed[0], /^komorebi bridge: Error: the window is being destroyed in /);
+    assert.deepStrictEqual(k.events().at(-1), { type: "failed", batch: 5, cmds: [close], seq: 2 });
 });

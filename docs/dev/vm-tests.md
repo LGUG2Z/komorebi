@@ -36,7 +36,8 @@ JSON, which is what CI reads.
 A suite has two files:
 
 - `default.nix` sets `tier` (`"fast"` or `"slow"`), `kind` (the node it runs on)
-  and `timeoutMinutes`.
+  and `timeoutMinutes`, and may set `node`, a NixOS module that adds to the node
+  for this suite alone (more memory, the clients it starts).
 - `test.py` is the test, a Python script for the NixOS test driver. It is
   prefixed with `SCALE = <number>`, how many times slower than KVM the machine
   is.
@@ -96,14 +97,20 @@ the run.
   session once its desktop is up, and `shot(name)` returns a screenshot as a
   Pillow image, keeping `NAME.png` in the output directory.
 - `activate`, `minimize` and `close` act on a window through `kdotool`, as the
-  user would.
+  user would, and `wid_by_class` finds a window by its app id or X11 class.
+  `Kde.headless(..., xwayland=True)` gives the session XWayland, for X11
+  clients.
 - `start_komorebi(*args)` starts the daemon in the session, `stop_komorebi()`
   stops it with `SIGTERM`, `komorebi_log()` returns its log since it was last
   started, and `script_loaded()` asks KWin whether it runs the bridge.
 - `daemon` reads the daemon's view of the desktop from that log, started with
   `--log-level debug`: `daemon.events(log)` lists the window events it handled,
-  in order, and `daemon.window_ids(log)` maps a window's title to the daemon's id
-  for it.
+  in order, `daemon.window_ids(log)` maps a window's title to the daemon's id
+  for it, and `daemon.requests(log)` returns the frame the daemon last asked KWin
+  for, for each window.
+- `monitor_bridge(path)` records the bridge's traffic on the session bus with
+  `dbus-monitor`, and `latency.rounds` times each batch of commands in it, from
+  the daemon's answer to the last frame KWin reports for the windows it moved.
 
 Poll for what the test needs with `wait_for`. A fixed sleep is too long on
 KVM and too short on TCG.

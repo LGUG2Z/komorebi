@@ -71,25 +71,29 @@ interface KWinWindow {
     readonly skipTaskbar: boolean;
     readonly skipPager: boolean;
     readonly skipSwitcher: boolean;
-    readonly minimized: boolean;
+    minimized: boolean;
     readonly fullScreen: boolean;
     /** `KWin::MaximizeMode`: 0 restored, 1 vertically, 2 horizontally, 3 both ways. */
     readonly maximizeMode: number;
-    readonly frameGeometry: QRectF;
+    /** Set to a plain `{x, y, width, height}`: a script has no `Qt` global to make a `QRectF`. */
+    frameGeometry: QRectF;
     readonly minSize: QSizeF;
     readonly desktops: VirtualDesktop[];
     readonly frameGeometryChanged: Signal<[oldGeometry: QRectF]>;
     readonly minimizedChanged: Signal;
+    closeWindow(): void;
 }
 
 /** The global `workspace` (`KWin::ScriptingWorkspace`). */
 interface Workspace {
     readonly screens: Output[];
-    readonly activeWindow: KWinWindow | null;
+    /** Setting it activates the window. */
+    activeWindow: KWinWindow | null;
     readonly cursorPos: QPointF;
     windowList(): KWinWindow[];
     clientArea(option: number, output: Output, desktop: VirtualDesktop): QRectF;
     currentDesktopForScreen(output: Output): VirtualDesktop;
+    raiseWindow(window: KWinWindow): void;
     readonly windowAdded: Signal<[window: KWinWindow]>;
     readonly windowRemoved: Signal<[window: KWinWindow]>;
     /** `null` when no window has the focus. */

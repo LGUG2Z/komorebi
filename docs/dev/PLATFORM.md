@@ -68,9 +68,11 @@ the windows and outputs it finds, and from then on every window that opens, clos
 focus, is minimized or brought back, moves or changes size. The daemon waits up to 10 seconds
 for the first report and does not start without it.
 
-The KWin backend only reads the desktop. Every command the window manager gives it (move,
-focus, raise, minimize, close a window, move the pointer) fails with "the KWin backend only
-reads the desktop", which the window manager logs.
+Every command of the window manager (move and resize, focus, raise, minimize, bring back or
+close a window) is queued for the bridge, which gets the queue as the answer to its held call
+and carries the commands out in KWin, in order. The script API cannot move the pointer, so
+when the pointer follows the focus komorebi invokes KWin's own "Move Mouse to Focus" shortcut,
+which puts the pointer in the middle of the window KWin has focused.
 
 #### What komorebi leaves behind
 
@@ -84,7 +86,9 @@ it or the session ends.
 `kwin_wayland --virtual` behaves like the KWin of a session for everything komorebi does:
 the VM tests run the daemon against one, on a private session bus of its own. It cannot draw
 (see [Rendering](#rendering-in-virtual-machines-and-over-rdp)), so nothing that depends on
-pixels can be tested against it.
+pixels can be tested against it. Started with `--no-global-shortcuts`, as the VM tests start
+it, KWin does not own `org.kde.kglobalaccel`, and the pointer does not follow the focus; the
+daemon logs that at debug level and carries on.
 
 ### No KWin
 
@@ -118,6 +122,7 @@ What komorebi calls:
 |---|---|---|---|---|
 | `org.kde.KWin` | `/Scripting` | `org.kde.kwin.Scripting` | `unloadScript(s)`, `loadScript(ss) -> i` | at start; `unloadScript` again at exit |
 | `org.kde.KWin` | `/Scripting/Script<id>` | `org.kde.kwin.Script` | `run()` | at start |
+| `org.kde.kglobalaccel` | `/component/kwin` | `org.kde.kglobalaccel.Component` | `invokeShortcut(s)`, with `MoveMouseToFocus` | when the pointer follows the focus |
 
 ## Files and directories
 
@@ -183,6 +188,44 @@ TypeScript are needed only for those checks: in the session the bridge needs KWi
 - A script's `print()` goes to KWin's log, which shows it only when the `kwin_scripting`
   logging category is enabled (`QT_LOGGING_RULES="kwin_scripting.debug=true"`, as the VM
   tests do).
+
+## How clients answer a frame
+
+KWin applies a frame komorebi asks for at once, and then the client decides what size it
+draws at; the frame KWin reports afterwards (a `geometry` event) is the one the client
+chose. Measured at time of writing (2026-10-27) in a headless KWin with eight clients, by the
+VM test `vm-client-geometry`, and by the spikes before it with more sizes and at a scale of
+1.25:
+
+| Client | Answer | In `vm-client-geometry` |
+|---|---|---|
+| Konsole, Kate, Dolphin (Qt, KDE) | exactly the frame asked for, also below the minimum size they report (spikes) | Kate asked for 948x527, has 948x527 |
+| `xterm` on XWayland | exactly the frame asked for | asked for 229x259, has 229x259 |
+| `foot` | sizes itself down to whole cells of its font | asked for 1905x2140, has 1902x2129 |
+| GTK 4 Text Editor | exactly the frame asked for, down to its minimum of 360x200 | asked for 469x528, has 469x528 |
+| GTK 4 Calculator | never below its minimum of 360x616 | asked for 469x259, has 469x616 |
+| Firefox | never below its minimum width of 500 and height of 120 | asked for 230x259, has 500x259 |
+
+Every client keeps the position it is asked for, also one partly off the screen. A fractional
+scale of 1.25 gives the same answers as 1.0: every whole logical frame comes back as it was
+asked for. komorebi does not ask again when a client keeps to a size of its own: the window
+manager reads the frame the window has from the table, and a window larger than its tile
+covers part of its neighbor's.
+
+## How long a retile takes
+
+Measured by the VM test `vm-latency` at time of writing (2026-10-27), in a headless KWin 6.8.1
+under HVF on an Apple silicon Mac, with ten `foot` windows on a 3840x2160 output: twenty
+retiles (a window minimized and brought back, ten times over), each of which moved 5.5 windows
+on average. From the daemon's answer to `Poll` to the last frame KWin reported for the windows
+the batch moved, the client's answer included:
+
+| p50 | p95 | max |
+|---|---|---|
+| 17.3 ms | 27.7 ms | 31.4 ms |
+
+The spikes measured the channel alone, with twenty windows in each batch, at 16, 19 and 20 ms
+([DESIGN.md](DESIGN.md#why-do-commands-go-to-the-bridge-as-the-answer-to-a-held-call)).
 
 ## Rendering in virtual machines and over RDP
 

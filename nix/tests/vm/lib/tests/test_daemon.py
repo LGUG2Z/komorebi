@@ -1,4 +1,4 @@
-from komorebi_vm import daemon
+from komorebi_vm import Rect, daemon
 from komorebi_vm.daemon import Event
 
 LOG = """\
@@ -26,3 +26,27 @@ def test_window_ids_are_found_by_title_also_one_with_parentheses() -> None:
 def test_an_empty_log_has_nothing_in_it() -> None:
     assert daemon.events("") == []
     assert daemon.window_ids("") == {}
+
+
+def test_requests_are_the_last_frame_asked_for_each_window() -> None:
+    log = (
+        "DEBUG komorebi::kwin: asking for window 2 to be at "
+        "Rect { left: 10, top: 10, right: 1900, bottom: 1060 }\n"
+        "DEBUG komorebi::kwin: asking for window 3 to be at "
+        "Rect { left: -5, top: 0, right: 940, bottom: 1060 }\n"
+        "DEBUG komorebi::kwin: asking for window 2 to be at "
+        "Rect { left: 10, top: 10, right: 940, bottom: 1060 }\n"
+    )
+
+    assert daemon.requests(log) == {2: Rect(10, 10, 940, 1060), 3: Rect(-5, 0, 940, 1060)}
+
+
+def test_asked_finds_the_frame_by_the_title_of_the_window() -> None:
+    log = LOG + (
+        "DEBUG komorebi::kwin: asking for window 2 to be at "
+        "Rect { left: 10, top: 10, right: 940, bottom: 1060 }\n"
+    )
+
+    assert daemon.asked(log, "alpha") == Rect(10, 10, 940, 1060)
+    assert daemon.asked(log, "a (b) c") is None
+    assert daemon.asked(log, "nobody") is None

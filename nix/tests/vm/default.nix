@@ -84,7 +84,8 @@ let
       node.specialArgs.komorebi = komorebiFor guestSystem;
 
       nodes.machine = {
-        imports = [ (./nodes + "/${suite.kind}.nix") ];
+        # a suite's `node`, if it has one, adds to the node of its kind
+        imports = [ (./nodes + "/${suite.kind}.nix") ] ++ lib.optional (suite ? node) suite.node;
       };
 
       testScript = ''

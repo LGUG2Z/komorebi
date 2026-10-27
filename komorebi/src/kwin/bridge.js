@@ -62,11 +62,19 @@
  */
 
 /**
- * What the daemon sends: the answer to `Poll` is a list of batches, each a list of commands. The
- * only command is the cursor query, which `token` numbers so that its answer can be matched.
+ * What the daemon sends: the answer to `Poll` is a list of batches, each a list of commands. A
+ * window command names the window by its `id`: `geo` sets its frame, `min` minimizes it (`v`) or
+ * brings it back, and `activate`, `raise` and `close` do what they say. A cursor query is
+ * numbered by `token` so that its answer can be matched.
  *
  * @typedef {{ op: "cursor", token: number }} CursorQuery
- * @typedef {CursorQuery} Command
+ * @typedef {{ op: "geo", id: string, x: number, y: number, w: number, h: number }} SetFrame
+ * @typedef {{ op: "min", id: string, v: boolean }} SetMinimized
+ * @typedef {{ op: "activate", id: string }} Activate
+ * @typedef {{ op: "raise", id: string }} Raise
+ * @typedef {{ op: "close", id: string }} Close
+ * @typedef {SetFrame | SetMinimized | Activate | Raise | Close} WindowCommand
+ * @typedef {CursorQuery | WindowCommand} Command
  * @typedef {{ batch: number, cmds: Command[] }} Batch
  */
 
@@ -185,6 +193,23 @@ function cursor() {
     return { x: Math.round(p.x), y: Math.round(p.y) };
 }
 
+/**
+ * @param {string} id
+ * @returns {KWinWindow | null}
+ */
+function findWindow(id) {
+    if (known[id]) {
+        return known[id];
+    }
+    var l = workspace.windowList();
+    for (var i = 0; i < l.length; i++) {
+        if (wid(l[i]) === id) {
+            return l[i];
+        }
+    }
+    return null;
+}
+
 // ---- hooks ---------------------------------------------------------------------------------
 
 /**
@@ -259,7 +284,32 @@ function applyOne(c) {
         emit("cursor", { token: c.token, x: p.x, y: p.y });
         return true;
     }
-    return false;
+
+    var w = findWindow(c.id);
+    if (!w) {
+        return false;
+    }
+    switch (c.op) {
+        case "geo":
+            // a plain object converts to QRectF; there is no `Qt` global in kwin scripts
+            w.frameGeometry = { x: c.x, y: c.y, width: c.w, height: c.h };
+            break;
+        case "min":
+            w.minimized = !!c.v;
+            break;
+        case "activate":
+            workspace.activeWindow = w;
+            break;
+        case "raise":
+            workspace.raiseWindow(w);
+            break;
+        case "close":
+            w.closeWindow();
+            break;
+        default:
+            return false;
+    }
+    return true;
 }
 
 /** @param {Batch} batch */

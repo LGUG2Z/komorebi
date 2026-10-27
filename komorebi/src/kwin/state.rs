@@ -201,10 +201,24 @@ impl Table {
         self.cursor
     }
 
+    /// Returns the UUID KWin knows the window by, which is how a command for the script names
+    /// it, or `None` if the table does not know the window.
+    pub fn uuid(&self, id: u32) -> Option<String> {
+        self.windows.get(&id).map(|e| e.uuid.clone())
+    }
+
     /// Whether komorebi should have anything to do with this window: a normal window, as opposed
     /// to a dialog, a panel, a popup.
     fn manageable(&self, entry: &Entry) -> bool {
         entry.kwin_normal
+    }
+
+    /// Records the frame komorebi has just asked KWin to give a window, so that the window manager
+    /// sees it at once. The `geometry` event that says what the client did replaces it.
+    pub fn note_requested_rect(&mut self, id: u32, rect: Rect) {
+        if let Some(entry) = self.windows.get_mut(&id) {
+            entry.info.rect = rect;
+        }
     }
 
     // ---- events ----------------------------------------------------------------------------
@@ -597,16 +611,24 @@ mod tests {
                 "geometry -> ",
                 "cursor -> Cursor 1 at 1200,701",
                 "removed -> Destroy 2",
+                // the window manager's commands, and the terminal's, which had closed
+                "geometry -> ",
+                "activated -> FocusChange 1",
+                "minimized -> Minimize 1",
+                "minimized -> Restore 1",
+                "removed -> ",
+                "failed -> ",
             ]
         );
 
-        // the editor of the snapshot is left, and its dialog, which komorebi does not manage
+        // the editor of the snapshot is left; its dialog, which komorebi does not manage, closed
         let windows = t.windows();
         assert_eq!(windows.len(), 1);
         assert_eq!(windows[0].title, "notes.txt — Kate");
-        assert_eq!(t.window(3).map(|w| w.normal), Some(false));
+        assert_eq!(windows[0].rect.right, 960, "the frame komorebi asked for");
+        assert_eq!(t.window(3).map(|w| w.alive), Some(false));
         assert_eq!(t.window(2).unwrap().rect.bottom, 532, "the geometry event");
-        assert_eq!(t.foreground(), None, "the terminal had the focus");
+        assert_eq!(t.foreground(), Some(1));
         assert_eq!(t.cursor(), Some((1200, 701)));
 
         let monitor = &t.monitors()[0];
@@ -829,5 +851,30 @@ mod tests {
             }]
         ));
         assert_eq!(t.cursor(), Some((300, 400)));
+    }
+
+    #[test]
+    fn a_requested_rect_is_visible_at_once_and_replaced_by_the_real_one() {
+        let mut t = table(vec![win("a", &["d1"])]);
+        t.note_requested_rect(
+            1,
+            Rect {
+                left: 0,
+                top: 0,
+                right: 960,
+                bottom: 1050,
+            },
+        );
+        assert_eq!(t.window(1).unwrap().rect.right, 960);
+
+        t.handle(
+            &json!({ "type": "geometry", "id": "a", "geo": {"x":0,"y":0,"w":956,"h":1048} }),
+            Instant::now(),
+        );
+        assert_eq!(
+            t.window(1).unwrap().rect.right,
+            956,
+            "the client rounded it to its cell grid"
+        );
     }
 }

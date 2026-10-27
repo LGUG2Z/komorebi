@@ -186,3 +186,60 @@ def test_window_actions_go_through_kdotool_inside_the_session(machine: FakeMachi
         "kdotool windowclose '{a}'",
     ]
     assert all("WAYLAND_DISPLAY=wayland-main" in command for command in machine.commands)
+
+
+def test_wid_by_class_searches_the_class(machine: FakeMachine) -> None:
+    machine.reply("kdotool search --class", output="{x}\n")
+
+    assert Kde(machine, "main").wid_by_class("XTerm") == "{x}"
+    assert inner(machine.commands[0]) == "kdotool search --class '^XTerm$' | head -1"
+
+
+def test_headless_with_xwayland_starts_it_and_puts_the_x11_display_in_the_session(
+    machine: FakeMachine,
+) -> None:
+    machine.reply("busctl", status=0)
+    machine.reply("/tmp/.X11-unix", output="X1\n")
+
+    kde = Kde.headless(machine, "main", xwayland=True)
+
+    scripts = [inner(command) for command in machine.commands if " sh -c " in command]
+    assert any("--output-count 1 --xwayland'" in script for script in scripts)
+    assert "DISPLAY=:1" in kde.env.split()
+    assert not any(word.startswith("DISPLAY=") for word in Kde(machine, "other").env.split())
+
+
+def test_monitor_bridge_records_the_calls_to_the_bridge_and_the_replies(
+    machine: FakeMachine,
+) -> None:
+    Kde(machine, "main").monitor_bridge("/tmp/bus.log")
+
+    (script,) = [inner(command) for command in machine.commands]
+    assert script.startswith("setsid nohup dbus-monitor --session ")
+    assert "\"type='method_call',interface='org.komorebi.Bridge'\"" in script
+    assert "\"type='method_return'\"" in script
+    assert script.endswith("> /tmp/bus.log 2>&1 < /dev/null &")
+
+
+def test_spawn_sends_the_output_of_the_client_where_it_is_asked(machine: FakeMachine) -> None:
+    kde = Kde(machine, "main")
+
+    kde.spawn("foot")
+    kde.spawn("xterm -T x", log="/tmp/x.log")
+
+    assert [inner(command) for command in machine.commands] == [
+        "setsid nohup foot > /dev/null 2>&1 < /dev/null &",
+        "setsid nohup xterm -T x > /tmp/x.log 2>&1 < /dev/null &",
+    ]
+
+
+def test_a_session_has_the_users_data_and_config_directories_not_roots(
+    machine: FakeMachine,
+) -> None:
+    words = Kde(machine, "main").env.split()
+
+    assert "HOME=/home/komorebi" in words
+    assert (
+        "XDG_DATA_DIRS=/etc/profiles/per-user/komorebi/share:/run/current-system/sw/share" in words
+    )
+    assert not any("/root" in word for word in words)

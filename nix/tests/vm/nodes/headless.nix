@@ -52,6 +52,8 @@
       description = "A headless KWin for the test session %i";
       requires = [ "session-bus@%i.service" ];
       after = [ "session-bus@%i.service" ];
+      # KWin looks for Xwayland on its PATH, when it is started with --xwayland
+      path = [ pkgs.xwayland ];
       environment = {
         DBUS_SESSION_BUS_ADDRESS = "unix:path=%t/session-%i.bus";
         XDG_SESSION_TYPE = "wayland";

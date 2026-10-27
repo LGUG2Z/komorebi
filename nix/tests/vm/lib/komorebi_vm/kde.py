@@ -63,6 +63,7 @@ class Kde:
         self.scale = scale
         self._bus = bus
         self._wayland_display = wayland_display
+        self._x_display: str | None = None
 
     @classmethod
     def headless(
@@ -72,20 +73,33 @@ class Kde:
         *,
         size: tuple[int, int] = (1920, 1080),
         outputs: int = 1,
+        xwayland: bool = False,
         scale: float = 1.0,
         user: str = "komorebi",
         uid: int = 1000,
     ) -> "Kde":
-        """Starts `kwin_wayland --virtual` with `outputs` outputs of `size`, and waits for it."""
+        """Starts `kwin_wayland --virtual` with `outputs` outputs of `size`, and waits for it.
+
+        With `xwayland`, KWin also runs XWayland, for X11 clients. It starts it when the first
+        one connects and does not say where, so the session takes the first X11 socket of the
+        machine: one session at a time can have XWayland.
+        """
         kde = cls(machine, name, user=user, uid=uid, scale=scale)
         machine.succeed(f"loginctl show-user {user} >/dev/null")
         width, height = size
         args = f"--width {width} --height {height} --output-count {outputs}"
+        if xwayland:
+            args += " --xwayland"
         kde.as_user(f"echo KWIN_ARGS={shlex.quote(args)} > {kde.runtime}/kwin-virtual-{name}.env")
         kde.systemctl("start", f"session-bus@{name}.service", f"kwin-virtual@{name}.service")
         if not kde.wait_for(lambda: kde.has_name("org.kde.KWin"), timeout=60):
             log = machine.execute(f"journalctl _UID={uid} --no-pager -n 40")[1]
             raise AssertionError(f"KWin did not come up:\n{log}")
+        if xwayland:
+            socket = "ls /tmp/.X11-unix | grep -E '^X[0-9]+$' | sort | head -n 1"
+            if not kde.wait_for(lambda: machine.execute(socket)[1].strip() != "", timeout=10):
+                raise AssertionError("KWin did not open an X11 socket")
+            kde._x_display = ":" + machine.execute(socket)[1].strip()[1:]
         return kde
 
     @classmethod
@@ -139,6 +153,7 @@ class Kde:
     @property
     def env(self) -> str:
         """The `VAR=value` words that put a command inside this session."""
+        profile = f"/etc/profiles/per-user/{self.user}"
         pairs = {
             "XDG_RUNTIME_DIR": self.runtime,
             "DBUS_SESSION_BUS_ADDRESS": self._bus
@@ -149,7 +164,13 @@ class Kde:
             "XDG_SESSION_TYPE": "wayland",
             "QT_QPA_PLATFORM": "wayland",
             "GDK_BACKEND": "wayland",
+            # the user's, not those of root's shell, which a client would search and be refused
+            "HOME": f"/home/{self.user}",
+            "XDG_DATA_DIRS": f"{profile}/share:/run/current-system/sw/share",
+            "XDG_CONFIG_DIRS": f"/etc/xdg:{profile}/etc/xdg:/run/current-system/sw/etc/xdg",
         }
+        if self._x_display is not None:
+            pairs["DISPLAY"] = self._x_display
         return " ".join(f"{key}={shlex.quote(value)}" for key, value in pairs.items())
 
     def as_user(self, command: str) -> str:
@@ -164,9 +185,12 @@ class Kde:
         """Runs `command` inside the session, and fails the test unless it succeeds."""
         return self.machine.succeed(self._wrap(command))
 
-    def spawn(self, command: str) -> None:
-        """Starts `command` in the background inside the session, as a client of KWin."""
-        self.sh(f"setsid nohup {command} >/dev/null 2>&1 < /dev/null &")
+    def spawn(self, command: str, log: str = "/dev/null") -> None:
+        """Starts `command` in the background inside the session, as a client of KWin.
+
+        Its output goes to the file `log`, or nowhere.
+        """
+        self.sh(f"setsid nohup {command} > {shlex.quote(log)} 2>&1 < /dev/null &")
 
     def systemctl(self, *args: str) -> str:
         """Runs `systemctl --user` as the test user."""
@@ -202,6 +226,15 @@ class Kde:
         """The daemon's log since it was last started, or the empty string before that."""
         return self.machine.execute(f"cat {self.runtime}/komorebi-{self.name}.log")[1]
 
+    def monitor_bridge(self, path: str) -> None:
+        """Starts recording the bridge's traffic on the session bus to `path`, in the background.
+
+        `dbus-monitor` records every call to the daemon's `org.komorebi.Bridge` interface and every
+        reply on the bus, which [`latency.rounds`](komorebi_vm.latency.rounds) reads.
+        """
+        rules = "\"type='method_call',interface='org.komorebi.Bridge'\" \"type='method_return'\""
+        self.sh(f"setsid nohup dbus-monitor --session {rules} > {path} 2>&1 < /dev/null &")
+
     def script_loaded(self, name: str = "komorebi-bridge") -> bool:
         """Returns true if and only if KWin runs a script loaded under `name`."""
         status, out = self.run(
@@ -234,6 +267,15 @@ class Kde:
         """The id of the first window whose title is exactly `title`, or the empty string."""
         pattern = shlex.quote(f"^{title}$")
         return self.run(f"kdotool search --name {pattern} | head -1")[1].strip()
+
+    def wid_by_class(self, app: str) -> str:
+        """The id of the first window whose class is exactly `app`, or the empty string.
+
+        The class is the Wayland app id (`org.kde.konsole`), or the X11 class of a client
+        on XWayland (`XTerm`).
+        """
+        pattern = shlex.quote(f"^{app}$")
+        return self.run(f"kdotool search --class {pattern} | head -1")[1].strip()
 
     def rect(self, wid: str) -> Rect:
         """The position and size KWin reports for the window."""

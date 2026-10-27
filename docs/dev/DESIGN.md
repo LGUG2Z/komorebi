@@ -133,3 +133,13 @@ number as a 32-bit integer, and a call whose arguments do not match the method's
 fails with no error the script can see. One string argument always matches, and the daemon
 parses it. The declaration of `callDBus` the bridge is type-checked against takes one string,
 so `tsc` refuses anything else.
+
+## Why does the pointer follow the focus through a KWin shortcut?
+
+Because a KWin script cannot move the pointer, and KWin can. Its "Move Mouse to Focus" action
+puts the pointer in the middle of the window that has the focus, and it can be invoked over
+D-Bus, through `kglobalaccel`: in the spikes it moved the pointer from the middle of the screen
+to the middle of the focused window, for two different windows. The backend asks for it once
+KWin reports the window it focused as active, so the action finds the right one. The cost is
+that the pointer can go to the middle of the focused window and nowhere else, which is what
+komorebi asks for.

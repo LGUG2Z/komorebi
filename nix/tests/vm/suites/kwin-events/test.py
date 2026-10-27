@@ -1,8 +1,8 @@
 # The daemon reads a real KWin through its script. What only a real KWin can tell: that the script
 # loads and reports the desktop, that KWin's signals reach the window manager as the events
 # `komorebi/src/kwin/state.rs` and `komorebi/tests/wm_events.rs` feed it by hand, in the order KWin
-# raised them (KWin activates a new window before it announces it), that the daemon moves nothing
-# while its backend only reads, and that it takes its script out of KWin when it stops.
+# raised them (KWin activates a new window before it announces it), and that it takes its script
+# out of KWin when it stops.
 from komorebi_vm import Checks, Kde, daemon
 from komorebi_vm.daemon import Event
 
@@ -28,7 +28,6 @@ checks.check(
     kde.wait_for(lambda: kde.wid("before") != "", timeout=30),
 )
 before = kde.wid("before")
-where_it_opened = kde.rect(before)
 
 kde.start_komorebi("--log-level", "debug")
 checks.check(
@@ -96,15 +95,6 @@ in_order = [kind for kind in mine if kind in ("Show", "Minimize", "Restore", "De
 checks.check(
     "alpha's events came in the order they happened",
     in_order == ["Show", "Minimize", "Restore", "Destroy"],
-)
-
-print("== nothing was moved")
-checks.check(
-    "the daemon asked to tile, and was told the backend only reads",
-    "the KWin backend only reads the desktop" in daemon_log(),
-)
-checks.check(
-    "the window that was open before is where KWin put it", kde.rect(before) == where_it_opened
 )
 
 print("== stop")

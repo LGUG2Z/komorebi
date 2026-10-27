@@ -23,9 +23,9 @@
 //! against a fake KWin (`just check-js`). Its tests and the tests of this module and of [`state`]
 //! read the same messages, in `fixtures/`, so that what one side sends is what the other reads.
 //!
-//! The backend reads the desktop: it answers every query from the [`state::Table`], and turns
-//! what KWin reports into the window events of [`crate::window_manager_event`]. It does not change
-//! the desktop: every command of [`Backend`] is an error.
+//! The backend answers every query from the [`state::Table`], turns what KWin reports into the
+//! window events of [`crate::window_manager_event`], and queues every command of [`Backend`] for
+//! the script, which carries it out in KWin.
 //!
 //! `docs/dev/PLATFORM.md` has the D-Bus names, the files and the environment variables involved,
 //! and `docs/dev/DESIGN.md` the reasons for this design.
@@ -201,14 +201,23 @@ impl Poll {
     }
 }
 
-/// The desktop of a running KWin, read through the script komorebi loads into it.
+/// The desktop of a running KWin, read and changed through the script komorebi loads into it.
 ///
 /// The queries are answered from a [`state::Table`] that the script's events keep up to date, so
 /// they do not wait for KWin, except [`Backend::cursor_pos`]: only the script can read the pointer,
 /// so it is asked, and given 250 ms to answer.
 ///
-/// The backend only reads the desktop. Every command ([`Backend::set_rect`],
-/// [`Backend::focus`] and the rest) returns an error and changes nothing.
+/// A command ([`Backend::set_rect`], [`Backend::focus`] and the rest) is queued for the script and
+/// returns: the script gets the queue as the answer to its held `Poll` call, and carries the
+/// commands out in order. Commands queued within a millisecond of each other go out as one batch,
+/// so a retile reaches KWin at once. A command is an error when the table does not know the
+/// window; a command for a window that has just closed is sent, and the script reports that it
+/// could not carry it out, which is logged.
+///
+/// The script cannot move the pointer, so the pointer follows the focus through KWin's own "Move
+/// Mouse to Focus" action, over `kglobalaccel`: it lands in the middle of the window KWin has
+/// focused, whatever rectangle [`Backend::center_cursor_in`] is given. A KWin without global
+/// shortcuts leaves the pointer where it is.
 ///
 /// It is made by [`connect`].
 pub struct KWinBackend {
@@ -384,9 +393,37 @@ async fn load_script(connection: &Connection) -> eyre::Result<()> {
     Ok(())
 }
 
-/// The error of every command: the backend reads the desktop and changes nothing
-fn read_only<T>() -> eyre::Result<T> {
-    eyre::bail!("the KWin backend only reads the desktop")
+/// KWin's own "Move Mouse to Focus" action: the scripting API cannot move the pointer
+async fn move_mouse_to_focus(shared: &Shared) -> eyre::Result<()> {
+    let connection = shared.connection().await?;
+    let component = Proxy::new(
+        &connection,
+        "org.kde.kglobalaccel",
+        "/component/kwin",
+        "org.kde.kglobalaccel.Component",
+    )
+    .await?;
+    component
+        .call_method("invokeShortcut", &("MoveMouseToFocus",))
+        .await?;
+    Ok(())
+}
+
+fn command_rect(uuid: &str, rect: &Rect) -> Value {
+    json!({ "op": "geo", "id": uuid, "x": rect.left, "y": rect.top, "w": rect.right, "h": rect.bottom })
+}
+
+impl KWinBackend {
+    fn command(&self, id: u32, build: impl FnOnce(&str) -> Value) -> eyre::Result<()> {
+        let uuid = self
+            .shared
+            .table
+            .lock()
+            .uuid(id)
+            .ok_or_eyre("there is no such window")?;
+        self.shared.push(build(&uuid));
+        Ok(())
+    }
 }
 
 impl Backend for KWinBackend {
@@ -424,32 +461,62 @@ impl Backend for KWinBackend {
         answer.or_else(|| self.shared.table.lock().cursor())
     }
 
-    fn set_rect(&self, _id: u32, _rect: &Rect) -> eyre::Result<()> {
-        read_only()
+    fn set_rect(&self, id: u32, rect: &Rect) -> eyre::Result<()> {
+        tracing::debug!("asking for window {id} to be at {rect:?}");
+        self.command(id, |uuid| command_rect(uuid, rect))?;
+        self.shared.table.lock().note_requested_rect(id, *rect);
+        Ok(())
     }
 
-    fn focus(&self, _id: u32, _mouse_follows_focus: bool) -> eyre::Result<()> {
-        read_only()
+    fn focus(&self, id: u32, mouse_follows_focus: bool) -> eyre::Result<()> {
+        self.command(id, |uuid| json!({ "op": "activate", "id": uuid }))?;
+
+        if mouse_follows_focus {
+            // the pointer can only follow once the window really is the active one
+            let shared = self.shared.clone();
+            self.shared.handle.spawn(async move {
+                for _ in 0..60 {
+                    if shared.table.lock().foreground() == Some(id) {
+                        break;
+                    }
+                    tokio::time::sleep(Duration::from_millis(5)).await;
+                }
+
+                if let Err(error) = move_mouse_to_focus(&shared).await {
+                    tracing::debug!("could not move the mouse to the focused window: {error}");
+                }
+            });
+        }
+
+        Ok(())
     }
 
-    fn raise(&self, _id: u32) -> eyre::Result<()> {
-        read_only()
+    fn raise(&self, id: u32) -> eyre::Result<()> {
+        self.command(id, |uuid| json!({ "op": "raise", "id": uuid }))
     }
 
-    fn minimize(&self, _id: u32) -> eyre::Result<()> {
-        read_only()
+    fn minimize(&self, id: u32) -> eyre::Result<()> {
+        self.command(id, |uuid| json!({ "op": "min", "id": uuid, "v": true }))
     }
 
-    fn unminimize(&self, _id: u32) -> eyre::Result<()> {
-        read_only()
+    fn unminimize(&self, id: u32) -> eyre::Result<()> {
+        self.command(id, |uuid| json!({ "op": "min", "id": uuid, "v": false }))
     }
 
-    fn close(&self, _id: u32) -> eyre::Result<()> {
-        read_only()
+    fn close(&self, id: u32) -> eyre::Result<()> {
+        self.command(id, |uuid| json!({ "op": "close", "id": uuid }))
     }
 
     fn center_cursor_in(&self, _rect: &Rect) -> eyre::Result<()> {
-        read_only()
+        // KWin can center the pointer on the active window and nothing else; the WM calls this
+        // right after focusing the window in question
+        let shared = self.shared.clone();
+        self.shared.handle.spawn(async move {
+            if let Err(error) = move_mouse_to_focus(&shared).await {
+                tracing::debug!("could not move the mouse to the focused window: {error}");
+            }
+        });
+        Ok(())
     }
 
     fn shutdown(&self) {
@@ -520,10 +587,29 @@ mod tests {
             serde_json::from_str(include_str!("fixtures/commands.json")).unwrap();
 
         // what the window manager asks of the backend, batch by batch
-        let asks: [fn(&KWinBackend); 1] = [|backend| {
-            // nothing answers the query here, so the pointer is where the snapshot had it
-            assert_eq!(backend.cursor_pos(), Some((481, 525)));
-        }];
+        let asks: [fn(&KWinBackend); 2] = [
+            |backend| {
+                // nothing answers the query here, so the pointer is where the snapshot had it
+                assert_eq!(backend.cursor_pos(), Some((481, 525)));
+            },
+            |backend| {
+                let left = |left| Rect {
+                    left,
+                    top: 0,
+                    right: 960,
+                    bottom: 1050,
+                };
+                // the editor is 1, the terminal 2 and the dialog 3
+                backend.set_rect(1, &left(0)).unwrap();
+                backend.focus(1, false).unwrap();
+                backend.raise(1).unwrap();
+                backend.minimize(1).unwrap();
+                backend.unminimize(1).unwrap();
+                backend.close(3).unwrap();
+                // the terminal has closed, and the table still knows it: the bridge gives it back
+                backend.set_rect(2, &left(960)).unwrap();
+            },
+        ];
         assert_eq!(asks.len(), commands.len());
 
         let mut handled = 0;
@@ -538,6 +624,14 @@ mod tests {
             ask(&backend);
             assert_eq!(next_poll(&runtime, &backend), json!([command["batch"]]));
         }
+    }
+
+    #[test]
+    fn a_command_about_a_window_the_table_does_not_know_is_an_error_and_sends_nothing() {
+        let (runtime, backend) = offline();
+
+        assert!(backend.focus(7, false).is_err());
+        assert_eq!(next_poll(&runtime, &backend), json!([]));
     }
 
     #[test]
