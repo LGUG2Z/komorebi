@@ -40,6 +40,8 @@
 //! | [`window_id`](Rules::window_id) | the id a window has in `State` | `Snapshot::parse` | `id` | `hwnd` |
 //! | [`window_is_unreadable`](Rules::window_is_unreadable) | whether komorebi failed to read a window | `Snapshot::parse` | the default: never | the title starts with `could not get window` |
 //! | [`hides_windows_by_position`](Rules::hides_windows_by_position) | whether a window's position shows that it is hidden | `Snapshot::hides_windows_by_position` | yes: parked at a corner | no: cloaked where it is |
+//! | [`block_header`](Rules::block_header) | whether a log line starts a handler's block | `blocks::build` | the `processing event:` and `processing command:` lines | the first line of a `process_event{...}` or `process_command{...}` span whose fields differ from the open block's |
+//! | [`is_block_end`](Rules::is_block_end) | whether a log line ends a handler's block | `blocks::build` | `processed command: ...`, for commands only | `processed: ...` for events, `processed` for commands |
 //! | [`slow_handler_cause`](Rules::slow_handler_cause) | what a slow handler was probably doing | the `overview` and `trace` answers | accessibility calls | Win32 calls |
 //! | [`verified`](Rules::verified) | whether the rules were checked against a recording | `Analysis::warnings` | the default: yes | no |
 //! | [`flavor`](Rules::flavor) | which flavor the rules are for | tests | [`Flavor::Macos`] | [`Flavor::Windows`] |
@@ -74,6 +76,8 @@
 //!    [`classify_monitor`](Rules::classify_monitor), by the record's [`Family`], and
 //!    [`is_geometry_event`](Rules::is_geometry_event) when it decides whether a button release
 //!    that komorebi made up ended a real drag.
+//! 1. `blocks::build` walks the log: `block_header` for every line, and
+//!    `is_block_end` for every line inside an open block.
 //!
 //! [`MacRules`]: mac::MacRules
 //! [`WindowsRules`]: windows::WindowsRules
@@ -84,9 +88,12 @@
 pub mod mac;
 pub mod windows;
 
+use super::blocks::Block;
+use super::blocks::BlockKind;
 use super::classify::Class;
 use super::events::EventInfo;
 use super::events::EventRecord;
+use super::logparse::Line;
 use schemars::JsonSchema;
 use serde::Deserialize;
 use serde::Serialize;
@@ -242,6 +249,27 @@ impl std::fmt::Display for Flavor {
     }
 }
 
+/// The start of a handler's block of log lines.
+///
+/// [`Rules::block_header`] returns one for the first line of a block, describing the handler that
+/// line begins; `blocks::build` makes the `Block` from it. A field is `None` when the flavor's log
+/// does not give it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct BlockHeader {
+    /// Whether the handler is handling an event or a command (a `BlockKind`).
+    pub kind: BlockKind,
+    /// The event or command name: `MoveEnd`, `FocusWorkspaceNumber`, ...
+    pub name: String,
+    /// The process the event is about. komorebi for Mac logs it, and komorebi for Windows does not.
+    pub pid: Option<i32>,
+    /// The window handle, where the log gives one instead of a process. komorebi for Windows logs
+    /// it as the span field `hwnd`.
+    pub window_id: Option<u32>,
+    /// The notification the OS reported, e.g. `AXWindowMoved` on a Mac or `SystemForeground` on
+    /// Windows; `None` for a command.
+    pub notification: Option<String>,
+}
+
 /// The vocabulary of one flavor of komorebi, as the questions the analysis asks of it.
 ///
 /// The role of this trait is to answer, for one komorebi, every question the analysis has about
@@ -306,10 +334,12 @@ impl std::fmt::Display for Flavor {
 /// method written beyond the ones that have no default, and the others keep theirs:
 ///
 /// ```rust
+/// # use komorebi_recorder::analysis::blocks::{Block, BlockKind};
 /// # use komorebi_recorder::analysis::classify::Class;
 /// # use komorebi_recorder::analysis::events::{EventInfo, EventRecord};
 /// # use komorebi_recorder::analysis::flavor::mac::MacRules;
-/// # use komorebi_recorder::analysis::flavor::{Flavor, Rules};
+/// # use komorebi_recorder::analysis::flavor::{BlockHeader, Flavor, Rules};
+/// # use komorebi_recorder::analysis::logparse::Line;
 /// # use serde_json::Value;
 /// struct Unchecked;
 ///
@@ -322,6 +352,12 @@ impl std::fmt::Display for Flavor {
 ///     fn is_geometry_event(&self, name: &str) -> bool { MacRules.is_geometry_event(name) }
 ///     fn classify_window_manager(&self, event: &EventRecord) -> (Class, &'static str) {
 ///         MacRules.classify_window_manager(event)
+///     }
+///     fn block_header(&self, line: &Line, open: Option<&Block>) -> Option<BlockHeader> {
+///         MacRules.block_header(line, open)
+///     }
+///     fn is_block_end(&self, line: &Line, kind: BlockKind) -> bool {
+///         MacRules.is_block_end(line, kind)
 ///     }
 ///     fn slow_handler_cause(&self) -> &'static str { MacRules.slow_handler_cause() }
 /// }
@@ -340,10 +376,12 @@ impl std::fmt::Display for Flavor {
 /// implementor above without `slow_handler_cause`:
 ///
 /// ```rust,compile_fail,E0046
+/// # use komorebi_recorder::analysis::blocks::{Block, BlockKind};
 /// # use komorebi_recorder::analysis::classify::Class;
 /// # use komorebi_recorder::analysis::events::{EventInfo, EventRecord};
 /// # use komorebi_recorder::analysis::flavor::mac::MacRules;
-/// # use komorebi_recorder::analysis::flavor::{Flavor, Rules};
+/// # use komorebi_recorder::analysis::flavor::{BlockHeader, Flavor, Rules};
+/// # use komorebi_recorder::analysis::logparse::Line;
 /// # use serde_json::Value;
 /// struct Unchecked;
 ///
@@ -356,6 +394,12 @@ impl std::fmt::Display for Flavor {
 ///     fn is_geometry_event(&self, name: &str) -> bool { MacRules.is_geometry_event(name) }
 ///     fn classify_window_manager(&self, event: &EventRecord) -> (Class, &'static str) {
 ///         MacRules.classify_window_manager(event)
+///     }
+///     fn block_header(&self, line: &Line, open: Option<&Block>) -> Option<BlockHeader> {
+///         MacRules.block_header(line, open)
+///     }
+///     fn is_block_end(&self, line: &Line, kind: BlockKind) -> bool {
+///         MacRules.is_block_end(line, kind)
 ///     }
 ///     // no `slow_handler_cause`
 /// }
@@ -470,6 +514,28 @@ pub trait Rules: Sync {
     /// [`classify`](super::classify::classify) turns a drag that changed nothing, soon after
     /// komorebi acted, into an echo itself.
     fn classify_window_manager(&self, event: &EventRecord) -> (Class, &'static str);
+
+    /// Returns the header of the handler's block that `line` starts, or `None` if `line` does not
+    /// start one.
+    ///
+    /// `open` is the block that has been collecting lines and has not ended. komorebi for Mac
+    /// logs a header line (`processing event: ...` or `processing command: ...`) and ignores
+    /// `open`. komorebi for Windows has no header line: its lines carry a span such as
+    /// `process_event{event="FocusChange" winevent="SystemForeground" hwnd=131072}`, and a new
+    /// handler has begun when the span's fields differ from the open block's. Two consecutive
+    /// handlers whose spans carry the same fields, with no end line between them, are therefore
+    /// one block.
+    fn block_header(&self, line: &Line, open: Option<&Block>) -> Option<BlockHeader>;
+
+    /// Returns whether `line`, which belongs to a block of `kind`, is the one that marks the
+    /// handler as done.
+    ///
+    /// It is asked of the lines that were added to an open block, not of the line that started
+    /// it. A flavor whose log has no such line never ends a block that way. komorebi for Mac
+    /// logs `processed command: ...` for a command and nothing for an event. komorebi for
+    /// Windows logs `processed: <window>` for an event (at INFO, or TRACE for the noisiest
+    /// ones) and `processed` for a command.
+    fn is_block_end(&self, line: &Line, kind: BlockKind) -> bool;
 
     /// Returns what a handler that took long was most likely doing, as a phrase that completes a
     /// sentence such as "took at least 250 ms to handle: ...".

@@ -25,12 +25,16 @@
 //!   shows a window as hidden: [`Rules::hides_windows_by_position`] is `false` and
 //!   `Rules::is_hidden_position` never matches.
 
+use super::BlockHeader;
 use super::Flavor;
 use super::Rules;
+use crate::analysis::blocks::Block;
+use crate::analysis::blocks::BlockKind;
 use crate::analysis::classify::Class;
 use crate::analysis::events::EventInfo;
 use crate::analysis::events::EventRecord;
 use crate::analysis::events::Family;
+use crate::analysis::logparse::Line;
 use serde_json::Value;
 
 /// The [`Rules`] of komorebi for Windows: what its events, `State`, log and modules say.
@@ -93,6 +97,11 @@ fn handle(window: &Value) -> Option<u32> {
         .get("hwnd")?
         .as_i64()
         .and_then(|hwnd| u32::try_from(hwnd).ok())
+}
+
+/// A span field's value: tracing prints a string field in quotes and a number bare.
+fn unquoted(value: &str) -> &str {
+    value.trim().trim_matches('"')
 }
 
 impl Rules for WindowsRules {
@@ -233,6 +242,66 @@ impl Rules for WindowsRules {
 
     fn hides_windows_by_position(&self) -> bool {
         false
+    }
+
+    fn block_header(&self, line: &Line, open: Option<&Block>) -> Option<BlockHeader> {
+        let kind = match line.root_span()? {
+            "process_event" => BlockKind::Event,
+            "process_command" => BlockKind::Command,
+            _ => return None,
+        };
+
+        let root = line.spans.first()?;
+        let get = |key: &str| {
+            root.fields
+                .iter()
+                .find(|(name, _)| name == key)
+                .map(|(_, value)| unquoted(value).to_string())
+        };
+
+        let header = match kind {
+            BlockKind::Event => BlockHeader {
+                kind,
+                name: get("event").unwrap_or_default(),
+                pid: None,
+                window_id: get("hwnd").and_then(|hwnd| hwnd.parse().ok()),
+                notification: get("winevent").filter(|winevent| winevent != "None"),
+            },
+            BlockKind::Command => BlockHeader {
+                kind,
+                // `message=FocusWindow(Left)`: the command's name is what is before any argument
+                name: get("message")
+                    .map(|message| {
+                        message
+                            .split(['(', ' ', '{'])
+                            .next()
+                            .unwrap_or_default()
+                            .to_string()
+                    })
+                    .unwrap_or_default(),
+                pid: None,
+                window_id: None,
+                notification: None,
+            },
+        };
+
+        // the handler that is open carries on while its span says the same thing and it has not
+        // logged that it finished; a different span, or the end, starts a new one
+        let continues = open.is_some_and(|block| {
+            block.kind == header.kind
+                && block.name == header.name
+                && block.window_id == header.window_id
+                && block.notification == header.notification
+        });
+        (!continues).then_some(header)
+    }
+
+    fn is_block_end(&self, line: &Line, kind: BlockKind) -> bool {
+        match kind {
+            // INFO `processed: (hwnd: ...)`, or TRACE for the noisiest events
+            BlockKind::Event => line.message.starts_with("processed: "),
+            BlockKind::Command => line.message == "processed",
+        }
     }
 
     fn slow_handler_cause(&self) -> &'static str {

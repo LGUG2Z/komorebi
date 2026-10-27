@@ -24,12 +24,16 @@
 //!
 //! [`verified`]: Rules::verified
 
+use super::BlockHeader;
 use super::Flavor;
 use super::Rules;
+use crate::analysis::blocks::Block;
+use crate::analysis::blocks::BlockKind;
 use crate::analysis::classify::Class;
 use crate::analysis::events::EventInfo;
 use crate::analysis::events::EventRecord;
 use crate::analysis::events::Family;
+use crate::analysis::logparse::Line;
 use serde_json::Value;
 
 /// The [`Rules`] of komorebi for Mac: what its events, `State`, log and modules say.
@@ -57,6 +61,21 @@ const WINDOW_MANAGER_EVENTS: [&str; 14] = [
 ];
 
 const GEOMETRY_EVENTS: [&str; 4] = ["MoveStart", "MoveEnd", "ResizeStart", "ResizeEnd"];
+
+const EVENT_HEADER: &str = "processing event: ";
+const COMMAND_HEADER: &str = "processing command: ";
+const COMMAND_FINISHED: &str = "processed command: ";
+
+/// `FocusChange for process 79469 with notification AXApplicationActivated`
+fn parse_event_header(rest: &str) -> (String, Option<i32>, Option<String>) {
+    let (name, tail) = rest.split_once(" for process ").unwrap_or((rest, ""));
+    let (pid, notification) = tail.split_once(" with notification ").unwrap_or((tail, ""));
+    (
+        name.trim().to_string(),
+        pid.trim().parse().ok(),
+        Some(notification.trim().to_string()).filter(|text| !text.is_empty()),
+    )
+}
 
 /// Whether a window-manager event was made up by komorebi itself rather than reported by macOS.
 fn is_synthesized(event: &EventRecord) -> bool {
@@ -192,6 +211,36 @@ impl Rules for MacRules {
             }
             _ => (Class::Other, "not a known kind of event"),
         }
+    }
+
+    fn block_header(&self, line: &Line, _open: Option<&Block>) -> Option<BlockHeader> {
+        match line.root_span() {
+            Some("process_event") if line.message.starts_with(EVENT_HEADER) => {
+                let (name, pid, notification) =
+                    parse_event_header(&line.message[EVENT_HEADER.len()..]);
+                Some(BlockHeader {
+                    kind: BlockKind::Event,
+                    name,
+                    pid,
+                    window_id: None,
+                    notification,
+                })
+            }
+            Some("process_command") if line.message.starts_with(COMMAND_HEADER) => {
+                Some(BlockHeader {
+                    kind: BlockKind::Command,
+                    name: line.message[COMMAND_HEADER.len()..].trim().to_string(),
+                    pid: None,
+                    window_id: None,
+                    notification: None,
+                })
+            }
+            _ => None,
+        }
+    }
+
+    fn is_block_end(&self, line: &Line, kind: BlockKind) -> bool {
+        kind == BlockKind::Command && line.message.starts_with(COMMAND_FINISHED)
     }
 
     fn slow_handler_cause(&self) -> &'static str {
