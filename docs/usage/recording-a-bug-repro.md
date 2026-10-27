@@ -60,6 +60,7 @@ The recorder window keeps itself out of the video (Windows 10 version 2004 or la
 
 The recorder window is borderless and untitled on purpose: komorebi does not manage windows without a title, so opening
 it does not move your layout around while you are trying to reproduce a layout bug. It is also excluded from the video, as is any other `komorebi-recorder` process.
+The viewer is one such process.
 
 ## Recording
 
@@ -93,6 +94,16 @@ Useful options:
 | `--no-video`                               | Do not capture the screen; record everything else on the same clock (see below)         |
 | `--probe-windows`                          | Windows: after each window event, record what Windows says about that window (see below) |
 | `--fps N`, `--retina`, `--codec hevc\|h264` | Video settings (30 fps cap, logical points, HEVC by default)                           |
+
+### Marking where the bug is
+
+A bug is marked in one place, the viewer, after the recording: `komorebi-recorder view <session>` opens it, and **Mark
+bug** (or **B**) takes a stretch of the recording and what went wrong in it. That marks a _region_, not a single moment.
+The recorder window has no button for it, so while recording there is nothing to do but reproduce the problem.
+
+This is what makes the recording useful to whoever investigates it, person or agent: your description is the ground
+truth of _what_ went wrong, and everything else in the session is evidence of _why_. See
+[Investigating a recording](investigating-a-recording.md#marking-the-bug).
 
 ### Without video
 

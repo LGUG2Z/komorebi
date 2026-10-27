@@ -71,6 +71,7 @@ when things happened (events | errors | incidents):
   00:04.500 ##############################    1   0  0
 ```
 
+`komorebi-recorder view ./repro` opens the recording in the viewer, which is where you mark where the bug is.
 Every command takes `--json`, and `komorebi-recorder guide` prints a playbook for an agent.
 [Investigating a recording](docs/usage/investigating-a-recording.md) walks through both ways of working.
 

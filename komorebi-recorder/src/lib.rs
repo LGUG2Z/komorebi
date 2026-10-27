@@ -60,6 +60,7 @@
 //! | [`doctor`] | what a recording leans on, and probes that measure it |
 //! | [`report`] | answers as text for a terminal |
 //! | [`playback`] | a clock that runs forwards or backwards, and the decoding that follows it |
+//! | [`viewer`] | the window that plays a recording |
 //!
 //! # What is not supported
 //!
@@ -100,3 +101,4 @@ pub mod system_state;
 pub mod testkit;
 pub mod timecode;
 pub mod timeline;
+pub mod viewer;

@@ -14,13 +14,43 @@ Every command takes `--json`, which prints an envelope `{ok, schema, data, warni
 error, 2 usage, 3 not found, 4 the session cannot answer (still recording, or the recorder died: `reindex` it), 5 over
 budget.
 
-Everything a recording holds is available from the command line, so an agent can investigate headlessly:
+## The viewer
+
+```
+komorebi-recorder view <session>
+```
+
+opens the recording in its own window, for the person who made it (or anyone with the folder) to play, scrub and mark.
+The recorder window has **Open session…** and **Open last** for the same thing.
+
+- The **video** of every display, side by side. A display that was unplugged or asleep shows why it has nothing there,
+  and the others carry on. **State overlay** draws komorebi's idea of the layout over the picture: where each tiled
+  window was meant to be (dashed) and where it really was (solid, red if it looks wrong).
+- The **timeline** under it has a lane for the **bug regions** you marked, komorebi's **events** (coloured by what kind,
+  with echoes faint), errors and warnings in komorebi's log, what happened to the **machine** (a display unplugged, a
+  sleep), the **findings** that look wrong, and the **video** each display has. Click anywhere to go there, drag to
+  scrub, pinch or ⌘-scroll to zoom, scroll to pan, Shift-drag to select a range.
+- **Playing** goes forwards and backwards at 0.25× to 8×; J, K and L shuttle like a video editor; ← and → step one
+  frame; `,` and `.` jump between events. Press **?** in the window for every key.
+- The **inspector** on the right: _Now_ is the state at the playhead and what has just happened; _Event_ is a selected
+  event traced end to end, as `trace` shows it, ending with what the OS trace recorded around it (komorebi's own calls
+  into the OS, the system, each application) as groups you can open; _Findings_ is what looks wrong, ranked; _Bugs_ is what was marked and
+  concluded; _Log_ is komorebi's own log, following the playhead.
+
+### Marking the bug
+
+Press **B** (or **Mark bug**) to describe the bug: the form takes the region from your selection (`[` and `]` mark its
+ends, or Shift-drag on the timeline) or from the playhead, asks what goes wrong and what you expected, and saves it the
+moment you press Save. Drag a region's edges on the timeline to adjust it. **Copy a prompt for an agent** in the _Bugs_
+tab puts an instruction on the clipboard that starts an agent on `brief` with your description.
+
+Everything the viewer shows is also available from the command line, so an agent can investigate headlessly:
 
 ## What the user said
 
 The first thing in a [brief](#brief) is the **bug region**: the stretch of the recording the user marked, with their
 description of what is wrong and what they expected.
-Add one with `annotate`:
+The user marks it in the viewer. To add one without a window, as a script or an agent would:
 
 ```
 komorebi-recorder annotate <session> add --kind bug --start 12.5 --end 18 \

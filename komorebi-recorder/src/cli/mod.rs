@@ -12,6 +12,7 @@ mod investigate;
 mod query;
 mod record;
 mod video;
+mod viewer_command;
 
 use crate::analysis::envelope::unusable;
 use crate::analysis::envelope::with_hint;
@@ -46,6 +47,7 @@ pub use query::SummaryArgs;
 pub use record::RecordArgs;
 pub use video::ChangesArgs;
 pub use video::SheetArgs;
+pub use viewer_command::ViewArgs;
 
 /// The command line of `komorebi-recorder`.
 #[derive(Parser)]
@@ -112,6 +114,8 @@ pub enum Command {
     Changes(ChangesArgs),
     /// A contact sheet image of frames, with the times, events and bug region marked
     Sheet(SheetArgs),
+    /// Open a recording in a window: play and scrub the video with every event on a timeline
+    View(ViewArgs),
     /// Which line of komorebi's source wrote a line of its log, with the code around it
     Code(CodeArgs),
     /// Add, edit or delete a session's bug regions, notes and an agent's findings
@@ -239,6 +243,7 @@ pub fn run(command: Command) -> eyre::Result<()> {
         Command::Trace(args) => investigate::trace(&args),
         Command::Window(args) => investigate::window(&args),
         Command::Changes(args) => video::changes(&args),
+        Command::View(args) => crate::viewer::run(args.session),
         Command::Sheet(args) => video::sheet(&args),
         Command::Annotate(args) => annotate::annotate(&args),
         Command::Annotations(args) => annotate::list(&args),
