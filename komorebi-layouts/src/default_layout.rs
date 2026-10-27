@@ -323,10 +323,9 @@ impl DefaultLayout {
     }
 
     #[must_use]
-    #[allow(clippy::cast_precision_loss, clippy::only_used_in_recursion)]
     pub fn resize(
         &self,
-        unaltered: &Rect,
+        _unaltered: &Rect,
         resize: &Option<Rect>,
         edge: OperationDirection,
         sizing: Sizing,
@@ -348,74 +347,25 @@ impl DefaultLayout {
 
         let mut r = resize.unwrap_or_default();
 
-        let resize_delta = delta;
-
+        // Bounds are the caller's concern: no tile may end up smaller than a tenth of the work
+        // area (or smaller than it already is), which depends on the neighbours, not on the
+        // container being resized
         match edge {
             OperationDirection::Left => match sizing {
-                Sizing::Increase => {
-                    // Some final checks to make sure the user can't infinitely resize to
-                    // the point of pushing other windows out of bounds
-
-                    // Note: These checks cannot take into account the changes made to the
-                    // edges of adjacent windows at operation time, so it is still possible
-                    // to push windows out of bounds by maxing out an Increase Left on a
-                    // Window with index 1, and then maxing out a Decrease Right on a Window
-                    // with index 0. I don't think it's worth trying to defensively program
-                    // against this; if people end up in this situation they are better off
-                    // just hitting the retile command
-                    let diff = ((r.left + -resize_delta) as f32).abs();
-                    if diff < unaltered.right as f32 {
-                        r.left += -resize_delta;
-                    }
-                }
-                Sizing::Decrease => {
-                    let diff = ((r.left - -resize_delta) as f32).abs();
-                    if diff < unaltered.right as f32 {
-                        r.left -= -resize_delta;
-                    }
-                }
+                Sizing::Increase => r.left -= delta,
+                Sizing::Decrease => r.left += delta,
             },
             OperationDirection::Up => match sizing {
-                Sizing::Increase => {
-                    let diff = ((r.top + resize_delta) as f32).abs();
-                    if diff < unaltered.bottom as f32 {
-                        r.top += -resize_delta;
-                    }
-                }
-                Sizing::Decrease => {
-                    let diff = ((r.top - resize_delta) as f32).abs();
-                    if diff < unaltered.bottom as f32 {
-                        r.top -= -resize_delta;
-                    }
-                }
+                Sizing::Increase => r.top -= delta,
+                Sizing::Decrease => r.top += delta,
             },
             OperationDirection::Right => match sizing {
-                Sizing::Increase => {
-                    let diff = ((r.right + resize_delta) as f32).abs();
-                    if diff < unaltered.right as f32 {
-                        r.right += resize_delta;
-                    }
-                }
-                Sizing::Decrease => {
-                    let diff = ((r.right - resize_delta) as f32).abs();
-                    if diff < unaltered.right as f32 {
-                        r.right -= resize_delta;
-                    }
-                }
+                Sizing::Increase => r.right += delta,
+                Sizing::Decrease => r.right -= delta,
             },
             OperationDirection::Down => match sizing {
-                Sizing::Increase => {
-                    let diff = ((r.bottom + resize_delta) as f32).abs();
-                    if diff < unaltered.bottom as f32 {
-                        r.bottom += resize_delta;
-                    }
-                }
-                Sizing::Decrease => {
-                    let diff = ((r.bottom - resize_delta) as f32).abs();
-                    if diff < unaltered.bottom as f32 {
-                        r.bottom -= resize_delta;
-                    }
-                }
+                Sizing::Increase => r.bottom += delta,
+                Sizing::Decrease => r.bottom -= delta,
             },
         };
 

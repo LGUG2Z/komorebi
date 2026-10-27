@@ -89,7 +89,8 @@ pub struct WindowManager {
     pub hotwatch: Hotwatch,
     pub virtual_desktop_id: Option<Vec<u8>>,
     pub has_pending_raise_op: bool,
-    pub pending_move_op: Arc<Option<(usize, usize, isize)>>,
+    /// (monitor, workspace, hwnd, rect of the window when the move/resize started)
+    pub pending_move_op: Arc<Option<(usize, usize, isize, Rect)>>,
     pub already_moved_window_handles: Arc<Mutex<HashSet<isize>>>,
     pub uncloack_to_ignore: usize,
     /// Maps each known window hwnd to the (monitor, workspace) index pair managing it
@@ -1324,15 +1325,67 @@ impl WindowManager {
                                 }
                             }
 
-                            let resize = layout.resize(
-                                unaltered
-                                    .get(focused_idx)
-                                    .ok_or_eyre("there is no last layout")?,
-                                focused_idx_resize,
-                                direction,
-                                sizing,
-                                delta,
-                            );
+                            let min_width = focused_monitor_work_area.right / 10;
+                            let min_height = focused_monitor_work_area.bottom / 10;
+                            let unaltered_rect = *unaltered
+                                .get(focused_idx)
+                                .ok_or_eyre("there is no last layout")?;
+
+                            let candidate = |amount: i32| {
+                                layout.resize(
+                                    &unaltered_rect,
+                                    focused_idx_resize,
+                                    direction,
+                                    sizing,
+                                    amount,
+                                )
+                            };
+
+                            let calculate = |dimensions: &[Option<Rect>]| {
+                                layout.calculate(
+                                    &focused_monitor_work_area,
+                                    len,
+                                    workspace.container_padding,
+                                    workspace.layout_flip,
+                                    dimensions,
+                                    workspace.focused_container_idx(),
+                                    workspace.layout_options,
+                                    &workspace.latest_layout,
+                                )
+                            };
+
+                            // No tile may end up smaller than a tenth of the work area, or
+                            // smaller than it already is
+                            let now = calculate(&workspace.resize_dimensions);
+                            let fits = |amount: i32| {
+                                let mut dimensions = workspace.resize_dimensions.clone();
+                                dimensions[focused_idx] = candidate(amount);
+                                calculate(&dimensions).iter().zip(now.iter()).all(
+                                    |(tile, before)| {
+                                        tile.right >= min_width.min(before.right)
+                                            && tile.bottom >= min_height.min(before.bottom)
+                                    },
+                                )
+                            };
+
+                            // Grant as much of the request as fits; tiles only get smaller as
+                            // the amount grows, so bisect
+                            let granted = if fits(delta) {
+                                delta
+                            } else {
+                                let (mut fits_at, mut fails_at) = (0, delta);
+                                while fails_at - fits_at > 1 {
+                                    let middle = fits_at + (fails_at - fits_at) / 2;
+                                    if fits(middle) {
+                                        fits_at = middle;
+                                    } else {
+                                        fails_at = middle;
+                                    }
+                                }
+                                fits_at
+                            };
+
+                            let resize = candidate(granted);
 
                             workspace.resize_dimensions[focused_idx] = resize;
 

@@ -1,6 +1,5 @@
 use std::process::Command;
 use std::sync::Arc;
-use std::sync::atomic::Ordering;
 
 use color_eyre::eyre;
 use color_eyre::eyre::OptionExt;
@@ -24,8 +23,6 @@ use crate::TRAY_AND_MULTI_WINDOW_IDENTIFIERS;
 use crate::VirtualDesktopNotification;
 use crate::Window;
 use crate::border_manager;
-use crate::border_manager::BORDER_OFFSET;
-use crate::border_manager::BORDER_WIDTH;
 use crate::current_virtual_desktop;
 use crate::notify_subscribers;
 use crate::splash;
@@ -653,8 +650,11 @@ impl WindowManager {
 
                 WindowsApi::bring_window_to_top(window.hwnd)?;
 
+                let started_from = WindowsApi::window_rect(window.hwnd)?;
+
                 let pending_move_op = Arc::make_mut(&mut self.pending_move_op);
-                *pending_move_op = Option::from((monitor_idx, workspace_idx, window.hwnd));
+                *pending_move_op =
+                    Option::from((monitor_idx, workspace_idx, window.hwnd, started_from));
             }
             WindowManagerEvent::MoveResizeEnd(_, window) => {
                 // We need this because if the event ends on a different monitor,
@@ -666,7 +666,7 @@ impl WindowManager {
 
                 // If the window handles don't match then something went wrong and the pending move
                 // is not related to this current move, if so abort this operation.
-                if let Some((_, _, w_hwnd)) = pending
+                if let Some((_, _, w_hwnd, _)) = pending
                     && w_hwnd != window.hwnd
                 {
                     color_eyre::eyre::bail!(
@@ -688,15 +688,21 @@ impl WindowManager {
                 let workspace = self.focused_workspace_mut()?;
                 let focused_container_idx = workspace.focused_container_idx();
                 let new_position = WindowsApi::window_rect(window.hwnd)?;
-                let old_position = *workspace
-                    .latest_layout
-                    .get(focused_container_idx)
-                    // If the move was to another monitor with an empty workspace, the
-                    // workspace here will refer to that empty workspace, which won't
-                    // have any latest layout set. We fall back to a Default for Rect
-                    // which allows us to make a reasonable guess that the drag has taken
-                    // place across a monitor boundary to an empty workspace
-                    .unwrap_or(&Rect::default());
+                // Measure against the rect the window had when the drag started, which is what
+                // the user had under the pointer; a window is not always exactly on its tile
+                // (cell grids, minimum sizes, border insets)
+                let old_position = match pending {
+                    Some((_, _, _, started_from)) => started_from,
+                    None => *workspace
+                        .latest_layout
+                        .get(focused_container_idx)
+                        // If the move was to another monitor with an empty workspace, the
+                        // workspace here will refer to that empty workspace, which won't
+                        // have any latest layout set. We fall back to a Default for Rect
+                        // which allows us to make a reasonable guess that the drag has taken
+                        // place across a monitor boundary to an empty workspace
+                        .unwrap_or(&Rect::default()),
+                };
 
                 // This will be true if we have moved to another monitor
                 let mut moved_across_monitors = false;
@@ -707,7 +713,7 @@ impl WindowManager {
                     moved_across_monitors = true;
                 }
 
-                if let Some((origin_monitor_idx, origin_workspace_idx, _)) = pending {
+                if let Some((origin_monitor_idx, origin_workspace_idx, _, _)) = pending {
                     // If we didn't move to another monitor with an empty workspace, it is
                     // still possible that we moved to another monitor with a populated workspace
                     if !moved_across_monitors {
@@ -740,26 +746,17 @@ impl WindowManager {
                 if (workspace.tile && workspace.contains_managed_window(window.hwnd))
                     || moved_across_monitors
                 {
-                    let resize = Rect {
-                        left: new_position.left - old_position.left,
-                        top: new_position.top - old_position.top,
-                        right: new_position.right - old_position.right,
-                        bottom: new_position.bottom - old_position.bottom,
-                    };
-
                     // If we have moved across the monitors, use that override, otherwise determine
                     // if a move has taken place by ruling out a resize
-                    let right_bottom_constant = 0;
-
                     let is_move = moved_across_monitors
-                        || resize.right.abs() == right_bottom_constant
-                            && resize.bottom.abs() == right_bottom_constant;
+                        || (new_position.right == old_position.right
+                            && new_position.bottom == old_position.bottom);
 
                     if is_move {
                         tracing::info!("moving with mouse");
 
                         if moved_across_monitors {
-                            if let Some((origin_monitor_idx, origin_workspace_idx, w_hwnd)) =
+                            if let Some((origin_monitor_idx, origin_workspace_idx, w_hwnd, _)) =
                                 pending
                             {
                                 let target_workspace_idx = self
@@ -848,50 +845,46 @@ impl WindowManager {
                         }
                     } else {
                         tracing::info!("resizing with mouse");
-                        let mut ops = vec![];
-
-                        macro_rules! resize_op {
-                            ($coordinate:expr, $comparator:tt, $direction:expr) => {{
-                                let adjusted = $coordinate * 2;
-                                let sizing = if adjusted $comparator 0 {
-                                    Sizing::Decrease
-                                } else {
-                                    Sizing::Increase
-                                };
-
-                                ($direction, sizing, adjusted.abs())
-                            }};
+                        // Resize the container of the dragged window, which is not necessarily
+                        // the focused one if the press that began the drag did not focus it yet
+                        let workspace = self.focused_workspace_mut()?;
+                        if let Some(idx) = workspace.container_idx_for_window(window.hwnd) {
+                            workspace.focus_container(idx);
                         }
 
-                        if resize.left != 0 {
-                            ops.push(resize_op!(resize.left, >, OperationDirection::Left));
+                        // A Rect is (left, top, width, height); work in edges instead
+                        let edges = |r: &Rect| (r.left, r.top, r.left + r.right, r.top + r.bottom);
+                        let (start_left, start_top, start_right, start_bottom) =
+                            edges(&old_position);
+                        let (end_left, end_top, end_right, end_bottom) = edges(&new_position);
+
+                        let moved = [
+                            (OperationDirection::Left, end_left - start_left),
+                            (OperationDirection::Up, end_top - start_top),
+                            (OperationDirection::Right, end_right - start_right),
+                            (OperationDirection::Down, end_bottom - start_bottom),
+                        ];
+
+                        for (edge, by) in moved.into_iter().filter(|(_, by)| *by != 0) {
+                            let outward = match edge {
+                                OperationDirection::Left | OperationDirection::Up => by < 0,
+                                OperationDirection::Right | OperationDirection::Down => by > 0,
+                            };
+
+                            let sizing = if outward {
+                                Sizing::Increase
+                            } else {
+                                Sizing::Decrease
+                            };
+
+                            // A shared edge is moved by half of what the layout is given
+                            self.resize_window(edge, sizing, by.abs() * 2, false)?;
                         }
 
-                        if resize.top != 0 {
-                            ops.push(resize_op!(resize.top, >, OperationDirection::Up));
+                        // Also puts back a window dragged by an edge with no neighbour
+                        if new_position != old_position {
+                            self.update_focused_workspace(false, false)?;
                         }
-
-                        // TODO: Determine if this is still needed
-                        let top_left_constant = BORDER_WIDTH.load(Ordering::SeqCst)
-                            + BORDER_OFFSET.load(Ordering::SeqCst);
-
-                        if resize.right != 0
-                            && (resize.left == top_left_constant || resize.left == 0)
-                        {
-                            ops.push(resize_op!(resize.right, <, OperationDirection::Right));
-                        }
-
-                        if resize.bottom != 0
-                            && (resize.top == top_left_constant || resize.top == 0)
-                        {
-                            ops.push(resize_op!(resize.bottom, <, OperationDirection::Down));
-                        }
-
-                        for (edge, sizing, delta) in ops {
-                            self.resize_window(edge, sizing, delta, true)?;
-                        }
-
-                        self.update_focused_workspace(false, false)?;
                     }
                 }
             }
