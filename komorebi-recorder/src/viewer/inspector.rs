@@ -785,7 +785,7 @@ fn os_trace_ui(ui: &mut egui::Ui, dir: &std::path::Path, os: &OsTraceData, wants
             group.label, group.during, group.after
         );
         egui::CollapsingHeader::new(RichText::new(title).color(colour))
-            .id_salt((os.seq, &group.source))
+            .id_salt((os.seq, &group.source, &group.label))
             .default_open(group.kind == GroupKind::Komorebi && group.total() <= 12)
             .show(ui, |ui| {
                 for record in &group.records {
