@@ -31,10 +31,16 @@ the 0-BSD license.
 
 ## Working on the code
 
+`nix develop` (or [direnv](https://direnv.net), through the [`.envrc`](.envrc))
+provides the Rust toolchain, a nightly `rustfmt` and the tools the checks use.
+[`rustfmt.toml`](rustfmt.toml) uses an unstable option, which is why the
+formatter is a nightly one.
+
 `just check` runs everything a change has to pass before it is pushed: the
 formatting check, clippy with warnings denied, the tests, and rustdoc with
-warnings denied. Formatting needs a nightly `rustfmt`, because
-[`rustfmt.toml`](rustfmt.toml) uses an unstable option; `just fmt` applies it.
+warnings denied. `just fmt` formats the Rust sources, and `nix fmt` every file
+type the repository has. `nix flake check` is what CI runs; it builds the same
+checks, plus `cargo deny`, as derivations.
 
 ## Commits
 

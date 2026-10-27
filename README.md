@@ -9,10 +9,15 @@ moving and the drawing.
 ## Running it locally
 
 ```sh
+nix develop
 cargo run --bin komorebi --locked -- --version
 ```
 
-The `rust-toolchain.toml` at the root selects the Rust toolchain.
+`nix develop` provides the Rust toolchain that [`rust-toolchain.toml`](rust-toolchain.toml)
+selects, a nightly `rustfmt`, and the tools `just check` and the flake's checks
+use. With [direnv](https://direnv.net), the [`.envrc`](.envrc) does it on
+`cd`. On Linux, `nix run .#komorebi -- --version` builds and runs the daemon
+without a checkout of the toolchain.
 
 ## Crates
 
@@ -22,8 +27,11 @@ The `rust-toolchain.toml` at the root selects the Rust toolchain.
 ## Checks
 
 `just check` runs the formatting check, clippy with warnings denied, the tests
-and rustdoc with warnings denied. Formatting needs a nightly `rustfmt`, because
-[`rustfmt.toml`](rustfmt.toml) uses an unstable option.
+and rustdoc with warnings denied, inside `nix develop`. `nix flake check` runs
+the same checks as derivations, plus `cargo deny`, the TOML and Nix formatting,
+and the tests under `cargo nextest`, on Linux and on an Apple silicon Mac. A Mac
+runs the tests against the fake desktop, since KWin only exists on Linux.
+`nix fmt` formats every file the checks look at.
 
 ## Documentation
 

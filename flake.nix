@@ -1,0 +1,225 @@
+{
+  description = "komorebi for KDE Plasma";
+
+  inputs = {
+    nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
+    flake-parts.url = "github:hercules-ci/flake-parts";
+    crane.url = "github:ipetkov/crane";
+    rust-overlay.url = "github:oxalica/rust-overlay";
+    rust-overlay.inputs.nixpkgs.follows = "nixpkgs";
+    treefmt-nix.url = "github:numtide/treefmt-nix";
+    treefmt-nix.inputs.nixpkgs.follows = "nixpkgs";
+    git-hooks-nix.url = "github:cachix/git-hooks.nix";
+    git-hooks-nix.inputs.nixpkgs.follows = "nixpkgs";
+  };
+
+  outputs =
+    inputs@{
+      self,
+      nixpkgs,
+      flake-parts,
+      crane,
+      rust-overlay,
+      ...
+    }:
+    let
+      mkPkgs =
+        system:
+        import nixpkgs {
+          inherit system;
+          overlays = [ (import rust-overlay) ];
+        };
+
+      mkKomorebiPackages =
+        { pkgs }:
+        let
+          toolchain = pkgs.rust-bin.fromRustupToolchainFile ./rust-toolchain.toml;
+          craneLib = (crane.mkLib pkgs).overrideToolchain toolchain;
+          # rustfmt.toml uses options only a nightly rustfmt knows
+          craneLibFmt = (crane.mkLib pkgs).overrideToolchain (
+            pkgs.rust-bin.nightly.latest.minimal.override { extensions = [ "rustfmt" ]; }
+          );
+
+          src = craneLib.cleanCargoSource ./.;
+
+          commonArgs = {
+            inherit src;
+            pname = "komorebi-workspace";
+            version = (builtins.fromTOML (builtins.readFile ./Cargo.toml)).workspace.package.version;
+            strictDeps = true;
+            # The version crate wants a commit at compile time. It is a constant here, so that the
+            # dependencies and every check are the same derivations for every commit; only the final
+            # build below knows the real one.
+            COMMIT_HASH = "nix-check";
+          };
+
+          cargoArtifacts = craneLib.buildDepsOnly commonArgs;
+
+          individualCrateArgs = commonArgs // {
+            inherit cargoArtifacts;
+            doCheck = false;
+            doDoc = false;
+          };
+
+          fullBuild = craneLib.buildPackage (
+            individualCrateArgs
+            // {
+              COMMIT_HASH = self.rev or (pkgs.lib.removeSuffix "-dirty" self.dirtyRev);
+            }
+          );
+
+          extractBinary =
+            binaryName:
+            pkgs.runCommand "komorebi-${binaryName}" { meta = fullBuild.meta // { }; } ''
+              mkdir -p $out/bin
+              cp ${fullBuild}/bin/${binaryName} $out/bin/
+            '';
+        in
+        {
+          inherit
+            craneLib
+            craneLibFmt
+            src
+            commonArgs
+            individualCrateArgs
+            fullBuild
+            ;
+          komorebi = extractBinary "komorebi";
+        };
+    in
+    flake-parts.lib.mkFlake { inherit inputs; } {
+      # Linux is what komorebi runs on. An Apple silicon Mac gets the dev shell, the formatter and the
+      # checks, which run the same tests against the fake desktop. nixpkgs dropped x86_64-darwin in
+      # 26.11.
+      systems = [
+        "aarch64-linux"
+        "x86_64-linux"
+        "aarch64-darwin"
+      ];
+
+      imports = [
+        inputs.treefmt-nix.flakeModule
+        inputs.git-hooks-nix.flakeModule
+      ];
+
+      perSystem =
+        {
+          config,
+          lib,
+          system,
+          ...
+        }:
+        let
+          pkgs = mkPkgs system;
+          build = mkKomorebiPackages { inherit pkgs; };
+          nightlyRustfmt = pkgs.rust-bin.nightly.latest.rustfmt;
+          nightlyToolchain = pkgs.rust-bin.nightly.latest.default;
+          rustToolchainWithNightlyRustfmt = pkgs.symlinkJoin {
+            name = "rust-toolchain-with-nightly-rustfmt";
+            paths = [
+              nightlyRustfmt
+              (pkgs.rust-bin.fromRustupToolchainFile ./rust-toolchain.toml)
+            ];
+          };
+          # cargo-udeps needs a nightly compiler
+          cargo-udeps = pkgs.writeShellScriptBin "cargo-udeps" ''
+            export PATH="${nightlyToolchain}/bin:$PATH"
+            exec ${pkgs.cargo-udeps}/bin/cargo-udeps "$@"
+          '';
+        in
+        {
+          treefmt = {
+            projectRootFile = "flake.nix";
+            programs = {
+              deadnix.enable = true;
+              just.enable = true;
+              nixfmt.enable = true;
+              taplo.enable = true;
+              rustfmt = {
+                enable = true;
+                package = nightlyRustfmt;
+              };
+            };
+          };
+
+          checks = {
+            komorebi-workspace-fmt = build.craneLibFmt.cargoFmt { inherit (build) src; };
+
+            komorebi-workspace-clippy = build.craneLib.cargoClippy (
+              build.individualCrateArgs
+              // {
+                cargoClippyExtraArgs = "--workspace --all-targets -- -D warnings";
+              }
+            );
+
+            komorebi-workspace-doc = build.craneLib.cargoDoc (
+              build.individualCrateArgs
+              // {
+                cargoDocExtraArgs = "--workspace --no-deps";
+                env.RUSTDOCFLAGS = "-D warnings";
+              }
+            );
+
+            komorebi-workspace-toml-fmt = build.craneLib.taploFmt {
+              src = lib.sources.sourceFilesBySuffices build.src [ ".toml" ];
+            };
+
+            komorebi-workspace-deny = build.craneLib.cargoDeny { inherit (build) src; };
+
+            komorebi-workspace-nextest = build.craneLib.cargoNextest (
+              build.individualCrateArgs // { doCheck = true; }
+            );
+          };
+
+          packages = lib.optionalAttrs pkgs.stdenv.hostPlatform.isLinux {
+            inherit (build) komorebi;
+            komorebi-full = build.fullBuild;
+            default = build.fullBuild;
+          };
+
+          apps = lib.optionalAttrs pkgs.stdenv.hostPlatform.isLinux {
+            komorebi = {
+              type = "app";
+              program = "${build.komorebi}/bin/komorebi";
+              meta.description = "The komorebi daemon";
+            };
+            default = config.apps.komorebi;
+          };
+
+          devShells.default = pkgs.mkShell {
+            name = "komorebi";
+
+            RUST_BACKTRACE = "full";
+
+            inputsFrom = [ build.fullBuild ];
+
+            packages = [
+              rustToolchainWithNightlyRustfmt
+              cargo-udeps
+
+              pkgs.cargo-deny
+              pkgs.cargo-nextest
+              pkgs.jq
+              pkgs.just
+              pkgs.ripgrep
+            ];
+          };
+
+          pre-commit = {
+            check.enable = true;
+            settings.hooks.treefmt = {
+              enable = true;
+              package = config.treefmt.build.wrapper;
+              pass_filenames = false;
+            };
+          };
+        };
+
+      flake = {
+        overlays.default = final: _: {
+          inherit ((mkKomorebiPackages { pkgs = mkPkgs final.stdenv.hostPlatform.system; })) komorebi;
+        };
+        overlays.komorebi = self.overlays.default;
+      };
+    };
+}
