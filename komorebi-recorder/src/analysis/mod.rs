@@ -6,6 +6,7 @@
 //! ([`envelope`]), how a point in time is named ([`timespec`], [`ids`]) and the guard that keeps
 //! file access inside the session ([`guard`]).
 
+pub mod answers;
 pub mod blocks;
 pub mod catalog;
 pub mod classify;
@@ -18,10 +19,13 @@ pub mod flavor;
 pub mod guard;
 pub mod history;
 pub mod ids;
+pub mod invariants;
 pub mod logparse;
 pub mod lookup;
+pub mod overview;
 pub mod state;
 pub mod timespec;
+pub mod trace;
 pub mod views;
 
 pub use facade::Analysis;

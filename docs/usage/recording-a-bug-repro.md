@@ -219,6 +219,7 @@ anchors sampled every 5 seconds during the recording and at every sleep, so cloc
 - subscriber events are stamped when the recorder receives them. komorebi sends the notification _after_ it has handled
   the event, so the stamp is when the handler **finished**; the `processing event` line in `komorebi.log` is when it
   began.
+  `komorebi-recorder trace` ties the two together.
 
 `komorebi-recorder selftest` checks this on your machine: it records a rendered on-screen clock and compares the clock
 visible in the video with the time the session predicts. The result is stored in `session.json` under `calibration`.

@@ -26,8 +26,19 @@
 //!
 //! Times are written as timecodes (`00:12.500`, see [`crate::timecode::format`]) in video time.
 
+use crate::analysis::answers::DiffData;
+use crate::analysis::answers::EventsData;
+use crate::analysis::answers::StateData;
 use crate::analysis::code::CodeData;
 use crate::analysis::history::HistoryData;
+use crate::analysis::invariants::Severity;
+use crate::analysis::invariants::Violation;
+use crate::analysis::overview::Finding;
+use crate::analysis::overview::OverviewData;
+use crate::analysis::state::Container;
+use crate::analysis::state::Window;
+use crate::analysis::trace::TraceData;
+use crate::analysis::trace::TraceLine;
 use crate::annotations::AnnotationView;
 use crate::annotations::Kind;
 use crate::timecode;
@@ -460,6 +471,337 @@ fn rect_text(rect: &Option<crate::analysis::state::Rect>) -> String {
         .map_or_else(|| "rect unknown".to_string(), |rect| rect.describe())
 }
 
+fn window_line(window: &Window, marker: &str) -> String {
+    format!(
+        "{marker} window {} {} \"{}\"  {}",
+        window.id,
+        window.exe,
+        window.title,
+        rect_text(&window.rect)
+    )
+}
+
+fn container_lines(out: &mut String, index: usize, container: &Container, focused: bool) {
+    for (tab, window) in container.windows.iter().enumerate() {
+        let marker = if tab == 0 {
+            format!("{index:>3}{}", if focused { "*" } else { " " })
+        } else {
+            "    ".to_string()
+        };
+        let front = if container.windows.len() > 1 && tab == container.focused {
+            " (front tab)"
+        } else {
+            ""
+        };
+        let _ = writeln!(out, "      {}{front}", window_line(window, &marker));
+    }
+}
+
+fn violation_lines(out: &mut String, violations: &[Violation]) {
+    for violation in violations {
+        let severity = match violation.severity {
+            Severity::Error => "error",
+            Severity::Warn => "warn ",
+            Severity::Info => "info ",
+        };
+        let _ = writeln!(
+            out,
+            "  {severity} {}: {}",
+            violation.kind, violation.message
+        );
+    }
+}
+
+/// Renders the answer to `state`: the moment and which notification the state is from, the focus,
+/// each monitor with its workspaces and the windows in them, the windows asked about, and what looks
+/// wrong.
+///
+/// The heading says how old the state is. If it is more than five seconds old a note says that
+/// komorebi can change state without a notification, so it may be out of date. A workspace that is
+/// showing is marked, and workspaces that are not showing and were left out of the answer are listed
+/// with their window counts. A window that matched what was asked about says where it is, where it
+/// really is and, for a tiled window, where the layout says it should be.
+///
+/// # Example
+///
+/// ```rust
+/// use komorebi_recorder::analysis::Analysis;
+/// use komorebi_recorder::analysis::answers::StateQuery;
+/// use komorebi_recorder::report::state_text;
+/// use komorebi_recorder::testkit::{SessionBuilder, mach_ns, state_with_windows};
+/// use serde_json::json;
+///
+/// let (session, _) = SessionBuilder::new("doc-state-text")
+///     .event(2.0, json!({"type": "Retile"}), Some(state_with_windows(&[(7, "Terminal")])))
+///     .build();
+/// let analysis = Analysis::open(&session.dir)?;
+/// let data = analysis.state_answer(mach_ns(2.5), &StateQuery::default())?;
+///
+/// let text = state_text(&data);
+/// assert!(text.starts_with("state at 00:02.500  (as of event #1, 500 ms before)\n"));
+/// assert!(text.contains("workspace one [showing]"));
+/// assert!(text.contains("window 7 Terminal"));
+/// assert!(text.contains("nothing looks wrong in this state"));
+/// # Ok::<(), Box<dyn std::error::Error>>(())
+/// ```
+#[must_use]
+pub fn state_text(data: &StateData) -> String {
+    let mut out = String::new();
+    let age = data.origin.age_ms.map_or_else(String::new, |age| {
+        if age < 1000.0 {
+            format!(", {age:.0} ms before")
+        } else {
+            format!(", {:.1} s before", age / 1000.0)
+        }
+    });
+    let source = match (data.origin.source.as_str(), data.origin.seq) {
+        ("event", Some(seq)) => format!("as of event #{seq}{age}"),
+        _ => format!("the state when recording began{age}"),
+    };
+    let _ = writeln!(out, "state at {}  ({source})", data.at.timecode);
+    if data.origin.age_ms.is_some_and(|age| age > 5000.0) {
+        let _ = writeln!(
+            out,
+            "note: nothing was reported for a while, and komorebi can change state without a \
+             notification, so this may be out of date"
+        );
+    }
+
+    if let Some(focus) = &data.focus {
+        let _ = writeln!(
+            out,
+            "focus: window {} on monitor {} workspace {}",
+            focus
+                .window_id
+                .map_or_else(|| "(none)".to_string(), |id| id.to_string()),
+            focus.monitor_id,
+            focus.workspace
+        );
+    }
+    if data.paused {
+        let _ = writeln!(out, "komorebi is PAUSED");
+    }
+
+    for monitor in &data.monitors {
+        let _ = writeln!(
+            out,
+            "\nmonitor {} \"{}\"  {}",
+            monitor.id,
+            monitor.device,
+            monitor.size.describe()
+        );
+
+        for (index, workspace) in monitor.workspaces.iter().enumerate() {
+            let showing = data.workspaces.iter().any(|summary| {
+                summary.monitor_id == monitor.id
+                    && summary.name == workspace.name
+                    && summary.showing
+            });
+            let _ = writeln!(
+                out,
+                "  workspace {}{}  {}{}",
+                workspace.name,
+                if showing { " [showing]" } else { "" },
+                workspace.layout,
+                if workspace.layer == "Floating" {
+                    "  [floating layer]"
+                } else {
+                    ""
+                },
+            );
+            let _ = index;
+
+            for (container_index, container) in workspace.containers.iter().enumerate() {
+                container_lines(
+                    &mut out,
+                    container_index,
+                    container,
+                    showing && container_index == workspace.focused,
+                );
+            }
+            if let Some(monocle) = &workspace.monocle {
+                let _ = writeln!(out, "      monocle:");
+                container_lines(&mut out, 0, monocle, true);
+            }
+            if let Some(window) = &workspace.maximized {
+                let _ = writeln!(out, "{}", window_line(window, "      maximized"));
+            }
+            for window in &workspace.floating {
+                let _ = writeln!(out, "{}", window_line(window, "      floating"));
+            }
+        }
+    }
+
+    let hidden: Vec<String> = data
+        .workspaces
+        .iter()
+        .filter(|summary| {
+            !summary.showing
+                && !data.monitors.iter().any(|monitor| {
+                    monitor.id == summary.monitor_id
+                        && monitor
+                            .workspaces
+                            .iter()
+                            .any(|workspace| workspace.name == summary.name)
+                })
+        })
+        .map(|summary| format!("{} ({})", summary.name, summary.windows))
+        .collect();
+    if !hidden.is_empty() {
+        let _ = writeln!(
+            out,
+            "\nnot showing (windows): {}  (--all to list them)",
+            hidden.join(", ")
+        );
+    }
+
+    for found in &data.matches {
+        let _ = writeln!(
+            out,
+            "\nwindow {} {} \"{}\"\n  where:    {}\n  really at: {}{}",
+            found.window.id,
+            found.window.exe,
+            found.window.title,
+            found.location.describe(),
+            rect_text(&found.window.rect),
+            if found.hidden_position {
+                "  (parked off screen)"
+            } else {
+                ""
+            },
+        );
+        if let Some(layout) = &found.layout_rect {
+            let _ = writeln!(out, "  layout says: {}", layout.describe());
+        }
+    }
+
+    if data.violations.is_empty() {
+        let _ = writeln!(out, "\nnothing looks wrong in this state");
+    } else {
+        let _ = writeln!(out, "\nwrong in this state:");
+        violation_lines(&mut out, &data.violations);
+    }
+
+    out
+}
+
+/// Renders the answer to `diff`: the two moments, a line for each change, and the violations that
+/// appeared or were resolved between them.
+///
+/// # Example
+///
+/// ```rust
+/// use komorebi_recorder::analysis::Analysis;
+/// use komorebi_recorder::report::diff_text;
+/// use komorebi_recorder::testkit::{SessionBuilder, mach_ns, state_with_windows};
+/// use serde_json::json;
+///
+/// let (session, _) = SessionBuilder::new("doc-diff-text")
+///     .event(2.0, json!({"type": "Retile"}), Some(state_with_windows(&[(7, "Terminal")])))
+///     .event(4.0, json!({"type": "Retile"}), Some(state_with_windows(&[(7, "Terminal"), (8, "Browser")])))
+///     .build();
+/// let analysis = Analysis::open(&session.dir)?;
+///
+/// let text = diff_text(&analysis.diff_answer(mach_ns(3.0), mach_ns(5.0))?);
+/// assert!(text.starts_with("from 00:03.000  to 00:05.000\n"));
+/// assert!(text.contains("Browser \"window 8\" (window 8) appeared on monitor 1 workspace one"));
+/// # Ok::<(), Box<dyn std::error::Error>>(())
+/// ```
+#[must_use]
+pub fn diff_text(data: &DiffData) -> String {
+    let mut out = String::new();
+    let _ = writeln!(out, "from {}  to {}", data.from.timecode, data.to.timecode);
+    if data.changes.is_empty() {
+        let _ = writeln!(out, "no difference between the two states");
+    }
+    for change in &data.changes {
+        let _ = writeln!(out, "  {}", change.text);
+    }
+    if !data.violations_appeared.is_empty() {
+        let _ = writeln!(out, "\nwrong now, and not before:");
+        violation_lines(&mut out, &data.violations_appeared);
+    }
+    if !data.violations_resolved.is_empty() {
+        let _ = writeln!(out, "\nwrong before, and not now:");
+        violation_lines(&mut out, &data.violations_resolved);
+    }
+    out
+}
+
+/// Renders the answer to `events`: how many of the session's events matched and a line for each one
+/// returned.
+///
+/// A line has the sequence number, the time, the class, what the event was, where the log has its
+/// handler at least how long the handler ran and how many errors (`E`) and warnings (`W`) it logged,
+/// and whether the state changed. With `verbose` a line follows each event saying why it was classified
+/// as it was.
+///
+/// # Example
+///
+/// ```rust
+/// use komorebi_recorder::analysis::Analysis;
+/// use komorebi_recorder::analysis::answers::EventQuery;
+/// use komorebi_recorder::report::events_text;
+/// use komorebi_recorder::testkit::SessionBuilder;
+/// use serde_json::json;
+///
+/// let (session, _) = SessionBuilder::new("doc-events-text")
+///     .event(2.0, json!({"type": "Retile"}), None)
+///     .build();
+/// let analysis = Analysis::open(&session.dir)?;
+///
+/// let text = events_text(&analysis.events_answer(&EventQuery::default()).data, false);
+/// assert!(text.starts_with("1 of 1 events\n#1     00:02.000  command"));
+/// # Ok::<(), Box<dyn std::error::Error>>(())
+/// ```
+#[must_use]
+pub fn events_text(data: &EventsData, verbose: bool) -> String {
+    let mut out = String::new();
+    let _ = writeln!(
+        out,
+        "{} of {} events{}",
+        data.matching,
+        data.total,
+        data.subscriber
+            .as_ref()
+            .map_or_else(String::new, |name| format!(
+                " (recorded as subscriber {name})"
+            ))
+    );
+
+    for event in &data.events {
+        let handler = event.handler.as_ref().map_or_else(String::new, |handler| {
+            let ms = handler
+                .handler_ms
+                .map_or_else(String::new, |ms| format!(" {ms:.0} ms"));
+            let problems = if handler.errors + handler.warnings > 0 {
+                format!(" {}E/{}W", handler.errors, handler.warnings)
+            } else {
+                String::new()
+            };
+            format!("  handler{ms}{problems}")
+        });
+        let state = match event.state_changed {
+            Some(true) => "  state changed",
+            Some(false) => "  state unchanged",
+            None => "",
+        };
+        let _ = writeln!(
+            out,
+            "#{:<5} {}  {:<9}  {}{handler}{state}",
+            event.seq,
+            timecode::format(event.video_s),
+            format!("{:?}", event.class).to_lowercase(),
+            event.summary,
+        );
+        if verbose {
+            let _ = writeln!(out, "         {}", event.reason);
+        }
+    }
+
+    out
+}
+
 /// Renders the answer to `code`: for each log line asked about, the statement in komorebi's source
 /// that wrote it, and for a search, the statements that matched.
 ///
@@ -580,6 +922,153 @@ pub fn code_text(data: &CodeData) -> String {
     out
 }
 
+fn trace_line_text(out: &mut String, line: &TraceLine) {
+    let time = line.video_s.map_or_else(String::new, |seconds| {
+        format!(" {}", timecode::format(seconds))
+    });
+    let _ = writeln!(
+        out,
+        "  log:{:<6}{time} {:<5} {}{}",
+        line.line,
+        line.level.as_deref().unwrap_or(""),
+        if line.spans.is_empty() {
+            String::new()
+        } else {
+            format!("[{}] ", line.spans)
+        },
+        line.message
+    );
+    if let Some(source) = &line.source {
+        let _ = writeln!(
+            out,
+            "          from {} in {}{}{}",
+            source.location,
+            source.function,
+            if source.file_changed {
+                "  [file differs from the recorded komorebi]"
+            } else {
+                ""
+            },
+            if line.changes_state_silently {
+                "  [changes state without a notification]"
+            } else {
+                ""
+            }
+        );
+    }
+}
+
+/// Renders the answer to `trace`: the event, what its handler logged, and each change to the state
+/// with who is held to have made it.
+///
+/// The text also has what other threads logged meanwhile, the evidence for each attribution, and
+/// what looks wrong after the event that did not before. When the data has them, it adds what
+/// Windows said about the event's window (a recording made with `--probe-windows`), the OS trace
+/// around the event (`trace --os`) grouped by where it came from, and notes such as a slow handler.
+///
+/// # Example
+///
+/// ```rust
+/// use komorebi_recorder::analysis::Analysis;
+/// use komorebi_recorder::report::trace_text;
+/// use komorebi_recorder::testkit::{SessionBuilder, state_with_windows};
+/// use serde_json::json;
+///
+/// let (session, _) = SessionBuilder::new("doc-trace-text")
+///     .event(2.0, json!({"type": "Retile"}), Some(state_with_windows(&[(7, "Terminal")])))
+///     .build();
+/// let analysis = Analysis::open(&session.dir)?;
+///
+/// let text = trace_text(&analysis.trace(1)?);
+/// assert!(text.starts_with("event #1  received 00:02.000  Retile\n  command ("));
+/// # Ok::<(), Box<dyn std::error::Error>>(())
+/// ```
+#[must_use]
+pub fn trace_text(data: &TraceData) -> String {
+    let mut out = String::new();
+    let event = &data.event;
+    let _ = writeln!(
+        out,
+        "event #{}  received {}  {}\n  {} ({})",
+        event.seq,
+        timecode::format(event.video_s),
+        event.summary,
+        format!("{:?}", event.class).to_lowercase(),
+        event.reason
+    );
+    if let Some(handler) = &event.handler {
+        let _ = writeln!(
+            out,
+            "  handler logged {} line(s) from {}, began {}{}",
+            handler.lines,
+            timecode::format(handler.started_video_s),
+            handler.handler_ms.map_or_else(String::new, |ms| format!(
+                "{ms:.0} ms before it was received"
+            )),
+            if handler.errors + handler.warnings > 0 {
+                format!(
+                    ", {} error(s), {} warning(s)",
+                    handler.errors, handler.warnings
+                )
+            } else {
+                String::new()
+            }
+        );
+    }
+
+    if !data.handler.is_empty() {
+        let _ = writeln!(out, "\nwhat the handler logged:");
+        for line in &data.handler {
+            trace_line_text(&mut out, line);
+        }
+    }
+    if !data.ambient.is_empty() {
+        let _ = writeln!(out, "\nlogged by other threads meanwhile:");
+        for line in &data.ambient {
+            trace_line_text(&mut out, line);
+        }
+    }
+
+    if data.changes.is_empty() {
+        let _ = writeln!(out, "\nthe state did not change");
+    } else {
+        let _ = writeln!(out, "\nwhat changed, and who did it:");
+        for traced in &data.changes {
+            let attribution = &traced.attribution;
+            let _ = writeln!(
+                out,
+                "  {}\n      -> {} ({}): {}",
+                traced.change.text, attribution.actor, attribution.confidence, attribution.reason
+            );
+            if !attribution.evidence.is_empty() {
+                let lines: Vec<String> = attribution
+                    .evidence
+                    .iter()
+                    .map(|line| format!("log:{line}"))
+                    .collect();
+                let _ = writeln!(out, "         evidence: {}", lines.join(", "));
+            }
+        }
+    }
+
+    if !data.violations_appeared.is_empty() {
+        let _ = writeln!(out, "\nwrong after this event, and not before:");
+        violation_lines(&mut out, &data.violations_appeared);
+    }
+    if !data.violations_resolved.is_empty() {
+        let _ = writeln!(out, "\nwrong before this event, and not after:");
+        violation_lines(&mut out, &data.violations_resolved);
+    }
+    if !data.notes.is_empty() {
+        let _ = writeln!(out, "\nnotes:");
+        for note in &data.notes {
+            let _ = writeln!(out, "  - {note}");
+        }
+    }
+
+    out
+}
+
 /// Renders the answer to `window`: the windows the query matched, then an entry for each event that
 /// came with a change to one of them.
 ///
@@ -647,6 +1136,106 @@ pub fn history_text(data: &HistoryData) -> String {
 
     if data.matching > data.entries.len() {
         let _ = writeln!(out, "... {} more", data.matching - data.entries.len());
+    }
+
+    out
+}
+
+fn finding_line(finding: &Finding) -> String {
+    let severity = match finding.severity {
+        Severity::Error => "error",
+        Severity::Warn => "warn ",
+        Severity::Info => "info ",
+    };
+    let bugs = if finding.bugs.is_empty() {
+        String::new()
+    } else {
+        "  [in or just before a bug region]".to_string()
+    };
+    format!(
+        "{severity} {}  {}  {}{bugs}",
+        timecode::format(finding.start_video_s),
+        finding.kind,
+        finding.summary
+    )
+}
+
+/// Renders the answer to `overview`: the session's size, the bug regions the user marked, the
+/// findings most worth looking at first, and a histogram of when things happened.
+///
+/// Each finding has the command to dig into it. The histogram has a row for each bucket of time with something in it: a bar scaled to the
+/// busiest bucket's number of events, then the counts of events, log errors and incidents.
+///
+/// # Example
+///
+/// ```rust
+/// use komorebi_recorder::analysis::Analysis;
+/// use komorebi_recorder::report::overview_text;
+/// use komorebi_recorder::testkit::SessionBuilder;
+/// use serde_json::json;
+///
+/// let (session, _) = SessionBuilder::new("doc-overview-text")
+///     .event(2.0, json!({"type": "Retile"}), None)
+///     .build();
+/// let text = overview_text(&Analysis::open(&session.dir)?.overview(None)?);
+/// assert!(text.contains(": 10 s of video, 1 events, 0 log lines, 0 incidents"));
+/// assert!(text.contains("when things happened (events | errors | incidents):"));
+/// # Ok::<(), Box<dyn std::error::Error>>(())
+/// ```
+#[must_use]
+pub fn overview_text(data: &OverviewData) -> String {
+    let mut out = String::new();
+    let session = &data.session;
+    let _ = writeln!(
+        out,
+        "session {}: {} s of video, {} events, {} log lines, {} incidents",
+        session.dir,
+        session.duration_s as i64,
+        session.events,
+        session.log_lines,
+        session.incidents
+    );
+
+    for bug in &data.bugs {
+        let _ = writeln!(out, "\nbug region:");
+        out.push_str(&annotation_text(bug));
+    }
+
+    let _ = writeln!(
+        out,
+        "\nfindings, most worth looking at first ({} of {}):",
+        data.findings.len(),
+        data.findings_total
+    );
+    for finding in &data.findings {
+        let _ = writeln!(out, "  {}", finding_line(finding));
+        if let Some(next) = &finding.next {
+            let _ = writeln!(out, "         {next}");
+        }
+    }
+
+    let peak = data
+        .histogram
+        .iter()
+        .map(|bucket| bucket.events)
+        .max()
+        .unwrap_or(0)
+        .max(1);
+    let _ = writeln!(out, "\nwhen things happened (events | errors | incidents):");
+    for bucket in &data.histogram {
+        if bucket.events + bucket.log_errors + bucket.incidents == 0 {
+            continue;
+        }
+        let bar = "#".repeat((bucket.events * 30).div_ceil(peak));
+        let _ = writeln!(
+            out,
+            "  {} {:<30} {:>4} {:>3} {:>2}",
+            timecode::format(bucket.start_s),
+            bar,
+            bucket.events,
+            bucket.log_errors,
+            bucket.incidents
+        );
     }
 
     out
