@@ -8,6 +8,8 @@ repository.workspace = true
 [dependencies]
 clap = { workspace = true }
 color-eyre = { workspace = true }
+crossbeam-channel = { workspace = true }
+dirs = { workspace = true }
 schemars = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
@@ -16,6 +18,7 @@ serde_json = { workspace = true }
 libc = "0.2"
 
 [target.'cfg(windows)'.dependencies]
+uds_windows = "1"
 windows = { version = "0.62", features = [
   "Foundation",
   "Graphics",

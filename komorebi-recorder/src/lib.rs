@@ -43,6 +43,10 @@
 //! | [`clock`] | the master clock, anchors and the map between the wall clock and the master clock |
 //! | [`platform`] | everything that differs by host, behind one facade |
 //! | [`analysis`] | understanding a session without a window, starting with the komorebi flavors |
+//! | [`komorebi_link`] | talking to a running komorebi over its socket |
+//! | [`incidents`] | what happened to the recording itself, as a log of its own |
+//! | [`lock`] | telling a running recorder from one that died |
+//! | [`sources`] | the sources that write raw files into the session |
 //!
 //! # What is not supported
 //!
@@ -57,5 +61,9 @@
 
 pub mod analysis;
 pub mod clock;
+pub mod incidents;
+pub mod komorebi_link;
+pub mod lock;
 pub mod platform;
+pub mod sources;
 pub mod timecode;

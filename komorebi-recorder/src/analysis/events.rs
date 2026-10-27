@@ -19,6 +19,8 @@
 //! [`super::classify`] labels each [`EventRecord`]. Tying an event to the log lines of the handler
 //! that produced it is done by `blocks::pair`. Both read the events this module returns.
 
+use super::flavor::Rules;
+use crate::sources::komorebi_events::EventRow;
 use schemars::JsonSchema;
 use serde::Serialize;
 use serde_json::Value;
@@ -172,4 +174,63 @@ pub struct EventRecord {
     /// Why the notification's JSON could not be parsed, if it could not. Such a record has
     /// [`Family::Unknown`] and the name `unreadable`.
     pub parse_error: Option<String>,
+}
+
+impl EventRecord {
+    /// Returns the record for one line of `events.jsonl`, reading its event with `rules`.
+    ///
+    /// A row with no event (its notification could not be parsed as JSON) gives
+    /// [`Family::Unknown`] and the name `unreadable`, not an error; the row's other fields are
+    /// kept.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use komorebi_recorder::analysis::events::{EventRecord, Family};
+    /// use komorebi_recorder::analysis::flavor::Flavor;
+    /// use komorebi_recorder::sources::komorebi_events::EventRow;
+    ///
+    /// let row: EventRow = serde_json::from_str(
+    ///     r#"{"seq": 7, "recv_wall_us": 0, "recv_mach_ns": 30, "state_id": 4,
+    ///         "event": {"type": "Retile"}}"#,
+    /// )?;
+    /// let record = EventRecord::from_row(&row, Flavor::Macos.rules());
+    /// assert_eq!(record.seq, 7);
+    /// assert_eq!(record.state_id, Some(4));
+    /// assert_eq!(record.info.family, Family::Command);
+    ///
+    /// // a notification that was not JSON has no event: it is unreadable, and says why
+    /// let row: EventRow = serde_json::from_str(
+    ///     r#"{"seq": 8, "recv_wall_us": 0, "recv_mach_ns": 40, "parse_error": "expected value"}"#,
+    /// )?;
+    /// let record = EventRecord::from_row(&row, Flavor::Macos.rules());
+    /// assert_eq!(record.info.family, Family::Unknown);
+    /// assert_eq!(record.info.name, "unreadable");
+    /// assert_eq!(record.parse_error.as_deref(), Some("expected value"));
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// ```
+    #[must_use]
+    pub fn from_row(row: &EventRow, rules: &dyn Rules) -> Self {
+        let info = row.event.as_ref().map_or_else(
+            || EventInfo {
+                family: Family::Unknown,
+                name: "unreadable".to_string(),
+                notification: None,
+                pid: None,
+                window_id: None,
+                exe: None,
+                argument: None,
+            },
+            |event| rules.describe_event(event),
+        );
+
+        Self {
+            seq: row.seq,
+            recv_mach_ns: row.recv_mach_ns,
+            recv_wall_us: row.recv_wall_us,
+            state_id: row.state_id,
+            info,
+            parse_error: row.parse_error.clone(),
+        }
+    }
 }

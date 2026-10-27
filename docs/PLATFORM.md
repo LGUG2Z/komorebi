@@ -46,6 +46,24 @@ Video frame times and the OS trace are on the master clock already on both hosts
 `machTimestamp` on a Mac; Windows.Graphics.Capture on Windows). The field names ending in `_mach_ns` are spelled that way
 on every host: see [the architecture](ARCHITECTURE.md#the-master-clock).
 
+### Locking a session
+
+A recording holds an exclusive lock on `recorder.lock` in its session for as long as it runs, and writes its process id
+to `recorder.pid`. The OS drops the lock when the process dies, however it dies, so a lock that is held means a live
+recorder and one that is free means there is none. Windows file locks are mandatory, which is why the pid is not kept in
+the locked file.
+
+### komorebi's log and how the recorder talks to it
+
+| | komorebi for Mac | komorebi for Windows |
+|---|---|---|
+| data directory | `~/Library/Application Support/komorebi` | `%LOCALAPPDATA%\komorebi` |
+| log | `komorebi_plaintext.log.<UTC date>` in the data directory | `%TEMP%\komorebi_plaintext.log.<UTC date>` |
+| command and subscriber sockets | unix domain sockets in the data directory | unix domain sockets in the data directory, through `uds_windows` |
+| `--log-level debug` | `komorebi --log-level debug` | `komorebi.exe --log-level debug`; `RUST_LOG=debug` also prints every dependency, so name the crate: `RUST_LOG=komorebi=debug` |
+
+The wire protocol is the same on both. The recorder's own binary does not depend on either komorebi's crates.
+
 ## Degraded modes
 
 - `record --no-video` records everything but the screen, on the same clock. It asks the system nothing about displays and

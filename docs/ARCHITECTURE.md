@@ -72,3 +72,4 @@ source and have not been checked against a recording of it: an analysis that rea
 | An implementor of `Rules` answers every question that has no default | the type system: a missing method is E0046, proved by a `compile_fail` example on `Rules` |
 | Code that reads komorebi's output asks `Rules` and does not match on `Flavor` | convention only |
 | Rules that were not checked against a recording of komorebi say so | the framework path: an analysis that reads such a session adds a warning |
+| A running recorder can be told from one that died | the OS: an exclusive lock on `recorder.lock`, held for as long as the recorder runs and dropped by the OS when the process ends however it ends |
