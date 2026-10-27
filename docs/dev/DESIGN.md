@@ -143,3 +143,15 @@ to the middle of the focused window, for two different windows. The backend asks
 KWin reports the window it focused as active, so the action finds the right one. The cost is
 that the pointer can go to the middle of the focused window and nowhere else, which is what
 komorebi asks for.
+
+## Why does komorebi take every window out of its layout when KWin leaves the session bus?
+
+Because nothing else will say that they have gone. When KWin goes away under a running
+session (it crashed, or another KWin replaced it), its clients lose their connection and
+their windows go with it, and so does the bridge, which would have reported them closing. In
+the spikes KWin was killed and started again under a running daemon on the same bus, twice:
+the old windows vanished without a single `removed` event. What the daemon does see is the
+bus itself: `NameOwnerChanged` says that `org.kde.KWin` has lost its owner, and later that it
+has a new one. So losing the name counts as every window closing, and getting it back as the
+moment to load the bridge into the new KWin, which then reports its desktop as it does at
+start.

@@ -59,6 +59,7 @@ use crate::window_manager_event::KWinNotification;
 use crate::window_manager_event::SystemNotification;
 use crate::window_manager_event::WindowManagerEvent;
 use serde_json::Value;
+use serde_json::json;
 use std::collections::HashMap;
 use std::time::Duration;
 use std::time::Instant;
@@ -211,6 +212,30 @@ impl Table {
     /// to a dialog, a panel, a popup.
     fn manageable(&self, entry: &Entry) -> bool {
         entry.kwin_normal
+    }
+
+    /// KWin went away. Its windows go with it, and nothing will report them closing.
+    ///
+    /// Returns a [`WindowManagerEvent::Destroy`] for every window the window manager may manage,
+    /// as if each had been closed, and forgets which window has the focus. The windows stay in
+    /// the table as closed ones, so their ids are not given out again. A KWin that comes back
+    /// reports its desktop in a new snapshot.
+    pub fn compositor_lost(&mut self, now: Instant) -> Vec<Output> {
+        let ids: Vec<u32> = self
+            .windows
+            .iter()
+            .filter(|(_, e)| e.info.alive)
+            .map(|(id, _)| *id)
+            .collect();
+
+        let mut out = vec![];
+        for id in ids {
+            let uuid = self.windows[&id].uuid.clone();
+            out.extend(self.on_removed(&json!({ "id": uuid }), now));
+        }
+
+        self.foreground = None;
+        out
     }
 
     /// Records the frame komorebi has just asked KWin to give a window, so that the window manager
@@ -516,7 +541,6 @@ fn process(pid: i32, class: &str) -> (String, String) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use serde_json::json;
 
     fn win(id: &str, desktops: &[&str]) -> Value {
         json!({
@@ -876,5 +900,26 @@ mod tests {
             956,
             "the client rounded it to its cell grid"
         );
+    }
+
+    #[test]
+    fn when_kwin_goes_away_every_window_it_had_is_destroyed() {
+        let mut t = table(vec![win("a", &["d1"]), win("b", &["d1"])]);
+        t.handle(&json!({ "type": "activated", "id": "a" }), Instant::now());
+
+        let mut destroyed = events(&t.compositor_lost(Instant::now()));
+        destroyed.sort();
+        assert_eq!(destroyed, vec!["Destroy 1", "Destroy 2"]);
+        assert_eq!(t.foreground(), None);
+        assert!(t.windows().is_empty());
+        assert!(
+            t.compositor_lost(Instant::now()).is_empty(),
+            "a window is destroyed once"
+        );
+
+        // the windows of the KWin that comes back are new ones, with ids of their own
+        t.handle(&snapshot(vec![win("c", &["d1"])]), Instant::now());
+        let ids: Vec<u32> = t.windows().iter().map(|w| w.id).collect();
+        assert_eq!(ids, vec![3]);
     }
 }

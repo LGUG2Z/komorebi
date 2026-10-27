@@ -103,6 +103,8 @@ the run.
 - `start_komorebi(*args)` starts the daemon in the session, `stop_komorebi()`
   stops it with `SIGTERM`, `komorebi_log()` returns its log since it was last
   started, and `script_loaded()` asks KWin whether it runs the bridge.
+  `restart_kwin()` stops the session's KWin and starts a new one on the same
+  bus, as when the compositor of a running session crashes, and waits for it.
 - `daemon` reads the daemon's view of the desktop from that log, started with
   `--log-level debug`: `daemon.events(log)` lists the window events it handled,
   in order, `daemon.window_ids(log)` maps a window's title to the daemon's id

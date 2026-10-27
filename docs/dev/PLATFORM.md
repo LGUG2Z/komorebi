@@ -74,6 +74,18 @@ and carries the commands out in KWin, in order. The script API cannot move the p
 when the pointer follows the focus komorebi invokes KWin's own "Move Mouse to Focus" shortcut,
 which puts the pointer in the middle of the window KWin has focused.
 
+#### When KWin restarts
+
+KWin can go away while the session goes on: it crashed, or `kwin_wayland --replace` took its
+place. The session bus stays, and the windows go with the old KWin. komorebi keeps running. It
+watches who owns `org.kde.KWin` on the session bus, and when nobody does it takes every window
+of the old KWin out of its layout, as if each had been closed: the bridge went with KWin, so
+nothing reports them closing. When the name has an owner again, komorebi loads the bridge into
+the new KWin, trying again for up to 15 seconds while KWin is not ready for it, and the bridge
+reports the new KWin's windows and outputs as it does at start. A window that opens in the new
+KWin is tiled. In the spikes the bridge was loaded again 1.0 to 1.1 seconds after the name had
+an owner again; the VM test `vm-kwin-restart` restarts KWin twice under a running daemon.
+
 #### What komorebi leaves behind
 
 When it is stopped with `SIGINT` or `SIGTERM` it asks KWin to unload the script. The file
@@ -120,8 +132,9 @@ What komorebi calls:
 
 | Name | Object | Interface | Member | When |
 |---|---|---|---|---|
-| `org.kde.KWin` | `/Scripting` | `org.kde.kwin.Scripting` | `unloadScript(s)`, `loadScript(ss) -> i` | at start; `unloadScript` again at exit |
-| `org.kde.KWin` | `/Scripting/Script<id>` | `org.kde.kwin.Script` | `run()` | at start |
+| `org.kde.KWin` | `/Scripting` | `org.kde.kwin.Scripting` | `unloadScript(s)`, `loadScript(ss) -> i` | at start, and when KWin is back after a restart; `unloadScript` again at exit |
+| `org.kde.KWin` | `/Scripting/Script<id>` | `org.kde.kwin.Script` | `run()` | after `loadScript` |
+| `org.freedesktop.DBus` | `/org/freedesktop/DBus` | `org.freedesktop.DBus` | `AddMatch(s)`, for the signal `NameOwnerChanged` | at start, to see KWin leave the bus and come back |
 | `org.kde.kglobalaccel` | `/component/kwin` | `org.kde.kglobalaccel.Component` | `invokeShortcut(s)`, with `MoveMouseToFocus` | when the pointer follows the focus |
 
 ## Files and directories

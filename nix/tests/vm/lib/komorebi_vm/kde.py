@@ -202,6 +202,17 @@ class Kde:
             "stop", f"kwin-virtual@{self.name}.service", f"session-bus@{self.name}.service"
         )
 
+    def restart_kwin(self) -> None:
+        """Stops the session's KWin and starts a new one, on the same bus, and waits for it.
+
+        The bus outlives KWin, as it does when the compositor of a running session crashes or is
+        replaced. The clients of the old KWin go with it.
+        """
+        self.systemctl("restart", f"kwin-virtual@{self.name}.service")
+        if not self.wait_for(lambda: self.has_name("org.kde.KWin"), timeout=60):
+            log = self.machine.execute(f"journalctl _UID={self.uid} --no-pager -n 40")[1]
+            raise AssertionError(f"KWin did not come back:\n{log}")
+
     def start_komorebi(self, *args: str) -> None:
         """Starts the daemon in this session, with `args`, as the user unit `komorebi@NAME`.
 

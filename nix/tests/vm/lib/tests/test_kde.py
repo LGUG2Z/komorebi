@@ -243,3 +243,25 @@ def test_a_session_has_the_users_data_and_config_directories_not_roots(
         "XDG_DATA_DIRS=/etc/profiles/per-user/komorebi/share:/run/current-system/sw/share" in words
     )
     assert not any("/root" in word for word in words)
+
+
+def test_restart_kwin_restarts_its_unit_alone_and_waits_for_the_new_one(
+    machine: FakeMachine,
+) -> None:
+    machine.reply("busctl", status=0)
+
+    Kde(machine, "main").restart_kwin()
+
+    scripts = [inner(command) for command in machine.commands if " sh -c " in command]
+    assert scripts[0] == "systemctl --user restart kwin-virtual@main.service"
+    assert "busctl --user --no-pager list | grep -q '^org.kde.KWin '" in scripts[1:]
+
+
+def test_restart_kwin_reports_the_journal_when_kwin_does_not_come_back(
+    machine: FakeMachine,
+) -> None:
+    machine.reply("busctl", status=1)
+    machine.reply("journalctl", output="kwin: the socket is taken")
+
+    with pytest.raises(AssertionError, match="the socket is taken"):
+        Kde(machine, "main", scale=0.01).restart_kwin()

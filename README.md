@@ -76,7 +76,7 @@ KWin, the bridge, reports what KWin sees over the session bus, and carries out
 the commands it is given as the answer to a call it holds open. The daemon keeps
 a table of the windows and monitors from those reports, answers the window
 manager's questions from it, and turns each report into an event for the window
-manager.
+manager. If KWin restarts, the daemon loads the bridge into the new one.
 
 The window manager models the desktop as monitors, each with a ring of
 workspaces, each with a ring of containers, each with a ring of windows. A

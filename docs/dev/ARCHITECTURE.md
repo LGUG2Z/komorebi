@@ -139,6 +139,16 @@ script: when it follows the focus, the backend invokes KWin's "Move Mouse to Foc
 which centers it on the window KWin has focused. When komorebi stops, the backend asks KWin to
 unload the bridge.
 
+KWin can restart under a running daemon, on the same session bus. The thread that serves
+the connection watches the owner of `org.kde.KWin` on the bus. When KWin leaves it, the
+bridge has gone with it and its windows too, and nothing will report them closing:
+[`Table::compositor_lost`] marks every window closed and returns a `Destroy` for each, so the
+window manager takes them out of its layout. When KWin is back, the daemon loads the bridge
+into it again, the bridge sends a snapshot of the new KWin's desktop, and its events are
+handled as before. The `Poll` call the old bridge held is still open in the daemon, since
+zbus does not end a call when its caller leaves the bus: it is answered with nothing as soon
+as it wakes, and the commands go to the new bridge's call.
+
 [`connect`] makes the backend: it connects to the session bus, loads the bridge into KWin,
 and returns once the snapshot has arrived, so that the window manager reads a full table when
 it starts. [PLATFORM.md](PLATFORM.md) has the D-Bus names, the files and the environment
@@ -219,6 +229,8 @@ the fake. The window manager is its only caller, through [`backend`]. The contra
 | Every window is where komorebi asked for it, within the size its client keeps to | VM test | `vm-core-e2e`, `vm-client-geometry` | a client may refuse a size: the frame is what `window_rect` says |
 | A retile reaches KWin as one batch | framework path: the answer to `Poll` waits a millisecond after the first command for the others | `vm-latency` | none |
 | The window manager sees a frame it asked for at once | framework path: the KWin backend's `set_rect` records it in the table before KWin answers | `a_requested_rect_is_visible_at_once_and_replaced_by_the_real_one` | none |
+| A KWin that restarts gets the bridge again, and the windows of the old one leave the layout | framework path: the connection's thread watches `NameOwnerChanged` for `org.kde.KWin`, and the table destroys every window when the name is lost | `when_kwin_goes_away_every_window_it_had_is_destroyed`, `vm-kwin-restart` | none |
+| After KWin restarts, the commands go to the new bridge | framework path: a `Poll` held since before KWin last left the bus is answered with nothing, and passes on the wake-up it got | `a_poll_held_by_the_bridge_of_a_kwin_that_has_gone_gets_no_commands`, `vm-kwin-restart` ("a window opened in the third KWin is tiled") | none |
 | The bridge holds no window manager logic | convention, with every decision about an event in the table, which the `kwin::state` unit tests pin | the unit tests in `komorebi/src/kwin/state.rs` | none |
 | What the bridge sends is what the table reads | type checker: the JSDoc types of the messages in [`bridge.js`]; tests: the events of [`fixtures`] are what the bridge's tests check it sends and what the table's tests feed it | `what the bridge sends for a session is what the daemon's tests read`, `the_bridges_events_for_a_session_are_the_window_events_komorebi_expects` | none |
 | What the backend sends is what the bridge carries out | tests: the commands of [`fixtures`] are what the backend's tests check it sends and what the bridge's tests answer it with, checking what KWin is asked to do for each | `the_commands_of_a_session_go_to_the_bridge_as_the_bridges_tests_answer_it`, `what the bridge sends for a session is what the daemon's tests read`, `a command for a window KWin no longer has is given back, and the rest are carried out` | none |
@@ -289,6 +301,8 @@ A window is shown, and ends up on a tile:
   events of a real KWin, through the daemon.
 - [`nix/tests/vm/suites/core-e2e`](../../nix/tests/vm/suites/core-e2e/test.py): the daemon
   tiling a real KWin, checked against what KWin has.
+- [`nix/tests/vm/suites/kwin-restart`](../../nix/tests/vm/suites/kwin-restart/test.py): KWin
+  restarting under the daemon.
 - [`komorebi/tests/wm_events.rs`](../../komorebi/tests/wm_events.rs): the window manager
   driven end to end against the fake.
 
@@ -320,6 +334,7 @@ A window is shown, and ends up on a tile:
 [`kwin::state`]: ../../komorebi/src/kwin/state.rs
 [`Table`]: ../../komorebi/src/kwin/state.rs
 [`Table::handle`]: ../../komorebi/src/kwin/state.rs
+[`Table::compositor_lost`]: ../../komorebi/src/kwin/state.rs
 [`bridge.js`]: ../../komorebi/src/kwin/bridge.js
 [`kwin-api.d.ts`]: ../../komorebi/src/kwin/kwin-api.d.ts
 [`bridge.test.js`]: ../../komorebi/src/kwin/bridge.test.js

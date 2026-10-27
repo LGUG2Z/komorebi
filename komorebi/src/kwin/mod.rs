@@ -27,6 +27,13 @@
 //! window events of [`crate::window_manager_event`], and queues every command of [`Backend`] for
 //! the script, which carries it out in KWin.
 //!
+//! KWin can go away under a running daemon (it crashed, or `kwin_wayland --replace` took its
+//! place) while the session bus stays. The daemon watches who owns `org.kde.KWin` on the bus:
+//! when nobody does, every window of the old KWin is gone, and nothing will report it closing, so
+//! the table reports each as destroyed ([`state::Table::compositor_lost`]); when the name has an
+//! owner again, the daemon loads the script into the new KWin, which reports its desktop as it
+//! does at start.
+//!
 //! `docs/dev/PLATFORM.md` has the D-Bus names, the files and the environment variables involved,
 //! and `docs/dev/DESIGN.md` the reasons for this design.
 
@@ -42,6 +49,7 @@ use crate::core::Rect;
 use crate::window_manager_event_listener;
 use color_eyre::eyre;
 use color_eyre::eyre::OptionExt;
+use futures_util::StreamExt;
 use parking_lot::Condvar;
 use parking_lot::Mutex;
 use serde_json::Value;
@@ -84,20 +92,23 @@ struct Shared {
     queue: Mutex<VecDeque<Value>>,
     wake: Notify,
     batch: AtomicU64,
+    /// how many times KWin has left the session bus. A `Poll` held since before then was made by a
+    /// script that went with its KWin, and is answered with nothing rather than with the commands
+    kwin_lost: AtomicU64,
     /// set once the script has reported its first snapshot
     ready: (Mutex<bool>, Condvar),
     cursor_waiters: Mutex<HashMap<u64, std::sync::mpsc::Sender<(i32, i32)>>>,
     next_token: AtomicU64,
     handle: Handle,
-    /// false once the thread that runs the runtime has ended: the runtime is then being shut down,
-    /// and blocking on it panics
+    /// false once the thread that runs the runtime has ended, which is when KWin is gone: the
+    /// runtime is then being shut down, and blocking on it panics
     alive: AtomicBool,
     connection: Mutex<Option<Connection>>,
 }
 
 impl Shared {
-    /// Run something on the runtime and wait for it, unless the runtime is gone: once its thread
-    /// has ended, tokio panics rather than run it
+    /// Run something on the runtime and wait for it, unless the runtime is gone: when KWin has gone
+    /// (the session is being torn down), its thread has ended and tokio panics rather than run it
     fn block_on<F: std::future::Future>(&self, future: F) -> eyre::Result<F::Output> {
         if !self.alive.load(Ordering::SeqCst) {
             eyre::bail!("KWin is gone");
@@ -173,7 +184,8 @@ struct Poll {
 #[interface(name = "org.komorebi.Bridge.Poll")]
 impl Poll {
     /// `args` is JSON `{"hold_ms": n}`. Returns a JSON array of command batches: as soon as there
-    /// are commands, or empty once `hold_ms` has passed.
+    /// are commands, or empty once `hold_ms` has passed, or empty as soon as KWin has left the bus
+    /// since the call was made.
     async fn poll(&self, args: String) -> String {
         let hold_ms = serde_json::from_str::<Value>(&args)
             .ok()
@@ -181,8 +193,16 @@ impl Poll {
             .unwrap_or(HOLD_MS);
 
         let deadline = tokio::time::Instant::now() + Duration::from_millis(hold_ms);
+        let kwin = self.shared.kwin_lost.load(Ordering::SeqCst);
 
         loop {
+            if self.shared.kwin_lost.load(Ordering::SeqCst) != kwin {
+                // the script that made this call went with its KWin: the commands, and the wake-up
+                // that came for them, are for the script of the KWin that took its place
+                self.shared.wake.notify_one();
+                return "[]".to_string();
+            }
+
             if !self.shared.queue.lock().is_empty() {
                 // let a burst finish arriving, so that a retile is one batch and not twenty
                 tokio::time::sleep(COALESCE).await;
@@ -229,7 +249,8 @@ pub struct KWinBackend {
 /// the desktop straight away.
 ///
 /// The connection is served by a thread of its own (`kwin-bridge-main`), which runs until the
-/// daemon exits.
+/// daemon exits or the session bus goes away. The same thread watches KWin on the bus, and loads
+/// the script again into a KWin that has restarted.
 ///
 /// # Errors
 ///
@@ -267,6 +288,7 @@ pub fn connect() -> eyre::Result<Arc<KWinBackend>> {
         queue: Mutex::new(VecDeque::new()),
         wake: Notify::new(),
         batch: AtomicU64::new(0),
+        kwin_lost: AtomicU64::new(0),
         ready: (Mutex::new(false), Condvar::new()),
         cursor_waiters: Mutex::new(HashMap::new()),
         next_token: AtomicU64::new(1),
@@ -286,8 +308,7 @@ pub fn connect() -> eyre::Result<Arc<KWinBackend>> {
                 match start(thread_shared.clone()).await {
                     Ok(()) => {
                         let _ = started_tx.send(Ok(()));
-                        // the connection is served by this runtime for as long as the daemon runs
-                        std::future::pending::<()>().await;
+                        supervise(thread_shared).await;
                     }
                     Err(error) => {
                         let _ = started_tx.send(Err(error));
@@ -391,6 +412,52 @@ async fn load_script(connection: &Connection) -> eyre::Result<()> {
 
     tracing::info!("loaded the KWin bridge script (script id {id})");
     Ok(())
+}
+
+/// Watch KWin itself. If it goes away (a crash, `kwin_wayland --replace`) its windows go with it;
+/// when it is back the script has to be loaded again.
+async fn supervise(shared: Arc<Shared>) {
+    let Ok(connection) = shared.connection().await else {
+        return;
+    };
+
+    let Ok(dbus) = zbus::fdo::DBusProxy::new(&connection).await else {
+        return;
+    };
+    let Ok(mut owner_changes) = dbus.receive_name_owner_changed().await else {
+        return;
+    };
+
+    while let Some(signal) = owner_changes.next().await {
+        let Ok(args) = signal.args() else { continue };
+        if args.name().as_str() != "org.kde.KWin" {
+            continue;
+        }
+
+        if args.new_owner().is_none() {
+            tracing::warn!("KWin went away; its windows are gone");
+            shared.kwin_lost.fetch_add(1, Ordering::SeqCst);
+            let outputs = shared.table.lock().compositor_lost(Instant::now());
+            shared.dispatch(outputs);
+            continue;
+        }
+
+        tracing::info!("KWin is back; loading the bridge script again");
+        let started = Instant::now();
+        loop {
+            match load_script(&connection).await {
+                Ok(()) => break,
+                Err(error) if started.elapsed() < Duration::from_secs(15) => {
+                    tracing::debug!("KWin is not ready for the script yet: {error}");
+                    tokio::time::sleep(Duration::from_millis(250)).await;
+                }
+                Err(error) => {
+                    tracing::error!("could not load the bridge script into the new KWin: {error}");
+                    break;
+                }
+            }
+        }
+    }
 }
 
 /// KWin's own "Move Mouse to Focus" action: the scripting API cannot move the pointer
@@ -556,6 +623,7 @@ mod tests {
             queue: Mutex::new(VecDeque::new()),
             wake: Notify::new(),
             batch: AtomicU64::new(0),
+            kwin_lost: AtomicU64::new(0),
             ready: (Mutex::new(false), Condvar::new()),
             cursor_waiters: Mutex::new(HashMap::new()),
             next_token: AtomicU64::new(1),
@@ -632,6 +700,36 @@ mod tests {
 
         assert!(backend.focus(7, false).is_err());
         assert_eq!(next_poll(&runtime, &backend), json!([]));
+    }
+
+    /// zbus does not end a held call when its caller leaves the bus, so the `Poll` of the bridge of
+    /// a KWin that has gone is still waiting when the next bridge calls. Were it given the
+    /// commands, they would be answered to nobody and lost.
+    #[test]
+    fn a_poll_held_by_the_bridge_of_a_kwin_that_has_gone_gets_no_commands() {
+        let (runtime, backend) = offline();
+        let poll = || {
+            let poll = Poll {
+                shared: backend.shared.clone(),
+            };
+            async move { poll.poll(json!({ "hold_ms": 10_000 }).to_string()).await }
+        };
+
+        runtime.block_on(async {
+            let old = tokio::spawn(poll());
+            tokio::time::sleep(Duration::from_millis(10)).await;
+
+            // KWin leaves the bus, and the bridge of the KWin that takes its place calls
+            backend.shared.kwin_lost.fetch_add(1, Ordering::SeqCst);
+            let new = tokio::spawn(poll());
+            tokio::time::sleep(Duration::from_millis(10)).await;
+
+            backend.shared.push(json!({ "op": "cursor", "token": 1 }));
+
+            assert_eq!(old.await.unwrap(), "[]");
+            let reply: Value = serde_json::from_str(&new.await.unwrap()).unwrap();
+            assert_eq!(reply[0]["cmds"], json!([{ "op": "cursor", "token": 1 }]));
+        });
     }
 
     #[test]
