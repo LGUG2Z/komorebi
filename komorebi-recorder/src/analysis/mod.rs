@@ -3,11 +3,14 @@
 //! Everything here reads a session directory and produces plain serializable values, so the same
 //! answers serve the command line and anything else that wants them.
 //! This module holds the parts every command shares: the JSON envelope and exit codes
-//! ([`envelope`]), how a point in time is named ([`timespec`], [`ids`]) and the guard that keeps
-//! file access inside the session ([`guard`]).
+//! ([`envelope`]), how a point in time is named ([`timespec`], [`ids`]), the guard that keeps file
+//! access inside the session ([`guard`]) and the budget that keeps an answer from growing without
+//! bound ([`budget`]).
 
 pub mod answers;
 pub mod blocks;
+pub mod brief;
+pub mod budget;
 pub mod catalog;
 pub mod classify;
 pub mod code;
@@ -23,6 +26,8 @@ pub mod invariants;
 pub mod logparse;
 pub mod lookup;
 pub mod overview;
+pub mod schemas;
+pub mod search;
 pub mod state;
 pub mod timespec;
 pub mod trace;

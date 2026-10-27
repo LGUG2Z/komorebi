@@ -29,16 +29,20 @@
 use crate::analysis::answers::DiffData;
 use crate::analysis::answers::EventsData;
 use crate::analysis::answers::StateData;
+use crate::analysis::brief::BriefData;
+use crate::analysis::brief::RegionBrief;
 use crate::analysis::code::CodeData;
 use crate::analysis::history::HistoryData;
 use crate::analysis::invariants::Severity;
 use crate::analysis::invariants::Violation;
 use crate::analysis::overview::Finding;
 use crate::analysis::overview::OverviewData;
+use crate::analysis::search::SearchData;
 use crate::analysis::state::Container;
 use crate::analysis::state::Window;
 use crate::analysis::trace::TraceData;
 use crate::analysis::trace::TraceLine;
+use crate::analysis::views::EventView;
 use crate::annotations::AnnotationView;
 use crate::annotations::Kind;
 use crate::timecode;
@@ -1141,6 +1145,31 @@ pub fn history_text(data: &HistoryData) -> String {
     out
 }
 
+fn event_line(event: &EventView) -> String {
+    let handler = event.handler.as_ref().map_or_else(String::new, |handler| {
+        let ms = handler
+            .handler_ms
+            .map_or_else(String::new, |ms| format!(" {ms:.0} ms"));
+        let problems = if handler.errors + handler.warnings > 0 {
+            format!(" {}E/{}W", handler.errors, handler.warnings)
+        } else {
+            String::new()
+        };
+        format!("  handler{ms}{problems}")
+    });
+    let state = match event.state_changed {
+        Some(true) => "  state changed",
+        _ => "",
+    };
+    format!(
+        "#{:<5} {}  {:<9}  {}{handler}{state}",
+        event.seq,
+        timecode::format(event.video_s),
+        format!("{:?}", event.class).to_lowercase(),
+        event.summary
+    )
+}
+
 fn finding_line(finding: &Finding) -> String {
     let severity = match finding.severity {
         Severity::Error => "error",
@@ -1158,6 +1187,238 @@ fn finding_line(finding: &Finding) -> String {
         finding.kind,
         finding.summary
     )
+}
+
+fn region_text(out: &mut String, region: &RegionBrief) {
+    let _ = writeln!(
+        out,
+        "\nlooking at {} to {} (the region, from a few seconds before it)",
+        region.from.timecode, region.to.timecode
+    );
+
+    let classes: Vec<String> = region
+        .events
+        .by_class
+        .iter()
+        .map(|(class, count)| format!("{count} {class}"))
+        .collect();
+    let _ = writeln!(
+        out,
+        "events: {} ({}{})",
+        region.events.total,
+        classes.join(", "),
+        if region.events.echoes_hidden > 0 {
+            format!(
+                "; {} echoes of komorebi's own moves not listed",
+                region.events.echoes_hidden
+            )
+        } else {
+            String::new()
+        }
+    );
+    for event in &region.events.listed {
+        let _ = writeln!(out, "  {}", event_line(event));
+    }
+    if region.events.truncated {
+        let _ = writeln!(out, "  ... more: use `events` with --from/--to to page");
+    }
+
+    if !region.suspects.is_empty() {
+        let _ = writeln!(out, "\nmost worth tracing first:");
+        for (index, suspect) in region.suspects.iter().enumerate() {
+            let _ = writeln!(
+                out,
+                "  {}. event #{} {} (score {}): {}\n     {}",
+                index + 1,
+                suspect.event.seq,
+                suspect.event.summary,
+                suspect.score,
+                suspect.reasons.join("; "),
+                suspect.next
+            );
+        }
+    }
+
+    if !region.findings.is_empty() {
+        let _ = writeln!(out, "\nwhat looked wrong or unusual:");
+        for finding in &region.findings {
+            let _ = writeln!(out, "  {}", finding_line(finding));
+        }
+    }
+
+    for (label, state) in [
+        ("as it began", &region.state_at_start),
+        ("as it ended", &region.state_at_end),
+    ] {
+        match state {
+            Some(state) => {
+                let _ = writeln!(
+                    out,
+                    "\nkomorebi's state {label} ({}): {}",
+                    state.at.timecode, state.summary
+                );
+                if state.violations.is_empty() {
+                    let _ = writeln!(out, "  nothing looks wrong");
+                } else {
+                    violation_lines(out, &state.violations);
+                }
+            }
+            None => {
+                let _ = writeln!(out, "\nkomorebi's state {label}: not recorded");
+            }
+        }
+    }
+
+    if !region.changes.is_empty() {
+        let _ = writeln!(
+            out,
+            "\nwhat changed between them ({} total):",
+            region.changes_total
+        );
+        for change in &region.changes {
+            let _ = writeln!(out, "  {}", change.text);
+        }
+    }
+
+    if !region.incidents.is_empty() {
+        let _ = writeln!(out, "\nwhat happened to the machine nearby:");
+        for incident in &region.incidents {
+            let _ = writeln!(
+                out,
+                "  {}  {}{}: {}",
+                timecode::format(incident.video_s),
+                incident.kind,
+                incident
+                    .display
+                    .map_or_else(String::new, |display| format!(" (display {display})")),
+                incident.detail
+            );
+        }
+    }
+}
+
+/// Renders the answer to `brief`: what the user says is wrong comes first, word for word.
+///
+/// The text has, in order: each bug region as the user reported it (or, if none was marked, a
+/// line saying so); the facts of the session and any warnings, including that komorebi's source
+/// is not the version that was recorded; for each region, what the recording shows around it and
+/// the commands to run next (or, with no region, the same over the whole recording); conclusions
+/// already recorded and notes; and what to do next.
+///
+/// # Example
+///
+/// ```rust
+/// use komorebi_recorder::analysis::Analysis;
+/// use komorebi_recorder::annotations::{Kind, New, add};
+/// use komorebi_recorder::report::brief_text;
+/// use komorebi_recorder::testkit::{SessionBuilder, mach_ns};
+/// use serde_json::json;
+///
+/// let (session, _) = SessionBuilder::new("doc-brief-text")
+///     .event(2.0, json!({"type": "Retile"}), None)
+///     .build();
+/// add(&session.dir, New {
+///     kind: Some(Kind::Bug),
+///     start_mach_ns: mach_ns(1.0),
+///     end_mach_ns: Some(mach_ns(3.0)),
+///     text: "the window jumps".to_string(),
+///     ..New::default()
+/// })?;
+///
+/// let text = brief_text(&Analysis::open(&session.dir)?.brief()?);
+/// // the user's words come first
+/// assert!(text.starts_with("BUG, as the user reported it:\nbug "));
+/// assert!(text.contains("\n    the window jumps\n"));
+/// # Ok::<(), Box<dyn std::error::Error>>(())
+/// ```
+#[must_use]
+pub fn brief_text(data: &BriefData) -> String {
+    let mut out = String::new();
+
+    if data.bugs.is_empty() {
+        let _ = writeln!(out, "NO BUG REGION WAS MARKED in this recording.\n");
+    }
+    for bug in &data.bugs {
+        let _ = writeln!(out, "BUG, as the user reported it:");
+        out.push_str(&annotation_text(&bug.bug));
+    }
+
+    let session = &data.session;
+    let displays: Vec<String> = session
+        .displays
+        .iter()
+        .map(|display| {
+            format!(
+                "{} ({}x{}, {} segment(s))",
+                display.id, display.width_px, display.height_px, display.segments
+            )
+        })
+        .collect();
+    let _ = writeln!(
+        out,
+        "\nsession {}\n  {} s of video, displays: {}\n  komorebi: {}{}\n  {} events, {} log lines, {} incidents; video sync: {}",
+        session.dir,
+        session.duration_s as i64,
+        if displays.is_empty() {
+            "none".to_string()
+        } else {
+            displays.join(", ")
+        },
+        if session.komorebi.is_empty() {
+            "version unknown".to_string()
+        } else {
+            session.komorebi.join("; ")
+        },
+        session
+            .komorebi_log_level
+            .as_ref()
+            .map_or_else(String::new, |level| format!(", logging at {level}")),
+        session.events,
+        session.log_lines,
+        session.incidents,
+        session.sync_quality
+    );
+    for warning in &session.warnings {
+        let _ = writeln!(out, "  warning: {warning}");
+    }
+    if let Some(warning) = &data.skew.warning {
+        let _ = writeln!(out, "\nWARNING: {warning}");
+    }
+
+    for bug in &data.bugs {
+        let _ = writeln!(out, "\n=== {} ===", bug.bug.id);
+        region_text(&mut out, &bug.region);
+        let _ = writeln!(out, "\nnext:");
+        for command in &bug.commands {
+            let _ = writeln!(out, "  {command}");
+        }
+    }
+    if let Some(region) = &data.whole_session {
+        let _ = writeln!(out, "\n=== the whole recording ===");
+        region_text(&mut out, region);
+    }
+
+    if !data.findings_recorded.is_empty() {
+        let _ = writeln!(out, "\nconclusions already recorded:");
+        for finding in &data.findings_recorded {
+            out.push_str(&annotation_text(finding));
+        }
+    }
+    if !data.notes.is_empty() {
+        let _ = writeln!(out, "\nnotes:");
+        for note in &data.notes {
+            out.push_str(&annotation_text(note));
+        }
+    }
+
+    if !data.next.is_empty() {
+        let _ = writeln!(out, "\n");
+        for line in &data.next {
+            let _ = writeln!(out, "{line}");
+        }
+    }
+
+    out
 }
 
 /// Renders the answer to `overview`: the session's size, the bug regions the user marked, the
@@ -1238,6 +1499,58 @@ pub fn overview_text(data: &OverviewData) -> String {
         );
     }
 
+    out
+}
+
+/// Renders the answer to `search`: how many hits there were and where it looked, then a line for
+/// each hit.
+///
+/// A line has the hit's time, its source, the reference to give another command (`log:345`,
+/// `event:12`) and the first line of its text.
+///
+/// # Example
+///
+/// ```rust
+/// use komorebi_recorder::analysis::Analysis;
+/// use komorebi_recorder::analysis::budget::Budget;
+/// use komorebi_recorder::analysis::search::SearchQuery;
+/// use komorebi_recorder::report::search_text;
+/// use komorebi_recorder::testkit::SessionBuilder;
+///
+/// let (session, _) = SessionBuilder::new("doc-search-text")
+///     .log(2.0, "INFO", "komorebi::process_command: retiling the workspace")
+///     .build();
+/// let analysis = Analysis::open(&session.dir)?;
+///
+/// let found = analysis.search(
+///     &SearchQuery { pattern: "retiling".to_string(), ..SearchQuery::default() },
+///     &Budget::unlimited(),
+/// )?;
+/// let text = search_text(&found);
+/// assert!(text.starts_with("1 hit(s) for 'retiling' in "));
+/// assert!(text.contains("log:1"));
+/// # Ok::<(), Box<dyn std::error::Error>>(())
+/// ```
+#[must_use]
+pub fn search_text(data: &SearchData) -> String {
+    let mut out = String::new();
+    let _ = writeln!(
+        out,
+        "{} hit(s) for '{}' in {}",
+        data.matching,
+        data.query,
+        data.searched.join(", ")
+    );
+    for hit in &data.hits {
+        let _ = writeln!(
+            out,
+            "{}  {:<14} {:<22} {}",
+            timecode::format(hit.video_s),
+            hit.source,
+            hit.reference,
+            hit.text.lines().next().unwrap_or("")
+        );
+    }
     out
 }
 

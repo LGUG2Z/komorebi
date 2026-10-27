@@ -49,6 +49,31 @@ with `--log-level trace` first: the recorder never changes komorebi's log level,
 `--no-video` has everything but the screen. [Recording a bug repro](docs/usage/recording-a-bug-repro.md) has the rest:
 what is captured on each OS, docking, sleep and lock, and recovering a recording after a crash.
 
+## Investigate it
+
+```sh
+komorebi-recorder brief ./repro        # what the user marked as the bug, and what the recording shows around it
+komorebi-recorder overview ./repro     # the whole recording at a glance
+komorebi-recorder trace ./repro event:7  # one event, from the handler that ran to what changed and who changed it
+```
+
+For example, a four second recording of a Mac with komorebi running:
+
+```text
+$ komorebi-recorder overview ./repro
+session /private/tmp/kr-sample: 4 s of video, 2 events, 2 log lines, 1 incidents
+
+findings, most worth looking at first (1 of 1):
+  info  00:00.631  incident:recorder  recorder: recording started without video; komorebi pid 2732
+
+when things happened (events | errors | incidents):
+  00:00.500 ##############################    1   0  1
+  00:04.500 ##############################    1   0  0
+```
+
+Every command takes `--json`, and `komorebi-recorder guide` prints a playbook for an agent.
+[Investigating a recording](docs/usage/investigating-a-recording.md) walks through both ways of working.
+
 ## How it fits together
 
 Two things vary independently: the _host_ the recorder runs on (macOS or Windows) and the _flavor_ of komorebi it

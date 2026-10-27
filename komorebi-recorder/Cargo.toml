@@ -16,6 +16,7 @@ dunce = { workspace = true }
 eframe = { workspace = true }
 parking_lot = { workspace = true }
 png = "0.18"
+regex = "1"
 schemars = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }

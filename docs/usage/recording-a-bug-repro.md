@@ -198,6 +198,7 @@ komorebi.log            exact slice of komorebi's own log
 events.jsonl, states/   subscriber notifications; full State stored only when it changed
 state-start.json, state-end.json
 recorder.jsonl          what happened to the recording environment (displays, sleep/wake, lock, restarts)
+annotations.jsonl       bug regions, notes and findings (appended, never rewritten)
 oslog/komorebi.ndjson   unified log, komorebi's process (oslog/komorebi-<pid>.ndjson after a restart)
 oslog/system.ndjson     unified log, accessibility / SkyLight / workspace subsystems
 oslog/apps/<exe>-<pid>.ndjson   unified log, one managed application
