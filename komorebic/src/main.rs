@@ -5,13 +5,18 @@
 //! is written and the answer is printed. The messages are [`komorebi_client::SocketMessage`]s,
 //! sent with [`komorebi_client::send_message`] and [`komorebi_client::send_query`].
 //!
-//! `focus` and `cycle-focus` give the focus to another window of the focused workspace, and
-//! `mouse-follows-focus` and `toggle-mouse-follows-focus` set whether the pointer goes with it.
-//! `move` and `cycle-move` move the focused window to another tile. `change-layout`,
-//! `cycle-layout` and `flip-layout` change the layout of the focused workspace, `toggle-tiling`
-//! turns its tiling off and on, `scrolling-layout-columns` and `layout-ratios` tune the layouts,
-//! and `preselect-direction` and `cancel-preselect` reserve the place of the next window and give
-//! it up.
+//! The orders that change what the daemon tiles:
+//!
+//! - `focus` and `cycle-focus` give the focus to another window of the focused workspace, and
+//!   `mouse-follows-focus` and `toggle-mouse-follows-focus` set whether the pointer goes with it.
+//! - `move` and `cycle-move` move the focused window to another tile.
+//! - `change-layout`, `cycle-layout` and `flip-layout` change the layout of the focused
+//!   workspace, `scrolling-layout-columns` and `layout-ratios` tune it, `toggle-tiling` turns its
+//!   tiling off and on, and `preselect-direction` and `cancel-preselect` reserve the place of the
+//!   next window and give it up.
+//! - `resize-edge` and `resize-axis` resize the focused window by the `resize-delta`, and
+//!   `quick-save-resize`, `quick-load-resize`, `save-resize` and `load-resize` save the sizes of
+//!   the tiles of the focused workspace and load them back.
 //!
 //! `subscribe-socket` and `unsubscribe-socket` add and remove a subscriber: a program that listens
 //! on a socket in the daemon's data directory, to which the daemon sends a notification after each
@@ -32,8 +37,10 @@ use komorebi_client::Axis;
 use komorebi_client::CycleDirection;
 use komorebi_client::DefaultLayout;
 use komorebi_client::OperationDirection;
+use komorebi_client::Sizing;
 use komorebi_client::SocketMessage;
 use komorebi_client::StateQuery;
+use komorebi_client::replace_env_in_path;
 use komorebi_client::send_message;
 use komorebi_client::send_query;
 use std::fs::File;
@@ -91,6 +98,28 @@ gen_enum_subcommand_args! {
 }
 
 #[derive(Parser)]
+struct Resize {
+    #[clap(value_enum)]
+    edge: OperationDirection,
+    #[clap(value_enum)]
+    sizing: Sizing,
+}
+
+#[derive(Parser)]
+struct ResizeAxis {
+    #[clap(value_enum)]
+    axis: Axis,
+    #[clap(value_enum)]
+    sizing: Sizing,
+}
+
+#[derive(Parser)]
+struct ResizeDelta {
+    /// The delta of pixels by which to increase or decrease window dimensions when resizing
+    pixels: i32,
+}
+
+#[derive(Parser)]
 struct SubscribeSocket {
     /// Name of the socket to send event notifications to
     socket: String,
@@ -112,6 +141,20 @@ struct Start {
 
 #[derive(Parser)]
 struct Stop {}
+
+#[derive(Parser)]
+struct SaveResize {
+    /// File to which the resize layout dimensions should be saved
+    #[clap(value_parser = replace_env_in_path)]
+    path: PathBuf,
+}
+
+#[derive(Parser)]
+struct LoadResize {
+    /// File from which the resize layout dimensions should be loaded
+    #[clap(value_parser = replace_env_in_path)]
+    path: PathBuf,
+}
 
 #[derive(Parser)]
 struct ScrollingLayoutColumns {
@@ -187,6 +230,20 @@ enum SubCommand {
     // UnsubscribePipe(UnsubscribePipe),
     /// Tail komorebi's process logs (cancel with Ctrl-C)
     Log,
+    /// Quicksave the current resize layout dimensions
+    #[clap(alias = "quick-save")]
+    QuickSaveResize,
+    /// Load the last quicksaved resize layout dimensions
+    #[clap(alias = "quick-load")]
+    QuickLoadResize,
+    /// Save the current resize layout dimensions to a file
+    #[clap(arg_required_else_help = true)]
+    #[clap(alias = "save")]
+    SaveResize(SaveResize),
+    /// Load the resize layout dimensions from a file
+    #[clap(arg_required_else_help = true)]
+    #[clap(alias = "load")]
+    LoadResize(LoadResize),
     /// Change focus to the window in the specified direction
     #[clap(arg_required_else_help = true)]
     Focus(Focus),
@@ -204,6 +261,16 @@ enum SubCommand {
     /// Move the focused window in the specified cycle direction
     #[clap(arg_required_else_help = true)]
     CycleMove(CycleMove),
+    /// Resize the focused window in the specified direction
+    #[clap(arg_required_else_help = true)]
+    #[clap(alias = "resize")]
+    ResizeEdge(Resize),
+    /// Resize the focused window or primary column along the specified axis
+    #[clap(arg_required_else_help = true)]
+    ResizeAxis(ResizeAxis),
+    /// Set the resize delta (used by resize-edge and resize-axis)
+    #[clap(arg_required_else_help = true)]
+    ResizeDelta(ResizeDelta),
     /// Set the layout on the focused workspace
     #[clap(arg_required_else_help = true)]
     ChangeLayout(ChangeLayout),
@@ -375,6 +442,12 @@ fn main() -> eyre::Result<()> {
         SubCommand::FlipLayout(args) => {
             send_message(&SocketMessage::FlipLayout(args.axis))?;
         }
+        SubCommand::ResizeEdge(args) => {
+            send_message(&SocketMessage::ResizeWindowEdge(args.edge, args.sizing))?;
+        }
+        SubCommand::ResizeAxis(args) => {
+            send_message(&SocketMessage::ResizeWindowAxis(args.axis, args.sizing))?;
+        }
         SubCommand::Retile => {
             send_message(&SocketMessage::Retile)?;
         }
@@ -389,6 +462,9 @@ fn main() -> eyre::Result<()> {
         }
         SubCommand::MonitorInformation => {
             print_query(&SocketMessage::MonitorInformation);
+        }
+        SubCommand::ResizeDelta(args) => {
+            send_message(&SocketMessage::ResizeDelta(args.pixels))?;
         }
         SubCommand::ScrollingLayoutColumns(args) => {
             send_message(&SocketMessage::ScrollingLayoutColumns(args.count))?;
@@ -413,6 +489,18 @@ fn main() -> eyre::Result<()> {
         }
         SubCommand::UnsubscribeSocket(args) => {
             send_message(&SocketMessage::RemoveSubscriberSocket(args.socket))?;
+        }
+        SubCommand::QuickSaveResize => {
+            send_message(&SocketMessage::QuickSave)?;
+        }
+        SubCommand::QuickLoadResize => {
+            send_message(&SocketMessage::QuickLoad)?;
+        }
+        SubCommand::SaveResize(args) => {
+            send_message(&SocketMessage::Save(args.path))?;
+        }
+        SubCommand::LoadResize(args) => {
+            send_message(&SocketMessage::Load(args.path))?;
         }
     }
 

@@ -12,11 +12,13 @@
 //! [`OperationDirection`] is a side of the focused tile, and a [`CycleDirection`] the next or the
 //! previous container in the order of the workspace.
 
+use crate::core::pathext::ResolvedPathBuf;
 use clap::ValueEnum;
 use color_eyre::eyre;
 use serde::Deserialize;
 use serde::Serialize;
 use std::num::NonZeroUsize;
+use std::path::PathBuf;
 use std::str::FromStr;
 use strum::Display;
 use strum::EnumString;
@@ -344,6 +346,8 @@ pub enum SocketMessage {
     CancelPreselect,
     CycleFocusWindow(CycleDirection),
     CycleMoveWindow(CycleDirection),
+    ResizeWindowEdge(OperationDirection, Sizing),
+    ResizeWindowAxis(Axis, Sizing),
     // Current Workspace Commands
     ChangeLayout(DefaultLayout),
     CycleLayout(CycleDirection),
@@ -356,6 +360,12 @@ pub enum SocketMessage {
     ToggleTiling,
     Stop,
     Retile,
+    RetileWithResizeDimensions,
+    QuickSave,
+    QuickLoad,
+    Save(#[serde_as(as = "ResolvedPathBuf")] PathBuf),
+    Load(#[serde_as(as = "ResolvedPathBuf")] PathBuf),
+    ResizeDelta(i32),
     State,
     MonitorInformation,
     Query(StateQuery),

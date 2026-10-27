@@ -157,6 +157,14 @@ cycle-focus next
 cycle-focus previous
 cycle-move next
 cycle-move previous
+resize-edge left increase
+resize-edge right decrease
+resize-edge up increase
+resize-edge down decrease
+resize-axis horizontal increase
+resize-axis vertical decrease
+resize-delta 50
+resize-delta 100
 retile
 flip-layout horizontal
 flip-layout vertical
@@ -202,6 +210,17 @@ for query in [
 ]:
     status, out = kde.run(f"komorebic query {query}")
     checks.check(f"query {query} answers", status == 0 and out.strip() != "")
+checks.check(
+    "quick-save-resize and quick-load-resize",
+    kde.run("komorebic quick-save-resize && komorebic quick-load-resize")[0] == 0,
+)
+checks.check(
+    "save-resize and load-resize",
+    kde.run(
+        "komorebic save-resize /tmp/e2e-resize.json && komorebic load-resize /tmp/e2e-resize.json"
+    )[0]
+    == 0,
+)
 
 print("== 5. still all there")
 checks.check("komorebi has every window KWin has, and answers", healthy() == 0)

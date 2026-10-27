@@ -40,7 +40,7 @@ fn daemon() -> Arc<FakeBackend> {
 
         let mut wm = WindowManager::new(window_manager_event_listener::event_rx(), None).unwrap();
         wm.init().unwrap();
-        wm.retile_all().unwrap();
+        wm.retile_all(false).unwrap();
         listen_for_commands(Arc::new(Mutex::new(wm)));
 
         fake

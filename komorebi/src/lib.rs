@@ -124,7 +124,7 @@ pub enum NotificationEvent {
 /// use komorebi::core::SocketMessage;
 /// use komorebi::window_manager_event::WindowManagerEvent;
 ///
-/// let state = r#"{"monitors":{"elements":[],"focused":0},"work_area_offset":null,"mouse_follows_focus":true}"#;
+/// let state = r#"{"monitors":{"elements":[],"focused":0},"resize_delta":50,"work_area_offset":null,"mouse_follows_focus":true}"#;
 ///
 /// let shown = format!(
 ///     r#"{{"event":{{"type":"Show","content":[{{"type":"KWin","content":"WindowAdded"}},{{"id":7}}]}},"state":{state}}}"#
@@ -199,7 +199,7 @@ pub struct Notification {
 /// ]);
 ///
 /// let state: State = serde_json::from_str(
-///     r#"{"monitors":{"elements":[],"focused":0},"work_area_offset":null,"mouse_follows_focus":true}"#,
+///     r#"{"monitors":{"elements":[],"focused":0},"resize_delta":50,"work_area_offset":null,"mouse_follows_focus":true}"#,
 /// )?;
 /// let event = NotificationEvent::Socket(SocketMessage::Retile);
 /// notify_subscribers(Notification { event, state }, false)?;

@@ -32,7 +32,12 @@
 //!   already, and **CancelPreselect** gives the reserved place up.
 //! - **MouseFollowsFocus** and **ToggleMouseFollowsFocus** set whether the pointer is moved to
 //!   the window that is given the focus.
-//! - **Retile** tiles the focused workspace of every monitor again.
+//! - **ResizeWindowEdge** and **ResizeWindowAxis** resize the focused container by the
+//!   [`WindowManager::resize_delta`] that **ResizeDelta** sets ([`WindowManager::resize_window`]),
+//!   and **QuickSave**, **QuickLoad**, **Save** and **Load** write the resize adjustments of the
+//!   focused workspace's containers to a file and read them back.
+//! - **Retile** tiles the focused workspace of every monitor again, without the resize
+//!   adjustments, and **RetileWithResizeDimensions** with them.
 //! - **AddSubscriberSocket** and **AddSubscriberSocketWithOptions** add a subscriber by the name
 //!   of its socket in the data directory, and **RemoveSubscriberSocket** removes one.
 //! - **Stop** stops the daemon ([`WindowManager::stop`]).
@@ -45,8 +50,11 @@ use crate::Notification;
 use crate::NotificationEvent;
 use crate::SUBSCRIPTION_SOCKET_OPTIONS;
 use crate::SUBSCRIPTION_SOCKETS;
+use crate::core::Axis;
 use crate::core::Layout;
 use crate::core::LayoutOptions;
+use crate::core::OperationDirection;
+use crate::core::Rect;
 use crate::core::ScrollingLayoutOptions;
 use crate::core::SocketMessage;
 use crate::core::StateQuery;
@@ -55,8 +63,11 @@ use crate::notify_subscribers;
 use crate::state::State;
 use crate::window_manager::WindowManager;
 use color_eyre::eyre;
+use color_eyre::eyre::Context;
 use color_eyre::eyre::OptionExt;
 use parking_lot::Mutex;
+use std::fs::File;
+use std::fs::OpenOptions;
 use std::io::BufRead;
 use std::io::BufReader;
 use std::os::unix::net::UnixStream;
@@ -126,8 +137,10 @@ impl WindowManager {
     /// - The focused container cannot be moved, for one of the reasons
     ///   [`WindowManager::move_container_in_direction`] and
     ///   [`WindowManager::move_container_in_cycle_direction`] give.
-    /// - There is no focused workspace to change the layout or the tiling of, or to preselect a
-    ///   place in, or it cannot be tiled again.
+    /// - There is no focused workspace to change the layout or the tiling of, to preselect a
+    ///   place in, or to resize a container of, or it cannot be tiled again.
+    /// - The file of `QuickSave` or `Save` cannot be written, or the file of `QuickLoad` or
+    ///   `Load` cannot be read or is not a list of resize adjustments.
     /// - The window manager fails to retile, for one of the reasons
     ///   [`WindowManager::retile_all`] gives.
     /// - The answer cannot be written to `reply`.
@@ -180,10 +193,74 @@ impl WindowManager {
             SocketMessage::CycleMoveWindow(direction) => {
                 self.move_container_in_cycle_direction(direction)?;
             }
+            SocketMessage::ResizeWindowEdge(direction, sizing) => {
+                self.resize_window(direction, sizing, self.resize_delta, true)?;
+            }
+            SocketMessage::ResizeWindowAxis(axis, sizing) => {
+                match axis {
+                    Axis::Horizontal => {
+                        self.resize_window(
+                            OperationDirection::Left,
+                            sizing,
+                            self.resize_delta,
+                            false,
+                        )?;
+                        self.resize_window(
+                            OperationDirection::Right,
+                            sizing,
+                            self.resize_delta,
+                            false,
+                        )?;
+                    }
+                    Axis::Vertical => {
+                        self.resize_window(
+                            OperationDirection::Up,
+                            sizing,
+                            self.resize_delta,
+                            false,
+                        )?;
+                        self.resize_window(
+                            OperationDirection::Down,
+                            sizing,
+                            self.resize_delta,
+                            false,
+                        )?;
+                    }
+                    Axis::HorizontalAndVertical => {
+                        self.resize_window(
+                            OperationDirection::Left,
+                            sizing,
+                            self.resize_delta,
+                            false,
+                        )?;
+                        self.resize_window(
+                            OperationDirection::Right,
+                            sizing,
+                            self.resize_delta,
+                            false,
+                        )?;
+                        self.resize_window(
+                            OperationDirection::Up,
+                            sizing,
+                            self.resize_delta,
+                            false,
+                        )?;
+                        self.resize_window(
+                            OperationDirection::Down,
+                            sizing,
+                            self.resize_delta,
+                            false,
+                        )?;
+                    }
+                }
+
+                self.update_focused_workspace(false, false)?;
+            }
             SocketMessage::FlipLayout(layout_flip) => self.flip_layout(layout_flip)?,
             SocketMessage::ChangeLayout(layout) => self.change_workspace_layout_default(layout)?,
             SocketMessage::CycleLayout(direction) => self.cycle_layout(direction)?,
-            SocketMessage::Retile => self.retile_all()?,
+            SocketMessage::Retile => self.retile_all(false)?,
+            SocketMessage::RetileWithResizeDimensions => self.retile_all(true)?,
             SocketMessage::ToggleTiling => {
                 self.toggle_tiling()?;
             }
@@ -252,6 +329,9 @@ impl WindowManager {
                 };
 
                 reply.write_all(response.as_bytes())?;
+            }
+            SocketMessage::ResizeDelta(delta) => {
+                self.resize_delta = delta;
             }
             SocketMessage::ScrollingLayoutColumns(count) => {
                 let focused_workspace = self.focused_workspace_mut()?;
@@ -326,6 +406,58 @@ impl WindowManager {
             }
             SocketMessage::Stop => {
                 self.stop()?;
+            }
+            SocketMessage::QuickSave => {
+                let workspace = self.focused_workspace()?;
+                let resize = &workspace.resize_dimensions;
+
+                let quicksave_json = std::env::temp_dir().join("komorebi.quicksave.json");
+
+                let file = OpenOptions::new()
+                    .write(true)
+                    .truncate(true)
+                    .create(true)
+                    .open(quicksave_json)?;
+
+                serde_json::to_writer_pretty(&file, &resize)?;
+            }
+            SocketMessage::QuickLoad => {
+                let workspace = self.focused_workspace_mut()?;
+
+                let quicksave_json = std::env::temp_dir().join("komorebi.quicksave.json");
+
+                let file = File::open(&quicksave_json).wrap_err(format!(
+                    "no quicksave found at {}",
+                    quicksave_json.display()
+                ))?;
+
+                let resize: Vec<Option<Rect>> = serde_json::from_reader(file)?;
+
+                workspace.resize_dimensions = resize;
+                self.update_focused_workspace(false, false)?;
+            }
+            SocketMessage::Save(ref path) => {
+                let workspace = self.focused_workspace_mut()?;
+                let resize = &workspace.resize_dimensions;
+
+                let file = OpenOptions::new()
+                    .write(true)
+                    .truncate(true)
+                    .create(true)
+                    .open(path)?;
+
+                serde_json::to_writer_pretty(&file, &resize)?;
+            }
+            SocketMessage::Load(ref path) => {
+                let workspace = self.focused_workspace_mut()?;
+
+                let file =
+                    File::open(path).wrap_err(format!("no file found at {}", path.display()))?;
+
+                let resize: Vec<Option<Rect>> = serde_json::from_reader(file)?;
+
+                workspace.resize_dimensions = resize;
+                self.update_focused_workspace(false, false)?;
             }
         }
 

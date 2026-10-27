@@ -53,6 +53,7 @@ use std::collections::VecDeque;
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct State {
     pub monitors: Ring<Monitor>,
+    pub resize_delta: i32,
     pub work_area_offset: Option<Rect>,
     pub mouse_follows_focus: bool,
 }
@@ -85,6 +86,7 @@ impl From<&WindowManager> for State {
                             workspace_padding: workspace.workspace_padding,
                             container_padding: workspace.container_padding,
                             latest_layout: workspace.latest_layout.clone(),
+                            resize_dimensions: workspace.resize_dimensions.clone(),
                             tile: workspace.tile,
                             globals: workspace.globals,
                             preselected_container_idx: None,
@@ -102,6 +104,7 @@ impl From<&WindowManager> for State {
         Self {
             monitors: stripped_monitors,
             work_area_offset: wm.work_area_offset,
+            resize_delta: wm.resize_delta,
             mouse_follows_focus: wm.mouse_follows_focus,
         }
     }

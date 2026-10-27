@@ -21,12 +21,14 @@ use crate::LibraryError;
 use crate::SUBSCRIPTION_SOCKETS;
 use crate::backend::backend;
 use crate::container::Container;
+use crate::core::Arrangement;
 use crate::core::Axis;
 use crate::core::CycleDirection;
 use crate::core::DefaultLayout;
 use crate::core::Layout;
 use crate::core::OperationDirection;
 use crate::core::Rect;
+use crate::core::Sizing;
 use crate::desktop;
 use crate::monitor::Monitor;
 use crate::ring::Ring;
@@ -40,9 +42,13 @@ use crossbeam_channel::Receiver;
 use std::collections::HashMap;
 use std::io::ErrorKind;
 use std::net::Shutdown;
+use std::num::NonZeroUsize;
 use std::os::unix::net::UnixListener;
 use std::os::unix::net::UnixStream;
 use std::path::PathBuf;
+
+/// A tile cannot be resized to less than this fraction of the work area (or less than it already is)
+const MINIMUM_TILE_FRACTION: i32 = 10;
 
 #[derive(Debug)]
 pub struct WindowManager {
@@ -50,6 +56,8 @@ pub struct WindowManager {
     /// The socket the daemon takes messages on, `komorebi.sock` in [`struct@DATA_DIR`] unless
     /// [`WindowManager::new`] was given another path
     pub command_listener: UnixListener,
+    /// How many pixels `ResizeWindowEdge` and `ResizeWindowAxis` resize by
+    pub resize_delta: i32,
     /// Whether the pointer is moved to the window that is given the focus, which is the default
     pub mouse_follows_focus: bool,
     pub work_area_offset: Option<Rect>,
@@ -102,6 +110,7 @@ impl WindowManager {
         Ok(Self {
             monitors: Ring::default(),
             command_listener: listener,
+            resize_delta: 50,
             mouse_follows_focus: true,
             work_area_offset: None,
             incoming_events: incoming,
@@ -343,6 +352,13 @@ impl WindowManager {
             .ok_or_eyre("there is no window")
     }
 
+    pub fn focused_monitor_work_area(&self) -> eyre::Result<Rect> {
+        Ok(self
+            .focused_monitor()
+            .ok_or_eyre("there is no monitor")?
+            .work_area_size)
+    }
+
     /// Takes a window the user minimized out of the focused workspace, and keeps it until it is
     /// restored
     pub fn extract_minimized_window(&mut self, window_id: u32) -> eyre::Result<()> {
@@ -390,9 +406,179 @@ impl WindowManager {
         std::process::exit(0)
     }
 
-    /// Tiles the focused workspace of every monitor
+    /// Resizes the focused container by `delta` pixels on its `direction` side, by giving it a
+    /// resize adjustment that the layout applies, and tiles the workspace again if `update` is set
+    ///
+    /// The neighbors on that side give up the room, and none of the tiles may end up smaller than
+    /// a tenth of the monitor's work area, measured before the paddings are taken off, or than it
+    /// already is: a resize that would make one smaller is granted as far as it can be. Where
+    /// there is no container on that side, nothing changes.
+    ///
+    /// # Errors
+    ///
+    /// - There is no focused monitor, workspace or container.
+    /// - The workspace cannot be tiled again.
     #[tracing::instrument(skip(self))]
-    pub fn retile_all(&mut self) -> eyre::Result<()> {
+    pub fn resize_window(
+        &mut self,
+        direction: OperationDirection,
+        sizing: Sizing,
+        delta: i32,
+        update: bool,
+    ) -> eyre::Result<()> {
+        let focused_monitor_work_area = self.focused_monitor_work_area()?;
+        let workspace = self.focused_workspace_mut()?;
+
+        match workspace.layout {
+            Layout::Default(layout) => {
+                tracing::debug!("resizing window");
+                let len = NonZeroUsize::new(workspace.containers().len())
+                    .ok_or_eyre("there must be at least one container")?;
+                let focused_idx = workspace.focused_container_idx();
+                let focused_idx_resize = workspace
+                    .resize_dimensions
+                    .get(focused_idx)
+                    .ok_or_eyre("there is no resize adjustment for this container")?;
+
+                if direction
+                    .destination(
+                        workspace.layout.as_boxed_direction().as_ref(),
+                        workspace.layout_flip,
+                        focused_idx,
+                        len,
+                        workspace.layout_options,
+                    )
+                    .is_some()
+                {
+                    let unaltered = layout.calculate(
+                        &focused_monitor_work_area,
+                        len,
+                        workspace.container_padding,
+                        workspace.layout_flip,
+                        &[],
+                        workspace.focused_container_idx(),
+                        workspace.layout_options,
+                        &workspace.latest_layout,
+                    );
+
+                    let mut direction = direction;
+
+                    // We only ever want to operate on the unflipped Rect positions when resizing, then we
+                    // can flip them however they need to be flipped once the resizing has been done
+                    if let Some(flip) = workspace.layout_flip {
+                        match flip {
+                            Axis::Horizontal => {
+                                if matches!(direction, OperationDirection::Left)
+                                    || matches!(direction, OperationDirection::Right)
+                                {
+                                    direction = direction.opposite();
+                                }
+                            }
+                            Axis::Vertical => {
+                                if matches!(direction, OperationDirection::Up)
+                                    || matches!(direction, OperationDirection::Down)
+                                {
+                                    direction = direction.opposite();
+                                }
+                            }
+                            Axis::HorizontalAndVertical => direction = direction.opposite(),
+                        }
+                    }
+
+                    let unaltered_tile = *unaltered
+                        .get(focused_idx)
+                        .ok_or_eyre("there is no last layout")?;
+
+                    // How much of what was asked for the layout can take. The layout crate no
+                    // longer turns a resize down by the size of the container being resized
+                    // (the wrong measure: the room is in the neighbours, and a narrow tile
+                    // could not be dragged by more than half its own width, however much its
+                    // neighbours had to give); the right one is what every tile looks like
+                    // afterwards. None may end up smaller than a tenth of the work area, or
+                    // than it already is, and a request that would is granted as far as it
+                    // can be rather than dropped.
+                    let min_width = focused_monitor_work_area.right / MINIMUM_TILE_FRACTION;
+                    let min_height = focused_monitor_work_area.bottom / MINIMUM_TILE_FRACTION;
+
+                    let calculate = |dimensions: &[Option<Rect>]| {
+                        layout.calculate(
+                            &focused_monitor_work_area,
+                            len,
+                            workspace.container_padding,
+                            workspace.layout_flip,
+                            dimensions,
+                            focused_idx,
+                            workspace.layout_options,
+                            &workspace.latest_layout,
+                        )
+                    };
+                    let now = calculate(&workspace.resize_dimensions);
+                    let candidate = |amount: i32| {
+                        layout.resize(
+                            &unaltered_tile,
+                            focused_idx_resize,
+                            direction,
+                            sizing,
+                            amount,
+                        )
+                    };
+                    let fits = |amount: i32| {
+                        let mut dimensions = workspace.resize_dimensions.clone();
+                        dimensions[focused_idx] = candidate(amount);
+                        calculate(&dimensions)
+                            .iter()
+                            .zip(now.iter())
+                            .all(|(tile, before)| {
+                                tile.right >= min_width.min(before.right)
+                                    && tile.bottom >= min_height.min(before.bottom)
+                            })
+                    };
+
+                    let granted = if fits(delta) {
+                        delta
+                    } else {
+                        // the tiles only ever get smaller as the amount grows
+                        let (mut fits_at, mut fails_at) = (0, delta);
+                        while fails_at - fits_at > 1 {
+                            let middle = fits_at + (fails_at - fits_at) / 2;
+                            if fits(middle) {
+                                fits_at = middle;
+                            } else {
+                                fails_at = middle;
+                            }
+                        }
+                        fits_at
+                    };
+
+                    if granted != delta {
+                        tracing::debug!(
+                            "granting {granted} of the {delta} asked for: a tile would get smaller than {min_width}x{min_height}"
+                        );
+                    }
+
+                    if granted > 0 {
+                        let resize = candidate(granted);
+                        workspace.resize_dimensions[focused_idx] = resize;
+                    }
+
+                    return if update {
+                        self.update_focused_workspace(false, false)
+                    } else {
+                        Ok(())
+                    };
+                }
+
+                tracing::debug!("cannot resize container in this direction");
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Tiles the focused workspace of every monitor, without the resize adjustments of its
+    /// containers unless `preserve_resize_dimensions` is set
+    #[tracing::instrument(skip(self))]
+    pub fn retile_all(&mut self, preserve_resize_dimensions: bool) -> eyre::Result<()> {
         let offset = self.work_area_offset;
 
         for monitor in self.monitors_mut() {
@@ -408,6 +594,11 @@ impl WindowManager {
             let workspace = monitor
                 .focused_workspace_mut()
                 .ok_or_eyre("there is no workspace")?;
+
+            // Reset any resize adjustments if we want to force a retile
+            if !preserve_resize_dimensions {
+                workspace.resize_dimensions.fill(None);
+            }
 
             workspace.update()?;
         }
@@ -800,7 +991,7 @@ mod tests {
 
         with_backend(fake.clone(), || {
             wm.init()?;
-            wm.retile_all()
+            wm.retile_all(false)
         })?;
 
         // the default workspace and container padding are 5 each, and the second monitor has no

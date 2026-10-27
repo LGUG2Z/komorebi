@@ -255,6 +255,36 @@ fn scrolling_layout_columns_refuses_zero() {
 }
 
 #[test]
+fn the_resize_subcommands_send_what_they_are_given() {
+    sends(
+        &["resize-edge", "left", "increase"],
+        r#"{"type":"ResizeWindowEdge","content":["Left","Increase"]}"#,
+    );
+    sends(
+        &["resize", "down", "decrease"],
+        r#"{"type":"ResizeWindowEdge","content":["Down","Decrease"]}"#,
+    );
+    sends(
+        &["resize-axis", "horizontal-and-vertical", "increase"],
+        r#"{"type":"ResizeWindowAxis","content":["HorizontalAndVertical","Increase"]}"#,
+    );
+    sends(
+        &["resize-delta", "75"],
+        r#"{"type":"ResizeDelta","content":75}"#,
+    );
+    sends(&["quick-save-resize"], r#"{"type":"QuickSave"}"#);
+    sends(&["quick-load"], r#"{"type":"QuickLoad"}"#);
+    sends(
+        &["save-resize", "/tmp/sizes.json"],
+        r#"{"type":"Save","content":"/tmp/sizes.json"}"#,
+    );
+    sends(
+        &["load", "/tmp/sizes.json"],
+        r#"{"type":"Load","content":"/tmp/sizes.json"}"#,
+    );
+}
+
+#[test]
 fn mouse_follows_focus_is_set_with_enable_and_disable_or_toggled() {
     sends(
         &["mouse-follows-focus", "enable"],
@@ -319,13 +349,20 @@ fn docgen_writes_the_help_of_every_subcommand_in_a_text_fence() {
             "flip-layout.md",
             "focus.md",
             "layout-ratios.md",
+            "load-resize.md",
             "log.md",
             "monitor-information.md",
             "mouse-follows-focus.md",
             "move.md",
             "preselect-direction.md",
             "query.md",
+            "quick-load-resize.md",
+            "quick-save-resize.md",
+            "resize-axis.md",
+            "resize-delta.md",
+            "resize-edge.md",
             "retile.md",
+            "save-resize.md",
             "scrolling-layout-columns.md",
             "start.md",
             "state.md",

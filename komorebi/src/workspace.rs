@@ -33,6 +33,7 @@ pub struct Workspace {
     pub workspace_padding: Option<i32>,
     pub container_padding: Option<i32>,
     pub latest_layout: Vec<Rect>,
+    pub resize_dimensions: Vec<Option<Rect>>,
     pub tile: bool,
     #[serde(skip)]
     pub globals: WorkspaceGlobals,
@@ -48,6 +49,7 @@ impl Default for Workspace {
             containers: Default::default(),
             workspace_padding: None,
             container_padding: None,
+            resize_dimensions: vec![],
             layout: Layout::Default(DefaultLayout::BSP),
             latest_layout: vec![],
             layout_flip: None,
@@ -206,6 +208,12 @@ impl Workspace {
             .containers_mut()
             .insert_respecting_locks(idx, container);
 
+        if insertion_idx > self.resize_dimensions.len() {
+            self.resize_dimensions.push(None);
+        } else {
+            self.resize_dimensions.insert(insertion_idx, None);
+        }
+
         self.focus_container(insertion_idx);
 
         insertion_idx
@@ -289,7 +297,13 @@ impl Workspace {
     // this fn respects locked container indexes - we should use it for pretty much everything
     // except monocle and maximize toggles
     pub fn remove_container_by_idx(&mut self, idx: usize) -> Option<Container> {
-        self.containers_mut().remove_respecting_locks(idx)
+        let container = self.containers_mut().remove_respecting_locks(idx);
+
+        if idx < self.resize_dimensions.len() {
+            self.resize_dimensions.remove(idx);
+        }
+
+        container
     }
 
     pub fn focus_previous_container(&mut self) {
@@ -356,8 +370,9 @@ impl Workspace {
     /// part of the window is in view is first centered in the work area. A workspace whose tiling
     /// is off ([`Workspace::tile`] is false) moves no window.
     ///
-    /// The tiles are kept in [`Workspace::latest_layout`], which the scrolling layout scrolls
-    /// from.
+    /// The layout applies the resize adjustment of each container ([`Workspace::resize_dimensions`])
+    /// after the parts its layout cannot apply have been cleared. The tiles are kept in
+    /// [`Workspace::latest_layout`], which the scrolling layout scrolls from.
     pub fn update(&mut self) -> eyre::Result<()> {
         // make sure we are never holding on to empty containers
         self.prune_duplicate_windows()?;
@@ -396,6 +411,8 @@ impl Workspace {
 
         adjusted_work_area.add_padding(workspace_padding);
 
+        self.enforce_resize_constraints();
+
         if self.tile {
             // the backend batches the commands this produces and sends them together
             let result = (|| -> eyre::Result<()> {
@@ -407,12 +424,13 @@ impl Workspace {
                         )?,
                         Some(container_padding),
                         self.layout_flip,
-                        &[],
+                        &self.resize_dimensions,
                         self.focused_container_idx(),
                         self.layout_options,
                         &self.latest_layout,
                     );
 
+                    let resize_dimensions_is_empty = self.resize_dimensions.is_empty();
                     let is_scrolling =
                         matches!(self.layout, Layout::Default(DefaultLayout::Scrolling));
 
@@ -459,7 +477,8 @@ impl Workspace {
 
                                 let percentage_override = proposed_percentage == 0.0
                                     && current_percentage > 0.1
-                                    && current_percentage < 100.0;
+                                    && current_percentage < 100.0
+                                    && resize_dimensions_is_empty;
 
                                 if percentage_override {
                                     window.center(&work_area)?;
@@ -478,7 +497,293 @@ impl Workspace {
             result?;
         }
 
+        // Always make sure that the length of the resize dimensions vec is the same as the
+        // number of layouts / containers. This should never actually truncate as the remove_window
+        // function takes care of cleaning up resize dimensions when destroying empty containers
+        let container_count = self.containers().len();
+        self.resize_dimensions.resize(container_count, None);
+
         Ok(())
+    }
+}
+
+impl Workspace {
+    fn enforce_resize_constraints(&mut self) {
+        match self.layout {
+            Layout::Default(DefaultLayout::BSP) => self.enforce_resize_constraints_for_bsp(),
+            Layout::Default(DefaultLayout::Columns) => self.enforce_resize_for_columns(),
+            Layout::Default(DefaultLayout::Rows) => self.enforce_resize_for_rows(),
+            Layout::Default(DefaultLayout::VerticalStack) => {
+                self.enforce_resize_for_vertical_stack();
+            }
+            Layout::Default(DefaultLayout::RightMainVerticalStack) => {
+                self.enforce_resize_for_right_vertical_stack();
+            }
+            Layout::Default(DefaultLayout::HorizontalStack) => {
+                self.enforce_resize_for_horizontal_stack();
+            }
+            Layout::Default(DefaultLayout::UltrawideVerticalStack) => {
+                self.enforce_resize_for_ultrawide();
+            }
+            Layout::Default(DefaultLayout::Scrolling) => {
+                self.enforce_resize_for_scrolling();
+            }
+            _ => self.enforce_no_resize(),
+        }
+    }
+
+    fn enforce_resize_constraints_for_bsp(&mut self) {
+        for (i, rect) in self.resize_dimensions.iter_mut().enumerate() {
+            if let Some(rect) = rect {
+                // Even containers can't be resized to the bottom
+                if i % 2 == 0 {
+                    rect.bottom = 0;
+                    // Odd containers can't be resized to the right
+                } else {
+                    rect.right = 0;
+                }
+            }
+        }
+
+        // The first container can never be resized to the left or the top
+        if let Some(Some(first)) = self.resize_dimensions.first_mut() {
+            first.top = 0;
+            first.left = 0;
+        }
+
+        // The last container can never be resized to the bottom or the right
+        if let Some(Some(last)) = self.resize_dimensions.last_mut() {
+            last.bottom = 0;
+            last.right = 0;
+        }
+    }
+
+    fn enforce_resize_for_columns(&mut self) {
+        let resize_dimensions = &mut self.resize_dimensions;
+        match resize_dimensions.len() {
+            0 | 1 => self.enforce_no_resize(),
+            _ => {
+                let len = resize_dimensions.len();
+                for (i, rect) in resize_dimensions.iter_mut().enumerate() {
+                    if let Some(rect) = rect {
+                        rect.top = 0;
+                        rect.bottom = 0;
+
+                        if i == 0 {
+                            rect.left = 0;
+                        }
+                        if i == len - 1 {
+                            rect.right = 0;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    fn enforce_resize_for_rows(&mut self) {
+        let resize_dimensions = &mut self.resize_dimensions;
+        match resize_dimensions.len() {
+            0 | 1 => self.enforce_no_resize(),
+            _ => {
+                let len = resize_dimensions.len();
+                for (i, rect) in resize_dimensions.iter_mut().enumerate() {
+                    if let Some(rect) = rect {
+                        rect.left = 0;
+                        rect.right = 0;
+
+                        if i == 0 {
+                            rect.top = 0;
+                        }
+                        if i == len - 1 {
+                            rect.bottom = 0;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    fn enforce_resize_for_vertical_stack(&mut self) {
+        let resize_dimensions = &mut self.resize_dimensions;
+        match resize_dimensions.len() {
+            // Single window can not be resized at all
+            0 | 1 => self.enforce_no_resize(),
+            _ => {
+                // Zero is actually on the left
+                if let Some(left) = resize_dimensions[0].as_mut() {
+                    left.top = 0;
+                    left.bottom = 0;
+                    left.left = 0;
+                }
+
+                // Handle stack on the right
+                let stack_size = resize_dimensions[1..].len();
+                for (i, rect) in resize_dimensions[1..].iter_mut().enumerate() {
+                    if let Some(rect) = rect {
+                        // No containers can resize to the right
+                        rect.right = 0;
+
+                        // First container in stack cant resize up
+                        if i == 0 {
+                            rect.top = 0;
+                        } else if i == stack_size - 1 {
+                            // Last cant be resized to the bottom
+                            rect.bottom = 0;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    fn enforce_resize_for_right_vertical_stack(&mut self) {
+        let resize_dimensions = &mut self.resize_dimensions;
+        match resize_dimensions.len() {
+            // Single window can not be resized at all
+            0 | 1 => self.enforce_no_resize(),
+            _ => {
+                // Zero is actually on the right
+                if let Some(left) = resize_dimensions[1].as_mut() {
+                    left.top = 0;
+                    left.bottom = 0;
+                    left.right = 0;
+                }
+
+                // Handle stack on the right
+                let stack_size = resize_dimensions[1..].len();
+                for (i, rect) in resize_dimensions[1..].iter_mut().enumerate() {
+                    if let Some(rect) = rect {
+                        // No containers can resize to the left
+                        rect.left = 0;
+
+                        // First container in stack cant resize up
+                        if i == 0 {
+                            rect.top = 0;
+                        } else if i == stack_size - 1 {
+                            // Last cant be resized to the bottom
+                            rect.bottom = 0;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    fn enforce_resize_for_horizontal_stack(&mut self) {
+        let resize_dimensions = &mut self.resize_dimensions;
+        match resize_dimensions.len() {
+            0 | 1 => self.enforce_no_resize(),
+            _ => {
+                if let Some(left) = resize_dimensions[0].as_mut() {
+                    left.top = 0;
+                    left.left = 0;
+                    left.right = 0;
+                }
+
+                let stack_size = resize_dimensions[1..].len();
+                for (i, rect) in resize_dimensions[1..].iter_mut().enumerate() {
+                    if let Some(rect) = rect {
+                        rect.bottom = 0;
+
+                        if i == 0 {
+                            rect.left = 0;
+                        }
+                        if i == stack_size - 1 {
+                            rect.right = 0;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    fn enforce_resize_for_ultrawide(&mut self) {
+        let resize_dimensions = &mut self.resize_dimensions;
+        match resize_dimensions.len() {
+            // Single window can not be resized at all
+            0 | 1 => self.enforce_no_resize(),
+            // Two windows can only be resized in the middle
+            2 => {
+                // Zero is actually on the right
+                if let Some(right) = resize_dimensions[0].as_mut() {
+                    right.top = 0;
+                    right.bottom = 0;
+                    right.right = 0;
+                }
+
+                // One is on the left
+                if let Some(left) = resize_dimensions[1].as_mut() {
+                    left.top = 0;
+                    left.bottom = 0;
+                    left.left = 0;
+                }
+            }
+            // Three or more windows means 0 is in center, 1 is at the left, 2.. are a vertical
+            // stack on the right
+            _ => {
+                // Central can be resized left or right
+                if let Some(right) = resize_dimensions[0].as_mut() {
+                    right.top = 0;
+                    right.bottom = 0;
+                }
+
+                // Left one can only be resized to the right
+                if let Some(left) = resize_dimensions[1].as_mut() {
+                    left.top = 0;
+                    left.bottom = 0;
+                    left.left = 0;
+                }
+
+                // Handle stack on the right
+                let stack_size = resize_dimensions[2..].len();
+                for (i, rect) in resize_dimensions[2..].iter_mut().enumerate() {
+                    if let Some(rect) = rect {
+                        // No containers can resize to the right
+                        rect.right = 0;
+
+                        // First container in stack cant resize up
+                        if i == 0 {
+                            rect.top = 0;
+                        } else if i == stack_size - 1 {
+                            // Last cant be resized to the bottom
+                            rect.bottom = 0;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    fn enforce_resize_for_scrolling(&mut self) {
+        let resize_dimensions = &mut self.resize_dimensions;
+        match resize_dimensions.len() {
+            0 | 1 => self.enforce_no_resize(),
+            _ => {
+                let len = resize_dimensions.len();
+
+                for (i, rect) in resize_dimensions.iter_mut().enumerate() {
+                    if let Some(rect) = rect {
+                        rect.top = 0;
+                        rect.bottom = 0;
+
+                        if i == 0 {
+                            rect.left = 0;
+                        } else if i == len - 1 {
+                            rect.right = 0;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    fn enforce_no_resize(&mut self) {
+        for rect in self.resize_dimensions.iter_mut().flatten() {
+            rect.left = 0;
+            rect.right = 0;
+            rect.top = 0;
+            rect.bottom = 0;
+        }
     }
 }
 
@@ -1015,6 +1320,118 @@ mod tests {
         let focused_container = workspace.focused_container_mut().unwrap();
         assert_eq!(focused_container.focused_window().unwrap().id, 1);
         assert_eq!(focused_container.focused_window_idx(), 1);
+    }
+
+    #[test]
+    fn test_layout_boundary_clamping() {
+        use crate::core::Rect;
+        use komorebi_layouts::default_layout::DefaultLayout;
+        use std::num::NonZeroUsize;
+
+        // Simulate an ultrawide monitor at 5120px width
+        let work_area = Rect {
+            left: 0,
+            top: 0,
+            right: 5120,
+            bottom: 1440,
+        };
+
+        // Create a workspace with 2 containers in Columns layout
+        let layout = Layout::Default(DefaultLayout::Columns);
+
+        // Simulate a resize adjustment that would cause overflow
+        // Container 0 gets expanded by 2100px to the right
+        let resize_dimensions = vec![
+            Some(Rect {
+                left: 0,
+                top: 0,
+                right: 2100,
+                bottom: 0,
+            }),
+            None,
+        ];
+
+        // Calculate the layout
+        let mut layouts = layout.as_boxed_arrangement().calculate(
+            &work_area,
+            NonZeroUsize::new(2).unwrap(),
+            None,
+            None,
+            &resize_dimensions,
+            0,
+            None,
+            &[],
+        );
+
+        // Apply boundary clamping (mimicking the logic in workspace.rs update())
+        for layout in &mut layouts {
+            // Check horizontal boundaries
+            if layout.left < work_area.left {
+                layout.right -= work_area.left - layout.left;
+                layout.left = work_area.left;
+            }
+            let max_right_edge = work_area.left + work_area.right;
+            let current_right_edge = layout.left + layout.right;
+            if current_right_edge > max_right_edge {
+                layout.right = max_right_edge - layout.left;
+            }
+
+            // Check vertical boundaries
+            if layout.top < work_area.top {
+                layout.bottom -= work_area.top - layout.top;
+                layout.top = work_area.top;
+            }
+            let max_bottom_edge = work_area.top + work_area.bottom;
+            let current_bottom_edge = layout.top + layout.bottom;
+            if current_bottom_edge > max_bottom_edge {
+                layout.bottom = max_bottom_edge - layout.top;
+            }
+        }
+
+        // Verify that all layouts stay within work area boundaries
+        for layout in &layouts {
+            // Horizontal bounds
+            assert!(
+                layout.left >= work_area.left,
+                "Layout left ({}) should be >= work_area left ({})",
+                layout.left,
+                work_area.left
+            );
+            let right_edge = layout.left + layout.right;
+            let max_right_edge = work_area.left + work_area.right;
+            assert!(
+                right_edge <= max_right_edge,
+                "Layout right edge ({}) should be <= work_area right edge ({})",
+                right_edge,
+                max_right_edge
+            );
+
+            // Vertical bounds
+            assert!(
+                layout.top >= work_area.top,
+                "Layout top ({}) should be >= work_area top ({})",
+                layout.top,
+                work_area.top
+            );
+            let bottom_edge = layout.top + layout.bottom;
+            let max_bottom_edge = work_area.top + work_area.bottom;
+            assert!(
+                bottom_edge <= max_bottom_edge,
+                "Layout bottom edge ({}) should be <= work_area bottom edge ({})",
+                bottom_edge,
+                max_bottom_edge
+            );
+        }
+
+        // Additionally verify that with the resize adjustment,
+        // the second container doesn't bleed beyond 5120
+        assert_eq!(layouts.len(), 2);
+        let container1_right_edge = layouts[1].left + layouts[1].right;
+        assert!(
+            container1_right_edge <= 5120,
+            "Container 1 right edge ({}) should not exceed monitor width (5120)",
+            container1_right_edge
+        );
     }
 
     fn tile(left: i32, top: i32, right: i32, bottom: i32) -> Rect {

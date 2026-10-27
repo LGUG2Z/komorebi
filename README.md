@@ -37,8 +37,8 @@ While it runs, the daemon takes messages on a Unix socket, `komorebi.sock` in
 `$XDG_RUNTIME_DIR/komorebi` (the local data directory when there is no runtime
 directory): a message can ask for the state of the window manager, ask which
 monitor, workspace or container has the focus, give the focus to another
-window, move the focused window to another tile, change the layout, retile
-every monitor, or stop the daemon. [`komorebi-client`](komorebi-client) writes them, and `komorebic`,
+window, move the focused window to another tile, change the layout, resize a
+tile, retile every monitor, or stop the daemon. [`komorebi-client`](komorebi-client) writes them, and `komorebic`,
 the command line, is how a person sends them. `komorebic start` runs the
 `komorebi` on the `PATH`, and passes it what follows a `--`. In a Plasma
 session:
@@ -137,8 +137,9 @@ one in the layout, or to the next one in the workspace's order, and `move` and
 `cycle-move` swap the focused container with that one and tile the workspace
 again. `change-layout`, `cycle-layout` and `flip-layout` tile the workspace in
 another layout, `layout-ratios` and `scrolling-layout-columns` tune it,
-`toggle-tiling` stops it moving windows and starts it again, and
-`preselect-direction` reserves a tile for the next window. The scrolling layout
+`toggle-tiling` stops it moving windows and starts it again,
+`preselect-direction` reserves a tile for the next window, and `resize-edge`
+and `resize-axis` move the edges of the focused tile. The scrolling layout
 is a strip of columns that runs past the edges of the monitor and scrolls to
 the window that has the focus.
 

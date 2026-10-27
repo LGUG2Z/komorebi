@@ -179,7 +179,7 @@ fn main() -> eyre::Result<()> {
     )?));
 
     wm.lock().init()?;
-    wm.lock().retile_all()?;
+    wm.lock().retile_all(false)?;
 
     listen_for_commands(wm.clone());
     listen_for_events(wm.clone());

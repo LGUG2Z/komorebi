@@ -27,7 +27,7 @@ its place here.
 - **Event**: what the compositor reports about a window: it was shown, destroyed, given
   the focus, minimized or restored ([`WindowManagerEvent`]).
 - **Message**: what a client sends the daemon on its socket, a [`SocketMessage`]: an order
-  (focus a window, move it, change the layout, retile, stop) or a question (the state, the monitors, one [`StateQuery`]).
+  (focus a window, move it, change the layout, resize it, retile, stop) or a question (the state, the monitors, one [`StateQuery`]).
 - **Direction**: where an order goes from the focused container: a side of its tile
   ([`OperationDirection`]), or the next or the previous container of the workspace
   ([`CycleDirection`]).
@@ -285,6 +285,16 @@ focused container has changed, which scrolls the strip to it. KWin keeps part of
 resizes on an output, so the bridge asks again for the position of a window KWin pulled back
 within a second of the command, three times at most ([`bridge.js`]'s `settle`).
 
+`ResizeWindowEdge` and `ResizeWindowAxis` resize the focused container
+([`WindowManager::resize_window`]). A resize is an adjustment of the container's tile, kept in
+[`Workspace::resize_dimensions`], one per container, which the layout applies when it calculates
+the tiles; before every tiling, the workspace clears the parts of each adjustment that its layout
+cannot apply, such as the top and the bottom of a column. The adjustment is the one
+`komorebi-layouts` gives for the edge and [`WindowManager::resize_delta`], cut down until no tile
+would be smaller than a tenth of the work area, or than it is already. The adjustments are kept
+until a `Retile`, which drops them; `RetileWithResizeDimensions` tiles with them, and `Save`,
+`Load`, `QuickSave` and `QuickLoad` write them to a file as JSON and read them back.
+
 `PreselectDirection` reserves the index on one side of the focused container for the next
 window ([`WindowManager::preselect_container_in_direction`]). The workspace inserts an empty
 container there ([`Container::preselect`]), which [`Workspace::update`] keeps and the layout
@@ -342,7 +352,8 @@ module's unit.
   changes its containers.
 - [`window_manager`](../../komorebi/src/window_manager.rs): the [`WindowManager`] and the
   operations on it (tile the workspace in front, tile every monitor, take a minimized
-  window out, move the focus, move the focused container, change the layout).
+  window out, move the focus, move the focused container, change the layout, resize the
+  focused container).
 - [`desktop`](../../komorebi/src/desktop.rs): loads the monitors and the open windows from
   the backend.
 - [`window_manager_event`](../../komorebi/src/window_manager_event.rs) and
@@ -426,6 +437,7 @@ the fake. The window manager is its only caller, through [`backend`]. The contra
 | A daemon that is told to stop leaves no socket behind | framework path: [`WindowManager::stop`] removes it before it exits | `the_daemon_answers_on_its_socket_and_stops_when_it_is_told_to` | `SIGKILL` |
 | A container moved onto a locked index is locked in its place, and the lock leaves the container that moved away | framework path: [`Workspace::swap_containers`] swaps through `LockableSequence`, which keeps the lock with the index | `test_swap_respecting_locks_various_cases`, `a_lock_stays_with_its_index_when_a_window_is_moved_onto_it` | `containers_mut()` is the `VecDeque` itself |
 | A window komorebi puts off the screen stays there | framework path: the bridge asks again for the position of a window KWin pulled back after a `geo` command, for a second, three times at most | `a window KWin pulls back from where it was asked to be is asked for the position again`, `a window that cannot go where it was asked is asked again three times at most`, `vm-scrolling` | a window that cannot go where it was asked is left where KWin put it |
+| A resize leaves no tile smaller than a tenth of the work area, or than it was | framework path: [`WindowManager::resize_window`] calculates the tiles for the adjustment, and cuts the adjustment down until they all fit | `a_resize_leaves_every_tile_about_a_tenth_of_the_work_area_wide_at_least` | the paddings are taken off afterwards, so a tile can end up a little smaller |
 | A workspace whose tiling is off moves no window | framework path: [`Workspace::update`] returns before the layout when [`Workspace::tile`] is false | `with_tiling_off_no_window_is_moved_until_it_is_back_on` | none |
 | Moving the focus moves no window | test | `focus_gives_the_focus_to_the_window_on_that_side_and_moves_nothing`, `vm-core-e2e` ("moving the focus moved no window") | none |
 | A subscriber that is gone is dropped, not retried | test | `a_subscriber_that_is_gone_is_dropped_and_not_tried_again` | none |
@@ -541,7 +553,7 @@ A window is shown, and ends up on a tile:
   commands against the fake;
   [`komorebi/tests/layout_options.rs`](../../komorebi/tests/layout_options.rs) and
   [`komorebi/tests/scrolling.rs`](../../komorebi/tests/scrolling.rs), the layout options and the
-  scrolling layout.
+  scrolling layout; [`komorebi/tests/resize.rs`](../../komorebi/tests/resize.rs), resizing.
 - [`nix/tests/vm/suites/scrolling`](../../nix/tests/vm/suites/scrolling/test.py): the scrolling
   strip in a real KWin, with its columns out of view off the screen.
 - [`nix/tests/vm/suites/commands`](../../nix/tests/vm/suites/commands/test.py): every layout,
@@ -579,6 +591,9 @@ A window is shown, and ends up on a tile:
 [`Workspace::swap_containers`]: ../../komorebi/src/workspace.rs
 [`Workspace::layout_flip`]: ../../komorebi/src/workspace.rs
 [`Workspace::layout_options`]: ../../komorebi/src/workspace.rs
+[`Workspace::resize_dimensions`]: ../../komorebi/src/workspace.rs
+[`WindowManager::resize_window`]: ../../komorebi/src/window_manager.rs
+[`WindowManager::resize_delta`]: ../../komorebi/src/window_manager.rs
 [`Workspace::latest_layout`]: ../../komorebi/src/workspace.rs
 [`LayoutOptions`]: ../../komorebi/src/core/mod.rs
 [`Workspace::tile`]: ../../komorebi/src/workspace.rs
